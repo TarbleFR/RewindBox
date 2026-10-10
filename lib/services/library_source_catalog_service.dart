@@ -1327,9 +1327,10 @@ class LibrarySourceCatalogService {
   /// Forgets the catalogue [url] (its [LibraryCatalogPreview.catalogUrl], or
   /// any address resolving to it; an origin recorded by older imports such
   /// as `…/index.min.json` also works). With [deactivateSources], the sources
-  /// activated from it are removed too (other catalogues' sources stay; a
-  /// source also offered by another catalogue only loses this origin).
-  /// Returns the number of removed sources.
+  /// whose installed version came from it (primary origin) are removed too,
+  /// even when another catalogue also lists them. A source installed from
+  /// another catalogue that merely recorded this one as a secondary origin
+  /// only loses that origin. Returns the number of removed sources.
   Future<int> forget(String url, {bool deactivateSources = false}) {
     return _locked(() async {
       final targets = <String>{url.trim()}..remove('');
