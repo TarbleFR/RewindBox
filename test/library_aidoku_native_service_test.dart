@@ -263,6 +263,43 @@ void main() {
       expect(fake.modes, everyElement(LibraryFetchMode.cacheOnly));
     });
 
+    test('cachedCatalogPage gives null for an unusable cached body', () async {
+      final fake = FakeLibraryFetcher()
+        ..post(
+          'https://mangas-origines.fr/wp-admin/admin-ajax.php',
+          body: '<html>maintenance</html>',
+        );
+      final modes = <LibraryFetchMode>[];
+      // Serves the same body whatever the mode, as a cache holding it would.
+      final service = LibraryAidokuNativeService(
+        fetcher: (request, {mode = LibraryFetchMode.cacheFirst, cancel}) {
+          modes.add(mode);
+          return fake.call(request, cancel: cancel);
+        },
+      );
+      final addon = aidokuAddon('fr.mangasorigines');
+
+      // The network answer is not JSON: loadCatalogPage reports it ...
+      await expectLater(
+        service.loadCatalogPage(addon, query: 'solo'),
+        throwsA(
+          isA<LibrarySourceException>().having(
+            (error) => error.kind,
+            'kind',
+            LibrarySourceErrorKind.parseFailed,
+          ),
+        ),
+      );
+      // ... and the cache-only helper treats the same body as unusable.
+      expect(await service.cachedCatalogPage(addon, query: 'solo'), isNull);
+      expect(modes.last, LibraryFetchMode.cacheOnly);
+      expect(
+        await service.cachedCatalogPage(aidokuAddon('fr.phenixscans')),
+        isNull,
+      );
+      expect(fake.requests, hasLength(2));
+    });
+
     test('details are reused for a short time, refresh asks again', () async {
       var now = DateTime.utc(2026, 10, 10, 21);
       final fake = FakeLibraryFetcher()

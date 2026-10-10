@@ -350,7 +350,8 @@ class LibraryAidokuNativeService {
   }
 
   /// The cached version of a catalogue page without network access, or null
-  /// when nothing usable is cached.
+  /// when nothing usable is cached (cache miss, unsupported source, or a
+  /// cached body the adapter no longer understands).
   Future<LibraryMangaCatalogPage?> cachedCatalogPage(
     LibraryAddon addon, {
     int page = 1,
@@ -366,6 +367,8 @@ class LibraryAidokuNativeService {
         mode: LibraryFetchMode.cacheOnly,
       );
     } on LibraryNetworkException {
+      return null;
+    } on LibrarySourceException {
       return null;
     }
   }
