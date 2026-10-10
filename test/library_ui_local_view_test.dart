@@ -202,6 +202,8 @@ Future<void> _openMenu(WidgetTester tester, String title) async {
 }
 
 void main() {
+  _coveredSectionTests();
+
   final alpha = _book('a', 'Alpha', LibraryBookFormat.epub, size: 300 * 1024);
   final bravo = _book('b', 'Bravo', LibraryBookFormat.pdf, size: 100 * 1024);
   final charlie = _book(
@@ -597,6 +599,69 @@ void main() {
     await tester.pumpAndSettle();
     expect(host.opened.last.id, alpha.id);
 
+    expect(host.controller.back(), isFalse, reason: 'back to the hub');
+  });
+}
+
+void _coveredSectionTests() {
+  final alpha = _book('a', 'Alpha', LibraryBookFormat.epub);
+
+  testWidgets('controller input never reaches the view behind an import', (
+    tester,
+  ) async {
+    final host = await _pump(tester, <LibraryLocalBook>[alpha]);
+    host.library
+      ..progressSteps = <LibraryImportProgress>[
+        for (var step = 0; step < 4; step++)
+          const LibraryImportProgress(
+            index: 0,
+            total: 1,
+            sourceName: 'Fondation.epub',
+            stage: LibraryImportStage.inspecting,
+          ),
+      ]
+      ..nextImport = <LibraryImportOutcome>[
+        LibraryImportOutcome(
+          sourceName: 'Fondation.epub',
+          book: _book('f', 'Fondation', LibraryBookFormat.epub),
+        ),
+      ];
+
+    await tester.tap(find.byKey(const ValueKey<String>('import-button')));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('import-progress')),
+      findsOneWidget,
+    );
+
+    // A, d-pad and B while the overlay is open: nothing behind it moves,
+    // opens or goes back to the hub.
+    for (var press = 0; press < 3; press++) {
+      expect(host.controller.activate(), isTrue);
+      await tester.pump();
+      expect(host.controller.navigate(0, 1), isTrue);
+      await tester.pump();
+    }
+    expect(host.controller.secondary(), isTrue);
+    expect(host.controller.back(), isTrue);
+    await tester.pump();
+    expect(host.backs, 0);
+    expect(host.opened, isEmpty);
+    expect(find.text('Delete the imported copy'), findsNothing);
+    final focused = FocusManager.instance.primaryFocus?.context;
+    expect(
+      focused == null ||
+          focused.findAncestorWidgetOfExactType<LibraryLocalView>() == null,
+      isTrue,
+      reason: 'the focus stays out of the covered view',
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Import results'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    // Uncovered again: the controller drives the view.
     expect(host.controller.back(), isFalse, reason: 'back to the hub');
   });
 }

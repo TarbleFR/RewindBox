@@ -250,8 +250,19 @@ class LibraryFocusSectionDelegate implements LibraryGamepadViewDelegate {
   /// X button; returns whether it did something.
   final bool Function()? onSecondary;
 
+  /// True while another route covers the section (a dialog or sheet without
+  /// its own controller layer): the input is swallowed so it never moves
+  /// the focus to, or activates, a control hidden behind that route, and B
+  /// does not switch the Library behind it.
+  bool get _covered {
+    final context = scope.context;
+    if (context == null || !context.mounted) return true;
+    return !(ModalRoute.isCurrentOf(context) ?? true);
+  }
+
   @override
   bool navigate(int dx, int dy) {
+    if (_covered) return true;
     final direction = dy < 0
         ? TraversalDirection.up
         : dy > 0
@@ -265,6 +276,7 @@ class LibraryFocusSectionDelegate implements LibraryGamepadViewDelegate {
 
   @override
   bool activate() {
+    if (_covered) return true;
     if (!LibraryFocusNavigation.activate(scope)) {
       LibraryFocusNavigation.showFocus();
       LibraryFocusNavigation.focusFirst(scope);
@@ -274,6 +286,7 @@ class LibraryFocusSectionDelegate implements LibraryGamepadViewDelegate {
 
   @override
   bool back() {
+    if (_covered) return true;
     if (LibraryFocusNavigation.editingText(scope)) {
       FocusManager.instance.primaryFocus?.unfocus();
       return true;
@@ -282,7 +295,10 @@ class LibraryFocusSectionDelegate implements LibraryGamepadViewDelegate {
   }
 
   @override
-  bool secondary() => onSecondary?.call() ?? false;
+  bool secondary() {
+    if (_covered) return true;
+    return onSecondary?.call() ?? false;
+  }
 }
 
 class _LibrarySourcesViewState extends State<LibrarySourcesView> {

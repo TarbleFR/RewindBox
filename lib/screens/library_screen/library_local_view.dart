@@ -321,7 +321,14 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
           barrierDismissible: false,
           builder: (_) => PopScope(
             canPop: false,
-            child: _ImportProgressDialog(progress: progress),
+            // Holds the controller while the import runs (it cannot be
+            // cancelled): nothing behind the overlay can be activated.
+            child: LibraryFocusGamepadLayer(
+              enableGamepad: widget.enableGamepad,
+              debugLabel: 'local_import_progress',
+              onBack: () {},
+              child: _ImportProgressDialog(progress: progress),
+            ),
           ),
         ).whenComplete(() => overlayOpen = false),
       );
