@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'library_http.dart';
 
 enum LibrarySourceKind { catalog, localLibrary, metadataOnly }
 
@@ -23,6 +26,12 @@ class LibraryAddon {
   static const String tachiyomiProviderType = 'tachiyomi-extension-repository';
   static const String aidokuProviderType = 'aidoku-source-repository';
   static const String gallicaProviderType = 'gallica-opds';
+
+  /// Aidoku content rating scale (`SourceContentRating`), also used for the
+  /// legacy `nsfw` field: 0 safe, 1 contains NSFW, 2 primarily NSFW.
+  static const int contentRatingSafe = 0;
+  static const int contentRatingContainsNsfw = 1;
+  static const int contentRatingPrimarilyNsfw = 2;
 
   final String id;
   final String name;
@@ -79,6 +88,258 @@ class LibraryAddon {
       if (value != null && value.isNotEmpty) return value;
     }
     return null;
+  }
+
+  /// Every language declared by the source (Aidoku `languages`), falling back
+  /// to the single [language] recorded by older imports.
+  List<String> get languages {
+    final provider = manifest['provider'];
+    final declared = stringList(
+      provider is Map ? provider['languages'] : manifest['languages'],
+    );
+    if (declared.isNotEmpty) return declared;
+    final single = language;
+    return single == null ? const <String>[] : <String>[single];
+  }
+
+  /// Normalized content rating: [contentRatingSafe],
+  /// [contentRatingContainsNsfw] or [contentRatingPrimarilyNsfw], resolved
+  /// like Aidoku as `contentRating ?? nsfw ?? safe`.
+  int get contentRating {
+    final provider = manifest['provider'];
+    final source = provider is Map ? provider : const <String, dynamic>{};
+    return _parseContentRating(source['contentRating']) ??
+        _parseContentRating(source['nsfw']) ??
+        _parseContentRating(manifest['contentRating']) ??
+        _parseContentRating(manifest['nsfw']) ??
+        contentRatingSafe;
+  }
+
+  /// Alternative source names (localizations) published by Aidoku catalogues.
+  List<String> get altNames {
+    final provider = manifest['provider'];
+    return provider is Map ? stringList(provider['altNames']) : const [];
+  }
+
+  /// Website of the source itself, never the repository that published it.
+  ///
+  /// Older Aidoku imports stored the repository folder as `baseUrl` when the
+  /// list had no `baseURL`; that folder is not reported as a website.
+  String? get websiteUrl {
+    final provider = manifest['provider'];
+    if (provider is Map) {
+      final website = httpsUrlOrNull(provider['website']);
+      if (website != null) return website;
+      if (provider.containsKey('website') && isAidokuRepositorySource) {
+        return null;
+      }
+    }
+    final base = baseUrl;
+    if (base == null) return null;
+    if (isAidokuRepositorySource) {
+      final origin = Uri.tryParse(repositoryOrigin);
+      if (origin != null &&
+          origin.hasScheme &&
+          origin.resolve('.').toString() == base) {
+        return null;
+      }
+    }
+    return base;
+  }
+
+  /// Aidoku source identifier (`info.id`), independent of the add-on id.
+  String? get aidokuSourceId {
+    if (!isAidokuRepositorySource) return null;
+    final provider = manifest['provider'];
+    if (provider is Map) {
+      final value = provider['sourceId']?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return id.startsWith('aidoku.') ? id.substring('aidoku.'.length) : null;
+  }
+
+  /// Every catalogue known to publish this source, primary origin first.
+  List<String> get repositoryOrigins {
+    final result = <String>[repositoryOrigin];
+    final provider = manifest['provider'];
+    if (provider is Map) {
+      for (final value in stringList(provider['repositoryOrigins'])) {
+        if (!result.contains(value)) result.add(value);
+      }
+    }
+    return List.unmodifiable(result);
+  }
+
+  /// Integer version used by Aidoku catalogues, or null for free-form
+  /// versions such as `1.0.0`.
+  int? get versionNumber => int.tryParse(version.trim());
+
+  /// Returns the same installation with another manifest (origin and
+  /// installation date are kept).
+  LibraryAddon copyWithManifest(Map<String, dynamic> manifest) =>
+      LibraryAddon.fromManifest(
+        manifest,
+        origin: origin,
+        installedAt: installedAt,
+      );
+
+  /// Resolves an Aidoku-style rating: [contentRating] first, then [nsfw],
+  /// then safe. Accepts numbers, numeric strings, booleans and the Aidoku /
+  /// Tachiyomi names (`safe`, `containsNsfw`, `primarilyNsfw`,
+  /// `CONTENT_WARNING_NSFW`...). Unknown values fall through to the next one;
+  /// values above 2 are clamped to [contentRatingPrimarilyNsfw].
+  static int normalizeContentRating(Object? contentRating, [Object? nsfw]) =>
+      _parseContentRating(contentRating) ??
+      _parseContentRating(nsfw) ??
+      contentRatingSafe;
+
+  static int? _parseContentRating(Object? value) {
+    if (value == null) return null;
+    if (value is bool) {
+      return value ? contentRatingContainsNsfw : contentRatingSafe;
+    }
+    if (value is num) {
+      if (!value.isFinite) return null;
+      final rounded = value.ceil();
+      if (rounded < 0) return null;
+      return rounded > contentRatingPrimarilyNsfw
+          ? contentRatingPrimarilyNsfw
+          : rounded;
+    }
+    final raw = value.toString().trim().toLowerCase();
+    if (raw.isEmpty) return null;
+    final numeric = num.tryParse(raw);
+    if (numeric != null) return _parseContentRating(numeric);
+    final compact = raw.replaceAll(RegExp(r'[\s_\-]'), '');
+    switch (compact) {
+      case 'safe':
+      case 'sfw':
+      case 'none':
+      case 'false':
+      case 'no':
+      case 'contentwarningnone':
+        return contentRatingSafe;
+      case 'containsnsfw':
+      case 'nsfw':
+      case 'mature':
+      case 'suggestive':
+      case 'true':
+      case 'yes':
+      case 'contentwarningnsfw':
+        return contentRatingContainsNsfw;
+      case 'primarilynsfw':
+      case 'adult':
+      case 'explicit':
+      case 'pornographic':
+        return contentRatingPrimarilyNsfw;
+    }
+    return null;
+  }
+
+  /// Non-empty, trimmed, de-duplicated strings of a JSON list.
+  static List<String> stringList(Object? value) {
+    if (value is! List) return const <String>[];
+    final result = <String>[];
+    for (final item in value) {
+      if (item == null || item is Map || item is List) continue;
+      final text = item.toString().trim();
+      if (text.isNotEmpty && !result.contains(text)) result.add(text);
+    }
+    return List.unmodifiable(result);
+  }
+
+  /// [value] when it is an absolute HTTPS URL with a host, otherwise null.
+  static String? httpsUrlOrNull(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) return null;
+    final uri = Uri.tryParse(text);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return null;
+    return uri.toString();
+  }
+
+  /// Add-on id used for the Aidoku source [sourceId].
+  static String aidokuAddonId(String sourceId) {
+    var safe = sourceId
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    if (safe.length > 92) safe = safe.substring(0, 92);
+    if (safe.length < 2) safe = 'source';
+    return 'aidoku.$safe';
+  }
+
+  /// Builds the stored manifest of an Aidoku source.
+  ///
+  /// The source's own website is the `baseUrl` when it is known; otherwise
+  /// [fallbackBaseUrl] (an HTTPS location related to the catalogue) keeps the
+  /// manifest valid and `provider.website` stays null so the UI never shows a
+  /// repository as the site. No user-facing text is stored: the UI translates
+  /// labels from the structured fields.
+  static Map<String, dynamic> aidokuSourceManifest({
+    required String sourceId,
+    required String name,
+    required String version,
+    required List<String> languages,
+    required int contentRating,
+    required String repositoryOrigin,
+    String? websiteUrl,
+    String? fallbackBaseUrl,
+    String? iconUrl,
+    String? downloadUrl,
+    Object? file,
+    Object? nsfw,
+    List<String> altNames = const <String>[],
+    String? minAppVersion,
+    String? maxAppVersion,
+    List<String> repositoryOrigins = const <String>[],
+    String? catalogFormat,
+    String? catalogName,
+    String? packageSha256,
+    int? packageSize,
+    bool? legacyPackageFormat,
+  }) {
+    final website = httpsUrlOrNull(websiteUrl);
+    final sourceLang = languages.length == 1
+        ? languages.single
+        : (languages.isEmpty ? 'all' : 'multi');
+    final origins = <String>[];
+    for (final value in <String>[repositoryOrigin, ...repositoryOrigins]) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty && !origins.contains(trimmed)) {
+        origins.add(trimmed);
+      }
+    }
+    return <String, dynamic>{
+      'schema': schemaV1,
+      'id': aidokuAddonId(sourceId),
+      'name': name,
+      'version': version,
+      'baseUrl': ?(website ?? httpsUrlOrNull(fallbackBaseUrl)),
+      'icon': ?httpsUrlOrNull(iconUrl),
+      'description': '',
+      'iosCompatibility': 'metadata-only',
+      'provider': <String, dynamic>{
+        'type': aidokuProviderType,
+        'sourceId': sourceId,
+        'sourceLang': sourceLang,
+        'languages': List<String>.of(languages),
+        'contentRating': contentRating,
+        'nsfw': ?nsfw,
+        'downloadUrl': httpsUrlOrNull(downloadUrl),
+        'file': ?file,
+        'website': website,
+        if (altNames.isNotEmpty) 'altNames': List<String>.of(altNames),
+        'minAppVersion': ?minAppVersion,
+        'maxAppVersion': ?maxAppVersion,
+        'repositoryOrigin': repositoryOrigin,
+        if (origins.length > 1) 'repositoryOrigins': origins,
+        'catalogFormat': ?catalogFormat,
+        'catalogName': ?catalogName,
+        'packageSha256': ?packageSha256,
+        'packageSize': ?packageSize,
+        'legacyPackageFormat': ?legacyPackageFormat,
+      },
+    };
   }
 
   String? get androidPackage {
@@ -211,17 +472,40 @@ class LibraryAddon {
       );
     }
 
+    var description = manifest['description']?.toString().trim() ?? '';
+    if (_isGeneratedRepositoryDescription(description, manifest['provider'])) {
+      // Older builds persisted an English label ("Aidoku repository source •
+      // fr") as the description. It is not source-authored text, so it is not
+      // exposed; the UI builds a translated label from the structured fields.
+      description = '';
+    }
+
     return LibraryAddon(
       id: id,
       name: name,
       version: version,
       baseUrl: baseUrl,
-      description: manifest['description']?.toString().trim() ?? '',
+      description: description,
       iconUrl: iconUrl,
       origin: origin,
       installedAt: installedAt ?? DateTime.now(),
       manifest: Map<String, dynamic>.from(manifest),
     );
+  }
+
+  static bool _isGeneratedRepositoryDescription(
+    String description,
+    Object? provider,
+  ) {
+    if (description.isEmpty || provider is! Map) return false;
+    final type = provider['type'];
+    if (type == aidokuProviderType) {
+      return description.startsWith('Aidoku repository source •');
+    }
+    if (type == tachiyomiProviderType) {
+      return description.startsWith('Tachiyomi/Mihon repository source •');
+    }
+    return false;
   }
 
   static void _validateHttpsUrl(String value, {required String field}) {
@@ -279,10 +563,26 @@ class LibraryAddonBatchInstallResult {
   int get totalCount => addons.length;
 }
 
-class LibraryAddonException implements Exception {
-  const LibraryAddonException(this.message);
+/// Outcome of [LibraryAddonService.upsertAddons].
+class LibraryAddonUpsertResult {
+  const LibraryAddonUpsertResult({
+    required this.addedIds,
+    required this.updatedIds,
+  });
 
+  final List<String> addedIds;
+  final List<String> updatedIds;
+}
+
+class LibraryAddonException implements Exception {
+  const LibraryAddonException(this.message, {this.network});
+
+  /// Technical detail (English, untranslated).
   final String message;
+
+  /// Typed network failure behind this error, when there is one, so the UI
+  /// can show a translated explanation next to [message].
+  final LibraryNetworkException? network;
 
   @override
   String toString() => message;
@@ -290,6 +590,11 @@ class LibraryAddonException implements Exception {
 
 class LibraryAddonService {
   LibraryAddonService._();
+
+  /// Independent instance backed by the same preferences key (tests only; the
+  /// app uses [instance]).
+  @visibleForTesting
+  LibraryAddonService.forTesting();
 
   static final LibraryAddonService instance = LibraryAddonService._();
 
@@ -599,14 +904,15 @@ class LibraryAddonService {
     List<dynamic> entries, {
     required String origin,
   }) {
-    final originUri = Uri.tryParse(origin);
-    if (originUri == null ||
-        originUri.scheme != 'https' ||
-        originUri.host.isEmpty) {
-      throw const LibraryAddonException(
-        'Aidoku repository origin must use HTTPS.',
-      );
-    }
+    // Relative package/icon paths need an HTTPS origin. A list imported from
+    // a local file (origin `file:...`) still works when its URLs are absolute.
+    final parsedOrigin = Uri.tryParse(origin);
+    final originUri =
+        parsedOrigin != null &&
+            parsedOrigin.scheme == 'https' &&
+            parsedOrigin.host.isNotEmpty
+        ? parsedOrigin
+        : null;
 
     final result = <LibraryAddon>[];
     final seenIds = <String>{};
@@ -615,10 +921,12 @@ class LibraryAddonService {
       final value = raw?.toString().trim() ?? '';
       if (value.isEmpty) return null;
       final direct = Uri.tryParse(value);
-      if (direct != null && direct.hasScheme) {
+      if (direct == null) return null;
+      if (direct.hasScheme) {
         if (direct.scheme != 'https' || direct.host.isEmpty) return null;
         return direct.toString();
       }
+      if (originUri == null) return null;
       final relative = legacyFolder == null ? value : '$legacyFolder/$value';
       final resolved = originUri.resolve(relative);
       if (resolved.scheme != 'https' || resolved.host.isEmpty) return null;
@@ -641,12 +949,11 @@ class LibraryAddonService {
       final version = entry['version']?.toString().trim().isNotEmpty == true
           ? entry['version'].toString().trim()
           : '0';
-      final sourceLang = entry['lang']?.toString().trim().isNotEmpty == true
-          ? entry['lang'].toString().trim()
-          : ((entry['languages'] is List &&
-                    (entry['languages'] as List).isNotEmpty)
-                ? (entry['languages'] as List).first.toString()
-                : 'all');
+      var languages = LibraryAddon.stringList(entry['languages']);
+      if (languages.isEmpty) {
+        final lang = entry['lang']?.toString().trim() ?? '';
+        if (lang.isNotEmpty) languages = <String>[lang];
+      }
       final downloadUrl =
           resolveOptional(entry['downloadURL'] ?? entry['downloadUrl']) ??
           resolveOptional(entry['file'], legacyFolder: 'sources');
@@ -654,39 +961,39 @@ class LibraryAddonService {
       final iconUrl =
           resolveOptional(entry['iconURL'] ?? entry['iconUrl']) ??
           resolveOptional(entry['icon'], legacyFolder: 'icons');
-      final explicitBase = entry['baseURL'] ?? entry['baseUrl'];
-      final parsedBase = explicitBase == null
-          ? null
-          : Uri.tryParse(explicitBase.toString().trim());
-      final baseUrl =
-          parsedBase != null &&
-              parsedBase.scheme == 'https' &&
-              parsedBase.host.isNotEmpty
-          ? parsedBase.toString()
-          : originUri.resolve('.').toString();
+      // `baseURL` is the source's own site (new Aidoku index). Legacy lists do
+      // not publish it; the catalogue folder (or the package folder for a
+      // local list) only keeps the manifest valid and is never reported as
+      // the website.
+      final website = LibraryAddon.httpsUrlOrNull(
+        entry['baseURL'] ?? entry['baseUrl'],
+      );
+      final fallbackBase =
+          originUri?.resolve('.').toString() ??
+          Uri.parse(downloadUrl).resolve('.').toString();
 
-      final id = _aidokuAddonId(sourceId);
+      final id = LibraryAddon.aidokuAddonId(sourceId);
       if (!seenIds.add(id)) continue;
-      final manifest = <String, dynamic>{
-        'schema': LibraryAddon.schemaV1,
-        'id': id,
-        'name': sourceName,
-        'version': version,
-        'baseUrl': baseUrl,
-        if (iconUrl != null) 'icon': iconUrl,
-        'description': 'Aidoku repository source • $sourceLang',
-        'iosCompatibility': 'metadata-only',
-        'provider': <String, dynamic>{
-          'type': LibraryAddon.aidokuProviderType,
-          'sourceId': sourceId,
-          'sourceLang': sourceLang,
-          'downloadUrl': downloadUrl,
-          'file': entry['file'],
-          'nsfw': entry['nsfw'],
-          'contentRating': entry['contentRating'],
-          'repositoryOrigin': origin,
-        },
-      };
+      final manifest = LibraryAddon.aidokuSourceManifest(
+        sourceId: sourceId,
+        name: sourceName,
+        version: version,
+        languages: languages,
+        contentRating: LibraryAddon.normalizeContentRating(
+          entry['contentRating'],
+          entry['nsfw'],
+        ),
+        nsfw: entry['nsfw'],
+        repositoryOrigin: origin,
+        websiteUrl: website,
+        fallbackBaseUrl: fallbackBase,
+        iconUrl: iconUrl,
+        downloadUrl: downloadUrl,
+        file: entry['file'],
+        altNames: LibraryAddon.stringList(entry['altNames']),
+        minAppVersion: _optionalString(entry['minAppVersion']),
+        maxAppVersion: _optionalString(entry['maxAppVersion']),
+      );
       result.add(LibraryAddon.fromManifest(manifest, origin: origin));
     }
 
@@ -698,13 +1005,10 @@ class LibraryAddonService {
     return result;
   }
 
-  static String _aidokuAddonId(String sourceId) {
-    var safe = sourceId
-        .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
-        .replaceAll(RegExp(r'_+'), '_');
-    if (safe.length > 92) safe = safe.substring(0, 92);
-    if (safe.length < 2) safe = 'source';
-    return 'aidoku.$safe';
+  static String? _optionalString(Object? value) {
+    if (value == null || value is Map || value is List) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
   }
 
   static List<dynamic>? _extractModernKeiyoushiEntries(
@@ -893,8 +1197,9 @@ class LibraryAddonService {
           'name': sourceName,
           'version': version,
           'baseUrl': baseUrl,
-          'description':
-              'Tachiyomi/Mihon repository source • $sourceLang • $extensionName',
+          // No generated English label: the UI translates one from the
+          // provider fields below.
+          'description': '',
           'iosCompatibility': 'metadata-only',
           'provider': <String, dynamic>{
             'type': LibraryAddon.tachiyomiProviderType,
@@ -922,12 +1227,21 @@ class LibraryAddonService {
     return result;
   }
 
-  static bool _isRepositoryDeprecationPackage(String packageName) {
+  static bool _isRepositoryDeprecationPackage(String packageName) =>
+      isRepositoryDeprecationPackage(packageName);
+
+  /// Keiyoushi/Mihon pseudo-extensions that only warn about outdated apps.
+  static bool isRepositoryDeprecationPackage(String packageName) {
     return packageName == 'eu.kanade.tachiyomi.extension.all.keiyoushi' ||
         packageName == 'eu.kanade.tachiyomi.extension.all.mihon';
   }
 
-  static String _tachiyomiAddonId(String packageName, String sourceId) {
+  static String _tachiyomiAddonId(String packageName, String sourceId) =>
+      tachiyomiAddonId(packageName, sourceId);
+
+  /// Add-on id used for the Tachiyomi/Mihon source [sourceId] of the
+  /// extension [packageName].
+  static String tachiyomiAddonId(String packageName, String sourceId) {
     String clean(String value) => value
         .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
         .replaceAll(RegExp(r'_+'), '_');
@@ -998,6 +1312,50 @@ class LibraryAddonService {
     if (_addons.length == before) return false;
     await _persist();
     return true;
+  }
+
+  /// Installs or replaces (by id) exactly the given add-ons, then persists
+  /// once. Nothing else is installed or removed.
+  Future<LibraryAddonUpsertResult> upsertAddons(
+    List<LibraryAddon> incoming,
+  ) async {
+    await load();
+    final addedIds = <String>[];
+    final updatedIds = <String>[];
+    for (final addon in incoming) {
+      final existingIndex = _addons.indexWhere((item) => item.id == addon.id);
+      if (existingIndex >= 0) {
+        _addons[existingIndex] = addon;
+        if (!updatedIds.contains(addon.id) && !addedIds.contains(addon.id)) {
+          updatedIds.add(addon.id);
+        }
+      } else {
+        _addons.add(addon);
+        addedIds.add(addon.id);
+      }
+    }
+    if (incoming.isNotEmpty) {
+      _sortAddons();
+      await _persist();
+    }
+    return LibraryAddonUpsertResult(
+      addedIds: List.unmodifiable(addedIds),
+      updatedIds: List.unmodifiable(updatedIds),
+    );
+  }
+
+  /// Removes the add-ons with the given ids and returns how many were
+  /// removed. Reading progress and favourites are stored elsewhere and are
+  /// not affected.
+  Future<int> removeMany(Iterable<String> ids) async {
+    await load();
+    final targets = ids.toSet();
+    if (targets.isEmpty) return 0;
+    final before = _addons.length;
+    _addons.removeWhere((addon) => targets.contains(addon.id));
+    final removed = before - _addons.length;
+    if (removed > 0) await _persist();
+    return removed;
   }
 
   Future<void> _persist() async {

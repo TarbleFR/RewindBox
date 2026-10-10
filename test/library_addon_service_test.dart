@@ -140,7 +140,8 @@ void main() {
 
       final result = await LibraryAddonService.instance.installDocumentFromJson(
         raw,
-        origin: 'https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.json',
+        origin:
+            'https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.json',
       );
 
       expect(result.format, LibraryAddonDocumentFormat.tachiyomiRepository);
@@ -239,7 +240,8 @@ void main() {
 
       final result = await LibraryAddonService.instance.installDocumentFromJson(
         raw,
-        origin: 'https://raw.githubusercontent.com/example/aidoku/gh-pages/index.min.json',
+        origin:
+            'https://raw.githubusercontent.com/example/aidoku/gh-pages/index.min.json',
       );
 
       expect(result.format, LibraryAddonDocumentFormat.aidokuRepository);
@@ -305,7 +307,8 @@ void main() {
         'baseUrl': 'https://gallica.bnf.fr/',
         'provider': {'type': LibraryAddon.gallicaProviderType},
         'endpoints': {
-          'catalog': 'services/engine/search/opds?operation=searchRetrieve&version=1.2&maximumRecords=50',
+          'catalog':
+              'services/engine/search/opds?operation=searchRetrieve&version=1.2&maximumRecords=50',
         },
       });
 
@@ -317,6 +320,288 @@ void main() {
       expect(gallica.isBuiltIn, isFalse);
       expect(gallica.isGallicaSource, isTrue);
       expect(gallica.canBrowseOnIos, isTrue);
+    });
+  });
+
+  group('Normalized source metadata', () {
+    LibraryAddon aidoku(
+      Map<String, dynamic> provider, {
+      String baseUrl = 'https://example.com/',
+      String origin = 'https://example.com/index.min.json',
+      Map<String, dynamic> extra = const <String, dynamic>{},
+    }) => LibraryAddon.fromManifest({
+      'schema': LibraryAddon.schemaV1,
+      'id': 'aidoku.fr.example',
+      'name': 'Example',
+      'version': '3',
+      'baseUrl': baseUrl,
+      'iosCompatibility': 'metadata-only',
+      ...extra,
+      'provider': <String, dynamic>{
+        'type': LibraryAddon.aidokuProviderType,
+        'sourceId': 'fr.example',
+        'repositoryOrigin': origin,
+        ...provider,
+      },
+    }, origin: origin);
+
+    test('content rating is contentRating ?? nsfw ?? safe', () {
+      expect(aidoku({'contentRating': 2, 'nsfw': 0}).contentRating, 2);
+      expect(aidoku({'contentRating': null, 'nsfw': 1}).contentRating, 1);
+      expect(aidoku({'contentRating': '2'}).contentRating, 2);
+      expect(aidoku({'contentRating': 'containsNsfw'}).contentRating, 1);
+      expect(aidoku({'contentRating': 'unknown', 'nsfw': 0}).contentRating, 0);
+      expect(aidoku({'nsfw': '1'}).contentRating, 1);
+      expect(aidoku({'nsfw': true}).contentRating, 1);
+      expect(aidoku({'contentRating': 9}).contentRating, 2);
+      expect(aidoku(const {}).contentRating, 0);
+
+      final tachiyomi = LibraryAddon.fromManifest({
+        'schema': LibraryAddon.schemaV1,
+        'id': 'tachiyomi.1.eu.example',
+        'name': 'Example',
+        'version': '1.0',
+        'baseUrl': 'https://example.com',
+        'provider': {'type': LibraryAddon.tachiyomiProviderType, 'nsfw': 1},
+      }, origin: 'https://example.com/index.json');
+      expect(tachiyomi.contentRating, 1);
+
+      // A NeoStation manifest may declare its rating at the top level.
+      final manifest = LibraryAddon.fromManifest({
+        'schema': LibraryAddon.schemaV1,
+        'id': 'com.example.books',
+        'name': 'Example',
+        'version': '1',
+        'baseUrl': 'https://example.com',
+        'contentRating': 'primarilyNsfw',
+        'provider': {'type': LibraryAddon.gallicaProviderType},
+      }, origin: 'https://example.com/manifest.json');
+      expect(manifest.contentRating, 2);
+    });
+
+    test('languages keep the full list and fall back to sourceLang', () {
+      expect(
+        aidoku({
+          'sourceLang': 'multi',
+          'languages': ['en', 'fr', 'ja', 'en', ''],
+        }).languages,
+        ['en', 'fr', 'ja'],
+      );
+      expect(aidoku({'sourceLang': 'fr'}).languages, ['fr']);
+      expect(aidoku(const {}).languages, isEmpty);
+    });
+
+    test('the repository folder is never reported as the website', () {
+      // Stored by older builds: baseUrl was the list folder.
+      final legacy = aidoku(
+        const {},
+        baseUrl: 'https://raw.githubusercontent.com/o/r/gh-pages/',
+        origin: 'https://raw.githubusercontent.com/o/r/gh-pages/index.min.json',
+      );
+      expect(legacy.websiteUrl, isNull);
+
+      final withWebsite = aidoku({'website': 'https://site.example'});
+      expect(withWebsite.websiteUrl, 'https://site.example');
+
+      final unknownWebsite = aidoku({'website': null});
+      expect(unknownWebsite.websiteUrl, isNull);
+
+      // A new-format list stored the site itself as baseUrl.
+      final community = aidoku(
+        const {},
+        baseUrl: 'https://mangadex.org',
+        origin: 'https://aidoku-community.github.io/sources/index.min.json',
+      );
+      expect(community.websiteUrl, 'https://mangadex.org');
+    });
+
+    test('generated English descriptions of older builds are hidden', () {
+      final stored = aidoku(
+        const {},
+        extra: const {'description': 'Aidoku repository source • fr'},
+      );
+      expect(stored.description, isEmpty);
+
+      final authored = LibraryAddon.fromManifest({
+        'schema': LibraryAddon.schemaV1,
+        'id': 'com.example.books',
+        'name': 'Example',
+        'version': '1',
+        'baseUrl': 'https://example.com',
+        'description': 'Aidoku repository source • written by the author',
+      }, origin: 'https://example.com/manifest.json');
+      expect(authored.description, isNotEmpty);
+    });
+  });
+
+  group('Aidoku list import (direct path)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('new-format entries keep languages, rating and website', () async {
+      final service = LibraryAddonService.forTesting();
+      final raw = jsonEncode({
+        'name': 'Community',
+        'sources': [
+          {
+            'id': 'multi.example',
+            'name': 'Example',
+            'version': 14,
+            'iconURL': 'icons/multi.example-v14.png',
+            'downloadURL': 'sources/multi.example-v14.aix',
+            'languages': ['en', 'fr', 'zh-Hant'],
+            'contentRating': 2,
+            'altNames': ['Exemple'],
+            'baseURL': 'https://example.org',
+            'minAppVersion': '0.7.1',
+          },
+        ],
+      });
+
+      final result = await service.installDocumentFromJson(
+        raw,
+        origin: 'https://lists.example.net/sources/index.min.json',
+      );
+
+      final addon = result.addons.single;
+      expect(addon.id, 'aidoku.multi.example');
+      expect(addon.languages, ['en', 'fr', 'zh-Hant']);
+      expect(addon.language, 'multi');
+      expect(addon.contentRating, 2);
+      expect(addon.websiteUrl, 'https://example.org');
+      expect(addon.baseUrl, 'https://example.org');
+      expect(addon.altNames, ['Exemple']);
+      expect(addon.description, isEmpty);
+      expect(addon.manifest['description'], isEmpty);
+      expect(
+        addon.sourceDownloadUrl,
+        'https://lists.example.net/sources/sources/multi.example-v14.aix',
+      );
+      expect(
+        addon.iconUrl,
+        'https://lists.example.net/sources/icons/multi.example-v14.png',
+      );
+    });
+
+    test('a local Aidoku list with absolute URLs installs', () async {
+      final service = LibraryAddonService.forTesting();
+      final raw = jsonEncode([
+        {
+          'id': 'fr.absolute',
+          'name': 'Absolute',
+          'file': 'https://cdn.example.org/list/sources/fr.absolute-v2.aix',
+          'icon': 'https://cdn.example.org/list/icons/fr.absolute-v2.png',
+          'lang': 'fr',
+          'version': 2,
+          'nsfw': 1,
+        },
+        {
+          'id': 'fr.relative',
+          'name': 'Relative',
+          'file': 'fr.relative-v1.aix',
+          'lang': 'fr',
+          'version': 1,
+        },
+      ]);
+
+      final result = await service.installDocumentFromJson(
+        raw,
+        origin: 'file:aidoku-list.json',
+      );
+
+      // The relative entry cannot be resolved without a web origin.
+      final addon = result.addons.single;
+      expect(addon.id, 'aidoku.fr.absolute');
+      expect(addon.repositoryOrigin, 'file:aidoku-list.json');
+      expect(
+        addon.sourceDownloadUrl,
+        'https://cdn.example.org/list/sources/fr.absolute-v2.aix',
+      );
+      expect(
+        addon.iconUrl,
+        'https://cdn.example.org/list/icons/fr.absolute-v2.png',
+      );
+      expect(addon.contentRating, 1);
+      expect(addon.websiteUrl, isNull);
+
+      await expectLater(
+        service.installDocumentFromJson(
+          jsonEncode([
+            {
+              'id': 'fr.relative',
+              'name': 'Relative',
+              'file': 'fr.relative-v1.aix',
+              'lang': 'fr',
+              'version': 1,
+            },
+          ]),
+          origin: 'file:relative-only.json',
+        ),
+        throwsA(isA<LibraryAddonException>()),
+      );
+    });
+
+    test('Tachiyomi imports store no generated description', () async {
+      final service = LibraryAddonService.forTesting();
+      final result = await service.installDocumentFromJson(
+        jsonEncode([
+          {
+            'name': 'Example',
+            'pkg': 'eu.kanade.tachiyomi.extension.en.example',
+            'version': '1.0.0',
+            'lang': 'en',
+            'nsfw': 1,
+            'sources': [
+              {'name': 'Example', 'id': '7', 'baseUrl': 'https://example.com'},
+            ],
+          },
+        ]),
+        origin: 'https://example.com/index.json',
+      );
+
+      expect(result.addons.single.manifest['description'], isEmpty);
+      expect(result.addons.single.contentRating, 1);
+      expect(result.addons.single.websiteUrl, 'https://example.com');
+    });
+
+    test('upsertAddons and removeMany touch only the given ids', () async {
+      final service = LibraryAddonService.forTesting();
+      LibraryAddon source(String id, String version) =>
+          LibraryAddon.fromManifest(
+            LibraryAddon.aidokuSourceManifest(
+              sourceId: id,
+              name: id,
+              version: version,
+              languages: const ['fr'],
+              contentRating: 0,
+              repositoryOrigin: 'https://example.com/index.min.json',
+              fallbackBaseUrl: 'https://example.com/',
+            ),
+            origin: 'https://example.com/index.min.json',
+          );
+
+      final first = await service.upsertAddons([
+        source('fr.one', '1'),
+        source('fr.two', '1'),
+      ]);
+      expect(first.addedIds, ['aidoku.fr.one', 'aidoku.fr.two']);
+      expect(first.updatedIds, isEmpty);
+
+      final second = await service.upsertAddons([source('fr.two', '2')]);
+      expect(second.addedIds, isEmpty);
+      expect(second.updatedIds, ['aidoku.fr.two']);
+
+      final reloaded = await LibraryAddonService.forTesting().load();
+      expect(reloaded.map((addon) => '${addon.id}@${addon.version}'), [
+        'aidoku.fr.one@1',
+        'aidoku.fr.two@2',
+      ]);
+
+      expect(await service.removeMany(['aidoku.fr.two', 'missing']), 1);
+      expect(await service.removeMany(const []), 0);
+      final remaining = await LibraryAddonService.forTesting().load();
+      expect(remaining.map((addon) => addon.id), ['aidoku.fr.one']);
     });
   });
 }

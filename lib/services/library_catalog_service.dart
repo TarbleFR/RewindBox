@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as path;
 import 'package:xml/xml.dart';
 
 import 'library_addon_service.dart';
+import 'library_http.dart';
 
 enum LibraryMediaType { book, manga, novel, comic, anime, unknown }
 
@@ -220,7 +222,14 @@ class LibraryCatalogItem {
 }
 
 class LibraryCatalogService {
-  LibraryCatalogService._();
+  LibraryCatalogService._({LibraryFetcher? fetcher})
+    : _fetcher = fetcher ?? _sharedFetch;
+
+  /// Service using [fetcher] instead of the shared [LibraryHttp] client
+  /// (tests feed canned responses through it).
+  @visibleForTesting
+  LibraryCatalogService.withFetcher(LibraryFetcher fetcher)
+    : this._(fetcher: fetcher);
 
   static final LibraryCatalogService instance = LibraryCatalogService._();
 
@@ -228,7 +237,24 @@ class LibraryCatalogService {
   static const int _maxCatalogBytes = 12 * 1024 * 1024;
   static const int _maxReaderBytes = 32 * 1024 * 1024;
 
-  Future<List<LibraryCatalogItem>> loadCatalog(LibraryAddon addon) async {
+  final LibraryFetcher _fetcher;
+
+  // Resolved at call time so that creating the service never touches
+  // [LibraryHttp.instance].
+  static Future<LibraryHttpResponse> _sharedFetch(
+    LibraryRequest request, {
+    LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
+    LibraryCancelToken? cancel,
+  }) => LibraryHttp.instance.send(request, mode: mode, cancel: cancel);
+
+  /// Loads the catalogue of a NeoStation source. Catalogue responses use
+  /// [LibraryCachePolicy.listing]: [mode] `refresh` revalidates them, the
+  /// default serves a fresh cached copy without network access.
+  Future<List<LibraryCatalogItem>> loadCatalog(
+    LibraryAddon addon, {
+    LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
+    LibraryCancelToken? cancel,
+  }) async {
     if (addon.sourceKind == LibrarySourceKind.metadataOnly) {
       throw const LibraryAddonException(
         'This Tachiyomi/Mihon source is metadata-only on iOS. '
@@ -261,6 +287,9 @@ class LibraryCatalogService {
         uri,
         maxBytes: _maxCatalogBytes,
         accept: 'application/atom+xml, application/xml, text/xml',
+        cache: LibraryCachePolicy.listing,
+        mode: mode,
+        cancel: cancel,
       );
       return parseGallicaOpdsDocument(
         utf8.decode(response.bodyBytes, allowMalformed: true),
@@ -268,7 +297,13 @@ class LibraryCatalogService {
       );
     }
 
-    final response = await _get(uri, maxBytes: _maxCatalogBytes);
+    final response = await _get(
+      uri,
+      maxBytes: _maxCatalogBytes,
+      cache: LibraryCachePolicy.listing,
+      mode: mode,
+      cancel: cancel,
+    );
 
     dynamic decoded;
     try {
@@ -297,7 +332,12 @@ class LibraryCatalogService {
     return List.unmodifiable(items);
   }
 
-  Future<String> loadReadableText(LibraryCatalogItem item) async {
+  /// Loads the readable text of [item]. Reader content is never cached
+  /// ([LibraryCachePolicy.none]).
+  Future<String> loadReadableText(
+    LibraryCatalogItem item, {
+    LibraryCancelToken? cancel,
+  }) async {
     final inline = item.content?.trim();
     if (inline != null && inline.isNotEmpty) return inline;
 
@@ -312,13 +352,14 @@ class LibraryCatalogService {
     final contentType = item.raw['contentType']?.toString().toLowerCase() ?? '';
     if (contentType.contains('application/epub+zip') ||
         uri.path.toLowerCase().endsWith('.epub')) {
-      return _loadEpubText(uri);
+      return _loadEpubText(uri, cancel: cancel);
     }
 
     final response = await _get(
       uri,
       maxBytes: _maxReaderBytes,
       accept: 'application/json, text/plain, text/markdown, text/html',
+      cancel: cancel,
     );
     final body = utf8.decode(response.bodyBytes, allowMalformed: true);
 
@@ -464,11 +505,12 @@ class LibraryCatalogService {
     return List.unmodifiable(items);
   }
 
-  Future<String> _loadEpubText(Uri uri) async {
+  Future<String> _loadEpubText(Uri uri, {LibraryCancelToken? cancel}) async {
     final response = await _get(
       uri,
       maxBytes: _maxReaderBytes,
       accept: 'application/epub+zip, application/octet-stream',
+      cancel: cancel,
     );
     return _decodeEpubText(response.bodyBytes);
   }
@@ -717,28 +759,92 @@ class LibraryCatalogService {
     return resolved;
   }
 
-  static Future<http.Response> _get(
+  /// GET through the injected [LibraryFetcher]. Failures keep the historical
+  /// [LibraryAddonException] messages (technical, untranslated) and carry
+  /// the typed [LibraryNetworkException] in [LibraryAddonException.network].
+  Future<LibraryHttpResponse> _get(
     Uri uri, {
     required int maxBytes,
     String accept = 'application/json, text/plain',
+    LibraryCachePolicy cache = LibraryCachePolicy.none,
+    LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
+    LibraryCancelToken? cancel,
   }) async {
-    http.Response response;
+    final LibraryHttpResponse response;
     try {
-      response = await http
-          .get(uri, headers: <String, String>{'Accept': accept})
-          .timeout(_timeout);
-    } catch (error) {
-      throw LibraryAddonException('Unable to load ${uri.host}: $error');
+      response = await _fetcher(
+        LibraryRequest.get(
+          uri,
+          headers: <String, String>{'Accept': accept},
+          cache: cache,
+          timeout: _timeout,
+          maxBytes: maxBytes,
+        ),
+        mode: mode,
+        cancel: cancel,
+      );
+    } on LibraryNetworkException catch (error) {
+      throw _networkFailure(uri, error);
+    } on LibraryAddonException {
+      rethrow;
+    } on Exception catch (error) {
+      // A fetcher is expected to throw [LibraryNetworkException]; anything
+      // else is still reported as a load failure instead of escaping untyped.
+      throw LibraryAddonException(
+        'Unable to load ${uri.host}: $error',
+        network: LibraryNetworkException(
+          error is TimeoutException
+              ? LibraryNetworkErrorKind.timeout
+              : LibraryNetworkErrorKind.offline,
+          uri: uri,
+          detail: error.toString(),
+        ),
+      );
     }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (!response.ok) {
       throw LibraryAddonException(
         '${uri.host} returned HTTP ${response.statusCode}.',
+        network: LibraryNetworkException(
+          LibraryNetworkErrorKind.httpStatus,
+          uri: response.finalUri,
+          statusCode: response.statusCode,
+        ),
       );
     }
     if (response.bodyBytes.length > maxBytes) {
-      throw const LibraryAddonException('Library response is too large.');
+      throw LibraryAddonException(
+        'Library response is too large.',
+        network: LibraryNetworkException(
+          LibraryNetworkErrorKind.tooLarge,
+          uri: response.finalUri,
+          detail: '${response.bodyBytes.length} > $maxBytes bytes',
+        ),
+      );
     }
     return response;
+  }
+
+  static LibraryAddonException _networkFailure(
+    Uri uri,
+    LibraryNetworkException error,
+  ) {
+    if (error.kind == LibraryNetworkErrorKind.tooLarge) {
+      return LibraryAddonException(
+        'Library response is too large.',
+        network: error,
+      );
+    }
+    final status = error.statusCode;
+    if (status != null) {
+      return LibraryAddonException(
+        '${uri.host} returned HTTP $status.',
+        network: error,
+      );
+    }
+    return LibraryAddonException(
+      'Unable to load ${uri.host}: $error',
+      network: error,
+    );
   }
 }
 
