@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 /// Shared network layer of the reading Library (Build 437).
 ///
@@ -90,6 +96,7 @@ class LibraryNetworkException implements Exception {
 /// underlying socket when no other caller still waits for the same request.
 class LibraryCancelToken {
   final Completer<void> _completer = Completer<void>();
+  final Set<_CancelListener> _listeners = <_CancelListener>{};
 
   bool get isCancelled => _completer.isCompleted;
 
@@ -97,8 +104,31 @@ class LibraryCancelToken {
   Future<void> get whenCancelled => _completer.future;
 
   void cancel() {
-    if (!_completer.isCompleted) _completer.complete();
+    if (_completer.isCompleted) return;
+    _completer.complete();
+    final listeners = _listeners.toList(growable: false);
+    _listeners.clear();
+    for (final listener in listeners) {
+      scheduleMicrotask(listener.callback);
+    }
   }
+
+  /// Calls [onCancel] once (asynchronously) when the token is cancelled, or
+  /// soon if it already is. Returns a function that unregisters it: call it
+  /// when the work finished, so a long-lived token does not keep finished
+  /// requests (and their bodies) reachable.
+  void Function() addCancelListener(void Function() onCancel) {
+    if (isCancelled) {
+      scheduleMicrotask(onCancel);
+      return () {};
+    }
+    final listener = _CancelListener(onCancel);
+    _listeners.add(listener);
+    return () => _listeners.remove(listener);
+  }
+
+  /// Listeners still registered (diagnostics and tests).
+  int get listenerCount => _listeners.length;
 
   void throwIfCancelled([Uri? uri]) {
     if (isCancelled) {
@@ -253,19 +283,19 @@ class LibraryRequest {
     final body = form;
     if (body != null && body.isNotEmpty) {
       buffer.write(' ');
-      buffer.write(
-        body.entries
-            .map(
-              (entry) =>
-                  '${Uri.encodeQueryComponent(entry.key)}='
-                  '${Uri.encodeQueryComponent(entry.value)}',
-            )
-            .join('&'),
-      );
+      buffer.write(_encodedForm(body));
     }
     return buffer.toString();
   }
 }
+
+String _encodedForm(Map<String, String> form) => form.entries
+    .map(
+      (entry) =>
+          '${Uri.encodeQueryComponent(entry.key)}='
+          '${Uri.encodeQueryComponent(entry.value)}',
+    )
+    .join('&');
 
 /// Response returned by [LibraryHttp]. Bodies are kept as bytes; decode with
 /// [text] or [json].
@@ -332,6 +362,16 @@ class LibraryHttpResponse {
 }
 
 /// Counters used by tests and performance measurements.
+///
+/// * [networkRequests]: requests actually sent (after deduplication).
+/// * [memoryHits] / [diskHits]: responses served from the cache without any
+///   network access.
+/// * [notModified]: conditional requests answered 304.
+/// * [deduplicated]: callers that joined an identical in-flight request.
+/// * [cancelled]: callers whose request ended because they cancelled.
+/// * [failures]: network operations that failed (transport error, timeout,
+///   size limit or HTTP status not accepted by the request).
+/// * [staleServed]: responses returned with [LibraryHttpResponse.stale].
 class LibraryHttpStats {
   int networkRequests = 0;
   int memoryHits = 0;
@@ -370,6 +410,14 @@ class LibraryHttp {
   /// Creates an isolated instance (tests). [client] is used for every
   /// request; [cacheDirectory] holds the persistent cache (a temporary
   /// directory in tests); [clock] allows freshness tests.
+  ///
+  /// The persistent cache lives in `<cacheDirectory>/library_http`. Without
+  /// [cacheDirectory] it is resolved lazily to
+  /// `getApplicationCacheDirectory()/Library/library_http`; when that fails
+  /// (no platform plugin) only the memory cache is used.
+  ///
+  /// [hostLimits] overrides [maxConcurrentPerHost] for specific hosts (see
+  /// [LibraryHttp.hostLimits]).
   LibraryHttp({
     http.Client? client,
     Directory? cacheDirectory,
@@ -378,8 +426,30 @@ class LibraryHttp {
     int maxConcurrentPerHost = 3,
     int maxCacheBytes = 96 * 1024 * 1024,
     int maxMemoryCacheBytes = 8 * 1024 * 1024,
-  }) {
-    throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+    Map<String, int> hostLimits = const <String, int>{},
+  }) : maxConcurrentRequests = math.max(1, maxConcurrentRequests),
+       maxConcurrentPerHost = math.max(1, maxConcurrentPerHost),
+       maxCacheBytes = math.max(0, maxCacheBytes),
+       _clock = clock ?? DateTime.now,
+       _client =
+           client ??
+           createDefaultClient(
+             maxConnectionsPerHost: math.max(
+               maxConcurrentRequests,
+               maxConcurrentPerHost,
+             ),
+           ),
+       _memory = _MemoryCache(math.max(0, maxMemoryCacheBytes)) {
+    _global = _FifoSemaphore(this.maxConcurrentRequests);
+    _disk = LibraryDiskCache(
+      () async {
+        final base = cacheDirectory ?? await defaultCacheDirectory();
+        return Directory(p.join(base.path, httpCacheFolderName));
+      },
+      maxBytes: this.maxCacheBytes,
+      clock: _clock,
+    );
+    hostLimits.forEach(setHostLimit);
   }
 
   static const String defaultUserAgent =
@@ -389,48 +459,1703 @@ class LibraryHttp {
   static const Duration defaultTimeout = Duration(seconds: 20);
   static const int defaultMaxBytes = 16 * 1024 * 1024;
 
-  /// Process-wide instance used by the app. Tests may replace it.
-  static LibraryHttp get instance =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
-  static set instance(LibraryHttp value) =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  /// Folder of the persistent HTTP cache inside the cache directory.
+  static const String httpCacheFolderName = 'library_http';
 
-  LibraryHttpStats get stats =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  /// Kept-alive sockets are closed after this idle time.
+  static const Duration idleTimeout = Duration(seconds: 15);
+
+  /// Time allowed to open a TCP/TLS connection.
+  static const Duration connectionTimeout = Duration(seconds: 10);
+
+  /// Persisted entries record their last use at most this often, so cache
+  /// hits do not rewrite metadata on every access.
+  static const Duration _accessRecordInterval = Duration(minutes: 1);
+
+  /// Bytes of an error body inspected for anti-bot challenge markers.
+  static const int _challengeSniffBytes = 256 * 1024;
+
+  static LibraryHttp? _instance;
+
+  /// Process-wide instance used by the app. Tests may replace it.
+  static LibraryHttp get instance => _instance ??= LibraryHttp();
+  static set instance(LibraryHttp value) => _instance = value;
+
+  /// `Caches/Library` of the app (iOS `NSCachesDirectory`). Library caches
+  /// only ever write inside sub-folders of this directory.
+  static Future<Directory> defaultCacheDirectory() async {
+    final base = await getApplicationCacheDirectory();
+    return Directory(p.join(base.path, 'Library'));
+  }
+
+  /// The keep-alive `dart:io` client used when no client is injected.
+  static http.Client createDefaultClient({int maxConnectionsPerHost = 8}) {
+    final inner = HttpClient()
+      ..idleTimeout = idleTimeout
+      ..connectionTimeout = connectionTimeout
+      ..maxConnectionsPerHost = math.max(1, maxConnectionsPerHost)
+      ..autoUncompress = true
+      ..userAgent = defaultUserAgent;
+    return IOClient(inner);
+  }
+
+  /// Global limit of requests on the wire.
+  final int maxConcurrentRequests;
+
+  /// Default per-host limit (see [hostLimits] for overrides).
+  final int maxConcurrentPerHost;
+
+  /// Size limit of the persistent cache.
+  final int maxCacheBytes;
+
+  final http.Client _client;
+  final DateTime Function() _clock;
+  final _MemoryCache _memory;
+  late final _FifoSemaphore _global;
+  late final LibraryDiskCache _disk;
+  final Map<String, _FifoSemaphore> _hostSemaphores =
+      <String, _FifoSemaphore>{};
+  final Map<String, int> _hostOverrides = <String, int>{};
+  final Map<String, _Flight> _flights = <String, _Flight>{};
+  final LibraryHttpStats _stats = LibraryHttpStats();
+  bool _closed = false;
+
+  LibraryHttpStats get stats => _stats;
+
+  /// Per-host concurrency overrides, keyed by lower-case host name.
+  /// `hostLimits['example.com'] = 1` serialises that host; removing the key
+  /// restores [maxConcurrentPerHost]. Changes apply to queued requests
+  /// immediately.
+  late final Map<String, int> hostLimits = _HostLimitMap(this);
+
+  /// Sets ([limit] >= 1) or removes (null) the concurrency override of
+  /// [host].
+  void setHostLimit(String host, int? limit) {
+    final normalized = host.trim().toLowerCase();
+    if (normalized.isEmpty) return;
+    if (limit == null) {
+      _hostOverrides.remove(normalized);
+    } else {
+      _hostOverrides[normalized] = math.max(1, limit);
+    }
+    _hostSemaphores[normalized]?.limit = _limitFor(normalized);
+  }
+
+  int _limitFor(String host) => _hostOverrides[host] ?? maxConcurrentPerHost;
 
   /// Sends [request] according to [mode]. Throws [LibraryNetworkException].
   /// Matches the [LibraryFetcher] signature.
+  ///
+  /// Concurrent calls with the same [LibraryRequest.key] share one network
+  /// operation. Each caller may cancel independently; the socket is aborted
+  /// only when every caller of that operation cancelled.
   Future<LibraryHttpResponse> send(
     LibraryRequest request, {
     LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
     LibraryCancelToken? cancel,
-  }) => throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  }) async {
+    if (_closed) {
+      throw LibraryNetworkException(
+        LibraryNetworkErrorKind.offline,
+        uri: request.uri,
+        detail: 'client-closed',
+      );
+    }
+    if (cancel != null && cancel.isCancelled) {
+      _stats.cancelled++;
+      cancel.throwIfCancelled(request.uri);
+    }
+
+    final policy = request.cache;
+    final key = request.key;
+    LibraryCacheRecord? cached;
+    if (policy.isCacheable) {
+      final lookup = await _lookup(key, policy);
+      if (cancel != null && cancel.isCancelled) {
+        _stats.cancelled++;
+        cancel.throwIfCancelled(request.uri);
+      }
+      if (lookup != null) {
+        cached = lookup.record;
+        final freshness = _freshness(cached, policy);
+        final servable =
+            (mode == LibraryFetchMode.cacheFirst &&
+                freshness == _Freshness.fresh) ||
+            (mode == LibraryFetchMode.cacheOnly &&
+                freshness != _Freshness.expired);
+        if (servable) {
+          if (lookup.fromMemory) {
+            _stats.memoryHits++;
+          } else {
+            _stats.diskHits++;
+          }
+          final stale = freshness != _Freshness.fresh;
+          if (stale) _stats.staleServed++;
+          _recordAccess(cached, policy);
+          return _responseFromRecord(request, cached, stale: stale);
+        }
+      }
+    }
+
+    if (mode == LibraryFetchMode.cacheOnly) {
+      throw LibraryNetworkException(
+        LibraryNetworkErrorKind.notFound,
+        uri: request.uri,
+        detail: 'cache-miss',
+      );
+    }
+
+    try {
+      final outcome = await _joinFlight(request, cached, cancel);
+      return _responseFromOutcome(request, outcome);
+    } on LibraryNetworkException catch (error) {
+      final fallback = cached;
+      if (mode == LibraryFetchMode.cacheFirst &&
+          fallback != null &&
+          _staleFallbackKinds.contains(error.kind) &&
+          _freshness(fallback, policy) != _Freshness.expired) {
+        _stats.staleServed++;
+        _recordAccess(fallback, policy);
+        return _responseFromRecord(request, fallback, stale: true);
+      }
+      rethrow;
+    }
+  }
 
   /// Returns the cached response for [request] without network access, or
   /// null. [allowStale] accepts entries in the stale window.
   Future<LibraryHttpResponse?> readCache(
     LibraryRequest request, {
     bool allowStale = true,
-  }) => throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  }) async {
+    final policy = request.cache;
+    if (!policy.isCacheable) return null;
+    final lookup = await _lookup(request.key, policy);
+    if (lookup == null) return null;
+    final freshness = _freshness(lookup.record, policy);
+    if (freshness == _Freshness.expired) return null;
+    if (freshness == _Freshness.stale && !allowStale) return null;
+    if (lookup.fromMemory) {
+      _stats.memoryHits++;
+    } else {
+      _stats.diskHits++;
+    }
+    _recordAccess(lookup.record, policy);
+    return _responseFromRecord(
+      request,
+      lookup.record,
+      stale: freshness == _Freshness.stale,
+    );
+  }
 
   /// Drops the cached entry for [request] (memory and disk).
-  Future<void> evict(LibraryRequest request) =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  Future<void> evict(LibraryRequest request) async {
+    final key = request.key;
+    _memory.remove(key);
+    await _disk.remove(key);
+  }
 
   /// Current size of the persistent response cache in bytes.
-  Future<int> cacheSizeBytes() =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  Future<int> cacheSizeBytes() => _disk.sizeBytes();
 
   /// Evicts least recently used entries until the cache fits [maxBytes]
   /// (defaults to the configured limit).
-  Future<void> trimCache({int? maxBytes}) =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  Future<void> trimCache({int? maxBytes}) async {
+    await _disk.trim(maxBytes: maxBytes ?? maxCacheBytes);
+  }
 
   /// Removes every cached response (memory and disk).
-  Future<void> clearCache() =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  Future<void> clearCache() async {
+    _memory.clear();
+    await _disk.clear();
+  }
 
-  /// Closes the underlying client (tests).
-  void close() =>
-      throw UnimplementedError('LibraryHttp is implemented in Build 437 wave 1');
+  /// Completes when background cache work (access-time updates, automatic
+  /// trimming) started by earlier requests is finished.
+  Future<void> idle() => _disk.idle();
+
+  /// Closes the underlying client (tests). In-flight and queued requests end
+  /// with [LibraryNetworkErrorKind.cancelled].
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    for (final flight in _flights.values.toList()) {
+      flight.abort(_AbortReason.closed);
+    }
+    _flights.clear();
+    _client.close();
+  }
+
+  /// Classifies a non-success HTTP answer following the Library contract.
+  /// Returns null for 2xx statuses.
+  ///
+  /// Any status carrying `cf-mitigated: challenge`, and a 403 whose body
+  /// contains a Cloudflare browser check, is a [LibraryNetworkErrorKind.challenge].
+  static LibraryNetworkErrorKind? classifyStatus(
+    int statusCode, {
+    Map<String, String> headers = const <String, String>{},
+    List<int> body = const <int>[],
+  }) {
+    if (statusCode >= 200 && statusCode < 300) return null;
+    if (_isChallenge(statusCode, headers, body)) {
+      return LibraryNetworkErrorKind.challenge;
+    }
+    if (statusCode == 404 || statusCode == 410) {
+      return LibraryNetworkErrorKind.notFound;
+    }
+    if ((statusCode >= 500 && statusCode <= 504) ||
+        (statusCode >= 520 && statusCode <= 530)) {
+      return LibraryNetworkErrorKind.serverUnavailable;
+    }
+    return LibraryNetworkErrorKind.httpStatus;
+  }
+
+  static bool _isChallenge(
+    int statusCode,
+    Map<String, String> headers,
+    List<int> body,
+  ) {
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'cf-mitigated' &&
+          entry.value.toLowerCase().contains('challenge')) {
+        return true;
+      }
+    }
+    if (statusCode != 403 || body.isEmpty) return false;
+    final sniff = body.length > _challengeSniffBytes
+        ? body.sublist(0, _challengeSniffBytes)
+        : body;
+    final text = utf8.decode(sniff, allowMalformed: true);
+    return text.contains('<title>Just a moment...</title>') ||
+        text.contains('Attention Required! | Cloudflare') ||
+        text.contains('challenge-platform');
+  }
+
+  static const Set<LibraryNetworkErrorKind> _staleFallbackKinds =
+      <LibraryNetworkErrorKind>{
+        LibraryNetworkErrorKind.offline,
+        LibraryNetworkErrorKind.timeout,
+        LibraryNetworkErrorKind.serverUnavailable,
+        LibraryNetworkErrorKind.challenge,
+      };
+
+  // ---------------------------------------------------------------- cache --
+
+  Future<_Lookup?> _lookup(String key, LibraryCachePolicy policy) async {
+    final memory = _memory.get(key);
+    if (memory != null) return _Lookup(memory, fromMemory: true);
+    if (!policy.persist) return null;
+    final record = await _disk.read(key);
+    if (record == null) return null;
+    _memory.put(record);
+    return _Lookup(record, fromMemory: false);
+  }
+
+  _Freshness _freshness(LibraryCacheRecord record, LibraryCachePolicy policy) {
+    final age = _clock().difference(record.fetchedAt);
+    // The clock moved backwards: the age is unknown, so the entry is
+    // revalidated but still usable as a fallback.
+    if (age.isNegative) return _Freshness.stale;
+    if (age < policy.freshFor) return _Freshness.fresh;
+    if (age < policy.freshFor + policy.staleFor) return _Freshness.stale;
+    return _Freshness.expired;
+  }
+
+  void _recordAccess(LibraryCacheRecord record, LibraryCachePolicy policy) {
+    final now = _clock();
+    if (now.difference(record.lastAccessAt).abs() < _accessRecordInterval) {
+      return;
+    }
+    final touched = record.copyWith(lastAccessAt: now);
+    _memory.replaceIfPresent(touched);
+    if (policy.persist) {
+      unawaited(_disk.touch(record.key, now).catchError((Object _) => false));
+    }
+  }
+
+  Future<void> _store(LibraryRequest request, LibraryCacheRecord record) async {
+    _memory.put(record);
+    if (request.cache.persist) {
+      try {
+        await _disk.write(record);
+      } catch (_) {
+        // A full or read-only disk must not fail the request itself.
+      }
+    }
+  }
+
+  LibraryHttpResponse _responseFromRecord(
+    LibraryRequest request,
+    LibraryCacheRecord record, {
+    required bool stale,
+    bool revalidated = false,
+    Duration networkTime = Duration.zero,
+  }) {
+    return LibraryHttpResponse(
+      request: request,
+      statusCode: record.statusCode,
+      bodyBytes: record.body ?? Uint8List(0),
+      headers: record.headers,
+      finalUri: Uri.tryParse(record.finalUrl) ?? request.uri,
+      fetchedAt: record.fetchedAt,
+      fromCache: true,
+      stale: stale,
+      revalidated: revalidated,
+      networkTime: networkTime,
+    );
+  }
+
+  LibraryHttpResponse _responseFromOutcome(
+    LibraryRequest request,
+    _NetworkOutcome outcome,
+  ) {
+    final status = outcome.statusCode;
+    final success = status >= 200 && status < 300;
+    if (!success && !request.acceptStatuses.contains(status)) {
+      final kind =
+          classifyStatus(
+            status,
+            headers: outcome.headers,
+            body: outcome.body,
+          ) ??
+          LibraryNetworkErrorKind.httpStatus;
+      throw LibraryNetworkException(
+        kind,
+        uri: outcome.finalUri,
+        statusCode: status,
+        detail: kind == LibraryNetworkErrorKind.challenge
+            ? 'anti-bot challenge'
+            : null,
+      );
+    }
+    return LibraryHttpResponse(
+      request: request,
+      statusCode: status,
+      bodyBytes: outcome.body,
+      headers: outcome.headers,
+      finalUri: outcome.finalUri,
+      fetchedAt: outcome.fetchedAt,
+      fromCache: outcome.revalidated,
+      revalidated: outcome.revalidated,
+      networkTime: outcome.networkTime,
+    );
+  }
+
+  // -------------------------------------------------------------- network --
+
+  Future<_NetworkOutcome> _joinFlight(
+    LibraryRequest request,
+    LibraryCacheRecord? cached,
+    LibraryCancelToken? cancel,
+  ) {
+    final key = request.key;
+    var flight = _flights[key];
+    if (flight == null || flight.isAborted) {
+      final created = _Flight(key);
+      _flights[key] = created;
+      created.result.future.ignore();
+      unawaited(_runFlight(created, request, cached));
+      flight = created;
+    } else {
+      _stats.deduplicated++;
+    }
+    flight.waiters++;
+    if (cancel == null) return flight.result.future;
+
+    final shared = flight;
+    final completer = Completer<_NetworkOutcome>();
+    final unregister = cancel.addCancelListener(() {
+      if (completer.isCompleted) return;
+      _stats.cancelled++;
+      completer.completeError(
+        LibraryNetworkException(
+          LibraryNetworkErrorKind.cancelled,
+          uri: request.uri,
+        ),
+      );
+      shared.waiters--;
+      if (shared.waiters <= 0) {
+        shared.abort(_AbortReason.cancelled);
+        if (identical(_flights[key], shared)) _flights.remove(key);
+      }
+    });
+    shared.result.future.then(
+      (outcome) {
+        unregister();
+        if (!completer.isCompleted) completer.complete(outcome);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        unregister();
+        if (!completer.isCompleted) completer.completeError(error, stackTrace);
+      },
+    );
+    return completer.future;
+  }
+
+  Future<void> _runFlight(
+    _Flight flight,
+    LibraryRequest request,
+    LibraryCacheRecord? cached,
+  ) async {
+    try {
+      final outcome = await _perform(flight, request, cached);
+      if (!flight.result.isCompleted) flight.result.complete(outcome);
+    } catch (error, stackTrace) {
+      if (!flight.result.isCompleted) {
+        flight.result.completeError(error, stackTrace);
+      }
+    } finally {
+      if (identical(_flights[flight.key], flight)) _flights.remove(flight.key);
+    }
+  }
+
+  Future<_NetworkOutcome> _perform(
+    _Flight flight,
+    LibraryRequest request,
+    LibraryCacheRecord? cached,
+  ) async {
+    final uri = request.uri;
+    if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
+      throw LibraryNetworkException(
+        LibraryNetworkErrorKind.invalidResponse,
+        uri: uri,
+        detail: 'unsupported-url',
+      );
+    }
+    final host = uri.host.toLowerCase();
+    final hostSemaphore = _hostSemaphores.putIfAbsent(
+      host,
+      () => _FifoSemaphore(_limitFor(host)),
+    );
+    if (!await hostSemaphore.acquire(flight.aborted)) {
+      _releaseIdleHost(host, hostSemaphore);
+      throw _abortException(flight.abortReason, uri);
+    }
+    try {
+      if (!await _global.acquire(flight.aborted)) {
+        throw _abortException(flight.abortReason, uri);
+      }
+      try {
+        return await _transfer(flight, request, cached);
+      } finally {
+        _global.release();
+      }
+    } finally {
+      hostSemaphore.release();
+      _releaseIdleHost(host, hostSemaphore);
+    }
+  }
+
+  void _releaseIdleHost(String host, _FifoSemaphore semaphore) {
+    if (semaphore.isIdle && identical(_hostSemaphores[host], semaphore)) {
+      _hostSemaphores.remove(host);
+    }
+  }
+
+  Future<_NetworkOutcome> _transfer(
+    _Flight flight,
+    LibraryRequest request,
+    LibraryCacheRecord? cached,
+  ) async {
+    final uri = request.uri;
+    if (flight.isAborted) throw _abortException(flight.abortReason, uri);
+
+    final maxBytes = request.maxBytes ?? defaultMaxBytes;
+    _AbortReason? reason;
+    final trigger = Completer<void>();
+    void fire(_AbortReason why) {
+      if (trigger.isCompleted) return;
+      reason = why;
+      trigger.complete();
+    }
+
+    final timer = Timer(
+      request.timeout ?? defaultTimeout,
+      () => fire(_AbortReason.timeout),
+    );
+    unawaited(
+      flight.aborted.then(
+        (_) => fire(flight.abortReason ?? _AbortReason.cancelled),
+      ),
+    );
+
+    final httpRequest = http.AbortableRequest(
+      request.method,
+      uri,
+      abortTrigger: trigger.future,
+    );
+    httpRequest
+      ..followRedirects = request.followRedirects
+      ..maxRedirects = 5
+      ..persistentConnection = true;
+    httpRequest.headers.addAll(request.headers);
+    if (!_hasHeader(httpRequest.headers, 'user-agent')) {
+      httpRequest.headers['User-Agent'] = defaultUserAgent;
+    }
+    final etag = cached?.headers['etag'];
+    final lastModified = cached?.headers['last-modified'];
+    final callerConditional =
+        _hasHeader(httpRequest.headers, 'if-none-match') ||
+        _hasHeader(httpRequest.headers, 'if-modified-since');
+    final revalidating =
+        !callerConditional &&
+            ((etag != null && etag.isNotEmpty) ||
+                (lastModified != null && lastModified.isNotEmpty))
+        ? cached
+        : null;
+    if (revalidating != null) {
+      if (etag != null && etag.isNotEmpty) {
+        httpRequest.headers['If-None-Match'] = etag;
+      }
+      if (lastModified != null && lastModified.isNotEmpty) {
+        httpRequest.headers['If-Modified-Since'] = lastModified;
+      }
+    }
+    final form = request.form;
+    if (form != null) {
+      if (!_hasHeader(httpRequest.headers, 'content-type')) {
+        httpRequest.headers['Content-Type'] =
+            'application/x-www-form-urlencoded; charset=utf-8';
+      }
+      httpRequest.bodyBytes = utf8.encode(_encodedForm(form));
+    }
+
+    final watch = Stopwatch()..start();
+    _stats.networkRequests++;
+    try {
+      final streamed = await _raceAbort(
+        _client.send(httpRequest),
+        trigger.future,
+        onLate: (abandoned) => unawaited(_discard(abandoned.stream)),
+      );
+      final statusCode = streamed.statusCode;
+      final headers = <String, String>{
+        for (final entry in streamed.headers.entries)
+          entry.key.toLowerCase(): entry.value,
+      };
+      var finalUri = uri;
+      if (streamed case http.BaseResponseWithUrl(:final url)) {
+        finalUri = uri.resolveUri(url);
+      }
+      final Uint8List body;
+      if (statusCode == 304 || request.method == 'HEAD') {
+        // Drained rather than cancelled so a (non-conforming) body cannot
+        // leave the kept-alive connection half-read.
+        try {
+          await _readBody(
+            streamed,
+            maxBytes: 64 * 1024,
+            trigger: trigger.future,
+            uri: finalUri,
+          );
+        } on LibraryNetworkException catch (error) {
+          if (error.kind != LibraryNetworkErrorKind.tooLarge) rethrow;
+        }
+        body = Uint8List(0);
+      } else {
+        body = await _readBody(
+          streamed,
+          maxBytes: maxBytes,
+          trigger: trigger.future,
+          uri: finalUri,
+        );
+      }
+      watch.stop();
+      _stats.bytesDownloaded += body.length;
+      _stats.networkTime += watch.elapsed;
+      final now = _clock();
+
+      if (statusCode == 304 && revalidating != null) {
+        _stats.notModified++;
+        final revalidated = revalidating.copyWith(
+          headers: _mergeValidators(revalidating.headers, headers),
+          fetchedAt: now,
+          lastAccessAt: now,
+        );
+        _memory.put(revalidated);
+        if (request.cache.persist) {
+          final updated = await _disk
+              .updateMeta(revalidated)
+              .catchError((Object _) => false);
+          if (!updated) {
+            await _disk.write(revalidated).catchError((Object _) => false);
+          }
+        }
+        return _NetworkOutcome(
+          statusCode: revalidated.statusCode,
+          headers: revalidated.headers,
+          body: revalidated.body ?? Uint8List(0),
+          finalUri: Uri.tryParse(revalidated.finalUrl) ?? finalUri,
+          fetchedAt: now,
+          networkTime: watch.elapsed,
+          revalidated: true,
+        );
+      }
+
+      final success = statusCode >= 200 && statusCode < 300;
+      if (success && statusCode != 206 && request.cache.isCacheable) {
+        await _store(
+          request,
+          LibraryCacheRecord(
+            key: request.key,
+            url: uri.toString(),
+            finalUrl: finalUri.toString(),
+            statusCode: statusCode,
+            headers: LibraryCacheRecord.selectHeaders(headers),
+            fetchedAt: now,
+            lastAccessAt: now,
+            size: body.length,
+            body: body,
+          ),
+        );
+      }
+      if (!success && !request.acceptStatuses.contains(statusCode)) {
+        _stats.failures++;
+      }
+      return _NetworkOutcome(
+        statusCode: statusCode,
+        headers: Map<String, String>.unmodifiable(headers),
+        body: body,
+        finalUri: finalUri,
+        fetchedAt: now,
+        networkTime: watch.elapsed,
+        revalidated: false,
+      );
+    } catch (error) {
+      final mapped = _mapError(error, reason, uri);
+      if (mapped.kind != LibraryNetworkErrorKind.cancelled) _stats.failures++;
+      _stats.networkTime += watch.elapsed;
+      throw mapped;
+    } finally {
+      timer.cancel();
+    }
+  }
+
+  static Map<String, String> _mergeValidators(
+    Map<String, String> stored,
+    Map<String, String> notModified,
+  ) {
+    final merged = Map<String, String>.of(stored);
+    for (final name in const <String>[
+      'etag',
+      'last-modified',
+      'cache-control',
+      'expires',
+      'date',
+    ]) {
+      final value = notModified[name];
+      if (value != null && value.isNotEmpty) merged[name] = value;
+    }
+    return Map<String, String>.unmodifiable(merged);
+  }
+
+  static bool _hasHeader(Map<String, String> headers, String name) {
+    for (final key in headers.keys) {
+      if (key.toLowerCase() == name) return true;
+    }
+    return false;
+  }
+
+  static Future<T> _raceAbort<T>(
+    Future<T> future,
+    Future<void> trigger, {
+    void Function(T late)? onLate,
+  }) {
+    final completer = Completer<T>();
+    future.then(
+      (value) {
+        if (completer.isCompleted) {
+          onLate?.call(value);
+        } else {
+          completer.complete(value);
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!completer.isCompleted) completer.completeError(error, stackTrace);
+      },
+    );
+    trigger.then((_) {
+      if (!completer.isCompleted) completer.completeError(const _AbortSignal());
+    });
+    return completer.future;
+  }
+
+  static Future<void> _discard(Stream<List<int>> stream) async {
+    try {
+      await stream.listen(null, cancelOnError: true).cancel();
+    } catch (_) {}
+  }
+
+  static Future<Uint8List> _readBody(
+    http.StreamedResponse response, {
+    required int maxBytes,
+    required Future<void> trigger,
+    required Uri uri,
+  }) {
+    final declared = response.contentLength;
+    if (declared != null && declared > maxBytes) {
+      unawaited(_discard(response.stream));
+      return Future<Uint8List>.error(
+        LibraryNetworkException(
+          LibraryNetworkErrorKind.tooLarge,
+          uri: uri,
+          statusCode: response.statusCode,
+          detail: 'content-length $declared > $maxBytes',
+        ),
+      );
+    }
+    final completer = Completer<Uint8List>();
+    final builder = BytesBuilder(copy: false);
+    StreamSubscription<List<int>>? subscription;
+    var cancelRequested = false;
+    void stop() {
+      final active = subscription;
+      if (active == null) {
+        cancelRequested = true;
+      } else {
+        unawaited(active.cancel());
+      }
+    }
+
+    subscription = response.stream.listen(
+      (chunk) {
+        if (completer.isCompleted) return;
+        if (builder.length + chunk.length > maxBytes) {
+          stop();
+          completer.completeError(
+            LibraryNetworkException(
+              LibraryNetworkErrorKind.tooLarge,
+              uri: uri,
+              statusCode: response.statusCode,
+              detail: 'body > $maxBytes bytes',
+            ),
+          );
+          return;
+        }
+        builder.add(chunk);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!completer.isCompleted) completer.completeError(error, stackTrace);
+      },
+      onDone: () {
+        if (!completer.isCompleted) completer.complete(builder.takeBytes());
+      },
+      cancelOnError: true,
+    );
+    if (cancelRequested) unawaited(subscription.cancel());
+    trigger.then((_) {
+      if (completer.isCompleted) return;
+      stop();
+      completer.completeError(const _AbortSignal());
+    });
+    return completer.future;
+  }
+
+  static LibraryNetworkException _abortException(
+    _AbortReason? reason,
+    Uri uri,
+  ) {
+    if (reason == _AbortReason.timeout) {
+      return LibraryNetworkException(LibraryNetworkErrorKind.timeout, uri: uri);
+    }
+    return LibraryNetworkException(
+      LibraryNetworkErrorKind.cancelled,
+      uri: uri,
+      detail: reason == _AbortReason.closed ? 'client-closed' : null,
+    );
+  }
+
+  static LibraryNetworkException _mapError(
+    Object error,
+    _AbortReason? reason,
+    Uri uri,
+  ) {
+    if (error is LibraryNetworkException) return error;
+    if (reason != null ||
+        error is _AbortSignal ||
+        error is http.RequestAbortedException) {
+      return _abortException(reason, uri);
+    }
+    final detail = _shortDetail(error);
+    if (error is TimeoutException) {
+      return LibraryNetworkException(
+        LibraryNetworkErrorKind.timeout,
+        uri: uri,
+        detail: detail,
+      );
+    }
+    if (error is SocketException) {
+      final timedOut = error.message.toLowerCase().contains('timed out');
+      return LibraryNetworkException(
+        timedOut
+            ? LibraryNetworkErrorKind.timeout
+            : LibraryNetworkErrorKind.offline,
+        uri: uri,
+        detail: detail,
+      );
+    }
+    if (error is TlsException ||
+        error is HttpException ||
+        error is http.ClientException) {
+      return LibraryNetworkException(
+        LibraryNetworkErrorKind.offline,
+        uri: uri,
+        detail: detail,
+      );
+    }
+    return LibraryNetworkException(
+      LibraryNetworkErrorKind.invalidResponse,
+      uri: uri,
+      detail: detail,
+    );
+  }
+
+  static String _shortDetail(Object error) {
+    final text = error.toString();
+    return text.length > 300 ? '${text.substring(0, 300)}...' : text;
+  }
+}
+
+enum _AbortReason { cancelled, timeout, closed }
+
+/// Identity wrapper so the same callback can be registered twice.
+class _CancelListener {
+  _CancelListener(this.callback);
+
+  final void Function() callback;
+}
+
+enum _Freshness { fresh, stale, expired }
+
+class _AbortSignal implements Exception {
+  const _AbortSignal();
+}
+
+class _Lookup {
+  const _Lookup(this.record, {required this.fromMemory});
+
+  final LibraryCacheRecord record;
+  final bool fromMemory;
+}
+
+class _NetworkOutcome {
+  const _NetworkOutcome({
+    required this.statusCode,
+    required this.headers,
+    required this.body,
+    required this.finalUri,
+    required this.fetchedAt,
+    required this.networkTime,
+    required this.revalidated,
+  });
+
+  final int statusCode;
+  final Map<String, String> headers;
+  final Uint8List body;
+  final Uri finalUri;
+  final DateTime fetchedAt;
+  final Duration networkTime;
+  final bool revalidated;
+}
+
+/// One network operation shared by every concurrent caller of the same key.
+class _Flight {
+  _Flight(this.key);
+
+  final String key;
+  final Completer<_NetworkOutcome> result = Completer<_NetworkOutcome>();
+  final Completer<void> _aborted = Completer<void>();
+  _AbortReason? abortReason;
+  int waiters = 0;
+
+  bool get isAborted => _aborted.isCompleted;
+  Future<void> get aborted => _aborted.future;
+
+  void abort(_AbortReason reason) {
+    if (_aborted.isCompleted) return;
+    abortReason = reason;
+    _aborted.complete();
+  }
+}
+
+/// FIFO counting semaphore. A waiter whose cancel signal fires while queued
+/// leaves the queue without ever holding a slot.
+class _FifoSemaphore {
+  _FifoSemaphore(int limit) : _limit = math.max(1, limit);
+
+  int _limit;
+  int _active = 0;
+  final Queue<Completer<bool>> _queue = Queue<Completer<bool>>();
+
+  bool get isIdle => _active == 0 && _queue.isEmpty;
+
+  set limit(int value) {
+    _limit = math.max(1, value);
+    _drain();
+  }
+
+  /// Completes with true once a slot is held, or false if [cancelled]
+  /// completed first (no slot is held then).
+  Future<bool> acquire(Future<void> cancelled) {
+    if (_active < _limit && _queue.isEmpty) {
+      _active++;
+      return Future<bool>.value(true);
+    }
+    final waiter = Completer<bool>();
+    _queue.add(waiter);
+    cancelled.then((_) {
+      if (_queue.remove(waiter)) waiter.complete(false);
+    });
+    return waiter.future;
+  }
+
+  void release() {
+    if (_active > 0) _active--;
+    _drain();
+  }
+
+  void _drain() {
+    while (_active < _limit && _queue.isNotEmpty) {
+      _active++;
+      _queue.removeFirst().complete(true);
+    }
+  }
+}
+
+class _HostLimitMap extends MapBase<String, int> {
+  _HostLimitMap(this._owner);
+
+  final LibraryHttp _owner;
+
+  @override
+  int? operator [](Object? key) =>
+      key is String ? _owner._hostOverrides[key.trim().toLowerCase()] : null;
+
+  @override
+  void operator []=(String key, int value) => _owner.setHostLimit(key, value);
+
+  @override
+  void clear() {
+    for (final host in _owner._hostOverrides.keys.toList()) {
+      _owner.setHostLimit(host, null);
+    }
+  }
+
+  @override
+  Iterable<String> get keys => _owner._hostOverrides.keys.toList();
+
+  @override
+  int? remove(Object? key) {
+    if (key is! String) return null;
+    final previous = this[key];
+    _owner.setHostLimit(key, null);
+    return previous;
+  }
+}
+
+/// Byte-bounded LRU of response records for the current session.
+class _MemoryCache {
+  _MemoryCache(this.maxBytes);
+
+  final int maxBytes;
+  final LinkedHashMap<String, LibraryCacheRecord> _entries =
+      LinkedHashMap<String, LibraryCacheRecord>();
+  int _bytes = 0;
+
+  LibraryCacheRecord? get(String key) {
+    final record = _entries.remove(key);
+    if (record != null) _entries[key] = record;
+    return record;
+  }
+
+  void put(LibraryCacheRecord record) {
+    remove(record.key);
+    final size = record.body?.length ?? 0;
+    // A single response may use at most a quarter of the budget so one large
+    // page cannot flush everything else.
+    if (record.body == null || size > maxBytes ~/ 4) return;
+    _entries[record.key] = record;
+    _bytes += size;
+    while (_bytes > maxBytes && _entries.isNotEmpty) {
+      remove(_entries.keys.first);
+    }
+  }
+
+  void replaceIfPresent(LibraryCacheRecord record) {
+    if (_entries.containsKey(record.key)) _entries[record.key] = record;
+  }
+
+  void remove(String key) {
+    final removed = _entries.remove(key);
+    if (removed != null) _bytes -= removed.body?.length ?? 0;
+  }
+
+  void clear() {
+    _entries.clear();
+    _bytes = 0;
+  }
+}
+
+/// Metadata (and optionally the body) of one cached network response.
+class LibraryCacheRecord {
+  const LibraryCacheRecord({
+    required this.key,
+    required this.url,
+    required this.finalUrl,
+    required this.statusCode,
+    required this.headers,
+    required this.fetchedAt,
+    required this.lastAccessAt,
+    required this.size,
+    this.body,
+  });
+
+  /// Response headers kept on disk (lower-case names).
+  static const Set<String> storedHeaders = <String>{
+    'content-type',
+    'content-language',
+    'content-disposition',
+    'etag',
+    'last-modified',
+    'cache-control',
+    'expires',
+    'date',
+    'vary',
+    'link',
+    'location',
+  };
+
+  /// Keeps only [storedHeaders] from [headers], with lower-case names.
+  static Map<String, String> selectHeaders(Map<String, String> headers) {
+    final selected = <String, String>{};
+    headers.forEach((name, value) {
+      final lower = name.toLowerCase();
+      if (storedHeaders.contains(lower)) selected[lower] = value;
+    });
+    return Map<String, String>.unmodifiable(selected);
+  }
+
+  final String key;
+  final String url;
+  final String finalUrl;
+  final int statusCode;
+  final Map<String, String> headers;
+  final DateTime fetchedAt;
+  final DateTime lastAccessAt;
+
+  /// Body length in bytes.
+  final int size;
+  final Uint8List? body;
+
+  LibraryCacheRecord copyWith({
+    Map<String, String>? headers,
+    DateTime? fetchedAt,
+    DateTime? lastAccessAt,
+    Uint8List? body,
+  }) {
+    final nextBody = body ?? this.body;
+    return LibraryCacheRecord(
+      key: key,
+      url: url,
+      finalUrl: finalUrl,
+      statusCode: statusCode,
+      headers: headers ?? this.headers,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      lastAccessAt: lastAccessAt ?? this.lastAccessAt,
+      size: nextBody?.length ?? size,
+      body: nextBody,
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'v': 1,
+    'key': key,
+    'url': url,
+    'finalUrl': finalUrl,
+    'status': statusCode,
+    'headers': headers,
+    'fetchedAt': fetchedAt.toUtc().millisecondsSinceEpoch,
+    'lastAccessAt': lastAccessAt.toUtc().millisecondsSinceEpoch,
+    'size': size,
+  };
+
+  /// Returns null when [json] is not a valid record.
+  static LibraryCacheRecord? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final key = json['key'];
+    final url = json['url'];
+    final finalUrl = json['finalUrl'];
+    final status = json['status'];
+    final headers = json['headers'];
+    final fetchedAt = json['fetchedAt'];
+    final lastAccessAt = json['lastAccessAt'];
+    final size = json['size'];
+    if (key is! String ||
+        url is! String ||
+        finalUrl is! String ||
+        status is! int ||
+        headers is! Map ||
+        fetchedAt is! int ||
+        lastAccessAt is! int ||
+        size is! int ||
+        size < 0) {
+      return null;
+    }
+    final parsedHeaders = <String, String>{};
+    for (final entry in headers.entries) {
+      final name = entry.key;
+      final value = entry.value;
+      if (name is String && value is String) {
+        parsedHeaders[name.toLowerCase()] = value;
+      }
+    }
+    return LibraryCacheRecord(
+      key: key,
+      url: url,
+      finalUrl: finalUrl,
+      statusCode: status,
+      headers: Map<String, String>.unmodifiable(parsedHeaders),
+      fetchedAt: DateTime.fromMillisecondsSinceEpoch(fetchedAt, isUtc: true),
+      lastAccessAt: DateTime.fromMillisecondsSinceEpoch(
+        lastAccessAt,
+        isUtc: true,
+      ),
+      size: size,
+    );
+  }
+}
+
+/// Size-limited persistent store of response bodies, shared by
+/// [LibraryHttp] and the Library image cache.
+///
+/// Each entry is `<sha1(key)>.bin` (body) plus `<sha1(key)>.json` (a small
+/// [LibraryCacheRecord]). Writes go to a temporary file renamed into place,
+/// body first then metadata; every operation on one entry is serialised in
+/// this process. An entry whose metadata is unreadable or whose body length
+/// differs from the metadata is treated as a miss and deleted.
+///
+/// The store only touches files named after a SHA-1 stem in its own
+/// directory, so other files placed there (e.g. a pin list) are never
+/// trimmed or cleared.
+class LibraryDiskCache {
+  LibraryDiskCache(
+    this._resolveDirectory, {
+    required int maxBytes,
+    DateTime Function()? clock,
+    Future<Set<String>> Function()? keepKeys,
+  }) : maxBytes = math.max(0, maxBytes),
+       _clock = clock ?? DateTime.now,
+       _keepKeys = keepKeys;
+
+  static const String metaExtension = '.json';
+  static const String bodyExtension = '.bin';
+  static const String _tmpExtension = '.tmp';
+
+  /// Temporary or half-written files younger than this are left alone by
+  /// [trim] because a write may still be in progress.
+  static const Duration orphanGrace = Duration(minutes: 10);
+
+  static final RegExp _stemPattern = RegExp(r'^[0-9a-f]{40}$');
+  static final math.Random _random = math.Random();
+
+  /// Size limit enforced automatically after writes (down to 90 %).
+  final int maxBytes;
+  final Future<Directory> Function() _resolveDirectory;
+  final DateTime Function() _clock;
+  final Future<Set<String>> Function()? _keepKeys;
+  final Map<String, Future<void>> _locks = <String, Future<void>>{};
+  Directory? _directory;
+  Future<Directory?>? _opening;
+  int? _trackedBytes;
+  Future<void>? _maintenance;
+  bool _maintenanceAgain = false;
+  int _growthDuringMaintenance = 0;
+  final Set<Future<void>> _background = <Future<void>>{};
+
+  static String stemFor(String key) =>
+      sha1.convert(utf8.encode(key)).toString();
+
+  /// The store directory, created on first use. Null when it cannot be
+  /// resolved or created (the cache then behaves as always empty).
+  Future<Directory?> directory() async {
+    final ready = _directory;
+    if (ready != null) return ready;
+    final opening = _opening ??= _open();
+    final directory = await opening;
+    if (directory == null) {
+      _opening = null;
+    } else {
+      _directory = directory;
+    }
+    return directory;
+  }
+
+  Future<Directory?> _open() async {
+    try {
+      final directory = await _resolveDirectory();
+      await directory.create(recursive: true);
+      return directory;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  File _metaFile(Directory directory, String stem) =>
+      File(p.join(directory.path, '$stem$metaExtension'));
+
+  File _bodyFile(Directory directory, String stem) =>
+      File(p.join(directory.path, '$stem$bodyExtension'));
+
+  Future<T> _locked<T>(String stem, Future<T> Function() action) {
+    final previous = _locks[stem] ?? Future<void>.value();
+    final done = Completer<void>();
+    _locks[stem] = done.future;
+    return previous.then((_) => action()).whenComplete(() {
+      done.complete();
+      if (identical(_locks[stem], done.future)) _locks.remove(stem);
+    });
+  }
+
+  /// Reads metadata and body, or null on a miss. Corrupt entries are
+  /// deleted.
+  Future<LibraryCacheRecord?> read(String key) async {
+    final directory = await this.directory();
+    if (directory == null) return null;
+    final stem = stemFor(key);
+    return _locked(stem, () async {
+      final metaFile = _metaFile(directory, stem);
+      final bodyFile = _bodyFile(directory, stem);
+      try {
+        if (!await metaFile.exists()) {
+          if (await bodyFile.exists()) await _deleteQuietly(bodyFile);
+          return null;
+        }
+        final meta = LibraryCacheRecord.fromJson(
+          jsonDecode(await metaFile.readAsString()),
+        );
+        if (meta != null && meta.key == key) {
+          final body = await bodyFile.readAsBytes();
+          if (body.length == meta.size) return meta.copyWith(body: body);
+        }
+      } catch (_) {
+        // Falls through to deletion.
+      }
+      await _deleteStemFiles(directory, stem);
+      return null;
+    });
+  }
+
+  /// Reads only the metadata (no body), or null.
+  Future<LibraryCacheRecord?> readMeta(String key) async {
+    final directory = await this.directory();
+    if (directory == null) return null;
+    final stem = stemFor(key);
+    return _locked(stem, () async {
+      try {
+        final meta = LibraryCacheRecord.fromJson(
+          jsonDecode(await _metaFile(directory, stem).readAsString()),
+        );
+        if (meta == null || meta.key != key) return null;
+        final length = await _bodyFile(directory, stem).length();
+        return length == meta.size ? meta : null;
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
+  /// Stores [record] (its body is required). Returns false when the entry
+  /// could not be written or is larger than [maxBytes].
+  Future<bool> write(LibraryCacheRecord record) async {
+    final body = record.body;
+    if (body == null) {
+      throw ArgumentError.value(record, 'record', 'body is required');
+    }
+    if (body.length > maxBytes) return false;
+    final directory = await this.directory();
+    if (directory == null) return false;
+    final stem = stemFor(record.key);
+    final meta = utf8.encode(jsonEncode(record.copyWith(body: body).toJson()));
+    final written = await _locked(stem, () async {
+      try {
+        await _atomicWrite(_bodyFile(directory, stem), body);
+        await _atomicWrite(_metaFile(directory, stem), meta);
+        return true;
+      } catch (_) {
+        await _deleteStemFiles(directory, stem);
+        return false;
+      }
+    });
+    if (written) _noteGrowth(body.length + meta.length);
+    return written;
+  }
+
+  /// Rewrites the metadata of an existing entry (headers, dates). Returns
+  /// false when the entry is missing; the body is left untouched.
+  Future<bool> updateMeta(LibraryCacheRecord record) async {
+    final directory = await this.directory();
+    if (directory == null) return false;
+    final stem = stemFor(record.key);
+    return _locked(stem, () async {
+      try {
+        final current = LibraryCacheRecord.fromJson(
+          jsonDecode(await _metaFile(directory, stem).readAsString()),
+        );
+        if (current == null || current.key != record.key) return false;
+        final length = await _bodyFile(directory, stem).length();
+        if (length != current.size) return false;
+        final next = LibraryCacheRecord(
+          key: current.key,
+          url: current.url,
+          finalUrl: current.finalUrl,
+          statusCode: current.statusCode,
+          headers: record.headers,
+          fetchedAt: record.fetchedAt,
+          lastAccessAt: record.lastAccessAt,
+          size: current.size,
+        );
+        await _atomicWrite(
+          _metaFile(directory, stem),
+          utf8.encode(jsonEncode(next.toJson())),
+        );
+        return true;
+      } catch (_) {
+        return false;
+      }
+    });
+  }
+
+  /// Records a use of [key] for LRU trimming. [idle] waits for it.
+  Future<bool> touch(String key, DateTime at) {
+    final operation = _touch(key, at);
+    final tracked = operation.then<void>((_) {}, onError: (Object _) {});
+    _background.add(tracked);
+    unawaited(tracked.whenComplete(() => _background.remove(tracked)));
+    return operation;
+  }
+
+  Future<bool> _touch(String key, DateTime at) async {
+    final directory = await this.directory();
+    if (directory == null) return false;
+    final stem = stemFor(key);
+    return _locked(stem, () async {
+      try {
+        final metaFile = _metaFile(directory, stem);
+        final current = LibraryCacheRecord.fromJson(
+          jsonDecode(await metaFile.readAsString()),
+        );
+        if (current == null || current.key != key) return false;
+        await _atomicWrite(
+          metaFile,
+          utf8.encode(jsonEncode(current.copyWith(lastAccessAt: at).toJson())),
+        );
+        return true;
+      } catch (_) {
+        return false;
+      }
+    });
+  }
+
+  Future<void> remove(String key) async {
+    final directory = await this.directory();
+    if (directory == null) return;
+    final stem = stemFor(key);
+    await _locked(stem, () => _deleteStemFiles(directory, stem));
+    _trackedBytes = null;
+  }
+
+  /// Bytes used by entries (and in-progress temporary files).
+  Future<int> sizeBytes() async {
+    final directory = await this.directory();
+    if (directory == null) return 0;
+    var total = 0;
+    try {
+      await for (final entity in directory.list(followLinks: false)) {
+        if (entity is! File || _stemOf(entity) == null) continue;
+        try {
+          total += await entity.length();
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return total;
+  }
+
+  /// Deletes least recently used entries (by `lastAccessAt`) until the store
+  /// fits [maxBytes], never deleting keys returned by `keepKeys`. Also
+  /// removes stale temporary files and broken entries. Returns the size left.
+  Future<int> trim({int? maxBytes}) async {
+    final limit = math.max(0, maxBytes ?? this.maxBytes);
+    final directory = await this.directory();
+    if (directory == null) return 0;
+    final keep = await _keep();
+    final groups = await _scan(directory);
+    final now = DateTime.now();
+    final candidates = <_TrimCandidate>[];
+    var total = 0;
+
+    for (final group in groups.values) {
+      for (final tmp in group.temporary) {
+        if (now.difference(tmp.modified) > orphanGrace) {
+          await _deleteQuietly(tmp.file);
+        } else {
+          total += tmp.size;
+        }
+      }
+      final meta = group.meta;
+      final body = group.body;
+      if (meta == null || body == null) {
+        final present = meta ?? body;
+        if (present == null) continue;
+        if (now.difference(present.modified) > orphanGrace) {
+          await _locked(
+            group.stem,
+            () => _deleteIfBroken(directory, group.stem),
+          );
+        } else {
+          total += present.size;
+        }
+        continue;
+      }
+      LibraryCacheRecord? record;
+      try {
+        record = LibraryCacheRecord.fromJson(
+          jsonDecode(await meta.file.readAsString()),
+        );
+      } catch (_) {
+        record = null;
+      }
+      if (record == null ||
+          record.size != body.size ||
+          stemFor(record.key) != group.stem) {
+        final deleted = await _locked(
+          group.stem,
+          () => _deleteIfBroken(directory, group.stem),
+        );
+        if (!deleted) total += meta.size + body.size;
+        continue;
+      }
+      final size = meta.size + body.size;
+      total += size;
+      if (!keep.contains(record.key)) {
+        candidates.add(_TrimCandidate(group.stem, record.lastAccessAt, size));
+      }
+    }
+
+    if (total > limit) {
+      candidates.sort((a, b) => a.lastAccessAt.compareTo(b.lastAccessAt));
+      for (final candidate in candidates) {
+        if (total <= limit) break;
+        await _locked(
+          candidate.stem,
+          () => _deleteStemFiles(directory, candidate.stem),
+        );
+        total -= candidate.size;
+      }
+    }
+    _trackedBytes = total;
+    return total;
+  }
+
+  /// Removes every entry except keys returned by `keepKeys` (unless
+  /// [includeKept]) and [alsoKeep].
+  Future<void> clear({
+    Set<String> alsoKeep = const <String>{},
+    bool includeKept = false,
+  }) async {
+    final directory = await this.directory();
+    if (directory == null) return;
+    final keep = <String>{if (!includeKept) ...await _keep(), ...alsoKeep};
+    final groups = await _scan(directory);
+    for (final group in groups.values) {
+      if (keep.isNotEmpty && group.meta != null) {
+        try {
+          final record = LibraryCacheRecord.fromJson(
+            jsonDecode(await group.meta!.file.readAsString()),
+          );
+          if (record != null && keep.contains(record.key)) continue;
+        } catch (_) {}
+      }
+      await _locked(group.stem, () => _deleteStemFiles(directory, group.stem));
+    }
+    _trackedBytes = null;
+  }
+
+  Future<Set<String>> _keep() async {
+    final provider = _keepKeys;
+    if (provider == null) return const <String>{};
+    try {
+      return await provider();
+    } catch (_) {
+      return const <String>{};
+    }
+  }
+
+  void _noteGrowth(int bytes) {
+    if (_maintenance != null) {
+      // The running scan may have missed this write: account for it once
+      // the scan result is known.
+      _growthDuringMaintenance += bytes;
+      _maintenanceAgain = true;
+      return;
+    }
+    final tracked = _trackedBytes;
+    if (tracked == null) {
+      _scheduleMaintenance();
+      return;
+    }
+    _trackedBytes = tracked + bytes;
+    if (_trackedBytes! > maxBytes) _scheduleMaintenance();
+  }
+
+  void _scheduleMaintenance() {
+    if (_maintenance != null) {
+      _maintenanceAgain = true;
+      return;
+    }
+    _growthDuringMaintenance = 0;
+    _maintenance = _maintain().whenComplete(() {
+      _maintenance = null;
+      final growth = _growthDuringMaintenance;
+      final again = _maintenanceAgain;
+      _growthDuringMaintenance = 0;
+      _maintenanceAgain = false;
+      final tracked = _trackedBytes;
+      // May over-count a write the scan already saw; an extra scan then
+      // corrects the estimate.
+      if (tracked != null) _trackedBytes = tracked + growth;
+      if (again && (_trackedBytes ?? maxBytes + 1) > maxBytes) {
+        _scheduleMaintenance();
+      }
+    });
+  }
+
+  Future<void> _maintain() async {
+    try {
+      final size = await sizeBytes();
+      _trackedBytes = size;
+      if (size > maxBytes) await trim(maxBytes: (maxBytes * 9) ~/ 10);
+    } catch (_) {
+      _trackedBytes = null;
+    }
+  }
+
+  /// Completes when access-time updates and automatic trimming scheduled by
+  /// previous operations are done (tests and shutdown).
+  Future<void> idle() async {
+    while (_maintenance != null || _background.isNotEmpty) {
+      if (_background.isNotEmpty) {
+        await Future.wait(_background.toList());
+      }
+      final maintenance = _maintenance;
+      if (maintenance != null) await maintenance;
+    }
+  }
+
+  Future<Map<String, _StemGroup>> _scan(Directory directory) async {
+    final groups = <String, _StemGroup>{};
+    try {
+      await for (final entity in directory.list(followLinks: false)) {
+        if (entity is! File) continue;
+        final stem = _stemOf(entity);
+        if (stem == null) continue;
+        final FileStat stat;
+        try {
+          stat = await entity.stat();
+        } catch (_) {
+          continue;
+        }
+        final info = _FileInfo(entity, stat.size, stat.modified);
+        final group = groups.putIfAbsent(stem, () => _StemGroup(stem));
+        final name = p.basename(entity.path);
+        final suffix = name.substring(stem.length);
+        if (suffix == metaExtension) {
+          group.meta = info;
+        } else if (suffix == bodyExtension) {
+          group.body = info;
+        } else {
+          group.temporary.add(info);
+        }
+      }
+    } catch (_) {}
+    return groups;
+  }
+
+  static String? _stemOf(File file) {
+    final name = p.basename(file.path);
+    final dot = name.indexOf('.');
+    if (dot != 40) return null;
+    final stem = name.substring(0, dot);
+    if (!_stemPattern.hasMatch(stem)) return null;
+    final suffix = name.substring(dot);
+    if (suffix == metaExtension ||
+        suffix == bodyExtension ||
+        suffix.endsWith(_tmpExtension)) {
+      return stem;
+    }
+    return null;
+  }
+
+  Future<bool> _deleteIfBroken(Directory directory, String stem) async {
+    try {
+      final meta = LibraryCacheRecord.fromJson(
+        jsonDecode(await _metaFile(directory, stem).readAsString()),
+      );
+      final length = await _bodyFile(directory, stem).length();
+      if (meta != null && meta.size == length && stemFor(meta.key) == stem) {
+        return false;
+      }
+    } catch (_) {}
+    await _deleteStemFiles(directory, stem);
+    return true;
+  }
+
+  Future<void> _deleteStemFiles(Directory directory, String stem) async {
+    await _deleteQuietly(_metaFile(directory, stem));
+    await _deleteQuietly(_bodyFile(directory, stem));
+  }
+
+  static Future<void> _deleteQuietly(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  Future<void> _atomicWrite(File target, List<int> bytes) async {
+    final suffix =
+        '${_clock().microsecondsSinceEpoch.toRadixString(36)}'
+        '${_random.nextInt(1 << 32).toRadixString(36)}';
+    final tmp = File('${target.path}.$suffix$_tmpExtension');
+    try {
+      await tmp.writeAsBytes(bytes);
+      await tmp.rename(target.path);
+    } catch (_) {
+      await _deleteQuietly(tmp);
+      rethrow;
+    }
+  }
+}
+
+class _FileInfo {
+  const _FileInfo(this.file, this.size, this.modified);
+
+  final File file;
+  final int size;
+  final DateTime modified;
+}
+
+class _StemGroup {
+  _StemGroup(this.stem);
+
+  final String stem;
+  _FileInfo? meta;
+  _FileInfo? body;
+  final List<_FileInfo> temporary = <_FileInfo>[];
+}
+
+class _TrimCandidate {
+  const _TrimCandidate(this.stem, this.lastAccessAt, this.size);
+
+  final String stem;
+  final DateTime lastAccessAt;
+  final int size;
 }
