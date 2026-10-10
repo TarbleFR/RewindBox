@@ -132,6 +132,9 @@ class LibraryTextDocument {
 /// Minimum length of a line considered hard-wrapped.
 const int _wrapLength = 45;
 
+/// CRLF, CR, LF and form feed all end a line.
+final RegExp _lineBreak = RegExp('\r\n|[\r\n\u000C]');
+
 class _DecodedText {
   const _DecodedText(this.encoding, this.blocks);
 
@@ -167,11 +170,9 @@ _DecodedText _decodeFile(String path) {
 /// (one paragraph per line, poems, lists) keeps every non-empty line as a
 /// paragraph. Leading and trailing spaces are trimmed.
 List<LibraryTextBlock> libraryTextParagraphs(String text) {
-  final lines = text
-      .replaceAll('\r\n', '\n')
-      .replaceAll('\r', '\n')
-      .replaceAll('\u000C', '\n')
-      .split('\n');
+  // One pass: normalizing the line ends with replaceAll first would hold
+  // another full copy of a text of up to 64 MB.
+  final lines = text.split(_lineBreak);
   var blankSeparators = 0;
   var continued = 0;
   var longContinued = 0;

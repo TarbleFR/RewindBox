@@ -48,6 +48,26 @@ void main() {
       ]);
     });
 
+    test('CRLF, CR, LF and form feed all end a line', () {
+      expect(
+        libraryTextParagraphs(
+          'a\r\nb\rc\u000Cd\n\r\r\ne',
+        ).map((b) => b.text).toList(),
+        <String>['a', 'b', 'c', 'd', 'e'],
+      );
+      // Windows line ends still join hard-wrapped paragraphs.
+      final wrapped = libraryTextParagraphs(
+        'It was a dark and stormy night; the rain fell in torrents,\r\n'
+        'except at occasional intervals, when it was checked by a\r\n'
+        'violent gust.\r\n'
+        '\r\n'
+        'Suddenly a shot rang out somewhere along the empty street and\r\n'
+        'the lamps flickered.\r\n',
+      );
+      expect(wrapped, hasLength(2));
+      expect(wrapped.first.text, endsWith('checked by a violent gust.'));
+    });
+
     test('short lines separated by stanzas (poems) keep their line breaks', () {
       final blocks = libraryTextParagraphs(
         'Roses are red\nViolets are blue\n\nSugar is sweet\n',
