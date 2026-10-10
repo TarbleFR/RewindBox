@@ -1309,7 +1309,10 @@ class MangaThemesiaEngine extends LibraryAidokuEngine {
         headers: htmlHeaders(referer: '${site.baseUrl}/'),
         cache: policy,
         // A search page past the last one is a 404: the end, not an error.
-        acceptStatuses: normalized.isEmpty ? const <int>{} : const <int>{404},
+        // On page 1 a 404 stays an error (the search path itself moved).
+        acceptStatuses: normalized.isNotEmpty && page > 1
+            ? const <int>{404}
+            : const <int>{},
       ),
     );
     final parsed = response.statusCode == 404

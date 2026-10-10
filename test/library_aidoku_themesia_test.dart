@@ -141,6 +141,28 @@ void main() {
       },
     );
 
+    test('a 404 on the first search page stays an error', () async {
+      final fake = FakeLibraryFetcher()
+        ..get(
+          'https://sushiscan.net/catalogue/page/1/?s=naruto',
+          status: 404,
+          body: 'not found',
+        );
+      final service = LibraryAidokuNativeService(fetcher: fake.call);
+
+      await expectLater(
+        service.loadCatalogPage(addon, query: 'naruto'),
+        throwsA(
+          isA<LibraryNetworkException>().having(
+            (error) => error.kind,
+            'kind',
+            LibraryNetworkErrorKind.notFound,
+          ),
+        ),
+      );
+      expect(fake.requests.single.acceptStatuses, isEmpty);
+    });
+
     test('details and chapters from one request; volumes kept apart', () async {
       final fake = FakeLibraryFetcher()
         ..get(
