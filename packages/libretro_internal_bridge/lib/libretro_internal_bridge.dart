@@ -48,6 +48,24 @@ class LibretroInternalBridge {
   static Future<bool> isSessionActive() async =>
       await _channel.invokeMethod<bool>('isSessionActive') ?? false;
 
+  /// Lets the Library readers rotate to portrait (`allowPortrait` true) or
+  /// restores the app's landscape-only mask (false, applied after Flutter's
+  /// own queued orientation update). False when the native side refused it
+  /// (an embedded game owns the orientation) or the plugin is unavailable.
+  static Future<bool> setReaderOrientation({required bool allowPortrait}) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'setReaderOrientation',
+            <String, Object?>{'allowPortrait': allowPortrait},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   static Future<Map<String, dynamic>> launch(Map<String, Object?> request) async {
     _ensureEventHandler();
     return Map<String, dynamic>.from(

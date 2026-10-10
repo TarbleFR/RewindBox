@@ -256,6 +256,29 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
     }];
     return;
   }
+  if ([call.method isEqualToString:@"setReaderOrientation"]) {
+    // Portrait for the Library readers (Flutter routes), through the same
+    // app-level mask as the games. Refused while an embedded game owns it.
+    if (self.session.active || self.launching) {
+      result(@NO);
+      return;
+    }
+    NSDictionary *orientationArguments =
+        [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    id allowValue = orientationArguments[@"allowPortrait"];
+    BOOL allowPortrait = [allowValue isKindOfClass:NSNumber.class] && [allowValue boolValue];
+    if (allowPortrait) {
+      LibretroOrientationSetGameMask(UIInterfaceOrientationMaskAllButUpsideDown);
+    } else {
+      // Queued after Flutter's own orientation update (back to landscape),
+      // so the app mask never loses every orientation Flutter still allows.
+      dispatch_async(dispatch_get_main_queue(), ^{
+        LibretroOrientationSetGameMask(0);
+      });
+    }
+    result(@YES);
+    return;
+  }
   NSDictionary *arguments = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
   if ([call.method isEqualToString:@"frontendSettings"]) {
     [self frontendSettingsWithArguments:arguments result:result];
