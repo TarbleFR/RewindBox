@@ -547,8 +547,9 @@ class LibraryHttp {
   /// Matches the [LibraryFetcher] signature.
   ///
   /// Concurrent calls with the same [LibraryRequest.key] share one network
-  /// operation. Each caller may cancel independently; the socket is aborted
-  /// only when every caller of that operation cancelled.
+  /// operation (unless their own `If-None-Match`, `If-Modified-Since` or
+  /// `Range` headers differ). Each caller may cancel independently; the
+  /// socket is aborted only when every caller of that operation cancelled.
   Future<LibraryHttpResponse> send(
     LibraryRequest request, {
     LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
@@ -843,12 +844,35 @@ class LibraryHttp {
 
   // -------------------------------------------------------------- network --
 
+  /// Caller headers that change the answer to an otherwise identical
+  /// request (conditional and range requests).
+  static const List<String> _variantHeaders = <String>[
+    'if-none-match',
+    'if-modified-since',
+    'range',
+  ];
+
+  /// Requests share one network operation when their [LibraryRequest.key]
+  /// matches and they carry the same [_variantHeaders], so a plain request
+  /// never receives the empty 304 answered to a caller's conditional one.
+  static String _flightKey(LibraryRequest request) {
+    final parts = <String>[];
+    for (final name in _variantHeaders) {
+      for (final entry in request.headers.entries) {
+        if (entry.key.toLowerCase() == name) {
+          parts.add('$name: ${entry.value}');
+        }
+      }
+    }
+    return parts.isEmpty ? request.key : '${request.key}\n${parts.join('\n')}';
+  }
+
   Future<_NetworkOutcome> _joinFlight(
     LibraryRequest request,
     LibraryCacheRecord? cached,
     LibraryCancelToken? cancel,
   ) {
-    final key = request.key;
+    final key = _flightKey(request);
     var flight = _flights[key];
     if (flight == null || flight.isAborted) {
       final created = _Flight(key);

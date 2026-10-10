@@ -246,6 +246,39 @@ void main() {
       expect(library.stats.deduplicated, 1);
     });
 
+    test(
+      'a caller conditional request is not shared with a plain one',
+      () async {
+        final client = _FakeClient((call) async {
+          await call.wait();
+          if (call.header('if-none-match') == '"img-v1"') {
+            return _response(304);
+          }
+          return _response(200, body: 'full body');
+        });
+        final library = create(client);
+        final uri = Uri.parse('https://img.test/page-1.jpg');
+        final conditional = library.send(
+          LibraryRequest.get(
+            uri,
+            headers: const <String, String>{'If-None-Match': '"img-v1"'},
+            acceptStatuses: const <int>{304},
+          ),
+          mode: LibraryFetchMode.refresh,
+        );
+        final plain = library.send(LibraryRequest.get(uri));
+        await _waitFor(() => client.calls.length == 2);
+        for (final call in client.calls) {
+          call.gate.complete();
+        }
+        expect((await conditional).statusCode, 304);
+        final full = await plain;
+        expect(full.statusCode, 200);
+        expect(full.text, 'full body');
+        expect(library.stats.deduplicated, 0);
+      },
+    );
+
     test('one caller cancelling does not abort the shared request', () async {
       final client = _FakeClient((call) async {
         await call.wait();
