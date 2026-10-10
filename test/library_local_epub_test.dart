@@ -280,6 +280,46 @@ void main() {
       );
     });
 
+    test('an image placed directly in the spine is one image block', () async {
+      final page = buildPng(12, 18);
+      final opf = '''<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Pages</dc:title></metadata>
+  <manifest>
+    <item id="p1" href="p1.png" media-type="image/png"/>
+    <item id="t" href="t.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine><itemref idref="p1"/><itemref idref="t"/></spine>
+</package>''';
+      document = await openFixture(
+        buildZip(<FixtureZipEntry>[
+          FixtureZipEntry.text(
+            'mimetype',
+            'application/epub+zip',
+            deflate: false,
+          ),
+          FixtureZipEntry.text('META-INF/container.xml', containerXml),
+          FixtureZipEntry.text('OEBPS/content.opf', opf),
+          FixtureZipEntry('OEBPS/p1.png', page, deflate: false),
+          FixtureZipEntry.text('OEBPS/t.xhtml', xhtml('<p>End</p>')),
+        ]),
+        'pages.epub',
+      );
+      addTearDown(document.close);
+      expect(document.coverHref, 'OEBPS/p1.png');
+      final chapter = await document.loadChapter(0);
+      expect(chapter.blocks, hasLength(1));
+      expect(chapter.blocks.single.kind, LibraryTextBlockKind.image);
+      expect(chapter.blocks.single.imageHref, 'OEBPS/p1.png');
+      expect(await document.resource('OEBPS/p1.png'), page);
+      final cfi = document.cfiForChapter(chapter, 0, 0);
+      expect(
+        await document.resolveCfi(cfi),
+        const LibraryEpubLocation(0, 0, 0),
+      );
+      expect((await document.loadChapter(1)).blocks.single.text, 'End');
+    });
+
     test('EPUB 2: NCX TOC with nesting and non-linear items', () async {
       document = await openFixture(buildEpub2());
       addTearDown(document.close);

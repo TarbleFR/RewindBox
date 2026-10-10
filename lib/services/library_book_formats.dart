@@ -1285,7 +1285,10 @@ class LibraryEpubPackage {
         spine.where((item) => item.linear).firstOrNull ?? spine.firstOrNull;
     if (first != null) {
       final entry = zip.find(first.href);
-      if (entry != null) return _firstImageOf(zip, entry);
+      if (entry == null) return null;
+      // A page image placed directly in the spine is its own cover.
+      if (libraryIsPageImageName(entry.name)) return entry.name;
+      return _firstImageOf(zip, entry);
     }
     return null;
   }

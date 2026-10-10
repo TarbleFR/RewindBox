@@ -714,6 +714,23 @@ class _EpubWorker implements LibraryWorkerHandler {
         anchors: const <String, int>{},
       );
     }
+    // Some comic EPUBs put page images straight into the spine (invalid,
+    // but common). Decoding them as markup would show binary garbage.
+    if (item.mediaType.startsWith('image/') &&
+        !item.mediaType.startsWith('image/svg')) {
+      return LibraryEpubChapter(
+        spineIndex: spineIndex,
+        href: entry.name,
+        blocks: <LibraryTextBlock>[
+          LibraryTextBlock(
+            kind: LibraryTextBlockKind.image,
+            imageHref: entry.name,
+            alignCenter: true,
+          ),
+        ],
+        anchors: const <String, int>{},
+      );
+    }
     final text = libraryDecodeMarkup(
       _zip.read(entry, maxBytes: LibraryBookLimits.maxResourceBytes),
     );
