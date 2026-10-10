@@ -135,12 +135,16 @@ Uint8List buildAix({
   Uint8List? icon,
   bool storeSourceJson = false,
   String? rawSourceJson,
+  Uint8List? mainWasm,
 }) {
   final archive = Archive();
   archive.addFile(
     ArchiveFile.bytes(
       'Payload/main.wasm',
-      Uint8List.fromList(<int>[0x00, 0x61, 0x73, 0x6d, 0xde, 0xad, 0xbe, 0xef]),
+      mainWasm ??
+          Uint8List.fromList(<int>[
+            0x00, 0x61, 0x73, 0x6d, 0xde, 0xad, 0xbe, 0xef, //
+          ]),
     ),
   );
   final sourceBytes = utf8.encode(rawSourceJson ?? jsonEncode(sourceJson));
@@ -185,6 +189,54 @@ Uint8List patchDeclaredSize(Uint8List zip, String entryName, int size) {
         data.setUint32(offset + 24, size, Endian.little);
       }
     }
+  }
+  return bytes;
+}
+
+/// Flags [entryName] as a UNIX symbolic link (`versionMadeBy` 3, mode
+/// `0xA1FF`) and corrupts its deflated data. A reader that inflates the entry
+/// fails; one that never touches it does not notice.
+Uint8List markAsCorruptSymlink(Uint8List zip, String entryName) {
+  final bytes = Uint8List.fromList(zip);
+  final data = ByteData.sublistView(bytes);
+  final name = utf8.encode(entryName);
+  bool nameAt(int offset) {
+    if (offset + name.length > bytes.length) return false;
+    for (var i = 0; i < name.length; i++) {
+      if (bytes[offset + i] != name[i]) return false;
+    }
+    return true;
+  }
+
+  var patchedLocal = false;
+  var patchedCentral = false;
+  for (var offset = 0; offset + 46 <= bytes.length; offset++) {
+    final signature = data.getUint32(offset, Endian.little);
+    if (signature == 0x04034b50) {
+      final nameLength = data.getUint16(offset + 26, Endian.little);
+      if (nameLength == name.length && nameAt(offset + 30)) {
+        if (data.getUint16(offset + 8, Endian.little) != 8) {
+          throw StateError('$entryName is not deflated');
+        }
+        final extraLength = data.getUint16(offset + 28, Endian.little);
+        final start = offset + 30 + nameLength + extraLength;
+        // BFINAL=1, BTYPE=11: an invalid deflate block.
+        for (var i = 0; i < 4; i++) {
+          bytes[start + i] = 0xff;
+        }
+        patchedLocal = true;
+      }
+    } else if (signature == 0x02014b50) {
+      final nameLength = data.getUint16(offset + 28, Endian.little);
+      if (nameLength == name.length && nameAt(offset + 46)) {
+        data.setUint16(offset + 4, (3 << 8) | 20, Endian.little);
+        data.setUint32(offset + 38, 0xA1FF0000, Endian.little);
+        patchedCentral = true;
+      }
+    }
+  }
+  if (!patchedLocal || !patchedCentral) {
+    throw StateError('$entryName not found in the archive');
   }
   return bytes;
 }

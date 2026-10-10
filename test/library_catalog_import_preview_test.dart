@@ -544,6 +544,33 @@ void main() {
       },
     );
 
+    test('main.wasm is never inflated, even flagged as a symlink', () async {
+      // package:archive's ZipDecoder inflates UNIX symlink entries while
+      // listing the archive, without any size limit: a crafted main.wasm
+      // could exhaust memory before the bounded reader runs. Corrupt
+      // deflate data proves the entry is not touched at all.
+      final package = markAsCorruptSymlink(
+        buildAix(
+          sourceJson: <String, dynamic>{
+            'info': <String, dynamic>{
+              'id': 'fr.example',
+              'lang': 'fr',
+              'name': 'Example FR',
+              'version': 6,
+            },
+          },
+          mainWasm: Uint8List(4096),
+        ),
+        'Payload/main.wasm',
+      );
+      fetcher.routes[packageUrl] = FakeRoute.bytes(package);
+
+      final entry = (await service.preview(packageUrl)).sources.single;
+
+      expect(entry.id, 'fr.example');
+      expect(entry.iconBytes, fakePngBytes);
+    });
+
     test('rejects a package without source.json', () async {
       fetcher.routes[packageUrl] = FakeRoute.bytes(
         buildAix(

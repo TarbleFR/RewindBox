@@ -1866,9 +1866,12 @@ class LibrarySourceCatalogService {
         detail: '${bytes.length} bytes',
       );
     }
-    final Archive archive;
+    // Only the directory is read here, nothing is inflated. `ZipDecoder`
+    // is not used: while listing, it inflates every entry flagged as a UNIX
+    // symbolic link, without any size limit.
+    final ZipDirectory directory;
     try {
-      archive = ZipDecoder().decodeBytes(bytes);
+      directory = ZipDirectory()..read(InputMemoryStream(bytes));
     } on Object catch (error) {
       throw LibraryCatalogException(
         LibraryCatalogErrorKind.invalidDocument,
@@ -1876,11 +1879,13 @@ class LibrarySourceCatalogService {
         detail: 'Invalid ZIP: $error',
       );
     }
-    ArchiveFile? sourceJson;
-    ArchiveFile? icon;
-    for (final file in archive) {
-      if (!file.isFile) continue;
-      final name = file.name.replaceAll('\\', '/').toLowerCase();
+    ZipFile? sourceJson;
+    ZipFile? icon;
+    for (final header in directory.fileHeaders) {
+      final file = header.file;
+      if (file == null) continue;
+      final name = file.filename.replaceAll('\\', '/').toLowerCase();
+      if (name.endsWith('/')) continue; // Directory entry.
       if (name == 'payload/source.json') {
         sourceJson = file;
       } else if (sourceJson == null && name.endsWith('/source.json')) {
@@ -1941,19 +1946,11 @@ class LibrarySourceCatalogService {
     );
   }
 
-  static Uint8List? _readZipEntry(ArchiveFile file, int maxBytes) {
-    if (file.size > maxBytes) throw const _ZipEntryTooLarge();
-    final content = file.rawContent;
-    if (content is! ZipFile) {
-      final bytes = file.readBytes();
-      if (bytes != null && bytes.length > maxBytes) {
-        throw const _ZipEntryTooLarge();
-      }
-      return bytes;
-    }
-    if ((content.flags & 0x1) != 0) return null; // Encrypted entry.
-    final raw = content.getStream(decompress: false).toUint8List();
-    switch (content.compressionMethod) {
+  static Uint8List? _readZipEntry(ZipFile file, int maxBytes) {
+    if (file.uncompressedSize > maxBytes) throw const _ZipEntryTooLarge();
+    if ((file.flags & 0x1) != 0) return null; // Encrypted entry.
+    final raw = file.getStream(decompress: false).toUint8List();
+    switch (file.compressionMethod) {
       case CompressionType.none:
         if (raw.length > maxBytes) throw const _ZipEntryTooLarge();
         return Uint8List.fromList(raw);
