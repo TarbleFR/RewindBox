@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
+import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -14,23 +12,66 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/library_feature_locale.dart';
 import 'package:neostation/services/gamepad/gamepad_navigation_manager.dart';
 import 'package:neostation/services/library_addon_service.dart';
-import 'package:neostation/services/library_aidoku_native_service.dart';
+import 'package:neostation/services/library_catalog_feed.dart';
 import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_download_service.dart';
-import 'package:neostation/services/library_metadata_provider_service.dart';
+import 'package:neostation/services/library_image_cache.dart';
+import 'package:neostation/services/library_manga_models.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
+import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
+import 'library_favorites_view.dart';
+import 'library_gamepad_view_controller.dart';
+import 'library_local_view.dart';
+import 'library_manga_details_screen.dart';
+import 'library_reader_launcher.dart';
 import 'library_reader_screen.dart';
-import 'library_pdf_reader_screen.dart';
+import 'library_sources_view.dart';
+
+/// Sections opened from the Library hub's shortcut cards.
+enum LibraryHubSection { sources, local, favorites }
+
+/// Builds a hub section (tests replace the real sections).
+typedef LibraryHubSectionBuilder =
+    Widget Function(
+      BuildContext context,
+      LibraryHubSection section,
+      LibraryGamepadViewController controller,
+      VoidCallback onBack,
+    );
 
 /// Native reading Library for iOS.
 ///
-/// The hub keeps provider management, local-library entry and native content in
-/// one controller-friendly surface. Provider websites are never embedded.
+/// The hub shows the catalogue feed of the active sources ([LibraryCatalogFeed],
+/// which survives tab switches), the filters, the search and three sections:
+/// Sources, Local library and Favourites & continue reading. Provider
+/// websites are never embedded.
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key});
+  const LibraryScreen({
+    super.key,
+    this.feed,
+    this.loadAddons,
+    this.sectionBuilder,
+    this.openOnlineTitle,
+    this.enableSounds = true,
+  });
+
+  /// Defaults to [LibraryCatalogFeed.instance].
+  final LibraryCatalogFeed? feed;
+
+  /// Defaults to [LibraryAddonService.load] of the shared service.
+  final Future<List<LibraryAddon>> Function()? loadAddons;
+
+  /// Replaces the section widgets (tests).
+  final LibraryHubSectionBuilder? sectionBuilder;
+
+  /// Defaults to [LibraryMangaDetailsScreen.open].
+  final LibraryOnlineTitleOpener? openOnlineTitle;
+
+  /// Navigation sounds (off in widget tests).
+  final bool enableSounds;
 
   static LibraryScreenState? _currentState;
 
@@ -40,182 +81,128 @@ class LibraryScreen extends StatefulWidget {
   static bool navigateDown() => _currentState?._navigateVertical(1) ?? false;
   static void selectCurrent() => _currentState?._activateSelection();
   static void backCurrent() => _currentState?._back();
-  static void deleteCurrent() => _currentState?._deleteSelectedAddon();
+  static void deleteCurrent() => _currentState?._secondaryAction();
 
   @override
   State<LibraryScreen> createState() => LibraryScreenState();
 }
 
-enum _LibraryView { hub, addons, local, manage }
+enum _HubFocus { header, shortcuts, filters, books, empty, searchBar }
 
-enum _HubFocus { shortcuts, filters, books }
+enum _HeaderAction { unavailable, refresh }
 
-class _NativeLibraryEntry {
-  const _NativeLibraryEntry({
-    required this.providerId,
-    required this.item,
-    this.source,
-  });
+enum _SearchBarItem { field, filters, close }
 
-  final String providerId;
-  final LibraryAddon? source;
-  final LibraryCatalogItem item;
+/// Scroll controller whose scroll views start at the offset remembered in
+/// [LibraryFeedHubMemory] when they are (re)built: after a tab switch,
+/// after a section and when switching between the catalogue and the
+/// search. Page storage is not used, so the memory is the only source.
+class _MemoryScrollController extends ScrollController {
+  _MemoryScrollController(this._offset) : super(keepScrollOffset: false);
+
+  final double Function() _offset;
+
+  @override
+  double get initialScrollOffset => _offset();
+}
+
+/// Geometry of the title grid, used to restore and anchor the scroll
+/// position (the grid has a fixed row extent).
+class _GridGeometry {
+  double start = 0;
+  double rowExtent = 0;
+  int columns = 5;
+}
+
+class _EmptyAction {
+  const _EmptyAction(this.icon, this.label, this.onPressed);
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
 }
 
 class LibraryScreenState extends State<LibraryScreen> {
   String _lt(String key) => LibraryFeatureLocale.text(context, key);
   String _ltf(String key, Map<String, Object?> values) =>
       LibraryFeatureLocale.format(context, key, values);
-  final LibraryAddonService _addonService = LibraryAddonService.instance;
-  final LibraryAidokuNativeService _aidokuNativeService =
-      LibraryAidokuNativeService.instance;
+
+  late final LibraryCatalogFeed _feed =
+      widget.feed ?? LibraryCatalogFeed.instance;
+  LibraryFeedHubMemory get _memory => _feed.hubMemory;
+  final LibraryGamepadViewController _sectionController =
+      LibraryGamepadViewController();
   final LibraryCatalogService _catalogService = LibraryCatalogService.instance;
-  final LibraryMetadataProviderService _metadataProviderService =
-      LibraryMetadataProviderService.instance;
 
-  final ScrollController _libraryScrollController = ScrollController();
-  final Map<String, GlobalKey> _bookKeys = <String, GlobalKey>{};
+  late final ScrollController _catalogueScroll;
+  late final ScrollController _searchScroll;
+  final _GridGeometry _catalogueGrid = _GridGeometry();
+  final _GridGeometry _searchGrid = _GridGeometry();
 
-  _LibraryView _view = _LibraryView.hub;
-  _HubFocus _hubFocus = _HubFocus.shortcuts;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode(debugLabel: 'library_title_search');
+  Timer? _searchDebounce;
+  bool _searchFiltersExpanded = false;
 
-  int _hubSelectedIndex = 0;
-  int _filterSelectedIndex = 0;
-  int _addonSelectedIndex = 0;
-  int _librarySelectedIndex = 0;
-  int _libraryColumns = 5;
-  double _libraryRowExtent = 220;
+  LibraryHubSection? _section;
+  _HubFocus _focus = _HubFocus.shortcuts;
+  int _headerIndex = 0;
+  int _shortcutIndex = 0;
+  int _filterIndex = 0;
+  int _emptyIndex = 0;
+  _SearchBarItem _searchBarItem = _SearchBarItem.field;
 
-  String _languageFilter = 'all';
-  String _sourceFilter = 'all';
-  bool _sortAscending = true;
-  String? _alphabetAnchor;
+  List<LibraryAddon> _addons = const <LibraryAddon>[];
+  bool _addonsLoaded = false;
+  int _seenContentVersion = -1;
 
-  bool _loadingAddons = true;
-  bool _loadingLibrary = true;
-  int _catalogFailures = 0;
-  List<LibraryAddon> _addons = const [];
-  List<_NativeLibraryEntry> _libraryItems = const [];
-  List<_NativeLibraryEntry> _remoteSearchEntries = const [];
-  final Map<String, int> _aidokuNextPage = <String, int>{};
-  final Set<String> _aidokuExhausted = <String>{};
-  final Set<String> _aidokuLoading = <String>{};
-  int _aidokuRoundRobinCursor = 0;
-  String _titleQuery = '';
-  final TextEditingController _titleSearchController = TextEditingController();
-  final FocusNode _titleSearchFocusNode = FocusNode(
-    debugLabel: 'library_inline_title_search',
-  );
-  Timer? _titleSearchDebounce;
-  bool _titleSearchMode = false;
-  bool _titleSearchFiltersExpanded = false;
-  bool _hideAdultContent = true;
-  bool _searchingTitles = false;
-  int _searchGeneration = 0;
+  Object? _visibleKey;
+  List<LibraryFeedEntry> _visible = const <LibraryFeedEntry>[];
+  Map<String, int> _visibleIndex = const <String, int>{};
+  int _languageOptionsVersion = -1;
+  List<String> _languageOptionsCache = const <String>['all'];
+  int _sourceOptionsVersion = -1;
+  Map<String, String> _sourceOptionsCache = const <String, String>{};
 
-  bool get _loadingMoreCatalogs => _aidokuLoading.isNotEmpty;
+  /// How many times the visible list was computed (memoization tests).
+  @visibleForTesting
+  int visibleComputations = 0;
 
-  int get _addonSelectionCount => 3 + _addons.length;
-
-  String _entryIdentity(_NativeLibraryEntry entry) =>
-      '${entry.providerId}|${entry.item.id}';
-
-  List<_NativeLibraryEntry> get _visibleLibraryItems {
-    final query = _titleQuery.trim().toLowerCase();
-    final seen = <String>{};
-    final items = <_NativeLibraryEntry>[];
-    for (final entry in <_NativeLibraryEntry>[
-      ..._libraryItems,
-      ..._remoteSearchEntries,
-    ]) {
-      if (!seen.add(_entryIdentity(entry))) continue;
-      if (query.isNotEmpty && !entry.item.title.toLowerCase().contains(query)) {
-        continue;
-      }
-      if (_hideAdultContent && _isAdultOrDoujinshi(entry)) {
-        continue;
-      }
-      if (_languageFilter != 'all' &&
-          !_itemLanguageCodes(entry).contains(_languageFilter)) {
-        continue;
-      }
-      if (_sourceFilter != 'all' && entry.providerId != _sourceFilter) {
-        continue;
-      }
-      items.add(entry);
-    }
-    items.sort((a, b) {
-      final comparison = a.item.title.toLowerCase().compareTo(
-        b.item.title.toLowerCase(),
-      );
-      return _sortAscending ? comparison : -comparison;
-    });
-    return items;
-  }
-
-  List<String> get _languageOptions {
-    final languages = <String>{};
-    for (final entry in _libraryItems) {
-      languages.addAll(_itemLanguageCodes(entry));
-    }
-    final sorted = languages.toList()..sort();
-    final preferred = <String>['fr', 'en'];
-    sorted.sort((a, b) {
-      final ai = preferred.indexOf(a);
-      final bi = preferred.indexOf(b);
-      if (ai >= 0 || bi >= 0) {
-        if (ai < 0) return 1;
-        if (bi < 0) return -1;
-        return ai.compareTo(bi);
-      }
-      return a.compareTo(b);
-    });
-    return <String>['all', ...sorted];
-  }
-
-  Map<String, String> get _sourceOptions {
-    final options = <String, String>{
-      'all': 'all',
-      ..._metadataProviderService.providerLabels,
-    };
-    for (final addon in _addons) {
-      if (addon.isAidokuRepositorySource &&
-          _aidokuNativeService.supports(addon)) {
-        options[addon.id] = addon.name;
-      } else if (addon.canBrowseOnIos) {
-        options[addon.id] = addon.name;
-      }
-    }
-    for (final entry in _libraryItems) {
-      final label =
-          _metadataProviderService.labelFor(entry.providerId) ??
-          (entry.source?.name.trim().isNotEmpty == true
-              ? entry.source!.name.trim()
-              : entry.providerId);
-      options[entry.providerId] = label;
-    }
-    final pairs = options.entries.where((entry) => entry.key != 'all').toList()
-      ..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
-    return <String, String>{
-      'all': 'all',
-      for (final entry in pairs) entry.key: entry.value,
-    };
-  }
-
-  String _sourceLabel(String id) {
-    if (id == 'all') {
-      return LibraryFeatureLocale.text(context, 'allSources');
-    }
-    return _sourceOptions[id] ?? id;
-  }
+  /// The titles currently shown, in display order.
+  @visibleForTesting
+  List<LibraryFeedEntry> get visibleEntries => _visibleEntries();
 
   @override
   void initState() {
     super.initState();
     LibraryScreen._currentState = this;
-    _libraryScrollController.addListener(_onLibraryScroll);
-    _titleSearchController.text = _titleQuery;
-    _loadAddons();
+    _catalogueScroll = _MemoryScrollController(
+      () => _memory.catalogue.scrollOffset,
+    )..addListener(_onCatalogueScroll);
+    _searchScroll = _MemoryScrollController(() => _memory.search.scrollOffset)
+      ..addListener(_onSearchScroll);
+    _section = _sectionFromName(_memory.section);
+    _searchController.text = _memory.query;
+    _seenContentVersion = _feed.contentVersion;
+    _feed.addListener(_onFeedChanged);
+    if (_memory.searchMode) {
+      _focus = _HubFocus.books;
+      final query = _memory.query.trim();
+      if (query.length >= _feed.minQueryLength &&
+          _feed.currentSearch?.query != query) {
+        unawaited(_feed.search(query));
+      }
+    } else if (_memory.catalogue.scrollOffset > 0) {
+      _focus = _HubFocus.books;
+    }
+    if (_section == null) _restorePositionAfterLayout();
+    unawaited(_loadAddons());
+  }
+
+  @override
+  void deactivate() {
+    // Still attached to the scroll views here (they detach before dispose).
+    if (_section == null) _rememberPosition();
+    super.deactivate();
   }
 
   @override
@@ -223,496 +210,316 @@ class LibraryScreenState extends State<LibraryScreen> {
     if (identical(LibraryScreen._currentState, this)) {
       LibraryScreen._currentState = null;
     }
-    _libraryScrollController.removeListener(_onLibraryScroll);
-    _libraryScrollController.dispose();
-    _titleSearchDebounce?.cancel();
-    _titleSearchController.dispose();
-    _titleSearchFocusNode.dispose();
+    _feed.removeListener(_onFeedChanged);
+    _catalogueScroll.dispose();
+    _searchScroll.dispose();
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAddons() async {
-    try {
-      await _metadataProviderService.initialize();
-    } catch (_) {
-      // The native Library remains usable even if the bundled provider registry
-      // cannot be loaded for some reason.
+  static LibraryHubSection? _sectionFromName(String name) {
+    for (final section in LibraryHubSection.values) {
+      if (section.name == name) return section;
     }
-    final addons = await _addonService.load();
+    return null;
+  }
+
+  void _navSound() {
+    if (widget.enableSounds) unawaited(SfxService().playNavSound());
+  }
+
+  Future<void> _loadAddons() async {
+    List<LibraryAddon> addons;
+    try {
+      addons = await (widget.loadAddons ?? LibraryAddonService.instance.load)();
+    } catch (_) {
+      addons = const <LibraryAddon>[];
+    }
     if (!mounted) return;
     setState(() {
       _addons = addons;
-      _loadingAddons = false;
-      if (_addonSelectedIndex >= _addonSelectionCount) {
-        _addonSelectedIndex = (_addonSelectionCount - 1).clamp(0, 9999).toInt();
-      }
+      _addonsLoaded = true;
     });
-    await _refreshNativeLibrary(addons);
+    await _feed.open(addons);
   }
 
-  Future<void> _refreshNativeLibrary([List<LibraryAddon>? installed]) async {
-    final addons = installed ?? _addons;
-    if (mounted) {
-      setState(() {
-        _loadingLibrary = true;
-        _catalogFailures = 0;
-        _remoteSearchEntries = const [];
-        _aidokuNextPage.clear();
-        _aidokuExhausted.clear();
-        _aidokuLoading.clear();
-      });
-    }
+  // ------------------------------------------------------------ feed sync --
 
-    final entries = <_NativeLibraryEntry>[];
-    var failures = 0;
+  LibraryFeedViewMemory get _modeMemory =>
+      _memory.searchMode ? _memory.search : _memory.catalogue;
+  ScrollController get _activeScroll =>
+      _memory.searchMode ? _searchScroll : _catalogueScroll;
+  _GridGeometry get _activeGrid =>
+      _memory.searchMode ? _searchGrid : _catalogueGrid;
 
-    final aidokuAddons = addons
-        .where(
-          (addon) =>
-              addon.isAidokuRepositorySource &&
-              _aidokuNativeService.supports(addon),
-        )
-        .toList();
-    const initialCatalogConcurrency = 3;
-    for (
-      var offset = 0;
-      offset < aidokuAddons.length;
-      offset += initialCatalogConcurrency
-    ) {
-      final batch = aidokuAddons
-          .skip(offset)
-          .take(initialCatalogConcurrency)
-          .toList();
-      final results = await Future.wait(
-        batch.map((addon) async {
-          try {
-            final page = await _aidokuNativeService.loadCatalogPage(
-              addon,
-              page: 1,
-            );
-            return MapEntry<LibraryAddon, LibraryAidokuCatalogPage?>(
-              addon,
-              page,
-            );
-          } catch (_) {
-            return MapEntry<LibraryAddon, LibraryAidokuCatalogPage?>(
-              addon,
-              null,
-            );
-          }
-        }),
-      );
-      for (final result in results) {
-        final addon = result.key;
-        final page = result.value;
-        if (page == null) {
-          failures++;
-          _aidokuExhausted.add(addon.id);
-          continue;
-        }
-        for (final item in page.items) {
-          entries.add(
-            _NativeLibraryEntry(
-              providerId: addon.id,
-              source: addon,
-              item: item,
-            ),
-          );
-        }
-        _aidokuNextPage[addon.id] = 2;
-        if (!page.hasMore || page.items.isEmpty) {
-          _aidokuExhausted.add(addon.id);
-        }
-      }
-    }
+  int get _selectedIndex => _modeMemory.selectedIndex;
+  set _selectedIndex(int value) {
+    final memory = _modeMemory;
+    memory.selectedIndex = value;
+    final visible = _visible;
+    memory.selectedIdentity = value >= 0 && value < visible.length
+        ? visible[value].identity
+        : null;
+  }
 
-    for (final addon in addons) {
-      if (addon.isAidokuRepositorySource &&
-          _aidokuNativeService.supports(addon)) {
-        continue;
-      }
-      if (!addon.canBrowseOnIos) continue;
-      try {
-        final items = await _catalogService.loadCatalog(addon);
-        for (final item in items) {
-          entries.add(
-            _NativeLibraryEntry(
-              providerId: addon.id,
-              source: addon,
-              item: item,
-            ),
-          );
-        }
-      } catch (_) {
-        failures++;
-      }
-    }
-
+  void _onFeedChanged() {
     if (!mounted) return;
-    setState(() {
-      _libraryItems = List<_NativeLibraryEntry>.unmodifiable(entries);
-      _catalogFailures = failures;
-      _loadingLibrary = false;
-      _alphabetAnchor = null;
-      if (_sourceFilter != 'all' &&
-          !_sourceOptions.containsKey(_sourceFilter)) {
-        _sourceFilter = 'all';
-      }
-      final visible = _visibleLibraryItems;
-      if (visible.isEmpty) {
-        _librarySelectedIndex = 0;
-        if (_hubFocus == _HubFocus.books) _hubFocus = _HubFocus.filters;
-      } else if (_librarySelectedIndex >= visible.length) {
-        _librarySelectedIndex = visible.length - 1;
-      }
-    });
+    if (_feed.contentVersion != _seenContentVersion) {
+      _seenContentVersion = _feed.contentVersion;
+      _keepPositionAcrossUpdate();
+    }
+    setState(() {});
+    _scheduleFillCheck();
+  }
 
+  /// First visible title of the active grid and its row, or null when the
+  /// grid is not scrolled into view.
+  (String, int)? _firstVisible() {
+    final shown = _visible;
+    final grid = _activeGrid;
+    final controller = _activeScroll;
+    if (!controller.hasClients ||
+        shown.isEmpty ||
+        grid.rowExtent <= 0 ||
+        grid.columns <= 0) {
+      return null;
+    }
+    final within = controller.position.pixels - grid.start;
+    if (within <= 0) return null;
+    final row = (within / grid.rowExtent).floor();
+    final index = row * grid.columns;
+    if (index >= shown.length) return null;
+    return (shown[index].identity, row);
+  }
+
+  /// Records the position of the active grid before its scroll view is
+  /// removed (tab switch, section, search).
+  void _rememberPosition() {
+    final memory = _modeMemory;
+    final first = _firstVisible();
+    memory
+      ..anchorIdentity = first?.$1
+      ..anchorRow = first?.$2 ?? -1;
+    final controller = _activeScroll;
+    if (controller.hasClients) memory.scrollOffset = controller.offset;
+  }
+
+  /// After the active grid is rebuilt at its remembered offset, moves it so
+  /// the remembered first title is still first when titles were inserted
+  /// above it meanwhile.
+  void _restorePositionAfterLayout() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _onLibraryScroll();
-    });
-    if (_titleQuery.trim().isNotEmpty) {
-      unawaited(_runTitleSearch(_titleQuery));
-    }
-  }
-
-  void _onLibraryScroll() {
-    if (!mounted ||
-        _loadingLibrary ||
-        _titleQuery.trim().isNotEmpty ||
-        !_libraryScrollController.hasClients) {
-      return;
-    }
-    final position = _libraryScrollController.position;
-    final threshold = position.viewportDimension * 2.2;
-    if (position.extentAfter <= (threshold < 900 ? 900 : threshold)) {
-      unawaited(_loadMoreAidokuCatalogs());
-    }
-  }
-
-  Future<void> _loadMoreAidokuCatalogs({String? preferredSourceId}) async {
-    if (!mounted || _loadingLibrary || _titleQuery.trim().isNotEmpty) return;
-    final capacity = 2 - _aidokuLoading.length;
-    if (capacity <= 0) return;
-
-    var candidates = _addons.where((addon) {
-      return addon.isAidokuRepositorySource &&
-          _aidokuNativeService.supports(addon) &&
-          !_aidokuExhausted.contains(addon.id) &&
-          !_aidokuLoading.contains(addon.id);
-    }).toList();
-    if (candidates.isEmpty) return;
-
-    final preferred =
-        preferredSourceId ?? (_sourceFilter == 'all' ? null : _sourceFilter);
-    if (preferred != null) {
-      final matching = candidates
-          .where((addon) => addon.id == preferred)
-          .toList();
-      if (matching.isNotEmpty) candidates = matching;
-    } else if (candidates.length > 1) {
-      final offset = _aidokuRoundRobinCursor % candidates.length;
-      candidates = <LibraryAddon>[
-        ...candidates.skip(offset),
-        ...candidates.take(offset),
-      ];
-      _aidokuRoundRobinCursor =
-          (_aidokuRoundRobinCursor + capacity) % candidates.length;
-    }
-
-    final selected = candidates.take(capacity).toList();
-    if (selected.isEmpty) return;
-    setState(() {
-      for (final addon in selected) {
-        _aidokuLoading.add(addon.id);
-      }
-    });
-    await Future.wait(selected.map(_loadAidokuPage));
-  }
-
-  Future<void> _loadAidokuPage(LibraryAddon addon) async {
-    final pageNumber = _aidokuNextPage[addon.id] ?? 2;
-    try {
-      final page = await _aidokuNativeService.loadCatalogPage(
-        addon,
-        page: pageNumber,
-      );
       if (!mounted) return;
-      final selectedVisible = _visibleLibraryItems;
-      final selectedIdentity =
-          _librarySelectedIndex >= 0 &&
-              _librarySelectedIndex < selectedVisible.length
-          ? _entryIdentity(selectedVisible[_librarySelectedIndex])
-          : null;
-      final existing = _libraryItems.map(_entryIdentity).toSet();
-      final additions = <_NativeLibraryEntry>[];
-      for (final item in page.items) {
-        final entry = _NativeLibraryEntry(
-          providerId: addon.id,
-          source: addon,
-          item: item,
-        );
-        if (existing.add(_entryIdentity(entry))) additions.add(entry);
-      }
-
-      setState(() {
-        if (additions.isNotEmpty) {
-          _libraryItems = List<_NativeLibraryEntry>.unmodifiable(
-            <_NativeLibraryEntry>[..._libraryItems, ...additions],
-          );
-          _aidokuNextPage[addon.id] = pageNumber + 1;
-        }
-        if (!page.hasMore || additions.isEmpty) {
-          _aidokuExhausted.add(addon.id);
-        }
-        _aidokuLoading.remove(addon.id);
-
-        if (selectedIdentity != null) {
-          final visible = _visibleLibraryItems;
-          final index = visible.indexWhere(
-            (entry) => _entryIdentity(entry) == selectedIdentity,
-          );
-          if (index >= 0) _librarySelectedIndex = index;
-        }
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _onLibraryScroll();
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _aidokuLoading.remove(addon.id);
-        _aidokuExhausted.add(addon.id);
-        _catalogFailures++;
-      });
-    }
-  }
-
-  Future<List<_NativeLibraryEntry>> _searchMetadataProviders(
-    String query,
-  ) async {
-    try {
-      await _metadataProviderService.initialize();
-      Set<String>? providerIds;
-      if (_sourceFilter != 'all') {
-        if (!_metadataProviderService.isProviderId(_sourceFilter)) {
-          return const <_NativeLibraryEntry>[];
-        }
-        providerIds = <String>{_sourceFilter};
-      }
-
-      final groups = await _metadataProviderService.searchAll(
-        query,
-        providerIds: providerIds,
-      );
-      final entries = <_NativeLibraryEntry>[];
-      for (final group in groups.entries) {
-        for (final item in group.value) {
-          entries.add(_NativeLibraryEntry(providerId: group.key, item: item));
-        }
-      }
-      return entries;
-    } catch (_) {
-      return const <_NativeLibraryEntry>[];
-    }
-  }
-
-  Future<void> _runTitleSearch(String rawQuery) async {
-    final query = rawQuery.trim();
-    final generation = ++_searchGeneration;
-    if (!mounted) return;
-    setState(() {
-      _titleQuery = query;
-      _remoteSearchEntries = const [];
-      _searchingTitles = query.isNotEmpty;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
-    });
-    if (query.isEmpty) return;
-
-    final futures = <Future<List<_NativeLibraryEntry>>>[
-      _searchMetadataProviders(query),
-      for (final addon in _addons.where(
-        (addon) =>
-            addon.isAidokuRepositorySource &&
-            _aidokuNativeService.supports(addon),
-      ))
-        () async {
-          try {
-            final page = await _aidokuNativeService.loadCatalogPage(
-              addon,
-              page: 1,
-              query: query,
-            );
-            return page.items
-                .map(
-                  (item) => _NativeLibraryEntry(
-                    providerId: addon.id,
-                    source: addon,
-                    item: item,
-                  ),
-                )
-                .toList();
-          } catch (_) {
-            return <_NativeLibraryEntry>[];
-          }
-        }(),
-    ];
-
-    final groups = await Future.wait(futures);
-    if (!mounted || generation != _searchGeneration || _titleQuery != query)
-      return;
-    final seen = <String>{};
-    final results = <_NativeLibraryEntry>[];
-    for (final group in groups) {
-      for (final entry in group) {
-        if (seen.add(_entryIdentity(entry))) results.add(entry);
-      }
-    }
-    setState(() {
-      _remoteSearchEntries = List<_NativeLibraryEntry>.unmodifiable(results);
-      _searchingTitles = false;
-      final visible = _visibleLibraryItems;
-      _librarySelectedIndex = visible.isEmpty ? 0 : 0;
-    });
-  }
-
-  bool _isAdultOrDoujinshi(_NativeLibraryEntry entry) {
-    bool explicitFlag(dynamic value) {
-      if (value == true) return true;
-      if (value is num) return value > 0;
-      final raw = value?.toString().trim().toLowerCase() ?? '';
-      if (raw.isEmpty) return false;
-      if (raw == 'true' ||
-          raw == 'yes' ||
-          raw == '1' ||
-          raw == '2' ||
-          raw == '3') {
-        return true;
-      }
-      return _strictAdultPattern.hasMatch(raw);
-    }
-
-    final provider = entry.source?.manifest['provider'];
-    if (provider is Map) {
-      // Repository/source metadata has priority. A source that declares any
-      // non-zero NSFW level is excluded as a whole in strict safe mode.
-      for (final key in const [
-        'nsfw',
-        'adult',
-        'explicit',
-        'isAdult',
-        'contentWarning',
-        'contentRating',
-        'rating',
-        'ageRating',
-      ]) {
-        if (explicitFlag(provider[key])) return true;
-      }
-    }
-
-    final raw = entry.item.raw;
-    for (final key in const [
-      'explicitContent',
-      'nsfw',
-      'adult',
-      'isAdult',
-      'contentWarning',
-      'contentRating',
-      'rating',
-      'ageRating',
-      'genres',
-      'genre',
-      'categories',
-      'tags',
-      'labels',
-    ]) {
-      final value = raw[key];
-      if (value is bool || value is num) {
-        if (explicitFlag(value)) return true;
-      } else if (value != null &&
-          _strictAdultPattern.hasMatch(value.toString())) {
-        return true;
-      }
-    }
-
-    String metadata = <String>[
-      entry.item.title,
-      entry.item.subtitle,
-      entry.item.description,
-      entry.item.coverUrl ?? '',
-      entry.source?.name ?? '',
-      entry.source?.description ?? '',
-    ].join(' ').toLowerCase();
-    try {
-      metadata = '$metadata ${jsonEncode(raw).toLowerCase()}';
-      if (provider is Map) {
-        metadata = '$metadata ${jsonEncode(provider).toLowerCase()}';
-      }
-    } catch (_) {}
-
-    return _strictAdultPattern.hasMatch(metadata);
-  }
-
-  static final RegExp _strictAdultPattern = RegExp(
-    r'(^|[^a-z0-9])(hentai|doujinshi|doujin|porn|porno|pornographic|pornography|xxx|nsfw|r[ -]?18|18\+|18 plus|adult(?:s)?(?:[ -]?only|[ -]?content)?|mature(?:[ -]?content)?|explicit(?:[ -]?content)?|uncensored|smut|erotic|erotica|ecchi|sexual(?:[ -]?content)?|sex|hardcore|fetish|bdsm|ahegao|futanari|lolicon|shotacon|oppai|netorare|ntr|incest|rape|non[ -]?consensual|tentacle|milf|nudity|nude)([^a-z0-9]|$)',
-    caseSensitive: false,
-  );
-
-  String _contentFilterLabel() {
-    if (_hideAdultContent) {
-      return LibraryFeatureLocale.text(context, 'hideAdultShort');
-    }
-    return LibraryFeatureLocale.text(context, 'showAll');
-  }
-
-  Set<String> _itemLanguageCodes(_NativeLibraryEntry entry) {
-    final result = <String>{};
-
-    void addLanguage(dynamic value) {
-      if (value == null) return;
-      if (value is Iterable) {
-        for (final item in value) {
-          addLanguage(item);
-        }
+      final memory = _modeMemory;
+      final identity = memory.anchorIdentity;
+      memory.anchorIdentity = null;
+      final controller = _activeScroll;
+      final grid = _activeGrid;
+      if (identity == null || !controller.hasClients || grid.rowExtent <= 0) {
         return;
       }
-      final raw = value.toString().trim().toLowerCase();
-      if (raw.isEmpty || raw == 'null') return;
-      final normalized = raw.replaceAll('_', '-').split('-').first;
-      if (RegExp(r'^[a-z]{2,3}$').hasMatch(normalized)) {
-        result.add(normalized);
+      _visibleEntries();
+      final index = _visibleIndex[identity];
+      if (index == null) return;
+      final row = index ~/ grid.columns;
+      if (row == memory.anchorRow) return;
+      final position = controller.position;
+      controller.jumpTo(
+        (position.pixels + (row - memory.anchorRow) * grid.rowExtent).clamp(
+          0.0,
+          position.maxScrollExtent,
+        ),
+      );
+    });
+  }
+
+  /// Keeps the first visible title and the selected title in place when
+  /// titles are inserted above them (sources arrive progressively and the
+  /// grid is sorted).
+  void _keepPositionAcrossUpdate() {
+    final previous = _visible;
+    final grid = _activeGrid;
+    final controller = _activeScroll;
+    final first = _firstVisible();
+    final anchor = first?.$1;
+    final anchorRow = first?.$2 ?? -1;
+    final memory = _modeMemory;
+    final selectedIdentity =
+        memory.selectedIdentity ??
+        (memory.selectedIndex >= 0 && memory.selectedIndex < previous.length
+            ? previous[memory.selectedIndex].identity
+            : null);
+
+    final next = _visibleEntries();
+
+    if (selectedIdentity != null) {
+      final index = _visibleIndex[selectedIdentity] ?? -1;
+      if (index >= 0) {
+        memory.selectedIndex = index;
+        memory.selectedIdentity = selectedIdentity;
+      } else if (memory.selectedIndex >= next.length) {
+        memory.selectedIndex = next.isEmpty ? 0 : next.length - 1;
+        memory.selectedIdentity = null;
       }
     }
+    if (anchor != null) {
+      final index = _visibleIndex[anchor] ?? -1;
+      if (index >= 0) {
+        final row = index ~/ grid.columns;
+        if (row != anchorRow) {
+          // Applied before the next layout, which lays out the new list.
+          controller.position.correctBy((row - anchorRow) * grid.rowExtent);
+          memory.scrollOffset = controller.position.pixels;
+        }
+      }
+    }
+    if (_focus == _HubFocus.books && next.isEmpty) {
+      _focus = _memory.searchMode ? _HubFocus.searchBar : _HubFocus.filters;
+    }
+  }
 
-    final raw = entry.item.raw;
-    addLanguage(raw['language']);
-    addLanguage(raw['languages']);
-    addLanguage(raw['lang']);
+  void _onCatalogueScroll() {
+    _memory.catalogue.scrollOffset = _catalogueScroll.offset;
+    _maybeLoadMore();
+  }
 
-    final attributes = raw['attributes'];
-    if (attributes is Map) {
-      addLanguage(attributes['availableTranslatedLanguages']);
-      addLanguage(attributes['translatedLanguage']);
-      addLanguage(attributes['originalLanguage']);
-      final titles = attributes['title'];
-      if (titles is Map) addLanguage(titles.keys);
-      final descriptions = attributes['description'];
-      if (descriptions is Map) addLanguage(descriptions.keys);
+  void _onSearchScroll() {
+    _memory.search.scrollOffset = _searchScroll.offset;
+  }
+
+  void _maybeLoadMore() {
+    if (_memory.searchMode || _section != null) return;
+    if (!_catalogueScroll.hasClients) return;
+    final position = _catalogueScroll.position;
+    final threshold = math.max(900.0, position.viewportDimension * 2.2);
+    if (position.extentAfter > threshold || !_feed.canLoadMore) return;
+    final source = _memory.sourceFilter;
+    unawaited(
+      _feed.loadMore(
+        preferredSourceKey: source == 'all' || source.startsWith('provider:')
+            ? null
+            : source,
+      ),
+    );
+  }
+
+  void _scheduleFillCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _maybeLoadMore();
+    });
+  }
+
+  // ---------------------------------------------------------- visibility --
+
+  bool get _safeMode => _feed.safeMode;
+
+  String get _activeQuery => _memory.searchMode ? _memory.query.trim() : '';
+
+  List<LibraryFeedEntry> _visibleEntries() {
+    final query = _activeQuery;
+    final key = (
+      _feed.contentVersion,
+      _memory.searchMode,
+      query,
+      _memory.languageFilter,
+      _memory.sourceFilter,
+      _safeMode,
+      _memory.sortAscending,
+    );
+    if (key == _visibleKey) return _visible;
+    _visibleKey = key;
+    visibleComputations++;
+
+    final language = _memory.languageFilter;
+    final source = _memory.sourceFilter;
+    final safe = _safeMode;
+    final seen = <String>{};
+    final result = <LibraryFeedEntry>[];
+    void consider(LibraryFeedEntry entry) {
+      if (!seen.add(entry.identity)) return;
+      if (safe && (entry.adult || entry.sourceAdult)) return;
+      if (language != 'all' && !entry.languages.contains(language)) return;
+      if (source != 'all' && entry.sourceKey != source) return;
+      result.add(entry);
     }
 
-    // Gallica's public-domain OPDS feed is primarily French. Keep its books
-    // filterable even when an individual Atom entry omits dc:language.
-    if (result.isEmpty && entry.source?.isGallicaSource == true) {
-      result.add('fr');
+    if (_memory.searchMode) {
+      final folded = LibraryContentRating.foldAccents(query.toLowerCase());
+      if (query.length >= _feed.minQueryLength) {
+        for (final entry in _feed.entries) {
+          if (entry.foldedTitle.contains(folded)) consider(entry);
+        }
+        final search = _feed.currentSearch;
+        if (search != null && search.query == query) {
+          search.entries.forEach(consider);
+        }
+      }
+    } else {
+      _feed.entries.forEach(consider);
     }
+    final ascending = _memory.sortAscending;
+    result.sort((a, b) {
+      var comparison = a.foldedTitle.compareTo(b.foldedTitle);
+      if (comparison == 0) comparison = a.identity.compareTo(b.identity);
+      return ascending ? comparison : -comparison;
+    });
+    _visible = List<LibraryFeedEntry>.unmodifiable(result);
+    _visibleIndex = <String, int>{
+      for (var i = 0; i < result.length; i++) result[i].identity: i,
+    };
+    return _visible;
+  }
 
-    return result;
+  List<String> get _languageOptions {
+    if (_languageOptionsVersion == _feed.contentVersion) {
+      return _languageOptionsCache;
+    }
+    _languageOptionsVersion = _feed.contentVersion;
+    final languages = <String>{
+      for (final entry in _feed.entries) ...entry.languages,
+      ...?_feed.currentSearch?.entries.expand((entry) => entry.languages),
+    };
+    const preferred = <String>['fr', 'en'];
+    final sorted = languages.toList()
+      ..sort((a, b) {
+        final ai = preferred.indexOf(a);
+        final bi = preferred.indexOf(b);
+        if (ai >= 0 || bi >= 0) {
+          if (ai < 0) return 1;
+          if (bi < 0) return -1;
+          return ai.compareTo(bi);
+        }
+        return a.compareTo(b);
+      });
+    _languageOptionsCache = <String>['all', ...sorted];
+    return _languageOptionsCache;
+  }
+
+  /// Source filter options: key → display name (`all` first).
+  Map<String, String> get _sourceOptions {
+    if (_sourceOptionsVersion == _feed.version) return _sourceOptionsCache;
+    _sourceOptionsVersion = _feed.version;
+    final pairs = <MapEntry<String, String>>[
+      for (final source in _feed.sources) MapEntry(source.key, source.name),
+      for (final provider in _feed.metadataProviders.entries)
+        MapEntry('provider:${provider.key}', provider.value),
+    ]..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+    _sourceOptionsCache = <String, String>{
+      'all': 'all',
+      for (final pair in pairs) pair.key: pair.value,
+    };
+    return _sourceOptionsCache;
+  }
+
+  String _sourceLabel(String key) {
+    if (key == 'all') return _lt('allSources');
+    return _sourceOptions[key] ?? key;
   }
 
   String _languageLabel(String code) {
-    if (code == 'all') {
-      return LibraryFeatureLocale.text(context, 'all');
-    }
+    if (code == 'all') return _lt('all');
     const labels = <String, String>{
       'fr': 'Français',
       'en': 'English',
@@ -729,283 +536,375 @@ class LibraryScreenState extends State<LibraryScreen> {
     return labels[code] ?? code.toUpperCase();
   }
 
-  String _bookKey(_NativeLibraryEntry entry) =>
-      '${entry.providerId}|${entry.item.id}|${entry.item.title}';
+  String _contentFilterLabel() =>
+      _safeMode ? _lt('hideAdultShort') : _lt('showAll');
 
-  GlobalKey _keyForBook(_NativeLibraryEntry entry) =>
-      _bookKeys.putIfAbsent(_bookKey(entry), GlobalKey.new);
+  String _issueText(LibraryFeedIssue issue) => _lt(switch (issue) {
+    LibraryFeedIssue.challenge => 'issueChallenge',
+    LibraryFeedIssue.offline => 'issueOffline',
+    LibraryFeedIssue.timeout => 'issueTimeout',
+    LibraryFeedIssue.serverUnavailable => 'issueServerUnavailable',
+    LibraryFeedIssue.notFound => 'issueNotFound',
+    LibraryFeedIssue.httpStatus => 'issueHttpStatus',
+    LibraryFeedIssue.tooLarge => 'issueTooLarge',
+    LibraryFeedIssue.invalidResponse => 'issueInvalidResponse',
+    LibraryFeedIssue.parseFailed => 'issueParseFailed',
+    LibraryFeedIssue.siteChanged => 'issueSiteChanged',
+    LibraryFeedIssue.parked => 'issueParked',
+    LibraryFeedIssue.unsupported => 'issueUnsupported',
+    LibraryFeedIssue.unknown => 'issueUnknown',
+  });
 
-  void _ensureSelectedBookVisible() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _hubFocus != _HubFocus.books) return;
-      final visible = _visibleLibraryItems;
-      if (_librarySelectedIndex < 0 ||
-          _librarySelectedIndex >= visible.length) {
-        return;
-      }
+  // ------------------------------------------------------------- sections --
 
-      final context = _keyForBook(visible[_librarySelectedIndex])
-          .currentContext;
-      if (context != null) {
-        Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          alignment: 0.22,
-        );
-        return;
-      }
-
-      if (!_libraryScrollController.hasClients) return;
-      final row = _librarySelectedIndex ~/ _libraryColumns;
-      final top = row * _libraryRowExtent;
-      final position = _libraryScrollController.position;
-      final viewport = position.viewportDimension;
-      final current = position.pixels;
-      var target = current;
-      if (top < current) {
-        target = top;
-      } else if (top + _libraryRowExtent > current + viewport) {
-        target = top + _libraryRowExtent - viewport;
-      }
-      target = target.clamp(0.0, position.maxScrollExtent);
-      if ((target - current).abs() > 1) {
-        _libraryScrollController.animateTo(
-          target,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-        );
-      }
+  void _openSection(LibraryHubSection section) {
+    _searchFocus.unfocus();
+    if (_section == null) _rememberPosition();
+    setState(() {
+      _section = section;
+      _memory.section = section.name;
     });
   }
 
-  bool _navigateHorizontal(int delta) {
-    if (_view == _LibraryView.addons) {
-      if (_addonSelectedIndex > 2) return false;
-      final next = (_addonSelectedIndex + delta).clamp(0, 2).toInt();
-      if (next == _addonSelectedIndex) return false;
-      setState(() => _addonSelectedIndex = next);
-      return true;
-    }
-    if (_view != _LibraryView.hub) return false;
+  void _backToHub() {
+    final section = _section;
+    setState(() {
+      _section = null;
+      _memory.section = 'hub';
+      _focus = _HubFocus.shortcuts;
+      _shortcutIndex = section == null ? 0 : section.index;
+    });
+    _restorePositionAfterLayout();
+    if (section == LibraryHubSection.sources) unawaited(_reloadAddons());
+  }
 
-    switch (_hubFocus) {
+  Future<void> _reloadAddons() async {
+    await _feed.reloadMetadataProviders();
+    await _loadAddons();
+  }
+
+  Widget _buildSection(BuildContext context, LibraryHubSection section) {
+    final builder = widget.sectionBuilder;
+    if (builder != null) {
+      return builder(context, section, _sectionController, _backToHub);
+    }
+    return switch (section) {
+      LibraryHubSection.sources => LibrarySourcesView(
+        controller: _sectionController,
+        onBack: _backToHub,
+        onSourcesChanged: () => unawaited(_reloadAddons()),
+      ),
+      LibraryHubSection.local => LibraryLocalView(
+        controller: _sectionController,
+        onBack: _backToHub,
+      ),
+      LibraryHubSection.favorites => LibraryFavoritesView(
+        controller: _sectionController,
+        onBack: _backToHub,
+        addons: _addons,
+        openOnlineTitle: widget.openOnlineTitle,
+      ),
+    };
+  }
+
+  // -------------------------------------------------------------- gamepad --
+
+  List<_HeaderAction> get _headerActions => <_HeaderAction>[
+    if (_feed.unavailableCount > 0) _HeaderAction.unavailable,
+    _HeaderAction.refresh,
+  ];
+
+  int get _filterCount => _memory.searchMode ? 5 : 6;
+
+  bool _navigateHorizontal(int delta) {
+    if (_section != null) return _sectionController.navigate(delta, 0);
+    switch (_focus) {
+      case _HubFocus.header:
+        final actions = _headerActions;
+        final next = (_headerIndex + delta).clamp(0, actions.length - 1);
+        if (next == _headerIndex) return false;
+        setState(() => _headerIndex = next);
+        return true;
       case _HubFocus.shortcuts:
-        final next = (_hubSelectedIndex + delta).clamp(0, 2).toInt();
-        if (next == _hubSelectedIndex) return false;
-        setState(() => _hubSelectedIndex = next);
+        final next = (_shortcutIndex + delta).clamp(0, 2);
+        if (next == _shortcutIndex) return false;
+        setState(() => _shortcutIndex = next);
         return true;
       case _HubFocus.filters:
-        final next = (_filterSelectedIndex + delta).clamp(0, 5).toInt();
-        if (next == _filterSelectedIndex) return false;
-        setState(() => _filterSelectedIndex = next);
+        final next = (_filterIndex + delta).clamp(0, _filterCount - 1);
+        if (next == _filterIndex) return false;
+        setState(() => _filterIndex = next);
+        return true;
+      case _HubFocus.searchBar:
+        final next = (_searchBarItem.index + delta).clamp(
+          0,
+          _SearchBarItem.values.length - 1,
+        );
+        if (next == _searchBarItem.index) return false;
+        setState(() => _searchBarItem = _SearchBarItem.values[next]);
+        return true;
+      case _HubFocus.empty:
+        final actions = _emptyActions();
+        if (actions.isEmpty) return false;
+        final next = (_emptyIndex + delta).clamp(0, actions.length - 1);
+        if (next == _emptyIndex) return false;
+        setState(() => _emptyIndex = next);
         return true;
       case _HubFocus.books:
-        final visible = _visibleLibraryItems;
+        final visible = _visibleEntries();
         if (visible.isEmpty) return false;
-        final next = (_librarySelectedIndex + delta)
-            .clamp(0, visible.length - 1)
-            .toInt();
-        if (next == _librarySelectedIndex) return false;
-        setState(() => _librarySelectedIndex = next);
-        _ensureSelectedBookVisible();
+        final next = (_selectedIndex + delta).clamp(0, visible.length - 1);
+        if (next == _selectedIndex) return false;
+        setState(() => _selectedIndex = next);
+        _ensureSelectedVisible();
         return true;
     }
   }
 
   bool _navigateVertical(int delta) {
-    if (_view == _LibraryView.manage) {
-      if (_addons.isEmpty) return false;
-      final next = (_addonSelectedIndex + delta)
-          .clamp(0, _addons.length - 1)
-          .toInt();
-      if (next == _addonSelectedIndex) return false;
-      setState(() => _addonSelectedIndex = next);
-      return true;
+    if (_section != null) return _sectionController.navigate(0, delta);
+    final visible = _visibleEntries();
+    final search = _memory.searchMode;
+
+    void focusContentBelow() {
+      if (visible.isNotEmpty) {
+        _focus = _HubFocus.books;
+        _selectedIndex = _selectedIndex.clamp(0, visible.length - 1);
+        _ensureSelectedVisible();
+      } else if (_emptyActions().isNotEmpty) {
+        _focus = _HubFocus.empty;
+        _emptyIndex = 0;
+      }
     }
 
-    if (_view == _LibraryView.addons) {
-      if (_addonSelectionCount <= 0) return false;
-      final next = (_addonSelectedIndex + delta)
-          .clamp(0, _addonSelectionCount - 1)
-          .toInt();
-      if (next == _addonSelectedIndex) return false;
-      setState(() => _addonSelectedIndex = next);
-      return true;
-    }
-    if (_view != _LibraryView.hub) return false;
-
-    final visible = _visibleLibraryItems;
-    switch (_hubFocus) {
-      case _HubFocus.shortcuts:
-        if (delta <= 0 || _loadingLibrary) return false;
-        setState(() => _hubFocus = _HubFocus.filters);
+    switch (_focus) {
+      case _HubFocus.header:
+        if (delta <= 0) return false;
+        setState(() => _focus = _HubFocus.shortcuts);
         return true;
-      case _HubFocus.filters:
+      case _HubFocus.shortcuts:
         if (delta < 0) {
-          setState(() => _hubFocus = _HubFocus.shortcuts);
+          setState(() {
+            _focus = _HubFocus.header;
+            _headerIndex = _headerIndex.clamp(0, _headerActions.length - 1);
+          });
+          _scrollToTop();
           return true;
         }
-        if (visible.isEmpty) return false;
+        setState(() => _focus = _HubFocus.filters);
+        return true;
+      case _HubFocus.searchBar:
+        if (delta < 0) return false;
+        final before = _focus;
         setState(() {
-          _hubFocus = _HubFocus.books;
-          _librarySelectedIndex = _librarySelectedIndex
-              .clamp(0, visible.length - 1)
-              .toInt();
+          if (_searchFiltersExpanded) {
+            _focus = _HubFocus.filters;
+            _filterIndex = _filterIndex.clamp(0, _filterCount - 1);
+          } else {
+            focusContentBelow();
+          }
         });
-        _ensureSelectedBookVisible();
+        return _focus != before;
+      case _HubFocus.filters:
+        if (delta < 0) {
+          setState(
+            () => _focus = search ? _HubFocus.searchBar : _HubFocus.shortcuts,
+          );
+          return true;
+        }
+        final before = _focus;
+        setState(focusContentBelow);
+        return _focus != before;
+      case _HubFocus.empty:
+        if (delta > 0) return false;
+        setState(
+          () => _focus = search && !_searchFiltersExpanded
+              ? _HubFocus.searchBar
+              : _HubFocus.filters,
+        );
         return true;
       case _HubFocus.books:
         if (visible.isEmpty) return false;
-        final next = _librarySelectedIndex + (delta * _libraryColumns);
+        final columns = _activeGrid.columns;
+        final next = _selectedIndex + delta * columns;
         if (delta < 0 && next < 0) {
-          setState(() => _hubFocus = _HubFocus.filters);
+          setState(
+            () => _focus = search && !_searchFiltersExpanded
+                ? _HubFocus.searchBar
+                : _HubFocus.filters,
+          );
+          if (!search) _scrollToFilters();
           return true;
         }
-        final clamped = next.clamp(0, visible.length - 1).toInt();
-        if (clamped == _librarySelectedIndex) return false;
-        setState(() => _librarySelectedIndex = clamped);
-        _ensureSelectedBookVisible();
+        final clamped = next.clamp(0, visible.length - 1);
+        if (clamped == _selectedIndex) return false;
+        setState(() => _selectedIndex = clamped);
+        _ensureSelectedVisible();
         return true;
     }
   }
 
   void _activateSelection() {
-    if (_view == _LibraryView.hub) {
-      if (_hubFocus == _HubFocus.shortcuts) {
-        if (_hubSelectedIndex == 0) {
-          setState(() {
-            _view = _LibraryView.addons;
-            _addonSelectedIndex = 0;
-          });
-        } else if (_hubSelectedIndex == 1) {
-          setState(() => _view = _LibraryView.local);
+    if (_section != null) {
+      _sectionController.activate();
+      return;
+    }
+    switch (_focus) {
+      case _HubFocus.header:
+        final actions = _headerActions;
+        final action = actions[_headerIndex.clamp(0, actions.length - 1)];
+        if (action == _HeaderAction.unavailable) {
+          unawaited(_showUnavailableSources());
         } else {
-          setState(() {
-            _view = _LibraryView.manage;
-            _addonSelectedIndex = 0;
-          });
+          unawaited(_feed.refresh());
         }
         return;
-      }
-
-      if (_hubFocus == _HubFocus.filters) {
-        if (_filterSelectedIndex == 0) {
-          _openLanguageMenu();
-        } else if (_filterSelectedIndex == 1) {
-          _openSortMenu();
-        } else if (_filterSelectedIndex == 2) {
-          _openIndexMenu();
-        } else if (_filterSelectedIndex == 3) {
-          _openSourceMenu();
-        } else if (_filterSelectedIndex == 4) {
-          _openContentMenu();
-        } else {
-          _enterTitleSearchMode();
+      case _HubFocus.shortcuts:
+        _openSection(LibraryHubSection.values[_shortcutIndex]);
+        return;
+      case _HubFocus.filters:
+        _activateFilter(_filterIndex);
+        return;
+      case _HubFocus.searchBar:
+        switch (_searchBarItem) {
+          case _SearchBarItem.field:
+            _searchFocus.requestFocus();
+          case _SearchBarItem.filters:
+            _toggleSearchFilters();
+          case _SearchBarItem.close:
+            _leaveSearchMode();
         }
         return;
-      }
-
-      final visible = _visibleLibraryItems;
-      if (_librarySelectedIndex >= 0 &&
-          _librarySelectedIndex < visible.length) {
-        _openCatalogItem(visible[_librarySelectedIndex]);
-      }
-      return;
-    }
-
-    if (_view == _LibraryView.local) {
-      _backToHub(selectLocal: true);
-      return;
-    }
-
-    if (_view == _LibraryView.manage) {
-      if (_addonSelectedIndex >= 0 && _addonSelectedIndex < _addons.length) {
-        _showAddonDetails(_addons[_addonSelectedIndex]);
-      }
-      return;
-    }
-
-    if (_addonSelectedIndex == 0) {
-      _backToHub();
-    } else if (_addonSelectedIndex == 1) {
-      _installFromUrl();
-    } else if (_addonSelectedIndex == 2) {
-      _installFromLocalManifest();
-    } else {
-      final addonIndex = _addonSelectedIndex - 3;
-      if (addonIndex >= 0 && addonIndex < _addons.length) {
-        _showAddonDetails(_addons[addonIndex]);
-      }
+      case _HubFocus.empty:
+        final actions = _emptyActions();
+        if (actions.isEmpty) return;
+        actions[_emptyIndex.clamp(0, actions.length - 1)].onPressed();
+        return;
+      case _HubFocus.books:
+        final visible = _visibleEntries();
+        if (_selectedIndex >= 0 && _selectedIndex < visible.length) {
+          unawaited(_openEntry(visible[_selectedIndex]));
+        }
+        return;
     }
   }
 
   void _back() {
-    if (_titleSearchMode) {
-      if (_titleSearchFocusNode.hasFocus) {
-        _titleSearchFocusNode.unfocus();
-        unawaited(_dismissSystemKeyboard());
+    if (_section != null) {
+      if (!_sectionController.back()) _backToHub();
+      return;
+    }
+    if (_memory.searchMode) {
+      if (_searchFocus.hasFocus) {
+        _searchFocus.unfocus();
+        unawaited(_dismissKeyboard());
         return;
       }
-      setState(() {
-        _titleSearchMode = false;
-        _titleSearchFiltersExpanded = false;
-        _hubFocus = _HubFocus.filters;
-        _filterSelectedIndex = 5;
-      });
+      if (_focus == _HubFocus.books || _focus == _HubFocus.empty) {
+        setState(() => _focus = _HubFocus.searchBar);
+        return;
+      }
+      _leaveSearchMode();
       return;
     }
-
-    if (_view == _LibraryView.addons || _view == _LibraryView.local) {
-      _backToHub();
-      return;
-    }
-    if (_view == _LibraryView.manage) {
-      _backToHub(selectManage: true);
-      return;
-    }
-
-    if (_hubFocus == _HubFocus.books) {
-      setState(() => _hubFocus = _HubFocus.filters);
-    } else if (_hubFocus == _HubFocus.filters) {
-      setState(() => _hubFocus = _HubFocus.shortcuts);
+    switch (_focus) {
+      case _HubFocus.books:
+      case _HubFocus.empty:
+        setState(() => _focus = _HubFocus.filters);
+        _scrollToFilters();
+      case _HubFocus.filters:
+      case _HubFocus.header:
+        setState(() => _focus = _HubFocus.shortcuts);
+      case _HubFocus.shortcuts:
+      case _HubFocus.searchBar:
+        break;
     }
   }
 
-  void _backToHub({bool selectLocal = false, bool selectManage = false}) {
-    setState(() {
-      _view = _LibraryView.hub;
-      _hubFocus = _HubFocus.shortcuts;
-      _hubSelectedIndex = selectManage ? 2 : (selectLocal ? 1 : 0);
+  void _secondaryAction() {
+    if (_section != null) _sectionController.secondary();
+  }
+
+  void _scrollToTop() {
+    if (!_catalogueScroll.hasClients || _memory.searchMode) return;
+    unawaited(
+      _catalogueScroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  void _scrollToFilters() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_catalogueScroll.hasClients) return;
+      final target = math.max(0.0, _catalogueGrid.start - 260.r);
+      if (_catalogueScroll.offset > target) {
+        unawaited(
+          _catalogueScroll.animateTo(
+            target,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          ),
+        );
+      }
     });
   }
 
-  Future<void> _deleteSelectedAddon() async {
-    final int addonIndex;
-    if (_view == _LibraryView.addons) {
-      if (_addonSelectedIndex < 3) return;
-      addonIndex = _addonSelectedIndex - 3;
-    } else if (_view == _LibraryView.manage) {
-      addonIndex = _addonSelectedIndex;
-    } else {
-      return;
-    }
-    if (addonIndex < 0 || addonIndex >= _addons.length) return;
-    final addon = _addons[addonIndex];
-    if (addon.isBuiltIn) return;
-    if (addon.isRepositorySource) {
-      await _chooseRemoveSourceOrRepository(addon);
-    } else {
-      await _confirmRemoveAddon(addon);
+  void _ensureSelectedVisible() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _focus != _HubFocus.books) return;
+      final controller = _activeScroll;
+      final grid = _activeGrid;
+      if (!controller.hasClients || grid.rowExtent <= 0) return;
+      final row = _selectedIndex ~/ grid.columns;
+      final top = grid.start + row * grid.rowExtent;
+      final bottom = top + grid.rowExtent;
+      final position = controller.position;
+      final current = position.pixels;
+      var target = current;
+      if (top < current) {
+        target = top;
+      } else if (bottom > current + position.viewportDimension) {
+        target = bottom - position.viewportDimension;
+      }
+      target = target.clamp(0.0, position.maxScrollExtent);
+      if ((target - current).abs() > 1) {
+        unawaited(
+          controller.animateTo(
+            target,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          ),
+        );
+      }
+    });
+  }
+
+  // -------------------------------------------------------------- filters --
+
+  void _activateFilter(int index) {
+    switch (index) {
+      case 0:
+        unawaited(_openLanguageMenu());
+      case 1:
+        unawaited(_openSortMenu());
+      case 2:
+        unawaited(_openIndexMenu());
+      case 3:
+        unawaited(_openSourceMenu());
+      case 4:
+        unawaited(_openContentMenu());
+      default:
+        _enterSearchMode();
     }
   }
 
-
-  String _firstLetter(String title) {
-    final trimmed = title.trim();
-    if (trimmed.isEmpty) return '';
-    final first = trimmed.substring(0, 1).toUpperCase();
-    return RegExp(r'[A-ZÀ-ÖØ-Þ0-9]').hasMatch(first) ? first : '#';
+  void _filtersChanged() {
+    _modeMemory
+      ..selectedIndex = 0
+      ..selectedIdentity = null;
   }
 
   RelativeRect _popupPosition() {
@@ -1013,40 +912,40 @@ class LibraryScreenState extends State<LibraryScreen> {
     final left = 24.r;
     final top = 190.r;
     final right = (size.width - 360.r)
-        .clamp(24.0, size.width - 48.0)
+        .clamp(24.0, math.max(24.0, size.width - 48.0))
         .toDouble();
     return RelativeRect.fromLTRB(left, top, right, 0);
   }
 
+  PopupMenuItem<T> _menuItem<T>(T value, String label, bool checked) {
+    return PopupMenuItem<T>(
+      value: value,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28.r,
+            child: checked ? Icon(Symbols.check_rounded, size: 18.r) : null,
+          ),
+          Flexible(child: Text(label)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openLanguageMenu() async {
     final options = _languageOptions;
-    if (options.isEmpty) return;
     final selected = await showMenu<String>(
       context: context,
       position: _popupPosition(),
       items: [
         for (final code in options)
-          PopupMenuItem<String>(
-            value: code,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 28.r,
-                  child: code == _languageFilter
-                      ? Icon(Symbols.check_rounded, size: 18.r)
-                      : null,
-                ),
-                Text(_languageLabel(code)),
-              ],
-            ),
-          ),
+          _menuItem(code, _languageLabel(code), code == _memory.languageFilter),
       ],
     );
     if (!mounted || selected == null) return;
     setState(() {
-      _languageFilter = selected;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
+      _memory.languageFilter = selected;
+      _filtersChanged();
     });
   }
 
@@ -1055,88 +954,38 @@ class LibraryScreenState extends State<LibraryScreen> {
       context: context,
       position: _popupPosition(),
       items: [
-        PopupMenuItem<bool>(
-          value: true,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 28.r,
-                child: _sortAscending
-                    ? Icon(Symbols.check_rounded, size: 18.r)
-                    : null,
-              ),
-              const Text('A → Z'),
-            ],
-          ),
-        ),
-        PopupMenuItem<bool>(
-          value: false,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 28.r,
-                child: !_sortAscending
-                    ? Icon(Symbols.check_rounded, size: 18.r)
-                    : null,
-              ),
-              const Text('Z → A'),
-            ],
-          ),
-        ),
+        _menuItem(true, 'A → Z', _memory.sortAscending),
+        _menuItem(false, 'Z → A', !_memory.sortAscending),
       ],
     );
     if (!mounted || selected == null) return;
     setState(() {
-      _sortAscending = selected;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
+      _memory.sortAscending = selected;
+      _filtersChanged();
     });
   }
 
   Future<void> _openIndexMenu() async {
-    final visible = _visibleLibraryItems;
+    final visible = _visibleEntries();
     if (visible.isEmpty) return;
-    final letters =
-        visible
-            .map((entry) => _firstLetter(entry.item.title))
-            .where((letter) => letter.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-    if (letters.isEmpty) return;
-
+    final letters = <String>{
+      for (final entry in visible) entry.firstLetter,
+    }.toList()..sort();
     final selected = await showMenu<String>(
       context: context,
       position: _popupPosition(),
-      items: [
-        for (final letter in letters)
-          PopupMenuItem<String>(
-            value: letter,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 28.r,
-                  child: letter == _alphabetAnchor
-                      ? Icon(Symbols.check_rounded, size: 18.r)
-                      : null,
-                ),
-                Text(letter),
-              ],
-            ),
-          ),
-      ],
+      items: [for (final letter in letters) _menuItem(letter, letter, false)],
     );
     if (!mounted || selected == null) return;
-    final itemIndex = visible.indexWhere(
-      (entry) => _firstLetter(entry.item.title) == selected,
+    final index = _visibleEntries().indexWhere(
+      (entry) => entry.firstLetter == selected,
     );
-    if (itemIndex < 0) return;
+    if (index < 0) return;
     setState(() {
-      _alphabetAnchor = selected;
-      _hubFocus = _HubFocus.books;
-      _librarySelectedIndex = itemIndex;
+      _focus = _HubFocus.books;
+      _selectedIndex = index;
     });
-    _ensureSelectedBookVisible();
+    _ensureSelectedVisible();
   }
 
   Future<void> _openSourceMenu() async {
@@ -1145,32 +994,16 @@ class LibraryScreenState extends State<LibraryScreen> {
       context: context,
       position: _popupPosition(),
       items: [
-        for (final entry in options.entries)
-          PopupMenuItem<String>(
-            value: entry.key,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 28.r,
-                  child: entry.key == _sourceFilter
-                      ? Icon(Symbols.check_rounded, size: 18.r)
-                      : null,
-                ),
-                Flexible(child: Text(_sourceLabel(entry.key))),
-              ],
-            ),
-          ),
+        for (final key in options.keys)
+          _menuItem(key, _sourceLabel(key), key == _memory.sourceFilter),
       ],
     );
     if (!mounted || selected == null) return;
     setState(() {
-      _sourceFilter = selected;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
+      _memory.sourceFilter = selected;
+      _filtersChanged();
     });
-    if (selected != 'all') {
-      unawaited(_loadMoreAidokuCatalogs(preferredSourceId: selected));
-    }
+    _scheduleFillCheck();
   }
 
   Future<void> _openContentMenu() async {
@@ -1178,447 +1011,171 @@ class LibraryScreenState extends State<LibraryScreen> {
       context: context,
       position: _popupPosition(),
       items: [
-        PopupMenuItem<bool>(
-          value: true,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 28.r,
-                child: _hideAdultContent
-                    ? Icon(Symbols.check_rounded, size: 18.r)
-                    : null,
-              ),
-              Flexible(
-                child: Text(
-                  LibraryFeatureLocale.text(context, 'hideAdult'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem<bool>(
-          value: false,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 28.r,
-                child: !_hideAdultContent
-                    ? Icon(Symbols.check_rounded, size: 18.r)
-                    : null,
-              ),
-              Text(
-                LibraryFeatureLocale.text(context, 'showAll'),
-              ),
-            ],
-          ),
-        ),
+        _menuItem(true, _lt('hideAdult'), _safeMode),
+        _menuItem(false, _lt('showAll'), !_safeMode),
       ],
     );
     if (!mounted || selected == null) return;
     setState(() {
-      _hideAdultContent = selected;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
+      _feed.safeMode = selected;
+      _filtersChanged();
     });
   }
 
-  Future<void> _dismissSystemKeyboard() async {
+  // --------------------------------------------------------------- search --
+
+  Future<void> _dismissKeyboard() async {
     FocusManager.instance.primaryFocus?.unfocus();
     try {
       await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     } catch (_) {}
   }
 
-  void _enterTitleSearchMode() {
-    _titleSearchDebounce?.cancel();
-    _titleSearchController.value = TextEditingValue(
-      text: _titleQuery,
-      selection: TextSelection.collapsed(offset: _titleQuery.length),
+  void _enterSearchMode() {
+    _rememberPosition();
+    _searchController.value = TextEditingValue(
+      text: _memory.query,
+      selection: TextSelection.collapsed(offset: _memory.query.length),
     );
     setState(() {
-      _titleSearchMode = true;
-      _titleSearchFiltersExpanded = false;
-      _hubFocus = _HubFocus.filters;
-      _filterSelectedIndex = 5;
+      _memory.searchMode = true;
+      _searchFiltersExpanded = false;
+      _focus = _HubFocus.searchBar;
+      _searchBarItem = _SearchBarItem.field;
+      _visibleKey = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _titleSearchFocusNode.requestFocus();
+      if (mounted && _memory.searchMode) _searchFocus.requestFocus();
     });
   }
 
-  void _leaveTitleSearchMode() {
-    _titleSearchDebounce?.cancel();
-    _titleSearchFocusNode.unfocus();
-    unawaited(_dismissSystemKeyboard());
+  void _leaveSearchMode() {
+    _searchDebounce?.cancel();
+    _searchFocus.unfocus();
+    unawaited(_dismissKeyboard());
+    _feed.clearSearch();
+    _searchController.clear();
     setState(() {
-      _titleSearchMode = false;
-      _titleSearchFiltersExpanded = false;
-      _hubFocus = _HubFocus.filters;
-      _filterSelectedIndex = 5;
+      _memory.searchMode = false;
+      _memory.query = '';
+      _memory.search
+        ..scrollOffset = 0
+        ..selectedIndex = 0
+        ..selectedIdentity = null;
+      _searchFiltersExpanded = false;
+      _focus = _HubFocus.filters;
+      _filterIndex = 5;
     });
+    _restorePositionAfterLayout();
   }
 
-  void _scheduleInlineTitleSearch(String rawValue) {
-    final query = rawValue.trim();
-    _titleSearchDebounce?.cancel();
-    final generation = ++_searchGeneration;
+  void _onQueryChanged(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
     setState(() {
-      _titleQuery = query;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
-      if (query.isEmpty) {
-        _remoteSearchEntries = const [];
-        _searchingTitles = false;
-      } else {
-        // Local titles filter immediately; remote providers fill in after the
-        // short debounce below, mirroring the responsive game-search field.
-        _searchingTitles = true;
-      }
+      _memory.query = value;
+      _memory.search
+        ..selectedIndex = 0
+        ..selectedIdentity = null;
     });
-    if (query.isEmpty) return;
-    _titleSearchDebounce = Timer(const Duration(milliseconds: 420), () {
-      if (!mounted || generation != _searchGeneration) return;
-      unawaited(_runTitleSearch(query));
-    });
-  }
-
-  Future<void> _submitInlineTitleSearch(String rawValue) async {
-    _titleSearchDebounce?.cancel();
-    final query = rawValue.trim();
-    _titleSearchFocusNode.unfocus();
-    await _dismissSystemKeyboard();
-    await _runTitleSearch(query);
-  }
-
-  void _clearInlineTitleSearch() {
-    _titleSearchDebounce?.cancel();
-    _titleSearchController.clear();
-    ++_searchGeneration;
-    setState(() {
-      _titleQuery = '';
-      _remoteSearchEntries = const [];
-      _searchingTitles = false;
-      _librarySelectedIndex = 0;
-      _alphabetAnchor = null;
-    });
-    _titleSearchFocusNode.requestFocus();
-  }
-
-  void _toggleInlineSearchFilters() {
-    _titleSearchFocusNode.unfocus();
-    unawaited(_dismissSystemKeyboard());
-    setState(() => _titleSearchFiltersExpanded = !_titleSearchFiltersExpanded);
-  }
-
-  void _tapHubCard(int index) {
-    SfxService().playNavSound();
-    setState(() {
-      _hubFocus = _HubFocus.shortcuts;
-      _hubSelectedIndex = index;
-    });
-    _activateSelection();
-  }
-
-  void _tapAddonSelection(int index) {
-    SfxService().playNavSound();
-    setState(() => _addonSelectedIndex = index);
-    _activateSelection();
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
-      );
-  }
-
-  Future<String?> _showUrlDialog() async {
-    final controller = TextEditingController();
-    const layerId = 'library_addon_url_dialog';
-    GamepadNavigationManager.pushLayer(
-      layerId,
-      onActivate: () {},
-      onDeactivate: () {},
-      modal: true,
-    );
-    try {
-      return await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(AppLocale.libraryAddonUrlTitle.getString(dialogContext)),
-          content: SizedBox(
-            width: 520.r,
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/neostation-library.json',
-                helperText: AppLocale.libraryAddonUrlHelp.getString(
-                  dialogContext,
-                ),
-              ),
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  Navigator.of(dialogContext).pop(value.trim());
-                }
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(AppLocale.cancel.getString(dialogContext)),
-            ),
-            FilledButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) Navigator.of(dialogContext).pop(value);
-              },
-              child: Text(
-                AppLocale.libraryAddonInstall.getString(dialogContext),
-              ),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      await _dismissSystemKeyboard();
-      controller.dispose();
-      GamepadNavigationManager.popLayer(layerId);
+    if (query.length < _feed.minQueryLength) {
+      _feed.clearSearch();
+      return;
     }
+    _searchDebounce = Timer(const Duration(milliseconds: 420), () {
+      if (mounted) _runSearch(query);
+    });
   }
 
-  Future<void> _installFromUrl() async {
-    final url = await _showUrlDialog();
-    if (!mounted || url == null || url.isEmpty) return;
-
-    _showMessage(AppLocale.libraryAddonInstalling.getString(context));
-    try {
-      final result = await _addonService.installDocumentFromUrl(url);
-      await _loadAddons();
-      if (!mounted) return;
-      if (result.format == LibraryAddonDocumentFormat.tachiyomiRepository ||
-          result.format == LibraryAddonDocumentFormat.aidokuRepository) {
-        _showMessage(
-          AppLocale.libraryAddonCount
-              .getString(context)
-              .replaceFirst('{count}', result.totalCount.toString()),
-        );
-      } else {
-        final addon = result.addons.single;
-        _showMessage(
-          result.updatedCount > 0
-              ? AppLocale.libraryAddonUpdated
-                    .getString(context)
-                    .replaceFirst('{name}', addon.name)
-              : AppLocale.libraryAddonInstalled
-                    .getString(context)
-                    .replaceFirst('{name}', addon.name),
-        );
-      }
-    } on LibraryAddonException catch (error) {
-      _showMessage(
-        AppLocale.libraryAddonError
-            .getString(context)
-            .replaceFirst('{error}', error.message),
-      );
-    } catch (error) {
-      _showMessage(
-        AppLocale.libraryAddonError
-            .getString(context)
-            .replaceFirst('{error}', error.toString()),
-      );
-    }
+  void _runSearch(String query) {
+    if (query.length < _feed.minQueryLength) return;
+    final current = _feed.currentSearch;
+    if (current != null && current.query == query) return;
+    if (_searchScroll.hasClients) _searchScroll.jumpTo(0);
+    unawaited(_feed.search(query));
   }
 
-  Future<void> _installFromLocalManifest() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['json'],
-      allowMultiple: false,
-      withData: true,
-    );
-    if (!mounted || result == null || result.files.isEmpty) return;
+  void _onQuerySubmitted(String value) {
+    _searchDebounce?.cancel();
+    _searchFocus.unfocus();
+    unawaited(_dismissKeyboard());
+    _runSearch(value.trim());
+    setState(() {
+      if (_visibleEntries().isNotEmpty) _focus = _HubFocus.books;
+    });
+  }
 
-    final picked = result.files.single;
-    try {
-      final bytes =
-          picked.bytes ??
-          (picked.path == null ? null : await File(picked.path!).readAsBytes());
-      if (bytes == null) {
-        throw const LibraryAddonException('Unable to read selected manifest.');
+  void _clearQuery() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    _feed.clearSearch();
+    setState(() {
+      _memory.query = '';
+      _memory.search
+        ..selectedIndex = 0
+        ..selectedIdentity = null;
+    });
+    _searchFocus.requestFocus();
+  }
+
+  void _toggleSearchFilters() {
+    _searchFocus.unfocus();
+    unawaited(_dismissKeyboard());
+    setState(() {
+      _searchFiltersExpanded = !_searchFiltersExpanded;
+      if (!_searchFiltersExpanded && _focus == _HubFocus.filters) {
+        _focus = _HubFocus.searchBar;
       }
-      final rawJson = utf8.decode(bytes);
-      final providerCount = await _metadataProviderService
-          .importRegistryJsonIfSupported(rawJson);
-      if (providerCount != null) {
-        if (!mounted) return;
-        setState(() {
-          _sourceFilter = 'all';
-          _librarySelectedIndex = 0;
-        });
-        _showMessage(
-          LibraryFeatureLocale.format(
+      _filterIndex = _filterIndex.clamp(0, _filterCount - 1);
+    });
+  }
+
+  // ------------------------------------------------------------- opening --
+
+  Future<void> _openEntry(LibraryFeedEntry entry) async {
+    switch (entry.kind) {
+      case LibraryFeedSourceKind.metadata:
+        await _openMetadataProviderItem(entry.item);
+      case LibraryFeedSourceKind.aidoku:
+        final open = widget.openOnlineTitle ?? LibraryMangaDetailsScreen.open;
+        try {
+          await open(
             context,
-            'providersImported',
-            {'count': providerCount},
-          ),
-        );
-        if (_titleQuery.trim().isNotEmpty) {
-          unawaited(_runTitleSearch(_titleQuery));
+            item: entry.item,
+            addon: entry.addon,
+            aidokuSourceId: entry.addon?.aidokuSourceId,
+          );
+        } catch (error) {
+          _showError(_lt('openFailed'), technical: error.toString());
         }
+      case LibraryFeedSourceKind.catalog:
+        await _openCatalogItem(entry.item);
+    }
+  }
+
+  Future<void> _openCatalogItem(LibraryCatalogItem item) async {
+    if (item.pageUrls.isNotEmpty) {
+      await _showPageReader(item.title, item.pageUrls, subtitle: item.subtitle);
+      return;
+    }
+    String text;
+    try {
+      _showMessage(_lt('loadingBook'));
+      text = await _catalogService.loadReadableText(item);
+    } catch (error) {
+      if (item.description.isNotEmpty) {
+        text = item.description;
+      } else {
+        _showError(_lt('readFailed'), technical: _technicalOf(error));
         return;
       }
-
-      final install = await _addonService.installDocumentFromJson(
-        rawJson,
-        origin: 'file:${picked.name}',
-      );
-      await _loadAddons();
-      if (!mounted) return;
-      if (install.format == LibraryAddonDocumentFormat.tachiyomiRepository ||
-          install.format == LibraryAddonDocumentFormat.aidokuRepository) {
-        _showMessage(
-          AppLocale.libraryAddonCount
-              .getString(context)
-              .replaceFirst('{count}', install.totalCount.toString()),
-        );
-      } else {
-        final addon = install.addons.single;
-        _showMessage(
-          install.updatedCount > 0
-              ? AppLocale.libraryAddonUpdated
-                    .getString(context)
-                    .replaceFirst('{name}', addon.name)
-              : AppLocale.libraryAddonInstalled
-                    .getString(context)
-                    .replaceFirst('{name}', addon.name),
-        );
-      }
-    } on LibraryAddonException catch (error) {
-      _showMessage(
-        AppLocale.libraryAddonError
-            .getString(context)
-            .replaceFirst('{error}', error.message),
-      );
-    } catch (error) {
-      _showMessage(
-        AppLocale.libraryAddonError
-            .getString(context)
-            .replaceFirst('{error}', error.toString()),
-      );
     }
+    if (!mounted) return;
+    _hideMessage();
+    await _showTextReader(item, text);
   }
 
-  Future<void> _showAddonDetails(LibraryAddon addon) async {
-    const layerId = 'library_addon_details_dialog';
-    GamepadNavigationManager.pushLayer(
-      layerId,
-      onActivate: () {},
-      onDeactivate: () {},
-      modal: true,
-    );
-    try {
-      final location = addon.baseUrl == null
-          ? 'local'
-          : (Uri.tryParse(addon.baseUrl!)?.host ?? addon.baseUrl!);
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(addon.name),
-          content: SizedBox(
-            width: 520.r,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('v${addon.version} • $location'),
-                if (addon.description.isNotEmpty) ...[
-                  SizedBox(height: 10.r),
-                  Text(addon.description),
-                ],
-                if (addon.isTachiyomiRepositorySource) ...[
-                  SizedBox(height: 10.r),
-                  Text(
-                    'Tachiyomi/Mihon • ${addon.language ?? 'all'} • iOS metadata',
-                    style: Theme.of(dialogContext).textTheme.bodySmall
-                        ?.copyWith(
-                          color: Theme.of(dialogContext).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  if (addon.androidPackage != null)
-                    Text(
-                      addon.androidPackage!,
-                      style: Theme.of(dialogContext).textTheme.bodySmall,
-                    ),
-                ],
-                if (addon.isAidokuRepositorySource) ...[
-                  SizedBox(height: 10.r),
-                  Text(
-                    _aidokuNativeService.supports(addon)
-                        ? 'Aidoku • ${addon.language ?? 'all'} • catalogue natif NeoStation'
-                        : 'Aidoku • ${addon.language ?? 'all'} • métadonnées de source',
-                    style: Theme.of(dialogContext).textTheme.bodySmall
-                        ?.copyWith(
-                          color: Theme.of(dialogContext).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  if (addon.sourceDownloadUrl != null)
-                    Text(
-                      addon.sourceDownloadUrl!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(dialogContext).textTheme.bodySmall,
-                    ),
-                ],
-                SizedBox(height: 12.r),
-                Text(
-                  addon.origin,
-                  style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(dialogContext).colorScheme.onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            if (!addon.isBuiltIn)
-              TextButton.icon(
-                onPressed: () async {
-                  Navigator.of(dialogContext).pop();
-                  if (addon.isRepositorySource) {
-                    await _chooseRemoveSourceOrRepository(addon);
-                  } else {
-                    await _confirmRemoveAddon(addon);
-                  }
-                },
-                icon: const Icon(Symbols.delete_rounded),
-                label: Text(AppLocale.delete.getString(dialogContext)),
-              ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(AppLocale.close.getString(dialogContext)),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      GamepadNavigationManager.popLayer(layerId);
-    }
-  }
-
-  Future<void> _openMetadataProviderItem(_NativeLibraryEntry entry) async {
-    final item = entry.item;
+  Future<void> _openMetadataProviderItem(LibraryCatalogItem item) async {
     final hasReadable =
         item.pageUrls.isNotEmpty ||
         (item.content?.trim().isNotEmpty ?? false) ||
@@ -1630,9 +1187,7 @@ class LibraryScreenState extends State<LibraryScreen> {
         await _readProviderItem(item);
         return;
       }
-      _showMessage(
-        LibraryFeatureLocale.text(context, 'unreadableSource'),
-      );
+      _showMessage(_lt('unreadableSource'));
       return;
     }
 
@@ -1649,9 +1204,7 @@ class LibraryScreenState extends State<LibraryScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(item.title),
-          content: Text(
-            LibraryFeatureLocale.text(context, 'chooseSourceAction'),
-          ),
+          content: Text(_lt('chooseSourceAction')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
@@ -1669,18 +1222,14 @@ class LibraryScreenState extends State<LibraryScreen> {
                   onPressed: () =>
                       Navigator.of(dialogContext).pop('external:$i'),
                   icon: const Icon(Symbols.open_in_new_rounded),
-                  label: Text(
-                    _ltf('readOn', {'label': acquisitions[i].label}),
-                  ),
+                  label: Text(_ltf('readOn', {'label': acquisitions[i].label})),
                 )
               else if (acquisitions[i].canDownload)
                 FilledButton.tonalIcon(
                   onPressed: () =>
                       Navigator.of(dialogContext).pop('download:$i'),
                   icon: const Icon(Symbols.download_rounded),
-                  label: Text(
-                    '${_lt('download')} ${acquisitions[i].label}',
-                  ),
+                  label: Text('${_lt('download')} ${acquisitions[i].label}'),
                 ),
           ],
         ),
@@ -1720,8 +1269,8 @@ class LibraryScreenState extends State<LibraryScreen> {
       final text = await _catalogService.loadReadableText(item);
       if (!mounted) return;
       await _showTextReader(item, text);
-    } on LibraryAddonException catch (error) {
-      _showMessage(error.message);
+    } catch (error) {
+      _showError(_lt('readFailed'), technical: _technicalOf(error));
     }
   }
 
@@ -1741,69 +1290,33 @@ class LibraryScreenState extends State<LibraryScreen> {
         try {
           final text = await _catalogService.loadReadableFile(result.filePath);
           if (!mounted) return;
+          _hideMessage();
           await _showTextReader(item, text);
-          return;
-        } on LibraryAddonException catch (error) {
-          _showMessage(
-            _ltf('downloadedWithError', {
-              'file': result.fileName,
-              'error': error.message,
-            }),
-          );
-          return;
+        } catch (error) {
+          _showError(_lt('readFailed'), technical: _technicalOf(error));
         }
+        return;
       }
 
       if (result.format == 'pdf') {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => LibraryPdfReaderScreen(
-              filePath: result.filePath,
-              title: item.title,
-            ),
-          ),
-        );
+        _hideMessage();
+        try {
+          await LibraryReaderLauncher.openPdf(
+            context,
+            path: result.filePath,
+            title: item.title,
+            progressKey: 'download:${result.fileName}',
+          );
+        } catch (error) {
+          _showError(_lt('readFailed'), technical: _technicalOf(error));
+        }
         return;
       }
 
       _showMessage(_ltf('downloadSaved', {'file': result.fileName}));
     } catch (error) {
-      if (!mounted) return;
-      _showMessage(_ltf('downloadFailed', {'error': error}));
+      _showError(_lt('downloadFailedPlain'), technical: _technicalOf(error));
     }
-  }
-
-  Future<void> _openCatalogItem(_NativeLibraryEntry entry) async {
-    if (_metadataProviderService.isProviderId(entry.providerId)) {
-      await _openMetadataProviderItem(entry);
-      return;
-    }
-
-    if (entry.source != null && _aidokuNativeService.supports(entry.source!)) {
-      await _openAidokuTitle(entry);
-      return;
-    }
-
-    final item = entry.item;
-    if (item.pageUrls.isNotEmpty) {
-      await _showPageReader(item.title, item.pageUrls, subtitle: item.subtitle);
-      return;
-    }
-
-    String text;
-    try {
-      _showMessage(_lt('loadingBook'));
-      text = await _catalogService.loadReadableText(item);
-    } on LibraryAddonException catch (error) {
-      if (item.description.isNotEmpty) {
-        text = item.description;
-      } else {
-        _showMessage(error.message);
-        return;
-      }
-    }
-    if (!mounted) return;
-    await _showTextReader(item, text);
   }
 
   Future<void> _showTextReader(LibraryCatalogItem item, String text) async {
@@ -1824,7 +1337,6 @@ class LibraryScreenState extends State<LibraryScreen> {
     String title,
     List<String> pages, {
     String subtitle = '',
-    Map<String, String>? imageHeaders,
   }) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -1832,326 +1344,226 @@ class LibraryScreenState extends State<LibraryScreen> {
           title: title,
           subtitle: subtitle,
           pages: pages,
-          imageHeaders: imageHeaders,
           bookmarkId: 'pages:$title:$subtitle',
         ),
       ),
     );
   }
 
-  Future<void> _openAidokuTitle(_NativeLibraryEntry entry) async {
-    final addon = entry.source!;
-    var item = entry.item;
+  // ------------------------------------------------------------- messages --
 
-    _showMessage(_lt('loadingChapters'));
-
-    try {
-      item = await _aidokuNativeService.loadDetails(addon, item);
-    } catch (_) {
-      // Catalog cards already contain enough data to continue if details fail.
+  static String _technicalOf(Object error) {
+    if (error is LibraryAddonException) {
+      final network = error.network;
+      return network == null ? error.message : '${error.message} · $network';
     }
+    return error.toString();
+  }
 
-    List<LibraryAidokuChapter> chapters;
-    try {
-      chapters = await _aidokuNativeService.loadChapters(addon, item);
-    } on LibraryAddonException catch (error) {
-      _showMessage(error.message);
-      return;
-    }
+  void _hideMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+  }
 
-    if (!mounted || chapters.isEmpty) {
-      if (mounted) {
-        _showMessage(_lt('noChapters'));
-      }
-      return;
-    }
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+      );
+  }
 
-    const layerId = 'library_aidoku_chapters';
-    GamepadNavigationManager.pushLayer(
-      layerId,
-      onActivate: () {},
-      onDeactivate: () {},
-      modal: true,
-    );
-    LibraryAidokuChapter? selectedChapter;
-    try {
-      selectedChapter = await showDialog<LibraryAidokuChapter>(
-        context: context,
-        builder: (dialogContext) {
-          final size = MediaQuery.sizeOf(dialogContext);
-          final theme = Theme.of(dialogContext);
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.symmetric(
-              horizontal: 24.r,
-              vertical: 18.r,
-            ),
-            child: NeoGlass(
-              role: GlassSurfaceRole.card,
-              borderRadius: BorderRadius.circular(18.r),
-              enableBackdropBlur: true,
-              showSheen: false,
-              child: SizedBox(
-                width: size.width * 0.92,
-                height: size.height * 0.86,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(18.r, 14.r, 8.r, 8.r),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                Text(
-                                  addon.name,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            icon: const Icon(Symbols.close_rounded),
-                          ),
-                        ],
-                      ),
+  /// Translated [message]; the raw [technical] detail stays behind the
+  /// "Details" action, untranslated.
+  void _showError(String message, {String? technical}) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 5),
+          action: technical == null || technical.isEmpty
+              ? null
+              : SnackBarAction(
+                  label: _lt('details'),
+                  onPressed: () => unawaited(
+                    _showInfoDialog(
+                      title: message,
+                      children: [_technicalBlock(technical)],
                     ),
-                    if (item.description.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(18.r, 0, 18.r, 10.r),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            item.description,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                      ),
-                    Expanded(
-                      child: ListView.separated(
-                        padding: EdgeInsets.fromLTRB(12.r, 4.r, 12.r, 20.r),
-                        itemCount: chapters.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (_, index) {
-                          final chapter = chapters[index];
-                          final details = <String>[
-                            if (chapter.chapter.isNotEmpty)
-                              'Ch. ${chapter.chapter}',
-                            chapter.language.toUpperCase(),
-                          ].join(' • ');
-                          return ListTile(
-                            title: Text(chapter.displayTitle),
-                            subtitle: details.isEmpty ? null : Text(details),
-                            trailing: const Icon(Symbols.menu_book_rounded),
-                            onTap: () =>
-                                Navigator.of(dialogContext).pop(chapter),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+        ),
+      );
+  }
+
+  Widget _technicalBlock(String technical) {
+    return Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              LibraryFeatureLocale.text(context, 'technicalDetails'),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
-          );
-        },
-      );
-    } finally {
-      GamepadNavigationManager.popLayer(layerId);
-    }
-
-    if (!mounted || selectedChapter == null) return;
-    _showMessage(_lt('loadingPages'));
-    List<String> pages;
-    try {
-      pages = await _aidokuNativeService.loadPages(
-        addon,
-        item,
-        selectedChapter,
-      );
-    } on LibraryAddonException catch (error) {
-      _showMessage(error.message);
-      return;
-    }
-    if (!mounted) return;
-    await _showPageReader(
-      '${item.title} — ${selectedChapter.displayTitle}',
-      pages,
-      subtitle: '${addon.name} • ${selectedChapter.language.toUpperCase()}',
-      imageHeaders: _aidokuNativeService.imageHeaders(addon),
+            const SizedBox(height: 2),
+            SelectableText(
+              technical,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Future<void> _chooseRemoveSourceOrRepository(LibraryAddon addon) async {
-    final repositoryCount = _addons
-        .where(
-          (item) =>
-              item.isRepositorySource &&
-              item.repositoryOrigin == addon.repositoryOrigin,
-        )
-        .length;
-    final choice = await showDialog<String>(
+  Future<void> _showInfoDialog({
+    required String title,
+    required List<Widget> children,
+    String? primaryLabel,
+    VoidCallback? onPrimary,
+  }) {
+    return showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(_lt('remove')),
-        content: Text(
-          _ltf('sourceBelongsRepo', {'count': repositoryCount}),
+      builder: (_) => _LibraryHubDialog(
+        title: title,
+        primaryLabel: primaryLabel,
+        onPrimary: onPrimary,
+        children: children,
+      ),
+    );
+  }
+
+  Future<void> _showUnavailableSources() {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => ListenableBuilder(
+        listenable: _feed,
+        builder: (context, _) {
+          final sources = _feed.unavailableSources;
+          final theme = Theme.of(context);
+          return _LibraryHubDialog(
+            title: _lt('unavailableSourcesTitle'),
+            primaryLabel: _lt('refreshSources'),
+            onPrimary: () => unawaited(_feed.refresh()),
+            children: [
+              Text(
+                _lt('unavailableSourcesHelp'),
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              for (final source in sources) ...[
+                _buildUnavailableRow(context, source),
+                const SizedBox(height: 12),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildUnavailableRow(BuildContext context, LibraryFeedSource source) {
+    final theme = Theme.of(context);
+    final failure = source.failure;
+    if (failure == null) return const SizedBox.shrink();
+    final verified = failure.verifiedOn;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Symbols.cloud_off_rounded,
+              size: 18,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                source.name,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (source.loading)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(AppLocale.cancel.getString(dialogContext)),
+        const SizedBox(height: 3),
+        Text(_issueText(failure.issue), style: theme.textTheme.bodyMedium),
+        if (failure.known && verified != null)
+          Text(
+            _ltf('knownStateVerified', {
+              'date': MaterialLocalizations.of(
+                context,
+              ).formatMediumDate(verified.toLocal()),
+            }),
+            style: theme.textTheme.bodySmall,
           ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop('source'),
-            child: Text(_lt('thisSource')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop('repository'),
-            child: Text(_lt('entireRepository')),
-          ),
+        if (source.entryCount > 0)
+          Text(_lt('savedCopyShown'), style: theme.textTheme.bodySmall),
+        const SizedBox(height: 3),
+        _technicalBlock(failure.technical),
+      ],
+    );
+  }
+
+  void _showSearchSourceDetails(LibraryFeedSearchSource source) {
+    final failure = source.failure;
+    if (failure == null) return;
+    unawaited(
+      _showInfoDialog(
+        title: source.name,
+        children: [
+          Text(_issueText(failure.issue)),
+          const SizedBox(height: 8),
+          _technicalBlock(failure.technical),
         ],
       ),
     );
-    if (!mounted || choice == null) return;
-    if (choice == 'repository') {
-      await _confirmRemoveRepository(addon);
-    } else {
-      await _confirmRemoveAddon(addon);
-    }
   }
 
-  Future<void> _confirmRemoveRepository(LibraryAddon addon) async {
-    final origin = addon.repositoryOrigin;
-    final count = _addons
-        .where(
-          (item) => item.isRepositorySource && item.repositoryOrigin == origin,
-        )
-        .length;
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(_lt('removeRepositoryQuestion')),
-            content: Text(
-              _ltf('removeRepositoryBody', {'count': count}),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(AppLocale.cancel.getString(dialogContext)),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(AppLocale.delete.getString(dialogContext)),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-    if (!confirmed) return;
-    final removed = await _addonService.removeRepository(origin);
-    await _loadAddons();
-    if (!mounted) return;
-    setState(() {
-      final maxIndex = _view == _LibraryView.manage
-          ? (_addons.length - 1).clamp(0, 9999)
-          : (_addonSelectionCount - 1).clamp(0, 9999);
-      _addonSelectedIndex = _addonSelectedIndex.clamp(0, maxIndex);
-    });
-    _showMessage(_ltf('repositoryRemoved', {'count': removed}));
-  }
-
-  Future<void> _confirmRemoveAddon(LibraryAddon addon) async {
-    const layerId = 'library_addon_remove_dialog';
-    GamepadNavigationManager.pushLayer(
-      layerId,
-      onActivate: () {},
-      onDeactivate: () {},
-      modal: true,
-    );
-    bool confirmed = false;
-    try {
-      confirmed =
-          await showDialog<bool>(
-            context: context,
-            barrierDismissible: false,
-            builder: (dialogContext) => AlertDialog(
-              title: Text(
-                AppLocale.libraryAddonRemoveTitle.getString(dialogContext),
-              ),
-              content: Text(
-                AppLocale.libraryAddonRemoveBody
-                    .getString(dialogContext)
-                    .replaceFirst('{name}', addon.name),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: Text(AppLocale.cancel.getString(dialogContext)),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: Text(AppLocale.delete.getString(dialogContext)),
-                ),
-              ],
-            ),
-          ) ??
-          false;
-    } finally {
-      GamepadNavigationManager.popLayer(layerId);
-    }
-
-    if (!confirmed) return;
-    await _addonService.remove(addon.id);
-    await _loadAddons();
-    if (!mounted) return;
-    setState(() {
-      final maxIndex = _view == _LibraryView.manage
-          ? (_addons.length - 1).clamp(0, 9999)
-          : (_addonSelectionCount - 1).clamp(0, 9999);
-      _addonSelectedIndex = _addonSelectedIndex.clamp(0, maxIndex);
-    });
-    _showMessage(
-      AppLocale.libraryAddonRemoved
-          .getString(context)
-          .replaceFirst('{name}', addon.name),
-    );
-  }
+  // ----------------------------------------------------------------- build --
 
   @override
   Widget build(BuildContext context) {
+    final section = _section;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(24.r, 54.r, 24.r, 18.r),
-        child: switch (_view) {
-          _LibraryView.hub => _buildHub(context),
-          _LibraryView.addons => _buildAddons(context),
-          _LibraryView.local => _buildLocalLibrary(context),
-          _LibraryView.manage => _buildManageSources(context),
-        },
+        child: section != null
+            ? _buildSection(context, section)
+            : _memory.searchMode
+            ? _buildSearchHub(context)
+            : _buildHub(context),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, {Widget? trailing}) {
+  Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
+    final unavailable = _feed.unavailableCount;
+    final actions = _headerActions;
+    bool headerSelected(_HeaderAction action) =>
+        _focus == _HubFocus.header &&
+        actions.indexOf(action) == _headerIndex.clamp(0, actions.length - 1);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -2180,6 +1592,8 @@ class LibraryScreenState extends State<LibraryScreen> {
               SizedBox(height: 3.r),
               Text(
                 AppLocale.libraryIntro.getString(context),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
                 ),
@@ -2187,98 +1601,143 @@ class LibraryScreenState extends State<LibraryScreen> {
             ],
           ),
         ),
-        if (trailing != null) trailing,
+        if (_feed.isRefreshing) ...[
+          SizedBox(width: 10.r),
+          Semantics(
+            label: _lt('updatingSources'),
+            child: const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ],
+        if (unavailable > 0) ...[
+          SizedBox(width: 8.r),
+          _HubHeaderButton(
+            selected: headerSelected(_HeaderAction.unavailable),
+            icon: Symbols.cloud_off_rounded,
+            label: _ltf('sourcesUnavailable', {'count': unavailable}),
+            color: theme.colorScheme.error,
+            onPressed: () {
+              setState(() {
+                _focus = _HubFocus.header;
+                _headerIndex = 0;
+              });
+              unawaited(_showUnavailableSources());
+            },
+          ),
+        ],
+        SizedBox(width: 8.r),
+        _HubHeaderButton(
+          selected: headerSelected(_HeaderAction.refresh),
+          icon: Symbols.refresh_rounded,
+          tooltip: _lt('refreshSources'),
+          onPressed: () {
+            setState(() {
+              _focus = _HubFocus.header;
+              _headerIndex = actions.indexOf(_HeaderAction.refresh);
+            });
+            unawaited(_feed.refresh());
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildShortcuts(BuildContext context) {
+    Widget card(int index, IconData icon, String title, String subtitle) {
+      return Expanded(
+        child: _LibraryEntryCard(
+          selected: _focus == _HubFocus.shortcuts && _shortcutIndex == index,
+          icon: icon,
+          title: title,
+          subtitle: subtitle,
+          onTap: () {
+            _navSound();
+            setState(() {
+              _focus = _HubFocus.shortcuts;
+              _shortcutIndex = index;
+            });
+            _openSection(LibraryHubSection.values[index]);
+          },
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        card(
+          LibraryHubSection.sources.index,
+          Symbols.hub_rounded,
+          _lt('sourcesSection'),
+          _lt('sourcesSectionSubtitle'),
+        ),
+        SizedBox(width: 14.r),
+        card(
+          LibraryHubSection.local.index,
+          Symbols.folder_open_rounded,
+          AppLocale.libraryLocal.getString(context),
+          AppLocale.libraryLocalSubtitle.getString(context),
+        ),
+        SizedBox(width: 14.r),
+        card(
+          LibraryHubSection.favorites.index,
+          Symbols.collections_bookmark_rounded,
+          _lt('favoritesSection'),
+          _lt('favoritesSectionSubtitle'),
+        ),
       ],
     );
   }
 
   Widget _buildHub(BuildContext context) {
-    if (_titleSearchMode) return _buildInlineTitleSearchHub(context);
-
     final theme = Theme.of(context);
+    final visible = _visibleEntries();
     return CustomScrollView(
-      controller: _libraryScrollController,
+      controller: _catalogueScroll,
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
       slivers: [
         SliverToBoxAdapter(child: _buildHeader(context)),
         SliverToBoxAdapter(child: SizedBox(height: 20.r)),
-        SliverToBoxAdapter(
-          child: Row(
-            children: [
-              Expanded(
-                child: _LibraryEntryCard(
-                  selected:
-                      _hubFocus == _HubFocus.shortcuts &&
-                      _hubSelectedIndex == 0,
-                  icon: Symbols.extension_rounded,
-                  title: AppLocale.libraryAddons.getString(context),
-                  subtitle: AppLocale.libraryAddonsSubtitle.getString(context),
-                  onTap: () => _tapHubCard(0),
-                ),
-              ),
-              SizedBox(width: 14.r),
-              Expanded(
-                child: _LibraryEntryCard(
-                  selected:
-                      _hubFocus == _HubFocus.shortcuts &&
-                      _hubSelectedIndex == 1,
-                  icon: Symbols.folder_open_rounded,
-                  title: AppLocale.libraryLocal.getString(context),
-                  subtitle: AppLocale.libraryLocalSubtitle.getString(context),
-                  onTap: () => _tapHubCard(1),
-                ),
-              ),
-              SizedBox(width: 14.r),
-              Expanded(
-                child: _LibraryEntryCard(
-                  selected:
-                      _hubFocus == _HubFocus.shortcuts &&
-                      _hubSelectedIndex == 2,
-                  icon: Symbols.manage_accounts_rounded,
-                  title: _lt('manageSources'),
-                  subtitle: _lt('manageSourcesSubtitle'),
-                  onTap: () => _tapHubCard(2),
-                ),
-              ),
-            ],
-          ),
-        ),
+        SliverToBoxAdapter(child: _buildShortcuts(context)),
         SliverToBoxAdapter(child: SizedBox(height: 12.r)),
-        SliverToBoxAdapter(child: _buildFilters(context)),
+        SliverToBoxAdapter(child: _buildFilters(context, visible)),
         SliverToBoxAdapter(child: SizedBox(height: 12.r)),
-        _buildNativeLibrarySliver(context, theme),
-        _buildCatalogProgressSliver(context),
+        _buildGridSliver(context, theme, visible, _catalogueGrid),
+        _buildLoadingMoreSliver(),
         SliverToBoxAdapter(child: SizedBox(height: 42.r)),
       ],
     );
   }
 
-  Widget _buildInlineTitleSearchHub(BuildContext context) {
+  Widget _buildSearchHub(BuildContext context) {
     final theme = Theme.of(context);
-    // Match the standard game-search architecture: the query band remains
-    // fixed and only the results region scrolls. This also guarantees that the
-    // iOS keyboard can never cover the field the user is actively typing in.
+    final visible = _visibleEntries();
+    // The query band stays fixed and only the results scroll, so the iOS
+    // keyboard never covers the field being typed in.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildInlineTitleSearchRow(context, theme),
-        if (_titleSearchFiltersExpanded) ...[
+        _buildSearchRow(context, theme, visible),
+        if (_searchFiltersExpanded) ...[
           SizedBox(height: 8.r),
-          _buildFilters(context, includeSearch: false),
+          _buildFilters(context, visible, includeSearch: false),
         ],
-        SizedBox(height: 10.r),
+        SizedBox(height: 8.r),
+        _buildSearchStatusRow(context, theme),
+        SizedBox(height: 8.r),
         Expanded(
           child: CustomScrollView(
-            controller: _libraryScrollController,
+            controller: _searchScroll,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
-              _buildNativeLibrarySliver(context, theme),
-              _buildCatalogProgressSliver(context),
+              _buildGridSliver(context, theme, visible, _searchGrid),
               SliverToBoxAdapter(child: SizedBox(height: 42.r)),
             ],
           ),
@@ -2287,53 +1746,69 @@ class LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildInlineTitleSearchRow(BuildContext context, ThemeData theme) {
-    final visible = _visibleLibraryItems;
-    final countLabel = _ltf('resultsCount', {'count': visible.length});
+  Widget _focusRing({required bool selected, required Widget child}) {
+    final theme = Theme.of(context);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 130),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: selected ? theme.colorScheme.primary : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildSearchRow(
+    BuildContext context,
+    ThemeData theme,
+    List<LibraryFeedEntry> visible,
+  ) {
     final activeFilters = <bool>[
-      _languageFilter != 'all',
-      _sourceFilter != 'all',
-      _alphabetAnchor != null,
-      !_hideAdultContent,
+      _memory.languageFilter != 'all',
+      _memory.sourceFilter != 'all',
+      !_safeMode,
     ].where((value) => value).length;
+    bool barSelected(_SearchBarItem item) =>
+        _focus == _HubFocus.searchBar && _searchBarItem == item;
+    final searching = _feed.currentSearch?.searching ?? false;
 
     return Row(
       children: [
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(
-                color: _titleSearchFocusNode.hasFocus
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
-                width: 2.r,
-              ),
-            ),
+          child: _focusRing(
+            selected:
+                barSelected(_SearchBarItem.field) || _searchFocus.hasFocus,
             child: TextField(
-              controller: _titleSearchController,
-              focusNode: _titleSearchFocusNode,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onTap: () {
-                if (mounted) setState(() {});
-              },
-              onChanged: _scheduleInlineTitleSearch,
-              onSubmitted: _submitInlineTitleSearch,
+              controller: _searchController,
+              focusNode: _searchFocus,
+              textInputAction: TextInputAction.search,
+              onTap: () => setState(() {
+                _focus = _HubFocus.searchBar;
+                _searchBarItem = _SearchBarItem.field;
+              }),
+              onChanged: _onQueryChanged,
+              onSubmitted: _onQuerySubmitted,
               decoration: InputDecoration(
                 hintText: _lt('searchHint'),
                 prefixIcon: const Icon(Symbols.search_rounded),
-                suffixIcon: _titleSearchController.text.isEmpty
+                suffixIcon: _searchController.text.isEmpty
                     ? null
                     : IconButton(
                         tooltip: _lt('clear'),
-                        onPressed: _clearInlineTitleSearch,
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
+                        onPressed: _clearQuery,
                         icon: const Icon(Symbols.close_rounded),
                       ),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 12.r,
-                  vertical: 10.r,
+                  vertical: 12,
                 ),
                 filled: true,
                 fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -2348,128 +1823,173 @@ class LibraryScreenState extends State<LibraryScreen> {
           ),
         ),
         SizedBox(width: 10.r),
-        if (_searchingTitles) ...[
-          SizedBox(
-            width: 14.r,
-            height: 14.r,
-            child: const CircularProgressIndicator(strokeWidth: 2),
+        if (searching) ...[
+          Semantics(
+            label: _lt('searchingSources'),
+            child: const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
           SizedBox(width: 7.r),
         ],
         Text(
-          countLabel,
-          style: TextStyle(
-            fontSize: 12.r,
+          _ltf('resultsCount', {'count': visible.length}),
+          style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
         SizedBox(width: 10.r),
-        GestureDetector(
-          onTap: _toggleInlineSearchFilters,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 9.r),
-            decoration: BoxDecoration(
-              color: _titleSearchFiltersExpanded
-                  ? theme.colorScheme.primary.withValues(alpha: 0.18)
-                  : (activeFilters > 0
-                        ? theme.colorScheme.primary.withValues(alpha: 0.10)
-                        : theme.colorScheme.surface.withValues(alpha: 0.5)),
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(
-                color: _titleSearchFiltersExpanded
-                    ? theme.colorScheme.primary
-                    : (activeFilters > 0
-                          ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                          : Colors.transparent),
-                width: 2.r,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Symbols.tune_rounded, size: 18.r),
-                SizedBox(width: 6.r),
-                Text(
-                  _lt('filters'),
-                  style: TextStyle(fontSize: 13.r, fontWeight: FontWeight.w700),
-                ),
-                if (activeFilters > 0) ...[
-                  SizedBox(width: 6.r),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 6.r,
-                      vertical: 1.r,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Text(
-                      '$activeFilters',
-                      style: TextStyle(
-                        fontSize: 11.r,
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-                SizedBox(width: 4.r),
-                Icon(
-                  _titleSearchFiltersExpanded
-                      ? Symbols.expand_less_rounded
-                      : Symbols.expand_more_rounded,
-                  size: 16.r,
-                ),
-              ],
+        _focusRing(
+          selected: barSelected(_SearchBarItem.filters),
+          child: TextButton.icon(
+            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: () {
+              setState(() {
+                _focus = _HubFocus.searchBar;
+                _searchBarItem = _SearchBarItem.filters;
+              });
+              _toggleSearchFilters();
+            },
+            icon: const Icon(Symbols.tune_rounded),
+            label: Text(
+              activeFilters > 0
+                  ? '${_lt('filters')} ($activeFilters)'
+                  : _lt('filters'),
             ),
           ),
         ),
         SizedBox(width: 6.r),
-        IconButton(
-          tooltip: _lt('closeSearch'),
-          onPressed: _leaveTitleSearchMode,
-          icon: const Icon(Symbols.close_rounded),
+        _focusRing(
+          selected: barSelected(_SearchBarItem.close),
+          child: IconButton(
+            tooltip: _lt('closeSearch'),
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            onPressed: _leaveSearchMode,
+            icon: const Icon(Symbols.close_rounded),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildFilters(BuildContext context, {bool includeSearch = true}) {
-    final visible = _visibleLibraryItems;
-    final countLabel = _titleQuery.isNotEmpty
-        ? _ltf('resultsCount', {'count': visible.length})
-        : _ltf('titlesCount', {'count': visible.length});
+  Widget _buildSearchStatusRow(BuildContext context, ThemeData theme) {
+    final search = _feed.currentSearch;
+    final query = _memory.query.trim();
+    if (search == null || search.query != query || search.sources.isEmpty) {
+      return const SizedBox(height: 44);
+    }
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: search.sources.length,
+        separatorBuilder: (_, _) => SizedBox(width: 8.r),
+        itemBuilder: (context, index) {
+          final source = search.sources[index];
+          final (
+            IconData icon,
+            Color color,
+            String label,
+          ) = switch (source.status) {
+            LibraryFeedSearchStatus.searching => (
+              Symbols.hourglass_top_rounded,
+              theme.colorScheme.primary,
+              _ltf('searchSourceSearching', {'source': source.name}),
+            ),
+            LibraryFeedSearchStatus.done => (
+              Symbols.check_circle_rounded,
+              theme.colorScheme.primary,
+              _ltf('searchSourceResults', {
+                'source': source.name,
+                'count': source.entries.length,
+              }),
+            ),
+            LibraryFeedSearchStatus.failed => (
+              Symbols.error_rounded,
+              theme.colorScheme.error,
+              _ltf('searchSourceFailed', {'source': source.name}),
+            ),
+            LibraryFeedSearchStatus.skipped => (
+              Symbols.block_rounded,
+              theme.colorScheme.onSurface.withValues(alpha: 0.55),
+              _ltf('searchSourceSkipped', {'source': source.name}),
+            ),
+          };
+          final hasDetails = source.failure != null;
+          return Center(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: hasDetails ? () => _showSearchSourceDetails(source) : null,
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 44),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: color.withValues(alpha: 0.10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (source.status == LibraryFeedSearchStatus.searching)
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: color,
+                        ),
+                      )
+                    else
+                      Icon(icon, size: 16, color: color),
+                    const SizedBox(width: 6),
+                    Text(label, style: theme.textTheme.labelMedium),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFilters(
+    BuildContext context,
+    List<LibraryFeedEntry> visible, {
+    bool includeSearch = true,
+  }) {
+    final countLabel = _ltf('titlesCount', {'count': visible.length});
 
     Widget control({
       required int index,
       required IconData icon,
       required String label,
       required String value,
-      required VoidCallback action,
     }) {
       return Expanded(
         child: SizedBox(
-          height: 190.r,
+          height: math.max(120.0, 190.r),
           child: _FilterControl(
-            selected:
-                _hubFocus == _HubFocus.filters && _filterSelectedIndex == index,
+            selected: _focus == _HubFocus.filters && _filterIndex == index,
             icon: icon,
             label: label,
             value: value,
             onTap: () {
               setState(() {
-                _hubFocus = _HubFocus.filters;
-                _filterSelectedIndex = index;
+                _focus = _HubFocus.filters;
+                _filterIndex = index;
               });
-              action();
+              _activateFilter(index);
             },
           ),
         ),
       );
     }
 
+    final gap = SizedBox(width: 8.r);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2479,151 +1999,241 @@ class LibraryScreenState extends State<LibraryScreen> {
               index: 0,
               icon: Symbols.translate_rounded,
               label: _lt('language'),
-              value: _languageLabel(_languageFilter),
-              action: _openLanguageMenu,
+              value: _languageLabel(_memory.languageFilter),
             ),
-            SizedBox(width: 8.r),
+            gap,
             control(
               index: 1,
               icon: Symbols.sort_by_alpha_rounded,
               label: _lt('sort'),
-              value: _sortAscending ? 'A → Z' : 'Z → A',
-              action: _openSortMenu,
+              value: _memory.sortAscending ? 'A → Z' : 'Z → A',
             ),
-            SizedBox(width: 8.r),
+            gap,
             control(
               index: 2,
               icon: Symbols.abc_rounded,
               label: _lt('index'),
-              value: _alphabetAnchor == null ? 'A–Z' : _alphabetAnchor!,
-              action: _openIndexMenu,
+              value: 'A–Z',
             ),
-            SizedBox(width: 8.r),
+            gap,
             control(
               index: 3,
               icon: Symbols.source_rounded,
               label: _lt('source'),
-              value: _sourceLabel(_sourceFilter),
-              action: _openSourceMenu,
+              value: _sourceLabel(_memory.sourceFilter),
             ),
-            SizedBox(width: 8.r),
+            gap,
             control(
               index: 4,
               icon: Symbols.visibility_off_rounded,
               label: _lt('content'),
               value: _contentFilterLabel(),
-              action: _openContentMenu,
             ),
             if (includeSearch) ...[
-              SizedBox(width: 8.r),
+              gap,
               control(
                 index: 5,
                 icon: Symbols.search_rounded,
                 label: _lt('search'),
-                value: _titleQuery.isEmpty ? _lt('title') : _titleQuery,
-                action: _enterTitleSearchMode,
+                value: _lt('title'),
               ),
             ],
           ],
         ),
-        SizedBox(height: 7.r),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            if (_searchingTitles) ...[
-              SizedBox(
-                width: 13.r,
-                height: 13.r,
-                child: const CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 7.r),
-              Text(
-                _lt('searchingSources'),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              SizedBox(width: 12.r),
-            ],
-            Text(
-              countLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface
-                    .withValues(alpha: 0.58),
-                fontWeight: FontWeight.w600,
+        if (includeSearch)
+          SizedBox(
+            height: 28.r,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                countLabel,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.58),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
       ],
     );
   }
 
-  Widget _buildNativeLibrarySliver(BuildContext context, ThemeData theme) {
-    if (_loadingLibrary) {
-      return SliverToBoxAdapter(
-        child: SizedBox(
-          height: 220.r,
-          child: const Center(child: CircularProgressIndicator()),
+  List<_EmptyAction> _emptyActions() {
+    if (_memory.searchMode) return const <_EmptyAction>[];
+    if (_visibleEntries().isNotEmpty) return const <_EmptyAction>[];
+    final noSource =
+        _addonsLoaded && !_feed.hasSources && _feed.metadataProviders.isEmpty;
+    if (noSource) {
+      return <_EmptyAction>[
+        _EmptyAction(
+          Symbols.library_add_rounded,
+          _lt('addCatalogue'),
+          () => _openSection(LibraryHubSection.sources),
         ),
-      );
+        _EmptyAction(
+          Symbols.upload_file_rounded,
+          _lt('importYourFiles'),
+          () => _openSection(LibraryHubSection.local),
+        ),
+      ];
+    }
+    if (_feed.allSourcesFailed) {
+      return <_EmptyAction>[
+        _EmptyAction(
+          Symbols.refresh_rounded,
+          _lt('refreshSources'),
+          () => unawaited(_feed.refresh()),
+        ),
+        _EmptyAction(
+          Symbols.info_rounded,
+          _lt('unavailableSourcesTitle'),
+          () => unawaited(_showUnavailableSources()),
+        ),
+      ];
+    }
+    return const <_EmptyAction>[];
+  }
+
+  Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+    final search = _memory.searchMode;
+    final query = _memory.query.trim();
+    final currentSearch = _feed.currentSearch;
+    final actions = _emptyActions();
+    final noSource =
+        !search &&
+        _addonsLoaded &&
+        !_feed.hasSources &&
+        _feed.metadataProviders.isEmpty;
+
+    bool busy;
+    String title;
+    String? body;
+    if (search) {
+      if (query.length < _feed.minQueryLength) {
+        busy = false;
+        title = _lt('searchMinChars');
+      } else if (currentSearch == null ||
+          currentSearch.query != query ||
+          currentSearch.searching) {
+        busy = true;
+        title = _lt('searchingCatalogs');
+      } else {
+        busy = false;
+        title = _lt('noResults');
+      }
+    } else if (noSource) {
+      busy = false;
+      title = _lt('emptyNoSourceTitle');
+      body = _lt('emptyNoSourceBody');
+    } else if (!_addonsLoaded ||
+        (_feed.isRefreshing && _feed.entries.isEmpty)) {
+      busy = true;
+      title = _lt('loadingCatalogues');
+    } else if (_feed.allSourcesFailed) {
+      busy = false;
+      title = _lt('emptyAllFailedTitle');
+      body = _ltf('sourcesUnavailable', {'count': _feed.unavailableCount});
+    } else {
+      busy = false;
+      final source = _feed.source(_memory.sourceFilter);
+      title = source != null && _feed.isHiddenBySafeMode(source)
+          ? _lt('sourceHiddenBySafeMode')
+          : _lt('noBooksFilter');
     }
 
-    final visible = _visibleLibraryItems;
-    if (visible.isEmpty) {
-      final hasContent =
-          _libraryItems.isNotEmpty || _remoteSearchEntries.isNotEmpty;
-      return SliverToBoxAdapter(
-        child: SizedBox(
-          height: 220.r,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_searchingTitles)
-                  const CircularProgressIndicator()
-                else
-                  Icon(
-                    Symbols.collections_bookmark_rounded,
-                    size: 38.r,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-                  ),
-                SizedBox(height: 8.r),
-                Text(
-                  _searchingTitles
-                      ? _lt('searchingCatalogs')
-                      : hasContent
-                      ? _lt('noBooksFilter')
-                      : AppLocale.libraryEmptyTitle.getString(context),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (_catalogFailures > 0) ...[
-                  SizedBox(height: 5.r),
-                  Text(
-                    _ltf('catalogFailures', {'count': _catalogFailures}),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.error.withValues(alpha: 0.85),
-                    ),
-                  ),
-                ],
-              ],
+    return SizedBox(
+      height: math.max(200.0, 240.r),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (busy)
+              const CircularProgressIndicator()
+            else
+              Icon(
+                Symbols.collections_bookmark_rounded,
+                size: 38.r,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+              ),
+            SizedBox(height: 8.r),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
+            if (body != null) ...[
+              SizedBox(height: 5.r),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+            if (actions.isNotEmpty) ...[
+              SizedBox(height: 14.r),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (var i = 0; i < actions.length; i++)
+                    _focusRing(
+                      selected: _focus == _HubFocus.empty && _emptyIndex == i,
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(44, 44),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _focus = _HubFocus.empty;
+                            _emptyIndex = i;
+                          });
+                          actions[i].onPressed();
+                        },
+                        icon: Icon(actions[i].icon),
+                        label: Text(actions[i].label),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _buildGridSliver(
+    BuildContext context,
+    ThemeData theme,
+    List<LibraryFeedEntry> visible,
+    _GridGeometry geometry,
+  ) {
+    if (visible.isEmpty) {
+      return SliverToBoxAdapter(child: _buildEmptyState(context, theme));
+    }
+    final selectedIndex = _focus == _HubFocus.books ? _selectedIndex : -1;
     return SliverLayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.crossAxisExtent >= 1200 ? 6 : 5;
-        _libraryColumns = columns;
         final spacing = 12.r;
-        final totalSpacing = (columns - 1) * spacing;
         final cardWidth =
-            (constraints.crossAxisExtent - totalSpacing) / columns;
+            (constraints.crossAxisExtent - (columns - 1) * spacing) / columns;
         final cardHeight = cardWidth / 0.68;
-        _libraryRowExtent = cardHeight + spacing;
-
+        geometry
+          ..columns = columns
+          ..start = constraints.precedingScrollExtent
+          ..rowExtent = cardHeight + spacing;
+        // Decoded at the card's size, rounded up to share cache entries
+        // between the catalogue and search layouts.
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final cacheWidth = ((cardWidth * dpr) / 64).ceil() * 64;
         return SliverGrid(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
@@ -2634,33 +2244,26 @@ class LibraryScreenState extends State<LibraryScreen> {
           delegate: SliverChildBuilderDelegate(
             (context, index) {
               final entry = visible[index];
-              final languages = _itemLanguageCodes(entry);
-              final languageLabel = languages.isEmpty
-                  ? ''
-                  : languages
-                        .map((code) => code.toUpperCase())
-                        .take(2)
-                        .join(' • ');
-              return KeyedSubtree(
-                key: _keyForBook(entry),
-                child: _LibraryCatalogCard(
-                  item: entry.item,
-                  languageLabel: languageLabel,
-                  selected:
-                      _hubFocus == _HubFocus.books &&
-                      _librarySelectedIndex == index,
-                  onTap: () {
-                    SfxService().playNavSound();
-                    setState(() {
-                      _hubFocus = _HubFocus.books;
-                      _librarySelectedIndex = index;
-                    });
-                    _openCatalogItem(entry);
-                  },
-                ),
+              return _LibraryCatalogCard(
+                key: ValueKey<String>(entry.identity),
+                entry: entry,
+                cacheWidth: cacheWidth,
+                selected: selectedIndex == index,
+                onTap: () {
+                  _navSound();
+                  setState(() {
+                    _focus = _HubFocus.books;
+                    _selectedIndex = index;
+                  });
+                  unawaited(_openEntry(entry));
+                },
               );
             },
             childCount: visible.length,
+            findChildIndexCallback: (key) =>
+                key is ValueKey<String> && identical(visible, _visible)
+                ? _visibleIndex[key.value]
+                : null,
             addAutomaticKeepAlives: false,
           ),
         );
@@ -2668,33 +2271,8 @@ class LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Map<String, List<LibraryAddon>> get _installedRepositoryGroups {
-    final groups = <String, List<LibraryAddon>>{};
-    for (final addon in _addons) {
-      if (!addon.isRepositorySource || addon.isBuiltIn) continue;
-      groups
-          .putIfAbsent(addon.repositoryOrigin, () => <LibraryAddon>[])
-          .add(addon);
-    }
-    return groups;
-  }
-
-  String _repositoryDisplayName(String origin) {
-    final uri = Uri.tryParse(origin);
-    if (uri != null && uri.host.isNotEmpty) {
-      final path = uri.pathSegments
-          .where((segment) => segment.isNotEmpty)
-          .toList();
-      if (uri.host == 'github.com' && path.length >= 2) {
-        return '${path[0]}/${path[1]}';
-      }
-      return uri.host;
-    }
-    return origin;
-  }
-
-  Widget _buildCatalogProgressSliver(BuildContext context) {
-    if (!_loadingMoreCatalogs || _titleQuery.isNotEmpty) {
+  Widget _buildLoadingMoreSliver() {
+    if (!_feed.isLoadingMore) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
     return SliverToBoxAdapter(
@@ -2703,10 +2281,10 @@ class LibraryScreenState extends State<LibraryScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 18.r,
-              height: 18.r,
-              child: const CircularProgressIndicator(strokeWidth: 2.2),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
             ),
             SizedBox(width: 10.r),
             Text(_lt('loadingMore')),
@@ -2715,359 +2293,165 @@ class LibraryScreenState extends State<LibraryScreen> {
       ),
     );
   }
+}
 
-  Widget _buildAddons(BuildContext context) {
+/// Header action with a 44 pt minimum touch target.
+class _HubHeaderButton extends StatelessWidget {
+  const _HubHeaderButton({
+    required this.selected,
+    required this.icon,
+    required this.onPressed,
+    this.label,
+    this.tooltip,
+    this.color,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? label;
+  final String? tooltip;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final repositoryGroups = _installedRepositoryGroups;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeader(
-          context,
-          trailing: FilledButton.tonalIcon(
-            onPressed: _backToHub,
-            icon: const Icon(Symbols.arrow_back_rounded),
-            label: Text(AppLocale.back.getString(context)),
-          ),
-        ),
-        SizedBox(height: 18.r),
-        Text(
-          AppLocale.libraryAddons.getString(context),
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        SizedBox(height: 10.r),
-        Row(
-          children: [
-            Expanded(
-              child: _LibraryEntryCard(
-                selected: _addonSelectedIndex == 0,
-                icon: Symbols.arrow_back_rounded,
-                title: AppLocale.back.getString(context),
-                subtitle: _lt('backToLibrary'),
-                onTap: () => _tapAddonSelection(0),
-              ),
+    final foreground = color ?? theme.colorScheme.primary;
+    final text = label;
+    final Widget button = text == null
+        ? IconButton(
+            tooltip: tooltip,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            onPressed: onPressed,
+            icon: Icon(icon, color: foreground),
+          )
+        : TextButton.icon(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: foreground,
             ),
-            SizedBox(width: 10.r),
-            Expanded(
-              child: _LibraryEntryCard(
-                selected: _addonSelectedIndex == 1,
-                icon: Symbols.language_rounded,
-                title: AppLocale.libraryAddonAddUrl.getString(context),
-                subtitle: AppLocale.libraryAddonAddUrlSubtitle.getString(
-                  context,
-                ),
-                onTap: () => _tapAddonSelection(1),
-              ),
-            ),
-            SizedBox(width: 10.r),
-            Expanded(
-              child: _LibraryEntryCard(
-                selected: _addonSelectedIndex == 2,
-                icon: Symbols.file_open_rounded,
-                title: AppLocale.libraryAddonImportFile.getString(context),
-                subtitle: AppLocale.libraryAddonImportFileSubtitle.getString(
-                  context,
-                ),
-                onTap: () => _tapAddonSelection(2),
-              ),
-            ),
-          ],
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            label: Text(text),
+          );
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 130),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: selected ? theme.colorScheme.primary : Colors.transparent,
+          width: 2,
         ),
-        SizedBox(height: 14.r),
-        Expanded(
-          child: _loadingAddons
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: EdgeInsets.only(bottom: 26.r),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (repositoryGroups.isNotEmpty) ...[
-                        Row(
-                          children: [
-                            Icon(
-                              Symbols.inventory_2_rounded,
-                              size: 18.r,
-                              color: theme.colorScheme.primary,
-                            ),
-                            SizedBox(width: 7.r),
-                            Text(
-                              _lt('installedRepositories'),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 5.r),
-                        Text(
-                          _lt('repositoriesHelp'),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.62,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 8.r),
-                        for (final entry in repositoryGroups.entries) ...[
-                          _RepositoryManagementRow(
-                            name: _repositoryDisplayName(entry.key),
-                            origin: entry.key,
-                            sourceCount: entry.value.length,
-                            onDelete: () =>
-                                _confirmRemoveRepository(entry.value.first),
-                          ),
-                          SizedBox(height: 8.r),
-                        ],
-                        SizedBox(height: 8.r),
-                      ],
-                      Row(
-                        children: [
-                          Icon(
-                            Symbols.extension_rounded,
-                            size: 18.r,
-                            color: theme.colorScheme.primary,
-                          ),
-                          SizedBox(width: 7.r),
-                          Text(
-                            AppLocale.libraryAddonInstalledSources.getString(
-                              context,
-                            ),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 5.r),
-                      Text(
-                        _lt('userSourcesHelp'),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.62,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 8.r),
-                      if (_addons.isEmpty)
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 36.r),
-                          child: Center(
-                            child: Text(
-                              AppLocale.libraryEmptyTitle.getString(context),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        for (
-                          var index = 0;
-                          index < _addons.length;
-                          index++
-                        ) ...[
-                          _AddonRow(
-                            addon: _addons[index],
-                            selected: _addonSelectedIndex == index + 3,
-                            onTap: () => _tapAddonSelection(index + 3),
-                            onDelete: _addons[index].isBuiltIn
-                                ? null
-                                : () => _confirmRemoveAddon(_addons[index]),
-                          ),
-                          if (index + 1 < _addons.length) SizedBox(height: 8.r),
-                        ],
-                    ],
-                  ),
-                ),
-        ),
-      ],
+      ),
+      child: button,
+    );
+  }
+}
+
+/// Dialog of the hub with controller support: B closes, A runs the primary
+/// action (or closes when there is none).
+class _LibraryHubDialog extends StatefulWidget {
+  const _LibraryHubDialog({
+    required this.title,
+    required this.children,
+    this.primaryLabel,
+    this.onPrimary,
+  });
+
+  final String title;
+  final List<Widget> children;
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
+
+  @override
+  State<_LibraryHubDialog> createState() => _LibraryHubDialogState();
+}
+
+class _LibraryHubDialogState extends State<_LibraryHubDialog> {
+  late final GamepadNavigation _gamepadNav;
+  late final String _layerId = 'library_hub_dialog_${identityHashCode(this)}';
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _gamepadNav = GamepadNavigation(
+      onBack: _close,
+      onSelectItem: () {
+        final primary = widget.onPrimary;
+        if (primary != null) {
+          primary();
+        } else {
+          _close();
+        }
+      },
+      onNavigateUp: () => _scrollBy(-120),
+      onNavigateDown: () => _scrollBy(120),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _gamepadNav.initialize();
+      GamepadNavigationManager.pushLayer(
+        _layerId,
+        modal: true,
+        onActivate: () => _gamepadNav.activate(),
+        onDeactivate: () => _gamepadNav.deactivate(),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    GamepadNavigationManager.popLayer(_layerId);
+    _gamepadNav.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    if (mounted) Navigator.of(context).maybePop();
+  }
+
+  void _scrollBy(double delta) {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    _scroll.jumpTo(
+      (position.pixels + delta).clamp(0.0, position.maxScrollExtent),
     );
   }
 
-  Widget _buildManageSources(BuildContext context) {
-    final theme = Theme.of(context);
-    final repositoryGroups = _installedRepositoryGroups;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeader(
-          context,
-          trailing: FilledButton.tonalIcon(
-            onPressed: () => _backToHub(selectManage: true),
-            icon: const Icon(Symbols.arrow_back_rounded),
-            label: Text(AppLocale.back.getString(context)),
-          ),
-        ),
-        SizedBox(height: 18.r),
-        Row(
-          children: [
-            Icon(
-              Symbols.manage_accounts_rounded,
-              size: 24.r,
-              color: theme.colorScheme.primary,
-            ),
-            SizedBox(width: 9.r),
-            Text(
-              _lt('manageSources'),
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 5.r),
-        Text(
-          _lt('manageSourcesHelp'),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.64),
-          ),
-        ),
-        SizedBox(height: 12.r),
-        Expanded(
-          child: _loadingAddons
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: EdgeInsets.only(bottom: 26.r),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (repositoryGroups.isNotEmpty) ...[
-                        Text(
-                          _lt('installedRepositories'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        SizedBox(height: 7.r),
-                        for (final entry in repositoryGroups.entries) ...[
-                          _RepositoryManagementRow(
-                            name: _repositoryDisplayName(entry.key),
-                            origin: entry.key,
-                            sourceCount: entry.value.length,
-                            onDelete: () =>
-                                _confirmRemoveRepository(entry.value.first),
-                          ),
-                          SizedBox(height: 8.r),
-                        ],
-                        SizedBox(height: 10.r),
-                      ],
-                      Text(
-                        AppLocale.libraryAddonInstalledSources.getString(
-                          context,
-                        ),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      SizedBox(height: 7.r),
-                      if (_addons.isEmpty)
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 36.r),
-                          child: Center(
-                            child: Text(
-                              AppLocale.libraryEmptyTitle.getString(context),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        for (
-                          var index = 0;
-                          index < _addons.length;
-                          index++
-                        ) ...[
-                          _AddonRow(
-                            addon: _addons[index],
-                            selected: _addonSelectedIndex == index,
-                            onTap: () {
-                              setState(() => _addonSelectedIndex = index);
-                              _showAddonDetails(_addons[index]);
-                            },
-                            onDelete: _addons[index].isBuiltIn
-                                ? null
-                                : () => _confirmRemoveAddon(_addons[index]),
-                          ),
-                          if (index + 1 < _addons.length) SizedBox(height: 8.r),
-                        ],
-                    ],
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLocalLibrary(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeader(
-          context,
-          trailing: FilledButton.tonalIcon(
-            onPressed: () => _backToHub(selectLocal: true),
-            icon: const Icon(Symbols.arrow_back_rounded),
-            label: Text(AppLocale.back.getString(context)),
-          ),
-        ),
-        SizedBox(height: 24.r),
-        Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 620.r),
-              child: NeoGlass(
-                role: GlassSurfaceRole.card,
-                borderRadius: BorderRadius.circular(16.r),
-                enableBackdropBlur: false,
-                showSheen: true,
-                padding: EdgeInsets.all(24.r),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Symbols.folder_open_rounded,
-                      size: 46.r,
-                      color: theme.colorScheme.primary,
-                    ),
-                    SizedBox(height: 12.r),
-                    Text(
-                      AppLocale.libraryLocal.getString(context),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 7.r),
-                    Text(
-                      AppLocale.libraryNextStep.getString(context),
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.68,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 16.r),
-                    FilledButton.tonalIcon(
-                      onPressed: () => _backToHub(selectLocal: true),
-                      icon: const Icon(Symbols.arrow_back_rounded),
-                      label: Text(AppLocale.back.getString(context)),
-                    ),
-                  ],
-                ),
-              ),
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final primary = widget.primaryLabel;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: math.min(560, size.width * 0.8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: size.height * 0.6),
+          child: SingleChildScrollView(
+            controller: _scroll,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: widget.children,
             ),
           ),
         ),
+      ),
+      actions: [
+        TextButton(
+          style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+          onPressed: _close,
+          child: Text(AppLocale.close.getString(context)),
+        ),
+        if (primary != null)
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: widget.onPrimary,
+            child: Text(primary),
+          ),
       ],
     );
   }
@@ -3097,9 +2481,11 @@ class _LibraryEntryCard extends StatelessWidget {
       duration: const Duration(milliseconds: 150),
       decoration: BoxDecoration(
         borderRadius: radius,
+        // Constant width: selecting a card must not change its height, which
+        // would move the grid below it.
         border: Border.all(
           color: selected ? theme.colorScheme.primary : Colors.transparent,
-          width: selected ? 2.r : 0,
+          width: 2.r,
         ),
         boxShadow: selected
             ? [
@@ -3120,48 +2506,57 @@ class _LibraryEntryCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
-          child: Row(
-            children: [
-              Container(
-                width: 42.r,
-                height: 42.r,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10.r),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Row(
+              children: [
+                Container(
+                  width: 42.r,
+                  height: 42.r,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 24.r,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
-                child: Icon(icon, size: 24.r, color: theme.colorScheme.primary),
-              ),
-              SizedBox(width: 12.r),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 3.r),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.62,
+                SizedBox(width: 12.r),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 3.r),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.62,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(width: 6.r),
-              Icon(
-                Symbols.chevron_right_rounded,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-              ),
-            ],
+                SizedBox(width: 6.r),
+                Icon(
+                  Symbols.chevron_right_rounded,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -3184,14 +2579,11 @@ class _FilterControl extends StatelessWidget {
   final String value;
   final VoidCallback onTap;
 
-  List<String> get _verticalCharacters =>
-      label.trim().runes.map(String.fromCharCode).toList(growable: false);
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final radius = BorderRadius.circular(10.r);
-    final characters = _verticalCharacters;
+    final characters = label.trim().runes.map(String.fromCharCode).toList();
     return Tooltip(
       message: '$label : $value',
       child: AnimatedContainer(
@@ -3285,33 +2677,34 @@ class _FilterControl extends StatelessWidget {
 
 class _LibraryCatalogCard extends StatelessWidget {
   const _LibraryCatalogCard({
-    required this.item,
-    required this.languageLabel,
+    super.key,
+    required this.entry,
+    required this.cacheWidth,
     required this.selected,
     required this.onTap,
   });
 
-  final LibraryCatalogItem item;
-  final String languageLabel;
+  final LibraryFeedEntry entry;
+  final int cacheWidth;
   final bool selected;
   final VoidCallback onTap;
-
-  Map<String, String>? get _imageHeaders {
-    final raw = item.raw['imageHeaders'];
-    if (raw is! Map) return null;
-    final result = <String, String>{};
-    for (final entry in raw.entries) {
-      final key = entry.key?.toString().trim() ?? '';
-      final value = entry.value?.toString().trim() ?? '';
-      if (key.isNotEmpty && value.isNotEmpty) result[key] = value;
-    }
-    return result.isEmpty ? null : result;
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final radius = BorderRadius.circular(10.r);
+    final item = entry.item;
+    final placeholder = ColoredBox(
+      color: theme.colorScheme.primary.withValues(alpha: 0.10),
+      child: Center(
+        child: Icon(
+          Symbols.menu_book_rounded,
+          color: theme.colorScheme.primary,
+          size: 34.r,
+        ),
+      ),
+    );
+    final coverUrl = item.coverUrl;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 140),
@@ -3351,34 +2744,21 @@ class _LibraryCatalogCard extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(7.r),
-                        child: item.coverUrl == null
-                            ? ColoredBox(
-                                color: theme.colorScheme.primary.withValues(
-                                  alpha: 0.10,
+                        child: coverUrl == null
+                            ? placeholder
+                            : Image(
+                                image: LibraryNetworkImage(
+                                  coverUrl,
+                                  headers: entry.imageHeaders,
+                                  cacheWidth: cacheWidth,
                                 ),
-                                child: Icon(
-                                  Symbols.menu_book_rounded,
-                                  color: theme.colorScheme.primary,
-                                  size: 34.r,
-                                ),
-                              )
-                            : Image.network(
-                                item.coverUrl!,
-                                headers: _imageHeaders,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => ColoredBox(
-                                  color: theme.colorScheme.primary.withValues(
-                                    alpha: 0.10,
-                                  ),
-                                  child: Icon(
-                                    Symbols.menu_book_rounded,
-                                    color: theme.colorScheme.primary,
-                                    size: 34.r,
-                                  ),
-                                ),
+                                excludeFromSemantics: true,
+                                gaplessPlayback: true,
+                                errorBuilder: (_, _, _) => placeholder,
                               ),
                       ),
-                      if (languageLabel.isNotEmpty)
+                      if (entry.languageBadge.isNotEmpty)
                         Positioned(
                           top: 6.r,
                           right: 6.r,
@@ -3392,7 +2772,7 @@ class _LibraryCatalogCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6.r),
                             ),
                             child: Text(
-                              languageLabel,
+                              entry.languageBadge,
                               style: TextStyle(
                                 fontSize: 9.r.clamp(8.0, 12.0),
                                 color: Colors.white,
@@ -3430,213 +2810,6 @@ class _LibraryCatalogCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RepositoryManagementRow extends StatelessWidget {
-  const _RepositoryManagementRow({
-    required this.name,
-    required this.origin,
-    required this.sourceCount,
-    required this.onDelete,
-  });
-
-  final String name;
-  final String origin;
-  final int sourceCount;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final radius = BorderRadius.circular(10.r);
-    return NeoGlass(
-      role: GlassSurfaceRole.card,
-      borderRadius: radius,
-      enableBackdropBlur: false,
-      showSheen: false,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 9.r),
-        child: Row(
-          children: [
-            Container(
-              width: 38.r,
-              height: 38.r,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(9.r),
-              ),
-              child: Icon(
-                Symbols.inventory_2_rounded,
-                color: theme.colorScheme.primary,
-                size: 21.r,
-              ),
-            ),
-            SizedBox(width: 10.r),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 2.r),
-                  Text(
-                    LibraryFeatureLocale.format(
-                      context,
-                      'sourceCount',
-                      {'count': sourceCount, 'origin': origin},
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.58,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: 10.r),
-            OutlinedButton.icon(
-              onPressed: onDelete,
-              icon: const Icon(Symbols.delete_forever_rounded),
-              label: Text(
-                LibraryFeatureLocale.text(context, 'removeRepository'),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-                side: BorderSide(
-                  color: theme.colorScheme.error.withValues(alpha: 0.55),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 9.r),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddonRow extends StatelessWidget {
-  const _AddonRow({
-    required this.addon,
-    required this.selected,
-    required this.onTap,
-    required this.onDelete,
-  });
-
-  final LibraryAddon addon;
-  final bool selected;
-  final VoidCallback onTap;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final radius = BorderRadius.circular(10.r);
-    final location = addon.baseUrl == null
-        ? 'local'
-        : (Uri.tryParse(addon.baseUrl!)?.host ?? addon.baseUrl!);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(
-          color: selected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withValues(alpha: 0.14),
-          width: selected ? 2.r : 1.r,
-        ),
-      ),
-      child: NeoGlass(
-        role: GlassSurfaceRole.card,
-        borderRadius: radius,
-        enableBackdropBlur: false,
-        showSheen: false,
-        child: ListTile(
-          onTap: onTap,
-          leading: addon.iconUrl == null
-              ? CircleAvatar(
-                  backgroundColor: theme.colorScheme.primary.withValues(
-                    alpha: 0.12,
-                  ),
-                  child: Icon(
-                    addon.isTachiyomiRepositorySource
-                        ? Symbols.extension_rounded
-                        : Symbols.menu_book_rounded,
-                    color: theme.colorScheme.primary,
-                  ),
-                )
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(8.r),
-                  child: Image.network(
-                    addon.iconUrl!,
-                    width: 40.r,
-                    height: 40.r,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Symbols.menu_book_rounded,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-          title: Text(
-            addon.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          subtitle: Text(
-            'v${addon.version} • $location${addon.language == null ? '' : ' • ${addon.language!.toUpperCase()}'}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: addon.isBuiltIn
-              ? Container(
-                  padding: EdgeInsets.symmetric(horizontal: 9.r, vertical: 5.r),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Text(
-                    LibraryFeatureLocale.text(context, 'builtIn'),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              : OutlinedButton.icon(
-                  onPressed: onDelete,
-                  icon: const Icon(Symbols.delete_outline_rounded),
-                  label: Text(
-                    LibraryFeatureLocale.text(context, 'removeSource'),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                    side: BorderSide(
-                      color: theme.colorScheme.error.withValues(alpha: 0.5),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 10.r,
-                      vertical: 8.r,
-                    ),
-                  ),
-                ),
         ),
       ),
     );
