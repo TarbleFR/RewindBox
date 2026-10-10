@@ -439,6 +439,19 @@ class LibraryFeedSource {
   int _nextPage = 1;
   bool _exhausted = false;
   bool _loading = false;
+
+  /// A page-1 load waits in the queue (it must not be queued twice).
+  bool _queued = false;
+
+  /// The queued load was asked for by a manual refresh.
+  bool _queuedManual = false;
+
+  /// Identities of the last listing page received, to recognise a site that
+  /// ignores the page number (it answers page 1 again).
+  String? _lastPageSignature;
+
+  /// Consecutive further pages that brought no new title.
+  int _pagesWithoutNew = 0;
   bool _loadingMore = false;
   bool _slow = false;
   bool _cacheRead = false;
@@ -679,6 +692,7 @@ class LibraryCatalogFeed extends ChangeNotifier {
     this.searchTimeout = const Duration(seconds: 10),
     this.maxConcurrentSearches = 4,
     this.minQueryLength = 2,
+    this.maxPagesWithoutNew = 3,
   }) : backend = backend ?? LibraryCatalogFeedBackend(),
        _clock = clock ?? DateTime.now;
 
@@ -712,6 +726,10 @@ class LibraryCatalogFeed extends ChangeNotifier {
   final int maxConcurrentSearches;
   final int minQueryLength;
 
+  /// Consecutive further pages without any new title after which a listing
+  /// is considered finished.
+  final int maxPagesWithoutNew;
+
   /// Hub state kept across tab switches.
   final LibraryFeedHubMemory hubMemory = LibraryFeedHubMemory();
 
@@ -722,6 +740,8 @@ class LibraryCatalogFeed extends ChangeNotifier {
   int _pagesInFlight = 0;
   int _roundRobin = 0;
   DateTime? _lastLoadMoreAt;
+  Timer? _deferredLoadMore;
+  String? _deferredPreferredKey;
   Map<String, String> _providers = const <String, String>{};
   bool _metadataReady = false;
   bool _safeMode = true;
@@ -949,10 +969,25 @@ class LibraryCatalogFeed extends ChangeNotifier {
       if (!_isCurrent(source)) return;
     }
     if (source._loading) return;
+    if (source._queued) {
+      // Already waiting for a slot (e.g. a tab switch while 4+ sources
+      // load): a manual refresh only upgrades the queued load.
+      if (manual) source._queuedManual = true;
+      return;
+    }
     if (!manual && !_needsNetwork(source)) return;
+    source
+      .._queued = true
+      .._queuedManual = manual;
     await _enqueue(
       _queue,
-      () => _loadFirstPage(source, manual: manual),
+      () {
+        final queuedManual = source._queuedManual;
+        source
+          .._queued = false
+          .._queuedManual = false;
+        return _loadFirstPage(source, manual: queuedManual);
+      },
       onSlow: () {
         if (_isCurrent(source) && source._loading) {
           source._slow = true;
@@ -972,6 +1007,7 @@ class LibraryCatalogFeed extends ChangeNotifier {
         _replaceFirstPage(source, page.items);
         source._nextPage = 2;
         source._exhausted = !page.hasMore || page.items.isEmpty;
+        source._lastPageSignature = _signatureOf(page.items);
         source._fromCache = true;
         source._stale = page.stale;
         source._updatedAt = page.fetchedAt;
@@ -1050,6 +1086,8 @@ class LibraryCatalogFeed extends ChangeNotifier {
         if (!hadPages) {
           source._nextPage = 2;
           source._exhausted = !page.hasMore || page.items.isEmpty;
+          source._lastPageSignature = _signatureOf(page.items);
+          source._pagesWithoutNew = 0;
         }
         source._fromCache = page.fromCache;
         source._stale = page.stale;
@@ -1116,6 +1154,9 @@ class LibraryCatalogFeed extends ChangeNotifier {
     }
   }
 
+  static String _signatureOf(List<LibraryCatalogItem> items) =>
+      items.map((item) => item.id).join('\n');
+
   /// Appends the entries of [items] not shown yet; returns how many.
   int _append(LibraryFeedSource source, List<LibraryCatalogItem> items) {
     var added = 0;
@@ -1154,13 +1195,31 @@ class LibraryCatalogFeed extends ChangeNotifier {
   bool get canLoadMore => _loadMoreCandidates(_clock()).isNotEmpty;
 
   /// Requests the next page of up to [maxConcurrentPages] sources in turn
-  /// (round robin). Calls closer than [loadMoreThrottle] are ignored. With
-  /// [preferredSourceKey] only that source is requested.
+  /// (round robin). Calls closer than [loadMoreThrottle] are coalesced into
+  /// one call made when the pause ends. With [preferredSourceKey] only that
+  /// source is requested.
   Future<void> loadMore({String? preferredSourceKey}) async {
     if (_disposed) return;
     final now = _clock();
     final last = _lastLoadMoreAt;
-    if (last != null && now.difference(last) < loadMoreThrottle) return;
+    final elapsed = last == null ? null : now.difference(last);
+    if (elapsed != null && elapsed < loadMoreThrottle) {
+      // Throttled: the latest request still runs once the pause is over,
+      // so a page answered from the cache within the pause does not leave
+      // the grid short with nothing left to trigger the next page.
+      _deferredPreferredKey = preferredSourceKey;
+      _deferredLoadMore ??= Timer(loadMoreThrottle - elapsed, () {
+        _deferredLoadMore = null;
+        if (!_disposed) {
+          unawaited(_loadMoreNow(_deferredPreferredKey, _clock()));
+        }
+      });
+      return;
+    }
+    await _loadMoreNow(preferredSourceKey, now);
+  }
+
+  Future<void> _loadMoreNow(String? preferredSourceKey, DateTime now) async {
     final capacity = maxConcurrentPages - _pagesInFlight;
     if (capacity <= 0) return;
     var candidates = _loadMoreCandidates(now);
@@ -1199,9 +1258,22 @@ class LibraryCatalogFeed extends ChangeNotifier {
         cancel: token,
       );
       if (!_isCurrent(source) || token.isCancelled) return;
+      final signature = _signatureOf(page.items);
+      final repeated = signature == source._lastPageSignature;
+      source._lastPageSignature = signature;
       final added = _append(source, page.items);
-      if (added > 0) source._nextPage = pageNumber + 1;
-      if (!page.hasMore || added == 0) source._exhausted = true;
+      source._pagesWithoutNew = added > 0 ? 0 : source._pagesWithoutNew + 1;
+      if (page.items.isNotEmpty) source._nextPage = pageNumber + 1;
+      // A page made only of titles already shown is normal after page 1 was
+      // refreshed (new chapters push titles down a "latest" listing), so it
+      // does not end the listing. The same page twice (a site ignoring the
+      // page number) or several pages without anything new do.
+      if (!page.hasMore ||
+          page.items.isEmpty ||
+          repeated ||
+          source._pagesWithoutNew >= maxPagesWithoutNew) {
+        source._exhausted = true;
+      }
       source._pageFailure = null;
       _changed(content: added > 0);
     } catch (error) {
@@ -1483,6 +1555,8 @@ class LibraryCatalogFeed extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _deferredLoadMore?.cancel();
+    _deferredLoadMore = null;
     _cancelSearch();
     for (final source in _sources.values) {
       source._token?.cancel();

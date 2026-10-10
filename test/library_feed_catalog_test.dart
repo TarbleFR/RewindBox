@@ -432,6 +432,98 @@ void main() {
     },
   );
 
+  test(
+    'opening again while a source waits for a slot requests it once',
+    () async {
+      final a = aidokuTestAddon('fr.a');
+      final b = aidokuTestAddon('fr.b');
+      final pendingA = PendingPage();
+      backend.pages['fr.a'] = (_) => pendingA.completer.future;
+      backend.pages['fr.b'] = (_) async => testPage([testItem('b1')]);
+      final feed = newFeed(maxConcurrentSources: 1);
+      final first = feed.open([a, b]);
+      await settle();
+      // A tab switch (or a return from Sources) while B is still queued.
+      final second = feed.open([a, b]);
+      await settle();
+      pendingA.complete(testPage([testItem('a1')]));
+      await Future.wait([first, second]);
+      await settle();
+      expect(backend.callsOf('page').map((c) => c.sourceKey), [a.id, b.id]);
+    },
+  );
+
+  test('a refresh while a source waits for a slot refreshes it once', () async {
+    final a = aidokuTestAddon('fr.a');
+    final b = aidokuTestAddon('fr.b');
+    final pendingA = PendingPage();
+    backend.pages['fr.a'] = (_) => pendingA.completer.future;
+    backend.pages['fr.b'] = (_) async => testPage([testItem('b1')]);
+    final feed = newFeed(maxConcurrentSources: 1);
+    final opening = feed.open([a, b]);
+    await settle();
+    final refreshing = feed.refresh();
+    await settle();
+    pendingA.complete(testPage([testItem('a1')]));
+    await Future.wait([opening, refreshing]);
+    await settle();
+    final bCalls = backend.callsOf('page').where((c) => c.sourceKey == b.id);
+    expect(bCalls.single.mode, LibraryFetchMode.refresh);
+  });
+
+  test('a page of titles already shown does not end the listing', () async {
+    final source = aidokuTestAddon('fr.a');
+    backend.pages['fr.a'] = (call) async => switch (call.page) {
+      1 => testPage([testItem('new'), testItem('one'), testItem('two')]),
+      // "one" and "two" were pushed down by "new" on the site.
+      2 => testPage([testItem('one'), testItem('two')], page: 2),
+      _ => testPage([testItem('three')], page: call.page, hasMore: false),
+    };
+    final feed = newFeed();
+    await feed.open([source]);
+    await feed.loadMore();
+    expect(feed.source(source.id)!.exhausted, isFalse);
+    await feed.loadMore();
+    expect(titles(feed), ['new', 'one', 'two', 'three']);
+    expect(feed.source(source.id)!.exhausted, isTrue);
+  });
+
+  test('pages that never bring a new title end the listing', () async {
+    final source = aidokuTestAddon('fr.a');
+    backend.pages['fr.a'] = (call) async => call.page == 1
+        ? testPage([testItem('a'), testItem('b')])
+        // Different pages, all made of titles already shown.
+        : testPage([testItem(call.page.isEven ? 'a' : 'b')], page: call.page);
+    final feed = newFeed();
+    await feed.open([source]);
+    for (var i = 0; i < 10; i++) {
+      await feed.loadMore();
+    }
+    expect(
+      backend.callsOf('page').where((c) => c.page > 1),
+      hasLength(feed.maxPagesWithoutNew),
+    );
+    expect(feed.source(source.id)!.exhausted, isTrue);
+  });
+
+  test('a throttled loadMore runs once when the pause is over', () async {
+    final source = aidokuTestAddon('fr.a');
+    backend.pages['fr.a'] = (call) async =>
+        testPage([testItem('p${call.page}')], page: call.page);
+    final feed = newFeed(loadMoreThrottle: const Duration(milliseconds: 40));
+    await feed.open([source]);
+    await feed.loadMore();
+    unawaited(feed.loadMore());
+    unawaited(feed.loadMore());
+    await settle();
+    expect(backend.callsOf('page').map((c) => c.page), [1, 2]);
+
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    await settle();
+    expect(backend.callsOf('page').map((c) => c.page), [1, 2, 3]);
+    expect(titles(feed), ['p1', 'p2', 'p3']);
+  });
+
   test('version and contentVersion grow monotonically', () async {
     final source = aidokuTestAddon('fr.a');
     backend.pages['fr.a'] = (_) async => testPage([testItem('one')]);
