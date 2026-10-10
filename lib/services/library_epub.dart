@@ -480,7 +480,11 @@ class LibraryEpubDocument {
     final fragment = hash >= 0 ? href.substring(hash + 1) : '';
     if (fragment.isEmpty) return LibraryEpubLocation(spineIndex, 0, 0);
     final chapter = await loadChapter(spineIndex);
-    return LibraryEpubLocation(spineIndex, chapter.anchors[fragment] ?? 0, 0);
+    // Links keep the fragment as written (percent-encoded); anchors are the
+    // element ids themselves.
+    final block =
+        chapter.anchors[fragment] ?? chapter.anchors[_decodeFragment(fragment)];
+    return LibraryEpubLocation(spineIndex, block ?? 0, 0);
   }
 
   /// CFI of a block position of a loaded [chapter].

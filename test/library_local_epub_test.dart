@@ -253,6 +253,33 @@ void main() {
       );
     });
 
+    test('links with a percent-encoded fragment reach their anchor', () async {
+      document = await openFixture(
+        buildEpub3(
+          chapter1: xhtml(
+            '<h1>One</h1><p>a</p><p id="café">b</p><p id="x%41">c</p>',
+          ),
+          chapter2: xhtml(
+            '<p><a href="ch1.xhtml#caf%C3%A9">encoded</a> '
+            '<a href="ch1.xhtml#x%41">literal</a></p>',
+          ),
+        ),
+      );
+      addTearDown(document.close);
+      final spans = (await document.loadChapter(
+        1,
+      )).blocks.single.spans.where((s) => s.href != null).toList();
+      expect(
+        await document.resolveLink(spans[0].href!),
+        const LibraryEpubLocation(0, 2, 0),
+      );
+      // An id that itself contains '%' still matches as written.
+      expect(
+        await document.resolveLink(spans[1].href!),
+        const LibraryEpubLocation(0, 3, 0),
+      );
+    });
+
     test('EPUB 2: NCX TOC with nesting and non-linear items', () async {
       document = await openFixture(buildEpub2());
       addTearDown(document.close);
