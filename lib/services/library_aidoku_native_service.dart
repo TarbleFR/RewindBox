@@ -402,6 +402,109 @@ class LibraryAidokuNativeService {
     return details;
   }
 
+  /// [loadManga] as a stream, for title pages that should not wait for a
+  /// long chapter list. LelscanFR (chapter lists paginated by 100, up to
+  /// 24 s for 546 chapters measured on 2026-10-10 from a PC) first emits the
+  /// details with the first chapter list page, then the list each time it
+  /// grows, then the completed result; partial emissions have
+  /// `chaptersComplete` false. Every other source emits once. The stream
+  /// closes after the final result or after one error event
+  /// ([LibraryNetworkException] / [LibrarySourceException]). Cancelling the
+  /// subscription cancels the requests that only this load started.
+  Stream<LibraryMangaDetails> watchManga(
+    LibraryAddon addon,
+    LibraryCatalogItem item, {
+    LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
+    LibraryCancelToken? cancel,
+  }) {
+    final own = LibraryCancelToken();
+    void Function()? unlink;
+    late final StreamController<LibraryMangaDetails> controller;
+
+    Future<void> run() async {
+      try {
+        final engine = _engine(addon);
+        final key = '${engine.site.sourceId}\u0000${item.id}';
+        if (mode == LibraryFetchMode.cacheFirst) {
+          final memo = _memo.remove(key);
+          if (memo != null && _clock().difference(memo.storedAt) < memoTtl) {
+            _memo[key] = memo;
+            if (!controller.isClosed) controller.add(memo.details);
+            return;
+          }
+        }
+        final context = _context(mode, own);
+        final LibraryMangaDetails details;
+        if (engine is LelscanEngine) {
+          details = await engine.mangaProgressive(
+            context,
+            item,
+            onPartial: (partial) {
+              if (!controller.isClosed && !own.isCancelled) {
+                controller.add(partial);
+              }
+            },
+          );
+        } else {
+          details = await engine.manga(context, item);
+        }
+        if (details.chaptersComplete && !details.stale) {
+          _memo.remove(key);
+          _memo[key] = _MemoEntry(details, _clock());
+          while (_memo.length > memoCapacity) {
+            _memo.remove(_memo.keys.first);
+          }
+        }
+        if (!controller.isClosed && !own.isCancelled) controller.add(details);
+      } catch (error, stack) {
+        if (!controller.isClosed && !own.isCancelled) {
+          controller.addError(error, stack);
+        }
+      } finally {
+        unlink?.call();
+        if (!controller.isClosed) await controller.close();
+      }
+    }
+
+    controller = StreamController<LibraryMangaDetails>(
+      onListen: () {
+        if (cancel != null) unlink = cancel.addCancelListener(own.cancel);
+        unawaited(run());
+      },
+      onCancel: () {
+        own.cancel();
+        unlink?.call();
+      },
+    );
+    return controller.stream;
+  }
+
+  /// Details of [item] read from the HTTP cache only, for a source that is
+  /// no longer active (a favourite of a deactivated source). Never uses the
+  /// network. Null when nothing usable is cached or NeoStation has no
+  /// adapter for [sourceId].
+  Future<LibraryMangaDetails?> cachedMangaForSource(
+    String sourceId,
+    LibraryCatalogItem item,
+  ) async {
+    final site = LibraryAidokuSites.all[sourceId];
+    if (site == null || !supportFor(sourceId).hasAdapter) return null;
+    final engine = _engines.putIfAbsent(
+      sourceId,
+      () => LibraryAidokuEngine.forSite(site),
+    );
+    try {
+      return await engine.manga(
+        _context(LibraryFetchMode.cacheOnly, null),
+        item,
+      );
+    } on LibraryNetworkException {
+      return null;
+    } on LibrarySourceException {
+      return null;
+    }
+  }
+
   /// Absolute URLs of the page images of [chapter], in reading order.
   /// Throws [LibrarySourceException] ([LibrarySourceErrorKind.noPages] or
   /// [LibrarySourceErrorKind.protectedChapter]) when none is found.
@@ -454,18 +557,25 @@ class LibraryAidokuNativeService {
   }
 
   /// Runs the five reading steps against the live site (network only, no
-  /// cache) and reports each step with its timing.
+  /// cache) and reports each step with its timing. [onStep] receives each
+  /// executed step as soon as it ends (skipped steps are only in the
+  /// report), so a progress view can follow the check.
   Future<LibrarySourceHealthReport> checkHealth(
     LibraryAddon addon, {
     LibraryMangaListing? listing,
     LibraryCancelToken? cancel,
+    void Function(LibrarySourceHealthStepResult result)? onStep,
   }) async {
     final sourceId = sourceIdFor(addon) ?? addon.id;
     final checkedAt = _clock().toUtc();
     final results = <LibrarySourceHealthStepResult>[];
+    void record(LibrarySourceHealthStepResult result) {
+      results.add(result);
+      onStep?.call(result);
+    }
 
     if (!supports(addon)) {
-      results.add(
+      record(
         const LibrarySourceHealthStepResult(
           step: LibrarySourceHealthStep.listing,
           ok: false,
@@ -483,7 +593,7 @@ class LibraryAidokuNativeService {
       count: (page) => page.items.length,
       empty: LibrarySourceErrorKind.noResults,
     );
-    results.add(listingResult.$1);
+    record(listingResult.$1);
     final page = listingResult.$2;
     if (page == null || page.items.isEmpty) {
       return _report(sourceId, checkedAt, results);
@@ -499,7 +609,7 @@ class LibraryAidokuNativeService {
         cancel: cancel,
       );
       detailsWatch.stop();
-      results.add(
+      record(
         LibrarySourceHealthStepResult(
           step: LibrarySourceHealthStep.details,
           ok: true,
@@ -509,7 +619,7 @@ class LibraryAidokuNativeService {
         ),
       );
       final chapterCount = details.chapters.length;
-      results.add(
+      record(
         LibrarySourceHealthStepResult(
           step: LibrarySourceHealthStep.chapters,
           ok: chapterCount > 0,
@@ -523,7 +633,7 @@ class LibraryAidokuNativeService {
     } catch (error) {
       detailsWatch.stop();
       if (_isCancellation(error)) rethrow;
-      results.add(
+      record(
         _failure(
           LibrarySourceHealthStep.details,
           error,
@@ -544,13 +654,13 @@ class LibraryAidokuNativeService {
       empty: LibrarySourceErrorKind.noPages,
       detail: chapter.id,
     );
-    results.add(pagesResult.$1);
+    record(pagesResult.$1);
     final pages = pagesResult.$2;
     if (pages == null || pages.isEmpty) {
       return _report(sourceId, checkedAt, results);
     }
 
-    results.add(await _imageStep(addon, pages.first, cancel));
+    record(await _imageStep(addon, pages.first, cancel));
     return _report(sourceId, checkedAt, results);
   }
 

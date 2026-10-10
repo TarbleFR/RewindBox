@@ -1662,7 +1662,18 @@ class LelscanEngine extends LibraryAidokuEngine {
   Future<LibraryMangaDetails> manga(
     LibraryAidokuFetchContext context,
     LibraryCatalogItem item,
-  ) async {
+  ) => mangaProgressive(context, item);
+
+  /// [manga] that also reports the details with the chapters obtained so
+  /// far: once the first chapter list page is read, then each time the
+  /// contiguous run of list pages grows (newest chapters first, so the list
+  /// only grows at its end). Partial results have `chaptersComplete` false;
+  /// the returned value is the same as [manga]'s.
+  Future<LibraryMangaDetails> mangaProgressive(
+    LibraryAidokuFetchContext context,
+    LibraryCatalogItem item, {
+    void Function(LibraryMangaDetails partial)? onPartial,
+  }) async {
     final url = mangaUrl(item, slash: false);
     final response = await context.send(_detailsRequest(url));
     final parsed = await libraryAidokuParse(
@@ -1681,11 +1692,50 @@ class LelscanEngine extends LibraryAidokuEngine {
     final total = math.min(parsed.chapterPages, maxChapterPages);
     var complete = parsed.chapterPages <= maxChapterPages;
     if (total > 1) {
+      final firstPage = parsed.chapters;
       final pages = <int>[for (var page = 2; page <= total; page++) page];
       final results = List<List<LibraryMangaChapter>?>.filled(
         pages.length,
         null,
       );
+      final resolved = List<bool>.filled(pages.length, false);
+
+      List<LibraryMangaChapter> merged(int pageCount) {
+        final seen = firstPage.map((chapter) => chapter.url).toSet();
+        final all = <LibraryMangaChapter>[...firstPage];
+        for (var index = 0; index < pageCount; index++) {
+          final list = results[index];
+          if (list == null) continue;
+          for (final chapter in list) {
+            if (seen.add(chapter.url)) all.add(chapter);
+          }
+        }
+        return all;
+      }
+
+      var reported = 0;
+      void report() {
+        if (onPartial == null || (context.cancel?.isCancelled ?? false)) {
+          return;
+        }
+        var prefix = reported;
+        while (prefix < pages.length && resolved[prefix]) {
+          prefix++;
+        }
+        if (prefix == reported || prefix == pages.length) return;
+        reported = prefix;
+        parsed.chapters = merged(prefix);
+        onPartial(
+          _assemble(context, item, parsed, url: url, chaptersComplete: false),
+        );
+      }
+
+      if (onPartial != null) {
+        onPartial(
+          _assemble(context, item, parsed, url: url, chaptersComplete: false),
+        );
+      }
+
       var next = 0;
       Future<void> worker() async {
         while (next < pages.length) {
@@ -1705,6 +1755,8 @@ class LelscanEngine extends LibraryAidokuEngine {
           } on LibrarySourceException {
             complete = false;
           }
+          resolved[index] = true;
+          report();
         }
       }
 
@@ -1712,15 +1764,7 @@ class LelscanEngine extends LibraryAidokuEngine {
         for (var i = 0; i < math.min(chapterPageConcurrency, pages.length); i++)
           worker(),
       ]);
-      final seen = parsed.chapters.map((chapter) => chapter.url).toSet();
-      final all = <LibraryMangaChapter>[...parsed.chapters];
-      for (final list in results) {
-        if (list == null) continue;
-        for (final chapter in list) {
-          if (seen.add(chapter.url)) all.add(chapter);
-        }
-      }
-      parsed.chapters = all;
+      parsed.chapters = merged(pages.length);
     }
     return _assemble(
       context,
