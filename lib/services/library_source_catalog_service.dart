@@ -569,7 +569,8 @@ class LibrarySourceCatalogService {
   ///   `https://aidoku.app/add-source-list/?url=…` are unwrapped;
   /// * a missing scheme defaults to HTTPS; `http:` is refused;
   /// * `github.com/<o>/<r>/blob|raw/<ref>/<path>` becomes the raw file and
-  ///   `…/tree/<ref>/<path>` the raw directory;
+  ///   `…/tree/<ref>/<path>` the raw directory; a release asset
+  ///   (`…/releases/download/<tag>/<file>`) is fetched as is;
   /// * `github.com/<o>/<r>` tries the usual branches
   ///   (`repo`, `gh-pages`, `main`, `master`);
   /// * an address without path extension is a directory: `index.min.json`,
@@ -728,6 +729,19 @@ class LibrarySourceCatalogService {
             '${_joinSegments([owner, repo, ...rest])}'
             '${trailingSlash ? '/' : ''}',
           ),
+        );
+      }
+      // A release asset (`releases/download/<tag>/<file>` or
+      // `releases/latest/download/<file>`) is the document itself; GitHub
+      // redirects it to a temporary signed address.
+      if (segments.length >= 5 &&
+          segments[2] == 'releases' &&
+          (segments[3] == 'download' ||
+              (segments[3] == 'latest' && segments[4] == 'download'))) {
+        final asset = uri.removeFragment();
+        return LibraryCatalogLocation(
+          catalogUri: asset,
+          candidates: List.unmodifiable(<Uri>[asset]),
         );
       }
       if (segments.length >= 4 && segments[2] == 'tree') {
@@ -938,6 +952,7 @@ class LibrarySourceCatalogService {
         parsed = await _parseInBackground(
           response.bodyBytes,
           response.finalUri,
+          documentUri: candidate,
         );
       } on LibraryCatalogException catch (error) {
         documentError ??= error;
@@ -1420,15 +1435,29 @@ class LibrarySourceCatalogService {
   // Parsing (pure, may run on a background isolate)
   // ---------------------------------------------------------------------------
 
-  static Future<_ParsedCatalog> _parseInBackground(Uint8List bytes, Uri? base) {
+  /// [base] is the final URL after redirects (relative references resolve
+  /// against it); [documentUri] is the address that was requested, kept as
+  /// the location of a package (a redirect target may be a temporary signed
+  /// URL).
+  static Future<_ParsedCatalog> _parseInBackground(
+    Uint8List bytes,
+    Uri? base, {
+    Uri? documentUri,
+  }) {
     if (bytes.length < _backgroundParseBytes) {
-      return Future<_ParsedCatalog>.sync(() => _parseDocument(bytes, base));
+      return Future<_ParsedCatalog>.sync(
+        () => _parseDocument(bytes, base, documentUri),
+      );
     }
-    return Isolate.run(() => _parseDocument(bytes, base));
+    return Isolate.run(() => _parseDocument(bytes, base, documentUri));
   }
 
-  static _ParsedCatalog _parseDocument(Uint8List bytes, Uri? base) {
-    if (_isZip(bytes)) return _parsePackage(bytes, base);
+  static _ParsedCatalog _parseDocument(
+    Uint8List bytes,
+    Uri? base,
+    Uri? documentUri,
+  ) {
+    if (_isZip(bytes)) return _parsePackage(bytes, documentUri ?? base);
     final String text;
     try {
       text = utf8.decode(bytes);

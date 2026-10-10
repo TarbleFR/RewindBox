@@ -544,6 +544,46 @@ void main() {
       },
     );
 
+    test('a GitHub release asset is the package, not the repository', () async {
+      const releaseUrl =
+          'https://github.com/someone/aidoku-fr/releases/download/v6/fr.example-v6.aix';
+      final signed = Uri.parse(
+        'https://objects.githubusercontent.com/github-production-release-asset/1/2?X-Amz-Expires=300&X-Amz-Signature=abc',
+      );
+      fetcher.routes[releaseUrl] = FakeRoute.bytes(
+        buildAix(
+          sourceJson: <String, dynamic>{
+            'info': <String, dynamic>{
+              'id': 'fr.example',
+              'name': 'Example FR',
+              'version': 6,
+              'languages': <String>['fr'],
+            },
+          },
+        ),
+        finalUri: signed,
+      );
+
+      final preview = await service.preview(releaseUrl);
+
+      expect(fetcher.urls, <String>[releaseUrl]);
+      expect(
+        fetcher.calls.single.request.maxBytes,
+        LibrarySourceCatalogService.maxPackageBytes,
+      );
+      expect(preview.format, LibraryCatalogFormat.aidokuPackage);
+      expect(preview.catalogUrl, releaseUrl);
+      expect(preview.resolvedUrl, signed.toString());
+      // The expiring signed address is not kept as the package location.
+      expect(preview.sources.single.downloadUrl, releaseUrl);
+
+      const latest =
+          'https://github.com/someone/aidoku-fr/releases/latest/download/fr.example.aix';
+      final location = LibrarySourceCatalogService.resolveInput(latest);
+      expect(location.catalogUri.toString(), latest);
+      expect(location.candidates.map((uri) => '$uri'), <String>[latest]);
+    });
+
     test('main.wasm is never inflated, even flagged as a symlink', () async {
       // package:archive's ZipDecoder inflates UNIX symlink entries while
       // listing the archive, without any size limit: a crafted main.wasm
