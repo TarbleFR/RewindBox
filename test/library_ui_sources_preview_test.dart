@@ -2,6 +2,8 @@
 // selection only takes sources NeoStation can read, activation installs
 // exactly the ticked ids, the summary explains skipped sources, and a
 // Tachiyomi repository can only be looked at.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/screens/library_screen/library_catalog_preview_screen.dart';
@@ -40,21 +42,45 @@ class _Host {
   bool popped = false;
 }
 
+/// Catalogue service whose activation waits for [gate].
+class _GatedCatalogService extends LibrarySourceCatalogService {
+  _GatedCatalogService({required super.addons, required this.gate})
+    : super(
+        fetcher: catalog_fakes.FakeLibraryFetcher().call,
+        store: LibraryCatalogMemoryStore(),
+        clock: () => DateTime.utc(2026, 10, 11, 8),
+      );
+
+  final Future<void> gate;
+
+  @override
+  Future<LibraryActivationResult> activate(
+    LibraryCatalogPreview preview,
+    Set<String> sourceIds,
+  ) async {
+    await gate;
+    return super.activate(preview, sourceIds);
+  }
+}
+
 Future<_Host> _host(
   WidgetTester tester,
   LibraryCatalogPreview preview, {
   List<LibraryAddon> installed = const <LibraryAddon>[],
+  Future<void>? activationGate,
 }) async {
   SharedPreferences.setMockInitialValues(<String, Object>{});
   final addons = LibraryAddonService.forTesting();
   await addons.load();
   if (installed.isNotEmpty) await addons.upsertAddons(installed);
-  final service = LibrarySourceCatalogService(
-    fetcher: catalog_fakes.FakeLibraryFetcher().call,
-    addons: addons,
-    store: LibraryCatalogMemoryStore(),
-    clock: () => DateTime.utc(2026, 10, 11, 8),
-  );
+  final service = activationGate != null
+      ? _GatedCatalogService(addons: addons, gate: activationGate)
+      : LibrarySourceCatalogService(
+          fetcher: catalog_fakes.FakeLibraryFetcher().call,
+          addons: addons,
+          store: LibraryCatalogMemoryStore(),
+          clock: () => DateTime.utc(2026, 10, 11, 8),
+        );
   final host = _Host(addons, service);
   final aidoku = FakeAidokuService();
   await pumpLibraryUi(
@@ -252,6 +278,39 @@ void main() {
     await tester.tap(find.text('MangaDex-like'));
     await tester.pump();
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
+  });
+
+  testWidgets('back waits for a running activation and its summary', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    final host = await _host(
+      tester,
+      _aidokuPreview(sources),
+      activationGate: gate.future,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('entry-fr.lelscanfr')));
+    await tester.pump();
+    await tester.tap(find.text('Activate (1)'));
+    await tester.pump();
+    expect(find.text('Activating…'), findsOneWidget);
+
+    // Back (button, swipe or controller B all go through maybePop) must
+    // not drop the result the sources view needs.
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    expect(await navigator.maybePop(), isTrue);
+    // The spinner keeps animating: pump past a route transition instead.
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(host.popped, isFalse);
+    expect(find.text('Activating…'), findsOneWidget);
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Added: 1'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(host.popped, isTrue);
+    expect(host.result?.changed, isTrue);
   });
 
   testWidgets('a local file preview says where it comes from', (tester) async {

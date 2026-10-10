@@ -162,93 +162,101 @@ class _LibraryCatalogPreviewScreenState
     final theme = Theme.of(context);
     final preview = _preview;
     final count = _selected.length;
-    return LibraryFocusGamepadLayer(
-      enableGamepad: widget.enableGamepad,
-      debugLabel: 'catalog_preview',
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(preview.name ?? _t('previewTitle')),
-          leading: const ExcludeFocus(child: BackButton()),
-        ),
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _buildInfo(theme),
-              if (!preview.isActivatable) _buildTachiyomiBanner(theme),
-              if (preview.isActivatable && preview.sources.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: <Widget>[
-                      OutlinedButton.icon(
-                        onPressed: _activating ? null : _selectWithReader,
-                        icon: const Icon(Icons.done_all),
-                        label: Text(_t('selectWithAdapter')),
-                      ),
-                      if (count > 0)
-                        TextButton(
-                          onPressed: _activating
-                              ? null
-                              : () => setState(_selected.clear),
-                          child: Text(_t('clearSelection')),
+    // Leaving while the sources are being activated would drop the result:
+    // the sources view would not tell the Library hub that its source list
+    // changed. Back (button, swipe, controller B) waits for the summary.
+    return PopScope(
+      canPop: !_activating,
+      child: LibraryFocusGamepadLayer(
+        enableGamepad: widget.enableGamepad,
+        debugLabel: 'catalog_preview',
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(preview.name ?? _t('previewTitle')),
+            leading: const ExcludeFocus(child: BackButton()),
+          ),
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _buildInfo(theme),
+                if (!preview.isActivatable) _buildTachiyomiBanner(theme),
+                if (preview.isActivatable && preview.sources.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        OutlinedButton.icon(
+                          onPressed: _activating ? null : _selectWithReader,
+                          icon: const Icon(Icons.done_all),
+                          label: Text(_t('selectWithAdapter')),
                         ),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: preview.sources.isEmpty
-                    ? Center(child: Text(_t('noSourcesInCatalog')))
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        itemCount: preview.sources.length,
-                        itemBuilder: (context, index) {
-                          final entry = preview.sources[index];
-                          return _EntryRow(
-                            key: ValueKey<String>('entry-${entry.id}'),
-                            entry: entry,
-                            selected: _selected.contains(entry.id),
-                            selectable: _selectable(entry),
-                            aidokuFormat: preview.format.isAidoku,
-                            hasReader: _hasReader(entry),
-                            unsupportedKey: _unsupportedKey(entry),
-                            imageCache: widget.imageCache,
-                            onToggle: () => _toggle(entry),
-                          );
-                        },
-                      ),
-              ),
-              if (preview.isActivatable)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: Row(
-                    children: <Widget>[
-                      if (_activating) ...<Widget>[
-                        const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(_t('activating')),
+                        if (count > 0)
+                          TextButton(
+                            onPressed: _activating
+                                ? null
+                                : () => setState(_selected.clear),
+                            child: Text(_t('clearSelection')),
+                          ),
                       ],
-                      const Spacer(),
-                      FilledButton.icon(
-                        key: const ValueKey<String>('activate-button'),
-                        onPressed: count == 0 || _activating ? null : _activate,
-                        icon: const Icon(Icons.download_done),
-                        label: Text(
-                          _f('activateCount', <String, Object?>{
-                            'count': count,
-                          }),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                Expanded(
+                  child: preview.sources.isEmpty
+                      ? Center(child: Text(_t('noSourcesInCatalog')))
+                      : ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          itemCount: preview.sources.length,
+                          itemBuilder: (context, index) {
+                            final entry = preview.sources[index];
+                            return _EntryRow(
+                              key: ValueKey<String>('entry-${entry.id}'),
+                              entry: entry,
+                              selected: _selected.contains(entry.id),
+                              selectable: _selectable(entry),
+                              aidokuFormat: preview.format.isAidoku,
+                              hasReader: _hasReader(entry),
+                              unsupportedKey: _unsupportedKey(entry),
+                              imageCache: widget.imageCache,
+                              onToggle: () => _toggle(entry),
+                            );
+                          },
+                        ),
                 ),
-            ],
+                if (preview.isActivatable)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Row(
+                      children: <Widget>[
+                        if (_activating) ...<Widget>[
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(_t('activating')),
+                        ],
+                        const Spacer(),
+                        FilledButton.icon(
+                          key: const ValueKey<String>('activate-button'),
+                          onPressed: count == 0 || _activating
+                              ? null
+                              : _activate,
+                          icon: const Icon(Icons.download_done),
+                          label: Text(
+                            _f('activateCount', <String, Object?>{
+                              'count': count,
+                            }),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
