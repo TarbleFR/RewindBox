@@ -802,9 +802,12 @@ class LibraryReadingStore extends ChangeNotifier {
 
   LibraryReaderSettings get settings => _settings;
 
+  /// Stores [settings] with numbers clamped to their ranges (the const
+  /// constructor cannot clamp).
   void updateSettings(LibraryReaderSettings settings) {
-    if (settings == _settings) return;
-    _change(() => _settings = settings);
+    final normalized = settings.copyWith();
+    if (normalized == _settings) return;
+    _change(() => _settings = normalized);
   }
 
   // ---------------------------------------------------------- persistence --

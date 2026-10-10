@@ -667,4 +667,15 @@ void main() {
     expect(clamped.margin, LibraryReaderSettings.minMargin);
     expect(LibraryReaderSettings.fromJson(clamped.toJson()), clamped);
   });
+
+  test('updateSettings stores clamped values', () async {
+    final store = create();
+    await store.load();
+    store.updateSettings(
+      const LibraryReaderSettings(fontSize: 50, lineHeight: 0.2, margin: 90),
+    );
+    expect(store.settings.fontSize, LibraryReaderSettings.maxFontSize);
+    expect(store.settings.lineHeight, LibraryReaderSettings.minLineHeight);
+    expect(store.settings.margin, LibraryReaderSettings.maxMargin);
+  });
 }
