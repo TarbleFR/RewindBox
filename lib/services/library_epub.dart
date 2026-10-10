@@ -952,6 +952,19 @@ final RegExp _trailingSpaces = RegExp(r' +$');
 final RegExp _trailingBlank = RegExp(r'[\n \t]+$');
 final RegExp _displayNone = RegExp(r'display\s*:\s*none');
 final RegExp _urlScheme = RegExp(r'^[A-Za-z][A-Za-z0-9+.\-]*:');
+// Compiled once: a RegExp object is compiled on its first match, so building
+// them per element would recompile them for every element of a chapter.
+final RegExp _cssCenter = RegExp(r'text-align\s*:\s*center');
+final RegExp _centerClass = RegExp(
+  r'(^|[\s_-])(center|centered|centre|centred)($|[\s_-])',
+);
+final RegExp _cssBold = RegExp(r'font-weight\s*:\s*(bold|bolder|[6-9]00)');
+final RegExp _cssItalic = RegExp(r'font-style\s*:\s*(italic|oblique)');
+final RegExp _cssUnderline = RegExp(
+  r'text-decoration[a-z-]*\s*:[^;]*underline',
+);
+final RegExp _cssSuper = RegExp(r'vertical-align\s*:\s*super');
+final RegExp _cssSub = RegExp(r'vertical-align\s*:\s*sub');
 
 /// Parses XHTML strictly (well-formed XML, HTML5 entities), falling back to
 /// the lenient HTML parser; returns the root element.
@@ -1294,11 +1307,9 @@ class _ChapterBuilder {
       return true;
     }
     final style = (element.attribute('style') ?? '').toLowerCase();
-    if (RegExp(r'text-align\s*:\s*center').hasMatch(style)) return true;
+    if (style.isNotEmpty && _cssCenter.hasMatch(style)) return true;
     final classes = (element.attribute('class') ?? '').toLowerCase();
-    return RegExp(
-      r'(^|[\s_-])(center|centered|centre|centred)($|[\s_-])',
-    ).hasMatch(classes);
+    return classes.isNotEmpty && _centerClass.hasMatch(classes);
   }
 
   void visitBlockElement(
@@ -1461,18 +1472,18 @@ class _ChapterBuilder {
     }
     final css = (element.attribute('style') ?? '').toLowerCase();
     if (css.isNotEmpty) {
-      if (RegExp(r'font-weight\s*:\s*(bold|bolder|[6-9]00)').hasMatch(css)) {
+      if (_cssBold.hasMatch(css)) {
         result = result.copyWith(bold: true);
       }
-      if (RegExp(r'font-style\s*:\s*(italic|oblique)').hasMatch(css)) {
+      if (_cssItalic.hasMatch(css)) {
         result = result.copyWith(italic: true);
       }
-      if (RegExp(r'text-decoration[a-z-]*\s*:[^;]*underline').hasMatch(css)) {
+      if (_cssUnderline.hasMatch(css)) {
         result = result.copyWith(underline: true);
       }
-      if (RegExp(r'vertical-align\s*:\s*super').hasMatch(css)) {
+      if (_cssSuper.hasMatch(css)) {
         result = result.copyWith(superscript: true);
-      } else if (RegExp(r'vertical-align\s*:\s*sub').hasMatch(css)) {
+      } else if (_cssSub.hasMatch(css)) {
         result = result.copyWith(subscript: true);
       }
     }

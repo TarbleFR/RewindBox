@@ -1000,6 +1000,10 @@ String libraryBookFileName(String original, LibraryBookFormat format) {
   return '$base$target';
 }
 
+// Hoisted: [libraryFoldForSearch] runs for every book on each query, on the
+// UI isolate, and a RegExp object is compiled on its first match.
+final RegExp _searchWhitespace = RegExp(r'\s+');
+
 /// Lower-cases and removes common Latin diacritics for search.
 String libraryFoldForSearch(String value) {
   final lower = value.toLowerCase();
@@ -1014,7 +1018,7 @@ String libraryFoldForSearch(String value) {
       buffer.writeCharCode(rune);
     }
   }
-  return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  return buffer.toString().replaceAll(_searchWhitespace, ' ').trim();
 }
 
 final Map<int, String> _foldMap = () {

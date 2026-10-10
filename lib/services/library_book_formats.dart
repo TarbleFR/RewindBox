@@ -618,6 +618,11 @@ class _CappedOutput extends OutputMemoryStream {
   }
 }
 
+// Hoisted: these run for every link, image and manifest item, and a RegExp
+// object is compiled on its first match.
+final RegExp _hrefScheme = RegExp(r'^[A-Za-z][A-Za-z0-9+.\-]*:');
+final RegExp _anyWhitespace = RegExp(r'\s+');
+
 /// Resolves an EPUB [href] relative to the archive file [baseFile] into an
 /// archive path. Fragment and query are dropped. Returns null for external
 /// URLs (`http:`, `mailto:`, `data:`...), empty references and paths that
@@ -633,7 +638,7 @@ String? libraryResolveArchiveHref(
   final query = value.indexOf('?');
   if (query >= 0) value = value.substring(0, query);
   if (value.isEmpty) return null;
-  if (RegExp(r'^[A-Za-z][A-Za-z0-9+.\-]*:').hasMatch(value)) return null;
+  if (_hrefScheme.hasMatch(value)) return null;
   if (decode) {
     try {
       value = Uri.decodeFull(value);
@@ -861,7 +866,7 @@ XmlDocument? libraryTryParseXml(String text) {
 
 /// Collapses runs of whitespace into single spaces and trims.
 String libraryCollapseWhitespace(String value) =>
-    value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    value.replaceAll(_anyWhitespace, ' ').trim();
 
 Iterable<XmlElement> _elementsNamed(XmlNode node, String localName) => node
     .descendants
