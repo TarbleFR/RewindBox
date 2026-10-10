@@ -149,6 +149,30 @@ void main() {
     expect(LibraryArchivePages.debugOpenArchiveCount, 0);
   });
 
+  test(
+    'a file replaced at the same path is never served by the old worker',
+    () async {
+      LibraryArchivePages.idleTimeout = const Duration(seconds: 30);
+      final file = await writeFile(temp, 'same.cbz', buildCbz(pages: 2));
+      final first = await LibraryArchivePages.open(file.path);
+      expect(utf8.decode(await first.page(0)), 'page-1-bytes');
+      await first.close();
+      // The idle worker still holds the old archive when another book takes
+      // the same path (deleted then re-imported under the same name, or
+      // replaced in Files). Overwritten in place: Windows refuses to replace
+      // a file another handle holds open, iOS does not.
+      await file.writeAsBytes(
+        buildCbz(pages: 3, pageBytes: (page) => utf8.encode('new-$page')),
+        flush: true,
+      );
+      final second = await LibraryArchivePages.open(file.path);
+      addTearDown(second.close);
+      expect(second.pageCount, 3);
+      expect(utf8.decode(await second.page(0)), 'new-1');
+      expect(LibraryArchivePages.debugOpenArchiveCount, 1);
+    },
+  );
+
   test('archives without pages and non-ZIP files fail to open', () async {
     final empty = await writeFile(
       temp,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -37,9 +38,18 @@ class LibraryArchivePages {
   /// [LibraryBookIssue.unreadable]).
   static Future<LibraryArchivePages> open(String path) async {
     final key = p.normalize(p.absolute(path));
+    // A worker keeps the file it opened even after that file is deleted or
+    // replaced: share it only while the path still holds the same file.
+    final identity = await _identityOf(key);
     var shared = _archives[key];
+    if (shared != null && shared.identity != identity) {
+      // Handles still using it keep it alive; it ends with the last one.
+      _archives.remove(key);
+      if (shared._references == 0) unawaited(shared.shutdown());
+      shared = null;
+    }
     if (shared == null) {
-      shared = _SharedArchive(key);
+      shared = _SharedArchive(key, identity);
       _archives[key] = shared;
       shared.start();
     }
@@ -51,6 +61,18 @@ class LibraryArchivePages {
       rethrow;
     }
     return LibraryArchivePages._(shared);
+  }
+
+  /// Size and modification time of [path]; null when it cannot be read (the
+  /// worker then reports the error).
+  static Future<String?> _identityOf(String path) async {
+    try {
+      final stat = await File(path).stat();
+      if (stat.type == FileSystemEntityType.notFound) return null;
+      return '${stat.size}:${stat.modified.microsecondsSinceEpoch}';
+    } on FileSystemException {
+      return null;
+    }
   }
 
   String get path => _shared.path;
@@ -107,9 +129,12 @@ class _ArchiveInfo {
 }
 
 class _SharedArchive {
-  _SharedArchive(this.path);
+  _SharedArchive(this.path, this.identity);
 
   final String path;
+
+  /// Identity of the file when the worker was started (see `_identityOf`).
+  final String? identity;
   late final Future<LibraryIsolateWorker> ready;
   LibraryIsolateWorker? _worker;
   _ArchiveInfo? info;
