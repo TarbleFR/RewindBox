@@ -507,7 +507,17 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
     LibraryMangaStatus.unknown => null,
   };
 
+  /// True while the chapter list on screen is partial and a load that may
+  /// complete it is still running (LelscanFR serves the newest chapters
+  /// first: the oldest ones, and maybe the saved one, are not there yet).
+  bool get _chaptersPending =>
+      _details?.chaptersComplete == false &&
+      (_loadingMore || _refreshing || _loading);
+
   /// Resume target: the saved chapter and page, else the first chapter.
+  /// Null while the list is partial and still loading and the saved
+  /// chapter is not in it yet: the oldest chapter on screen is then not the
+  /// first one of the title.
   ({LibraryMangaChapter chapter, int? startPage, String label})? _resume() {
     if (_ascending.isEmpty) return null;
     final progress = _store.progressFor(_onlineKey);
@@ -537,6 +547,7 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
         return (chapter: chapter, startPage: pageIndex, label: label);
       }
     }
+    if (_chaptersPending) return null;
     return (
       chapter: _ascending.first,
       startPage: null,
@@ -715,7 +726,12 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
                       startPage: resume.startPage,
                     ),
               icon: const Icon(Icons.menu_book),
-              label: Text(resume?.label ?? _t('startReading')),
+              label: Text(
+                resume?.label ??
+                    _t(
+                      _chaptersPending ? 'loadingMoreChapters' : 'startReading',
+                    ),
+              ),
             ),
             OutlinedButton.icon(
               onPressed: _toggleFavorite,

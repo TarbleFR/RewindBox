@@ -281,6 +281,74 @@ void main() {
     expect(opened.sessions.single.chapter.id, '1');
   });
 
+  testWidgets('resume waits for a partial list that is still loading', (
+    tester,
+  ) async {
+    Future<void> check({LibraryReadingStore? saved}) async {
+      final opened = _Opened();
+      final controller = StreamController<LibraryMangaDetails>();
+      final aidoku = FakeAidokuService()..watchController = controller;
+      await pumpLibraryUi(
+        tester,
+        _screen(
+          item: item,
+          addon: addon,
+          aidoku: aidoku,
+          store: saved ?? MemoryReadingStore(),
+          opened: opened,
+        ),
+        wrapInScaffold: false,
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // LelscanFR serves the newest chapters first: 21-30 arrive before 1-20.
+      controller.add(testDetails(item, count: 10, first: 21, complete: false));
+      await tester.pump();
+      final resume = find.byKey(const ValueKey<String>('resume-button'));
+      expect(
+        find.descendant(
+          of: resume,
+          matching: find.text('Loading more chapters…'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(resume);
+      await tester.pump();
+      expect(opened.sessions, isEmpty);
+
+      controller.add(testDetails(item, count: 30));
+      await controller.close();
+      await tester.pumpAndSettle();
+      await tester.tap(resume);
+      await tester.pump();
+      expect(opened.sessions, hasLength(1));
+      if (saved == null) {
+        expect(find.text('Start reading'), findsOneWidget);
+        expect(opened.sessions.single.chapter.id, '1');
+      } else {
+        expect(find.text('Continue – chapter 12, page 5'), findsOneWidget);
+        expect(opened.sessions.single.chapter.id, '12');
+        expect(opened.sessions.single.startPage, 4);
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+
+    await check();
+    await check(
+      saved: MemoryReadingStore()
+        ..saveProgress(
+          LibraryReadingProgress(
+            key: key,
+            location: LibraryReadingProgress.pageLocation(4),
+            fraction: 0.3,
+            pageIndex: 4,
+            chapterId: '12',
+          ),
+        ),
+    );
+  });
+
   testWidgets('the chapter order is toggled and remembered for the session', (
     tester,
   ) async {
