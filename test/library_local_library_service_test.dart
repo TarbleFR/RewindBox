@@ -429,6 +429,89 @@ void main() {
     expect(inspector.inspected, hasLength(count));
   });
 
+  test('a partial listing never removes books from the index', () async {
+    final library = service();
+    final imported = await library.importFiles(<String>[
+      await pick('a.epub', buildEpub3()),
+      await pick('b.cbz', buildCbz()),
+      await pick('c.txt', utf8.encode('text')),
+    ]);
+    await writeFile(
+      Directory(roots.downloadsDirectory),
+      'page.html',
+      utf8.encode('<html></html>'),
+    );
+    await library.rescan();
+    expect(library.ignoredFiles, hasLength(1));
+
+    // Over the file cap only part of the folders is listed: the books and
+    // the ignored file that were not listed stay, and nothing is reopened.
+    final capped = LibraryLocalLibraryService(
+      roots: () async => roots,
+      inspector: inspector,
+      thumbnailer: thumbnails,
+      clock: () => ++clock,
+      maxScannedFiles: 1,
+    );
+    final count = inspector.inspected.length;
+    await capped.load();
+    expect(capped.books, hasLength(3));
+    expect(capped.ignoredFiles, hasLength(1));
+
+    // Even a book really deleted is kept while the listing is partial...
+    final gone = imported[2].book!;
+    await File(capped.absolutePath(gone)).delete();
+    await capped.rescan();
+    expect(capped.bookById(gone.id), isNotNull);
+    expect(inspector.inspected, hasLength(count));
+
+    // ...and removed by the next complete scan.
+    final full = service();
+    await full.load();
+    expect(full.bookById(gone.id), isNull);
+    expect(full.books, hasLength(2));
+  });
+
+  test(
+    'an unreadable file is retried on the next scan, never hidden or dropped',
+    () async {
+      final flaky = _FlakyInspector(inspector);
+      LibraryLocalLibraryService flakyService() => LibraryLocalLibraryService(
+        roots: () async => roots,
+        inspector: flaky,
+        thumbnailer: thumbnails,
+        clock: () => ++clock,
+      );
+      final library = flakyService();
+      final book = (await library.importFiles(<String>[
+        await pick('kept.epub', buildEpub3()),
+      ])).single.book!;
+      await writeFile(
+        Directory(roots.booksDirectory),
+        'late.cbz',
+        buildCbz(pages: 2),
+      );
+      // The indexed book is touched (new modification time) and both files
+      // cannot be read during this scan.
+      await File(
+        library.absolutePath(book),
+      ).setLastModified(DateTime.now().add(const Duration(minutes: 5)));
+      flaky.unreadable.addAll(<String>['kept.epub', 'late.cbz']);
+      await library.rescan();
+      expect(library.bookById(book.id), isNotNull);
+      expect(library.ignoredFiles, isEmpty);
+      expect(library.books, hasLength(1));
+
+      flaky.unreadable.clear();
+      await library.rescan();
+      expect(library.bookById(book.id), isNotNull);
+      expect(
+        library.books.map((b) => b.relativePath),
+        unorderedEquals(<String>['Books/kept.epub', 'Books/late.cbz']),
+      );
+    },
+  );
+
   test('a copy of a book replaces it when the original disappears', () async {
     final library = service();
     final book = (await library.importFiles(<String>[
@@ -598,4 +681,29 @@ void main() {
       expect(((index['books'] as List).single as Map)['customTitle'], 'x');
     },
   );
+}
+
+/// Reports the listed file names as unreadable (I/O failure) while they are
+/// in [unreadable], and delegates otherwise.
+class _FlakyInspector implements LibraryBookInspector {
+  _FlakyInspector(this.inner);
+
+  final LibraryBookInspector inner;
+  final Set<String> unreadable = <String>{};
+
+  @override
+  Future<LibraryBookInspection> inspect(String path, {String? fileName}) {
+    final name = fileName ?? p.basename(path);
+    if (unreadable.contains(name)) {
+      return Future<LibraryBookInspection>.value(
+        LibraryBookInspection(
+          fileName: name,
+          sizeBytes: 0,
+          issue: LibraryBookIssue.unreadable,
+          detail: 'fake I/O error',
+        ),
+      );
+    }
+    return inner.inspect(path, fileName: fileName);
+  }
 }

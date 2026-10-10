@@ -1851,6 +1851,12 @@ _RawInspection _inspectSync(String path, String fileName) {
         return failure(error.issue, error.detail);
       } on FileSystemException catch (error) {
         return failure(LibraryBookIssue.unreadable, error.toString());
+      } catch (error) {
+        // Memory pressure is transient: the caller reports it as unreadable.
+        if (error is OutOfMemoryError) rethrow;
+        // Malformed content that slipped past the explicit checks: the
+        // same bytes always fail the same way, so it is not "unreadable".
+        return failure(LibraryBookIssue.corrupt, error.toString());
       } finally {
         zip?.close();
       }

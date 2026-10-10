@@ -94,19 +94,20 @@ class LibraryLocalLibraryService extends ChangeNotifier {
     int Function()? clock,
     @visibleForTesting
     Future<void> Function(String from, String to)? renameFile,
+    @visibleForTesting int maxScannedFiles = 20000,
   }) : _rootsResolver = roots ?? LibraryLocalRoots.platform,
        _inspector = inspector ?? LibraryFileBookInspector(),
        _thumbnailer = thumbnailer ?? const LibraryEngineThumbnailer(),
        _picker = picker ?? libraryPickBookFiles,
        _clock = clock ?? _now,
-       _renameFile = renameFile ?? _rename;
+       _renameFile = renameFile ?? _rename,
+       _maxScannedFiles = maxScannedFiles;
 
   static final LibraryLocalLibraryService instance =
       LibraryLocalLibraryService();
 
   static const int indexVersion = 1;
   static const int coverWidth = 360;
-  static const int _maxScannedFiles = 20000;
   static const int _maxTitleLength = 300;
 
   static final _log = LoggerService.instance;
@@ -117,6 +118,9 @@ class LibraryLocalLibraryService extends ChangeNotifier {
   final LibraryFilePicker _picker;
   final int Function() _clock;
   final Future<void> Function(String from, String to) _renameFile;
+
+  /// Files listed per scan; beyond it the scan is partial (nothing removed).
+  final int _maxScannedFiles;
 
   LibraryLocalRoots? _roots;
   final Map<String, LibraryLocalBook> _books = <String, LibraryLocalBook>{};
@@ -424,11 +428,19 @@ class LibraryLocalLibraryService extends ChangeNotifier {
     var changed = false;
     try {
       final documents = roots.documentsLibrary;
-      final found = await _listInIsolate(documents, _maxScannedFiles);
-      if (found == null) {
+      final listing = await _listInIsolate(documents, _maxScannedFiles);
+      if (listing == null) {
         // Never mistake an unreadable folder for deleted books.
         _log.w('Library scan aborted: a library folder cannot be listed');
         return;
+      }
+      final found = listing.files;
+      // A partial listing (file cap reached, a sub-folder that cannot be
+      // listed) only adds and updates: absent files are not proof that a
+      // book is gone.
+      final complete = listing.complete;
+      if (!complete) {
+        _log.w('Library scan incomplete: missing files are kept in the index');
       }
       final byPath = <String, _FoundFile>{
         for (final file in found) file.relativePath: file,
@@ -442,7 +454,9 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       for (final book in _books.values) {
         final file = byPath[book.relativePath];
         if (file == null) {
-          missing[book.id] = book;
+          // Missing books are removed, or followed to a new path, only when
+          // the listing is complete.
+          if (complete) missing[book.id] = book;
         } else if (file.sizeBytes != book.sizeBytes ||
             file.modifiedMs != book.modifiedMs) {
           toInspect[file.relativePath] = file;
@@ -451,8 +465,10 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       for (final ignored in _ignored.values.toList()) {
         final file = byPath[ignored.relativePath];
         if (file == null) {
-          _ignored.remove(ignored.relativePath);
-          changed = true;
+          if (complete) {
+            _ignored.remove(ignored.relativePath);
+            changed = true;
+          }
         } else if (file.sizeBytes != ignored.sizeBytes ||
             file.modifiedMs != ignored.modifiedMs ||
             (ignored.duplicateOf != null &&
@@ -489,6 +505,15 @@ class LibraryLocalLibraryService extends ChangeNotifier {
           continue;
         }
         final previous = bookAtPath[file.relativePath];
+        if (inspection.issue == LibraryBookIssue.unreadable) {
+          // An I/O failure says nothing about the content (file locked by
+          // data protection, removed during the scan...): retry next scan
+          // instead of hiding the file, and keep a book already indexed.
+          _log.w(
+            'Library scan could not read ${file.relativePath}: ${inspection.detail}',
+          );
+          continue;
+        }
         if (!inspection.readable) {
           if (previous != null) {
             _books.remove(previous.id);
@@ -1035,7 +1060,7 @@ Future<_IndexSnapshot> _readIndexInIsolate(String path) =>
 Future<void> _writeIndexInIsolate(String path, Map<String, Object?> json) =>
     Isolate.run(() => _writeIndexFile(path, json));
 
-Future<List<_FoundFile>?> _listInIsolate(String documentsLibrary, int limit) =>
+Future<_FileListing?> _listInIsolate(String documentsLibrary, int limit) =>
     Isolate.run(() => _listLibraryFiles(documentsLibrary, limit));
 
 class _FoundFile {
@@ -1046,22 +1071,40 @@ class _FoundFile {
   final int modifiedMs;
 }
 
+class _FileListing {
+  const _FileListing(this.files, {required this.complete});
+
+  final List<_FoundFile> files;
+
+  /// False when the file cap was reached or a sub-folder could not be
+  /// listed: a file absent from [files] may still exist.
+  final bool complete;
+}
+
 /// Lists regular files under `Books/` and `Downloads/` (hidden names,
 /// links and depth beyond 8 skipped; at most [limit] files). Returns null
 /// when one of the two folders exists but cannot be listed.
-List<_FoundFile>? _listLibraryFiles(String documentsLibrary, int limit) {
+_FileListing? _listLibraryFiles(String documentsLibrary, int limit) {
   final result = <_FoundFile>[];
+  var complete = true;
   void walk(Directory directory, List<String> segments, int depth) {
-    if (result.length >= limit) return;
+    if (result.length >= limit) {
+      complete = false;
+      return;
+    }
     final List<FileSystemEntity> entities;
     try {
       entities = directory.listSync(followLinks: false);
     } on FileSystemException {
       if (depth == 0) rethrow;
+      complete = false;
       return;
     }
     for (final entity in entities) {
-      if (result.length >= limit) return;
+      if (result.length >= limit) {
+        complete = false;
+        return;
+      }
       final name = p.basename(entity.path);
       if (name.startsWith('.')) continue;
       if (entity is Directory) {
@@ -1078,6 +1121,7 @@ List<_FoundFile>? _listLibraryFiles(String documentsLibrary, int limit) {
             ),
           );
         } on FileSystemException {
+          complete = false;
           continue;
         }
       }
@@ -1093,7 +1137,7 @@ List<_FoundFile>? _listLibraryFiles(String documentsLibrary, int limit) {
       return null;
     }
   }
-  return result;
+  return _FileListing(result, complete: complete);
 }
 
 class _IndexSnapshot {
