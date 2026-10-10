@@ -870,6 +870,26 @@ void main() {
       expect(fetcher.calls, isEmpty);
     });
 
+    test('a redirect that leaves HTTPS is refused', () async {
+      fetcher.routes['https://example.org/list/index.min.json'] =
+          FakeRoute.fixture(
+            'aidoku_french_legacy_index.min.json',
+            finalUri: Uri.parse('http://example.org/list/index.min.json'),
+          );
+
+      await expectLater(
+        service.preview('https://example.org/list/index.min.json'),
+        throwsA(
+          catalogError(LibraryCatalogErrorKind.notHttps).having(
+            (error) => error.uri?.scheme,
+            'scheme',
+            'http',
+          ),
+        ),
+      );
+      expect(await addons.load(), isEmpty);
+    });
+
     test('every candidate missing is notFound', () async {
       await expectLater(
         service.preview('https://example.org/nothing/'),

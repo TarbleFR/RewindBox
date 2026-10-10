@@ -946,6 +946,15 @@ class LibrarySourceCatalogService {
         );
         continue;
       }
+      if (response.finalUri.scheme != 'https') {
+        // A redirect left HTTPS: the body may have been altered in transit,
+        // including its absolute HTTPS links.
+        documentError ??= LibraryCatalogException(
+          LibraryCatalogErrorKind.notHttps,
+          uri: response.finalUri,
+        );
+        continue;
+      }
 
       final _ParsedCatalog parsed;
       try {
