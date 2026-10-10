@@ -600,6 +600,49 @@ void main() {
       imageCache.clear();
     });
 
+    testWidgets('undecodable bytes are not kept in the disk cache', (
+      tester,
+    ) async {
+      final fetcher = _FakeFetcher((request, cancel) async {
+        // An error page mislabelled as JPEG passes the content-type check.
+        return _ok(
+          request,
+          utf8.encode('<html><body>image not found</body></html>'),
+          headers: const <String, String>{'content-type': 'image/jpeg'},
+        );
+      });
+      final cache = create(fetcher);
+      imageCache.clear();
+      const url = 'https://img.test/mislabelled.jpg';
+      final outcome = await tester.runAsync(() async {
+        final completer = Completer<Object>();
+        LibraryNetworkImage(url, cache: cache)
+            .resolve(ImageConfiguration.empty)
+            .addListener(
+              ImageStreamListener(
+                (info, _) {
+                  if (!completer.isCompleted) completer.complete('decoded');
+                },
+                onError: (error, _) {
+                  if (!completer.isCompleted) completer.complete(error);
+                },
+              ),
+            );
+        final result = await completer.future;
+        // The disk eviction runs in the background after the error.
+        for (var attempt = 0; attempt < 100; attempt++) {
+          if (!await cache.isCached(url)) break;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        return (result, await cache.isCached(url));
+      });
+      final (error, stillCached) = outcome!;
+      expect(error, isNot('decoded'));
+      expect(fetcher.requests, hasLength(1));
+      expect(stillCached, isFalse);
+      imageCache.clear();
+    });
+
     testWidgets('load failures reach errorBuilder', (tester) async {
       final fetcher = _FakeFetcher((request, cancel) async {
         throw LibraryNetworkException(

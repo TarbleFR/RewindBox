@@ -546,11 +546,14 @@ class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
     LibraryNetworkImage key,
     ImageDecoderCallback decode,
   ) async {
+    final cache = key.cache ?? LibraryImageCache.instance;
+    var loaded = false;
     try {
-      final bytes = await (key.cache ?? LibraryImageCache.instance).load(
+      final bytes = await cache.load(
         key.url,
         headers: key.headers ?? const <String, String>{},
       );
+      loaded = true;
       if (bytes.isEmpty) {
         throw LibraryNetworkException(
           LibraryNetworkErrorKind.invalidResponse,
@@ -573,6 +576,12 @@ class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
       scheduleMicrotask(() {
         PaintingBinding.instance.imageCache.evict(key);
       });
+      // Bytes that cannot be decoded (e.g. an error page served as
+      // `image/jpeg`) must not be served from disk for the whole freshness
+      // window: the next attempt downloads them again.
+      if (loaded) {
+        unawaited(cache.evict(key.url).catchError((Object _) {}));
+      }
       rethrow;
     }
   }
