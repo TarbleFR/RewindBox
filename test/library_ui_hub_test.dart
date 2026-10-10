@@ -491,6 +491,40 @@ void main() {
     expect(openedAddon?.id, source.id);
   });
 
+  testWidgets('a filter hiding every new title does not page through whole '
+      'sites; down on the last title asks for more', (tester) async {
+    final endless = aidokuTestAddon('fr.endless', languages: ['fr']);
+    final english = aidokuTestAddon('en.one', languages: ['en']);
+    backend.pages['fr.endless'] = (call) async => testPage([
+      testItem('fr${call.page}', title: 'French ${call.page}'),
+    ], page: call.page);
+    serve('en.one', [testItem('e', title: 'English title')]);
+    feed.hubMemory.languageFilter = 'en';
+    await pumpHub(tester, addons: [endless, english]);
+    for (var i = 0; i < 30; i++) {
+      await tester.pump();
+    }
+    int frenchPages() => backend
+        .callsOf('page')
+        .where((c) => c.sourceKey == endless.id && c.page > 1)
+        .length;
+    expect(visibleTitles(tester), ['English title']);
+    expect(
+      frenchPages(),
+      1,
+      reason: 'one automatic page, then nothing new became visible',
+    );
+
+    // Controller: shortcuts → filters → the only title → down again.
+    LibraryScreen.navigateDown();
+    LibraryScreen.navigateDown();
+    expect(LibraryScreen.navigateDown(), isFalse);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    expect(frenchPages(), 2);
+  });
+
   testWidgets('search: two characters minimum, progressive status, cancel on '
       'close', (tester) async {
     final source = aidokuTestAddon('fr.a', name: 'Alpha Scans');

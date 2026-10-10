@@ -382,19 +382,33 @@ class LibraryScreenState extends State<LibraryScreen> {
 
   void _onCatalogueScroll() {
     _memory.catalogue.scrollOffset = _catalogueScroll.offset;
-    _maybeLoadMore();
+    _maybeLoadMore(scrolled: true);
   }
 
   void _onSearchScroll() {
     _memory.search.scrollOffset = _searchScroll.offset;
   }
 
-  void _maybeLoadMore() {
+  /// Visible titles when the last automatic (non-scroll) page request was
+  /// made; null when none was made since the filters last changed.
+  int? _autoFillVisibleCount;
+
+  /// Requests further pages when the end of the grid is near. Without a
+  /// scroll ([scrolled] false: a page arrived, a filter changed), a request
+  /// is made only if the previous automatic one made the grid grow, so a
+  /// filter that hides every new title cannot page through whole sites.
+  void _maybeLoadMore({bool scrolled = false}) {
     if (_memory.searchMode || _section != null) return;
     if (!_catalogueScroll.hasClients) return;
     final position = _catalogueScroll.position;
     final threshold = math.max(900.0, position.viewportDimension * 2.2);
     if (position.extentAfter > threshold || !_feed.canLoadMore) return;
+    final shown = _visibleEntries().length;
+    if (!scrolled) {
+      final previous = _autoFillVisibleCount;
+      if (previous != null && shown <= previous) return;
+    }
+    _autoFillVisibleCount = shown;
     final source = _memory.sourceFilter;
     unawaited(
       _feed.loadMore(
@@ -737,7 +751,12 @@ class LibraryScreenState extends State<LibraryScreen> {
           return true;
         }
         final clamped = next.clamp(0, visible.length - 1);
-        if (clamped == _selectedIndex) return false;
+        if (clamped == _selectedIndex) {
+          // Down on the last row asks for more titles (a controller user
+          // may have nothing left to scroll).
+          if (delta > 0) _maybeLoadMore(scrolled: true);
+          return false;
+        }
         setState(() => _selectedIndex = clamped);
         _ensureSelectedVisible();
         return true;
@@ -905,6 +924,8 @@ class LibraryScreenState extends State<LibraryScreen> {
     _modeMemory
       ..selectedIndex = 0
       ..selectedIdentity = null;
+    _autoFillVisibleCount = null;
+    _scheduleFillCheck();
   }
 
   RelativeRect _popupPosition() {
@@ -1003,7 +1024,6 @@ class LibraryScreenState extends State<LibraryScreen> {
       _memory.sourceFilter = selected;
       _filtersChanged();
     });
-    _scheduleFillCheck();
   }
 
   Future<void> _openContentMenu() async {
