@@ -14,6 +14,7 @@ import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_aidoku_native_service.dart';
 import 'package:neostation/services/library_catalog_feed.dart';
 import 'package:neostation/services/library_catalog_service.dart';
+import 'package:neostation/services/library_http.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -434,6 +435,32 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Unavailable sources'), findsNothing);
+  });
+
+  testWidgets('the refresh control retries every source, blocked ones '
+      'included, and the indicator follows', (tester) async {
+    final blocked = aidokuTestAddon('fr.blocked', name: 'Blocked Scans');
+    backend.support['fr.blocked'] = blockedSupport(
+      'fr.blocked',
+      LibrarySourceKnownState.challenge,
+    );
+    serve('fr.blocked', [testItem('back', title: 'Back online')]);
+    await pumpHub(tester, addons: [blocked]);
+    expect(backend.callsOf('page'), isEmpty);
+    // Header indicator and the explanation of the empty grid.
+    expect(find.text('1 source(s) unavailable'), findsNWidgets(2));
+    expect(find.text('No source could be loaded'), findsOneWidget);
+
+    // Controller: shortcuts → header → refresh (right of the indicator).
+    LibraryScreen.navigateUp();
+    LibraryScreen.navigateRight();
+    LibraryScreen.selectCurrent();
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+    expect(backend.callsOf('page').single.mode, LibraryFetchMode.refresh);
+    expect(find.text('Back online'), findsOneWidget);
+    expect(find.text('1 source(s) unavailable'), findsNothing);
   });
 
   testWidgets('A on a title opens its page with the item and its source', (
