@@ -278,6 +278,39 @@ void main() {
       },
     );
 
+    test(
+      'a title without chapter rows keeps its details, no admin-ajax call',
+      () async {
+        // admin-ajax manga_get_chapters answers HTTP 400 on this site; the
+        // fake fetcher fails the test on any request without a route.
+        const page =
+            '<html><body><div class="post-title">'
+            '<h1 class="ori-sr-title">Nouveau titre</h1></div>'
+            '<script id="wp-manga-js-extra">var manga = {"manga_id":"9001"};'
+            '</script></body></html>';
+        final fake = FakeLibraryFetcher()
+          ..get('https://mangas-origines.fr/oeuvre/nouveau-titre/', body: page)
+          ..post(
+            'https://mangas-origines.fr/oeuvre/nouveau-titre/ajax/chapters/',
+            body: '<div class="ori-chl-liste"></div>',
+          );
+        final service = LibraryAidokuNativeService(fetcher: fake.call);
+
+        final details = await service.loadManga(
+          addon,
+          _item('nouveau-titre', ''),
+        );
+
+        expect(details.item.title, 'Nouveau titre');
+        expect(details.chapters, isEmpty);
+        expect(fake.requests, hasLength(2));
+        expect(
+          fake.requests.where((request) => request.uri.toString() == _ajax),
+          isEmpty,
+        );
+      },
+    );
+
     test('pages are read from div.page-break with trimmed data-src', () async {
       final fake = FakeLibraryFetcher()
         ..get(

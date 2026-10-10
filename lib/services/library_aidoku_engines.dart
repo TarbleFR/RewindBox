@@ -605,9 +605,14 @@ class MadaraEngine extends LibraryAidokuEngine {
     }
   }
 
+  /// Whether `admin-ajax manga_get_chapters` may follow an empty or missing
+  /// `ajax/chapters/` answer. Mangas Origines answers HTTP 400 to it.
+  bool get adminAjaxChapterFallback => true;
+
   /// Chapter list through `{mangaUrl}ajax/chapters/` (body-less POST, as
   /// the site's script.js does), then `admin-ajax manga_get_chapters` with
-  /// the numeric id when the first endpoint is missing or empty.
+  /// the numeric id when the first endpoint is missing or empty (only when
+  /// [adminAjaxChapterFallback] is true).
   Future<List<LibraryMangaChapter>> loadAjaxChapters(
     LibraryAidokuFetchContext context,
     String mangaUrl,
@@ -637,7 +642,9 @@ class MadaraEngine extends LibraryAidokuEngine {
       }
       firstError = error;
     }
-    if (chapters.isNotEmpty || mangaIntId == null) {
+    if (chapters.isNotEmpty ||
+        mangaIntId == null ||
+        !adminAjaxChapterFallback) {
       if (chapters.isEmpty && firstError != null) throw firstError;
       return chapters;
     }
@@ -691,6 +698,11 @@ class MadaraEngine extends LibraryAidokuEngine {
 /// embedded in the details page (one request for both).
 class MangasOriginesEngine extends MadaraEngine {
   MangasOriginesEngine(super.site);
+
+  /// `admin-ajax manga_get_chapters` answers HTTP 400 on this site: a title
+  /// without chapter rows keeps its details and an empty chapter list.
+  @override
+  bool get adminAjaxChapterFallback => false;
 
   @override
   Future<_ParsedListing> _search(
