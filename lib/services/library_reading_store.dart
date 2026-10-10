@@ -588,7 +588,14 @@ class LibraryReadingStore extends ChangeNotifier {
   LibraryReaderSettings _settings = const LibraryReaderSettings();
 
   bool _loaded = false;
+
+  /// The state file exists but could not be read (I/O error, not bad
+  /// content). It is left untouched and read again before each write.
+  bool _readFailed = false;
   Future<void>? _loading;
+
+  /// Changes recorded until the state file has been read, replayed on the
+  /// data read from it.
   final List<void Function()> _preLoadChanges = <void Function()>[];
   Timer? _saveTimer;
   DateTime? _firstPendingChange;
@@ -602,6 +609,15 @@ class LibraryReadingStore extends ChangeNotifier {
   Object? lastSaveError;
 
   bool get isLoaded => _loaded;
+
+  /// True when the state file exists but could not be read. The store then
+  /// works in memory, never replaces the file, and reads it again before
+  /// each write; once that succeeds, the changes made meanwhile are applied
+  /// on top of the saved data.
+  bool get loadFailed => _readFailed;
+
+  /// Whether every saved entry is known in memory.
+  bool get _complete => _loaded && !_readFailed;
 
   /// True while changes are waiting to be written.
   bool get hasPendingChanges => _dirty || _writing != null;
@@ -630,7 +646,7 @@ class LibraryReadingStore extends ChangeNotifier {
 
   void removeProgress(String key) {
     // Before load the entry may exist in the file: record the removal.
-    if (_loaded && !_progress.containsKey(key)) return;
+    if (_complete && !_progress.containsKey(key)) return;
     _change(() => _progress.remove(key));
   }
 
@@ -718,7 +734,7 @@ class LibraryReadingStore extends ChangeNotifier {
   }
 
   void clearChapterMarks(String mangaKey) {
-    if (_loaded && !_marks.containsKey(mangaKey)) return;
+    if (_complete && !_marks.containsKey(mangaKey)) return;
     _change(() => _marks.remove(mangaKey));
   }
 
@@ -764,7 +780,7 @@ class LibraryReadingStore extends ChangeNotifier {
   /// it. Progress and chapter marks are kept.
   Future<void> removeFavorite(String key) async {
     final removed = _favorites[key];
-    if (removed == null && _loaded) return;
+    if (removed == null && _complete) return;
     _change(() => _favorites.remove(key));
     // Before load the cover is unknown; restoring pins after load only pins
     // covers of remaining favourites.
@@ -793,14 +809,17 @@ class LibraryReadingStore extends ChangeNotifier {
 
   // ---------------------------------------------------------- persistence --
 
-  /// Writes pending changes now and waits for the write to finish.
+  /// Writes pending changes now and waits for the write to finish. Reads
+  /// the state file first when [load] was never called, so changes made
+  /// without it are merged rather than dropped.
   Future<void> flush() async {
     _saveTimer?.cancel();
     _saveTimer = null;
-    final loading = _loading;
     if (!_loaded) {
-      if (loading == null) return;
-      await loading;
+      if (_loading == null && !_dirty) return;
+      await load();
+      _saveTimer?.cancel();
+      _saveTimer = null;
     }
     final running = _writing;
     if (running != null) await running;
@@ -818,7 +837,7 @@ class LibraryReadingStore extends ChangeNotifier {
 
   void _change(void Function() change) {
     change();
-    if (!_loaded) _preLoadChanges.add(change);
+    if (!_complete) _preLoadChanges.add(change);
     _dirty = true;
     _firstPendingChange ??= _clock();
     if (_loaded) _scheduleSave();
@@ -846,6 +865,7 @@ class LibraryReadingStore extends ChangeNotifier {
   }
 
   Future<void> _drainWrites() async {
+    if (_readFailed && !await _retryRead()) return;
     while (_dirty) {
       _dirty = false;
       _firstPendingChange = null;
@@ -877,37 +897,11 @@ class LibraryReadingStore extends ChangeNotifier {
   }
 
   Future<void> _load() async {
-    var data = _StoreData();
-    File? file;
-    try {
-      file = await _stateFile();
-    } catch (_) {
-      file = null;
-    }
-    if (file != null && await _exists(file)) {
-      try {
-        final text = await file.readAsString();
-        final Object? decoded = text.length > _isolateDecodeThreshold
-            ? await Isolate.run(() => jsonDecode(text))
-            : jsonDecode(text);
-        data = _StoreData.fromJson(decoded);
-      } catch (_) {
-        await _keepCorruptCopy(file);
-        data = _StoreData();
-      }
-    }
-
-    _progress = data.progress;
-    _marks = data.marks;
-    _favorites = data.favorites;
-    _settings = data.settings;
-    final pending = List<void Function()>.of(_preLoadChanges);
-    _preLoadChanges.clear();
-    for (final change in pending) {
-      change();
-    }
+    final data = await _readState();
+    _readFailed = data == null;
+    final replayed = _adopt(data ?? _StoreData(), keepChanges: data == null);
     _loaded = true;
-    if (pending.isNotEmpty) {
+    if (replayed) {
       _dirty = true;
       _firstPendingChange = _clock();
       _scheduleSave();
@@ -916,22 +910,110 @@ class LibraryReadingStore extends ChangeNotifier {
     unawaited(_restorePins());
   }
 
-  static Future<bool> _exists(File file) async {
-    try {
-      return await file.exists();
-    } catch (_) {
+  /// Reads the state file again after an I/O failure. Returns false (and
+  /// leaves the file alone) while it still cannot be read.
+  Future<bool> _retryRead() async {
+    final data = await _readState();
+    if (data == null) {
+      lastSaveError = FileSystemException(
+        'state file unreadable, not replaced',
+        _file?.path ?? fileName,
+      );
       return false;
+    }
+    _adopt(data, keepChanges: false);
+    _readFailed = false;
+    if (!_disposed) notifyListeners();
+    unawaited(_restorePins());
+    return true;
+  }
+
+  /// Replaces the in-memory state with [data], then replays the changes
+  /// recorded before the file was read. [keepChanges] keeps them recorded
+  /// for a later successful read. Returns whether any change was replayed.
+  bool _adopt(_StoreData data, {required bool keepChanges}) {
+    _progress = data.progress;
+    _marks = data.marks;
+    _favorites = data.favorites;
+    _settings = data.settings;
+    final pending = List<void Function()>.of(_preLoadChanges);
+    if (!keepChanges) _preLoadChanges.clear();
+    for (final change in pending) {
+      change();
+    }
+    return pending.isNotEmpty;
+  }
+
+  /// Reads the state file. A missing file gives empty data. A file with
+  /// invalid content is moved aside ([corruptSuffix]) and gives empty data.
+  /// Null means the file exists but could not be read, or could not be
+  /// moved aside: it must then not be replaced.
+  Future<_StoreData?> _readState() async {
+    final File file;
+    try {
+      file = await _stateFile();
+    } catch (_) {
+      // No storage location (no platform directory): nothing to protect.
+      return _StoreData();
+    }
+    final List<int> bytes;
+    try {
+      if (await FileSystemEntity.type(file.path) ==
+          FileSystemEntityType.notFound) {
+        return _StoreData();
+      }
+      bytes = await file.readAsBytes();
+    } catch (_) {
+      return null;
+    }
+    try {
+      return _StoreData.fromJson(await _decodeState(bytes));
+    } catch (_) {
+      return await _keepCorruptCopy(file) ? _StoreData() : null;
     }
   }
 
-  static Future<void> _keepCorruptCopy(File file) async {
-    final target = '${file.path}$corruptSuffix';
+  static final Converter<List<int>, Object?> _utf8Json = utf8.decoder.fuse(
+    json.decoder,
+  );
+
+  /// Decodes UTF-8 JSON, off the UI isolate for large files. Throws
+  /// [FormatException] only for invalid content: when the worker isolate
+  /// itself cannot run, the bytes are decoded here instead.
+  static Future<Object?> _decodeState(List<int> bytes) async {
+    if (bytes.length <= _isolateDecodeThreshold) {
+      return _utf8Json.convert(bytes);
+    }
+    final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    try {
+      return await Isolate.run(() => _utf8Json.convert(data));
+    } on FormatException {
+      rethrow;
+    } catch (_) {
+      return _utf8Json.convert(data);
+    }
+  }
+
+  /// Moves an unreadable state file aside without replacing an earlier
+  /// copy. Returns false when no copy could be kept.
+  static Future<bool> _keepCorruptCopy(File file) async {
+    var target = '${file.path}$corruptSuffix';
+    try {
+      if (await FileSystemEntity.type(target) !=
+          FileSystemEntityType.notFound) {
+        target = '$target-${DateTime.now().toUtc().millisecondsSinceEpoch}';
+      }
+    } catch (_) {}
     try {
       await file.rename(target);
+      return true;
     } catch (_) {
       try {
         await file.copy(target);
-      } catch (_) {}
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
   }
 

@@ -242,6 +242,146 @@ void main() {
     expect(reopened.progressFor('local:a')!.location, 'page:1');
   });
 
+  test('a later corrupt file never replaces the first kept copy', () async {
+    await stateFile().writeAsString('{"first": ');
+    await create().load();
+    // Invalid UTF-8 is bad content, not an I/O failure.
+    await stateFile().writeAsBytes(const <int>[0xFF, 0xFE, 0x00, 0x7B]);
+    final store = create();
+    await store.load();
+    expect(store.loadFailed, isFalse);
+    expect(await stateFile().exists(), isFalse);
+    final prefix = '${LibraryReadingStore.fileName}'
+        '${LibraryReadingStore.corruptSuffix}';
+    final copies = tmp
+        .listSync()
+        .whereType<File>()
+        .where((file) => p.basename(file.path).startsWith(prefix))
+        .toList();
+    expect(copies, hasLength(2));
+    expect(
+      await File('${stateFile().path}${LibraryReadingStore.corruptSuffix}')
+          .readAsString(),
+      '{"first": ',
+    );
+  });
+
+  test(
+    'an unreadable state file is never replaced and is merged once readable',
+    () async {
+      // A directory at the state path cannot be read as a file on any
+      // platform: it stands for an I/O failure.
+      final blocked = Directory(stateFile().path);
+      await blocked.create();
+      final store = create();
+      await store.load();
+      expect(store.isLoaded, isTrue);
+      expect(store.loadFailed, isTrue);
+
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:new',
+          location: 'page:2',
+          fraction: 0.2,
+        ),
+      );
+      store.removeProgress('local:gone');
+      await store.flush();
+      expect(store.lastSaveError, isNotNull);
+      expect(store.hasPendingChanges, isTrue);
+      expect(await blocked.exists(), isTrue);
+      expect(
+        await FileSystemEntity.type(
+          '${stateFile().path}${LibraryReadingStore.corruptSuffix}',
+        ),
+        FileSystemEntityType.notFound,
+      );
+
+      // The saved state becomes readable again: it is merged with the
+      // changes made meanwhile instead of being replaced by them.
+      await blocked.delete();
+      LibraryReadingProgress saved(String key) => LibraryReadingProgress(
+        key: key,
+        location: 'page:9',
+        fraction: 0.9,
+        updatedAt: DateTime.utc(2026),
+      );
+      await stateFile().writeAsString(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'progress': <String, Object?>{
+            'local:old': saved('local:old').toJson(),
+            'local:gone': saved('local:gone').toJson(),
+          },
+        }),
+      );
+      await store.flush();
+      expect(store.loadFailed, isFalse);
+      expect(store.lastSaveError, isNull);
+      expect(store.hasPendingChanges, isFalse);
+      expect(store.progressFor('local:old'), isNotNull);
+      expect(store.progressFor('local:new'), isNotNull);
+      expect(store.progressFor('local:gone'), isNull);
+
+      final reopened = create();
+      await reopened.load();
+      expect(reopened.progressFor('local:old')!.location, 'page:9');
+      expect(reopened.progressFor('local:new')!.location, 'page:2');
+      expect(reopened.progressFor('local:gone'), isNull);
+    },
+  );
+
+  test('a large state file is decoded off the UI isolate intact', () async {
+    final progress = <String, Object?>{
+      for (var index = 0; index < 3000; index++)
+        'local:book-$index': LibraryReadingProgress(
+          key: 'local:book-$index',
+          location: 'page:$index',
+          fraction: 0.5,
+          title: 'A fairly long book title number $index',
+          updatedAt: DateTime.utc(2026).add(Duration(minutes: index)),
+        ).toJson(),
+    };
+    await stateFile().writeAsString(
+      jsonEncode(<String, Object?>{'version': 1, 'progress': progress}),
+    );
+    expect(await stateFile().length(), greaterThan(256 * 1024));
+
+    final store = create(maxProgressEntries: 5000);
+    await store.load();
+    expect(store.loadFailed, isFalse);
+    expect(store.recent(limit: -1), hasLength(3000));
+    expect(store.recent(limit: 1).single.key, 'local:book-2999');
+    expect(
+      await File(
+        '${stateFile().path}${LibraryReadingStore.corruptSuffix}',
+      ).exists(),
+      isFalse,
+    );
+  });
+
+  test('flush reads the file first when load was never called', () async {
+    final seed = create();
+    await seed.load();
+    seed.saveProgress(
+      LibraryReadingProgress(key: 'local:old', location: 'page:3', fraction: 0),
+    );
+    await seed.flush();
+
+    final store = create();
+    store.saveProgress(
+      LibraryReadingProgress(key: 'local:new', location: 'page:1', fraction: 0),
+    );
+    await store.flush();
+    expect(store.isLoaded, isTrue);
+    expect(store.hasPendingChanges, isFalse);
+
+    final reopened = create();
+    await reopened.load();
+    expect(reopened.progressFor('local:old'), isNotNull);
+    expect(reopened.progressFor('local:new'), isNotNull);
+  });
+
   test('invalid entries are skipped, valid ones kept', () async {
     await stateFile().writeAsString(
       jsonEncode(<String, Object?>{
