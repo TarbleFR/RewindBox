@@ -2,6 +2,8 @@
 // (modal GamepadNavigationManager layer) and gives it back when closed; the
 // d-pad moves Flutter's focus, A activates the focused control, B goes
 // back, and the focus is drawn while the controller is used.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,6 +119,69 @@ void main() {
     expect(find.text('host'), findsOneWidget);
     expect(baseActive, 1, reason: 'the screen below gets it back');
     expect(secondary, 0);
+  });
+
+  testWidgets('a route without its own layer on top is never acted behind', (
+    tester,
+  ) async {
+    var pressed = 0;
+    var secondary = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LibraryFocusGamepadLayer(
+          enableGamepad: false,
+          onSecondary: () => secondary++,
+          child: Scaffold(
+            body: TextButton(
+              onPressed: () => pressed++,
+              child: const Text('behind'),
+            ),
+          ),
+        ),
+      ),
+    );
+    final layer = tester.state<LibraryFocusGamepadLayerState>(
+      find.byType(LibraryFocusGamepadLayer),
+    );
+    final top = FocusNode(debugLabel: 'top');
+    addTearDown(top.dispose);
+    unawaited(
+      Navigator.of(tester.element(find.text('behind'))).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            body: TextButton(
+              focusNode: top,
+              autofocus: true,
+              onPressed: () {},
+              child: const Text('on top'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(top.hasPrimaryFocus, isTrue);
+
+    expect(layer.move(TraversalDirection.down), isFalse);
+    layer.activateFocused();
+    layer.activateFocused();
+    layer.secondary();
+    await tester.pump();
+    expect(top.hasPrimaryFocus, isTrue, reason: 'the focus stays on top');
+    expect(pressed, 0);
+    expect(secondary, 0);
+
+    // B closes the route on top; the layer then drives its own route again.
+    layer.back();
+    await tester.pumpAndSettle();
+    expect(find.text('on top'), findsNothing);
+    expect(layer.move(TraversalDirection.down), isTrue);
+    await tester.pump();
+    layer.activateFocused();
+    layer.secondary();
+    await tester.pump();
+    expect(pressed, 1);
+    expect(secondary, 1);
   });
 
   testWidgets('a custom back action replaces the pop', (tester) async {

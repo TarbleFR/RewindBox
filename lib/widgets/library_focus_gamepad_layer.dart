@@ -167,7 +167,7 @@ class LibraryFocusGamepadLayerState extends State<LibraryFocusGamepadLayer> {
       onNavigateRight: () => move(TraversalDirection.right),
       onSelectItem: activateFocused,
       onBack: back,
-      onXButton: () => widget.onSecondary?.call(),
+      onXButton: secondary,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navigation = _navigation;
@@ -191,13 +191,24 @@ class LibraryFocusGamepadLayerState extends State<LibraryFocusGamepadLayer> {
     super.dispose();
   }
 
+  /// False while another route without its own controller layer (a reader,
+  /// a sheet) covers this one: the d-pad, A and X must not move the focus
+  /// to, or activate, a control hidden behind it. B still goes back, which
+  /// closes that top route.
+  bool get _uncovered => mounted && (ModalRoute.isCurrentOf(context) ?? true);
+
   bool move(TraversalDirection direction) =>
-      LibraryFocusNavigation.move(_root, direction);
+      _uncovered && LibraryFocusNavigation.move(_root, direction);
 
   void activateFocused() {
+    if (!_uncovered) return;
     if (!LibraryFocusNavigation.activate(_root)) {
       LibraryFocusNavigation.move(_root, TraversalDirection.down);
     }
+  }
+
+  void secondary() {
+    if (_uncovered) widget.onSecondary?.call();
   }
 
   void back() {
