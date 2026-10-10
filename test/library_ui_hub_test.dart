@@ -15,6 +15,7 @@ import 'package:neostation/services/library_aidoku_native_service.dart';
 import 'package:neostation/services/library_catalog_feed.dart';
 import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_http.dart';
+import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -523,6 +524,61 @@ void main() {
       await tester.pump();
     }
     expect(frenchPages(), 2);
+  });
+
+  testWidgets('filter choices work with the controller and the hub ignores '
+      'input while they are open', (tester) async {
+    SfxService().setEnabled(false);
+    addTearDown(() => SfxService().setEnabled(true));
+    final source = aidokuTestAddon('fr.a');
+    serve('fr.a', [testItem('a', title: 'Alpha')]);
+    await pumpHub(tester, addons: [source]);
+
+    Future<void> press(LogicalKeyboardKey key) async {
+      // The picker's layer ignores input for a short grace period and
+      // throttles repeated keys (real clock).
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 220)),
+      );
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+    }
+
+    // Filter tooltips come from the catalog ("{label}: {value}" in English).
+    expect(find.byTooltip('Language: All'), findsOneWidget);
+    expect(find.byTooltip('Content: Hide Hentai/Doujinshi'), findsOneWidget);
+
+    // Content filter (5th control) opened with A.
+    LibraryScreen.navigateDown();
+    for (var i = 0; i < 4; i++) {
+      LibraryScreen.navigateRight();
+    }
+    LibraryScreen.selectCurrent();
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Show all'), findsOneWidget);
+
+    // The hub behind the picker does not move and opens nothing else.
+    expect(LibraryScreen.navigateLeft(), isFalse);
+    LibraryScreen.selectCurrent();
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+
+    // B closes without a change.
+    await press(LogicalKeyboardKey.backspace);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(feed.safeMode, isTrue);
+
+    // The hub takes input again; down + A picks "Show all".
+    LibraryScreen.selectCurrent();
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await press(LogicalKeyboardKey.arrowDown);
+    await press(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(feed.safeMode, isFalse);
   });
 
   testWidgets('search: two characters minimum, progressive status, cancel on '

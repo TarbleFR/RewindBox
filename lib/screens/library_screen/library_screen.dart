@@ -75,13 +75,21 @@ class LibraryScreen extends StatefulWidget {
 
   static LibraryScreenState? _currentState;
 
-  static bool navigateLeft() => _currentState?._navigateHorizontal(-1) ?? false;
-  static bool navigateRight() => _currentState?._navigateHorizontal(1) ?? false;
-  static bool navigateUp() => _currentState?._navigateVertical(-1) ?? false;
-  static bool navigateDown() => _currentState?._navigateVertical(1) ?? false;
-  static void selectCurrent() => _currentState?._activateSelection();
-  static void backCurrent() => _currentState?._back();
-  static void deleteCurrent() => _currentState?._secondaryAction();
+  /// The Library state that may take controller input: none while another
+  /// route covers the app (title page, reader, picker, dialog, snack-bar
+  /// details), so the input never acts on the hidden hub behind it.
+  static LibraryScreenState? get _inputTarget {
+    final state = _currentState;
+    return state != null && state._routeIsCurrent ? state : null;
+  }
+
+  static bool navigateLeft() => _inputTarget?._navigateHorizontal(-1) ?? false;
+  static bool navigateRight() => _inputTarget?._navigateHorizontal(1) ?? false;
+  static bool navigateUp() => _inputTarget?._navigateVertical(-1) ?? false;
+  static bool navigateDown() => _inputTarget?._navigateVertical(1) ?? false;
+  static void selectCurrent() => _inputTarget?._activateSelection();
+  static void backCurrent() => _inputTarget?._back();
+  static void deleteCurrent() => _inputTarget?._secondaryAction();
 
   @override
   State<LibraryScreen> createState() => LibraryScreenState();
@@ -196,6 +204,16 @@ class LibraryScreenState extends State<LibraryScreen> {
     }
     if (_section == null) _restorePositionAfterLayout();
     unawaited(_loadAddons());
+  }
+
+  ModalRoute<Object?>? _route;
+
+  bool get _routeIsCurrent => mounted && (_route?.isCurrent ?? true);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
   }
 
   @override
@@ -545,7 +563,7 @@ class LibraryScreenState extends State<LibraryScreen> {
       'ko': '한국어',
       'zh': '中文',
       'ru': 'Русский',
-      'id': 'Indonesia',
+      'id': 'Bahasa Indonesia',
     };
     return labels[code] ?? code.toUpperCase();
   }
@@ -928,39 +946,36 @@ class LibraryScreenState extends State<LibraryScreen> {
     _scheduleFillCheck();
   }
 
-  RelativeRect _popupPosition() {
-    final size = MediaQuery.sizeOf(context);
-    final left = 24.r;
-    final top = 190.r;
-    final right = (size.width - 360.r)
-        .clamp(24.0, math.max(24.0, size.width - 48.0))
-        .toDouble();
-    return RelativeRect.fromLTRB(left, top, right, 0);
-  }
-
-  PopupMenuItem<T> _menuItem<T>(T value, String label, bool checked) {
-    return PopupMenuItem<T>(
-      value: value,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 28.r,
-            child: checked ? Icon(Symbols.check_rounded, size: 18.r) : null,
-          ),
-          Flexible(child: Text(label)),
-        ],
+  /// Shows a choice list that works with touch and with the controller
+  /// (d-pad moves, A picks, B closes). Popup menus are not used: the
+  /// controller cannot reach them.
+  Future<T?> _pickChoice<T>({
+    required String title,
+    required List<_LibraryChoice<T>> choices,
+    String? message,
+  }) {
+    _searchFocus.unfocus();
+    return showDialog<T>(
+      context: context,
+      builder: (_) => _LibraryChoiceDialog<T>(
+        title: title,
+        message: message,
+        choices: choices,
       ),
     );
   }
 
   Future<void> _openLanguageMenu() async {
     final options = _languageOptions;
-    final selected = await showMenu<String>(
-      context: context,
-      position: _popupPosition(),
-      items: [
+    final selected = await _pickChoice<String>(
+      title: _lt('language'),
+      choices: [
         for (final code in options)
-          _menuItem(code, _languageLabel(code), code == _memory.languageFilter),
+          _LibraryChoice(
+            code,
+            _languageLabel(code),
+            checked: code == _memory.languageFilter,
+          ),
       ],
     );
     if (!mounted || selected == null) return;
@@ -971,12 +986,11 @@ class LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _openSortMenu() async {
-    final selected = await showMenu<bool>(
-      context: context,
-      position: _popupPosition(),
-      items: [
-        _menuItem(true, 'A → Z', _memory.sortAscending),
-        _menuItem(false, 'Z → A', !_memory.sortAscending),
+    final selected = await _pickChoice<bool>(
+      title: _lt('sort'),
+      choices: [
+        _LibraryChoice(true, 'A → Z', checked: _memory.sortAscending),
+        _LibraryChoice(false, 'Z → A', checked: !_memory.sortAscending),
       ],
     );
     if (!mounted || selected == null) return;
@@ -992,10 +1006,9 @@ class LibraryScreenState extends State<LibraryScreen> {
     final letters = <String>{
       for (final entry in visible) entry.firstLetter,
     }.toList()..sort();
-    final selected = await showMenu<String>(
-      context: context,
-      position: _popupPosition(),
-      items: [for (final letter in letters) _menuItem(letter, letter, false)],
+    final selected = await _pickChoice<String>(
+      title: _lt('index'),
+      choices: [for (final letter in letters) _LibraryChoice(letter, letter)],
     );
     if (!mounted || selected == null) return;
     final index = _visibleEntries().indexWhere(
@@ -1011,12 +1024,15 @@ class LibraryScreenState extends State<LibraryScreen> {
 
   Future<void> _openSourceMenu() async {
     final options = _sourceOptions;
-    final selected = await showMenu<String>(
-      context: context,
-      position: _popupPosition(),
-      items: [
+    final selected = await _pickChoice<String>(
+      title: _lt('source'),
+      choices: [
         for (final key in options.keys)
-          _menuItem(key, _sourceLabel(key), key == _memory.sourceFilter),
+          _LibraryChoice(
+            key,
+            _sourceLabel(key),
+            checked: key == _memory.sourceFilter,
+          ),
       ],
     );
     if (!mounted || selected == null) return;
@@ -1027,12 +1043,11 @@ class LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _openContentMenu() async {
-    final selected = await showMenu<bool>(
-      context: context,
-      position: _popupPosition(),
-      items: [
-        _menuItem(true, _lt('hideAdult'), _safeMode),
-        _menuItem(false, _lt('showAll'), !_safeMode),
+    final selected = await _pickChoice<bool>(
+      title: _lt('content'),
+      choices: [
+        _LibraryChoice(true, _lt('hideAdult'), checked: _safeMode),
+        _LibraryChoice(false, _lt('showAll'), checked: !_safeMode),
       ],
     );
     if (!mounted || selected == null) return;
@@ -1211,52 +1226,33 @@ class LibraryScreenState extends State<LibraryScreen> {
       return;
     }
 
-    const layerId = 'library_provider_acquisition_dialog';
-    GamepadNavigationManager.pushLayer(
-      layerId,
-      onActivate: () {},
-      onDeactivate: () {},
-      modal: true,
-    );
-    String? choice;
-    try {
-      choice = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(item.title),
-          content: Text(_lt('chooseSourceAction')),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(_lt('close')),
+    // The choice list has its own controller layer (the former dialog's
+    // empty modal layer swallowed every button, B included).
+    final choice = await _pickChoice<String>(
+      title: item.title,
+      message: _lt('chooseSourceAction'),
+      choices: [
+        if (hasReadable)
+          _LibraryChoice(
+            'read',
+            _lt('readNow'),
+            icon: Symbols.menu_book_rounded,
+          ),
+        for (var i = 0; i < acquisitions.length; i++)
+          if (acquisitions[i].isExternalReader)
+            _LibraryChoice(
+              'external:$i',
+              _ltf('readOn', {'label': acquisitions[i].label}),
+              icon: Symbols.open_in_new_rounded,
+            )
+          else if (acquisitions[i].canDownload)
+            _LibraryChoice(
+              'download:$i',
+              '${_lt('download')} ${acquisitions[i].label}',
+              icon: Symbols.download_rounded,
             ),
-            if (hasReadable)
-              FilledButton.icon(
-                onPressed: () => Navigator.of(dialogContext).pop('read'),
-                icon: const Icon(Symbols.menu_book_rounded),
-                label: Text(_lt('readNow')),
-              ),
-            for (var i = 0; i < acquisitions.length; i++)
-              if (acquisitions[i].isExternalReader)
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      Navigator.of(dialogContext).pop('external:$i'),
-                  icon: const Icon(Symbols.open_in_new_rounded),
-                  label: Text(_ltf('readOn', {'label': acquisitions[i].label})),
-                )
-              else if (acquisitions[i].canDownload)
-                FilledButton.tonalIcon(
-                  onPressed: () =>
-                      Navigator.of(dialogContext).pop('download:$i'),
-                  icon: const Icon(Symbols.download_rounded),
-                  label: Text('${_lt('download')} ${acquisitions[i].label}'),
-                ),
-          ],
-        ),
-      );
-    } finally {
-      GamepadNavigationManager.popLayer(layerId);
-    }
+      ],
+    );
 
     if (!mounted || choice == null) return;
     if (choice == 'read') {
@@ -2477,6 +2473,233 @@ class _LibraryHubDialogState extends State<_LibraryHubDialog> {
   }
 }
 
+/// One option of [_LibraryChoiceDialog].
+class _LibraryChoice<T> {
+  const _LibraryChoice(
+    this.value,
+    this.label, {
+    this.checked = false,
+    this.icon,
+  });
+
+  final T value;
+  final String label;
+
+  /// The option currently in effect (a check mark is shown).
+  final bool checked;
+
+  /// Shown instead of the check-mark column when set.
+  final IconData? icon;
+}
+
+/// Choice list of the hub (filters, provider actions) usable with touch and
+/// with the controller: the d-pad moves the highlight, A picks it, B closes.
+class _LibraryChoiceDialog<T> extends StatefulWidget {
+  const _LibraryChoiceDialog({
+    required this.title,
+    required this.choices,
+    this.message,
+  });
+
+  final String title;
+  final String? message;
+  final List<_LibraryChoice<T>> choices;
+
+  @override
+  State<_LibraryChoiceDialog<T>> createState() =>
+      _LibraryChoiceDialogState<T>();
+}
+
+class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
+  static const double _rowExtent = 52;
+
+  late final GamepadNavigation _gamepadNav;
+  late final String _layerId =
+      'library_choice_dialog_${identityHashCode(this)}';
+  final ScrollController _scroll = ScrollController();
+  late int _highlighted = math.max(
+    0,
+    widget.choices.indexWhere((choice) => choice.checked),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _gamepadNav = GamepadNavigation(
+      onBack: _close,
+      onSelectItem: () {
+        if (widget.choices.isEmpty) {
+          _close();
+        } else {
+          _pick(_highlighted);
+        }
+      },
+      onNavigateUp: () => _move(-1),
+      onNavigateDown: () => _move(1),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _gamepadNav.initialize();
+      GamepadNavigationManager.pushLayer(
+        _layerId,
+        modal: true,
+        onActivate: () => _gamepadNav.activate(),
+        onDeactivate: () => _gamepadNav.deactivate(),
+      );
+      _reveal();
+    });
+  }
+
+  @override
+  void dispose() {
+    GamepadNavigationManager.popLayer(_layerId);
+    _gamepadNav.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    if (mounted) Navigator.of(context).maybePop();
+  }
+
+  void _pick(int index) {
+    if (!mounted || index < 0 || index >= widget.choices.length) return;
+    Navigator.of(context).pop<T>(widget.choices[index].value);
+  }
+
+  void _move(int delta) {
+    final count = widget.choices.length;
+    if (count == 0) return;
+    final next = (_highlighted + delta).clamp(0, count - 1);
+    if (next == _highlighted) return;
+    setState(() => _highlighted = next);
+    _reveal();
+  }
+
+  void _reveal() {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final top = _highlighted * _rowExtent;
+    final bottom = top + _rowExtent;
+    var target = position.pixels;
+    if (top < target) {
+      target = top;
+    } else if (bottom > target + position.viewportDimension) {
+      target = bottom - position.viewportDimension;
+    }
+    target = target.clamp(0.0, position.maxScrollExtent);
+    if ((target - position.pixels).abs() > 0.5) _scroll.jumpTo(target);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final message = widget.message;
+    final choices = widget.choices;
+    final listHeight = math.min(
+      choices.length * _rowExtent,
+      math.max(_rowExtent, size.height * 0.5),
+    );
+    return AlertDialog(
+      title: Text(widget.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      content: SizedBox(
+        width: math.min(440, size.width * 0.8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (message != null) ...[
+              Text(message, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 10),
+            ],
+            if (choices.isNotEmpty)
+              SizedBox(
+                height: listHeight,
+                child: ListView.builder(
+                  controller: _scroll,
+                  itemExtent: _rowExtent,
+                  itemCount: choices.length,
+                  itemBuilder: (context, index) {
+                    final choice = choices[index];
+                    final highlighted = index == _highlighted;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Semantics(
+                        selected: choice.checked,
+                        child: Material(
+                          color: highlighted
+                              ? theme.colorScheme.primary.withValues(
+                                  alpha: 0.12,
+                                )
+                              : Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: highlighted
+                                  ? theme.colorScheme.primary
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => _pick(index),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 30,
+                                    child: choice.icon != null
+                                        ? Icon(choice.icon, size: 20)
+                                        : choice.checked
+                                        ? Icon(
+                                            Symbols.check_rounded,
+                                            size: 20,
+                                            color: theme.colorScheme.primary,
+                                          )
+                                        : null,
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      choice.label,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.bodyLarge
+                                          ?.copyWith(
+                                            fontWeight: choice.checked
+                                                ? FontWeight.w700
+                                                : null,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+          onPressed: _close,
+          child: Text(AppLocale.close.getString(context)),
+        ),
+      ],
+    );
+  }
+}
+
 class _LibraryEntryCard extends StatelessWidget {
   const _LibraryEntryCard({
     required this.selected,
@@ -2605,7 +2828,10 @@ class _FilterControl extends StatelessWidget {
     final radius = BorderRadius.circular(10.r);
     final characters = label.trim().runes.map(String.fromCharCode).toList();
     return Tooltip(
-      message: '$label : $value',
+      message: LibraryFeatureLocale.format(context, 'filterValue', {
+        'label': label,
+        'value': value,
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 130),
         decoration: BoxDecoration(
