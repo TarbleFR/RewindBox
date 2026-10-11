@@ -138,6 +138,13 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // VoiceOver: the bars stay until the user hides them.
+    _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _saveNow();
@@ -182,7 +189,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     _reportedPage = pageNumber;
     _page.value = pageNumber;
     // The first report is the initial page: the chrome stays for a moment.
-    if (turned && !_sliderDragging) _chrome.hide();
+    if (turned && !_sliderDragging) _chrome.hideAfterTurn();
     if (widget.progressKey == null) return;
     _dirty = true;
     _saveTimer?.cancel();

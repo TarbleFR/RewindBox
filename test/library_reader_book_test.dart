@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/screens/library_screen/reader/library_book_reader_screen.dart';
@@ -443,6 +444,51 @@ void main() {
       expect(find.text(en('errorWorker')), findsNothing);
       expect(state.currentPosition, LibraryReflowPosition.start);
       await closeBook(tester, store);
+    });
+
+    // Regression: with VoiceOver the bars hid after 4 s, taking their
+    // controls out of the accessibility tree.
+    testWidgets('with VoiceOver the chrome does not hide by itself', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(accessibleNavigation: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:voiceover',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      expect(state.chromeVisible, isTrue);
+      await tester.pump(const Duration(seconds: 5));
+      expect(state.chromeVisible, isTrue);
+      final settings = find.semantics.byLabel(en('settings'));
+      expect(settings, findsOne);
+      expect(
+        settings.evaluate().single.getSemanticsData().hasAction(
+          SemanticsAction.tap,
+        ),
+        isTrue,
+      );
+      // The user can still hide the bars explicitly.
+      state.gamepadBindings.select!();
+      await tester.pump();
+      expect(state.chromeVisible, isFalse);
+      await closeBook(tester, store);
+      semantics.dispose();
     });
 
     testWidgets('tap zones page down and up; the centre toggles the chrome', (

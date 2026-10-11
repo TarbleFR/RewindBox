@@ -166,6 +166,13 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // VoiceOver: the bars stay until the user hides them.
+    _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _saveNow();

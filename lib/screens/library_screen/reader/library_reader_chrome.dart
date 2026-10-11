@@ -37,6 +37,9 @@ class LibraryReaderIconButton extends StatelessWidget {
         button: true,
         enabled: enabled,
         label: tooltip,
+        // The excluded InkResponse cannot expose its tap: without this the
+        // node has no action and VoiceOver cannot activate it.
+        onTap: onPressed,
         excludeSemantics: true,
         child: InkResponse(
           onTap: onPressed,
@@ -272,6 +275,10 @@ class LibraryReaderChromeOverlay extends StatelessWidget {
 }
 
 /// Visibility of the reader chrome with an auto-hide delay.
+///
+/// With assistive navigation (VoiceOver: [accessibleNavigation]) the chrome
+/// never hides by itself: its controls would leave the accessibility tree
+/// while the user moves towards them. Only an explicit toggle hides it.
 class LibraryReaderChromeController extends ChangeNotifier {
   LibraryReaderChromeController({
     bool visible = true,
@@ -284,8 +291,30 @@ class LibraryReaderChromeController extends ChangeNotifier {
   bool _visible;
   Timer? _timer;
   int _holds = 0;
+  bool _accessibleNavigation = false;
 
   bool get visible => _visible;
+
+  /// Whether assistive navigation is on (readers pass
+  /// `MediaQuery.accessibleNavigationOf`).
+  bool get accessibleNavigation => _accessibleNavigation;
+
+  set accessibleNavigation(bool value) {
+    if (_accessibleNavigation == value) return;
+    _accessibleNavigation = value;
+    if (value) {
+      _timer?.cancel();
+      _timer = null;
+    } else if (_visible) {
+      _schedule();
+    }
+  }
+
+  /// Hides the chrome after a page turn, unless assistive navigation is on.
+  void hideAfterTurn() {
+    if (_accessibleNavigation) return;
+    hide();
+  }
 
   void show({bool autoHide = true}) {
     _set(true);
@@ -320,7 +349,10 @@ class LibraryReaderChromeController extends ChangeNotifier {
 
   void _schedule() {
     _timer?.cancel();
-    if (_holds > 0 || autoHideAfter <= Duration.zero) return;
+    _timer = null;
+    if (_holds > 0 || _accessibleNavigation || autoHideAfter <= Duration.zero) {
+      return;
+    }
     _timer = Timer(autoHideAfter, hide);
   }
 

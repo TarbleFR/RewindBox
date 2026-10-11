@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/library_reader_locale.dart';
@@ -805,6 +806,76 @@ void main() {
       expect(orientation.depth, 0);
       expect(wakelockCalls.sublist(before), <bool>[false]);
       await flushStore(tester, store);
+    });
+  });
+
+  group('VoiceOver', () {
+    // Regression: the bars hid 4 s after being shown, taking Back, the
+    // settings, the chapter buttons and the slider out of the
+    // accessibility tree, and the icon buttons had no tap action.
+    testWidgets('the chrome stays and its buttons can be activated', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(accessibleNavigation: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final navigator = await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: FakePageContent(), store: store),
+      );
+      final state = readerState(tester);
+      expect(state.chromeVisible, isTrue);
+      await tester.pump(const Duration(seconds: 5));
+      expect(state.chromeVisible, isTrue);
+      // A page turn does not hide it either.
+      state.gamepadBindings.right!();
+      await frames(tester);
+      expect(state.controller.page, 1);
+      expect(state.chromeVisible, isTrue);
+
+      final back = find.semantics.byLabel(en('back'));
+      expect(back, findsOne);
+      for (final key in <String>['back', 'settings', 'switchToVertical']) {
+        final node = find.semantics.byLabel(en(key)).evaluate().single;
+        expect(
+          node.getSemanticsData().hasAction(SemanticsAction.tap),
+          isTrue,
+          reason: key,
+        );
+      }
+      // Activating Back closes the reader.
+      tester.semantics.tap(back);
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      expect(navigator.currentState!.canPop(), isFalse);
+      await flushStore(tester, store);
+      semantics.dispose();
+    });
+
+    testWidgets('without VoiceOver the chrome still hides after 4 s', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: FakePageContent(), store: store),
+      );
+      final state = readerState(tester);
+      expect(find.semantics.byLabel(en('back')), findsOne);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(state.chromeVisible, isFalse);
+      expect(find.semantics.byLabel(en('back')), findsNothing);
+      await closeAll(tester, store);
+      semantics.dispose();
     });
   });
 

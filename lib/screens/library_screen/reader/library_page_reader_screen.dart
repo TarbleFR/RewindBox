@@ -182,6 +182,13 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // VoiceOver: the bars stay until the user hides them.
+    _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pendingTap?.cancel();
@@ -419,7 +426,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final page = index - leading;
     if (page != _controller.page && !_sliderDragging) {
       unawaited(HapticFeedback.selectionClick().catchError((Object _) {}));
-      if (_chrome.visible) _chrome.hide();
+      if (_chrome.visible) _chrome.hideAfterTurn();
     }
     _controller.setPage(page);
   }
