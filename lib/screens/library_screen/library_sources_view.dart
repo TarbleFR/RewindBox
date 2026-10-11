@@ -498,50 +498,57 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView> {
     LibraryCancelToken cancel,
     Future<T> Function() task,
   ) async {
-    final navigator = Navigator.of(context);
-    var open = true;
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => LibraryFocusGamepadLayer(
-          enableGamepad: widget.enableGamepad,
-          debugLabel: 'sources_progress',
-          onBack: () {
-            cancel.cancel();
-            Navigator.of(dialogContext).pop();
-          },
-          child: AlertDialog(
-            content: Row(
-              children: <Widget>[
-                const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 3),
-                ),
-                const SizedBox(width: 16),
-                Expanded(child: Text(message)),
-              ],
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () {
-                  cancel.cancel();
-                  Navigator.of(dialogContext).pop();
-                },
-                child: Text(LibrarySourcesLocale.text(dialogContext, 'cancel')),
+    final navigator = Navigator.of(context, rootNavigator: true);
+    late final DialogRoute<void> route;
+    void cancelAndClose() {
+      cancel.cancel();
+      if (route.isCurrent) navigator.pop();
+    }
+
+    route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      themes: InheritedTheme.capture(from: context, to: navigator.context),
+      builder: (dialogContext) => LibraryFocusGamepadLayer(
+        enableGamepad: widget.enableGamepad,
+        debugLabel: 'sources_progress',
+        onBack: cancelAndClose,
+        child: AlertDialog(
+          content: Row(
+            children: <Widget>[
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 3),
               ),
+              const SizedBox(width: 16),
+              Expanded(child: Text(message)),
             ],
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: cancelAndClose,
+              child: Text(LibrarySourcesLocale.text(dialogContext, 'cancel')),
+            ),
+          ],
         ),
-      ).whenComplete(() => open = false),
+      ),
     );
+    unawaited(navigator.push(route));
     try {
       final value = await task();
       if (cancel.isCancelled) return null;
       return value;
     } finally {
-      if (open && !cancel.isCancelled && navigator.mounted) navigator.pop();
+      // Closes this dialog itself, never a route pushed above it meanwhile.
+      if (route.isActive && navigator.mounted) {
+        if (route.isCurrent) {
+          navigator.pop();
+        } else {
+          navigator.removeRoute(route);
+        }
+      }
     }
   }
 

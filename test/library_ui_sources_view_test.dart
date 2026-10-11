@@ -2,6 +2,7 @@
 // verification ladder, on-device test (live progress, saved report, device
 // offline vs site offline), deactivation, catalogue import by URL with a
 // preview where nothing is pre-selected, and controller focus navigation.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -85,6 +86,29 @@ Future<_Fixture> _fixture({
     health: MemoryHealthStore(),
     fetcher: fetcher,
   );
+}
+
+/// Catalogue service whose previews wait for [gate].
+class _GatedPreviewService extends LibrarySourceCatalogService {
+  _GatedPreviewService({
+    required this.gate,
+    super.fetcher,
+    super.addons,
+    super.store,
+    super.clock,
+  });
+
+  final Future<void> gate;
+
+  @override
+  Future<LibraryCatalogPreview> preview(
+    String input, {
+    LibraryCancelToken? cancel,
+    bool refresh = false,
+  }) async {
+    await gate;
+    return super.preview(input, cancel: cancel, refresh: refresh);
+  }
 }
 
 LibrarySourceHealthStepResult _ok(LibrarySourceHealthStep step, int count) =>
@@ -513,6 +537,63 @@ void main() {
       expect(find.text(_catalogUrl), findsOneWidget, reason: 'remembered');
     },
   );
+
+  testWidgets('the end of a catalogue load closes its dialog, not a later '
+      'route', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final addons = LibraryAddonService.forTesting();
+    await addons.load();
+    final gate = Completer<void>();
+    final fetcher =
+        catalog_fakes.FakeLibraryFetcher(<String, catalog_fakes.FakeRoute>{
+          _catalogUrl: catalog_fakes.FakeRoute.fixture(
+            'aidoku_french_legacy_index.min.json',
+          ),
+        });
+    final fixture = _Fixture(
+      addons: addons,
+      catalogs: _GatedPreviewService(
+        gate: gate.future,
+        fetcher: fetcher.call,
+        addons: addons,
+        store: LibraryCatalogMemoryStore(),
+        clock: () => DateTime.utc(2026, 10, 11, 8),
+      ),
+      aidoku: FakeAidokuService(),
+      health: MemoryHealthStore(),
+      fetcher: fetcher,
+    );
+    await pumpLibraryUi(tester, fixture.view());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add a catalogue (URL)'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('catalog-url-field')),
+      _catalogUrl,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Show sources'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Loading the catalogue…'), findsOneWidget);
+
+    // Another part of the app shows a page while the catalogue loads.
+    unawaited(
+      Navigator.of(tester.element(find.byType(LibrarySourcesView))).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('Other page')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryCatalogPreviewScreen), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Loading the catalogue…'), findsNothing);
+    expect(find.text('Other page'), findsOneWidget, reason: 'left open');
+  });
 
   testWidgets('an imported file must be a .json or .aix catalogue', (
     tester,
