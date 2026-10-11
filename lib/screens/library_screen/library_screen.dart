@@ -10,12 +10,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/library_feature_locale.dart';
+import 'package:neostation/l10n/library_local_locale.dart';
 import 'package:neostation/services/gamepad/gamepad_navigation_manager.dart';
 import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_catalog_feed.dart';
 import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_download_service.dart';
 import 'package:neostation/services/library_image_cache.dart';
+import 'package:neostation/services/library_local_library_service.dart';
+import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_manga_models.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
@@ -34,6 +37,14 @@ import 'library_sources_view.dart'
 
 /// Sections opened from the Library hub's shortcut cards.
 enum LibraryHubSection { sources, local, favorites }
+
+/// Downloads a provider acquisition into Documents/Library/Downloads
+/// (default: [LibraryDownloadService.download]).
+typedef LibraryAcquisitionDownloader =
+    Future<LibraryDownloadResult> Function({
+      required LibraryAcquisitionLink acquisition,
+      required String title,
+    });
 
 /// Builds a hub section (tests replace the real sections).
 typedef LibraryHubSectionBuilder =
@@ -58,6 +69,9 @@ class LibraryScreen extends StatefulWidget {
     this.sectionBuilder,
     this.openOnlineTitle,
     this.enableSounds = true,
+    this.downloadAcquisition,
+    this.localLibrary,
+    this.openLocalBook,
   });
 
   /// Defaults to [LibraryCatalogFeed.instance].
@@ -74,6 +88,16 @@ class LibraryScreen extends StatefulWidget {
 
   /// Navigation sounds (off in widget tests).
   final bool enableSounds;
+
+  /// Defaults to [LibraryDownloadService.download].
+  final LibraryAcquisitionDownloader? downloadAcquisition;
+
+  /// Library that indexes provider downloads (default: the shared
+  /// [LibraryLocalLibraryService.instance]).
+  final LibraryLocalLibraryService? localLibrary;
+
+  /// Opens a downloaded book (default: [LibraryReaderLauncher.openLocalBook]).
+  final LibraryLocalBookOpener? openLocalBook;
 
   static LibraryScreenState? _currentState;
 
@@ -1193,7 +1217,26 @@ class LibraryScreenState extends State<LibraryScreen>
 
   // ------------------------------------------------------------- opening --
 
-  Future<void> _openEntry(LibraryFeedEntry entry) async {
+  /// True while a title page or reader opened from the hub is open (the
+  /// openers complete when their route closes): a second tap or A press
+  /// during the push transition, which still reaches the hub, would open a
+  /// second one on top of the first.
+  bool _opening = false;
+
+  Future<void> _openOnce(Future<void> Function() open) async {
+    if (_opening) return;
+    _opening = true;
+    try {
+      await open();
+    } finally {
+      _opening = false;
+    }
+  }
+
+  Future<void> _openEntry(LibraryFeedEntry entry) =>
+      _openOnce(() => _openEntryNow(entry));
+
+  Future<void> _openEntryNow(LibraryFeedEntry entry) async {
     switch (entry.kind) {
       case LibraryFeedSourceKind.metadata:
         await _openMetadataProviderItem(entry.item);
@@ -1298,7 +1341,8 @@ class LibraryScreenState extends State<LibraryScreen>
       return;
     }
     if (choice.startsWith('download:')) {
-      await _downloadProviderAcquisition(item, acquisition);
+      // Not a route: the hub stays usable while the file downloads.
+      unawaited(_downloadProviderAcquisition(item, acquisition));
     }
   }
 
@@ -1316,49 +1360,81 @@ class LibraryScreenState extends State<LibraryScreen>
     }
   }
 
+  /// Downloads the file into Documents/Library/Downloads, indexes it there
+  /// in the local library (no copy, no rescan needed: the Local section
+  /// lists it at once) and opens it like a book of the Local section, with
+  /// the same reader and the same reading position (its `local:` key).
   Future<void> _downloadProviderAcquisition(
     LibraryCatalogItem item,
     LibraryAcquisitionLink acquisition,
   ) async {
     _showMessage(_lt('downloading'));
+    final download =
+        widget.downloadAcquisition ?? LibraryDownloadService.download;
+    final LibraryDownloadResult result;
     try {
-      final result = await LibraryDownloadService.download(
-        acquisition: acquisition,
-        title: item.title,
-      );
-      if (!mounted) return;
-
-      if (result.format == 'epub') {
-        try {
-          final text = await _catalogService.loadReadableFile(result.filePath);
-          if (!mounted) return;
-          _hideMessage();
-          await _showTextReader(item, text);
-        } catch (error) {
-          _showError(_lt('readFailed'), technical: _technicalOf(error));
-        }
-        return;
-      }
-
-      if (result.format == 'pdf') {
-        _hideMessage();
-        try {
-          await LibraryReaderLauncher.openPdf(
-            context,
-            path: result.filePath,
-            title: item.title,
-            progressKey: 'download:${result.fileName}',
-          );
-        } catch (error) {
-          _showError(_lt('readFailed'), technical: _technicalOf(error));
-        }
-        return;
-      }
-
-      _showMessage(_ltf('downloadSaved', {'file': result.fileName}));
+      result = await download(acquisition: acquisition, title: item.title);
     } catch (error) {
       _showError(_lt('downloadFailedPlain'), technical: _technicalOf(error));
+      return;
     }
+    final library = widget.localLibrary ?? LibraryLocalLibraryService.instance;
+    LibraryImportOutcome? outcome;
+    try {
+      final outcomes = await library.importFiles(<String>[result.filePath]);
+      if (outcomes.isNotEmpty) outcome = outcomes.first;
+    } catch (error) {
+      _showError(
+        _ltf('downloadSaved', {'file': result.fileName}),
+        technical: _technicalOf(error),
+      );
+      return;
+    }
+    if (!mounted) return;
+    // The same content already in the library opens that book.
+    final book = outcome?.book ?? outcome?.duplicateOf;
+    final issue = outcome?.issue;
+    if (book == null) {
+      if (issue == null) {
+        _showMessage(_ltf('downloadSaved', {'file': result.fileName}));
+      } else {
+        // Kept in Library/Downloads, but not a book NeoStation can read.
+        _showError(
+          _ltf('downloadedWithError', {
+            'file': result.fileName,
+            'error': LibraryLocalLocale.text(
+              context,
+              libraryBookIssueKey(issue),
+            ),
+          }),
+          technical: outcome?.detail,
+        );
+      }
+      return;
+    }
+    // Another title or book was opened during the download: the book waits
+    // in the Local section instead of opening on top of it.
+    if (_opening || !_routeIsCurrent) {
+      _showMessage(_ltf('downloadSaved', {'file': result.fileName}));
+      return;
+    }
+    _hideMessage();
+    await _openOnce(() async {
+      try {
+        final open = widget.openLocalBook;
+        if (open != null) {
+          await open(context, book);
+        } else {
+          await LibraryReaderLauncher.openLocalBook(
+            context,
+            book,
+            service: library,
+          );
+        }
+      } catch (error) {
+        _showError(_lt('readFailed'), technical: _technicalOf(error));
+      }
+    });
   }
 
   Future<void> _showTextReader(LibraryCatalogItem item, String text) async {
