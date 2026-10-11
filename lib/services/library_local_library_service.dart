@@ -1083,6 +1083,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
     final atPath = <String, LibraryLocalBook>{
       for (final book in _books.values) book.relativePath: book,
     };
+    final storedIds = <String>{for (final book in stored.books) book.id};
     for (final book in stored.books) {
       final current = _books[book.id];
       if (current != null) {
@@ -1095,8 +1096,13 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       final identity = LibraryBookIdentity.of(book);
       final replacing = atPath[book.relativePath];
       if (replacing != null) {
-        // Edited in place while the index could not be read.
-        _books[replacing.id] = await _inheritIdentity(replacing, identity);
+        // New content at this path: edited in place while the index could
+        // not be read. A book of the stored index moved here (its file
+        // renamed over this one) is not new content and keeps its own
+        // identity.
+        if (!storedIds.contains(replacing.id)) {
+          _books[replacing.id] = await _inheritIdentity(replacing, identity);
+        }
         continue;
       }
       final ignored = _ignored[book.relativePath];

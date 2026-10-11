@@ -773,6 +773,8 @@ void main() {
     await blocked.rename(two.id, 'Session title');
     expect(await blocked.delete(three.id), LibraryDeleteResult.deleted);
     expect(Directory(roots.indexPath).existsSync(), isTrue);
+    // No write was even attempted (it would leave its temporary file).
+    expect(File('${roots.indexPath}.tmp').existsSync(), isFalse);
     expect(
       Directory(
         roots.supportLibrary,
@@ -800,6 +802,55 @@ void main() {
     expect(reopened.bookById(two.id)!.title, 'Session title');
     expect(reopened.bookById(three.id), isNull);
     expect(reopened.books, hasLength(2));
+  });
+
+  test('a book renamed over another one while the index cannot be read keeps '
+      'its own identity', () async {
+    final moves = <String>[];
+    LibraryLocalLibraryService tracked() => LibraryLocalLibraryService(
+      roots: () async => roots,
+      inspector: inspector,
+      thumbnailer: thumbnails,
+      clock: () => ++clock,
+      moveReadingProgress: (from, to) async => moves.add('$from -> $to'),
+    );
+    final library = tracked();
+    final imported = await library.importFiles(<String>[
+      await pick('first.cbz', buildCbz(pages: 2)),
+      await pick('second.cbz', buildCbz(pages: 3)),
+    ]);
+    final first = imported[0].book!;
+    final second = imported[1].book!;
+    expect(first.id, isNot(second.id));
+    await library.rename(first.id, 'First title');
+    await library.rename(second.id, 'Second title');
+    final saved = await File(roots.indexPath).readAsString();
+
+    await File(roots.indexPath).delete();
+    await Directory(roots.indexPath).create();
+    final blocked = tracked();
+    await blocked.load();
+    expect(blocked.indexUnreadable, isTrue);
+
+    // In Files: first.cbz is deleted, then second.cbz renamed to its name.
+    await File(books('first.cbz')).delete();
+    await File(books('second.cbz')).rename(books('first.cbz'));
+    await Directory(roots.indexPath).delete();
+    await File(roots.indexPath).writeAsString(saved);
+    await blocked.rescan();
+
+    expect(blocked.indexUnreadable, isFalse);
+    final kept = blocked.books.single;
+    expect(kept.id, second.id);
+    expect(kept.relativePath, 'Books/first.cbz');
+    expect(kept.title, 'Second title');
+    expect(kept.addedAtMs, second.addedAtMs);
+    expect(moves, isEmpty);
+
+    final reopened = tracked();
+    await reopened.load();
+    expect(reopened.books.single.title, 'Second title');
+    expect(reopened.books.single.addedAtMs, second.addedAtMs);
   });
 
   test(
