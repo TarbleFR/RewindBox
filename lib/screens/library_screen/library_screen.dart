@@ -2724,92 +2724,112 @@ class _FilterControl extends StatelessWidget {
     final theme = Theme.of(context);
     final radius = BorderRadius.circular(10.r);
     final characters = label.trim().runes.map(String.fromCharCode).toList();
-    return Tooltip(
-      message: LibraryFeatureLocale.format(context, 'filterValue', {
-        'label': label,
-        'value': value,
-      }),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 130),
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.16),
-            width: selected ? 2.r : 1.r,
-          ),
+    final description = LibraryFeatureLocale.format(context, 'filterValue', {
+      'label': label,
+      'value': value,
+    });
+    // The label is drawn one letter per line: VoiceOver reads the whole
+    // translated "{label}: {value}" once instead of letter by letter.
+    return Semantics(
+      container: true,
+      button: true,
+      label: description,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: description,
+        excludeFromSemantics: true,
+        child: _buildBody(context, theme, radius, characters),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    ThemeData theme,
+    BorderRadius radius,
+    List<String> characters,
+  ) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 130),
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        border: Border.all(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outline.withValues(alpha: 0.16),
+          width: selected ? 2.r : 1.r,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: radius,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 7.r, vertical: 9.r),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 20.r, color: theme.colorScheme.primary),
-                  SizedBox(height: 7.r),
-                  Expanded(
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final character in characters)
-                              SizedBox(
-                                height: 14.r,
-                                width: 18.r,
-                                child: Center(
-                                  child: Text(
-                                    character,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      height: 1,
-                                      fontWeight: FontWeight.w700,
-                                      color: theme.colorScheme.onSurface
-                                          .withValues(alpha: 0.72),
-                                    ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 7.r, vertical: 9.r),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20.r, color: theme.colorScheme.primary),
+                SizedBox(height: 7.r),
+                Expanded(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final character in characters)
+                            SizedBox(
+                              height: 14.r,
+                              width: 18.r,
+                              child: Center(
+                                child: Text(
+                                  character,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    height: 1,
+                                    fontWeight: FontWeight.w700,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.72),
                                   ),
                                 ),
                               ),
-                          ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 5.r),
+                SizedBox(
+                  width: double.infinity,
+                  height: 18.r,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      softWrap: false,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.62,
                         ),
                       ),
                     ),
                   ),
-                  SizedBox(height: 5.r),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 18.r,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        value,
-                        maxLines: 1,
-                        softWrap: false,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.62,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Symbols.expand_more_rounded,
-                    size: 17.r,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  Symbols.expand_more_rounded,
+                  size: 17.r,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ],
             ),
           ),
         ),

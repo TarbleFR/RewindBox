@@ -644,6 +644,35 @@ void main() {
     expect(stateOf(tester).mounted, isTrue);
   });
 
+  testWidgets('VoiceOver reads each filter as one translated button', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final source = aidokuTestAddon('fr.a');
+    serve('fr.a', [testItem('a', title: 'Alpha')]);
+    await pumpHub(tester, addons: [source]);
+
+    final language = find.bySemanticsLabel('Language: All');
+    expect(language, findsOneWidget);
+    expect(
+      tester.getSemantics(language),
+      matchesSemantics(
+        label: 'Language: All',
+        isButton: true,
+        hasTapAction: true,
+      ),
+    );
+    // The label is drawn one letter per line: no letter is read alone and
+    // no label spells it out.
+    expect(find.bySemanticsLabel('L'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp(r'L\s+a\s+n')), findsNothing);
+
+    tester.semantics.tap(find.semantics.byLabel('Language: All'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets('a long choice list fits an iPhone in landscape', (tester) async {
     final sources = [
       for (var i = 0; i < 12; i++)
