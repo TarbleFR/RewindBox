@@ -742,6 +742,9 @@ class LibraryScreenState extends State<LibraryScreen> {
           setState(
             () => _focus = search ? _HubFocus.searchBar : _HubFocus.shortcuts,
           );
+          // The shortcut cards sit at the top: bring the focused one into
+          // view (the grid may have been scrolled past them).
+          if (!search) _scrollToTop();
           return true;
         }
         final before = _focus;
@@ -852,6 +855,7 @@ class LibraryScreenState extends State<LibraryScreen> {
       case _HubFocus.filters:
       case _HubFocus.header:
         setState(() => _focus = _HubFocus.shortcuts);
+        _scrollToTop();
       case _HubFocus.shortcuts:
       case _HubFocus.searchBar:
         break;

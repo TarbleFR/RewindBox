@@ -335,6 +335,34 @@ void main() {
     expect(tester.getTopLeft(find.text(probe)).dy, closeTo(before, 1));
   });
 
+  testWidgets('moving the focus up to the shortcut cards brings them into '
+      'view', (tester) async {
+    final source = aidokuTestAddon('fr.a');
+    serve('fr.a', numbered('T', 60));
+    await pumpHub(tester, addons: [source]);
+    // Controller: shortcuts → filters → titles, then far down the grid.
+    LibraryScreen.navigateDown();
+    LibraryScreen.navigateDown();
+    for (var i = 0; i < 6; i++) {
+      LibraryScreen.navigateDown();
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    final scrollable = tester.state<ScrollableState>(
+      find.byType(Scrollable).first,
+    );
+    expect(scrollable.position.pixels, greaterThan(300));
+    expect(find.text('Favorites & reading'), findsNothing);
+
+    // Back to the filters, then up to the shortcut cards.
+    LibraryScreen.backCurrent();
+    await tester.pumpAndSettle();
+    LibraryScreen.navigateUp();
+    await tester.pumpAndSettle();
+    expect(scrollable.position.pixels, 0);
+    expect(find.text('Favorites & reading'), findsOneWidget);
+  });
+
   testWidgets('controller input is routed to the open section', (tester) async {
     await pumpHub(tester, addons: [catalogTestAddon('cat')]);
     backend.catalogs['cat'] = (_) async => const [];
