@@ -37,7 +37,7 @@ final class CMMotionManager {
   func deliver(_ handler:@escaping(CMDeviceMotion?,Error?)->Void,_ motion:CMDeviceMotion?,_ error:Error?=nil){
     lock.lock();let queue=deliveryQueue;lock.unlock()
     guard let queue=queue else{return}
-    if queue === OperationQueue.main && Thread.isMainThread {handler(motion,error);return}
+    if queue = == OperationQueue.main && Thread.isMainThread {handler(motion,error);return}
     queue.addOperations([BlockOperation{handler(motion,error)}],waitUntilFinished:true)
   }
   func send(_ strength:Double,age:Double=0){
@@ -93,7 +93,7 @@ expect(DolphinPhoneShakePolicy.pulseDuration==0.12 && DolphinPhoneShakePolicy.se
 expect(DolphinShakeSensitivity.standard == .medium,"medium default")
 expect(DolphinShakeSensitivity.low.trigger==0.90 && DolphinShakeSensitivity.medium.trigger==0.55 && DolphinShakeSensitivity.high.trigger==0.35,"trigger presets")
 expect(DolphinShakeSensitivity.low.sustain<DolphinShakeSensitivity.low.trigger && DolphinShakeSensitivity.medium.sustain<DolphinShakeSensitivity.medium.trigger && DolphinShakeSensitivity.high.sustain<DolphinShakeSensitivity.high.trigger,"sustain below trigger")
-expect(DolphinShakeSensitivity.named("HIGH")== .high && DolphinShakeSensitivity.named(" low\n")== .low && DolphinShakeSensitivity.named(nil)== .medium && DolphinShakeSensitivity.named("maximum")== .medium,"preference parsing")
+expect(DolphinShakeSensitivity.named("HIGH") == .high && DolphinShakeSensitivity.named(" low\n") == .low && DolphinShakeSensitivity.named(nil) == .medium && DolphinShakeSensitivity.named("maximum") == .medium,"preference parsing")
 expect(DolphinShakeSensitivity.preferenceKey=="NeoStation.Dolphin.PhoneShake.Sensitivity","shared preference key")
 
 // Detector, medium: a light deliberate flick confirms on two samples; noise never.
