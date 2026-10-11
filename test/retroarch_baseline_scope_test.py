@@ -28,6 +28,17 @@ NEOSWAP_PREPARED_441_REVIEWED = {
     'native/neoswap-relay/Backend.cpp': '376c9f268ebd4d2454393b56aa1a0ef090b9ee5a039cddaca085219e2bbb1a21',
     'native/neoswap-relay/Backend.h': '231dc8b69b60ab26242cdcc9723a449b0872d198211097ab7fe248c18acc3c69',
 }
+# Build444, explicitly requested RPCS3/LLVM/NeoSwap cycle (11 October 2026,
+# "corrige les limitations démontrées"), reviewed at 7ec94a8c316526dcf99c4ca6bdd699a528b7d0ae:
+# the same two host-backend files gain the optional direct guest admission
+# (NeoSwapDirectRelayAPI try_create under the budget allowance), burst
+# restocking of one size class and the rate-limited maintenance wake-up, all
+# exercised by relay_backend_test. They supersede the Build441 fingerprints;
+# every other library/native fingerprint stays intact.
+NEOSWAP_DIRECT_444_REVIEWED = {
+    'native/neoswap-relay/Backend.cpp': 'e8bf456bc25f52d429ffc7d690153e0670ac1ae49644a3b6206456b66603e181',
+    'native/neoswap-relay/Backend.h': '230e5572307f01c6ba47c11f9e6e47fcfcd1a5fd43f0d9e450d6e4304a1fff35',
+}
 
 
 class RetroArchBaselineScope(unittest.TestCase):
@@ -74,9 +85,10 @@ class RetroArchBaselineScope(unittest.TestCase):
             'native/neoswap-relay/Backend.cpp', 'native/neoswap-relay/Backend.h',
         })
         self.assertLessEqual(NEOSWAP_PREPARED_441_REVIEWED.keys(), MANIFEST['native_sha256'].keys())
+        self.assertEqual(set(NEOSWAP_DIRECT_444_REVIEWED), set(NEOSWAP_PREPARED_441_REVIEWED))
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
-                reviewed = NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected))
+                reviewed = NEOSWAP_DIRECT_444_REVIEWED.get(name, NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected)))
                 self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), reviewed)
 
     def test_retired_repairs_are_outside_executable_app_sources(self):
