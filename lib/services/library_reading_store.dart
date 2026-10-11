@@ -523,7 +523,9 @@ class LibraryReaderSettings {
 ///
 /// Changes made before [load] completes are applied on top of the loaded
 /// data. Nothing is written before the file has been read, so an early
-/// change can never replace the user's saved state.
+/// change can never replace the user's saved state; a reading position
+/// saved meanwhile only replaces an older saved one that is not as far
+/// along ([saveProgress]).
 ///
 /// Entries are keyed by [localKey] / [onlineKey]; the source's add-on id is
 /// not part of the key, so deactivating or removing a source never touches
@@ -598,6 +600,11 @@ class LibraryReadingStore extends ChangeNotifier {
   /// Changes recorded until the state file has been read, replayed on the
   /// data read from it.
   final List<void Function()> _preLoadChanges = <void Function()>[];
+
+  /// While [_preLoadChanges] are replayed: the progress entries and chapter
+  /// marks read from the state file, before any replayed change.
+  Map<String, LibraryReadingProgress>? _savedProgress;
+  Map<String, Map<String, LibraryChapterMark>>? _savedMarks;
   Timer? _saveTimer;
   DateTime? _firstPendingChange;
   bool _dirty = false;
@@ -635,6 +642,12 @@ class LibraryReadingStore extends ChangeNotifier {
 
   /// Stores [progress], stamped with the current time unless
   /// [keepTimestamp].
+  ///
+  /// Saved before the state file could be read ([loadFailed], or before
+  /// [load] completed), [progress] is applied to the file's data only where
+  /// the file has no entry for its key, or an older entry that is not as
+  /// far along: a reader opened without the saved position never moves it
+  /// back.
   void saveProgress(
     LibraryReadingProgress progress, {
     bool keepTimestamp = false,
@@ -643,7 +656,10 @@ class LibraryReadingStore extends ChangeNotifier {
         ? progress
         : progress.copyWith(updatedAt: _clock());
     _change(() {
-      _progress[stamped.key] = stamped;
+      final saved = _savedProgress?[stamped.key];
+      _progress[stamped.key] = saved == null || _blindReplaces(stamped, saved)
+          ? stamped
+          : saved;
       _enforceProgressLimit();
     });
   }
@@ -651,7 +667,11 @@ class LibraryReadingStore extends ChangeNotifier {
   void removeProgress(String key) {
     // Before load the entry may exist in the file: record the removal.
     if (_complete && !_progress.containsKey(key)) return;
-    _change(() => _progress.remove(key));
+    _change(() {
+      _progress.remove(key);
+      // An explicit removal: later replayed saves start from nothing.
+      _savedProgress?.remove(key);
+    });
   }
 
   /// Most recently updated entries first.
@@ -687,6 +707,9 @@ class LibraryReadingStore extends ChangeNotifier {
       _marks[mangaKey]?[chapterId];
 
   /// Updates the mark of one chapter; null arguments keep the current value.
+  ///
+  /// A [page] saved before the state file could be read never replaces a
+  /// further page read from the file (see [saveProgress]).
   void markChapter(
     String mangaKey,
     String chapterId, {
@@ -701,10 +724,15 @@ class LibraryReadingStore extends ChangeNotifier {
         () => <String, LibraryChapterMark>{},
       );
       final current = marks[chapterId];
+      final saved = _savedMarks?[mangaKey]?[chapterId];
+      final savedPage = saved?.page;
+      final keepSaved = page != null && savedPage != null && savedPage > page;
       marks[chapterId] = LibraryChapterMark(
         read: read ?? current?.read ?? false,
-        page: page ?? current?.page,
-        pageCount: pageCount ?? current?.pageCount,
+        page: keepSaved ? savedPage : (page ?? current?.page),
+        pageCount: keepSaved
+            ? saved!.pageCount
+            : (pageCount ?? current?.pageCount),
         updatedAt: now,
       );
       _enforceMarkLimit();
@@ -739,7 +767,10 @@ class LibraryReadingStore extends ChangeNotifier {
 
   void clearChapterMarks(String mangaKey) {
     if (_complete && !_marks.containsKey(mangaKey)) return;
-    _change(() => _marks.remove(mangaKey));
+    _change(() {
+      _marks.remove(mangaKey);
+      _savedMarks?.remove(mangaKey);
+    });
   }
 
   // ----------------------------------------------------------- favourites --
@@ -983,11 +1014,35 @@ class LibraryReadingStore extends ChangeNotifier {
     _settings = data.settings;
     final pending = List<void Function()>.of(_preLoadChanges);
     if (!keepChanges) _preLoadChanges.clear();
-    for (final change in pending) {
-      change();
+    // The replayed changes were made without knowing the saved entries:
+    // compare them with what the file holds (see saveProgress).
+    _savedProgress = Map<String, LibraryReadingProgress>.of(data.progress);
+    _savedMarks = <String, Map<String, LibraryChapterMark>>{
+      for (final entry in data.marks.entries)
+        entry.key: Map<String, LibraryChapterMark>.of(entry.value),
+    };
+    try {
+      for (final change in pending) {
+        change();
+      }
+    } finally {
+      _savedProgress = null;
+      _savedMarks = null;
     }
     return pending.isNotEmpty;
   }
+
+  /// Whether [blind], saved before the state file was read, may replace
+  /// [saved], read from the file: only when it is not older and further
+  /// along. Every reader saves its position as soon as it opens; without
+  /// the saved entry it opens at the start, and that save must not erase
+  /// the position the user reached.
+  static bool _blindReplaces(
+    LibraryReadingProgress blind,
+    LibraryReadingProgress saved,
+  ) =>
+      !saved.updatedAt.isAfter(blind.updatedAt) &&
+      blind.fraction > saved.fraction;
 
   /// Reads the state file. A missing file gives empty data. A file with
   /// invalid content is moved aside ([corruptSuffix]) and gives empty data.

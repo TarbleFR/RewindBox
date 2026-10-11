@@ -251,7 +251,8 @@ void main() {
     await store.load();
     expect(store.loadFailed, isFalse);
     expect(await stateFile().exists(), isFalse);
-    final prefix = '${LibraryReadingStore.fileName}'
+    final prefix =
+        '${LibraryReadingStore.fileName}'
         '${LibraryReadingStore.corruptSuffix}';
     final copies = tmp
         .listSync()
@@ -260,8 +261,9 @@ void main() {
         .toList();
     expect(copies, hasLength(2));
     expect(
-      await File('${stateFile().path}${LibraryReadingStore.corruptSuffix}')
-          .readAsString(),
+      await File(
+        '${stateFile().path}${LibraryReadingStore.corruptSuffix}',
+      ).readAsString(),
       '{"first": ',
     );
   });
@@ -330,6 +332,119 @@ void main() {
       expect(reopened.progressFor('local:gone'), isNull);
     },
   );
+
+  test('readers opened while the state file is unreadable never move a saved '
+      'position back', () async {
+    final blocked = Directory(stateFile().path);
+    await blocked.create();
+    final store = create();
+    await store.load();
+    expect(store.loadFailed, isTrue);
+
+    const manga = 'online:fr.lelscanfr:maria';
+    LibraryReadingProgress at(String key, int page, double fraction) =>
+        LibraryReadingProgress(
+          key: key,
+          location: LibraryReadingProgress.pageLocation(page),
+          fraction: fraction,
+          pageIndex: page,
+        );
+    // What the readers save as soon as they open, knowing nothing: the
+    // PDF reader's first page, the page reader's chapter start and mark.
+    store.saveProgress(at('local:abc', 0, 0.0));
+    store.saveProgress(at(manga, 0, 0.21));
+    store.markChapter(manga, 'c5', page: 0, pageCount: 20);
+    // Real reading past the saved position, a book never opened before,
+    // and a position removed on purpose.
+    store.saveProgress(at('local:further', 50, 0.5));
+    store.saveProgress(at('local:new', 3, 0.1));
+    store.removeProgress('local:reset');
+    store.saveProgress(at('local:reset', 1, 0.01));
+    await store.flush();
+    expect(store.hasPendingChanges, isTrue);
+
+    await blocked.delete();
+    LibraryReadingProgress saved(String key, int page, double fraction) =>
+        LibraryReadingProgress(
+          key: key,
+          location: LibraryReadingProgress.pageLocation(page),
+          fraction: fraction,
+          pageIndex: page,
+          updatedAt: DateTime.utc(2026),
+        );
+    await stateFile().writeAsString(
+      jsonEncode(<String, Object?>{
+        'version': 1,
+        'progress': <String, Object?>{
+          'local:abc': saved('local:abc', 212, 0.7).toJson(),
+          manga: saved(manga, 12, 0.25).toJson(),
+          'local:further': saved('local:further', 20, 0.2).toJson(),
+          'local:reset': saved('local:reset', 90, 0.9).toJson(),
+        },
+        'chapterMarks': <String, Object?>{
+          manga: <String, Object?>{
+            'c5': LibraryChapterMark(
+              page: 12,
+              pageCount: 20,
+              updatedAt: DateTime.utc(2026),
+            ).toJson(),
+          },
+        },
+      }),
+    );
+    await store.flush();
+    expect(store.loadFailed, isFalse);
+    expect(store.hasPendingChanges, isFalse);
+
+    final reopened = create();
+    await reopened.load();
+    expect(reopened.progressFor('local:abc')!.location, 'page:212');
+    expect(reopened.progressFor(manga)!.location, 'page:12');
+    expect(reopened.chapterMark(manga, 'c5')!.page, 12);
+    expect(reopened.progressFor('local:further')!.location, 'page:50');
+    expect(reopened.progressFor('local:new')!.location, 'page:3');
+    expect(reopened.progressFor('local:reset')!.location, 'page:1');
+  });
+
+  test('a position saved before load never moves the saved one back', () async {
+    final seed = create();
+    await seed.load();
+    seed.saveProgress(
+      LibraryReadingProgress(
+        key: 'local:book',
+        location: 'page:40',
+        fraction: 0.4,
+      ),
+    );
+    seed.markChapter('online:s:m', 'c1', page: 9, pageCount: 10);
+    await seed.flush();
+
+    now = now.add(const Duration(minutes: 5));
+    final store = create();
+    store.saveProgress(
+      LibraryReadingProgress(
+        key: 'local:book',
+        location: 'page:0',
+        fraction: 0,
+      ),
+    );
+    store.markChapter('online:s:m', 'c1', page: 0, pageCount: 10);
+    await store.load();
+    expect(store.progressFor('local:book')!.location, 'page:40');
+    expect(store.chapterMark('online:s:m', 'c1')!.page, 9);
+
+    // Once loaded, the reader's saves apply as usual, backwards too.
+    store.saveProgress(
+      LibraryReadingProgress(
+        key: 'local:book',
+        location: 'page:2',
+        fraction: 0,
+      ),
+    );
+    store.markChapter('online:s:m', 'c1', page: 1);
+    expect(store.progressFor('local:book')!.location, 'page:2');
+    expect(store.chapterMark('online:s:m', 'c1')!.page, 1);
+  });
 
   test('a large state file is decoded off the UI isolate intact', () async {
     final progress = <String, Object?>{
