@@ -157,6 +157,9 @@ class MemoryPageSource implements LibraryPageSource {
   void prefetch(int index) => prefetched.add(index);
 
   @override
+  void cancelPrefetchOutside(int first, int last) {}
+
+  @override
   Future<void> dispose() async => disposed = true;
 }
 

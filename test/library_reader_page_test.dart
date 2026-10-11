@@ -524,8 +524,12 @@ void main() {
       );
       final state = readerState(tester);
       expect(find.text('Chapter 1'), findsOneWidget);
+      // The slider moves the view when it is released (a tap on the track
+      // is a start, a change and an end).
       final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChangeStart!(0);
       slider.onChanged!(4);
+      slider.onChangeEnd!(4);
       await tester.pump(const Duration(milliseconds: 50));
       expect(state.controller.page, 4);
       expect(store.chapterMark(content.progressKey, 'c0')?.read, isTrue);
@@ -906,6 +910,129 @@ void main() {
       await closeAll(tester, store);
     });
 
+    // Regression: each page crossed by a slider drag was shown, so its
+    // download started (none can be cancelled) and the page the drag
+    // stopped on was queued behind all of them.
+    testWidgets('a slider drag loads only the page it stops on, first', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final source = _SlowPageSource(60);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(
+            pagesPerChapter: 60,
+            loader: (index, cancel) async => source,
+          ),
+          store: store,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      final state = readerState(tester);
+      expect(state.controller.page, 0);
+      final loadsBefore = source.loads.length;
+      final prefetchesBefore = source.prefetched.length;
+
+      final track = tester.getRect(find.byType(Slider));
+      final gesture = await tester.startGesture(
+        Offset(track.left + 30, track.center.dy),
+      );
+      final step = (track.width * 0.7) / 45;
+      for (var i = 0; i < 45; i++) {
+        await gesture.moveBy(Offset(step, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      // While dragging, the label follows the thumb; nothing is loaded and
+      // the view stays on its page.
+      final dragged = tester.widget<Slider>(find.byType(Slider)).value.round();
+      expect(dragged, greaterThan(30));
+      expect(find.text('${dragged + 1} / 60'), findsOneWidget);
+      expect(source.loads.sublist(loadsBefore), isEmpty);
+      expect(source.prefetched.sublist(prefetchesBefore), isEmpty);
+      expect(state.controller.page, 0);
+
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      final target = state.controller.page;
+      expect(target, dragged);
+      final started = source.loads.sublist(loadsBefore);
+      expect(started.first, target);
+      expect(started.length, lessThanOrEqualTo(3));
+      expect(started, everyElement(inInclusiveRange(target - 1, target + 1)));
+      final prefetches = source.prefetched.sublist(prefetchesBefore);
+      expect(prefetches.length, lessThanOrEqualTo(3));
+      expect(
+        prefetches,
+        everyElement(inInclusiveRange(target - 1, target + 2)),
+      );
+      // Prefetches left behind (around page 1) are given up.
+      expect(source.windows.last, (target - 2, target + 3));
+      await closeAll(tester, store);
+    });
+
+    test('prefetches of pages left behind are cancelled', () async {
+      final directory = await createTempDir('ns_reader_prefetch_');
+      final tokens = <String, LibraryCancelToken?>{};
+      final release = Completer<void>();
+      final cache = LibraryImageCache(
+        cacheDirectory: directory,
+        fetcher: (request, {mode = LibraryFetchMode.cacheFirst, cancel}) async {
+          tokens[request.uri.path] = cancel;
+          await Future.any(<Future<void>>[
+            release.future,
+            if (cancel != null) cancel.whenCancelled,
+          ]);
+          cancel?.throwIfCancelled(request.uri);
+          return LibraryHttpResponse(
+            request: request,
+            statusCode: 200,
+            bodyBytes: buildPng(2, 2),
+            headers: const <String, String>{'content-type': 'image/png'},
+            finalUri: request.uri,
+            fetchedAt: DateTime.utc(2026),
+          );
+        },
+      );
+      final source = LibraryNetworkPageSource(<String>[
+        for (var i = 0; i < 10; i++) 'https://example.org/$i.png',
+      ], cache: cache);
+      source.prefetch(1);
+      source.prefetch(6);
+      for (var i = 0; i < 50 && tokens.length < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(tokens.keys, containsAll(<String>['/1.png', '/6.png']));
+      expect(source.prefetching, <int>{1, 6});
+
+      // The reader is now around page 6: page 1 stops downloading.
+      source.cancelPrefetchOutside(4, 9);
+      await Future<void>.delayed(Duration.zero);
+      expect(tokens['/1.png']!.isCancelled, isTrue);
+      expect(tokens['/6.png']!.isCancelled, isFalse);
+      expect(source.prefetching, <int>{6});
+
+      // Back near page 1, it can be prefetched again.
+      tokens.remove('/1.png');
+      source.prefetch(1);
+      for (var i = 0; i < 50 && !tokens.containsKey('/1.png'); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(tokens['/1.png']!.isCancelled, isFalse);
+      // Closing the reader stops every prefetch.
+      await source.dispose();
+      await Future<void>.delayed(Duration.zero);
+      expect(source.prefetching, isEmpty);
+      expect(tokens['/1.png']!.isCancelled, isTrue);
+      expect(tokens['/6.png']!.isCancelled, isTrue);
+      release.complete();
+      await cache.idle();
+      await directory.delete(recursive: true).catchError((Object _) {
+        return directory;
+      });
+    });
   });
 }
 
@@ -920,8 +1047,8 @@ class _OrientationRecorder implements LibraryReaderOrientationPlatform {
 }
 
 /// Pages whose images never finish loading (a slow network). Records the
-/// decode sizes asked for, the order in which page loads start and the
-/// prefetches.
+/// decode sizes asked for, the order in which page loads start, the
+/// prefetches and the prefetch windows.
 class _SlowPageSource implements LibraryPageSource {
   _SlowPageSource(this.length);
 
@@ -934,6 +1061,7 @@ class _SlowPageSource implements LibraryPageSource {
   final List<(int, int?, int?)> requests = <(int, int?, int?)>[];
   final List<int> loads = <int>[];
   final List<int> prefetched = <int>[];
+  final List<(int, int)> windows = <(int, int)>[];
 
   @override
   ImageProvider imageFor(int index, {int? cacheWidth, int? cacheHeight}) {
@@ -943,6 +1071,10 @@ class _SlowPageSource implements LibraryPageSource {
 
   @override
   void prefetch(int index) => prefetched.add(index);
+
+  @override
+  void cancelPrefetchOutside(int first, int last) =>
+      windows.add((first, last));
 
   @override
   Future<void> dispose() async {}

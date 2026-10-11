@@ -24,6 +24,11 @@ abstract class LibraryPageSource {
   /// Warms page [index] (best effort: download to the disk cache).
   void prefetch(int index);
 
+  /// Gives up the prefetches still running for pages outside [first] to
+  /// [last] (the reader moved away from them); such a page can be
+  /// prefetched again later.
+  void cancelPrefetchOutside(int first, int last);
+
   /// Releases the resources of the pages (archive worker, downloads).
   Future<void> dispose();
 }
@@ -45,10 +50,21 @@ class LibraryNetworkPageSource implements LibraryPageSource {
   @override
   final String key;
   final LibraryImageCache? _cache;
-  final LibraryCancelToken _cancel = LibraryCancelToken();
+  bool _disposed = false;
+
+  /// Prefetches still running, each with its own token so that the pages
+  /// the reader moved away from stop downloading (they would hold the
+  /// per-host request slots ahead of the page being read).
+  final Map<int, LibraryCancelToken> _running = <int, LibraryCancelToken>{};
+
+  /// Pages already prefetched (on disk).
   final Set<int> _prefetched = <int>{};
 
   LibraryImageCache get _imageCache => _cache ?? LibraryImageCache.instance;
+
+  /// Pages whose prefetch is still running (tests).
+  @visibleForTesting
+  Set<int> get prefetching => Set<int>.unmodifiable(_running.keys);
 
   @override
   int get length => urls.length;
@@ -65,17 +81,42 @@ class LibraryNetworkPageSource implements LibraryPageSource {
 
   @override
   void prefetch(int index) {
-    if (index < 0 || index >= urls.length || _cancel.isCancelled) return;
-    if (!_prefetched.add(index)) return;
+    if (index < 0 || index >= urls.length || _disposed) return;
+    if (_prefetched.contains(index) || _running.containsKey(index)) return;
+    final token = LibraryCancelToken();
+    _running[index] = token;
     unawaited(
       _imageCache
-          .prefetch(<String>[urls[index]], headers: headers, cancel: _cancel)
-          .catchError((Object _) {}),
+          .prefetch(<String>[urls[index]], headers: headers, cancel: token)
+          .catchError((Object _) {})
+          .whenComplete(() {
+            if (!identical(_running[index], token)) return;
+            _running.remove(index);
+            if (!token.isCancelled) _prefetched.add(index);
+          }),
     );
   }
 
   @override
-  Future<void> dispose() async => _cancel.cancel();
+  void cancelPrefetchOutside(int first, int last) {
+    final far = <int>[
+      for (final index in _running.keys)
+        if (index < first || index > last) index,
+    ];
+    for (final index in far) {
+      _running.remove(index)!.cancel();
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    _disposed = true;
+    final running = _running.values.toList(growable: false);
+    _running.clear();
+    for (final token in running) {
+      token.cancel();
+    }
+  }
 }
 
 /// Pages of a comic archive (CBZ) read by its worker isolate. The handle is
@@ -134,6 +175,9 @@ class LibraryArchivePageSource implements LibraryPageSource {
   void prefetch(int index) {
     // Pages are local: the worker decompresses one in a few milliseconds.
   }
+
+  @override
+  void cancelPrefetchOutside(int first, int last) {}
 
   @override
   Future<void> dispose() async {

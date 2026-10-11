@@ -90,6 +90,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   double _estimatedAspect = 1.42;
   double? _lastMeasuredAspect;
   bool _sliderDragging = false;
+
+  /// Page under the slider thumb while it is dragged: only the label
+  /// follows it; the view moves (and loads) when the drag ends.
+  final ValueNotifier<int?> _sliderPage = ValueNotifier<int?>(null);
   double _listWidth = 0;
   int _anchorItem = 0;
   double _anchorFraction = 0;
@@ -190,6 +194,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     _scrollController?.dispose();
     _zoom.dispose();
     _verticalZoom.dispose();
+    _sliderPage.dispose();
     unawaited(_system.stop());
     unawaited(_store.flush().catchError((Object _) {}));
     // Release the decoded pages of this session (the iOS image cache is
@@ -516,6 +521,9 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final source = _controller.source;
     if (source == null) return;
     final page = _controller.page;
+    // Downloads of pages the reader moved away from stop: they would hold
+    // the site's request slots ahead of the page being read.
+    source.cancelPrefetchOutside(page - 2, page + 3);
     for (final index in <int>[page + 1, page + 2, page - 1]) {
       if (index >= 0 && index < source.length) source.prefetch(index);
     }
@@ -816,7 +824,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
           backgroundColor: palette.background,
           // Showing or hiding the chrome does not rebuild the pages (child).
           body: ListenableBuilder(
-            listenable: _chrome,
+            listenable: Listenable.merge(<Listenable>[_chrome, _sliderPage]),
             child: _buildContent(context, palette),
             builder: (context, content) => LibraryReaderChromeOverlay(
               visible: _chrome.visible || !ready,
@@ -865,20 +873,24 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
           Expanded(
             child: LibraryReaderPageSlider(
               palette: palette,
-              page: _controller.page,
+              page: _sliderPage.value ?? _controller.page,
               pageCount: _controller.pageCount,
               rightToLeft: !vertical && _controller.rightToLeft,
-              onChangeStart: (_) {
+              onChangeStart: (page) {
                 _sliderDragging = true;
+                _sliderPage.value = page;
                 _chrome.hold();
               },
-              onChangeEnd: (_) {
-                _sliderDragging = false;
-                _chrome.release();
-              },
-              onChanged: (page) {
+              // Dragging only updates the label: jumping at every page
+              // crossed downloaded each of them, ahead of the page the
+              // drag stops on.
+              onChanged: (page) => _sliderPage.value = page,
+              onChangeEnd: (page) {
                 _jumpToPage(page);
                 _controller.setPage(page);
+                _sliderDragging = false;
+                _sliderPage.value = null;
+                _chrome.release();
               },
             ),
           ),
