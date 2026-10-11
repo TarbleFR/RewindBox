@@ -439,7 +439,7 @@ class _LibretroBiosCheckerScreenState extends State<LibretroBiosCheckerScreen>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final entries = console.entries.where((entry) => _status == null || entry.status == _status).toList(growable: false);
-    final problems = console.problems + (console.gateNote?.key == 'biosGateMissing' ? 1 : 0);
+    final problems = console.problems;
     return Card(
       key: ValueKey('bios-console-card-${console.id}'),
       margin: const EdgeInsets.only(bottom: 10),

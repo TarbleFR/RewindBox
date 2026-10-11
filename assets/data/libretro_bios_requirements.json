@@ -40,7 +40,7 @@
   },
   "flags": {
     "beetleOpenBiosFallback": true,
-    "beetleOpenBiosFallbackEvidence": "beetle-psx-libretro libretro.c falls back to the built-in OpenBIOS (deps/openbios) when no region BIOS is found (upstream change 5da5a3e9c9, 2026-03-28). Confirmed on CI by the --cores strings check (option value openbios in both PS1 binaries)."
+    "beetleOpenBiosFallbackEvidence": "beetle-psx-libretro libretro.c falls back to the built-in OpenBIOS (deps/openbios) when no region BIOS is found (upstream change 5da5a3e9c9, 2026-03-28). The same upstream commit adds the override_bios option value openbios; the --cores strings check requires that value in both pinned PS1 binaries (an indirect check: it shows the commit is in the build, not the fallback code itself)."
   },
   "regionTags": {
     "na": ["usa", "us", "u", "america", "ntsc-u", "canada"],
@@ -188,7 +188,7 @@
       "optionGates": [
         {"core": "mgba", "all": [
           {"keys": ["mgba_use_bios"], "enabled": ["ON"], "default": "ON"},
-          {"keys": ["mgba_gb_model"], "enabled": ["Super Game Boy", "Super Game Boy Color"], "default": "Autodetect"}
+          {"keys": ["mgba_gb_model"], "enabled": ["Super Game Boy"], "default": "Autodetect"}
         ]}
       ],
       "knownDumps": [
@@ -197,7 +197,7 @@
       ],
       "info": [{"core": "mgba", "path": "sgb_bios.bin"}],
       "binaryStrings": {"mgba": ["sgb_bios.bin"]},
-      "sources": ["core-info mgba firmware3", "mgba src/platform/libretro/libretro.c:2096-2101 (Super Game Boy model only)"]
+      "sources": ["core-info mgba firmware3", "mgba src/platform/libretro/libretro.c:2094-2101 (Super Game Boy model only; Super Game Boy Color reads gbc_bios.bin)"]
     },
     {
       "id": "gbc-boot",
@@ -484,7 +484,7 @@
       "crcIgnoredLocations": ["system/fbneo/patched"],
       "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
       "level": "conditional",
-      "condition": {"key": "biosCondNeoGeo", "games": [{"systems": ["neogeo"]}]},
+      "condition": {"key": "biosCondNeoGeo", "games": [{"systems": ["neogeo"]}], "possibleIn": ["arc", "fbneo"]},
       "region": "world",
       "knownDumps": [
         {"size": 1859335, "crc": "81315163", "md5": "00dad01abdbf8ea9e79ad2fe11bdb182", "sha1": "deb62b0074b8cae4f162c257662136733cfc76ad", "label": "Neo Geo BIOS set", "source": "System.dat"}

@@ -62,6 +62,7 @@ void main() {
       final systems = <String>{
         ...entry.gameFolderSystems,
         ...?entry.condition?.games.expand((clause) => clause.systems),
+        ...?entry.condition?.possibleIn,
       };
       for (final system in systems) {
         expect(LibretroCoreCatalog.systems, contains(system), reason: '${entry.id}: $system');

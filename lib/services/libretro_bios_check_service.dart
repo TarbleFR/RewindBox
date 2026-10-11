@@ -312,11 +312,20 @@ class LibretroBiosConsoleResult {
   /// Nothing needed is missing or unusable and the launch rule is met.
   final bool ready;
 
-  int get problems => entries
-      .where((result) =>
-          result.status == LibretroBiosStatus.missingRequired ||
-          (result.status == LibretroBiosStatus.invalid && result.neededNow))
-      .length;
+  /// What to fix before every game of the console can start: each missing
+  /// required file and each unusable needed one, with NeoStation's launch
+  /// rule counted once when it is not met (any one of its files is enough,
+  /// so its rows are not counted again on top of it).
+  int get problems {
+    final gateMissing = gateNote?.key == 'biosGateMissing';
+    final files = entries
+        .where((result) =>
+            !(gateMissing && result.entry.gate != null) &&
+            (result.status == LibretroBiosStatus.missingRequired ||
+                (result.status == LibretroBiosStatus.invalid && result.neededNow)))
+        .length;
+    return files + (gateMissing ? 1 : 0);
+  }
 }
 
 class LibretroBiosReport {
@@ -631,6 +640,7 @@ class _Scan {
   Set<String> librarySystems() => <String>{
         for (final entry in catalog.entries) ...[
           ...?entry.condition?.games.expand((clause) => clause.systems),
+          ...?entry.condition?.possibleIn,
           ...entry.gameFolderSystems,
           if (entry.regional) for (final console in entry.consoles) ..._consoleSystems(console),
         ],
@@ -1043,6 +1053,13 @@ class _Scan {
     return games.where((game) => condition.games.any((clause) => _clauseMatches(clause, game))).toList(growable: false);
   }
 
+  /// The library holds games that may need [entry] without telling which
+  /// ([LibretroBiosCondition.possibleIn]).
+  bool _possibleGames(LibretroBiosEntry entry) {
+    final systems = entry.condition?.possibleIn ?? const <String>{};
+    return systems.isNotEmpty && games.any((game) => systems.contains(game.system));
+  }
+
   /// Games of [entry]'s region need it; untagged games need some member of
   /// its group when none is present.
   bool _regionNeeds(LibretroBiosEntry entry, List<LibretroBiosGame> relevant, Map<String, bool> present) {
@@ -1099,7 +1116,8 @@ class _Scan {
         final relevant = _conditionGames(entry);
         if (relevant == null || relevant.isEmpty) {
           need = LibretroBiosNeed.onlyFor;
-          notes.add(LibretroBiosNote(relevant == null ? 'biosConditionUnknown' : 'biosConditionUnmet'));
+          final unknown = relevant == null || _possibleGames(entry);
+          notes.add(LibretroBiosNote(unknown ? 'biosConditionUnknown' : 'biosConditionUnmet'));
         } else if (!entry.regional || _regionNeeds(entry, relevant, present)) {
           need = LibretroBiosNeed.requiredFor;
           neededNow = true;

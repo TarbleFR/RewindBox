@@ -125,6 +125,7 @@ class LibretroBiosCondition {
     required this.key,
     this.arguments = const <String, String>{},
     this.games = const <LibretroBiosGameClause>[],
+    this.possibleIn = const <String>{},
   });
 
   factory LibretroBiosCondition.fromJson(Map<String, dynamic> json) => LibretroBiosCondition(
@@ -137,6 +138,7 @@ class LibretroBiosCondition {
           for (final clause in (json['games'] as List?) ?? const <Object?>[])
             LibretroBiosGameClause.fromJson((clause as Map).cast<String, dynamic>()),
         ],
+        possibleIn: _strings(json['possibleIn']).map((system) => system.toLowerCase()).toSet(),
       );
 
   /// LibretroLocale key naming the games that need the file.
@@ -148,6 +150,12 @@ class LibretroBiosCondition {
   /// Empty when the library cannot tell (arcade boards): the file then stays
   /// optional, with the condition shown.
   final List<LibretroBiosGameClause> games;
+
+  /// Systems whose games may need the file without the library telling
+  /// which (Neo Geo sets kept in a generic arcade folder). With such games
+  /// and none matching [games], the file stays optional and the checker says
+  /// it cannot tell, never that no game needs it.
+  final Set<String> possibleIn;
 }
 
 /// One core option value test: the first of [keys] found in the stored core

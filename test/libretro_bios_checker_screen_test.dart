@@ -191,6 +191,14 @@ void main() {
       find.text(en('biosGateMissing', {'files': 'scph5500.bin, scph5501.bin, scph5502.bin'})),
       findsOneWidget,
     );
+    // One PlayStation BIOS is enough: the card asks for one fix, not four.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('bios-console-card-psx')),
+        matching: find.text(en('biosConsoleProblems', {'count': 1})),
+      ),
+      findsOneWidget,
+    );
     expect(find.text(english['biosNoBiosNeeded']!), findsNWidgets(2), reason: '32X and SG-1000');
 
     // Technical details open on demand.

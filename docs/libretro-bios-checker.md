@@ -77,7 +77,14 @@ Pour le Mega-CD, les étiquettes de région des noms de fichiers (`(USA)`,
 `(Europe)`, `(Japan)`…) désignent le BIOS de la région ; un disque sans
 étiquette rend les trois régions obligatoires tant qu’aucune n’est présente.
 Les BIOS des cartes d’arcade (PGM, Super Kaneko Nova System, etc.) restent
-optionnels : la bibliothèque ne permet pas de reconnaître leurs jeux.
+optionnels : la bibliothèque ne permet pas de reconnaître leurs jeux. De même,
+des jeux rangés dans un dossier arcade générique (`arc`, `fbneo`) peuvent être
+des jeux Neo Geo : `neogeo.zip` reste alors optionnel, avec la mention que
+NeoStation ne peut pas les distinguer, jamais « aucun jeu n’en a besoin ».
+
+Le badge d’une console compte ce qu’il reste à corriger : chaque fichier
+obligatoire manquant ou inutilisable, et la règle de lancement PlayStation
+une seule fois (un seul de ses fichiers suffit).
 
 « Aucun BIOS externe requis » s’affiche pour 32X et SG-1000 ; les autres
 consoles portent une note propre (cartouches, logo de démarrage, options Sega,
@@ -96,10 +103,12 @@ La règle de lancement de NeoStation ne change pas : un des noms exacts
   avec l’indication de renommage ;
 - une fois la règle remplie, les autres régions sont « recommandées » :
   Beetle démarre alors leurs disques avec OpenBIOS. Cette affirmation dépend
-  du drapeau `flags.beetleOpenBiosFallback` du JSON, confirmé sur CI par le
+  du drapeau `flags.beetleOpenBiosFallback` du JSON, contrôlé sur CI par le
   mode `--cores` (valeur d’option `openbios` présente dans les deux binaires
-  épinglés). Sans ce repli, une région dont la bibliothèque a des disques
-  redevient obligatoire.
+  épinglés). Ce contrôle est indirect : cette valeur et le repli intégré
+  arrivent dans le même commit amont (`5da5a3e9c9`), mais le code du repli
+  lui-même n’est pas recherché dans les binaires. Sans ce repli, une région
+  dont la bibliothèque a des disques redevient obligatoire.
 
 ## Exclusions motivées
 

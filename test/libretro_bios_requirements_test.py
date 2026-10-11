@@ -138,7 +138,8 @@ def check_data(requirements, fixture):
                        (binding['core'] == core or core in binding['alternatives']) for binding in systems.values()):
                 findings.append(f"{entry['id']}: {core} never runs a game of {entry['consoles']}")
         for system in set(entry.get('gameFolderSystems', [])) | {
-                system for clause in (entry.get('condition') or {}).get('games', []) for system in clause['systems']}:
+                system for clause in (entry.get('condition') or {}).get('games', []) for system in clause['systems']} | set(
+                (entry.get('condition') or {}).get('possibleIn', [])):
             if system not in systems:
                 findings.append(f"{entry['id']}: unknown system {system}")
         for claim in entry.get('info', []):

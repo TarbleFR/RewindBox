@@ -246,6 +246,23 @@ void main() {
       expect(keys(pgm), contains('biosConditionUnknown'));
     });
 
+    test('Neo Geo sets in a generic arcade folder are not called unneeded', () async {
+      // mslug.zip in the arcade folder may be a Neo Geo set: the library
+      // cannot tell, so the checker never says no game needs neogeo.zip.
+      fixture.games = <LibretroBiosGame>[fixture.game('arc', 'arcade/mslug.zip')];
+      var neogeo = result(await fixture.check(), 'arcade-neogeo');
+      expect(neogeo.status, LibretroBiosStatus.missingOptional);
+      expect(neogeo.need, LibretroBiosNeed.onlyFor);
+      expect(keys(neogeo), contains('biosConditionUnknown'));
+      expect(keys(neogeo), isNot(contains('biosConditionUnmet')));
+
+      // CPS games are never Neo Geo sets.
+      fixture.games = <LibretroBiosGame>[fixture.game('cps2', 'cps2/sfa3.zip')];
+      neogeo = result(await fixture.check(), 'arcade-neogeo');
+      expect(keys(neogeo), contains('biosConditionUnmet'));
+      expect(keys(neogeo), isNot(contains('biosConditionUnknown')));
+    });
+
     test('an unreadable library leaves conditional files not needed', () async {
       fixture.libraryFails = true;
       final report = await fixture.check();
@@ -275,6 +292,9 @@ void main() {
         expect(row.status, LibretroBiosStatus.missingRequired, reason: id);
         expect(keys(row), contains('biosGroupOneOf'));
       }
+      // One file is enough: the console has one thing to fix, not one per
+      // region row plus the launch rule.
+      expect(psx.problems, 1);
     });
 
     test('a Beetle alias is verified but the launch rule asks for the exact name', () async {
@@ -286,6 +306,7 @@ void main() {
       expect(na.notes, contains(const LibretroBiosNote('biosRename', <String, String>{'found': 'SCPH5501.BIN', 'name': 'scph5501.bin'})));
       expect(console(report, 'psx').ready, isFalse);
       expect(console(report, 'psx').gateNote?.key, 'biosGateMissing');
+      expect(console(report, 'psx').problems, 1, reason: 'the rename is the only thing to fix');
     });
 
     test('a file of another case is not one of the names; Beetle still finds it by checksum', () async {
@@ -327,6 +348,7 @@ void main() {
       expect(result(report, 'psx-na').status, LibretroBiosStatus.missingRequired);
       expect(result(report, 'psx-eu').status, LibretroBiosStatus.missingOptional);
       expect(console(report, 'psx').ready, isFalse);
+      expect(console(report, 'psx').problems, 1, reason: 'the launch rule is met; the US BIOS is missing');
     });
   });
 
@@ -523,6 +545,22 @@ void main() {
           .writeAsStringSync(jsonEncode(<String, Object?>{'values': <String, String>{'gambatte_gb_bootloader': 'disabled'}}));
       gb = result(await fixture.check(), 'gb-boot');
       expect(gb.notes, contains(const LibretroBiosNote('biosOptionOff', <String, String>{'option': 'gambatte_gb_bootloader'})));
+    });
+
+    test('mGBA reads the Super Game Boy boot ROM only with the Super Game Boy model', () async {
+      fixture.availableCores = <String>{'mgba'};
+      void model(String value) => File(p.join(fixture.config.path, 'mGBA.json'))
+          .writeAsStringSync(jsonEncode(<String, Object?>{'values': <String, String>{'mgba_gb_model': value}}));
+
+      model('Super Game Boy');
+      var sgb = result(await fixture.check(), 'gb-sgb');
+      expect(sgb.notes, contains(const LibretroBiosNote('biosOptionOn', <String, String>{'option': 'mgba_gb_model'})));
+
+      // The Super Game Boy Color model boots with gbc_bios.bin
+      // (mgba libretro.c:2094-2101).
+      model('Super Game Boy Color');
+      sgb = result(await fixture.check(), 'gb-sgb');
+      expect(sgb.notes, contains(const LibretroBiosNote('biosOptionOff', <String, String>{'option': 'mgba_gb_model'})));
     });
   });
 
