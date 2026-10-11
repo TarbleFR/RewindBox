@@ -414,11 +414,16 @@ Outil de comparaison : `tools/compare_rpcs3_neoswap_builds.py` lit désormais
 accepte `--mode cross-title` (deux titres, un seul commit, même appareil et
 réglages) ; tests unitaires dans `test/rpcs3_neoswap_build_comparison_test.py`.
 
-Livraison : l'artefact chiffré est adressé à la clé passée par la nouvelle
-entrée `recipient` du workflow de livraison (défaut : la clé 443 de l'autre
-session ; cette livraison passe `build-utils/delivery-424-recipient.pem`, la
-seule clé privée présente sur ce poste). Le résultat de la livraison 444 est
-consigné dans `docs/build444-delivery.md`.
+Livraison : run `retroarch-delivery.yml` `38182831110` sur `a221ae0c`
+(périmètre `full`, `checks`/`native`/`cold` réussis ; Dart validé à cette
+source, validation Swift réutilisée du run `37844950677`, Core `dcf0df67`
+épinglé) ; IPA `NeoStation-Build444-a221ae0c…-cold.ipa`, 207 536 584 octets,
+SHA-256 `a06c4d460fb6531e2f16f2b06998489d4520cf9a9789694b0ad1212090ebeade`,
+chiffrée pour `build-utils/delivery-424-recipient.pem` via la nouvelle entrée
+`recipient` du workflow (défaut : la clé 443 de l'autre session). Détails et
+périmètre inclus : `docs/build444-delivery.md`. Un premier run `38182366155`
+(`605ca593`) s'était arrêté au garde-fou de baseline 419, qui épinglait encore
+les empreintes 441 de `Backend.cpp/.h` ; `a221ae0c` ajoute les empreintes 444.
 
 ## 10. Protocole de validation sur iPhone
 
