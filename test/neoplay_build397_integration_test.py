@@ -306,7 +306,11 @@ class Build398Integration(unittest.TestCase):
         strip = (ROOT/'lib/widgets/main_menu_tab_strip.dart').read_text()
         self.assertEqual(strip.count('const AirPlayMenuButton()'), 1)
         self.assertIn('cells.insert(airPlaySlot, null)', strip)
-        self.assertIn('tab.index <= NavTab.search.index', strip)
+        # Build438: the slot follows the display rank, not the canonical index,
+        # since the consoles tab (index 6) is drawn before Search. AirPlay stays
+        # right after Search (after Consoles when Search is hidden); the
+        # placement itself is proven by test/main_menu_tab_strip_test.dart.
+        self.assertIn('navTabDisplayRank(tab) <= navTabDisplayRank(NavTab.search)', strip)
         action = (ROOT/'lib/widgets/airplay_menu_button.dart').read_text()
         self.assertIn('Icons.airplay_rounded', action)
         self.assertEqual(action.count('onPressed: () => showNeoPlayDialog(context)'), 1)

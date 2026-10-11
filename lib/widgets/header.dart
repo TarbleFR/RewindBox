@@ -27,7 +27,6 @@ import 'package:neostation/widgets/notification_bell.dart';
 import 'package:neostation/screens/app_screen.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/utils/time_format.dart';
-import 'package:flutter_localization/flutter_localization.dart';
 
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/neo_glass.dart';
@@ -348,14 +347,7 @@ class HeaderState extends State<Header> {
                           selected: NavTab.values[widget.selectedTabIndex],
                           showAirPlay:
                               defaultTargetPlatform == TargetPlatform.iOS,
-                          tabBuilder: (tab) => _buildTabButton(
-                            context,
-                            tab.index,
-                            navTabSpec(tab).icon,
-                            navTabSpec(tab).labelKey.getString(context),
-                            iconData: navTabSpec(tab).iconData,
-                            tintAsset: navTabSpec(tab).tintIcon,
-                          ),
+                          tabBuilder: (tab) => _buildTabButton(context, tab),
                         ),
                       ),
                     ),
@@ -454,43 +446,37 @@ class HeaderState extends State<Header> {
 
   // Steam-style tab button.
   //
-  // Most tabs use a webp asset; [iconData] is the fallback for tabs with no
-  // matching asset (Search), rendered at the same box size and tint.
-  Widget _buildTabButton(
-    BuildContext context,
-    int tabIndex,
-    String? icon,
-    String label, {
-    IconData? iconData,
-    bool tintAsset = true,
-  }) {
+  // Most tabs use a webp asset; a Material symbol (Search, Library, the
+  // consoles tab and its "+") is drawn by [NavTabIcon] at the same box size
+  // and tint. The translated tab name is the button's accessibility label.
+  Widget _buildTabButton(BuildContext context, NavTab tab) {
+    final tabIndex = tab.index;
     final bool isSelected = tabIndex == widget.selectedTabIndex;
     final Color tint = isSelected
         ? Theme.of(context).colorScheme.onPrimary
         : Theme.of(context).colorScheme.onSurface;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        canRequestFocus: false,
-        focusColor: Colors.transparent,
-        hoverColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        focusNode: _tabFocusNodes[tabIndex],
-        splashColor: Colors.transparent,
-        onTap: () {
-          SfxService().playNavSound();
-          widget.onTabSelected(tabIndex);
-        },
-        child: Container(
-          padding: EdgeInsets.all(8.r),
-          child: iconData != null
-              ? Icon(iconData, size: 16.r, color: tint)
-              : Image.asset(
-                  icon!,
-                  color: tintAsset ? tint : null,
-                  fit: BoxFit.contain,
-                ),
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: navTabLabel(context, tab),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          canRequestFocus: false,
+          focusColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          focusNode: _tabFocusNodes[tabIndex],
+          splashColor: Colors.transparent,
+          onTap: () {
+            SfxService().playNavSound();
+            widget.onTabSelected(tabIndex);
+          },
+          child: Container(
+            padding: EdgeInsets.all(8.r),
+            child: NavTabIcon(spec: navTabSpec(tab), tint: tint),
+          ),
         ),
       ),
     );

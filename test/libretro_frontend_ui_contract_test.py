@@ -7,10 +7,15 @@ Provenance catalog) and of their two entry points.
   product names and skin data come from variables.
 - Every LibretroLocale key those files name exists in the English catalog
   (test/libretro_locale_test.dart checks that the twelve maps share their keys).
-- Settings › Folders: outside the `embedded_consoles` markers the file is
-  byte-for-byte the reviewed a5650b9b version. The Embedded consoles item is
-  added before the ES-DE early return (which always returns on iOS) and only
-  on iOS.
+- Entry points (Build 438): the consoles tab of the main bar (a console with
+  a "+", drawn after Systems and before Search on iOS) shows the consoles
+  page, and the playlist actions keep their Skins item. The former entry,
+  Settings › Folders › Embedded consoles, is gone: the directories page is
+  byte-for-byte the reviewed a5650b9b version again (this replaces the
+  Build 427 contract that checked the item inside `embedded_consoles`
+  markers; the tab's behaviour is proven by test/nav_tabs_test.dart,
+  test/main_menu_tab_strip_test.dart, test/libretro_main_menu_test.dart and
+  test/libretro_consoles_tab_test.dart).
 - The playlist actions keep their contract (integrated_import_tab_contract)
   and gain the Skins item.
 """
@@ -23,15 +28,7 @@ SCREENS = sorted((ROOT / 'lib/screens/libretro').glob('*.dart'))
 PLAYLIST = 'lib/widgets/libretro_internal_playlist_actions.dart'
 DIRECTORIES = 'lib/screens/settings_screen/new_settings_options/directories_settings_content.dart'
 REVIEWED = 'a5650b9b'
-BEGIN = '// LIBRETRO_INTERNAL_BEGIN: embedded_consoles'
-END = '// LIBRETRO_INTERNAL_END: embedded_consoles'
-
-# Lines allowed in the directories page outside the markers, beyond the
-# reviewed version. Empty: the item, its action, icon, trailing button and its
-# LibretroLocale texts all sit inside marked blocks (the two Text() blocks
-# prefix the original expression with a conditional, so removing a block
-# restores the original expression exactly).
-ALLOWED_EXTRA_LINES = []
+MARKER = 'LIBRETRO_INTERNAL_BEGIN: embedded_consoles'
 
 
 def read(relative):
@@ -130,49 +127,60 @@ require('rescanSystemSilent(' in consoles and 'result.systemFolder' in consoles,
 require("'gamesImported'" in consoles and "'gamesRejected'" in consoles and "'importFailed'" in consoles,
         'import notifications')
 
-# 2. Settings › Folders.
+# 2. Entry points. Settings › Folders lost its Embedded consoles item (Build
+# 438): every other Folders function is the reviewed a5650b9b file, byte for
+# byte.
 directories = read(DIRECTORIES)
-require(directories.count(BEGIN) == directories.count(END) and directories.count(BEGIN) >= 5,
-        'balanced embedded_consoles markers')
-blocks = []
-kept = []
-inside = False
-for line in directories.splitlines(keepends=True):
-    stripped = line.strip()
-    if stripped == BEGIN:
-        require(not inside, 'nested embedded_consoles marker')
-        inside = True
-        blocks.append('')
-        continue
-    if stripped == END:
-        require(inside, 'embedded_consoles end without begin')
-        inside = False
-        continue
-    if inside:
-        blocks[-1] += line
-    else:
-        kept.append(line)
-require(not inside, 'unterminated embedded_consoles block')
-
 try:
     reviewed = subprocess.run(['git', 'show', f'{REVIEWED}:{DIRECTORIES}'], cwd=ROOT, check=True,
                               capture_output=True).stdout.decode('utf-8')
 except (OSError, subprocess.CalledProcessError) as error:
     raise SystemExit(f'libretro frontend UI contract: cannot read {REVIEWED}:{DIRECTORIES} ({error})')
+require(directories == reviewed, 'directories_settings_content.dart differs from a5650b9b')
+for leftover in (MARKER, 'libretro_consoles', 'LibretroConsolesScreen', 'LibretroLocale'):
+    require(leftover not in directories, f'Settings › Folders still names {leftover}')
 
-current_lines = [line for line in kept if line.rstrip('\r\n') not in ALLOWED_EXTRA_LINES]
-require(''.join(current_lines) == reviewed,
-        'directories_settings_content.dart differs from a5650b9b outside the embedded_consoles markers')
+# The consoles tab: appended to NavTab (indices are identities), drawn after
+# Systems and before Search, a controller with a "+", iOS only, never hidable.
+nav_tabs = read('lib/utils/nav_tabs.dart')
+enum = re.search(r'enum NavTab \{([^}]*)\}', nav_tabs)
+require(enum is not None, 'NavTab enum')
+require([name.strip() for name in enum.group(1).split(',') if name.strip()]
+        == ['systems', 'search', 'achievements', 'scraper', 'settings', 'library', 'consoles'],
+        'consoles appended last to NavTab')
+display = re.search(r'navTabDisplayOrder = \[([^\]]*)\]', nav_tabs)
+require(display is not None and re.findall(r'NavTab\.(\w+)', display.group(1))[:3]
+        == ['systems', 'consoles', 'search'], 'consoles drawn after Systems and before Search')
+spec = nav_tabs[nav_tabs.index('NavTab.consoles: NavTabSpec('):]
+spec = spec[:spec.index('),')]
+for part in ("labelKey: 'consolesTab'", 'NavTabLabelCatalog.libretro', 'Symbols.sports_esports_rounded',
+             'badgeIconData: Symbols.add_rounded', 'available: _isIOS'):
+    require(part in spec, f'consoles tab spec: {part}')
+require('hidden:' not in spec, 'the consoles tab cannot be hidden')
+require("'consolesTab'" in nav_tabs and 'consolesTab' in EN, 'tab name translated')
 
-marked = ''.join(blocks)
-require("'action': 'libretro_consoles'" in marked and 'if (Platform.isIOS)' in marked, 'iOS-only item')
-require("'embeddedConsoles'" in marked and "'embeddedConsolesSubtitle'" in marked
-        and 'LibretroLocale.text(' in marked, 'item texts from LibretroLocale')
-require('Symbols.sports_esports_rounded' in marked, 'item icon')
-require('LibretroConsolesScreen()' in marked, 'item opens the consoles page')
-build_items = directories[directories.index('void _buildDirectoryItems()'):]
-require(build_items.index("'action': 'libretro_consoles'") < build_items.index('if (!_esdeSupported) {'),
-        'item added before the ES-DE early return (always taken on iOS)')
+app = read('lib/screens/app_screen.dart')
+require(re.search(r'case AppTabs\.consoles:\s*(//[^\n]*\n\s*)*return LibretroConsolesScreen\(\s*inMainBar: true,', app),
+        'the tab body is the consoles page in main-bar mode')
+require('LibretroMainMenu.instance.attach(' in app and 'LibretroMainMenu.instance.detach(' in app,
+        'the app screen keeps the added consoles in the main menu')
+require('UiRefreshRateService.instance.startProbe()' in app, 'Build 438 refresh-rate hook kept')
+header = read('lib/widgets/header.dart')
+require('NavTabIcon(spec: navTabSpec(tab), tint: tint)' in header and 'navTabLabel(context, tab)' in header,
+        'the header draws every tab, consoles included, with the same icon box, tint and label')
+
+# The consoles page adds consoles to the main menu through LibretroMainMenu.
+require('_mainMenu.add(console, provider)' in consoles, 'Add goes through LibretroMainMenu')
+require('LibretroMainMenu.stateOf(' in consoles, 'each console shows its place in the main menu')
+for key in ('addToMainMenu', 'showInMainMenu', 'inMainMenu', 'hiddenInMainMenu', 'consoleAdded',
+            'consoleAddFailed', 'consoleSystemUnknown', 'consoleUnavailable'):
+    require(f"'{key}'" in consoles, f'consoles page shows {key}')
+main_menu = read('lib/services/libretro_main_menu.dart')
+require('SystemRepository.addDetectedSystem(' in main_menu and 'refreshDetectedSystems()' in main_menu,
+        'consoles are added through the public detected-systems API')
+for forbidden in ('removeDetectedSystem', 'updateDetectedSystems', 'addRomFolder', 'removeRomFolder', 'scanSystems(',
+                  'deleteRoms', 'saveConfig'):
+    require(forbidden not in main_menu, f'the main-menu store never calls {forbidden}')
 
 # 3. Playlist actions.
 playlist = read(PLAYLIST)

@@ -20,7 +20,9 @@ import 'libretro_skin_catalog_screen.dart';
 /// page's buttons and fields, A (or Enter) activates the focused one through
 /// its [ActivateIntent], B (or Backspace) goes back. The layer is removed with
 /// the page, which reactivates the screen underneath. Each page wraps its
-/// Scaffold in [libretroPage].
+/// Scaffold in [libretroPage]. A page shown as a main-bar tab gives LB/RB
+/// (and Q/E) to the tab strip through [libretroPreviousTab] and
+/// [libretroNextTab]; pushed pages leave them unassigned.
 mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
   late final String _navigationLayer = 'libretro_page_${identityHashCode(this)}';
   late final GamepadNavigation _navigation = GamepadNavigation(
@@ -28,11 +30,20 @@ mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
     onNavigateDown: () => _moveFocus(TraversalDirection.down),
     onNavigateLeft: () => _moveFocus(TraversalDirection.left),
     onNavigateRight: () => _moveFocus(TraversalDirection.right),
+    onPreviousTab: libretroPreviousTab,
+    onNextTab: libretroNextTab,
     onSelectItem: _activateFocus,
     onBack: () {
       if (mounted) Navigator.of(context).maybePop();
     },
   );
+
+  /// Previous main-bar tab (LB, Q), read once when the page's navigation
+  /// layer is created; null on pages pushed as routes.
+  VoidCallback? get libretroPreviousTab => null;
+
+  /// Next main-bar tab (RB, E); see [libretroPreviousTab].
+  VoidCallback? get libretroNextTab => null;
   final FocusNode _pageFocus = FocusNode(debugLabel: 'Libretro page', skipTraversal: true);
   bool _navigationLayerPushed = false;
 

@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/models/config_model.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
+import 'package:neostation/services/libretro_main_menu.dart';
 import 'package:neostation/services/update_service.dart';
 import 'package:neostation/services/systems_update_service.dart';
 import 'package:neostation/widgets/update_dialog.dart';
@@ -19,6 +21,7 @@ import 'retro_achievements_screen/ra_content.dart';
 import 'settings_screen/new_settings_screen.dart';
 import 'scraper_screen/new_scraper_options_screen.dart';
 import 'library_screen/library_screen.dart';
+import 'libretro/libretro_consoles_screen.dart';
 import '../widgets/scraper_content.dart';
 
 import 'package:neostation/services/game_service.dart';
@@ -40,12 +43,12 @@ class AppScreen extends StatefulWidget {
   AppScreenState createState() => AppScreenState();
 }
 
-/// Top-level navigation tab order.
+/// Canonical identities of the top-level navigation tabs ([NavTab] indices).
 ///
-/// The header renders tabs in this order and [AppScreenState] delegates input
-/// per tab, so both must agree — these constants are the single definition of
-/// that order. Inserting a tab shifts every later index, which is why the
-/// delegation logic below is written against these names rather than literals.
+/// [AppScreenState] delegates input per tab against these names rather than
+/// literals. They are identities, not positions: the header draws the tabs
+/// (and LB/RB cycle them) in [navTabDisplayOrder], where the consoles tab
+/// sits right after Systems although it was appended last.
 abstract final class AppTabs {
   static const int systems = 0;
   static const int search = 1;
@@ -54,8 +57,11 @@ abstract final class AppTabs {
   static const int settings = 4;
   static const int library = 5;
 
-  /// Total number of tabs, used for wrap-around when cycling with the bumpers.
-  static const int count = 6;
+  /// Embedded consoles to add to the main menu (iOS).
+  static const int consoles = 6;
+
+  /// Total number of tabs.
+  static const int count = 7;
 }
 
 /// Bridge class providing static access to the main application navigation state.
@@ -101,9 +107,24 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
 
   ThemeProvider? _themeProvider;
 
+  /// Keeps the consoles added from the consoles tab in the main menu (iOS).
+  SqliteConfigProvider? _mainMenuProvider;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // main.dart is locked to the Build 419 baseline: the app screen starts
+    // the keeper of the consoles added to the main menu, once.
+    if (_mainMenuProvider == null &&
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      _mainMenuProvider = Provider.of<SqliteConfigProvider>(
+        context,
+        listen: false,
+      );
+      unawaited(
+        LibretroMainMenu.instance.attach(_mainMenuProvider!, owner: this),
+      );
+    }
     // Attach the secondary-display theme sync here (not in initState): the
     // provider isn't resolvable until didChangeDependencies runs, so an
     // initState addListener would silently no-op on a null _themeProvider and
@@ -307,6 +328,9 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     _currentInstance = null;
     WidgetsBinding.instance.removeObserver(this);
     _themeProvider?.removeListener(_onThemeChanged);
+    if (_mainMenuProvider != null) {
+      LibretroMainMenu.instance.detach(owner: this);
+    }
     GamepadNavigationManager.popLayer('app_screen');
     _gamepadNav.dispose();
     super.dispose();
@@ -575,25 +599,22 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Tabs the user hasn't hidden, in canonical order. Never empty — Systems and
+  /// Tabs the user hasn't hidden, in display order. Never empty — Systems and
   /// Settings can't be hidden.
   List<NavTab> get _visibleTabs => visibleNavTabs(
     Provider.of<SqliteConfigProvider>(context, listen: false).config,
   );
 
-  /// Steps [step] places through the visible tabs, wrapping at both ends, so a
-  /// hidden tab is skipped rather than selected and immediately bounced.
+  /// Steps [step] places through the visible tabs in display order, wrapping
+  /// at both ends, so a hidden tab is skipped rather than selected and
+  /// immediately bounced (see [cycleNavTab]).
   void _cycleTab(int step) {
-    final visible = _visibleTabs;
-    if (visible.isEmpty) return;
-
-    final current = NavTab.values[_selectedTabIndex];
-    final position = visible.indexOf(current);
-    // Currently on a hidden tab (config changed underneath us): step from the
-    // start of the strip rather than off the end of the list.
-    final from = position == -1 ? 0 : position;
-    final next = (from + step + visible.length) % visible.length;
-    _onTabSelected(visible[next].index);
+    final next = cycleNavTab(
+      _visibleTabs,
+      NavTab.values[_selectedTabIndex],
+      step,
+    );
+    if (next != null) _onTabSelected(next.index);
   }
 
   void _navigateToNextTab() => _cycleTab(1);
@@ -714,6 +735,14 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
         return NewSettingsScreen();
       case AppTabs.library:
         return const LibraryScreen();
+      case AppTabs.consoles:
+        // The page pushes its own gamepad layer (like RAContent), which
+        // deactivates this screen's handler; LB/RB come back here.
+        return LibretroConsolesScreen(
+          inMainBar: true,
+          onPreviousTab: _navigateToPreviousTab,
+          onNextTab: _navigateToNextTab,
+        );
       default:
         return SystemContent(
           selectedIndex: _selectedSystemIndex,

@@ -31,10 +31,6 @@ import 'package:neostation/widgets/tv_directory_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
-// LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-import 'package:neostation/l10n/libretro_locale.dart';
-import 'package:neostation/screens/libretro/libretro_consoles_screen.dart';
-// LIBRETRO_INTERNAL_END: embedded_consoles
 
 import 'settings_title.dart';
 import 'widgets/settings_section_header.dart';
@@ -191,20 +187,6 @@ class DirectoriesSettingsContentState
         'path': path,
       });
     }
-    // LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-    // Consoles of the embedded libretro engine (iOS): import games and choose
-    // skins, even for a console without any game yet. Added before the ES-DE
-    // early return below, which always returns on iOS. Its texts are
-    // LibretroLocale keys ('libretroText'), resolved in build().
-    if (Platform.isIOS) {
-      _directoryItems.add({
-        'title': 'embeddedConsoles',
-        'subtitle': 'embeddedConsolesSubtitle',
-        'libretroText': true,
-        'action': 'libretro_consoles',
-      });
-    }
-    // LIBRETRO_INTERNAL_END: embedded_consoles
 
     // ES-DE import actions (grouped under their own section header in build).
     // Absent where the feature isn't supported (see [_esdeSupported]).
@@ -304,17 +286,6 @@ class DirectoriesSettingsContentState
       case 'esde_reset':
         await _resetEsdeImport();
         break;
-      // LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-      case 'libretro_consoles':
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const LibretroConsolesScreen(),
-          ),
-        );
-        // An import there may have registered NeoStation's roms folder.
-        if (mounted) await _loadCurrentPaths();
-        break;
-      // LIBRETRO_INTERNAL_END: embedded_consoles
     }
   }
 
@@ -1376,14 +1347,6 @@ class DirectoriesSettingsContentState
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              // LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-                                              item['libretroText'] == true
-                                                  ? LibretroLocale.text(
-                                                      context,
-                                                      item['title'] as String,
-                                                    )
-                                                  :
-                                              // LIBRETRO_INTERNAL_END: embedded_consoles
                                               isRemoveItem
                                                   ? (item['title'] as String)
                                                   : (item['title'] as String)
@@ -1414,14 +1377,6 @@ class DirectoriesSettingsContentState
                                             ),
                                             SizedBox(height: 2.r),
                                             Text(
-                                              // LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-                                              item['libretroText'] == true
-                                                  ? LibretroLocale.text(
-                                                      context,
-                                                      item['subtitle'] as String,
-                                                    )
-                                                  :
-                                              // LIBRETRO_INTERNAL_END: embedded_consoles
                                               (item['subtitle'] as String)
                                                   .getString(context),
                                               style: theme.textTheme.bodySmall
@@ -1453,14 +1408,6 @@ class DirectoriesSettingsContentState
                                           selected: isSelected,
                                           isDestructive: true,
                                         )
-                                      // LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-                                      else if (item['action'] ==
-                                          'libretro_consoles')
-                                        SettingsActionButton(
-                                          icon: Symbols.chevron_right_rounded,
-                                          selected: isSelected,
-                                        )
-                                      // LIBRETRO_INTERNAL_END: embedded_consoles
                                       else if (item['action'] == 'add_rom')
                                         SettingsActionButton(
                                           icon: Symbols.add_rounded,
@@ -1577,10 +1524,6 @@ class DirectoriesSettingsContentState
         return Symbols.download_rounded;
       case 'esde_reset':
         return Symbols.restart_alt_rounded;
-      // LIBRETRO_INTERNAL_BEGIN: embedded_consoles
-      case 'libretro_consoles':
-        return Symbols.sports_esports_rounded;
-      // LIBRETRO_INTERNAL_END: embedded_consoles
       default:
         return Symbols.folder_rounded;
     }
