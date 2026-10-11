@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -321,6 +322,85 @@ void main() {
       await flushStore(tester, store);
     });
 
+    testWidgets('a jump to a chapter that fails to load says so', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => _FailingChapterSource(
+            LibraryTextReflowSource(LibraryTextDocument.fromText(sampleText())),
+            failing: 3,
+          ),
+          progressKey: 'local:fail',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      expect(state.currentPosition!.chapter, 0);
+      // The percentage slider jumps far from the chapters on screen.
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChangeStart!(0.7);
+      slider.onChangeEnd!(0.7);
+      await tester.pump();
+      await tester.pump();
+      // A message says why nothing moved: translated text and raw detail
+      // (the app's messenger shows it in every Scaffold it serves).
+      final snackBar = find.byType(SnackBar);
+      expect(snackBar, findsWidgets);
+      expect(
+        find.descendant(of: snackBar, matching: find.text(en('issueTooLarge'))),
+        findsWidgets,
+      );
+      expect(
+        find.descendant(
+          of: snackBar,
+          matching: find.textContaining('chapter 3 refused'),
+        ),
+        findsWidgets,
+      );
+      expect(state.currentPosition!.chapter, 0);
+      await closeBook(tester, store);
+    });
+
+    testWidgets('A on the controller retries a book that failed to open', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      var attempts = 0;
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async {
+            attempts++;
+            if (attempts == 1) {
+              throw StateError('worker exited');
+            }
+            return LibraryTextReflowSource(
+              LibraryTextDocument.fromText(sampleText()),
+            );
+          },
+          progressKey: 'local:retry',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await tester.pump();
+      expect(find.text(en('errorWorker')), findsOneWidget);
+      final state = bookState(tester);
+      state.gamepadBindings.select!();
+      await settle(tester, rounds: 2);
+      expect(attempts, 2);
+      expect(find.text(en('errorWorker')), findsNothing);
+      expect(state.currentPosition, LibraryReflowPosition.start);
+      await closeBook(tester, store);
+    });
+
     testWidgets('tap zones page down and up; the centre toggles the chrome', (
       tester,
     ) async {
@@ -519,4 +599,61 @@ void main() {
     expect(document.sectionCount, 5);
     expect(Platform.pathSeparator, isNotEmpty);
   });
+}
+
+/// A TXT source whose chapter [failing] cannot be loaded.
+class _FailingChapterSource implements LibraryReflowSource {
+  _FailingChapterSource(this._inner, {required this.failing});
+
+  final LibraryTextReflowSource _inner;
+  final int failing;
+
+  @override
+  int get chapterCount => _inner.chapterCount;
+
+  @override
+  bool get separatesChapters => _inner.separatesChapters;
+
+  @override
+  List<LibraryReflowTocEntry> get toc => _inner.toc;
+
+  @override
+  Future<List<LibraryTextBlock>> loadChapter(int chapter) => chapter == failing
+      ? Future<List<LibraryTextBlock>>.error(
+          LibraryBookException(
+            LibraryBookIssue.tooLarge,
+            detail: 'chapter $chapter refused',
+          ),
+        )
+      : _inner.loadChapter(chapter);
+
+  @override
+  List<LibraryTextBlock>? loadedChapter(int chapter) =>
+      chapter == failing ? null : _inner.loadedChapter(chapter);
+
+  @override
+  String locationFor(LibraryReflowPosition position) =>
+      _inner.locationFor(position);
+
+  @override
+  Future<LibraryReflowPosition?> resolveLocation(String location) =>
+      _inner.resolveLocation(location);
+
+  @override
+  double fractionFor(LibraryReflowPosition position) =>
+      _inner.fractionFor(position);
+
+  @override
+  Future<LibraryReflowPosition> positionAtFraction(double fraction) =>
+      _inner.positionAtFraction(fraction);
+
+  @override
+  Future<LibraryReflowPosition?> resolveLink(String href) =>
+      _inner.resolveLink(href);
+
+  @override
+  Future<Uint8List> resource(String href) => _inner.resource(href);
+
+  @override
+  Future<void> close() => _inner.close();
 }

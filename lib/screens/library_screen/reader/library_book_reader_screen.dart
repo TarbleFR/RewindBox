@@ -141,7 +141,10 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         right: () => _scrollBy(0.9),
         leftBumper: () => _goToChapter(-1),
         rightBumper: () => _goToChapter(1),
-        select: _chrome.toggle,
+        // A retries a book that failed to open (the button is touch only).
+        select: _openError != null && !_opening
+            ? () => unawaited(_open())
+            : _chrome.toggle,
         back: _close,
         x: _openToc,
         start: _openSettings,
@@ -407,7 +410,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       await source.loadChapter(position.chapter);
     } catch (error) {
       if (!mounted) return;
+      // Shown inline if the chapter becomes an edge of the view; the jump
+      // itself failed, so say so now (never a silent tap).
       setState(() => _chapterErrors[position.chapter] = error);
+      final info = LibraryReaderErrorInfo.from(error);
+      _message(info.messageKey, detail: info.detail);
       return;
     }
     if (!mounted) return;
