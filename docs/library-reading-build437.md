@@ -213,3 +213,20 @@ que le temps réseau est divisé par deux.
 5. **Favoris et lectures** regroupe les lectures en cours (livres locaux et
    chapitres en ligne) et les titres mis en favori ; ils restent même si la
    source est désactivée.
+
+## 10. Identité de la livraison
+
+- Sources : `458d24a01fe93742c7fbedab1944487470eb7985` (branche `Claude`).
+- Run de livraison `38117283874` : contrôles (analyse, tests Dart dont
+  `test/library_*_test.dart`, contrats Python), natif et Release « cold »
+  réussis.
+- IPA `NeoStation-Build437-458d24a01fe93742c7fbedab1944487470eb7985-cold.ipa` :
+  206 910 631 octets, SHA-256
+  `5bcad82068736a25c671c3a8b7eeddda14d455897d187df8775840afd2d44a03`
+  (empreinte après scellement, `signed-payload-identity.json`), version
+  0.0.2 build 437, 54 images signées ad hoc ; installation par re-signature
+  SideStore. **Non testée sur l’iPhone.**
+- Runs précédents sur le numéro 437, sans IPA produite : `38116307555`
+  (`0ff20bbd`) et `38116890427` (`7c2d7b82`), arrêtés aux contrôles Linux
+  (fuite de connexion corrigée par `LibraryIoClient`, puis deux tests rendus
+  indépendants de la plateforme).
