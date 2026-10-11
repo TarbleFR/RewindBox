@@ -194,6 +194,7 @@ void main() {
       WidgetTester tester, {
       required String format,
       required LibraryImportOutcome Function(String path) outcome,
+      Future<LibraryDownloadResult>? pending,
     }) async {
       read = <LibraryLocalBook>[];
       downloaded = <String>[];
@@ -211,6 +212,7 @@ void main() {
         library: library,
         download: ({required acquisition, required title}) async {
           downloaded.add(acquisition.url);
+          if (pending != null) return pending;
           return LibraryDownloadResult(
             filePath: '$_downloads/free-book.$format',
             fileName: 'free-book.$format',
@@ -304,6 +306,52 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    // The download runs while the hub stays usable: the user may leave the
+    // Library before it ends. Its error is then dropped instead of being
+    // formatted through the closed hub's context.
+    testWidgets('a download that fails after the hub closed reports nothing', (
+      tester,
+    ) async {
+      final pending = Completer<LibraryDownloadResult>();
+      await downloadFromSearch(
+        tester,
+        format: 'pdf',
+        outcome: (path) => throw StateError('not reached'),
+        pending: pending.future,
+      );
+      expect(downloaded, hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      pending.completeError(Exception('connection reset'));
+      await tester.pump();
+      expect(read, isEmpty);
+    });
+
+    testWidgets('a download indexed after the hub closed opens nothing', (
+      tester,
+    ) async {
+      final pending = Completer<LibraryDownloadResult>();
+      final library = await downloadFromSearch(
+        tester,
+        format: 'pdf',
+        outcome: (path) => throw StateError('index unwritable'),
+        pending: pending.future,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      pending.complete(
+        const LibraryDownloadResult(
+          filePath: '$_downloads/free-book.pdf',
+          fileName: 'free-book.pdf',
+          bytesWritten: 1000,
+          format: 'pdf',
+        ),
+      );
+      await tester.pump();
+      expect(library.imports, <List<String>>[
+        <String>['$_downloads/free-book.pdf'],
+      ]);
+      expect(read, isEmpty);
     });
   });
 }

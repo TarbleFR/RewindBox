@@ -1372,9 +1372,13 @@ class LibraryScreenState extends State<LibraryScreen>
     final download =
         widget.downloadAcquisition ?? LibraryDownloadService.download;
     final LibraryDownloadResult result;
+    // The download is not awaited by the hub (it stays usable meanwhile), so
+    // the hub may be gone when it ends: nothing is shown then, and the
+    // translated texts are not looked up through a closed context.
     try {
       result = await download(acquisition: acquisition, title: item.title);
     } catch (error) {
+      if (!mounted) return;
       _showError(_lt('downloadFailedPlain'), technical: _technicalOf(error));
       return;
     }
@@ -1384,6 +1388,7 @@ class LibraryScreenState extends State<LibraryScreen>
       final outcomes = await library.importFiles(<String>[result.filePath]);
       if (outcomes.isNotEmpty) outcome = outcomes.first;
     } catch (error) {
+      if (!mounted) return;
       _showError(
         _ltf('downloadSaved', {'file': result.fileName}),
         technical: _technicalOf(error),
@@ -1432,6 +1437,7 @@ class LibraryScreenState extends State<LibraryScreen>
           );
         }
       } catch (error) {
+        if (!mounted) return;
         _showError(_lt('readFailed'), technical: _technicalOf(error));
       }
     });
