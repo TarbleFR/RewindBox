@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Source contract of the embedded-console Flutter pages (consoles, skins,
-Provenance catalog) and of their two entry points.
+unified skin catalogs) and of their two entry points.
 
 - No hard-coded user-visible text in lib/screens/libretro/*.dart or in the
   playlist actions: every label comes from LibretroLocale (twelve languages),
@@ -102,12 +102,29 @@ require('skins.discard(' in manager, 'a declined replacement is discarded')
 require('.preview(' in manager and 'FutureBuilder<Uint8List?>' in manager, 'previews come from the native renderer')
 require('pickAndImport()' in manager, 'Files import goes through LibretroSkinService')
 
-# Catalog: same import pipeline, every state translated.
+# Catalogs: same import pipeline, every state translated.
+# Unified catalogs (October 2026): an entry whose link is not a skin file is
+# no longer shown with a disabled Install button; the central iPhone filter
+# (LibretroSkinCatalogs) refuses it with SKIN_COMPAT_NOT_DIRECT, the page
+# hides it and shows the translated reason (catalogNotDirect) among the
+# hidden entries. This replaces the former check of 'catalogNotDirect' and
+# 'isDirectDownload' in the page itself; the behaviour is proven by
+# test/libretro_skin_catalogs_test.dart and test/libretro_skin_manager_test.dart.
+catalogs_service = read('lib/services/libretro_skin_catalogs.dart')
+compatibility = read('lib/services/libretro_skin_compatibility.dart')
 require('showLibretroSkinImportResult(' in catalog, 'catalog installs show the manager messages')
 for key in ('catalogLoading', 'catalogFailed', 'catalogRetry', 'catalogEmpty', 'catalogSearch',
-            'catalogInstall', 'catalogInstalling', 'catalogDownloads', 'catalogNotDirect'):
+            'catalogInstall', 'catalogInstalling', 'catalogDownloads', 'catalogSourcesAll',
+            'catalogOrientationAny', 'catalogFavorites', 'catalogFavoriteAdd', 'catalogFavoriteRemove',
+            'catalogChecking', 'catalogHidden', 'catalogShowHidden', 'catalogHideHidden', 'catalogSource',
+            'catalogSourceUnavailable', 'catalogConverted'):
     require(f"'{key}'" in catalog, f'catalog shows {key}')
-require('isDirectDownload' in catalog and 'errorBuilder' in catalog, 'non-archive links and broken thumbnails')
+require('LibretroSkinCatalogs.hidden(' in catalog and 'libretroSkinVerdictRows(' in catalog,
+        'catalog entries pass the central iPhone filter and show its verdict and reasons')
+require('isDirectDownload' in catalogs_service and 'LibretroSkinCompatibility.notDirect' in catalogs_service,
+        'a link that is not a skin file is refused by the catalogs')
+require("notDirect: 'catalogNotDirect'" in compatibility, 'that refusal is explained with catalogNotDirect')
+require('errorBuilder' in catalog, 'broken thumbnails')
 
 # Consoles: every console, import into one of the user's own library folders
 # (10 October 2026: never a second library next to theirs; NeoStation's roms

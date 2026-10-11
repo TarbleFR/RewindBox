@@ -64,6 +64,21 @@ class LibretroSkinCompatibility {
   static const String overlayUnsupported = 'SKIN_COMPAT_OVERLAY_UNSUPPORTED';
   static const String system = 'SKIN_COMPAT_SYSTEM';
   static const String noTouchControls = 'SKIN_COMPAT_NO_TOUCH_CONTROLS';
+  static const String otherConsole = 'SKIN_COMPAT_OTHER_CONSOLE';
+
+  /// Refusals that hold on every device (an iPad included): the others
+  /// judge the skin's iPhone layouts.
+  static const Set<String> deviceIndependentReasons = <String>{
+    notDirect,
+    invalid,
+    desktop,
+    decorative,
+    deviceSpecific,
+    overlayUnsupported,
+    system,
+    otherConsole,
+    noTouchControls,
+  };
 
   static const Map<String, String> catalogReasonKeys = <String, String>{
     notDirect: 'catalogNotDirect',

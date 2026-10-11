@@ -291,6 +291,48 @@ List<String> libretroSkinCompatibilityReasons(BuildContext context, LibretroSkin
   ];
 }
 
+/// A skin's iPhone verdict for one console and its translated reasons
+/// (central filter, LibretroSkinCompatibility): skin page and catalogs.
+List<Widget> libretroSkinVerdictRows(BuildContext context, LibretroSkinCompatibility verdict) {
+  final theme = Theme.of(context);
+  final color = switch (verdict.verdict) {
+    LibretroSkinVerdict.compatible => theme.colorScheme.primary,
+    LibretroSkinVerdict.adaptable => theme.colorScheme.tertiary,
+    LibretroSkinVerdict.incompatible => theme.colorScheme.error,
+  };
+  final icon = switch (verdict.verdict) {
+    LibretroSkinVerdict.compatible => Icons.verified_outlined,
+    LibretroSkinVerdict.adaptable => Icons.auto_fix_high,
+    LibretroSkinVerdict.incompatible => Icons.block,
+  };
+  final label = <String>[
+    LibretroLocale.text(context, 'skinsCompatibilityTitle'),
+    LibretroLocale.text(context, libretroSkinVerdictKey(verdict.verdict)),
+  ].join(' · ');
+  return <Widget>[
+    Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    ),
+    for (final reason in libretroSkinCompatibilityReasons(context, verdict))
+      Padding(
+        padding: const EdgeInsets.only(left: 22, top: 2),
+        child: Text(reason, style: theme.textTheme.bodySmall),
+      ),
+  ];
+}
+
 /// LibretroLocale key of a verdict's badge.
 String libretroSkinVerdictKey(LibretroSkinVerdict verdict) => switch (verdict) {
       LibretroSkinVerdict.compatible => 'skinStatusCompatible',
@@ -821,44 +863,8 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     );
   }
 
-  /// The skin's iPhone verdict for this console and its reasons (central
-  /// filter, LibretroSkinCompatibility).
-  List<Widget> _buildVerdict(BuildContext context, LibretroSkinCompatibility verdict) {
-    final theme = Theme.of(context);
-    final color = switch (verdict.verdict) {
-      LibretroSkinVerdict.compatible => theme.colorScheme.primary,
-      LibretroSkinVerdict.adaptable => theme.colorScheme.tertiary,
-      LibretroSkinVerdict.incompatible => theme.colorScheme.error,
-    };
-    final icon = switch (verdict.verdict) {
-      LibretroSkinVerdict.compatible => Icons.verified_outlined,
-      LibretroSkinVerdict.adaptable => Icons.auto_fix_high,
-      LibretroSkinVerdict.incompatible => Icons.block,
-    };
-    final label = <String>[_t('skinsCompatibilityTitle'), _t(libretroSkinVerdictKey(verdict.verdict))].join(' · ');
-    return <Widget>[
-      Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-      ),
-      for (final reason in libretroSkinCompatibilityReasons(context, verdict))
-        Padding(
-          padding: const EdgeInsets.only(left: 22, top: 2),
-          child: Text(reason, style: theme.textTheme.bodySmall),
-        ),
-    ];
-  }
+  List<Widget> _buildVerdict(BuildContext context, LibretroSkinCompatibility verdict) =>
+      libretroSkinVerdictRows(context, verdict);
 
   Widget _badge(BuildContext context, IconData icon, String label) {
     final scheme = Theme.of(context).colorScheme;

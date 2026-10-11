@@ -17,6 +17,8 @@ import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/screens/libretro/libretro_skin_catalog_screen.dart';
 import 'package:neostation/screens/libretro/libretro_skin_manager_screen.dart';
 import 'package:neostation/services/libretro_skin_catalog_service.dart';
+import 'package:neostation/services/libretro_skin_catalogs.dart';
+import 'package:neostation/services/libretro_skin_compatibility.dart';
 import 'package:neostation/services/libretro_skin_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:path/path.dart' as path;
@@ -70,7 +72,8 @@ class _FilesSheet extends FilePickerPlatform {
 /// forgetSkin drops the selections naming the skin. The skin parser maps the
 /// last part of the declared gameTypeIdentifier to a console, like
 /// +[LibretroSkin consolesForGameTypeIdentifier:] ("...delta.game.gba" is
-/// "gba").
+/// "gba"), and the iPhone filter reports that console only, as
+/// LibretroSkinCompatibility does for every console a skin declares.
 class _FakeNative {
   final calls = <MethodCall>[];
   final console = <String, Object?>{};
@@ -85,18 +88,28 @@ class _FakeNative {
         final directory = arguments['directory'] as String;
         final info = jsonDecode(File(path.join(directory, 'info.json')).readAsStringSync()) as Map;
         final type = info['gameTypeIdentifier'] as String;
+        final console = type.split('.').last;
         return <String, Object?>{
           'ok': true,
+          'device': 'iphone',
           'summary': <String, Object?>{
             'identifier': info['identifier'],
             'name': info['name'],
-            'consoles': <String>[type.split('.').last],
+            'consoles': <String>[console],
             'gameTypeIdentifier': type,
             'orientations': <String, Object?>{
               'iphone': <String>['portrait', 'landscape'],
               'ipad': <String>['portrait', 'landscape'],
             },
             'warnings': <String>[],
+            'compatibility': <String, Object?>{
+              console: <String, Object?>{
+                'status': 'compatible',
+                'console': console,
+                'orientations': <String, Object?>{'portrait': 'compatible', 'landscape': 'compatible'},
+                'reasons': <String>[],
+              },
+            },
           },
         };
       case 'frontendSettings':
@@ -408,65 +421,107 @@ void main() {
   /// Catalog entry card holding [name].
   Finder catalogCard(String name) => find.ancestor(of: find.text(name), matching: find.byType(Card));
 
-  testWidgets('a catalog skin declaring another console is announced as such and not marked installed',
+  // Contract changed with the unified catalogs: the central iPhone filter
+  // checks each entry's real info.json before offering it, so a skin the
+  // catalog lists under the Game Gear but whose info.json declares the GBA
+  // is no longer offered for the Game Gear: it is hidden with its reason
+  // (its install for another console stays covered by the Files import test
+  // below).
+  testWidgets('the catalogs hide a skin declaring another console with its reason and install the others',
       (tester) async {
-    // The live catalog lists "Sega Game Gear" under the Game Gear, but its
-    // info.json declares the GBA (com.rileytestut.delta.game.gba).
     const catalog = '''
 {"skins": [
   {"id": "gg1", "name": "Sega Game Gear", "author": "someone", "systems": ["gamegear"],
-   "downloadURL": "https://example.com/skins/SEGAgamegear.deltaskin"},
+   "downloadURL": "https://example.com/skins/SEGAgamegear.deltaskin", "downloadCount": 50},
   {"id": "gg2", "name": "Clear Game Gear", "author": "someone else", "systems": ["gamegear"],
-   "downloadURL": "https://example.com/skins/ClearGameGear.deltaskin"}
+   "downloadURL": "https://example.com/skins/ClearGameGear.deltaskin", "downloadCount": 10}
 ]}
 ''';
+    final requests = <Uri>[];
     final client = MockClient((request) async {
+      requests.add(request.url);
       final file = request.url.pathSegments.last;
       if (file == 'catalog.json') return http.Response(catalog, 200);
+      // The Delta Skins site pages: no card.
+      if (file.endsWith('.html')) return http.Response('<html><body></body></html>', 200);
       if (file == 'SEGAgamegear.deltaskin') {
         return http.Response.bytes(_skinArchive('Sega Game Gear', 'com.rileytestut.delta.game.gba'), 200);
       }
       return http.Response.bytes(_skinArchive('Clear Game Gear', 'com.example.game.gg'), 200);
     });
-    final catalogService = LibretroSkinCatalogService(
-      cacheDirectory: path.join(root.path, 'Cache'),
+    final catalogs = LibretroSkinCatalogs(
       skins: service,
+      provenance: LibretroSkinCatalogService(cacheDirectory: path.join(root.path, 'Cache'), skins: service, client: client),
       client: client,
+      overlayIndex: () async => '{"version": 1, "sources": {}, "entries": []}',
     );
+    addTearDown(catalogs.dispose);
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
-        home: LibretroSkinCatalogScreen(console: 'gg', skins: service, catalog: catalogService),
+        home: LibretroSkinCatalogScreen(console: 'gg', skins: service, catalogs: catalogs),
       ),
     );
-    await settle(tester, find.text('Clear Game Gear'));
+    final hiddenHeader = find.text(en('catalogHidden', {'count': 1}));
+    await settle(tester, hiddenHeader, rounds: 1000);
+    expect(find.text('Clear Game Gear'), findsOneWidget);
+    expect(find.text('Sega Game Gear'), findsNothing);
+    expect(
+      find.descendant(
+        of: catalogCard('Clear Game Gear'),
+        matching: find.text('${english['skinsCompatibilityTitle']} · ${english['skinStatusCompatible']}'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(en('catalogSource', {'source': 'Provenance'})), findsOneWidget);
     expect(find.byIcon(Icons.check), findsNothing);
+    // Each archive was checked with the real file (range reads), before any install.
+    expect(requests.where((uri) => uri.pathSegments.last.endsWith('.deltaskin')).length, 2);
+    expect(await tester.runAsync(() => service.installedSkins()), isEmpty);
 
-    final otherConsoles = en('skinInstalledForOtherConsoles', {'consoles': 'Game Boy Advance'});
-    await tester.tap(find.descendant(of: catalogCard('Sega Game Gear'), matching: find.text(english['catalogInstall']!)));
-    await settle(tester, find.text(otherConsoles), rounds: 1000);
-    expect(find.text(en('skinsImported', {'name': 'Sega Game Gear'})), findsOneWidget);
-    expect(find.descendant(of: catalogCard('Sega Game Gear'), matching: find.byIcon(Icons.check)), findsNothing);
-    expect(find.descendant(of: catalogCard('Sega Game Gear'), matching: find.byIcon(Icons.download)), findsOneWidget);
-    // Installed, and listed for the Game Boy Advance only.
-    final forGba = await tester.runAsync(() => service.installedSkins(console: 'gba'));
-    final forGameGear = await tester.runAsync(() => service.installedSkins(console: 'gg'));
-    expect(forGba!.map((skin) => skin.name), <String>['Sega Game Gear']);
-    expect(forGameGear, isEmpty);
+    // The excluded skin and its reason, without an install button.
+    await tester.tap(find.text(english['catalogShowHidden']!));
+    await tester.pump();
+    expect(find.text('Sega Game Gear'), findsOneWidget);
+    expect(find.descendant(of: catalogCard('Sega Game Gear'), matching: find.text(english['skinCompatOtherConsole']!)),
+        findsOneWidget);
+    expect(find.descendant(of: catalogCard('Sega Game Gear'), matching: find.text(english['catalogInstall']!)),
+        findsNothing);
+    await tester.tap(find.text(english['catalogHideHidden']!));
+    await tester.pump();
+    expect(find.text('Sega Game Gear'), findsNothing);
 
-    // A skin for this console is marked installed.
+    // A skin for this console installs and is marked installed.
     await tester.tap(find.descendant(of: catalogCard('Clear Game Gear'), matching: find.text(english['catalogInstall']!)));
     await settle(
       tester,
       find.descendant(of: catalogCard('Clear Game Gear'), matching: find.byIcon(Icons.check)),
       rounds: 1000,
     );
-    expect(find.descendant(of: catalogCard('Sega Game Gear'), matching: find.byIcon(Icons.check)), findsNothing);
+    expect(find.text(en('skinsImported', {'name': 'Clear Game Gear'})), findsOneWidget);
     final installed = await tester.runAsync(() => service.installedSkins(console: 'gg'));
     expect(installed!.map((skin) => skin.name), <String>['Clear Game Gear']);
+    expect(installed.single.compatibility['gg']?.verdict, LibretroSkinVerdict.compatible);
+
+    // Favorites: kept in Documents/Libretro/SkinFavorites.json, and a filter.
+    await tester.tap(find.descendant(of: catalogCard('Clear Game Gear'), matching: find.byIcon(Icons.star_border)));
+    await tester.pump();
+    expect(find.byTooltip(english['catalogFavoriteRemove']!), findsOneWidget);
+    final favorites = File(path.join(root.path, LibretroSkinCatalogs.favoritesFileName));
+    for (var round = 0; round < 200 && !favorites.existsSync(); round++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+      await tester.pump();
+    }
+    expect(jsonDecode(favorites.readAsStringSync()), <String>[LibretroSkinCatalogs.normalizeDownloadURL(
+      'https://example.com/skins/ClearGameGear.deltaskin',
+    )]);
+    await tester.tap(find.text(english['catalogFavorites']!));
+    await tester.pump();
+    expect(find.text('Clear Game Gear'), findsOneWidget);
+    expect(hiddenHeader, findsNothing);
   });
 
   testWidgets('a skin imported from Files for another console is announced as such on this page', (tester) async {

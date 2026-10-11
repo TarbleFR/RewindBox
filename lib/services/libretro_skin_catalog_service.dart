@@ -190,8 +190,10 @@ class LibretroSkinCatalogService {
   }
 
   /// Downloads an entry (at most [maxDownloadBytes]) and installs it with
-  /// its download link as source and the catalog author.
-  Future<LibretroSkinImportResult> download(LibretroSkinCatalogEntry entry) async {
+  /// its download link as source and the catalog author. [targetConsole]
+  /// (the console the user browses) is the one whose iPhone verdict decides
+  /// the install.
+  Future<LibretroSkinImportResult> download(LibretroSkinCatalogEntry entry, {String? targetConsole}) async {
     final uri = entry.downloadUri;
     if (uri == null || !entry.isDirectDownload) {
       return const LibretroSkinImportFailed(LibretroSkinMessages.notDirect);
@@ -202,7 +204,12 @@ class LibretroSkinCatalogService {
       await folder.create(recursive: true);
       final refusal = await _fetch(uri, file);
       if (refusal != null) return refusal;
-      return await skins.importFromFile(file.path, source: entry.downloadURL, author: entry.author);
+      return await skins.importFromFile(
+        file.path,
+        source: entry.downloadURL,
+        author: entry.author,
+        targetConsole: targetConsole,
+      );
     } catch (error) {
       _log.w('Skin download failed for ${entry.downloadURL}: $error');
       return LibretroSkinImportFailed(LibretroSkinMessages.download, technicalDetails: '$error');
