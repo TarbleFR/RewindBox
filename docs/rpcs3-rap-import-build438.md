@@ -67,9 +67,11 @@ les nouvelles sources.
   (hors de l'arborescence du Core, jamais supprimé), puis la nouvelle licence
   est installée (« remplacée »). Conserver, B ou fermeture : l'ancienne reste
   (« refusée », motif « conservée »).
-- **Même ID deux fois dans la sélection** : le premier fichier décide ; une
-  copie identique suit son résultat, une copie différente est refusée
-  (« seul le premier a été utilisé »).
+- **Même ID deux fois dans la sélection** : le premier fichier décide. Une
+  copie identique est « déjà présente » quand le premier a été importé,
+  remplacé ou était déjà présent, et refusée avec le même motif quand le
+  premier a été refusé (licence conservée, échec d'écriture). Une copie
+  différente est refusée (« seul le premier a été utilisé »).
 - **Garde `Data/vfs.yml`** : si ce fichier redirige `dev_hdd0` (ou
   `$(EmulatorDir)`) hors de `Data/dev_hdd0/`, ou s'il est illisible, aucune
   licence n'est écrite et chaque fichier valide est refusé avec ce motif.
