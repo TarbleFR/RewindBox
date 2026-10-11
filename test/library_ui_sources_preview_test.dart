@@ -339,6 +339,42 @@ void main() {
 }
 
 void _controllerListTests() {
+  testWidgets('on a landscape iPhone several sources are visible at once', (
+    tester,
+  ) async {
+    final preview = _aidokuPreview(<LibraryCatalogSourceEntry>[
+      for (var index = 0; index < 12; index++)
+        _entry('fr.source$index', 'Source $index'),
+    ]);
+    await pumpLibraryUi(
+      tester,
+      LibraryCatalogPreviewScreen(
+        preview: preview,
+        aidokuService: FakeAidokuService(),
+        imageCache: NoImageCache(),
+        enableGamepad: false,
+      ),
+      size: const Size(844, 390),
+      wrapInScaffold: false,
+    );
+    await tester.pumpAndSettle();
+    // Once the catalogue information is scrolled away, the rows have the
+    // whole height left by the title bar and the Activate button (fixed,
+    // that information left room for less than two rows).
+    final scrollRect = tester.getRect(
+      find.byKey(const ValueKey<String>('preview-scroll')),
+    );
+    final row = tester.getRect(
+      find.byKey(const ValueKey<String>('entry-fr.source0')),
+    );
+    expect(scrollRect.height, greaterThanOrEqualTo(3 * row.height));
+    final activate = tester.getRect(
+      find.byKey(const ValueKey<String>('activate-button')),
+    );
+    expect(activate.bottom, lessThanOrEqualTo(390));
+    expect(activate.top, greaterThanOrEqualTo(scrollRect.bottom));
+  });
+
   testWidgets('a controller scrolls through a Tachiyomi list it cannot tick', (
     tester,
   ) async {
@@ -367,7 +403,7 @@ void _controllerListTests() {
       wrapInScaffold: false,
     );
     await tester.pumpAndSettle();
-    final list = find.byType(ListView);
+    final list = find.byKey(const ValueKey<String>('preview-scroll'));
     bool visible(String text) {
       final found = find.text(text);
       if (found.evaluate().isEmpty) return false;

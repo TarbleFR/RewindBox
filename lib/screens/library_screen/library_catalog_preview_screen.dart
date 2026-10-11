@@ -179,51 +179,46 @@ class _LibraryCatalogPreviewScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _buildInfo(theme),
-                if (!preview.isActivatable) _buildTachiyomiBanner(theme),
-                if (preview.isActivatable && preview.sources.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: <Widget>[
-                        OutlinedButton.icon(
-                          onPressed: _activating ? null : _selectWithReader,
-                          icon: const Icon(Icons.done_all),
-                          label: Text(_t('selectWithAdapter')),
-                        ),
-                        if (count > 0)
-                          TextButton(
-                            onPressed: _activating
-                                ? null
-                                : () => setState(_selected.clear),
-                            child: Text(_t('clearSelection')),
-                          ),
-                      ],
-                    ),
-                  ),
+                // The catalogue information and the selection buttons scroll
+                // with the sources: fixed, they left room for less than two
+                // rows on an iPhone in landscape. "Activate" stays in view.
                 Expanded(
-                  child: preview.sources.isEmpty
-                      ? Center(child: Text(_t('noSourcesInCatalog')))
-                      : ListView.builder(
+                  child: CustomScrollView(
+                    key: const ValueKey<String>('preview-scroll'),
+                    slivers: <Widget>[
+                      SliverToBoxAdapter(child: _buildInfo(theme)),
+                      if (!preview.isActivatable)
+                        SliverToBoxAdapter(child: _buildTachiyomiBanner(theme)),
+                      if (preview.isActivatable && preview.sources.isNotEmpty)
+                        SliverToBoxAdapter(child: _buildSelectionBar(count)),
+                      if (preview.sources.isEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(child: Text(_t('noSourcesInCatalog'))),
+                        )
+                      else
+                        SliverPadding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          itemCount: preview.sources.length,
-                          itemBuilder: (context, index) {
-                            final entry = preview.sources[index];
-                            return _EntryRow(
-                              key: ValueKey<String>('entry-${entry.id}'),
-                              entry: entry,
-                              selected: _selected.contains(entry.id),
-                              selectable: _selectable(entry),
-                              aidokuFormat: preview.format.isAidoku,
-                              hasReader: _hasReader(entry),
-                              unsupportedKey: _unsupportedKey(entry),
-                              imageCache: widget.imageCache,
-                              onToggle: () => _toggle(entry),
-                            );
-                          },
+                          sliver: SliverList.builder(
+                            itemCount: preview.sources.length,
+                            itemBuilder: (context, index) {
+                              final entry = preview.sources[index];
+                              return _EntryRow(
+                                key: ValueKey<String>('entry-${entry.id}'),
+                                entry: entry,
+                                selected: _selected.contains(entry.id),
+                                selectable: _selectable(entry),
+                                aidokuFormat: preview.format.isAidoku,
+                                hasReader: _hasReader(entry),
+                                unsupportedKey: _unsupportedKey(entry),
+                                imageCache: widget.imageCache,
+                                onToggle: () => _toggle(entry),
+                              );
+                            },
+                          ),
                         ),
+                    ],
+                  ),
                 ),
                 if (preview.isActivatable)
                   Padding(
@@ -259,6 +254,28 @@ class _LibraryCatalogPreviewScreenState
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionBar(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: <Widget>[
+          OutlinedButton.icon(
+            onPressed: _activating ? null : _selectWithReader,
+            icon: const Icon(Icons.done_all),
+            label: Text(_t('selectWithAdapter')),
+          ),
+          if (count > 0)
+            TextButton(
+              onPressed: _activating ? null : () => setState(_selected.clear),
+              child: Text(_t('clearSelection')),
+            ),
+        ],
       ),
     );
   }
