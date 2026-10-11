@@ -949,6 +949,175 @@ void main() {
       expect(response.finalUri, Uri.parse('https://www.a.test/manga/'));
     });
 
+    test(
+      'an https redirect to http is refused before anything is sent',
+      () async {
+        final client = _FakeClient((call) async {
+          expect(
+            call.request.followRedirects,
+            isFalse,
+            reason: 'https redirects are followed by LibraryHttp itself',
+          );
+          return _response(
+            302,
+            headers: <String, String>{
+              'location': 'http://a.test/manga/one-piece/',
+            },
+          );
+        });
+        final library = create(client);
+        await expectLater(
+          library.send(
+            LibraryRequest.get(
+              Uri.parse('https://a.test/manga/one-piece/'),
+              headers: const <String, String>{'Referer': 'https://a.test/'},
+              cache: _shortPolicy,
+            ),
+          ),
+          throwsA(
+            isA<LibraryNetworkException>()
+                .having(
+                  (e) => e.kind,
+                  'kind',
+                  LibraryNetworkErrorKind.invalidResponse,
+                )
+                .having((e) => e.detail, 'detail', 'downgrade')
+                .having((e) => e.uri?.scheme, 'scheme', 'http'),
+          ),
+        );
+        expect(client.calls.map((call) => call.url.toString()), <String>[
+          'https://a.test/manga/one-piece/',
+        ], reason: 'the cleartext address is never requested');
+        expect(library.stats.failures, 1);
+      },
+    );
+
+    test(
+      'a client following the redirect itself cannot downgrade either',
+      () async {
+        final client = _FakeClient(
+          (call) async => _UrlResponse(
+            Stream<List<int>>.value(utf8.encode('<html>rewritten</html>')),
+            200,
+            url: Uri.parse('http://a.test/manga/'),
+          ),
+        );
+        final library = create(client);
+        final request = LibraryRequest.get(
+          Uri.parse('https://a.test/manga/'),
+          cache: _shortPolicy,
+        );
+        await expectLater(
+          library.send(request),
+          throwsA(
+            isA<LibraryNetworkException>()
+                .having(
+                  (e) => e.kind,
+                  'kind',
+                  LibraryNetworkErrorKind.invalidResponse,
+                )
+                .having((e) => e.detail, 'detail', 'downgrade'),
+          ),
+        );
+        expect(
+          await library.readCache(request),
+          isNull,
+          reason: 'the cleartext body is not cached',
+        );
+      },
+    );
+
+    test('https redirects are followed over https only', () async {
+      final client = _FakeClient((call) async {
+        switch (call.url.toString()) {
+          case 'https://a.test/manga':
+            return _response(
+              301,
+              body: 'moved',
+              headers: <String, String>{'location': '/manga/'},
+            );
+          case 'https://a.test/manga/':
+            return _response(
+              308,
+              headers: <String, String>{
+                'Location': 'https://www.a.test/manga/',
+              },
+            );
+          default:
+            return _response(200, body: 'listing of ${call.url}');
+        }
+      });
+      final library = create(client);
+      final response = await library.send(
+        LibraryRequest.get(
+          Uri.parse('https://a.test/manga'),
+          headers: const <String, String>{
+            'Referer': 'https://a.test/',
+            'Authorization': 'Bearer secret',
+          },
+        ),
+      );
+      expect(response.text, 'listing of https://www.a.test/manga/');
+      expect(response.finalUri, Uri.parse('https://www.a.test/manga/'));
+      expect(client.calls.map((call) => call.url.toString()), <String>[
+        'https://a.test/manga',
+        'https://a.test/manga/',
+        'https://www.a.test/manga/',
+      ]);
+      // Same origin: every header is kept; another origin: the
+      // credentials are dropped, as dart:io does.
+      expect(client.calls[1].header('authorization'), 'Bearer secret');
+      expect(client.calls[2].header('authorization'), isNull);
+      expect(client.calls[2].header('referer'), 'https://a.test/');
+      expect(library.stats.networkRequests, 1);
+    });
+
+    test('a POST answered 303 continues as a GET without body', () async {
+      final client = _FakeClient((call) async {
+        if (call.request.method == 'POST') {
+          return _response(
+            303,
+            headers: <String, String>{'location': '/results?page=1'},
+          );
+        }
+        return _response(200, body: 'results');
+      });
+      final library = create(client);
+      final response = await library.send(
+        LibraryRequest.postForm(
+          Uri.parse('https://a.test/search'),
+          const <String, String>{'q': 'solo'},
+          followRedirects: true,
+        ),
+      );
+      expect(response.text, 'results');
+      expect(client.calls[1].request.method, 'GET');
+      expect(client.calls[1].url, Uri.parse('https://a.test/results?page=1'));
+      expect(client.calls[1].header('content-type'), isNull);
+    });
+
+    test('an https redirect loop ends after the redirect limit', () async {
+      var hop = 0;
+      final client = _FakeClient(
+        (call) async => _response(
+          302,
+          headers: <String, String>{'location': '/hop${++hop}'},
+        ),
+      );
+      final library = create(client);
+      await expectLater(
+        library.send(LibraryRequest.get(Uri.parse('https://a.test/start'))),
+        throwsA(
+          isA<LibraryNetworkException>().having(
+            (e) => e.detail,
+            'detail',
+            'redirect limit exceeded',
+          ),
+        ),
+      );
+      expect(client.calls, hasLength(LibraryHttp.redirectLimit + 1));
+    });
+
     test('close ends in-flight requests and rejects new ones', () async {
       final client = _FakeClient((call) async {
         await call.wait();

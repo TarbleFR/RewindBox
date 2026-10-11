@@ -442,6 +442,35 @@ void main() {
       },
     );
 
+    test('http image URLs are downloaded over https only', () async {
+      final image = _fakeImage(3);
+      final fetcher = _FakeFetcher((request, cancel) async {
+        return _ok(request, image);
+      });
+      final cache = create(fetcher);
+      const url = 'http://img.test/covers/a.jpg';
+
+      expect(await cache.load(url), image);
+      expect(
+        fetcher.requests.single.uri,
+        Uri.parse('https://img.test/covers/a.jpg'),
+      );
+      // Cached under the address the source gave, so favourites' pins and
+      // later loads of the same URL find it.
+      expect(await cache.isCached(url), isTrue);
+      expect(await cache.load(url), image);
+      expect(fetcher.requests, hasLength(1));
+
+      expect(
+        LibraryImageCache.secureImageUri(Uri.parse('http://img.test:80/x.png')),
+        Uri.parse('https://img.test/x.png'),
+      );
+      expect(
+        LibraryImageCache.secureImageUri(Uri.parse('https://img.test/x.png')),
+        Uri.parse('https://img.test/x.png'),
+      );
+    });
+
     test('data URIs are decoded without network access', () async {
       final fetcher = _FakeFetcher((request, cancel) async {
         fail('no network expected');

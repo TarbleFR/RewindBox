@@ -151,12 +151,15 @@ class LibraryImageCache implements LibraryCoverPinner {
         ),
       );
     }
+    // Images are never fetched over cleartext: an `http:` cover or page URL
+    // is requested over https (the cache key stays [url]).
+    final requestUri = secureImageUri(uri);
 
     var shared = _inflight[url];
     if (shared == null || shared.token.isCancelled) {
       final created = _SharedLoad();
       _inflight[url] = created;
-      created.future = _loadShared(url, uri, headers, created.token)
+      created.future = _loadShared(url, requestUri, headers, created.token)
           .whenComplete(() {
             if (identical(_inflight[url], created)) _inflight.remove(url);
           });
@@ -192,6 +195,17 @@ class LibraryImageCache implements LibraryCoverPinner {
       },
     );
     return completer.future;
+  }
+
+  /// The https address an image of [uri] is downloaded from: `http:` is
+  /// upgraded (an explicit port 80 becomes the https default), anything else
+  /// is returned unchanged.
+  static Uri secureImageUri(Uri uri) {
+    if (uri.scheme != 'http') return uri;
+    final upgraded = uri.replace(scheme: 'https');
+    return uri.hasPort && uri.port == 80
+        ? upgraded.replace(port: 443)
+        : upgraded;
   }
 
   /// Whether a usable copy of [url] is on disk ([fresh]: still within

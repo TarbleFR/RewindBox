@@ -1003,24 +1003,15 @@ class LibraryHttp {
       ),
     );
 
-    final httpRequest = http.AbortableRequest(
-      request.method,
-      uri,
-      abortTrigger: trigger.future,
-    );
-    httpRequest
-      ..followRedirects = request.followRedirects
-      ..maxRedirects = 5
-      ..persistentConnection = true;
-    httpRequest.headers.addAll(request.headers);
-    if (!_hasHeader(httpRequest.headers, 'user-agent')) {
-      httpRequest.headers['User-Agent'] = defaultUserAgent;
+    var requestHeaders = <String, String>{...request.headers};
+    if (!_hasHeader(requestHeaders, 'user-agent')) {
+      requestHeaders['User-Agent'] = defaultUserAgent;
     }
     final etag = cached?.headers['etag'];
     final lastModified = cached?.headers['last-modified'];
     final callerConditional =
-        _hasHeader(httpRequest.headers, 'if-none-match') ||
-        _hasHeader(httpRequest.headers, 'if-modified-since');
+        _hasHeader(requestHeaders, 'if-none-match') ||
+        _hasHeader(requestHeaders, 'if-modified-since');
     final revalidating =
         !callerConditional &&
             ((etag != null && etag.isNotEmpty) ||
@@ -1029,52 +1020,124 @@ class LibraryHttp {
         : null;
     if (revalidating != null) {
       if (etag != null && etag.isNotEmpty) {
-        httpRequest.headers['If-None-Match'] = etag;
+        requestHeaders['If-None-Match'] = etag;
       }
       if (lastModified != null && lastModified.isNotEmpty) {
-        httpRequest.headers['If-Modified-Since'] = lastModified;
+        requestHeaders['If-Modified-Since'] = lastModified;
       }
     }
     final form = request.form;
+    List<int>? requestBody;
     if (form != null) {
-      if (!_hasHeader(httpRequest.headers, 'content-type')) {
-        httpRequest.headers['Content-Type'] =
+      if (!_hasHeader(requestHeaders, 'content-type')) {
+        requestHeaders['Content-Type'] =
             'application/x-www-form-urlencoded; charset=utf-8';
       }
-      httpRequest.bodyBytes = utf8.encode(_encodedForm(form));
+      requestBody = utf8.encode(_encodedForm(form));
     }
+
+    // An https request never continues over cleartext. Its redirects are
+    // followed here rather than by the client, so a `Location: http://...`
+    // is refused before anything is sent to it (path, Referer and other
+    // headers included).
+    final secure = uri.scheme == 'https';
+    final manualRedirects = secure && request.followRedirects;
+    var hopUri = uri;
+    var hopMethod = request.method;
+    var redirects = 0;
 
     final watch = Stopwatch()..start();
     _stats.networkRequests++;
     try {
-      final streamed = await _raceAbort(
-        _client.send(httpRequest),
-        trigger.future,
-        onLate: (abandoned) => unawaited(_discard(abandoned.stream)),
-      );
+      http.StreamedResponse streamed;
+      Uri finalUri;
+      while (true) {
+        final httpRequest = http.AbortableRequest(
+          hopMethod,
+          hopUri,
+          abortTrigger: trigger.future,
+        );
+        httpRequest
+          ..followRedirects = manualRedirects ? false : request.followRedirects
+          ..maxRedirects = redirectLimit
+          ..persistentConnection = true;
+        httpRequest.headers.addAll(requestHeaders);
+        final hopBody = requestBody;
+        if (hopBody != null) httpRequest.bodyBytes = hopBody;
+        final response = await _raceAbort(
+          _client.send(httpRequest),
+          trigger.future,
+          onLate: (abandoned) => unawaited(_discard(abandoned.stream)),
+        );
+        var responseUri = hopUri;
+        if (response case http.BaseResponseWithUrl(:final url)) {
+          responseUri = hopUri.resolveUri(url);
+        }
+        // A client that followed the redirect itself: the cleartext answer
+        // is neither parsed nor cached.
+        if (secure && responseUri.scheme != 'https') {
+          unawaited(_discard(response.stream));
+          throw _downgrade(responseUri, response.statusCode);
+        }
+        final location = manualRedirects
+            ? _redirectLocation(hopMethod, response)
+            : null;
+        if (location == null) {
+          streamed = response;
+          finalUri = responseUri;
+          break;
+        }
+        final Uri next;
+        try {
+          next = responseUri.resolveUri(Uri.parse(location));
+        } on FormatException {
+          unawaited(_discard(response.stream));
+          throw LibraryNetworkException(
+            LibraryNetworkErrorKind.invalidResponse,
+            uri: responseUri,
+            statusCode: response.statusCode,
+            detail: 'invalid redirect location',
+          );
+        }
+        await _drainBody(response, trigger: trigger.future, uri: responseUri);
+        if (next.scheme != 'https' || next.host.isEmpty) {
+          throw _downgrade(next, response.statusCode);
+        }
+        if (++redirects > redirectLimit) {
+          // Same classification as the client's own RedirectException.
+          throw LibraryNetworkException(
+            LibraryNetworkErrorKind.offline,
+            uri: next,
+            statusCode: response.statusCode,
+            detail: 'redirect limit exceeded',
+          );
+        }
+        if (hopMethod == 'POST' && response.statusCode == 303) {
+          hopMethod = 'GET';
+          requestBody = null;
+          requestHeaders = <String, String>{
+            for (final entry in requestHeaders.entries)
+              if (entry.key.toLowerCase() != 'content-type')
+                entry.key: entry.value,
+          };
+        }
+        if (!_sameOrigin(hopUri, next)) {
+          requestHeaders = <String, String>{
+            for (final entry in requestHeaders.entries)
+              if (!_originBoundHeaders.contains(entry.key.toLowerCase()))
+                entry.key: entry.value,
+          };
+        }
+        hopUri = next;
+      }
       final statusCode = streamed.statusCode;
       final headers = <String, String>{
         for (final entry in streamed.headers.entries)
           entry.key.toLowerCase(): entry.value,
       };
-      var finalUri = uri;
-      if (streamed case http.BaseResponseWithUrl(:final url)) {
-        finalUri = uri.resolveUri(url);
-      }
       final Uint8List body;
       if (statusCode == 304 || request.method == 'HEAD') {
-        // Drained rather than cancelled so a (non-conforming) body cannot
-        // leave the kept-alive connection half-read.
-        try {
-          await _readBody(
-            streamed,
-            maxBytes: 64 * 1024,
-            trigger: trigger.future,
-            uri: finalUri,
-          );
-        } on LibraryNetworkException catch (error) {
-          if (error.kind != LibraryNetworkErrorKind.tooLarge) rethrow;
-        }
+        await _drainBody(streamed, trigger: trigger.future, uri: finalUri);
         body = Uint8List(0);
       } else {
         body = await _readBody(
@@ -1171,6 +1234,72 @@ class LibraryHttp {
       if (value != null && value.isNotEmpty) merged[name] = value;
     }
     return Map<String, String>.unmodifiable(merged);
+  }
+
+  /// Redirects followed for one request (the `dart:io` default).
+  static const int redirectLimit = 5;
+
+  /// Headers dropped when a redirect leaves the origin (as `dart:io` does).
+  static const Set<String> _originBoundHeaders = <String>{
+    'authorization',
+    'www-authenticate',
+    'proxy-authorization',
+    'proxy-authenticate',
+    'cookie',
+    'cookie2',
+  };
+
+  static LibraryNetworkException _downgrade(Uri target, int statusCode) =>
+      LibraryNetworkException(
+        LibraryNetworkErrorKind.invalidResponse,
+        uri: target,
+        statusCode: statusCode,
+        detail: 'downgrade',
+      );
+
+  /// The `Location` of a redirect `dart:io` would follow for [method]
+  /// (GET/HEAD: 301, 302, 303, 307, 308; POST: 303 only), or null.
+  static String? _redirectLocation(
+    String method,
+    http.StreamedResponse response,
+  ) {
+    final status = response.statusCode;
+    final follows = method == 'GET' || method == 'HEAD'
+        ? const <int>{301, 302, 303, 307, 308}.contains(status)
+        : method == 'POST' && status == 303;
+    if (!follows) return null;
+    for (final entry in response.headers.entries) {
+      if (entry.key.toLowerCase() == 'location') {
+        final value = entry.value.trim();
+        return value.isEmpty ? null : value;
+      }
+    }
+    return null;
+  }
+
+  static bool _sameOrigin(Uri a, Uri b) =>
+      a.scheme == b.scheme &&
+      a.host.toLowerCase() == b.host.toLowerCase() &&
+      a.port == b.port;
+
+  /// Reads and drops a body that is not used (304, HEAD, redirect), rather
+  /// than cancelling it, so a non-conforming body cannot leave the
+  /// kept-alive connection half-read.
+  static Future<void> _drainBody(
+    http.StreamedResponse response, {
+    required Future<void> trigger,
+    required Uri uri,
+  }) async {
+    try {
+      await _readBody(
+        response,
+        maxBytes: 64 * 1024,
+        trigger: trigger,
+        uri: uri,
+      );
+    } on LibraryNetworkException catch (error) {
+      if (error.kind != LibraryNetworkErrorKind.tooLarge) rethrow;
+    }
   }
 
   static bool _hasHeader(Map<String, String> headers, String name) {
