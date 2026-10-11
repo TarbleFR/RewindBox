@@ -572,6 +572,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   }
 
   void _updateDecodeSize(Size size) {
+    // A closing reader rotates back to landscape during its transition:
+    // its pages keep the sizes they were decoded at instead of being read
+    // and decoded again for a screen that is going away.
+    if (_controller.finished) return;
     final ratio = MediaQuery.devicePixelRatioOf(context);
     _decodeWidth = _decodeLimit(size.width * ratio, maxDecodeWidth);
     _decodeHeight = _decodeLimit(size.height * ratio, maxDecodeHeight);

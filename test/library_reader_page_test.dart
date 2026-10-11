@@ -921,6 +921,43 @@ void main() {
       expect(find.text('home page:1'), findsOneWidget);
       await flushStore(tester, store);
     });
+
+    // Since landscape is restored when the pop starts, the closing reader
+    // is laid out again in landscape: its pages must not be read and
+    // decoded again at the new size for a screen that is going away.
+    testWidgets('a reader rotating while it closes keeps its decoded pages', (
+      tester,
+    ) async {
+      useSurface(tester, size: const Size(600, 900));
+      final (store, _) = await createStore(tester);
+      final source = _SlowPageSource(6);
+      final navigator = await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(
+            pagesPerChapter: 6,
+            loader: (index, cancel) async => source,
+          ),
+          store: store,
+        ),
+      );
+      await tester.pump();
+      expect(source.requests.map((r) => (r.$2, r.$3)).toSet(), <(int?, int?)>{
+        (640, 1024),
+      });
+      navigator.currentState!.pop();
+      await tester.pump();
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(LibraryPageReaderScreen), findsOneWidget);
+      expect(source.requests.map((r) => (r.$2, r.$3)).toSet(), <(int?, int?)>{
+        (640, 1024),
+      });
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      await flushStore(tester, store);
+    });
   });
 
   group('VoiceOver', () {
