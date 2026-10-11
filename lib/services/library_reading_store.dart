@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:neostation/services/library_image_cache.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -604,6 +605,9 @@ class LibraryReadingStore extends ChangeNotifier {
   File? _file;
   bool _disposed = false;
 
+  /// A notification waits for the end of the current frame ([_notify]).
+  bool _notifyDeferred = false;
+
   /// Last error of a failed write (the change stays pending and is retried
   /// with the next change or [flush]).
   Object? lastSaveError;
@@ -832,6 +836,7 @@ class LibraryReadingStore extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _notifyDeferred = false;
     _saveTimer?.cancel();
     _saveTimer = null;
     if (_loaded && _dirty) unawaited(_startWrite());
@@ -844,7 +849,44 @@ class LibraryReadingStore extends ChangeNotifier {
     _dirty = true;
     _firstPendingChange ??= _clock();
     if (_loaded) _scheduleSave();
-    if (!_disposed) notifyListeners();
+    _notify();
+  }
+
+  /// Notifies the listeners, after the current frame when the widget tree
+  /// may be locked.
+  ///
+  /// Readers save their last position in `State.dispose`, which runs while
+  /// the framework finalizes the tree: a listener calling `setState` then
+  /// fails in debug and, in release, marks the screen below dirty without
+  /// scheduling the frame that redraws it. During the build, layout and
+  /// paint phases the notification is therefore delivered in a microtask
+  /// (after the frame); otherwise it is synchronous. Notifications carry no
+  /// data, so a synchronous one also delivers a deferred one still pending.
+  void _notify() {
+    if (_disposed) return;
+    if (_treeMayBeLocked()) {
+      if (_notifyDeferred) return;
+      _notifyDeferred = true;
+      scheduleMicrotask(() {
+        if (!_notifyDeferred || _disposed) return;
+        _notifyDeferred = false;
+        notifyListeners();
+      });
+      return;
+    }
+    _notifyDeferred = false;
+    notifyListeners();
+  }
+
+  static bool _treeMayBeLocked() {
+    final SchedulerPhase phase;
+    try {
+      phase = SchedulerBinding.instance.schedulerPhase;
+    } catch (_) {
+      // No binding (plain Dart code, worker isolate): no widget tree.
+      return false;
+    }
+    return phase == SchedulerPhase.persistentCallbacks;
   }
 
   void _scheduleSave() {
@@ -909,7 +951,7 @@ class LibraryReadingStore extends ChangeNotifier {
       _firstPendingChange = _clock();
       _scheduleSave();
     }
-    if (!_disposed) notifyListeners();
+    _notify();
     unawaited(_restorePins());
   }
 
@@ -926,7 +968,7 @@ class LibraryReadingStore extends ChangeNotifier {
     }
     _adopt(data, keepChanges: false);
     _readFailed = false;
-    if (!_disposed) notifyListeners();
+    _notify();
     unawaited(_restorePins());
     return true;
   }
