@@ -1,4 +1,4 @@
-import 'dart:ui' show FrameTiming;
+import 'dart:ui' show FrameTiming, SemanticsAction;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -314,6 +314,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(en(UiRefreshRateLocale.measureFailed)), findsOneWidget);
     expect(find.textContaining('Measured rate'), findsNothing);
+  }, variant: ios);
+
+  testWidgets('VoiceOver can start a measurement from its translated label', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final service = UiRefreshRateService.forTesting(
+      reportWait: const Duration(milliseconds: 50),
+    );
+    addTearDown(service.dispose);
+    await pumpRow(tester, service);
+
+    final node = tester.getSemantics(
+      find.bySemanticsLabel(en(UiRefreshRateLocale.measureHint)),
+    );
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    tester.semantics.tap(
+      find.semantics.byLabel(en(UiRefreshRateLocale.measureHint)),
+    );
+    await tester.pump();
+    expect(service.measuring, isTrue);
+
+    await tester.pump(UiRefreshRateService.measureDuration);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    expect(service.measuring, isFalse);
+    semantics.dispose();
   }, variant: ios);
 
   testWidgets('leaving the page during a measurement cancels it cleanly', (

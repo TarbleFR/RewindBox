@@ -93,7 +93,9 @@ section D.
   lancement peuvent y être comptées (le moteur les signale par lots).
 - Après le jeu (libération du verrou, ou retour au premier plan après un
   jeu, cas de l’application RetroArch externe), la première rafale
-  mesurable dans les 60 s devient « Après le dernier jeu : N Hz ».
+  mesurable dans les 60 s devient « Après le dernier jeu : N Hz ». Une
+  rafale signalée après ces 60 s n’est pas retenue, et un simple passage
+  en arrière-plan sans nouveau jeu ne rouvre pas la fenêtre.
 - Action « Mesurer » : une animation bornée de 1,5 s (barre de
   progression), puis attente du prochain lot du moteur (≤ 1,2 s, sans
   image) ; la plus longue rafale mesurable est retenue. Sans images

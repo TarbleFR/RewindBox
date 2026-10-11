@@ -331,10 +331,25 @@ class UiRefreshRateService extends ChangeNotifier with WidgetsBindingObserver {
     }
     final from = _postGameSearchFrom;
     if (from == null) return;
+    // The window is judged before any burst is accepted: frames first
+    // reported after it no longer describe the return from the game, and a
+    // later trip to the background must not re-arm it without a new game.
+    final deadline = _postGameDeadline;
+    if (deadline != null && _clock().isAfter(deadline)) {
+      _postGameSearchFrom = null;
+      _postGameDeadline = null;
+      _gameSeen = false;
+      _log.i(
+        'UI refresh: no measurable interface frames within '
+        '${postGameWindow.inSeconds} s after the last game',
+      );
+      return;
+    }
     final found = _estimator.firstSince(from);
     if (found != null) {
       _postGameMeasurement = found;
       _postGameSearchFrom = null;
+      _postGameDeadline = null;
       _gameSeen = false;
       final current = _estimator.current;
       if (current != null && current.burstId == found.burstId) {
@@ -342,12 +357,6 @@ class UiRefreshRateService extends ChangeNotifier with WidgetsBindingObserver {
       } else {
         _log.i('UI refresh: after the last game $found');
       }
-      return;
-    }
-    final deadline = _postGameDeadline;
-    if (deadline != null && _clock().isAfter(deadline)) {
-      _postGameSearchFrom = null;
-      _postGameDeadline = null;
     }
   }
 

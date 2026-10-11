@@ -360,6 +360,38 @@ void main() {
       expect(service.postGameMeasurement, isNull);
     });
 
+    test('a measurable burst first reported after the 60 s window is not '
+        'labelled post-game', () async {
+      service.startProbe();
+      await gate.hold('game');
+      gate.release('game');
+      // The user only scrolls two minutes after the game: the first batch
+      // already holds a measurable burst, but it no longer describes the
+      // return from the game.
+      now = now.add(const Duration(minutes: 2));
+      report(frames(start: 0, count: 40, intervalMicros: 8333));
+      expect(service.lastMeasurement!.effectiveHz, 120);
+      expect(service.postGameMeasurement, isNull);
+    });
+
+    test(
+      'an expired window is not re-armed by a later trip to the background',
+      () async {
+        service.startProbe();
+        await gate.hold('game');
+        gate.release('game');
+        now = now.add(const Duration(seconds: 61));
+        report(frames(start: 0, count: 5, intervalMicros: 8333));
+
+        // No game since: a plain background trip measures nothing post-game.
+        service.didChangeAppLifecycleState(AppLifecycleState.paused);
+        service.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        report(frames(start: 1000000, count: 40, intervalMicros: 8333));
+        expect(service.lastMeasurement!.effectiveHz, 120);
+        expect(service.postGameMeasurement, isNull);
+      },
+    );
+
     test(
       'returning to the foreground after a game re-arms the window',
       () async {

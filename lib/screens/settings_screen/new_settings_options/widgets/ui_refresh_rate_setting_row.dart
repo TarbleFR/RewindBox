@@ -220,6 +220,9 @@ class _UiRefreshRateSettingRowState extends State<UiRefreshRateSettingRow>
             button: true,
             enabled: !service.measuring,
             label: text(UiRefreshRateLocale.measureHint),
+            // excludeSemantics drops the detector's own tap action: give it
+            // back here so VoiceOver can start the measurement.
+            onTap: service.measuring ? null : _runMeasurement,
             excludeSemantics: true,
             child: GestureDetector(
               key: UiRefreshRateSettingRow.measureKey,
