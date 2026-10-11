@@ -4,6 +4,7 @@
 // reader launcher and controller actions. The service is a double: the
 // view's behaviour is tested, the library core has its own tests.
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/screens/library_screen/library_gamepad_view_controller.dart';
 import 'package:neostation/screens/library_screen/library_local_view.dart';
@@ -205,6 +206,7 @@ Future<void> _openMenu(WidgetTester tester, String title) async {
 void main() {
   _coveredSectionTests();
   _resultsControllerTests();
+  _landscapeIphoneTests();
 
   final alpha = _book('a', 'Alpha', LibraryBookFormat.epub, size: 300 * 1024);
   final bravo = _book('b', 'Bravo', LibraryBookFormat.pdf, size: 100 * 1024);
@@ -665,6 +667,78 @@ void _coveredSectionTests() {
 
     // Uncovered again: the controller drives the view.
     expect(host.controller.back(), isFalse, reason: 'back to the hub');
+  });
+}
+
+void _landscapeIphoneTests() {
+  final books = <LibraryLocalBook>[
+    for (var index = 0; index < 24; index++)
+      _book(
+        'n$index',
+        'Book $index with a rather long title',
+        LibraryBookFormat.epub,
+        authors: const <String>['Author'],
+      ),
+  ];
+
+  /// The view inside the margins LibraryScreen gives its sections, on an
+  /// iPhone in landscape (844x390 points).
+  Future<_Host> pumpInLibraryMargins(WidgetTester tester) async {
+    final host = _Host(_FakeLibrary(books), MemoryReadingStore());
+    await pumpLibraryUi(
+      tester,
+      Builder(
+        builder: (context) => Padding(
+          padding: EdgeInsets.fromLTRB(24.r, 54.r, 24.r, 18.r),
+          child: host.view(),
+        ),
+      ),
+      size: const Size(844, 390),
+    );
+    await tester.pumpAndSettle();
+    return host;
+  }
+
+  testWidgets('on a landscape iPhone a whole book tile can be seen', (
+    tester,
+  ) async {
+    await pumpInLibraryMargins(tester);
+    final viewport = tester.getRect(
+      find.byKey(const ValueKey<String>('local-scroll')),
+    );
+    final first = find.byKey(ValueKey<String>('book-${books.first.id}'));
+    await tester.ensureVisible(first);
+    await tester.pumpAndSettle();
+    final tile = tester.getRect(first);
+    expect(tile.top, greaterThanOrEqualTo(viewport.top - 0.5));
+    expect(
+      tile.bottom,
+      lessThanOrEqualTo(viewport.bottom + 0.5),
+      reason: 'the grid used to be shorter than one tile',
+    );
+  });
+
+  testWidgets('the keyboard of the search field never overflows the view', (
+    tester,
+  ) async {
+    await pumpInLibraryMargins(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('local-search')));
+    await tester.pump();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 190);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final field = tester.getRect(
+      find.byKey(const ValueKey<String>('local-search')),
+    );
+    expect(field.bottom, lessThanOrEqualTo(390 - 190));
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('local-search')),
+      'Book 1',
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }
 

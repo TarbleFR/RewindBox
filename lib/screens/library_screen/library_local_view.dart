@@ -637,6 +637,9 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // The header, toolbar and filters scroll with the books: on an iPhone
+    // in landscape a fixed header left the grid less than one tile high,
+    // and overflowed once the keyboard opened for the search field.
     return FocusScope(
       node: _scope,
       child: FocusTraversalGroup(
@@ -644,18 +647,26 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
         child: Listener(
           behavior: HitTestBehavior.translucent,
           onPointerDown: (_) => LibraryFocusNavigation.restoreTouchHighlight(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _buildHeader(theme),
-              SizedBox(height: 10.r),
-              _buildToolbar(theme),
-              SizedBox(height: 8.r),
-              _buildFilters(theme),
-              if (_service.indexRecovered && !_recoveredNoticeDismissed)
-                _buildRecoveredNotice(theme),
-              SizedBox(height: 8.r),
-              Expanded(child: _buildBody(theme)),
+          child: CustomScrollView(
+            key: const ValueKey<String>('local-scroll'),
+            controller: _scroll,
+            slivers: <Widget>[
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _buildHeader(theme),
+                    SizedBox(height: 10.r),
+                    _buildToolbar(theme),
+                    SizedBox(height: 8.r),
+                    _buildFilters(theme),
+                    if (_service.indexRecovered && !_recoveredNoticeDismissed)
+                      _buildRecoveredNotice(theme),
+                    SizedBox(height: 8.r),
+                  ],
+                ),
+              ),
+              _buildBody(theme),
             ],
           ),
         ),
@@ -821,11 +832,15 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
     );
   }
 
+  /// Sliver below the toolbar: the book grid, or a state filling the rest
+  /// of the screen (error, loading, empty library, no match).
   Widget _buildBody(ThemeData theme) {
+    Widget fill(Widget child) =>
+        SliverFillRemaining(hasScrollBody: false, child: Center(child: child));
     final error = _loadError;
     if (error != null) {
-      return Center(
-        child: Column(
+      return fill(
+        Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(_t('loadFailed')),
@@ -842,12 +857,12 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
       );
     }
     if (!_service.loaded && _service.books.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return fill(const CircularProgressIndicator());
     }
-    if (_service.books.isEmpty) return _buildEmpty(theme);
+    if (_service.books.isEmpty) return fill(_buildEmpty(theme));
     if (_visible.isEmpty) {
-      return Center(
-        child: Text(
+      return fill(
+        Text(
           _t('noMatch'),
           key: const ValueKey<String>('no-match'),
           style: theme.textTheme.bodyMedium,
@@ -856,35 +871,36 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
     }
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final tileWidth = 128.r;
-    return GridView.builder(
-      controller: _scroll,
+    return SliverPadding(
       padding: EdgeInsets.only(bottom: 24.r),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: tileWidth,
-        mainAxisSpacing: 10.r,
-        crossAxisSpacing: 10.r,
-        childAspectRatio: 0.52,
+      sliver: SliverGrid.builder(
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: tileWidth,
+          mainAxisSpacing: 10.r,
+          crossAxisSpacing: 10.r,
+          childAspectRatio: 0.52,
+        ),
+        itemCount: _visible.length,
+        itemBuilder: (context, index) {
+          final book = _visible[index];
+          return _BookTile(
+            key: ValueKey<String>('book-${book.id}'),
+            book: book,
+            coverPath: book.hasCover ? _coverPath(book) : null,
+            cacheWidth: (tileWidth * dpr).round(),
+            progress: _store.progressFor(book.readingKey),
+            onOpen: () => _open(book),
+            onMenu: () => _showBookMenu(book),
+            onFocusChange: (focused) {
+              if (focused) {
+                _focusedBookId = book.id;
+              } else if (_focusedBookId == book.id) {
+                _focusedBookId = null;
+              }
+            },
+          );
+        },
       ),
-      itemCount: _visible.length,
-      itemBuilder: (context, index) {
-        final book = _visible[index];
-        return _BookTile(
-          key: ValueKey<String>('book-${book.id}'),
-          book: book,
-          coverPath: book.hasCover ? _coverPath(book) : null,
-          cacheWidth: (tileWidth * dpr).round(),
-          progress: _store.progressFor(book.readingKey),
-          onOpen: () => _open(book),
-          onMenu: () => _showBookMenu(book),
-          onFocusChange: (focused) {
-            if (focused) {
-              _focusedBookId = book.id;
-            } else if (_focusedBookId == book.id) {
-              _focusedBookId = null;
-            }
-          },
-        );
-      },
     );
   }
 
@@ -897,46 +913,42 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
   }
 
   Widget _buildEmpty(ThemeData theme) {
-    return Center(
-      child: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 620.r),
-          child: NeoGlass(
-            role: GlassSurfaceRole.card,
-            borderRadius: BorderRadius.circular(16.r),
-            enableBackdropBlur: false,
-            padding: EdgeInsets.all(20.r),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  Symbols.auto_stories_rounded,
-                  size: 44.r,
-                  color: theme.colorScheme.primary,
-                ),
-                SizedBox(height: 10.r),
-                Text(
-                  _t('emptyTitle'),
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 6.r),
-                Text(
-                  _t('emptyBody'),
-                  key: const ValueKey<String>('empty-body'),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                SizedBox(height: 14.r),
-                FilledButton.icon(
-                  onPressed: _importing ? null : _import,
-                  icon: const Icon(Symbols.file_upload_rounded),
-                  label: Text(_t('importFiles')),
-                ),
-              ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 620.r),
+      child: NeoGlass(
+        role: GlassSurfaceRole.card,
+        borderRadius: BorderRadius.circular(16.r),
+        enableBackdropBlur: false,
+        padding: EdgeInsets.all(20.r),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Symbols.auto_stories_rounded,
+              size: 44.r,
+              color: theme.colorScheme.primary,
             ),
-          ),
+            SizedBox(height: 10.r),
+            Text(
+              _t('emptyTitle'),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(height: 6.r),
+            Text(
+              _t('emptyBody'),
+              key: const ValueKey<String>('empty-body'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+            SizedBox(height: 14.r),
+            FilledButton.icon(
+              onPressed: _importing ? null : _import,
+              icon: const Icon(Symbols.file_upload_rounded),
+              label: Text(_t('importFiles')),
+            ),
+          ],
         ),
       ),
     );
