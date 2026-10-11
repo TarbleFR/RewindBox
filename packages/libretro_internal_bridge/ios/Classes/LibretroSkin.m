@@ -932,6 +932,8 @@ static NSString *SkinImagePath(NSString *root, id name) {
   } else {
     chain = @[ @[ @"iphone", @"standard" ], @[ @"iphone", @"edgeToEdge" ] ];
   }
+  // An iPad layout adapted to the iPhone (LibretroSkinCompatibility).
+  if (!iPad && self.phoneUsesTabletLayouts) chain = [chain arrayByAddingObject:@[ @"ipad", @"standard" ]];
   for (NSArray<NSString *> *step in chain) {
     for (LibretroSkinRepresentation *representation in self.representations) {
       if (representation.orientation == orientation && [representation.device isEqualToString:step[0]] &&

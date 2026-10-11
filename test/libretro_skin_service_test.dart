@@ -647,11 +647,15 @@ void main() {
   });
 
   test('every native skin code has a translated message', () {
-    final header = File('packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h').readAsStringSync();
+    // Import codes (LibretroSkin.h) and iPhone verdict reasons
+    // (LibretroSkinCompatibility.h).
+    final header = File('packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h').readAsStringSync() +
+        File('packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.h').readAsStringSync();
     final declared = RegExp(r'//\s*(SKIN_[A-Z_]+)').allMatches(header).map((match) => match.group(1)!).toSet();
     expect(declared, LibretroSkinMessages.codeKeys.keys.toSet());
     expect(LibretroSkinMessages.errorKeys.keys.toSet().intersection(LibretroSkinMessages.warningKeys.keys.toSet()),
         isEmpty);
+    expect(LibretroSkinMessages.compatibilityKeys.keys.every((code) => code.startsWith('SKIN_COMPAT_')), isTrue);
     for (final source in Directory('packages/libretro_internal_bridge/ios/Classes')
         .listSync()
         .whereType<File>()

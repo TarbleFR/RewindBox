@@ -12,6 +12,7 @@ import 'package:path/path.dart' as path;
 
 import 'libretro_core_catalog.dart';
 import 'libretro_internal_service.dart';
+import 'libretro_skin_compatibility.dart';
 import 'logger_service.dart';
 
 /// LibretroLocale keys of the skin import messages. Native codes (the
@@ -60,8 +61,27 @@ abstract final class LibretroSkinMessages {
     'SKIN_WARN_TOUCHSCREEN_UNSUPPORTED': 'skinWarnTouchScreen',
   };
 
+  /// Reasons of the native iPhone verdict (LibretroSkinCompatibility.h),
+  /// shown with a skin's compatibility; never import refusals by
+  /// themselves.
+  static const Map<String, String> compatibilityKeys = <String, String>{
+    'SKIN_COMPAT_OTHER_CONSOLE': 'skinCompatOtherConsole',
+    'SKIN_COMPAT_NO_PHONE_LAYOUT': 'skinCompatNoPhoneLayout',
+    'SKIN_COMPAT_TABLET_ADAPTED': 'skinCompatTabletAdapted',
+    'SKIN_COMPAT_TABLET_TOO_SMALL': 'skinCompatTabletTooSmall',
+    'SKIN_COMPAT_NO_TOUCH_CONTROLS': 'skinCompatNoTouchControls',
+    'SKIN_COMPAT_MISSING_CONTROLS': 'skinCompatMissingControls',
+    'SKIN_COMPAT_ADAPTED_INPUTS': 'skinCompatAdaptedInputs',
+    'SKIN_COMPAT_DEAD_BUTTONS': 'skinCompatDeadButtons',
+    'SKIN_COMPAT_NO_ARTWORK': 'skinCompatNoArtwork',
+    'SKIN_COMPAT_SMALL_CONTROLS': 'skinCompatSmallControls',
+  };
+
+  /// A skin no console of it can play by touch on an iPhone.
+  static const String notPlayable = 'skinsNotPlayable';
+
   /// Every native `SKIN_*` code.
-  static const Map<String, String> codeKeys = <String, String>{...errorKeys, ...warningKeys};
+  static const Map<String, String> codeKeys = <String, String>{...errorKeys, ...warningKeys, ...compatibilityKeys};
 }
 
 /// An imported skin, described by `Skins/<id>/neostation-skin.json`.
@@ -80,6 +100,7 @@ class LibretroInstalledSkin {
     required this.sha256,
     required this.importedAt,
     required this.directory,
+    this.compatibility = const <String, LibretroSkinCompatibility>{},
   });
 
   /// Directory name: the first 16 hex characters of the archive SHA-256.
@@ -107,6 +128,11 @@ class LibretroInstalledSkin {
   final DateTime importedAt;
   final String directory;
 
+  /// iPhone verdict per console, recorded at import (empty for skins
+  /// installed before the verdict existed: see
+  /// [LibretroSkinService.compatibilityOf]).
+  final Map<String, LibretroSkinCompatibility> compatibility;
+
   /// LibretroLocale keys of the import remarks.
   List<String> get warningKeys =>
       warnings.map((code) => LibretroSkinMessages.warningKeys[code]).whereType<String>().toList();
@@ -128,6 +154,10 @@ class LibretroInstalledSkin {
         'license': license,
         'sha256': sha256,
         'importedAt': importedAt.toUtc().toIso8601String(),
+        if (compatibility.isNotEmpty)
+          'compatibility': <String, Object?>{
+            for (final entry in compatibility.entries) entry.key: entry.value.toJson(),
+          },
       };
 
   /// Null when the metadata is unreadable or does not name `directory`.
@@ -153,8 +183,27 @@ class LibretroInstalledSkin {
       sha256: _text(json['sha256']),
       importedAt: importedAt,
       directory: directory,
+      compatibility: LibretroSkinCompatibility.fromSummary(json['compatibility']),
     );
   }
+
+  /// Same skin with another verdict.
+  LibretroInstalledSkin withCompatibility(Map<String, LibretroSkinCompatibility> verdicts) => LibretroInstalledSkin(
+        id: id,
+        identifier: identifier,
+        name: name,
+        author: author,
+        consoles: consoles,
+        gameTypeIdentifier: gameTypeIdentifier,
+        orientations: orientations,
+        warnings: warnings,
+        source: source,
+        license: license,
+        sha256: sha256,
+        importedAt: importedAt,
+        directory: directory,
+        compatibility: verdicts,
+      );
 }
 
 /// Outcome of a skin import.
@@ -193,6 +242,7 @@ final class LibretroSkinImportFailed extends LibretroSkinImportResult {
     this.messageKey, {
     this.parameters = const <String, Object>{},
     this.technicalDetails = '',
+    this.compatibility = const <LibretroSkinCompatibility>[],
   });
 
   /// LibretroLocale key of the translated message.
@@ -203,6 +253,10 @@ final class LibretroSkinImportFailed extends LibretroSkinImportResult {
 
   /// Raw diagnostic, never shown as the message.
   final String technicalDetails;
+
+  /// The iPhone verdicts behind a [LibretroSkinMessages.notPlayable]
+  /// refusal (their reasons complete the message).
+  final List<LibretroSkinCompatibility> compatibility;
 }
 
 /// Imported skins of the embedded engine: validation and extraction of
@@ -304,11 +358,17 @@ class LibretroSkinService {
 
   /// Checks, unpacks and parses an archive, then installs it unless an
   /// installed skin has the same identifier.
+  ///
+  /// The central iPhone filter applies (LibretroSkinCompatibility, on the
+  /// parsed skin): on an iPhone, a skin that no console of it
+  /// ([targetConsole] when given, the catalog's console) can play by touch
+  /// is refused with [LibretroSkinMessages.notPlayable] and its reasons.
   Future<LibretroSkinImportResult> importFromFile(
     String archivePath, {
     String source = sourceFile,
     String? author,
     String? license,
+    String? targetConsole,
   }) async {
     final staging = Directory(path.join(skinsDirectory, stagingFolderName, _randomHex()));
     try {
@@ -337,6 +397,12 @@ class LibretroSkinService {
         await _remove(staging);
         return failure;
       }
+      final compatibility = LibretroSkinCompatibility.fromSummary(summary['compatibility']);
+      final unplayable = _notPlayable(compatibility, device: _text(inspected['device']), targetConsole: targetConsole);
+      if (unplayable != null) {
+        await _remove(staging);
+        return unplayable;
+      }
       final identifier = _optionalText(summary['identifier']) ?? id;
       final skin = LibretroInstalledSkin(
         id: id,
@@ -352,6 +418,7 @@ class LibretroSkinService {
         sha256: unpacked.sha256,
         importedAt: DateTime.now().toUtc(),
         directory: path.join(skinsDirectory, id),
+        compatibility: compatibility,
       );
       for (final other in await installedSkins()) {
         if (other.identifier == skin.identifier) {
@@ -564,6 +631,54 @@ class LibretroSkinService {
       }
     }
     return selections;
+  }
+
+  /// Refusal of a skin that cannot be played by touch on an iPhone: every
+  /// console's verdict (or [targetConsole]'s) is incompatible. An iPad keeps
+  /// the creator's layouts, and a bridge that sent no verdict refuses
+  /// nothing.
+  static LibretroSkinImportFailed? _notPlayable(
+    Map<String, LibretroSkinCompatibility> compatibility, {
+    required String device,
+    String? targetConsole,
+  }) {
+    if (compatibility.isEmpty || device == 'ipad') return null;
+    final relevant = targetConsole != null && compatibility.containsKey(targetConsole)
+        ? <LibretroSkinCompatibility>[compatibility[targetConsole]!]
+        : compatibility.values.toList();
+    if (relevant.any((verdict) => verdict.offered)) return null;
+    return LibretroSkinImportFailed(
+      LibretroSkinMessages.notPlayable,
+      technicalDetails: relevant.map((verdict) => '${verdict.console}: ${verdict.reasons.join(', ')}').join('; '),
+      compatibility: relevant,
+    );
+  }
+
+  final Map<String, Map<String, LibretroSkinCompatibility>> _verdicts =
+      <String, Map<String, LibretroSkinCompatibility>>{};
+
+  /// iPhone verdict of an installed skin per console: the one recorded at
+  /// import, else computed by the native filter on its directory (kept for
+  /// this service's life, never written into the skin's files).
+  Future<Map<String, LibretroSkinCompatibility>> compatibilityOf(LibretroInstalledSkin skin) async {
+    if (skin.compatibility.isNotEmpty) return skin.compatibility;
+    final cached = _verdicts[skin.id];
+    if (cached != null) return cached;
+    try {
+      final inspected = await LibretroInternalBridge.inspectSkin(
+        directory: skin.directory,
+        consoleGeometry: consoleGeometry,
+      );
+      final summary = inspected['summary'];
+      final verdicts = summary is Map
+          ? LibretroSkinCompatibility.fromSummary(summary['compatibility'])
+          : const <String, LibretroSkinCompatibility>{};
+      _verdicts[skin.id] = verdicts;
+      return verdicts;
+    } catch (error) {
+      _log.w('Libretro skin ${skin.id} not evaluated: $error');
+      return const <String, LibretroSkinCompatibility>{};
+    }
   }
 
   Future<LibretroSkinImportFailed> _nativeFailure(

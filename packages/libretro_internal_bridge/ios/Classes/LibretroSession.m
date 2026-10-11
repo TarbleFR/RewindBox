@@ -21,6 +21,7 @@
 #import "LibretroSessionMenu.h"
 #import "LibretroShaderLibrary.h"
 #import "LibretroSkin.h"
+#import "LibretroSkinCompatibility.h"
 #import "LibretroSkinLayout.h"
 #import "LibretroSkinRenderer.h"
 #import "LibretroTouchOverlay.h"
@@ -123,6 +124,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSArray<NSString *> *_diskLabels;
   BOOL _smooth;
   BOOL _touchControls;
+  BOOL _touchDiagnostics;
   BOOL _started;
   NSArray<NSString *> *_finalLog;
 
@@ -140,6 +142,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSMutableDictionary<NSString *, LibretroSkin *> *_skinCache;
   NSMutableSet<NSString *> *_failedSkins;
   BOOL _skinFailureShown;
+  // iPhone verdict of each loaded skin (LibretroSkinCompatibility) and the
+  // skins already announced as not playable by touch in an orientation.
+  NSMutableDictionary<NSString *, LibretroSkinCompatibilityReport *> *_skinReports;
+  NSMutableSet<NSString *> *_unplayableAnnounced;
   NSArray<LibretroSkin *> *_availableSkins;
   NSArray<LibretroPresenterScreen *> *_presenterScreens;
   NSArray<NSValue *> *_lastTouchMappings;
@@ -168,12 +174,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _currentOrientation = LibretroSkinOrientationLandscape;
     _skinCache = [NSMutableDictionary dictionary];
     _failedSkins = [NSMutableSet set];
+    _skinReports = [NSMutableDictionary dictionary];
+    _unplayableAnnounced = [NSMutableSet set];
     _lastTouchMappings = @[];
     _presenterScreens = @[];
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     _smooth = [defaults objectForKey:@"libretro.smooth"] != nil ? [defaults boolForKey:@"libretro.smooth"] : NO;
     _touchControls =
         [defaults objectForKey:@"libretro.touchControls"] != nil ? [defaults boolForKey:@"libretro.touchControls"] : YES;
+    _touchDiagnostics = [defaults boolForKey:@"libretro.touchDiagnostics"];
   }
   return self;
 }
@@ -215,6 +224,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.title = _configuration.gameTitle;
   _controller.menuAccessibilityLabel = [self text:@"menu"];
   _controller.touchControlsEnabled = _touchControls;
+  _controller.touchDiagnosticsEnabled = _touchDiagnostics;
   _controller.allowedOrientations = UIInterfaceOrientationMaskAllButUpsideDown;
   _controller.layoutSource = self;
   __weak LibretroSession *weakSelf = self;
@@ -1143,6 +1153,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                    errorCode:&code];
     }
     if (skin != nil && [skin.consoles containsObject:_console]) {
+      // The central iPhone filter: verdict per orientation, and an iPad
+      // layout adapted to the iPhone when its controls stay large enough.
+      LibretroSkinCompatibilityReport *verdict = [LibretroSkinCompatibility prepareSkin:skin console:_console];
+      _skinReports[identifier] = verdict;
+      [_journal note:[NSString stringWithFormat:@"skin %@: %@ (%@)", identifier,
+                                                LibretroSkinCompatibilityStatusName(verdict.status),
+                                                [verdict.reasons componentsJoinedByString:@", "]]];
       _skinCache[identifier] = skin;
       return skin;
     }
@@ -1275,6 +1292,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _laidOutPictureAspect = [self pictureLayoutAspect];
   LibretroSkin *skin = [self selectedSkinForOrientation:orientation];
   LibretroSkinRepresentation *representation = nil;
+  if (skin != _defaultSkin && ![self skinPlayable:skin orientation:orientation iPad:iPad]) {
+    // Not playable by touch in this orientation (essential controls
+    // missing, no touch control, no artwork): NeoStation's own controller
+    // is used instead, unless a physical controller drives the game.
+    skin = _defaultSkin;
+  }
   if (skin != _defaultSkin) {
     // No orientation fallback inside a skin: the default skin is used for
     // an orientation the chosen skin lacks (the Skins page says so).
@@ -1287,6 +1310,31 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _currentSkin = skin;
   _currentRepresentation = representation;
   return representation;
+}
+
+/// NO when the chosen skin's iPhone layout for `orientation` exists but is
+/// not playable by touch while touch controls are needed (announced once
+/// per skin). iPad: the creator's layout is kept as before.
+- (BOOL)skinPlayable:(LibretroSkin *)skin orientation:(LibretroSkinOrientation)orientation iPad:(BOOL)iPad {
+  if (iPad) return YES;
+  LibretroSkinCompatibilityReport *verdict = _skinReports[skin.installedIdentifier ?: @""];
+  if (verdict == nil) return YES;
+  NSString *state = verdict.orientations[LibretroSkinOrientationName(orientation)];
+  if (![state isEqualToString:@"incompatible"]) return YES;
+  if (!_touchControls || _input.hasPhysicalController) return YES;
+  NSString *announced = [NSString stringWithFormat:@"%@.%@", skin.installedIdentifier, LibretroSkinOrientationName(orientation)];
+  if (![_unplayableAnnounced containsObject:announced]) {
+    [_unplayableAnnounced addObject:announced];
+    [_journal note:[NSString stringWithFormat:@"skin %@ not playable by touch in %@: default skin used", skin.installedIdentifier,
+                                              LibretroSkinOrientationName(orientation)]];
+    __weak LibretroSession *weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroSession *session = weakSelf;
+      if (session == nil) return;
+      [session showStatus:[session text:@"skinNotPlayable"]];
+    });
+  }
+  return NO;
 }
 
 - (NSDictionary<NSString *, NSDictionary *> *)layoutOverridesForRepresentation:
@@ -2023,6 +2071,24 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [extras addObject:achievements];
   }
   [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:extras]];
+
+  // Developer diagnostics of the touch chain (finger, control, command sent,
+  // state the core read): a lit button is never taken as proof.
+  LibretroMenuRow *diagnostics = [LibretroMenuRow toggleWithTitle:[self text:@"touchDiagnostics"]
+                                                               on:_touchDiagnostics
+                                                           toggle:^(__unused LibretroMenuPage *page, BOOL on) {
+                                                             LibretroSession *session = weakSelf;
+                                                             if (session == nil) return;
+                                                             session->_touchDiagnostics = on;
+                                                             session->_controller.touchDiagnosticsEnabled = on;
+                                                             [NSUserDefaults.standardUserDefaults
+                                                                 setBool:on
+                                                                  forKey:@"libretro.touchDiagnostics"];
+                                                           }];
+  diagnostics.identifier = @"libretro-touch-diagnostics-toggle";
+  LibretroMenuSection *diagnosticsSection = [LibretroMenuSection sectionWithTitle:nil rows:@[ diagnostics ]];
+  diagnosticsSection.footer = [self text:@"touchDiagnosticsFooter"];
+  [sections addObject:diagnosticsSection];
 
   LibretroMenuRow *quit = [LibretroMenuRow
       rowWithTitle:[self text:@"quit"]

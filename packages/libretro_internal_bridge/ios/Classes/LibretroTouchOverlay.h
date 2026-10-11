@@ -83,6 +83,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)releaseAllTouches;
 
+/// Items of the current layout that can send nothing (touch diagnostics).
+- (NSSet<NSString *> *)deadItemIdentifiers;
+
 @end
 
 NS_ASSUME_NONNULL_END

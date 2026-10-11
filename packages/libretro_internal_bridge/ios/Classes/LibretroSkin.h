@@ -132,6 +132,10 @@ typedef NS_ENUM(NSInteger, LibretroSkinItemShape) {
 @property(nonatomic, copy) NSArray<LibretroSkinRepresentation *> *representations;
 /// Import report codes (see LibretroSkinWarning*), translated by Dart.
 @property(nonatomic, copy) NSArray<NSString *> *warnings;
+/// An iPhone may use this skin's iPad layouts: set by
+/// +[LibretroSkinCompatibility prepareSkin:console:] only for an iPad-only
+/// orientation whose essential controls stay large enough on an iPhone.
+@property(nonatomic, assign) BOOL phoneUsesTabletLayouts;
 
 /// Parses <directory>/info.json (Delta / Provenance / Manic format, as the
 /// real parsers read it, not the Provenance wiki):
@@ -174,9 +178,10 @@ typedef NS_ENUM(NSInteger, LibretroSkinItemShape) {
 + (NSArray<NSString *> *)consolesForGameTypeIdentifier:(NSString *)gameTypeIdentifier;
 
 /// Representation for an orientation. iPhone: edgeToEdge -> standard, or
-/// standard -> edgeToEdge. iPad (DeltaCore): ipad.standard, then iPhone
-/// edgeToEdge, then iPhone standard (the `edgeToEdge` argument is ignored
-/// on iPad). No orientation fallback: nil when the orientation is missing.
+/// standard -> edgeToEdge, then ipad.standard when phoneUsesTabletLayouts.
+/// iPad (DeltaCore): ipad.standard, then iPhone edgeToEdge, then iPhone
+/// standard (the `edgeToEdge` argument is ignored on iPad). No orientation
+/// fallback: nil when the orientation is missing.
 /// The caller takes the orientation from the view bounds (width > height
 /// is landscape), never from the device, and decides edgeToEdge only once
 /// the view is in a window (safe area bottom inset > 0).

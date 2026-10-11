@@ -16,6 +16,23 @@
 @implementation LibretroTouchContact
 @end
 
+NSString *LibretroRetroPadDescription(uint16_t buttons) {
+  static NSArray<NSString *> *names;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    // libretro.h RETRO_DEVICE_ID_JOYPAD_* order.
+    names = @[
+      @"B", @"Y", @"SELECT", @"START", @"UP", @"DOWN", @"LEFT", @"RIGHT", @"A", @"X", @"L", @"R", @"L2", @"R2", @"L3",
+      @"R3"
+    ];
+  });
+  NSMutableArray<NSString *> *pressed = [NSMutableArray array];
+  for (NSUInteger bit = 0; bit < names.count; bit++) {
+    if ((buttons >> bit) & 1u) [pressed addObject:names[bit]];
+  }
+  return pressed.count > 0 ? [pressed componentsJoinedByString:@" "] : @"-";
+}
+
 @interface LibretroTouchResolution ()
 @property(nonatomic, readwrite) LibretroCoreInput coreInput;
 @property(nonatomic, readwrite) BOOL pointerPressed;
@@ -376,6 +393,22 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   resolution.stickVectors = vectors;
   resolution.contacts = contacts ?: @[];
   return resolution;
+}
+
+- (NSSet<NSString *> *)deadItemIdentifiers {
+  NSMutableSet<NSString *> *dead = [NSMutableSet set];
+  for (LibretroLaidOutItem *laidOut in _layout.items) {
+    LibretroSkinItem *item = laidOut.item;
+    if (item.kind == LibretroSkinItemKindTouchScreen || item.identifier.length == 0) continue;
+    BOOL effective = NO, declared = item.unsupportedInputs.count > 0;
+    for (NSString *input in [self inputsForItem:item]) {
+      if (input.length > 0) declared = YES;
+      if ([self inputHasEffect:input]) effective = YES;
+    }
+    // An item naming no input at all is decoration, not a dead control.
+    if (!effective && declared) [dead addObject:item.identifier];
+  }
+  return dead;
 }
 
 #pragma mark - Pointer

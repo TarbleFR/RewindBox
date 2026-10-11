@@ -115,6 +115,16 @@ typedef NS_ENUM(NSInteger, LibretroTouchMode) {
 /// The state every finger produces now.
 - (LibretroTouchResolution *)resolve;
 
+/// Laid-out items that name inputs but can send nothing for this console
+/// with the current remaps (unsupported or blocked): drawn but dead. Touch
+/// screens and decorative items (naming no input) are never dead.
+- (NSSet<NSString *> *)deadItemIdentifiers;
+
 @end
+
+/// RetroPad buttons of a bit mask, by their libretro names in id order
+/// ("B Y SELECT START UP DOWN LEFT RIGHT A X L R L2 R2 L3 R3"), joined by
+/// spaces; "-" when none. Technical text for the touch diagnostics.
+FOUNDATION_EXPORT NSString *LibretroRetroPadDescription(uint16_t buttons);
 
 NS_ASSUME_NONNULL_END

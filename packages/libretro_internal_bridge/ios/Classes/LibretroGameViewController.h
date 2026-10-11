@@ -52,6 +52,9 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
 /// Normalized touch-screen mappings of the last frame (presenter).
 @property(nonatomic, copy, nullable) NSArray<NSValue *> * (^screenMappingsProvider)(void);
 @property(nonatomic, assign) BOOL touchControlsEnabled;
+/// Developer touch diagnostics (LibretroTouchDiagnosticsView) above the
+/// controls: touch areas, fingers, inputs sent and the state the core read.
+@property(nonatomic, assign) BOOL touchDiagnosticsEnabled;
 @property(nonatomic, assign) CGFloat controlsOpacity;
 @property(nonatomic, copy) NSString *menuAccessibilityLabel;
 /// Orientations allowed while the game is shown.

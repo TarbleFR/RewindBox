@@ -3,6 +3,7 @@
 #import "LibretroChromeLayout.h"
 #import "LibretroInputState.h"
 #import "LibretroSkinRenderer.h"
+#import "LibretroTouchDiagnosticsView.h"
 #import "LibretroTouchOverlay.h"
 
 @interface LibretroMetalView : UIView
@@ -27,6 +28,7 @@ static NSString *const kMenuInput = @"menu";
   UIButton *_menuButton;
   UILabel *_statusLabel;
   UIActivityIndicatorView *_spinner;
+  LibretroTouchDiagnosticsView *_diagnosticsView;
   CADisplayLink *_displayLink;
   NSUInteger _statusGeneration;
 
@@ -150,6 +152,7 @@ static NSString *const kMenuInput = @"menu";
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+  [self applyTouchDiagnostics];
   NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
   [center addObserver:self
              selector:@selector(applicationWillResignActive)
@@ -181,6 +184,7 @@ static NSString *const kMenuInput = @"menu";
   _metalView.frame = bounds;
   _skinRenderer.frame = bounds;
   _overlay.frame = bounds;
+  _diagnosticsView.frame = bounds;
   [self performSkinLayoutIfNeeded];
   [self layoutChrome];
 }
@@ -322,6 +326,8 @@ static NSString *const kMenuInput = @"menu";
   }
   if (self.layoutHandler != nil) self.layoutHandler(drawableSize);
   _inLayoutPass = NO;
+  // After the session gave the overlay its layout and remaps.
+  if (_diagnosticsView != nil) [_diagnosticsView showLayout:_layout deadItems:[_overlay deadItemIdentifiers]];
 
   _controlsHidden = [self controlsShouldHide];
   _overlay.controlsDisabled = _controlsHidden;
@@ -348,6 +354,13 @@ static NSString *const kMenuInput = @"menu";
   if (_overlay.controlsDisabled != hidden) _overlay.controlsDisabled = hidden;
   if (hidden == _controlsHidden) return;
   _controlsHidden = hidden;
+  // The layout source may choose another skin for this orientation when a
+  // controller comes or goes (a skin not playable by touch stays in use
+  // with a controller): lay out again, which also redraws the skin.
+  if (self.isViewLoaded && self.view.window != nil && !_inLayoutPass) {
+    [self setNeedsSkinLayout];
+    return;
+  }
   if (_representation != nil) [self showSkin];
   [self layoutChrome];
 }
@@ -392,6 +405,38 @@ static NSString *const kMenuInput = @"menu";
   if (_editBar != nil && !_editBar.hidden) [self layoutEditBar];
 }
 
+#pragma mark - Touch diagnostics
+
+- (void)setTouchDiagnosticsEnabled:(BOOL)touchDiagnosticsEnabled {
+  _touchDiagnosticsEnabled = touchDiagnosticsEnabled;
+  if (self.isViewLoaded) [self applyTouchDiagnostics];
+}
+
+- (void)applyTouchDiagnostics {
+  BOOL enabled = self.touchDiagnosticsEnabled;
+  _overlay.recordsContacts = enabled;
+  if (!enabled) {
+    [_diagnosticsView removeFromSuperview];
+    _diagnosticsView = nil;
+    _overlay.resolutionChanged = nil;
+    _overlay.touchDelivered = nil;
+    return;
+  }
+  if (_diagnosticsView == nil) {
+    _diagnosticsView = [[LibretroTouchDiagnosticsView alloc] initWithFrame:self.view.bounds];
+    _diagnosticsView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.view insertSubview:_diagnosticsView aboveSubview:_overlay];
+  }
+  __weak LibretroTouchDiagnosticsView *view = _diagnosticsView;
+  _overlay.resolutionChanged = ^(LibretroTouchResolution *resolution) {
+    [view showResolution:resolution];
+  };
+  _overlay.touchDelivered = ^(__unused CGPoint point, NSTimeInterval delay) {
+    [view noteDeliveryDelay:delay];
+  };
+  [_diagnosticsView showLayout:_layout deadItems:[_overlay deadItemIdentifiers]];
+}
+
 #pragma mark - Input polling
 
 - (void)stopInputPolling {
@@ -402,6 +447,11 @@ static NSString *const kMenuInput = @"menu";
 
 - (void)tick {
   BOOL menuRequested = [_input pollControllers];
+  if (_diagnosticsView != nil) {
+    uint64_t frame = 0;
+    LibretroInputSnapshot delivered = [_input lastDelivered:&frame];
+    [_diagnosticsView showDelivered:delivered frame:frame];
+  }
   [self updateControlsVisibility];
   NSArray<NSValue *> * (^provider)(void) = self.screenMappingsProvider;
   if (provider != nil) [self refreshTouchScreenMappings:provider()];

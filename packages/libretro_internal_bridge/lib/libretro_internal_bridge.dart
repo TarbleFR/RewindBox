@@ -116,8 +116,10 @@ class LibretroInternalBridge {
 
   /// Parses an unpacked skin with the native parser:
   /// `{"ok": true, "summary": {identifier, name, author, consoles,
-  /// gameTypeIdentifier, orientations, warnings, debug}}` or
-  /// `{"ok": false, "error": "SKIN_..."}`.
+  /// gameTypeIdentifier, orientations, warnings, debug, compatibility},
+  /// "device": "iphone" | "ipad"}` or `{"ok": false, "error": "SKIN_...",
+  /// "device": ...}`. `compatibility` is the iPhone verdict of
+  /// LibretroSkinCompatibility for each of the skin's consoles.
   static Future<Map<String, dynamic>> inspectSkin({
     required String directory,
     required Map<String, Object?> consoleGeometry,

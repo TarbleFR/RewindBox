@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/libretro_locale.dart';
 import '../../services/gamepad/gamepad_navigation_manager.dart';
 import '../../services/libretro_core_catalog.dart';
+import '../../services/libretro_skin_compatibility.dart';
 import '../../services/libretro_skin_service.dart';
 import '../../services/logger_service.dart';
 import '../../utils/gamepad_nav.dart';
@@ -251,12 +252,51 @@ List<String> libretroSkinRemarks(BuildContext context, LibretroInstalledSkin ski
 String libretroSkinFailureText(BuildContext context, LibretroSkinImportFailed failure) {
   final key = LibretroLocale.skinErrorKeys[failure.messageKey] ?? failure.messageKey;
   final known = LibretroLocale.values['en']!.containsKey(key);
+  final parameters = <String, Object>{...failure.parameters};
+  if (failure.messageKey == LibretroSkinMessages.notPlayable) {
+    parameters['reasons'] = <String>{
+      for (final verdict in failure.compatibility) ...libretroSkinCompatibilityReasons(context, verdict),
+    }.join(' ');
+  }
   return LibretroLocale.formatContext(
     context,
     known ? key : LibretroSkinMessages.importFailed,
-    failure.parameters,
+    parameters,
   );
 }
+
+/// Translated reasons of an iPhone verdict ({controls} and {count} filled):
+/// native SKIN_COMPAT_* codes and the catalogs' own reasons.
+List<String> libretroSkinCompatibilityReasons(BuildContext context, LibretroSkinCompatibility verdict) {
+  final locale = _localeOf(context);
+  final english = LibretroLocale.values['en']!;
+  String control(String name) => switch (name) {
+        'directions' => LibretroLocale.forLocale(locale, 'inputDpad'),
+        'touchScreen' => LibretroLocale.forLocale(locale, 'inputTouchScreen'),
+        _ => name.toUpperCase(),
+      };
+  return <String>[
+    for (final code in verdict.reasons)
+      if (english.containsKey(LibretroSkinMessages.compatibilityKeys[code] ??
+          LibretroSkinCompatibility.catalogReasonKeys[code] ??
+          ''))
+        LibretroLocale.format(
+          locale,
+          LibretroSkinMessages.compatibilityKeys[code] ?? LibretroSkinCompatibility.catalogReasonKeys[code]!,
+          <String, Object?>{
+            'controls': verdict.missingControls.map(control).join(', '),
+            'count': verdict.deadItems,
+          },
+        ),
+  ];
+}
+
+/// LibretroLocale key of a verdict's badge.
+String libretroSkinVerdictKey(LibretroSkinVerdict verdict) => switch (verdict) {
+      LibretroSkinVerdict.compatible => 'skinStatusCompatible',
+      LibretroSkinVerdict.adaptable => 'skinStatusAdaptable',
+      LibretroSkinVerdict.incompatible => 'skinStatusIncompatible',
+    };
 
 void _showSkinImported(BuildContext context, LibretroInstalledSkin skin, {String? console}) {
   final remarks = libretroSkinRemarks(context, skin);
@@ -358,6 +398,9 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
   LibretroSkinService? _skins;
   List<LibretroInstalledSkin> _installed = const <LibretroInstalledSkin>[];
   Map<String, String?> _selected = const <String, String?>{};
+
+  /// iPhone verdict of each installed skin for this console (skin id).
+  Map<String, LibretroSkinCompatibility> _verdicts = const <String, LibretroSkinCompatibility>{};
   bool _loading = true;
   bool _busy = false;
 
@@ -398,10 +441,18 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
         _log.w('Libretro skin selections unreadable for ${widget.console}: $error');
       }
     }
+    final verdicts = <String, LibretroSkinCompatibility>{};
+    if (skins != null) {
+      for (final skin in installed) {
+        final verdict = (await skins.compatibilityOf(skin))[widget.console];
+        if (verdict != null) verdicts[skin.id] = verdict;
+      }
+    }
     if (!mounted) return;
     setState(() {
       _installed = installed;
       _selected = selected;
+      _verdicts = verdicts;
       _loading = false;
     });
   }
@@ -673,6 +724,7 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
         ),
       ],
       if (orientationLabel != null) Text(orientationLabel, style: muted),
+      if (skin != null && _verdicts[skin.id] != null) ..._buildVerdict(context, _verdicts[skin.id]!),
       for (final remark in remarks)
         Padding(
           padding: const EdgeInsets.only(top: 4),
@@ -767,6 +819,45 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
         ),
       ),
     );
+  }
+
+  /// The skin's iPhone verdict for this console and its reasons (central
+  /// filter, LibretroSkinCompatibility).
+  List<Widget> _buildVerdict(BuildContext context, LibretroSkinCompatibility verdict) {
+    final theme = Theme.of(context);
+    final color = switch (verdict.verdict) {
+      LibretroSkinVerdict.compatible => theme.colorScheme.primary,
+      LibretroSkinVerdict.adaptable => theme.colorScheme.tertiary,
+      LibretroSkinVerdict.incompatible => theme.colorScheme.error,
+    };
+    final icon = switch (verdict.verdict) {
+      LibretroSkinVerdict.compatible => Icons.verified_outlined,
+      LibretroSkinVerdict.adaptable => Icons.auto_fix_high,
+      LibretroSkinVerdict.incompatible => Icons.block,
+    };
+    final label = <String>[_t('skinsCompatibilityTitle'), _t(libretroSkinVerdictKey(verdict.verdict))].join(' · ');
+    return <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+      for (final reason in libretroSkinCompatibilityReasons(context, verdict))
+        Padding(
+          padding: const EdgeInsets.only(left: 22, top: 2),
+          child: Text(reason, style: theme.textTheme.bodySmall),
+        ),
+    ];
   }
 
   Widget _badge(BuildContext context, IconData icon, String label) {

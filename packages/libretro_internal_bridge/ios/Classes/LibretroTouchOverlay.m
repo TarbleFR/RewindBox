@@ -247,6 +247,10 @@ static NSValue *LibretroOverlayKey(UITouch *touch) {
   [self publish];
 }
 
+- (NSSet<NSString *> *)deadItemIdentifiers {
+  return [_tracker deadItemIdentifiers];
+}
+
 #pragma mark - Layout editing
 
 - (void)resetEditingGestures {

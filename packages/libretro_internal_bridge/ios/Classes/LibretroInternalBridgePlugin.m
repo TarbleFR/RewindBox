@@ -8,6 +8,7 @@
 #import "LibretroOrientation.h"
 #import "LibretroSession.h"
 #import "LibretroSkin.h"
+#import "LibretroSkinCompatibility.h"
 #import "LibretroSkinRenderer.h"
 
 #include <math.h>
@@ -50,7 +51,8 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"padLeftShoulder", @"padRightShoulder", @"padLeftTrigger", @"padRightTrigger", @"padLeftStickButton",
     @"padRightStickButton", @"controlsCoreDefault", @"shaderCredits", @"shaderMeasuring", @"settingScreenLayout",
     @"layoutTopBottom", @"layoutLeftRight", @"layoutHybridTop", @"layoutTopOnly", @"layoutBottomOnly",
-    @"controlsOpacityNotApplicable", @"controlsGameLayoutApplies",
+    @"controlsOpacityNotApplicable", @"controlsGameLayoutApplies", @"skinNotPlayable", @"touchDiagnostics",
+    @"touchDiagnosticsFooter",
   ];
 }
 
@@ -346,8 +348,12 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   result(@(stored));
 }
 
-/// {directory, consoleGeometry} -> {ok: true, summary} or {ok: false,
-/// error: SKIN_...}. Parsed off the main thread.
+/// {directory, consoleGeometry} -> {ok: true, summary, device} or {ok:
+/// false, error: SKIN_..., device} ("iphone" | "ipad"). Parsed off the main
+/// thread. The summary carries the
+/// iPhone verdict of LibretroSkinCompatibility for each of the skin's
+/// consoles ({compatibility: {console: report}}), and its iPhone
+/// orientations include iPad layouts adapted to the iPhone.
 - (void)inspectSkinWithArguments:(NSDictionary *)arguments result:(FlutterResult)result {
   NSString *directory = StringArgument(arguments, @"directory");
   if (!IsAbsolutePath(directory)) {
@@ -355,14 +361,26 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
     return;
   }
   NSDictionary<NSString *, NSDictionary *> *geometry = GeometryArgument(arguments, @"consoleGeometry");
+  // The iPhone filter refuses nothing on an iPad (Dart decides).
+  NSString *device = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? @"ipad" : @"iphone";
   dispatch_async(LibretroChannelQueue(), ^{
     NSString *code = nil;
     LibretroSkin *skin = [LibretroSkin skinWithDirectory:directory consoleGeometry:geometry errorCode:&code];
     NSDictionary<NSString *, id> *reply = nil;
     if (skin != nil) {
-      reply = @{@"ok" : @YES, @"summary" : [skin summary]};
+      NSMutableDictionary<NSString *, id> *reports = [NSMutableDictionary dictionary];
+      BOOL tablet = NO;
+      for (NSString *console in skin.consoles) {
+        LibretroSkinCompatibilityReport *report = [LibretroSkinCompatibility evaluateSkin:skin console:console];
+        reports[console] = report.dictionary;
+        tablet = tablet || report.tabletLayout;
+      }
+      skin.phoneUsesTabletLayouts = tablet;
+      NSMutableDictionary<NSString *, id> *summary = [[skin summary] mutableCopy];
+      summary[@"compatibility"] = reports;
+      reply = @{@"ok" : @YES, @"summary" : summary, @"device" : device};
     } else {
-      reply = @{@"ok" : @NO, @"error" : code ?: LibretroSkinErrorInfoInvalid};
+      reply = @{@"ok" : @NO, @"error" : code ?: LibretroSkinErrorInfoInvalid, @"device" : device};
     }
     dispatch_async(dispatch_get_main_queue(), ^{
       result(reply);
@@ -461,6 +479,9 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
     NSString *code = nil;
     LibretroSkin *skin = [LibretroSkin skinWithDirectory:skinDirectory consoleGeometry:geometry errorCode:&code];
     if (skin == nil) NSLog(@"[Libretro] skin preview unavailable for %@: %@", skinDirectory, code);
+    // The preview shows what the session will use (iPad layout adapted to
+    // the iPhone included).
+    if (skin != nil) [LibretroSkinCompatibility prepareSkin:skin console:console];
     LibretroSkinRepresentation *representation = [skin representationForOrientation:orientation
                                                                                iPad:iPad
                                                                          edgeToEdge:insets.bottom > 0];

@@ -309,6 +309,8 @@ static void TestGestures(void) {
   [tracker moveTouch:@"rot" x:MidX(moved) + moved.w * 0.4 y:MidY(moved)];
   CHECK([tracker resolve].coreInput.buttons == BIT(RIGHT), @"after a rotation the held D-pad finger follows it");
   [tracker endAllTouches];
+  // Back to landscape for the next gestures.
+  [tracker applyLayout:gba inputMap:[LibretroInputMap mapForConsole:@"gba"] touchRemap:nil];
 
   // A physical controller hides the controls: touches send nothing.
   tracker.controlsDisabled = YES;
