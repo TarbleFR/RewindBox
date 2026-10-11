@@ -171,7 +171,7 @@ class DeliveryPipeline(unittest.TestCase):
 
     def test_targeted_lane_checks_changed_native_inputs_and_separates_evidence(self):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
-        self.assertIn('options: [full, rpcs3_neoswap]',workflow)
+        self.assertIn('options: [full, rpcs3_neoswap, library_covers]',workflow)
         self.assertIn('default: full',workflow)
         self.assertIn('--scope rpcs3_neoswap',workflow)
         self.assertIn('neoswap-host-validation.json',workflow)

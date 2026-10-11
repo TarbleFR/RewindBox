@@ -894,6 +894,25 @@ BUILD442_DELTA = {
     'test/rpcs3_ui_status_cleanup_test.py',
 }
 DELTA |= BUILD442_DELTA
+# Build 443 changes only the book/manga cover widget and its catalogue wiring.
+# Unlike the broad historical delta, this scope closes the entire tracked tree.
+LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
+LIBRARY_COVERS_RUN = 38170927050
+LIBRARY_COVERS_DELTA = {
+    'build-utils/delivery-443-recipient.pem',
+    'lib/screens/library_screen/library_screen.dart',
+    'lib/widgets/library_book_cover.dart',
+    'test/library_book_cover_test.dart',
+    'test/library_ui_hub_test.dart',
+    'test/library_cover_delivery_test.py',
+    'test/delivery_pipeline_test.py',
+    'build-utils/verify_delivery_reuse.py',
+    '.github/workflows/retroarch-delivery.yml',
+    'docs/build442-plan.md',
+    'docs/build443-plan.md',
+    'docs/library-book-cover-3d.md',
+}
+DELTA |= LIBRARY_COVERS_DELTA
 INPUT_ROOTS =('lib/', 'packages/', 'native/', 'build-utils/', 'assets/', 'test/')
 
 # Build 441 changes RPCS3/NeoSwap only. The targeted lane retains the actual
@@ -989,6 +1008,99 @@ def verify_neoswap_evidence():
     return records
 
 
+def verify_library_covers_tree(reference=LIBRARY_COVERS_REFERENCE):
+    """Reuse Build442 only when every other tracked input remains identical."""
+    old = {}
+    for entry in subprocess.check_output(
+            ['git', 'ls-tree', '-rz', reference], cwd=ROOT).split(b'\0'):
+        if entry:
+            metadata, raw_path = entry.split(b'\t', 1)
+            old[raw_path.decode()] = metadata.decode().split()
+    # Include nonignored untracked inputs during local review, too. In CI every
+    # source is tracked by the checkout; a newly added input cannot hide here.
+    current = {p.decode() for p in subprocess.check_output(
+        ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+        cwd=ROOT).split(b'\0') if p}
+    changed, unchanged = [], {}
+    for path in sorted(set(old) | current):
+        file = ROOT / path
+        if file.is_symlink() or not file.is_file():
+            raise ValueError('Library covers input is missing or symlinked: ' + path)
+        data = file.read_bytes()
+        mode = '100755' if file.stat().st_mode & 0o111 else '100644'
+        if path in old and mode != old[path][0]:
+            raise ValueError('Library covers input mode changed: ' + path)
+        oid = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+        if path in old and oid == old[path][2]:
+            unchanged[path] = sha(data)
+        elif path in LIBRARY_COVERS_DELTA:
+            if path not in old and mode != '100644':
+                raise ValueError('Library covers added input must be nonexecutable: ' + path)
+            changed.append(path)
+        else:
+            raise ValueError('Unreviewed library covers input changed: ' + path)
+    # The only workflow edits permitted by this lane concern validation, never
+    # donor pins, compilation, packaging, signature checks or encryption.
+    workflow = '.github/workflows/retroarch-delivery.yml'
+    if workflow in old:
+        before = subprocess.check_output(['git', 'show', reference + ':' + workflow], cwd=ROOT, text=True)
+        after = (ROOT / workflow).read_text()
+        # A fresh public recipient is necessary to decrypt this authorized IPA.
+        # This exact key-path rotation is the sole packaging change allowed.
+        after = after.replace('DELIVERY_RECIPIENT: build-utils/delivery-443-recipient.pem',
+                              'DELIVERY_RECIPIENT: build-utils/delivery-424-recipient.pem')
+        before = before.replace('DELIVERY_RECIPIENT: build-utils/delivery-443-recipient.pem',
+                                'DELIVERY_RECIPIENT: build-utils/delivery-424-recipient.pem')
+        marker = '  cold:\n'
+        if marker not in before or marker not in after or before.split(marker, 1)[1] != after.split(marker, 1)[1]:
+            raise ValueError('Library covers delivery changed the pinned packaging recipe')
+        native_start = '    - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane\n'
+        native_end = '    - name: Preserve exact NeoSwap native validation\n'
+        before_native = before.split(native_start, 1)[1].split(native_end, 1)[0].split('      run: |\n', 1)[1]
+        after_native = after.split(native_start, 1)[1].split(native_end, 1)[0].split('      run: |\n', 1)[1]
+        if before_native != after_native:
+            raise ValueError('Library covers delivery changed the pinned native test recipe')
+    return changed, unchanged
+
+
+def verify_library_covers_evidence():
+    """Require the successful exact Build442 jobs, including reused evidence."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{LIBRARY_COVERS_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != LIBRARY_COVERS_REFERENCE
+            or run.get('status') != 'completed' or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/retroarch-delivery.yml'):
+        raise ValueError('Build442 evidence is not successful at its exact reference')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    required = {
+        'checks': ('Verify closed validation input tree and previous CI success',
+                   'Verify reused Dart evidence and changed pipeline guards'),
+        'native': ('Select Xcode 26.3 for NeoPlay and Google Cast',
+                   'Validate changed RPCS3 NeoSwap allocators and iPhone control plane',
+                   'Verify prior Swift success for identical transport inputs',
+                   'Run the embedded libretro host against a test core',
+                   'Run the portable libretro frontend modules (geometry, controls, settings, skins)',
+                   'Compile and render every libretro shader preset with Metal',
+                   'Compile and link every libretro bridge source for iPhone'),
+        'Release device build • cold': ('Compile Release device binary with measured AOT and Xcode phases',
+                                        'Package and validate NeoStation IPA',
+                                        'Seal every executable, framework and extension for SideStore'),
+    }
+    for name, steps in required.items():
+        matching = [j for j in jobs if j.get('name') == name]
+        if len(matching) != 1 or matching[0].get('conclusion') != 'success':
+            raise ValueError('Build442 evidence lacks successful job ' + name)
+        job = matching[0]
+        if job.get('head_sha') != LIBRARY_COVERS_REFERENCE or job.get('run_id') != LIBRARY_COVERS_RUN:
+            raise ValueError('Build442 job identity differs: ' + name)
+        for step in steps:
+            if not any(s.get('name') == step and s.get('conclusion') == 'success' for s in job.get('steps', ())):
+                raise ValueError('Build442 evidence lacks successful step ' + step)
+    return {'run': LIBRARY_COVERS_RUN, 'testedSHA': LIBRARY_COVERS_REFERENCE,
+            'workflow': run['path'], 'successfulJobs': list(required),
+            'validationWasReused': True, 'deviceGameplayValidated': False}
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -1027,9 +1139,24 @@ def verify_tree():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--offline', action='store_true')
-    parser.add_argument('--scope', choices=('full', 'rpcs3_neoswap'), default='full')
+    parser.add_argument('--scope', choices=('full', 'rpcs3_neoswap', 'library_covers'), default='full')
     parser.add_argument('--output', default='build/delivery/reused-validation.json')
     args = parser.parse_args()
+    if args.scope == 'library_covers':
+        changed, unchanged = verify_library_covers_tree()
+        report = {'scope': args.scope, 'referenceSHA': LIBRARY_COVERS_REFERENCE,
+                  'referenceRun': LIBRARY_COVERS_RUN,
+                  'onlineSuccessVerified': not args.offline,
+                  'unchangedInputCount': len(unchanged),
+                  'unchangedInputsSha256': sha(json.dumps(unchanged, sort_keys=True).encode()),
+                  'changedInputsRequiringNewTests': changed,
+                  'evidence': None if args.offline else verify_library_covers_evidence(),
+                  'deviceGameplayValidated': False}
+        out = ROOT / args.output
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2) + '\n')
+        print(json.dumps(report, indent=2))
+        return
     changed, unchanged = verify_tree()
     scoped = None
     if args.scope == 'rpcs3_neoswap':

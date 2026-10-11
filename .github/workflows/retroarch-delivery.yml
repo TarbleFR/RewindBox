@@ -12,9 +12,9 @@ run-name: NeoStation Build ${{ inputs.build_number || '427' }} • ${{ github.sh
         default: '427'
         type: string
       validation_scope:
-        description: Reuse exact Build 440 evidence outside RPCS3 and NeoSwap
+        description: Reuse pinned unchanged evidence for the selected candidate scope
         type: choice
-        options: [full, rpcs3_neoswap]
+        options: [full, rpcs3_neoswap, library_covers]
         default: full
       benchmark:
         description: Measure a cold and a cached build on comparable macOS runners
@@ -45,7 +45,7 @@ jobs:
         persist-credentials: false
     - name: Reuse successful unchanged Dart validation
       id: dart-evidence
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       uses: actions/cache@v4
       # The key also covers the native files some Dart tests read (the bridge's
       # Objective-C sources and headers, the cores manifest, NeoSwap's canonical
@@ -68,9 +68,9 @@ jobs:
       run: |-
         flutter pub get --enforce-lockfile
         flutter analyze --no-fatal-infos
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Reproduce the seven-root registration defect on the unchanged 422 code
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
       run: |
         python3 - <<'PYTHON'
         import json,subprocess
@@ -112,9 +112,9 @@ jobs:
         from pathlib import Path
         Path("build/delivery/dart-validation.json").write_text(json.dumps({"result":"passed","testedSHA":os.environ["GITHUB_SHA"],"key":"neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}","tool":"Flutter 3.47.2, Ubuntu 24.04"}))
         PY
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify reused Dart evidence and changed pipeline guards
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: |
         python3 - <<'PY'
         import json
@@ -166,6 +166,30 @@ jobs:
             'scope':'rpcs3_neoswap','tool':'Flutter 3.47.2, Ubuntu 24.04',
             'historicalEvidence':'reused-validation.json','deviceGameplayValidated':False},indent=2)+'\n')
         PYTHON
+    - name: Validate changed library covers and the closed delivery gate
+      if: ${{ inputs.validation_scope == 'library_covers' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        flutter pub get --enforce-lockfile
+        flutter analyze --no-fatal-infos lib/widgets/library_book_cover.dart lib/screens/library_screen/library_screen.dart test/library_book_cover_test.dart test/library_ui_hub_test.dart
+        flutter test test/library_book_cover_test.dart test/library_ui_hub_test.dart test/library_ui_hub_open_test.dart
+        python3 test/library_cover_delivery_test.py
+        python3 test/delivery_pipeline_test.py DeliveryPipeline.test_targeted_lane_checks_changed_native_inputs_and_separates_evidence
+        python3 - <<'PYTHON'
+        import hashlib,json,os,subprocess
+        from pathlib import Path
+        paths=['lib/widgets/library_book_cover.dart','lib/screens/library_screen/library_screen.dart',
+               'test/library_book_cover_test.dart','test/library_ui_hub_test.dart','test/library_ui_hub_open_test.dart',
+               'test/library_cover_delivery_test.py','test/delivery_pipeline_test.py',
+               'build-utils/verify_delivery_reuse.py','.github/workflows/retroarch-delivery.yml','pubspec.lock','pubspec.yaml']
+        Path('build/delivery/library-covers-validation.json').write_text(json.dumps({
+            'result':'passed','testedSHA':os.environ['GITHUB_SHA'],'scope':'library_covers',
+            'tool':json.loads(subprocess.check_output(['flutter','--version','--machine'])),
+            'runner':'ubuntu-24.04','historicalEvidence':'reused-validation.json',
+            'inputsSHA256':{p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths},
+            'deviceGameplayValidated':False},indent=2)+'\n')
+        PYTHON
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
@@ -190,7 +214,48 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: python3 build-utils/verify_delivery_reuse.py --scope rpcs3_neoswap
+    - name: Verify exact Build 442 inputs and successful native evidence
+      if: ${{ inputs.validation_scope == 'library_covers' }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: python3 build-utils/verify_delivery_reuse.py --scope library_covers --output build/delivery/library-covers-native-reuse.json
+    - name: Download exact Build 442 native toolchain and input record
+      if: ${{ inputs.validation_scope == 'library_covers' }}
+      uses: actions/download-artifact@v4
+      with:
+        name: NeoStation-442-neoswap-native-e8808dd32301f71fdd421a70c0ac6be2ed6fba47
+        run-id: 38170927050
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: build/delivery/build442-native
+    - name: Verify reused native toolchain and exact runtime inputs
+      if: ${{ inputs.validation_scope == 'library_covers' }}
+      run: |
+        python3 - <<'PYTHON'
+        import hashlib,json,subprocess
+        from pathlib import Path
+        record=json.loads(Path('build/delivery/build442-native/identity.json').read_text())
+        assert record['result']=='passed'
+        assert record['testedSHA']=='e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
+        assert record['xcode']==subprocess.check_output(['xcodebuild','-version'],text=True).strip()
+        assert record['iphoneSDK']==subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-version'],text=True).strip()
+        # Only the delivery guards changed; their new tests run in checks.
+        guards={'.github/workflows/retroarch-delivery.yml','build-utils/verify_delivery_reuse.py','test/delivery_pipeline_test.py'}
+        assert len(record['inputsSHA256'])>30
+        for path,digest in record['inputsSHA256'].items():
+            if path not in guards:
+                assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==digest,path
+        print('Native tests reused from Build 442; exact runtime inputs, Xcode and iPhone SDK verified')
+        PYTHON
+    - name: Preserve reused native evidence
+      if: ${{ inputs.validation_scope == 'library_covers' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: NeoStation-${{ inputs.build_number || '427' }}-native-reuse-${{ github.sha }}
+        path: build/delivery/
+        if-no-files-found: error
+        retention-days: 14
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
+      if: ${{ inputs.validation_scope != 'library_covers' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -307,7 +372,7 @@ jobs:
         Path('build/delivery/neoswap/identity.json').write_text(json.dumps(record,indent=2)+'\n')
         PY
     - name: Preserve exact NeoSwap native validation
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
         name: NeoStation-${{ inputs.build_number || '427' }}-neoswap-native-${{ github.sha }}
@@ -315,7 +380,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
     - name: Verify prior Swift success for identical transport inputs
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       id: native-evidence
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -338,24 +403,24 @@ jobs:
         print('Swift validation reused from run 37844950677' if reused else 'Swift transport inputs require new validation')
         PYTHON
     - name: Validate changed Swift transport and compile the actual iPhone plugin
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.native-evidence.outputs.reused != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.native-evidence.outputs.reused != 'true' }}
       run: |-
         swiftc -warnings-as-errors packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift test/retroarch_url_handoff_test.swift -o "$RUNNER_TEMP/retroarch-handoff"
         "$RUNNER_TEMP/retroarch-handoff"
         xcrun swiftc -parse -target arm64-apple-ios18.0 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" packages/external_folder_access/ios/Classes/ExternalFolderAccessPlugin.swift packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift
     - name: Run the embedded libretro host against a test core
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: python3 test/libretro_host_test.py
     - name: Run the portable libretro frontend modules (geometry, controls, settings, skins)
       # Runs even when an earlier native check failed, so one round reports
       # every native problem; the job still fails and blocks the IPA.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: python3 test/libretro_frontend_test.py
     - name: Compile and render every libretro shader preset with Metal
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: python3 test/libretro_shader_test.py
     - name: Compile and link every libretro bridge source for iPhone
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: python3 test/libretro_ios_syntax_test.py
   cold:
     name: Release device build • cold
@@ -366,7 +431,7 @@ jobs:
     - native
     env:
       BUILD_NUMBER: ${{ inputs.build_number || '427' }}
-      DELIVERY_RECIPIENT: build-utils/delivery-424-recipient.pem
+      DELIVERY_RECIPIENT: build-utils/delivery-443-recipient.pem
       IPA_NAME: NeoStation
       ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '427' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
@@ -1250,7 +1315,7 @@ jobs:
     - cold
     env:
       BUILD_NUMBER: ${{ inputs.build_number || '427' }}
-      DELIVERY_RECIPIENT: build-utils/delivery-424-recipient.pem
+      DELIVERY_RECIPIENT: build-utils/delivery-443-recipient.pem
       IPA_NAME: NeoStation
       ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '427' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
