@@ -2,6 +2,8 @@
 // opening local books and online titles (item rebuilt from the saved
 // snapshot), confirmation before removing a favourite (progress kept) and
 // controller input.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -183,6 +185,7 @@ void main() {
     Future<LibraryLocalBook?> Function(String id)? resolve,
     Future<void> Function(BuildContext context, LibraryLocalBook book)?
     openLocal,
+    Completer<void>? onlineGate,
     Size size = const Size(1280, 900),
     double devicePixelRatio = 1.0,
   }) async {
@@ -217,6 +220,8 @@ void main() {
                     openedItem = item;
                     openedAddon = addon;
                     openedSourceId = aidokuSourceId;
+                    events.add('online:${item.id}');
+                    await onlineGate?.future;
                   },
             ),
           ),
@@ -322,6 +327,50 @@ void main() {
       findsWidgets,
     );
     expect(events, ['local:book1'], reason: 'nothing opened');
+  });
+
+  testWidgets('a second tap while a book or title opens opens nothing more', (
+    tester,
+  ) async {
+    SfxService().setEnabled(false);
+    addTearDown(() => SfxService().setEnabled(true));
+    final reader = Completer<void>();
+    await pumpView(
+      tester,
+      openLocal: (context, book) async {
+        events.add('local:${book.id}');
+        await reader.future;
+      },
+    );
+    await tester.tap(find.text('Mon livre'));
+    await tester.pump();
+    // The push transition still lets taps through to the section.
+    await tester.tap(find.text('Mon livre'));
+    await tester.tap(find.text('Old Title'));
+    controller.activate();
+    await tester.pump();
+    expect(events, <String>['local:book1']);
+
+    // Once the reader is closed, books and titles open again.
+    reader.complete();
+    await tester.pump();
+    await tester.tap(find.text('Old Title'));
+    await tester.pump();
+    expect(events, <String>['local:book1', 'online:old-title']);
+
+    // The same for a title page that is still open.
+    await tester.pumpWidget(const SizedBox.shrink());
+    events.clear();
+    final titlePage = Completer<void>();
+    await pumpView(tester, onlineGate: titlePage);
+    await tester.tap(find.text('Old Title'));
+    await tester.pump();
+    await tester.tap(find.text('Old Title'));
+    await tester.tap(find.text('Mon livre'));
+    await tester.pump();
+    expect(events, <String>['online:old-title']);
+    titlePage.complete();
+    await tester.pump();
   });
 
   testWidgets('the technical details of an error close with B', (tester) async {

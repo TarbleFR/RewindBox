@@ -224,6 +224,12 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
   double _continueExtent = 160;
   bool _loaded = false;
 
+  /// True while a book or title opened here is open (the opener completes
+  /// when its route closes): a second tap or A press during the push
+  /// transition, which still reaches this view, would open a second
+  /// reader or title page on top of the first.
+  bool _opening = false;
+
   String _lt(String key) => LibraryFeatureLocale.text(context, key);
   String _ltf(String key, Map<String, Object?> values) =>
       LibraryFeatureLocale.format(context, key, values);
@@ -282,8 +288,11 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
   }
 
   void _refreshLists() {
-    // Library books and online titles only (a provider download opened in
-    // the PDF reader has its own `download:` key and no library entry).
+    // Library books and online titles only. Provider downloads are books of
+    // the local library (indexed in Library/Downloads, read under their
+    // `local:` key); older keys (`reader:` of the former text reader,
+    // `download:` of earlier Build 437 PDF downloads) have no entry to
+    // open and are not listed.
     _continue = <LibraryReadingProgress>[
       for (final progress in _store.recent(limit: 30))
         if (!progress.isFinished &&
@@ -361,6 +370,16 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
   }
 
   // ------------------------------------------------------------ actions --
+
+  Future<void> _openOnce(Future<void> Function() open) async {
+    if (_opening) return;
+    _opening = true;
+    try {
+      await open();
+    } finally {
+      _opening = false;
+    }
+  }
 
   Future<void> _openProgress(LibraryReadingProgress progress) async {
     if (progress.kind == LibraryReadingKind.local) {
@@ -565,13 +584,15 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
         return true;
       case _FavoritesRegion.continueRow:
         if (_continueIndex < _continue.length) {
-          unawaited(_openProgress(_continue[_continueIndex]));
+          final progress = _continue[_continueIndex];
+          unawaited(_openOnce(() => _openProgress(progress)));
           return true;
         }
         return false;
       case _FavoritesRegion.favorites:
         if (_favoriteIndex < _favorites.length) {
-          unawaited(_openFavorite(_favorites[_favoriteIndex]));
+          final favorite = _favorites[_favoriteIndex];
+          unawaited(_openOnce(() => _openFavorite(favorite)));
           return true;
         }
         return false;
@@ -780,7 +801,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
                   _region = _FavoritesRegion.continueRow;
                   _continueIndex = index;
                 });
-                unawaited(_openProgress(progress));
+                unawaited(_openOnce(() => _openProgress(progress)));
               },
             ),
           );
@@ -970,7 +991,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
           _region = _FavoritesRegion.favorites;
           _favoriteIndex = index;
         });
-        unawaited(_openFavorite(favorite));
+        unawaited(_openOnce(() => _openFavorite(favorite)));
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
