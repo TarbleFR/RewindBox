@@ -9,6 +9,23 @@ import 'library_reader_palette.dart';
 /// Minimum touch target of reader controls (Apple HIG: 44 pt).
 const double kLibraryReaderTouchTarget = 44;
 
+/// Icon of the back control of every reader (top bar and floating button).
+const IconData kLibraryReaderBackIcon = Icons.arrow_back_ios_new_rounded;
+
+/// Gap between the top of the safe area and the back control.
+const double _kBackTopGap = 2;
+
+/// Gap between the leading side of the safe area and the back control.
+const double _kBackSideGap = 4;
+
+/// Distance from the top of the reader to the bottom of its back control
+/// (the top bar's arrow, or the floating back button while the bars are
+/// hidden): content laid out by a reader starts below it.
+double libraryReaderBackControlBottom(BuildContext context) =>
+    MediaQuery.paddingOf(context).top +
+    _kBackTopGap +
+    kLibraryReaderTouchTarget;
+
 /// Icon button with a 44 x 44 touch target and a translated tooltip /
 /// accessibility label. Sized in logical pixels: readers rotate to portrait,
 /// where ScreenUtil `.r` sizes would shrink to about half.
@@ -20,6 +37,7 @@ class LibraryReaderIconButton extends StatelessWidget {
     required this.onPressed,
     required this.color,
     this.size = 24,
+    this.splashRadius = kLibraryReaderTouchTarget / 2 + 4,
   });
 
   final IconData icon;
@@ -27,6 +45,9 @@ class LibraryReaderIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Color color;
   final double size;
+
+  /// Radius of the touch feedback.
+  final double splashRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +64,7 @@ class LibraryReaderIconButton extends StatelessWidget {
         excludeSemantics: true,
         child: InkResponse(
           onTap: onPressed,
-          radius: kLibraryReaderTouchTarget / 2 + 4,
+          radius: splashRadius,
           child: SizedBox(
             width: kLibraryReaderTouchTarget,
             height: kLibraryReaderTouchTarget,
@@ -129,16 +150,18 @@ class LibraryReaderTopBar extends StatelessWidget {
       color: palette.chromeBackground,
       elevation: 0,
       child: Padding(
+        // The floating back button uses the same gaps: both back controls
+        // sit at the same place.
         padding: EdgeInsets.only(
-          top: padding.top + 2,
-          left: padding.left + 4,
-          right: padding.right + 4,
+          top: padding.top + _kBackTopGap,
+          left: padding.left + _kBackSideGap,
+          right: padding.right + _kBackSideGap,
           bottom: 2,
         ),
         child: Row(
           children: <Widget>[
             LibraryReaderIconButton(
-              icon: Icons.arrow_back_ios_new_rounded,
+              icon: kLibraryReaderBackIcon,
               tooltip: LibraryReaderLocale.text(context, 'back'),
               onPressed: onBack,
               color: palette.chromeForeground,
@@ -210,13 +233,80 @@ class LibraryReaderBottomBar extends StatelessWidget {
   }
 }
 
+/// Back button of a reader while its bars are hidden: drawn where the top
+/// bar shows its arrow (same icon, label and action), on a small
+/// translucent disc in the reader's colours, so leaving a book never needs
+/// the bars to be revealed first.
+class LibraryReaderFloatingBackButton extends StatelessWidget {
+  const LibraryReaderFloatingBackButton({
+    super.key,
+    required this.palette,
+    required this.onPressed,
+  });
+
+  final LibraryReaderPalette palette;
+  final VoidCallback onPressed;
+
+  /// Diameter of the disc behind the arrow; the touch target stays
+  /// [kLibraryReaderTouchTarget] square.
+  static const double discDiameter = 38;
+
+  /// Opacity of the disc: the page shows faintly through it while the arrow
+  /// keeps its contrast in every reader theme.
+  static const double discOpacity = 0.8;
+
+  /// Colour of the disc in [palette].
+  static Color discColor(LibraryReaderPalette palette) =>
+      palette.chromeBackground.withValues(alpha: discOpacity);
+
+  @override
+  Widget build(BuildContext context) {
+    // Its own transparent Material: the disc and the touch feedback are
+    // painted above the page, not on the Scaffold underneath it.
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          Ink(
+            width: discDiameter,
+            height: discDiameter,
+            decoration: ShapeDecoration(
+              color: discColor(palette),
+              shape: CircleBorder(
+                side: BorderSide(color: palette.divider, width: 0.5),
+              ),
+            ),
+          ),
+          LibraryReaderIconButton(
+            icon: kLibraryReaderBackIcon,
+            tooltip: LibraryReaderLocale.text(context, 'back'),
+            onPressed: onPressed,
+            color: palette.chromeForeground,
+            size: 22,
+            splashRadius: discDiameter / 2,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Lays [content] edge to edge and slides the bars in and out over it.
+///
+/// Exactly one back control is offered at a time: the top bar's arrow while
+/// the bars are shown, else a [LibraryReaderFloatingBackButton] at the same
+/// place (inside the safe area). It never hides by itself and calls
+/// [onBack], the reader's own close path. The control that is hidden is
+/// neither hit-testable nor in the semantics tree.
 class LibraryReaderChromeOverlay extends StatelessWidget {
   const LibraryReaderChromeOverlay({
     super.key,
     required this.visible,
     required this.content,
     required this.topBar,
+    required this.palette,
+    required this.onBack,
     this.bottomBar,
   });
 
@@ -225,27 +315,62 @@ class LibraryReaderChromeOverlay extends StatelessWidget {
   final Widget topBar;
   final Widget? bottomBar;
 
+  /// Colours of the floating back button.
+  final LibraryReaderPalette palette;
+
+  /// The reader's close action (the one the top bar's arrow calls).
+  final VoidCallback onBack;
+
   static const Duration duration = Duration(milliseconds: 200);
 
   @override
   Widget build(BuildContext context) {
+    final padding = MediaQuery.paddingOf(context);
+    final rightToLeft = Directionality.of(context) == TextDirection.rtl;
     return Stack(
       children: <Widget>[
         Positioned.fill(child: content),
+        // Below the top bar, which slides over it when the bars come back.
+        PositionedDirectional(
+          top: padding.top + _kBackTopGap,
+          start: (rightToLeft ? padding.right : padding.left) + _kBackSideGap,
+          child: IgnorePointer(
+            ignoring: visible,
+            child: ExcludeSemantics(
+              excluding: visible,
+              child: ExcludeFocus(
+                excluding: visible,
+                child: AnimatedOpacity(
+                  opacity: visible ? 0 : 1,
+                  duration: duration,
+                  child: LibraryReaderFloatingBackButton(
+                    palette: palette,
+                    onPressed: onBack,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
         Positioned(
           left: 0,
           right: 0,
           top: 0,
           child: IgnorePointer(
             ignoring: !visible,
-            child: AnimatedSlide(
-              offset: visible ? Offset.zero : const Offset(0, -1),
-              duration: duration,
-              curve: Curves.easeOut,
-              child: AnimatedOpacity(
-                opacity: visible ? 1 : 0,
+            // Out of the semantics tree as soon as it starts hiding, so the
+            // floating back button is never announced next to its arrow.
+            child: ExcludeSemantics(
+              excluding: !visible,
+              child: AnimatedSlide(
+                offset: visible ? Offset.zero : const Offset(0, -1),
                 duration: duration,
-                child: topBar,
+                curve: Curves.easeOut,
+                child: AnimatedOpacity(
+                  opacity: visible ? 1 : 0,
+                  duration: duration,
+                  child: topBar,
+                ),
               ),
             ),
           ),

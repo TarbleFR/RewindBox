@@ -11,6 +11,7 @@ import 'package:neostation/screens/library_screen/reader/library_page_reader_con
 import 'package:neostation/screens/library_screen/reader/library_page_reader_controller.dart';
 import 'package:neostation/screens/library_screen/reader/library_page_reader_screen.dart';
 import 'package:neostation/screens/library_screen/reader/library_page_source.dart';
+import 'package:neostation/screens/library_screen/reader/library_reader_chrome.dart';
 import 'package:neostation/services/library_aidoku_engines.dart';
 import 'package:neostation/services/library_http.dart';
 import 'package:neostation/services/library_image_cache.dart';
@@ -1021,10 +1022,39 @@ void main() {
       );
       final state = readerState(tester);
       expect(find.semantics.byLabel(en('back')), findsOne);
+      expect(find.semantics.byLabel(en('settings')), findsOne);
       await tester.pump(const Duration(seconds: 5));
       await tester.pump(const Duration(milliseconds: 300));
       expect(state.chromeVisible, isFalse);
-      expect(find.semantics.byLabel(en('back')), findsNothing);
+      // The bars left the accessibility tree with their controls.
+      for (final key in <String>['settings', 'switchToVertical']) {
+        expect(find.semantics.byLabel(en(key)), findsNothing, reason: key);
+      }
+      // Build 438 contract (replaces "no Back at all once the bars hide"):
+      // Back stays reachable through the floating back button only, never
+      // through the hidden top bar.
+      final back = find.semantics.byLabel(en('back'));
+      expect(back, findsOne);
+      final floating = tester.getSemantics(
+        find.descendant(
+          of: find.byType(LibraryReaderFloatingBackButton),
+          matching: find.bySemanticsLabel(en('back')),
+        ),
+      );
+      expect(floating.id, back.evaluate().single.id);
+      expect(
+        floating,
+        isSemantics(label: en('back'), isButton: true, hasTapAction: true),
+      );
+      expect(
+        find
+            .descendant(
+              of: find.byType(LibraryReaderTopBar),
+              matching: find.byTooltip(en('back')),
+            )
+            .hitTestable(),
+        findsNothing,
+      );
       await closeAll(tester, store);
       semantics.dispose();
     });

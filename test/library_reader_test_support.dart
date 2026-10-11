@@ -97,23 +97,37 @@ void useSurface(WidgetTester tester, {Size size = const Size(900, 600)}) {
   addTearDown(tester.view.reset);
 }
 
-/// Hosts [reader] above a [home] route so it can be closed.
+/// Hosts [reader] above a [home] route so it can be closed. With an
+/// [opener], the reader is pushed above that screen, itself above [home]
+/// (a second pop would then close the opener too).
 Future<GlobalKey<NavigatorState>> pumpReader(
   WidgetTester tester,
   Widget reader, {
   Locale locale = const Locale('en'),
   Widget home = const Scaffold(body: Text('home')),
+  Widget? opener,
+  List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
 }) async {
   final navigator = GlobalKey<NavigatorState>();
   await tester.pumpWidget(
     MaterialApp(
       navigatorKey: navigator,
+      navigatorObservers: navigatorObservers,
       locale: locale,
       supportedLocales: <Locale>[locale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: home,
     ),
   );
+  if (opener != null) {
+    unawaited(
+      navigator.currentState!.push<void>(
+        MaterialPageRoute<void>(builder: (_) => opener),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
   unawaited(
     navigator.currentState!.push<void>(
       MaterialPageRoute<void>(builder: (_) => reader),

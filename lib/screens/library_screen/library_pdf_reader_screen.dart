@@ -426,6 +426,9 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
               builder: (context, content) => LibraryReaderChromeOverlay(
                 visible: _chrome.visible || !_ready,
                 content: content!,
+                palette: palette,
+                // The floating back button closes like the top bar and B.
+                onBack: _close,
                 topBar: LibraryReaderTopBar(
                   palette: palette,
                   title: widget.title,

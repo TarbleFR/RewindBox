@@ -182,7 +182,12 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         start: _openSettings,
       );
 
-  double get _topInset => MediaQuery.paddingOf(context).top + 12;
+  /// Where the line being read is placed (opening, jumps, new typography)
+  /// and read back from: just below the back control, which stays on
+  /// screen while the bars are hidden, so that line is never under it.
+  /// Positions are text locations (EPUB CFI, `txt:b:o`): placing and
+  /// reading use this same line, so they stay valid.
+  double get _topInset => libraryReaderBackControlBottom(context) + 4;
 
   @override
   void initState() {
@@ -1122,6 +1127,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
                 return LibraryReaderChromeOverlay(
                   visible: _chrome.visible || !ready,
                   content: body!,
+                  palette: palette,
+                  // The floating back button closes like the top bar and B.
+                  onBack: _close,
                   topBar: LibraryReaderTopBar(
                     palette: palette,
                     title: widget.title,
