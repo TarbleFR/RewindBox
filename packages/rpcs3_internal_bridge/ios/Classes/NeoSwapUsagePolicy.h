@@ -3,6 +3,7 @@
 #include <cmath>
 #include <neo_swap/NeoSwapClientStats.h>
 #include <neo_swap/NeoSwapHost.h>
+#include <neo_swap/NeoSwapDonationMetrics.h>
 
 // Live buffers take precedence over a lost backend. Readiness comes from a
 // configured file owner or verified donor pages, never a virtual reservation.
@@ -30,57 +31,25 @@ inline NeoSwapUsageStatus NeoSwapUsage(uint64_t live, const NeoSwapClientStats* 
     return NeoSwapUsageStatus::waiting;
 }
 
-// Distinct live objects only. Prepared pools, file fallback and VM aliases are
-// not extra microprocess allocations. This is not a physical-residency sum.
+// Two independent measures: the app's kernel footprint and backing currently
+// donated to RPCS3. Prepared capacity, idle shelves, files and aliases never
+// enter donated bytes. Active backing is not a physical-residency measurement.
 struct NeoSwapMemoryGraphPoint {
-    uint64_t allocated = 0;
-    // Physical footprint of the RPCS3 task (kernel ledger), see deviceRam.
     uint64_t footprint = 0;
-    // HOST data NeoSwap supplies outside the process footprint: relay host
-    // loans (RSX data, Vulkan buffers, video frames) plus donor loans. Guest
-    // pages are part of `allocated` but not of this contribution figure.
-    uint64_t hostLoans = 0;
-    // RAM the device spends on the session (maintainer request of 7 October
-    // 2026): the RPCS3 task physical footprint (kernel ledger, compressed pages
-    // included) merged with the NeoSwap backing charged to its microprocesses
-    // (`allocated`). Donor and relay pages are charged to the microprocess that
-    // owns them and not to this footprint, even though their aliases are mapped
-    // and resident in RPCS3: the resident counter would count them twice, the
-    // footprint does not. The overlay draws only this merged line and the
-    // NeoSwap contribution; microprocesses are no longer shown separately.
-    // Valid whenever the footprint is; the backing is added only when measured.
-    uint64_t deviceRam = 0;
-    bool allocatedValid = false;
+    uint64_t donated = 0;
     bool footprintValid = false;
-    bool hostLoansValid = false;
-    bool deviceRamValid = false;
+    bool donatedValid = false;
 };
-inline uint64_t NeoSwapHostLoanBytes(const NeoSwapHostStats* host) noexcept {
-    if (!host) return 0;
-    const uint64_t donor = host->owner_donated_live_bytes[NEOSWAP_RPCS3];
-    return host->relay_loan_live_bytes > UINT64_MAX - donor ? UINT64_MAX : host->relay_loan_live_bytes + donor;
-}
 inline NeoSwapMemoryGraphPoint NeoSwapMemoryGraph(const NeoSwapHostStats* host,
-    uint64_t relayLiveBacking, bool relayMeasured, uint64_t processFootprint) noexcept {
+    uint64_t relayGuestPublished, bool relayGuestMeasured, uint64_t processFootprint) noexcept {
     NeoSwapMemoryGraphPoint point{};
+    // phys_footprint is already the app's kernel charge. Never add or subtract
+    // shared backing here, even when the independent donation sample is absent.
     point.footprint = processFootprint;
     point.footprintValid = processFootprint != 0;
-    if (host) {
-        point.hostLoans = NeoSwapHostLoanBytes(host);
-        point.hostLoansValid = true;
-    }
-    if (host && relayMeasured) {
-        const uint64_t loans = host->owner_donated_live_bytes[NEOSWAP_RPCS3];
-        if (relayLiveBacking <= UINT64_MAX - loans) {
-            point.allocated = loans + relayLiveBacking;
-            point.allocatedValid = true;
-        }
-    }
-    if (point.footprintValid) {
-        const uint64_t backing = point.allocatedValid ? point.allocated : 0;
-        point.deviceRam = point.footprint > UINT64_MAX - backing ? UINT64_MAX : point.footprint + backing;
-        point.deviceRamValid = true;
-    }
+    const auto donation = neostation::donation_metrics::active(host, relayGuestPublished, relayGuestMeasured);
+    point.donatedValid = donation.valid;
+    point.donated = donation.valid ? donation.total_bytes : 0;
     return point;
 }
 constexpr double NeoSwapDecimalGB(uint64_t bytes) noexcept {

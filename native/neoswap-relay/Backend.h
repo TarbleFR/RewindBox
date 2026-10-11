@@ -44,6 +44,11 @@ struct PressureDiagnostics {
     int last_map_result = 0, last_map_os_error = 0;
     // Per-owner live backing and quotas (owner 0 guest data, owner 1 host loans).
     std::uint64_t owner_live_bytes[tracked_owner_count] = {};
+    // Unique backing published by a successful map and still owned by an
+    // active caller. Temporary removal of all aliases keeps it published;
+    // retirement excludes it even if cleanup is deferred or quarantined.
+    // These are backing bytes, not measured physical residency.
+    std::uint64_t owner_published_live_bytes[tracked_owner_count] = {};
     std::uint64_t owner_peak_bytes[tracked_owner_count] = {};
     std::uint64_t owner_quota_bytes[tracked_owner_count] = {};
     std::uint64_t quota_refusals = 0;

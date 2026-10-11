@@ -24,6 +24,13 @@ typedef struct NeoSwapHostStats {
     // Live relay-backed host loans per owner; distinct from donor loans and files.
     uint64_t owner_relay_live_bytes[NEOSWAP_OWNER_COUNT];
     uint64_t relay_loan_live_bytes;
+    // Client-owned donations only. FAST loans stop contributing as soon as
+    // the caller queues their release; occupied/quota counters above retain
+    // them until cleanup succeeds. Unused shelves and files are excluded.
+    // A busy broker makes this sample unavailable, never a measured zero.
+    uint64_t owner_donated_active_bytes[NEOSWAP_OWNER_COUNT];
+    uint64_t owner_relay_active_bytes[NEOSWAP_OWNER_COUNT];
+    uint32_t active_donation_valid;
 } NeoSwapHostStats;
 
 // Host-only counters, not additions to the immutable emulator API/stats ABI.
@@ -101,7 +108,8 @@ NEOSWAP_PUBLIC void NeoSwap_SetCPUBufferExperiment(int enabled);
 NEOSWAP_PUBLIC void NeoSwap_SetCPUBufferPressure(int raised);
 NEOSWAP_PUBLIC int NeoSwap_CPUBufferSnapshot(NeoSwapCPUBufferStats* stats);
 // Refresh disk-capacity fields on a background diagnostics queue. The fast
-// HostSnapshot getter only copies cached fields and never queries filesystem.
+// HostSnapshot getter never queries the filesystem or waits for the broker:
+// its active donation scan uses try_lock and reports unavailable if busy.
 NEOSWAP_PUBLIC int NeoSwap_StorageSnapshot(NeoSwapHostStats* stats);
 // Background manager only. A claimed failed RPCS3 request persists until the
 // newly verified block is adopted/acknowledged; later requests stay queued.

@@ -312,7 +312,10 @@ void host_snapshot(const Broker& b, NeoSwapHostStats* out) {
         out->owner_last_errno[i] = h.owner_last_errno[i].load(std::memory_order_relaxed);
         out->owner_donated_live_bytes[i] = b.owner_donated_bytes[i].load(std::memory_order_relaxed);
         out->owner_relay_live_bytes[i] = b.owner_relay_bytes[i].load(std::memory_order_relaxed);
+        out->owner_donated_active_bytes[i] = 0;
+        out->owner_relay_active_bytes[i] = 0;
     }
+    out->active_donation_valid = 0;
     out->relay_loan_live_bytes = b.relay_loans.live_bytes.load(std::memory_order_relaxed);
     out->donated_live_bytes = out->donor_prepared_bytes = out->donor_footprint_bytes = 0;
     out->donor_nonvolatile_bytes = out->donor_compressed_bytes = out->donor_generation = 0;
@@ -346,6 +349,22 @@ void host_snapshot(const Broker& b, NeoSwapHostStats* out) {
     out->donor_count = donation.donor_count;
     out->donor_lost_count = donation.lost_donor_count;
 #endif
+}
+void active_snapshot_locked(const Broker& b, NeoSwapHostStats* out) {
+    // Diagnostics only: allocation/release and quota ownership are unchanged.
+    // The fixed-size scan reads metadata, never pages or backend mappings.
+    // Holding the broker mutex keeps slots stable; FAST release may still
+    // publish a pending flag concurrently, sampled once for each live slot.
+    for (size_t index = 0; index < max_blocks; ++index) {
+        const auto& block = b.blocks[index];
+        if (!block.address || block.owner >= NEOSWAP_OWNER_COUNT ||
+            b.pending_releases[index].load(std::memory_order_acquire)) continue;
+        if (block.backing == Backing::donor)
+            out->owner_donated_active_bytes[block.owner] += block.size;
+        else if (block.backing == Backing::relay)
+            out->owner_relay_active_bytes[block.owner] += block.size;
+    }
+    out->active_donation_valid = 1;
 }
 bool fail(Broker& b, int stage) {
 #ifdef NEOSWAP_TESTING
@@ -1210,13 +1229,17 @@ extern "C" int NeoSwap_AcknowledgeDonationDemand(uint64_t sequence) {
 }
 extern "C" int NeoSwap_HostSnapshot(NeoSwapHostStats* out) {
     if (!out) return NEOSWAP_INVALID;
-    host_snapshot(broker(), out);
+    auto& b = broker();
+    host_snapshot(b, out);
+    std::unique_lock guard(b.mutex, std::try_to_lock);
+    if (guard.owns_lock()) active_snapshot_locked(b, out);
     return NEOSWAP_OK;
 }
 extern "C" int NeoSwap_StorageSnapshot(NeoSwapHostStats* out) {
     if (!out) return NEOSWAP_INVALID;
     auto& b = broker(); std::lock_guard guard(b.mutex);
     host_snapshot(b, out);
+    active_snapshot_locked(b, out);
     out->disk_free_bytes = 0;
     out->remaining_storage_bytes = 0;
     struct statvfs space{};

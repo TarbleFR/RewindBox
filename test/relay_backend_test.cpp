@@ -128,7 +128,46 @@ struct Fixture {
         assert(backend.create(0, bytes, &token) == NEOSWAP_RELAY_OK && token);
         return token;
     }
+    std::uint64_t published(std::uint32_t owner = 0) {
+        return backend.pressure_diagnostics().owner_published_live_bytes[owner];
+    }
 };
+
+static void published_backing_counts_successful_active_objects_once() {
+    using neostation::relay::host_loan_owner;
+    Fixture f(8 * page);
+    assert(f.backend.configure(neostation::relay::supported_owner_mask) == 0);
+    const auto token = f.create(2 * page);
+    std::uint64_t host = 0;
+    assert(f.backend.create(host_loan_owner, page, &host) == 0);
+    assert(f.stats().live_bytes == 3 * page && !f.published() && !f.published(host_loan_owner));
+    void *first = nullptr, *second = nullptr, *host_view = nullptr;
+    f.os.fail_map = 1;
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ_WRITE, &first) == NEOSWAP_RELAY_MAPPING);
+    assert(!first && !f.published());
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ_WRITE, &first) == 0);
+    f.os.write(first, page + 7, 0x39);
+    assert(f.published() == 2 * page && !f.published(host_loan_owner));
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ, &second) == 0);
+    assert(f.os.read(second, page + 7) == 0x39);
+    assert(f.published() == 2 * page && f.stats().mapped_alias_bytes == 4 * page);
+    assert(f.backend.map(host, nullptr, NEOSWAP_RELAY_READ_WRITE, &host_view) == 0);
+    assert(f.published() == 2 * page && f.published(host_loan_owner) == page);
+    assert(f.backend.unmap(token, first) == 0 && f.backend.unmap(token, second) == 0);
+    assert(f.published() == 2 * page); // The caller still owns the same data without aliases.
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ, &second) == 0);
+    assert(f.os.read(second, page + 7) == 0x39 && f.published() == 2 * page);
+    assert(f.backend.unmap(token, second) == 0);
+    f.os.fail_zero = 1;
+    assert(f.backend.release(token) == NEOSWAP_RELAY_CLEANUP);
+    assert(f.published() == 2 * page); // A failed release has not ended ownership.
+    assert(f.backend.release(token) == 0 && !f.published());
+    assert(f.published(host_loan_owner) == page);
+    assert(f.backend.unmap(host, host_view) == 0 && f.backend.release(host) == 0);
+    assert(!f.published(host_loan_owner));
+    const auto unpublished = f.create();
+    assert(f.backend.release(unpublished) == 0 && !f.published());
+}
 
 static void alias_identity_and_lifetime() {
     Fixture f;
@@ -325,22 +364,27 @@ static void retirement_retries_only_quiesced_objects() {
     assert(f.backend.map(retired, nullptr, 3, &other) == 0);
     assert(f.backend.map(retired, reinterpret_cast<void*>(guest), 3, &fixed) == 0);
     assert(f.backend.map(active, nullptr, 3, &still_active) == 0);
+    assert(f.published() == 2 * page);
     f.os.write(still_active, 13, 0x4A);
     f.os.fail_unmap = 1;
     assert(f.backend.retire(retired) == NEOSWAP_RELAY_CLEANUP);
+    assert(f.published() == page); // Failed retirement no longer contributes active backing.
     assert(f.stats().retiring_object_count == 1 && f.stats().object_count == 2);
     assert(f.stats().alias_count == 2 && !f.os.zero_calls);
     void* forbidden = nullptr;
     assert(f.backend.map(retired, nullptr, 3, &forbidden) == NEOSWAP_RELAY_BUSY);
     f.os.fail_zero = 1;
     assert(f.backend.collect() == NEOSWAP_RELAY_CLEANUP);
+    assert(f.published() == page);
     assert(f.stats().alias_count == 1 && f.stats().retiring_object_count == 1);
     assert(f.backend.collect() == 0 && !f.stats().retiring_object_count);
+    assert(f.published() == page); // Collection cannot subtract the same object twice.
     assert(f.stats().object_count == 1 && f.stats().live_bytes == page && f.stats().alias_count == 1);
     assert(f.os.read(still_active, 13) == 0x4A); // Collector never touches active game users.
     assert(f.os.mappings.at(guest).port == 0);
     assert(f.backend.retire(retired) == NEOSWAP_RELAY_UNKNOWN);
     assert(f.backend.retire(active) == 0 && f.backend.collect() == 0);
+    assert(!f.published());
 }
 static void failed_fixed_retirement_never_clobbers_reused_guest_address() {
     Fixture f;
@@ -348,9 +392,11 @@ static void failed_fixed_retirement_never_clobbers_reused_guest_address() {
     f.os.reserve(guest, page);
     void* view = nullptr;
     assert(f.backend.map(token, reinterpret_cast<void*>(guest), 3, &view) == 0);
+    assert(f.published() == page);
     f.os.write(view, 0, 0x71);
     f.os.fail_unmap = 1;
     assert(f.backend.retire(token) == NEOSWAP_RELAY_CLEANUP);
+    assert(!f.published()); // Quarantined backing is retained, but no longer active.
     assert(f.stats().quarantined_fixed_alias_count == 1 && f.stats().retiring_object_count == 1);
     assert(!f.backend.enabled(0));
     std::uint64_t new_token = 0;
@@ -359,9 +405,11 @@ static void failed_fixed_retirement_never_clobbers_reused_guest_address() {
     // token; disabling future objects must not break an in-flight owner.
     void* active_alias = nullptr;
     assert(f.backend.map(active, nullptr, 3, &active_alias) == 0);
+    assert(f.published() == page);
     f.os.write(active_alias, 0, 0x61);
     assert(f.os.read(active_alias, 0) == 0x61);
     assert(f.backend.unmap(active, active_alias) == 0 && f.backend.release(active) == 0);
+    assert(!f.published());
     const int attempts = f.os.unmap_calls;
     const int scrubbed_before = f.os.zero_calls;
     // After the old guest object dies, another allocator can replace the range.
@@ -377,6 +425,7 @@ static void failed_fixed_retirement_never_clobbers_reused_guest_address() {
     assert(f.backend.collect() == NEOSWAP_RELAY_CLEANUP && f.stats().last_os_error == 107);
     assert(f.stats().os_error_count == 1 && f.os.zero_calls == scrubbed_before);
     assert(f.stats().live_bytes == page && f.backend.shutdown() == NEOSWAP_RELAY_BUSY);
+    assert(!f.published()); // Repeated retirement/collection never underflows the counter.
 }
 static void every_fixed_alias_is_attempted_before_retire_returns() {
     Fixture f;
@@ -401,6 +450,7 @@ static void retirement_is_bounded_and_fair() {
         assert(f.backend.map(token, nullptr, 3, &alias) == 0);
     }
     assert(f.backend.retire(token) == NEOSWAP_RELAY_BUSY);
+    assert(!f.published()); // Even a bounded retirement with six remaining aliases is inactive.
     assert(f.stats().alias_count == 6 && f.stats().retiring_object_count == 1);
     assert(f.backend.collect() == 0 && !f.stats().alias_count && !f.stats().retiring_object_count);
     std::uint64_t tokens[6]{};
@@ -453,8 +503,10 @@ static void eight_gibibyte_capacity_keeps_bounded_tokens_and_wide_counters() {
     assert(backend.snapshot(&stats) == 0);
     assert(stats.capacity_bytes == capacity && stats.retained_capacity_bytes == capacity && stats.live_bytes == capacity);
     assert(stats.mapped_alias_bytes == capacity * 2 && stats.alias_count == 32 && stats.object_count == 16);
+    assert(backend.pressure_diagnostics().owner_published_live_bytes[0] == capacity);
     assert(backend.create(0, page, &invalid) == NEOSWAP_RELAY_QUOTA && !invalid);
     for (auto token : tokens) assert(backend.retire(token) == 0);
+    assert(!backend.pressure_diagnostics().owner_published_live_bytes[0]);
     assert(backend.snapshot(&stats) == 0 && !stats.live_bytes && !stats.alias_count && !stats.object_count);
     assert(stats.capacity_bytes == capacity && stats.peak_live_bytes == capacity);
     os.budget = segment - 1;
@@ -471,6 +523,7 @@ static void eight_gibibyte_capacity_keeps_bounded_tokens_and_wide_counters() {
         assert(backend.release(token) == 0);
     }
     assert(first_token != reused_index_token && (first_token & 16383) == (reused_index_token & 16383));
+    assert(!backend.pressure_diagnostics().owner_published_live_bytes[0]);
     void* stale = nullptr;
     assert(backend.map(first_token, nullptr, NEOSWAP_RELAY_READ, &stale) == NEOSWAP_RELAY_UNKNOWN);
     assert(backend.shutdown() == 0 && os.mappings.empty());
@@ -609,6 +662,7 @@ static void best_fit_preserves_large_runs() {
 }
 
 int main() {
+    published_backing_counts_successful_active_objects_once();
     best_fit_preserves_large_runs();
     host_loan_owner_quota_protects_guest_share();
     published_backing_survives_pressure();
@@ -623,5 +677,5 @@ int main() {
     every_fixed_alias_is_attempted_before_retire_returns();
     retirement_is_bounded_and_fair();
     eight_gibibyte_capacity_keeps_bounded_tokens_and_wide_counters();
-    std::cout << "relay backend: alias identity, fixed reservations, failure ownership, zeroing, pressure, coalescing, deferred retirement, host-loan owner quotas and lifecycle checks passed\n";
+    std::cout << "relay backend: alias identity, fixed reservations, failure ownership, zeroing, pressure, coalescing, deferred retirement, published backing, host-loan owner quotas and lifecycle checks passed\n";
 }

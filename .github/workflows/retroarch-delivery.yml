@@ -42,12 +42,13 @@ jobs:
       id: dart-evidence
       uses: actions/cache@v4
       # The key also covers the native files some Dart tests read (the bridge's
-      # Objective-C sources and headers, the cores manifest), so a native-only
+      # Objective-C sources and headers, the cores manifest, NeoSwap's canonical
+      # settings catalogue), plus this test recipe, so an input-only
       # change re-runs them instead of reusing an older result. The same
       # expression is recorded and re-checked below.
       with:
         path: build/delivery/dart-validation.json
-        key: neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json')
+        key: neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml')
           }}
     - uses: subosito/flutter-action@v2
       with:
@@ -92,10 +93,12 @@ jobs:
         # Build 437 reading Library: services, catalogue import, readers, sections,
         # hub and the 12-locale catalog checks (the live source check skips itself).
         flutter test test/library_*_test.dart
+        # Donation settings and the canonical twelve-locale catalogue changed.
+        flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart
         python3 - <<'PY'
         import json,os
         from pathlib import Path
-        Path("build/delivery/dart-validation.json").write_text(json.dumps({"result":"passed","testedSHA":os.environ["GITHUB_SHA"],"key":"neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json') }}","tool":"Flutter 3.47.2, Ubuntu 24.04"}))
+        Path("build/delivery/dart-validation.json").write_text(json.dumps({"result":"passed","testedSHA":os.environ["GITHUB_SHA"],"key":"neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}","tool":"Flutter 3.47.2, Ubuntu 24.04"}))
         PY
       if: ${{ steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify reused Dart evidence and changed pipeline guards
@@ -107,7 +110,7 @@ jobs:
         assert record['result']=='passed'
         assert record['key']
         assert record['tool']=='Flutter 3.47.2, Ubuntu 24.04'
-        assert record['key']=='neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json') }}'
+        assert record['key']=='neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}'
         print('Dart tests validated at',record['testedSHA'],'; exact locked input key verified')
         PY
         python3 test/retroarch_baseline_scope_test.py
@@ -120,6 +123,7 @@ jobs:
         python3 test/localization_12_locale_coverage_test.py
         python3 test/cheats_media_source_contract_test.py
         python3 test/library_reader_orientation_contract_test.py
+        python3 test/neoswap_donor_contract_test.py
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
@@ -146,6 +150,7 @@ jobs:
         mkdir -p build/delivery/neoswap "$RUNNER_TEMP/neoswap-delivery-include"
         ln -s "$GITHUB_WORKSPACE/native/neoswap-donation" "$RUNNER_TEMP/neoswap-delivery-include/Donation"
         ln -s "$GITHUB_WORKSPACE/native/neoswap-relay" "$RUNNER_TEMP/neoswap-delivery-include/Relay"
+        ln -s "$GITHUB_WORKSPACE/packages/neo_swap/ios/Classes" "$RUNNER_TEMP/neoswap-delivery-include/neo_swap"
         # New allocator inputs cannot inherit earlier native results. Execute
         # production best-fit, lifetime and demand logic on the selected Xcode.
         common=(-std=c++20 -O1 -g -Wall -Wextra -Werror -pthread -fsanitize=address,undefined)
@@ -170,6 +175,12 @@ jobs:
           native/neoswap-donation/Broker.cpp test/neoswap_relay_loans_test.cpp \
           -o "$RUNNER_TEMP/neoswap-relay-loans"
         "$RUNNER_TEMP/neoswap-relay-loans" 2>&1 | tee build/delivery/neoswap/relay-loans.txt
+        xcrun clang++ "${common[@]}" "${includes[@]}" -Ipackages/rpcs3_internal_bridge/ios/Classes \
+          test/neoswap_usage_policy_test.cpp -o "$RUNNER_TEMP/neoswap-usage-policy"
+        "$RUNNER_TEMP/neoswap-usage-policy" 2>&1 | tee build/delivery/neoswap/usage-policy.txt
+        # Executes all twelve Foundation catalogues and compiles the actual
+        # UIKit memory graph for arm64 iPhone; no device runtime claim.
+        python3 test/rpcs3_neoswap_localizations_test.py 2>&1 | tee build/delivery/neoswap/overlay-locales.txt
         # Flutter messaging is declared by the existing test header. All
         # allocator, IPC and plugin sources below are the canonical originals;
         # production donation/relay/storage branches are enabled together.
@@ -182,6 +193,7 @@ jobs:
           native/neoswap-donation/NeoSwapMachHandle.mm native/neoswap-donation/NeoSwapDonorIPC.mm \
           native/neoswap-relay/Backend.cpp packages/neo_swap/ios/Classes/NeoSwap.cpp \
           packages/neo_swap/ios/Classes/NeoSwapPlugin.mm \
+          packages/neo_swap/ios/Classes/NeoSwapRelayService.mm \
           2>&1 | tee build/delivery/neoswap/iphone-arm64-syntax.txt
         python3 - <<'PY'
         import hashlib,json,os,subprocess
@@ -189,9 +201,15 @@ jobs:
         paths=set()
         for root in ('native/neoswap-donation','native/neoswap-relay','native/neoswap','packages/neo_swap/ios/Classes','test/neoswap'):
             paths.update(p for p in Path(root).rglob('*') if p.is_file())
+        # The usage policy and localization check read/compile these exact
+        # graph sources and headers. Keep them in the native evidence too.
+        graph=Path('packages/rpcs3_internal_bridge/ios/Classes')
+        paths.update(p for p in graph.iterdir() if p.is_file() and p.suffix in ('.h','.m','.mm'))
         paths.update(Path(p) for p in (
             'test/neoswap_pool_fragmentation_test.cpp','test/neoswap_preparation_test.cpp',
             'test/neoswap_demand_test.cpp','test/relay_backend_test.cpp','test/neoswap_relay_loans_test.cpp',
+            'test/neoswap_usage_policy_test.cpp','test/rpcs3_neoswap_localizations_test.py',
+            'packages/neo_swap/ios/neo_swap.podspec',
             '.github/workflows/retroarch-delivery.yml','build-utils/verify_delivery_reuse.py','test/delivery_pipeline_test.py'))
         record={'result':'passed','testedSHA':os.environ['GITHUB_SHA'],
             'xcode':subprocess.check_output(['xcodebuild','-version'],text=True).strip(),

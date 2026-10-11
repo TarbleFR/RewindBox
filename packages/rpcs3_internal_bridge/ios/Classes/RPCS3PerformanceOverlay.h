@@ -17,15 +17,13 @@ NS_ASSUME_NONNULL_BEGIN
                  validFields:(uint32_t)validFields
                    timestamp:(double)timestampMs;
 - (void)reset;
-// Two separate measures: unique active donor/relay backing and the host task
-// physical footprint (kernel ledger of this process, compressed pages
-// included, donor/relay pages charged to their microprocesses excluded). The
-// overlay merges them into the device RAM line without counting an alias
-// twice. No capacity, target, disk bytes or aliases are added.
+// Independent measures: the app's physical footprint and the backing currently
+// donated to RPCS3 (published guest objects plus active host relay/donor loans).
+// No sum with footprint, prepared capacity, idle shelves, disk bytes or aliases.
 - (void)appendNeoSwapWithClient:(const NeoSwapClientStats* _Nullable)client
                           host:(const NeoSwapHostStats* _Nullable)host
-                relayLiveBytes:(uint64_t)relayLiveBytes
-                 relayMeasured:(BOOL)relayMeasured
+                relayGuestPublishedBytes:(uint64_t)relayGuestPublishedBytes
+                 relayGuestMeasured:(BOOL)relayGuestMeasured
          processFootprintBytes:(uint64_t)processFootprintBytes
                      timestamp:(double)timestampMs;
 @end

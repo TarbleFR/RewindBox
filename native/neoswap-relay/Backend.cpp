@@ -137,8 +137,11 @@ struct Backend::State {
         for (std::size_t n = 0; n < object.bytes / alignment; ++n) entry.occupied.reset(first + n);
         entry.occupied_pages -= object.bytes / alignment;
         stats.live_bytes -= object.bytes;
-        if (object.owner < tracked_owner_count)
+        if (object.owner < tracked_owner_count) {
             pressure_diagnostics.owner_live_bytes[object.owner] -= object.bytes;
+            if (object.published && !object.retiring)
+                pressure_diagnostics.owner_published_live_bytes[object.owner] -= object.bytes;
+        }
         --stats.object_count;
         if (object.retiring) --stats.retiring_object_count;
         object = {};
@@ -397,6 +400,8 @@ int Backend::map(std::uint64_t token, void* target, std::uint32_t protection, vo
     }
     if (object->published && s.stats.pressure_raised)
         ++s.pressure_diagnostics.existing_alias_maps;
+    if (!object->published && object->owner < tracked_owner_count)
+        s.pressure_diagnostics.owner_published_live_bytes[object->owner] += object->bytes;
     object->published = true;
     // Darwin guarantees aligned ANYWHERE and exact FIXED results. A mock must
     // honor the same contract; bookkeeping uses the returned live address.
@@ -443,6 +448,8 @@ int Backend::retire(std::uint64_t token) noexcept {
     if (!object) return s.fail(NEOSWAP_RELAY_UNKNOWN);
     const bool initial_retirement = !object->retiring;
     if (initial_retirement) {
+        if (object->published && object->owner < tracked_owner_count)
+            s.pressure_diagnostics.owner_published_live_bytes[object->owner] -= object->bytes;
         object->retiring = true;
         ++s.stats.retiring_object_count;
     }

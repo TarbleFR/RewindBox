@@ -273,9 +273,9 @@ class DonorContractTests(unittest.TestCase):
         self.assertIn('@"stage":@"global_budget_refused_growth"', plugin)
         self.assertIn('bytes > neostation::donation::max_chunk_bytes', ipc)
         self.assertIn('maximum > neostation::donation::max_chunk_bytes', handler)
-        # Build412: the overlay receives the task physical footprint (donor and
-        # relay pages are charged to their microprocesses), never the resident
-        # counter, whose mapped aliases would be summed with their backing.
+        # The overlay receives the app's kernel physical footprint directly.
+        # Donated guest backing and active host loans form an independent line;
+        # aliases, reservations and idle FAST shelves cannot inflate it.
         self.assertIn('processFootprintBytes', header)
         self.assertNotIn('processResidentBytes', header)
         self.assertIn('RPCS3ProcessFootprintBytes', bridge)
@@ -283,11 +283,22 @@ class DonorContractTests(unittest.TestCase):
         self.assertIn('const uint64_t processFootprintBytes = RPCS3ProcessFootprintBytes();', bridge)
         self.assertIn('processFootprintBytes:processFootprintBytes', bridge)
         self.assertNotIn('processResidentBytes:processResidentBytes', bridge)
-        self.assertIn('NeoSwapMemoryGraph(host, relayLiveBytes, relayMeasured, processFootprintBytes)', overlay)
+        self.assertIn('NeoSwapMemoryGraph(host, relayGuestPublishedBytes, relayGuestMeasured, processFootprintBytes)', overlay)
         self.assertNotIn('processResidentBytes', overlay)
         policy = (ROOT / 'packages/rpcs3_internal_bridge/ios/Classes/NeoSwapUsagePolicy.h').read_text()
-        self.assertIn('host->owner_donated_live_bytes[NEOSWAP_RPCS3]', policy)
-        self.assertIn('loans + relayLiveBacking', policy)
+        metrics = (ROOT / 'packages/neo_swap/ios/Classes/NeoSwapDonationMetrics.h').read_text()
+        self.assertIn('host->owner_donated_active_bytes[NEOSWAP_RPCS3]', metrics)
+        self.assertIn('host->owner_relay_active_bytes[NEOSWAP_RPCS3]', metrics)
+        self.assertIn('!host->active_donation_valid', metrics)
+        self.assertNotIn('owner_relay_live_bytes', metrics)
+        self.assertNotIn('owner_donated_live_bytes', metrics)
+        self.assertIn('neostation::donation_metrics::active(host, relayGuestPublished, relayGuestMeasured)', policy)
+        self.assertIn('guestPublishedLiveBackingBytes', bridge)
+        self.assertIn('relayGuestPublishedBytes:relayGuestPublishedBytes', bridge)
+        self.assertIn('relayGuestMeasured:relayGuestMeasured', bridge)
+        sample = bridge.split('const uint64_t processFootprintBytes = RPCS3ProcessFootprintBytes();', 1)[1].split('dispatch_async(dispatch_get_main_queue()', 1)[0]
+        self.assertIn('[relay[@"guestPublishedLiveBackingBytes"] isKindOfClass:NSNumber.class]', sample)
+        self.assertNotIn('relay[@"liveBackingBytes"]', sample)
         self.assertNotIn('donor_prepared_bytes', overlay)
         self.assertNotIn('fpsLine', overlay)
         self.assertIn('pending_headroom_budget', plugin)
@@ -298,15 +309,19 @@ class DonorContractTests(unittest.TestCase):
         self.assertIn('requestNextChunkWithMaximumBytes:self.donorDemand.bytes', plugin)
         self.assertIn('self.donorPendingMaximums[index].unsignedLongLongValue >= self.donorDemand.bytes', plugin)
         self.assertIn('@"donationPreparation":preparation', plugin)
-        # 7 October 2026: the graph merges the resident counter with the
-        # microprocess backing (deviceRam) and draws NeoSwap as its second line.
+        # Current request: show the app footprint and active donations as two
+        # independent lines. Keep unknown donation samples invalid.
         self.assertNotIn('systemCyanColor', overlay)
         self.assertIn('systemOrangeColor', overlay)
         self.assertIn('systemGreenColor', overlay)
-        self.assertIn('append(deviceLine, sample.memory.deviceRam, sample.memory.deviceRamValid, deviceStarted);', overlay)
-        self.assertIn('append(neoswapLine, sample.memory.hostLoans, sample.memory.hostLoansValid, neoswapStarted);', overlay)
+        self.assertIn('append(deviceLine, sample.memory.footprint, sample.memory.footprintValid, deviceStarted);', overlay)
+        self.assertIn('append(neoswapLine, sample.memory.donated, sample.memory.donatedValid, neoswapStarted);', overlay)
         self.assertNotIn('memoryMicroprocess', overlay)
-        self.assertIn('point.deviceRam = point.footprint > UINT64_MAX - backing ? UINT64_MAX : point.footprint + backing;', policy)
+        self.assertIn('point.footprint = processFootprint;', policy)
+        self.assertIn('point.donatedValid = donation.valid;', policy)
+        self.assertNotIn('deviceRam', policy)
+        self.assertNotIn('point.footprint +', policy)
+        self.assertNotIn('point.footprint -', policy)
         self.assertNotIn('point.resident', policy)
         # Build409: sub-MiB RSX buffers are admitted for every title whenever
         # relay host loans or donors exist; the global budget closes the gate

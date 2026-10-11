@@ -711,6 +711,36 @@ NEOSWAP_MELONX_DELTA = {
     'test/relay_backend_test.cpp',
 }
 DELTA |= NEOSWAP_MELONX_DELTA
+# RPCS3 NeoSwap donation accounting, 11 October 2026: active published guest
+# backing plus active host relay/donor loans, truthful graph/settings labels,
+# and their behavioral checks. No Core, allocation policy, IPC or extension
+# capability changes are admitted by this list.
+NEOSWAP_DONATED_DELTA = {
+    'build-utils/validate_neoswap_donation_metrics.py',
+    'lib/l10n/neoswap_locale.dart',
+    'lib/screens/settings_screen/neoswap_dialog.dart',
+    'native/neoswap-relay/Backend.cpp',
+    'native/neoswap-relay/Backend.h',
+    'native/neoswap/localizations.json',
+    'packages/neo_swap/ios/Classes/NeoSwap.cpp',
+    'packages/neo_swap/ios/Classes/NeoSwapDonationMetrics.h',
+    'packages/neo_swap/ios/Classes/NeoSwapHost.h',
+    'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+    'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+    'packages/neo_swap/ios/neo_swap.podspec',
+    'packages/rpcs3_internal_bridge/ios/Classes/NeoSwapUsagePolicy.h',
+    'packages/rpcs3_internal_bridge/ios/Classes/RPCS3InGameLocalization.mm',
+    'packages/rpcs3_internal_bridge/ios/Classes/RPCS3PerformanceOverlay.h',
+    'packages/rpcs3_internal_bridge/ios/Classes/RPCS3PerformanceOverlay.mm',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
+    'test/neo_swap_dialog_test.dart',
+    'test/neoswap_donor_contract_test.py',
+    'test/neoswap_usage_policy_test.cpp',
+    'test/neoswap_relay_loans_test.cpp',
+    'test/relay_backend_test.cpp',
+    'test/rpcs3_neoswap_localizations_test.py',
+}
+DELTA |= NEOSWAP_DONATED_DELTA
 INPUT_ROOTS =('lib/', 'packages/', 'native/', 'build-utils/', 'assets/', 'test/')
 
 def sha(data):

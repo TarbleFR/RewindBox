@@ -16,45 +16,71 @@ int main() {
   assert(!NeoSwapFPSValid(INFINITY, 1));
   {
     NeoSwapHostStats graphHost{};
-    graphHost.owner_donated_live_bytes[NEOSWAP_RPCS3] = 51380224;
-    graphHost.donor_prepared_bytes = 939524096;
-    graphHost.reserved_virtual_bytes = 303038464;
-    graphHost.relay_loan_live_bytes = 268435456;
-    auto point = NeoSwapMemoryGraph(&graphHost, 1020788736, true, 2264317952);
-    assert(point.allocatedValid && point.allocated == 1072168960);
-    assert(point.footprintValid && point.footprint == 2264317952);
-    // Host contribution: relay host loans plus donor loans, never guest pages.
-    assert(point.hostLoansValid && point.hostLoans == 268435456 + 51380224);
-    // Device RAM (7 October 2026): the task physical footprint merged with the
-    // microprocess backing; the overlay draws this and the host contribution.
-    // The footprint excludes donor/relay pages charged to their microprocesses,
-    // so adding the backing never counts a mapped alias twice.
-    assert(point.deviceRamValid && point.deviceRam == 2264317952ULL + 1072168960ULL);
-    {
-      const auto unmeasured = NeoSwapMemoryGraph(&graphHost, 1, false, 2264317952);
-      assert(!unmeasured.allocatedValid && unmeasured.deviceRamValid && unmeasured.deviceRam == 2264317952ULL);
-      assert(!NeoSwapMemoryGraph(&graphHost, 1020788736, true, 0).deviceRamValid);
-      assert(NeoSwapMemoryGraph(&graphHost, 1020788736, true, UINT64_MAX).deviceRam == UINT64_MAX);
-      const auto hostless = NeoSwapMemoryGraph(nullptr, 1, true, 7);
-      assert(hostless.deviceRamValid && hostless.deviceRam == 7 && !hostless.allocatedValid);
-    }
-    assert(NeoSwapHostLoanBytes(&graphHost) == point.hostLoans && !NeoSwapHostLoanBytes(nullptr));
-    assert(!NeoSwapMemoryGraph(nullptr, 1, true, 1).hostLoansValid);
+    graphHost.active_donation_valid = 1;
+    graphHost.owner_donated_active_bytes[NEOSWAP_RPCS3] = 51380224;
+    graphHost.owner_relay_active_bytes[NEOSWAP_RPCS3] = 268435456;
+    constexpr uint64_t guest = 1020788736, footprint = 2264317952;
+    constexpr uint64_t donated = guest + 268435456 + 51380224;
+    auto point = NeoSwapMemoryGraph(&graphHost, guest, true, footprint);
+    assert(point.footprintValid && point.footprint == footprint);
+    assert(point.donatedValid && point.donated == donated);
+    // Prepared capacity, unrelated owners and aggregate backend counters must
+    // not become donated bytes. The relay aggregate can include idle shelves.
+    graphHost.donor_prepared_bytes = UINT64_MAX;
+    graphHost.reserved_virtual_bytes = UINT64_MAX;
+    graphHost.donor_target_bytes = UINT64_MAX;
+    graphHost.donor_footprint_bytes = UINT64_MAX;
     graphHost.relay_loan_live_bytes = UINT64_MAX;
-    assert(NeoSwapHostLoanBytes(&graphHost) == UINT64_MAX);
-    graphHost.relay_loan_live_bytes = 268435456;
+    graphHost.owner_relay_live_bytes[NEOSWAP_RPCS3] = UINT64_MAX;
+    graphHost.owner_donated_live_bytes[NEOSWAP_RPCS3] = UINT64_MAX;
+    graphHost.owner_donated_active_bytes[NEOSWAP_ARMSX2] = UINT64_MAX;
+    graphHost.owner_relay_active_bytes[NEOSWAP_ARMSX2] = UINT64_MAX;
+    point = NeoSwapMemoryGraph(&graphHost, guest, true, footprint);
+    assert(point.donatedValid && point.donated == donated && point.footprint == footprint);
+    // The app's footprint never absorbs or subtracts the shared allocation.
+    const auto moreGuest = NeoSwapMemoryGraph(&graphHost, guest + 65536, true, footprint);
+    assert(moreGuest.donated == donated + 65536 && moreGuest.footprint == footprint);
+    // Missing guest telemetry means unknown donation, not zero or an estimate
+    // from the old total relay counter. Footprint validity is independent.
+    const auto unmeasured = NeoSwapMemoryGraph(&graphHost, guest, false, footprint);
+    assert(!unmeasured.donatedValid && !unmeasured.donated);
+    assert(unmeasured.footprintValid && unmeasured.footprint == footprint);
+    const auto hostless = NeoSwapMemoryGraph(nullptr, guest, true, footprint);
+    assert(!hostless.donatedValid && !hostless.donated);
+    assert(hostless.footprintValid && hostless.footprint == footprint);
+    const auto noFootprint = NeoSwapMemoryGraph(&graphHost, guest, true, 0);
+    assert(noFootprint.donatedValid && noFootprint.donated == donated && !noFootprint.footprintValid);
+    // Contention invalidates only donation, without waiting or showing zero.
+    graphHost.active_donation_valid = 0;
+    const auto busy = NeoSwapMemoryGraph(&graphHost, guest, true, footprint);
+    assert(!busy.donatedValid && !busy.donated);
+    assert(busy.footprintValid && busy.footprint == footprint);
+    graphHost.active_donation_valid = 1;
+    // A backend becoming unavailable does not erase donations still owned by
+    // RPCS3. Their counters fall only when the corresponding loans are retired.
+    graphHost.donation_state = 3;
+    assert(NeoSwapMemoryGraph(&graphHost, guest, true, 1).donated == donated);
+    // Overflow is an invalid sample, never a saturated successful measurement.
+    graphHost.owner_relay_active_bytes[NEOSWAP_RPCS3] = UINT64_MAX;
+    const auto hostOverflow = NeoSwapMemoryGraph(&graphHost, 0, true, footprint);
+    assert(!hostOverflow.donatedValid && !hostOverflow.donated && hostOverflow.footprint == footprint);
+    graphHost.owner_relay_active_bytes[NEOSWAP_RPCS3] = 1;
+    graphHost.owner_donated_active_bytes[NEOSWAP_RPCS3] = 0;
+    assert(!NeoSwapMemoryGraph(&graphHost, UINT64_MAX, true, footprint).donatedValid);
+    graphHost.owner_relay_active_bytes[NEOSWAP_RPCS3] = 0;
+    const auto maximum = NeoSwapMemoryGraph(&graphHost, UINT64_MAX, true, UINT64_MAX);
+    assert(maximum.donatedValid && maximum.donated == UINT64_MAX);
+    assert(maximum.footprintValid && maximum.footprint == UINT64_MAX);
+    assert(std::isfinite(NeoSwapDecimalGB(maximum.donated)));
     assert(NeoSwapDecimalGB(1000000000) == 1.0);
     assert(NeoSwapDecimalGB(500000000) == 0.5);
-    // Lost creators/readiness must not hide allocations still owned by RPCS3.
-    graphHost.donation_state = 3;
-    assert(NeoSwapMemoryGraph(&graphHost, 1020788736, true, 1).allocated == point.allocated);
-    assert(!NeoSwapMemoryGraph(nullptr, 1, true, 1).allocatedValid);
-    assert(!NeoSwapMemoryGraph(&graphHost, 1, false, 1).allocatedValid);
-    assert(!NeoSwapMemoryGraph(&graphHost, UINT64_MAX, true, 1).allocatedValid);
     graphHost = {};
+    graphHost.active_donation_valid = 1;
+    graphHost.donor_prepared_bytes = 8ULL << 30;
+    graphHost.reserved_virtual_bytes = 8ULL << 30;
     point = NeoSwapMemoryGraph(&graphHost, 0, true, 0);
-    assert(point.allocatedValid && point.allocated == 0 && !point.footprintValid);
-    assert(!point.deviceRamValid && point.deviceRam == 0);
+    assert(point.donatedValid && !point.donated && !point.footprintValid);
+    assert(!NeoSwapMemoryGraph(&graphHost, 0, false, 0).donatedValid);
   }
   NeoSwapHostStats host = {};
   NeoSwapClientStats client = {};
@@ -116,5 +142,5 @@ int main() {
   assert(NeoSwapUsage(1ULL << 20, &client, &host) == NeoSwapUsageStatus::active);
   host.file_ready_owner_mask = 1u << NEOSWAP_RPCS3;
   assert(NeoSwapUsage(0, &client, &host) == NeoSwapUsageStatus::waiting);
-  puts("PASS: device RAM merges the task physical footprint with measured microprocess backing; live buffers take precedence; configured RPCS3 file owner or verified donors establish readiness with zero virtual reserve; missing, rejected, small, released and disabled states remain distinct");
+  puts("PASS: app footprint and active donated backing stay independent; unknown samples and overflow rejected; idle capacity and other owners excluded; live buffers take precedence; configured RPCS3 file owner or verified donors establish readiness with zero virtual reserve; missing, rejected, small, released and disabled states remain distinct");
 }

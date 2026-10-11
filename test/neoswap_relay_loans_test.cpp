@@ -112,6 +112,17 @@ NeoSwapRelayLoanStats loans() {
     NeoSwapRelayLoanStats s{}; assert(NeoSwap_RelayLoanSnapshot(&s) == NEOSWAP_OK); return s;
 }
 NeoSwapHostStats host() { NeoSwapHostStats s{}; assert(NeoSwap_HostSnapshot(&s) == NEOSWAP_OK); return s; }
+void active_relay_bytes(uint64_t expected, uint64_t occupied) {
+    auto verify = [&](const NeoSwapHostStats& s) {
+        assert(s.active_donation_valid && s.owner_relay_active_bytes[NEOSWAP_RPCS3] == expected);
+        assert(s.owner_relay_live_bytes[NEOSWAP_RPCS3] == occupied);
+        assert(!s.owner_donated_active_bytes[NEOSWAP_RPCS3]);
+    };
+    verify(host());
+    NeoSwapHostStats storage{};
+    assert(NeoSwap_StorageSnapshot(&storage) == NEOSWAP_OK);
+    verify(storage);
+}
 NeoSwapStats totals() { NeoSwapStats s{}; s.struct_size = sizeof(s); assert(NeoSwap_Snapshot(&s) == NEOSWAP_OK); return s; }
 NeoSwapRelayStats relay() {
     NeoSwapRelayStats s{}; s.struct_size = sizeof(s); s.abi_version = NEOSWAP_RELAY_ABI;
@@ -247,12 +258,15 @@ int main() {
     assert(api->sync(filed) == NEOSWAP_OK && api->release(filed) == NEOSWAP_OK);
     void* sticky = allocate(NEOSWAP_CPU_DATA, MiB);
     assert(sticky && loans().live_blocks == 1);
+    active_relay_bytes(MiB, MiB);
     assert(NeoSwap_RelayLoanMaintain(0, 1) == NEOSWAP_OK);
     assert(NeoSwap_SetRelayHostLoanPolicy(8 * MiB, 0, 1) == NEOSWAP_OK); // not admitted: releases bypass the cache
     os.fail_unmap = 1;
     assert(api->release(sticky) == NEOSWAP_MAPPING && loans().release_failures == 1 && loans().live_blocks == 1);
+    active_relay_bytes(MiB, MiB); // Ordinary release failed: the caller still owns its loan.
     std::memset(sticky, 0x77, MiB); // still a valid, owned mapping
     assert(api->release(sticky) == NEOSWAP_OK && !loans().live_blocks && relay().object_count == 0);
+    active_relay_bytes(0, 0);
     assert(api->release(sticky) == NEOSWAP_NOT_OWNED);
     assert(api->enabled(NEOSWAP_RPCS3)); // file policy keeps the client enabled
     assert(NeoSwap_SetRelayHostLoanPolicy(16 * MiB, 1, 1) == NEOSWAP_OK);
@@ -305,12 +319,27 @@ int main() {
     assert(!totals().allocated_disk_bytes && !loans().live_blocks);
     assert(NeoSwap_RelayLoanMaintain(0, 0) == NEOSWAP_OK);
     assert(os.maps == maps_before_fast + 1 && loans().cached_bytes == MiB);
+    active_relay_bytes(0, 0); // Prepared shelves have never been handed to a client.
     void* fast = neostation::swap::try_allocate(NEOSWAP_RPCS3, MiB, 65536);
     assert(fast && os.maps == maps_before_fast + 1 && !totals().allocated_disk_bytes);
+    active_relay_bytes(MiB, MiB);
     std::memset(fast, 0x5C, MiB);
     struct Contended { const NeoSwapAPI* api; void* loan; } contended{api, fast};
     NeoSwap_TestWithBrokerLock([](void* data) {
         auto& context = *static_cast<Contended*>(data);
+        // Another thread holds the broker throughout this call; returning
+        // unknown must not wait for it or reuse stale active-byte fields.
+        std::thread snapshot([] {
+            NeoSwapHostStats s{};
+            s.active_donation_valid = 1;
+            std::fill(std::begin(s.owner_relay_active_bytes), std::end(s.owner_relay_active_bytes), UINT64_MAX);
+            std::fill(std::begin(s.owner_donated_active_bytes), std::end(s.owner_donated_active_bytes), UINT64_MAX);
+            assert(NeoSwap_HostSnapshot(&s) == NEOSWAP_OK && !s.active_donation_valid);
+            for (uint32_t owner = 0; owner < NEOSWAP_OWNER_COUNT; ++owner)
+                assert(!s.owner_relay_active_bytes[owner] && !s.owner_donated_active_bytes[owner]);
+            assert(s.owner_relay_live_bytes[NEOSWAP_RPCS3] == MiB);
+        });
+        snapshot.join();
         void* miss = reinterpret_cast<void*>(1);
         assert(context.api->allocate(0, NEOSWAP_CPU_DATA | NEOSWAP_REQUEST_FAST,
                                      MiB, 65536, &miss) == NEOSWAP_BUSY && !miss);
@@ -319,6 +348,7 @@ int main() {
         assert(context.api->release(context.loan) == NEOSWAP_OK); // transfers cleanup, never waits
     }, &contended);
     assert(loans().live_blocks == 1 && relay().object_count == 1); // still owned until actual maintenance
+    active_relay_bytes(0, MiB); // The successful FAST release already ended client use.
     const auto deferred_before = [&] { NeoSwapFastStats f{}; assert(!NeoSwap_FastSnapshot(&f)); return f; }();
     assert(deferred_before.requests == 4 && deferred_before.successes == 1 && deferred_before.broker_busy == 1);
     assert(deferred_before.fallback_count == 3 && deferred_before.prepared_loans == 1);
@@ -329,6 +359,7 @@ int main() {
     os.fail_unmap = 1;
     assert(NeoSwap_RelayLoanMaintain(0, 1) == NEOSWAP_OK);
     assert(loans().live_blocks == 1 && relay().object_count == 1);
+    active_relay_bytes(0, MiB); // Failed deferred cleanup cannot resurrect an active donation.
     // Reading here is a fixture check of retained backing, not allowed caller use after release.
     assert(static_cast<unsigned char*>(fast)[0] == 0x5C);
     NeoSwapFastStats queued{}; assert(!NeoSwap_FastSnapshot(&queued));
@@ -336,6 +367,7 @@ int main() {
     os.test_address_reuse = true;
     assert(NeoSwap_RelayLoanMaintain(0, 1) == NEOSWAP_OK);
     assert(!os.test_address_reuse && !loans().live_blocks && !relay().object_count);
+    active_relay_bytes(0, 0);
     assert(!NeoSwap_FastSnapshot(&queued) && queued.retired_loans == queued.retire_requests);
     // Reusing the same bookkeeping slot must not inherit an old queued release.
     assert(NeoSwap_SetRelayHostLoanPolicy(8 * MiB, 1, 1) == NEOSWAP_OK);
@@ -345,10 +377,12 @@ int main() {
     assert(!neostation::swap::try_allocate(NEOSWAP_RPCS3, MiB, 65536));
     assert(NeoSwap_RelayLoanMaintain(0, 0) == NEOSWAP_OK);
     fast = neostation::swap::try_allocate(NEOSWAP_RPCS3, MiB, 65536); assert(fast);
+    active_relay_bytes(MiB, MiB); // Slot reuse reports the new client ownership.
     std::memset(fast, 0x7D, MiB);
     assert(NeoSwap_RelayLoanMaintain(0, 0) == NEOSWAP_OK);
     assert(loans().live_blocks == 1 && static_cast<unsigned char*>(fast)[0] == 0x7D);
     assert(api->release(fast) == NEOSWAP_OK);
+    active_relay_bytes(0, MiB);
     assert(NeoSwap_RelayLoanMaintain(0, 1) == NEOSWAP_OK && !loans().live_blocks);
     assert(!NeoSwap_FastSnapshot(&queued) && queued.prepare_failures == 1);
     assert(NeoSwap_FastSnapshot(nullptr) == NEOSWAP_INVALID);

@@ -329,7 +329,7 @@ NSDictionary* capabilityCheck() {
     result[@"preparationRunning"] = @(_running);
     result[@"fastFootprintRetryCount"] = @(_fastFootprintRetryCount);
     result[@"fastFootprintRetryPending"] = @(_fastFootprintRetryPending);
-    NeoSwap_GetRelayAPI(1)->snapshot(&stats);
+    const int snapshotResult = NeoSwap_GetRelayAPI(1)->snapshot(&stats);
     const auto pressure = neostation::relay::backend().pressure_diagnostics();
     const bool hostLoanOwnerEnabled = NeoSwap_GetRelayAPI(1)->enabled(kHostLoans) != 0;
     [_lock unlock];
@@ -362,6 +362,13 @@ NSDictionary* capabilityCheck() {
     result[@"guestPeakBackingBytes"] = @(pressure.owner_peak_bytes[kRPCS3]);
     result[@"hostLoanLiveBackingBytes"] = @(pressure.owner_live_bytes[kHostLoans]);
     result[@"hostLoanPeakBackingBytes"] = @(pressure.owner_peak_bytes[kHostLoans]);
+    // Count each successfully published object once, excluding allocations
+    // never mapped and retired/quarantined objects. This is not a resident-byte
+    // measurement; host-loan publication can also include idle broker shelves.
+    result[@"guestPublishedLiveBackingBytes"] = snapshotResult == NEOSWAP_RELAY_OK
+        ? @(pressure.owner_published_live_bytes[kRPCS3]) : NSNull.null;
+    result[@"hostLoanPublishedLiveBackingBytes"] = snapshotResult == NEOSWAP_RELAY_OK
+        ? @(pressure.owner_published_live_bytes[kHostLoans]) : NSNull.null;
     result[@"hostLoanQuotaBytes"] = @(pressure.owner_quota_bytes[kHostLoans]);
     result[@"hostLoanQuotaRefusals"] = @(pressure.quota_refusals);
     result[@"hostLoanOwnerEnabled"] = @(hostLoanOwnerEnabled);

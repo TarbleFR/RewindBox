@@ -1,6 +1,7 @@
 """Meaningful input-reuse and final-code identity guards for the new lane."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import subprocess
 import unittest
@@ -38,16 +39,18 @@ class DeliveryPipeline(unittest.TestCase):
         changed,unchanged=reuse.verify_tree()
         self.assertGreater(len(unchanged),500)
         self.assertIn('lib/services/retroarch_library_service.dart',changed)
-        # RPCS3's host allocators now use best fit. Their two canonical native
-        # files are tested anew; IPC, extensions, storage and other engines
-        # keep their original identities. The existing manifest is metadata.
+        # RPCS3's host allocators use best fit and publish active donated
+        # backing. Their sources and the settings catalogue are tested anew;
+        # IPC, extensions, storage and other engines keep their identities.
         native_changed={p for p in changed if p.startswith('native/')}
         self.assertEqual(native_changed,{
             'native/import-memory-candidate.json',
             'native/neoswap-donation/Pool.cpp',
             'native/neoswap-relay/Backend.cpp',
+            'native/neoswap-relay/Backend.h',
+            'native/neoswap/localizations.json',
         })
-        self.assertTrue(native_changed<=reuse.NEOSWAP_434_DELTA|reuse.NEOSWAP_435_DELTA|reuse.NEOSWAP_MELONX_DELTA)
+        self.assertTrue(native_changed<=reuse.NEOSWAP_434_DELTA|reuse.NEOSWAP_435_DELTA|reuse.NEOSWAP_MELONX_DELTA|reuse.NEOSWAP_DONATED_DELTA)
 
     def test_changed_neoswap_sources_have_fresh_native_checks(self):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
@@ -59,11 +62,58 @@ class DeliveryPipeline(unittest.TestCase):
                 self.assertIn(path,checks)
         self.assertIn('test/neoswap_preparation_test.cpp',checks)
         self.assertIn('test/neoswap_relay_loans_test.cpp',checks)
+        self.assertIn('test/neoswap_usage_policy_test.cpp',checks)
+        self.assertIn('python3 test/rpcs3_neoswap_localizations_test.py',checks)
+        self.assertIn('packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',checks)
+        self.assertIn("graph=Path('packages/rpcs3_internal_bridge/ios/Classes')",checks)
+        self.assertIn("p.suffix in ('.h','.m','.mm')",checks)
+        self.assertIn('packages/neo_swap/ios/neo_swap.podspec',checks)
         self.assertIn('-fsanitize=address,undefined',checks)
         self.assertIn('-DNEOSWAP_DONATION=1 -DNEOSWAP_RELAY=1 -DNEOSWAP_SHADER_STORAGE=1',checks)
         self.assertIn('-fsyntax-only',checks)
         self.assertIn('-arch arm64',checks)
         self.assertIn('hashlib.sha256',checks)
+
+    def test_changed_neoswap_dart_inputs_invalidate_and_run_their_checks(self):
+        workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
+        checks=workflow.split('  checks:\n',1)[1].split('  native:\n',1)[0]
+        keys=re.findall(r'hashFiles\((.*?)\)',checks,re.S)
+        self.assertEqual(len(keys),3) # Restore, record and verify the same key.
+        self.assertEqual(keys,[keys[0]]*3)
+        for path in ('native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml'):
+            self.assertIn("'"+path+"'",keys[0])
+        fresh=checks.split('name: Validate changed library, callback, launch and restart behavior',1)[1]
+        fresh=fresh.split('    - name: Verify reused Dart evidence',1)[0]
+        self.assertIn("steps.dart-evidence.outputs.cache-hit != 'true'",fresh)
+        self.assertIn('flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart',fresh)
+        self.assertIn('python3 test/neoswap_donor_contract_test.py',checks)
+
+    def test_donation_delta_is_explicit_and_excludes_other_runtimes(self):
+        self.assertEqual(reuse.NEOSWAP_DONATED_DELTA,{
+            'build-utils/validate_neoswap_donation_metrics.py',
+            'lib/l10n/neoswap_locale.dart',
+            'lib/screens/settings_screen/neoswap_dialog.dart',
+            'native/neoswap-relay/Backend.cpp',
+            'native/neoswap-relay/Backend.h',
+            'native/neoswap/localizations.json',
+            'packages/neo_swap/ios/Classes/NeoSwap.cpp',
+            'packages/neo_swap/ios/Classes/NeoSwapDonationMetrics.h',
+            'packages/neo_swap/ios/Classes/NeoSwapHost.h',
+            'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+            'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+            'packages/neo_swap/ios/neo_swap.podspec',
+            'packages/rpcs3_internal_bridge/ios/Classes/NeoSwapUsagePolicy.h',
+            'packages/rpcs3_internal_bridge/ios/Classes/RPCS3InGameLocalization.mm',
+            'packages/rpcs3_internal_bridge/ios/Classes/RPCS3PerformanceOverlay.h',
+            'packages/rpcs3_internal_bridge/ios/Classes/RPCS3PerformanceOverlay.mm',
+            'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
+            'test/neo_swap_dialog_test.dart',
+            'test/neoswap_donor_contract_test.py',
+            'test/neoswap_usage_policy_test.cpp',
+            'test/neoswap_relay_loans_test.cpp',
+            'test/relay_backend_test.cpp',
+            'test/rpcs3_neoswap_localizations_test.py',
+        })
 
     def test_release_device_and_signature_guards_are_active(self):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()

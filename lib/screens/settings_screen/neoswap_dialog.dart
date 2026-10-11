@@ -236,17 +236,15 @@ class _NeoSwapDialogState extends State<NeoSwapDialog> {
                   Text(
                     t('budgetSummary', {
                       'footprint': _bytes(contribution['hostFootprintBytes']),
-                      'mobilized': _bytes(
-                        contribution['mobilizedOutsideFootprintBytes'],
-                      ),
+                      'donated': _bytes(contribution['donatedBytes']),
                     }),
                     key: const ValueKey('neoSwapBudgetSummary'),
                   ),
                   Text(
                     t('budgetBreakdown', {
-                      'guest': _bytes(contribution['relayGuestLiveBytes']),
-                      'host': _bytes(contribution['relayHostLoanLiveBytes']),
-                      'donor': _bytes(contribution['donorLoanLiveBytes']),
+                      'guest': _bytes(contribution['donatedGuestBytes']),
+                      'host': _bytes(contribution['donatedHostRelayBytes']),
+                      'donor': _bytes(contribution['donatedDonorBytes']),
                       'file': _bytes(contribution['fileFallbackLiveBytes']),
                       'archived': _bytes(
                         contribution['storageArchivedLiveBytes'],

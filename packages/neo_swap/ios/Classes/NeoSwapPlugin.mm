@@ -7,6 +7,7 @@
 #include "NeoSwapBudget.h"
 #include "NeoSwapPreparation.h"
 #include "NeoSwapDonationScheduler.h"
+#include "NeoSwapDonationMetrics.h"
 #import <UIKit/UIKit.h>
 #if defined(NEOSWAP_SHADER_STORAGE)
 #import "NeoSwapStorageService.h"
@@ -912,7 +913,8 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     NeoSwapStats stats{}; stats.struct_size = sizeof(stats);
     NeoSwap_Snapshot(&stats);
     // This snapshot executes on the serial background diagnostics queue.
-    NeoSwapHostStats host{}; NeoSwap_StorageSnapshot(&host);
+    NeoSwapHostStats host{};
+    const bool hostSnapshotValid = NeoSwap_StorageSnapshot(&host) == NEOSWAP_OK;
     task_vm_info_data_t memory{};
     mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
     kern_return_t kr = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&memory, &count);
@@ -1054,13 +1056,26 @@ static NSDictionary* NeoSwapEffectivePermissions() {
 #endif
     const auto& in = _budgetInputs;
     const auto& decision = _budgetDecision;
-    // One view of what RPCS3 holds and what NeoSwap supplies outside the host
-    // footprint. Capacity, aliases and cumulative counters are excluded; the
-    // physical residency of relay and donor pages is not measured here.
+    // Share the graph's active donation definition. Budget inputs deliberately
+    // retain all occupied backing, including idle shelves: quotas must account
+    // for those bytes even though no RPCS3 allocation currently borrows them.
+    NSDictionary* relayDiagnostics = @{};
+#if defined(NEOSWAP_RELAY)
+    relayDiagnostics = NeoSwapRelay_Diagnostics();
+#endif
+    const id guestPublished = relayDiagnostics[@"guestPublishedLiveBackingBytes"];
+    const bool guestMeasured = [guestPublished isKindOfClass:NSNumber.class];
+    const auto donated = neostation::donation_metrics::active(
+        hostSnapshotValid ? &host : nullptr,
+        guestMeasured ? [guestPublished unsignedLongLongValue] : 0, guestMeasured);
     NSDictionary* contribution = @{
-        @"schema":@1,
-        @"hostFootprintBytes":in.host_footprint_valid ? @(in.host_footprint_bytes) : NSNull.null,
+        @"schema":@2,
+        @"hostFootprintBytes":memoryValid ? @(memory.phys_footprint) : NSNull.null,
         @"hostAvailableBytes":in.host_available_valid ? @(in.host_available_bytes) : NSNull.null,
+        @"donatedBytes":donated.valid ? @(donated.total_bytes) : NSNull.null,
+        @"donatedGuestBytes":donated.valid ? @(donated.guest_bytes) : NSNull.null,
+        @"donatedHostRelayBytes":donated.valid ? @(host.owner_relay_active_bytes[NEOSWAP_RPCS3]) : NSNull.null,
+        @"donatedDonorBytes":donated.valid ? @(host.owner_donated_active_bytes[NEOSWAP_RPCS3]) : NSNull.null,
         @"relayGuestLiveBytes":@(in.relay_guest_live_bytes),
         @"relayHostLoanLiveBytes":@(in.relay_host_live_bytes),
         @"donorLoanLiveBytes":@(in.donor_live_bytes),
@@ -1069,7 +1084,8 @@ static NSDictionary* NeoSwapEffectivePermissions() {
         @"storageArchivedLiveBytes":@(in.storage_archived_live_bytes),
         @"neoswapTotalBytes":@(decision.neoswap_total_bytes),
         @"residencyMeasured":@NO,
-        @"definition":@"live backing intervals charged outside the host process footprint plus file-backed and archived bytes; not resident RAM"};
+        @"definition":@"donatedBytes: published non-retiring guest objects plus active RPCS3 relay and donor loans; excludes idle pools, aliases and files; not resident RAM or measured footprint savings",
+        @"mobilizedDefinition":@"budget occupied backing including unused host-loan shelves; neoswapTotalBytes also includes file-backed and archived bytes"};
     NSDictionary* budget = @{
         @"schema":@1, @"decisions":@(_budgetDecisionCount), @"stateChanges":@(_budgetStateChanges),
         @"state":[NSString stringWithUTF8String:neostation::budget::state_name(decision.state)],
@@ -1255,7 +1271,7 @@ static NSDictionary* NeoSwapEffectivePermissions() {
         @"physicalMemoryBytes":@(NSProcessInfo.processInfo.physicalMemory),
         @"osVersion":NSProcessInfo.processInfo.operatingSystemVersionString,
 #if defined(NEOSWAP_RELAY)
-        @"guestRelay":NeoSwapRelay_Diagnostics(),
+        @"guestRelay":relayDiagnostics,
 #endif
 #if defined(NEOSWAP_SHADER_STORAGE)
         @"shaderStorage":NeoSwapStorage_Diagnostics(),

@@ -543,7 +543,7 @@ void main() {
     },
   );
   testWidgets(
-    'the budget summary shows what RPCS3 holds and what NeoSwap supplies',
+    'the budget summary shows active donations without unused backing',
     (tester) async {
       const mib = 1024 * 1024;
       messenger.setMockMethodCallHandler(
@@ -552,10 +552,14 @@ void main() {
           ...sample(),
           'neoswapContribution': {
             'hostFootprintBytes': 3000 * mib,
-            'mobilizedOutsideFootprintBytes': 1400 * mib,
-            'relayGuestLiveBytes': 973 * mib,
-            'relayHostLoanLiveBytes': 379 * mib,
+            'mobilizedOutsideFootprintBytes': 2000 * mib,
+            'relayGuestLiveBytes': 1024 * mib,
+            'relayHostLoanLiveBytes': 928 * mib,
             'donorLoanLiveBytes': 48 * mib,
+            'donatedBytes': 1400 * mib,
+            'donatedGuestBytes': 973 * mib,
+            'donatedHostRelayBytes': 379 * mib,
+            'donatedDonorBytes': 48 * mib,
             'fileFallbackLiveBytes': 32 * mib,
             'storageArchivedLiveBytes': 20 * mib,
           },
@@ -582,7 +586,7 @@ void main() {
         find.text(
           NeoSwapLocale.get(context, 'budgetSummary', {
             'footprint': '3000.0 MiB',
-            'mobilized': '1400.0 MiB',
+            'donated': '1400.0 MiB',
           }),
         ),
         findsOneWidget,
@@ -635,6 +639,32 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     },
   );
+  testWidgets('legacy occupied backing is not presented as donated', (
+    tester,
+  ) async {
+    messenger.setMockMethodCallHandler(channel, (_) async => {
+      ...sample(),
+      'neoswapContribution': {
+        'hostFootprintBytes': 3000 * 1024 * 1024,
+        'mobilizedOutsideFootprintBytes': 2000 * 1024 * 1024,
+        'relayGuestLiveBytes': 1024 * 1024 * 1024,
+        'relayHostLoanLiveBytes': 928 * 1024 * 1024,
+        'donorLoanLiveBytes': 48 * 1024 * 1024,
+      },
+    });
+    await open(tester);
+    final context = tester.element(find.byType(NeoSwapDialog));
+    expect(
+      find.text(NeoSwapLocale.get(context, 'budgetSummary', {
+        'footprint': '3000.0 MiB',
+        'donated': '—',
+      })),
+      findsOneWidget,
+    );
+    expect(find.textContaining('2000.0 MiB'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.binding.setSurfaceSize(null);
+  });
   testWidgets('an older host without budget data shows no budget rows', (
     tester,
   ) async {

@@ -21,9 +21,8 @@ struct Sample {
   NSUInteger _sampleCount;
 }
 @property(nonatomic, strong) UILabel* ratesLabel;
-// Two series since 7 October 2026 (maintainer request): the RAM the device
-// spends on the session (RPCS3 resident merged with the NeoSwap microprocess
-// backing) and the NeoSwap contribution. Microprocesses are not drawn apart.
+// Two independent series: the app's kernel footprint and backing currently
+// donated to RPCS3. Capacity and aliases are never counted as donations.
 @property(nonatomic, strong) UILabel* deviceLabel;
 @property(nonatomic, strong) UILabel* neoswapLabel;
 @property(nonatomic, strong) UILabel* graphLabel;
@@ -91,16 +90,15 @@ struct Sample {
       RPCS3LocalizedString(@"memoryUnitGB", _localeIdentifier)];
 }
 - (void)showPoint:(NeoSwapMemoryGraphPoint)point {
-  // RPCS3 resident pages merged with the NeoSwap backing charged to its
-  // microprocesses: the RAM the device spends on this session.
+  // The app's actual kernel footprint, unchanged by the donation counter.
   self.deviceLabel.text = [NSString stringWithFormat:@"%@: %@",
       RPCS3LocalizedString(@"memoryDevice", _localeIdentifier),
-      [self memoryText:point.deviceRam valid:point.deviceRamValid]];
-  // Host data served outside the footprint by NeoSwap (relay host loans and
-  // donor loans); guest pages are part of the device line above.
+      [self memoryText:point.footprint valid:point.footprintValid]];
+  // Published guest backing plus active host relay and donor loans. These
+  // bytes describe current donations, not prepared capacity or physical RAM.
   self.neoswapLabel.text = [NSString stringWithFormat:@"%@: %@",
       RPCS3LocalizedString(@"memoryNeoSwap", _localeIdentifier),
-      [self memoryText:point.hostLoans valid:point.hostLoansValid]];
+      [self memoryText:point.donated valid:point.donatedValid]];
   self.accessibilityValue = [NSString stringWithFormat:@"%@. %@. %@",
       self.ratesLabel.text, self.deviceLabel.text, self.neoswapLabel.text];
 }
@@ -136,14 +134,14 @@ struct Sample {
 }
 - (void)appendNeoSwapWithClient:(const NeoSwapClientStats*)client
                           host:(const NeoSwapHostStats*)host
-                relayLiveBytes:(uint64_t)relayLiveBytes
-                 relayMeasured:(BOOL)relayMeasured
+                relayGuestPublishedBytes:(uint64_t)relayGuestPublishedBytes
+                 relayGuestMeasured:(BOOL)relayGuestMeasured
          processFootprintBytes:(uint64_t)processFootprintBytes
                      timestamp:(double)timestampMs {
   NSAssert(NSThread.isMainThread, @"RPCS3 performance UI must run on the main thread");
   if (self.hidden || !std::isfinite(timestampMs)) return;
   (void)client;
-  const auto point = NeoSwapMemoryGraph(host, relayLiveBytes, relayMeasured, processFootprintBytes);
+  const auto point = NeoSwapMemoryGraph(host, relayGuestPublishedBytes, relayGuestMeasured, processFootprintBytes);
   [self showPoint:point];
   if (_sampleCount) {
     Sample& sample = _samples[(_sampleStart + _sampleCount - 1) % kCapacity];
@@ -161,8 +159,8 @@ struct Sample {
   double maximumGB = 0.5;
   for (NSUInteger n = 0; n < _sampleCount; ++n) {
     const auto& point = _samples[(_sampleStart + n) % kCapacity].memory;
-    if (point.deviceRamValid) maximumGB = std::max(maximumGB, NeoSwapDecimalGB(point.deviceRam));
-    if (point.hostLoansValid) maximumGB = std::max(maximumGB, NeoSwapDecimalGB(point.hostLoans));
+    if (point.footprintValid) maximumGB = std::max(maximumGB, NeoSwapDecimalGB(point.footprint));
+    if (point.donatedValid) maximumGB = std::max(maximumGB, NeoSwapDecimalGB(point.donated));
   }
   maximumGB = std::ceil(maximumGB * 2.0) / 2.0;
   NSDictionary* attrs = @{NSFontAttributeName:[UIFont monospacedDigitSystemFontOfSize:9 weight:UIFontWeightRegular],
@@ -194,8 +192,8 @@ struct Sample {
       else [line addLineToPoint:CGPointMake(x, y)];
       started = true;
     };
-    append(deviceLine, sample.memory.deviceRam, sample.memory.deviceRamValid, deviceStarted);
-    append(neoswapLine, sample.memory.hostLoans, sample.memory.hostLoansValid, neoswapStarted);
+    append(deviceLine, sample.memory.footprint, sample.memory.footprintValid, deviceStarted);
+    append(neoswapLine, sample.memory.donated, sample.memory.donatedValid, neoswapStarted);
   }
   [UIColor.systemOrangeColor setStroke];
   deviceLine.lineWidth = 1.5;

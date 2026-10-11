@@ -69,19 +69,23 @@ def catalogues() -> dict:
     assert all('@"' + key + '"' in overlay for key in MEMORY_KEYS)
     assert catalogues['fr']['memoryUnitGB'] == 'Go'
     assert catalogues['en']['memoryUnitGB'] == 'GB'
+    assert catalogues['en']['memoryDevice'] == 'App RAM'
+    assert catalogues['fr']['memoryDevice'] == 'RAM de l’app'
+    assert catalogues['en']['memoryNeoSwap'] == 'NeoSwap donated'
+    assert catalogues['fr']['memoryNeoSwap'] == 'Donné par NeoSwap'
     assert 'NeoSwapMemoryGraph(' in overlay and 'NeoSwapDecimalGB(' in overlay
     assert 'fpsLine' not in overlay and 'donor_prepared_bytes' not in overlay
     assert 'memoryUsedBytes' not in overlay
     assert 'NeoSwapFPSValid(fps, validFields)' in overlay
     assert '@"FPS %.1f"' in overlay and '@"FPS —"' in overlay
     assert 'self.ratesLabel.text, self.deviceLabel.text, self.neoswapLabel.text' in overlay
-    # 7 October 2026: the microprocess line is gone; the graph draws the merged
-    # device RAM (orange) and the NeoSwap contribution (green) only.
+    # The app footprint (orange) and active donated backing (green) remain
+    # independent; idle capacity and shared aliases never form a third line.
     assert 'systemCyanColor' not in overlay and 'systemOrangeColor' in overlay and 'systemGreenColor' in overlay
     assert 'memoryMicroprocess' not in overlay and 'memoryPhysical' not in overlay
     assert 'allocationLine' not in overlay and 'residentLine' not in overlay
-    assert 'append(deviceLine, sample.memory.deviceRam, sample.memory.deviceRamValid, deviceStarted);' in overlay
-    assert 'append(neoswapLine, sample.memory.hostLoans, sample.memory.hostLoansValid, neoswapStarted);' in overlay
+    assert 'append(deviceLine, sample.memory.footprint, sample.memory.footprintValid, deviceStarted);' in overlay
+    assert 'append(neoswapLine, sample.memory.donated, sample.memory.donatedValid, neoswapStarted);' in overlay
     assert 'memoryMicroprocess' not in source and 'memoryPhysical' not in source
     return catalogues
 
@@ -146,7 +150,7 @@ int main() { @autoreleasepool {
 
 if __name__ == "__main__":
     values = catalogues()
-    print("PASS: all 14 legacy NeoSwap keys remain valid in 12 catalogues; merged device-RAM and NeoSwap two-series decimal-GB graph verified", flush=True)
+    print("PASS: all 14 legacy NeoSwap keys remain valid in 12 catalogues; independent app-RAM and donated-backing decimal-GB graph verified", flush=True)
     if sys.platform == "darwin":
         execute_native_lookup(values)
     else:

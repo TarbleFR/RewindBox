@@ -88,10 +88,9 @@ static uint64_t RPCS3ProcessResidentBytes(void) {
 static uint64_t RPCS3ProcessFootprintBytes(void) {
   task_vm_info_data_t info = {};
   if (!RPCS3TaskVMInfo(&info)) return 0;
-  // Pages charged to this process by the kernel ledger, compressed pages
-  // included. Donor and relay pages are charged to their microprocesses and
-  // excluded here (the donation probe asserts it), so the overlay can add the
-  // measured microprocess backing without counting an alias twice.
+  // Pages charged to this app by the kernel ledger, compressed pages included.
+  // Display the kernel value directly. Donation backing is a separate series;
+  // never add it to or subtract it from this measurement.
   return info.phys_footprint;
 }
 
@@ -723,8 +722,11 @@ static void RPCS3Progress(void* context,
       const BOOL hostValid = NeoSwap_HostSnapshot(&host) == NEOSWAP_OK;
       const uint64_t processFootprintBytes = RPCS3ProcessFootprintBytes();
       NSDictionary* relay = NeoSwapRelay_Diagnostics();
-      const BOOL relayMeasured = [relay[@"liveBackingBytes"] isKindOfClass:NSNumber.class];
-      const uint64_t relayLiveBytes = relayMeasured ? [relay[@"liveBackingBytes"] unsignedLongLongValue] : 0;
+      // Older or unavailable diagnostics cannot prove active guest donation.
+      // Never fall back to total relay backing: that includes idle host shelves.
+      const BOOL relayGuestMeasured = [relay[@"guestPublishedLiveBackingBytes"] isKindOfClass:NSNumber.class];
+      const uint64_t relayGuestPublishedBytes = relayGuestMeasured
+          ? [relay[@"guestPublishedLiveBackingBytes"] unsignedLongLongValue] : 0;
       dispatch_async(dispatch_get_main_queue(), ^{
         RPCS3GameViewController* sampledOwner = weakSampledOwner;
         if (!sampledOwner || strongSelf.gameController != sampledOwner || !sampledOwner.showingPerformance) return;
@@ -742,8 +744,8 @@ static void RPCS3Progress(void* context,
                                              timestamp:timestamp];
         [owner.performanceOverlay appendNeoSwapWithClient:clientValid ? &client : nullptr
                                                     host:hostValid ? &host : nullptr
-                                          relayLiveBytes:relayLiveBytes
-                                           relayMeasured:relayMeasured
+                                          relayGuestPublishedBytes:relayGuestPublishedBytes
+                                           relayGuestMeasured:relayGuestMeasured
                                    processFootprintBytes:processFootprintBytes
                                                timestamp:timestamp];
       });
