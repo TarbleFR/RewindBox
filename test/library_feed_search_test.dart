@@ -220,10 +220,7 @@ void main() {
       // The block was lifted (or does not apply from this network): the
       // user's manual refresh loads the listing.
       await feed.refresh();
-      expect(
-        feed.sources.single.entries.map((e) => e.item.title),
-        ['Listing'],
-      );
+      expect(feed.sources.single.entries.map((e) => e.item.title), ['Listing']);
 
       await feed.search('solo');
       final searched = feed.currentSearch!.sources.single;
