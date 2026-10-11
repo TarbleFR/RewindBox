@@ -177,6 +177,11 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
   Completer<void>? _refreshDone;
   int _storeSignature = 0;
 
+  /// True while a chapter is being opened (the reader route stays open
+  /// until it is closed): a second tap during the push would open a
+  /// second reader on top of the first.
+  bool _opening = false;
+
   LibraryAidokuNativeService get _aidoku =>
       widget.aidokuService ?? LibraryAidokuNativeService.instance;
   LibraryReadingStore get _store =>
@@ -432,8 +437,10 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
       _snack(_t('chapterNeedsSource'));
       return;
     }
+    if (_opening) return;
     final opener =
         widget.chapterOpener ?? LibraryReaderLauncher.openOnlineChapter;
+    _opening = true;
     try {
       await opener(
         context,
@@ -478,6 +485,8 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
           ),
         ),
       );
+    } finally {
+      _opening = false;
     }
   }
 

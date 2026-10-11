@@ -151,6 +151,7 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
   List<LibraryLocalBook> _visible = const <LibraryLocalBook>[];
   Object? _loadError;
   bool _importing = false;
+  bool _opening = false;
   bool _recoveredNoticeDismissed = false;
   String? _focusedBookId;
   int _progressSignature = 0;
@@ -379,7 +380,11 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
   // ------------------------------------------------------------- books --
 
   Future<void> _open(LibraryLocalBook book) async {
+    // The reader route stays open until it is closed: a second tap during
+    // the push would open a second reader on top of the first.
+    if (_opening) return;
     final opener = widget.bookOpener ?? LibraryReaderLauncher.openLocalBook;
+    _opening = true;
     try {
       await opener(context, book);
     } on Object catch (error) {
@@ -389,6 +394,8 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
         issue == null ? _t('openFailed') : _t(libraryBookIssueKey(issue)),
         detail: error.toString(),
       );
+    } finally {
+      _opening = false;
     }
   }
 

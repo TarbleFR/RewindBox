@@ -21,11 +21,16 @@ class _Opened {
   final List<LibraryOnlineChapterSession> sessions =
       <LibraryOnlineChapterSession>[];
 
+  /// When set, an open lasts until it completes (like the reader route,
+  /// which the launcher awaits until it is closed).
+  Completer<void>? readerOpen;
+
   Future<void> call(
     BuildContext context,
     LibraryOnlineChapterSession session,
   ) async {
     sessions.add(session);
+    await readerOpen?.future;
   }
 }
 
@@ -287,6 +292,45 @@ void main() {
     await tester.tap(find.text('Start reading'));
     await tester.pump();
     expect(opened.sessions.single.chapter.id, '1');
+  });
+
+  testWidgets('a second tap while a chapter opens opens nothing more', (
+    tester,
+  ) async {
+    final opened = _Opened()..readerOpen = Completer<void>();
+    final aidoku = FakeAidokuService()
+      ..cached = testDetails(item, count: 5)
+      ..watchResult = testDetails(item, count: 5);
+    await pumpLibraryUi(
+      tester,
+      _screen(
+        item: item,
+        addon: addon,
+        aidoku: aidoku,
+        store: MemoryReadingStore(),
+        opened: opened,
+      ),
+      wrapInScaffold: false,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Chapter 3'));
+    await tester.pump();
+    await tester.tap(find.text('Chapter 4'));
+    await tester.tap(find.text('Start reading'));
+    await tester.pump();
+    expect(opened.sessions.map((session) => session.chapter.id), <String>['3']);
+
+    // Once the reader is closed, chapters open again.
+    opened.readerOpen!.complete();
+    await tester.pumpAndSettle();
+    opened.readerOpen = null;
+    await tester.tap(find.text('Chapter 4'));
+    await tester.pump();
+    expect(opened.sessions.map((session) => session.chapter.id), <String>[
+      '3',
+      '4',
+    ]);
   });
 
   testWidgets('resume waits for a partial list that is still loading', (

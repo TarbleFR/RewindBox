@@ -3,6 +3,7 @@
 // (passed to the service's query), reading progress, opening through the
 // reader launcher and controller actions. The service is a double: the
 // view's behaviour is tested, the library core has its own tests.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -172,12 +173,19 @@ class _Host {
   final List<LibraryLocalBook> opened = <LibraryLocalBook>[];
   int backs = 0;
 
+  /// When set, an open lasts until it completes (like the reader route,
+  /// which the launcher awaits until it is closed).
+  Completer<void>? readerOpen;
+
   Widget view() => LibraryLocalView(
     controller: controller,
     onBack: () => backs++,
     service: library,
     readingStore: store,
-    bookOpener: (context, book) async => opened.add(book),
+    bookOpener: (context, book) async {
+      opened.add(book);
+      await readerOpen?.future;
+    },
     enableGamepad: false,
   );
 }
@@ -661,6 +669,27 @@ void main() {
     expect(host.opened.last.id, alpha.id);
 
     expect(host.controller.back(), isFalse, reason: 'back to the hub');
+  });
+
+  testWidgets('a second tap while a book opens opens nothing more', (
+    tester,
+  ) async {
+    final host = await _pump(tester, <LibraryLocalBook>[alpha, bravo]);
+    host.readerOpen = Completer<void>();
+    await tester.tap(find.text('Bravo'));
+    await tester.pump();
+    await tester.tap(find.text('Bravo'));
+    await tester.tap(find.text('Alpha'));
+    await tester.pump();
+    expect(host.opened.map((book) => book.id), <String>[bravo.id]);
+
+    // Once the reader is closed, books open again.
+    host.readerOpen!.complete();
+    await tester.pumpAndSettle();
+    host.readerOpen = null;
+    await tester.tap(find.text('Alpha'));
+    await tester.pump();
+    expect(host.opened.map((book) => book.id), <String>[bravo.id, alpha.id]);
   });
 }
 
