@@ -373,7 +373,12 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   void _onPagedChanged(int index) {
     final count = _controller.pageCount;
     final leading = _pagedLeading;
-    _resetZoom();
+    if (_zoomed) {
+      // The physics of the PageView follow the zoom.
+      setState(_resetZoom);
+    } else {
+      _resetZoom();
+    }
     if (index < leading) {
       setState(() {
         _atStartCard = true;
@@ -404,10 +409,24 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     _controller.setPage(page);
   }
 
+  /// Unzooms the paged view. Also called while the reader builds (new
+  /// chapter, layout switch): the flag is cleared first so the zoom
+  /// listener never calls setState during a build.
   void _resetZoom() {
     _zoomAnimation?.stop();
-    if (_zoom.value.getMaxScaleOnAxis() != 1.0)
+    _zoomed = false;
+    if (_zoom.value.getMaxScaleOnAxis() != 1.0) {
       _zoom.value = Matrix4.identity();
+    }
+  }
+
+  /// Unzooms the vertical strip (same rule as [_resetZoom]).
+  void _resetVerticalZoom() {
+    _zoomAnimation?.stop();
+    _verticalZoomed = false;
+    if (_verticalZoom.value.getMaxScaleOnAxis() != 1.0) {
+      _verticalZoom.value = Matrix4.identity();
+    }
   }
 
   // ---------------------------------------------------------------- taps --
@@ -623,7 +642,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         (widget.content.layoutHint == LibraryPageLayoutHint.vertical
             ? 1.8
             : 1.42);
-    _verticalZoom.value = Matrix4.identity();
+    _resetVerticalZoom();
     _atEndCard = false;
     _atStartCard = false;
     final offset = _offsetOfItem(_leading + _controller.page);
@@ -662,7 +681,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
       _pageController = null;
     }
     _resetZoom();
-    _verticalZoom.value = Matrix4.identity();
+    _resetVerticalZoom();
   }
 
   // ---------------------------------------------------------- settings --

@@ -25,6 +25,14 @@ Future<void> closeAll(WidgetTester tester, LibraryReadingStore store) async {
   await flushStore(tester, store);
 }
 
+/// Double-taps the middle of the 900 x 600 test surface (zoom toggle).
+Future<void> doubleTapCentre(WidgetTester tester) async {
+  await tester.tapAt(const Offset(450, 300));
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.tapAt(const Offset(452, 302));
+  await frames(tester);
+}
+
 /// Runs [work] to completion: the store was loaded in the real zone, so its
 /// continuations need both real turns and fake-time microtask flushes.
 Future<void> drive(WidgetTester tester, Future<void> work) async {
@@ -258,6 +266,106 @@ void main() {
       await tester.tapAt(const Offset(850, 300));
       await frames(tester);
       expect(state.controller.page, 0);
+      await closeAll(tester, store);
+    });
+
+    // Regression: the zoom was reset while the reader was building (new
+    // chapter, layout switch) and its listener called setState during the
+    // build ("setState() or markNeedsBuild() called during build").
+    testWidgets('a zoomed page is unzoomed cleanly when the chapter changes', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final content = FakePageContent(chapterCount: 2, tracksChapters: true);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: content, store: store),
+      );
+      final state = readerState(tester);
+      await doubleTapCentre(tester);
+      expect(state.zoomed, isTrue);
+      state.gamepadBindings.rightBumper!();
+      await frames(tester);
+      await frames(tester);
+      expect(tester.takeException(), isNull);
+      expect(state.controller.chapterIndex, 1);
+      expect(state.controller.status, LibraryPageReaderStatus.ready);
+      expect(state.zoomed, isFalse);
+      expect(
+        tester.widget<PageView>(find.byType(PageView)).physics,
+        isNot(isA<NeverScrollableScrollPhysics>()),
+      );
+      await closeAll(tester, store);
+    });
+
+    testWidgets('a zoomed strip is unzoomed cleanly when the chapter changes', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final content = FakePageContent(
+        chapterCount: 2,
+        tracksChapters: true,
+        layoutHint: LibraryPageLayoutHint.vertical,
+      );
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: content, store: store),
+      );
+      final state = readerState(tester);
+      await doubleTapCentre(tester);
+      expect(state.zoomed, isTrue);
+      state.gamepadBindings.rightBumper!();
+      await frames(tester);
+      await frames(tester);
+      expect(tester.takeException(), isNull);
+      expect(state.controller.chapterIndex, 1);
+      expect(state.zoomed, isFalse);
+      await closeAll(tester, store);
+    });
+
+    testWidgets('a zoomed page is unzoomed cleanly when the layout switches', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: FakePageContent(), store: store),
+      );
+      final state = readerState(tester);
+      await doubleTapCentre(tester);
+      expect(state.zoomed, isTrue);
+      state.controller.toggleMode();
+      await frames(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ListView), findsOneWidget);
+      expect(state.zoomed, isFalse);
+      await closeAll(tester, store);
+    });
+
+    testWidgets('the d-pad turns a zoomed page and restores swiping', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: FakePageContent(), store: store),
+      );
+      final state = readerState(tester);
+      await doubleTapCentre(tester);
+      expect(state.zoomed, isTrue);
+      state.gamepadBindings.right!();
+      await frames(tester);
+      expect(tester.takeException(), isNull);
+      expect(state.controller.page, 1);
+      expect(state.zoomed, isFalse);
+      expect(
+        tester.widget<PageView>(find.byType(PageView)).physics,
+        isNot(isA<NeverScrollableScrollPhysics>()),
+      );
       await closeAll(tester, store);
     });
 
