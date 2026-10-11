@@ -18,6 +18,15 @@ void main() {
     'shakeAssign',
     'shakeAssignHelp',
     'shakeMixed',
+    // Build 442: phone-shake sensitivity row and the Wii settings panel.
+    'shakeSensitivity',
+    'shakeSensitivityLow',
+    'shakeSensitivityMedium',
+    'shakeSensitivityHigh',
+    'shakeSensitivityHelp',
+    'phoneShakeToggle',
+    'phoneShakeToggleHelp',
+    'wiiMotionSection',
   };
 
   test('the Shake catalog covers exactly the twelve NeoStation languages', () {

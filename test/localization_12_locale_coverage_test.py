@@ -38,6 +38,7 @@ def main():
         "secondary_ui_locale.dart","ios_roms_help_locale.dart","ra_ui_locale.dart",
         "dolphin_import_locale.dart","libretro_locale.dart","dolphin_shake_locale.dart",
         "rpcs3_rap_locale.dart",
+        "rpcs3_saves_locale.dart","dolphin_display_locale.dart",
         "ui_refresh_rate_locale.dart",
         "ios_setup_locale.dart","embedded_emulator_locale.dart"
     ):

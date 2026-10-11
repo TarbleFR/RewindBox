@@ -838,6 +838,62 @@ BUILD440_DELTA = {
     'test/ui_refresh_rate_service_test.dart',
 }
 DELTA |= BUILD440_DELTA
+
+# Build 442 (11 October 2026, evening): Wii phone-shake sensitivity and hold,
+# Dolphin external display (AirPlay) Fit/Fill, 60 Hz pacing default with
+# frame-time counters, RPCS3 game-save ZIP exchange. Dolphin Core and RPCS3
+# Core untouched.
+BUILD442_DELTA = {
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/dolphin_display_locale.dart',
+    'lib/l10n/dolphin_import_locale.dart',
+    'lib/l10n/dolphin_shake_locale.dart',
+    'lib/l10n/rpcs3_saves_locale.dart',
+    'lib/l10n/rpcs3_ui_locale.dart',
+    'lib/models/dolphin_phone_shake_settings.dart',
+    'lib/screens/rpcs3_manager_screen.dart',
+    'lib/services/dolphin_internal_v2_service.dart',
+    'lib/services/rpcs3_internal_service.dart',
+    'lib/services/rpcs3_param_sfo.dart',
+    'lib/services/rpcs3_save_exchange_service.dart',
+    'lib/widgets/dolphin_wii_motion_panel.dart',
+    'lib/widgets/rpcs3_save_exchange_dialogs.dart',
+    'lib/widgets/system_emulator_settings_dialog.dart',
+    'lib/widgets/system_emulator_settings_dialog/tabs.dart',
+    'packages/dolphin_internal_bridge/ci/test_session_ui.rb',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinExternalDisplay.h',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinExternalDisplay.mm',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinExternalDisplayLayout.h',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinFramePacing.h',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinFramePacing.mm',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinPacingLabels.h',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinPerformanceOverlay.mm',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinPhoneShakePreferences.h',
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.mm',
+    'packages/dolphin_internal_bridge/ios/Classes/TouchController/DolphinPhoneShake.swift',
+    'packages/dolphin_internal_bridge/ios/Classes/TouchController/DolphinShakeDetector.swift',
+    'packages/dolphin_internal_bridge/ios/Classes/TouchController/DolphinTouchOverlay.swift',
+    'packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec',
+    'test/armsx2_graphics_ui_test.py',
+    'test/diagnostics_files_workspace_test.py',
+    'test/dolphin_account_267_test.py',
+    'test/dolphin_external_display_test.mm',
+    'test/dolphin_external_display_test.py',
+    'test/dolphin_external_display_ui_test.py',
+    'test/dolphin_pacing362_ui_test.py',
+    'test/dolphin_phone_shake_test.py',
+    'test/dolphin_shake_locale_test.dart',
+    'test/dolphin_shake_wiring_test.py',
+    'test/dolphin_touch_shake_ui_test.py',
+    'test/dolphin_wii_motion_panel_test.dart',
+    'test/localization_12_locale_coverage_test.py',
+    'test/rpcs3_save_exchange_service_test.dart',
+    'test/rpcs3_save_export_contract_test.dart',
+    'test/rpcs3_saves_locale_test.dart',
+    'test/rpcs3_ui_status_cleanup_test.py',
+}
+DELTA |= BUILD442_DELTA
 INPUT_ROOTS =('lib/', 'packages/', 'native/', 'build-utils/', 'assets/', 'test/')
 
 # Build 441 changes RPCS3/NeoSwap only. The targeted lane retains the actual

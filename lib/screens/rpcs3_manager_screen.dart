@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 
+import '../l10n/rpcs3_saves_locale.dart';
 import '../l10n/rpcs3_ui_locale.dart';
 import '../services/rpcs3_content_import_service.dart';
 import '../services/rpcs3_internal_service.dart';
+import '../services/rpcs3_save_exchange_service.dart';
+import '../widgets/rpcs3_save_exchange_dialogs.dart';
 
 /// User-facing management surface for the embedded RPCS3 engine.
 ///
@@ -255,24 +260,28 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     }
   }
 
+  String _saves(String key) => Rpcs3SavesLocale.text(context, key);
+
+  /// Game saves (savedata) only: one ZIP in Documents/RPCS3/Export/Game
+  /// Saves, then a report with the Files location and a Share action. The
+  /// busy guard refuses the export while a PS3 game runs.
   Future<void> _exportSaves() async {
     if (_busy) return;
     setState(() {
       _busy = true;
       _error = null;
       _contentProgress = null;
-      _statusMessage = _t('preparingSaves');
+      _statusMessage = _saves('statusExporting');
     });
     try {
-      await Rpcs3InternalService.exportSaveData();
-      if (mounted) {
-        _notice(
-          _t('savesAvailable'),
-        );
-      }
+      final result = await Rpcs3SaveExchangeService.instance.exportGuarded();
+      if (!mounted) return;
+      await showRpcs3SaveExportReport(context, result, onShare: _shareExport);
     } on Rpcs3InternalException catch (error) {
       if (mounted) setState(() => _error = error.message);
       _notice(error.message);
+    } on Rpcs3SaveExchangeException catch (error) {
+      await _showSaveFailure(error);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
       _notice(error.toString());
@@ -286,24 +295,34 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     }
   }
 
+  /// Game saves only: the user picks the source (Files folder, ZIP or
+  /// folder), the service stages and verifies, asks once before replacing
+  /// different saves, then shows the per-save report.
   Future<void> _importSaves() async {
     if (_busy) return;
+    final source = await showRpcs3SaveImportSourceDialog(context);
+    if (source == null || !mounted) return;
     setState(() {
       _busy = true;
       _error = null;
       _contentProgress = null;
-      _statusMessage = _t('importingSaves');
+      _statusMessage = _saves('statusImporting');
     });
     try {
-      final imported = await Rpcs3InternalService.importSaveDataFromFiles();
-      if (mounted) {
-        _notice(
-          _tf('savesImported', {'count': imported}),
-        );
-      }
+      final report = await Rpcs3SaveExchangeService.instance.importGuarded(
+        source,
+        confirmReplace: (conflicts) async {
+          if (!mounted) return false;
+          return showRpcs3SaveReplaceDialog(context, conflicts);
+        },
+      );
+      if (report == null || !mounted) return;
+      await showRpcs3SaveImportReport(context, report);
     } on Rpcs3InternalException catch (error) {
       if (mounted) setState(() => _error = error.message);
       _notice(error.message);
+    } on Rpcs3SaveExchangeException catch (error) {
+      await _showSaveFailure(error);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
       _notice(error.toString());
@@ -314,6 +333,31 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
           _statusMessage = _t('ready');
         });
       }
+    }
+  }
+
+  Future<void> _showSaveFailure(Rpcs3SaveExchangeException error) async {
+    if (!mounted) return;
+    final message = rpcs3SaveFailureText(context, error.failure);
+    setState(() => _error = message);
+    await showRpcs3SaveExchangeFailure(
+      context,
+      message,
+      technicalDetail: error.technicalDetail,
+    );
+  }
+
+  /// iOS share sheet for the exported ZIP (iCloud Drive, AirDrop, apps).
+  Future<void> _shareExport(String zipPath) async {
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(zipPath, mimeType: 'application/zip')],
+          subject: p.basename(zipPath),
+        ),
+      );
+    } catch (error) {
+      _notice(error.toString());
     }
   }
 

@@ -12,10 +12,16 @@ FOUNDATION_EXPORT NSInteger DOLRequestedRefresh(NSInteger requested,NSInteger ma
 @property(nonatomic,readonly) BOOL traceEnabled;
 @property(nonatomic,readonly) NSDictionary* summary;
 @property(nonatomic,readonly) NSArray<NSDictionary*>* samples;
+/// Build 442: set by the session when the game is drawn on an external screen.
+@property(atomic,assign) BOOL externalDisplayActive;
 - (void)startWithView:(UIView*)view;
 - (void)stop;
 - (void)refreshPreference;
 - (void)appendPerformance:(NSDictionary*)sample inputMs:(double)inputMs refreshed:(BOOL)refreshed;
+/// Build 442: a 10 Hz sub-sample of the core's last frame time (any thread).
+/// Folded into the next trace row (max/min/slow counts) and the summary.
+- (void)recordFrameTimeMs:(double)lastFrameMs;
+- (NSDictionary*)frameTimeSummary;
 - (UIViewController*)settingsController;
 @end
 NS_ASSUME_NONNULL_END

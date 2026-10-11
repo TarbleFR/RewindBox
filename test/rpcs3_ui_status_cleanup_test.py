@@ -2,12 +2,12 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-main = (ROOT / "lib/main.dart").read_text()
-manager = (ROOT / "lib/screens/rpcs3_manager_screen.dart").read_text()
-playlist = (ROOT / "lib/widgets/rpcs3_internal_playlist_actions.dart").read_text()
-service = (ROOT / "lib/services/rpcs3_internal_service.dart").read_text()
-header = (ROOT / "lib/widgets/header.dart").read_text()
-rpcs3_locale = (ROOT / "lib/l10n/rpcs3_ui_locale.dart").read_text()
+main = (ROOT / "lib/main.dart").read_text(encoding="utf-8")
+manager = (ROOT / "lib/screens/rpcs3_manager_screen.dart").read_text(encoding="utf-8")
+playlist = (ROOT / "lib/widgets/rpcs3_internal_playlist_actions.dart").read_text(encoding="utf-8")
+service = (ROOT / "lib/services/rpcs3_internal_service.dart").read_text(encoding="utf-8")
+header = (ROOT / "lib/widgets/header.dart").read_text(encoding="utf-8")
+rpcs3_locale = (ROOT / "lib/l10n/rpcs3_ui_locale.dart").read_text(encoding="utf-8")
 
 def require(value, message):
     if not value:
@@ -24,7 +24,7 @@ require("_prepareIosFilesWorkspaceAfterStartup" in main and
         "Files maintenance is not deferred until after the real app frame")
 
 require("await synchronizeFilesWorkspace();" in service,
-        "manual RPCS3 Files imports are not consumed before explicit Core startup")
+        "RPCS3 Files workspace folders are not ensured before explicit Core startup")
 require("static bool get jitPrepared => _jitPrepared;" in service,
         "authoritative JIT prepared state is not exposed")
 

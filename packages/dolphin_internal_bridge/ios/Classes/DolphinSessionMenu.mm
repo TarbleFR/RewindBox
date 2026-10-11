@@ -6,11 +6,7 @@
 #include "TouchController/TCManagerInterface.h"
 #include "TouchController/DolphinShakeAssignment.h"
 #include "DOLTextureLabels.h"
-static NSString* const DOLPhoneShakeKey=@"NeoStation.Dolphin.PhoneShake.Enabled";
-static BOOL DOLPhoneShakeEnabled(void) {
-  id value=[NSUserDefaults.standardUserDefaults objectForKey:DOLPhoneShakeKey];
-  return value == nil || [value boolValue];
-}
+#include "DolphinPhoneShakePreferences.h"
 
 typedef NS_ENUM(NSInteger, DOLMenuPage) {
   DOLMenuRoot, DOLMenuGraphics, DOLMenuHacks, DOLMenuCheats, DOLMenuAchievements, DOLMenuControls, DOLMenuChoices, DOLMenuDevices, DOLMenuInputs, DOLMenuConsole, DOLMenuSaveStates, DOLMenuLoadStates, DOLMenuRecording
@@ -415,7 +411,9 @@ static void DOLMenuOnMain(dispatch_block_t block) {
           [self.cheatsSnapshot[@"actionReplay"] count] : 0;
     case DOLMenuAchievements: return self.snapshot ? 3 : 0;
     case DOLMenuControls:
-      if (section == 0) return self.wii ? 5 : 3;
+      // Wii: controller type, player, physical controller, extension, phone
+      // shake on/off, phone shake sensitivity (Build 442).
+      if (section == 0) return self.wii ? 6 : 3;
       if ([self isShakeAssignmentSection:section]) return 1;
       return [self.snapshot[@"controls"] count];
     case DOLMenuDevices: return [self.snapshot[@"devices"] count] + 1;
@@ -454,7 +452,8 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   }
   if (self.page == DOLMenuConsole) return [self text:@"languageHelp"];
   if (self.page == DOLMenuControls && section == 0 && self.wii)
-    return DOLPhoneShakeText(@"help",self.labels[@"__locale"]);
+    return [NSString stringWithFormat:@"%@\n\n%@", DOLPhoneShakeText(@"help",self.labels[@"__locale"]),
+            [self text:@"shakeSensitivityHelp"]];
   if (self.page == DOLMenuControls && [self isShakeAssignmentSection:section])
     return [self text:@"shakeAssignHelp"];
   if (self.page == DOLMenuControls && section == [self bindingsSection]) return [self text:@"bindingsHelp"];
@@ -666,6 +665,15 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       cell.detailTextLabel.text = failed ? DOLPhoneShakeText(status == 2 ? @"routeFailed" : @"sensorUnavailable", self.labels[@"__locale"])
           : DOLPacingText(enabled ? @"on" : @"off", self.labels[@"__locale"]);
       cell.accessoryType = enabled && !failed ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
+      return cell;
+    }
+    if (indexPath.section == 0 && self.wii && row == 5) {
+      // Phone shake sensitivity (Build 442): a local preference read by the
+      // Swift detector, never a core request. Tapping cycles the three levels.
+      cell.textLabel.text = [self text:@"shakeSensitivity"];
+      cell.detailTextLabel.text = [self text:DOLPhoneShakeSensitivityLabelKey(DOLPhoneShakeSensitivity())];
+      cell.accessibilityIdentifier = @"dolphinPhoneShakeSensitivity";
+      cell.accessoryType = UITableViewCellAccessoryNone;
       return cell;
     }
     if ([self isShakeAssignmentSection:indexPath.section]) {
@@ -889,6 +897,13 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   if (self.wii && indexPath.section == 0 && row == 4) {
     [NSUserDefaults.standardUserDefaults setBool:!DOLPhoneShakeEnabled() forKey:DOLPhoneShakeKey];
     [NSNotificationCenter.defaultCenter postNotificationName:@"NeoStation.Dolphin.PhoneShakeChanged" object:nil];
+    [tableView reloadData];
+    return;
+  }
+  if (self.wii && indexPath.section == 0 && row == 5) {
+    // low → medium → high → low. The overlay re-reads the level on the same
+    // notification as the on/off switch; no core setting is written.
+    DOLPhoneShakeApplySettings(nil, DOLPhoneShakeNextSensitivity(DOLPhoneShakeSensitivity()));
     [tableView reloadData];
     return;
   }

@@ -445,9 +445,28 @@ static NSArray<NSString*>* TouchDefaults(void) {
                                                       requests:[NSMutableArray array]];
     UITableView* table = controls.tableView;
     XCTAssertEqual([controls numberOfSectionsInTableView:table], 3);
-    XCTAssertEqual([controls tableView:table numberOfRowsInSection:0], 5, @"Wii rows unchanged");
+    XCTAssertEqual([controls tableView:table numberOfRowsInSection:0], 6, @"Wii rows: five of Build 440 plus the sensitivity row");
     XCTAssertEqual([controls tableView:table numberOfRowsInSection:1], 1);
     XCTAssertEqual([controls tableView:table numberOfRowsInSection:2], 4);
+    // Build 442: the phone-shake sensitivity row cycles a local preference and
+    // never sends a core request; its texts come from the Dart catalog.
+    [NSUserDefaults.standardUserDefaults removeObjectForKey:@"NeoStation.Dolphin.PhoneShake.Sensitivity"];
+    NSIndexPath* sensitivityRow = [NSIndexPath indexPathForRow:5 inSection:0];
+    UITableViewCell* sensitivity = [controls tableView:table cellForRowAtIndexPath:sensitivityRow];
+    XCTAssertEqualObjects(sensitivity.textLabel.text, catalog[locale][@"shakeSensitivity"]);
+    XCTAssertEqualObjects(sensitivity.detailTextLabel.text, catalog[locale][@"shakeSensitivityMedium"]);
+    XCTAssertTrue([[controls tableView:table titleForFooterInSection:0] containsString:catalog[locale][@"shakeSensitivityHelp"]]);
+    NSMutableArray* sensitivityRequests = [NSMutableArray array];
+    controls.applySettings = ^(NSDictionary* request, void (^done)(BOOL)) { [sensitivityRequests addObject:request]; done(YES); };
+    [controls tableView:table didSelectRowAtIndexPath:sensitivityRow];
+    XCTAssertEqualObjects([NSUserDefaults.standardUserDefaults stringForKey:@"NeoStation.Dolphin.PhoneShake.Sensitivity"], @"high");
+    XCTAssertEqualObjects([controls tableView:table cellForRowAtIndexPath:sensitivityRow].detailTextLabel.text, catalog[locale][@"shakeSensitivityHigh"]);
+    [controls tableView:table didSelectRowAtIndexPath:sensitivityRow];
+    XCTAssertEqualObjects([NSUserDefaults.standardUserDefaults stringForKey:@"NeoStation.Dolphin.PhoneShake.Sensitivity"], @"low");
+    [controls tableView:table didSelectRowAtIndexPath:sensitivityRow];
+    XCTAssertEqualObjects([NSUserDefaults.standardUserDefaults stringForKey:@"NeoStation.Dolphin.PhoneShake.Sensitivity"], @"medium");
+    XCTAssertEqual(sensitivityRequests.count, 0U);
+    [NSUserDefaults.standardUserDefaults removeObjectForKey:@"NeoStation.Dolphin.PhoneShake.Sensitivity"];
     UITableViewCell* cell = [self shakeCell:controls];
     XCTAssertEqualObjects(cell.textLabel.text, catalog[locale][@"shakeAssign"]);
     XCTAssertEqualObjects(cell.detailTextLabel.text, labels[@"unassigned"], @"Touch profile: touch/phone only");
@@ -596,9 +615,10 @@ def native():
                                                               encoding='utf-8')
         sdk_dependencies = [{'sdk': name + '.framework'} for name in
                             ('UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation', 'Security',
-                             'UniformTypeIdentifiers', 'CoreMotion', 'GameController')]
+                             'UniformTypeIdentifiers', 'CoreMotion', 'GameController', 'MetalKit', 'Metal')]
         host_sources = [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
-                        str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm')]
+                        str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'),
+                        str(CLASSES / 'DolphinExternalDisplay.mm')]
         host_sources += [str(path) for path in sorted(TOUCH.glob('*.swift'))]
         project = {
             'name': 'DolphinTouchShake',

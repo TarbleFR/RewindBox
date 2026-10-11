@@ -30,17 +30,26 @@ jobs:
         run: |
           python3 test/dolphin_touch_shake_test.py
           python3 test/dolphin_shake_assignment_test.py
+      - name: Execute the Build 442 external-display placement policy
+        run: python3 test/dolphin_external_display_test.py
       - name: Type-check real CoreMotion and all production touch controls for iOS
         run: |
           set -euo pipefail
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           TOUCH=packages/dolphin_internal_bridge/ios/Classes/TouchController
+          CLASSES=packages/dolphin_internal_bridge/ios/Classes
           xcrun swiftc -typecheck -swift-version 5 -sdk "$SDK" -target arm64-apple-ios17.4 \
             -module-name dolphin_internal_bridge -import-objc-header "$TOUCH/TCManagerInterface.h" "$TOUCH/"*.swift
-          for source in "$TOUCH/DolphinShakeAssignment.mm" packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.mm; do
+          for source in "$TOUCH/DolphinShakeAssignment.mm" "$CLASSES/DolphinSessionMenu.mm" \
+              "$CLASSES/DolphinExternalDisplay.mm" "$CLASSES/DolphinFramePacing.mm" "$CLASSES/DolphinPerformanceOverlay.mm"; do
             xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" \
-              -target arm64-apple-ios17.4 -Ipackages/dolphin_internal_bridge/ios/Classes "$source"
+              -target arm64-apple-ios17.4 -I"$CLASSES" "$source"
           done
+      - name: Exercise the external display move, Off/Fit/Fill and the Display settings row in the iOS Simulator
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          python3 test/dolphin_external_display_ui_test.py > /tmp/external-display.log 2>&1 || { tail -n 200 /tmp/external-display.log; exit 1; }
+          tail -n 30 /tmp/external-display.log
       - name: Exercise the real Wii touch Shake control and Controls Shake row in the iOS Simulator
         run: |
           command -v xcodegen >/dev/null || brew install xcodegen
@@ -50,7 +59,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p build/dolphin-motion
-          cp /tmp/touch-shake.log build/dolphin-motion/ 2>/dev/null || true
+          cp /tmp/touch-shake.log /tmp/external-display.log build/dolphin-motion/ 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

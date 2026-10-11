@@ -13,7 +13,7 @@ app = project.new_target(:application, 'SessionHarness', :ios, '17.4')
 tests = project.new_target(:unit_test_bundle, 'SessionMenuTests', :ios, '17.4')
 tests.add_dependency(app)
 sources = [File.join(__dir__, 'SessionMenuHarness.mm'), File.join(package, 'ios/Classes/DolphinSessionMenu.mm'), File.join(package, 'ios/Classes/DolphinPerformanceOverlay.mm'), File.join(package, 'ios/Classes/DolphinRecordingController.mm')]
-sources += [File.join(package, 'ios/Classes/DolphinFramePacing.mm')]
+sources += [File.join(package, 'ios/Classes/DolphinFramePacing.mm'), File.join(package, 'ios/Classes/DolphinExternalDisplay.mm')]
 sources += Dir[File.join(package, 'ios/Classes/TouchController/*.{swift,mm}')]
 sources.each { |path| app.source_build_phase.add_file_reference(project.main_group.new_file(path)) }
 Dir[File.join(package, 'ios/TouchResources/*')].each do |path|
@@ -36,7 +36,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
       'TARGETED_DEVICE_FAMILY' => '1,2',
       'HEADER_SEARCH_PATHS' => [File.join(package, 'ios/Classes'), File.join(package, 'ios/Classes/TouchController')],
       'SWIFT_VERSION' => '5.0',
-      'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'AVFoundation', '-framework', 'ReplayKit', '-framework', 'CoreImage', '-framework', 'VideoToolbox', '-framework', 'Metal', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'AudioToolbox'],
+      'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'AVFoundation', '-framework', 'ReplayKit', '-framework', 'CoreImage', '-framework', 'VideoToolbox', '-framework', 'Metal', '-framework', 'MetalKit', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'AudioToolbox'],
     })
     if configuration.name == 'Debug'
       configuration.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = ['$(inherited)', 'DEBUG=1']

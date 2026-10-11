@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'dolphin_display_locale.dart';
 import 'dolphin_extended_locale.dart';
 import 'dolphin_shake_locale.dart';
 
@@ -1751,6 +1752,7 @@ abstract final class DolphinImportLocale {
       ...?_accountMenu[key],
       ...DolphinExtendedLocale.labels(key),
       ...DolphinShakeLocale.labels(key),
+      ...DolphinDisplayLocale.labels(key),
       '__locale': key,
     };
   }

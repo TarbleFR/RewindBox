@@ -30,6 +30,7 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
 @property(nonatomic, strong) UILabel* ratesLabel;
 @property(nonatomic, strong) UILabel* frameTimeLabel;
 @property(nonatomic, strong) UILabel* resolutionLabel;
+@property(nonatomic, strong) UILabel* healthLabel;
 @property(nonatomic, strong) UILabel* graphLabel;
 @end
 
@@ -55,11 +56,13 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
   self.ratesLabel = [self newLabelWithSize:13 weight:UIFontWeightSemibold];
   self.frameTimeLabel = [self newLabelWithSize:11 weight:UIFontWeightRegular];
   self.resolutionLabel = [self newLabelWithSize:11 weight:UIFontWeightRegular];
+  self.healthLabel = [self newLabelWithSize:11 weight:UIFontWeightRegular];
   self.graphLabel = [self newLabelWithSize:10 weight:UIFontWeightRegular];
   self.graphLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1];
   self.ratesLabel.accessibilityIdentifier = @"dolphin.performance.rates";
   self.frameTimeLabel.accessibilityIdentifier = @"dolphin.performance.frameTime";
   self.resolutionLabel.accessibilityIdentifier = @"dolphin.performance.resolution";
+  self.healthLabel.accessibilityIdentifier = @"dolphin.performance.health";
   self.graphLabel.text = [self label:@"sampledFrameTime" fallback:@"Sampled frame time (ms)"];
   [self reset];
   return self;
@@ -76,7 +79,7 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
   return label;
 }
 
-- (CGSize)intrinsicContentSize { return CGSizeMake(310, 164); }
+- (CGSize)intrinsicContentSize { return CGSizeMake(310, 182); }
 
 - (void)layoutSubviews {
   [super layoutSubviews];
@@ -84,8 +87,26 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
   self.ratesLabel.frame = CGRectMake(10, 8, width, 18);
   self.frameTimeLabel.frame = CGRectMake(10, 28, width, 16);
   self.resolutionLabel.frame = CGRectMake(10, 45, width, 16);
-  self.graphLabel.frame = CGRectMake(10, 64, width, 14);
+  self.healthLabel.frame = CGRectMake(10, 62, width, 16);
+  self.graphLabel.frame = CGRectMake(10, 81, width, 14);
   [self setNeedsDisplay];
+}
+
+// Build 442: worst sampled frame of the session, thermal state and memory.
+- (NSString*)healthText:(NSDictionary*)snapshot {
+  double worst = 0, thermal = 0, memory = 0;
+  NSMutableArray* parts = [NSMutableArray array];
+  if (ReadMetric(snapshot, @"worstFrameTimeMs", &worst) && worst > 0)
+    [parts addObject:[NSString stringWithFormat:@"%@ %.0f ms", [self label:@"peakFrameTime" fallback:@"Peak"], worst]];
+  if (ReadMetric(snapshot, @"thermalState", &thermal)) {
+    NSString* key = @[@"thermalNominal", @"thermalFair", @"thermalSerious", @"thermalCritical"][MIN(3, (NSUInteger)thermal)];
+    NSString* fallback = @[@"nominal", @"fair", @"serious", @"critical"][MIN(3, (NSUInteger)thermal)];
+    [parts addObject:[NSString stringWithFormat:@"%@ %@", [self label:@"thermalState" fallback:@"Thermal"],
+        [self label:key fallback:fallback]]];
+  }
+  if (ReadMetric(snapshot, @"memoryFootprintMB", &memory) && memory > 0)
+    [parts addObject:[NSString stringWithFormat:@"%@ %.0f MB", [self label:@"memoryFootprint" fallback:@"Memory"], memory]];
+  return parts.count ? [parts componentsJoinedByString:@" · "] : @"—";
 }
 
 - (void)reset {
@@ -97,6 +118,7 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
       [self label:@"frameTime" fallback:@"Frame time"]];
   self.resolutionLabel.text = [NSString stringWithFormat:@"%@: —",
       [self label:@"resolution" fallback:@"Internal resolution"]];
+  self.healthLabel.text = @"—";
   [self updateAccessibilityValue];
   [self setNeedsDisplay];
 }
@@ -130,6 +152,8 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
           [self label:@"resolution" fallback:@"Internal resolution"], width, height] :
       [NSString stringWithFormat:@"%@: —", [self label:@"resolution" fallback:@"Internal resolution"]];
 
+  self.healthLabel.text = [self healthText:snapshot];
+
   // Zero means no completed frame yet at startup. Keep the graph empty.
   if (last > 0 && fps > 0) {
     while (_sampleCount && timestamp - _samples[_sampleStart].timestampMs > DOLPerformanceWindowMs) {
@@ -146,16 +170,16 @@ bool ReadMetric(NSDictionary* snapshot, NSString* key, double* value) {
 }
 
 - (void)updateAccessibilityValue {
-  self.accessibilityValue = [NSString stringWithFormat:@"%@. %@. %@",
-      self.ratesLabel.text, self.frameTimeLabel.text, self.resolutionLabel.text];
+  self.accessibilityValue = [NSString stringWithFormat:@"%@. %@. %@. %@",
+      self.ratesLabel.text, self.frameTimeLabel.text, self.resolutionLabel.text, self.healthLabel.text];
 }
 
 - (void)drawRect:(CGRect)rect {
   [super drawRect:rect];
   CGContextRef context = UIGraphicsGetCurrentContext();
   if (!context) return;
-  CGRect graph = CGRectMake(40, 84, MAX(0, self.bounds.size.width - 50),
-                            MAX(0, self.bounds.size.height - 110));
+  CGRect graph = CGRectMake(40, 101, MAX(0, self.bounds.size.width - 50),
+                            MAX(0, self.bounds.size.height - 127));
   if (graph.size.width <= 0 || graph.size.height <= 0) return;
   double maximum = 33.4;
   for (NSUInteger index = 0; index < _sampleCount; ++index)

@@ -33,11 +33,31 @@ for token in (
     "'Export/Game Saves'",
     "'Export/Savestates'",
     "synchronizeFilesWorkspace",
-    "consumeSource: true",
     "README.txt",
-    "delete(recursive: true)",
+    "filesWorkspaceReadme",
+    "await filesWorkspaceDirectory();",
 ):
     require(token in service, f"RPCS3 Files workspace contract missing: {token}")
+
+# Build 442: the startup housekeeping only ensures the folders and README.
+# Saves move only on the user's action through Rpcs3SaveExchangeService
+# (ZIP export with a share action, staged import with a replace prompt).
+for token in ("consumeSource", "_copyTree", "neostation-import-backup"):
+    require(token not in service, f"old automatic save copy still present: {token}")
+startup = service[service.index("synchronizeFilesWorkspace() async {"):service.index("static String _saves(")]
+for token in ("delete(", ".copy(", "rename(", "dataDirectory()"):
+    require(token not in startup, f"startup housekeeping still touches saves: {token}")
+
+exchange = (ROOT / "lib/services/rpcs3_save_exchange_service.dart").read_text(encoding="utf-8")
+for token in (
+    "ZipFileEncoder",
+    "ZipDecoder",
+    "static const String backupFolderName = 'SaveBackups';",
+    "static const String stagingPrefix = '.neostation-save-import-';",
+    "Rpcs3RapLicenceService.storageRedirection",
+    "Rpcs3RapLicenceService.activeUserId",
+):
+    require(token in exchange, f"game-save exchange contract missing: {token}")
 
 require('stringByAppendingPathComponent:@"Diagnostics"' in native,
         "native RPCS3 logs still target Documents root")

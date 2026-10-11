@@ -12,6 +12,7 @@ import '../l10n/dolphin_import_locale.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
+import '../models/dolphin_phone_shake_settings.dart';
 import '../repositories/retro_achievements_repository.dart';
 import 'logger_service.dart';
 import 'dolphin_system_files.dart';
@@ -99,6 +100,50 @@ class DolphinInternalV2Service {
   static bool isDolphinSystem(String folderName) {
     final normalized = folderName.trim().toLowerCase();
     return normalized == 'gc' || normalized == 'wii';
+  }
+
+  /// Phone-shake preferences of the first emulated Wii Remote (Build 442):
+  /// `enabled` and `sensitivity` (`low`, `medium`, `high`). They live in the
+  /// native user defaults read by the overlay; a running session re-reads
+  /// them at once. Returns null when the bridge is unavailable.
+  static Future<DolphinPhoneShakeSettings?> phoneShakeSettings() async {
+    if (!Platform.isIOS) return null;
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'phoneShakeSettings',
+      );
+      return raw == null ? null : DolphinPhoneShakeSettings.fromMap(raw);
+    } on PlatformException catch (error) {
+      _log.w('Dolphin phone shake settings unavailable: ${error.message}');
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Writes the given preferences (a null field keeps its value). Returns the
+  /// stored values, or null when the native side rejected or lacks them.
+  static Future<DolphinPhoneShakeSettings?> setPhoneShakeSettings({
+    bool? enabled,
+    String? sensitivity,
+  }) async {
+    if (!Platform.isIOS) return null;
+    if (sensitivity != null &&
+        !DolphinPhoneShakeSettings.sensitivities.contains(sensitivity)) {
+      return null;
+    }
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'setPhoneShakeSettings',
+        <String, dynamic>{'enabled': ?enabled, 'sensitivity': ?sensitivity},
+      );
+      return raw == null ? null : DolphinPhoneShakeSettings.fromMap(raw);
+    } on PlatformException catch (error) {
+      _log.w('Dolphin phone shake settings rejected: ${error.message}');
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
   }
 
   static Set<String> extensionsFor(String folderName) {

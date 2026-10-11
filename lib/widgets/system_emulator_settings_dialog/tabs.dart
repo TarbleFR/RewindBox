@@ -600,17 +600,23 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
   Widget _buildEmulatorsTab() {
     final embeddedEngine = _iosEmbeddedEngineName;
     if (embeddedEngine != null) {
-      return Padding(
+      final wii = _system.folderName.trim().toLowerCase() == 'wii';
+      return ListView(
         padding: EdgeInsets.all(12.r),
-        child: ListTile(
-          leading: const Icon(Symbols.sports_esports_rounded),
-          title: Text(embeddedEngine),
-          subtitle: Text(EmbeddedEmulatorLocale.integrated(context)),
-          trailing: Icon(
-            Icons.check_circle,
-            color: Theme.of(context).colorScheme.primary,
+        children: [
+          ListTile(
+            leading: const Icon(Symbols.sports_esports_rounded),
+            title: Text(embeddedEngine),
+            subtitle: Text(EmbeddedEmulatorLocale.integrated(context)),
+            trailing: Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
-        ),
+          // Build 442: phone shake on/off and sensitivity of the Wii Remote,
+          // the same native preferences as the in-game Controls menu.
+          if (wii) const DolphinWiiMotionPanel(),
+        ],
       );
     }
     // Systems run by the embedded libretro engine: "Embedded RetroArch" in

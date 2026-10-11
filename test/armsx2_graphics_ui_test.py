@@ -9,7 +9,7 @@ harness=importlib.util.module_from_spec(spec);spec.loader.exec_module(harness)
 source=(ROOT/'test/dolphin_account_267_test.py').read_text()
 start=source.index('def native():');end=source.index("if __name__ == '__main__':",start)
 runner=source[start:end].replace('DolphinAccount267','ARMSX2Graphics26').replace('DolphinAccountHost','ARMSX2GraphicsHost').replace('DolphinAccountTests','ARMSX2GraphicsTests')
-runner=runner.replace('str(CLASSES / \'DolphinSessionMenu.mm\')','str(CLASSES / \'Armsx2SessionMenu.mm\')').replace('str(CLASSES / \'DolphinRetroAchievementsAccount.mm\')','str(CLASSES / \'Armsx2RetroAchievementsMenu.mm\')').replace('str(CLASSES / \'DolphinFramePacing.mm\')','str(CLASSES / \'ARMSX2InGameLocalization.mm\')')
+runner=runner.replace('str(CLASSES / \'DolphinSessionMenu.mm\')','str(CLASSES / \'Armsx2SessionMenu.mm\')').replace('str(CLASSES / \'DolphinRetroAchievementsAccount.mm\')','str(CLASSES / \'Armsx2RetroAchievementsMenu.mm\')').replace('str(CLASSES / \'DolphinFramePacing.mm\')','str(CLASSES / \'ARMSX2InGameLocalization.mm\')').replace(", str(CLASSES / 'DolphinExternalDisplay.mm')",'')
 runner=runner.replace("'CLANG_ENABLE_OBJC_ARC': 'YES'","'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_CXX_LANGUAGE_STANDARD': 'c++20'")
 runner=runner.replace("{'sdk': 'UIKit.framework'}","{'sdk': 'libz.tbd'}, {'sdk': 'UniformTypeIdentifiers.framework'}, {'sdk': 'UIKit.framework'}")
 ns=dict(vars(harness));ns['CLASSES']=ROOT/'packages/armsx2_internal_bridge/ios/Classes'

@@ -41,6 +41,11 @@ import GameController
     }
     if notification.name == UIApplication.willResignActiveNotification { appActive = false }
     if notification.name == UIApplication.didBecomeActiveNotification { appActive = true }
+    if notification.name == Notification.Name(DolphinPhoneShakePolicy.preferenceChanged) {
+      // The toggle and the sensitivity share this notification; the detector
+      // reads the new level on the sensor queue without restarting the sensor.
+      phoneShake.refreshSensitivity()
+    }
     if notification.name == NSNotification.Name.GCControllerDidConnect ||
        notification.name == NSNotification.Name.GCControllerDidDisconnect {
       // The default device/profile can change while the sensor stays enabled.

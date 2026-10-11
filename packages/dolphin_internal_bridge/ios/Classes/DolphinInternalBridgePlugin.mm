@@ -9,6 +9,8 @@
 #import "DolphinSessionLifecycle.h"
 #include "TouchController/DolphinPhoneShakeRouting.h"
 #include "TouchController/DolphinShakeAssignment.h"
+#include "DolphinPhoneShakePreferences.h"
+#import "DolphinExternalDisplay.h"
 #import "DolphinRecordingController.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
@@ -197,6 +199,10 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 @property(nonatomic, assign) BOOL acceptsTouchInput;
 @property(nonatomic, strong) DolphinFramePacing* framePacing;
 @property(nonatomic, assign) NSUInteger controllerGeneration;
+// Build 442: dedicated output on an external screen; the hint replaces the
+// game image on the iPhone while the controls stay here.
+@property(nonatomic, strong, nullable) DolphinExternalDisplay* externalDisplay;
+@property(nonatomic, strong) UILabel* externalHint;
 - (void)refreshTouchVisibility;
 - (void)suspendTouchInput;
 @end
@@ -215,15 +221,38 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 }
 
 - (void)loadView {
+  // Build 442: a plain container owns the Metal view (index 0) and the
+  // controls above it, so the Metal view alone can move to an external screen.
+  UIView* container = [[UIView alloc] initWithFrame:UIScreen.mainScreen.bounds];
+  container.backgroundColor = UIColor.blackColor;
+  container.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  self.view = container;
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-  _metalView = [[MTKView alloc] initWithFrame:UIScreen.mainScreen.bounds device:device];
+  _metalView = [[MTKView alloc] initWithFrame:container.bounds device:device];
   _metalView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   _metalView.enableSetNeedsDisplay = NO;
   // Dolphin presents directly to CAMetalLayer. MTKView must not run a second
   // display loop or acquire drawables while the emulator owns the surface.
   _metalView.paused = YES;
   _metalView.backgroundColor = UIColor.blackColor;
-  self.view = _metalView;
+  [container addSubview:_metalView];
+
+  UILabel* hint = [UILabel new];
+  hint.translatesAutoresizingMaskIntoConstraints = NO;
+  hint.text = DOLPacingText(@"externalActive", self.labels[@"__locale"] ?: @"en");
+  hint.textColor = [UIColor colorWithWhite:0.75 alpha:1];
+  hint.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+  hint.textAlignment = NSTextAlignmentCenter;
+  hint.numberOfLines = 0;
+  hint.hidden = YES;
+  hint.accessibilityIdentifier = @"dolphin.externalDisplay.hint";
+  [container addSubview:hint];
+  self.externalHint = hint;
+  [NSLayoutConstraint activateConstraints:@[
+    [hint.centerXAnchor constraintEqualToAnchor:container.centerXAnchor],
+    [hint.centerYAnchor constraintEqualToAnchor:container.centerYAnchor],
+    [hint.widthAnchor constraintLessThanOrEqualToAnchor:container.widthAnchor multiplier:0.6],
+  ]];
 
   self.touchOverlay = [[DOLTouchOverlay alloc] initWithWii:self.wii];
   // Translated session labels (DolphinShakeLocale); GameCube has no Shake control.
@@ -286,7 +315,7 @@ static UIViewController* _Nullable DOLRootViewController(void) {
     [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:close.leadingAnchor],
     [self.performanceOverlay.topAnchor constraintEqualToAnchor:close.bottomAnchor constant:8.0],
     [self.performanceOverlay.widthAnchor constraintEqualToConstant:300.0],
-    [self.performanceOverlay.heightAnchor constraintEqualToConstant:170.0],
+    [self.performanceOverlay.heightAnchor constraintEqualToConstant:188.0],
     [close.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:12.0],
     [close.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:12.0],
     [close.widthAnchor constraintEqualToConstant:44.0],
@@ -325,7 +354,11 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   self.touchOverlay.hidden = self.presentedViewController != nil || GCController.controllers.count > 0;
 }
 
-- (void)dealloc { [self.framePacing stop]; [NSNotificationCenter.defaultCenter removeObserver:self]; }
+- (void)dealloc {
+  [self.externalDisplay stop];
+  [self.framePacing stop];
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+}
 
 - (void)closePressed:(__unused id)sender {
   if (self.closeHandler != nil) self.closeHandler();
@@ -720,6 +753,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 @property(atomic, strong, nullable) DOLDolphinViewController* dolphinController;
 @property(nonatomic, strong, nullable) DOLHelperSession* helperSession;
 @property(nonatomic, strong, nullable) dispatch_source_t runningTimer;
+// Build 442: 10 Hz frame-time sub-sampler on the runtime queue (trace only).
+@property(atomic, strong, nullable) dispatch_source_t frameSampler;
 @property(nonatomic, copy, nullable) NSString* activeLogPath;
 @property(nonatomic, assign) BOOL launchInProgress;
 @property(atomic, assign) BOOL stopInProgress;
@@ -856,6 +891,23 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   }
   if ([call.method isEqualToString:@"isRunning"]) {
     result(@(self.launchInProgress || self.stopInProgress || neostation_dolphin_is_running() != 0));
+    return;
+  }
+  // Build 442: the Wii settings panel reads and writes the phone-shake
+  // preferences (NSUserDefaults only; a live overlay re-reads them on the
+  // shared notification). Never a core setting, never a launch gate.
+  if ([call.method isEqualToString:@"phoneShakeSettings"]) {
+    result(DOLPhoneShakeSettingsSnapshot());
+    return;
+  }
+  if ([call.method isEqualToString:@"setPhoneShakeSettings"]) {
+    NSDictionary* args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    if (!DOLPhoneShakeApplySettings(args[@"enabled"], args[@"sensitivity"])) {
+      result([FlutterError errorWithCode:@"invalid_phone_shake_settings"
+                                 message:@"Phone shake settings were rejected." details:nil]);
+      return;
+    }
+    result(DOLPhoneShakeSettingsSnapshot());
     return;
   }
   result(FlutterMethodNotImplemented);
@@ -1144,6 +1196,21 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     dispatch_sync(dispatch_get_main_queue(),^{
       [controller.framePacing startWithView:controller.view];
       controller.touchOverlay.sessionInputActive = YES;
+      // Build 442: with AirPlay or an adapter, the Metal view moves to the
+      // external screen (Fit/Fill) while the controls stay on the iPhone.
+      DolphinExternalDisplay* external = [[DolphinExternalDisplay alloc]
+          initWithRenderView:controller.metalView placeholder:controller.view];
+      __weak DOLDolphinViewController* weakController = controller;
+      external.stateChanged = ^(BOOL active) {
+        DOLDolphinViewController* strong = weakController;
+        strong.externalHint.hidden = !active;
+        strong.framePacing.externalDisplayActive = active;
+        DOLAppendJSONLog(logPath, active ? @"display.external_started" : @"display.external_stopped",
+                         active ? @"Game drawn on the external screen; controls stay on the iPhone."
+                                : @"Game drawn on the iPhone again.", nil);
+      };
+      controller.externalDisplay = external;
+      [external start];
     });
     [self startRunningMonitor];
     @synchronized(self) { self.launchInProgress = NO; }
@@ -1628,13 +1695,65 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           if(performance && !strongSelf.sessionMenu && !strongSelf.menuOpening)
             [owner.framePacing appendPerformance:performance inputMs:inputMs refreshed:refreshInput];
           if (performance && owner.showingPerformance && owner.performanceGeneration == performanceGeneration &&
-              !strongSelf.sessionMenu && !strongSelf.menuOpening)
-            [owner.performanceOverlay appendSnapshot:performance];
+              !strongSelf.sessionMenu && !strongSelf.menuOpening) {
+            // Build 442: the overlay also shows the worst sampled frame, the
+            // thermal state and the memory footprint of this session.
+            NSMutableDictionary* enriched = [performance mutableCopy];
+            [enriched addEntriesFromDictionary:[owner.framePacing frameTimeSummary]];
+            enriched[@"thermalState"] = @(NSProcessInfo.processInfo.thermalState);
+            enriched[@"memoryFootprintMB"] = owner.framePacing.summary[@"memoryFootprintMB"] ?: @0;
+            [owner.performanceOverlay appendSnapshot:enriched];
+          }
         });
       });
     });
     dispatch_resume(timer);
+    [self startFrameSampler];
   });
+}
+
+// Build 442: 10 Hz sub-sample of the core's last frame time while the trace or
+// the overlay is on. Reads upstream atomics only (no lock, no GPU readback);
+// paused and repeated values are skipped so a stall is counted once.
+- (void)startFrameSampler {
+  dispatch_source_t previous = self.frameSampler;
+  if (previous) dispatch_source_cancel(previous);
+  dispatch_source_t sampler = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _runtimeQueue);
+  self.frameSampler = sampler;
+  dispatch_source_set_timer(sampler, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+                            (uint64_t)(0.1 * NSEC_PER_SEC), (uint64_t)(0.02 * NSEC_PER_SEC));
+  __weak DolphinInternalBridgePlugin* weakSelf = self;
+  __block double previousFrameMs = -1;
+  dispatch_source_set_event_handler(sampler, ^{
+    DolphinInternalBridgePlugin* strongSelf = weakSelf;
+    if (!strongSelf || strongSelf.stopInProgress || strongSelf.launchInProgress) return;
+    DOLDolphinViewController* owner = strongSelf.dolphinController;
+    if (!owner) return;
+    DolphinFramePacing* pacing = owner.framePacing;
+    if (!pacing || !(pacing.traceEnabled || owner.showingPerformance)) return;
+    @autoreleasepool {
+      char* json = neostation_dolphin_performance_snapshot();
+      if (!json) return;
+      NSData* data = [NSData dataWithBytes:json length:strlen(json)];
+      free(json);
+      id value = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+      if (![value isKindOfClass:NSDictionary.class]) return;
+      id last = value[@"lastFrameTimeMs"], fps = value[@"fps"];
+      if (![last isKindOfClass:NSNumber.class] || ![fps isKindOfClass:NSNumber.class]) return;
+      const double frameMs = [last doubleValue];
+      // A paused core repeats its last frame; FPS decays to zero there.
+      if ([fps doubleValue] <= 0 || frameMs == previousFrameMs) return;
+      previousFrameMs = frameMs;
+      [pacing recordFrameTimeMs:frameMs];
+    }
+  });
+  dispatch_resume(sampler);
+}
+
+- (void)stopFrameSampler {
+  dispatch_source_t sampler = self.frameSampler;
+  self.frameSampler = nil;
+  if (sampler) dispatch_source_cancel(sampler);
 }
 
 - (void)stopRuntimeWithReason:(NSString*)reason {
@@ -1669,6 +1788,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   dispatch_block_t prepare = ^{
     self.stopInProgress = YES;
     self.menuOpening = YES;
+    [self stopFrameSampler];
+    // The Metal view returns to the iPhone before the core shuts down and the
+    // controller is dismissed; the external window is released here.
+    [self.dolphinController.externalDisplay stop];
+    self.dolphinController.externalDisplay = nil;
     [self.dolphinController.framePacing stop];
     if (self.runningTimer) {
       dispatch_source_cancel(self.runningTimer);
@@ -1696,7 +1820,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       dispatch_source_cancel(self.runningTimer);
       self.runningTimer = nil;
     }
+    [self stopFrameSampler];
     DOLDolphinViewController* controller = self.dolphinController;
+    [controller.externalDisplay stop];
+    controller.externalDisplay = nil;
     self.dolphinController = nil;
     self.sessionMenu = nil;
     self.menuOpening = NO;

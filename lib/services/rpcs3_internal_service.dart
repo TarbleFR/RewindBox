@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import '../data/datasources/sqlite_service.dart';
+import '../l10n/rpcs3_saves_locale.dart';
 import '../l10n/rpcs3_ui_locale.dart';
 import 'rpcs3_game_deletion.dart';
+import 'rpcs3_save_exchange_service.dart';
 import 'game_launch_manager.dart';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -174,8 +177,38 @@ class Rpcs3InternalService {
     return directory;
   }
 
+  /// Documents root of the Files workspace; tests point it at a temporary
+  /// folder so no path_provider channel is needed.
+  @visibleForTesting
+  static Future<Directory> Function()? filesWorkspaceDocumentsOverride;
+
+  /// Text of `Documents/RPCS3/README.txt`, rewritten whenever it differs
+  /// (the Build 441 text promised an automatic consumption that no longer
+  /// exists).
+  static const String filesWorkspaceReadme =
+      'NeoStation - RPCS3 game saves (manual exchange)\n'
+      '\n'
+      'Import/Game Saves : drop PS3 save folders (each holding PARAM.SFO,\n'
+      '                    alone or under a parent folder) or ZIP archives\n'
+      '                    here, then open NeoStation > RPCS3 manager and\n'
+      '                    tap "Import game saves". Nothing is read or\n'
+      '                    removed from this folder automatically; the\n'
+      '                    manager asks before replacing an existing save.\n'
+      'Export/Game Saves : "Export game saves" in the RPCS3 manager writes\n'
+      '                    one RPCS3-saves-<date>.zip here (savedata/<DIR>/...).\n'
+      '                    Share it from the report, or copy it from Files.\n'
+      'Import/Savestates, Export/Savestates : reserved; not used by these\n'
+      '                    flows.\n'
+      '\n'
+      'RPCS3 reads the saves from NeoStation\'s private RPCS3 folder; an\n'
+      'imported save appears in RPCS3 without any further step.\n';
+
+  /// `Documents/RPCS3` with its Import/Export folders and README. Only
+  /// creates what is missing; existing files are never read, moved or
+  /// deleted.
   static Future<Directory> filesWorkspaceDirectory() async {
-    final documents = await getApplicationDocumentsDirectory();
+    final documents = await (filesWorkspaceDocumentsOverride?.call() ??
+        getApplicationDocumentsDirectory());
     final root = Directory(path.join(documents.path, 'RPCS3'));
     await root.create(recursive: true);
     for (final relative in const <String>[
@@ -187,104 +220,75 @@ class Rpcs3InternalService {
       await Directory(path.join(root.path, relative)).create(recursive: true);
     }
     final readme = File(path.join(root.path, 'README.txt'));
-    if (!await readme.exists()) {
-      await readme.writeAsString(
-        'NeoStation RPCS3 manual save exchange\n\n'
-        'Import/Game Saves     : place PS3 savedata folders here.\n'
-        'Import/Savestates     : place .SAVESTAT/.zst/.gz states here.\n'
-        'Export/Game Saves     : current savedata snapshot from RPCS3.\n'
-        'Export/Savestates     : current RPCS3 savestate snapshot.\n\n'
-        'Import is consumed automatically when NeoStation starts.\n'
-        'Export is refreshed automatically at startup.\n',
-        flush: true,
-      );
+    String? current;
+    try {
+      if (await readme.exists()) current = await readme.readAsString();
+    } catch (_) {
+      current = null;
+    }
+    if (current != filesWorkspaceReadme) {
+      await readme.writeAsString(filesWorkspaceReadme, flush: true);
     }
     return root;
   }
 
-  static bool _allowedSavestateFile(String filePath) {
-    final lower = filePath.toLowerCase();
-    return lower.endsWith('.savestat') ||
-        lower.endsWith('.savestat.zst') ||
-        lower.endsWith('.savestat.gz');
-  }
-
-  static Future<void> _copyReplacing(File source, File target) async {
-    await target.parent.create(recursive: true);
-    final temp = File('${target.path}.neostation-sync-tmp');
-    if (await temp.exists()) await temp.delete();
-    await source.copy(temp.path);
-    if (await target.exists()) await target.delete();
-    await temp.rename(target.path);
-  }
-
-  static Future<int> _copyTree({
-    required Directory source,
-    required Directory destination,
-    required bool savestates,
-    required bool consumeSource,
-  }) async {
-    if (!await source.exists()) return 0;
-    await destination.create(recursive: true);
-    var copied = 0;
-    await for (final entity in source.list(recursive: true, followLinks: false)) {
-      final relative = path.relative(entity.path, from: source.path);
-      if (relative == '.' || relative == '..' || relative.startsWith('../')) continue;
-      final targetPath = path.join(destination.path, relative);
-      if (entity is Directory) {
-        await Directory(targetPath).create(recursive: true);
-        continue;
-      }
-      if (entity is! File || path.basename(entity.path) == '.DS_Store') continue;
-      if (savestates && !_allowedSavestateFile(entity.path)) continue;
-      await _copyReplacing(entity, File(targetPath));
-      copied++;
-      if (consumeSource) {
-        try { await entity.delete(); } catch (_) {}
-      }
-    }
-    return copied;
-  }
-
-  /// Physical Files workspace: consumes Import then refreshes Export.
+  /// Startup housekeeping of the Files workspace, called by the locked
+  /// `lib/main.dart` and before an explicit Core startup: makes sure the
+  /// folders and README exist, nothing more. Saves are exchanged only on
+  /// the user's explicit action through [Rpcs3SaveExchangeService]; the
+  /// returned counters stay zero and exist for the locked caller.
   static Future<({int imported, int exported})> synchronizeFilesWorkspace() async {
-    if (!supported) return (imported: 0, exported: 0);
-    final workspace = await filesWorkspaceDirectory();
-    final data = await dataDirectory();
+    if (!supported && filesWorkspaceDocumentsOverride == null) {
+      return (imported: 0, exported: 0);
+    }
+    await filesWorkspaceDirectory();
+    return (imported: 0, exported: 0);
+  }
 
-    var imported = 0;
-    imported += await _copyTree(
-      source: Directory(path.join(workspace.path, 'Import', 'Game Saves')),
-      destination: Directory(path.join(data.path, 'dev_hdd0', 'home', '00000001', 'savedata')),
-      savestates: false,
-      consumeSource: true,
-    );
-    imported += await _copyTree(
-      source: Directory(path.join(workspace.path, 'Import', 'Savestates')),
-      destination: Directory(path.join(data.path, 'savestates')),
-      savestates: true,
-      consumeSource: true,
-    );
+  static String _saves(String key) =>
+      Rpcs3SavesLocale.textForLocale(_localeTag, key);
 
-    final exportRoot = Directory(path.join(workspace.path, 'Export'));
-    if (await exportRoot.exists()) await exportRoot.delete(recursive: true);
-    await Directory(path.join(exportRoot.path, 'Game Saves')).create(recursive: true);
-    await Directory(path.join(exportRoot.path, 'Savestates')).create(recursive: true);
+  /// Reads the Core's emulation state for [runSaveExchange]; tests replace
+  /// it to simulate a running game.
+  @visibleForTesting
+  static Future<int> Function() saveExchangeEmulationState =
+      Rpcs3InternalBridge.emulationState;
 
-    var exported = 0;
-    exported += await _copyTree(
-      source: Directory(path.join(data.path, 'dev_hdd0', 'home', '00000001', 'savedata')),
-      destination: Directory(path.join(workspace.path, 'Export', 'Game Saves')),
-      savestates: false,
-      consumeSource: false,
-    );
-    exported += await _copyTree(
-      source: Directory(path.join(data.path, 'savestates')),
-      destination: Directory(path.join(workspace.path, 'Export', 'Savestates')),
-      savestates: true,
-      consumeSource: false,
-    );
-    return (imported: imported, exported: exported);
+  /// Makes [runSaveExchange] treat the Core as loaded (true) or dormant
+  /// (false) instead of the real state. Tests only.
+  @visibleForTesting
+  static bool? saveExchangeCoreInitializedOverride;
+
+  /// Runs a game-save import or export under the same guard as
+  /// [deleteInstalledGame]: refused while another library mutation, a
+  /// runtime preparation or a content import runs, while a game session is
+  /// active, and, once the Core is loaded, unless its emulation state is
+  /// stopped (0) or ready (1), because RPCS3 may be writing a save. The
+  /// library mutation flag is held for the whole [body].
+  static Future<T> runSaveExchange<T>(Future<T> Function() body) async {
+    if (GameLaunchManager().isActive) {
+      throw Rpcs3InternalException('gameRunning', _saves('busyGameRunning'));
+    }
+    if (_libraryMutationInProgress ||
+        _runtimePreparation != null ||
+        _state.phase == Rpcs3RuntimePhase.importingContent) {
+      throw Rpcs3InternalException('libraryBusy', _saves('busyLibrary'));
+    }
+    _libraryMutationInProgress = true;
+    try {
+      if (saveExchangeCoreInitializedOverride ?? _initialized) {
+        final emulation = await saveExchangeEmulationState();
+        if (emulation != 0 && emulation != 1) {
+          throw Rpcs3InternalException(
+            'gameRunning',
+            _saves('busyGameRunning'),
+          );
+        }
+      }
+      return await body();
+    } finally {
+      _libraryMutationInProgress = false;
+    }
   }
 
   static Future<Map<String, dynamic>> _jitStatus() => _bounded(
@@ -358,9 +362,9 @@ class Rpcs3InternalService {
     }
     if (_initialized) return;
 
-    // Manual Files imports belong to the explicit RPCS3 launch path, never
-    // NeoStation cold startup. This keeps the physical Import folder useful
-    // without delaying the app's first real frame.
+    // The Files workspace folders are ensured before an explicit Core
+    // startup (nothing is imported or exported here: saves move only on
+    // the user's action through Rpcs3SaveExchangeService).
     try {
       await synchronizeFilesWorkspace();
     } catch (error) {
@@ -566,218 +570,29 @@ class Rpcs3InternalService {
     }
   }
 
-  /// Publishes a detached snapshot of RPCS3's user saves in NeoStation's
-  /// Documents container. iOS exposes that container in Files, while the live
-  /// RPCS3 tree remains in Application Support where the Core expects it.
-  ///
-  /// The export contains regular PS3 savedata and RPCS3 savestates only.
-  /// Firmware, games, caches, trophies and configuration stay private.
+  /// Thin wrapper kept for the dormant playlist branches: exports every
+  /// valid game save of user 00000001 to a ZIP in
+  /// `Documents/RPCS3/Export/Game Saves` (see [Rpcs3SaveExchangeService])
+  /// and returns that folder. Firmware, games, caches, trophies,
+  /// savestates and configuration stay private; the live tree is not
+  /// touched. The manager uses the service directly to show the report.
   static Future<Directory> exportSaveData() async {
-    if (!supported) {
-      throw Rpcs3InternalException('unsupported', _ui('operationFailed'));
-    }
-
-    final data = await dataDirectory();
-    final sources = <String, Directory>{
-      'Game Saves': Directory(
-        path.join(data.path, 'dev_hdd0', 'home', '00000001', 'savedata'),
-      ),
-      'Savestates': Directory(path.join(data.path, 'savestates')),
-    };
-
-    final exportRoot = await filesWorkspaceDirectory();
-    final destination = Directory(path.join(exportRoot.path, 'Export'));
-    final staging = Directory(
-      path.join(
-        exportRoot.path,
-        '.Saves-${DateTime.now().microsecondsSinceEpoch}.tmp',
-      ),
-    );
-    final previous = Directory(path.join(exportRoot.path, '.Saves.previous'));
-
-    var copiedFiles = 0;
-    try {
-      await staging.create(recursive: true);
-      for (final entry in sources.entries) {
-        final source = entry.value;
-        await Directory(path.join(staging.path, entry.key)).create(recursive: true);
-        if (!await source.exists()) continue;
-        await for (final entity in source.list(
-          recursive: true,
-          followLinks: false,
-        )) {
-          final relative = path.relative(entity.path, from: source.path);
-          if (relative == '.' ||
-              relative == '..' ||
-              relative.startsWith('../')) {
-            continue;
-          }
-          final target = path.join(staging.path, entry.key, relative);
-          if (entity is Directory) {
-            await Directory(target).create(recursive: true);
-          } else if (entity is File) {
-            await Directory(path.dirname(target)).create(recursive: true);
-            await entity.copy(target);
-            copiedFiles++;
-          }
-        }
-      }
-
-      if (copiedFiles == 0) {
-        throw Rpcs3InternalException('saveDataEmpty', _ui('operationFailed'));
-      }
-
-      // Prepare the full snapshot before swapping it into place. If the final
-      // rename fails, restore the previous exported copy; RPCS3's live saves
-      // are never moved or modified by this operation.
-      if (await previous.exists()) {
-        await previous.delete(recursive: true);
-      }
-      if (await destination.exists()) {
-        await destination.rename(previous.path);
-      }
-      try {
-        final exported = await staging.rename(destination.path);
-        if (await previous.exists()) {
-          await previous.delete(recursive: true);
-        }
-        return exported;
-      } catch (_) {
-        if (!(await destination.exists()) && (await previous.exists())) {
-          await previous.rename(destination.path);
-        }
-        rethrow;
-      }
-    } on Rpcs3InternalException {
-      rethrow;
-    } catch (error) {
-      _log.e('RPCS3 save export failed: $error');
-      throw Rpcs3InternalException('saveExportFailed', _ui('operationFailed'));
-    } finally {
-      if (await staging.exists()) {
-        try {
-          await staging.delete(recursive: true);
-        } catch (_) {}
-      }
-      if ((await previous.exists()) && !(await destination.exists())) {
-        try {
-          await previous.rename(destination.path);
-        } catch (_) {}
-      }
-    }
+    final result = await Rpcs3SaveExchangeService.instance.exportGuarded();
+    return Directory(path.dirname(result.zipPath));
   }
 
-  /// Restores user-managed PS3 saves and RPCS3 savestates from the Files-visible
-  /// exchange folder created by [exportSaveData].
-  ///
-  /// Users may edit/copy files in:
-  /// On My iPhone/NeoStation/RPCS3/Import/Game Saves
-  /// On My iPhone/NeoStation/RPCS3/Import/Savestates
-  /// and then call this method to copy them back into RPCS3's private live tree.
+  /// Thin wrapper kept for the dormant playlist branches: imports the save
+  /// folders and ZIP archives found in `Documents/RPCS3/Import/Game Saves`
+  /// without replacing existing saves (no prompt is possible here) and
+  /// returns the number of saves installed. The manager uses the service
+  /// directly, with the replace prompt and the per-save report.
   static Future<int> importSaveDataFromFiles() async {
-    if (!supported) {
-      throw Rpcs3InternalException('unsupported', _ui('operationFailed'));
-    }
-    if (_libraryMutationInProgress ||
-        _runtimePreparation != null ||
-        GameLaunchManager().isActive ||
-        _state.phase == Rpcs3RuntimePhase.importingContent) {
-      throw Rpcs3InternalException('saveImportBusy', _ui('operationFailed'));
-    }
-
-    final workspace = await filesWorkspaceDirectory();
-    final exchangeRoot = Directory(path.join(workspace.path, 'Import'));
-    if (!await exchangeRoot.exists()) {
-      await Directory(path.join(exchangeRoot.path, 'Game Saves')).create(recursive: true);
-      await Directory(path.join(exchangeRoot.path, 'Savestates')).create(recursive: true);
-      throw Rpcs3InternalException('saveImportFolderMissing', _ui('operationFailed'));
-    }
-    await Directory(path.join(exchangeRoot.path, 'Game Saves')).create(recursive: true);
-    await Directory(path.join(exchangeRoot.path, 'Savestates')).create(recursive: true);
-
-    final data = await dataDirectory();
-    final mappings = <({String sourceName, Directory destination, bool savestate})>[
-      (
-        sourceName: 'Game Saves',
-        destination: Directory(
-          path.join(data.path, 'dev_hdd0', 'home', '00000001', 'savedata'),
-        ),
-        savestate: false,
-      ),
-      (
-        sourceName: 'Savestates',
-        destination: Directory(path.join(data.path, 'savestates')),
-        savestate: true,
-      ),
-    ];
-
-    _libraryMutationInProgress = true;
-    var copiedFiles = 0;
-    try {
-      for (final mapping in mappings) {
-        final source = Directory(path.join(exchangeRoot.path, mapping.sourceName));
-        if (!await source.exists()) continue;
-        await mapping.destination.create(recursive: true);
-
-        await for (final entity in source.list(
-          recursive: true,
-          followLinks: false,
-        )) {
-          final relative = path.relative(entity.path, from: source.path);
-          if (relative == '.' ||
-              relative == '..' ||
-              relative.startsWith('../')) {
-            continue;
-          }
-          final targetPath = path.join(mapping.destination.path, relative);
-
-          if (entity is Directory) {
-            await Directory(targetPath).create(recursive: true);
-            continue;
-          }
-          if (entity is! File) continue;
-
-          if (mapping.savestate) {
-            final name = entity.path.toLowerCase();
-            final valid =
-                name.endsWith('.savestat') ||
-                name.endsWith('.savestat.zst') ||
-                name.endsWith('.savestat.gz');
-            if (!valid) continue;
-          } else if (path.basename(entity.path) == '.DS_Store') {
-            continue;
-          }
-
-          await Directory(path.dirname(targetPath)).create(recursive: true);
-          final target = File(targetPath);
-          final backup = File('$targetPath.neostation-import-backup');
-          if (await backup.exists()) await backup.delete();
-          if (await target.exists()) await target.rename(backup.path);
-          try {
-            await entity.copy(target.path);
-            if (await backup.exists()) await backup.delete();
-            copiedFiles++;
-          } catch (_) {
-            if (await target.exists()) await target.delete();
-            if (await backup.exists()) await backup.rename(target.path);
-            rethrow;
-          }
-        }
-      }
-
-      if (copiedFiles == 0) {
-        throw Rpcs3InternalException('saveImportEmpty', _ui('operationFailed'));
-      }
-      _log.i('RPCS3 save import completed: $copiedFiles file(s).');
-      return copiedFiles;
-    } on Rpcs3InternalException {
-      rethrow;
-    } catch (error) {
-      _log.e('RPCS3 save import failed: $error');
-      throw Rpcs3InternalException('saveImportFailed', _ui('operationFailed'));
-    } finally {
-      _libraryMutationInProgress = false;
-    }
+    final report = await Rpcs3SaveExchangeService.instance.importGuarded(
+      Rpcs3SaveImportSourceKind.filesFolder,
+      confirmReplace: (_) async => false,
+    );
+    if (report == null) return 0;
+    return report.imported + report.replaced;
   }
 
   static Future<String> _stageFirmware(String sourcePath) async {

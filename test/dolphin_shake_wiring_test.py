@@ -22,6 +22,20 @@ arbiter = (TOUCH / 'DolphinShakeInput.swift').read_text(encoding='utf-8')
 assert sorted(re.findall(r'^import (\w+)', arbiter, re.M)) == ['CoreGraphics', 'Foundation'], \
     'the arbiter stays executable by swiftc on macOS without UIKit'
 
+# Build 442: the detector (sensitivity presets, hold while moving) stays pure
+# Foundation, and its preference key is the one the ObjC menu/channel write.
+detector = (TOUCH / 'DolphinShakeDetector.swift').read_text(encoding='utf-8')
+assert re.findall(r'^import (\w+)', detector, re.M) == ['Foundation'], 'the detector stays executable by swiftc on macOS'
+preferences = (IOS / 'Classes/DolphinPhoneShakePreferences.h').read_text(encoding='utf-8')
+for key in ('NeoStation.Dolphin.PhoneShake.Enabled', 'NeoStation.Dolphin.PhoneShake.Sensitivity', 'NeoStation.Dolphin.PhoneShakeChanged'):
+    assert key in preferences, key
+assert '"NeoStation.Dolphin.PhoneShake.Sensitivity"' in detector and '"NeoStation.Dolphin.PhoneShake.Enabled"' in detector
+assert re.search(r'case low, medium, high', detector) and '@[@"low", @"medium", @"high"]' in preferences, 'same raw levels on both sides'
+menu = (IOS / 'Classes/DolphinSessionMenu.mm').read_text(encoding='utf-8')
+assert '#include "DolphinPhoneShakePreferences.h"' in menu and 'DOLPhoneShakeApplySettings(nil, DOLPhoneShakeNextSensitivity(' in menu
+assert 'DOLPhoneShakeSensitivityKey=' not in menu, 'the menu no longer defines its own copy of the preference helpers'
+assert "'Classes/DolphinPhoneShakePreferences.h'" in private and "'Classes/DolphinExternalDisplayLayout.h'" in private
+
 transaction = (TOUCH / 'DolphinShakeAssignment.mm').read_text(encoding='utf-8')
 code = re.sub(r'//[^\n]*|/\*.*?\*/', '', transaction, flags=re.S)
 for forbidden in (r'\bdispatch_sync\b', r'\bdispatch_get_main_queue\b', r'<UIKit/', r'\bUI[A-Z][A-Za-z]+\b'):
