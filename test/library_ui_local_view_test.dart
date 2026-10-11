@@ -63,6 +63,9 @@ class _FakeLibrary extends LibraryLocalLibraryService {
   List<LibraryImportOutcome>? nextImport;
   LibraryDeleteResult deleteResult = LibraryDeleteResult.deleted;
 
+  /// When set, the import ends only once it completes.
+  Completer<void>? importGate;
+
   /// Thrown by rename / delete (an index that cannot be written).
   Object? renameError;
   Object? deleteError;
@@ -96,6 +99,7 @@ class _FakeLibrary extends LibraryLocalLibraryService {
       onProgress?.call(step);
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
+    await importGate?.future;
     final outcomes = nextImport;
     if (outcomes != null) {
       for (final outcome in outcomes) {
@@ -753,6 +757,53 @@ void _coveredSectionTests() {
 
     // Uncovered again: the controller drives the view.
     expect(host.controller.back(), isFalse, reason: 'back to the hub');
+  });
+
+  testWidgets('the end of an import closes its overlay, not a later route', (
+    tester,
+  ) async {
+    final host = await _pump(tester, <LibraryLocalBook>[alpha]);
+    host.library
+      ..progressSteps = const <LibraryImportProgress>[
+        LibraryImportProgress(
+          index: 0,
+          total: 1,
+          sourceName: 'Fondation.epub',
+          stage: LibraryImportStage.storing,
+        ),
+      ]
+      ..importGate = Completer<void>()
+      ..nextImport = <LibraryImportOutcome>[
+        LibraryImportOutcome(
+          sourceName: 'Fondation.epub',
+          book: _book('f', 'Fondation', LibraryBookFormat.epub),
+        ),
+      ];
+    await tester.tap(find.byKey(const ValueKey<String>('import-button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('import-progress')),
+      findsOneWidget,
+    );
+
+    // Another part of the app shows a page while the import runs (e.g.
+    // when NeoStation comes back from the file picker).
+    unawaited(
+      Navigator.of(tester.element(find.byType(LibraryLocalView))).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('Other page')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    host.library.importGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey<String>('import-progress')), findsNothing);
+    expect(find.text('Import results'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Other page'), findsOneWidget, reason: 'left open');
   });
 }
 

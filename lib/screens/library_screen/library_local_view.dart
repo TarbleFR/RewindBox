@@ -309,30 +309,31 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
     if (_importing) return;
     setState(() => _importing = true);
     final progress = ValueNotifier<LibraryImportProgress?>(null);
-    final navigator = Navigator.of(context);
-    var overlayShown = false;
-    var overlayOpen = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    DialogRoute<void>? overlay;
     void showOverlay() {
-      if (overlayShown || !mounted) return;
-      overlayShown = true;
-      overlayOpen = true;
-      unawaited(
-        showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => PopScope(
-            canPop: false,
-            // Holds the controller while the import runs (it cannot be
-            // cancelled): nothing behind the overlay can be activated.
-            child: LibraryFocusGamepadLayer(
-              enableGamepad: widget.enableGamepad,
-              debugLabel: 'local_import_progress',
-              onBack: () {},
-              child: _ImportProgressDialog(progress: progress),
-            ),
+      if (overlay != null || !mounted) return;
+      final route = DialogRoute<void>(
+        context: context,
+        barrierDismissible: false,
+        barrierLabel: MaterialLocalizations.of(
+          context,
+        ).modalBarrierDismissLabel,
+        themes: InheritedTheme.capture(from: context, to: navigator.context),
+        builder: (_) => PopScope(
+          canPop: false,
+          // Holds the controller while the import runs (it cannot be
+          // cancelled): nothing behind the overlay can be activated.
+          child: LibraryFocusGamepadLayer(
+            enableGamepad: widget.enableGamepad,
+            debugLabel: 'local_import_progress',
+            onBack: () {},
+            child: _ImportProgressDialog(progress: progress),
           ),
-        ).whenComplete(() => overlayOpen = false),
+        ),
       );
+      overlay = route;
+      unawaited(navigator.push(route));
     }
 
     List<LibraryImportOutcome>? outcomes;
@@ -347,7 +348,18 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
     } on Object catch (error) {
       failure = error;
     } finally {
-      if (overlayOpen && navigator.mounted) navigator.pop();
+      // Closes this overlay itself, never the top route: the overlay cannot
+      // be dismissed by the user, and a route another part of the app
+      // pushed meanwhile (the picker sends the app to the background) must
+      // not be closed in its place.
+      final route = overlay;
+      if (route != null && route.isActive && navigator.mounted) {
+        if (route.isCurrent) {
+          navigator.pop();
+        } else {
+          navigator.removeRoute(route);
+        }
+      }
       progress.dispose();
       if (mounted) setState(() => _importing = false);
     }
