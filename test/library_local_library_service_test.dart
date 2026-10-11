@@ -745,9 +745,11 @@ void main() {
     final imported = await library.importFiles(<String>[
       await pick('one.epub', buildEpub3()),
       await pick('two.cbz', buildCbz()),
+      await pick('three.txt', utf8.encode('Three')),
     ]);
     final one = imported[0].book!;
     final two = imported[1].book!;
+    final three = imported[2].book!;
     await library.rename(one.id, 'Kept title');
     final saved = await File(roots.indexPath).readAsString();
 
@@ -761,10 +763,15 @@ void main() {
     expect(blocked.indexRecovered, isFalse);
     expect(
       blocked.books.map((b) => b.relativePath),
-      unorderedEquals(<String>['Books/one.epub', 'Books/two.cbz']),
+      unorderedEquals(<String>[
+        'Books/one.epub',
+        'Books/two.cbz',
+        'Books/three.txt',
+      ]),
     );
     expect(blocked.bookById(one.id)!.customTitle, isNull);
     await blocked.rename(two.id, 'Session title');
+    expect(await blocked.delete(three.id), LibraryDeleteResult.deleted);
     expect(Directory(roots.indexPath).existsSync(), isTrue);
     expect(
       Directory(
@@ -782,6 +789,8 @@ void main() {
     expect(blocked.bookById(one.id)!.addedAtMs, one.addedAtMs);
     expect(blocked.bookById(two.id)!.addedAtMs, two.addedAtMs);
     expect(blocked.bookById(two.id)!.title, 'Session title');
+    // Deleted meanwhile: not brought back by the stored index.
+    expect(blocked.bookById(three.id), isNull);
 
     final reopened = service();
     await reopened.load();
@@ -789,6 +798,8 @@ void main() {
     expect(reopened.bookById(one.id)!.title, 'Kept title');
     expect(reopened.bookById(one.id)!.addedAtMs, one.addedAtMs);
     expect(reopened.bookById(two.id)!.title, 'Session title');
+    expect(reopened.bookById(three.id), isNull);
+    expect(reopened.books, hasLength(2));
   });
 
   test(

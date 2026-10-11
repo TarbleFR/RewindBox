@@ -1063,9 +1063,23 @@ class LibraryLocalLibraryService extends ChangeNotifier {
   /// Merges the index read late with the state built meanwhile from the
   /// files. The current state wins; the stored index brings back custom
   /// titles, dates added, the identity of books edited in place meanwhile,
-  /// and the books and ignored files the scans did not see (the next
-  /// complete scan settles them).
+  /// and the books and ignored files the scans did not see whose file still
+  /// exists (deleted meanwhile otherwise; the next complete scan settles
+  /// the rest).
   Future<void> _mergeStoredIndex(_IndexSnapshot stored) async {
+    final documents = _requireRoots().documentsLibrary;
+    Future<bool> exists(String relativePath) async {
+      try {
+        return await FileSystemEntity.type(
+              p.joinAll(<String>[documents, ...relativePath.split('/')]),
+              followLinks: false,
+            ) ==
+            FileSystemEntityType.file;
+      } on FileSystemException {
+        return false;
+      }
+    }
+
     final atPath = <String, LibraryLocalBook>{
       for (final book in _books.values) book.relativePath: book,
     };
@@ -1099,12 +1113,14 @@ class LibraryLocalLibraryService extends ChangeNotifier {
         }
         continue;
       }
+      if (!await exists(book.relativePath)) continue;
       _books[book.id] = book;
       atPath[book.relativePath] = book;
     }
     for (final file in stored.ignored) {
       if (atPath.containsKey(file.relativePath) ||
-          _ignored.containsKey(file.relativePath)) {
+          _ignored.containsKey(file.relativePath) ||
+          !await exists(file.relativePath)) {
         continue;
       }
       _ignored[file.relativePath] = file;
