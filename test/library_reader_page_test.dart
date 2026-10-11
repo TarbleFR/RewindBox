@@ -841,6 +841,75 @@ void main() {
       );
       await flushStore(tester, store);
     });
+
+    // Regression: closing within the save delay saved from dispose, so the
+    // store notified the screens below while the widget tree was locked
+    // ("setState() or markNeedsBuild() called when widget tree was
+    // locked"), and their new progress was not drawn.
+    testWidgets('B right after a page turn saves before the pop', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(progressKey: 'local:quick'),
+          store: store,
+        ),
+        home: StoreWatcher(store: store, progressKey: 'local:quick'),
+      );
+      // The opening is saved after the delay.
+      await tester.pump(const Duration(seconds: 1));
+      final state = readerState(tester);
+      state.gamepadBindings.right!();
+      await frames(tester);
+      expect(state.controller.page, 1);
+      // B within the 700 ms save delay.
+      state.gamepadBindings.back!();
+      await tester.pump();
+      expect(store.progressFor('local:quick')!.pageIndex, 1);
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(find.text('home page:1'), findsOneWidget);
+      await flushStore(tester, store);
+    });
+
+    testWidgets('a pop (iOS back swipe) saves at once, then freezes the page', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final navigator = await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(progressKey: 'local:swipe'),
+          store: store,
+        ),
+        home: StoreWatcher(store: store, progressKey: 'local:swipe'),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      final state = readerState(tester);
+      state.gamepadBindings.right!();
+      await frames(tester);
+      expect(state.controller.page, 1);
+      navigator.currentState!.pop();
+      // Saved when the pop starts, not when the transition ends.
+      expect(store.progressFor('local:swipe')!.pageIndex, 1);
+      await tester.pump();
+      // The closing view reports another page (it is laid out again in
+      // landscape): ignored.
+      state.controller.setPage(3);
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(store.progressFor('local:swipe')!.pageIndex, 1);
+      expect(find.text('home page:1'), findsOneWidget);
+      await flushStore(tester, store);
+    });
   });
 
   group('VoiceOver', () {

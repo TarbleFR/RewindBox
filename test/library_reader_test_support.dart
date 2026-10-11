@@ -95,11 +95,12 @@ void useSurface(WidgetTester tester, {Size size = const Size(900, 600)}) {
   addTearDown(tester.view.reset);
 }
 
-/// Hosts [reader] above a home route so it can be closed.
+/// Hosts [reader] above a [home] route so it can be closed.
 Future<GlobalKey<NavigatorState>> pumpReader(
   WidgetTester tester,
   Widget reader, {
   Locale locale = const Locale('en'),
+  Widget home = const Scaffold(body: Text('home')),
 }) async {
   final navigator = GlobalKey<NavigatorState>();
   await tester.pumpWidget(
@@ -108,7 +109,7 @@ Future<GlobalKey<NavigatorState>> pumpReader(
       locale: locale,
       supportedLocales: <Locale>[locale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: const Scaffold(body: Text('home')),
+      home: home,
     ),
   );
   unawaited(
@@ -122,6 +123,45 @@ Future<GlobalKey<NavigatorState>> pumpReader(
   // event-loop turns as well as fake-time pumps.
   await settle(tester, rounds: 3);
   return navigator;
+}
+
+/// A screen below the reader that rebuilds whenever the reading store
+/// changes, like the title page, the Local view and Favourites.
+class StoreWatcher extends StatefulWidget {
+  const StoreWatcher({
+    super.key,
+    required this.store,
+    required this.progressKey,
+  });
+
+  final LibraryReadingStore store;
+  final String progressKey;
+
+  @override
+  State<StoreWatcher> createState() => _StoreWatcherState();
+}
+
+class _StoreWatcherState extends State<StoreWatcher> {
+  @override
+  void initState() {
+    super.initState();
+    widget.store.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    widget.store.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Text(
+      'home ${widget.store.progressFor(widget.progressKey)?.location ?? '-'}',
+    ),
+  );
 }
 
 /// Records the orientation calls of the readers in the order they reach

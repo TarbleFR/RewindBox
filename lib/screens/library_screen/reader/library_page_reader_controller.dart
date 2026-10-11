@@ -46,6 +46,7 @@ class LibraryPageReaderController extends ChangeNotifier {
   Timer? _saveTimer;
   bool _dirty = false;
   bool _disposed = false;
+  bool _finished = false;
   bool _started = false;
   int? _retryPage;
   bool _retryResume = true;
@@ -177,6 +178,7 @@ class LibraryPageReaderController extends ChangeNotifier {
 
   /// The view shows page [page] (zero-based) of the chapter.
   void setPage(int page) {
+    if (_finished) return;
     if (_status != LibraryPageReaderStatus.ready || pageCount == 0) return;
     final clamped = page.clamp(0, pageCount - 1);
     if (clamped == _page) return;
@@ -259,6 +261,7 @@ class LibraryPageReaderController extends ChangeNotifier {
   }
 
   void _pageShown() {
+    if (_finished) return;
     _dirty = true;
     if (content.tracksChapters && isLastPage && _markedRead.add(chapter.id)) {
       store.markChapter(
@@ -322,6 +325,19 @@ class LibraryPageReaderController extends ChangeNotifier {
     saveNow();
     await store.flush();
   }
+
+  /// The reader is closing: saves the pending progress now, while the
+  /// screens below can still rebuild for it (from [dispose], the store
+  /// would notify them while the widget tree is locked), and ignores the
+  /// pages the closing view reports afterwards (it can still move, for
+  /// example when it rotates back to landscape).
+  void finish() {
+    saveNow();
+    _finished = true;
+  }
+
+  /// Whether [finish] was called.
+  bool get finished => _finished;
 
   void _notify() {
     if (!_disposed) notifyListeners();

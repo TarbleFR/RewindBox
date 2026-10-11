@@ -89,6 +89,9 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   Timer? _saveTimer;
   bool _dirty = false;
   bool _closing = false;
+
+  /// The route was popped: the saved page no longer changes.
+  bool _leaving = false;
   bool _sliderDragging = false;
   int? _reportedPage;
 
@@ -178,6 +181,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   void _close() {
     if (_closing || !mounted) return;
     _closing = true;
+    // Saved before the pop, while the screens below can rebuild for it.
+    _saveNow();
     Navigator.of(context).maybePop().then((popped) {
       if (!popped) _closing = false;
     });
@@ -185,15 +190,20 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
 
   /// The route was popped (Back, B, the iOS back swipe): the screen below
   /// is on stage from now on, so landscape is restored now rather than in
-  /// [dispose], after the reverse transition. [dispose] stays the fallback
+  /// [dispose], after the reverse transition, and the page is saved now
+  /// (from [dispose], the store would notify the screens below while the
+  /// widget tree is locked). Pages reported by the closing viewer (laid
+  /// out again in landscape) are ignored. [dispose] stays the fallback
   /// (the session stops once).
   void _onPopped(bool didPop, Object? _) {
     if (!didPop) return;
+    _saveNow();
+    _leaving = true;
     unawaited(_system.stop());
   }
 
   void _onPageChanged(int? pageNumber) {
-    if (pageNumber == null) return;
+    if (pageNumber == null || _leaving) return;
     final turned = _reportedPage != null && _reportedPage != pageNumber;
     _reportedPage = pageNumber;
     _page.value = pageNumber;

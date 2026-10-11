@@ -257,6 +257,8 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   void _close() {
     if (_closing || !mounted) return;
     _closing = true;
+    // Saved before the pop, while the screens below can rebuild for it.
+    _controller.saveNow();
     Navigator.of(context).maybePop().then((popped) {
       if (!popped) _closing = false;
     });
@@ -264,10 +266,13 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
 
   /// The route was popped (Back, B, the iOS back swipe): the screen below
   /// is on stage from now on, so landscape is restored now rather than in
-  /// [dispose], after the reverse transition. [dispose] stays the fallback
-  /// (the session stops once).
+  /// [dispose], after the reverse transition, and the progress is saved
+  /// now (from [dispose], the store would notify the screens below while
+  /// the widget tree is locked). [dispose] stays the fallback (the session
+  /// stops once; nothing is left to save).
   void _onPopped(bool didPop, Object? _) {
     if (!didPop) return;
+    _controller.finish();
     unawaited(_system.stop());
   }
 

@@ -483,6 +483,53 @@ void main() {
       await flushStore(tester, store);
     });
 
+    // Regression: closing within the save delay saved from dispose, so the
+    // store notified the screens below while the widget tree was locked.
+    testWidgets('a pop right after scrolling saves at once, then freezes', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final navigator = await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:quick',
+          title: 'Sample',
+          store: store,
+        ),
+        home: StoreWatcher(store: store, progressKey: 'local:quick'),
+      );
+      await settle(tester, rounds: 2);
+      // The opening is saved after the delay.
+      await tester.pump(const Duration(seconds: 1));
+      final state = bookState(tester);
+      for (var i = 0; i < 2; i++) {
+        state.gamepadBindings.right!();
+        await frames(tester);
+      }
+      final shown = state.currentPosition!;
+      expect(shown.block, greaterThan(0));
+      final location = 'txt:${shown.block}:${shown.offset}';
+      // Within the 800 ms save delay (the iOS back swipe pops directly).
+      navigator.currentState!.pop();
+      expect(store.progressFor('local:quick')!.location, location);
+      await tester.pump();
+      // Rotated back to landscape while it leaves: the text is laid out
+      // again, the saved position does not move.
+      tester.view.physicalSize = const Size(600, 900);
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryBookReaderScreen), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(store.progressFor('local:quick')!.location, location);
+      expect(find.text('home $location'), findsOneWidget);
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
+
     // Regression: with VoiceOver the bars hid after 4 s, taking their
     // controls out of the accessibility tree.
     testWidgets('with VoiceOver the chrome does not hide by itself', (

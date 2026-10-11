@@ -122,6 +122,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   final ValueNotifier<double?> _sliderValue = ValueNotifier<double?>(null);
   bool _closing = false;
 
+  /// The route was popped: the saved position no longer changes.
+  bool _leaving = false;
+
   @visibleForTesting
   LibraryReflowSource? get source => _source;
 
@@ -233,6 +236,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   void _close() {
     if (_closing || !mounted) return;
     _closing = true;
+    // Saved before the pop, while the screens below can rebuild for it.
+    _track(force: true);
+    _saveNow();
     Navigator.of(context).maybePop().then((popped) {
       if (!popped) _closing = false;
     });
@@ -240,10 +246,17 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// The route was popped (Back, B, the iOS back swipe): the screen below
   /// is on stage from now on, so landscape is restored now rather than in
-  /// [dispose], after the reverse transition. [dispose] stays the fallback
-  /// (the session stops once).
+  /// [dispose], after the reverse transition, and the position is saved
+  /// now (from [dispose], the store would notify the screens below while
+  /// the widget tree is locked). The position is then frozen: the closing
+  /// view can still move (rotated back to landscape, it is laid out
+  /// again). [dispose] stays the fallback (the session stops once).
   void _onPopped(bool didPop, Object? _) {
     if (!didPop) return;
+    _track(force: true);
+    _saveNow();
+    _leaving = true;
+    _saveTimer?.cancel();
     unawaited(_system.stop());
   }
 
@@ -572,7 +585,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   void _track({bool force = false}) {
     // Scroll notifications of the jump to a new anchor arrive before its
     // layout: nothing to read yet.
-    if (!mounted || _anchorPending) return;
+    if (!mounted || _anchorPending || _leaving) return;
     if (_laying) {
       // Render boxes are only read outside layout.
       if (_trackScheduled) return;
@@ -613,6 +626,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   }
 
   void _scheduleSave() {
+    if (_leaving) return;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 800), _saveNow);
   }
@@ -622,7 +636,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _saveTimer = null;
     final source = _source;
     final position = _lastPosition;
-    if (!_dirty || source == null || position == null) return;
+    if (_leaving || !_dirty || source == null || position == null) return;
     String location;
     double fraction;
     try {
