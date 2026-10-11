@@ -595,8 +595,8 @@ def native():
         (directory / 'dolphin_shake_labels.json').write_text(json.dumps(shake_catalog(), ensure_ascii=False),
                                                               encoding='utf-8')
         sdk_dependencies = [{'sdk': name + '.framework'} for name in
-                            ('UIKit', 'QuartzCore', 'Foundation', 'Security', 'UniformTypeIdentifiers',
-                             'CoreMotion', 'GameController')]
+                            ('UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation', 'Security',
+                             'UniformTypeIdentifiers', 'CoreMotion', 'GameController')]
         host_sources = [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
                         str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm')]
         host_sources += [str(path) for path in sorted(TOUCH.glob('*.swift'))]
