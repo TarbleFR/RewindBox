@@ -985,6 +985,13 @@ IPA_WORKFLOW_BUILD421_LINES = (('name: NeoStation NeoSwap + NeoPlay private • 
 # Build410-421 line pairs above remain the record of the IPA workflow until
 # the Build 419 library restoration rewrote it.
 ARMSX2_INTEGRATION_OVERRIDES = {
+    # Build 442 (11 October 2026): the Dolphin external display harness entry was
+    # removed from the ARMSX2 graphics UI test when the account harness gained it.
+    'test/armsx2_graphics_ui_test.py': '2f85ad47c35dbcabce8306ace735bffd34abcc18',
+    # Build 437 (11 October 2026): reading-library credits (Aidoku, French sources,
+    # reader libraries) appended to the legal notices.
+    'docs/LEGAL_AND_CREDITS.md': '7f42929e83540463d0840ae0e4852d1093544bb0',
+    'assets/legal/THIRD_PARTY_NOTICES.md': '7f42929e83540463d0840ae0e4852d1093544bb0',
     # Build 422 delivery with measured cache reuse.
     '.github/workflows/ios-ci.yml': '7416150dd4a5b7b414374bc6b89b2e59bc7a7aa0',
     # Build 419 library restoration and isolated direct TestFlight link.
