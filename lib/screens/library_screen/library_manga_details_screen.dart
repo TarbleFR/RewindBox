@@ -932,7 +932,9 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
           ),
         ),
       );
-    } else if (details != null && !details.chaptersComplete) {
+    } else if (_active && details != null && !details.chaptersComplete) {
+      // Only an active source can be refreshed (pull down or the refresh
+      // button); the banner of an inactive one already explains the rest.
       slivers.add(
         SliverToBoxAdapter(
           child: Padding(

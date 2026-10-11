@@ -479,6 +479,34 @@ void main() {
     );
   });
 
+  testWidgets('a partial saved list of a deactivated source offers no retry', (
+    tester,
+  ) async {
+    // Only some LelscanFR list pages were saved: nothing can complete the
+    // list while the source is deactivated (no pull-to-refresh either).
+    final aidoku = FakeAidokuService()
+      ..cachedForSource = testDetails(item, count: 5, complete: false);
+    await pumpLibraryUi(
+      tester,
+      _screen(
+        item: item,
+        aidokuSourceId: 'fr.lelscanfr',
+        aidoku: aidoku,
+        store: MemoryReadingStore(),
+        opened: _Opened(),
+      ),
+      wrapInScaffold: false,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chapter 5'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsNothing);
+    expect(
+      find.text('Some chapters could not be loaded. Pull down to try again.'),
+      findsNothing,
+    );
+  });
+
   testWidgets('an error is explained by kind, with its detail and a retry', (
     tester,
   ) async {
