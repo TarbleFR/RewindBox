@@ -20,6 +20,7 @@ import 'package:neostation/widgets/confirm_action_dialog.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_gamepad_view_controller.dart';
+import 'library_hub_dialog.dart';
 import 'library_manga_details_screen.dart';
 import 'library_reader_launcher.dart';
 
@@ -473,31 +474,15 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
 
   void _showTechnical(String message, String technical) {
     if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(message),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              LibraryFeatureLocale.text(dialogContext, 'technicalDetails'),
-              style: Theme.of(dialogContext).textTheme.labelMedium,
-            ),
-            const SizedBox(height: 6),
-            SelectableText(
-              technical,
-              style: Theme.of(dialogContext).textTheme.bodySmall,
-            ),
-          ],
+    // Controller-aware (B closes): the hub ignores the controller while a
+    // dialog covers it.
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (_) => LibraryHubDialog(
+          title: message,
+          children: [LibraryTechnicalDetails(technical)],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(AppLocale.close.getString(dialogContext)),
-          ),
-        ],
       ),
     );
   }

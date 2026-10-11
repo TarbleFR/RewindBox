@@ -14,6 +14,7 @@ import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -180,6 +181,8 @@ void main() {
   Future<void> pumpView(
     WidgetTester tester, {
     Future<LibraryLocalBook?> Function(String id)? resolve,
+    Future<void> Function(BuildContext context, LibraryLocalBook book)?
+    openLocal,
     Size size = const Size(1280, 900),
     double devicePixelRatio = 1.0,
   }) async {
@@ -206,8 +209,9 @@ void main() {
               resolveLocalBook:
                   resolve ?? (id) async => id == 'book1' ? _book : null,
               localCoverPath: (_) => null,
-              openLocalBook: (context, book) async =>
-                  events.add('local:${book.id}'),
+              openLocalBook:
+                  openLocal ??
+                  (context, book) async => events.add('local:${book.id}'),
               openOnlineTitle:
                   (context, {required item, addon, aidokuSourceId}) async {
                     openedItem = item;
@@ -297,6 +301,35 @@ void main() {
       findsWidgets,
     );
     expect(events, ['local:book1'], reason: 'nothing opened');
+  });
+
+  testWidgets('the technical details of an error close with B', (tester) async {
+    SfxService().setEnabled(false);
+    addTearDown(() => SfxService().setEnabled(true));
+    await pumpView(
+      tester,
+      openLocal: (context, book) async => throw StateError('reader exploded'),
+    );
+    controller.navigate(1, 0); // the local book
+    controller.activate();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('This book could not be loaded.'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Technical details'), findsOneWidget);
+    expect(find.textContaining('reader exploded'), findsOneWidget);
+
+    // The section below ignores the controller while the dialog is open:
+    // the dialog itself must answer B.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 220)),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('reader exploded'), findsNothing);
+    expect(find.byType(LibraryFavoritesView), findsOneWidget);
   });
 
   testWidgets('X asks before removing a favourite and keeps its progress', (

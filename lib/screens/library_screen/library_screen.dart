@@ -24,6 +24,7 @@ import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_favorites_view.dart';
 import 'library_gamepad_view_controller.dart';
+import 'library_hub_dialog.dart';
 import 'library_local_view.dart';
 import 'library_manga_details_screen.dart';
 import 'library_reader_launcher.dart';
@@ -1430,40 +1431,12 @@ class LibraryScreenState extends State<LibraryScreen> {
                   onPressed: () => unawaited(
                     _showInfoDialog(
                       title: message,
-                      children: [_technicalBlock(technical)],
+                      children: [LibraryTechnicalDetails(technical)],
                     ),
                   ),
                 ),
         ),
       );
-  }
-
-  Widget _technicalBlock(String technical) {
-    return Builder(
-      builder: (context) {
-        final theme = Theme.of(context);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              LibraryFeatureLocale.text(context, 'technicalDetails'),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 2),
-            SelectableText(
-              technical,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> _showInfoDialog({
@@ -1474,7 +1447,7 @@ class LibraryScreenState extends State<LibraryScreen> {
   }) {
     return showDialog<void>(
       context: context,
-      builder: (_) => _LibraryHubDialog(
+      builder: (_) => LibraryHubDialog(
         title: title,
         primaryLabel: primaryLabel,
         onPrimary: onPrimary,
@@ -1491,7 +1464,7 @@ class LibraryScreenState extends State<LibraryScreen> {
         builder: (context, _) {
           final sources = _feed.unavailableSources;
           final theme = Theme.of(context);
-          return _LibraryHubDialog(
+          return LibraryHubDialog(
             title: _lt('unavailableSourcesTitle'),
             primaryLabel: _lt('refreshSources'),
             onPrimary: () => unawaited(_feed.refresh()),
@@ -1559,7 +1532,7 @@ class LibraryScreenState extends State<LibraryScreen> {
         if (source.entryCount > 0)
           Text(_lt('savedCopyShown'), style: theme.textTheme.bodySmall),
         const SizedBox(height: 3),
-        _technicalBlock(failure.technical),
+        LibraryTechnicalDetails(failure.technical),
       ],
     );
   }
@@ -1573,7 +1546,7 @@ class LibraryScreenState extends State<LibraryScreen> {
         children: [
           Text(_issueText(failure.issue)),
           const SizedBox(height: 8),
-          _technicalBlock(failure.technical),
+          LibraryTechnicalDetails(failure.technical),
         ],
       ),
     );
@@ -2398,143 +2371,6 @@ class _HubHeaderButton extends StatelessWidget {
   }
 }
 
-/// Dialog of the hub with controller support: B closes, A runs the primary
-/// action (or closes when there is none).
-class _LibraryHubDialog extends StatefulWidget {
-  const _LibraryHubDialog({
-    required this.title,
-    required this.children,
-    this.primaryLabel,
-    this.onPrimary,
-  });
-
-  final String title;
-  final List<Widget> children;
-  final String? primaryLabel;
-  final VoidCallback? onPrimary;
-
-  @override
-  State<_LibraryHubDialog> createState() => _LibraryHubDialogState();
-}
-
-class _LibraryHubDialogState extends State<_LibraryHubDialog> {
-  late final GamepadNavigation _gamepadNav;
-  late final String _layerId = 'library_hub_dialog_${identityHashCode(this)}';
-  final ScrollController _scroll = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _gamepadNav = GamepadNavigation(
-      onBack: _close,
-      onSelectItem: () {
-        final primary = widget.onPrimary;
-        if (primary != null) {
-          primary();
-        } else {
-          _close();
-        }
-      },
-      onNavigateUp: () => _scrollBy(-120),
-      onNavigateDown: () => _scrollBy(120),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _gamepadNav.initialize();
-      GamepadNavigationManager.pushLayer(
-        _layerId,
-        modal: true,
-        onActivate: () => _gamepadNav.activate(),
-        onDeactivate: () => _gamepadNav.deactivate(),
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    GamepadNavigationManager.popLayer(_layerId);
-    _gamepadNav.dispose();
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  void _close() {
-    if (mounted) Navigator.of(context).maybePop();
-  }
-
-  void _scrollBy(double delta) {
-    if (!_scroll.hasClients) return;
-    final position = _scroll.position;
-    _scroll.jumpTo(
-      (position.pixels + delta).clamp(0.0, position.maxScrollExtent),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final primary = widget.primaryLabel;
-    return _LayerOwnedKeys(
-      child: AlertDialog(
-        title: Text(widget.title),
-        content: SizedBox(
-          width: math.min(560, size.width * 0.8),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: size.height * 0.6),
-            child: SingleChildScrollView(
-              controller: _scroll,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: widget.children,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
-            onPressed: _close,
-            child: Text(AppLocale.close.getString(context)),
-          ),
-          if (primary != null)
-            FilledButton(
-              style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
-              onPressed: widget.onPrimary,
-              child: Text(primary),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Inside a dialog driven by its own controller layer, Flutter's arrow-key
-/// focus traversal and Enter activation are switched off: the layer also
-/// receives hardware-keyboard keys, so one Enter would otherwise act twice
-/// (e.g. pop the dialog, then the screen under it).
-class _LayerOwnedKeys extends StatelessWidget {
-  const _LayerOwnedKeys({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Shortcuts(
-    shortcuts: const <ShortcutActivator, Intent>{
-      SingleActivator(LogicalKeyboardKey.enter):
-          DoNothingAndStopPropagationIntent(),
-      SingleActivator(LogicalKeyboardKey.numpadEnter):
-          DoNothingAndStopPropagationIntent(),
-    },
-    child: Actions(
-      actions: <Type, Action<Intent>>{
-        DirectionalFocusIntent: DoNothingAction(),
-      },
-      child: Focus(autofocus: true, child: child),
-    ),
-  );
-}
-
 /// One option of [_LibraryChoiceDialog].
 class _LibraryChoice<T> {
   const _LibraryChoice(
@@ -2757,7 +2593,7 @@ class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
         ),
       ],
     );
-    return _LayerOwnedKeys(child: dialog);
+    return LibraryLayerOwnedKeys(child: dialog);
   }
 }
 
