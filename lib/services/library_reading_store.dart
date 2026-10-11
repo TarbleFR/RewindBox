@@ -551,6 +551,11 @@ class LibraryReadingStore extends ChangeNotifier {
   /// Bodies larger than this are decoded off the UI isolate.
   static const int _isolateDecodeThreshold = 256 * 1024;
 
+  /// States at least this large (as last read or written) are encoded off
+  /// the UI isolate: about 0.6 ms of JSON encoding on a PC, measured on
+  /// the Dart VM, not on an iPhone.
+  static const int _isolateEncodeThreshold = 128 * 1024;
+
   static LibraryReadingStore? _instance;
 
   /// Process-wide store of the app (covers of favourites are pinned in
@@ -627,6 +632,14 @@ class LibraryReadingStore extends ChangeNotifier {
   /// Last error of a failed write (the change stays pending and is retried
   /// with the next change or [flush]).
   Object? lastSaveError;
+
+  /// Size in bytes of the state file when last read or written.
+  int _stateBytes = 0;
+  bool _lastWriteEncodedInBackground = false;
+
+  /// Whether the last write encoded the state in a worker isolate (states
+  /// of [_isolateEncodeThreshold] bytes or more), for diagnostics.
+  bool get lastWriteEncodedInBackground => _lastWriteEncodedInBackground;
 
   bool get isLoaded => _loaded;
 
@@ -962,13 +975,14 @@ class LibraryReadingStore extends ChangeNotifier {
     while (_dirty) {
       _dirty = false;
       _firstPendingChange = null;
-      final text = jsonEncode(_toJson());
       try {
+        final bytes = await _encodeState();
         final file = await _stateFile();
         await file.parent.create(recursive: true);
         final tmp = File('${file.path}.tmp');
-        await tmp.writeAsString(text, flush: true);
+        await tmp.writeAsBytes(bytes, flush: true);
         await tmp.rename(file.path);
+        _stateBytes = bytes.length;
         lastSaveError = null;
       } catch (error) {
         lastSaveError = error;
@@ -976,6 +990,34 @@ class LibraryReadingStore extends ChangeNotifier {
         return;
       }
     }
+  }
+
+  /// UTF-8 JSON of the current state. A state as large as
+  /// [_isolateEncodeThreshold] (when last read or written) is encoded in a
+  /// worker isolate: the store's collections are copied to it when it
+  /// starts, so later changes are not part of this write (they keep the
+  /// store dirty for the next one), and the bytes come back without a copy.
+  /// When the worker cannot run, the state is encoded here.
+  Future<Uint8List> _encodeState() async {
+    _StateSnapshot snapshot() => _StateSnapshot(
+      progress: _progress,
+      marks: _marks,
+      favorites: _favorites,
+      settings: _settings,
+      evictedProgress: _evictedProgress,
+      evictedMarkTitles: _evictedMarkTitles,
+    );
+    _lastWriteEncodedInBackground = false;
+    if (_stateBytes < _isolateEncodeThreshold) return snapshot().encode();
+    final Uint8List bytes;
+    try {
+      bytes = await _StateSnapshot.encodeInWorker(snapshot());
+    } catch (_) {
+      // The worker could not run: encode the current state here.
+      return snapshot().encode();
+    }
+    _lastWriteEncodedInBackground = true;
+    return bytes;
   }
 
   Future<File> _stateFile() async {
@@ -1085,6 +1127,7 @@ class LibraryReadingStore extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+    _stateBytes = bytes.length;
     try {
       return _StoreData.fromJson(await _decodeState(bytes));
     } catch (_) {
@@ -1236,14 +1279,43 @@ class LibraryReadingStore extends ChangeNotifier {
       '(${dropped.join(', ')}); $_evictedMarkTitles in total',
     );
   }
+}
 
-  Map<String, Object?> _toJson() => <String, Object?>{
-    'version': _formatVersion,
+/// The data of one write. Built from plain, sendable values only (never the
+/// store, whose listeners hold widget state), so a worker isolate can
+/// encode it.
+class _StateSnapshot {
+  _StateSnapshot({
+    required this.progress,
+    required this.marks,
+    required this.favorites,
+    required this.settings,
+    required this.evictedProgress,
+    required this.evictedMarkTitles,
+  });
+
+  final Map<String, LibraryReadingProgress> progress;
+  final Map<String, Map<String, LibraryChapterMark>> marks;
+  final Map<String, LibraryFavorite> favorites;
+  final LibraryReaderSettings settings;
+  final int evictedProgress;
+  final int evictedMarkTitles;
+
+  /// Encodes [snapshot] in a worker isolate. Static, so that the closure
+  /// sent to the worker captures nothing but [snapshot]; the collections
+  /// are copied when the worker starts.
+  static Future<Uint8List> encodeInWorker(_StateSnapshot snapshot) =>
+      Isolate.run(snapshot.encode, debugName: 'library-reading-state-encode');
+
+  Uint8List encode() => utf8.encode(jsonEncode(toJson()));
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'version': LibraryReadingStore._formatVersion,
     'progress': <String, Object?>{
-      for (final entry in _progress.entries) entry.key: entry.value.toJson(),
+      for (final entry in progress.entries) entry.key: entry.value.toJson(),
     },
     'chapterMarks': <String, Object?>{
-      for (final title in _marks.entries)
+      for (final title in marks.entries)
         if (title.value.isNotEmpty)
           title.key: <String, Object?>{
             for (final mark in title.value.entries)
@@ -1251,13 +1323,13 @@ class LibraryReadingStore extends ChangeNotifier {
           },
     },
     'favorites': <String, Object?>{
-      for (final entry in _favorites.entries) entry.key: entry.value.toJson(),
+      for (final entry in favorites.entries) entry.key: entry.value.toJson(),
     },
-    'settings': _settings.toJson(),
-    if (_evictedProgress > 0 || _evictedMarkTitles > 0)
+    'settings': settings.toJson(),
+    if (evictedProgress > 0 || evictedMarkTitles > 0)
       'evictions': <String, Object?>{
-        'progress': _evictedProgress,
-        'chapterMarkTitles': _evictedMarkTitles,
+        'progress': evictedProgress,
+        'chapterMarkTitles': evictedMarkTitles,
       },
   };
 }

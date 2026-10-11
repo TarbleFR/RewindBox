@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/library_image_cache.dart';
@@ -476,6 +477,78 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'a large state is encoded off the UI isolate and written intact',
+    () async {
+      LibraryReadingProgress entry(String key, int page) =>
+          LibraryReadingProgress(
+            key: key,
+            location: LibraryReadingProgress.pageLocation(page),
+            fraction: 0.5,
+            pageIndex: page,
+            chapterId: 'chapter-$page',
+            title: 'A fairly long manga title number $page',
+            coverUrl: 'https://img.test/covers/$page/cover.jpg',
+            coverHeaders: const <String, String>{'Referer': 'https://a.test/'},
+            updatedAt: DateTime.utc(2026).add(Duration(minutes: page)),
+          );
+      await stateFile().writeAsString(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'progress': <String, Object?>{
+            for (var page = 0; page < 1500; page++)
+              'online:s:m$page': entry('online:s:m$page', page).toJson(),
+          },
+        }),
+      );
+      expect(await stateFile().length(), greaterThan(128 * 1024));
+
+      final store = create(maxProgressEntries: 5000);
+      // A listener holding a port, like widget state: the store itself can
+      // never be sent to a worker isolate.
+      final port = ReceivePort();
+      addTearDown(port.close);
+      var notifications = 0;
+      store.addListener(() {
+        notifications++;
+        port.sendPort;
+      });
+      await store.load();
+      store.saveProgress(entry('local:new', 4));
+      final writing = store.flush();
+      // A change made while the worker encodes is written by the next write.
+      store.saveProgress(entry('local:during', 7));
+      await writing;
+      expect(store.lastSaveError, isNull);
+      expect(store.lastWriteEncodedInBackground, isTrue);
+      expect(store.hasPendingChanges, isFalse);
+      expect(notifications, 3);
+      expect(await File('${stateFile().path}.tmp').exists(), isFalse);
+
+      final reopened = create(maxProgressEntries: 5000);
+      await reopened.load();
+      expect(reopened.recent(limit: -1), hasLength(1502));
+      expect(reopened.progressFor('online:s:m1499')!.location, 'page:1499');
+      expect(
+        reopened.progressFor('online:s:m3')!.coverHeaders['Referer'],
+        'https://a.test/',
+      );
+      expect(reopened.progressFor('local:new')!.location, 'page:4');
+      expect(reopened.progressFor('local:during')!.location, 'page:7');
+
+      // A small state is still encoded in place.
+      final small = LibraryReadingStore(
+        directory: await Directory(p.join(tmp.path, 'small')).create(),
+        saveDelay: const Duration(milliseconds: 40),
+      );
+      await small.load();
+      small.saveProgress(entry('local:small', 1));
+      await small.flush();
+      expect(small.lastSaveError, isNull);
+      expect(small.lastWriteEncodedInBackground, isFalse);
+    },
+  );
 
   test('flush reads the file first when load was never called', () async {
     final seed = create();
