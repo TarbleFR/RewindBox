@@ -132,8 +132,8 @@ void main() {
       expect(store.progressFor(key)?.location, 'page:0');
       expect(find.text('saved page:0', skipOffstage: false), findsOneWidget);
 
-      // Turn a page and close at once (B): the reader saves page 1 from
-      // State.dispose, while the tree is locked.
+      // Turn a page and close at once (B), before the turn animation has
+      // reached page 1.
       final reader = tester.state<LibraryPageReaderScreenState>(
         find.byType(LibraryPageReaderScreen),
       );
@@ -149,10 +149,12 @@ void main() {
       }
       expect(readerFinder, findsNothing);
       expect(tester.takeException(), isNull);
+      // The turn requested just before B is the position saved, even though
+      // its animation had not reached the new page yet.
       expect(store.progressFor(key)?.location, 'page:1');
-      // The notification scheduled the frame that redraws the screen below
-      // (in release, a setState on a locked tree schedules none).
-      expect(tester.binding.hasScheduledFrame, isTrue);
+      // The reader saves before it is popped, so the screen below redraws
+      // with the new position (a save from State.dispose, while the tree is
+      // locked, is covered by the next test).
       await tester.pump();
       expect(find.text('saved page:1'), findsOneWidget);
 

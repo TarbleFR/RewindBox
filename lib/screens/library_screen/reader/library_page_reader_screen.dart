@@ -107,6 +107,11 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   final Set<ImageProvider> _providers = <ImageProvider>{};
   bool _closing = false;
 
+  /// Page an animated turn is heading to. The controller only learns the
+  /// new page when the animation crosses it, so a reader closed during a
+  /// turn saves this page instead of the one being left.
+  int? _turnTarget;
+
   @visibleForTesting
   LibraryPageReaderController get controller => _controller;
 
@@ -257,6 +262,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   void _close() {
     if (_closing || !mounted) return;
     _closing = true;
+    final target = _turnTarget;
+    if (target != null && target != _controller.page) {
+      _controller.setPage(target);
+    }
     // Saved before the pop, while the screens below can rebuild for it.
     _controller.saveNow();
     Navigator.of(context).maybePop().then((popped) {
@@ -317,9 +326,32 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
       _advancePastEnd();
       return;
     }
-    _pageController?.nextPage(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
+    final pages = _pageController;
+    if (pages == null) return;
+    if (_controller.page + 1 < _controller.pageCount) {
+      _trackTurn(
+        _controller.page + 1,
+        pages.nextPage(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        ),
+      );
+    } else {
+      unawaited(
+        pages.nextPage(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        ),
+      );
+    }
+  }
+
+  void _trackTurn(int target, Future<void> turn) {
+    _turnTarget = target;
+    unawaited(
+      turn.whenComplete(() {
+        if (_turnTarget == target) _turnTarget = null;
+      }),
     );
   }
 
@@ -341,10 +373,17 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
       _jumpToPage(_controller.page - 1, animate: true);
       return;
     }
-    _pageController?.previousPage(
+    final pages = _pageController;
+    if (pages == null) return;
+    final turn = pages.previousPage(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
     );
+    if (_controller.page > 0) {
+      _trackTurn(_controller.page - 1, turn);
+    } else {
+      unawaited(turn);
+    }
   }
 
   void _advancePastEnd() {
@@ -370,10 +409,13 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         _leading + target,
       ).clamp(0.0, scroll.position.maxScrollExtent);
       if (animate) {
-        scroll.animateTo(
-          offset,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
+        _trackTurn(
+          target,
+          scroll.animateTo(
+            offset,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          ),
         );
       } else {
         scroll.jumpTo(offset);
@@ -383,10 +425,13 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final pages = _pageController;
     if (pages == null || !pages.hasClients) return;
     if (animate) {
-      pages.animateToPage(
-        _pagedLeading + target,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
+      _trackTurn(
+        target,
+        pages.animateToPage(
+          _pagedLeading + target,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        ),
       );
     } else {
       pages.jumpToPage(_pagedLeading + target);
