@@ -1,7 +1,18 @@
 name: UI refresh rate (120 Hz interface) native checks
-# Build 440. Manual only: on the Claude branch run
+# Build 440. Runs when its inputs change on the Claude branch, or manually
+# once the workflow exists on the default branch:
 #   gh workflow run ui-refresh-rate-check.yml --ref Claude
+# (GitHub only dispatches workflows known to the default branch, hence the
+# push trigger for this new check.)
 on:
+  push:
+    branches:
+    - Claude
+    paths:
+    - .github/workflows/ui-refresh-rate-check.yml
+    - packages/ui_refresh_rate/**
+    - test/ui_refresh_rate_hook_test.py
+    - test/ui_refresh_rate_scope_test.py
   workflow_dispatch:
 permissions:
   contents: read
