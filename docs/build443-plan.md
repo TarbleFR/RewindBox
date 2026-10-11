@@ -38,3 +38,23 @@ Le numéro 443 est fourni au workflow, sans modifier les dépendances.
 
 L'IPA est préparée pour la re-signature par SideStore. Aucune installation
 ni fluidité sur iPhone n'est revendiquée avant l'essai du mainteneur.
+
+## Production du 11 octobre 2026
+
+Run `38173005985` réussi, source exacte
+`79a5920af0f17b474bd8f1a0dcd88f798e2bede0` : contrôles ciblés, réutilisation
+native vérifiée et compilation Release réussis. Le second build de benchmark
+est volontairement désactivé. Les 31 tests Flutter concernés et les huit
+contrôles du périmètre de livraison ont réussi sur le serveur.
+
+IPA : `NeoStation-Build443-79a5920af0f17b474bd8f1a0dcd88f798e2bede0-cold.ipa`,
+207 408 158 octets, SHA-256
+`af860e8b7f00fac46a1a1ab6483b0ddc59a8abd59b99dd2e4eda965118ce14d7`.
+Nom du fichier remis : `NeoStation-Build443.ipa` (mêmes octets).
+
+Les contrôles CI valident la structure finale, l'identité intégrée, les
+moteurs et les 57 signatures de préparation ad hoc. Mesures observées :
+compilation Xcode 203 s, signature et export IPA 52 s. Le fichier téléchargé
+a été rapproché du SHA-256 et de la taille de l'artefact GitHub avant son
+déchiffrement ; le SHA-256 de l'IPA correspond aux rapports embarqués dans
+la livraison. L'installation et la fluidité sur iPhone restent à tester.
