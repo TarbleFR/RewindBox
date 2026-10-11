@@ -192,6 +192,50 @@ void main() {
     expect(backend.callsOf('page').map((c) => c.sourceKey), ['aidoku.fr.ok']);
   });
 
+  test(
+    'a source verified as blocked is searched once a manual refresh loaded it',
+    () async {
+      backend.support['fr.blocked'] = blockedSupport(
+        'fr.blocked',
+        LibrarySourceKnownState.challenge,
+      );
+      backend.pages['fr.blocked'] = (call) async => testPage([
+        testItem(call.query.isEmpty ? 'Listing' : 'Solo from blocked'),
+      ]);
+      final feed = newFeed();
+      await feed.open([aidokuTestAddon('fr.blocked')]);
+      expect(
+        backend.callsOf('page'),
+        isEmpty,
+        reason: 'a verified block is never requested automatically',
+      );
+
+      await feed.search('solo');
+      expect(
+        feed.currentSearch!.sources.single.status,
+        LibraryFeedSearchStatus.skipped,
+        reason: 'still blocked as far as this session knows',
+      );
+
+      // The block was lifted (or does not apply from this network): the
+      // user's manual refresh loads the listing.
+      await feed.refresh();
+      expect(
+        feed.sources.single.entries.map((e) => e.item.title),
+        ['Listing'],
+      );
+
+      await feed.search('solo');
+      final searched = feed.currentSearch!.sources.single;
+      expect(searched.status, LibraryFeedSearchStatus.done);
+      expect(searched.failure, isNull);
+      expect(feed.currentSearch!.entries.map((e) => e.item.title), [
+        'Solo from blocked',
+      ]);
+      expect(backend.callsOf('page').map((c) => c.query), ['', 'solo']);
+    },
+  );
+
   test('metadata providers are searched and attributed', () async {
     backend.providers = {'anilist': 'AniList'};
     backend.metadataSearch['anilist'] = (query) async => [

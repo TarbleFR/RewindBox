@@ -1336,7 +1336,10 @@ class LibraryCatalogFeed extends ChangeNotifier {
       if (source.kind != LibraryFeedSourceKind.aidoku) continue;
       if (isHiddenBySafeMode(source)) continue;
       LibraryFeedFailure? skip;
-      if (isKnownBlocked(source.support)) {
+      // Same rule as _needsNetwork: a source verified as blocked is skipped
+      // until it has answered once in this session (a manual refresh), so a
+      // site whose block was lifted is searched again.
+      if (source._lastSuccessAt == null && isKnownBlocked(source.support)) {
         skip = LibraryFeedFailure.fromKnownState(source.support!);
       } else {
         final failure = source._failure;
