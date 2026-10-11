@@ -8,9 +8,9 @@ révision `0913f260beb71874ac4aea48ac3ac8014232f119`, qui conserve les ajouts de
 la Build 440. Seuls RPCS3, NeoSwap et leurs éléments de validation/livraison
 sont concernés. La compilation SPU différée reste désactivée.
 
-Ce document est un journal de travail : aucune validation sur iPhone physique
-ni économie de mémoire n'est attestée à ce stade. Les contrôles Apple et la
-compilation du nouveau Core sont en cours.
+Les contrôles Apple, la compilation du nouveau Core et la livraison de l'IPA
+ont réussi. L'IPA a été récupérée, déchiffrée et vérifiée ; aucune validation
+sur iPhone physique, économie de mémoire ni amélioration de FPS n'est attestée.
 
 ## Choix d'implémentation
 
@@ -38,6 +38,11 @@ avec au plus 128 objets et 64 Mio préparés. Chaque passage utilitaire prépare
 au plus huit objets et 32 Mio, selon les demandes et la part de budget accordée.
 Les premières demandes peuvent encore choisir le stockage ordinaire ; elles
 alimentent les préparations suivantes. Les objets déjà FILE ne migrent pas.
+Ce stock réserve, depuis l'hôte, des jetons et des intervalles dans le backing
+partagé déjà fourni par le relais ; son plafond de 64 Mio ne mesure pas 64 Mio
+de RAM physique transférée dans une extension.
+Les mécanismes adaptés de MeloNX et livrés en 438, ainsi que le comptage des
+donations actives livré en 439, sont conservés.
 
 L'API optionnelle Prepared Relay v1 est indépendante du Relay v1 et de l'ABI
 principale RPCS3 30. Le retour d'un objet jamais publié transfère sa propriété
@@ -75,10 +80,16 @@ d'ownership, d'alias et de partage du budget examinés.
 Patch canonique testé :
 `1bd59add61f51b7188b0d02a14903230e8915e606da1c62230c210114ce6e1d6`.
 Source du Core 441 : `351b738c8d4d5fbe2c7498d4438776baecdba613`,
-run `38163319515`. Les workflows de livraison sont préparés pour cette
-référence ; l'IPA ne doit être construite qu'après succès du run et contrôle
-de son identité. Les 62 entrées Core sont identiques entre cette référence et
-les sources hôte de livraison.
+run `38163319515`, réussi. L'artefact `11712198473` a été récupéré et vérifié :
+
+- ZIP : 28 307 730 octets, SHA-256
+  `fc400b54809a984698e6eac1d0627c8713c8d11b5e11386c10aac9c682812485`.
+- Binaire `libRPCS3Core.dylib` : 75 406 728 octets, SHA-256
+  `44c9dc4ca7b49c2c611da5b1b0cbb9acc77aa1c5596fc51a9e4416752eae37b2`.
+
+L'intégrité CRC du ZIP, l'identité des 62 entrées Core et les ABI ont été
+vérifiées. Les 62 entrées sont identiques entre cette référence et les sources
+hôte de livraison ; les workflows épinglent ce Core validé.
 
 Le contrôle historique de baseline conserve les empreintes 439 et ajoute
 uniquement celles des deux fichiers `native/neoswap-relay/Backend.cpp/.h`
@@ -103,6 +114,40 @@ retenue de 8 Gio sont des scénarios distincts du harnais ; ils ne constituent
 pas une mesure de RAM donnée pendant un jeu RPCS3 sur iPhone. Artefact de
 résultats `11711344465`, ZIP SHA-256
 `879621c03be8e37b809224b0821f15b11fd01256c7403a4b76cc9fc18068d098`.
+
+## Livraison Build 441 vérifiée
+
+Source hôte : `e1283fe543a8de5d6609359253d10dde46dbff2a`.
+Le run de livraison `38167644455` a terminé avec succès : jobs `checks`
+(`114553432661`), `native` (`114553432932`) et `cold` (`114553700601`).
+L'artefact chiffré `11712993580` a été récupéré et déchiffré, puis l'IPA réelle
+a passé les vérifications de `verify_delivery.py` consignées dans
+`verified-delivery.json`.
+
+| Identité vérifiée | Valeur |
+|---|---|
+| Version / build / plateforme | 0.0.2 / 441 / arm64 iPhoneOS |
+| Taille de l'IPA | 207 211 278 octets |
+| SHA-256 de l'IPA | `324f41191d77ed5a847862e29c744d9405f5c7f42c7d6097f8380606082977e0` |
+| Taille du ZIP de l'artefact chiffré | 207 431 069 octets |
+| SHA-256 du ZIP | `495d2770f0a4e2ce01be9a43a0a8e8aeb593b1af762b16c62eecb733d92c9a30` |
+
+Les empreintes et tailles des archives, leurs CRC, les rapports de livraison,
+`Info.plist` et `BUILD_SOURCE_IDENTITY.json` correspondent aux sources et aux
+artefacts attendus. Les 54 empreintes d'images du rapport de signature sont
+conformes aux binaires livrés. Le Core embarqué conserve le même code, les
+mêmes données et les mêmes métadonnées ABI que le Core publié après signature ;
+ses exports, dont les deux nouveaux points d'entrée Prepared/Stats, ont été
+contrôlés par analyse Mach-O.
+
+Les 57 signatures ad hoc ont été vérifiées en CI macOS. Aucune vérification
+`codesign` locale ni confiance de certificat Apple n'est revendiquée par le
+contrôle hors ligne. L'installation nécessite la re-signature Apple et le
+provisioning par SideStore. Aucun essai de jeu, relevé de mémoire résidente ou
+mesure de FPS sur iPhone n'a été réalisé pour cette IPA.
+
+Un commit documentaire ultérieur ne change pas le SHA source de l'IPA : sa
+référence de compilation reste `e1283fe543a8de5d6609359253d10dde46dbff2a`.
 
 ## Validation appareil à réaliser
 
