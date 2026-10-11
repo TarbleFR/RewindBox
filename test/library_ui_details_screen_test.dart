@@ -138,7 +138,15 @@ void main() {
     controller.add(testDetails(item, count: 10, first: 21, complete: false));
     await tester.pump();
     expect(find.text('Chapter 30'), findsOneWidget);
-    expect(find.text('Loading more chapters…'), findsOneWidget);
+    // The footer of the list (the resume button says the same while the
+    // first chapter is not loaded yet).
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('loading-more-chapters')),
+        matching: find.text('Loading more chapters…'),
+      ),
+      findsOneWidget,
+    );
 
     controller.add(testDetails(item, count: 30));
     await controller.close();
