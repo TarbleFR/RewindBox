@@ -9,6 +9,7 @@ import 'package:neostation/services/systems_update_service.dart';
 import 'package:neostation/widgets/update_dialog.dart';
 import 'package:neostation/widgets/systems_update_dialog.dart';
 import 'package:neostation/services/logger_service.dart';
+import 'package:neostation/services/ui_refresh_rate_service.dart';
 
 import '../widgets/fixed_header.dart';
 import 'systems_screen/system_content.dart';
@@ -121,6 +122,12 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     super.initState();
     _currentInstance = this;
     WidgetsBinding.instance.addObserver(this);
+
+    // Passive 120 Hz interface measurement, already listening when the user
+    // comes back from a game (Build 438).
+    if (UiRefreshRateService.isSupportedPlatform) {
+      UiRefreshRateService.instance.startProbe();
+    }
 
     // Initialize the navigation bridge with core application callbacks.
     _gamepadNav = GamepadNavigation(
