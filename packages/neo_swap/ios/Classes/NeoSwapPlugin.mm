@@ -6,6 +6,7 @@
 #include "NeoSwapExperiment.h"
 #include "NeoSwapBudget.h"
 #include "NeoSwapPreparation.h"
+#include "NeoSwapDonationScheduler.h"
 #import <UIKit/UIKit.h>
 #if defined(NEOSWAP_SHADER_STORAGE)
 #import "NeoSwapStorageService.h"
@@ -499,11 +500,12 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     // The quarter-second small-CPU admission gate is applied by applyBudget
     // from the same kernel sample; dispatch warnings still close it at once.
     (void)neostation::donation::pool_collect_lost();
-    if (NeoSwapExperimentProfile().configured && !self.donorDemand.bytes) {
-        NeoSwapDonationDemand demand{};
-        if (NeoSwap_ClaimDonationDemand(&demand) != NEOSWAP_OK) return;
-        self.donorDemand = demand;
-    }
+    // A previous headroom refusal must not pin an oversized cached demand:
+    // claim the current smallest one whenever no helper growth is in flight.
+    NeoSwapDonationDemand demand = self.donorDemand;
+    if (neostation::donation::refresh_idle_demand(demand,
+            self.donorPendingIndexes.count) != NEOSWAP_OK) return;
+    self.donorDemand = demand;
 
     // Start helpers incrementally, with one preparation in flight. Additional
     // donor processes are started only when the active pair cannot satisfy a
@@ -540,11 +542,6 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     }
     if (self.donorPendingIndexes.count) return;
 
-    if (!self.donorDemand.bytes) {
-        NeoSwapDonationDemand demand{};
-        if (NeoSwap_ClaimDonationDemand(&demand) != NEOSWAP_OK) return;
-        self.donorDemand = demand;
-    }
     if (self.donorDemand.bytes) {
         const uint64_t budget = [self nextDonationBudget];
         if (budget < self.donorDemand.bytes) {

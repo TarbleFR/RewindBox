@@ -146,5 +146,54 @@ int main() {
   assert(pool_collect_lost());
   assert(pool_donor_restartable(2, 0));
   assert(pool_campaign_end(2) && mappings.empty());
-  puts("PASS: production pool nonblocking acquisition during cleanup, 1024-slot exhaustion, fragmented gap reuse, alignment, data isolation, stale tokens, donor loss, failed cleanup and campaign reuse; injected OS, no physical-RAM claim");
+  // A small allocation must preserve the earlier large hole. Exercise both
+  // an exact small hole and a non-exact best fit inside the same entry. The
+  // previous first-fit policy consumes the large hole and cannot lend 64 MiB.
+  for (const auto request : {16 * MiB, 32 * MiB}) {
+    const std::uint64_t epoch = request == 16 * MiB ? 3 : 4;
+    assert(pool_campaign_begin(epoch, 128 * MiB));
+    assert(pool_donor_begin(epoch, 0, epoch, 12347));
+    adopt(epoch, 0, 0, 20, 128 * MiB);
+    assert(acquire(64 * MiB, 16 * KiB));
+    const auto large = live.back().pointer;
+    assert(acquire(16 * MiB, 16 * KiB));
+    assert(acquire(32 * MiB, 16 * KiB));
+    const auto small = live.back().pointer;
+    assert(acquire(16 * MiB, 16 * KiB));
+    release(2);
+    release(0);
+    assert(acquire(request, 16 * KiB));
+    assert(live.back().pointer == small);
+    assert(acquire(64 * MiB, 16 * KiB));
+    assert(live.back().pointer == large);
+    verify();
+    while (!live.empty()) release(live.size() / 2);
+    pool_donor_lost(epoch, 0, epoch, 0);
+    assert(pool_collect_lost());
+    assert(pool_campaign_end(epoch) && mappings.empty());
+  }
+  // Search beyond the first entry: a later exact-fit hole must win over a
+  // completely free first entry, preserving a whole 128-MiB contiguous loan.
+  assert(pool_campaign_begin(5, 256 * MiB));
+  assert(pool_donor_begin(5, 0, 5, 12348));
+  adopt(5, 0, 0, 21, 128 * MiB);
+  adopt(5, 0, 1, 22, 256 * MiB);
+  assert(acquire(128 * MiB, 16 * KiB));
+  const auto large = live.back().pointer;
+  assert(acquire(64 * MiB, 16 * KiB));
+  assert(acquire(32 * MiB, 16 * KiB));
+  const auto small = live.back().pointer;
+  assert(acquire(32 * MiB, 16 * KiB));
+  release(2);
+  release(0);
+  assert(acquire(32 * MiB, 16 * KiB));
+  assert(live.back().pointer == small);
+  assert(acquire(128 * MiB, 16 * KiB));
+  assert(live.back().pointer == large);
+  verify();
+  while (!live.empty()) release(live.size() / 2);
+  pool_donor_lost(5, 0, 5, 0);
+  assert(pool_collect_lost());
+  assert(pool_campaign_end(5) && mappings.empty());
+  puts("PASS: production pool nonblocking acquisition during cleanup, 1024-slot exhaustion, best-fit preservation within/across entries, fragmented gap reuse, alignment, data isolation, stale tokens, donor loss, failed cleanup and campaign reuse; injected OS, no physical-RAM claim");
 }

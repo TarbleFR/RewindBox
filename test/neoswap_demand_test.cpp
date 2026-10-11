@@ -1,5 +1,6 @@
 #include "NeoSwap.h"
 #include "NeoSwapHost.h"
+#include "NeoSwapDonationScheduler.h"
 #include "Donation/Broker.h"
 #include <algorithm>
 #include <cassert>
@@ -100,12 +101,23 @@ int main() {
     assert(claim().sequence == first.sequence);
     request(NEOSWAP_RPCS3, 4 * MiB); // new request while the first is in flight
     request(NEOSWAP_RPCS3, 2 * MiB); // a smaller request is not blocked by an unsatisfied large one
-    auto smaller = claim();
+    // Exercise the production maintenance selector, not just the broker:
+    // outstanding helper work freezes its demand identity through callbacks.
+    auto scheduled = first;
+    assert(neostation::donation::refresh_idle_demand(scheduled, 1) == NEOSWAP_OK);
+    assert(scheduled.bytes == first.bytes && scheduled.sequence == first.sequence);
+    assert(host().donor_inflight_demand_bytes == 4 * MiB);
+    assert(host().donor_pending_demand_count == 2);
+    // After the growth attempt was refused (no pending helper), refresh the
+    // existing nonzero demand: 2 MiB now fits even if 4 MiB still cannot grow.
+    assert(neostation::donation::refresh_idle_demand(scheduled, 0) == NEOSWAP_OK);
+    auto smaller = scheduled;
     assert(smaller.bytes == 2 * MiB && smaller.sequence != first.sequence);
     assert(NeoSwap_AcknowledgeDonationDemand(first.sequence) == NEOSWAP_NOT_OWNED);
     assert(host().donor_pending_demand_count == 1); // identical queued sizes coalesce
     assert(NeoSwap_AcknowledgeDonationDemand(smaller.sequence) == NEOSWAP_OK);
-    auto newer = claim();
+    assert(neostation::donation::refresh_idle_demand(scheduled, 0) == NEOSWAP_OK);
+    auto newer = scheduled;
     assert(newer.bytes == 4 * MiB && newer.sequence > first.sequence);
     request(NEOSWAP_RPCS3, MiB);
     assert(NeoSwap_AcknowledgeDonationDemand(newer.sequence) == NEOSWAP_OK);
@@ -125,5 +137,5 @@ int main() {
     assert(!host().donated_live_bytes && !host().reserved_virtual_bytes);
     config.capacity_bytes = 0;
     assert(NeoSwap_Configure(directory, &config) == NEOSWAP_OK && rmdir(directory) == 0);
-    std::puts("PASS: real file fallback including 257MiB, eligible demand only, coalescing, failed/lost claim retention, smaller-request priority, new-demand preservation during a claim, bounded overflow; no donated-RAM claim");
+    std::puts("PASS: real file fallback including 257MiB, eligible demand only, coalescing, failed/lost claim retention, idle smaller-request priority, in-flight helper sequence retention, stale acknowledgement rejection, new-demand preservation during a claim, bounded overflow; no donated-RAM claim");
 }

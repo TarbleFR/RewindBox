@@ -562,7 +562,54 @@ static void host_loan_owner_quota_protects_guest_share() {
     assert(f.backend.shutdown() == NEOSWAP_RELAY_OK);
 }
 
+static void best_fit_preserves_large_runs() {
+    // A small RPCS3 host loan must use the tighter hole after a live guest
+    // object. First-fit split the earlier four-page hole and then refused the
+    // four-page request even though enough total free backing remained.
+    for (bool exact : {false, true}) {
+        Fixture f(8 * page);
+        const auto large = f.create(4 * page);
+        const auto separator = f.create(page);
+        const auto small = f.create(2 * page);
+        const auto tail = f.create(page);
+        void* separator_view = nullptr;
+        assert(f.backend.map(separator, nullptr, NEOSWAP_RELAY_READ_WRITE, &separator_view) == 0);
+        f.os.write(separator_view, 0, 0xA7);
+        assert(f.backend.release(large) == 0 && f.backend.release(small) == 0);
+        if (!exact) assert(f.backend.release(tail) == 0);
+        const int scrubs_before = f.os.zero_calls;
+        const auto tight = f.create(2 * page);
+        void* tight_view = nullptr;
+        assert(f.backend.map(tight, nullptr, NEOSWAP_RELAY_READ_WRITE, &tight_view) == 0);
+        assert(f.os.mappings.at(reinterpret_cast<std::uintptr_t>(tight_view)).offset == 5 * page);
+        assert(f.os.zero_calls == scrubs_before); // Metadata-only selection.
+        const auto preserved = f.create(4 * page);
+        assert(f.os.read(separator_view, 0) == 0xA7);
+        assert(f.backend.unmap(separator, separator_view) == 0);
+        assert(f.backend.unmap(tight, tight_view) == 0);
+        for (auto token : {separator, tight, preserved}) assert(f.backend.release(token) == 0);
+        if (exact) assert(f.backend.release(tail) == 0);
+        // Coalescing still recovers the entire named object.
+        const auto whole = f.create(8 * page);
+        assert(f.backend.release(whole) == 0 && f.backend.shutdown() == 0);
+    }
+    // Best-fit must compare entries too, including an unoccupied tail. It
+    // must not stitch two separate named objects to satisfy a large request.
+    Fixture f(8 * page);
+    f.os.add(43, 3 * page);
+    assert(f.backend.adopt(43, 3 * page, 1234, 1) == 0);
+    const auto tight = f.create(2 * page);
+    void* view = nullptr;
+    assert(f.backend.map(tight, nullptr, NEOSWAP_RELAY_READ_WRITE, &view) == 0);
+    assert(f.os.mappings.at(reinterpret_cast<std::uintptr_t>(view)).port == 43);
+    const auto whole = f.create(8 * page);
+    assert(f.backend.unmap(tight, view) == 0);
+    assert(f.backend.release(tight) == 0 && f.backend.release(whole) == 0);
+    assert(f.backend.shutdown() == 0);
+}
+
 int main() {
+    best_fit_preserves_large_runs();
     host_loan_owner_quota_protects_guest_share();
     published_backing_survives_pressure();
     alias_identity_and_lifetime();

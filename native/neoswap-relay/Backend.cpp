@@ -54,6 +54,7 @@ struct Backend::State {
         // A bitmap naturally coalesces adjacent free intervals; no allocation
         // or fallible metadata growth occurs while returning a guest object.
         std::bitset<maximum_segment_pages> occupied;
+        std::size_t occupied_pages = 0;
     };
     struct Object {
         std::uint64_t token = 0, bytes = 0, offset = 0;
@@ -134,6 +135,7 @@ struct Backend::State {
         if (result) return fail(NEOSWAP_RELAY_CLEANUP, result);
         const auto first = object.offset / alignment;
         for (std::size_t n = 0; n < object.bytes / alignment; ++n) entry.occupied.reset(first + n);
+        entry.occupied_pages -= object.bytes / alignment;
         stats.live_bytes -= object.bytes;
         if (object.owner < tracked_owner_count)
             pressure_diagnostics.owner_live_bytes[object.owner] -= object.bytes;
@@ -286,33 +288,65 @@ int Backend::create(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* tok
     }
     if (object_index == maximum_objects) return s.fail(NEOSWAP_RELAY_LIMIT);
     const std::size_t pages = bytes / alignment;
+    // Adapt DonatedMemory's best-fit policy from MeloNX 2889267834c7581a:
+    // preserve large contiguous runs for guest backing instead of splitting
+    // the first run for a small host loan. Scan existing bitmap metadata only;
+    // no allocation, page access or remapping, and stop at an exact fit.
+    std::size_t best_entry = maximum_entries, best_first = 0;
+    std::size_t best_pages = maximum_segment_pages + 1;
     for (std::size_t index = 0; index < s.entries.size(); ++index) {
-        auto& entry = s.entries[index];
+        const auto& entry = s.entries[index];
         if (!entry.ready || entry.bytes < bytes) continue;
-        std::size_t contiguous = 0;
-        for (std::size_t page = 0; page < entry.bytes / alignment; ++page) {
-            contiguous = entry.occupied[page] ? 0 : contiguous + 1;
-            if (contiguous < pages) continue;
-            const auto first = page + 1 - pages;
-            for (auto n = first; n <= page; ++n) entry.occupied.set(n);
-            auto& object = s.objects[object_index];
-            object = {(s.next_serial++ << token_shift) | object_index, bytes,
-                      first * alignment, static_cast<std::uint32_t>(index), owner, 0, false, 0};
-            s.next_object = (object_index + 1) % maximum_objects;
-            s.stats.live_bytes += bytes;
-            s.stats.peak_live_bytes = std::max(s.stats.peak_live_bytes, s.stats.live_bytes);
-            if (owner < tracked_owner_count) {
-                auto& live = s.pressure_diagnostics.owner_live_bytes[owner];
-                live += bytes;
-                s.pressure_diagnostics.owner_peak_bytes[owner] =
-                    std::max(s.pressure_diagnostics.owner_peak_bytes[owner], live);
+        const auto end = entry.bytes / alignment;
+        if (end - entry.occupied_pages < pages) continue;
+        // Untouched retained capacity is common (up to sixteen 512 MiB
+        // segments). An empty segment is one known run, so never scan all its
+        // bits for every small allocation. Failed scrubs keep pages occupied.
+        if (!entry.occupied_pages) {
+            if (end < best_pages) {
+                best_entry = index;
+                best_first = 0;
+                best_pages = end;
             }
-            ++s.stats.object_count;
-            *token = object.token;
-            return s.success();
+            if (best_pages == pages) break;
+            continue;
         }
+        std::size_t contiguous = 0;
+        for (std::size_t page = 0; page <= end; ++page) {
+            if (page < end && !entry.occupied[page]) {
+                ++contiguous;
+                continue;
+            }
+            if (contiguous >= pages && contiguous < best_pages) {
+                best_entry = index;
+                best_first = page - contiguous;
+                best_pages = contiguous;
+                if (best_pages == pages) break;
+            }
+            contiguous = 0;
+        }
+        if (best_pages == pages) break;
     }
-    return s.fail(NEOSWAP_RELAY_QUOTA); // Total free capacity can be fragmented.
+    if (best_entry == maximum_entries)
+        return s.fail(NEOSWAP_RELAY_QUOTA); // Total free capacity can be fragmented.
+    auto& entry = s.entries[best_entry];
+    for (auto n = best_first; n < best_first + pages; ++n) entry.occupied.set(n);
+    entry.occupied_pages += pages;
+    auto& object = s.objects[object_index];
+    object = {(s.next_serial++ << token_shift) | object_index, bytes,
+              best_first * alignment, static_cast<std::uint32_t>(best_entry), owner, 0, false, 0};
+    s.next_object = (object_index + 1) % maximum_objects;
+    s.stats.live_bytes += bytes;
+    s.stats.peak_live_bytes = std::max(s.stats.peak_live_bytes, s.stats.live_bytes);
+    if (owner < tracked_owner_count) {
+        auto& live = s.pressure_diagnostics.owner_live_bytes[owner];
+        live += bytes;
+        s.pressure_diagnostics.owner_peak_bytes[owner] =
+            std::max(s.pressure_diagnostics.owner_peak_bytes[owner], live);
+    }
+    ++s.stats.object_count;
+    *token = object.token;
+    return s.success();
 }
 int Backend::map(std::uint64_t token, void* target, std::uint32_t protection, void** mapped) noexcept {
     if (mapped) *mapped = nullptr;

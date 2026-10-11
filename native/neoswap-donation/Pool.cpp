@@ -385,6 +385,12 @@ Result pool_acquire(std::uint64_t bytes, std::uint64_t alignment,
   for (std::size_t i = 0; i < p.loans.size(); ++i)
     if (!p.loans[i].token) { slot = i; break; }
   if (slot == max_loans) return fail(p, Stage::pool_limit);
+  std::size_t best_entry = max_entries, best_previous = max_loans, best_next = max_loans;
+  std::uint64_t best_offset = 0, best_span = std::numeric_limits<std::uint64_t>::max();
+  // Adapt the smallest-sufficient-free-range policy from MeloNX DonatedMemory
+  // (2889267834c7581ad5e2753de6dbda6f5ae3b5fa) to our intrusive loan lists.
+  // Preserve large gaps for later RPCS3 buffers instead of splitting the first
+  // available gap. Mapping ownership, proof and token lifetimes stay unchanged.
   for (std::size_t index = 0; index < p.entries.size(); ++index) {
     auto& e = p.entries[index];
     const auto& donor = p.donors[e.donor].stats;
@@ -395,33 +401,42 @@ Result pool_acquire(std::uint64_t bytes, std::uint64_t alignment,
     auto align_offset = [base, alignment](std::uint64_t offset) {
       return offset + ((alignment - ((base + offset) & (alignment - 1))) & (alignment - 1));
     };
-    std::uint64_t offset = align_offset(0);
+    std::uint64_t begin = 0;
     std::size_t previous = max_loans, next = e.first_loan;
     // Fixed-slot intrusive list, sorted by offset within this entry. Search
     // each live interval once instead of rescanning all loans for every gap.
     // No allocation, IPC or page writes are introduced on this hot path.
-    while (next != max_loans) {
+    for (;;) {
+      const std::uint64_t end = next == max_loans ? size : p.loans[next].offset;
+      const auto offset = align_offset(begin);
+      if (offset <= end && bytes <= end - offset && end - begin < best_span) {
+        best_entry = index; best_previous = previous; best_next = next;
+        best_offset = offset; best_span = end - begin;
+        if (best_span == bytes) break; // Exact fit cannot be improved.
+      }
+      if (next == max_loans) break;
       const auto& live = p.loans[next];
-      if (offset <= live.offset && bytes <= live.offset - offset) break;
-      offset = align_offset(live.offset + live.bytes);
+      begin = live.offset + live.bytes;
       previous = next;
       next = live.next;
     }
-    if (offset > size || bytes > size - offset) continue;
-    auto& loan = p.loans[slot];
-    loan = {p.next_token++, bytes, offset, index, previous, next};
-    if (previous == max_loans) e.first_loan = slot;
-    else p.loans[previous].next = slot;
-    if (next != max_loans) p.loans[next].previous = slot;
-    ++e.loans;
-    p.stats.live_bytes += bytes; ++p.stats.live_blocks;
-    p.stats.peak_live_bytes = std::max(p.stats.peak_live_bytes, p.stats.live_bytes);
-    p.stats.last_stage = Stage::none; p.stats.last_kernel_result = 0;
-    *out = reinterpret_cast<void*>(base + offset); *token = loan.token;
-    publish(p);
-    return {};
+    if (best_span == bytes) break;
   }
-  return fail(p, Stage::pool_quota);
+  if (best_entry == max_entries) return fail(p, Stage::pool_quota);
+  auto& e = p.entries[best_entry];
+  auto& loan = p.loans[slot];
+  loan = {p.next_token++, bytes, best_offset, best_entry, best_previous, best_next};
+  if (best_previous == max_loans) e.first_loan = slot;
+  else p.loans[best_previous].next = slot;
+  if (best_next != max_loans) p.loans[best_next].previous = slot;
+  ++e.loans;
+  p.stats.live_bytes += bytes; ++p.stats.live_blocks;
+  p.stats.peak_live_bytes = std::max(p.stats.peak_live_bytes, p.stats.live_bytes);
+  p.stats.last_stage = Stage::none; p.stats.last_kernel_result = 0;
+  *out = reinterpret_cast<void*>(reinterpret_cast<std::uintptr_t>(e.block->data()) + best_offset);
+  *token = loan.token;
+  publish(p);
+  return {};
 }
 
 Result pool_release(std::uint64_t token) noexcept {
