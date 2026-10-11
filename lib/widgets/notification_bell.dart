@@ -26,6 +26,7 @@ class _NotificationBellState extends State<NotificationBell>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  late final ValueNotifier<List<GlobalNotificationData>> _notifications;
   OverlayEntry? _overlayEntry;
 
   /// Vertical gap between the bell icon and the top of the dropdown.
@@ -44,11 +45,28 @@ class _NotificationBellState extends State<NotificationBell>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 0.4).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    _pulseController.repeat(reverse: true);
+    // The pulse only runs while a notification exists. With none, the icon
+    // is drawn at full opacity anyway, and a repeating controller would keep
+    // the header rendering on every vsync (Build 438: no idle render loop).
+    _notifications = GlobalNotificationService().notifier;
+    _notifications.addListener(_syncPulse);
+    _syncPulse();
+  }
+
+  void _syncPulse() {
+    if (_notifications.value.isNotEmpty) {
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+    } else if (_pulseController.isAnimating) {
+      // No reset needed: the builder shows full opacity without notifications.
+      _pulseController.stop();
+    }
   }
 
   @override
   void dispose() {
+    _notifications.removeListener(_syncPulse);
     _closeDropdown();
     _pulseController.dispose();
     super.dispose();
