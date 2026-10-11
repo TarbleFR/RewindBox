@@ -93,3 +93,35 @@ license does not relicense downloaded artwork.
 
 Usage, compatibility and source references:
 https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/SKINS.md
+
+## Reading Library: Aidoku source catalogues and local books
+
+NeoStation's reading Library can import **Aidoku** source catalogues that the
+user adds by URL or file. It reads only their metadata: the repository index
+(`index.min.json` / `index.json`), `source.json`, and the source icon inside a
+`.aix` package. NeoStation never executes the WebAssembly code (`main.wasm`)
+shipped in an `.aix` package and does not bundle or redistribute any
+catalogue, package or source code.
+
+- **Formats:** [Aidoku](https://github.com/Aidoku/Aidoku) (GPL-3.0) and the
+  [aidoku-rs](https://github.com/Aidoku/aidoku-rs) SDK (MIT) define the `.aix`,
+  `source.json` and repository index formats NeoStation recognises.
+- **French source catalogue:**
+  [Moomooo95/aidoku-french-sources](https://github.com/Moomooo95/aidoku-french-sources),
+  by Moomooo95. That repository declares no licence. NeoStation does not copy
+  its code or packages; the native Dart adapters for the sites it lists
+  (Mangas Origines, LelscanFR, SushiScan, Sushi Scans, Manga Scantrad) are
+  independent implementations written for the public websites. Credit for
+  the original source list and site research goes to its author.
+- **Websites:** every title, cover, chapter and image shown from an online
+  source is fetched at the user's request from that website and remains the
+  property of its owners. NeoStation does not host, mirror or provide content.
+
+Local books (EPUB, PDF, CBZ, TXT) are files the user imports from Files; the
+copies stay on the device. PDF rendering uses
+[pdfrx](https://github.com/espresso3389/pdfrx) (MIT) with
+[PDFium](https://pdfium.googlesource.com/pdfium/) (BSD-3-Clause), ZIP-based
+formats (EPUB, CBZ) use the Dart [archive](https://pub.dev/packages/archive)
+package (MIT), and EPUB/XHTML parsing uses the Dart
+[html](https://pub.dev/packages/html) (BSD-3-Clause) and
+[xml](https://pub.dev/packages/xml) (MIT) packages.

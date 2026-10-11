@@ -164,6 +164,24 @@ NeoStation iOS also allows users to import, organize and read books and manga.
 Users must add their own files or independently configure compatible sources.
 NeoStation iOS does not provide or host copyrighted content sources.
 
+- **Local library** — import EPUB, PDF, CBZ and TXT files from Files (On My
+  iPhone, iCloud Drive or any file provider). NeoStation keeps its own copy in
+  `NeoStation iOS › Library › Books`, so books stay readable offline; deleting
+  a book removes only that copy. A `.cbr` file is accepted only when it is
+  really a ZIP archive; RAR, 7z/CB7, Kindle (MOBI/AZW) and DRM-protected books
+  are refused with an explanation.
+- **Readers** — reflowable EPUB/TXT reader (font size, line spacing, themes,
+  table of contents, position saved as an EPUB CFI), PDF reader with page
+  navigation and zoom, page reader for CBZ files and online chapters (paged
+  left-to-right or right-to-left, vertical scrolling, zoom). Readers may rotate
+  to portrait; progress is saved automatically.
+- **Aidoku source catalogues** — paste a catalogue URL (for example the
+  Aidoku French sources list), review its sources and activate only the ones
+  you choose. NeoStation reads catalogue metadata only and never runs `.aix`
+  code; supported sites use native adapters. See
+  [the Build 437 reading notes](docs/library-reading-build437.md) for the
+  verified status of each source.
+
 ## Project structure
 
 ```text
@@ -202,6 +220,9 @@ components, and preserve their license/notices.
 | **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). NeoStation uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
 | **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
 | **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
+| **Aidoku** | [Aidoku](https://github.com/Aidoku/Aidoku) and the [aidoku-rs](https://github.com/Aidoku/aidoku-rs) SDK define the source catalogue formats (`.aix`, `source.json`, repository index) that the reading Library can import. NeoStation reads their metadata only and never executes Aidoku source code. |
+| **Aidoku French sources** | [Moomooo95/aidoku-french-sources](https://github.com/Moomooo95/aidoku-french-sources) by Moomooo95: the French source list and site research behind the native adapters for Mangas Origines, LelscanFR, SushiScan, Sushi Scans and Manga Scantrad. Its code and packages are not bundled. |
+| **pdfrx / PDFium** | [pdfrx](https://github.com/espresso3389/pdfrx) and [PDFium](https://pdfium.googlesource.com/pdfium/) render PDF books and manuals. |
 
 For lower-level dependencies, pinned revisions and additional license details,
 see [NOTICE.md](NOTICE.md), [the complete legal/credits record](docs/LEGAL_AND_CREDITS.md),
