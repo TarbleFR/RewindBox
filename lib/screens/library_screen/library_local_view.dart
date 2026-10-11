@@ -1243,42 +1243,53 @@ class LibraryImportResultsDialog extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final outcome = outcomes[index];
                     final detail = outcome.detail;
-                    return Padding(
+                    // Each line takes the focus so a controller can scroll
+                    // through a long list (the d-pad only moves the focus).
+                    return LibraryFocusRing(
                       key: ValueKey<String>('outcome-$index'),
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Icon(
-                            outcome.imported
-                                ? Icons.check_circle
-                                : Icons.error_outline,
-                            color: outcome.imported
-                                ? Colors.green.shade600
-                                : theme.colorScheme.error,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  outcome.sourceName,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                      radius: 6,
+                      child: Focus(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Icon(
+                                outcome.imported
+                                    ? Icons.check_circle
+                                    : Icons.error_outline,
+                                color: outcome.imported
+                                    ? Colors.green.shade600
+                                    : theme.colorScheme.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      outcome.sourceName,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    Text(
+                                      libraryImportOutcomeText(
+                                        context,
+                                        outcome,
+                                      ),
+                                    ),
+                                    if (!outcome.imported &&
+                                        detail != null &&
+                                        detail.isNotEmpty)
+                                      LibraryTechnicalDetails(detail: detail),
+                                  ],
                                 ),
-                                Text(
-                                  libraryImportOutcomeText(context, outcome),
-                                ),
-                                if (!outcome.imported &&
-                                    detail != null &&
-                                    detail.isNotEmpty)
-                                  LibraryTechnicalDetails(detail: detail),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   },

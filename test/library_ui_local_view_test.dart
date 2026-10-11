@@ -10,6 +10,7 @@ import 'package:neostation/screens/library_screen/library_local_view.dart';
 import 'package:neostation/services/library_local_library_service.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 
 import 'library_ui_sources_harness.dart';
 
@@ -203,6 +204,7 @@ Future<void> _openMenu(WidgetTester tester, String title) async {
 
 void main() {
   _coveredSectionTests();
+  _resultsControllerTests();
 
   final alpha = _book('a', 'Alpha', LibraryBookFormat.epub, size: 300 * 1024);
   final bravo = _book('b', 'Bravo', LibraryBookFormat.pdf, size: 100 * 1024);
@@ -663,5 +665,53 @@ void _coveredSectionTests() {
 
     // Uncovered again: the controller drives the view.
     expect(host.controller.back(), isFalse, reason: 'back to the hub');
+  });
+}
+
+void _resultsControllerTests() {
+  testWidgets('a controller scrolls through a long list of import results', (
+    tester,
+  ) async {
+    final outcomes = <LibraryImportOutcome>[
+      for (var index = 0; index < 15; index++)
+        LibraryImportOutcome(
+          sourceName: 'File $index.cbr',
+          issue: LibraryBookIssue.rarArchive,
+        ),
+    ];
+    await pumpLibraryUi(
+      tester,
+      LibraryImportResultsDialog(outcomes: outcomes, enableGamepad: false),
+      size: const Size(844, 390),
+    );
+    await tester.pumpAndSettle();
+    final list = find.descendant(
+      of: find.byType(LibraryImportResultsDialog),
+      matching: find.byType(ListView),
+    );
+    bool visible(String text) {
+      final found = find.text(text);
+      if (found.evaluate().isEmpty) return false;
+      final viewport = tester.getRect(list);
+      final rect = tester.getRect(found);
+      return rect.top >= viewport.top && rect.bottom <= viewport.bottom;
+    }
+
+    expect(visible('File 14.cbr'), isFalse);
+    final layer = tester.state<LibraryFocusGamepadLayerState>(
+      find.byType(LibraryFocusGamepadLayer),
+    );
+    for (var press = 0; press < 15; press++) {
+      layer.move(TraversalDirection.down);
+      await tester.pumpAndSettle();
+    }
+    expect(visible('File 14.cbr'), isTrue);
+    for (var press = 0; press < 3; press++) {
+      layer.move(TraversalDirection.down);
+      await tester.pumpAndSettle();
+    }
+    layer.activateFocused();
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryImportResultsDialog), findsNothing);
   });
 }
