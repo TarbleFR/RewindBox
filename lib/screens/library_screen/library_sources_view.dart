@@ -1427,48 +1427,98 @@ class _CatalogUrlDialogState extends State<_CatalogUrlDialog> {
       enableGamepad: widget.enableGamepad,
       debugLabel: 'sources_url',
       autofocus: false,
-      child: AlertDialog(
-        title: Text(t('urlDialogTitle')),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              TextField(
-                key: const ValueKey<String>('catalog-url-field'),
-                controller: _controller,
-                autofocus: true,
-                keyboardType: TextInputType.url,
-                textInputAction: TextInputAction.go,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: t('urlDialogLabel'),
-                  hintText: 'https://',
-                  suffixIcon: IconButton(
-                    tooltip: t('paste'),
-                    onPressed: _paste,
-                    icon: const Icon(Icons.content_paste),
+      child: LibraryKeyboardDialogInsets(
+        child: AlertDialog(
+          // The keyboard opens with the dialog: on a landscape iPhone the
+          // content scrolls above the actions instead of being covered by
+          // them (the Paste button sat under 'Show sources').
+          scrollable: true,
+          title: Text(t('urlDialogTitle')),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                TextField(
+                  key: const ValueKey<String>('catalog-url-field'),
+                  controller: _controller,
+                  autofocus: true,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.go,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: t('urlDialogLabel'),
+                    hintText: 'https://',
+                    suffixIcon: IconButton(
+                      tooltip: t('paste'),
+                      onPressed: _paste,
+                      icon: const Icon(Icons.content_paste),
+                    ),
                   ),
+                  onSubmitted: (_) => _submit(),
                 ),
-                onSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                t('urlDialogHelp'),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  t('urlDialogHelp'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(t('cancel')),
+            ),
+            FilledButton(onPressed: _submit, child: Text(t('showSources'))),
+          ],
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('cancel')),
-          ),
-          FilledButton(onPressed: _submit, child: Text(t('showSources'))),
-        ],
+      ),
+    );
+  }
+}
+
+/// Room for a text field dialog (with `scrollable: true`) above the
+/// keyboard of a landscape iPhone, where about 180 pt of height remain.
+///
+/// The keyboard height is applied at once instead of through the dialog's
+/// own 100 ms inset animation: with that animation the dialog was still
+/// shrinking after the keyboard's last frame, so the field's "keep the
+/// caret visible" scroll ran on a layout that was not the final one and
+/// the field could end up under the dialog's actions. While the keyboard
+/// is up the dialog's vertical margin also drops from 24 to 8 pt, which
+/// keeps a whole text field visible above the actions.
+class LibraryKeyboardDialogInsets extends StatelessWidget {
+  const LibraryKeyboardDialogInsets({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboard),
+      child: MediaQuery.removeViewInsets(
+        context: context,
+        removeBottom: true,
+        // Always the same widgets, so the field keeps its state and focus
+        // when the keyboard comes and goes.
+        child: Theme(
+          data: keyboard > 0
+              ? theme.copyWith(
+                  dialogTheme: theme.dialogTheme.copyWith(
+                    insetPadding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 8,
+                    ),
+                  ),
+                )
+              : theme,
+          child: child,
+        ),
       ),
     );
   }

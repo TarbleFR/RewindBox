@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/screens/library_screen/library_catalog_preview_screen.dart';
 import 'package:neostation/screens/library_screen/library_gamepad_view_controller.dart';
@@ -743,6 +744,91 @@ void main() {
     fixture.controller.activate();
     await tester.pumpAndSettle();
     expect(find.text('Catalogue address'), findsOneWidget);
+  });
+
+  testWidgets('with the keyboard up on a landscape iPhone, the URL field and '
+      'its Paste button stay clear of the actions', (tester) async {
+    final fixture = await _fixture();
+    await pumpLibraryUi(tester, fixture.view(), size: const Size(844, 390));
+    tester.view.padding = const FakeViewPadding(
+      left: 47,
+      right: 47,
+      bottom: 21,
+    );
+    await tester.pumpAndSettle();
+    String? clipboardReads;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.getData') {
+          clipboardReads = _catalogUrl;
+          return <String, Object?>{'text': _catalogUrl};
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final add = find.text('Add a catalogue (URL)');
+    await tester.ensureVisible(add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    for (final keyboard in <double>[150, 190, 210]) {
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      await tester.pumpAndSettle();
+
+      final field = tester.getRect(
+        find.byKey(const ValueKey<String>('catalog-url-field')),
+      );
+      final paste = tester.getRect(find.byTooltip('Paste'));
+      final show = tester.getRect(
+        find.widgetWithText(FilledButton, 'Show sources'),
+      );
+      final cancel = tester.getRect(find.widgetWithText(TextButton, 'Cancel'));
+      for (final action in <Rect>[show, cancel]) {
+        expect(field.overlaps(action), isFalse, reason: 'keyboard $keyboard');
+        expect(paste.overlaps(action), isFalse, reason: 'keyboard $keyboard');
+      }
+      expect(
+        field.bottom,
+        lessThanOrEqualTo(390 - keyboard),
+        reason: 'the field is above the keyboard ($keyboard)',
+      );
+      // The Paste button is not clipped by the scrolling content.
+      final visible = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(AlertDialog),
+              matching: find.byType(SingleChildScrollView),
+            )
+            .first,
+      );
+      expect(
+        visible.contains(paste.topLeft) && visible.contains(paste.bottomRight),
+        isTrue,
+        reason: 'Paste $paste visible in $visible ($keyboard)',
+      );
+    }
+
+    // A tap on Paste reaches it (it used to land on 'Show sources').
+    await tester.tap(find.byTooltip('Paste'));
+    await tester.pump();
+    expect(clipboardReads, _catalogUrl);
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey<String>('catalog-url-field')),
+          )
+          .controller!
+          .text,
+      _catalogUrl,
+    );
+    expect(find.byType(LibraryCatalogPreviewScreen), findsNothing);
   });
 
   testWidgets('the view detaches its controller delegate when removed', (

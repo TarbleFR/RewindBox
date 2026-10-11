@@ -21,6 +21,7 @@ import 'library_sources_view.dart'
     show
         LibraryDateFormatPreload,
         LibraryFocusSectionDelegate,
+        LibraryKeyboardDialogInsets,
         LibraryTechnicalDetails,
         libraryShortDate;
 
@@ -1392,40 +1393,45 @@ class _RenameDialogState extends State<_RenameDialog> {
       enableGamepad: widget.enableGamepad,
       debugLabel: 'local_rename',
       autofocus: false,
-      child: AlertDialog(
-        title: Text(t('renameTitle')),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              TextField(
-                key: const ValueKey<String>('rename-field'),
-                controller: _controller,
-                autofocus: true,
-                decoration: InputDecoration(labelText: t('renameLabel')),
-                onSubmitted: (value) => Navigator.of(context).pop(value),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                t('renameHelp'),
-                key: const ValueKey<String>('rename-help'),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+      child: LibraryKeyboardDialogInsets(
+        child: AlertDialog(
+          // With the keyboard up on a landscape iPhone the content scrolls
+          // above the actions instead of being covered by them.
+          scrollable: true,
+          title: Text(t('renameTitle')),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                TextField(
+                  key: const ValueKey<String>('rename-field'),
+                  controller: _controller,
+                  autofocus: true,
+                  decoration: InputDecoration(labelText: t('renameLabel')),
+                  onSubmitted: (value) => Navigator.of(context).pop(value),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  t('renameHelp'),
+                  key: const ValueKey<String>('rename-help'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(_controller.text),
+              child: Text(t('save')),
+            ),
+          ],
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_controller.text),
-            child: Text(t('save')),
-          ),
-        ],
       ),
     );
   }

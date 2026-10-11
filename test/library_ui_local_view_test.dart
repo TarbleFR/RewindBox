@@ -908,6 +908,38 @@ void _landscapeIphoneTests() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('with the keyboard up, the rename field stays clear of Save', (
+    tester,
+  ) async {
+    final host = await pumpInLibraryMargins(tester);
+    tester.view.padding = const FakeViewPadding(
+      left: 47,
+      right: 47,
+      bottom: 21,
+    );
+    await tester.pumpAndSettle();
+    final title = books.first.title;
+    await tester.ensureVisible(find.byTooltip('More actions for $title'));
+    await _openMenu(tester, title);
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 190);
+    await tester.pumpAndSettle();
+
+    final fieldFinder = find.byKey(const ValueKey<String>('rename-field'));
+    final field = tester.getRect(fieldFinder);
+    final save = tester.getRect(find.widgetWithText(FilledButton, 'Save'));
+    final cancel = tester.getRect(find.widgetWithText(TextButton, 'Cancel'));
+    expect(field.overlaps(save), isFalse, reason: '$field / Save $save');
+    expect(field.overlaps(cancel), isFalse, reason: '$field / Cancel $cancel');
+    expect(field.bottom, lessThanOrEqualTo(390 - 190));
+
+    await tester.enterText(fieldFinder, 'Renamed');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(host.library.renamed.single.$2, 'Renamed');
+  });
 }
 
 void _resultsControllerTests() {
