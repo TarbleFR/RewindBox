@@ -1243,15 +1243,20 @@ class LibraryStatusChip extends StatelessWidget {
     super.key,
     required this.label,
     required this.state,
+    this.icon,
   });
 
   final String label;
   final LibraryLadderState state;
 
+  /// Replaces the icon of [state] (e.g. for a neutral label that is not a
+  /// verification result).
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (Color color, IconData icon) = switch (state) {
+    final (Color color, IconData stateIcon) = switch (state) {
       LibraryLadderState.ok => (Colors.green.shade600, Icons.check_circle),
       LibraryLadderState.failed => (scheme.error, Icons.error_outline),
       LibraryLadderState.unknown => (
@@ -1259,6 +1264,7 @@ class LibraryStatusChip extends StatelessWidget {
         Icons.help_outline,
       ),
     };
+    final icon = this.icon ?? stateIcon;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

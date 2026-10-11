@@ -710,9 +710,18 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
                     ),
                   if (status != null) ...<Widget>[
                     const SizedBox(height: 4),
+                    // Neutral chip with an icon of its own: the "unknown"
+                    // question mark read as if the status were uncertain.
                     LibraryStatusChip(
+                      key: const ValueKey<String>('manga-status'),
                       label: status,
                       state: LibraryLadderState.unknown,
+                      icon: switch (details!.status) {
+                        LibraryMangaStatus.completed => Icons.task_alt,
+                        LibraryMangaStatus.hiatus => Icons.pause_circle_outline,
+                        LibraryMangaStatus.cancelled => Icons.cancel_outlined,
+                        _ => Icons.autorenew,
+                      },
                     ),
                   ],
                 ],

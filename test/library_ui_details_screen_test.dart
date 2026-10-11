@@ -606,4 +606,39 @@ void main() {
     expect(find.text('Ajouter aux favoris'), findsOneWidget);
     expect(find.text('En cours'), findsOneWidget);
   });
+
+  testWidgets('the publication status is not shown as uncertain', (
+    tester,
+  ) async {
+    final aidoku = FakeAidokuService()
+      ..cached = testDetails(item, count: 3)
+      ..watchResult = testDetails(item, count: 3);
+    await pumpLibraryUi(
+      tester,
+      _screen(
+        item: item,
+        addon: addon,
+        aidoku: aidoku,
+        store: MemoryReadingStore(),
+        opened: _Opened(),
+      ),
+      wrapInScaffold: false,
+    );
+    await tester.pumpAndSettle();
+
+    final status = find.byKey(const ValueKey<String>('manga-status'));
+    expect(
+      find.descendant(of: status, matching: find.text('Ongoing')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: status, matching: find.byIcon(Icons.help_outline)),
+      findsNothing,
+      reason: 'a question mark reads as "status not verified"',
+    );
+    expect(
+      find.descendant(of: status, matching: find.byIcon(Icons.autorenew)),
+      findsOneWidget,
+    );
+  });
 }
