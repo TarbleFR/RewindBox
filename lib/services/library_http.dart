@@ -16,7 +16,9 @@ import 'package:path_provider/path_provider.dart';
 /// Every Library request (source catalogues, manga pages, catalogue indexes,
 /// covers) goes through [LibraryHttp] so that:
 /// * one keep-alive client is reused instead of one client per request;
-/// * concurrency is bounded per host and globally;
+/// * concurrency is bounded per host and globally, with a separate budget
+///   for images ([LibraryRequestLane.media]) so covers never delay
+///   catalogue, search or details requests;
 /// * identical in-flight requests are shared (deduplicated);
 /// * superseded work can be cancelled ([LibraryCancelToken]);
 /// * responses can be kept in a size-limited persistent cache with
@@ -220,6 +222,18 @@ enum LibraryFetchMode {
   cacheOnly,
 }
 
+/// Concurrency budget a request uses in [LibraryHttp].
+enum LibraryRequestLane {
+  /// Catalogues, listings, search, details, chapter and page lists: what
+  /// the user waits for before anything can be shown.
+  standard,
+
+  /// Cover and page images. They have their own per-host and global
+  /// budget, so tens of queued images never delay a [standard] request to
+  /// the same host.
+  media,
+}
+
 /// Immutable description of one request. [key] identifies it for
 /// deduplication and caching.
 class LibraryRequest {
@@ -232,6 +246,7 @@ class LibraryRequest {
     this.cacheKey,
     Set<int> acceptStatuses = const <int>{},
     this.followRedirects = true,
+    this.lane = LibraryRequestLane.standard,
   }) : method = 'GET',
        headers = Map<String, String>.unmodifiable(headers),
        form = null,
@@ -247,10 +262,15 @@ class LibraryRequest {
     this.cacheKey,
     Set<int> acceptStatuses = const <int>{},
     this.followRedirects = false,
+    this.lane = LibraryRequestLane.standard,
   }) : method = 'POST',
        headers = Map<String, String>.unmodifiable(headers),
        form = Map<String, String>.unmodifiable(form),
        acceptStatuses = Set<int>.unmodifiable(acceptStatuses);
+
+  /// Concurrency budget used while the request waits for and holds a
+  /// connection slot. Not part of [key].
+  final LibraryRequestLane lane;
 
   final String method;
   final Uri uri;
@@ -416,31 +436,42 @@ class LibraryHttp {
   /// `getApplicationCacheDirectory()/Library/library_http`; when that fails
   /// (no platform plugin) only the memory cache is used.
   ///
-  /// [hostLimits] overrides [maxConcurrentPerHost] for specific hosts (see
+  /// [hostLimits] overrides the per-host limits for specific hosts (see
   /// [LibraryHttp.hostLimits]).
+  ///
+  /// [LibraryRequestLane.media] requests (images) use their own limits,
+  /// [maxConcurrentMediaRequests] and [maxConcurrentMediaPerHost], so they
+  /// never hold a slot a [LibraryRequestLane.standard] request waits for.
   LibraryHttp({
     http.Client? client,
     Directory? cacheDirectory,
     DateTime Function()? clock,
     int maxConcurrentRequests = 8,
     int maxConcurrentPerHost = 3,
+    int maxConcurrentMediaRequests = 6,
+    int maxConcurrentMediaPerHost = 3,
     int maxCacheBytes = 96 * 1024 * 1024,
     int maxMemoryCacheBytes = 8 * 1024 * 1024,
     Map<String, int> hostLimits = const <String, int>{},
   }) : maxConcurrentRequests = math.max(1, maxConcurrentRequests),
        maxConcurrentPerHost = math.max(1, maxConcurrentPerHost),
+       maxConcurrentMediaRequests = math.max(1, maxConcurrentMediaRequests),
+       maxConcurrentMediaPerHost = math.max(1, maxConcurrentMediaPerHost),
        maxCacheBytes = math.max(0, maxCacheBytes),
        _clock = clock ?? DateTime.now,
        _client =
            client ??
            createDefaultClient(
-             maxConnectionsPerHost: math.max(
-               maxConcurrentRequests,
-               maxConcurrentPerHost,
-             ),
+             // Both lanes may be busy on one host at the same time: the
+             // client must never queue a request the lanes already let
+             // through.
+             maxConnectionsPerHost:
+                 math.max(1, maxConcurrentRequests) +
+                 math.max(1, maxConcurrentMediaRequests),
            ),
        _memory = _MemoryCache(math.max(0, maxMemoryCacheBytes)) {
     _global = _FifoSemaphore(this.maxConcurrentRequests);
+    _mediaGlobal = _FifoSemaphore(this.maxConcurrentMediaRequests);
     _disk = LibraryDiskCache(
       () async {
         final base = cacheDirectory ?? await defaultCacheDirectory();
@@ -505,6 +536,14 @@ class LibraryHttp {
   /// Default per-host limit (see [hostLimits] for overrides).
   final int maxConcurrentPerHost;
 
+  /// Global limit of [LibraryRequestLane.media] requests on the wire, on
+  /// top of [maxConcurrentRequests].
+  final int maxConcurrentMediaRequests;
+
+  /// Default per-host limit of [LibraryRequestLane.media] requests, on top
+  /// of [maxConcurrentPerHost].
+  final int maxConcurrentMediaPerHost;
+
   /// Size limit of the persistent cache.
   final int maxCacheBytes;
 
@@ -512,8 +551,11 @@ class LibraryHttp {
   final DateTime Function() _clock;
   final _MemoryCache _memory;
   late final _FifoSemaphore _global;
+  late final _FifoSemaphore _mediaGlobal;
   late final LibraryDiskCache _disk;
   final Map<String, _FifoSemaphore> _hostSemaphores =
+      <String, _FifoSemaphore>{};
+  final Map<String, _FifoSemaphore> _mediaHostSemaphores =
       <String, _FifoSemaphore>{};
   final Map<String, int> _hostOverrides = <String, int>{};
   final Map<String, _Flight> _flights = <String, _Flight>{};
@@ -522,10 +564,11 @@ class LibraryHttp {
 
   LibraryHttpStats get stats => _stats;
 
-  /// Per-host concurrency overrides, keyed by lower-case host name.
-  /// `hostLimits['example.com'] = 1` serialises that host; removing the key
-  /// restores [maxConcurrentPerHost]. Changes apply to queued requests
-  /// immediately.
+  /// Per-host concurrency overrides, keyed by lower-case host name, applied
+  /// to each lane. `hostLimits['example.com'] = 1` serialises that host's
+  /// standard requests (and, separately, its images); removing the key
+  /// restores [maxConcurrentPerHost] / [maxConcurrentMediaPerHost]. Changes
+  /// apply to queued requests immediately.
   late final Map<String, int> hostLimits = _HostLimitMap(this);
 
   /// Sets ([limit] >= 1) or removes (null) the concurrency override of
@@ -538,10 +581,23 @@ class LibraryHttp {
     } else {
       _hostOverrides[normalized] = math.max(1, limit);
     }
-    _hostSemaphores[normalized]?.limit = _limitFor(normalized);
+    for (final lane in LibraryRequestLane.values) {
+      _hostSemaphoresOf(lane)[normalized]?.limit = _limitFor(normalized, lane);
+    }
   }
 
-  int _limitFor(String host) => _hostOverrides[host] ?? maxConcurrentPerHost;
+  int _limitFor(String host, LibraryRequestLane lane) =>
+      _hostOverrides[host] ??
+      switch (lane) {
+        LibraryRequestLane.standard => maxConcurrentPerHost,
+        LibraryRequestLane.media => maxConcurrentMediaPerHost,
+      };
+
+  Map<String, _FifoSemaphore> _hostSemaphoresOf(LibraryRequestLane lane) =>
+      switch (lane) {
+        LibraryRequestLane.standard => _hostSemaphores,
+        LibraryRequestLane.media => _mediaHostSemaphores,
+      };
 
   /// Sends [request] according to [mode]. Throws [LibraryNetworkException].
   /// Matches the [LibraryFetcher] signature.
@@ -947,32 +1003,42 @@ class LibraryHttp {
       );
     }
     final host = uri.host.toLowerCase();
-    final hostSemaphore = _hostSemaphores.putIfAbsent(
+    final lane = request.lane;
+    final hostSemaphores = _hostSemaphoresOf(lane);
+    final global = switch (lane) {
+      LibraryRequestLane.standard => _global,
+      LibraryRequestLane.media => _mediaGlobal,
+    };
+    final hostSemaphore = hostSemaphores.putIfAbsent(
       host,
-      () => _FifoSemaphore(_limitFor(host)),
+      () => _FifoSemaphore(_limitFor(host, lane)),
     );
     if (!await hostSemaphore.acquire(flight.aborted)) {
-      _releaseIdleHost(host, hostSemaphore);
+      _releaseIdleHost(hostSemaphores, host, hostSemaphore);
       throw _abortException(flight.abortReason, uri);
     }
     try {
-      if (!await _global.acquire(flight.aborted)) {
+      if (!await global.acquire(flight.aborted)) {
         throw _abortException(flight.abortReason, uri);
       }
       try {
         return await _transfer(flight, request, cached);
       } finally {
-        _global.release();
+        global.release();
       }
     } finally {
       hostSemaphore.release();
-      _releaseIdleHost(host, hostSemaphore);
+      _releaseIdleHost(hostSemaphores, host, hostSemaphore);
     }
   }
 
-  void _releaseIdleHost(String host, _FifoSemaphore semaphore) {
-    if (semaphore.isIdle && identical(_hostSemaphores[host], semaphore)) {
-      _hostSemaphores.remove(host);
+  static void _releaseIdleHost(
+    Map<String, _FifoSemaphore> semaphores,
+    String host,
+    _FifoSemaphore semaphore,
+  ) {
+    if (semaphore.isIdle && identical(semaphores[host], semaphore)) {
+      semaphores.remove(host);
     }
   }
 

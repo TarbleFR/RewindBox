@@ -49,9 +49,12 @@ class LibraryImageCacheStats {
 /// Encoded image bytes are stored in `<cacheDirectory>/library_images`
 /// (default `Caches/Library/library_images`) with their own size limit and
 /// LRU trimming; [pin]ned URLs are never trimmed. Downloads go through
-/// [LibraryHttp] (shared client, per-host limits, typed errors) without its
+/// [LibraryHttp] (shared client, typed errors) in its
+/// [LibraryRequestLane.media] lane, whose per-host and global limits are
+/// separate from catalogue, search and details requests, and without its
 /// memory body cache: decoded images live in Flutter's `ImageCache`, at the
-/// display size requested by [LibraryNetworkImage].
+/// display size requested by [LibraryNetworkImage]. `http:` image URLs are
+/// downloaded over https.
 ///
 /// A cached image is used without network for [freshFor]; afterwards it is
 /// revalidated with `If-None-Match` / `If-Modified-Since`. When the network
@@ -340,6 +343,7 @@ class LibraryImageCache implements LibraryCoverPinner {
           timeout: requestTimeout,
           maxBytes: maxImageBytes,
           acceptStatuses: conditional ? const <int>{304} : const <int>{},
+          lane: LibraryRequestLane.media,
         ),
         mode: LibraryFetchMode.refresh,
         cancel: token,
@@ -518,6 +522,12 @@ class _SharedLoad {
 /// with `cacheWidth: 1170` is decoded at 1170x1755. Equality ignores
 /// [headers] so that rebuilding a header map does not reload the image.
 /// Errors are reported through the image stream, so `errorBuilder` works.
+///
+/// A download nobody shows any more is cancelled: when the last widget (or
+/// other listener) of an image still downloading goes away, e.g. a cover
+/// scrolled far off screen or a page left in the reader, its request is
+/// cancelled (and leaves the [LibraryHttp] queue) and the image leaves
+/// Flutter's `ImageCache`, so showing it again starts a new download.
 @immutable
 class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
   const LibraryNetworkImage(
@@ -536,17 +546,55 @@ class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
   /// Cache to load through; defaults to [LibraryImageCache.instance].
   final LibraryImageCache? cache;
 
+  /// Downloads in progress for completers registered in the `ImageCache`,
+  /// so an abandoned download only evicts its own entry.
+  static final Map<LibraryNetworkImage, _ImageDownload> _cachedDownloads =
+      <LibraryNetworkImage, _ImageDownload>{};
+
   @override
   Future<LibraryNetworkImage> obtainKey(ImageConfiguration configuration) =>
       SynchronousFuture<LibraryNetworkImage>(this);
+
+  /// Same as [ImageProvider.resolveStreamForKey], except that it marks the
+  /// listener the `ImageCache` adds to a new completer while registering it:
+  /// that listener does not keep the download alive.
+  @override
+  void resolveStreamForKey(
+    ImageConfiguration configuration,
+    ImageStream stream,
+    LibraryNetworkImage key,
+    ImageErrorListener handleError,
+  ) {
+    if (stream.completer != null) {
+      super.resolveStreamForKey(configuration, stream, key, handleError);
+      return;
+    }
+    _LibraryImageStreamCompleter? created;
+    final completer = PaintingBinding.instance.imageCache.putIfAbsent(key, () {
+      final result = loadImage(
+        key,
+        PaintingBinding.instance.instantiateImageCodecWithSize,
+      );
+      if (result is _LibraryImageStreamCompleter) {
+        created = result;
+        result._registeringInCache = true;
+        _cachedDownloads[key] = result._download;
+      }
+      return result;
+    }, onError: handleError);
+    created?._registeringInCache = false;
+    if (completer != null) stream.setCompleter(completer);
+  }
 
   @override
   ImageStreamCompleter loadImage(
     LibraryNetworkImage key,
     ImageDecoderCallback decode,
   ) {
-    return MultiFrameImageStreamCompleter(
-      codec: _loadCodec(key, decode),
+    final download = _ImageDownload(key);
+    return _LibraryImageStreamCompleter(
+      download: download,
+      codec: _loadCodec(key, decode, download),
       scale: 1.0,
       debugLabel: key.url,
       informationCollector: () => <DiagnosticsNode>[
@@ -559,14 +607,28 @@ class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
   Future<ui.Codec> _loadCodec(
     LibraryNetworkImage key,
     ImageDecoderCallback decode,
+    _ImageDownload download,
   ) async {
     final cache = key.cache ?? LibraryImageCache.instance;
     var loaded = false;
     try {
-      final bytes = await cache.load(
-        key.url,
-        headers: key.headers ?? const <String, String>{},
-      );
+      final Uint8List bytes;
+      try {
+        bytes = await cache.load(
+          key.url,
+          headers: key.headers ?? const <String, String>{},
+          cancel: download.token,
+        );
+      } finally {
+        download.finish();
+      }
+      // The bytes arrived just as the last listener left: not decoded.
+      if (download.abandoned) {
+        throw LibraryNetworkException(
+          LibraryNetworkErrorKind.cancelled,
+          uri: Uri.tryParse(key.url),
+        );
+      }
       loaded = true;
       if (bytes.isEmpty) {
         throw LibraryNetworkException(
@@ -586,6 +648,9 @@ class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
         ),
       );
     } catch (_) {
+      // Cancelled because nobody shows it: the completer already left the
+      // ImageCache, and the error is not reported.
+      if (download.abandoned) rethrow;
       // Let a later rebuild retry instead of keeping the failure cached.
       scheduleMicrotask(() {
         PaintingBinding.instance.imageCache.evict(key);
@@ -644,4 +709,109 @@ class LibraryNetworkImage extends ImageProvider<LibraryNetworkImage> {
   String toString() =>
       '${objectRuntimeType(this, 'LibraryNetworkImage')}'
       '("$url", cacheWidth: $cacheWidth, cacheHeight: $cacheHeight)';
+}
+
+/// The byte download behind one [LibraryNetworkImage] completer.
+class _ImageDownload {
+  _ImageDownload(this.key);
+
+  final LibraryNetworkImage key;
+  final LibraryCancelToken token = LibraryCancelToken();
+
+  /// The bytes are still being obtained (disk cache or network).
+  bool loading = true;
+
+  /// Cancelled because no listener was left.
+  bool abandoned = false;
+
+  void finish() {
+    loading = false;
+    _forget();
+  }
+
+  /// Cancels the download and removes its completer from the `ImageCache`,
+  /// so the next resolve of [key] starts a new download instead of joining
+  /// this cancelled one.
+  void abandon() {
+    if (!loading || abandoned) return;
+    abandoned = true;
+    token.cancel();
+    if (_forget()) PaintingBinding.instance.imageCache.evict(key);
+  }
+
+  bool _forget() {
+    final downloads = LibraryNetworkImage._cachedDownloads;
+    if (!identical(downloads[key], this)) return false;
+    downloads.remove(key);
+    return true;
+  }
+}
+
+/// [MultiFrameImageStreamCompleter] that cancels its download when the
+/// last listener goes away before the bytes arrived.
+///
+/// The `ImageCache` keeps its own listener on every pending completer until
+/// it completes, so `addOnLastListenerRemovedCallback` never fires while a
+/// download runs. The listeners the cache adds while registering the
+/// completer (see [LibraryNetworkImage.resolveStreamForKey]) are therefore
+/// told apart from the widgets' ones, and only the latter keep the download
+/// alive. A completer created outside that path counts every listener, so
+/// it is never cancelled (the behaviour of other image providers).
+class _LibraryImageStreamCompleter extends MultiFrameImageStreamCompleter {
+  _LibraryImageStreamCompleter({
+    required _ImageDownload download,
+    required super.codec,
+    required super.scale,
+    super.debugLabel,
+    super.informationCollector,
+  }) : _download = download;
+
+  final _ImageDownload _download;
+
+  /// True while `ImageCache.putIfAbsent` registers this completer.
+  bool _registeringInCache = false;
+
+  /// Mirror of the listener list: each listener and whether the
+  /// `ImageCache` added it while registering this completer.
+  final List<(ImageStreamListener, bool)> _owners =
+      <(ImageStreamListener, bool)>[];
+  bool _hadListener = false;
+
+  int get _shownBy => _owners.where((owner) => !owner.$2).length;
+
+  @override
+  void addListener(ImageStreamListener listener) {
+    super.addListener(listener);
+    final fromCache = _registeringInCache;
+    _owners.add((listener, fromCache));
+    if (!fromCache) _hadListener = true;
+  }
+
+  @override
+  void removeListener(ImageStreamListener listener) {
+    super.removeListener(listener);
+    // Same rule as the base class: the first equal listener is removed.
+    final index = _owners.indexWhere((owner) => owner.$1 == listener);
+    if (index >= 0) _owners.removeAt(index);
+    if (_hadListener && _shownBy == 0) _download.abandon();
+  }
+
+  @override
+  void reportError({
+    DiagnosticsNode? context,
+    required Object exception,
+    StackTrace? stack,
+    InformationCollector? informationCollector,
+    bool silent = false,
+  }) {
+    // The cancellation of a download nobody shows is not an error.
+    if (_download.abandoned && _shownBy == 0) return;
+    super.reportError(
+      context: context,
+      exception: exception,
+      stack: stack,
+      informationCollector: informationCollector,
+      silent: silent,
+    );
+  }
 }

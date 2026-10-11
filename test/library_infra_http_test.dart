@@ -417,6 +417,58 @@ void main() {
       );
     });
 
+    test('media requests have their own budget and never delay standard '
+        'requests to the same host', () async {
+      final client = _FakeClient((call) async {
+        if (call.url.path.startsWith('/covers/')) await call.wait();
+        return _response(200, body: 'ok ${call.url.path}');
+      });
+      final library = LibraryHttp(
+        client: client,
+        cacheDirectory: tmp,
+        clock: () => now,
+        maxConcurrentPerHost: 2,
+        maxConcurrentMediaPerHost: 3,
+        maxConcurrentMediaRequests: 4,
+      );
+      List<_Call> covers() => client.calls
+          .where((call) => call.url.path.startsWith('/covers/'))
+          .toList();
+      final images = <Future<LibraryHttpResponse>>[
+        for (var index = 0; index < 30; index++)
+          library.send(
+            LibraryRequest.get(
+              Uri.parse(
+                'https://${index.isEven ? 'a' : 'b'}.test/covers/$index.jpg',
+              ),
+              lane: LibraryRequestLane.media,
+            ),
+          ),
+      ];
+      await _waitFor(() => covers().length == 4);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(covers(), hasLength(4), reason: 'global media budget');
+
+      final pages = await Future.wait(<Future<LibraryHttpResponse>>[
+        for (final path in <String>['/search', '/manga/x', '/latest'])
+          library.send(LibraryRequest.get(Uri.parse('https://a.test$path'))),
+      ]).timeout(const Duration(seconds: 2));
+      expect(pages.map((page) => page.text), <String>[
+        'ok /search',
+        'ok /manga/x',
+        'ok /latest',
+      ]);
+      expect(covers(), hasLength(4), reason: 'the images are still queued');
+
+      for (var released = 0; released < images.length; released++) {
+        await _waitFor(() => covers().length > released);
+        expect(client.activeByHost['a.test'] ?? 0, lessThanOrEqualTo(3));
+        covers()[released].gate.complete();
+      }
+      await Future.wait(images);
+      expect(client.maxActiveByHost['a.test'], lessThanOrEqualTo(3 + 2));
+    });
+
     test('hostLimits overrides the per-host limit', () async {
       final client = _FakeClient((call) async {
         await call.wait();

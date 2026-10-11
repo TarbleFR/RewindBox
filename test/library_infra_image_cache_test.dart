@@ -471,6 +471,66 @@ void main() {
       );
     });
 
+    test('covers never delay a catalogue request to the same host', () async {
+      final coverGates = <Completer<void>>[];
+      final sent = <String>[];
+      final client = _MockClient((request) async {
+        sent.add(request.url.path);
+        if (request.url.path.startsWith('/covers/')) {
+          final gate = Completer<void>();
+          coverGates.add(gate);
+          await gate.future;
+          return http.StreamedResponse(
+            Stream<List<int>>.value(_fakeImage(sent.length)),
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        return http.StreamedResponse(
+          Stream<List<int>>.value(utf8.encode('<html>results</html>')),
+          200,
+        );
+      });
+      final library = LibraryHttp(
+        client: client,
+        cacheDirectory: tmp,
+        clock: () => now,
+      );
+      addTearDown(library.close);
+      final cache = LibraryImageCache(
+        fetcher: library.send,
+        cacheDirectory: tmp,
+        clock: () => now,
+      );
+      // A fast scroll through the hub: 30 uncached covers of one site.
+      final covers = <Future<Uint8List>>[
+        for (var index = 0; index < 30; index++)
+          cache.load('https://www.site.test/covers/$index.jpg'),
+      ];
+      await _waitFor(
+        () => coverGates.length == library.maxConcurrentMediaPerHost,
+      );
+
+      final search = await library
+          .send(LibraryRequest.get(Uri.parse('https://www.site.test/?s=solo')))
+          .timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => fail('the search waited behind the covers'),
+          );
+      expect(search.text, '<html>results</html>');
+      expect(
+        sent.where((path) => path.startsWith('/covers/')),
+        hasLength(library.maxConcurrentMediaPerHost),
+        reason: 'the other covers are still queued',
+      );
+
+      for (var released = 0; released < covers.length; released++) {
+        await _waitFor(() => coverGates.length > released);
+        coverGates[released].complete();
+      }
+      await Future.wait(covers);
+    });
+
     test('data URIs are decoded without network access', () async {
       final fetcher = _FakeFetcher((request, cancel) async {
         fail('no network expected');
@@ -669,6 +729,173 @@ void main() {
       expect(error, isNot('decoded'));
       expect(fetcher.requests, hasLength(1));
       expect(stillCached, isFalse);
+      imageCache.clear();
+    });
+
+    /// Lets real I/O (disk cache) and microtasks run between frames until
+    /// [condition] holds.
+    Future<void> pumpUntil(
+      WidgetTester tester,
+      bool Function() condition, {
+      int minimumRounds = 0,
+    }) async {
+      for (var round = 0; round < 400; round++) {
+        if (round >= minimumRounds && condition()) return;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump();
+      }
+      fail('condition not reached');
+    }
+
+    bool showsImage(WidgetTester tester) => tester
+        .widgetList<RawImage>(find.byType(RawImage))
+        .any((raw) => raw.image != null);
+
+    testWidgets(
+      'a download nobody shows any more is cancelled, and restarted when '
+      'the image is shown again',
+      (tester) async {
+        final release = Completer<void>();
+        final fetcher = _FakeFetcher((request, cancel) async {
+          await _gateOrCancel(release.future, cancel);
+          return _ok(request, _png(8, 12));
+        });
+        final cache = create(fetcher);
+        imageCache.clear();
+        final provider = LibraryNetworkImage(
+          'https://img.test/cover.png',
+          cache: cache,
+        );
+        Widget covers(int count) => Directionality(
+          textDirection: TextDirection.ltr,
+          child: Column(
+            children: <Widget>[
+              for (var index = 0; index < count; index++)
+                SizedBox(
+                  width: 8,
+                  height: 12,
+                  child: Image(
+                    image: provider,
+                    errorBuilder: (_, _, _) => const Text('failed'),
+                  ),
+                ),
+            ],
+          ),
+        );
+
+        await tester.pumpWidget(covers(2));
+        await pumpUntil(tester, () => fetcher.requests.isNotEmpty);
+        final first = fetcher.tokens.single!;
+
+        // One of the two covers goes away: the other one still needs it.
+        await tester.pumpWidget(covers(1));
+        await pumpUntil(tester, () => true, minimumRounds: 5);
+        expect(first.isCancelled, isFalse);
+
+        // Scrolled away: nobody shows it, the request is cancelled and the
+        // image leaves the ImageCache without reporting an error.
+        await tester.pumpWidget(covers(0));
+        await pumpUntil(tester, () => first.isCancelled);
+        expect(imageCache.statusForKey(provider).untracked, isTrue);
+
+        // Scrolled back: a new download starts and the cover appears.
+        release.complete();
+        await tester.pumpWidget(covers(1));
+        await pumpUntil(tester, () => showsImage(tester));
+        expect(fetcher.requests, hasLength(2));
+        expect(fetcher.tokens.last!.isCancelled, isFalse);
+        expect(find.text('failed'), findsNothing);
+        imageCache.clear();
+      },
+    );
+
+    testWidgets('a precache keeps the download going without any widget', (
+      tester,
+    ) async {
+      final release = Completer<void>();
+      final fetcher = _FakeFetcher((request, cancel) async {
+        await _gateOrCancel(release.future, cancel);
+        return _ok(request, _png(8, 12));
+      });
+      final cache = create(fetcher);
+      imageCache.clear();
+      final provider = LibraryNetworkImage(
+        'https://img.test/next-page.png',
+        cache: cache,
+      );
+      late BuildContext context;
+      await tester.pumpWidget(
+        Builder(
+          builder: (built) {
+            context = built;
+            return const SizedBox();
+          },
+        ),
+      );
+      // The reader decodes the next page ahead; a widget showing it comes
+      // and goes meanwhile.
+      var precached = false;
+      unawaited(precacheImage(provider, context).then((_) => precached = true));
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Image(image: provider),
+        ),
+      );
+      await pumpUntil(tester, () => fetcher.requests.isNotEmpty);
+      await tester.pumpWidget(const SizedBox());
+      await pumpUntil(tester, () => true, minimumRounds: 5);
+      expect(fetcher.tokens.single!.isCancelled, isFalse);
+
+      release.complete();
+      await pumpUntil(tester, () => precached);
+      expect(imageCache.statusForKey(provider).keepAlive, isTrue);
+      imageCache.clear();
+    });
+
+    testWidgets('a page pushed over the hub neither cancels nor reloads it', (
+      tester,
+    ) async {
+      final release = Completer<void>();
+      final fetcher = _FakeFetcher((request, cancel) async {
+        await _gateOrCancel(release.future, cancel);
+        return _ok(request, _png(8, 12));
+      });
+      final cache = create(fetcher);
+      imageCache.clear();
+      final provider = LibraryNetworkImage(
+        'https://img.test/hub-cover.png',
+        cache: cache,
+      );
+      // A route pushed over the hub disables TickerMode below it. An Image
+      // that already shows a frame then stops listening and keeps its
+      // stream alive with a handle instead.
+      Widget hub({required bool covered}) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: TickerMode(
+          enabled: !covered,
+          child: SizedBox(width: 8, height: 12, child: Image(image: provider)),
+        ),
+      );
+
+      await tester.pumpWidget(hub(covered: false));
+      await pumpUntil(tester, () => fetcher.requests.isNotEmpty);
+      // Covered while downloading: the download goes on.
+      await tester.pumpWidget(hub(covered: true));
+      await pumpUntil(tester, () => true, minimumRounds: 5);
+      expect(fetcher.tokens.single!.isCancelled, isFalse);
+      release.complete();
+      await pumpUntil(tester, () => showsImage(tester));
+
+      // Covered and uncovered once shown: the decoded image is kept.
+      await tester.pumpWidget(hub(covered: true));
+      await pumpUntil(tester, () => true, minimumRounds: 5);
+      await tester.pumpWidget(hub(covered: false));
+      await pumpUntil(tester, () => showsImage(tester));
+      expect(fetcher.requests, hasLength(1));
+      expect(imageCache.statusForKey(provider).keepAlive, isTrue);
       imageCache.clear();
     });
 
