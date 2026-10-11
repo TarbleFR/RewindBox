@@ -329,8 +329,9 @@ Révisions de ce cycle, toutes sur `Claude` :
 - `4da3154` : audit et moteur tactile ;
 - `194d427` : filtre central, diagnostic, commandes par défaut ;
 - `6639e7a` : catalogues unifiés et conversion d'overlays ;
-- puis la révision qui ajoute ce document et le repli « première page » du
-  convertisseur.
+- `e4a485f` : ce document et le repli « première page » du convertisseur ;
+- `f28525f` : vérifications interrompues par la fermeture des catalogues non
+  mises en cache. C'est la dernière révision testée en CI.
 
 Runs CI « Libretro engine checks » (aucun résultat n'est réutilisé d'une
 révision à l'autre) :
@@ -340,6 +341,8 @@ révision à l'autre) :
 | `4da3154` | `38178625448` | échec : `touch_tracker_test` (« finger key reused »), cause : disposition portrait laissée par le test de rotation, test corrigé dans `194d427` | succès | échec : épinglage NeoSwap (voir ci-dessous) |
 | `194d427` | `38180063348` | succès | succès | échec : épinglage NeoSwap |
 | `6639e7a` | `38181805736` | succès | succès (avec `libretro_skin_catalogs_test.dart`) | échec : épinglage NeoSwap, tous les contrats précédents réussis |
+| `e4a485f` | `38182159300` | annulé (remplacé par le run suivant, même branche) | annulé | annulé |
+| `f28525f` | `38182221976` | succès | succès | échec : épinglage NeoSwap, tous les contrats précédents réussis (dont le contrat d'interface et les douze langues) |
 
 Le job Dart de `libretro-checks` échoue sur `retroarch_baseline_scope_test.py`
 à cause de l'épinglage NeoSwap (`native/neoswap-relay/Backend.cpp` et `.h`).
