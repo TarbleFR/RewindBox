@@ -550,6 +550,8 @@ DELTA |= BUILD436_DELTA
 # shared Library network cache, 12-locale catalogs. The libretro bridge gains
 # only the reader orientation method (listed in LIBRETRO_DELTA).
 BUILD437_DELTA = {
+    'lib/l10n/library_date_format.dart',
+    'test/library_date_format_test.dart',
     'lib/l10n/library_feature_locale.dart',
     'lib/l10n/library_local_locale.dart',
     'lib/l10n/library_reader_locale.dart',
