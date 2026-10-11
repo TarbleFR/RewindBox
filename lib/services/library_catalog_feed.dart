@@ -231,6 +231,18 @@ abstract final class LibraryContentFilter {
     for (final key in _labelKeys) {
       _collectLabels(raw[key], labels);
     }
+    // Textual ratings ("suggestive", "erotica", "pornographic"), at the top
+    // level or in MangaDex-style `attributes` of imported providers.
+    final contentRating = raw['contentRating'];
+    if (contentRating is String) labels.add(contentRating);
+    final attributes = raw['attributes'];
+    if (attributes is Map) {
+      final rating = attributes['contentRating'];
+      if (rating is String) labels.add(rating);
+      if (LibraryContentRating.clamp(rating) >= LibraryContentRating.explicit) {
+        return true;
+      }
+    }
     if (labels.isNotEmpty) {
       if (LibraryContentRating.fromLabels(labels) >=
           LibraryContentRating.explicit) {

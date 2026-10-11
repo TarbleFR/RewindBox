@@ -97,6 +97,32 @@ void main() {
       );
     });
 
+    test('textual content ratings of imported providers are honoured', () {
+      bool adult(Map<String, dynamic> raw) =>
+          LibraryContentFilter.itemIsAdult(testItem('x', raw: raw));
+      expect(adult({'contentRating': 'erotica'}), isTrue);
+      expect(adult({'contentRating': 'pornographic'}), isTrue);
+      expect(
+        adult({
+          'attributes': {'contentRating': 'pornographic'},
+        }),
+        isTrue,
+      );
+      expect(
+        adult({
+          'attributes': {'contentRating': 2},
+        }),
+        isTrue,
+      );
+      expect(adult({'contentRating': 'suggestive'}), isFalse);
+      expect(
+        adult({
+          'attributes': {'contentRating': 'safe'},
+        }),
+        isFalse,
+      );
+    });
+
     test('a suggestive title of a rating 1 source stays visible', () {
       final item = testItem(
         'h',
