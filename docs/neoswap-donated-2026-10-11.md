@@ -111,8 +111,41 @@ douze langues, sans prétendre à des captures UIKit sur appareil.
 Les gardes locaux de livraison et de baseline ont également réussi (10 et
 3 tests), ainsi que le contrôle offline du périmètre et `git diff --check`.
 
-Aucune nouvelle IPA ni validation de jeu sur iPhone n’est attestée ici.
-L’IPA Build 438 précédemment livrée conserve son identité et son contenu.
+## Livraison Build 439
+
+Le [run de livraison `38159604350`](https://github.com/TarbleFR/neostation-ios/actions/runs/38159604350)
+a réussi les jobs `checks`, `native` et `cold`. Le job `warm` est ignoré comme
+demandé par `benchmark=false`. La source de livraison
+`9cc7738bd58645293b09f5ade9d8278ee4c8047e` ajoute seulement le bilan aux sources
+validées par le run ciblé. Les contrôles de la chaîne de livraison ont exécuté
+les tests NeoSwap natifs et Dart ; le test Swift inchangé a été réutilisé après
+vérification de ses entrées. Le contrôle global historique bloqué n’est pas
+présenté comme réussi.
+
+| Identité de livraison | Valeur |
+|---|---|
+| IPA remise | `NeoStation-Build-439.ipa` |
+| Source de compilation | `9cc7738bd58645293b09f5ade9d8278ee4c8047e` |
+| Version / build / plateforme | 0.0.2 / 439 / arm64 iPhoneOS |
+| Taille | 206 912 287 octets |
+| SHA-256 de l’IPA | `59bea1cf499c9ca2be2c4e935092cd53eea9906e464f9f284dcfebdfd211b006` |
+| Artefact chiffré GitHub | `11710530147` |
+| SHA-256 de son archive | `47963bca92254a0d57f8be8eacc6f3a6167beed35ef2c70ea5f6ed9f4b41a63c` |
+| Signatures vérifiées en CI | 57 signatures ad hoc ; re-signature Apple par SideStore requise |
+| Compilation Xcode mesurée | 220,805 s |
+| Signature et export mesurés | 48,032 s |
+
+Après récupération, le SHA-256, la taille, le numéro de build et le commit
+embarqué ont été comparés à `SHA256SUMS`, `signed-payload-identity.json`,
+`final-structure.json`, `Info.plist` et `BUILD_SOURCE_IDENTITY.json`. L’archive
+ZIP a passé son contrôle d’intégrité. Les constantes natives `NeoSwap donated`,
+`guestPublishedLiveBackingBytes` et `donatedBytes` ont été retrouvées dans les
+binaires Mach-O livrés.
+
+La Build 439 contient les optimisations de la 438 et ce nouveau comptage. La
+438 déjà remise conserve son identité. **Aucun essai de jeu sur iPhone ni gain
+RAM/FPS n’a été mesuré pour la 439** ; ce compteur n’active pas de transfert
+invité supplémentaire pendant le jeu.
 
 ## Sources primaires
 
