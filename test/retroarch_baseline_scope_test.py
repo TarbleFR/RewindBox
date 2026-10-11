@@ -19,6 +19,15 @@ NEOSWAP_MELONX_REVIEWED = {
     'native/neoswap-relay/Backend.h': '1ada97c35b7db91f285989a68e4584e0aa200bf42d49ab1d6ca43ca845b03d68',
     'native/neoswap/localizations.json': '9aed2f02173e1d1618133392a82fbfced8c56720d8ef6dd083d43bef44380b67',
 }
+# Build441, explicitly requested RPCS3/NeoSwap prepared guest backing, reviewed
+# at 351b738c8d4d5fbe2c7498d4438776baecdba613. Only these two host-backend
+# fingerprints supersede Build439: bounded prepared acquisition/return,
+# first-map publication and deferred scrub are exercised by relay_backend_test.
+# Keep the older review and every other library/native fingerprint intact.
+NEOSWAP_PREPARED_441_REVIEWED = {
+    'native/neoswap-relay/Backend.cpp': '376c9f268ebd4d2454393b56aa1a0ef090b9ee5a039cddaca085219e2bbb1a21',
+    'native/neoswap-relay/Backend.h': '231dc8b69b60ab26242cdcc9723a449b0872d198211097ab7fe248c18acc3c69',
+}
 
 
 class RetroArchBaselineScope(unittest.TestCase):
@@ -61,9 +70,13 @@ class RetroArchBaselineScope(unittest.TestCase):
 
     def test_native_sources_keep_their_existing_identity(self):
         self.assertLessEqual(NEOSWAP_MELONX_REVIEWED.keys(), MANIFEST['native_sha256'].keys())
+        self.assertEqual(set(NEOSWAP_PREPARED_441_REVIEWED), {
+            'native/neoswap-relay/Backend.cpp', 'native/neoswap-relay/Backend.h',
+        })
+        self.assertLessEqual(NEOSWAP_PREPARED_441_REVIEWED.keys(), MANIFEST['native_sha256'].keys())
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
-                reviewed = NEOSWAP_MELONX_REVIEWED.get(name, expected)
+                reviewed = NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected))
                 self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), reviewed)
 
     def test_retired_repairs_are_outside_executable_app_sources(self):

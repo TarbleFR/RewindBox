@@ -8,8 +8,9 @@ révision `0913f260beb71874ac4aea48ac3ac8014232f119`, qui conserve les ajouts de
 la Build 440. Seuls RPCS3, NeoSwap et leurs éléments de validation/livraison
 sont concernés. La compilation SPU différée reste désactivée.
 
-Ce document est un journal de travail : aucune validation iPhone ni économie
-de mémoire n'est attestée à ce stade. La compilation Apple reste à effectuer.
+Ce document est un journal de travail : aucune validation sur iPhone physique
+ni économie de mémoire n'est attestée à ce stade. Les contrôles Apple et la
+compilation du nouveau Core sont en cours.
 
 ## Choix d'implémentation
 
@@ -73,8 +74,35 @@ d'ownership, d'alias et de partage du budget examinés.
 
 Patch canonique testé :
 `1bd59add61f51b7188b0d02a14903230e8915e606da1c62230c210114ce6e1d6`.
-Le Core publié 436 reste provisoirement épinglé jusqu'à production et contrôle
-du nouveau Core ; il ne contient pas les changements 441.
+Source du Core 441 : `351b738c8d4d5fbe2c7498d4438776baecdba613`,
+run `38163319515`. Les workflows de livraison sont préparés pour cette
+référence ; l'IPA ne doit être construite qu'après succès du run et contrôle
+de son identité. Les 62 entrées Core sont identiques entre cette référence et
+les sources hôte de livraison.
+
+Le contrôle historique de baseline conserve les empreintes 439 et ajoute
+uniquement celles des deux fichiers `native/neoswap-relay/Backend.cpp/.h`
+modifiés en 441. Les treize tests du pipeline et les trois tests de baseline
+passent ; le contrôle de réutilisation hors ligne conserve 2 127 entrées
+inchangées. Aucun autre backend ni fichier de bibliothèque n'est autorisé par
+cette exception.
+
+Contrôles Apple sur la même source : les contrats préalables du Core ont
+réussi. Le run `38163495049` a réussi en 14 min 45 s : tests de comportement,
+compilation iPhone arm64 du plugin avec les services donation/relais/stockage
+activés, puis profils baseline/relais/intégré sur simulateur iOS 18. Artefact
+`11711228394`, ZIP SHA-256
+`0de5be990d5ba0fd453f5df97b3308d79e96aef8209bc4873c748fec65dfd91d`.
+
+Le run natif `38165036674`, même source, a également réussi : backend avec
+ASan/UBSan sur macOS (stock préparé, alias, restitutions, pression et tokens),
+preuve IPC après sortie du créateur, compilation/liaison iPhone arm64 de
+l'extension et du gestionnaire, puis sortie/relancement de l'extension sur
+simulateur iOS 18. L'écriture de 1 Gio sur macOS et la capacité virtuelle
+retenue de 8 Gio sont des scénarios distincts du harnais ; ils ne constituent
+pas une mesure de RAM donnée pendant un jeu RPCS3 sur iPhone. Artefact de
+résultats `11711344465`, ZIP SHA-256
+`879621c03be8e37b809224b0821f15b11fd01256c7403a4b76cc9fc18068d098`.
 
 ## Validation appareil à réaliser
 

@@ -869,6 +869,7 @@ NEOSWAP_441_DELTA = {
     'test/relay_backend_test.cpp',
     'test/neoswap_budget_test.cpp',
     'test/delivery_pipeline_test.py',
+    'test/retroarch_baseline_scope_test.py',
     'test/rpcs3_neoswap_build_comparison_test.py',
     'test/neoswap_donor_contract_test.py',
     'tools/compare_rpcs3_neoswap_builds.py',
