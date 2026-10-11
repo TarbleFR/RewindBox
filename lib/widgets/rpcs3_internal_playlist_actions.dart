@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../l10n/rpcs3_rap_locale.dart';
 import '../l10n/rpcs3_ui_locale.dart';
 import '../screens/rpcs3_manager_screen.dart';
+import '../services/logger_service.dart';
 import '../services/rpcs3_content_import_service.dart';
 import '../services/rpcs3_internal_service.dart';
+import '../services/rpcs3_rap_licence_service.dart';
+import 'rpcs3_rap_import_report_dialog.dart';
 
 /// Owns the PS3 firmware gate and, once installed, the library import menu.
 /// The host mounts this over the library before loading or displaying games.
@@ -204,6 +208,10 @@ class _Rpcs3InternalPlaylistActionsState
       _interaction(true);
       return;
     }
+    if (action == 'licences') {
+      await _importRapLicences();
+      return;
+    }
 
     setState(() {
       _busy = true;
@@ -248,6 +256,43 @@ class _Rpcs3InternalPlaylistActionsState
           _contentProgress = null;
         });
         _hideOperationOverlay();
+        _interaction(false);
+      }
+    }
+  }
+
+  /// Installs RAP licences where RPCS3 reads them. Reading 16-byte files is
+  /// immediate, so no operation overlay is shown (the embedded overlay is a
+  /// root entry that would cover the replace prompt and the report). The
+  /// library is not reloaded: a licence adds no game tile.
+  Future<void> _importRapLicences() async {
+    setState(() {
+      _busy = true;
+      _activeAction = 'licences';
+      _contentProgress = null;
+    });
+    _interaction(true);
+    try {
+      final report = await Rpcs3RapLicenceService.importFromFiles(
+        confirmReplace: (contentIds) async =>
+            mounted && await showRpcs3RapReplaceDialog(context, contentIds),
+      );
+      if (report != null && mounted) {
+        await showRpcs3RapImportReport(context, report);
+      }
+    } catch (error, stack) {
+      LoggerService.instance.e(
+        'RPCS3 RAP licence import failed',
+        error: error,
+        stackTrace: stack,
+      );
+      if (mounted) _notice(Rpcs3RapLocale.text(context, 'rapImportFailed'));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _activeAction = null;
+        });
         _interaction(false);
       }
     }
@@ -476,7 +521,8 @@ class _Rpcs3InternalPlaylistActionsState
               ),
             ),
           ),
-        if (_busy) _buildOperationOverlay(scheme),
+        if (_busy && _activeAction != 'licences')
+          _buildOperationOverlay(scheme),
       ],
     );
   }
@@ -496,6 +542,10 @@ class _Rpcs3InternalPlaylistActionsState
     PopupMenuItem(
       value: 'folder',
       child: Text(_t('importDecryptedFolder')),
+    ),
+    PopupMenuItem(
+      value: 'licences',
+      child: Text(Rpcs3RapLocale.text(context, 'importRapLicenses')),
     ),
     PopupMenuItem(
       value: 'firmware',

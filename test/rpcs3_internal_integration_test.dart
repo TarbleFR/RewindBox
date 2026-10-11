@@ -383,6 +383,7 @@ void main() {
       expect(widget, contains('Rpcs3ManagerScreen'));
       expect(widget, contains("value: 'games'"));
       expect(widget, contains("value: 'folder'"));
+      expect(widget, contains("value: 'licences'"));
       expect(widget, contains("value: 'firmware'"));
       expect(widget, contains("_t('installFirmware')"));
       expect(manager, contains('rpcs3-manager-firmware'));
