@@ -127,7 +127,11 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         rightBumper: _controller.hasNextChapter
             ? () => unawaited(_controller.nextChapter())
             : null,
-        select: _chrome.toggle,
+        // A retries a chapter that failed to load (the button is touch
+        // only), else shows or hides the chrome.
+        select: _controller.status == LibraryPageReaderStatus.error
+            ? () => unawaited(_controller.retry())
+            : _chrome.toggle,
         back: _close,
         start: _openSettings,
       );

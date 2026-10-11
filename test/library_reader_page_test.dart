@@ -556,6 +556,40 @@ void main() {
       await closeAll(tester, store);
     });
 
+    testWidgets('A on the controller retries a failed chapter', (tester) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      var attempts = 0;
+      final content = FakePageContent(
+        loader: (index, cancel) async {
+          attempts++;
+          if (attempts == 1) {
+            throw const LibraryNetworkException(
+              LibraryNetworkErrorKind.offline,
+            );
+          }
+          return MemoryPageSource(3);
+        },
+      );
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: content, store: store),
+      );
+      final state = readerState(tester);
+      expect(state.controller.status, LibraryPageReaderStatus.error);
+      state.gamepadBindings.select!();
+      await frames(tester);
+      expect(attempts, 2);
+      expect(state.controller.status, LibraryPageReaderStatus.ready);
+      // Once ready, A shows or hides the chrome again.
+      final visible = state.chromeVisible;
+      state.gamepadBindings.select!();
+      await tester.pump();
+      expect(state.chromeVisible, !visible);
+      expect(attempts, 2);
+      await closeAll(tester, store);
+    });
+
     testWidgets('a source error is translated in French', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
