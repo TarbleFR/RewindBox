@@ -324,6 +324,48 @@ void main() {
       await flushStore(tester, store);
     });
 
+    // Regression (Build 437 end-to-end journey): the end of a page turn is
+    // notified by the animation tick, before the frame lays out the final
+    // offset. The position was read from the previous layout, so closing
+    // the reader right after paging saved the page before the last turn.
+    testWidgets('the last page turn is the position saved on close', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:turns',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      final shown = <LibraryReflowPosition>[];
+      for (var i = 0; i < 3; i++) {
+        state.gamepadBindings.right!();
+        await frames(tester);
+        shown.add(state.currentPosition!);
+      }
+      expect(shown.map((p) => p.block).toSet(), hasLength(3));
+      state.gamepadBindings.back!();
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryBookReaderScreen), findsNothing);
+      final last = shown.last;
+      expect(
+        store.progressFor('local:turns')!.location,
+        'txt:${200 * last.chapter + last.block}:${last.offset}',
+      );
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
+
     testWidgets('a jump to a chapter that fails to load says so', (
       tester,
     ) async {
@@ -463,6 +505,60 @@ void main() {
       expect(position.chapter, 1);
       expect(position.block, 1);
       await closeBook(tester, store);
+    });
+
+    testWidgets('paging down then closing saves a CFI of the last page shown', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final document = await openEpub(
+        tester,
+        chapter1: xhtml(
+          List<String>.generate(
+            200,
+            (i) =>
+                '<p>Paragraph $i ${List<String>.filled(28, 'w$i').join(' ')}</p>',
+          ).join(),
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryEpubReflowSource(document),
+          progressKey: 'local:epub-turns',
+          title: 'Le Petit Livre',
+          store: store,
+        ),
+      );
+      await settle(tester);
+      final state = bookState(tester);
+      for (var i = 0; i < 4; i++) {
+        state.gamepadBindings.right!();
+        await frames(tester);
+      }
+      final shown = state.currentPosition!;
+      expect(shown.chapter, 0);
+      expect(shown.block, greaterThan(8));
+      state.gamepadBindings.back!();
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settle(tester, rounds: 2);
+      final saved = store.progressFor('local:epub-turns')!.location;
+      // The reader closed its document: the CFI is resolved by a new one.
+      final resolved = (await tester.runAsync(() async {
+        final reopened = await LibraryEpubDocument.open(document.path);
+        try {
+          return await reopened.resolveCfi(saved);
+        } finally {
+          await reopened.close();
+        }
+      }))!;
+      expect(
+        (resolved.spineIndex, resolved.blockIndex, resolved.charOffset),
+        (shown.chapter, shown.block, shown.offset),
+      );
+      await flushStore(tester, store);
     });
 
     testWidgets('the table of contents navigates, the position is a CFI', (

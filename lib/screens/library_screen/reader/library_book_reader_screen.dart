@@ -581,6 +581,21 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _scheduleSave();
   }
 
+  /// Tracks the position once the coming frame has laid out the current
+  /// scroll offset. The end of a page turn or of a fling is notified by the
+  /// animation tick, before that layout: read at once, the boxes still
+  /// describe the previous frame (one whole page turn earlier when the
+  /// animation ran in a single frame) and that older position was saved.
+  void _trackAfterLayout() {
+    if (!mounted || _trackScheduled) return;
+    _trackScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _trackScheduled = false;
+      _track(force: true);
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   void _scheduleSave() {
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 800), _saveNow);
@@ -1075,7 +1090,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification is ScrollEndNotification) {
-                _track(force: true);
+                _trackAfterLayout();
                 _maybeLoadMore();
               } else if (notification is ScrollUpdateNotification) {
                 _track();
