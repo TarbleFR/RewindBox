@@ -1473,6 +1473,7 @@ class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
   bool _siteOfflineWhileOnline = false;
   bool _saveFailed = false;
   Object? _error;
+  final ScrollController _scroll = ScrollController();
 
   @override
   void initState() {
@@ -1483,7 +1484,24 @@ class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
   @override
   void dispose() {
     _cancel.cancel();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  /// Brings the verdict into view once the test ends: in landscape on an
+  /// iPhone the five steps already fill the dialog, and a controller cannot
+  /// scroll text that takes no focus.
+  void _revealResult() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      unawaited(
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        ),
+      );
+    });
   }
 
   Future<void> _run() async {
@@ -1499,6 +1517,7 @@ class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
     } on Object catch (error) {
       if (!mounted || _cancel.isCancelled) return;
       setState(() => _error = error);
+      _revealResult();
       return;
     }
     if (!mounted || _cancel.isCancelled) return;
@@ -1539,6 +1558,7 @@ class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
       _outcome = outcome;
       _saveFailed = saveFailed;
     });
+    _revealResult();
   }
 
   bool get _finished => _report != null || _error != null;
@@ -1563,6 +1583,7 @@ class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
         content: SizedBox(
           width: 560,
           child: SingleChildScrollView(
+            controller: _scroll,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1687,37 +1708,43 @@ class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
         ?result.detail,
       ].join(' – ');
     }
-    return Padding(
+    // Each step takes the focus so a controller can scroll back to it.
+    return LibraryFocusRing(
       key: ValueKey<String>('health-step-${step.name}'),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          SizedBox(width: 28, child: Center(child: leading)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  t(LibrarySourcesLocale.healthStepKey(step)),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+      radius: 6,
+      child: Focus(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SizedBox(width: 28, child: Center(child: leading)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      t(LibrarySourcesLocale.healthStepKey(step)),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      result != null && result.durationMs > 0
+                          ? '$status (${result.durationMs} ms)'
+                          : status,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    if (reason != null) Text(reason),
+                    if (detail != null && detail.isNotEmpty)
+                      LibraryTechnicalDetails(detail: detail),
+                  ],
                 ),
-                Text(
-                  result != null && result.durationMs > 0
-                      ? '$status (${result.durationMs} ms)'
-                      : status,
-                  style: theme.textTheme.bodySmall,
-                ),
-                if (reason != null) Text(reason),
-                if (detail != null && detail.isNotEmpty)
-                  LibraryTechnicalDetails(detail: detail),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

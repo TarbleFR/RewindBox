@@ -13,6 +13,7 @@ import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_aidoku_native_service.dart';
 import 'package:neostation/services/library_http.dart';
 import 'package:neostation/services/library_source_catalog_service.dart';
+import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_catalog_import_fakes.dart' as catalog_fakes;
@@ -337,6 +338,51 @@ void main() {
     );
     expect(find.text('This source does not work right now.'), findsOneWidget);
     expect(fixture.health.recordCount, 1);
+  });
+
+  testWidgets('on a landscape iPhone the verdict scrolls into view', (
+    tester,
+  ) async {
+    final aidoku = FakeAidokuService()
+      ..healthSteps = <LibrarySourceHealthStepResult>[
+        _ok(LibrarySourceHealthStep.listing, 24),
+        _ok(LibrarySourceHealthStep.details, 1),
+        _ok(LibrarySourceHealthStep.chapters, 546),
+        _ok(LibrarySourceHealthStep.pages, 15),
+        _ok(LibrarySourceHealthStep.image, 407122),
+      ];
+    await pumpLibraryUi(
+      tester,
+      LibrarySourceHealthDialog(
+        addon: lelscan,
+        aidokuService: aidoku,
+        healthStore: MemoryHealthStore(),
+        connectivityProbe: () async => true,
+        enableGamepad: false,
+      ),
+      size: const Size(844, 390),
+    );
+    await tester.pumpAndSettle();
+    final verdict = find.text(
+      'Navigation and chapter reading work on this device.',
+    );
+    final viewport = tester.getRect(
+      find.descendant(
+        of: find.byType(LibrarySourceHealthDialog),
+        matching: find.byType(SingleChildScrollView),
+      ),
+    );
+    expect(tester.getRect(verdict).bottom, lessThanOrEqualTo(viewport.bottom));
+    expect(tester.getRect(verdict).top, greaterThanOrEqualTo(viewport.top));
+
+    // A controller can go back up through the steps.
+    final layer = tester.state<LibraryFocusGamepadLayerState>(
+      find.byType(LibraryFocusGamepadLayer),
+    );
+    layer.move(TraversalDirection.down);
+    await tester.pumpAndSettle();
+    final first = tester.getRect(find.text('Title list'));
+    expect(first.top, greaterThanOrEqualTo(viewport.top));
   });
 
   testWidgets('testing a source without a reader explains why it fails', (
