@@ -29,7 +29,7 @@ import 'library_local_view.dart';
 import 'library_manga_details_screen.dart';
 import 'library_reader_launcher.dart';
 import 'library_reader_screen.dart';
-import 'library_sources_view.dart';
+import 'library_sources_view.dart' show LibrarySourcesView;
 
 /// Sections opened from the Library hub's shortcut cards.
 enum LibraryHubSection { sources, local, favorites }
