@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/screens/library_screen/library_catalog_preview_screen.dart';
 import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_source_catalog_service.dart';
+import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_catalog_import_fakes.dart' as catalog_fakes;
@@ -128,6 +129,8 @@ List<bool?> _checkboxValues(WidgetTester tester) => tester
     .toList();
 
 void main() {
+  _controllerListTests();
+
   final sources = <LibraryCatalogSourceEntry>[
     _entry('fr.astralmanga', 'Astral Manga', version: 5),
     _entry('fr.lelscanfr', 'LelscanFR', rating: 1),
@@ -332,5 +335,59 @@ void main() {
     );
     expect(find.text('Aidoku source (source.json)'), findsOneWidget);
     expect(_checkboxValues(tester), <bool>[false]);
+  });
+}
+
+void _controllerListTests() {
+  testWidgets('a controller scrolls through a Tachiyomi list it cannot tick', (
+    tester,
+  ) async {
+    final preview = LibraryCatalogPreview(
+      inputUrl: 'https://example.org/index.min.json',
+      catalogUrl: 'https://example.org/index.min.json',
+      documentUrl: 'https://example.org/index.min.json',
+      resolvedUrl: 'https://example.org/index.min.json',
+      format: LibraryCatalogFormat.tachiyomiRepository,
+      name: 'Extensions',
+      sources: <LibraryCatalogSourceEntry>[
+        for (var index = 0; index < 20; index++)
+          _entry('$index', 'Extension $index', activatable: false),
+      ],
+      fetchedAt: DateTime.utc(2026, 10, 11, 7),
+    );
+    await pumpLibraryUi(
+      tester,
+      LibraryCatalogPreviewScreen(
+        preview: preview,
+        aidokuService: FakeAidokuService(),
+        imageCache: NoImageCache(),
+        enableGamepad: false,
+      ),
+      size: const Size(844, 390),
+      wrapInScaffold: false,
+    );
+    await tester.pumpAndSettle();
+    final list = find.byType(ListView);
+    bool visible(String text) {
+      final found = find.text(text);
+      if (found.evaluate().isEmpty) return false;
+      final viewport = tester.getRect(list);
+      final rect = tester.getRect(found);
+      return rect.top >= viewport.top && rect.bottom <= viewport.bottom;
+    }
+
+    expect(visible('Extension 19'), isFalse);
+    final layer = tester.state<LibraryFocusGamepadLayerState>(
+      find.byType(LibraryFocusGamepadLayer),
+    );
+    for (var press = 0; press < 20; press++) {
+      layer.move(TraversalDirection.down);
+      await tester.pumpAndSettle();
+    }
+    expect(visible('Extension 19'), isTrue);
+    // Nothing can be ticked on iOS.
+    layer.activateFocused();
+    await tester.pumpAndSettle();
+    expect(_checkboxValues(tester), everyElement(isFalse));
   });
 }

@@ -438,78 +438,84 @@ class _EntryRow extends StatelessWidget {
         label: f('selectSource', <String, Object?>{'name': entry.name}),
         checked: selected,
         enabled: selectable,
-        child: InkWell(
-          onTap: selectable ? onToggle : null,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 56),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Row(
-                children: <Widget>[
-                  ExcludeFocus(
-                    child: Checkbox(
-                      value: selected,
-                      onChanged: selectable ? (_) => onToggle() : null,
+        // A row that cannot be ticked (Tachiyomi, not activatable) still
+        // takes the focus, so a controller can scroll through the list.
+        child: Focus(
+          canRequestFocus: !selectable,
+          skipTraversal: selectable,
+          child: InkWell(
+            onTap: selectable ? onToggle : null,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Row(
+                  children: <Widget>[
+                    ExcludeFocus(
+                      child: Checkbox(
+                        value: selected,
+                        onChanged: selectable ? (_) => onToggle() : null,
+                      ),
                     ),
-                  ),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: SizedBox(
-                      width: iconSize,
-                      height: iconSize,
-                      child: icon,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: iconSize,
+                        height: iconSize,
+                        child: icon,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          entry.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            entry.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        Text(
-                          details.join(' • '),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: muted,
+                          Text(
+                            details.join(' • '),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: <Widget>[
-                            LibraryRatingBadge(rating: entry.contentRating),
-                            if (installState != null)
-                              LibraryStatusChip(
-                                label: installState,
-                                state: entry.updateAvailable
-                                    ? LibraryLadderState.unknown
-                                    : LibraryLadderState.ok,
-                              ),
-                            if (aidokuFormat && hasReader)
-                              LibraryStatusChip(
-                                label: t('adapterAvailable'),
-                                state: LibraryLadderState.ok,
-                              ),
-                            if (unsupportedKey != null)
-                              LibraryStatusChip(
-                                label: t(unsupportedKey!),
-                                state: LibraryLadderState.failed,
-                              ),
-                          ],
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: <Widget>[
+                              LibraryRatingBadge(rating: entry.contentRating),
+                              if (installState != null)
+                                LibraryStatusChip(
+                                  label: installState,
+                                  state: entry.updateAvailable
+                                      ? LibraryLadderState.unknown
+                                      : LibraryLadderState.ok,
+                                ),
+                              if (aidokuFormat && hasReader)
+                                LibraryStatusChip(
+                                  label: t('adapterAvailable'),
+                                  state: LibraryLadderState.ok,
+                                ),
+                              if (unsupportedKey != null)
+                                LibraryStatusChip(
+                                  label: t(unsupportedKey!),
+                                  state: LibraryLadderState.failed,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
