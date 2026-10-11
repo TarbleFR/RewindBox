@@ -72,6 +72,14 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Livraison 444 vérifiée : source `a221ae0c66fedb1f899d16eaadaf3877a14f8349`, run `38182831110`, Core `dcf0df67` run `38178247609`, IPA SHA-256 `a06c4d460fb6531e2f16f2b06998489d4520cf9a9789694b0ad1212090ebeade` (207 536 584 octets), aucune validation iPhone. Voir `docs/build444-delivery.md`. Ne pas réutiliser le numéro 444.
 - Comparaison des deux titres : `tools/compare_rpcs3_neoswap_builds.py --mode cross-title` (même IPA, même Core, mêmes réglages, même appareil) ; lignes `neoswap_guest_sample_ext` et `JITPROF`, objet `guestDirectCreation`. Un « Donated » plus élevé n'est pas un gain : seuls les temps d'image, les compilations en jeu et la couverture des demandes invitées (octets) le sont.
 
+## Décision du mainteneur — Build 445, 12 octobre 2026
+
+- La Build 445 se construit par-dessus la Build 444 livrée (`a221ae0c`, run `38182831110`) et conserve toutes ses améliorations et corrections. Le mainteneur ne demande aucun correctif pour cette build. Son produit est identique à la 444 : aucun changement sous `lib/`, `packages/`, `native/`, `assets/` ni dans `pubspec.*`.
+- Ajouts sans effet sur le produit :
+  - l'artefact est chiffré pour `build-utils/delivery-445-recipient.pem`, clé détenue par la session tactile/skins et passée par l'entrée `recipient` ;
+  - `test/libretro_skin_catalogs_test.dart` est exécuté par le contrôle de livraison.
+- Plan, vérifications et identité de l'IPA : `docs/build445-plan.md`. Ne pas réutiliser le numéro 445.
+
 ## Précision du mainteneur — 9 octobre 2026, 13 h
 
 - L'état fonctionnel confirmé est NeoStation Build 422 : bibliothèque visible et lancement RetroArch lorsque l'application externe reste en arrière-plan. Conserver ces sources de lancement/synchronisation ; ne pas prendre le récepteur autonome 781 pour une mise à jour NeoStation.

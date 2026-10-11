@@ -351,6 +351,36 @@ défaut est indépendant de ce cycle et n'est pas modifié ici. Le script suivan
 de la même étape, `game_audio_handoff_test.py`, ne s'exécute donc pas en CI ;
 il a été exécuté localement avec succès.
 
+La Build 444 a été livrée depuis `a221ae0c` (run `38182831110`, voir
+`docs/build444-delivery.md`). Ce commit descend de toutes les révisions de ce
+cycle : la 444 contient donc tout le travail tactile/skins. L'autre session y
+a aussi ré-épinglé le garde-fou NeoSwap. La Build 445 (`docs/build445-plan.md`)
+reprend ce produit à l'identique.
+
+Sonde simulateur (`libretro-simulator.yml`), non signalée au moment de ces
+runs. Il s'agit d'un constat ouvert, sans correction (décision du mainteneur
+du 12 octobre 2026) :
+
+- **Échecs.** `38178625368` (`4da3154`) et `38180063457` (`194d427`) ont
+  échoué uniquement sur l'assertion « PPSSPP's memory at the reserved base »
+  des scénarios encombrés. `ppsspp-crowded-prx` a échoué dans les deux runs,
+  `ppsspp-crowded` dans le second. Tous les lancements PSP ont réussi, se sont
+  fermés dans l'ordre et ont repris la réservation.
+- **Mécanisme probable.** La sonde n'encombre la fenêtre qu'une fois, avant le
+  lancement. De la mémoire libérée pendant le démarrage de PPSSPP a laissé
+  libre une base plus basse (0x109800000, 0x10c000000, 0x105000000), que
+  PPSSPP a prise.
+- **Attribution indéterminée.**
+  - Les commits tactile/skins n'appellent directement ni `vm_allocate` ni
+    `mmap`. Leurs allocations ordinaires peuvent toutefois être placées puis
+    libérées dans cette fenêtre.
+  - Le second run avait un exécuteur dégradé : « no progress in 120 s », sonde
+    de 354,8 s contre 99,3 s, 117,2 s et 145,3 s pour `38116309132`,
+    `38178625368` et `38046114507`.
+  - Les sources immédiatement antérieures (`54147b97`, `0ff20bbd`) ont réussi
+    les 4 contrôles encombrés de leurs deux runs (`38046114507`,
+    `38116309132`). L'échantillon reste petit.
+
 `docs/LEGAL_AND_CREDITS.md` est épinglé octet pour octet par
 `test/import_memory_candidate_scope_test.py`. Les crédits des nouvelles
 sources sont donc dans `docs/SKINS.md` et dans ce document. Leur ajout aux

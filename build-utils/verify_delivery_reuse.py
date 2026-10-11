@@ -941,6 +941,14 @@ LIBRETRO_SKINS_INPUTS_DELTA = {
     'test/libretro_skin_catalogs_test.dart',
 }
 DELTA |= LIBRETRO_SKINS_INPUTS_DELTA
+# Build 445 (12 October 2026), built on the delivered Build 444 (a221ae0c): the
+# public key the encrypted artifact of this session is addressed to (its private
+# key stays outside the repository). The skin catalog test the delivery now runs is
+# declared above; the delivery workflow is outside the input roots.
+BUILD445_DELTA = {
+    'build-utils/delivery-445-recipient.pem',
+}
+DELTA |= BUILD445_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
