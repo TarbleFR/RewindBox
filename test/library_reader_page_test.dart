@@ -862,18 +862,29 @@ void main() {
       // The opening is saved after the delay.
       await tester.pump(const Duration(seconds: 1));
       final state = readerState(tester);
-      state.gamepadBindings.right!();
-      await frames(tester);
-      expect(state.controller.page, 1);
-      // B within the 700 ms save delay.
-      state.gamepadBindings.back!();
-      await tester.pump();
-      expect(store.progressFor('local:quick')!.pageIndex, 1);
-      await frames(tester);
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byType(LibraryPageReaderScreen), findsNothing);
-      expect(tester.takeException(), isNull);
-      expect(find.text('home page:1'), findsOneWidget);
+      // The iPhone's pop transition (500 ms) ends before the 700 ms save
+      // delay when B follows the page change at once: a save left to
+      // dispose then notifies the screen below from the locked tree.
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        state.gamepadBindings.right!();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(state.controller.page, 1);
+        state.gamepadBindings.back!();
+        await tester.pump();
+        expect(store.progressFor('local:quick')!.pageIndex, 1);
+        for (var i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(find.byType(LibraryPageReaderScreen), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.takeException(), isNull);
+        expect(find.text('home page:1'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
       await flushStore(tester, store);
     });
 
