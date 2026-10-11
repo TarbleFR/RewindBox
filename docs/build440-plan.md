@@ -185,3 +185,42 @@ puis contrôles natifs macOS par `workflow_dispatch --ref Claude`
 (dolphin-motion-check, ui-refresh-rate-check, libretro-checks) et livraison
 `retroarch-delivery.yml` avec `build_number=440`. Les comportements sur
 iPhone restent à confirmer par le mainteneur.
+
+## Résultats et livraison (11 octobre 2026)
+
+Windows (Flutter 3.47.2, Python 3.12), arbre intégré avant renumérotation :
+suite Flutter complète, 1 838 réussis et 29 échecs, tous déjà présents sur
+`origin/Claude` (la référence en compte 30 : le test RPCS3 du menu d’import
+est réparé). Après rebase sur `2b1c0dea` : 391 tests ciblés et 735 tests
+`library_*` réussis (seul échec : le test Windows connu
+`library_scan_restart`), contrats Python verts, `flutter analyze` sans
+erreur ni avertissement.
+
+| Contrôle | Run | Révision | Résultat |
+|---|---|---|---|
+| `retroarch-delivery.yml` (checks, native, cold) | `38161126590` | `cbd0ff01` | réussi |
+| `libretro-checks.yml` | `38161113820` | `cbd0ff01` | réussi |
+| `ui-refresh-rate-check.yml` | `38161174475` | `1bc0edf8` | réussi |
+| `dolphin-motion-check.yml` | `38161120708` | `cbd0ff01` | échec du harnais (CoreGraphics non lié au paquet XCTest) |
+| `dolphin-motion-check.yml` | `38161934907` | `0913f260` | réussi, simulateur compris |
+| `dolphin-pacing-check.yml` | `38161122592` | `cbd0ff01` | bloqué avant ses tests par le verrou NeoSwap |
+| `cheats-media-check.yml` | `38161124298` | `cbd0ff01` | bloqué avant ses tests par le verrou NeoSwap |
+
+`1bc0edf8` et `0913f260` ne diffèrent de `cbd0ff01` que par
+`.github/workflows/ui-refresh-rate-check.yml` et le harnais
+`test/dolphin_touch_shake_ui_test.py` : aucune entrée de l’application ne
+change. Le verrou NeoSwap (`test/import_memory_candidate_scope_test.py`,
+appelé par `check_neo_swap_scope.py` et `cheat_bulk_scope_test.py`) refuse
+`assets/legal/THIRD_PARTY_NOTICES.md` et `docs/LEGAL_AND_CREDITS.md` depuis
+`08145438` (crédits des habillages), avant ce cycle ; il n’est pas modifié
+ici.
+
+IPA livrée : `NeoStation-Build440-cbd0ff0124a4af7a34d1b10b3e22e0991d7d5e64-cold.ipa`,
+artefact chiffré `NeoStation-Build-440-cbd0ff0124a4af7a34d1b10b3e22e0991d7d5e64-cold`,
+SHA-256 `13070ac3434a25289b3a1ecf25903c19340fb331dc6a184eef1be752398531b4`,
+207 202 787 octets, version 0.0.2 (440), signature ad hoc de préparation
+(re-signature Apple par SideStore requise). Vérifié après déchiffrement :
+empreinte identique à `SHA256SUMS` et à `signed-payload-identity.json`,
+marqueurs Secouer Wii dans `dolphin_internal_bridge`, préférence et canal
+120 Hz dans l’exécutable Runner (aucun `ui_refresh_rate.framework` séparé),
+données BIOS dans les ressources Flutter. Aucun essai sur iPhone.
