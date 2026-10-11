@@ -88,7 +88,7 @@ require('#include <llvm/Config/llvm-config.h>' in jit and 'std::string seed = LL
 require('#ifdef NEOSTATION_PPU_CODEGEN_ID\n\t\tseed += NEOSTATION_PPU_CODEGEN_ID;' in jit,
         'identity must include the configure-time source digest')
 require('for (const auto& attribute : target_attributes())' in jit, 'identity must include the target features')
-require('return fmt::base57(output, 12);' in jit, 'identity digest must be a short base57 string')
+require('return fmt::format("%s", fmt::base57(output, 12));' in jit, 'identity digest must be a short base57 string')
 require('const std::vector<std::string> attributes = target_attributes();' in jit and
         '.setMAttrs(attributes)' in jit, 'engine must advertise the same features the identity hashes')
 attributes_body = jit[jit.index('const std::vector<std::string>& jit_compiler::target_attributes()'):jit.index('std::string jit_compiler::codegen_identity()')]
@@ -118,7 +118,7 @@ require('kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.ppu_llvm_ir_passes, 0, 1, 1
 require('\t\t\t\tarm64_ir_passes,\n\n\t\t\t\t__bitset_enum_max' in ppu, 'settings bit must be appended last')
 require('if (g_cfg.core.ppu_llvm_ir_passes)\n\t\t\t\tsettings += ppu_settings::arm64_ir_passes;' in ppu,
         'objects built with/without the passes must not share a name')
-require('const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes;' in ppu, 'pass gate must read the option once')
+require('const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes.get();' in ppu, 'pass gate must read the option once')
 require(ppu.count('#elif defined(RPCS3_IOS)\n\t\t\t\t\tif (run_ir_passes)\n') == 1 and
         ppu.count('#elif defined(RPCS3_IOS)\n\t\t\t\tif (run_ir_passes)\n') == 1,
         'both x86-64 pass sites must gate the ARM64 passes on the option')

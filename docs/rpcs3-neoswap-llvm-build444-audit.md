@@ -6,7 +6,7 @@ Core construit depuis `351b738c8d4d5fbe2c7498d4438776baecdba613`
 RPCS3) et 443 (`79a5920a`, couvertures 3D de la Bibliothèque, autre session)
 sont intercalées sur `Claude` ; aucune ne touche NeoSwap ni le Core. Ce cycle
 est donc la Build 444 : code `7ec94a8c`, patch canonique
-`4c9a2f9e135136481883e684b81429be5db7fa1301f19afde236922953f63fde`.
+`f19ec0f82bf830e1d371f0cc2de581f3df26c7beaac1a133d79b9dc04cc7cfb7`.
 
 Les sources du Core sont lues sur l'arbre matérialisé
 `XITRIX/rpcs3 @22f1152 + build-utils/rpcs3/embedded-core.patch` de la 441

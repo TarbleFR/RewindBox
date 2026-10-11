@@ -1071,7 +1071,7 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e0a..39bd862d9 100644
+index 863624e0a..0cf69751e 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
 @@ -13,6 +13,8 @@
@@ -1248,7 +1248,7 @@ index 863624e0a..39bd862d9 100644
 +		sha1_starts(&ctx);
 +		sha1_update(&ctx, reinterpret_cast<const u8*>(seed.data()), seed.size());
 +		sha1_finish(&ctx, output);
-+		return fmt::base57(output, 12);
++		return fmt::format("%s", fmt::base57(output, 12));
 +	}();
 +
 +	return identity;
@@ -2948,7 +2948,7 @@ index 0000000..76893b1
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a749b..f08886c0b 100644
+index b1f1a749b..827126c1b 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -1,5 +1,6 @@
@@ -3247,7 +3247,7 @@ index b1f1a749b..f08886c0b 100644
 +		// NEOSTATION_BUILD444_PPU_IR_PASSES_V1: upstream runs this pipeline on
 +		// x86-64 only. On ARM64 it is an opt-in measured through JITPROF; off
 +		// keeps the upstream behavior of translating straight to the backend.
-+		const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes;
++		const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes.get();
 +#endif
  
  		u32 guest_code_size = 0;
