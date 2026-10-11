@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,9 +12,11 @@ import 'package:neostation/screens/library_screen/reader/library_page_reader_scr
 import 'package:neostation/screens/library_screen/reader/library_page_source.dart';
 import 'package:neostation/services/library_aidoku_engines.dart';
 import 'package:neostation/services/library_http.dart';
+import 'package:neostation/services/library_image_cache.dart';
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
 
+import 'library_local_fixtures.dart';
 import 'library_reader_test_support.dart';
 
 String en(String key) => LibraryReaderLocale.values['en']![key]!;
@@ -799,6 +803,110 @@ void main() {
       await flushStore(tester, store);
     });
   });
+
+  group('page decoding and loading', () {
+    // Regression: paged mode decoded by the viewport width only, so a
+    // portrait page on a landscape iPhone was decoded at full resolution
+    // (1920 x 3016) to be shown 1179 px tall.
+    testWidgets('paged pages are decoded to fit the screen, strips by width', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final source = _SlowPageSource(6);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(
+            pagesPerChapter: 6,
+            loader: (index, cancel) async => source,
+          ),
+          store: store,
+        ),
+      );
+      await tester.pump();
+      // 900 x 600 at ratio 1, rounded up to steps of 128 px.
+      expect(source.requests, isNotEmpty);
+      expect(
+        source.requests.map((r) => (r.$2, r.$3)).toSet(),
+        <(int?, int?)>{(1024, 640)},
+      );
+
+      source.requests.clear();
+      readerState(tester).controller.toggleMode();
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(ListView), findsOneWidget);
+      expect(source.requests, isNotEmpty);
+      expect(
+        source.requests.map((r) => (r.$2, r.$3)).toSet(),
+        <(int?, int?)>{(1024, null)},
+      );
+      await closeAll(tester, store);
+    });
+
+    testWidgets('an iPhone in landscape decodes pages at the screen height', (
+      tester,
+    ) async {
+      // iPhone 15 in landscape: 852 x 393 pt at 3x.
+      tester.view.physicalSize = const Size(2556, 1179);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final (store, _) = await createStore(tester);
+      final source = _SlowPageSource(6);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(
+            pagesPerChapter: 6,
+            loader: (index, cancel) async => source,
+          ),
+          store: store,
+        ),
+      );
+      await tester.pump();
+      expect(
+        source.requests.map((r) => (r.$2, r.$3)).toSet(),
+        <(int?, int?)>{(2400, 1280)},
+      );
+      await closeAll(tester, store);
+    });
+
+    testWidgets('an online page is decoded no taller than the screen', (
+      tester,
+    ) async {
+      useSurface(tester, size: const Size(400, 300));
+      final (store, _) = await createStore(tester);
+      final directory = (await tester.runAsync(
+        () => createTempDir('ns_reader_pages_'),
+      ))!;
+      // A tall page: 200 x 600 shown in a 400 x 300 screen.
+      final cache = _pageImageCache(directory, buildPng(200, 600));
+      final source = LibraryNetworkPageSource(
+        const <String>['https://example.org/p1.png'],
+        cache: cache,
+      );
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(loader: (index, cancel) async => source),
+          store: store,
+        ),
+      );
+      RawImage? page;
+      for (var i = 0; i < 20 && page == null; i++) {
+        await settle(tester, rounds: 1);
+        final found = find.byType(RawImage);
+        if (found.evaluate().isNotEmpty) page = tester.widget<RawImage>(found);
+      }
+      expect(page?.image, isNotNull);
+      // Height 384 (300 rounded up to 128 px steps), proportions kept.
+      expect(page!.image!.height, 384);
+      expect(page.image!.width, 128);
+      await closeAll(tester, store);
+    });
+
+  });
 }
 
 class _OrientationRecorder implements LibraryReaderOrientationPlatform {
@@ -810,3 +918,77 @@ class _OrientationRecorder implements LibraryReaderOrientationPlatform {
     List<DeviceOrientation> orientations,
   ) async {}
 }
+
+/// Pages whose images never finish loading (a slow network). Records the
+/// decode sizes asked for, the order in which page loads start and the
+/// prefetches.
+class _SlowPageSource implements LibraryPageSource {
+  _SlowPageSource(this.length);
+
+  @override
+  final int length;
+
+  @override
+  String get key => 'slow';
+
+  final List<(int, int?, int?)> requests = <(int, int?, int?)>[];
+  final List<int> loads = <int>[];
+  final List<int> prefetched = <int>[];
+
+  @override
+  ImageProvider imageFor(int index, {int? cacheWidth, int? cacheHeight}) {
+    requests.add((index, cacheWidth, cacheHeight));
+    return _SlowImage(this, index, cacheWidth, cacheHeight);
+  }
+
+  @override
+  void prefetch(int index) => prefetched.add(index);
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class _SlowImage extends ImageProvider<_SlowImage> {
+  _SlowImage(this.source, this.index, this.cacheWidth, this.cacheHeight);
+
+  final _SlowPageSource source;
+  final int index;
+  final int? cacheWidth;
+  final int? cacheHeight;
+
+  @override
+  Future<_SlowImage> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<_SlowImage>(this);
+
+  @override
+  ImageStreamCompleter loadImage(_SlowImage key, ImageDecoderCallback decode) {
+    source.loads.add(index);
+    return OneFrameImageStreamCompleter(Completer<ImageInfo>().future);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SlowImage &&
+      identical(other.source, source) &&
+      other.index == index &&
+      other.cacheWidth == cacheWidth &&
+      other.cacheHeight == cacheHeight;
+
+  @override
+  int get hashCode => Object.hash(source, index, cacheWidth, cacheHeight);
+}
+
+/// Image cache answering every page URL with [png] (no network).
+LibraryImageCache _pageImageCache(Directory directory, Uint8List png) =>
+    LibraryImageCache(
+      cacheDirectory: directory,
+      fetcher: (request, {mode = LibraryFetchMode.cacheFirst, cancel}) async =>
+          LibraryHttpResponse(
+            request: request,
+            statusCode: 200,
+            bodyBytes: png,
+            headers: const <String, String>{'content-type': 'image/png'},
+            finalUri: request.uri,
+            fetchedAt: DateTime.utc(2026),
+          ),
+    );

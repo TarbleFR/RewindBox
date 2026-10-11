@@ -28,7 +28,8 @@ import 'library_reader_system.dart';
 /// area. Paged mode (left-to-right or right-to-left) zooms each page with a
 /// pinch or a double tap; vertical mode is a lazy continuous strip
 /// (webtoons) that also zooms with a pinch. Pages are decoded at the
-/// viewport width (capped) and the neighbours are prefetched.
+/// viewport size (capped; the width alone in vertical mode) and the
+/// neighbours are prefetched.
 class LibraryPageReaderScreen extends StatefulWidget {
   const LibraryPageReaderScreen({
     super.key,
@@ -54,6 +55,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   /// Largest decode width of a page, in physical pixels.
   static const int maxDecodeWidth = 2400;
+
+  /// Largest decode height of a page in paged mode, in physical pixels
+  /// (above the tallest iPad screen, so no page is shown upscaled).
+  static const int maxDecodeHeight = 3072;
   static const double _cardExtent = 280;
   static const double _zoomScale = 2.5;
 
@@ -94,6 +99,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   Offset? _pendingTapPosition;
   LibraryPageReaderMode? _builtMode;
   int _decodeWidth = 1080;
+  int _decodeHeight = 1920;
   final Set<ImageProvider> _providers = <ImageProvider>{};
   bool _closing = false;
 
@@ -523,17 +529,30 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   }
 
   ImageProvider _provider(LibraryPageSource source, int index) {
-    final provider = source.imageFor(index, cacheWidth: _decodeWidth);
+    // Paged mode shows the whole page on the screen (BoxFit.contain): a
+    // portrait page in landscape is limited by the screen height, so it is
+    // decoded no taller than the screen. The vertical strip fills the
+    // width, so only the width limits it there.
+    final provider = source.imageFor(
+      index,
+      cacheWidth: _decodeWidth,
+      cacheHeight: _vertical ? null : _decodeHeight,
+    );
     _providers.add(provider);
     return provider;
   }
 
-  void _updateDecodeWidth(double width) {
+  void _updateDecodeSize(Size size) {
     final ratio = MediaQuery.devicePixelRatioOf(context);
-    final physical = (width * ratio).ceil();
-    // Steps of 128 px keep the decoded sizes few across small changes.
-    final stepped = ((physical + 127) ~/ 128) * 128;
-    _decodeWidth = math.max(256, math.min(maxDecodeWidth, stepped));
+    _decodeWidth = _decodeLimit(size.width * ratio, maxDecodeWidth);
+    _decodeHeight = _decodeLimit(size.height * ratio, maxDecodeHeight);
+  }
+
+  /// [physical] pixels rounded up to a step of 128 px (keeps the decoded
+  /// sizes few across small changes), within 256 and [max].
+  static int _decodeLimit(double physical, int max) {
+    final stepped = ((physical.ceil() + 127) ~/ 128) * 128;
+    return math.max(256, math.min(max, stepped));
   }
 
   // ------------------------------------------------------------- vertical --
@@ -912,7 +931,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
-        _updateDecodeWidth(size.width);
+        _updateDecodeSize(size);
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapUp: (details) => _onTapUp(details, size),

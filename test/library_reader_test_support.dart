@@ -146,7 +146,7 @@ class MemoryPageSource implements LibraryPageSource {
   int get length => pages.length;
 
   @override
-  ImageProvider imageFor(int index, {int? cacheWidth}) {
+  ImageProvider imageFor(int index, {int? cacheWidth, int? cacheHeight}) {
     if (failing.contains(index)) {
       return _failing.putIfAbsent(index, () => FailingImage('$key#$index'));
     }

@@ -16,9 +16,10 @@ abstract class LibraryPageSource {
 
   int get length;
 
-  /// Image of page [index] decoded no wider than [cacheWidth] physical
-  /// pixels (never upscaled).
-  ImageProvider imageFor(int index, {int? cacheWidth});
+  /// Image of page [index] decoded to fit inside [cacheWidth] x
+  /// [cacheHeight] physical pixels (null = no limit on that side; aspect
+  /// ratio kept, never upscaled).
+  ImageProvider imageFor(int index, {int? cacheWidth, int? cacheHeight});
 
   /// Warms page [index] (best effort: download to the disk cache).
   void prefetch(int index);
@@ -53,12 +54,14 @@ class LibraryNetworkPageSource implements LibraryPageSource {
   int get length => urls.length;
 
   @override
-  ImageProvider imageFor(int index, {int? cacheWidth}) => LibraryNetworkImage(
-    urls[index],
-    headers: headers,
-    cacheWidth: cacheWidth,
-    cache: _cache,
-  );
+  ImageProvider imageFor(int index, {int? cacheWidth, int? cacheHeight}) =>
+      LibraryNetworkImage(
+        urls[index],
+        headers: headers,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        cache: _cache,
+      );
 
   @override
   void prefetch(int index) {
@@ -116,9 +119,14 @@ class LibraryArchivePageSource implements LibraryPageSource {
   int get length => _pages.pageCount;
 
   @override
-  ImageProvider imageFor(int index, {int? cacheWidth}) =>
+  ImageProvider imageFor(int index, {int? cacheWidth, int? cacheHeight}) =>
       LibraryVersionedArchivePageImage(
-        LibraryArchivePageImage(path, index, cacheWidth: cacheWidth),
+        LibraryArchivePageImage(
+          path,
+          index,
+          cacheWidth: cacheWidth,
+          cacheHeight: cacheHeight,
+        ),
         _version,
       );
 
