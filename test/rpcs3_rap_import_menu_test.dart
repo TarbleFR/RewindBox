@@ -11,6 +11,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/rpcs3_rap_licence_service.dart';
+import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 import 'package:neostation/widgets/rpcs3_internal_playlist_actions.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -282,6 +283,62 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+
+  testWidgets('controller: A keeps the installed licence, then closes', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final file = File(p.join(exdata(), '$_id.rap'));
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(_rap(1));
+    });
+    await openLibrary(tester);
+    selection = [
+      await tester.runAsync(() => pick('$_id.rap', _rap(2))) as String,
+    ];
+    await chooseRapImport(tester, 'Import RAP licenses');
+    await settle(
+      tester,
+      () => shown(find.byKey(const ValueKey('rpcs3-rap-replace-dialog'))),
+    );
+
+    // The safe choice has the focus; A activates it.
+    Key? focusedButton() {
+      Key? key;
+      FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
+        element,
+      ) {
+        if (element.widget is! ButtonStyleButton) return true;
+        key = element.widget.key;
+        return false;
+      });
+      return key;
+    }
+
+    LibraryFocusGamepadLayerState layer() =>
+        tester.state<LibraryFocusGamepadLayerState>(
+          find.byType(LibraryFocusGamepadLayer),
+        );
+    expect(focusedButton(), const ValueKey('rpcs3-rap-keep'));
+    layer().activateFocused();
+    await tester.pump();
+    await settle(
+      tester,
+      () => shown(find.byKey(const ValueKey('rpcs3-rap-report'))),
+    );
+    expect(find.text('Rejected: 1'), findsOneWidget);
+    final installed = await tester.runAsync(
+      () => File(p.join(exdata(), '$_id.rap')).readAsBytes(),
+    );
+    expect(installed, _rap(1));
+
+    expect(focusedButton(), const ValueKey('rpcs3-rap-close'));
+    layer().activateFocused();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('rpcs3-rap-report')), findsNothing);
+    expect(libraryReloads, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('embedded library in French: no root overlay over the report', (
     tester,
