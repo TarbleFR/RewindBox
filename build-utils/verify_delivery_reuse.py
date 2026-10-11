@@ -918,6 +918,29 @@ BUILD444_DELTA = {
     'test/rpcs3_neoswap_relay_test.py',
 }
 DELTA |= BUILD444_DELTA
+# New inputs of the libretro skin/touch commits 4da31544..f28525fd (other session,
+# 11-12 October 2026) present on Claude when Build 444 was delivered; listed so the
+# closed-tree check names them instead of refusing every later delivery.
+LIBRETRO_SKINS_INPUTS_DELTA = {
+    'assets/data/libretro_skin_overlays.json',
+    'lib/services/libretro_overlay_converter.dart',
+    'lib/services/libretro_skin_catalogs.dart',
+    'lib/services/libretro_skin_compatibility.dart',
+    'lib/services/libretro_skin_remote_inspector.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputLatch.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputLatch.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchDiagnosticsView.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchDiagnosticsView.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchTracker.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchTracker.m',
+    'test/libretro_host/frontend/input_latch_test.m',
+    'test/libretro_host/frontend/skin_compatibility_test.m',
+    'test/libretro_host/frontend/touch_tracker_test.m',
+    'test/libretro_skin_catalogs_test.dart',
+}
+DELTA |= LIBRETRO_SKINS_INPUTS_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
