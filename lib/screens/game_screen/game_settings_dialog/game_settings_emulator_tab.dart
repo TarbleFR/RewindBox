@@ -89,6 +89,11 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
   List<String> _libretroChoices = const <String>[];
   String? _libretroChoice;
 
+  /// False for a game whose file is not readable here (known only to the
+  /// RetroArch app's library): it opens the RetroArch app, so the engine
+  /// identity shows no embedded check for it.
+  bool _libretroRomReadable = true;
+
   /// The list is computed once per visit: after a game leaves the earlier
   /// RetroArch setting, its row stays until the tab is reopened, so the
   /// highlighted row does not jump and the change can be undone.
@@ -97,10 +102,12 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
       _libretroSystemKey,
       widget.game.romname,
     );
+    final readable = await libretroRomReadable(widget.game.romPath);
     if (!mounted) return;
     setState(() {
       _libretroChoices = libretroEngineChoices(_libretroSystemKey, choice);
       _libretroChoice = choice;
+      _libretroRomReadable = readable;
     });
   }
 
@@ -153,7 +160,10 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
           // so the row indices below still map one to one to the choices.
           LibretroEngineIdentityTile(
             systemKey: _libretroSystemKey,
-            active: _libretroChoice != LibretroInternalService.retroArchChoice,
+            active: libretroRunsEmbedded(
+              romReadable: _libretroRomReadable,
+              stored: _libretroChoice,
+            ),
           ),
           Padding(
             padding: EdgeInsets.only(left: 4.r, bottom: 4.r),

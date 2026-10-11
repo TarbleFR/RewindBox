@@ -29,7 +29,11 @@ l’application RetroArch comme nécessaire. Base : `a434881e` (branche
   (`LibretroEngineIdentityTile`) : même présentation que DolphiniOS, ARMSX2,
   RPCS3 et Dusklight. Elle n’est pas navigable : les indices des lignes de
   choix ne changent pas. Sa coche disparaît pour un jeu encore réglé sur
-  l’application RetroArch.
+  l’application RetroArch et pour un jeu dont le fichier n’est pas lisible
+  ici (jeu connu seulement de la bibliothèque exportée par RetroArch), qui
+  s’ouvre dans l’application RetroArch (`libretroRomReadable` et
+  `libretroRunsEmbedded`, même condition de fichier que
+  `shouldLaunchEmbedded`, affichage seulement).
 - Aucune migration : la lecture de la liste n’écrit rien, le préfixe
   `libretro_core_v1.` et la valeur `retroarch` sont inchangés. Le routage
   (`LibretroInternalService.shouldLaunchEmbedded`, `game_launch_service.dart`)

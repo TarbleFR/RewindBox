@@ -37,8 +37,9 @@ class LibretroEngineIdentityTile extends StatelessWidget {
   final String systemKey;
 
   /// Whether the game (or system) runs in the embedded engine. False for a
-  /// game still set to the RetroArch app as an earlier setting: no check is
-  /// shown then, since that game opens the RetroArch app.
+  /// game still set to the RetroArch app as an earlier setting, or whose file
+  /// is not readable here (known only to the RetroArch app's library): no
+  /// check is shown then, since that game opens the RetroArch app.
   final bool active;
 
   /// "Embedded in NeoStation · Snes9x", or "Embedded in NeoStation ·

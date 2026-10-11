@@ -124,6 +124,40 @@ void main() {
       expect(libretroEngineChoices('not-a-system', null), isEmpty);
     });
 
+    test('the embedded check follows the launch rule: readable file and no RetroArch app choice',
+        () async {
+      final directory = await Directory.systemTemp.createTemp('libretro_engine_rom');
+      addTearDown(() => directory.delete(recursive: true));
+      final rom = File('${directory.path}${Platform.pathSeparator}Sonic.md');
+      await rom.writeAsBytes(<int>[0, 1, 2, 3]);
+
+      // Readable here: a game imported or read in place from a linked folder.
+      expect(await libretroRomReadable(rom.path), isTrue);
+      // A row known only to the RetroArch app's library points into
+      // RetroArch's container; it is not readable here and opens the app.
+      expect(
+        await libretroRomReadable('${directory.path}${Platform.pathSeparator}missing.md'),
+        isFalse,
+      );
+      expect(await libretroRomReadable(null), isFalse);
+      expect(await libretroRomReadable(''), isFalse);
+      // Reading the file never changes it.
+      expect(await rom.readAsBytes(), <int>[0, 1, 2, 3]);
+
+      for (final stored in <String?>[null, 'genesis_plus_gx', 'picodrive', 'unknown_core']) {
+        expect(libretroRunsEmbedded(romReadable: true, stored: stored), isTrue, reason: '$stored');
+        expect(libretroRunsEmbedded(romReadable: false, stored: stored), isFalse, reason: '$stored');
+      }
+      expect(
+        libretroRunsEmbedded(romReadable: true, stored: LibretroInternalService.retroArchChoice),
+        isFalse,
+      );
+      expect(
+        libretroRunsEmbedded(romReadable: false, stored: LibretroInternalService.retroArchChoice),
+        isFalse,
+      );
+    });
+
     test('a stored RetroArch choice is read as is and replaced only by a choice', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'libretro_core_v1.md/Sonic.md': 'retroarch',
@@ -490,7 +524,12 @@ void main() {
       final block = tab.substring(begin, end);
       expect(block, contains('libretroEngineChoices(_libretroSystemKey, choice)'));
       expect(block, contains('LibretroEngineIdentityTile('));
-      expect(block, contains('active: _libretroChoice != LibretroInternalService.retroArchChoice'));
+      // The identity's check follows the launch rule: not for a game set to
+      // the RetroArch app, nor for one whose file is not readable here.
+      expect(block, contains('await libretroRomReadable(widget.game.romPath)'));
+      expect(block, contains('active: libretroRunsEmbedded('));
+      expect(block, contains('romReadable: _libretroRomReadable'));
+      expect(block, contains('stored: _libretroChoice'));
       // Loading the list never writes the stored choice (no migration).
       final load = block.substring(
         block.indexOf('Future<void> _loadLibretroChoices()'),
