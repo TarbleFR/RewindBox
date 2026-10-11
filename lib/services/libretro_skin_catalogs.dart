@@ -190,6 +190,7 @@ class LibretroSkinCatalogs {
   final Set<String> _unavailable = <String>{};
   Map<String, Map<String, Object?>>? _verdicts;
   Set<String>? _favorites;
+  bool _disposed = false;
 
   /// Sources that could not be read on the last [load] (labels shown).
   Set<String> get unavailableSources => Set<String>.unmodifiable(_unavailable);
@@ -566,6 +567,8 @@ class LibretroSkinCatalogs {
         if (await inspection.exists()) await inspection.delete(recursive: true);
       } catch (_) {}
     }
+    // Requests cut by dispose() say nothing about the file: not recorded.
+    if (_disposed) return verdict;
     (await _loadVerdicts())[_verdictKey(entry, console)] = <String, Object?>{
       'checkedAt': _clock().toUtc().toIso8601String(),
       'verdict': verdict.toJson(),
@@ -753,6 +756,7 @@ class LibretroSkinCatalogs {
   }
 
   void dispose() {
+    _disposed = true;
     provenance.dispose();
     if (_ownsClient) _client.close();
   }

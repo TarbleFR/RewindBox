@@ -709,6 +709,20 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       expect(refused.compatibility.single.reasons, <String>[LibretroSkinCompatibility.overlayUnsupported]);
     });
 
+    test('checks cut by closing the catalogs are not cached as unreachable', () async {
+      final client = MockClient((request) async => throw http.ClientException('Connection closed'));
+      final unified = catalogs(client);
+      final entry = LibretroSkinCatalogs.fromProvenance(const LibretroSkinCatalogEntry(
+        id: 'c',
+        name: 'C',
+        systems: <String>['gba'],
+        downloadURL: 'https://example.com/c.deltaskin',
+      ));
+      unified.dispose();
+      expect((await unified.classify(entry, 'gba')).reasons, <String>[LibretroSkinCompatibility.unreachable]);
+      expect(await catalogs(client).knownVerdict(entry, 'gba'), isNull);
+    });
+
     test('favorites persist in Documents/Libretro', () async {
       final unified = catalogs(MockClient((request) async => http.Response('', 404)));
       final entry = LibretroSkinCatalogs.fromProvenance(const LibretroSkinCatalogEntry(
