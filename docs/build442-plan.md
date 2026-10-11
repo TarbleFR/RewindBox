@@ -106,5 +106,30 @@ Les révisions `0696f243` à `71a00189` ne diffèrent de `2f85ad47` que par
 `test/dolphin_external_display_ui_test.py` : aucune entrée de l'application
 ne change.
 
-Livraison `retroarch-delivery.yml`, `build_number=442` : voir la section
-suivante.
+## Livraison (11 octobre 2026, soir)
+
+| Run | Révision | Résultat |
+|---|---|---|
+| `38170075778` | `71a00189` | `checks` réussi (analyse Flutter, tests Dart ciblés, contrats Python exécutés sur cette révision) ; `native` réussi ; `cold` échoué à la compilation : `DolphinExternalDisplay.h`, en-tête public du pod, incluait l'en-tête privé `DolphinExternalDisplayLayout.h` (module Swift `dolphin_internal_bridge` non construit) |
+| `38170927050` | `e8808dd3` | **réussi** : `checks` réutilise l'évidence Dart de `38170075778` (entrées Dart identiques, seul le podspec diffère ; les contrats Python sont ré-exécutés), `native` réussi, `cold` réussi |
+
+`e8808dd3` ne diffère de `71a00189` que par
+`packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec`
+(les deux en-têtes de l'écran externe deviennent privés) ; aucune source
+Dart, Swift ou Objective-C ne change.
+
+IPA livrée : `NeoStation-Build442-e8808dd32301f71fdd421a70c0ac6be2ed6fba47-cold.ipa`,
+artefact chiffré `NeoStation-Build-442-e8808dd32301f71fdd421a70c0ac6be2ed6fba47-cold`,
+SHA-256 `64f3e64d339881703c363be041d09bfd6349f168af599b4e38608184b1e4cbae`,
+207 398 424 octets, signature ad hoc de préparation (re-signature Apple par
+SideStore requise). Vérifié après déchiffrement : empreinte identique à
+`SHA256SUMS` et à `signed-payload-identity.json` ; le pont
+`dolphin_internal_bridge` contient les marqueurs
+`NeoStation.Dolphin.ExternalDisplay.Mode`,
+`NeoStation.Dolphin.PhoneShake.Sensitivity`, `dolphin.externalDisplay.hint`
+et `dolphinPhoneShakeSensitivity` ; l'instantané Dart contient les
+marqueurs de l'échange de sauvegardes (`RPCS3-saves-`, `SaveBackups`,
+`.neostation-save-import-`). Le cœur `DolphinCore` est vérifié à son identité
+de baseline par le workflow avant scellement. Aucun essai sur iPhone ni
+Apple TV : les validations attendues par le mainteneur sont listées dans les
+quatre documents de la 442.
