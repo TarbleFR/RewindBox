@@ -444,7 +444,8 @@ class LibraryCatalogFileStore implements LibraryCatalogStore {
     if (!await file.exists()) return <LibraryStoredCatalog>[];
     // An I/O failure propagates: the caller must not overwrite a file it
     // could not read.
-    final raw = utf8.decode(await file.readAsBytes(), allowMalformed: true);
+    final bytes = await file.readAsBytes();
+    final raw = utf8.decode(bytes, allowMalformed: true);
     Object? decoded;
     try {
       decoded = jsonDecode(raw);
@@ -455,11 +456,7 @@ class LibraryCatalogFileStore implements LibraryCatalogStore {
     if (list is! List) {
       // Keep the unreadable file for diagnosis instead of losing it on the
       // next write.
-      try {
-        await file.copy('${file.path}.corrupt');
-      } on io.FileSystemException {
-        // Best effort only.
-      }
+      await _keepCorruptCopy(file, bytes);
       return <LibraryStoredCatalog>[];
     }
     final result = <LibraryStoredCatalog>[];
@@ -471,6 +468,56 @@ class LibraryCatalogFileStore implements LibraryCatalogStore {
     }
     return result;
   }
+
+  /// Copies the unreadable [content] of [file] next to it as
+  /// `catalogs.json.corrupt` without ever replacing an earlier copy: a later
+  /// damage gets a unique `.corrupt-<time>` name. The file itself stays
+  /// until the next write, so a content already kept is not copied again on
+  /// every read.
+  static Future<void> _keepCorruptCopy(io.File file, List<int> content) async {
+    try {
+      final directory = file.parent.path;
+      final base = '${p.basename(file.path)}$corruptSuffix';
+      final existing = <String, io.File>{};
+      await for (final entity in file.parent.list(followLinks: false)) {
+        final name = p.basename(entity.path);
+        if (entity is io.File && (name == base || name.startsWith('$base-'))) {
+          existing[name] = entity;
+        }
+      }
+      for (final copy in existing.values) {
+        if (await copy.length() != content.length) continue;
+        if (_sameBytes(await copy.readAsBytes(), content)) return;
+      }
+      var target = base;
+      if (existing.containsKey(base)) {
+        final stamp = DateTime.now().toUtc().millisecondsSinceEpoch;
+        target = '$base-$stamp';
+        var suffix = 1;
+        while (existing.containsKey(target) ||
+            await io.FileSystemEntity.type(p.join(directory, target)) !=
+                io.FileSystemEntityType.notFound) {
+          target = '$base-$stamp-${suffix++}';
+        }
+      }
+      await io.File(
+        p.join(directory, target),
+      ).writeAsBytes(content, flush: true);
+    } on io.FileSystemException {
+      // Best effort only.
+    }
+  }
+
+  static bool _sameBytes(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var index = 0; index < a.length; index++) {
+      if (a[index] != b[index]) return false;
+    }
+    return true;
+  }
+
+  /// Suffix of the copies kept by [read] when the file cannot be parsed.
+  static const String corruptSuffix = '.corrupt';
 
   @override
   Future<void> write(List<LibraryStoredCatalog> catalogs) async {

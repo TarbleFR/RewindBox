@@ -528,6 +528,43 @@ void main() {
       expect(File('${file.path}.corrupt').readAsStringSync(), '{not json');
     });
 
+    test('a later damage never overwrites the first corrupt copy', () async {
+      final file = File('${directory.path}/catalogs.json');
+      final store = LibraryCatalogFileStore(directory: () async => directory);
+      List<String> copies() =>
+          directory
+              .listSync()
+              .whereType<File>()
+              .map((entry) => entry.uri.pathSegments.last)
+              .where((name) => name.startsWith('catalogs.json.corrupt'))
+              .toList()
+            ..sort();
+
+      await file.writeAsString('{"catalogs": "first damage"');
+      expect(await store.read(), isEmpty);
+      // Reading the same damaged file again keeps a single copy of it.
+      expect(await store.read(), isEmpty);
+      expect(copies(), <String>['catalogs.json.corrupt']);
+
+      await file.writeAsString('[1, 2');
+      expect(await store.read(), isEmpty);
+      expect(await store.read(), isEmpty);
+
+      final kept = copies();
+      expect(kept, hasLength(2));
+      expect(kept.first, 'catalogs.json.corrupt');
+      expect(kept.last, startsWith('catalogs.json.corrupt-'));
+      expect(
+        File('${directory.path}/${kept.first}').readAsStringSync(),
+        '{"catalogs": "first damage"',
+        reason: 'the first copy is the only trace of the first damage',
+      );
+      expect(
+        File('${directory.path}/${kept.last}').readAsStringSync(),
+        '[1, 2',
+      );
+    });
+
     test('the service persists through the file store', () async {
       final persistent = LibrarySourceCatalogService(
         fetcher: fetcher.call,
