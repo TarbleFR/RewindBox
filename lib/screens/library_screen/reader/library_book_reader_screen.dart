@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent, ScrollDirection;
+import 'package:flutter/rendering.dart'
+    show RenderSliver, ScrollCacheExtent, ScrollDirection;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -88,11 +90,26 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   Object? _openError;
   bool _opening = true;
 
+  /// Display units of the chapters in the window and next to it only:
+  /// farther ones are released (the source keeps a small cache).
   final Map<int, _ChapterData> _chapters = <int, _ChapterData>{};
   final Map<int, Object> _chapterErrors = <int, Object>{};
   final Set<int> _loading = <int>{};
+
+  /// Chapters laid out in the scroll view. It grows while the reader
+  /// scrolls on and is cut back around the chapter being read once it
+  /// spans more than [_maxWindowChapters].
   int _windowStart = 0;
   int _windowEnd = 0;
+  static const int _maxWindowChapters = 3;
+
+  /// Scroll offset of the next scroll view, when it must show its anchor
+  /// unit exactly where the previous view showed it.
+  double? _nextScrollOffset;
+  Timer? _trimTimer;
+
+  /// Fingers on the text: the window is never cut back under them.
+  int _pointers = 0;
 
   LibraryReflowPosition _anchor = LibraryReflowPosition.start;
   int _anchorUnit = 0;
@@ -139,6 +156,14 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   @visibleForTesting
   bool get chromeVisible => _chrome.visible;
 
+  /// Chapters whose display units are in memory (tests).
+  @visibleForTesting
+  Set<int> get chaptersInMemory => Set<int>.of(_chapters.keys);
+
+  /// First and last chapter laid out (tests).
+  @visibleForTesting
+  (int, int) get window => (_windowStart, _windowEnd);
+
   @visibleForTesting
   LibraryReaderGamepadBindings get gamepadBindings =>
       LibraryReaderGamepadBindings(
@@ -184,6 +209,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     WidgetsBinding.instance.removeObserver(this);
     _saveNow();
     _saveTimer?.cancel();
+    _trimTimer?.cancel();
     _store.removeListener(_onStore);
     _chrome.dispose();
     _shownPosition.dispose();
@@ -297,6 +323,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       if (data == null) throw StateError('chapter not loaded');
       _windowStart = start.chapter;
       _windowEnd = start.chapter;
+      _releaseFarChapters();
       _setAnchor(start);
       _lastPosition = start;
       _shownPosition.value = start;
@@ -408,6 +435,13 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _anchor = position;
     _anchorUnit = unitIndex;
     _anchorUnitOffset = inUnit;
+    _nextScrollOffset = null;
+    _replaceView();
+  }
+
+  /// Replaces the scroll view in the coming frame, centred on the anchor
+  /// unit.
+  void _replaceView() {
     _anchorPending = true;
     _generation++;
     // The previous scroll view is replaced in the coming frame; its
@@ -421,6 +455,74 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _afterAnchor(generation),
     );
+  }
+
+  /// Releases the display units of the chapters away from the window.
+  void _releaseFarChapters() {
+    _chapters.removeWhere(
+      (chapter, _) => chapter < _windowStart - 1 || chapter > _windowEnd + 1,
+    );
+  }
+
+  /// Cuts the window back once the reader is idle (not under a finger,
+  /// not scrolling).
+  void _scheduleTrim() {
+    _trimTimer?.cancel();
+    _trimTimer = Timer(const Duration(milliseconds: 300), _trimWindow);
+  }
+
+  /// Once the window spans more than [_maxWindowChapters], keeps only the
+  /// chapter being read, its neighbours and any chapter with text on
+  /// screen: the chapters read long ago are not kept for the whole
+  /// session. Removing chapters beyond the anchor's side moves nothing on
+  /// screen; when the anchor chapter itself is dropped, the view is rebuilt
+  /// around the unit being read, at the same place on screen.
+  void _trimWindow() {
+    if (!mounted || _leaving || _anchorPending || _source == null) return;
+    if (_windowEnd - _windowStart + 1 <= _maxWindowChapters) return;
+    final scroll = _scroll;
+    if (_pointers > 0 ||
+        (scroll != null &&
+            scroll.hasClients &&
+            scroll.position.isScrollingNotifier.value)) {
+      _scheduleTrim();
+      return;
+    }
+    final reading = _readingUnit();
+    if (reading == null) return;
+    final (view, top) = reading;
+    var start = view.unit.chapter - 1;
+    var end = view.unit.chapter + 1;
+    // Chapters with text on screen stay (short chapters: several can be in
+    // view).
+    for (final chapter in _chaptersOnScreen()) {
+      if (chapter < start) start = chapter;
+      if (chapter > end) end = chapter;
+    }
+    start = math.max(start, _windowStart);
+    end = math.min(end, _windowEnd);
+    if (start == _windowStart && end == _windowEnd) return;
+    final anchor = _anchor.chapter;
+    final recentre = anchor < start || anchor > end;
+    final position = recentre ? _readingPosition() : null;
+    setState(() {
+      if (recentre) {
+        _anchor =
+            position ??
+            LibraryReflowPosition(
+              view.unit.chapter,
+              view.unit.block,
+              view.unit.start,
+            );
+        _anchorUnit = view.widget.unitIndex;
+        _anchorUnitOffset = 0;
+        _nextScrollOffset = -top;
+        _replaceView();
+      }
+      _windowStart = start;
+      _windowEnd = end;
+      _releaseFarChapters();
+    });
   }
 
   void _afterAnchor(int generation) {
@@ -490,7 +592,10 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       if (position.chapter < _windowStart) _windowStart = position.chapter;
       if (position.chapter > _windowEnd) _windowEnd = position.chapter;
     }
-    setState(() => _setAnchor(position));
+    setState(() {
+      _releaseFarChapters();
+      _setAnchor(position);
+    });
     _lastPosition = position;
     _shownPosition.value = position;
     _userMoved();
@@ -558,6 +663,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => _maybeLoadMore(),
             );
+            _scheduleTrim();
           },
           onError: (Object error) {
             _loading.remove(chapter);
@@ -574,46 +680,73 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   // ----------------------------------------------------------- position --
 
-  LibraryReflowPosition? _computePosition() {
+  double get _readingLine => _topInset + 1;
+
+  /// The unit at the reading line (else the first one below it) and its
+  /// top in the viewport, from the current layout.
+  (LibraryReflowUnitViewState, double)? _readingUnit() {
     final viewport = _viewportKey.currentContext?.findRenderObject();
     if (viewport is! RenderBox || !viewport.attached || !viewport.hasSize) {
       return null;
     }
-    final readingLine = _topInset + 1;
-    LibraryReflowUnitViewState? exact;
-    double exactTop = 0;
+    final readingLine = _readingLine;
     LibraryReflowUnitViewState? below;
     var belowTop = double.infinity;
     for (final view in _registry.views) {
-      final box = view.box;
-      if (box == null) continue;
-      final top = box.localToGlobal(Offset.zero, ancestor: viewport).dy;
-      final bottom = top + box.size.height;
-      if (bottom <= 0 || top >= viewport.size.height) continue;
-      if (top <= readingLine && bottom > readingLine) {
-        exact = view;
-        exactTop = top;
-        break;
-      }
+      final top = _topOnScreen(view, viewport);
+      if (top == null) continue;
+      final bottom = top + view.box!.size.height;
+      if (top <= readingLine && bottom > readingLine) return (view, top);
       if (top > readingLine && top < belowTop) {
         below = view;
         belowTop = top;
       }
     }
-    if (exact != null) {
-      final unit = exact.unit;
-      final offset = exact.offsetAt(readingLine - exactTop);
-      return LibraryReflowPosition(
-        unit.chapter,
-        unit.block,
-        unit.start + offset,
-      );
+    return below == null ? null : (below, belowTop);
+  }
+
+  /// Top of [view] in [viewport] when some of it is on screen, else null.
+  /// A list scrolled out of view keeps one of its units built (to measure
+  /// its extent): only units of a list that paints something count.
+  double? _topOnScreen(LibraryReflowUnitViewState view, RenderBox viewport) {
+    final box = view.box;
+    if (box == null) return null;
+    RenderObject? list = box.parent;
+    while (list != null && list is! RenderSliver) {
+      list = list.parent;
     }
-    if (below != null) {
-      final unit = below.unit;
+    if (list is! RenderSliver || !(list.geometry?.visible ?? false)) {
+      return null;
+    }
+    final top = box.localToGlobal(Offset.zero, ancestor: viewport).dy;
+    if (top + box.size.height <= 0 || top >= viewport.size.height) {
+      return null;
+    }
+    return top;
+  }
+
+  /// Chapters with text on screen.
+  Set<int> _chaptersOnScreen() {
+    final viewport = _viewportKey.currentContext?.findRenderObject();
+    if (viewport is! RenderBox || !viewport.attached || !viewport.hasSize) {
+      return const <int>{};
+    }
+    return <int>{
+      for (final view in _registry.views)
+        if (_topOnScreen(view, viewport) != null) view.widget.chapter,
+    };
+  }
+
+  LibraryReflowPosition? _computePosition() {
+    final reading = _readingUnit();
+    if (reading == null) return null;
+    final (view, top) = reading;
+    final unit = view.unit;
+    if (top > _readingLine) {
       return LibraryReflowPosition(unit.chapter, unit.block, unit.start);
     }
-    return null;
+    final offset = view.offsetAt(_readingLine - top);
+    return LibraryReflowPosition(unit.chapter, unit.block, unit.start + offset);
   }
 
   void _track({bool force = false}) {
@@ -1153,29 +1286,37 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) => _onTapUp(details, size),
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              // A drag (or a VoiceOver scroll, delivered as one); jumps
-              // and layout changes are not user scrolls.
-              if (notification is UserScrollNotification &&
-                  notification.direction != ScrollDirection.idle) {
-                _userMoved();
-              }
-              if (notification is ScrollEndNotification) {
-                _trackAfterLayout();
-                _maybeLoadMore();
-              } else if (notification is ScrollUpdateNotification) {
-                _track();
-                _maybeLoadMore();
-              }
-              return false;
-            },
-            child: KeyedSubtree(
-              key: _viewportKey,
-              child: _buildScrollView(context, palette, source, size),
+        return Listener(
+          onPointerDown: (_) => _pointers++,
+          onPointerUp: (_) => _pointers = _pointers > 0 ? _pointers - 1 : 0,
+          onPointerCancel: (_) => _pointers = _pointers > 0 ? _pointers - 1 : 0,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) => _onTapUp(details, size),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                // A drag (or a VoiceOver scroll, delivered as one); jumps
+                // and layout changes are not user scrolls.
+                if (notification is UserScrollNotification &&
+                    notification.direction != ScrollDirection.idle) {
+                  _userMoved();
+                }
+                if (notification is ScrollStartNotification) {
+                  _trimTimer?.cancel();
+                } else if (notification is ScrollEndNotification) {
+                  _trackAfterLayout();
+                  _maybeLoadMore();
+                  _scheduleTrim();
+                } else if (notification is ScrollUpdateNotification) {
+                  _track();
+                  _maybeLoadMore();
+                }
+                return false;
+              },
+              child: KeyedSubtree(
+                key: _viewportKey,
+                child: _buildScrollView(context, palette, source, size),
+              ),
             ),
           ),
         );
@@ -1195,9 +1336,15 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       left: safe.left + style.margin,
       right: safe.right + style.margin,
     );
-    final scroll = _scroll ??= ScrollController(
-      initialScrollOffset: -_topInset,
-    );
+    var scroll = _scroll;
+    if (scroll == null) {
+      // The anchor unit at the top inset, or where the previous view showed
+      // it (window cut back).
+      scroll = _scroll = ScrollController(
+        initialScrollOffset: _nextScrollOffset ?? -_topInset,
+      );
+      _nextScrollOffset = null;
+    }
     final anchorChapter = _anchor.chapter;
     final anchorUnits =
         _chapters[anchorChapter]?.units ?? const <LibraryReflowUnit>[];

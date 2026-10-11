@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -1040,12 +1041,176 @@ void main() {
     });
   });
 
+  group('memory over a long session', () {
+    // Regression: the EPUB source and the reader kept every chapter ever
+    // loaded until the book closed, bypassing the document's 6-chapter
+    // cache, and the reader's window of chapters only grew.
+    testWidgets('the EPUB source keeps only the chapters it used last', (
+      tester,
+    ) async {
+      final document = (await tester.runAsync(() async {
+        final directory = await createTempDir('ns_reader_epub_long_');
+        final file = await writeFile(
+          directory,
+          'long.epub',
+          _epubWithChapters(10),
+        );
+        return LibraryEpubDocument.open(file.path);
+      }))!;
+      final source = LibraryEpubReflowSource(document);
+      await tester.runAsync(() async {
+        for (var chapter = 0; chapter < 10; chapter++) {
+          await source.loadChapter(chapter);
+        }
+      });
+      expect(source.heldChapters, <int>[7, 8, 9]);
+      // Dropped by the source and by the document's own cache.
+      expect(source.loadedChapter(0), isNull);
+      expect(source.loadedChapter(9), isNotNull);
+      expect(
+        source.locationFor(const LibraryReflowPosition(9, 1, 0)),
+        startsWith('epubcfi(/6/20[c9]!'),
+      );
+      // A chapter that left both caches is loaded again on demand.
+      await tester.runAsync(() => source.loadChapter(0));
+      expect(source.loadedChapter(0), isNotNull);
+      expect(source.heldChapters, <int>[8, 9, 0]);
+      await tester.runAsync(source.close);
+    });
+
+    testWidgets('reading on keeps only the chapters around the one read', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      // 20 sections of 200 short paragraphs.
+      final text = List<String>.generate(4000, (i) => 'Line $i').join('\n\n');
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async =>
+              LibraryTextReflowSource(LibraryTextDocument.fromText(text)),
+          progressKey: 'local:long',
+          title: 'Long',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      ScrollPosition scroll() =>
+          tester.state<ScrollableState>(find.byType(Scrollable).last).position;
+      Offset topOf(LibraryReflowPosition p) => tester.getTopLeft(
+        find.byKey(ValueKey<String>('u-${p.chapter}-${p.block}')),
+      );
+      var previous = state.currentPosition!;
+      var largest = 0;
+      var recentred = false;
+      for (var step = 0; step < 300 && previous.chapter < 8; step++) {
+        final position = scroll();
+        position.jumpTo(
+          math.min(
+            position.pixels + position.viewportDimension * 2,
+            position.maxScrollExtent,
+          ),
+        );
+        await tester.pump();
+        final reading = state.currentPosition!;
+        final before = topOf(reading);
+        final windowBefore = state.window;
+        // The window is cut back once the reader is idle.
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump();
+        await tester.pump();
+        // Nothing moved on screen, and the reading position is the same.
+        expect(
+          topOf(reading).dy,
+          closeTo(before.dy, 0.01),
+          reason: 'step $step',
+        );
+        expect(state.currentPosition, reading, reason: 'step $step');
+        // The view was built around chapter 0 (where the book opened):
+        // dropping it rebuilt the view around the unit being read.
+        if (windowBefore.$1 == 0 && state.window.$1 > 0) recentred = true;
+        expect(
+          reading.chapter * 1000 + reading.block,
+          greaterThanOrEqualTo(previous.chapter * 1000 + previous.block),
+        );
+        previous = reading;
+        final (start, end) = state.window;
+        largest = math.max(largest, state.chaptersInMemory.length);
+        expect(
+          state.chaptersInMemory,
+          everyElement(inInclusiveRange(start - 1, end + 1)),
+        );
+      }
+      expect(previous.chapter, greaterThanOrEqualTo(8));
+      expect(recentred, isTrue);
+      final (start, end) = state.window;
+      expect(end - start + 1, lessThanOrEqualTo(3));
+      // At most the window (cut back above 3 chapters) and one chapter on
+      // each side, never the 9 chapters read.
+      expect(largest, lessThanOrEqualTo(6));
+      expect(
+        state.chaptersInMemory,
+        everyElement(
+          inInclusiveRange(previous.chapter - 3, previous.chapter + 3),
+        ),
+      );
+      // The position read last is the one saved.
+      state.gamepadBindings.back!();
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        store.progressFor('local:long')!.location,
+        'txt:${previous.chapter * 200 + previous.block}:${previous.offset}',
+      );
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
+  });
+
   test('the sample text really has five sections', () {
     final document = LibraryTextDocument.fromText(sampleText());
     expect(document.blocks.length, 1000);
     expect(document.sectionCount, 5);
     expect(Platform.pathSeparator, isNotEmpty);
   });
+}
+
+/// EPUB 3 with [count] spine documents `c0` to `c{count-1}`.
+Uint8List _epubWithChapters(int count) {
+  final opf =
+      '''<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:long</dc:identifier>
+    <dc:title>Long</dc:title>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+${[for (var i = 0; i < count; i++) '    <item id="c$i" href="c$i.xhtml" media-type="application/xhtml+xml"/>'].join('\n')}
+  </manifest>
+  <spine>
+${[for (var i = 0; i < count; i++) '    <itemref idref="c$i"/>'].join('\n')}
+  </spine>
+</package>''';
+  return buildZip(<FixtureZipEntry>[
+    FixtureZipEntry.text('mimetype', 'application/epub+zip', deflate: false),
+    FixtureZipEntry.text('META-INF/container.xml', containerXml),
+    FixtureZipEntry.text('OEBPS/content.opf', opf),
+    FixtureZipEntry.text(
+      'OEBPS/nav.xhtml',
+      xhtml(
+        '<nav epub:type="toc"><ol><li><a href="c0.xhtml">Start</a></li></ol></nav>',
+      ),
+    ),
+    for (var i = 0; i < count; i++)
+      FixtureZipEntry.text(
+        'OEBPS/c$i.xhtml',
+        xhtml('<h1>Chapter $i</h1><p>Text of chapter $i.</p>'),
+      ),
+  ]);
 }
 
 /// A TXT source whose saved locations cannot be resolved for now (the

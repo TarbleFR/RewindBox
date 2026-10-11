@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
@@ -166,11 +167,42 @@ class LibraryTextReflowSource implements LibraryReflowSource {
 
 /// An EPUB opened by [LibraryEpubDocument] (worker isolate). Locations are
 /// EPUB CFIs, stable across font sizes and rotations.
+///
+/// Parsed chapters live in the document's own bounded cache. This source
+/// holds only the [keptChapters] it used last, so that the chapter being
+/// read is still at hand when its position is saved, whatever the
+/// document's cache dropped; it never keeps every chapter visited.
 class LibraryEpubReflowSource implements LibraryReflowSource {
   LibraryEpubReflowSource(this.document) : toc = _flatten(document);
 
+  /// Chapters this source keeps beyond the document's cache.
+  static const int keptChapters = 3;
+
   final LibraryEpubDocument document;
-  final Map<int, LibraryEpubChapter> _chapters = <int, LibraryEpubChapter>{};
+
+  /// The chapters used last, the most recent last.
+  final LinkedHashMap<int, LibraryEpubChapter> _recent =
+      LinkedHashMap<int, LibraryEpubChapter>();
+
+  /// Chapters this source holds itself (tests).
+  @visibleForTesting
+  Iterable<int> get heldChapters => _recent.keys;
+
+  /// [index]'s parsed chapter if this source or the document still has it
+  /// (it becomes the most recently used).
+  LibraryEpubChapter? _chapter(int index) {
+    final chapter = _recent.remove(index) ?? document.cachedChapter(index);
+    if (chapter != null) _keep(index, chapter);
+    return chapter;
+  }
+
+  void _keep(int index, LibraryEpubChapter chapter) {
+    _recent.remove(index);
+    _recent[index] = chapter;
+    while (_recent.length > keptChapters) {
+      _recent.remove(_recent.keys.first);
+    }
+  }
 
   @override
   final List<LibraryReflowTocEntry> toc;
@@ -211,23 +243,23 @@ class LibraryEpubReflowSource implements LibraryReflowSource {
 
   @override
   Future<List<LibraryTextBlock>> loadChapter(int chapter) {
-    final loaded = _chapters[chapter];
+    final loaded = _chapter(chapter);
     if (loaded != null) {
       return SynchronousFuture<List<LibraryTextBlock>>(loaded.blocks);
     }
     return document.loadChapter(chapter).then((value) {
-      _chapters[chapter] = value;
+      _keep(chapter, value);
       return value.blocks;
     });
   }
 
   @override
   List<LibraryTextBlock>? loadedChapter(int chapter) =>
-      _chapters[chapter]?.blocks;
+      _chapter(chapter)?.blocks;
 
   @override
   String locationFor(LibraryReflowPosition position) {
-    final chapter = _chapters[position.chapter];
+    final chapter = _chapter(position.chapter);
     if (chapter == null) {
       throw StateError('chapter ${position.chapter} not loaded');
     }
@@ -250,7 +282,7 @@ class LibraryEpubReflowSource implements LibraryReflowSource {
   @override
   double fractionFor(LibraryReflowPosition position) => document.fractionFor(
     LibraryEpubLocation(position.chapter, position.block, position.offset),
-    chapter: _chapters[position.chapter],
+    chapter: _chapter(position.chapter),
   );
 
   @override
@@ -280,7 +312,7 @@ class LibraryEpubReflowSource implements LibraryReflowSource {
 
   @override
   Future<void> close() async {
-    _chapters.clear();
+    _recent.clear();
     await document.close();
   }
 }
