@@ -159,6 +159,11 @@ que le temps réseau est divisé par deux.
 - Revue contradictoire selon cinq angles (exactitude, sûreté des données,
   performances, traductions, ergonomie iOS et manette) : 28 constats, aucun
   critique ni élevé, tous corrigés avec un test qui échoue sans le correctif.
+- La CI de livraison (Linux) a révélé une fuite de connexion : une requête
+  annulée juste après réception des en-têtes laissait sa socket ouverte avec
+  le client `IOClient` de `package:http`. Le transport de la bibliothèque est
+  désormais `LibraryIoClient`, qui ferme la connexion quel que soit le moment
+  de l’annulation ; un test reproduit la fenêtre avec `IOClient`.
 - Sous Windows, 9 tests du scanner de ROM échouent à l’identique sur la 436
   (liens symboliques, chemins) ; ils sont validés sous Linux en CI.
 

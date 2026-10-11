@@ -1357,6 +1357,58 @@ void main() {
     late Completer<void> streamStarted;
     final remotePorts = <int>[];
 
+    /// Raw TCP server for the body-abort tests. It keeps reading its socket
+    /// while it streams a chunked body, so it sees the client close it
+    /// (FIN or RST) whatever the platform. dart:io's HttpServer stops
+    /// reading a connection while a response is written, so whether
+    /// `connectionsInfo()` drops depends on how the platform reports the
+    /// failed writes (it did not on the Linux CI runner).
+    late ServerSocket rawServer;
+    late List<Completer<void>> rawClosed;
+
+    Future<void> startRawServer() async {
+      rawClosed = <Completer<void>>[];
+      rawServer = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      rawServer.listen((socket) {
+        final closed = Completer<void>();
+        rawClosed.add(closed);
+        Timer? ticker;
+        void finish() {
+          ticker?.cancel();
+          if (!closed.isCompleted) closed.complete();
+          socket.destroy();
+        }
+
+        socket.listen(
+          (_) {
+            if (ticker != null) return;
+            socket.add(
+              utf8.encode(
+                'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n'
+                'Transfer-Encoding: chunked\r\n\r\n',
+              ),
+            );
+            ticker = Timer.periodic(const Duration(milliseconds: 20), (_) {
+              try {
+                socket.add(utf8.encode('6\r\nchunk\n\r\n'));
+              } catch (_) {
+                finish();
+                return;
+              }
+              if (!streamStarted.isCompleted) streamStarted.complete();
+            });
+          },
+          onDone: finish,
+          onError: (Object _) => finish(),
+          cancelOnError: true,
+        );
+        socket.done.then((_) {}, onError: (Object _) => finish());
+      });
+    }
+
+    Uri raw(String path) =>
+        Uri.parse('http://127.0.0.1:${rawServer.port}$path');
+
     /// Streams chunks for a bounded time. The server keeps reading the
     /// socket while it streams, so `connectionsInfo()` sees the client
     /// closing it.
@@ -1412,11 +1464,13 @@ void main() {
         }
       });
       library = LibraryHttp(cacheDirectory: tmp);
+      await startRawServer();
     });
 
     tearDown(() async {
       library.close();
       await server.close(force: true);
+      await rawServer.close();
     });
 
     Uri local(String path) => Uri.parse('http://127.0.0.1:${server.port}$path');
@@ -1456,31 +1510,33 @@ void main() {
     test('cancelling during the body closes the real socket', () async {
       final cancel = LibraryCancelToken();
       final pending = library.send(
-        LibraryRequest.get(local('/stream')),
+        LibraryRequest.get(raw('/stream')),
         cancel: cancel,
       );
       await streamStarted.future.timeout(const Duration(seconds: 5));
-      expect(server.connectionsInfo().total, 1);
+      expect(rawClosed, hasLength(1));
+      expect(rawClosed.single.isCompleted, isFalse);
       cancel.cancel();
       await expectLater(
         pending,
         _networkError(LibraryNetworkErrorKind.cancelled),
       );
-      await _waitFor(() => server.connectionsInfo().total == 0);
+      // The client closed its end of the connection.
+      await rawClosed.single.future.timeout(const Duration(seconds: 5));
     });
 
     test('a timeout during the body closes the real socket', () async {
       await expectLater(
         library.send(
           LibraryRequest.get(
-            local('/stream'),
+            raw('/stream'),
             timeout: const Duration(milliseconds: 150),
           ),
         ),
         _networkError(LibraryNetworkErrorKind.timeout),
       );
       expect(streamStarted.isCompleted, isTrue);
-      await _waitFor(() => server.connectionsInfo().total == 0);
+      await rawClosed.single.future.timeout(const Duration(seconds: 5));
     });
 
     test('cancelling before the response ends the request', () async {

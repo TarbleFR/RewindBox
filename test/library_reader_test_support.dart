@@ -82,7 +82,9 @@ Future<(LibraryReadingStore, Directory)> createStore(
 /// Writes every pending change of [store] (the write runs in fake time).
 Future<void> flushStore(WidgetTester tester, LibraryReadingStore store) async {
   unawaited(store.flush());
-  for (var i = 0; i < 20 && store.hasPendingChanges; i++) {
+  // Real file I/O: give a slow runner (the CI runs many test files at once)
+  // up to about 3 s of real time; a fast machine leaves after a few rounds.
+  for (var i = 0; i < 200 && store.hasPendingChanges; i++) {
     await settle(tester, rounds: 1);
   }
   expect(store.hasPendingChanges, isFalse);
