@@ -471,7 +471,16 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
       ),
     );
     if (!mounted || title == null) return;
-    final updated = await _service.rename(book.id, title);
+    final LibraryLocalBook? updated;
+    try {
+      updated = await _service.rename(book.id, title);
+    } on Object catch (error) {
+      // The index could not be written (storage full or unavailable).
+      if (mounted) {
+        await _showMessage(_t('renameFailed'), detail: error.toString());
+      }
+      return;
+    }
     if (!mounted) return;
     if (updated != null) _snack(_t('renamed'));
   }
@@ -515,7 +524,16 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
       ),
     );
     if (!mounted || confirmed != true) return;
-    final result = await _service.delete(book.id);
+    final LibraryDeleteResult result;
+    try {
+      result = await _service.delete(book.id);
+    } on Object catch (error) {
+      // The library could not be read or its index written.
+      if (mounted) {
+        await _showMessage(_t('deleteFailed'), detail: error.toString());
+      }
+      return;
+    }
     if (!mounted) return;
     switch (result) {
       case LibraryDeleteResult.deleted:

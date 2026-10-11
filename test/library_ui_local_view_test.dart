@@ -3,6 +3,8 @@
 // (passed to the service's query), reading progress, opening through the
 // reader launcher and controller actions. The service is a double: the
 // view's behaviour is tested, the library core has its own tests.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +62,10 @@ class _FakeLibrary extends LibraryLocalLibraryService {
   List<LibraryImportOutcome>? nextImport;
   LibraryDeleteResult deleteResult = LibraryDeleteResult.deleted;
 
+  /// Thrown by rename / delete (an index that cannot be written).
+  Object? renameError;
+  Object? deleteError;
+
   @override
   Future<void> load() async {}
 
@@ -102,6 +108,8 @@ class _FakeLibrary extends LibraryLocalLibraryService {
 
   @override
   Future<LibraryLocalBook?> rename(String id, String title) async {
+    final error = renameError;
+    if (error != null) throw error;
     final book = _items[id];
     if (book == null) return null;
     renamed.add((id, title));
@@ -115,6 +123,8 @@ class _FakeLibrary extends LibraryLocalLibraryService {
 
   @override
   Future<LibraryDeleteResult> delete(String id) async {
+    final error = deleteError;
+    if (error != null) throw error;
     deleted.add(id);
     if (deleteResult == LibraryDeleteResult.deleted) {
       _items.remove(id);
@@ -453,6 +463,53 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Alpha'), findsOneWidget);
+  });
+
+  testWidgets('a rename that cannot be saved is explained', (tester) async {
+    final host = await _pump(tester, <LibraryLocalBook>[alpha]);
+    host.library.renameError = const FileSystemException(
+      'No space left on device',
+      'local-index.json',
+    );
+    await _openMenu(tester, 'Alpha');
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('rename-field')),
+      'Alpha (annotated)',
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('The title could not be saved.'), findsOneWidget);
+    expect(find.text('Title updated.'), findsNothing);
+    await tester.tap(find.text('Technical details'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No space left on device'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Alpha'), findsOneWidget);
+  });
+
+  testWidgets('a delete that cannot be completed is explained', (tester) async {
+    final host = await _pump(tester, <LibraryLocalBook>[alpha]);
+    host.library.deleteError = const FileSystemException(
+      'Read-only file system',
+      'local-index.json',
+    );
+    await _openMenu(tester, 'Alpha');
+    await tester.tap(find.text('Delete the imported copy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('The file could not be deleted.'), findsOneWidget);
+    expect(find.text('“Alpha” deleted.'), findsNothing);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
     expect(find.text('Alpha'), findsOneWidget);
   });
 

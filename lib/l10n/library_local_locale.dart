@@ -73,6 +73,7 @@ abstract final class LibraryLocalLocale {
           "Only the title shown in NeoStation changes; the file keeps its name. Leave empty to restore the original title.",
       'renameLabel': "Title shown",
       'renamed': "Title updated.",
+      'renameFailed': "The title could not be saved.",
       'deleteCopy': "Delete the imported copy",
       'deleteTitle': "Delete “{title}”?",
       'deleteBody':
@@ -181,6 +182,7 @@ abstract final class LibraryLocalLocale {
           "Seul le titre affiché dans NeoStation change ; le fichier garde son nom. Laissez vide pour retrouver le titre d’origine.",
       'renameLabel': "Titre affiché",
       'renamed': "Titre mis à jour.",
+      'renameFailed': "Le titre n’a pas pu être enregistré.",
       'deleteCopy': "Supprimer la copie importée",
       'deleteTitle': "Supprimer « {title} » ?",
       'deleteBody':
@@ -288,6 +290,7 @@ abstract final class LibraryLocalLocale {
           "Solo cambia el título que muestra NeoStation; el archivo conserva su nombre. Déjalo vacío para recuperar el título original.",
       'renameLabel': "Título mostrado",
       'renamed': "Título actualizado.",
+      'renameFailed': "No se pudo guardar el título.",
       'deleteCopy': "Eliminar la copia importada",
       'deleteTitle': "¿Eliminar «{title}»?",
       'deleteBody':
@@ -396,6 +399,7 @@ abstract final class LibraryLocalLocale {
           "Só muda o título exibido no NeoStation; o arquivo mantém o nome. Deixe vazio para voltar ao título original.",
       'renameLabel': "Título exibido",
       'renamed': "Título atualizado.",
+      'renameFailed': "Não foi possível salvar o título.",
       'deleteCopy': "Excluir a cópia importada",
       'deleteTitle': "Excluir “{title}”?",
       'deleteBody':
@@ -505,6 +509,7 @@ abstract final class LibraryLocalLocale {
           "Nur der in NeoStation angezeigte Titel ändert sich; die Datei behält ihren Namen. Leer lassen, um den ursprünglichen Titel wiederherzustellen.",
       'renameLabel': "Angezeigter Titel",
       'renamed': "Titel aktualisiert.",
+      'renameFailed': "Der Titel konnte nicht gespeichert werden.",
       'deleteCopy': "Importierte Kopie löschen",
       'deleteTitle': "„{title}“ löschen?",
       'deleteBody':
@@ -613,6 +618,7 @@ abstract final class LibraryLocalLocale {
           "Cambia solo il titolo mostrato in NeoStation; il file mantiene il suo nome. Lascia vuoto per ripristinare il titolo originale.",
       'renameLabel': "Titolo mostrato",
       'renamed': "Titolo aggiornato.",
+      'renameFailed': "Impossibile salvare il titolo.",
       'deleteCopy': "Elimina la copia importata",
       'deleteTitle': "Eliminare «{title}»?",
       'deleteBody':
@@ -718,6 +724,7 @@ abstract final class LibraryLocalLocale {
           "Hanya judul yang ditampilkan di NeoStation yang berubah; nama file tetap sama. Kosongkan untuk kembali ke judul asli.",
       'renameLabel': "Judul yang ditampilkan",
       'renamed': "Judul diperbarui.",
+      'renameFailed': "Judul tidak dapat disimpan.",
       'deleteCopy': "Hapus salinan yang diimpor",
       'deleteTitle': "Hapus “{title}”?",
       'deleteBody':
@@ -827,6 +834,7 @@ abstract final class LibraryLocalLocale {
           "Меняется только название, показанное в NeoStation; имя файла остаётся прежним. Оставьте поле пустым, чтобы вернуть исходное название.",
       'renameLabel': "Отображаемое название",
       'renamed': "Название обновлено.",
+      'renameFailed': "Не удалось сохранить название.",
       'deleteCopy': "Удалить импортированную копию",
       'deleteTitle': "Удалить «{title}»?",
       'deleteBody':
@@ -928,6 +936,7 @@ abstract final class LibraryLocalLocale {
           "変わるのは NeoStation に表示されるタイトルだけで、ファイル名はそのままです。空欄にすると元のタイトルに戻ります。",
       'renameLabel': "表示するタイトル",
       'renamed': "タイトルを更新しました。",
+      'renameFailed': "タイトルを保存できませんでした。",
       'deleteCopy': "読み込んだコピーを削除",
       'deleteTitle': "「{title}」を削除しますか？",
       'deleteBody':
@@ -1029,6 +1038,7 @@ abstract final class LibraryLocalLocale {
           "NeoStation에 표시되는 제목만 바뀌고 파일 이름은 그대로입니다. 비워 두면 원래 제목으로 돌아갑니다.",
       'renameLabel': "표시할 제목",
       'renamed': "제목을 업데이트했습니다.",
+      'renameFailed': "제목을 저장할 수 없습니다.",
       'deleteCopy': "가져온 사본 삭제",
       'deleteTitle': "“{title}”을(를) 삭제할까요?",
       'deleteBody':
@@ -1126,6 +1136,7 @@ abstract final class LibraryLocalLocale {
       'renameHelp': "只会更改 NeoStation 中显示的书名，文件名保持不变。留空可恢复原书名。",
       'renameLabel': "显示的书名",
       'renamed': "书名已更新。",
+      'renameFailed': "无法保存书名。",
       'deleteCopy': "删除导入的副本",
       'deleteTitle': "删除“{title}”？",
       'deleteBody':
@@ -1221,6 +1232,7 @@ abstract final class LibraryLocalLocale {
       'renameHelp': "只會變更 NeoStation 中顯示的書名，檔案名稱不變。留白即可恢復原本的書名。",
       'renameLabel': "顯示的書名",
       'renamed': "書名已更新。",
+      'renameFailed': "無法儲存書名。",
       'deleteCopy': "刪除匯入的副本",
       'deleteTitle': "要刪除「{title}」嗎？",
       'deleteBody':
