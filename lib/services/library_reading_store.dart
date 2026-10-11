@@ -6,6 +6,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:neostation/services/library_image_cache.dart';
+import 'package:neostation/services/logger_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -537,7 +538,7 @@ class LibraryReadingStore extends ChangeNotifier {
     this.saveDelay = const Duration(milliseconds: 400),
     this.maxSaveDelay = const Duration(seconds: 2),
     LibraryCoverPinner? coverPinner,
-    this.maxProgressEntries = 2000,
+    this.maxProgressEntries = 10000,
     this.maxChapterMarkTitles = 1000,
   }) : _directory = directory,
        _clock = clock ?? DateTime.now,
@@ -571,13 +572,19 @@ class LibraryReadingStore extends ChangeNotifier {
   final Duration saveDelay;
   final Duration maxSaveDelay;
 
-  /// Oldest progress entries beyond this count are dropped (favourites are
-  /// kept).
+  /// Beyond this count, the oldest progress entries of online titles that
+  /// are neither favourites nor have chapter marks are dropped. Local books
+  /// (`local:` keys) are never dropped: they cannot be favourites, and
+  /// their position is the only record of the reading. Each drop is
+  /// counted in [evictedProgressEntries] and logged.
   final int maxProgressEntries;
 
   /// Chapter marks are kept for at most this many titles (most recently
-  /// marked first; favourites are kept).
+  /// marked first; favourites are kept). Each drop is counted in
+  /// [evictedChapterMarkTitles] and logged.
   final int maxChapterMarkTitles;
+
+  static final LoggerService _log = LoggerService.instance;
 
   final Directory? _directory;
   final DateTime Function() _clock;
@@ -589,6 +596,8 @@ class LibraryReadingStore extends ChangeNotifier {
       <String, Map<String, LibraryChapterMark>>{};
   Map<String, LibraryFavorite> _favorites = <String, LibraryFavorite>{};
   LibraryReaderSettings _settings = const LibraryReaderSettings();
+  int _evictedProgress = 0;
+  int _evictedMarkTitles = 0;
 
   bool _loaded = false;
 
@@ -620,6 +629,14 @@ class LibraryReadingStore extends ChangeNotifier {
   Object? lastSaveError;
 
   bool get isLoaded => _loaded;
+
+  /// Progress entries dropped by [maxProgressEntries] since the state file
+  /// was created (saved with it, for diagnostics).
+  int get evictedProgressEntries => _evictedProgress;
+
+  /// Titles whose chapter marks were dropped by [maxChapterMarkTitles]
+  /// since the state file was created (saved with it, for diagnostics).
+  int get evictedChapterMarkTitles => _evictedMarkTitles;
 
   /// True when the state file exists but could not be read. The store then
   /// works in memory, never replaces the file, and reads it again before
@@ -660,7 +677,7 @@ class LibraryReadingStore extends ChangeNotifier {
       _progress[stamped.key] = saved == null || _blindReplaces(stamped, saved)
           ? stamped
           : saved;
-      _enforceProgressLimit();
+      _enforceProgressLimit(keep: stamped.key);
     });
   }
 
@@ -735,7 +752,7 @@ class LibraryReadingStore extends ChangeNotifier {
             : (pageCount ?? current?.pageCount),
         updatedAt: now,
       );
-      _enforceMarkLimit();
+      _enforceMarkLimit(keep: mangaKey);
     });
   }
 
@@ -761,7 +778,7 @@ class LibraryReadingStore extends ChangeNotifier {
           updatedAt: now,
         );
       }
-      _enforceMarkLimit();
+      _enforceMarkLimit(keep: mangaKey);
     });
   }
 
@@ -1012,6 +1029,8 @@ class LibraryReadingStore extends ChangeNotifier {
     _marks = data.marks;
     _favorites = data.favorites;
     _settings = data.settings;
+    _evictedProgress = data.evictedProgress;
+    _evictedMarkTitles = data.evictedMarkTitles;
     final pending = List<void Function()>.of(_preLoadChanges);
     if (!keepChanges) _preLoadChanges.clear();
     // The replayed changes were made without knowing the saved entries:
@@ -1154,20 +1173,41 @@ class LibraryReadingStore extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void _enforceProgressLimit() {
+  /// Whether the progress of [key] may be dropped by [maxProgressEntries]:
+  /// never for a local book, a favourite or a title with chapter marks.
+  bool _progressEvictable(String key) =>
+      !key.startsWith('local:') &&
+      !_favorites.containsKey(key) &&
+      !_marks.containsKey(key);
+
+  /// Drops the oldest evictable entries over [maxProgressEntries], never
+  /// [keep] (the entry being saved). When every other entry must be kept,
+  /// the store grows past the limit instead.
+  void _enforceProgressLimit({required String keep}) {
     final excess = _progress.length - maxProgressEntries;
     if (excess <= 0) return;
     final removable =
         _progress.values
-            .where((entry) => !_favorites.containsKey(entry.key))
+            .where(
+              (entry) => entry.key != keep && _progressEvictable(entry.key),
+            )
             .toList()
           ..sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
-    for (final entry in removable.take(excess)) {
+    final dropped = removable.take(excess).toList(growable: false);
+    if (dropped.isEmpty) return;
+    for (final entry in dropped) {
       _progress.remove(entry.key);
     }
+    _evictedProgress += dropped.length;
+    _log.w(
+      'Library reading store: ${dropped.length} oldest reading positions '
+      'dropped over the limit of $maxProgressEntries '
+      '(${dropped.map((entry) => entry.key).join(', ')}); '
+      '$_evictedProgress in total',
+    );
   }
 
-  void _enforceMarkLimit() {
+  void _enforceMarkLimit({required String keep}) {
     final excess = _marks.length - maxChapterMarkTitles;
     if (excess <= 0) return;
     DateTime latest(Map<String, LibraryChapterMark> marks) => marks.values
@@ -1175,12 +1215,26 @@ class LibraryReadingStore extends ChangeNotifier {
         .fold(_epoch, (a, b) => a.isAfter(b) ? a : b);
     final removable =
         _marks.entries
-            .where((entry) => !_favorites.containsKey(entry.key))
+            .where(
+              (entry) =>
+                  entry.key != keep && !_favorites.containsKey(entry.key),
+            )
             .toList()
           ..sort((a, b) => latest(a.value).compareTo(latest(b.value)));
-    for (final entry in removable.take(excess)) {
-      _marks.remove(entry.key);
+    final dropped = removable
+        .take(excess)
+        .map((entry) => entry.key)
+        .toList(growable: false);
+    if (dropped.isEmpty) return;
+    for (final key in dropped) {
+      _marks.remove(key);
     }
+    _evictedMarkTitles += dropped.length;
+    _log.w(
+      'Library reading store: chapter marks of ${dropped.length} titles '
+      'dropped over the limit of $maxChapterMarkTitles '
+      '(${dropped.join(', ')}); $_evictedMarkTitles in total',
+    );
   }
 
   Map<String, Object?> _toJson() => <String, Object?>{
@@ -1200,6 +1254,11 @@ class LibraryReadingStore extends ChangeNotifier {
       for (final entry in _favorites.entries) entry.key: entry.value.toJson(),
     },
     'settings': _settings.toJson(),
+    if (_evictedProgress > 0 || _evictedMarkTitles > 0)
+      'evictions': <String, Object?>{
+        'progress': _evictedProgress,
+        'chapterMarkTitles': _evictedMarkTitles,
+      },
   };
 }
 
@@ -1244,6 +1303,17 @@ class _StoreData {
       }
     }
     data.settings = LibraryReaderSettings.fromJson(json['settings']);
+    final evictions = json['evictions'];
+    if (evictions is Map) {
+      final progressCount = evictions['progress'];
+      final markCount = evictions['chapterMarkTitles'];
+      if (progressCount is int && progressCount > 0) {
+        data.evictedProgress = progressCount;
+      }
+      if (markCount is int && markCount > 0) {
+        data.evictedMarkTitles = markCount;
+      }
+    }
     return data;
   }
 
@@ -1253,4 +1323,6 @@ class _StoreData {
       <String, Map<String, LibraryChapterMark>>{};
   final Map<String, LibraryFavorite> favorites = <String, LibraryFavorite>{};
   LibraryReaderSettings settings = const LibraryReaderSettings();
+  int evictedProgress = 0;
+  int evictedMarkTitles = 0;
 }

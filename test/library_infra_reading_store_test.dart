@@ -48,6 +48,7 @@ void main() {
     Duration saveDelay = const Duration(milliseconds: 40),
     LibraryCoverPinner? pinner,
     int maxProgressEntries = 2000,
+    int maxChapterMarkTitles = 1000,
   }) {
     return LibraryReadingStore(
       directory: tmp,
@@ -55,6 +56,7 @@ void main() {
       saveDelay: saveDelay,
       coverPinner: pinner,
       maxProgressEntries: maxProgressEntries,
+      maxChapterMarkTitles: maxChapterMarkTitles,
     );
   }
 
@@ -745,31 +747,79 @@ void main() {
     expect(store.chapterMark(key, '391')!.page, 3);
   });
 
-  test('the progress limit drops the oldest non-favourite entries', () async {
+  // Replaces 'the progress limit drops the oldest non-favourite entries':
+  // that contract dropped local books (which cannot be favourites) without
+  // any trace. Local books, favourites and titles with chapter marks are now
+  // kept, and every drop is counted and saved.
+  test('the progress limit drops only the oldest online titles without marks, '
+      'and counts each drop', () async {
     final store = create(maxProgressEntries: 3);
     await store.load();
+    LibraryReadingProgress at(String key) =>
+        LibraryReadingProgress(key: key, location: 'page:0', fraction: 0);
+    void later() => now = now.add(const Duration(minutes: 1));
+
     final fav = favorite('fr.lelscanfr', 'oldest');
     await store.addFavorite(fav);
-    store.saveProgress(
-      LibraryReadingProgress(key: fav.key, location: 'page:0', fraction: 0),
-    );
-    for (final id in <String>['a', 'b', 'c']) {
-      now = now.add(const Duration(minutes: 1));
-      store.saveProgress(
-        LibraryReadingProgress(
-          key: 'local:$id',
-          location: 'page:0',
-          fraction: 0,
-        ),
-      );
+    store.saveProgress(at(fav.key));
+    for (var index = 0; index < 4; index++) {
+      later();
+      store.saveProgress(at('local:book$index'));
     }
+    later();
+    store.markChapter('online:s:marked', 'c1', page: 2, pageCount: 9);
+    store.saveProgress(at('online:s:marked'));
+    // Every other entry must be kept: the store grows past the limit
+    // rather than dropping the title being opened.
+    later();
+    store.saveProgress(at('online:s:a'));
+    expect(store.progressFor('online:s:a'), isNotNull);
+    expect(store.evictedProgressEntries, 0);
+
+    later();
+    store.saveProgress(at('online:s:b'));
+    expect(store.progressFor('online:s:a'), isNull);
+    expect(store.progressFor('online:s:b'), isNotNull);
+    expect(store.evictedProgressEntries, 1);
+    expect(store.lastSaveError, isNull);
     expect(store.progressFor(fav.key), isNotNull);
-    expect(store.progressFor('local:a'), isNull);
-    expect(store.recent().map((entry) => entry.key), <String>[
-      'local:c',
-      'local:b',
-      fav.key,
-    ]);
+    expect(store.progressFor('online:s:marked'), isNotNull);
+    for (var index = 0; index < 4; index++) {
+      expect(store.progressFor('local:book$index'), isNotNull);
+    }
+
+    await store.flush();
+    final reopened = create(maxProgressEntries: 3);
+    await reopened.load();
+    expect(reopened.evictedProgressEntries, 1);
+    expect(reopened.progressFor('local:book0'), isNotNull);
+    later();
+    reopened.saveProgress(at('online:s:c'));
+    expect(reopened.progressFor('online:s:b'), isNull);
+    expect(reopened.evictedProgressEntries, 2);
+  });
+
+  test('dropped chapter marks are counted and saved', () async {
+    final store = create(maxChapterMarkTitles: 2);
+    await store.load();
+    for (final title in <String>['one', 'two', 'three']) {
+      now = now.add(const Duration(minutes: 1));
+      store.markChapter('online:s:$title', 'c1', read: true);
+    }
+    expect(store.chapterMarks('online:s:one'), isEmpty);
+    expect(store.chapterMarks('online:s:three'), isNotEmpty);
+    expect(store.evictedChapterMarkTitles, 1);
+    await store.flush();
+    final reopened = create(maxChapterMarkTitles: 2);
+    await reopened.load();
+    expect(reopened.evictedChapterMarkTitles, 1);
+    expect(reopened.evictedProgressEntries, 0);
+  });
+
+  test('the default limits keep 10000 reading positions', () {
+    final store = LibraryReadingStore(directory: tmp);
+    expect(store.maxProgressEntries, 10000);
+    store.dispose();
   });
 
   test('settings clamp their ranges', () {
