@@ -126,6 +126,103 @@ class _UnreadableFile implements File {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Unicode NFC of the only decomposed sequence these tests use.
+String _composed(String name) => name.replaceAll('á', 'á');
+
+/// File names of [folder] as APFS (iOS) sees them: two names that differ
+/// only by Unicode normalization are the same entry, so a lookup finds it
+/// and a rename onto such a name replaces it. Real files underneath; other
+/// folders are untouched.
+final class _ApfsNames extends IOOverrides {
+  _ApfsNames(this.folder);
+
+  final String folder;
+
+  /// The existing entry [path] resolves to, else [path].
+  String resolve(String path) {
+    if (!p.equals(p.dirname(path), folder)) return path;
+    if (super.createFile(path).existsSync()) return path;
+    final directory = super.createDirectory(folder);
+    if (!directory.existsSync()) return path;
+    final name = _composed(p.basename(path));
+    for (final entity in directory.listSync()) {
+      if (_composed(p.basename(entity.path)) == name) return entity.path;
+    }
+    return path;
+  }
+
+  File realFile(String path) => super.createFile(path);
+
+  @override
+  File createFile(String path) => p.equals(p.dirname(path), folder)
+      ? _ApfsFile(this, path)
+      : super.createFile(path);
+
+  @override
+  Future<FileSystemEntityType> fseGetType(String path, bool followLinks) =>
+      super.fseGetType(resolve(path), followLinks);
+}
+
+class _ApfsFile implements File {
+  _ApfsFile(this._names, this.path);
+
+  final _ApfsNames _names;
+
+  @override
+  final String path;
+
+  File get _entry => _names.realFile(_names.resolve(path));
+
+  @override
+  Future<bool> exists() => _entry.exists();
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) =>
+      _entry.delete(recursive: recursive);
+
+  @override
+  Future<File> writeAsString(
+    String contents, {
+    FileMode mode = FileMode.write,
+    Encoding encoding = utf8,
+    bool flush = false,
+  }) async {
+    await _entry.writeAsString(
+      contents,
+      mode: mode,
+      encoding: encoding,
+      flush: flush,
+    );
+    return this;
+  }
+
+  @override
+  Future<File> rename(String newPath) async {
+    final existing = _names.resolve(newPath);
+    // Same name for APFS, other spelling: that entry is replaced.
+    if (existing != newPath) await _names.realFile(existing).delete();
+    await _entry.rename(newPath);
+    return File(newPath);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// The lookup of [folder] fails (an I/O error), which
+/// `FileSystemEntity.type` reports as notFound; the folder itself is there.
+final class _FailingLookup extends IOOverrides {
+  _FailingLookup(this.folder);
+
+  final String folder;
+
+  @override
+  Future<FileSystemEntityType> fseGetType(String path, bool followLinks) =>
+      p.equals(path, folder)
+      ? Future<FileSystemEntityType>.value(FileSystemEntityType.notFound)
+      : super.fseGetType(path, followLinks);
+}
+
 /// Lets real file I/O started from fake-async widget code complete.
 Future<void> _settleUntil(
   WidgetTester tester,
@@ -498,6 +595,53 @@ void main() {
       expect(idsOf(service), <String>[_lelscan.id]);
     });
 
+    test('a Sources folder that cannot be looked up is not taken for a '
+        'deleted one', () async {
+      Directory Function() folder = () => sources;
+      final service = newService(directory: () async => folder());
+      await service.upsertAddons(<LibraryAddon>[_lelscan, _scantrad]);
+      final both = <String>[_lelscan.id, _scantrad.id];
+
+      // A real lookup failure that is not "no such file" (a name the file
+      // system refuses; on iOS also a permission or I/O error):
+      // FileSystemEntity.type answers notFound all the same, while the
+      // Documents folder is there.
+      final unreachable = Directory(
+        p.join(
+          documents.path,
+          'Library',
+          Platform.isWindows ? 'Sour|ces' : 'S' * 300,
+        ),
+      );
+      expect(
+        await FileSystemEntity.type(unreachable.path, followLinks: false),
+        FileSystemEntityType.notFound,
+      );
+      folder = () => unreachable;
+      await service.syncSourceFiles(reason: 'resume');
+      expect(idsOf(service), both);
+      expect((await written()).keys, containsAll(both));
+
+      // The lookup of the real folder fails once although it is there: its
+      // listing shows it, so this pass changes nothing.
+      folder = () => sources;
+      fileOf(_scantradFile).deleteSync();
+      await IOOverrides.runWithIOOverrides(
+        () => service.syncSourceFiles(reason: 'resume'),
+        _FailingLookup(sources.path),
+      );
+      expect(idsOf(service), both);
+      expect(await persistedIds(), both);
+
+      // The next normal pass applies the deletion; a folder that is really
+      // gone still removes the sources whose file had been written.
+      await service.syncSourceFiles(reason: 'resume');
+      expect(idsOf(service), <String>[_lelscan.id]);
+      sources.deleteSync(recursive: true);
+      await service.syncSourceFiles(reason: 'resume');
+      expect(service.addons, isEmpty);
+    });
+
     test('built-in sources never get a file', () async {
       final builtIn = LibraryAddon.fromManifest(<String, dynamic>{
         'schema': LibraryAddon.schemaV1,
@@ -575,12 +719,9 @@ void main() {
         feed.dispose();
       });
 
+      // The service's own wiring (shared with LibraryAddonService.instance,
+      // see library_source_files_app_test.dart): nothing subscribed here.
       final service = newService();
-      // Wiring of the app's service (LibraryAddonService.instance on iOS).
-      final subscription = service.removedThroughSourceFiles.listen(
-        (removed) => LibrarySourceFiles.refreshLibraryFeed(service, removed),
-      );
-      addTearDown(subscription.cancel);
       await service.upsertAddons(<LibraryAddon>[_lelscan, _scantrad]);
       await feed.open(service.addons);
       expect(feed.source(_scantrad.id), isNotNull);
@@ -710,6 +851,126 @@ void main() {
           isNotNull,
         );
       }
+    });
+
+    test('a new file never replaces a file the file system sees under the '
+        'same name (APFS ignores Unicode normalization)', () async {
+      const composed = 'Mangá';
+      const decomposed = 'Mangá';
+      sources.createSync(recursive: true);
+      // The user's own file, composed spelling, without the marker.
+      const userName = '$composed (fr).json';
+      fileOf(userName).writeAsStringSync('my reading list');
+      final decomposedSource = testAidokuAddon('pt.a', decomposed);
+
+      final service = newService();
+      await IOOverrides.runWithIOOverrides(() async {
+        await service.upsertAddons(<LibraryAddon>[decomposedSource]);
+        await service.syncSourceFiles(reason: 'resume');
+      }, _ApfsNames(sources.path));
+
+      expect(fileOf(userName).readAsStringSync(), 'my reading list');
+      expect(idsOf(service), <String>[decomposedSource.id]);
+      final name = (await written())[decomposedSource.id]!;
+      expect(_composed(name), isNot(userName));
+      expect(contentOf(name)['id'], decomposedSource.id);
+      expect(visible(), hasLength(2));
+    });
+
+    test('two sources whose names differ only by Unicode normalization keep '
+        'two files and stay installed', () async {
+      final composedSource = testAidokuAddon('pt.a', 'Mangá');
+      final decomposedSource = testAidokuAddon('pt.b', 'Mangá');
+      final service = newService();
+      final events = <Set<String>>[];
+      final subscription = service.removedThroughSourceFiles.listen(events.add);
+      addTearDown(subscription.cancel);
+
+      await IOOverrides.runWithIOOverrides(() async {
+        await service.upsertAddons(<LibraryAddon>[
+          composedSource,
+          decomposedSource,
+        ]);
+        await service.syncSourceFiles(reason: 'resume');
+      }, _ApfsNames(sources.path));
+      await pumpEventQueue();
+
+      expect(idsOf(service), <String>[composedSource.id, decomposedSource.id]);
+      expect(events, isEmpty);
+      final names = await written();
+      expect(names.keys.toSet(), <String>{
+        composedSource.id,
+        decomposedSource.id,
+      });
+      expect(
+        _composed(names[composedSource.id]!),
+        isNot(_composed(names[decomposedSource.id]!)),
+      );
+      expect(visible().map((name) => contentOf(name)['id']).toSet(), <String>{
+        composedSource.id,
+        decomposedSource.id,
+      });
+    });
+
+    test('installing a list document writes its files at once; removing its '
+        'repository deletes them at once', () async {
+      const origin = 'https://lists.example.net/aidoku/index.min.json';
+      String list(int alphaVersion) => jsonEncode(<String, Object?>{
+        'name': 'Community',
+        'sources': <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 'fr.alpha',
+            'name': 'Alpha',
+            'version': alphaVersion,
+            'downloadURL': 'sources/fr.alpha-v$alphaVersion.aix',
+            'languages': <String>['fr'],
+          },
+          <String, Object?>{
+            'id': 'fr.beta',
+            'name': 'Beta',
+            'version': 1,
+            'downloadURL': 'sources/fr.beta-v1.aix',
+            'languages': <String>['fr'],
+          },
+        ],
+      });
+      final other = testAidokuAddon(
+        'fr.other',
+        'Other',
+        origin: 'https://other.example.org/aidoku/index.min.json',
+      );
+      final service = newService();
+      await service.upsertAddons(<LibraryAddon>[other]);
+      final files = service.sourceFiles!;
+
+      final installed = await service.installDocumentFromJson(
+        list(3),
+        origin: origin,
+      );
+      expect(installed.addedCount, 2);
+      expect(visible(), <String>[
+        'Alpha (fr).json',
+        'Beta (fr).json',
+        'Other (fr).json',
+      ]);
+      expect(contentOf('Alpha (fr).json')['origin'], origin);
+      expect(contentOf('Alpha (fr).json')['version'], '3');
+      expect((await written()).keys.toSet(), <String>{
+        'aidoku.fr.alpha',
+        'aidoku.fr.beta',
+        other.id,
+      });
+
+      // An update of the list rewrites the file at once.
+      await service.installDocumentFromJson(list(4), origin: origin);
+      expect(contentOf('Alpha (fr).json')['version'], '4');
+
+      final passes = files.passCount;
+      expect(await service.removeRepository(origin), 2);
+      expect(files.passCount, passes + 1);
+      expect(visible(), <String>['Other (fr).json']);
+      expect(await written(), <String, String>{other.id: 'Other (fr).json'});
+      expect(idsOf(service), <String>[other.id]);
     });
 
     test('a duplicated file is reduced to the one NeoStation knows', () async {

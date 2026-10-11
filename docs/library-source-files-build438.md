@@ -35,6 +35,14 @@ restent gérées dans l’application.
 - Collision (comparaison sans tenir compte de la casse, avec tout fichier
   du dossier, y compris étranger) : suffixe court dérivé de l’identifiant
   (`LelscanFR (fr) [3f9a].json`, puis 8 chiffres, puis un compteur).
+  Avant d’écrire un nouveau fichier, le nom choisi est aussi vérifié par le
+  système de fichiers : APFS (iOS) considère comme identiques deux noms qui
+  ne diffèrent que par la normalisation Unicode (`Mangá` composé ou
+  décomposé), et Fichiers peut créer une variante de casse. Si le système
+  y trouve déjà une entrée, le suffixe suivant est pris : un nouveau
+  fichier ne remplace donc jamais le fichier d’une autre source ni un
+  fichier de l’utilisateur. Un nom libéré par une suppression reste
+  réservé jusqu’à la fin du passage.
 - Contenu :
 
 ```json
@@ -73,7 +81,7 @@ supprimée.
 | Fichier marqué dont l’identifiant n’est pas installé (retrait dans l’app, fichier venant d’ailleurs) | Le fichier est supprimé |
 | Plusieurs fichiers marqués pour la même source (copie) | Un seul est gardé (celui mémorisé, sinon le nom habituel) |
 | Dossier `Sources` supprimé entièrement | Toutes les sources dont le fichier avait été écrit sont retirées |
-| Échec de listage ou de lecture d’un fichier, `Documents` absent, `Sources` qui n’est pas un dossier, préférences illisibles | Rien n’est modifié |
+| Échec de listage ou de lecture d’un fichier, `Documents` absent, `Sources` qui n’est pas un dossier, `Sources` impossible à consulter (erreur autre que « introuvable »), préférences illisibles | Rien n’est modifié |
 | Premier passage après la mise à jour (rien d’écrit) | Tous les fichiers sont écrits, rien n’est retiré |
 
 Les passages sont sérialisés et regroupés : un seul à la fois, les demandes
@@ -102,7 +110,15 @@ aucun ne supprime `Documents/Library` ni `Documents/Library/Sources`.
 - Caches de la Bibliothèque : `Caches/Library` et dossiers temporaires.
 
 Un dossier `Sources` absent alors que `Documents` existe ne peut donc venir
-que de l’utilisateur. Si un futur chemin de code devait supprimer ou
+que de l’utilisateur.
+
+« Absent » est confirmé avant d’appliquer la règle : `FileSystemEntity.type`
+répond « introuvable » pour **tout** échec de consultation (droits, erreur
+d’entrée-sortie, nom refusé), pas seulement pour un dossier inexistant.
+NeoStation liste alors le dossier : seule une erreur « introuvable »
+(`ENOENT` = 2 sur iOS ; 2 ou 3 sous Windows) compte comme une suppression.
+Toute autre erreur, ou un listage qui réussit, laisse le passage sans
+modification. Si un futur chemin de code devait supprimer ou
 déplacer `Documents/Library`, il devra conserver `Sources/` (ou effacer
 d’abord la préférence `neostation_library_source_files_v1`, ce qui ramène à
 la règle sûre « jamais écrit : on réécrit »).
@@ -123,7 +139,10 @@ Pas d’interrogation périodique ni de surveillance de fichiers.
 
 Actif sur iOS uniquement (`Platform.isIOS`) ; ailleurs rien ne change. Les
 tests activent le mécanisme par
-`LibraryAddonService.forTesting(sourceFiles: true)`.
+`LibraryAddonService.forTesting(sourceFiles: true)`, ou construisent
+l’instance de l’application `LibraryAddonService.instance` comme sur iOS
+grâce à `LibrarySourceFiles.debugSupportedByPlatformOverride` (réservé aux
+tests, nul par défaut).
 
 ## Effets d’un retrait par Fichiers
 
@@ -143,7 +162,10 @@ Silencieux : aucun texte ajouté, aucune traduction nécessaire, journaux
 - Aperçu de catalogue : une source retirée n’est plus affichée comme active.
 - Hub de la Bibliothèque : le flux du catalogue (`LibraryCatalogFeed`, que
   `LibraryScreen` écoute) reçoit la nouvelle liste lorsqu’il affichait une
-  source retirée. `LibraryScreen` n’est pas modifié par ce paquet : sa copie
+  source retirée. Ce branchement est fait par une seule méthode de
+  `LibraryAddonService` (`_attachSourceFiles`), appelée par l’instance de
+  l’application et par `forTesting(sourceFiles: true)` : les tests
+  vérifient le vrai branchement, sans abonnement ajouté par le test. `LibraryScreen` n’est pas modifié par ce paquet : sa copie
   interne de la liste (transmise aux Favoris) se met à jour à son prochain
   chargement (changement d’onglet ou retour de la section Sources).
 - `library_hub_dialog.dart` n’affiche pas de sources : inchangé.
@@ -163,7 +185,9 @@ mise à jour écrit un fichier par source, une seule fois.
   avertissement d’analyse préexistant par interpolation, sans changement de
   comportement), `lib/screens/library_screen/library_sources_view.dart`,
   `lib/screens/library_screen/library_catalog_preview_screen.dart`.
-- Tests : `test/library_source_files_test.dart`.
+- Tests : `test/library_source_files_test.dart`,
+  `test/library_source_files_app_test.dart` (instance de l’application,
+  fichier séparé pour qu’elle soit créée après l’activation iOS simulée).
 
 À l’intégration (fichiers réservés) : ajouter ces fichiers à
 `BUILD438_DELTA` de `build-utils/verify_delivery_reuse.py`. Aucun nouveau
@@ -191,6 +215,18 @@ temporaire, `SharedPreferences.setMockInitialValues`, canal
   jamais écrite est gardée, `Books/` et `Downloads/` intacts ;
 - échec de listage, fichier illisible, chemin introuvable, `Documents`
   absent : rien retiré, puis application une fois le dossier lisible ;
+- dossier `Sources` impossible à consulter alors que `Documents` existe
+  (vrai échec : nom refusé, `Sour|ces` sous Windows, nom de 300 caractères
+  ailleurs ; puis échec simulé par `IOOverrides` alors que le dossier
+  existe) : rien retiré ; un dossier réellement supprimé retire toujours
+  les sources écrites ;
+- noms équivalents pour APFS (normalisation Unicode, simulée par
+  `IOOverrides`) : un fichier de l’utilisateur n’est jamais remplacé ; deux
+  sources `Mangá` composé et décomposé gardent deux fichiers et restent
+  installées au passage suivant ;
+- installation d’une liste (`installDocumentFromJson`) et mise à jour :
+  fichiers écrits ou réécrits aussitôt ; `removeRepository` : fichiers
+  supprimés aussitôt, sans autre synchronisation ;
 - sources intégrées : aucun fichier ;
 - demandes concurrentes : un seul passage à la fois, regroupement ;
 - flux du hub : la source retirée disparaît ;
@@ -200,6 +236,11 @@ temporaire, `SharedPreferences.setMockInitialValues`, canal
 - widgets : retour au premier plan (cycle de vie) ; section Sources qui se
   met à jour et prévient le hub sans message ; ouverture de la section qui
   applique une suppression ; aperçu de catalogue.
+
+`test/library_source_files_app_test.dart` : `LibraryAddonService.instance`
+construit comme sur iOS écrit les fichiers au premier chargement ; un
+fichier supprimé puis un retour au premier plan retirent la source et le
+flux du hub ne l’affiche plus.
 
 Résultats sous Windows (Flutter 3.47.2, `--no-pub`, `pubspec.lock`
 inchangé), arbre de travail basé sur `Claude` `a434881e` :
@@ -218,6 +259,34 @@ inchangé), arbre de travail basé sur `Claude` `a434881e` :
   Sources ou aperçu non rafraîchis, absence de synchronisation après un
   changement dans l’app, garde de réentrance retirée : chacune fait échouer
   au moins un test.
+
+Corrections après revue (même arbre de travail, sur `61d39cef`) :
+
+- nom d’un nouveau fichier vérifié par le système de fichiers (APFS) ;
+- dossier `Sources` déclaré absent seulement sur une erreur « introuvable »
+  confirmée par un listage ;
+- branchement du hub partagé par l’instance de l’application et les
+  tests ;
+- tests ajoutés pour `installDocumentFromJson` et `removeRepository`.
+
+Résultats après ces corrections (Windows, Flutter 3.47.2, `--no-pub`,
+`pubspec.lock` inchangé) :
+
+- `test/library_source_files_test.dart` : 22 réussis sur 22 ;
+  `test/library_source_files_app_test.dart` : 1 sur 1.
+- Suite `test/library_*_test.dart` : 705 réussis (700 + 5), 2 ignorés, le
+  même échec connu propre à Windows (`library_scan_restart_test.dart`,
+  « Build419 rescans… »).
+- `flutter analyze` sur les quatre fichiers `lib/` et les deux tests :
+  aucun problème.
+- Mutations (chacune seule, puis annulée ; chacune fait échouer au moins
+  un test) : nom choisi sans vérification par le système de fichiers ;
+  dossier introuvable pour `type` traité comme supprimé ; listage réussi
+  après un échec de consultation traité comme dossier supprimé ; écouteur
+  du hub retiré de `_attachSourceFiles` ; instance de l’application sans
+  fichiers de sources ; instance de l’application sans écouteur du hub ;
+  synchronisation retirée de `_upsertMany` ; synchronisation retirée de
+  `removeRepository`.
 
 Une compilation réussie ou un test simulé ne démontre pas le comportement
 sur iPhone.

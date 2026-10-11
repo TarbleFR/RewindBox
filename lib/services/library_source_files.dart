@@ -138,9 +138,16 @@ class LibrarySourceFiles with WidgetsBindingObserver {
   static const String _temporaryPrefix = '.neostation-source-';
   static const String _temporarySuffix = '.tmp';
   static const int _maxBaseNameBytes = 180;
+  static const int _maxNameAttempts = 32;
 
   /// The folder is mirrored on iOS only (Files app).
-  static bool get supportedByPlatform => !kIsWeb && Platform.isIOS;
+  static bool get supportedByPlatform =>
+      debugSupportedByPlatformOverride ?? (!kIsWeb && Platform.isIOS);
+
+  /// Replaces the platform check of [supportedByPlatform] (tests: builds
+  /// the app's [LibraryAddonService.instance] as on iOS).
+  @visibleForTesting
+  static bool? debugSupportedByPlatformOverride;
 
   /// `Documents/Library/Sources` of the app.
   static Future<Directory> defaultDirectory() async {
@@ -344,8 +351,9 @@ class LibrarySourceFiles with WidgetsBindingObserver {
     var deleted = 0;
     for (final name in toDelete) {
       try {
+        // Its name stays taken for this pass: another entry the file
+        // system sees as the same name may still be there.
         await File(p.join(folder.path, name)).delete();
-        taken.remove(name.toLowerCase());
         deleted++;
       } on FileSystemException catch (error) {
         _log.w('Library source files: $name not deleted: $error');
@@ -362,7 +370,9 @@ class LibrarySourceFiles with WidgetsBindingObserver {
       }
     }
     for (final addon in toWrite) {
-      final name = uniqueFileName(addon, taken);
+      final name = await _freeFileName(folder, addon, taken);
+      // Not written this time: still "never written", so nothing is removed.
+      if (name == null) continue;
       if (await _write(folder, name, addon)) {
         taken.add(name.toLowerCase());
         next[addon.id] = name;
@@ -421,6 +431,10 @@ class LibrarySourceFiles with WidgetsBindingObserver {
           _log.w('Library source files: Documents unavailable, not checked');
           return null;
         }
+        // `type` also answers notFound when the folder could not be looked
+        // up at all (permission, I/O error): only an error saying "no such
+        // file or folder" means the user deleted it.
+        if (!await _confirmedMissing(folder)) return null;
         return const _Listing(
           <String>[],
           <String, LibrarySourceFileDescriptor>{},
@@ -466,6 +480,60 @@ class LibrarySourceFiles with WidgetsBindingObserver {
       _log.w('Library source files: folder not read, nothing changed: $error');
       return null;
     }
+  }
+
+  /// True only when listing [folder] fails because it does not exist
+  /// (ENOENT; on Windows also "path not found"). A listing that works (the
+  /// folder is there after all) or any other error leaves this pass without
+  /// changes.
+  static Future<bool> _confirmedMissing(Directory folder) async {
+    try {
+      await folder.list(followLinks: false).isEmpty;
+      _log.w(
+        'Library source files: ${folder.path} could not be looked up but '
+        'can be listed, not checked',
+      );
+      return false;
+    } on FileSystemException catch (error) {
+      final code = error.osError?.errorCode;
+      if (code != null && _notFoundErrorCodes.contains(code)) return true;
+      _log.w('Library source files: folder not read, nothing changed: $error');
+      return false;
+    }
+  }
+
+  /// errno ENOENT; ERROR_FILE_NOT_FOUND and ERROR_PATH_NOT_FOUND on Windows
+  /// (where an invalid name is also reported as a missing path, with
+  /// another code).
+  static Set<int> get _notFoundErrorCodes =>
+      !kIsWeb && Platform.isWindows ? const <int>{2, 3} : const <int>{2};
+
+  /// Name of a new file for [addon] that no entry of [folder] already has
+  /// as the file system sees names (APFS ignores Unicode normalization, the
+  /// Files app may have created a case variant): renaming onto it never
+  /// replaces another file. Null when a name cannot be looked up.
+  Future<String?> _freeFileName(
+    Directory folder,
+    LibraryAddon addon,
+    Set<String> takenLowerCase,
+  ) async {
+    for (var attempt = 0; attempt < _maxNameAttempts; attempt++) {
+      final name = uniqueFileName(addon, takenLowerCase);
+      final FileSystemEntityType type;
+      try {
+        type = await FileSystemEntity.type(
+          p.join(folder.path, name),
+          followLinks: false,
+        );
+      } on Object catch (error) {
+        _log.w('Library source files: $name not checked: $error');
+        return null;
+      }
+      if (type == FileSystemEntityType.notFound) return name;
+      takenLowerCase.add(name.toLowerCase());
+    }
+    _log.w('Library source files: no free name for ${addon.id}');
+    return null;
   }
 
   /// Writes the file of [addon] through a hidden temporary file, so a write

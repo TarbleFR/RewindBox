@@ -595,18 +595,14 @@ class LibraryAddonService {
     // iOS: each installed source is also a file of Files › NeoStation ›
     // Library › Sources; deleting the file removes the source (Build 438).
     if (LibrarySourceFiles.supportedByPlatform) {
-      final files = LibrarySourceFiles(this);
-      _sourceFiles = files;
-      files.removals.listen(
-        (removed) => LibrarySourceFiles.refreshLibraryFeed(this, removed),
-      );
+      _attachSourceFiles(LibrarySourceFiles(this));
     }
   }
 
   /// Independent instance backed by the same preferences key (tests only; the
   /// app uses [instance]). With [sourceFiles], its sources are mirrored in
   /// [sourceFilesDirectory] (default: `Documents/Library/Sources` from
-  /// path_provider) like the app's on iOS.
+  /// path_provider) like the app's on iOS, with the same hub refresh.
   @visibleForTesting
   LibraryAddonService.forTesting({
     bool sourceFiles = false,
@@ -614,12 +610,23 @@ class LibraryAddonService {
     bool sourceFilesFollowLifecycle = true,
   }) {
     if (sourceFiles) {
-      _sourceFiles = LibrarySourceFiles(
-        this,
-        directory: sourceFilesDirectory,
-        followLifecycle: sourceFilesFollowLifecycle,
+      _attachSourceFiles(
+        LibrarySourceFiles(
+          this,
+          directory: sourceFilesDirectory,
+          followLifecycle: sourceFilesFollowLifecycle,
+        ),
       );
     }
+  }
+
+  /// Mirrors the sources in [files]; a source removed because its file was
+  /// deleted also leaves the Library hub feed.
+  void _attachSourceFiles(LibrarySourceFiles files) {
+    _sourceFiles = files;
+    files.removals.listen(
+      (removed) => LibrarySourceFiles.refreshLibraryFeed(this, removed),
+    );
   }
 
   static final LibraryAddonService instance = LibraryAddonService._();
