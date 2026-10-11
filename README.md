@@ -86,7 +86,8 @@ It is used for NeoStation's **embedded Libretro consoles**. Each console has a
 NeoStation default skin; community skins are downloaded only when you choose
 to install them.
 
-1. Open **Settings → Folders → Embedded consoles**, choose a console, then **Skins**.
+1. Tap the **console icon with +** in the main menu bar (right after the first
+   icon, or press LB/RB to reach it), choose a console, then **Skins**.
 2. Select **Browse the Provenance catalog**, or **Import from Files** for a
    compatible `.deltaskin`, `.manicskin` or single-skin `.zip` archive.
 3. Choose **Use in portrait**, **Use in landscape** or **Use in both orientations**.

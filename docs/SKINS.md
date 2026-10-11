@@ -10,7 +10,9 @@ Skin choices here do not configure the separate RetroArch application.
 
 ## Choose a skin
 
-1. Open **Settings → Folders → Embedded consoles**.
+1. Tap the **console icon with +** in the main menu bar, right after the first
+   icon (LB/RB also reach it). Since Build 438 it replaces **Settings → Folders
+   → Embedded consoles**.
 2. Select the console, then **Skins**. You can do this before importing any game.
 3. Choose **Browse the Provenance catalog** to browse skins for that console.
    Search by skin name or author, then select **Install**.

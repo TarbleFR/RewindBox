@@ -51,6 +51,10 @@ Demandes du mainteneur après l’installation de la Build 432, sur la branche
   recommandé et présélectionné ; haut/bas et A à la manette. L’ouverture
   automatique du sélecteur de dossier est remplacée par ce choix. Les mêmes
   actions sont dans Réglages › Dossiers › Consoles intégrées.
+  *Build 438 :* cette entrée quitte Réglages › Dossiers ; les dossiers des
+  consoles et le déplacement d’une bibliothèque sont dans l’onglet consoles
+  de la barre principale (icône console avec « + »), la liaison d’un dossier
+  reste dans Réglages › Dossiers. Voir `docs/consoles-tab-build438.md`.
 - **Après une mise à jour** (`IosLibraryRootRelocation`, blocs
   `LIBRARY_RELOCATION_*` de `main.dart`, autorisés par le mainteneur) : avant
   la lecture de la configuration, chaque dossier enregistré introuvable situé
