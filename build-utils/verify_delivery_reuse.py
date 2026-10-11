@@ -649,6 +649,8 @@ BUILD437_DELTA = {
     'test/library_catalog_import_catalog_service_test.dart',
     'test/library_catalog_import_fakes.dart',
     'test/library_catalog_import_preview_test.dart',
+    'test/library_e2e_journeys_test.dart',
+    'test/library_e2e_live_test.dart',
     'test/library_feed_catalog_test.dart',
     'test/library_feed_content_filter_test.dart',
     'test/library_feed_search_test.dart',
