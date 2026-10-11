@@ -2440,37 +2440,65 @@ class _LibraryHubDialogState extends State<_LibraryHubDialog> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final primary = widget.primaryLabel;
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
-        width: math.min(560, size.width * 0.8),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: size.height * 0.6),
-          child: SingleChildScrollView(
-            controller: _scroll,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: widget.children,
+    return _LayerOwnedKeys(
+      child: AlertDialog(
+        title: Text(widget.title),
+        content: SizedBox(
+          width: math.min(560, size.width * 0.8),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: size.height * 0.6),
+            child: SingleChildScrollView(
+              controller: _scroll,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: widget.children,
+              ),
             ),
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
-          onPressed: _close,
-          child: Text(AppLocale.close.getString(context)),
-        ),
-        if (primary != null)
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
-            onPressed: widget.onPrimary,
-            child: Text(primary),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: _close,
+            child: Text(AppLocale.close.getString(context)),
           ),
-      ],
+          if (primary != null)
+            FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+              onPressed: widget.onPrimary,
+              child: Text(primary),
+            ),
+        ],
+      ),
     );
   }
+}
+
+/// Inside a dialog driven by its own controller layer, Flutter's arrow-key
+/// focus traversal and Enter activation are switched off: the layer also
+/// receives hardware-keyboard keys, so one Enter would otherwise act twice
+/// (e.g. pop the dialog, then the screen under it).
+class _LayerOwnedKeys extends StatelessWidget {
+  const _LayerOwnedKeys({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Shortcuts(
+    shortcuts: const <ShortcutActivator, Intent>{
+      SingleActivator(LogicalKeyboardKey.enter):
+          DoNothingAndStopPropagationIntent(),
+      SingleActivator(LogicalKeyboardKey.numpadEnter):
+          DoNothingAndStopPropagationIntent(),
+    },
+    child: Actions(
+      actions: <Type, Action<Intent>>{
+        DirectionalFocusIntent: DoNothingAction(),
+      },
+      child: Focus(autofocus: true, child: child),
+    ),
+  );
 }
 
 /// One option of [_LibraryChoiceDialog].
@@ -2601,7 +2629,7 @@ class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
       choices.length * _rowExtent,
       math.max(_rowExtent, size.height * 0.5),
     );
-    return AlertDialog(
+    final dialog = AlertDialog(
       title: Text(widget.title, maxLines: 2, overflow: TextOverflow.ellipsis),
       content: SizedBox(
         width: math.min(440, size.width * 0.8),
@@ -2697,6 +2725,7 @@ class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
         ),
       ],
     );
+    return _LayerOwnedKeys(child: dialog);
   }
 }
 

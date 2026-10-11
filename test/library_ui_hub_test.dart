@@ -436,6 +436,35 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Unavailable sources'), findsNothing);
+
+    // Keyboard/controller: A runs the dialog's primary action (refresh)
+    // once and keeps it open; B closes it and nothing below.
+    SfxService().setEnabled(false);
+    addTearDown(() => SfxService().setEnabled(true));
+    backend.pages['fr.blocked'] = (_) async =>
+        throw const LibraryNetworkException(LibraryNetworkErrorKind.challenge);
+    await tester.tap(find.text('1 source(s) unavailable'));
+    await tester.pumpAndSettle();
+    Future<void> press(LogicalKeyboardKey key) async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 220)),
+      );
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+    }
+
+    await press(LogicalKeyboardKey.tab); // Flutter focus on a dialog button
+    await press(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(
+      backend.callsOf('page').where((c) => c.sourceKey == blocked.id),
+      hasLength(1),
+    );
+    expect(find.text('Unavailable sources'), findsOneWidget);
+    await press(LogicalKeyboardKey.backspace);
+    await tester.pumpAndSettle();
+    expect(find.text('Unavailable sources'), findsNothing);
+    expect(find.byType(LibraryScreen), findsOneWidget);
   });
 
   testWidgets('the refresh control retries every source, blocked ones '
@@ -579,6 +608,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
     expect(feed.safeMode, isFalse);
+    // Only the choice list was closed (a hardware keyboard also reaches
+    // Flutter's own focus actions: one key press must pop one route).
+    expect(find.byType(LibraryScreen), findsOneWidget);
+    expect(stateOf(tester).mounted, isTrue);
   });
 
   testWidgets('search: two characters minimum, progressive status, cancel on '
