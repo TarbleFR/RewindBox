@@ -18,6 +18,7 @@ workspace:
   - packages/kartpad_internal_bridge
   - packages/neoplay_bridge
   - packages/libretro_internal_bridge
+  - packages/ui_refresh_rate
 
 version: 0.0.2+399
 environment:
@@ -53,6 +54,8 @@ dependencies:
     path: packages/neoplay_bridge
   libretro_internal_bridge:
     path: packages/libretro_internal_bridge
+  ui_refresh_rate:
+    path: packages/ui_refresh_rate
 
   file_picker: 12.0.0-beta.3
   device_info_plus: ^13.2.0

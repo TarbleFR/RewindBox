@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:fullscreen_window/fullscreen_window.dart';
 import 'package:neostation/services/logger_service.dart';
+import 'package:neostation/services/ui_refresh_rate_service.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import '../../../providers/sqlite_config_provider.dart';
@@ -18,6 +19,7 @@ import 'settings_title.dart';
 import 'widgets/setting_row.dart';
 import 'widgets/setting_value_chip.dart';
 import 'widgets/language_picker_overlay.dart';
+import 'widgets/ui_refresh_rate_setting_row.dart';
 import '../../../services/permission_service.dart';
 
 /// A specialized content panel for system-wide configuration, including platform-specific orchestration (Windows/Android/Linux).
@@ -174,6 +176,9 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     count++; // Ignore hidden files in scan
     count++; // SFX Sounds
     count++; // 12-Hour Clock
+    if (UiRefreshRateService.isSupportedPlatform) {
+      count++; // 120 Hz interface (iOS)
+    }
     count += hidableNavTabs().length; // Navigation tab visibility
     count++; // Language
     if (!kIsWeb &&
@@ -228,6 +233,15 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
       return;
     }
     currentItemIndex++;
+
+    // Protocol: 120 Hz interface (iOS, stored for the next launch).
+    if (UiRefreshRateService.isSupportedPlatform) {
+      if (index == currentItemIndex) {
+        UiRefreshRateService.instance.toggle();
+        return;
+      }
+      currentItemIndex++;
+    }
 
     // Protocol: Navigation Tab Visibility (one entry per hidable tab, in the
     // same order the rows are built below).
@@ -423,6 +437,20 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                     ),
                   );
                 }(),
+
+                // Setting: 120 Hz interface (iOS; applied at the next launch).
+                if (UiRefreshRateService.isSupportedPlatform) ...[
+                  SizedBox(height: 12.r),
+                  () {
+                    final index = currentItemIdx++;
+                    return UiRefreshRateSettingRow(
+                      key: _itemKeys[index],
+                      focused:
+                          widget.isContentFocused &&
+                          widget.selectedContentIndex == index,
+                    );
+                  }(),
+                ],
 
                 // Setting: Navigation Tab Visibility — one row per hidable tab,
                 // so a future tab gets its toggle from its NavTabSpec alone.

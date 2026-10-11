@@ -37,7 +37,8 @@ def main():
         "library_sources_locale.dart","library_local_locale.dart","library_reader_locale.dart",
         "secondary_ui_locale.dart","ios_roms_help_locale.dart","ra_ui_locale.dart",
         "dolphin_import_locale.dart","libretro_locale.dart","dolphin_shake_locale.dart",
-        "rpcs3_rap_locale.dart"
+        "rpcs3_rap_locale.dart",
+        "ui_refresh_rate_locale.dart"
     ):
         require_locales(L10N / name)
 
