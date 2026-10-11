@@ -714,9 +714,14 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
               ],
               onChanged: (value) => update(settings.copyWith(mangaMode: value)),
             ),
+            // The direction in use (the content's hint may decide it in
+            // automatic mode); a choice applies at once and is stored for
+            // books without a hint.
             LibraryReaderChoiceSetting<LibraryPageDirection>(
               label: t('pageDirection'),
-              value: settings.pageDirection,
+              value: _controller.rightToLeft
+                  ? LibraryPageDirection.rtl
+                  : LibraryPageDirection.ltr,
               options: <LibraryReaderChoice<LibraryPageDirection>>[
                 LibraryReaderChoice(
                   LibraryPageDirection.ltr,
@@ -727,8 +732,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
                   t('directionRtl'),
                 ),
               ],
-              onChanged: (value) =>
-                  update(settings.copyWith(pageDirection: value)),
+              onChanged: (value) {
+                _controller.overrideDirection(value);
+                update(settings.copyWith(pageDirection: value));
+              },
             ),
             LibraryReaderCommonSettings.theme(
               context,

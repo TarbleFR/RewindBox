@@ -42,6 +42,7 @@ class LibraryPageReaderController extends ChangeNotifier {
   int _generation = 0;
   LibraryCancelToken? _token;
   LibraryPageReaderMode? _modeOverride;
+  bool? _directionOverride;
   Timer? _saveTimer;
   bool _dirty = false;
   bool _disposed = false;
@@ -94,8 +95,12 @@ class LibraryPageReaderController extends ChangeNotifier {
     };
   }
 
-  /// Right-to-left page turning (manga) in paged mode.
+  /// Right-to-left page turning (manga) in paged mode: the direction chosen
+  /// in this session, else the content's hint in automatic mode, else the
+  /// stored setting.
   bool get rightToLeft {
+    final override = _directionOverride;
+    if (override != null) return override;
     if (settings.mangaMode == LibraryMangaMode.auto) {
       switch (content.layoutHint) {
         case LibraryPageLayoutHint.rightToLeft:
@@ -115,6 +120,15 @@ class LibraryPageReaderController extends ChangeNotifier {
     _modeOverride = mode == LibraryPageReaderMode.paged
         ? LibraryPageReaderMode.vertical
         : LibraryPageReaderMode.paged;
+    _notify();
+  }
+
+  /// The reader chose [direction] while open: it applies at once, also
+  /// where the content's hint decided (automatic mode).
+  void overrideDirection(LibraryPageDirection direction) {
+    final rtl = direction == LibraryPageDirection.rtl;
+    if (_directionOverride == rtl) return;
+    _directionOverride = rtl;
     _notify();
   }
 

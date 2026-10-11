@@ -399,6 +399,49 @@ void main() {
       await closeAll(tester, store);
     });
 
+    // Regression: in automatic mode the content's hint always won, so the
+    // sheet showed the stored "left to right" while the manga read right to
+    // left, and choosing a direction changed nothing.
+    testWidgets('the direction in the settings shows and overrides the hint', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final content = FakePageContent(
+        layoutHint: LibraryPageLayoutHint.rightToLeft,
+      );
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: content, store: store),
+      );
+      final state = readerState(tester);
+      expect(store.settings.mangaMode, LibraryMangaMode.auto);
+      expect(store.settings.pageDirection, LibraryPageDirection.ltr);
+      expect(tester.widget<PageView>(find.byType(PageView)).reverse, isTrue);
+
+      state.gamepadBindings.start!();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      ChoiceChip chip(String key) =>
+          tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, en(key)));
+      expect(chip('directionRtl').selected, isTrue);
+      expect(chip('directionLtr').selected, isFalse);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, en('directionLtr')));
+      await tester.pump();
+      expect(chip('directionLtr').selected, isTrue);
+      expect(state.controller.rightToLeft, isFalse);
+      Navigator.of(tester.element(find.byType(ChoiceChip).first)).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.widget<PageView>(find.byType(PageView)).reverse, isFalse);
+      // The right edge turns forward again.
+      await tester.tapAt(const Offset(850, 300));
+      await frames(tester);
+      expect(state.controller.page, 1);
+      await closeAll(tester, store);
+    });
+
     testWidgets('the slider jumps to a page', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
