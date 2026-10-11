@@ -449,6 +449,79 @@ void main() {
     expect(store.chapterMark('online:s:m', 'c1')!.page, 1);
   });
 
+  test('moveProgress re-keys a position and never overwrites one', () async {
+    final seed = create();
+    await seed.load();
+    LibraryReadingProgress at(String key, int page) => LibraryReadingProgress(
+      key: key,
+      location: LibraryReadingProgress.pageLocation(page),
+      fraction: page / 100,
+      title: 'Book $page',
+      updatedAt: DateTime.utc(2026, 1, page),
+    );
+    seed.saveProgress(at('local:old', 12), keepTimestamp: true);
+    seed.saveProgress(at('local:kept', 3), keepTimestamp: true);
+    seed.saveProgress(at('local:taken', 7), keepTimestamp: true);
+    await seed.flush();
+
+    // Recorded before load, applied to the saved data.
+    final store = create();
+    store.moveProgress('local:old', 'local:new');
+    await store.load();
+    final moved = store.progressFor('local:new')!;
+    expect(store.progressFor('local:old'), isNull);
+    expect(moved.location, 'page:12');
+    expect(moved.title, 'Book 12');
+    expect(moved.kind, LibraryReadingKind.local);
+    expect(moved.updatedAt, DateTime.utc(2026, 1, 12));
+
+    // The destination already has a position: both stay as they are.
+    store.moveProgress('local:kept', 'local:taken');
+    expect(store.progressFor('local:kept')!.location, 'page:3');
+    expect(store.progressFor('local:taken')!.location, 'page:7');
+
+    var notifications = 0;
+    store.addListener(() => notifications++);
+    store.moveProgress('local:absent', 'local:other');
+    expect(notifications, 0);
+    await store.flush();
+    final reopened = create();
+    await reopened.load();
+    expect(reopened.progressFor('local:new')!.location, 'page:12');
+    expect(reopened.progressFor('local:old'), isNull);
+  });
+
+  test('a position moved while the file is unreadable is not overwritten by a '
+      'reader opening the moved book', () async {
+    final blocked = Directory(stateFile().path);
+    await blocked.create();
+    final store = create();
+    await store.load();
+    expect(store.loadFailed, isTrue);
+    store.moveProgress('local:old', 'local:new');
+    store.saveProgress(
+      LibraryReadingProgress(key: 'local:new', location: 'page:0', fraction: 0),
+    );
+    await blocked.delete();
+    await stateFile().writeAsString(
+      jsonEncode(<String, Object?>{
+        'version': 1,
+        'progress': <String, Object?>{
+          'local:old': LibraryReadingProgress(
+            key: 'local:old',
+            location: 'page:212',
+            fraction: 0.7,
+            updatedAt: DateTime.utc(2026),
+          ).toJson(),
+        },
+      }),
+    );
+    await store.flush();
+    expect(store.loadFailed, isFalse);
+    expect(store.progressFor('local:old'), isNull);
+    expect(store.progressFor('local:new')!.location, 'page:212');
+  });
+
   test('a large state file is decoded off the UI isolate intact', () async {
     final progress = <String, Object?>{
       for (var index = 0; index < 3000; index++)

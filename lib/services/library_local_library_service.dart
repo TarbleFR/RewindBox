@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:neostation/services/library_book_formats.dart';
 import 'package:neostation/services/library_local_models.dart';
+import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -58,6 +59,20 @@ typedef LibraryFilePicker = Future<LibraryPickedFiles?> Function();
 /// null when never opened.
 typedef LibraryLastReadLookup = int? Function(LibraryLocalBook book);
 
+/// Moves the reading position saved under the reading key [fromKey] to
+/// [toKey], and returns once it is saved (see [libraryMoveReadingProgress]).
+typedef LibraryReadingProgressMover =
+    Future<void> Function(String fromKey, String toKey);
+
+/// Default [LibraryReadingProgressMover]: moves the entry in
+/// [LibraryReadingStore.instance] and writes the store, so the position is
+/// saved under the new key before the index refers to the new id.
+Future<void> libraryMoveReadingProgress(String fromKey, String toKey) async {
+  final store = LibraryReadingStore.instance;
+  store.moveProgress(fromKey, toKey);
+  await store.flush();
+}
+
 /// Picks books with file_picker. `FileType.any`: comic and e-book
 /// extensions have no reliable system type on iOS, so files are validated by
 /// signature after the pick. Returns null when the picker was cancelled or
@@ -84,7 +99,9 @@ Future<LibraryPickedFiles?> libraryPickBookFiles() async {
 /// new or changed files are inspected (signature, protection, metadata,
 /// cover) off the UI isolate. Book ids derive from the content fingerprint,
 /// so reading progress survives a rename, a move inside the library and a
-/// re-import of the same file. Mutations run one at a time.
+/// re-import of the same file. A file edited in place (same path, same
+/// format) gets a new id and takes over the custom title, date added and
+/// reading position of the book it replaces. Mutations run one at a time.
 class LibraryLocalLibraryService extends ChangeNotifier {
   LibraryLocalLibraryService({
     Future<LibraryLocalRoots> Function()? roots,
@@ -92,6 +109,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
     LibraryThumbnailer? thumbnailer,
     LibraryFilePicker? picker,
     int Function()? clock,
+    LibraryReadingProgressMover? moveReadingProgress,
     @visibleForTesting
     Future<void> Function(String from, String to)? renameFile,
     @visibleForTesting int maxScannedFiles = 20000,
@@ -100,6 +118,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
        _thumbnailer = thumbnailer ?? const LibraryEngineThumbnailer(),
        _picker = picker ?? libraryPickBookFiles,
        _clock = clock ?? _now,
+       _moveReadingProgress = moveReadingProgress ?? libraryMoveReadingProgress,
        _renameFile = renameFile ?? _rename,
        _maxScannedFiles = maxScannedFiles;
 
@@ -117,6 +136,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
   final LibraryThumbnailer _thumbnailer;
   final LibraryFilePicker _picker;
   final int Function() _clock;
+  final LibraryReadingProgressMover _moveReadingProgress;
   final Future<void> Function(String from, String to) _renameFile;
 
   /// Files listed per scan; beyond it the scan is partial (nothing removed).
@@ -451,6 +471,9 @@ class LibraryLocalLibraryService extends ChangeNotifier {
 
       final missing = <String, LibraryLocalBook>{};
       final toInspect = <String, _FoundFile>{};
+      // Ignored entries inspected again, by path: put back when the file
+      // cannot be read this time, so what they carry is not lost.
+      final reinspected = <String, LibraryIgnoredFile>{};
       for (final book in _books.values) {
         final file = byPath[book.relativePath];
         if (file == null) {
@@ -477,6 +500,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
           // Changed, or a copy of a book whose file disappeared or was
           // deleted: inspect again so the copy can take its place.
           _ignored.remove(ignored.relativePath);
+          reinspected[ignored.relativePath] = ignored;
           toInspect[file.relativePath] = file;
           changed = true;
         }
@@ -502,18 +526,29 @@ class LibraryLocalLibraryService extends ChangeNotifier {
           );
         } catch (error) {
           _log.w('Library scan skipped ${file.relativePath}: $error');
+          final known = reinspected[file.relativePath];
+          if (known != null) _ignored[file.relativePath] = known;
           continue;
         }
         final previous = bookAtPath[file.relativePath];
         if (inspection.issue == LibraryBookIssue.unreadable) {
           // An I/O failure says nothing about the content (file locked by
           // data protection, removed during the scan...): retry next scan
-          // instead of hiding the file, and keep a book already indexed.
+          // instead of hiding the file, and keep a book already indexed,
+          // or the ignored entry (with the identity it carries).
           _log.w(
             'Library scan could not read ${file.relativePath}: ${inspection.detail}',
           );
+          final known = reinspected[file.relativePath];
+          if (known != null) _ignored[file.relativePath] = known;
           continue;
         }
+        // The book whose file at this path was replaced in place: indexed
+        // until now, or remembered by the ignored entry of a file that was
+        // unreadable meanwhile.
+        final replaced = previous != null
+            ? LibraryBookIdentity.of(previous)
+            : reinspected[file.relativePath]?.replacedBook;
         if (!inspection.readable) {
           if (previous != null) {
             _books.remove(previous.id);
@@ -524,6 +559,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
             sizeBytes: file.sizeBytes,
             modifiedMs: file.modifiedMs,
             issue: inspection.issue ?? LibraryBookIssue.unsupportedFormat,
+            replacedBook: replaced,
           );
           changed = true;
           continue;
@@ -564,17 +600,22 @@ class LibraryLocalLibraryService extends ChangeNotifier {
           continue;
         }
         if (previous != null) {
-          // Content replaced at the same path: the old book is gone.
+          // Content replaced at the same path (edited in place, or replaced
+          // by a file of the same name): the new content gets a new id and
+          // takes over the old book's title, date and reading position.
           _books.remove(previous.id);
           await _deleteCover(previous.id);
         }
         final hasCover = await _storeCover(id, inspection.coverImage);
-        _books[id] = _bookFrom(
-          inspection,
-          file.relativePath,
-          file.sizeBytes,
-          file.modifiedMs,
-          hasCover,
+        _books[id] = await _inheritIdentity(
+          _bookFrom(
+            inspection,
+            file.relativePath,
+            file.sizeBytes,
+            file.modifiedMs,
+            hasCover,
+          ),
+          replaced,
         );
         changed = true;
         final now = DateTime.now();
@@ -796,6 +837,32 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       rightToLeft: metadata.rightToLeft,
       pageCount: metadata.pageCount,
       hasCover: hasCover,
+    );
+  }
+
+  /// [book], found where the file of [replaced] was replaced in place,
+  /// with its custom title and date added; its reading position is moved
+  /// to [book]'s key. Nothing is inherited for another format, or while
+  /// the replaced book is still indexed (its content is elsewhere).
+  Future<LibraryLocalBook> _inheritIdentity(
+    LibraryLocalBook book,
+    LibraryBookIdentity? replaced,
+  ) async {
+    if (replaced == null || replaced.format != book.format) return book;
+    if (replaced.id != book.id) {
+      if (_books.containsKey(replaced.id)) return book;
+      try {
+        await _moveReadingProgress(
+          LibraryLocalBook.readingKeyFor(replaced.id),
+          book.readingKey,
+        );
+      } catch (error) {
+        _log.w('Library reading position not moved to ${book.id}: $error');
+      }
+    }
+    return book.copyWith(
+      addedAtMs: replaced.addedAtMs,
+      customTitle: replaced.customTitle,
     );
   }
 

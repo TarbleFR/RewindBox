@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/library_book_formats.dart';
 import 'package:neostation/services/library_local_library_service.dart';
 import 'package:neostation/services/library_local_models.dart';
+import 'package:neostation/services/library_reading_store.dart';
 import 'package:path/path.dart' as p;
 
 import 'library_local_fixtures.dart';
@@ -542,6 +543,150 @@ void main() {
     expect(await library.delete(book.id), LibraryDeleteResult.deleted);
     await library.rescan();
     expect(library.bookById(book.id)!.relativePath, 'Books/second.epub');
+  });
+
+  test(
+    'a book edited in place keeps its title, date added and reading position',
+    () async {
+      // The default mover writes LibraryReadingStore.instance.
+      final previousStore = LibraryReadingStore.instance;
+      addTearDown(() => LibraryReadingStore.instance = previousStore);
+      final storeDir = Directory(roots.supportLibrary);
+      LibraryReadingStore newStore() => LibraryReadingStore(
+        directory: storeDir,
+        saveDelay: const Duration(milliseconds: 5),
+      );
+      final store = newStore();
+      await store.load();
+      LibraryReadingStore.instance = store;
+
+      final library = service();
+      final book = (await library.importFiles(<String>[
+        await pick('notes.txt', utf8.encode('Line one\nLine two')),
+      ])).single.book!;
+      await library.rename(book.id, 'My notes');
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: book.readingKey,
+          location: 'txt:4:0',
+          fraction: 0.6,
+        ),
+      );
+      await store.flush();
+
+      // Another app appends a line and saves the file in place.
+      final file = File(library.absolutePath(book));
+      await file.writeAsString('\nLine three', mode: FileMode.append);
+      await file.setLastModified(
+        DateTime.now().add(const Duration(minutes: 5)),
+      );
+      await library.rescan();
+
+      final edited = library.books.single;
+      expect(edited.id, isNot(book.id));
+      expect(edited.relativePath, 'Books/notes.txt');
+      expect(edited.title, 'My notes');
+      expect(edited.addedAtMs, book.addedAtMs);
+      expect(library.bookById(book.id), isNull);
+      expect(store.progressFor(book.readingKey), isNull);
+      expect(store.progressFor(edited.readingKey)!.location, 'txt:4:0');
+
+      // Both are on disk: a new service and a new store agree.
+      final restarted = service();
+      await restarted.load();
+      expect(restarted.bookById(edited.id)!.title, 'My notes');
+      expect(restarted.bookById(edited.id)!.addedAtMs, book.addedAtMs);
+      final reread = newStore();
+      await reread.load();
+      expect(reread.progressFor(edited.readingKey)!.fraction, 0.6);
+      expect(reread.progressFor(book.readingKey), isNull);
+    },
+  );
+
+  test('a book whose file is unreadable for a while keeps its identity until '
+      'the file is readable again', () async {
+    final moves = <String>[];
+    LibraryLocalLibraryService tracked() => LibraryLocalLibraryService(
+      roots: () async => roots,
+      inspector: inspector,
+      thumbnailer: thumbnails,
+      clock: () => ++clock,
+      moveReadingProgress: (from, to) async => moves.add('$from -> $to'),
+    );
+    final library = tracked();
+    final book = (await library.importFiles(<String>[
+      await pick('comic.cbz', buildCbz(pages: 3)),
+    ])).single.book!;
+    await library.rename(book.id, 'My comic');
+    final file = File(library.absolutePath(book));
+
+    // Saved in place as something NeoStation cannot read.
+    await file.writeAsString('not a comic book at all');
+    await file.setLastModified(DateTime.now().add(const Duration(minutes: 5)));
+    await library.rescan();
+    expect(library.books, isEmpty);
+    final ignored = library.ignoredFiles.single;
+    expect(ignored.relativePath, 'Books/comic.cbz');
+    expect(ignored.replacedBook!.id, book.id);
+    expect(ignored.replacedBook!.customTitle, 'My comic');
+    expect(moves, isEmpty);
+
+    // The identity is kept in the index, and survives a scan during
+    // which the file cannot be read at all.
+    final flaky = _FlakyInspector(inspector);
+    final restarted = LibraryLocalLibraryService(
+      roots: () async => roots,
+      inspector: flaky,
+      thumbnailer: thumbnails,
+      clock: () => ++clock,
+      moveReadingProgress: (from, to) async => moves.add('$from -> $to'),
+    );
+    await restarted.load();
+    await file.writeAsBytes(buildCbz(pages: 5));
+    await file.setLastModified(DateTime.now().add(const Duration(minutes: 10)));
+    flaky.unreadable.add('comic.cbz');
+    await restarted.rescan();
+    expect(restarted.books, isEmpty);
+    expect(restarted.ignoredFiles.single.replacedBook!.id, book.id);
+
+    // Readable again: the book found there takes over the identity.
+    flaky.unreadable.clear();
+    await restarted.rescan();
+    final back = restarted.books.single;
+    expect(back.id, isNot(book.id));
+    expect(back.pageCount, 5);
+    expect(back.title, 'My comic');
+    expect(back.addedAtMs, book.addedAtMs);
+    expect(restarted.ignoredFiles, isEmpty);
+    expect(moves, <String>['${book.readingKey} -> ${back.readingKey}']);
+  });
+
+  test('a file replaced by another format starts as a new book', () async {
+    final moves = <String>[];
+    final library = LibraryLocalLibraryService(
+      roots: () async => roots,
+      inspector: inspector,
+      thumbnailer: thumbnails,
+      clock: () => ++clock,
+      moveReadingProgress: (from, to) async => moves.add('$from -> $to'),
+    );
+    final book = (await library.importFiles(<String>[
+      await pick('volume.zip', buildCbz(pages: 2)),
+    ])).single.book!;
+    expect(book.format, LibraryBookFormat.cbz);
+    await library.rename(book.id, 'Volume');
+    // Same name, but the content is now an EPUB (detected by content): a
+    // different book, which inherits nothing.
+    final file = File(library.absolutePath(book));
+    await file.writeAsBytes(buildEpub3());
+    await file.setLastModified(DateTime.now().add(const Duration(minutes: 5)));
+    await library.rescan();
+    final replaced = library.books.single;
+    expect(replaced.id, isNot(book.id));
+    expect(replaced.format, LibraryBookFormat.epub);
+    expect(replaced.customTitle, isNull);
+    expect(replaced.addedAtMs, isNot(book.addedAtMs));
+    expect(moves, isEmpty);
   });
 
   test('a damaged index is set aside and rebuilt from the files', () async {

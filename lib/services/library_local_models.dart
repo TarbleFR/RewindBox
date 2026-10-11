@@ -315,7 +315,10 @@ class LibraryLocalBook {
   final bool hasCover;
 
   /// Key of this book in the reading store (progress, favourites).
-  String get readingKey => 'local:$id';
+  String get readingKey => readingKeyFor(id);
+
+  /// Reading store key of the local book [id] (`LibraryReadingStore.localKey`).
+  static String readingKeyFor(String id) => 'local:$id';
 
   String get fileName => p.posix.basename(relativePath);
 
@@ -336,6 +339,7 @@ class LibraryLocalBook {
     String? relativePath,
     int? sizeBytes,
     int? modifiedMs,
+    int? addedAtMs,
     String? metadataTitle,
     String? customTitle,
     bool clearCustomTitle = false,
@@ -347,7 +351,7 @@ class LibraryLocalBook {
     relativePath: relativePath ?? this.relativePath,
     sizeBytes: sizeBytes ?? this.sizeBytes,
     modifiedMs: modifiedMs ?? this.modifiedMs,
-    addedAtMs: addedAtMs,
+    addedAtMs: addedAtMs ?? this.addedAtMs,
     metadataTitle: metadataTitle ?? this.metadataTitle,
     customTitle: clearCustomTitle ? null : (customTitle ?? this.customTitle),
     authors: authors,
@@ -443,6 +447,58 @@ class LibraryLocalBook {
   }
 }
 
+/// What a book keeps when its file is replaced in place (edited by another
+/// app, or replaced by a file of the same name): its id derives from the
+/// content, so the content found at the same path gets a new id, and takes
+/// over this identity (custom title, date added, reading position).
+class LibraryBookIdentity {
+  const LibraryBookIdentity({
+    required this.id,
+    required this.format,
+    required this.addedAtMs,
+    this.customTitle,
+  });
+
+  factory LibraryBookIdentity.of(LibraryLocalBook book) => LibraryBookIdentity(
+    id: book.id,
+    format: book.format,
+    addedAtMs: book.addedAtMs,
+    customTitle: book.customTitle,
+  );
+
+  final String id;
+  final LibraryBookFormat format;
+  final int addedAtMs;
+  final String? customTitle;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'format': format.name,
+    'added': addedAtMs,
+    if (customTitle != null) 'customTitle': customTitle,
+  };
+
+  /// Returns null when [json] is not a valid identity.
+  static LibraryBookIdentity? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final id = json['id'];
+    final formatName = json['format'];
+    final added = json['added'];
+    if (id is! String || !RegExp(r'^[0-9a-f]{32}$').hasMatch(id)) return null;
+    if (added is! int) return null;
+    final format = LibraryBookFormat.values
+        .where((value) => value.name == formatName)
+        .firstOrNull;
+    if (format == null) return null;
+    return LibraryBookIdentity(
+      id: id,
+      format: format,
+      addedAtMs: added,
+      customTitle: _optionalString(json['customTitle']),
+    );
+  }
+}
+
 /// A file of the scanned folders that is not a readable book. Remembered
 /// with its size and modification time so it is not reopened on every scan.
 class LibraryIgnoredFile {
@@ -452,6 +508,7 @@ class LibraryIgnoredFile {
     required this.modifiedMs,
     required this.issue,
     this.duplicateOf,
+    this.replacedBook,
   });
 
   final String relativePath;
@@ -463,12 +520,18 @@ class LibraryIgnoredFile {
   /// [LibraryBookIssue.duplicate].
   final String? duplicateOf;
 
+  /// The book that was at this path before its file changed into this
+  /// unreadable one. When the file becomes readable again, the book found
+  /// there takes over this identity.
+  final LibraryBookIdentity? replacedBook;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'path': relativePath,
     'size': sizeBytes,
     'mtime': modifiedMs,
     'issue': issue.name,
     if (duplicateOf != null) 'duplicateOf': duplicateOf,
+    if (replacedBook != null) 'replaces': replacedBook!.toJson(),
   };
 
   static LibraryIgnoredFile? fromJson(Object? json) {
@@ -491,6 +554,7 @@ class LibraryIgnoredFile {
       modifiedMs: mtime,
       issue: issue,
       duplicateOf: _optionalString(json['duplicateOf']),
+      replacedBook: LibraryBookIdentity.fromJson(json['replaces']),
     );
   }
 }

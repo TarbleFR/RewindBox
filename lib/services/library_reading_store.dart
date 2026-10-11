@@ -704,6 +704,66 @@ class LibraryReadingStore extends ChangeNotifier {
     });
   }
 
+  /// Moves the reading position and chapter marks saved under [from] to
+  /// [to], keeping their dates: a local book whose file was edited in place
+  /// gets a new id (it derives from the content). Where [to] already has an
+  /// entry, that entry is kept and the one under [from] is left as it is,
+  /// so nothing is ever overwritten. Before [load] the move is recorded and
+  /// applied to the saved data.
+  void moveProgress(String from, String to) {
+    if (from == to) return;
+    if (_complete &&
+        !_progress.containsKey(from) &&
+        !_marks.containsKey(from)) {
+      return;
+    }
+    _change(() {
+      final entry = _progress[from];
+      if (entry != null && !_progress.containsKey(to)) {
+        _progress.remove(from);
+        _progress[to] = _rekeyed(entry, to);
+      }
+      final marks = _marks[from];
+      if (marks != null && !_marks.containsKey(to)) {
+        _marks[to] = _marks.remove(from)!;
+      }
+      // While replaying: the saved entry now lives under [to], so a blind
+      // save of [to] is compared with it.
+      final savedProgress = _savedProgress;
+      final saved = savedProgress?[from];
+      if (savedProgress != null &&
+          saved != null &&
+          !savedProgress.containsKey(to)) {
+        savedProgress.remove(from);
+        savedProgress[to] = _rekeyed(saved, to);
+      }
+      final savedMarks = _savedMarks;
+      if (savedMarks != null &&
+          savedMarks.containsKey(from) &&
+          !savedMarks.containsKey(to)) {
+        savedMarks[to] = savedMarks.remove(from)!;
+      }
+    });
+  }
+
+  static LibraryReadingProgress _rekeyed(
+    LibraryReadingProgress entry,
+    String key,
+  ) => LibraryReadingProgress(
+    key: key,
+    location: entry.location,
+    fraction: entry.fraction,
+    pageIndex: entry.pageIndex,
+    pageCount: entry.pageCount,
+    chapterId: entry.chapterId,
+    chapterTitle: entry.chapterTitle,
+    title: entry.title,
+    subtitle: entry.subtitle,
+    coverUrl: entry.coverUrl,
+    coverHeaders: entry.coverHeaders,
+    updatedAt: entry.updatedAt,
+  );
+
   /// Most recently updated entries first.
   List<LibraryReadingProgress> recent({
     int limit = 20,
