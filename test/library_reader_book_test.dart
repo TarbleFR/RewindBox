@@ -86,6 +86,134 @@ void main() {
       await closeBook(tester, store);
     });
 
+    // Regression: any error while resolving the saved location opened the
+    // book at its beginning and saved that over the real position 800 ms
+    // later, even if the user closed the book at once.
+    testWidgets('a location that fails to load is kept until the user moves', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:kept',
+          location: 'txt:450:0',
+          fraction: 0.45,
+        ),
+      );
+      final source = _ResolveFailsSource(
+        LibraryTextReflowSource(LibraryTextDocument.fromText(sampleText())),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => source,
+          progressKey: 'local:kept',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      expect(source.resolves, 1);
+      expect(state.currentPosition, LibraryReflowPosition.start);
+      // Said, with the raw detail.
+      final snackBar = find.byType(SnackBar);
+      expect(
+        find.descendant(
+          of: snackBar,
+          matching: find.text(en('positionNotRestored')),
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.descendant(
+          of: snackBar,
+          matching: find.textContaining('worker exited'),
+        ),
+        findsWidgets,
+      );
+      // Longer than the save delay, then closed without moving.
+      await tester.pump(const Duration(seconds: 2));
+      expect(store.progressFor('local:kept')!.location, 'txt:450:0');
+      state.gamepadBindings.back!();
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryBookReaderScreen), findsNothing);
+      expect(store.progressFor('local:kept')!.location, 'txt:450:0');
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
+
+    testWidgets('after such a failure, reading on saves the new position', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:moved',
+          location: 'txt:450:0',
+          fraction: 0.45,
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => _ResolveFailsSource(
+            LibraryTextReflowSource(LibraryTextDocument.fromText(sampleText())),
+          ),
+          progressKey: 'local:moved',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      state.gamepadBindings.right!();
+      await frames(tester);
+      final shown = state.currentPosition!;
+      expect(shown.block, greaterThan(0));
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        store.progressFor('local:moved')!.location,
+        'txt:${shown.block}:${shown.offset}',
+      );
+      await closeBook(tester, store);
+    });
+
+    testWidgets('a location unknown to the book starts over and is replaced', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:unknown',
+          location: 'epubcfi(/6/4[ch2]!/4/2:0)',
+          fraction: 0.5,
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:unknown',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      expect(bookState(tester).currentPosition, LibraryReflowPosition.start);
+      expect(find.text(en('positionNotRestored')), findsNothing);
+      // Opening counts as reading: the start replaces it.
+      await tester.pump(const Duration(seconds: 1));
+      expect(store.progressFor('local:unknown')!.location, 'txt:0:0');
+      await closeBook(tester, store);
+    });
+
     testWidgets(
       'a font size change keeps the same block and words at the top',
       (tester) async {
@@ -918,6 +1046,22 @@ void main() {
     expect(document.sectionCount, 5);
     expect(Platform.pathSeparator, isNotEmpty);
   });
+}
+
+/// A TXT source whose saved locations cannot be resolved for now (the
+/// worker stopped).
+class _ResolveFailsSource extends _FailingChapterSource {
+  _ResolveFailsSource(super.inner) : super(failing: -1);
+
+  int resolves = 0;
+
+  @override
+  Future<LibraryReflowPosition?> resolveLocation(String location) {
+    resolves++;
+    return Future<LibraryReflowPosition?>.error(
+      StateError('library-epub worker exited'),
+    );
+  }
 }
 
 /// A TXT source whose chapter [failing] cannot be loaded.

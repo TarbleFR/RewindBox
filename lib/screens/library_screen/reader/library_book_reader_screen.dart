@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/rendering.dart' show ScrollCacheExtent, ScrollDirection;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -124,6 +124,10 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// The route was popped: the saved position no longer changes.
   bool _leaving = false;
+
+  /// The saved location could not be restored (an error, not an unknown
+  /// location): it is not overwritten until the user moves.
+  bool _keepSavedLocation = false;
 
   @visibleForTesting
   LibraryReflowSource? get source => _source;
@@ -286,7 +290,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         setState(() => _opening = false);
         return;
       }
-      final start = await _startPosition(source);
+      final (start, restoreError) = await _startPosition(source);
       await source.loadChapter(start.chapter);
       if (!mounted) return;
       final data = _ensureChapterData(start.chapter);
@@ -296,10 +300,21 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       _setAnchor(start);
       _lastPosition = start;
       _shownPosition.value = start;
-      // Opening counts as reading (the book moves to "continue reading").
-      _dirty = true;
-      _scheduleSave();
+      // Opening counts as reading (the book moves to "continue reading"),
+      // unless the saved location failed to load: the book shows its
+      // beginning, but the saved location stays until the user moves.
+      _keepSavedLocation = restoreError != null;
+      if (!_keepSavedLocation) {
+        _dirty = true;
+        _scheduleSave();
+      }
       setState(() => _opening = false);
+      if (restoreError != null) {
+        _message(
+          'positionNotRestored',
+          detail: LibraryReaderErrorInfo.from(restoreError).detail,
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -309,29 +324,47 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     }
   }
 
-  Future<LibraryReflowPosition> _startPosition(
+  /// Where the book opens, and the error that prevented restoring the
+  /// saved location, if any.
+  ///
+  /// A saved location this book does not know (null: malformed, outside
+  /// the spine) can never be restored: the book starts over. An error
+  /// while resolving it (worker stopped, file or chapter unreadable) may be
+  /// temporary: the book shows its beginning but the caller keeps the
+  /// saved location.
+  Future<(LibraryReflowPosition, Object?)> _startPosition(
     LibraryReflowSource source,
   ) async {
     final saved = _store.progressFor(widget.progressKey)?.location;
     if (saved != null && saved.isNotEmpty) {
+      LibraryReflowPosition? position;
       try {
-        final position = await source.resolveLocation(saved);
-        if (position != null &&
-            position.chapter >= 0 &&
-            position.chapter < source.chapterCount) {
-          return position;
-        }
-      } catch (_) {
-        // A location from another version of the file: start over.
+        position = await source.resolveLocation(saved);
+      } catch (error) {
+        return (LibraryReflowPosition.start, error);
+      }
+      if (position != null &&
+          position.chapter >= 0 &&
+          position.chapter < source.chapterCount) {
+        return (position, null);
       }
     }
     final fraction = widget.initialFraction;
     if (fraction != null && fraction > 0) {
       try {
-        return await source.positionAtFraction(fraction);
+        return (await source.positionAtFraction(fraction), null);
       } catch (_) {}
     }
-    return LibraryReflowPosition.start;
+    return (LibraryReflowPosition.start, null);
+  }
+
+  /// The user moved (scroll, page turn, jump): the position shown is now
+  /// the one to save, also after a saved location failed to load.
+  void _userMoved() {
+    if (!_keepSavedLocation) return;
+    _keepSavedLocation = false;
+    _dirty = true;
+    _scheduleSave();
   }
 
   _ChapterData? _ensureChapterData(int chapter) {
@@ -460,6 +493,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     setState(() => _setAnchor(position));
     _lastPosition = position;
     _shownPosition.value = position;
+    _userMoved();
     _dirty = true;
     _scheduleSave();
   }
@@ -636,7 +670,8 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _saveTimer = null;
     final source = _source;
     final position = _lastPosition;
-    if (_leaving || !_dirty || source == null || position == null) return;
+    if (_leaving || _keepSavedLocation) return;
+    if (!_dirty || source == null || position == null) return;
     String location;
     double fraction;
     try {
@@ -686,6 +721,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   void _scrollBy(double viewports) {
     final scroll = _scroll;
     if (scroll == null || !scroll.hasClients) return;
+    _userMoved();
     final position = scroll.position;
     final target = (position.pixels + position.viewportDimension * viewports)
         .clamp(position.minScrollExtent, position.maxScrollExtent);
@@ -1122,6 +1158,12 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
           onTapUp: (details) => _onTapUp(details, size),
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
+              // A drag (or a VoiceOver scroll, delivered as one); jumps
+              // and layout changes are not user scrolls.
+              if (notification is UserScrollNotification &&
+                  notification.direction != ScrollDirection.idle) {
+                _userMoved();
+              }
               if (notification is ScrollEndNotification) {
                 _trackAfterLayout();
                 _maybeLoadMore();

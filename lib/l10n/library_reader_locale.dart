@@ -110,6 +110,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'This link points outside the book.',
       'linkOpenFailed': 'The link could not be opened.',
       'fitPage': 'Fit page to screen',
+      'positionNotRestored':
+          'The saved reading position could not be restored. The book opens at the beginning; the saved position is kept until you read on.',
     },
     'es': {
       'back': 'Atrás',
@@ -216,6 +218,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Este enlace apunta fuera del libro.',
       'linkOpenFailed': 'No se pudo abrir el enlace.',
       'fitPage': 'Ajustar la página a la pantalla',
+      'positionNotRestored':
+          'No se pudo restaurar la posición de lectura guardada. El libro se abre al principio; la posición guardada se conserva hasta que sigas leyendo.',
     },
     'ru': {
       'back': 'Назад',
@@ -320,6 +324,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Эта ссылка ведёт за пределы книги.',
       'linkOpenFailed': 'Не удалось открыть ссылку.',
       'fitPage': 'Вписать страницу в экран',
+      'positionNotRestored':
+          'Не удалось восстановить сохранённое место чтения. Книга открыта с начала; прежнее место не будет перезаписано, пока вы не продолжите чтение.',
     },
     'zh': {
       'back': '返回',
@@ -413,6 +419,7 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': '此链接指向书籍之外。',
       'linkOpenFailed': '无法打开链接。',
       'fitPage': '页面适应屏幕',
+      'positionNotRestored': '无法恢复已保存的阅读位置。本书从头开始显示；在你继续阅读之前，已保存的位置会被保留。',
     },
     'zh_Hant': {
       'back': '返回',
@@ -506,6 +513,7 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': '此連結指向書籍以外的位置。',
       'linkOpenFailed': '無法開啟連結。',
       'fitPage': '頁面符合螢幕大小',
+      'positionNotRestored': '無法還原已儲存的閱讀位置。本書從頭開始顯示；在你繼續閱讀之前，已儲存的位置會被保留。',
     },
     'pt': {
       'back': 'Voltar',
@@ -612,6 +620,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Este link aponta para fora do livro.',
       'linkOpenFailed': 'Não foi possível abrir o link.',
       'fitPage': 'Ajustar a página à tela',
+      'positionNotRestored':
+          'Não foi possível restaurar a posição de leitura salva. O livro abre no início; a posição salva é mantida até você continuar a leitura.',
     },
     'fr': {
       'back': 'Retour',
@@ -719,6 +729,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Ce lien pointe en dehors du livre.',
       'linkOpenFailed': 'Le lien n’a pas pu être ouvert.',
       'fitPage': 'Ajuster la page à l’écran',
+      'positionNotRestored':
+          'La position de lecture enregistrée n’a pas pu être rétablie. Le livre s’ouvre au début ; la position enregistrée est conservée tant que vous ne poursuivez pas la lecture.',
     },
     'de': {
       'back': 'Zurück',
@@ -829,6 +841,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Dieser Link führt aus dem Buch hinaus.',
       'linkOpenFailed': 'Der Link konnte nicht geöffnet werden.',
       'fitPage': 'Seite an den Bildschirm anpassen',
+      'positionNotRestored':
+          'Die gespeicherte Leseposition konnte nicht wiederhergestellt werden. Das Buch beginnt am Anfang; die gespeicherte Position bleibt erhalten, bis du weiterliest.',
     },
     'it': {
       'back': 'Indietro',
@@ -935,6 +949,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Questo link rimanda fuori dal libro.',
       'linkOpenFailed': 'Impossibile aprire il link.',
       'fitPage': 'Adatta la pagina allo schermo',
+      'positionNotRestored':
+          'Non è stato possibile ripristinare la posizione di lettura salvata. Il libro si apre dall’inizio; la posizione salvata resta finché non prosegui la lettura.',
     },
     'id': {
       'back': 'Kembali',
@@ -1039,6 +1055,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'Tautan ini mengarah ke luar buku.',
       'linkOpenFailed': 'Tautan tidak dapat dibuka.',
       'fitPage': 'Sesuaikan halaman dengan layar',
+      'positionNotRestored':
+          'Posisi baca yang tersimpan tidak dapat dipulihkan. Buku dibuka dari awal; posisi tersimpan dipertahankan sampai Anda melanjutkan membaca.',
     },
     'ja': {
       'back': '戻る',
@@ -1132,6 +1150,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': 'このリンクは本の外を指しています。',
       'linkOpenFailed': 'リンクを開けませんでした。',
       'fitPage': 'ページを画面に合わせる',
+      'positionNotRestored':
+          '保存された読書位置を復元できませんでした。本は最初から表示されます。読み進めるまで、保存された位置はそのまま残ります。',
     },
     'ko': {
       'back': '뒤로',
@@ -1227,6 +1247,8 @@ abstract final class LibraryReaderLocale {
       'linkUnavailable': '이 링크는 책 밖을 가리킵니다.',
       'linkOpenFailed': '링크를 열 수 없습니다.',
       'fitPage': '페이지를 화면에 맞추기',
+      'positionNotRestored':
+          '저장된 읽기 위치를 복원할 수 없습니다. 책이 처음부터 열립니다. 계속 읽기 전까지 저장된 위치는 그대로 유지됩니다.',
     },
   };
 
