@@ -1019,6 +1019,28 @@ IPA_WORKFLOW_BUILD436_LINES = (
      '            test/rpcs3_xitrix_v0101_native_test.py \\\n'
      '            test/rpcs3_xitrix_v011_native_test.py \\\n'),
 )
+# Build 441 (11 October 2026): prepared guest relay Core pinned at 351b738c and
+# its identity asserts; recorded here after the fact so the reconstruction
+# follows the reviewed file again.
+IPA_WORKFLOW_BUILD441_LINES = (
+    ('      RPCS3_CORE_HOST_SHA: 96d7e709abae9e230254e7b26db8286cf05eb5a4\n',
+     '      RPCS3_CORE_HOST_SHA: 351b738c8d4d5fbe2c7498d4438776baecdba613\n'),
+    ("      RPCS3_CORE_RUN_ID: '38081733944'\n", "      RPCS3_CORE_RUN_ID: '38163319515'\n"),
+    ("          assert identity['neoswap_relay_abi'] == 1, identity\n",
+     "          assert identity['neoswap_relay_abi'] == 1, identity\n"
+     "          assert identity['neoswap_prepared_relay_abi'] == 1, identity\n"
+     "          assert identity['neoswap_relay_client_stats_abi'] == 1, identity\n"),
+)
+# Build 444 (11 October 2026): direct guest admission Core delta test inputs;
+# the Core pin pair is appended once its run succeeds.
+IPA_WORKFLOW_BUILD444_LINES = (
+    ('            test/rpcs3_build435_core_delta_test.py \\\n'
+     '            test/native/rpcs3_build435_core_delta_test.cpp \\\n',
+     '            test/rpcs3_build435_core_delta_test.py \\\n'
+     '            test/native/rpcs3_build435_core_delta_test.cpp \\\n'
+     '            test/rpcs3_build444_core_delta_test.py \\\n'
+     '            test/native/rpcs3_build444_core_delta_test.cpp \\\n'),
+)
 for path in ARMSX2_INTEGRATION_FILES:
     revision = ARMSX2_INTEGRATION_OVERRIDES.get(path, ARMSX2_INTEGRATION_SHA)
     reviewed = subprocess.check_output(['git', 'show', revision + ':' + path], cwd=ROOT)
@@ -1029,6 +1051,12 @@ for path in ARMSX2_INTEGRATION_FILES:
             text = text.replace(old, new, 1)
         for old, new in IPA_WORKFLOW_BUILD436_LINES:
             assert text.count(old) == 1, 'Build436 IPA workflow line expected once: ' + old
+            text = text.replace(old, new, 1)
+        for old, new in IPA_WORKFLOW_BUILD441_LINES:
+            assert text.count(old) == 1, 'Build441 IPA workflow line expected once: ' + old
+            text = text.replace(old, new, 1)
+        for old, new in IPA_WORKFLOW_BUILD444_LINES:
+            assert text.count(old) == 1, 'Build444 IPA workflow line expected once: ' + old
             text = text.replace(old, new, 1)
         reviewed = text.encode('utf-8')
     elif path == '.github/workflows/neoswap-ipa.yml':
