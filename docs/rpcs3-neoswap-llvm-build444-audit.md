@@ -252,6 +252,31 @@ droite sont ceux qui les établissent.
 5. **Core natif en ordonnancement générique.** Un `-mtune=apple-a13` ou plus
    précis est possible mais non mesuré ; non modifié dans cette build.
 
+### 5.2 Préchauffage des modules connus pendant le chargement
+
+Le mécanisme existe déjà et n'est pas modifié : `spu_cache` relit les
+programmes SPU connus au démarrage et les compile avec au plus deux workers sur
+iOS (`rpcs3::spu::warmup_worker_count(…, true)`, `SPUWarmupPolicy.h`), ciblé
+pour God of War III (`targeted_warmup`), journalisé par `SPUWARMUP begin/end`
+(`metadata`, `discovered`, `programs`, `failed`, `stopped`, `elapsed_ms`) et
+par `SPUPROF loading_*`. Son budget n'était mesuré qu'en temps total ; la Build
+444 ajoute, par `JITPROF spu_build/spu_passes/spu_codegen`, le coût unitaire
+moyen et maximal d'un bloc (ms et octets de code invité) et la marge mémoire
+minimale pendant les compilations PPU. C'est avec ces deux mesures sur
+l'iPhone qu'un budget de préchauffage (nombre de blocs, temps, mémoire) peut
+être fixé ; aucun budget n'est changé sans elles.
+
+### 5.3 Analyse du code ARM64 chaud
+
+Non réalisée dans ce cycle faute de modules capturés. Méthode prévue : activer
+`Save LLVM logs` (`core.llvm_logs`, écrit l'IR de chaque module PPU dans le
+cache du titre) ou `SPU Debug` (`spu-ir.log`) sur l'appareil, rapatrier les
+journaux par Fichiers, puis recompiler hors ligne les modules les plus chauds
+(d'après `COREPROF ppu_ms/spu_ms` et les profils PPU) avec le même LLVM 22 et
+`-Rpass-missed`/`-Rpass-analysis` pour l'inlining, la vectorisation NEON, le
+déroulage, les accès mémoire, les appels d'aides et la pression de registres.
+Le remplacement de pipelines ne précède pas cette mesure.
+
 ## 6. Modifications de la Build 444
 
 Chaque changement est isolable : les compteurs nouveaux ne modifient aucune
