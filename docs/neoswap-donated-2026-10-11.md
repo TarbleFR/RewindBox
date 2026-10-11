@@ -3,6 +3,8 @@
 11 octobre 2026. Branche `Claude`. Départ :
 `b238d64d470dd6c862d470e26f95138263b1e1b5`, bilan de la Build 438.
 Cette modification concerne RPCS3/NeoSwap, son affichage et ses validations.
+Sources testées et publiées : `c2db51002b536df4cf79ddc384c48b38d567c394` ;
+arbre Git `9b86f9062c3626b53700e9c9702299a80e3d85cc`.
 
 ## Compteurs corrigés
 
@@ -76,9 +78,38 @@ changement PPU, SPU, RSX, JIT, ni des autres émulateurs.
   contention sans blocage, mesure absente et débordement.
 - Catalogues canonique/Dart identiques dans les douze langues ; substitutions
   conservées. Contrats donneurs et visibilité des headers vérifiés.
-- Les vérifications Apple et Flutter ciblées sont exécutées séparément du
-  contrôle global historique déjà bloqué sur la baseline. Leurs résultats
-  doivent être associés au SHA exact testé.
+
+Le [run ciblé `38159349568`](https://github.com/TarbleFR/neostation-ios/actions/runs/38159349568)
+a réussi sur le SHA source ci-dessus, le 11 octobre 2026. Les deux jobs utilisent
+le mode explicite `donation_metrics_only=true` : ils ne revendiquent pas la
+réussite du contrôle global historique bloqué sur la baseline, qui reste intact.
+
+| Validation exécutée | Résultat |
+|---|---|
+| macOS 15, Xcode 26.3, Apple Clang 17 | Trois exécutables ASan/UBSan réussis : politique du graphique, backend relais, prêts hôte du courtier. |
+| SDK iPhoneOS 26.2, cible arm64 / iOS 17.4 | Syntaxe des cinq sources réelles validée : NeoSwapPlugin, NeoSwapRelayService, Rpcs3InternalBridgePlugin, RPCS3PerformanceOverlay, RPCS3InGameLocalization. |
+| Contrats Apple | 22 tests donneurs et 12 tests extension relais réussis ; visibilité des headers, stub et producteurs/lecteurs des performances vérifiés. |
+| Traductions natives | 204 libellés exécutés via Foundation ; variantes chinois traditionnel et repli vérifiés. |
+| Ubuntu 24.04, Flutter 3.47.2 | Dépendances verrouillées, analyse ciblée réussie ; 25 tests locale/canal/dialogue/stockage réussis. |
+| Identité | Core 436 inchangé, arbre de travail propre après chaque job. |
+
+L’analyse Dart signale seulement une information de style préexistante
+(`curly_braces_in_flow_control_structures`, ligne 13 du catalogue). Les
+compilations de syntaxe signalent la nullabilité incomplète des déclarations
+du stub Flutter ; ce stub n’est pas le framework embarqué dans une IPA.
+
+Les deux artefacts ont été récupérés et leur provenance vérifiée : **1 270
+empreintes d’entrées chacun**, toutes identiques aux sources locales testées.
+Ils contiennent les commandes, résultats, journaux et catalogues textuels des
+douze langues, sans prétendre à des captures UIKit sur appareil.
+
+| Artefact | ID | SHA-256 de l’archive |
+|---|---|---|
+| Apple | `11709783255` | `09b878b20b7697700261e8b104e4ca7a2c5bdb356a30d1daaabd15dd291f08f5` |
+| Flutter | `11709474205` | `f03573d98d0dd1fe1fbd7ff95b90a67d400ca087a20e39cff62f711ca60f493a` |
+
+Les gardes locaux de livraison et de baseline ont également réussi (10 et
+3 tests), ainsi que le contrôle offline du périmètre et `git diff --check`.
 
 Aucune nouvelle IPA ni validation de jeu sur iPhone n’est attestée ici.
 L’IPA Build 438 précédemment livrée conserve son identité et son contenu.
