@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/screens/library_screen/library_gamepad_view_controller.dart';
@@ -199,9 +200,16 @@ Future<_Host> _pump(
   List<LibraryLocalBook> books, {
   Locale locale = const Locale('en'),
   Size size = const Size(1280, 720),
+  bool appDelegateOrder = false,
 }) async {
   final host = _Host(_FakeLibrary(books), MemoryReadingStore());
-  await pumpLibraryUi(tester, host.view(), locale: locale, size: size);
+  await pumpLibraryUi(
+    tester,
+    host.view(),
+    locale: locale,
+    size: size,
+    appDelegateOrder: appDelegateOrder,
+  );
   await tester.pumpAndSettle();
   return host;
 }
@@ -549,6 +557,29 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('5.0 MB'), findsOneWidget);
+  });
+
+  testWidgets('information dates follow the Library language in the app', (
+    tester,
+  ) async {
+    // The app's English-first Material delegate (lib/main.dart) must not
+    // leak into the French dialog.
+    await _pump(
+      tester,
+      <LibraryLocalBook>[alpha],
+      locale: const Locale('fr'),
+      appDelegateOrder: true,
+    );
+    await tester.tap(find.byTooltip('Autres actions pour Alpha'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Informations'));
+    await tester.pumpAndSettle();
+    final added = (await GlobalMaterialLocalizations.delegate.load(
+      const Locale('fr'),
+    )).formatShortDate(DateTime.utc(2026, 10, 1).toLocal());
+    expect(added, contains('2026'));
+    expect(find.text(added), findsOneWidget);
+    expect(find.textContaining('Oct'), findsNothing);
   });
 
   testWidgets('sort, order and format filters re-query the library', (

@@ -9,6 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:neostation/l10n/library_date_format.dart';
 import 'package:neostation/l10n/library_sources_locale.dart';
 import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_aidoku_native_service.dart';
@@ -301,7 +302,8 @@ class LibraryFocusSectionDelegate implements LibraryGamepadViewDelegate {
   }
 }
 
-class _LibrarySourcesViewState extends State<LibrarySourcesView> {
+class _LibrarySourcesViewState extends State<LibrarySourcesView>
+    with LibraryDateFormatPreload<LibrarySourcesView> {
   late final LibraryFocusSectionDelegate _delegate =
       LibraryFocusSectionDelegate(_scope, onSecondary: _secondary);
   final FocusScopeNode _scope = FocusScopeNode(
@@ -938,8 +940,30 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView> {
 /// Minimum touch target (Apple HIG: 44 pt), whatever the .r scale.
 double _tap(double value) => math.max(44.0, value);
 
+/// Numeric date with the year in the Library language (never the English
+/// Material fallback of lib/main.dart).
 String libraryShortDate(BuildContext context, DateTime date) =>
-    MaterialLocalizations.of(context).formatShortDate(date.toLocal());
+    LibraryDateFormat.short(context, date);
+
+/// Loads the date formats of the Library language when a Library screen
+/// starts ([LibraryDateFormat.preload]) and rebuilds it once they are
+/// ready, so its dates do not stay in the ISO fallback form.
+mixin LibraryDateFormatPreload<T extends StatefulWidget> on State<T> {
+  String? _dateFormatCode;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final code = LibraryDateFormat.codeOf(context);
+    if (code == _dateFormatCode) return;
+    _dateFormatCode = code;
+    unawaited(
+      LibraryDateFormat.preload(context).then((_) {
+        if (mounted) setState(() {});
+      }),
+    );
+  }
+}
 
 class _CatalogRow extends StatelessWidget {
   const _CatalogRow({
@@ -1477,7 +1501,8 @@ class LibrarySourceHealthDialog extends StatefulWidget {
 
 enum _HealthOutcome { working, navigationOnly, failed, deviceOffline }
 
-class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog> {
+class _LibrarySourceHealthDialogState extends State<LibrarySourceHealthDialog>
+    with LibraryDateFormatPreload<LibrarySourceHealthDialog> {
   final LibraryCancelToken _cancel = LibraryCancelToken();
   final Map<LibrarySourceHealthStep, LibrarySourceHealthStepResult> _done =
       <LibrarySourceHealthStep, LibrarySourceHealthStepResult>{};

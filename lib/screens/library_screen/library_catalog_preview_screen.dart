@@ -59,7 +59,8 @@ class LibraryCatalogPreviewScreen extends StatefulWidget {
 }
 
 class _LibraryCatalogPreviewScreenState
-    extends State<LibraryCatalogPreviewScreen> {
+    extends State<LibraryCatalogPreviewScreen>
+    with LibraryDateFormatPreload<LibraryCatalogPreviewScreen> {
   /// Ticked source ids. Empty when the screen opens.
   final Set<String> _selected = <String>{};
   bool _activating = false;

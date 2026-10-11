@@ -29,7 +29,8 @@ import 'library_local_view.dart';
 import 'library_manga_details_screen.dart';
 import 'library_reader_launcher.dart';
 import 'library_reader_screen.dart';
-import 'library_sources_view.dart' show LibrarySourcesView;
+import 'library_sources_view.dart'
+    show LibraryDateFormatPreload, LibrarySourcesView, libraryShortDate;
 
 /// Sections opened from the Library hub's shortcut cards.
 enum LibraryHubSection { sources, local, favorites }
@@ -130,7 +131,8 @@ class _EmptyAction {
   final VoidCallback onPressed;
 }
 
-class LibraryScreenState extends State<LibraryScreen> {
+class LibraryScreenState extends State<LibraryScreen>
+    with LibraryDateFormatPreload<LibraryScreen> {
   String _lt(String key) => LibraryFeatureLocale.text(context, key);
   String _ltf(String key, Map<String, Object?> values) =>
       LibraryFeatureLocale.format(context, key, values);
@@ -1523,9 +1525,9 @@ class LibraryScreenState extends State<LibraryScreen> {
         if (failure.known && verified != null)
           Text(
             _ltf('knownStateVerified', {
-              'date': MaterialLocalizations.of(
-                context,
-              ).formatMediumDate(verified.toLocal()),
+              // Numeric with the year: an undated 'Sat, Oct 10' still
+              // looked current a year later.
+              'date': libraryShortDate(context, verified),
             }),
             style: theme.textTheme.bodySmall,
           ),

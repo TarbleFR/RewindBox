@@ -18,7 +18,11 @@ import 'package:neostation/widgets/neo_glass.dart';
 import 'library_gamepad_view_controller.dart';
 import 'library_reader_launcher.dart';
 import 'library_sources_view.dart'
-    show LibraryFocusSectionDelegate, LibraryTechnicalDetails;
+    show
+        LibraryDateFormatPreload,
+        LibraryFocusSectionDelegate,
+        LibraryTechnicalDetails,
+        libraryShortDate;
 
 /// Opens an imported book (default: [LibraryReaderLauncher.openLocalBook]).
 typedef LibraryLocalBookOpener =
@@ -132,7 +136,8 @@ class LibraryLocalView extends StatefulWidget {
   State<LibraryLocalView> createState() => _LibraryLocalViewState();
 }
 
-class _LibraryLocalViewState extends State<LibraryLocalView> {
+class _LibraryLocalViewState extends State<LibraryLocalView>
+    with LibraryDateFormatPreload<LibraryLocalView> {
   /// Sort and order, remembered while the app runs.
   static LibraryBookSort _sessionSort = LibraryBookSort.title;
   static bool _sessionAscending = true;
@@ -577,7 +582,8 @@ class _LibraryLocalViewState extends State<LibraryLocalView> {
           (t('infoSize'), _sizeText(dialogContext, book.sizeBytes)),
           (
             t('infoAdded'),
-            MaterialLocalizations.of(dialogContext).formatShortDate(
+            libraryShortDate(
+              dialogContext,
               DateTime.fromMillisecondsSinceEpoch(book.addedAtMs),
             ),
           ),

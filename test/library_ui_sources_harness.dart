@@ -18,14 +18,37 @@ import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/library_source_health_store.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 
+/// The English-only Material delegate that lib/main.dart (locked on Build
+/// 419) installs before the Global delegates: in the app,
+/// MaterialLocalizations.of(context) is English whatever the language.
+class EnglishFirstMaterialLocalizations
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const EnglishFirstMaterialLocalizations();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      DefaultMaterialLocalizations.load(const Locale('en'));
+
+  @override
+  bool shouldReload(
+    covariant LocalizationsDelegate<MaterialLocalizations> old,
+  ) => false;
+}
+
 /// Pumps [child] inside the app's landscape setup (ScreenUtil 640x480
 /// design, ChromeSurface theme extension, Material localizations).
+/// [appDelegateOrder] puts [EnglishFirstMaterialLocalizations] first, as
+/// the app does.
 Future<void> pumpLibraryUi(
   WidgetTester tester,
   Widget child, {
   Locale locale = const Locale('en'),
   Size size = const Size(1280, 720),
   bool wrapInScaffold = true,
+  bool appDelegateOrder = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -41,7 +64,8 @@ Future<void> pumpLibraryUi(
           Locale('de'),
           Locale('zh'),
         ],
-        localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+        localizationsDelegates: <LocalizationsDelegate<dynamic>>[
+          if (appDelegateOrder) const EnglishFirstMaterialLocalizations(),
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,

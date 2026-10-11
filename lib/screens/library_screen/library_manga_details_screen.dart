@@ -232,7 +232,8 @@ class LibraryMangaDetailsScreen extends StatefulWidget {
       _LibraryMangaDetailsScreenState();
 }
 
-class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
+class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen>
+    with LibraryDateFormatPreload<LibraryMangaDetailsScreen> {
   /// Chapter order, remembered while the app runs.
   static bool _newestFirst = true;
 
@@ -1199,10 +1200,7 @@ class _ChapterRow extends StatelessWidget {
     final read = mark?.read ?? false;
     final muted = theme.colorScheme.onSurface.withValues(alpha: 0.6);
     final subtitle = <String>[
-      if (chapter.date != null)
-        MaterialLocalizations.of(
-          context,
-        ).formatShortDate(chapter.date!.toLocal()),
+      if (chapter.date != null) libraryShortDate(context, chapter.date!),
       if (chapter.scanlator != null && chapter.scanlator!.isNotEmpty)
         chapter.scanlator!,
       if (!read && mark?.page != null)
