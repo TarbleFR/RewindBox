@@ -131,6 +131,87 @@ void main() {
       },
     );
 
+    // Regression: the position was read from the layout of the frame before
+    // the jump to the saved line, so it fell back to the start of the
+    // paragraph and that was saved (each opening moved the reader back).
+    testWidgets('opening and closing keeps the saved offset inside a block', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:txt',
+          location: 'txt:450:120',
+          fraction: 0.45,
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:txt',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final shown = bookState(tester).currentPosition!;
+      expect(shown.block, 50);
+      expect(shown.offset, greaterThan(0));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await settle(tester, rounds: 2);
+      final saved = store.progressFor('local:txt')!.location;
+      final offset = int.parse(saved.split(':').last);
+      expect(saved, startsWith('txt:450:'));
+      // The line holding character 120 (never the start of the paragraph).
+      expect(offset, inInclusiveRange(shown.offset, 120));
+      await flushStore(tester, store);
+    });
+
+    // A slider drag changes the size again before the previous jump is laid
+    // out: the position must not fall back to the start of the paragraph.
+    testWidgets('quick successive font size changes keep the same words', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:txt',
+          location: 'txt:450:120',
+          fraction: 0.45,
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:txt',
+          title: 'Sample',
+          store: store,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      for (final size in <double>[20, 22, 24, 26]) {
+        store.updateSettings(store.settings.copyWith(fontSize: size));
+        // One frame: the new layout and the jump to the line, not yet the
+        // layout of that jump.
+        await tester.pump();
+      }
+      await tester.pump();
+      await tester.pump();
+      final position = state.currentPosition!;
+      expect(position.block, 50);
+      expect(position.offset, inInclusiveRange(40, 120));
+      await closeBook(tester, store);
+    });
+
     testWidgets('a rotation keeps the reading position', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);

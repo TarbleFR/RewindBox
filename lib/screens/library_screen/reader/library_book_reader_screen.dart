@@ -98,6 +98,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   int _anchorUnit = 0;
   int _anchorUnitOffset = 0;
   int _generation = 0;
+
+  /// True from a re-anchor until the frame laid out after the jump to the
+  /// anchored line: until then the render boxes still describe the previous
+  /// layout, so the position is [_anchor], never read from them.
+  bool _anchorPending = false;
   ScrollController? _scroll;
   final LibraryReflowUnitRegistry _registry = LibraryReflowUnitRegistry();
   final GlobalKey _viewportKey = GlobalKey();
@@ -122,8 +127,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// Reading position (first visible block of the current layout).
   @visibleForTesting
-  LibraryReflowPosition? get currentPosition =>
-      _computePosition() ?? _lastPosition;
+  LibraryReflowPosition? get currentPosition => _readingPosition();
 
   @visibleForTesting
   bool get chromeVisible => _chrome.visible;
@@ -206,8 +210,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         previous.justify != settings.justify;
     if (relayout && _source != null) {
       // Keep reading the same words with the new typography.
-      final position = _computePosition() ?? _lastPosition;
-      if (position != null) _setAnchor(position);
+      final position = _readingPosition();
+      if (position != null) {
+        _lastPosition = position;
+        _setAnchor(position);
+      }
     }
     setState(() => _settings = settings);
     _system.update(settings);
@@ -336,6 +343,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _anchor = position;
     _anchorUnit = unitIndex;
     _anchorUnitOffset = inUnit;
+    _anchorPending = true;
     _generation++;
     // The previous scroll view is replaced in the coming frame; its
     // controller is released after it.
@@ -354,15 +362,40 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     if (!mounted || generation != _generation) return;
     final scroll = _scroll;
     final view = _registry.find(_anchor.chapter, _anchorUnit);
+    var jumped = false;
     if (scroll != null &&
         scroll.hasClients &&
         view != null &&
         _anchorUnitOffset > 0) {
       final top = view.caretTop(_anchorUnitOffset);
-      if (top != null && top > 0) scroll.jumpTo(-_topInset + top);
+      if (top != null && top > 0) {
+        scroll.jumpTo(-_topInset + top);
+        jumped = true;
+      }
     }
+    if (!jumped) {
+      _anchorSettled(generation);
+      return;
+    }
+    // The jump is laid out in the next frame (jumpTo schedules it): the
+    // position is read from the boxes only after it.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _anchorSettled(generation),
+    );
+  }
+
+  void _anchorSettled(int generation) {
+    if (!mounted || generation != _generation) return;
+    _anchorPending = false;
     _track(force: true);
     _maybeLoadMore();
+  }
+
+  /// The reading position: the pending anchor while the view moves to it,
+  /// else the first visible line, else the last one tracked.
+  LibraryReflowPosition? _readingPosition() {
+    if (_anchorPending) return _anchor;
+    return _computePosition() ?? _lastPosition;
   }
 
   /// Goes to [position], loading its chapter first.
@@ -514,7 +547,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   }
 
   void _track({bool force = false}) {
-    if (!mounted) return;
+    // Scroll notifications of the jump to a new anchor arrive before its
+    // layout: nothing to read yet.
+    if (!mounted || _anchorPending) return;
     if (_laying) {
       // Render boxes are only read outside layout.
       if (_trackScheduled) return;
@@ -835,7 +870,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     final width = MediaQuery.sizeOf(context).width;
     if (ready && _lastWidth != null && _lastWidth != width) {
       // Rotation: same words at the top in the new layout.
-      _setAnchor(_lastPosition ?? _anchor);
+      _setAnchor(_anchorPending ? _anchor : (_lastPosition ?? _anchor));
     }
     _lastWidth = width;
     return LibraryReaderGamepadScope(
