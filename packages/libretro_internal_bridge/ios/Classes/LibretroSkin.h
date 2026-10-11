@@ -49,8 +49,13 @@ typedef NS_ENUM(NSInteger, LibretroSkinItemShape) {
 /// targets of up, down, left, right. Touch screen: @[@"touchScreen"].
 @property(nonatomic, copy) NSArray<NSString *> *inputs;
 /// Raw input names of the skin that NeoStation does not support (kept for
-/// the import report; the item stays drawn but inert for them).
+/// the import report; the item stays drawn but sends nothing for them and
+/// is never highlighted).
 @property(nonatomic, copy) NSArray<NSString *> *unsupportedInputs;
+/// Raw input names NeoStation had to adapt to reach this console (another
+/// emulator's spelling, a diagonal token, a stick driving a D-pad); see
+/// -[LibretroInputMap canonicalInputs:converted:].
+@property(nonatomic, copy) NSArray<NSString *> *adaptedInputs;
 /// Imported skins: absolute path of the item's own image (PNG or PDF) and
 /// where it is drawn (centred on the frame).
 @property(nonatomic, copy, nullable) NSString *assetPath;

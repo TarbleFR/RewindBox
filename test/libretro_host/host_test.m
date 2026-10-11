@@ -29,6 +29,8 @@ static int failures = 0;
 @property(nonatomic) uint32_t pixel1;
 @property(nonatomic) size_t audioFrames;
 @property(nonatomic) uint16_t buttons;
+@property(nonatomic) unsigned fills;
+@property(nonatomic, strong) NSMutableArray<NSNumber *> *fillFrames;
 @end
 
 @implementation TestDelegate
@@ -48,6 +50,8 @@ static int failures = 0;
 - (void)coreHost:(LibretroCoreHost *)host fillInput:(LibretroInputSnapshot *)snapshot {
   memset(snapshot, 0, sizeof(*snapshot));
   snapshot->buttons[0] = self.buttons;
+  self.fills++;
+  if (self.fillFrames != nil) [self.fillFrames addObject:@(host.frameSerial)];
 }
 @end
 
@@ -310,6 +314,45 @@ int main(int argc, const char *argv[]) {
     [stopping appendLog:@"[HOST] note"];
     CHECK([[stopping recentLog].lastObject isEqualToString:@"[HOST] note"], "frontend notes join the log");
     [stopping unloadWithContextDestroy:nil contextRelease:nil];
+
+    // Session 6: input polling. A core that reads the pad without calling
+    // input_poll still gets the current state (late polling, as RetroArch),
+    // refreshed once per frame; a core polling twice gets both refreshes in
+    // the same frame number; frameSerial counts retro_run calls.
+    TestDelegate *late = [TestDelegate new];
+    late.fillFrames = [NSMutableArray array];
+    LibretroCoreHost *lazy = MakeHost(core, work);
+    lazy.delegate = late;
+    lazy.initialSessionOverrides = @{@"neotest_poll" : @"late"};
+    CHECK([lazy loadCore:&error] && [lazy loadContentAtPath:content error:&error], "core loads for the late-poll session");
+    late.buttons = 0x0001;
+    [lazy runFrame];
+    size_t lazySize = 0;
+    uint8_t *lazyRAM = [lazy memoryDataForIdentifier:RETRO_MEMORY_SAVE_RAM size:&lazySize];
+    CHECK(lazyRAM != NULL && lazySize > 11 && lazyRAM[11] == 0x01, "a core that never polls reads the current pad");
+    late.buttons = 0x0002;
+    [lazy runFrame];
+    CHECK(lazyRAM != NULL && lazyRAM[11] == 0x02, "the late poll is refreshed at the next frame");
+    CHECK(late.fills == 2 && [late.fillFrames isEqualToArray:(@[ @1, @2 ])],
+          "one late poll per frame, numbered by frameSerial");
+    CHECK(lazy.frameSerial == 2, "frameSerial counts retro_run calls");
+    [lazy unloadWithContextDestroy:nil contextRelease:nil];
+
+    TestDelegate *twice = [TestDelegate new];
+    twice.fillFrames = [NSMutableArray array];
+    LibretroCoreHost *eager = MakeHost(core, work);
+    eager.delegate = twice;
+    eager.initialSessionOverrides = @{@"neotest_poll" : @"twice"};
+    CHECK([eager loadCore:&error] && [eager loadContentAtPath:content error:&error], "core loads for the double-poll session");
+    twice.buttons = 0x0004;
+    [eager runFrame];
+    [eager runFrame];
+    size_t eagerSize = 0;
+    uint8_t *eagerRAM = [eager memoryDataForIdentifier:RETRO_MEMORY_SAVE_RAM size:&eagerSize];
+    CHECK([twice.fillFrames isEqualToArray:(@[ @1, @1, @2, @2 ])],
+          "a core polling twice per frame refreshes twice with one frame number");
+    CHECK(eagerRAM != NULL && eagerSize > 11 && eagerRAM[11] == 0x04, "a polling core still reads its pad");
+    [eager unloadWithContextDestroy:nil contextRelease:nil];
   }
   if (failures > 0) {
     printf("%d libretro host check(s) failed\n", failures);

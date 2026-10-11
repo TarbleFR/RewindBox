@@ -192,6 +192,10 @@ static void TestConsoleTables(void) {
 
     BOOL hasLeft = [leftStick containsObject:console];
     BOOL hasRight = [console isEqualToString:@"3ds"];
+    // N64: no right stick of its own, but a skin's right thumbstick drives
+    // the C axes (right analog), like the C buttons (changed with the skin
+    // input adaptations: rightStick* was refused before).
+    BOOL rightAxes = hasRight || [console isEqualToString:@"n64"];
     BOOL hasTouch = [touch containsObject:console];
     CHECK(map.hasLeftStick == hasLeft && map.hasRightStick == hasRight && map.hasTouchScreen == hasTouch,
           @"%@: sticks and touch screen flags", console);
@@ -204,8 +208,8 @@ static void TestConsoleTables(void) {
       LibretroInputTarget rightTarget = [map targetForInput:right[index]];
       CHECK(hasLeft ? IsAnalog(leftTarget, 0, axes[index], signs[index]) : IsNone(leftTarget),
             @"%@: %@ %@", console, left[index], hasLeft ? @"drives the left analog stick" : @"is not available");
-      CHECK(hasRight ? IsAnalog(rightTarget, 1, axes[index], signs[index]) : IsNone(rightTarget),
-            @"%@: %@ %@", console, right[index], hasRight ? @"drives the right analog stick" : @"is not available");
+      CHECK(rightAxes ? IsAnalog(rightTarget, 1, axes[index], signs[index]) : IsNone(rightTarget),
+            @"%@: %@ %@", console, right[index], rightAxes ? @"drives the right analog stick" : @"is not available");
       if (hasLeft) {
         CHECK([[map labelKeyForInput:left[index]] isEqualToString:@"inputLeftStick"] &&
                   [map glyphForInput:left[index]] == nil,
@@ -473,6 +477,67 @@ static void TestCanonicalInputs(void) {
         @"sms: buttons 1 and 2 and start only");
 }
 
+/// Provenance / Manic spellings, diagonal tokens and sticks of D-pad-only
+/// consoles: an item using them sends its command instead of lighting up
+/// without effect.
+static void TestAdaptedInputs(void) {
+  LibretroInputMap *gba = [LibretroInputMap mapForConsole:@"gba"];
+  NSDictionary<NSString *, NSArray<NSString *> *> *diagonals = @{
+    @"upLeft" : @[ @"up", @"left" ],
+    @"up_right" : @[ @"up", @"right" ],
+    @"down-left" : @[ @"down", @"left" ],
+    @"down+right" : @[ @"down", @"right" ],
+    @"LeftUp" : @[ @"up", @"left" ],
+    @"right_down" : @[ @"down", @"right" ],
+  };
+  for (NSString *raw in diagonals) {
+    BOOL converted = NO;
+    NSArray<NSString *> *inputs = [gba canonicalInputs:raw converted:&converted];
+    CHECK([inputs isEqualToArray:diagonals[raw]] && converted, @"gba: diagonal '%@' -> %@", raw,
+          [diagonals[raw] componentsJoinedByString:@" + "]);
+  }
+  BOOL converted = YES;
+  CHECK([[gba canonicalInputs:@"a" converted:&converted] isEqualToArray:@[ @"a" ]] && !converted,
+        @"gba: a native name is not a conversion");
+  CHECK([gba canonicalInputs:@"x" converted:NULL].count == 0, @"gba: an input the console lacks gives nothing");
+  NSDictionary<NSString *, NSString *> *sticks = @{
+    @"analogStickUp" : @"up",
+    @"leftThumbstickDown" : @"down",
+    @"leftStickLeft" : @"left",
+    @"analogRight" : @"right",
+  };
+  for (NSString *console in @[ @"nes", @"snes", @"gb", @"gbc", @"gba", @"md", @"sms", @"gg", @"arcade", @"nds", @"psx" ]) {
+    LibretroInputMap *map = [LibretroInputMap mapForConsole:console];
+    for (NSString *raw in sticks) {
+      converted = NO;
+      CHECK([[map canonicalInput:raw converted:&converted] isEqualToString:sticks[raw]] && converted,
+            @"%@: stick '%@' drives the D-pad %@", console, raw, sticks[raw]);
+    }
+  }
+  LibretroInputMap *psp = [LibretroInputMap mapForConsole:@"psp"];
+  converted = YES;
+  CHECK([[psp canonicalInput:@"analogStickUp" converted:&converted] isEqualToString:@"leftStickUp"] && !converted,
+        @"psp: its own stick stays analog");
+  CHECK([[psp canonicalInput:@"Run"] isEqualToString:@"start"] && [[psp canonicalInput:@"play"] isEqualToString:@"start"],
+        @"psp: run / play -> start");
+  LibretroInputMap *threeDS = [LibretroInputMap mapForConsole:@"3ds"];
+  CHECK([[threeDS canonicalInput:@"ZL"] isEqualToString:@"l2"] && [[threeDS canonicalInput:@"zr"] isEqualToString:@"r2"] &&
+            [[threeDS canonicalInput:@"rightAnalogUp"] isEqualToString:@"rightStickUp"],
+        @"3ds: ZL / ZR and the C-stick spellings");
+  CHECK([gba canonicalInput:@"zl"] == nil, @"gba: no ZL");
+  LibretroInputMap *n64 = [LibretroInputMap mapForConsole:@"n64"];
+  CHECK([[n64 canonicalInput:@"c up"] isEqualToString:@"cUp"] &&
+            [[n64 canonicalInput:@"rightThumbstickLeft"] isEqualToString:@"rightStickLeft"] &&
+            IsAnalog([n64 targetForInput:@"rightStickLeft"], 1, 0, -1),
+        @"n64: 'c up' and a right thumbstick reach the C axes");
+  LibretroInputMap *nds = [LibretroInputMap mapForConsole:@"nds"];
+  CHECK([nds canonicalInputs:@"upleft" converted:NULL].count == 2 &&
+            [nds canonicalInputs:@"touchScreenX" converted:NULL].count == 1,
+        @"nds: diagonal and touch screen spellings");
+  LibretroInputMap *threeDSBlocked = [LibretroInputMap mapForConsole:@"3ds"];
+  CHECK([threeDSBlocked canonicalInputs:@"home" converted:NULL].count == 0, @"3ds: HOME stays refused");
+}
+
 static void TestApplyInput(void) {
   LibretroInputMap *snes = [LibretroInputMap mapForConsole:@"snes"];
   LibretroCoreInput state = {0, {{0, 0}, {0, 0}}};
@@ -549,6 +614,7 @@ int main(int argc, const char *argv[]) {
     TestDefaultsPerConsole();
     TestOverrides();
     TestCanonicalInputs();
+    TestAdaptedInputs();
     TestApplyInput();
     TestLabels();
   }

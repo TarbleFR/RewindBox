@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   nds:          snes buttons + touchScreen -> POINTER
 ///   n64:          a[A]->B  b[B]->Y  z[Z]->L2  l[L]->L  r[R]->R  start[START]->START
 ///                 cUp/cDown/cLeft/cRight[C▲ C▼ C◀ C▶] -> right analog (y -, y +, x -, x +)
-///                 leftStick* -> left analog
+///                 leftStick* -> left analog, rightStick* -> right analog (same as C)
 ///   psx:          a[○]->A  b[✕]->B  x[△]->X  y[□]->Y  l[L1]->L  r[R1]->R
 ///                 l2[L2]->L2  r2[R2]->R2  l3[L3]->L3  r3[R3]->R3
 ///                 start[START]->START  select[SELECT]->SELECT
@@ -146,13 +146,30 @@ typedef struct {
 /// cannot use it. Aliases (case-insensitive): l1 -> l, r1 -> r,
 /// analogStickUp / leftThumbstickUp / leftanalogup -> leftStickUp (and the
 /// other directions), rightThumbstickUp -> rightStickUp, cross / circle /
-/// square / triangle -> b / a / y / x (psx, psp), c-up / cup / "c▲" -> cUp
-/// (and the others), touchScreenX / touchScreenY -> touchScreen,
+/// square / triangle -> b / a / y / x (psx, psp), c-up / cup / "c up" / "c▲"
+/// -> cUp (and the others), rightAnalogUp -> rightStickUp, analogUp ->
+/// leftStickUp, run / play -> start, zl / zr -> l2 / r2 (3ds, psx),
+/// touchScreenX / touchScreenY -> touchScreen,
 /// screenSwap / reverseScreens / swapScreens -> swapScreens,
 /// toggleFastForward, fastForward, quickSave, quickLoad, menu. Inputs whose
 /// target is blocked for the console (3ds l3 / r3 / home / homeMenu, nds r3)
 /// return nil.
 - (nullable NSString *)canonicalInput:(NSString *)raw;
+
+/// Same, and `converted` (optional) tells whether the name needed an
+/// adaptation beyond Delta's own vocabulary: a Provenance / Manic spelling
+/// ("run", "zl", "c up", "rightAnalogUp", PlayStation shape names...) or a
+/// stick of a console without one, which drives its D-pad
+/// (leftStickUp / analogStickUp -> up on nes, snes, gb, gbc, gba, md, mcd,
+/// 32x, sms, gg, sg1000, arcade, nds, psx).
+- (nullable NSString *)canonicalInput:(NSString *)raw converted:(nullable BOOL *)converted;
+
+/// Canonical inputs of one raw skin input: a diagonal D-pad token ("upLeft",
+/// "up_left", "up-left", "up+left", "leftUp"...) gives its two directions,
+/// pressed together; anything else gives canonicalInput: as a one-element
+/// array, or an empty array when this console cannot use it. `converted`
+/// as above (always YES for a diagonal token).
+- (NSArray<NSString *> *)canonicalInputs:(NSString *)raw converted:(nullable BOOL *)converted;
 
 /// Transmission to the core. Unknown names give LibretroInputTargetNone.
 - (LibretroInputTarget)targetForInput:(NSString *)input;

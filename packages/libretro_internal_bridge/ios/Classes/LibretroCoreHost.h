@@ -135,8 +135,17 @@ typedef struct {
 - (void)hardwareContextReset;
 - (void)hardwareContextDestroy;
 
+/// Runs one emulated frame (retro_run). The input snapshot is refreshed
+/// when the core polls, and also at its first input read of a frame in
+/// which it has not polled (RetroArch's default "late" polling): a core
+/// reading input without calling input_poll never sees a stale state.
 - (void)runFrame;
 - (void)resetContent;
+
+/// Emulated frames started by runFrame since the core was loaded (1 during
+/// the first retro_run). Given to fillInput so input latching counts
+/// frames, never reads.
+@property(nonatomic, readonly) uint64_t frameSerial;
 
 - (NSString *)statePathForSlot:(NSInteger)slot;
 - (BOOL)saveStateToSlot:(NSInteger)slot error:(NSError *_Nullable *_Nullable)error;

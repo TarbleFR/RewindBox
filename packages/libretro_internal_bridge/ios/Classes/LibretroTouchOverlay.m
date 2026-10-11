@@ -1,58 +1,11 @@
 #import "LibretroTouchOverlay.h"
 
+#import <QuartzCore/QuartzCore.h>
+
 #import "LibretroInputState.h"
 
 #include <math.h>
 #include <string.h>
-
-/// What one finger is doing.
-typedef NS_ENUM(NSInteger, LibretroTouchMode) {
-  /// Buttons and D-pads under the finger, hit-tested again on every move
-  /// (Delta: a finger slides between buttons).
-  LibretroTouchModeFree = 0,
-  /// Started on a D-pad alone: stays bound to it, directions follow the
-  /// finger even past its edge.
-  LibretroTouchModeDPad,
-  /// Started on a thumbstick: bound to it until released.
-  LibretroTouchModeStick,
-  /// RETRO_DEVICE_POINTER on the DS / 3DS touch screen.
-  LibretroTouchModePointer,
-  /// Controls disabled and outside the touch screen.
-  LibretroTouchModeIgnored,
-};
-
-@interface LibretroTouchTrack : NSObject
-@property(nonatomic, assign) LibretroTouchMode mode;
-@property(nonatomic, copy) NSArray<LibretroLaidOutItem *> *items;
-@property(nonatomic, strong, nullable) LibretroLaidOutItem *bound;
-@property(nonatomic, assign) CGPoint location;
-@property(nonatomic, assign) LibretroScreenMapping mapping;
-@property(nonatomic, assign) int16_t pointerX;
-@property(nonatomic, assign) int16_t pointerY;
-@end
-
-@implementation LibretroTouchTrack
-
-- (instancetype)init {
-  self = [super init];
-  if (self) {
-    _items = @[];
-  }
-  return self;
-}
-
-@end
-
-static BOOL LibretroOverlayContains(LibretroRect rect, CGPoint point) {
-  if (!(rect.w > 0) || !(rect.h > 0)) return NO;
-  return point.x >= rect.x && point.y >= rect.y && point.x <= rect.x + rect.w && point.y <= rect.y + rect.h;
-}
-
-static double LibretroOverlayDistance(LibretroRect rect, CGPoint point) {
-  double dx = MAX(MAX(rect.x - point.x, 0.0), point.x - (rect.x + rect.w));
-  double dy = MAX(MAX(rect.y - point.y, 0.0), point.y - (rect.y + rect.h));
-  return hypot(dx, dy);
-}
 
 static double LibretroOverlayNumber(id value, double fallback) {
   if (![value isKindOfClass:[NSNumber class]]) return fallback;
@@ -60,15 +13,27 @@ static double LibretroOverlayNumber(id value, double fallback) {
   return isfinite(number) ? number : fallback;
 }
 
+static BOOL LibretroOverlayContains(LibretroRect rect, CGPoint point) {
+  if (!(rect.w > 0) || !(rect.h > 0)) return NO;
+  return point.x >= rect.x && point.y >= rect.y && point.x <= rect.x + rect.w && point.y <= rect.y + rect.h;
+}
+
+/// Key of a finger in the tracker: the UITouch object, which UIKit keeps
+/// for the whole touch.
+static NSValue *LibretroOverlayKey(UITouch *touch) {
+  return [NSValue valueWithNonretainedObject:touch];
+}
+
 @implementation LibretroTouchOverlay {
   LibretroInputState *_input;
+  LibretroTouchTracker *_tracker;
   LibretroSkinLayoutResult *_layout;
-  LibretroInputMap *_inputMap;
-  NSDictionary<NSString *, NSArray<NSString *> *> *_touchRemap;
-  NSMapTable<UITouch *, LibretroTouchTrack *> *_tracks;
   NSSet<NSNumber *> *_activeActions;
   NSSet<NSString *> *_pressedItems;
   NSDictionary<NSString *, NSValue *> *_stickVectors;
+  BOOL _pointerPressed;
+  int16_t _pointerX;
+  int16_t _pointerY;
   // Layout editing.
   NSMutableArray<UITouch *> *_editTouches;
   NSString *_selectedItem;
@@ -92,14 +57,12 @@ static double LibretroOverlayNumber(id value, double fallback) {
   self = [super initWithFrame:CGRectZero];
   if (self) {
     _input = input;
-    _inputMap = [LibretroInputMap mapForConsole:@"nes"];
-    _tracks = [NSMapTable strongToStrongObjectsMapTable];
+    _tracker = [LibretroTouchTracker new];
     _activeActions = [NSSet set];
     _pressedItems = [NSSet set];
     _stickVectors = @{};
     _editTouches = [NSMutableArray array];
     _editBases = [NSMutableDictionary dictionary];
-    _touchScreenMappings = @[];
     self.multipleTouchEnabled = YES;
     self.backgroundColor = UIColor.clearColor;
     self.opaque = NO;
@@ -116,38 +79,14 @@ static double LibretroOverlayNumber(id value, double fallback) {
            inputMap:(LibretroInputMap *)inputMap
          touchRemap:(NSDictionary<NSString *, NSArray<NSString *> *> *)touchRemap {
   _layout = layout;
-  if ([inputMap isKindOfClass:[LibretroInputMap class]]) _inputMap = inputMap;
-  _touchRemap = [touchRemap isKindOfClass:[NSDictionary class]] ? [touchRemap copy] : nil;
-  // Fingers already down follow their items to the new places.
-  NSMutableDictionary<NSString *, LibretroLaidOutItem *> *byIdentifier = [NSMutableDictionary dictionary];
-  for (LibretroLaidOutItem *laidOut in layout.items) {
-    NSString *identifier = laidOut.item.identifier;
-    if (identifier.length > 0 && byIdentifier[identifier] == nil) byIdentifier[identifier] = laidOut;
-  }
-  for (UITouch *touch in _tracks) {
-    LibretroTouchTrack *track = [_tracks objectForKey:touch];
-    if (track.mode == LibretroTouchModeDPad || track.mode == LibretroTouchModeStick) {
-      LibretroLaidOutItem *replacement = byIdentifier[track.bound.item.identifier ?: @""];
-      track.bound = replacement;
-      if (replacement == nil) track.mode = LibretroTouchModeIgnored;
-    } else if (track.mode == LibretroTouchModeFree) {
-      NSMutableArray<LibretroLaidOutItem *> *items = [NSMutableArray array];
-      for (LibretroLaidOutItem *laidOut in track.items) {
-        LibretroLaidOutItem *replacement = byIdentifier[laidOut.item.identifier ?: @""];
-        if (replacement != nil) [items addObject:replacement];
-      }
-      track.items = items;
-    }
-  }
-  // A held stylus follows the touch screen to its new place (or is
-  // released); with published mappings this waits for the next ones.
-  [self reresolvePointerTracks];
+  [_tracker applyLayout:layout inputMap:inputMap touchRemap:touchRemap];
   [self publish];
 }
 
 - (void)setControlsDisabled:(BOOL)controlsDisabled {
   if (_controlsDisabled == controlsDisabled) return;
   _controlsDisabled = controlsDisabled;
+  _tracker.controlsDisabled = controlsDisabled;
   [self publish];
 }
 
@@ -156,7 +95,7 @@ static double LibretroOverlayNumber(id value, double fallback) {
   _editing = editing;
   // Game input stops while the layout is edited, and editing gestures and
   // the selection end with the mode.
-  [self clearTracks];
+  [_tracker endAllTouches];
   [self resetEditingGestures];
   _selectedItem = nil;
   [_editBases removeAllObjects];
@@ -178,159 +117,67 @@ static double LibretroOverlayNumber(id value, double fallback) {
   _editOverrides = [editOverrides isKindOfClass:[NSDictionary class]] ? [editOverrides copy] : nil;
 }
 
+- (NSArray<NSValue *> *)touchScreenMappings {
+  return _tracker.touchScreenMappings;
+}
+
 - (void)setTouchScreenMappings:(NSArray<NSValue *> *)touchScreenMappings {
-  NSArray<NSValue *> *mappings = [touchScreenMappings isKindOfClass:[NSArray class]] ? [touchScreenMappings copy] : @[];
-  if (_touchScreenMappings != nil && [mappings isEqualToArray:_touchScreenMappings]) return;
-  _touchScreenMappings = mappings;
-  [self reresolvePointerTracks];
+  _tracker.touchScreenMappings = touchScreenMappings;
+  // A held stylus may have followed or left the touch screen.
+  if (_tracker.touchCount > 0) [self publish];
 }
 
-#pragma mark - Inputs
-
-- (NSArray<NSString *> *)inputsForItem:(LibretroSkinItem *)item {
-  id remap = item.identifier.length > 0 ? _touchRemap[item.identifier] : nil;
-  if ([remap isKindOfClass:[NSArray class]]) {
-    NSMutableArray<NSString *> *inputs = [NSMutableArray array];
-    for (id input in (NSArray *)remap) {
-      [inputs addObject:[input isKindOfClass:[NSString class]] ? input : @""];
-    }
-    BOOL directional = item.kind == LibretroSkinItemKindDPad || item.kind == LibretroSkinItemKindThumbstick;
-    // A D-pad or stick remap names its four directions; anything else keeps
-    // the skin's inputs.
-    if (!directional || inputs.count == 4) return inputs;
-  }
-  return item.inputs ?: @[];
+- (BOOL)recordsContacts {
+  return _tracker.recordsContacts;
 }
 
-/// Adds one logical input. Digital targets (buttons, actions) need at
-/// least half a deflection; analog targets take the magnitude.
-- (void)applyInput:(NSString *)input
-         magnitude:(double)magnitude
-             state:(LibretroCoreInput *)state
-           actions:(NSMutableSet<NSNumber *> *)actions {
-  if (![input isKindOfClass:[NSString class]] || input.length == 0) return;
-  LibretroInputTarget target = [_inputMap targetForInput:input];
-  switch (target.kind) {
-    case LibretroInputTargetButton:
-      if (magnitude >= 0.5) [_inputMap applyInput:input magnitude:1.0 toState:state];
-      break;
-    case LibretroInputTargetAnalog:
-      if (magnitude > 0.001) [_inputMap applyInput:input magnitude:MIN(magnitude, 1.0) toState:state];
-      break;
-    case LibretroInputTargetAction:
-      if (magnitude >= 0.5 && target.action != LibretroFrontendActionNone) [actions addObject:@(target.action)];
-      break;
-    case LibretroInputTargetPointer:
-    case LibretroInputTargetNone:
-      break;
-  }
+- (void)setRecordsContacts:(BOOL)recordsContacts {
+  _tracker.recordsContacts = recordsContacts;
+  [self publish];
 }
 
-/// D-pad directions of `point` on `laidOut`, mapped to its four inputs.
-/// Returns NO in the dead zone.
-- (BOOL)applyDPad:(LibretroLaidOutItem *)laidOut
-            point:(CGPoint)point
-            state:(LibretroCoreInput *)state
-          actions:(NSMutableSet<NSNumber *> *)actions {
-  LibretroDirection directions = LibretroDPadDirections(laidOut.frame, point.x, point.y);
-  if (directions == 0) return NO;
-  NSArray<NSString *> *inputs = [self inputsForItem:laidOut.item];
-  const LibretroDirection bits[4] = {LibretroDirectionUp, LibretroDirectionDown, LibretroDirectionLeft,
-                                     LibretroDirectionRight};
-  for (NSUInteger index = 0; index < 4 && index < inputs.count; index++) {
-    if ((directions & bits[index]) != 0) [self applyInput:inputs[index] magnitude:1.0 state:state actions:actions];
-  }
-  return YES;
-}
+#pragma mark - Publishing
 
-/// Stick deflection mapped to its up / down / left / right inputs with
-/// their magnitudes (libretro y: positive downward).
-- (void)applyStick:(LibretroLaidOutItem *)laidOut
-             point:(CGPoint)point
-             state:(LibretroCoreInput *)state
-           actions:(NSMutableSet<NSNumber *> *)actions {
-  double x = 0, y = 0;
-  LibretroStickVector(laidOut.frame, point.x, point.y, &x, &y);
-  NSArray<NSString *> *inputs = [self inputsForItem:laidOut.item];
-  if (inputs.count < 4) return;
-  if (y < 0) {
-    [self applyInput:inputs[0] magnitude:-y state:state actions:actions];
-  } else if (y > 0) {
-    [self applyInput:inputs[1] magnitude:y state:state actions:actions];
-  }
-  if (x < 0) {
-    [self applyInput:inputs[2] magnitude:-x state:state actions:actions];
-  } else if (x > 0) {
-    [self applyInput:inputs[3] magnitude:x state:state actions:actions];
-  }
-}
-
-/// Rebuilds the touch input of port 0 from every finger, then reports
-/// pressed items and frontend action edges.
+/// Sends what every finger produces to the input state (RetroPad of port
+/// 0, pointer), then reports highlighted items, knobs and frontend action
+/// edges. Only items that really send an input are highlighted: a button
+/// whose inputs this console cannot use stays dark, so a lit button always
+/// means a command was sent.
 - (void)publish {
-  LibretroCoreInput state;
-  memset(&state, 0, sizeof(state));
-  NSMutableSet<NSNumber *> *actions = [NSMutableSet set];
-  NSMutableSet<NSString *> *pressed = [NSMutableSet set];
-  NSMutableDictionary<NSString *, NSValue *> *vectors = [NSMutableDictionary dictionary];
-  BOOL controls = !self.editing && !self.controlsDisabled;
-  if (controls) {
-    for (UITouch *touch in _tracks) {
-      LibretroTouchTrack *track = [_tracks objectForKey:touch];
-      CGPoint point = track.location;
-      switch (track.mode) {
-        case LibretroTouchModeFree:
-          for (LibretroLaidOutItem *laidOut in track.items) {
-            LibretroSkinItem *item = laidOut.item;
-            if (item.kind == LibretroSkinItemKindDPad) {
-              if ([self applyDPad:laidOut point:point state:&state actions:actions] && item.identifier.length > 0) {
-                [pressed addObject:item.identifier];
-              }
-            } else if (item.kind == LibretroSkinItemKindButton) {
-              for (NSString *input in [self inputsForItem:item]) {
-                [self applyInput:input magnitude:1.0 state:&state actions:actions];
-              }
-              if (item.identifier.length > 0) [pressed addObject:item.identifier];
-            }
-          }
-          break;
-        case LibretroTouchModeDPad:
-          if (track.bound != nil && [self applyDPad:track.bound point:point state:&state actions:actions] &&
-              track.bound.item.identifier.length > 0) {
-            [pressed addObject:track.bound.item.identifier];
-          }
-          break;
-        case LibretroTouchModeStick:
-          if (track.bound != nil) {
-            [self applyStick:track.bound point:point state:&state actions:actions];
-            NSString *identifier = track.bound.item.identifier;
-            if (identifier.length > 0) {
-              [pressed addObject:identifier];
-              double stickX = 0, stickY = 0;
-              LibretroStickVector(track.bound.frame, point.x, point.y, &stickX, &stickY);
-              vectors[identifier] = [NSValue valueWithCGPoint:CGPointMake(stickX, stickY)];
-            }
-          }
-          break;
-        case LibretroTouchModePointer:
-        case LibretroTouchModeIgnored:
-          break;
-      }
-    }
+  LibretroTouchResolution *resolution = nil;
+  if (self.editing) {
+    // No game input while the layout is edited.
+    [_tracker endAllTouches];
   }
-  [_input setTouchInput:state];
+  resolution = [_tracker resolve];
+  [_input setTouchInput:resolution.coreInput];
+  if (resolution.pointerPressed != _pointerPressed || resolution.pointerX != _pointerX ||
+      resolution.pointerY != _pointerY) {
+    _pointerPressed = resolution.pointerPressed;
+    _pointerX = resolution.pointerX;
+    _pointerY = resolution.pointerY;
+    [_input setPointerX:_pointerX y:_pointerY pressed:_pointerPressed];
+  }
 
+  NSSet<NSString *> *pressed = resolution.pressedItems;
   if (![pressed isEqualToSet:_pressedItems]) {
     _pressedItems = [pressed copy];
     if (self.pressedItemsChanged != nil) self.pressedItemsChanged(_pressedItems);
   }
+  NSMutableDictionary<NSString *, NSValue *> *vectors = [NSMutableDictionary dictionary];
+  [resolution.stickVectors enumerateKeysAndObjectsUsingBlock:^(NSString *identifier, NSValue *value, BOOL *stop) {
+    LibretroSize vector = {0, 0};
+    [value getValue:&vector size:sizeof(vector)];
+    vectors[identifier] = [NSValue valueWithCGPoint:CGPointMake(vector.w, vector.h)];
+  }];
   if (![vectors isEqualToDictionary:_stickVectors]) {
     _stickVectors = [vectors copy];
     if (self.stickVectorsChanged != nil) self.stickVectorsChanged(_stickVectors);
   }
+  if (self.resolutionChanged != nil) self.resolutionChanged(resolution);
 
   NSSet<NSNumber *> *previous = _activeActions;
-  NSSet<NSNumber *> *current = [actions copy];
+  NSSet<NSNumber *> *current = [resolution.actions copy];
   _activeActions = current;
   void (^handler)(LibretroFrontendAction, BOOL) = self.actionHandler;
   if (handler == nil) return;
@@ -346,181 +193,20 @@ static double LibretroOverlayNumber(id value, double fallback) {
   }
 }
 
-#pragma mark - Pointer
-
-- (BOOL)pointerInUse {
-  for (UITouch *touch in _tracks) {
-    if ([_tracks objectForKey:touch].mode == LibretroTouchModePointer) return YES;
-  }
-  return NO;
-}
-
-- (NSArray<NSValue *> *)pointerMappings {
-  NSMutableArray<NSValue *> *mappings = [NSMutableArray array];
-  for (NSValue *value in _touchScreenMappings) {
-    if (![value isKindOfClass:[NSValue class]]) continue;
-    NSUInteger size = 0;
-    NSGetSizeAndAlignment(value.objCType, &size, NULL);
-    if (size != sizeof(LibretroScreenMapping)) continue;
-    [mappings addObject:value];
-  }
-  if (mappings.count > 0) return mappings;
-  // No picture published yet: the laid-out touch-screen containers.
-  for (LibretroLaidOutScreen *screen in _layout.screens) {
-    if (!screen.touchScreen) continue;
-    LibretroScreenMapping mapping;
-    memset(&mapping, 0, sizeof(mapping));
-    mapping.output = screen.container;
-    mapping.source = screen.source;
-    mapping.rotation = 0;
-    [mappings addObject:[NSValue valueWithBytes:&mapping objCType:@encode(LibretroScreenMapping)]];
-  }
-  return mappings;
-}
-
-/// Starts the pointer for `track` when `point` is on a drawn touch screen,
-/// or anywhere on a touch-screen item (`onTouchItem`: the nearest screen,
-/// clamped). One pointer at a time.
-- (BOOL)beginPointer:(LibretroTouchTrack *)track point:(CGPoint)point onTouchItem:(BOOL)onTouchItem {
-  if ([self pointerInUse]) return NO;
-  BOOL found = NO;
-  double nearest = INFINITY;
-  LibretroScreenMapping chosen;
-  memset(&chosen, 0, sizeof(chosen));
-  for (NSValue *value in [self pointerMappings]) {
-    LibretroScreenMapping mapping;
-    [value getValue:&mapping size:sizeof(mapping)];
-    if (LibretroOverlayContains(mapping.output, point)) {
-      chosen = mapping;
-      found = YES;
-      break;
-    }
-    if (onTouchItem) {
-      double distance = LibretroOverlayDistance(mapping.output, point);
-      if (distance < nearest) {
-        nearest = distance;
-        chosen = mapping;
-      }
-    }
-  }
-  if (!found && !(onTouchItem && isfinite(nearest))) return NO;
-  int16_t x = 0, y = 0;
-  if (!LibretroPointerFromPoint(chosen, point.x, point.y, YES, &x, &y)) return NO;
-  track.mode = LibretroTouchModePointer;
-  track.mapping = chosen;
-  track.pointerX = x;
-  track.pointerY = y;
-  [_input setPointerX:x y:y pressed:YES];
-  return YES;
-}
-
-- (void)movePointer:(LibretroTouchTrack *)track point:(CGPoint)point {
-  int16_t x = track.pointerX, y = track.pointerY;
-  // Clamped while held: a finger leaving the screen keeps touching its edge.
-  if (!LibretroPointerFromPoint(track.mapping, point.x, point.y, YES, &x, &y)) return;
-  track.pointerX = x;
-  track.pointerY = y;
-  [_input setPointerX:x y:y pressed:YES];
-}
-
-/// After the touch screens moved (new mappings or layout): a held pointer
-/// keeps its mapping while that screen is still drawn at the same place,
-/// follows the touch screen now under the finger, or is released.
-- (void)reresolvePointerTracks {
-  NSArray<NSValue *> *mappings = nil;
-  for (UITouch *touch in _tracks) {
-    LibretroTouchTrack *track = [_tracks objectForKey:touch];
-    if (track.mode != LibretroTouchModePointer) continue;
-    if (mappings == nil) mappings = [self pointerMappings];
-    CGPoint point = track.location;
-    LibretroScreenMapping resolved;
-    memset(&resolved, 0, sizeof(resolved));
-    if (![LibretroSkinLayout resolvePointerMapping:track.mapping
-                                               atX:point.x
-                                                 y:point.y
-                                          mappings:mappings
-                                            result:&resolved]) {
-      // No touch screen under the finger any more (screens swapped).
-      [_input setPointerX:track.pointerX y:track.pointerY pressed:NO];
-      track.mode = LibretroTouchModeIgnored;
-      continue;
-    }
-    track.mapping = resolved;
-    [self movePointer:track point:point];
-  }
-}
-
-/// Where the touch screens are really drawn (NSValue of LibretroRect): the
-/// presenter's mappings, else the laid-out containers.
-- (NSArray<NSValue *> *)touchAreas {
-  NSMutableArray<NSValue *> *areas = [NSMutableArray array];
-  for (NSValue *value in [self pointerMappings]) {
-    LibretroScreenMapping mapping;
-    [value getValue:&mapping size:sizeof(mapping)];
-    LibretroRect output = mapping.output;
-    [areas addObject:[NSValue valueWithBytes:&output objCType:@encode(LibretroRect)]];
-  }
-  return areas;
-}
-
-- (NSArray<LibretroLaidOutItem *> *)itemsAtPoint:(CGPoint)point {
-  if (_layout == nil) return @[];
-  return [LibretroSkinLayout itemsAtX:point.x y:point.y inLayout:_layout touchAreas:[self touchAreas]];
-}
-
 #pragma mark - Game touches
-
-/// Items a sliding finger may press: buttons and D-pads (sticks and the
-/// touch screen are only taken when a finger lands on them).
-static NSArray<LibretroLaidOutItem *> *LibretroOverlaySlidable(NSArray<LibretroLaidOutItem *> *hits) {
-  NSMutableArray<LibretroLaidOutItem *> *items = [NSMutableArray array];
-  for (LibretroLaidOutItem *laidOut in hits) {
-    LibretroSkinItemKind kind = laidOut.item.kind;
-    if (kind == LibretroSkinItemKindButton || kind == LibretroSkinItemKindDPad) [items addObject:laidOut];
-  }
-  return items;
-}
-
-- (LibretroTouchTrack *)trackForPoint:(CGPoint)point {
-  LibretroTouchTrack *track = [LibretroTouchTrack new];
-  track.location = point;
-  // On the drawn touch screen, controls answer only inside their frames.
-  NSArray<LibretroLaidOutItem *> *hits = [self itemsAtPoint:point];
-  BOOL touchItemOnly = hits.count > 0;
-  for (LibretroLaidOutItem *laidOut in hits) {
-    if (laidOut.item.kind != LibretroSkinItemKindTouchScreen) touchItemOnly = NO;
-  }
-  if (!self.controlsDisabled && !touchItemOnly && hits.count > 0) {
-    LibretroLaidOutItem *first = hits.firstObject;
-    if (hits.count == 1 && first.item.kind == LibretroSkinItemKindThumbstick) {
-      track.mode = LibretroTouchModeStick;
-      track.bound = first;
-      return track;
-    }
-    if (hits.count == 1 && first.item.kind == LibretroSkinItemKindDPad) {
-      track.mode = LibretroTouchModeDPad;
-      track.bound = first;
-      return track;
-    }
-    track.mode = LibretroTouchModeFree;
-    track.items = LibretroOverlaySlidable(hits);
-    return track;
-  }
-  // A touch-screen item alone, or nothing but a drawn touch screen.
-  if ([self beginPointer:track point:point onTouchItem:touchItemOnly]) return track;
-  // Controls stay off with a controller or the setting; elsewhere an empty
-  // finger may still slide onto a button.
-  track.mode = self.controlsDisabled ? LibretroTouchModeIgnored : LibretroTouchModeFree;
-  return track;
-}
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
   if (self.editing) {
     [self editTouchesBegan:touches];
     return;
   }
+  CFTimeInterval now = CACurrentMediaTime();
   for (UITouch *touch in touches) {
-    [_tracks setObject:[self trackForPoint:[touch locationInView:self]] forKey:touch];
+    CGPoint point = [touch locationInView:self];
+    [_tracker beginTouch:LibretroOverlayKey(touch) x:point.x y:point.y];
+    // How long iOS held the touch before delivering it (screen-edge
+    // gestures delay touches near the edges): measured, not guessed.
+    if (self.touchDelivered != nil) self.touchDelivered(point, MAX(0.0, now - touch.timestamp));
   }
   [self publish];
 }
@@ -530,29 +216,11 @@ static NSArray<LibretroLaidOutItem *> *LibretroOverlaySlidable(NSArray<LibretroL
     [self editTouchesMoved];
     return;
   }
-  BOOL changed = NO;
   for (UITouch *touch in touches) {
-    LibretroTouchTrack *track = [_tracks objectForKey:touch];
-    if (track == nil) continue;
     CGPoint point = [touch locationInView:self];
-    track.location = point;
-    switch (track.mode) {
-      case LibretroTouchModePointer:
-        [self movePointer:track point:point];
-        break;
-      case LibretroTouchModeFree:
-        track.items = LibretroOverlaySlidable([self itemsAtPoint:point]);
-        changed = YES;
-        break;
-      case LibretroTouchModeDPad:
-      case LibretroTouchModeStick:
-        changed = YES;
-        break;
-      case LibretroTouchModeIgnored:
-        break;
-    }
+    [_tracker moveTouch:LibretroOverlayKey(touch) x:point.x y:point.y];
   }
-  if (changed) [self publish];
+  [self publish];
 }
 
 - (void)endTouches:(NSSet<UITouch *> *)touches {
@@ -560,15 +228,7 @@ static NSArray<LibretroLaidOutItem *> *LibretroOverlaySlidable(NSArray<LibretroL
     [self editTouchesEnded:touches];
     return;
   }
-  for (UITouch *touch in touches) {
-    LibretroTouchTrack *track = [_tracks objectForKey:touch];
-    if (track == nil) continue;
-    if (track.mode == LibretroTouchModePointer) {
-      // Released where it was last seen.
-      [_input setPointerX:track.pointerX y:track.pointerY pressed:NO];
-    }
-    [_tracks removeObjectForKey:touch];
-  }
+  for (UITouch *touch in touches) [_tracker endTouch:LibretroOverlayKey(touch)];
   [self publish];
 }
 
@@ -580,16 +240,8 @@ static NSArray<LibretroLaidOutItem *> *LibretroOverlaySlidable(NSArray<LibretroL
   [self endTouches:touches];
 }
 
-- (void)clearTracks {
-  for (UITouch *touch in _tracks) {
-    LibretroTouchTrack *track = [_tracks objectForKey:touch];
-    if (track.mode == LibretroTouchModePointer) [_input setPointerX:track.pointerX y:track.pointerY pressed:NO];
-  }
-  [_tracks removeAllObjects];
-}
-
 - (void)releaseAllTouches {
-  [self clearTracks];
+  [_tracker endAllTouches];
   [self resetEditingGestures];
   [_input reset];
   [self publish];

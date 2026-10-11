@@ -53,6 +53,14 @@ static uint8_t init_report[96];
 static bool hardware_context;
 static unsigned shutdown_frame;
 
+/*
+ * neotest_poll=late: retro_run reads the pad without calling input_poll, as
+ * some cores do (the frontend must poll for them at their first read).
+ * neotest_poll=twice: input_poll twice per frame (mupen64plus polls at each
+ * controller access). The buttons read are kept in save_ram[11].
+ */
+static unsigned poll_mode;
+
 static int interface_available(void) {
   const struct retro_hw_render_interface *interface = NULL;
   return environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void *)&interface) && interface != NULL ? 1 : 0;
@@ -186,7 +194,8 @@ RETRO_API void retro_run(void) {
     read_option("neotest_init", init_report + 64);
     init_report[80]++;
   }
-  input_poll_cb();
+  if (poll_mode != 1) input_poll_cb();
+  if (poll_mode == 2) input_poll_cb();
   int16_t buttons = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
   frame_counter++;
   if (shutdown_frame != 0 && frame_counter == shutdown_frame) {
@@ -203,6 +212,7 @@ RETRO_API void retro_run(void) {
   save_ram[5] = (uint8_t)disk_index;
   memcpy(save_ram + 6, &content_checksum, sizeof(content_checksum));
   save_ram[10] = (uint8_t)(buttons & 0xFF);
+  save_ram[11] = (uint8_t)(buttons & 0xFF);
   video_cb(framebuffer, 320, 240, 320 * sizeof(uint32_t));
   audio_batch_cb(audio, 800);
 }
@@ -236,6 +246,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game) {
     snprintf(option_value, sizeof(option_value), "%s", variable.value);
   }
   shutdown_frame = option_is("neotest_shutdown_frame", "3") ? 3 : 0;
+  poll_mode = option_is("neotest_poll", "late") ? 1 : (option_is("neotest_poll", "twice") ? 2 : 0);
   hardware_context = false;
   if (option_is("neotest_hw", "on")) {
     static struct retro_hw_render_callback hw;

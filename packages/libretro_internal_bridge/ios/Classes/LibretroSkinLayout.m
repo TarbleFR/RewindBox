@@ -425,17 +425,29 @@ static BOOL LayoutOnTouchScreen(LibretroSkinLayoutResult *layout, NSArray<NSValu
   if (stick != nil) return @[ stick ];
 
   NSMutableArray<LibretroLaidOutItem *> *hits = [NSMutableArray array];
-  LibretroLaidOutItem *menu = nil;
+  BOOL insideFrame = NO;
   for (LibretroLaidOutItem *laidOut in layout.items) {
     if (laidOut.item.kind == LibretroSkinItemKindTouchScreen ||
         !LayoutContains(onTouchScreen ? laidOut.frame : laidOut.hitFrame, x, y)) {
       continue;
     }
     [hits addObject:laidOut];
-    if (menu == nil && [laidOut.item.inputs containsObject:@"menu"]) menu = laidOut;
+    if (LayoutContains(laidOut.frame, x, y)) insideFrame = YES;
+  }
+  // A finger on a drawn control presses that control: the extended edges of
+  // a neighbour only catch fingers that land outside every control, so a
+  // generous touch margin never adds an unintended second press.
+  if (insideFrame) {
+    NSMutableArray<LibretroLaidOutItem *> *framed = [NSMutableArray array];
+    for (LibretroLaidOutItem *laidOut in hits) {
+      if (LayoutContains(laidOut.frame, x, y)) [framed addObject:laidOut];
+    }
+    hits = framed;
   }
   // "menu" is exclusive (Delta).
-  if (menu != nil) return @[ menu ];
+  for (LibretroLaidOutItem *laidOut in hits) {
+    if ([laidOut.item.inputs containsObject:@"menu"]) return @[ laidOut ];
+  }
   if (hits.count > 0) return hits;
 
   NSMutableArray<LibretroLaidOutItem *> *touches = [NSMutableArray array];

@@ -852,7 +852,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)coreHost:(LibretroCoreHost *)host fillInput:(LibretroInputSnapshot *)snapshot {
-  [_input snapshot:snapshot];
+  [_input snapshot:snapshot frame:host.frameSerial];
 }
 
 - (BOOL)coreHost:(LibretroCoreHost *)host prepareHardwareRender:(struct retro_hw_render_callback *)callback {

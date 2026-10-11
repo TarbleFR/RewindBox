@@ -29,10 +29,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// button to assign" in the menu; nil when none.
 @property(nonatomic, readonly, nullable) NSString *pressedGamepadElement;
 
-/// Copies the combined state for the core (emulation thread).
-- (void)snapshot:(LibretroInputSnapshot *)snapshot;
+/// Copies the combined state for the core (emulation thread) during
+/// emulated frame `frame` (LibretroCoreHost.frameSerial). Touch presses go
+/// through LibretroInputLatch: a press shorter than one core read still
+/// reaches the core for a few frames (see LibretroInputLatch.h).
+- (void)snapshot:(LibretroInputSnapshot *)snapshot frame:(uint64_t)frame;
 
-/// Releases every button, for instance before the session menu opens.
+/// What the core received at its last read, for the touch diagnostics
+/// (main thread): port 0 buttons and analog axes, pointer, and the frame.
+- (LibretroInputSnapshot)lastDelivered:(uint64_t *_Nullable)frame;
+
+/// Releases every button, for instance before the session menu opens, and
+/// forgets touch presses the core has not seen yet.
 - (void)reset;
 
 @end

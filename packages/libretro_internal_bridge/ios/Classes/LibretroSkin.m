@@ -252,6 +252,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
     _identifier = @"";
     _inputs = @[];
     _unsupportedInputs = @[];
+    _adaptedInputs = @[];
   }
   return self;
 }
@@ -264,6 +265,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
   copy.hitFrame = _hitFrame;
   copy.inputs = _inputs;
   copy.unsupportedInputs = _unsupportedInputs;
+  copy.adaptedInputs = _adaptedInputs;
   copy.assetPath = _assetPath;
   copy.assetFrame = _assetFrame;
   copy.thumbstickAssetPath = _thumbstickAssetPath;
@@ -401,12 +403,20 @@ static NSString *SkinImagePath(NSString *root, id name) {
   return self;
 }
 
-/// Canonical input of a button or D-pad direction; the touch screen only
+/// Canonical input of a D-pad or stick direction; the touch screen only
 /// comes from an {x, y} object.
-- (NSString *)buttonInput:(NSString *)name {
-  NSString *input = [self.inputMap canonicalInput:name];
+- (NSString *)buttonInput:(NSString *)name converted:(BOOL *)converted {
+  NSString *input = [self.inputMap canonicalInput:name converted:converted];
   if (input.length == 0 || [input isEqualToString:@"touchScreen"]) return nil;
   return input;
+}
+
+/// Canonical inputs of one entry of a button's input list (a diagonal
+/// token gives two directions); empty when unsupported.
+- (NSArray<NSString *> *)buttonInputs:(NSString *)name converted:(BOOL *)converted {
+  NSArray<NSString *> *inputs = [self.inputMap canonicalInputs:name converted:converted];
+  if ([inputs containsObject:@"touchScreen"]) return @[];
+  return inputs;
 }
 
 - (NSString *)backgroundPathFromAssets:(id)object {
@@ -444,6 +454,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
   item.identifier = [NSString stringWithFormat:@"%@item%lu", self.itemPrefix ?: @"", (unsigned long)index];
   item.frame = frame;
   NSMutableArray<NSString *> *unsupported = [NSMutableArray array];
+  NSMutableArray<NSString *> *adapted = [NSMutableArray array];
   id inputs = object[@"inputs"];
   if ([inputs isKindOfClass:[NSString class]] || [inputs isKindOfClass:[NSArray class]]) {
     // Array of inputs pressed together, or a single string (Manic).
@@ -451,11 +462,15 @@ static NSString *SkinImagePath(NSString *root, id name) {
     NSMutableArray<NSString *> *canonical = [NSMutableArray array];
     for (id name in names) {
       if (![name isKindOfClass:[NSString class]]) continue;
-      NSString *input = [self buttonInput:name];
-      if (input == nil) {
+      BOOL converted = NO;
+      NSArray<NSString *> *resolved = [self buttonInputs:name converted:&converted];
+      if (resolved.count == 0) {
         [unsupported addObject:name];
-      } else if (![canonical containsObject:input]) {
-        [canonical addObject:input];
+        continue;
+      }
+      if (converted) [adapted addObject:name];
+      for (NSString *input in resolved) {
+        if (![canonical containsObject:input]) [canonical addObject:input];
       }
     }
     item.kind = LibretroSkinItemKindButton;
@@ -468,8 +483,10 @@ static NSString *SkinImagePath(NSString *root, id name) {
       NSMutableArray<NSString *> *targets = [NSMutableArray array];
       for (NSString *key in @[ @"up", @"down", @"left", @"right" ]) {
         id name = directions[key];
-        NSString *input = [name isKindOfClass:[NSString class]] ? [self buttonInput:name] : nil;
+        BOOL converted = NO;
+        NSString *input = [name isKindOfClass:[NSString class]] ? [self buttonInput:name converted:&converted] : nil;
         if (input == nil && [name isKindOfClass:[NSString class]]) [unsupported addObject:name];
+        if (input != nil && converted) [adapted addObject:name];
         [targets addObject:input ?: @""];
       }
       item.inputs = targets;
@@ -504,6 +521,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
     item.unsupportedInputs = unsupported;
     [self.warnings addObject:LibretroSkinWarningUnknownInputs];
   }
+  item.adaptedInputs = adapted;
   // The touch screen ignores extended edges (Delta).
   LibretroInsets itemEdges = SkinEdges(object[@"extendedEdges"], edges);
   item.hitFrame = item.kind == LibretroSkinItemKindTouchScreen ? frame : LibretroRectOutset(frame, itemEdges);

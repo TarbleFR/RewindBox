@@ -85,8 +85,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Items hit by a point, Delta rules: a thumbstick containing the point
 /// wins alone; else an item with the "menu" input is exclusive; else every
-/// button / D-pad whose hit frame contains the point; touch-screen items are
-/// returned only when nothing else is hit. On a drawn touch screen (the
+/// button / D-pad whose hit frame contains the point, except that when the
+/// point lies inside the visible frame of one or more of them, only those
+/// answer (a neighbour's extended edges never add a second press to a
+/// finger placed on a drawn control); touch-screen items are returned only
+/// when nothing else is hit. On a drawn touch screen (the
 /// layout's touch-screen containers, or the frame of a touch-screen item),
 /// a control is hit only inside its visible frame: its extended edges never
 /// take a touch from the touch screen.

@@ -2,24 +2,26 @@
 
 #import "LibretroInputMap.h"
 #import "LibretroSkinLayout.h"
+#import "LibretroTouchTracker.h"
 
 @class LibretroInputState;
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Touch layer of a skin, above LibretroSkinRenderer.
+/// Touch layer of a skin, above LibretroSkinRenderer (which only draws).
 ///
-/// Skin items produce logical inputs (LibretroInputMap names), translated to
-/// the RetroPad of port 0 through the console's input map; user touch remaps
-/// replace an item's inputs. Delta rules: every item under a finger fires,
-/// "menu" is exclusive, a finger can slide across the D-pad or between
-/// buttons, sticks stay bound to their finger. A touch inside a touch-screen
-/// screen (DS / 3DS bottom screen) that hits no other item becomes
-/// RETRO_DEVICE_POINTER through LibretroPointerFromPoint, with the screen's
-/// real output rectangle (`touchScreenMappings`), so it stays correct after a
-/// rotation, a format change or another arrangement of the screens. On the
-/// drawn touch screen a control answers only inside its visible frame, never
-/// through its extended edges.
+/// The interactive part lives in LibretroTouchTracker (portable, tested on
+/// macOS): this view hands it every UITouch (began, moved, ended,
+/// cancelled), then publishes what the fingers really send: RetroPad of
+/// port 0 and pointer to LibretroInputState, highlighted items to the
+/// renderer (only items that send an input), knobs and frontend actions.
+/// Skin items produce logical inputs (LibretroInputMap names); user touch
+/// remaps replace an item's inputs. Delta rules: every item under a finger
+/// fires, "menu" is exclusive, a finger can slide across the D-pad or
+/// between buttons, sticks stay bound to their finger. A touch inside a
+/// touch-screen screen (DS / 3DS bottom screen) that hits no other item
+/// becomes RETRO_DEVICE_POINTER with the screen's real output rectangle
+/// (`touchScreenMappings`).
 @interface LibretroTouchOverlay : UIView
 
 - (instancetype)initWithInput:(LibretroInputState *)input;
@@ -44,8 +46,17 @@ NS_ASSUME_NONNULL_BEGIN
 /// Frontend actions from skin items (menu, quick save/load, fast forward,
 /// swap screens). `pressed` is NO on release (used by "fastForward").
 @property(nonatomic, copy, nullable) void (^actionHandler)(LibretroFrontendAction action, BOOL pressed);
-/// Items currently pressed, for LibretroSkinRenderer highlights.
+/// Items currently sending an input, for LibretroSkinRenderer highlights.
+/// A touched item that sends nothing (unsupported or blocked input) is
+/// never reported here.
 @property(nonatomic, copy, nullable) void (^pressedItemsChanged)(NSSet<NSString *> *itemIdentifiers);
+/// Every published resolution (touch diagnostics). Set `recordsContacts`
+/// to get the per-finger details.
+@property(nonatomic, copy, nullable) void (^resolutionChanged)(LibretroTouchResolution *resolution);
+@property(nonatomic, assign) BOOL recordsContacts;
+/// Each new finger with the time iOS took to deliver it (seconds between
+/// the contact and touchesBegan), for the touch diagnostics.
+@property(nonatomic, copy, nullable) void (^touchDelivered)(CGPoint point, NSTimeInterval delay);
 /// Deflection of every thumbstick held by a finger, reported when it
 /// changes: {itemId: NSValue of a CGPoint, x and y in -1...1, y positive
 /// downward}; a released stick is absent (centred). For

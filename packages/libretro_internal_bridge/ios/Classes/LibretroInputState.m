@@ -2,6 +2,8 @@
 
 #import <GameController/GameController.h>
 
+#import "LibretroInputLatch.h"
+
 #include <os/lock.h>
 #include <string.h>
 
@@ -48,6 +50,9 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
   int16_t _padAnalog[LIBRETRO_MAX_PORTS][2][2];
   uint16_t _blockedButtons;
   BOOL _hasPhysicalController;
+  LibretroInputLatch _latch;
+  LibretroInputSnapshot _delivered;
+  uint64_t _deliveredFrame;
   // Main thread only.
   NSArray<NSString *> *_elements;
   LibretroInputTarget _elementTargets[LIBRETRO_GAMEPAD_ELEMENT_LIMIT];
@@ -71,6 +76,7 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
 - (void)setTouchInput:(LibretroCoreInput)input {
   os_unfair_lock_lock(&_lock);
   _touch = input;
+  LibretroInputLatchSetButtons(&_latch, input.buttons);
   os_unfair_lock_unlock(&_lock);
 }
 
@@ -79,6 +85,7 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
   _pointerX = x;
   _pointerY = y;
   _pointerPressed = pressed;
+  LibretroInputLatchSetPointer(&_latch, pressed);
   os_unfair_lock_unlock(&_lock);
 }
 
@@ -197,12 +204,15 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
   return requested;
 }
 
-- (void)snapshot:(LibretroInputSnapshot *)snapshot {
+- (void)snapshot:(LibretroInputSnapshot *)snapshot frame:(uint64_t)frame {
   if (snapshot == NULL) return;
   os_unfair_lock_lock(&_lock);
   uint16_t allowed = (uint16_t)~_blockedButtons;
+  // Touch presses as latched for this frame (never shorter than a read).
+  uint16_t touchButtons = LibretroInputLatchButtons(&_latch, frame);
+  bool pointerPressed = LibretroInputLatchPointer(&_latch, frame);
   for (unsigned port = 0; port < LIBRETRO_MAX_PORTS; port++) {
-    uint16_t buttons = _padButtons[port] | (port == 0 ? _touch.buttons : 0);
+    uint16_t buttons = _padButtons[port] | (port == 0 ? touchButtons : 0);
     snapshot->buttons[port] = (uint16_t)(buttons & allowed);
     for (unsigned stick = 0; stick < 2; stick++) {
       for (unsigned axis = 0; axis < 2; axis++) {
@@ -214,14 +224,25 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
   }
   snapshot->pointerX = _pointerX;
   snapshot->pointerY = _pointerY;
-  snapshot->pointerPressed = _pointerPressed;
+  snapshot->pointerPressed = pointerPressed;
+  _delivered = *snapshot;
+  _deliveredFrame = frame;
   os_unfair_lock_unlock(&_lock);
+}
+
+- (LibretroInputSnapshot)lastDelivered:(uint64_t *)frame {
+  os_unfair_lock_lock(&_lock);
+  LibretroInputSnapshot delivered = _delivered;
+  if (frame != NULL) *frame = _deliveredFrame;
+  os_unfair_lock_unlock(&_lock);
+  return delivered;
 }
 
 - (void)reset {
   os_unfair_lock_lock(&_lock);
   memset(&_touch, 0, sizeof(_touch));
   _pointerPressed = NO;
+  LibretroInputLatchReset(&_latch);
   os_unfair_lock_unlock(&_lock);
 }
 

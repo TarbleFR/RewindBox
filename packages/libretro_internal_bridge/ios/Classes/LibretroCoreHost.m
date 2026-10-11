@@ -108,6 +108,9 @@ static __unsafe_unretained LibretroCoreHost *gActiveHost = nil;
   unsigned _contentOverrideCount;
 
   LibretroInputSnapshot _input;
+  uint64_t _frameSerial;
+  // Set when the input snapshot was refreshed during the current frame.
+  BOOL _polledThisFrame;
 
   int16_t *_audioBuffer;
   size_t _audioCount;
@@ -268,12 +271,16 @@ static size_t HostAudioSampleBatch(const int16_t *data, size_t frames) {
 static void HostInputPoll(void) {
   LibretroCoreHost *host = gActiveHost;
   if (host == nil) return;
+  host->_polledThisFrame = YES;
   [host->_delegate coreHost:host fillInput:&host->_input];
 }
 
 static int16_t HostInputState(unsigned port, unsigned device, unsigned index, unsigned identifier) {
   LibretroCoreHost *host = gActiveHost;
   if (host == nil || port >= LIBRETRO_MAX_PORTS) return 0;
+  // Late polling: a core reading input before (or without) input_poll in
+  // this frame gets the current state, as in RetroArch.
+  if (!host->_polledThisFrame) HostInputPoll();
   const LibretroInputSnapshot *input = &host->_input;
   switch (device & RETRO_DEVICE_MASK) {
     case RETRO_DEVICE_JOYPAD:
@@ -964,6 +971,8 @@ static bool HostEnvironment(unsigned command, void *data) {
     _audioStatus(true, occupancy, occupancy < 25);
   }
   _audioCount = 0;
+  _frameSerial++;
+  _polledThisFrame = NO;
   _symbols.retro_run();
   if (_audioCount > 0) [_delegate coreHost:self audioFrames:_audioBuffer count:_audioCount];
 }

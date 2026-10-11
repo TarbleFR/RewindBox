@@ -138,6 +138,18 @@ static NSDictionary<NSString *, NSString *> *AliasTable(void) {
       NSString *cButton = [@"c" stringByAppendingString:suffix];
       aliases[[@"c-" stringByAppendingString:suffix.lowercaseString]] = cButton;
     }
+    // Spellings Provenance accepts (DeltaSkinInputHandler.swift): "c up",
+    // "rightAnalogUp", "analogUp", "run" / "play" for start, 3DS "zl" / "zr".
+    for (NSString *suffix in DirectionSuffixes()) {
+      NSString *lower = suffix.lowercaseString;
+      aliases[[@"c " stringByAppendingString:lower]] = [@"c" stringByAppendingString:suffix];
+      aliases[[@"rightanalog" stringByAppendingString:lower]] = [@"rightStick" stringByAppendingString:suffix];
+      aliases[[@"analog" stringByAppendingString:lower]] = [@"leftStick" stringByAppendingString:suffix];
+    }
+    aliases[@"run"] = @"start";
+    aliases[@"play"] = @"start";
+    aliases[@"zl"] = @"l2";
+    aliases[@"zr"] = @"r2";
     aliases[@"c▲"] = @"cUp";
     aliases[@"c▼"] = @"cDown";
     aliases[@"c◀"] = @"cLeft";
@@ -155,6 +167,47 @@ static NSDictionary<NSString *, NSString *> *AliasTable(void) {
     table = [aliases copy];
   });
   return table;
+}
+
+/// Diagonal D-pad tokens of Delta / Provenance skins ("upLeft",
+/// "up_left", "up-left", "up+left", "leftUp"...) -> their two directions,
+/// pressed together (Provenance fans them out the same way, issue #2611).
+static NSDictionary<NSString *, NSArray<NSString *> *> *DiagonalTable(void) {
+  static NSDictionary<NSString *, NSArray<NSString *> *> *table;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSMutableDictionary<NSString *, NSArray<NSString *> *> *diagonals = [NSMutableDictionary dictionary];
+    NSArray<NSArray<NSString *> *> *pairs = @[ @[ @"up", @"left" ], @[ @"up", @"right" ], @[ @"down", @"left" ],
+                                               @[ @"down", @"right" ] ];
+    for (NSArray<NSString *> *pair in pairs) {
+      for (NSString *separator in @[ @"", @"_", @"-", @"+" ]) {
+        diagonals[[NSString stringWithFormat:@"%@%@%@", pair[0], separator, pair[1]]] = pair;
+        diagonals[[NSString stringWithFormat:@"%@%@%@", pair[1], separator, pair[0]]] = pair;
+      }
+    }
+    table = [diagonals copy];
+  });
+  return table;
+}
+
+/// Raw names a Delta skin uses as they are (no conversion): the canonical
+/// names, Delta's own spellings of the N64 stick and the touch screen.
+static NSSet<NSString *> *NativeNames(void) {
+  static NSSet<NSString *> *names;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSMutableSet<NSString *> *set = [NSMutableSet set];
+    for (NSString *name in @[
+           @"up", @"down", @"left", @"right", @"a", @"b", @"c", @"x", @"y", @"z", @"l", @"r", @"l2", @"r2", @"l3",
+           @"r3", @"start", @"select", @"mode", @"cup", @"cdown", @"cleft", @"cright", @"touchscreenx",
+           @"touchscreeny", @"analogstickup", @"analogstickdown", @"analogstickleft", @"analogstickright"
+         ]) {
+      [set addObject:name];
+    }
+    for (NSString *name in ActionNames()) [set addObject:name.lowercaseString];
+    names = [set copy];
+  });
+  return names;
 }
 
 /// Aliases that name PlayStation face buttons; other consoles refuse them.
@@ -287,6 +340,9 @@ static NSSet<NSString *> *PlayStationAliases(void) {
     button(@"r", @"R", RETRO_DEVICE_ID_JOYPAD_R);
     button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
     // C buttons drive the right analog stick, as the historical overlay did.
+    // A skin's right thumbstick (rightStick*, "rightAnalogUp"...) drives the
+    // same axes.
+    stick(@"rightStick", 1);
     NSArray<NSString *> *cButtons = @[ @"cUp", @"cDown", @"cLeft", @"cRight" ];
     NSArray<NSString *> *cGlyphs = @[ @"C▲", @"C▼", @"C◀", @"C▶" ];
     const unsigned axes[4] = {1, 1, 0, 0};
@@ -411,15 +467,50 @@ static NSSet<NSString *> *PlayStationAliases(void) {
 }
 
 - (NSString *)canonicalInput:(NSString *)raw {
+  return [self canonicalInput:raw converted:NULL];
+}
+
+- (NSString *)canonicalInput:(NSString *)raw converted:(BOOL *)converted {
+  if (converted != NULL) *converted = NO;
   if (![raw isKindOfClass:[NSString class]]) return nil;
   NSCharacterSet *spaces = [NSCharacterSet whitespaceAndNewlineCharacterSet];
   NSString *key = [raw stringByTrimmingCharactersInSet:spaces].lowercaseString;
   NSString *canonical = AliasTable()[key];
   if (canonical == nil) return nil;
   if (!_playStation && [PlayStationAliases() containsObject:key]) return nil;
+  BOOL adapted = ![NativeNames() containsObject:key];
+  // A stick on a console without one drives its D-pad (Provenance converts
+  // the joystick of D-pad-only systems the same way): a GBA or Master
+  // System skin with a thumbstick stays playable.
+  if ([self targetForInput:canonical].kind == LibretroInputTargetNone && [canonical hasPrefix:@"leftStick"]) {
+    NSString *direction = [canonical substringFromIndex:@"leftStick".length].lowercaseString;
+    if ([self targetForInput:direction].kind == LibretroInputTargetButton) {
+      canonical = direction;
+      adapted = YES;
+    }
+  }
   // Unusable or blocked for this console (3ds l3 / r3, nds r3...).
   if ([self targetForInput:canonical].kind == LibretroInputTargetNone) return nil;
+  if (converted != NULL) *converted = adapted;
   return canonical;
+}
+
+- (NSArray<NSString *> *)canonicalInputs:(NSString *)raw converted:(BOOL *)converted {
+  if (converted != NULL) *converted = NO;
+  if (![raw isKindOfClass:[NSString class]]) return @[];
+  NSCharacterSet *spaces = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+  NSArray<NSString *> *diagonal = DiagonalTable()[[raw stringByTrimmingCharactersInSet:spaces].lowercaseString];
+  if (diagonal != nil) {
+    NSMutableArray<NSString *> *directions = [NSMutableArray array];
+    for (NSString *direction in diagonal) {
+      if ([self targetForInput:direction].kind != LibretroInputTargetNone) [directions addObject:direction];
+    }
+    if (directions.count != diagonal.count) return @[];
+    if (converted != NULL) *converted = YES;
+    return directions;
+  }
+  NSString *canonical = [self canonicalInput:raw converted:converted];
+  return canonical != nil ? @[ canonical ] : @[];
 }
 
 - (LibretroInputTarget)targetForInput:(NSString *)input {
