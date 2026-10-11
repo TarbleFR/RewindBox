@@ -21,27 +21,49 @@ def module(name):
 
 class DeliveryPipeline(unittest.TestCase):
     def test_reuse_rejects_modified_unrelated_runtime(self):
-        file=ROOT/'native/armsx2_internal_helper/Info.plist'
-        old=file.read_bytes()
-        try:
-            file.write_bytes(old+b'\n')
-            with self.assertRaisesRegex(ValueError,'Unreviewed validation input changed'):
-                reuse.verify_tree()
-        finally:
-            file.write_bytes(old)
+        for path in ('native/armsx2_internal_helper/Info.plist',
+                     'native/neoswap-donation/Broker.cpp'):
+            with self.subTest(path=path):
+                file=ROOT/path
+                old=file.read_bytes()
+                try:
+                    file.write_bytes(old+b'\n')
+                    with self.assertRaisesRegex(ValueError,'Unreviewed validation input changed: '+path):
+                        reuse.verify_tree()
+                finally:
+                    file.write_bytes(old)
 
     def test_current_library_and_native_reference_remain_exact(self):
         subprocess.run(['python3','test/retroarch_baseline_scope_test.py'],cwd=ROOT,check=True)
         changed,unchanged=reuse.verify_tree()
         self.assertGreater(len(unchanged),500)
         self.assertIn('lib/services/retroarch_library_service.dart',changed)
-        # Every native engine, extension and storage source is byte-identical.
-        # The only native path the Build434 NeoSwap delta touches is the hash
-        # manifest read by the NeoSwap scope gate, which describes the
-        # reviewed packages/neo_swap sources and is not compiled anywhere.
+        # RPCS3's host allocators now use best fit. Their two canonical native
+        # files are tested anew; IPC, extensions, storage and other engines
+        # keep their original identities. The existing manifest is metadata.
         native_changed={p for p in changed if p.startswith('native/')}
-        self.assertLessEqual(native_changed,{'native/import-memory-candidate.json'})
-        self.assertTrue(native_changed<=reuse.NEOSWAP_434_DELTA|reuse.NEOSWAP_435_DELTA)
+        self.assertEqual(native_changed,{
+            'native/import-memory-candidate.json',
+            'native/neoswap-donation/Pool.cpp',
+            'native/neoswap-relay/Backend.cpp',
+        })
+        self.assertTrue(native_changed<=reuse.NEOSWAP_434_DELTA|reuse.NEOSWAP_435_DELTA|reuse.NEOSWAP_MELONX_DELTA)
+
+    def test_changed_neoswap_sources_have_fresh_native_checks(self):
+        workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
+        native=workflow.split('  native:\n',1)[1].split('  cold:\n',1)[0]
+        checks=native.split('name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane',1)[1]
+        checks=checks.split('    - name: Preserve exact NeoSwap native validation',1)[0]
+        for path in reuse.NEOSWAP_MELONX_DELTA:
+            if not path.endswith('NeoSwapDonationScheduler.h'):
+                self.assertIn(path,checks)
+        self.assertIn('test/neoswap_preparation_test.cpp',checks)
+        self.assertIn('test/neoswap_relay_loans_test.cpp',checks)
+        self.assertIn('-fsanitize=address,undefined',checks)
+        self.assertIn('-DNEOSWAP_DONATION=1 -DNEOSWAP_RELAY=1 -DNEOSWAP_SHADER_STORAGE=1',checks)
+        self.assertIn('-fsyntax-only',checks)
+        self.assertIn('-arch arm64',checks)
+        self.assertIn('hashlib.sha256',checks)
 
     def test_release_device_and_signature_guards_are_active(self):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()

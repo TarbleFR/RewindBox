@@ -7,6 +7,14 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = json.loads((ROOT / 'docs/retroarch-baseline-manifest.json').read_text())
+# Maintainer-requested RPCS3 NeoSwap adaptation, reviewed at 364b4d1a on
+# 11 October 2026. Keep the historical manifest intact; pin the two changed
+# host allocators explicitly. IPC, extensions and other native engines retain
+# every historical fingerprint. The delivery lane runs their new native tests.
+NEOSWAP_MELONX_REVIEWED = {
+    'native/neoswap-donation/Pool.cpp': '4bf08a2242fe53b1ed482731748697d750d879214b85b894d31a28f84a54b577',
+    'native/neoswap-relay/Backend.cpp': '7745928d72eb3f7fb20b2e80cfd089f058238afbcdd5d912a83314d52dbb4d98',
+}
 
 
 class RetroArchBaselineScope(unittest.TestCase):
@@ -48,9 +56,11 @@ class RetroArchBaselineScope(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(data).hexdigest(), expected)
 
     def test_native_sources_keep_their_existing_identity(self):
+        self.assertLessEqual(NEOSWAP_MELONX_REVIEWED.keys(), MANIFEST['native_sha256'].keys())
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
-                self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected)
+                reviewed = NEOSWAP_MELONX_REVIEWED.get(name, expected)
+                self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), reviewed)
 
     def test_retired_repairs_are_outside_executable_app_sources(self):
         for name in ('embedded_library_recovery.dart', 'retroarch_folder_recovery.dart', 'retroarch_library_importer.dart'):

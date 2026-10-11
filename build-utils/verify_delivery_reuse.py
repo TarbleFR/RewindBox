@@ -696,6 +696,20 @@ BUILD437_DELTA = {
     'test/library_ui_sources_view_test.dart',
 }
 DELTA |= BUILD437_DELTA
+# Maintainer-requested MeloNX memory adaptation for RPCS3, 11 October 2026.
+# These host allocator/control-plane inputs require the new NeoSwap native
+# checks in retroarch-delivery.yml. Core recipes, Mach IPC, extension sources,
+# entitlements and every other emulator stay outside this explicit delta.
+NEOSWAP_MELONX_DELTA = {
+    'native/neoswap-donation/Pool.cpp',
+    'native/neoswap-relay/Backend.cpp',
+    'packages/neo_swap/ios/Classes/NeoSwapDonationScheduler.h',
+    'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+    'test/neoswap_demand_test.cpp',
+    'test/neoswap_pool_fragmentation_test.cpp',
+    'test/relay_backend_test.cpp',
+}
+DELTA |= NEOSWAP_MELONX_DELTA
 INPUT_ROOTS =('lib/', 'packages/', 'native/', 'build-utils/', 'assets/', 'test/')
 
 def sha(data):
