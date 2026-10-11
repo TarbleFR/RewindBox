@@ -1,9 +1,9 @@
-# Bouton retour des lecteurs — Build 438 (11 octobre 2026)
+# Bouton retour des lecteurs — Build 440 (11 octobre 2026)
 
 Demande du mainteneur du 11 octobre 2026 : « ajoute un bouton retour en
 arrière pour la lecture des livres pour le lecteur car c’est compliqué de
 sortir et revenir dans le menu précédent ». Branche `Claude`, base
-`a434881e` (cadrage Build 438). Aucune modification de `lib/main.dart`, des
+`a434881e` (cadrage Build 440). Aucune modification de `lib/main.dart`, des
 catalogues de traduction, des workflows ni des moteurs.
 
 ## Problème (constaté dans les sources)
@@ -34,14 +34,14 @@ catalogues de traduction, des workflows ni des moteurs.
   Bluetooth) ; la barre du haut quitte l’arbre VoiceOver dès le début de son
   masquage (au lieu de la fin du fondu), pour qu’un seul « Retour » soit
   annoncé. Barres masquées, leurs commandes (barre du haut et barre du bas)
-  ne sont ni touchables ni focalisables (avant la 438, Tab parcourait encore
+  ne sont ni touchables ni focalisables (avant la 440, Tab parcourait encore
   les barres invisibles).
 - Pendant les 200 ms où la barre du haut glisse vers le bas, sa flèche
   n’atteint la place du bouton flottant qu’en fin de course : le bouton
   flottant garde donc les touchers à sa place jusqu’à la fin du glissement
   (fin de `AnimatedSlide`), déjà retiré de VoiceOver et du focus. Un toucher
   à cet endroit est toujours un retour (les deux appellent le même
-  `_close()`), jamais un tour de page. Revue 438 : avant ce correctif, un
+  `_close()`), jamais un tour de page. Revue 440 : avant ce correctif, un
   toucher 20 à 100 ms après l’apparition des barres atteignait la page
   (page précédente, barres masquées). Au masquage, il reprend les touchers
   immédiatement (inchangé).
@@ -73,7 +73,7 @@ catalogues de traduction, des workflows ni des moteurs.
   mêmes mots (environ 38 pt plus bas, rien n’est perdu) et l’aller-retour
   ouverture/fermeture reste exact (tests existants inchangés). Le texte
   défile toujours sur tout l’écran.
-- **EPUB/TXT, tour de page** (revue 438) : le pas de 0,9 écran (zones de
+- **EPUB/TXT, tour de page** (revue 440) : le pas de 0,9 écran (zones de
   toucher gauche/droite, manette gauche/droite) ne laissait que 0,1 écran
   de recouvrement, moins que la bande du bouton : la première ligne pas
   encore vue arrivait sous le disque (portrait y ≈ 67-95, paysage
@@ -129,7 +129,7 @@ catalogues de traduction, des workflows ni des moteurs.
   flèche (portrait et paysage) ; libellés `fr` et `zh-TW` (chinois
   traditionnel) ; couleurs des palettes sombre et claire ; contraste de tous
   les thèmes ; ligne EPUB/TXT sous le bouton.
-- Ajouts de la revue 438 (9 tests) : toucher à la place du retour 20, 60,
+- Ajouts de la revue 440 (9 tests) : toucher à la place du retour 20, 60,
   100, 140 et 250 ms après l’apparition des barres (lecteur de pages) et à
   60 ms (EPUB/TXT) : un seul retrait, page ou ligne conservée, aucun tour
   de page ; Tab (clavier) barres affichées puis masquées : jamais les
@@ -141,7 +141,7 @@ catalogues de traduction, des workflows ni des moteurs.
   disque avait déjà été vue, la position n’est pas au-delà de cette ligne,
   le tour reste supérieur à 70 % de l’écran ; en arrière, la ligne coupée
   par le bouton revient entière à l’écran.
-- Contrat remplacé (revue 438) : pendant le glissement de la barre du haut,
+- Contrat remplacé (revue 440) : pendant le glissement de la barre du haut,
   `expectOneBack(slidingIn: true)` attend désormais deux cibles touchables
   (la flèche en mouvement et le bouton flottant, même action) au lieu
   d’une, toujours un seul nœud VoiceOver et un seul « Retour »
@@ -164,7 +164,7 @@ catalogues de traduction, des workflows ni des moteurs.
   aucun test : le double retrait est aussi empêché par le navigateur
   (pointeurs absorbés après un retrait, `maybePop` qui vérifie la dernière
   route) ; le test vérifie le résultat visible, pas ce garde.
-- Contrôles de sensibilité de la revue 438 (mutations temporaires, non
+- Contrôles de sensibilité de la revue 440 (mutations temporaires, non
   conservées) : pas de 0,9 écran rétabli → les deux tests de tour EPUB/TXT
   échouent (portrait : ligne à y = 88,7 pour un disque finissant à 102 ;
   paysage : 37,9 pour 43) ; plafond en avant seulement → échec en arrière
@@ -184,7 +184,7 @@ catalogues de traduction, des workflows ni des moteurs.
   `library_reader_orientation_contract_test.py` reste OK.
   `flutter analyze --no-pub` sans remarque sur les fichiers modifiés.
   Aucun essai sur iPhone.
-- Après les corrections de la revue 438, mêmes conditions :
+- Après les corrections de la revue 440, mêmes conditions :
   `flutter test --no-pub test/library_*_test.dart` → 712 réussis,
   2 ignorés, le même échec connu hors sujet ; les fichiers
   `library_reader_*` → 132 réussis (les 123 plus les 9 nouveaux) ;
@@ -194,7 +194,7 @@ catalogues de traduction, des workflows ni des moteurs.
 
 ## Intégration
 
-- Fichiers à ajouter à `BUILD438_DELTA` : `reader/library_reader_chrome.dart`,
+- Fichiers à ajouter à `BUILD440_DELTA` : `reader/library_reader_chrome.dart`,
   `reader/library_page_reader_screen.dart`,
   `reader/library_book_reader_screen.dart`,
   `reader/library_reflow_view.dart` (constantes des titres partagées avec le

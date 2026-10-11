@@ -5,7 +5,7 @@ import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/models/config_model.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 
-/// Build 438: the consoles tab (a console with a "+") is drawn right after
+/// Build 440: the consoles tab (a console with a "+") is drawn right after
 /// Systems and before Search on iOS, is cycled in that order by LB/RB, and
 /// can never be hidden; the canonical tab indices do not move.
 void main() {

@@ -53,7 +53,7 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
     _refreshJitFallbackState();
   }
 
-  /// The BIOS checker of the embedded libretro cores (Build 438) exists on
+  /// The BIOS checker of the embedded libretro cores (Build 440) exists on
   /// iOS only, where the engine runs (the platform Flutter reports, so a
   /// widget test can stand in for an iPhone).
   bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;

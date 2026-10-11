@@ -2,7 +2,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Settings › General › "120 Hz interface" (Build 438).
+/// Settings › General › "120 Hz interface" (Build 440).
 ///
 /// `+load` installs the engine hook (UiRefreshRateEngineHook.h) before
 /// UIApplicationMain, so the Flutter view's Metal layer, the vsync waiter and

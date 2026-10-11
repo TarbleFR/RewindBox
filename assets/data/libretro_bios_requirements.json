@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "about": "BIOS and system files read by the libretro cores embedded in NeoStation iOS (Build 438). Public sizes and checksums only, never BIOS bytes. Read by lib/services/libretro_bios_catalog.dart and checked by test/libretro_bios_requirements_test.py.",
+  "about": "BIOS and system files read by the libretro cores embedded in NeoStation iOS (Build 440). Public sizes and checksums only, never BIOS bytes. Read by lib/services/libretro_bios_catalog.dart and checked by test/libretro_bios_requirements_test.py.",
   "sources": {
     "coreInfo": {
       "repository": "https://github.com/libretro/libretro-core-info",

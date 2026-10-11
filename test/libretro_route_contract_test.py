@@ -63,7 +63,7 @@ libretro_service = read('lib/services/libretro_internal_service.dart')
 require("'logsDirectory': (await logsDirectory()).path" in libretro_service, 'session journal directory sent')
 require("static Future<Directory> logsDirectory() => _child('Logs');" in libretro_service,
         'session journal under Documents/Libretro/Logs')
-# Build 438: game settings no longer offer the RetroArch app, but a game whose
+# Build 440: game settings no longer offer the RetroArch app, but a game whose
 # stored choice is already 'retroarch' keeps opening the app (no preference
 # migration): the eligibility guard, the stored value and the per-game key
 # prefix stay exactly as they were, and listing the choices writes nothing.

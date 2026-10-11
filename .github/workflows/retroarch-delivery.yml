@@ -95,6 +95,10 @@ jobs:
         flutter test test/library_*_test.dart
         # Donation settings and the canonical twelve-locale catalogue changed.
         flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart
+        # Build 440: Wii Shake catalog, RAP licences, consoles tab, 120 Hz
+        # interface, BIOS checker and Embedded RetroArch settings (the reader
+        # Back button and Library source files are in test/library_*).
+        flutter test test/dolphin_shake_locale_test.dart test/rpcs3_rap_licence_service_test.dart test/rpcs3_rap_locale_test.dart test/rpcs3_rap_import_menu_test.dart test/rpcs3_firmware_library_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/frame_cadence_estimator_test.dart test/ui_refresh_rate_service_test.dart test/ui_refresh_rate_locale_test.dart test/general_settings_ui_refresh_rate_test.dart test/notification_bell_idle_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart
         python3 - <<'PY'
         import json,os
         from pathlib import Path
@@ -124,6 +128,12 @@ jobs:
         python3 test/cheats_media_source_contract_test.py
         python3 test/library_reader_orientation_contract_test.py
         python3 test/neoswap_donor_contract_test.py
+        python3 test/dolphin_shake_wiring_test.py
+        python3 test/dolphin_shake_assignment_test.py
+        python3 test/rpcs3_rap_core_contract_test.py
+        python3 test/rpcs3_ui_status_cleanup_test.py
+        python3 test/ui_refresh_rate_scope_test.py
+        python3 test/libretro_bios_requirements_test.py
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
@@ -823,6 +833,8 @@ jobs:
         PY
     - name: Check catalog options and no-JIT overrides against the pinned cores
       run: python3 test/libretro_core_options_test.py --cores dist/libretro
+    - name: Check BIOS names, OpenBIOS option and bundled PPSSPP files against the pinned cores
+      run: python3 test/libretro_bios_requirements_test.py --cores dist/libretro
     - name: Download validated KartPad Core candidate
       if: ${{ env.KARTPAD_CANDIDATE == '1' }}
       shell: bash
@@ -1055,6 +1067,17 @@ jobs:
             bridge=z.read(root+'Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge')
             for marker in (b'DolphinFramePacing',b'DOLDisplaySettings',b'MTLUsePresentDrawable',b'ShaderCompilationMode',b'setPreferredFrameRateRange:'):
                 assert marker in bridge,marker
+            # Build 440: Wii touch Shake and its controller assignment are in the bridge.
+            for marker in (b'NeoStation.Dolphin.TouchShake',b'shakeBinding'):
+                assert marker in bridge,marker
+            # Build 440 120 Hz interface: the Flutter seam exists and the plugin is linked into Runner.
+            flutter=z.read(root+'Frameworks/Flutter.framework/Flutter')
+            for marker in (b'FlutterDisplayLinkManager',b'displayRefreshRate',b'maxRefreshRateEnabledOnIPhone'):
+                assert marker in flutter,marker
+            runner=z.read(root+info['CFBundleExecutable'])
+            for marker in (b'NeoStation.UI.HighRefreshRate.Enabled',b'UiRefreshRatePlugin',b'neostation/ui_refresh_rate'):
+                assert marker in runner,marker
+            assert not any(n.startswith(root+'Frameworks/ui_refresh_rate.framework/') for n in z.namelist()),'ui_refresh_rate must be linked into Runner'
         PY
         ARMSX2_SOURCE_REVISION="$(python3 -c 'import json; print(json.load(open("build-utils/armsx2/source.json"))["revision"])')"
         python3 build-utils/validate_armsx2_ipa.py "dist/$IPA_NAME.ipa" \
@@ -1351,6 +1374,17 @@ jobs:
             bridge=z.read(root+'Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge')
             for marker in (b'DolphinFramePacing',b'DOLDisplaySettings',b'MTLUsePresentDrawable',b'ShaderCompilationMode',b'setPreferredFrameRateRange:'):
                 assert marker in bridge,marker
+            # Build 440: Wii touch Shake and its controller assignment are in the bridge.
+            for marker in (b'NeoStation.Dolphin.TouchShake',b'shakeBinding'):
+                assert marker in bridge,marker
+            # Build 440 120 Hz interface: the Flutter seam exists and the plugin is linked into Runner.
+            flutter=z.read(root+'Frameworks/Flutter.framework/Flutter')
+            for marker in (b'FlutterDisplayLinkManager',b'displayRefreshRate',b'maxRefreshRateEnabledOnIPhone'):
+                assert marker in flutter,marker
+            runner=z.read(root+info['CFBundleExecutable'])
+            for marker in (b'NeoStation.UI.HighRefreshRate.Enabled',b'UiRefreshRatePlugin',b'neostation/ui_refresh_rate'):
+                assert marker in runner,marker
+            assert not any(n.startswith(root+'Frameworks/ui_refresh_rate.framework/') for n in z.namelist()),'ui_refresh_rate must be linked into Runner'
         PY
         ARMSX2_SOURCE_REVISION="$(python3 -c 'import json; print(json.load(open("build-utils/armsx2/source.json"))["revision"])')"
         python3 build-utils/validate_armsx2_ipa.py "dist/$IPA_NAME.ipa" \

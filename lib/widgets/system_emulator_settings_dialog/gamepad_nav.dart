@@ -61,7 +61,7 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
       }
       return;
     }
-    // Embedded libretro engine panel: it owns its rows (Build 438).
+    // Embedded libretro engine panel: it owns its rows (Build 440).
     final libretroPanel = _libretroPanel;
     if (libretroPanel != null) {
       libretroPanel.moveUp();

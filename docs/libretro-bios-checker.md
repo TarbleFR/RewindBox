@@ -1,6 +1,6 @@
-# Vérificateur de BIOS des cœurs libretro intégrés (Build 438)
+# Vérificateur de BIOS des cœurs libretro intégrés (Build 440)
 
-Paquet E de `docs/build438-plan.md`. Réglages › Outils › « Vérificateur de
+Paquet E de `docs/build440-plan.md`. Réglages › Outils › « Vérificateur de
 BIOS » (iOS uniquement, quatrième ligne de l’onglet Outils) ouvre
 `lib/screens/libretro/libretro_bios_checker_screen.dart`. La page indique,
 pour chaque console du moteur intégré, les fichiers que lisent ses cœurs, où

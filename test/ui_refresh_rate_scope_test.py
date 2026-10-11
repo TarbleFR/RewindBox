@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scope guard of the Build 438 "120 Hz interface" option (any OS).
+"""Scope guard of the Build 440 "120 Hz interface" option (any OS).
 
 The option must only act on the Flutter engine's own refresh-rate request:
 one class method of Flutter.framework is wrapped, nothing that an emulator

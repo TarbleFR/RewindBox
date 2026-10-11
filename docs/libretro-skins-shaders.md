@@ -233,10 +233,10 @@ les autres moteurs ne changent pas.
 ## 8. Accès dans l'application
 
 - Onglet consoles de la barre principale (iOS, icône console avec « + »,
-  juste après la première icône ; Build 438, remplace Réglages › Dossiers ›
+  juste après la première icône ; Build 440, remplace Réglages › Dossiers ›
   **Consoles intégrées**) : liste des 17 consoles, ajout au menu principal,
   import de jeux même sans jeu existant (cas de la 3DS), gestion des skins.
-  Voir `docs/consoles-tab-build438.md`.
+  Voir `docs/consoles-tab-build440.md`.
 - Liste de jeux d'une console intégrée : menu d'actions › Skins.
 - En jeu : menu › Affichage et commandes › Skins, Format d'écran, Disposition
   des écrans (DS/3DS), Shaders, Commandes.

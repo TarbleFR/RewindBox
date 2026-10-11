@@ -1,5 +1,5 @@
 name: UI refresh rate (120 Hz interface) native checks
-# Build 438. Manual only: on the Claude branch run
+# Build 440. Manual only: on the Claude branch run
 #   gh workflow run ui-refresh-rate-check.yml --ref Claude
 on:
   workflow_dispatch:

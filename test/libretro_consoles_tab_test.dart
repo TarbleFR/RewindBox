@@ -39,7 +39,7 @@ class _SlowMenu extends LibretroMainMenu {
   }
 }
 
-/// Build 438: the consoles page as the body of the main bar's consoles tab.
+/// Build 440: the consoles page as the body of the main bar's consoles tab.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;

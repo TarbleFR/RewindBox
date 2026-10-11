@@ -7,7 +7,7 @@ import 'package:neostation/l10n/dolphin_extended_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
 import 'package:neostation/l10n/dolphin_shake_locale.dart';
 
-/// Build 438 Wii "Shake": the touch button and the Controls row texts reach
+/// Build 440 Wii "Shake": the touch button and the Controls row texts reach
 /// the native Dolphin overlay and menu only through the session labels.
 void main() {
   final placeholders = RegExp(r'\{\w+\}');

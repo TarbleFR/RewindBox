@@ -164,7 +164,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         // Current labels of the import menu (Rpcs3UiLocale and, since
-        // Build 438, Rpcs3RapLocale). Save export moved to the RPCS3
+        // Build 440, Rpcs3RapLocale). Save export moved to the RPCS3
         // manager, which "Open RPCS3" opens.
         expect(find.text('Import games'), findsOneWidget);
         expect(find.text('Import a decrypted game folder'), findsOneWidget);

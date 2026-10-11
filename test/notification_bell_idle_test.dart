@@ -51,7 +51,7 @@ void main() {
   ) async {
     GlobalNotificationService().dismiss();
     await pumpBell(tester);
-    // Before Build 438 the pulse repeated forever and this timed out.
+    // Before Build 440 the pulse repeated forever and this timed out.
     await tester.pumpAndSettle();
     expect(tester.hasRunningAnimations, isFalse);
     expect(tester.binding.hasScheduledFrame, isFalse);

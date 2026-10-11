@@ -73,7 +73,7 @@ class LibretroEngineIdentityTile extends StatelessWidget {
 }
 
 /// Emulators tab of System Settings for a system run by the embedded libretro
-/// engine (Build 438): the engine identity, the console's skins, the BIOS
+/// engine (Build 440): the engine identity, the console's skins, the BIOS
 /// checker filtered on the console, and a reminder that screen format,
 /// shaders, controls, cheats and core settings live in the in-game menu.
 ///

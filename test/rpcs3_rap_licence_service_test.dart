@@ -1,4 +1,4 @@
-// RAP licence import (Build 438): files picked in Files are validated in the
+// RAP licence import (Build 440): files picked in Files are validated in the
 // RPCS3 format and installed where the pinned Core looks for them,
 // <Data>/dev_hdd0/home/00000001/exdata/<CONTENT_ID>.rap, without starting
 // the Core or JIT and without touching any other user data.

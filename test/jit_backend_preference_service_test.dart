@@ -43,7 +43,7 @@ void main() {
     expect(launcher, contains('final shortcutUri = buildRunUri'));
   });
 
-  // Build 438 replaces the three-entry contract: screen sharing still lives
+  // Build 440 replaces the three-entry contract: screen sharing still lives
   // in the main menu, and iOS gains the BIOS checker of the embedded libretro
   // cores as a fourth entry. Every other platform keeps exactly three.
   test(
@@ -79,7 +79,7 @@ void main() {
     expect(tools, contains('if (index == 1 && _jitFallbackStateLoaded'));
     expect(tools, contains('if (index == 2)'));
     expect(tools, contains('builder: (_) => const NeoSwapDialog()'));
-    // Index 3 is the iOS-only BIOS checker (Build 438), never NeoPlay.
+    // Index 3 is the iOS-only BIOS checker (Build 440), never NeoPlay.
     expect(tools, contains('if (index == 3 && _showBiosChecker)'));
     expect(
       tools,

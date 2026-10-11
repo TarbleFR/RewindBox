@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'database_test_helper.dart';
 
-/// Build 438: consoles added from the consoles tab reach the main menu at
+/// Build 440: consoles added from the consoles tab reach the main menu at
 /// once, stay after the scans that drop systems without games (startup scan
 /// included), keep their hidden state, are never duplicated per hardware
 /// console, and touch nothing else.

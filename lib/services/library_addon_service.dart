@@ -593,7 +593,7 @@ class LibraryAddonException implements Exception {
 class LibraryAddonService {
   LibraryAddonService._() {
     // iOS: each installed source is also a file of Files › NeoStation ›
-    // Library › Sources; deleting the file removes the source (Build 438).
+    // Library › Sources; deleting the file removes the source (Build 440).
     if (LibrarySourceFiles.supportedByPlatform) {
       _attachSourceFiles(LibrarySourceFiles(this));
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provenance guard for the RAP licence import (Build 438).
+"""Provenance guard for the RAP licence import (Build 440).
 
 NeoStation installs RAP licences from Dart, without the Core, at
 <support>/NeoStation/RPCS3/Data/dev_hdd0/home/00000001/exdata/<CONTENT_ID>.rap.
@@ -13,7 +13,7 @@ That path is only right for the pinned Core, where (XITRIX/rpcs3 22f1152):
 
 The NeoStation patch must not touch any of these. A Core rebase (new upstream
 commit) must re-check them in the new sources, then update this guard and
-docs/rpcs3-rap-import-build438.md.
+docs/rpcs3-rap-import-build440.md.
 """
 from __future__ import annotations
 
@@ -161,9 +161,9 @@ def check_dart_installer() -> None:
 
 
 def check_documentation() -> None:
-    doc = read('docs/rpcs3-rap-import-build438.md')
+    doc = read('docs/rpcs3-rap-import-build440.md')
     for expected in (UPSTREAM_COMMIT[:7], 'get_rap_file_path', 'SetUsr', '00000001'):
-        require(expected in doc, 'docs/rpcs3-rap-import-build438.md lacks ' + expected)
+        require(expected in doc, 'docs/rpcs3-rap-import-build440.md lacks ' + expected)
 
 
 def main() -> None:

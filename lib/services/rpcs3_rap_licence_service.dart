@@ -145,7 +145,7 @@ class Rpcs3RapImportPlan {
 /// Installs PS3 RAP licences where the pinned RPCS3 Core reads them.
 ///
 /// The pinned Core (XITRIX/rpcs3 `22f1152`, see
-/// `docs/rpcs3-rap-import-build438.md`) resolves a licence with
+/// `docs/rpcs3-rap-import-build440.md`) resolves a licence with
 /// `rpcs3::utils::get_rap_file_path` (`rpcs3/Emu/system_utils.cpp`): it scans
 /// every user of `<dev_hdd0>/home/` and opens
 /// `<user>/exdata/<CONTENT_ID>.rap`, lower-case extension, name taken from the

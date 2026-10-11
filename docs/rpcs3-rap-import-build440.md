@@ -1,6 +1,6 @@
-# Licences RAP pour RPCS3 — Build 438 (paquet B)
+# Licences RAP pour RPCS3 — Build 440 (paquet B)
 
-Demande du mainteneur du 11 octobre 2026 (`docs/build438-plan.md`,
+Demande du mainteneur du 11 octobre 2026 (`docs/build440-plan.md`,
 section B) : dans le menu Importer de la bibliothèque PS3, à côté des dossiers
 décryptés et des ISO, ajouter « Importer des licences RAP » (anglais :
 « Import RAP licenses »), installer les fichiers là où RPCS3 les cherche et
@@ -133,7 +133,7 @@ même pour reproduire iOS. Le test `rpcs3_firmware_library_test.dart`
 sauvegardes déplacé dans le gestionnaire RPCS3) : il vérifie désormais les
 libellés actuels et la nouvelle entrée.
 
-À exécuter sur iPhone (Build 438 signée par SideStore) :
+À exécuter sur iPhone (Build 440 signée par SideStore) :
 
 1. L'entrée apparaît dans la bibliothèque plein écran et dans l'onglet
    intégré, au toucher et à la manette.

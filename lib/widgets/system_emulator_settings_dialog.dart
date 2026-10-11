@@ -114,7 +114,7 @@ class _SystemEmulatorSettingsDialogState
   }
 
   /// iOS systems run by the embedded libretro engine ("Embedded RetroArch",
-  /// Build 438): the Emulators tab shows the engine panel instead of the
+  /// Build 440): the Emulators tab shows the engine panel instead of the
   /// RetroArch app row. Systems without an embedded core keep that row.
   bool get _isLibretroEngine =>
       _iosEmbeddedEngineName == null &&

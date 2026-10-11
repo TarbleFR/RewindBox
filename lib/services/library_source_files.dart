@@ -91,7 +91,7 @@ class LibrarySourceFileDescriptor {
 
 /// Mirrors the installed Library sources as files in
 /// `Documents/Library/Sources` (Files › NeoStation › Library › Sources), so
-/// deleting a file there removes its source (Build 438, maintainer decision
+/// deleting a file there removes its source (Build 440, maintainer decision
 /// of 11 October 2026). The app never shows, names or links this folder.
 ///
 /// * One small JSON file per installed source the user can remove (never a

@@ -283,7 +283,7 @@ class Build398Integration(unittest.TestCase):
         subprocess.run([sys.executable, str(ROOT / 'test/rpcs3_performance_snapshot_test.py')], cwd=ROOT, check=True, timeout=30)
     def test_screen_sharing_moves_to_the_main_menu_and_preserves_other_tools(self):
         text = (ROOT/'lib/screens/settings_screen/new_settings_options/tools_settings_content.dart').read_text(encoding='utf-8')
-        # Build438 replaces the three-item contract: three tools everywhere,
+        # Build440 replaces the three-item contract: three tools everywhere,
         # plus the BIOS checker as the fourth on iOS only; index 3 is never
         # NeoPlay (test/libretro_bios_checker_screen_test.dart drives it).
         self.assertIn('int getItemCount() => _showBiosChecker ? 4 : 3;', text)
@@ -306,7 +306,7 @@ class Build398Integration(unittest.TestCase):
         strip = (ROOT/'lib/widgets/main_menu_tab_strip.dart').read_text()
         self.assertEqual(strip.count('const AirPlayMenuButton()'), 1)
         self.assertIn('cells.insert(airPlaySlot, null)', strip)
-        # Build438: the slot follows the display rank, not the canonical index,
+        # Build440: the slot follows the display rank, not the canonical index,
         # since the consoles tab (index 6) is drawn before Search. AirPlay stays
         # right after Search (after Consoles when Search is hidden); the
         # placement itself is proven by test/main_menu_tab_strip_test.dart.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Contract of assets/data/libretro_bios_requirements.json (BIOS checker,
-Build 438).
+Build 440).
 
 Without --cores (any host), against the vendored public reference data
 test/fixtures/libretro_bios/core_info_5a74858a.json (firmware lines and notes

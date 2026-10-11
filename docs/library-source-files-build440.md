@@ -1,4 +1,4 @@
-# Build 438 — sources de la Bibliothèque supprimables depuis Fichiers (11 octobre 2026)
+# Build 440 — sources de la Bibliothèque supprimables depuis Fichiers (11 octobre 2026)
 
 ## Décision du mainteneur
 
@@ -190,7 +190,7 @@ mise à jour écrit un fichier par source, une seule fois.
   fichier séparé pour qu’elle soit créée après l’activation iOS simulée).
 
 À l’intégration (fichiers réservés) : ajouter ces fichiers à
-`BUILD438_DELTA` de `build-utils/verify_delivery_reuse.py`. Aucun nouveau
+`BUILD440_DELTA` de `build-utils/verify_delivery_reuse.py`. Aucun nouveau
 workflow : `retroarch-delivery.yml` exécute déjà `test/library_*_test.dart`.
 
 ## Tests

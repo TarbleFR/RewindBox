@@ -47,7 +47,7 @@ class _NotificationBellState extends State<NotificationBell>
     );
     // The pulse only runs while a notification exists. With none, the icon
     // is drawn at full opacity anyway, and a repeating controller would keep
-    // the header rendering on every vsync (Build 438: no idle render loop).
+    // the header rendering on every vsync (Build 440: no idle render loop).
     _notifications = GlobalNotificationService().notifier;
     _notifications.addListener(_syncPulse);
     _syncPulse();

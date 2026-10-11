@@ -1,8 +1,8 @@
-# Interface 120 Hz — Build 438
+# Interface 120 Hz — Build 440
 
 Réglages › Général › « Interface 120 Hz » (iOS uniquement), description
 « Améliore la fluidité des menus et du défilement sur les écrans
-compatibles. ». Décision du mainteneur : plan `docs/build438-plan.md`,
+compatibles. ». Décision du mainteneur : plan `docs/build440-plan.md`,
 section D.
 
 ## Faits établis dans les sources

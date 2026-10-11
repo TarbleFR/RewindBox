@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Texts of Settings › General › "120 Hz interface" (Build 438) in
+/// Texts of Settings › General › "120 Hz interface" (Build 440) in
 /// NeoStation's twelve languages. Raw technical codes (hook status) are shown
 /// separately through [technicalCode] and never translated.
 abstract final class UiRefreshRateLocale {

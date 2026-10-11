@@ -1030,7 +1030,7 @@ void main() {
       for (final key in <String>['settings', 'switchToVertical']) {
         expect(find.semantics.byLabel(en(key)), findsNothing, reason: key);
       }
-      // Build 438 contract (replaces "no Back at all once the bars hide"):
+      // Build 440 contract (replaces "no Back at all once the bars hide"):
       // Back stays reachable through the floating back button only, never
       // through the hidden top bar.
       final back = find.semantics.byLabel(en('back'));

@@ -1,8 +1,8 @@
-# Onglet consoles de la barre principale (Build 438, paquet C)
+# Onglet consoles de la barre principale (Build 440, paquet C)
 
 Demande du mainteneur du 11 octobre 2026 et décisions de
-`docs/build438-plan.md` (section C). Base : `a434881e` (branche `Claude`).
-Le SHA de la candidate est consigné à l’intégration de la Build 438 ; ce
+`docs/build440-plan.md` (section C). Base : `a434881e` (branche `Claude`).
+Le SHA de la candidate est consigné à l’intégration de la Build 440 ; ce
 document ne présente aucun essai sur iPhone.
 
 ## Ce qui change pour l’utilisateur (iOS)
@@ -83,7 +83,7 @@ séparé), `consoleSystemUnknown`, `consoleUnavailable`. Valeurs reformulées :
 la barre du menu principal, ou dans les réglages des dossiers »),
 `skinManageFooter` (pied de la page Habillages en jeu, clé native inchangée)
 et `embeddedConsolesIntro`. `embeddedConsolesSubtitle` n’est plus lue ;
-elle est conservée pour ne pas gêner les autres paquets de la 438 et peut
+elle est conservée pour ne pas gêner les autres paquets de la 440 et peut
 être retirée à l’intégration.
 
 ## Hors champ (inchangé)
@@ -119,7 +119,7 @@ Exécutées sous Windows (Flutter 3.47.2, Python 3.12) :
   leur blocage pendant un ajout, page poussée inchangée, douze langues.
 - `test/libretro_frontend_ui_contract_test.py` : l’ancien contrat
   (entrée dans des marqueurs `embedded_consoles` de Réglages › Dossiers) est
-  remplacé par celui de la 438 : fichier des dossiers identique à
+  remplacé par celui de la 440 : fichier des dossiers identique à
   `a5650b9b`, onglet ajouté en fin d’enum et affiché après Systèmes, page en
   mode barre principale, ajout par `LibretroMainMenu`.
 

@@ -1,7 +1,7 @@
-# Réglages RetroArch — Build 438 (paquet F)
+# Réglages RetroArch — Build 440 (paquet F)
 
 Demande du mainteneur du 11 octobre 2026, décision F de
-`docs/build438-plan.md` : retirer l’entrée « RetroArch externe » des
+`docs/build440-plan.md` : retirer l’entrée « RetroArch externe » des
 paramètres du jeu en gardant les réglages encore utiles au bon endroit,
 afficher « RetroArch embarqué » dans les paramètres du système comme les
 autres émulateurs intégrés, et reformuler les textes qui présentaient
@@ -109,7 +109,7 @@ de la console, non traduit).
 
 Formulation proposée pour la ligne d’`AGENTS.md` sur la route
 `retroarch://` (réservée à l’intégration) : « …et pour les jeux déjà réglés
-sur l’application RetroArch avant la Build 438 (« Application RetroArch
+sur l’application RetroArch avant la Build 440 (« Application RetroArch
 (réglage précédent) ») ; ce choix n’est plus proposé pour les autres jeux. »
 
 ## Vérifications

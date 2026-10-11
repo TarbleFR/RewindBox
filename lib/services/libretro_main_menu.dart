@@ -82,7 +82,7 @@ class LibretroMainMenuAddResult {
 }
 
 /// Embedded (libretro) consoles the user added to the main menu from the
-/// consoles tab (Build 438).
+/// consoles tab (Build 440).
 ///
 /// A console is in the main menu when one of its systems is detected
 /// (`user_detected_systems`), whatever its game count. Adding one registers

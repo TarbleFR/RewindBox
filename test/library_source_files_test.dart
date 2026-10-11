@@ -1,4 +1,4 @@
-// Build 438 (maintainer decision of 11 October 2026): every installed
+// Build 440 (maintainer decision of 11 October 2026): every installed
 // Library source is a small file of Files › NeoStation › Library › Sources
 // and deleting that file removes the source from NeoStation. The app never
 // shows the folder. Behaviour of LibrarySourceFiles with real files in a

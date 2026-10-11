@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build 438 "120 Hz interface": the engine hook against the real Flutter.xcframework.
+"""Build 440 "120 Hz interface": the engine hook against the real Flutter.xcframework.
 
 macOS only (Xcode, xcodegen, an iOS simulator and `flutter precache --ios`).
 Builds a host app that compiles the production plugin sources with the test
@@ -354,7 +354,7 @@ def native() -> None:
         sdk_dependencies = [{'sdk': 'UIKit.framework'}, {'sdk': 'QuartzCore.framework'},
                             {'sdk': 'Foundation.framework'}]
         project = {
-            'name': 'UiRefreshRate438',
+            'name': 'UiRefreshRate440',
             'options': {'deploymentTarget': {'iOS': '17.4'}},
             'settings': {'base': {
                 'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_ENABLE_MODULES': 'YES',
@@ -398,7 +398,7 @@ def native() -> None:
                     }},
                 },
             },
-            'schemes': {'UiRefreshRate438': {
+            'schemes': {'UiRefreshRate440': {
                 'build': {'targets': {'UiRefreshHost': 'all', 'UiRefreshTests': 'test'}},
                 'test': {'targets': ['UiRefreshTests']},
             }},
@@ -406,13 +406,13 @@ def native() -> None:
         spec = directory / 'project.json'
         spec.write_text(json.dumps(project))
         subprocess.run(['xcodegen', 'generate', '--spec', str(spec), '--project', str(directory)], check=True)
-        result = ROOT / 'build/ui-refresh-rate/UiRefreshRate438.xcresult'
+        result = ROOT / 'build/ui-refresh-rate/UiRefreshRate440.xcresult'
         if result.exists():
             shutil.rmtree(result)
         result.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run([
-            'xcodebuild', 'test', '-project', str(directory / 'UiRefreshRate438.xcodeproj'),
-            '-scheme', 'UiRefreshRate438', '-destination', 'platform=iOS Simulator,id=' + device['udid'],
+            'xcodebuild', 'test', '-project', str(directory / 'UiRefreshRate440.xcodeproj'),
+            '-scheme', 'UiRefreshRate440', '-destination', 'platform=iOS Simulator,id=' + device['udid'],
             '-destination-timeout', '60', '-parallel-testing-enabled', 'NO',
             '-test-timeouts-enabled', 'YES', '-default-test-execution-time-allowance', '60',
             '-maximum-test-execution-time-allowance', '120', '-resultBundlePath', str(result),

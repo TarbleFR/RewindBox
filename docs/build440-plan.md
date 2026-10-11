@@ -1,10 +1,16 @@
-# Build 438 — cadrage et répartition (11 octobre 2026)
+# Build 440 — cadrage et répartition (11 octobre 2026)
 
-Demande du mainteneur du 11 octobre 2026, branche `Claude`, candidate
-Build 438 livrée par-dessus la 437 (`6cdbf6fd`). Six fonctions, plus la
-validation. Ce document fixe les décisions prises après l’analyse et les
-limites de chaque paquet de travail. Les rapports d’analyse détaillés
-restent hors dépôt ; chaque paquet écrit son propre document `docs/…`.
+Demande du mainteneur du 11 octobre 2026, branche `Claude`. Six
+fonctions, plus la validation, puis deux ajouts du même jour (bouton
+retour des lecteurs, suppression des sources depuis Fichiers). Le
+mainteneur a livré entre-temps, depuis une autre session, la Build 438
+(adaptation mémoire NeoSwap/MeloNX pour RPCS3) et la Build 439 (comptage
+des dons NeoSwap, `2b1c0dea`). À sa demande (« la 439 est finie, tu peux
+faire par-dessus »), cette candidate est la **Build 440**, construite sur
+`origin/Claude` `2b1c0dea` et à installer par-dessus la 439. Ce document
+fixe les décisions prises après l’analyse et les limites de chaque paquet
+de travail. Les rapports d’analyse détaillés restent hors dépôt ; chaque
+paquet écrit son propre document `docs/…`.
 
 ## Décisions
 
@@ -121,6 +127,34 @@ restent hors dépôt ; chaque paquet écrit son propre document `docs/…`.
   reformulés (carte RetroArch de Réglages › Dossiers, assistant iOS,
   message de relance) sans toucher au fichier verrouillé des dossiers.
 
+### G. Bouton retour des lecteurs (ajout du 11 octobre)
+
+- Demande : « ajoute un bouton retour en arrière pour la lecture des
+  livres […] car c’est compliqué de sortir et revenir dans le menu
+  précédent ». La flèche de retour n’existait que dans la barre du haut,
+  masquée au bout de 4 s et après chaque page ; `lib/main.dart`
+  (verrouillé) impose des transitions sans balayage de retour iOS.
+- Un seul contrôle de retour à la fois : la flèche de la barre quand elle
+  est affichée, sinon un petit bouton flottant au même endroit (zone
+  sûre, 44 × 44 pt, couleurs du thème du lecteur), dans les trois lecteurs.
+  Il passe par la fermeture existante (sauvegarde de la position,
+  orientation). Pas de geste de bord (conflit avec le tournage des pages).
+  Voir `docs/library-reader-back-button-build440.md`.
+
+### H. Sources de la Bibliothèque dans Fichiers (ajout du 11 octobre)
+
+- Demande : supprimer les sources manuellement depuis les dossiers de
+  NeoStation ; « les gens doivent les trouver par eux-mêmes ». Choix du
+  mainteneur : chaque source installée (hors sources natives) a un fichier
+  dans Fichiers › NeoStation › Library › Sources ; supprimer le fichier
+  retire la source. L’app n’affiche aucun bouton, lien, chemin ni message
+  sur ce dossier, et le README n’en parle pas.
+- Aucune source n’est retirée sur une erreur de lecture, ni au premier
+  lancement après la mise à jour. Supprimer tout le dossier retire les
+  sources dont NeoStation avait écrit le fichier. Progression, favoris,
+  catalogues et livres sont conservés. Voir
+  `docs/library-source-files-build440.md`.
+
 ## Paquets et fichiers partagés
 
 Chaque paquet travaille dans son propre arbre et ne modifie que ses
@@ -135,7 +169,7 @@ fichiers. Fichiers partagés :
 - `test/neoplay_build397_integration_test.py` (C, E) : modifications
   minimales et locales.
 - Réservés à l’intégration : `AGENTS.md`,
-  `build-utils/verify_delivery_reuse.py` (`BUILD438_DELTA`, CRLF),
+  `build-utils/verify_delivery_reuse.py` (`BUILD440_DELTA`, CRLF),
   `.github/workflows/retroarch-delivery.yml`,
   `.github/workflows/libretro-checks.yml`,
   `native/import-memory-candidate.json`. Chaque paquet indique les tests à
@@ -149,5 +183,5 @@ fichiers. Fichiers partagés :
 Tests Dart et Python sur Windows pour chaque paquet, revue indépendante,
 puis contrôles natifs macOS par `workflow_dispatch --ref Claude`
 (dolphin-motion-check, ui-refresh-rate-check, libretro-checks) et livraison
-`retroarch-delivery.yml` avec `build_number=438`. Les comportements sur
+`retroarch-delivery.yml` avec `build_number=440`. Les comportements sur
 iPhone restent à confirmer par le mainteneur.

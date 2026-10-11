@@ -1,7 +1,7 @@
-# Build 438 — « Secouer » de la Wiimote dans Dolphin intégré
+# Build 440 — « Secouer » de la Wiimote dans Dolphin intégré
 
 Demande du mainteneur du 11 octobre 2026 (paquet A de
-`docs/build438-plan.md`) : un bouton tactile « Secouer » dans les commandes
+`docs/build440-plan.md`) : un bouton tactile « Secouer » dans les commandes
 tactiles Wii, assignable à un bouton de manette, réellement transmis au
 moteur Dolphin intégré, sans secouer le téléphone et sans activation
 permanente. Ce document sépare ce qui est vérifié dans les sources, ce qui est

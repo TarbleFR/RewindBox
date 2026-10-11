@@ -1,4 +1,4 @@
-/// Wii Remote "Shake" in the embedded Dolphin engine (Build 438): the touch
+/// Wii Remote "Shake" in the embedded Dolphin engine (Build 440): the touch
 /// Shake button of the Wii layout and the in-game Controls row that assigns
 /// one controller button to Shake X, Y and Z. The native overlay and session
 /// menu receive these texts through the session labels built by

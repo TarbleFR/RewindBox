@@ -75,7 +75,7 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
   // LIBRETRO_INTERNAL_BEGIN: core_choice
   /// Systems run by the embedded libretro engine offer their bundled cores;
   /// the choice is stored per game. The RetroArch app is no longer offered
-  /// (Build 438): a game already set to it keeps that earlier setting, shown
+  /// (Build 440): a game already set to it keeps that earlier setting, shown
   /// last, until a core is chosen (see [libretroEngineChoices]).
   bool get _isLibretroSystem =>
       LibretroInternalService.handlesSystem(_libretroSystemKey);

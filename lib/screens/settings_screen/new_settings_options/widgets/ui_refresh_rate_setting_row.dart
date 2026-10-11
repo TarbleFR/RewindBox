@@ -10,7 +10,7 @@ import '../../../../widgets/custom_toggle_switch.dart';
 import 'setting_row.dart';
 import 'setting_value_chip.dart';
 
-/// Settings › General › "120 Hz interface" (iOS, Build 438).
+/// Settings › General › "120 Hz interface" (iOS, Build 440).
 ///
 /// Shows the stored choice (applied at the next launch), why the option is
 /// unavailable or limited, and only measured rates. The "Measure" action runs

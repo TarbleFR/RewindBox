@@ -145,7 +145,7 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     // Passive 120 Hz interface measurement, already listening when the user
-    // comes back from a game (Build 438).
+    // comes back from a game (Build 440).
     if (UiRefreshRateService.isSupportedPlatform) {
       UiRefreshRateService.instance.startProbe();
     }

@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 /// iOS-specific first-run setup copy: the "link a folder without moving it"
 /// option of the setup wizard and the relaunch message shown once a folder is
 /// linked. Any games folder can be linked (RetroArch's is only an example);
-/// embedded consoles never need the RetroArch app (Build 438).
+/// embedded consoles never need the RetroArch app (Build 440).
 abstract final class IosSetupLocale {
   static const Map<String, String> _linkTitles = {
     'de': 'RetroArch verknüpfen',

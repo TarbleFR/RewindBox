@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// Native state of the "120 Hz interface" option (iOS, Build 438).
+/// Native state of the "120 Hz interface" option (iOS, Build 440).
 ///
 /// Field names follow the `neostation/ui_refresh_rate` channel contract
 /// (`UiRefreshRatePlugin.m`).

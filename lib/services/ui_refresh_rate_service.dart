@@ -17,7 +17,7 @@ export 'package:neostation/utils/frame_cadence_estimator.dart'
 /// Why the last user action on the option did not apply.
 enum UiRefreshRateError { saveFailed }
 
-/// Settings › General › "120 Hz interface" (Build 438, iOS).
+/// Settings › General › "120 Hz interface" (Build 440, iOS).
 ///
 /// - The preference lives in NSUserDefaults on the native side
 ///   (`NeoStation.UI.HighRefreshRate.Enabled`, read once per process before

@@ -23,7 +23,7 @@ void main() {
       AppLocale.iosRetroarchSyncTimedOut,
       AppLocale.iosRetroarchSyncEmpty,
       AppLocale.iosRetroarchSyncInvalid,
-      // RetroArch card of Settings › Folders, reworded in Build 438: the
+      // RetroArch card of Settings › Folders, reworded in Build 440: the
       // app is optional and embedded consoles start in NeoStation.
       AppLocale.iosRetroarchStatusNeedsLink,
       AppLocale.iosRetroarchStatusNeedsSync,

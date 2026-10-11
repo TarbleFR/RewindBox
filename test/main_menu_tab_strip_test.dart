@@ -99,12 +99,12 @@ void main() {
     expect(find.byKey(const ValueKey('main-menu-airplay-cell')), findsNothing);
     expect(NavTab.achievements.index, 2);
     expect(NavTab.settings.index, 4);
-    // Build 438: the consoles tab is appended, it does not renumber the others.
+    // Build 440: the consoles tab is appended, it does not renumber the others.
     expect(NavTab.consoles.index, 6);
     expect(NavTab.library.index, 5);
   });
 
-  // Build 438: the consoles tab (index 6) is drawn right after Systems and
+  // Build 440: the consoles tab (index 6) is drawn right after Systems and
   // before Search, in a cell like the others, whatever order the tabs come in.
   for (final hidden in [
     <NavTab>{},

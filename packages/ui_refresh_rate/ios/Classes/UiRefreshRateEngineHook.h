@@ -2,7 +2,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// "120 Hz interface" policy for the Flutter engine only (Build 438).
+/// "120 Hz interface" policy for the Flutter engine only (Build 440).
 ///
 /// Every iPhone IPA carries `CADisableMinimumFrameDurationOnPhone = YES`
 /// (Flutter template, asserted by the delivery workflow), and the emulators

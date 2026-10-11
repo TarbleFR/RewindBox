@@ -7,7 +7,7 @@ Provenance catalog) and of their two entry points.
   product names and skin data come from variables.
 - Every LibretroLocale key those files name exists in the English catalog
   (test/libretro_locale_test.dart checks that the twelve maps share their keys).
-- Entry points (Build 438): the consoles tab of the main bar (a console with
+- Entry points (Build 440): the consoles tab of the main bar (a console with
   a "+", drawn after Systems and before Search on iOS) shows the consoles
   page, and the playlist actions keep their Skins item. The former entry,
   Settings › Folders › Embedded consoles, is gone: the directories page is
@@ -128,7 +128,7 @@ require("'gamesImported'" in consoles and "'gamesRejected'" in consoles and "'im
         'import notifications')
 
 # 2. Entry points. Settings › Folders lost its Embedded consoles item (Build
-# 438): every other Folders function is the reviewed a5650b9b file, byte for
+# 440): every other Folders function is the reviewed a5650b9b file, byte for
 # byte.
 directories = read(DIRECTORIES)
 try:
@@ -164,7 +164,7 @@ require(re.search(r'case AppTabs\.consoles:\s*(//[^\n]*\n\s*)*return LibretroCon
         'the tab body is the consoles page in main-bar mode')
 require('LibretroMainMenu.instance.attach(' in app and 'LibretroMainMenu.instance.detach(' in app,
         'the app screen keeps the added consoles in the main menu')
-require('UiRefreshRateService.instance.startProbe()' in app, 'Build 438 refresh-rate hook kept')
+require('UiRefreshRateService.instance.startProbe()' in app, 'Build 440 refresh-rate hook kept')
 header = read('lib/widgets/header.dart')
 require('NavTabIcon(spec: navTabSpec(tab), tint: tint)' in header and 'navTabLabel(context, tab)' in header,
         'the header draws every tab, consoles included, with the same icon box, tint and label')
