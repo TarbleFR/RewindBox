@@ -43,8 +43,11 @@ void main() {
     expect(launcher, contains('final shortcutUri = buildRunUri'));
   });
 
+  // Build 438 replaces the three-entry contract: screen sharing still lives
+  // in the main menu, and iOS gains the BIOS checker of the embedded libretro
+  // cores as a fourth entry. Every other platform keeps exactly three.
   test(
-    'Tools retains three controller entries after moving screen sharing to the main menu',
+    'Tools has three controller entries, plus the BIOS checker on iOS',
     () {
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       for (final platform in TargetPlatform.values) {
@@ -58,7 +61,7 @@ void main() {
 
         expect(
           state.getItemCount(),
-          3,
+          platform == TargetPlatform.iOS ? 4 : 3,
           reason:
               'Controller navigation must match the visible tools on $platform',
         );
@@ -66,7 +69,7 @@ void main() {
     },
   );
 
-  test('Tools preserves pairing and one fallback switch alongside NeoSwap', () {
+  test('Tools preserves pairing, one fallback switch, NeoSwap and the iOS BIOS checker', () {
     final tools = File(
       'lib/screens/settings_screen/new_settings_options/'
       'tools_settings_content.dart',
@@ -76,7 +79,17 @@ void main() {
     expect(tools, contains('if (index == 1 && _jitFallbackStateLoaded'));
     expect(tools, contains('if (index == 2)'));
     expect(tools, contains('builder: (_) => const NeoSwapDialog()'));
-    expect(tools, isNot(contains('index == 3')));
+    // Index 3 is the iOS-only BIOS checker (Build 438), never NeoPlay.
+    expect(tools, contains('if (index == 3 && _showBiosChecker)'));
+    expect(
+      tools,
+      contains(
+        'bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;',
+      ),
+    );
+    expect(tools, contains('builder: (_) => const LibretroBiosCheckerScreen()'));
+    expect(RegExp(r'index == 3').allMatches(tools).length, 1);
+    expect(tools, isNot(contains('index == 4')));
     expect(tools, isNot(contains('showNeoPlayDialog(context)')));
     expect(RegExp(r'CustomToggleSwitch\(').allMatches(tools).length, 1);
     expect(tools, isNot(contains('LocalJitTunnel')));

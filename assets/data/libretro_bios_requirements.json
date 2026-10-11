@@ -1,0 +1,863 @@
+{
+  "schema": 1,
+  "about": "BIOS and system files read by the libretro cores embedded in NeoStation iOS (Build 438). Public sizes and checksums only, never BIOS bytes. Read by lib/services/libretro_bios_catalog.dart and checked by test/libretro_bios_requirements_test.py.",
+  "sources": {
+    "coreInfo": {
+      "repository": "https://github.com/libretro/libretro-core-info",
+      "commit": "5a74858ab2f7a50cebb5a6330895bc38899531c0",
+      "date": "2026-09-16"
+    },
+    "systemDat": {
+      "repository": "https://github.com/libretro/libretro-database",
+      "path": "dat/System.dat",
+      "commit": "f206bf65",
+      "version": "v1.19.0",
+      "date": "2026-06-14"
+    },
+    "coresArtifact": {
+      "name": "LibretroCores-48635465f4bdb324db4ff41b8b9815ff101ad360",
+      "run": "37945318237",
+      "created": "2026-10-09T14:35:32Z"
+    },
+    "coreSources": {
+      "nestopia": "libretro/nestopia b9fdc9c4",
+      "snes9x": "libretro/snes9x fae2fea0",
+      "gambatte": "libretro/gambatte-libretro d9d6cd06",
+      "mgba": "libretro/mgba 7a12d6d4",
+      "genesis_plus_gx": "libretro/Genesis-Plus-GX 58c34148",
+      "genesis_plus_gx_wide": "libretro/Genesis-Plus-GX-Wide b7ad0054",
+      "picodrive": "libretro/picodrive 1890c293",
+      "fbneo": "libretro/FBNeo 95153da1",
+      "desmume": "libretro/desmume 95b4d798",
+      "mupen64plus_next": "libretro/mupen64plus-libretro-nx 12edd2c7",
+      "mednafen_psx_hw": "libretro/beetle-psx-libretro 10e4b0c6",
+      "mednafen_psx": "libretro/beetle-psx-libretro 10e4b0c6",
+      "ppsspp": "hrydgard/ppsspp ed7de3ea",
+      "azahar": "azahar-emu/azahar a5c3d4f8"
+    },
+    "coreSourcesNote": "identity.json records no source commit: these are the last commits on or before the pinned cores run (the buildbot rebuilds nightly). test/libretro_bios_requirements_test.py --cores checks the file names against the pinned binaries.",
+    "documentation": "https://docs.libretro.com/library/"
+  },
+  "flags": {
+    "beetleOpenBiosFallback": true,
+    "beetleOpenBiosFallbackEvidence": "beetle-psx-libretro libretro.c falls back to the built-in OpenBIOS (deps/openbios) when no region BIOS is found (upstream change 5da5a3e9c9, 2026-03-28). Confirmed on CI by the --cores strings check (option value openbios in both PS1 binaries)."
+  },
+  "regionTags": {
+    "na": ["usa", "us", "u", "america", "ntsc-u", "canada"],
+    "eu": ["europe", "eur", "eu", "e", "pal", "uk", "france", "germany", "spain", "italy", "australia", "sweden", "netherlands"],
+    "jp": ["japan", "jpn", "jp", "j", "ntsc-j", "asia", "korea"]
+  },
+  "consoles": {
+    "nes": {"noteKeys": ["biosNoteCartridges"]},
+    "snes": {"noteKeys": ["biosNoteCartridges"]},
+    "gb": {"noteKeys": ["biosNoteBootLogo"]},
+    "gbc": {"noteKeys": ["biosNoteBootLogo"]},
+    "gba": {"noteKeys": ["biosNoteBootLogo"]},
+    "md": {"noteKeys": ["biosNoteSegaOptions"]},
+    "mcd": {"noteKeys": ["biosNoteMegaCd"]},
+    "32x": {"noteKeys": ["biosNoBiosNeeded"]},
+    "sms": {"noteKeys": ["biosNoteSegaOptions"]},
+    "gg": {"noteKeys": ["biosNoteSegaOptions"]},
+    "sg1000": {"noteKeys": ["biosNoBiosNeeded"]},
+    "arcade": {"noteKeys": ["biosNoteArcade"]},
+    "nds": {"noteKeys": ["biosNoteDesmume"]},
+    "n64": {"noteKeys": ["biosNoteCartridges"]},
+    "psx": {"noteKeys": ["biosNotePsx"]},
+    "psp": {"noteKeys": ["biosNotePsp"]},
+    "3ds": {"noteKeys": ["biosNoteAzahar"]}
+  },
+  "entries": [
+    {
+      "id": "nes-fds",
+      "consoles": ["nes"],
+      "cores": ["nestopia"],
+      "names": ["disksys.rom"],
+      "locations": ["system"],
+      "level": "conditional",
+      "condition": {
+        "key": "biosCondFds",
+        "games": [
+          {"systems": ["fds"]},
+          {"systems": ["nes", "fc", "nes-hacks"], "extensions": ["fds"]}
+        ]
+      },
+      "region": "jp",
+      "knownDumps": [
+        {"size": 8192, "crc": "5e607dcf", "md5": "ca30b50f880eb660a320674ed365ef7a", "sha1": "57fe1bdee955bb48d357e463ccbf129496930b62", "label": "Famicom Disk System BIOS", "source": "System.dat"}
+      ],
+      "info": [{"core": "nestopia", "path": "disksys.rom"}],
+      "binaryStrings": {"nestopia": ["disksys.rom"]},
+      "sources": ["core-info nestopia firmware0", "nestopia libretro/libretro.cpp:2171-2196 (retro_load_game fails without it)", "docs.libretro.com/library/nestopia"]
+    },
+    {
+      "id": "nes-database",
+      "consoles": ["nes"],
+      "cores": ["nestopia"],
+      "names": ["NstDatabase.xml"],
+      "locations": ["system"],
+      "level": "optional",
+      "knownDumps": [
+        {"size": 1009534, "crc": "ebb2196c", "md5": "7bfe8c0540ed4bd6a0f1e2a0f0118ced", "sha1": "26322f182540211e9b5e3647675b7c593706ae2b", "label": "Nestopia database", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "noteKeys": ["biosNoteNesDatabase"],
+      "binaryStrings": {"nestopia": ["NstDatabase.xml"]},
+      "sources": ["nestopia libretro/libretro.cpp:2121-2146 (built-in database otherwise)", "docs.libretro.com/library/nestopia"]
+    },
+    {
+      "id": "snes-bsx",
+      "consoles": ["snes"],
+      "cores": ["snes9x"],
+      "names": ["BS-X.bin"],
+      "locations": ["gameFolder", "system"],
+      "gameFolderSystems": ["satellaview", "snes", "sfc", "snes-hacks", "sfc-hacks"],
+      "level": "conditional",
+      "condition": {
+        "key": "biosCondSatellaview",
+        "games": [
+          {"systems": ["satellaview"]},
+          {"systems": ["snes", "sfc", "snes-hacks", "sfc-hacks"], "extensions": ["bs"]}
+        ]
+      },
+      "region": "jp",
+      "knownDumps": [
+        {"size": 1048576, "crc": "f51f07a0", "md5": "fed4d8242cfbed61343d53d48432aced", "sha1": "604556b2e62860af18db5a77f2956ebc75450020", "label": "BS-X BIOS (Japan) (Rev 1)", "source": "System.dat"},
+        {"size": 1048576, "crc": "347e1c4e", "md5": "33b62505da6ca4525e3839db4e1a7bca", "sha1": "f3cdff70de5d0f5c52ca3a8f46588b863d48b8ec", "label": "BS-X BIOS (English patch)", "source": "System.dat"},
+        {"size": 1048576, "crc": "8c573c7e", "md5": "4ed9648505ab33a4daec93707b16caba", "sha1": "7996bd1c01b99800e0d5d34beff93db283784864", "label": "BS-X BIOS (English patch, DRM-free)", "source": "System.dat"}
+      ],
+      "validators": [{"type": "minSize", "size": 1048576}],
+      "info": [{"core": "snes9x", "path": "BS-X.bin"}],
+      "binaryStrings": {"snes9x": ["BS-X.bin"]},
+      "sources": ["core-info snes9x firmware0", "snes9x libretro/libretro.cpp:1425-1456 (game folder, then System; exactly 0x100000 bytes read)", "snes9x libretro/libretro.cpp:1511-1514"]
+    },
+    {
+      "id": "snes-sufami",
+      "consoles": ["snes"],
+      "cores": ["snes9x"],
+      "names": ["STBIOS.bin"],
+      "locations": ["gameFolder", "system"],
+      "gameFolderSystems": ["snes", "sfc", "snes-hacks", "sfc-hacks"],
+      "level": "conditional",
+      "condition": {
+        "key": "biosCondSufami",
+        "games": [
+          {"systems": ["snes", "sfc", "snes-hacks", "sfc-hacks"], "extensions": ["st"]}
+        ]
+      },
+      "region": "jp",
+      "knownDumps": [
+        {"size": 262144, "crc": "9b4ca911", "md5": "d3a44ba7d42a74d3ac58cb9c14c6a5ca", "sha1": "ef86ea192eed03d5c413fdbbfd46043be1d7a127", "label": "Sufami Turbo BIOS (Japan)", "source": "System.dat"}
+      ],
+      "validators": [
+        {"type": "minSize", "size": 262144},
+        {"type": "header", "offset": 0, "ascii": "BANDAI SFC-ADX"},
+        {"type": "header", "offset": 16, "ascii": "SFC-ADX BACKUP"}
+      ],
+      "info": [{"core": "snes9x", "path": "STBIOS.bin"}],
+      "binaryStrings": {"snes9x": ["STBIOS.bin"]},
+      "sources": ["core-info snes9x firmware1", "snes9x libretro/libretro.cpp:1505-1507 (0x40000 bytes read)", "snes9x memmap.cpp:1033-1040 and :1592 (is_SufamiTurbo_BIOS)"]
+    },
+    {
+      "id": "gb-boot",
+      "consoles": ["gb"],
+      "cores": ["gambatte", "mgba"],
+      "names": ["gb_bios.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "gambatte", "all": [{"keys": ["gambatte_gb_bootloader"], "enabled": ["enabled"], "default": "enabled"}]},
+        {"core": "mgba", "all": [{"keys": ["mgba_use_bios"], "enabled": ["ON"], "default": "ON"}]}
+      ],
+      "knownDumps": [
+        {"size": 256, "crc": "59c8598e", "md5": "32fbbd84168d3482956eb3c5051637f5", "sha1": "4ed31ec6b0b175bb109c0eb5fd3d193da823339f", "label": "Game Boy boot ROM (DMG)", "source": "System.dat"}
+      ],
+      "validators": [{"type": "minSize", "size": 256}],
+      "info": [{"core": "gambatte", "path": "gb_bios.bin"}, {"core": "mgba", "path": "gb_bios.bin"}],
+      "binaryStrings": {"gambatte": ["gb_bios.bin"], "mgba": ["gb_bios.bin"]},
+      "sources": ["core-info gambatte firmware0, mgba firmware1", "gambatte libgambatte/libretro/libretro.cpp:1426-1484 (shorter than 0x100 bytes: ignored)", "mgba src/platform/libretro/libretro.c:2060-2118"]
+    },
+    {
+      "id": "gb-sgb",
+      "consoles": ["gb"],
+      "cores": ["mgba"],
+      "names": ["sgb_bios.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "mgba", "all": [
+          {"keys": ["mgba_use_bios"], "enabled": ["ON"], "default": "ON"},
+          {"keys": ["mgba_gb_model"], "enabled": ["Super Game Boy", "Super Game Boy Color"], "default": "Autodetect"}
+        ]}
+      ],
+      "knownDumps": [
+        {"size": 256, "crc": "ec8a83b9", "md5": "d574d4f9c12f305074798f54c091a8b4", "sha1": "aa2f50a77dfb4823da96ba99309085a3c6278515", "label": "Super Game Boy boot ROM", "source": "System.dat"},
+        {"size": 256, "crc": "53d0dd63", "md5": "e0430bca9925fb9882148fd2dc2418c1", "sha1": "93407ea10d2f30ab96a314d8eca44fe160aea734", "label": "Super Game Boy 2 boot ROM", "source": "System.dat"}
+      ],
+      "info": [{"core": "mgba", "path": "sgb_bios.bin"}],
+      "binaryStrings": {"mgba": ["sgb_bios.bin"]},
+      "sources": ["core-info mgba firmware3", "mgba src/platform/libretro/libretro.c:2096-2101 (Super Game Boy model only)"]
+    },
+    {
+      "id": "gbc-boot",
+      "consoles": ["gbc"],
+      "cores": ["gambatte", "mgba"],
+      "names": ["gbc_bios.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "gambatte", "all": [{"keys": ["gambatte_gb_bootloader"], "enabled": ["enabled"], "default": "enabled"}]},
+        {"core": "mgba", "all": [{"keys": ["mgba_use_bios"], "enabled": ["ON"], "default": "ON"}]}
+      ],
+      "knownDumps": [
+        {"size": 2304, "crc": "41884e46", "md5": "dbfce9db9deaa2567f6a84fde55f9680", "sha1": "1293d68bf9643bc4f36954c1e80e38f39864528d", "label": "Game Boy Color boot ROM", "source": "System.dat"}
+      ],
+      "validators": [{"type": "minSize", "size": 2304}],
+      "info": [{"core": "gambatte", "path": "gbc_bios.bin"}, {"core": "mgba", "path": "gbc_bios.bin"}],
+      "binaryStrings": {"gambatte": ["gbc_bios.bin"], "mgba": ["gbc_bios.bin"]},
+      "sources": ["core-info gambatte firmware1, mgba firmware2", "gambatte libgambatte/libretro/libretro.cpp:1450-1460 (0x900 bytes)"]
+    },
+    {
+      "id": "gba-bios",
+      "consoles": ["gba"],
+      "cores": ["mgba"],
+      "names": ["gba_bios.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "mgba", "all": [{"keys": ["mgba_use_bios"], "enabled": ["ON"], "default": "ON"}]}
+      ],
+      "knownDumps": [
+        {"size": 16384, "crc": "81977335", "md5": "a860e8c0b6d573d191e4ec7db1b1e4f6", "sha1": "300c20df6731a33952ded8c436f7f186d25d3492", "label": "Game Boy Advance BIOS", "source": "System.dat"}
+      ],
+      "info": [{"core": "mgba", "path": "gba_bios.bin"}],
+      "binaryStrings": {"mgba": ["gba_bios.bin"]},
+      "sources": ["core-info mgba firmware0", "mgba src/platform/libretro/libretro.c:2066-2068 (built-in HLE BIOS otherwise)", "docs.libretro.com/library/mgba"]
+    },
+    {
+      "id": "md-tmss",
+      "consoles": ["md"],
+      "cores": ["genesis_plus_gx", "genesis_plus_gx_wide"],
+      "names": ["bios_MD.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_bios"], "enabled": ["enabled"], "default": "disabled"}]},
+        {"core": "genesis_plus_gx_wide", "all": [{"keys": ["genesis_plus_gx_wide_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 2048, "crc": "3f888cf4", "md5": "d3293ebaaa7f4eb2a6766b68a0fb4609", "sha1": "3f50b76b0529db7f79c396b5e808cc0786ffc311", "label": "Mega Drive TMSS boot ROM", "source": "System.dat"},
+        {"size": 2048, "md5": "45e298905a08f9cfb38fd504cd6dbc84", "label": "Mega Drive TMSS boot ROM (Genesis Plus GX documentation)", "source": "docs.libretro.com/library/genesis_plus_gx"}
+      ],
+      "validators": [{"type": "header", "offset": 288, "ascii": "GENESIS OS"}],
+      "info": [{"core": "genesis_plus_gx", "path": "bios_MD.bin"}, {"core": "genesis_plus_gx_wide", "path": "bios_MD.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_MD.bin", "genesis_plus_gx_bios"], "genesis_plus_gx_wide": ["bios_MD.bin"]},
+      "sources": ["core-info genesis_plus_gx firmware0", "Genesis-Plus-GX libretro/libretro.c:1556-1563, :3648-3655 (ignored unless GENESIS OS at 0x120)"]
+    },
+    {
+      "id": "md-sk",
+      "consoles": ["md"],
+      "cores": ["genesis_plus_gx", "genesis_plus_gx_wide"],
+      "names": ["sk.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_lock_on"], "enabled": ["sonic & knuckles"], "default": "disabled"}]},
+        {"core": "genesis_plus_gx_wide", "all": [{"keys": ["genesis_plus_gx_wide_lock_on"], "enabled": ["sonic & knuckles"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 2097152, "crc": "0658f691", "md5": "4ea493ea4e9f6c9ebfccbdb15110367e", "sha1": "88d6499d874dcb5721ff58d76fe1b9af811192e3", "label": "Sonic & Knuckles", "source": "System.dat"}
+      ],
+      "noteKeys": ["biosNoteSonicKnuckles"],
+      "info": [{"core": "genesis_plus_gx", "path": "sk.bin"}, {"core": "genesis_plus_gx_wide", "path": "sk.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["sk.bin"], "genesis_plus_gx_wide": ["sk.bin"]},
+      "sources": ["core-info genesis_plus_gx firmware8", "Genesis-Plus-GX libretro/libretro.c:1789-1800, :3518"]
+    },
+    {
+      "id": "md-sk2chip",
+      "consoles": ["md"],
+      "cores": ["genesis_plus_gx", "genesis_plus_gx_wide"],
+      "names": ["sk2chip.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_lock_on"], "enabled": ["sonic & knuckles"], "default": "disabled"}]},
+        {"core": "genesis_plus_gx_wide", "all": [{"keys": ["genesis_plus_gx_wide_lock_on"], "enabled": ["sonic & knuckles"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 262144, "crc": "4dcfd55c", "md5": "b4e76e416b887f4e7413ba76fa735f16", "sha1": "70429f1d80503a0632f603bf762fe0bbaa881d22", "label": "Sonic & Knuckles UPMEM", "source": "System.dat"}
+      ],
+      "noteKeys": ["biosNoteSonicKnuckles"],
+      "info": [{"core": "genesis_plus_gx", "path": "sk2chip.bin"}, {"core": "genesis_plus_gx_wide", "path": "sk2chip.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["sk2chip.bin"], "genesis_plus_gx_wide": ["sk2chip.bin"]},
+      "sources": ["core-info genesis_plus_gx firmware9", "Genesis-Plus-GX libretro/libretro.c:3519"]
+    },
+    {
+      "id": "md-areplay",
+      "consoles": ["md"],
+      "cores": ["genesis_plus_gx", "genesis_plus_gx_wide"],
+      "names": ["areplay.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_lock_on"], "enabled": ["action replay (pro)"], "default": "disabled"}]},
+        {"core": "genesis_plus_gx_wide", "all": [{"keys": ["genesis_plus_gx_wide_lock_on"], "enabled": ["action replay (pro)"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 32768, "crc": "95ff7c3e", "md5": "a0028b3043f9d59ceeb03da5b073b30d", "sha1": "1e0f246826be4ebc7b99bb3f9de7f1de347122e5", "label": "Action Replay", "source": "System.dat"}
+      ],
+      "info": [{"core": "genesis_plus_gx", "path": "areplay.bin"}, {"core": "genesis_plus_gx_wide", "path": "areplay.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["areplay.bin"], "genesis_plus_gx_wide": ["areplay.bin"]},
+      "sources": ["core-info genesis_plus_gx firmware10", "Genesis-Plus-GX libretro/libretro.c:3517"]
+    },
+    {
+      "id": "md-ggenie",
+      "consoles": ["md"],
+      "cores": ["genesis_plus_gx", "genesis_plus_gx_wide"],
+      "names": ["ggenie.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_lock_on"], "enabled": ["game genie"], "default": "disabled"}]},
+        {"core": "genesis_plus_gx_wide", "all": [{"keys": ["genesis_plus_gx_wide_lock_on"], "enabled": ["game genie"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 32768, "crc": "14dbce4a", "md5": "e8af7fe115a75c849f6aab3701e7799b", "sha1": "937e1878ebd104f489e6bdbc410a184f79f1144a", "label": "Game Genie", "source": "System.dat"}
+      ],
+      "info": [{"core": "genesis_plus_gx", "path": "ggenie.bin"}, {"core": "genesis_plus_gx_wide", "path": "ggenie.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["ggenie.bin"], "genesis_plus_gx_wide": ["ggenie.bin"]},
+      "sources": ["core-info genesis_plus_gx firmware11", "Genesis-Plus-GX libretro/libretro.c:3516"]
+    },
+    {
+      "id": "mcd-na",
+      "consoles": ["mcd"],
+      "cores": ["genesis_plus_gx", "picodrive"],
+      "names": ["bios_CD_U.bin"],
+      "coreNames": {
+        "picodrive": ["us_scd2_9306.bin", "us_scd2_9306.zip", "SegaCDBIOS9303.bin", "SegaCDBIOS9303.zip", "us_scd1_9210.bin", "us_scd1_9210.zip", "bios_CD_U.bin", "bios_CD_U.zip"]
+      },
+      "locations": ["system"],
+      "level": "conditional",
+      "group": "mcd",
+      "region": "na",
+      "regional": true,
+      "condition": {"key": "biosCondMegaCd", "games": [{"systems": ["mcd", "scd"]}]},
+      "knownDumps": [
+        {"size": 131072, "crc": "c6d10268", "md5": "2efd74e3232ff260e371b99f84024f7f", "sha1": "f4f315adcef9b8feb0364c21ab7f0eaf5457f3ed", "label": "Sega CD BIOS (USA)", "source": "System.dat"},
+        {"size": 131072, "md5": "854b9150240a198070150e4566ae1290", "label": "Sega CD BIOS (USA) (Genesis Plus GX documentation)", "source": "docs.libretro.com/library/genesis_plus_gx"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "genesis_plus_gx", "path": "bios_CD_U.bin"}, {"core": "picodrive", "path": "bios_CD_U.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_CD_U.bin"], "picodrive": ["us_scd2_9306", "SegaCDBIOS9303", "us_scd1_9210", "bios_CD_U"]},
+      "sources": ["core-info genesis_plus_gx firmware2, picodrive firmware1", "Genesis-Plus-GX core/loadrom.c:394-461, :726-735 (the disc fails to load without it)", "picodrive platform/libretro/libretro.c:1273-1336 (.bin then .zip per name)"]
+    },
+    {
+      "id": "mcd-eu",
+      "consoles": ["mcd"],
+      "cores": ["genesis_plus_gx", "picodrive"],
+      "names": ["bios_CD_E.bin"],
+      "coreNames": {
+        "picodrive": ["eu_mcd2_9306.bin", "eu_mcd2_9306.zip", "eu_mcd2_9303.bin", "eu_mcd2_9303.zip", "eu_mcd1_9210.bin", "eu_mcd1_9210.zip", "bios_CD_E.bin", "bios_CD_E.zip"]
+      },
+      "locations": ["system"],
+      "level": "conditional",
+      "group": "mcd",
+      "region": "eu",
+      "regional": true,
+      "condition": {"key": "biosCondMegaCd", "games": [{"systems": ["mcd", "scd"]}]},
+      "knownDumps": [
+        {"size": 131072, "crc": "529ac15a", "md5": "e66fa1dc5820d254611fdcdba0662372", "sha1": "f891e0ea651e2232af0c5c4cb46a0cae2ee8f356", "label": "Mega-CD BIOS (Europe)", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "genesis_plus_gx", "path": "bios_CD_E.bin"}, {"core": "picodrive", "path": "bios_CD_E.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_CD_E.bin"], "picodrive": ["eu_mcd2_9306", "eu_mcd2_9303", "eu_mcd1_9210", "bios_CD_E"]},
+      "sources": ["core-info genesis_plus_gx firmware1, picodrive firmware0", "Genesis-Plus-GX core/loadrom.c:394-461", "picodrive platform/libretro/libretro.c:1273-1336"]
+    },
+    {
+      "id": "mcd-jp",
+      "consoles": ["mcd"],
+      "cores": ["genesis_plus_gx", "picodrive"],
+      "names": ["bios_CD_J.bin"],
+      "coreNames": {
+        "picodrive": ["jp_mcd2_921222.bin", "jp_mcd2_921222.zip", "jp_mcd1_9112.bin", "jp_mcd1_9112.zip", "jp_mcd1_9111.bin", "jp_mcd1_9111.zip", "bios_CD_J.bin", "bios_CD_J.zip"]
+      },
+      "locations": ["system"],
+      "level": "conditional",
+      "group": "mcd",
+      "region": "jp",
+      "regional": true,
+      "condition": {"key": "biosCondMegaCd", "games": [{"systems": ["mcd", "scd"]}]},
+      "knownDumps": [
+        {"size": 131072, "crc": "9d2da8f2", "md5": "278a9397d192149e84e820ac621a8edd", "sha1": "4846f448160059a7da0215a5df12ca160f26dd69", "label": "Mega-CD BIOS (Japan)", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "genesis_plus_gx", "path": "bios_CD_J.bin"}, {"core": "picodrive", "path": "bios_CD_J.bin"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_CD_J.bin"], "picodrive": ["jp_mcd2_921222", "jp_mcd1_9112", "jp_mcd1_9111", "bios_CD_J"]},
+      "sources": ["core-info genesis_plus_gx firmware3, picodrive firmware2", "Genesis-Plus-GX core/loadrom.c:394-461 (default branch: any other region)", "picodrive platform/libretro/libretro.c:1273-1336"]
+    },
+    {
+      "id": "sms-eu",
+      "consoles": ["sms"],
+      "cores": ["genesis_plus_gx"],
+      "names": ["bios_E.sms"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "eu",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 8192, "crc": "0072ed54", "md5": "840481177270d5642a14ca71ee72844c", "sha1": "c315672807d8ddb8d91443729405c766dd95cae7", "label": "Master System boot ROM", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "genesis_plus_gx", "path": "bios_E.sms"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_E.sms"]},
+      "sources": ["core-info genesis_plus_gx firmware4", "Genesis-Plus-GX core/loadrom.c:495-530"]
+    },
+    {
+      "id": "sms-na",
+      "consoles": ["sms"],
+      "cores": ["genesis_plus_gx"],
+      "names": ["bios_U.sms"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "na",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 8192, "crc": "0072ed54", "md5": "840481177270d5642a14ca71ee72844c", "sha1": "c315672807d8ddb8d91443729405c766dd95cae7", "label": "Master System boot ROM", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "genesis_plus_gx", "path": "bios_U.sms"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_U.sms"]},
+      "sources": ["core-info genesis_plus_gx firmware5", "Genesis-Plus-GX core/loadrom.c:495-530"]
+    },
+    {
+      "id": "sms-jp",
+      "consoles": ["sms"],
+      "cores": ["genesis_plus_gx"],
+      "names": ["bios_J.sms"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "jp",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 8192, "crc": "48d44a13", "md5": "24a519c53f67b00640d0048ef7089105", "sha1": "a8c1b39a2e41137835eda6a5de6d46dd9fadbaf2", "label": "Master System boot ROM (Japan)", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "genesis_plus_gx", "path": "bios_J.sms"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios_J.sms"]},
+      "sources": ["core-info genesis_plus_gx firmware6", "Genesis-Plus-GX core/loadrom.c:495-530"]
+    },
+    {
+      "id": "gg-bios",
+      "consoles": ["gg"],
+      "cores": ["genesis_plus_gx"],
+      "names": ["bios.gg"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "genesis_plus_gx", "all": [{"keys": ["genesis_plus_gx_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 1024, "crc": "0ebea9d4", "md5": "672e104c3be3a238301aceffc3b23fd6", "sha1": "914aa165e3d879f060be77870d345b60cfeb4ede", "label": "Game Gear boot ROM", "source": "System.dat"}
+      ],
+      "info": [{"core": "genesis_plus_gx", "path": "bios.gg"}],
+      "binaryStrings": {"genesis_plus_gx": ["bios.gg"]},
+      "sources": ["core-info genesis_plus_gx firmware7", "Genesis-Plus-GX core/loadrom.c:466-490"]
+    },
+    {
+      "id": "arcade-neogeo",
+      "consoles": ["arcade"],
+      "cores": ["fbneo"],
+      "names": ["neogeo.zip", "neogeo.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"],
+      "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"],
+      "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional",
+      "condition": {"key": "biosCondNeoGeo", "games": [{"systems": ["neogeo"]}]},
+      "region": "world",
+      "knownDumps": [
+        {"size": 1859335, "crc": "81315163", "md5": "00dad01abdbf8ea9e79ad2fe11bdb182", "sha1": "deb62b0074b8cae4f162c257662136733cfc76ad", "label": "Neo Geo BIOS set", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "validators": [
+        {"type": "zipMembers",
+         "essential": [{"name": "sm1.sm1", "crc": "94416d67"}, {"name": "000-lo.lo", "crc": "5a86cff2"}],
+         "recommended": [{"name": "sp-s3.sp1", "crc": "91b64be3"}, {"name": "sfix.sfix", "crc": "c2ea0cfd"}]}
+      ],
+      "info": [{"core": "fbneo", "path": "fbneo/neogeo.zip"}],
+      "binaryStrings": {"fbneo": ["patched", "fbneo"]},
+      "sources": ["core-info fbneo firmware0", "FBNeo src/burner/libretro/libretro.cpp:881-944 (patched folder, game folder, System/fbneo, System)", "FBNeo src/burn/drv/neogeo/d_neogeo.cpp:1623-1674 (member CRCs; BRF_ESS)", "docs.libretro.com/library/fbneo"]
+    },
+    {
+      "id": "arcade-neocdz",
+      "consoles": ["arcade"],
+      "cores": ["fbneo"],
+      "names": ["neocdz.zip", "neocdz.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"],
+      "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"],
+      "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional",
+      "condition": {"key": "biosCondNeoGeoCd", "games": [{"systems": ["arc", "fbneo", "neogeo"], "extensions": ["cue", "ccd"]}]},
+      "region": "world",
+      "knownDumps": [
+        {"size": 214681, "crc": "6fc3e0de", "md5": "62d56b126e78f3d82faa4ee8a92c3e82", "sha1": "4f28af31ca0defdd73d80edec2fa296908e624dc", "label": "Neo Geo CDZ BIOS set", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "noteKeys": ["biosNoteNeoGeoCd"],
+      "info": [{"core": "fbneo", "path": "fbneo/neocdz.zip"}],
+      "binaryStrings": {"fbneo": ["neocdz"]},
+      "sources": ["core-info fbneo firmware1", "docs.libretro.com/library/fbneo (Neo Geo CD also needs neogeo.zip)"]
+    },
+    {
+      "id": "arcade-pgm", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["pgm.zip", "pgm.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "PGM"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 2094636, "crc": "bf3dd2ef", "md5": "87cc944eef4c671aa2629a8ba48a08e0", "sha1": "c0c001ec80fa860857000f4cfc9844a28498a355", "label": "PGM system BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/pgm.zip"}], "sources": ["core-info fbneo firmware6"]
+    },
+    {
+      "id": "arcade-skns", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["skns.zip", "skns.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Super Kaneko Nova System"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 924762, "crc": "5692af22", "md5": "3f956c4e7008804cb47cbde49bd5b908", "sha1": "4257bd14b541fafbd555cb98ba079a3416a45934", "label": "Super Kaneko Nova System BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/skns.zip"}], "sources": ["core-info fbneo firmware7"]
+    },
+    {
+      "id": "arcade-decocass", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["decocass.zip", "decocass.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "DECO Cassette System"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 16107, "crc": "5de524e5", "md5": "b7e1189b341bf6a8e270017c096d21b0", "sha1": "30b97b2670b79d0de41cba190324c504846c6fa1", "label": "DECO Cassette System BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/decocass.zip"}], "sources": ["core-info fbneo firmware2"]
+    },
+    {
+      "id": "arcade-isgsm", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["isgsm.zip", "isgsm.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "ISG Selection Master Type 2006"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 10207, "crc": "26856bf9", "md5": "4a56d56e2219c5e2b006b66a4263c01c", "sha1": "f590ccf688b4c05fa1da5c5dd92c224545170c3b", "label": "ISG Selection Master Type 2006 BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/isgsm.zip"}], "sources": ["core-info fbneo firmware3"]
+    },
+    {
+      "id": "arcade-midssio", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["midssio.zip", "midssio.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Midway SSIO"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 163, "crc": "7620bd32", "md5": "5904b0de768d1d506e766aa7e18994c1", "sha1": "54275c9833e497f71f76ab239030cc386c863991", "label": "Midway SSIO sound board ROM set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/midssio.zip"}], "sources": ["core-info fbneo firmware4"]
+    },
+    {
+      "id": "arcade-nmk004", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["nmk004.zip", "nmk004.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "NMK004"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 3556, "crc": "a6099353", "md5": "bfacf1a68792d5348f93cf724d2f1dda", "sha1": "489256f5e2001070d2ad94c90d255282c71ed274", "label": "NMK004 internal ROM set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/nmk004.zip"}], "sources": ["core-info fbneo firmware5"]
+    },
+    {
+      "id": "arcade-ym2608", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["ym2608.zip", "ym2608.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "YM2608"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 7609, "crc": "5b4c29c4", "md5": "79ae0d2bb1901b7e606b6dc339b79a97", "sha1": "06fc753d015b43ca1787f4cfd9331b1674202e64", "label": "YM2608 internal ROM set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/ym2608.zip"}], "sources": ["core-info fbneo firmware8"]
+    },
+    {
+      "id": "arcade-cchip", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["cchip.zip", "cchip.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Taito C-Chip"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 2700, "crc": "23debecb", "md5": "df6f8a3d83c028a5cb9f2f2be60773f3", "sha1": "364f2302a145a0fd6de767d7f8484badde1d1a6e", "label": "C-Chip internal ROM set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/cchip.zip"}], "sources": ["core-info fbneo firmware9"]
+    },
+    {
+      "id": "arcade-bubsys", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["bubsys.zip", "bubsys.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Konami Bubble System"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 7950, "crc": "8fc2fd2e", "md5": "f81298afd68a1a24a49a1a2d9f087964", "sha1": "1c0ffcd308b0c8c6dbb74ad8b811a0767200d366", "label": "Bubble System BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/bubsys.zip"}], "sources": ["core-info fbneo firmware10"]
+    },
+    {
+      "id": "arcade-namcoc69", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["namcoc69.zip", "namcoc69.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Namco C69"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 7771, "crc": "be241255", "md5": "ad9af7a9560cad74f1644328213748f6", "sha1": "1cc7452608d44af8171270530a995644fb213d1d", "label": "Namco C69 BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/namcoc69.zip"}], "sources": ["core-info fbneo firmware11"]
+    },
+    {
+      "id": "arcade-namcoc70", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["namcoc70.zip", "namcoc70.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Namco C70"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 7822, "crc": "2d71120c", "md5": "aa569a303793510b2b4173480148de4b", "sha1": "ab8375fcb12791d35b11df801041f965a40b21d9", "label": "Namco C70 BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/namcoc70.zip"}], "sources": ["core-info fbneo firmware12"]
+    },
+    {
+      "id": "arcade-namcoc75", "consoles": ["arcade"], "cores": ["fbneo"], "names": ["namcoc75.zip", "namcoc75.7z"],
+      "locations": ["system/fbneo/patched", "gameFolder", "system/fbneo", "system"], "lookup": "all",
+      "crcIgnoredLocations": ["system/fbneo/patched"], "gameFolderSystems": ["arc", "fbneo", "cps1", "cps2", "cps3", "neogeo"],
+      "level": "conditional", "condition": {"key": "biosCondArcadeBoard", "args": {"board": "Namco C75"}, "games": []},
+      "region": "world", "hashVaries": true,
+      "knownDumps": [{"size": 8709, "crc": "cf65b189", "md5": "17516c33298e52424ffb58afc2ad208c", "sha1": "0649e27b7d605add7fc4215ee628b71e3c835328", "label": "Namco C75 BIOS set", "source": "System.dat"}],
+      "info": [{"core": "fbneo", "path": "fbneo/namcoc75.zip"}], "sources": ["core-info fbneo firmware13"]
+    },
+    {
+      "id": "arcade-hiscore",
+      "consoles": ["arcade"],
+      "cores": ["fbneo"],
+      "names": ["hiscore.dat"],
+      "locations": ["system/fbneo"],
+      "level": "optional",
+      "knownDumps": [
+        {"size": 324575, "crc": "92cfba00", "md5": "37fc4e050b53a1ef2c2e7f3042553025", "sha1": "1bef29ccc16eeb2e3c0759bfd2a4f86b1aba03a7", "label": "FBNeo high score database", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "noteKeys": ["biosNoteHiscore"],
+      "info": [{"core": "fbneo", "path": "fbneo/hiscore.dat"}],
+      "binaryStrings": {"fbneo": ["hiscore.dat"]},
+      "sources": ["core-info fbneo firmware22", "FBNeo src/burner/libretro/libretro.cpp:1925-1926"]
+    },
+    {
+      "id": "nds-bios7",
+      "consoles": ["nds"],
+      "cores": ["desmume"],
+      "names": ["bios7.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "desmume", "all": [{"keys": ["desmume_use_external_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 16384, "crc": "1280f0d5", "md5": "df692a80a5b1bc90728bc3dfc76cd948", "sha1": "24f67bdea115a2c847c8813a262502ee1607b7df", "label": "Nintendo DS ARM7 BIOS", "source": "System.dat"}
+      ],
+      "info": [{"core": "desmume", "path": "bios7.bin"}],
+      "binaryStrings": {"desmume": ["bios7.bin", "desmume_use_external_bios"]},
+      "sources": ["core-info desmume firmware1", "desmume desmume/src/frontend/libretro/libretro.cpp:753-781"]
+    },
+    {
+      "id": "nds-bios9",
+      "consoles": ["nds"],
+      "cores": ["desmume"],
+      "names": ["bios9.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "desmume", "all": [{"keys": ["desmume_use_external_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 4096, "crc": "2ab23573", "md5": "a392174eb3e572fed6447e956bde4b25", "sha1": "bfaac75f101c135e32e2aaf541de6b1be4c8c62d", "label": "Nintendo DS ARM9 BIOS", "source": "System.dat"}
+      ],
+      "info": [{"core": "desmume", "path": "bios9.bin"}],
+      "binaryStrings": {"desmume": ["bios9.bin"]},
+      "sources": ["core-info desmume firmware2", "desmume desmume/src/frontend/libretro/libretro.cpp:753-781"]
+    },
+    {
+      "id": "nds-firmware",
+      "consoles": ["nds"],
+      "cores": ["desmume"],
+      "names": ["firmware.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "optionGates": [
+        {"core": "desmume", "all": [{"keys": ["desmume_use_external_bios"], "enabled": ["enabled"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 262144, "crc": "945f9dc9", "md5": "e45033d9b0fa6b0de071292bba7c9d13", "sha1": "cfe072921ee3fb93f688743f8beef89043c3e9ad", "label": "Nintendo DS firmware (one console)", "source": "System.dat"}
+      ],
+      "perConsoleDump": true,
+      "info": [{"core": "desmume", "path": "firmware.bin"}],
+      "binaryStrings": {"desmume": ["firmware.bin"]},
+      "sources": ["core-info desmume firmware0", "docs.libretro.com/library/desmume (firmware.bin differs from one console to another)"]
+    },
+    {
+      "id": "n64-64dd",
+      "consoles": ["n64"],
+      "cores": ["mupen64plus_next"],
+      "names": ["IPL.n64"],
+      "locations": ["system/Mupen64plus"],
+      "level": "conditional",
+      "condition": {"key": "biosCond64dd", "games": [{"systems": ["n64"], "extensions": ["ndd"]}]},
+      "region": "jp",
+      "knownDumps": [
+        {"size": 4194304, "crc": "7f933ce2", "md5": "8d3d9f294b6e174bc7b1d2fd1c727530", "sha1": "bf861922dcb78c316360e3e742f4f70ff63c9bc3", "label": "64DD IPL (Japan)", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "validators": [{"type": "firstWordIn", "values": ["80270740", "40072780", "27804007"]}],
+      "info": [{"core": "mupen64plus_next", "path": "Mupen64plus/IPL.n64"}],
+      "binaryStrings": {"mupen64plus_next": ["IPL.n64", "Mupen64plus"]},
+      "sources": ["core-info mupen64plus_next firmware0", "mupen64plus-core src/main/main.c:940-1022 (first word identifies the byte order; otherwise 64DD disabled)"]
+    },
+    {
+      "id": "psx-jp",
+      "consoles": ["psx"],
+      "cores": ["mednafen_psx_hw", "mednafen_psx"],
+      "names": ["scph5500.bin", "SCPH5500.bin", "SCPH5500.BIN", "SCPH-5500.bin", "SCPH-5500.BIN"],
+      "locations": ["system"],
+      "level": "required",
+      "gate": "psx",
+      "group": "psx",
+      "region": "jp",
+      "regional": true,
+      "psxChecksumScan": true,
+      "knownDumps": [
+        {"size": 524288, "crc": "ff3eeb8c", "md5": "8dd7d5296a650fac7319bce665a6a53c", "sha1": "b05def971d8ec59f346f2d9ac21fb742e3eb6917", "label": "PlayStation BIOS SCPH-5500 (Japan)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_psx_hw", "path": "scph5500.bin"}, {"core": "mednafen_psx", "path": "scph5500.bin"}],
+      "binaryStrings": {"mednafen_psx_hw": ["scph5500.bin", "SCPH-5500.bin"], "mednafen_psx": ["scph5500.bin", "SCPH-5500.bin"]},
+      "sources": ["core-info mednafen_psx_hw firmware0 (opt=false)", "beetle-psx libretro.c:594-603 (names in order), :448-497 (SHA-1 scan of the System root, 512 KiB or 1 MiB files)", "lib/services/libretro_internal_service.dart (NeoStation launch rule: LibretroCore.biosAnyOf)"]
+    },
+    {
+      "id": "psx-na",
+      "consoles": ["psx"],
+      "cores": ["mednafen_psx_hw", "mednafen_psx"],
+      "names": ["scph5501.bin", "SCPH5501.bin", "SCPH5501.BIN", "SCPH-5501.bin", "SCPH-5501.BIN", "scph5503.bin", "SCPH5503.bin", "SCPH5503.BIN", "SCPH-5503.bin", "SCPH-5503.BIN", "scph7003.bin", "SCPH7003.bin", "SCPH7003.BIN", "SCPH-7003.bin", "SCPH-7003.BIN"],
+      "locations": ["system"],
+      "level": "required",
+      "gate": "psx",
+      "group": "psx",
+      "region": "na",
+      "regional": true,
+      "psxChecksumScan": true,
+      "knownDumps": [
+        {"size": 524288, "crc": "8d8cb7e4", "md5": "490f666e1afb15b7362b406ed1cea246", "sha1": "0555c6fae8906f3f09baf5988f00e55f88e9f30b", "label": "PlayStation BIOS SCPH-5501 / SCPH-7003 (North America)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_psx_hw", "path": "scph5501.bin"}, {"core": "mednafen_psx", "path": "scph5501.bin"}],
+      "binaryStrings": {"mednafen_psx_hw": ["scph5501.bin", "SCPH-5501.bin", "scph7003.bin"], "mednafen_psx": ["scph5501.bin", "SCPH-5501.bin", "scph7003.bin"]},
+      "sources": ["core-info mednafen_psx_hw firmware1 (opt=false)", "beetle-psx libretro.c:613-631", "lib/services/libretro_internal_service.dart (NeoStation launch rule)"]
+    },
+    {
+      "id": "psx-eu",
+      "consoles": ["psx"],
+      "cores": ["mednafen_psx_hw", "mednafen_psx"],
+      "names": ["scph5502.bin", "SCPH5502.bin", "SCPH5502.BIN", "SCPH-5502.bin", "SCPH-5502.BIN", "scph5552.bin", "SCPH5552.bin", "SCPH5552.BIN", "SCPH-5552.bin", "SCPH-5552.BIN"],
+      "locations": ["system"],
+      "level": "required",
+      "gate": "psx",
+      "group": "psx",
+      "region": "eu",
+      "regional": true,
+      "psxChecksumScan": true,
+      "knownDumps": [
+        {"size": 524288, "crc": "d786f0b9", "md5": "32736f17079d0b2b7024407c39bd3050", "sha1": "f6bc2d1f5eb6593de7d089c425ac681d6fffd3f0", "label": "PlayStation BIOS SCPH-5502 / SCPH-5552 (Europe)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_psx_hw", "path": "scph5502.bin"}, {"core": "mednafen_psx", "path": "scph5502.bin"}],
+      "binaryStrings": {"mednafen_psx_hw": ["scph5502.bin", "SCPH-5502.bin", "scph5552.bin"], "mednafen_psx": ["scph5502.bin", "SCPH-5502.bin", "scph5552.bin"]},
+      "sources": ["core-info mednafen_psx_hw firmware2 (opt=false)", "beetle-psx libretro.c:633-645", "lib/services/libretro_internal_service.dart (NeoStation launch rule)"]
+    },
+    {
+      "id": "psx-psp",
+      "consoles": ["psx"],
+      "cores": ["mednafen_psx_hw", "mednafen_psx"],
+      "names": ["psxonpsp660.bin", "PSXONPSP660.bin", "PSXONPSP660.BIN"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "mednafen_psx_hw", "all": [{"keys": ["beetle_psx_hw_override_bios"], "enabled": ["psxonpsp"], "default": "disabled"}]},
+        {"core": "mednafen_psx", "all": [{"keys": ["beetle_psx_override_bios"], "enabled": ["psxonpsp"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 524288, "crc": "5660f34f", "md5": "c53ca5908936d412331790f4426c6c33", "sha1": "96880d1ca92a016ff054be5159bb06fe03cb4e14", "label": "PlayStation BIOS from the PSP", "source": "System.dat"}
+      ],
+      "noteKeys": ["biosNotePsxOverride"],
+      "info": [{"core": "mednafen_psx_hw", "path": "psxonpsp660.bin"}, {"core": "mednafen_psx", "path": "psxonpsp660.bin"}],
+      "binaryStrings": {"mednafen_psx_hw": ["psxonpsp660.bin", "beetle_psx_hw_override_bios"], "mednafen_psx": ["psxonpsp660.bin", "beetle_psx_override_bios"]},
+      "sources": ["core-info mednafen_psx_hw firmware3", "beetle-psx libretro.c:521-590, :4681-4697"]
+    },
+    {
+      "id": "psx-ps3",
+      "consoles": ["psx"],
+      "cores": ["mednafen_psx_hw", "mednafen_psx"],
+      "names": ["ps1_rom.bin", "PS1_ROM.bin", "PS1_ROM.BIN"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "mednafen_psx_hw", "all": [{"keys": ["beetle_psx_hw_override_bios"], "enabled": ["ps1_rom"], "default": "disabled"}]},
+        {"core": "mednafen_psx", "all": [{"keys": ["beetle_psx_override_bios"], "enabled": ["ps1_rom"], "default": "disabled"}]}
+      ],
+      "knownDumps": [
+        {"size": 524288, "crc": "2f53b852", "md5": "81bbe60ba7a3d1cea1d48c14cbcc647b", "sha1": "c40146361eb8cf670b19fdc9759190257803cab7", "label": "PlayStation BIOS from the PS3", "source": "System.dat"}
+      ],
+      "noteKeys": ["biosNotePsxOverride"],
+      "info": [{"core": "mednafen_psx_hw", "path": "ps1_rom.bin"}, {"core": "mednafen_psx", "path": "ps1_rom.bin"}],
+      "binaryStrings": {"mednafen_psx_hw": ["ps1_rom.bin"], "mednafen_psx": ["ps1_rom.bin"]},
+      "sources": ["core-info mednafen_psx_hw firmware4", "beetle-psx libretro.c:521-590"]
+    },
+    {
+      "id": "psp-atlas",
+      "consoles": ["psp"],
+      "cores": ["ppsspp"],
+      "names": ["ppge_atlas.zim"],
+      "locations": ["system/PPSSPP"],
+      "level": "bundled",
+      "bundledPath": "PPSSPP/ppge_atlas.zim",
+      "bundledRequired": true,
+      "knownDumps": [
+        {"size": 666530, "crc": "7b57fa78", "md5": "866855cc330b9b95cc69135fb7b41d38", "sha1": "30a33f3651f8e1b0967a5dfe6ff714baebcce41a", "label": "PPSSPP font atlas", "source": "System.dat"}
+      ],
+      "hashVaries": true,
+      "info": [{"core": "ppsspp", "path": "PPSSPP/ppge_atlas.zim"}],
+      "binaryStrings": {"ppsspp": ["ppge_atlas.zim"]},
+      "sources": ["core-info ppsspp firmware0 (opt=false)", "build-utils/libretro/cores.json systemAssets (bundled in Runner.app/LibretroSystem)", "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m installBundledSystemFilesInto: (copied when System/PPSSPP is absent)"]
+    },
+    {
+      "id": "psp-compat",
+      "consoles": ["psp"],
+      "cores": ["ppsspp"],
+      "names": ["compat.ini"],
+      "locations": ["system/PPSSPP"],
+      "level": "bundled",
+      "bundledPath": "PPSSPP/compat.ini",
+      "bundledRequired": false,
+      "knownDumps": [],
+      "hashVaries": true,
+      "binaryStrings": {"ppsspp": ["compat.ini"]},
+      "sources": ["ppsspp libretro/libretro.cpp:1220-1264 (only a warning when missing)", "build-utils/libretro/cores.json systemAssets"]
+    }
+  ],
+  "excluded": [
+    {"core": "fbneo", "path": "fbneo/coleco.zip", "reason": "NeoStation never sends ColecoVision games to FBNeo (LibretroCoreCatalog.systems binds FBNeo to arc, fbneo, cps1, cps2, cps3 and neogeo only)."},
+    {"core": "fbneo", "path": "fbneo/fdsbios.zip", "reason": "Famicom Disk System games run on Nestopia, which reads disksys.rom; NeoStation never sends them to FBNeo."},
+    {"core": "fbneo", "path": "fbneo/msx.zip", "reason": "NeoStation never sends MSX games to FBNeo."},
+    {"core": "fbneo", "path": "fbneo/ngp.zip", "reason": "NeoStation never sends Neo Geo Pocket games to FBNeo."},
+    {"core": "fbneo", "path": "fbneo/spectrum.zip", "reason": "NeoStation never sends ZX Spectrum games to FBNeo."},
+    {"core": "fbneo", "path": "fbneo/spec128.zip", "reason": "NeoStation never sends ZX Spectrum 128 games to FBNeo."},
+    {"core": "fbneo", "path": "fbneo/spec1282a.zip", "reason": "NeoStation never sends ZX Spectrum +2A games to FBNeo."},
+    {"core": "fbneo", "path": "fbneo/channelf.zip", "reason": "NeoStation never sends Fairchild Channel F games to FBNeo."},
+    {"core": "genesis_plus_gx_wide", "path": "bios_CD_E.bin", "reason": "NeoStation runs Mega-CD games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "genesis_plus_gx_wide", "path": "bios_CD_U.bin", "reason": "NeoStation runs Mega-CD games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "genesis_plus_gx_wide", "path": "bios_CD_J.bin", "reason": "NeoStation runs Mega-CD games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "genesis_plus_gx_wide", "path": "bios_E.sms", "reason": "NeoStation runs Master System games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "genesis_plus_gx_wide", "path": "bios_U.sms", "reason": "NeoStation runs Master System games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "genesis_plus_gx_wide", "path": "bios_J.sms", "reason": "NeoStation runs Master System games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "genesis_plus_gx_wide", "path": "bios.gg", "reason": "NeoStation runs Game Gear games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."}
+  ]
+}

@@ -1,0 +1,1308 @@
+{
+  "schema": 1,
+  "about": "Vendored subset of public libretro reference data (no BIOS bytes): firmware fields and notes md5 values of the 14 embedded cores, and the matching System.dat rows.",
+  "coreInfo": {
+    "repository": "https://github.com/libretro/libretro-core-info",
+    "commit": "5a74858ab2f7a50cebb5a6330895bc38899531c0",
+    "cores": {
+      "nestopia": {
+        "corename": "Nestopia",
+        "display_version": "2.0.0",
+        "supported_extensions": "nes|fds|unf|unif|nsf",
+        "firmware": [
+          {
+            "path": "disksys.rom",
+            "desc": "disksys.rom (Family Computer Disk System BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "disksys.rom": "ca30b50f880eb660a320674ed365ef7a"
+        }
+      },
+      "snes9x": {
+        "corename": "Snes9x",
+        "display_version": "1.61",
+        "supported_extensions": "smc|sfc|swc|fig|bs|st",
+        "firmware": [
+          {
+            "path": "BS-X.bin",
+            "desc": "BS-X.bin (BS-X - Sore wa Namae o Nusumareta Machi no Monogatari (Japan) (Rev 1))",
+            "opt": true
+          },
+          {
+            "path": "STBIOS.bin",
+            "desc": "STBIOS.bin (Sufami Turbo (Japan))",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "BS-X.bin": "fed4d8242cfbed61343d53d48432aced",
+          "STBIOS.bin": "d3a44ba7d42a74d3ac58cb9c14c6a5ca"
+        }
+      },
+      "gambatte": {
+        "corename": "Gambatte",
+        "display_version": "v0.5.0",
+        "supported_extensions": "gb|gbc|dmg",
+        "firmware": [
+          {
+            "path": "gb_bios.bin",
+            "desc": "gb_bios.bin (Game Boy BIOS)",
+            "opt": true
+          },
+          {
+            "path": "gbc_bios.bin",
+            "desc": "gbc_bios.bin (Game Boy Color BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "gb_bios.bin": "32fbbd84168d3482956eb3c5051637f5",
+          "gbc_bios.bin": "dbfce9db9deaa2567f6a84fde55f9680"
+        }
+      },
+      "mgba": {
+        "corename": "mGBA",
+        "display_version": "0.10-dev",
+        "supported_extensions": "gb|gbc|gba",
+        "firmware": [
+          {
+            "path": "gba_bios.bin",
+            "desc": "gba_bios.bin (Game Boy Advance BIOS)",
+            "opt": true
+          },
+          {
+            "path": "gb_bios.bin",
+            "desc": "gb_bios.bin (Game Boy BIOS)",
+            "opt": true
+          },
+          {
+            "path": "gbc_bios.bin",
+            "desc": "gbc_bios.bin (Game Boy Color BIOS)",
+            "opt": true
+          },
+          {
+            "path": "sgb_bios.bin",
+            "desc": "sgb_bios.bin (Super Game Boy BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "gba_bios.bin": "a860e8c0b6d573d191e4ec7db1b1e4f6",
+          "gb_bios.bin": "32fbbd84168d3482956eb3c5051637f5",
+          "gbc_bios.bin": "dbfce9db9deaa2567f6a84fde55f9680"
+        }
+      },
+      "genesis_plus_gx": {
+        "corename": "Genesis Plus GX",
+        "display_version": "v1.7.4",
+        "supported_extensions": "mdx|md|smd|gen|bin|cue|iso|sms|bms|gg|sg|68k|sgd|chd|m3u",
+        "firmware": [
+          {
+            "path": "bios_MD.bin",
+            "desc": "bios_MD.bin (Mega Drive startup ROM)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_E.bin",
+            "desc": "bios_CD_E.bin (MegaCD EU BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_U.bin",
+            "desc": "bios_CD_U.bin (SegaCD US BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_J.bin",
+            "desc": "bios_CD_J.bin (MegaCD JP BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_E.sms",
+            "desc": "bios_E.sms (MasterSystem EU BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_U.sms",
+            "desc": "bios_U.sms (MasterSystem US BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_J.sms",
+            "desc": "bios_J.sms (MasterSystem JP BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios.gg",
+            "desc": "bios.gg (GameGear BIOS)",
+            "opt": true
+          },
+          {
+            "path": "sk.bin",
+            "desc": "sk.bin (Sonic & Knuckles ROM)",
+            "opt": true
+          },
+          {
+            "path": "sk2chip.bin",
+            "desc": "sk2chip.bin (Sonic & Knuckles UPMEM ROM)",
+            "opt": true
+          },
+          {
+            "path": "areplay.bin",
+            "desc": "areplay.bin (Action Replay ROM)",
+            "opt": true
+          },
+          {
+            "path": "ggenie.bin",
+            "desc": "ggenie.bin (Game Genie ROM)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "sk2chip.bin": "b4e76e416b887f4e7413ba76fa735f16",
+          "sk.bin": "4ea493ea4e9f6c9ebfccbdb15110367e"
+        }
+      },
+      "genesis_plus_gx_wide": {
+        "corename": "Genesis Plus GX Wide",
+        "display_version": "v1.7.4",
+        "supported_extensions": "mdx|md|smd|gen|bin|cue|iso|sms|bms|gg|sg|68k|sgd|chd|m3u",
+        "firmware": [
+          {
+            "path": "bios_MD.bin",
+            "desc": "bios_MD.bin (Mega Drive startup ROM)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_E.bin",
+            "desc": "bios_CD_E.bin (MegaCD EU BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_U.bin",
+            "desc": "bios_CD_U.bin (SegaCD US BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_J.bin",
+            "desc": "bios_CD_J.bin (MegaCD JP BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_E.sms",
+            "desc": "bios_E.sms (MasterSystem EU BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_U.sms",
+            "desc": "bios_U.sms (MasterSystem US BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_J.sms",
+            "desc": "bios_J.sms (MasterSystem JP BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios.gg",
+            "desc": "bios.gg (GameGear BIOS)",
+            "opt": true
+          },
+          {
+            "path": "sk.bin",
+            "desc": "sk.bin (Sonic & Knuckles ROM)",
+            "opt": true
+          },
+          {
+            "path": "sk2chip.bin",
+            "desc": "sk2chip.bin (Sonic & Knuckles UPMEM ROM)",
+            "opt": true
+          },
+          {
+            "path": "areplay.bin",
+            "desc": "areplay.bin (Action Replay ROM)",
+            "opt": true
+          },
+          {
+            "path": "ggenie.bin",
+            "desc": "ggenie.bin (Game Genie ROM)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "sk2chip.bin": "b4e76e416b887f4e7413ba76fa735f16",
+          "sk.bin": "4ea493ea4e9f6c9ebfccbdb15110367e"
+        }
+      },
+      "picodrive": {
+        "corename": "PicoDrive",
+        "display_version": "1.99",
+        "supported_extensions": "bin|gen|smd|md|32x|cue|iso|chd|sms|gg|sg|sc|m3u|68k|sgd|pco",
+        "firmware": [
+          {
+            "path": "bios_CD_E.bin",
+            "desc": "bios_CD_E.bin (MegaCD EU BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_U.bin",
+            "desc": "bios_CD_U.bin (SegaCD US BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios_CD_J.bin",
+            "desc": "bios_CD_J.bin (MegaCD JP BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "bios_CD_U.bin": "2efd74e3232ff260e371b99f84024f7f",
+          "bios_CD_E.bin": "e66fa1dc5820d254611fdcdba0662372",
+          "bios_CD_J.bin": "278a9397d192149e84e820ac621a8edd"
+        }
+      },
+      "fbneo": {
+        "corename": "FinalBurn Neo",
+        "display_version": "v1.0.0.03",
+        "supported_extensions": "zip|7z|cue|ccd",
+        "firmware": [
+          {
+            "path": "fbneo/neogeo.zip",
+            "desc": "fbneo/neogeo.zip (Neo Geo BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/neocdz.zip",
+            "desc": "fbneo/neocdz.zip (Neo Geo CDZ System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/decocass.zip",
+            "desc": "fbneo/decocass.zip (DECO Cassette System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/isgsm.zip",
+            "desc": "fbneo/isgsm.zip (ISG Selection Master Type 2006 System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/midssio.zip",
+            "desc": "fbneo/midssio.zip (Midway SSIO Sound Board Internal ROM)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/nmk004.zip",
+            "desc": "fbneo/nmk004.zip (NMK004 Internal ROM)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/pgm.zip",
+            "desc": "fbneo/pgm.zip (PGM System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/skns.zip",
+            "desc": "fbneo/skns.zip (Super Kaneko Nova System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/ym2608.zip",
+            "desc": "fbneo/ym2608.zip (YM2608 Internal ROM)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/cchip.zip",
+            "desc": "fbneo/cchip.zip (C-Chip Internal ROM)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/bubsys.zip",
+            "desc": "fbneo/bubsys.zip (Bubble System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/namcoc69.zip",
+            "desc": "fbneo/namcoc69.zip (Namco C69 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/namcoc70.zip",
+            "desc": "fbneo/namcoc70.zip (Namco C70 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/namcoc75.zip",
+            "desc": "fbneo/namcoc75.zip (Namco C75 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/coleco.zip",
+            "desc": "fbneo/coleco.zip (ColecoVision System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/fdsbios.zip",
+            "desc": "fbneo/fdsbios.zip (FDS System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/msx.zip",
+            "desc": "fbneo/msx.zip (MSX1 System BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/ngp.zip",
+            "desc": "fbneo/ngp.zip (NeoGeo Pocket BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/spectrum.zip",
+            "desc": "fbneo/spectrum.zip (ZX Spectrum BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/spec128.zip",
+            "desc": "fbneo/spec128.zip (ZX Spectrum 128 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/spec1282a.zip",
+            "desc": "fbneo/spec1282a.zip (ZX Spectrum 128 +2a BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/channelf.zip",
+            "desc": "fbneo/channelf.zip (Fairchild Channel F BIOS)",
+            "opt": true
+          },
+          {
+            "path": "fbneo/hiscore.dat",
+            "desc": "fbneo/hiscore.dat (High Score support database)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {}
+      },
+      "desmume": {
+        "corename": "DeSmuME",
+        "display_version": "SVN",
+        "supported_extensions": "nds|ids|bin",
+        "firmware": [
+          {
+            "path": "firmware.bin",
+            "desc": "firmware.bin (NDS Firmware)",
+            "opt": true
+          },
+          {
+            "path": "bios7.bin",
+            "desc": "bios7.bin (ARM7 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "bios9.bin",
+            "desc": "bios9.bin (ARM9 BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "bios7.bin": "df692a80a5b1bc90728bc3dfc76cd948",
+          "bios9.bin": "a392174eb3e572fed6447e956bde4b25"
+        }
+      },
+      "mupen64plus_next": {
+        "corename": "Mupen64Plus-Next",
+        "display_version": "1.0",
+        "supported_extensions": "n64|v64|z64|ndd|bin|u1",
+        "firmware": [
+          {
+            "path": "Mupen64plus/IPL.n64",
+            "desc": "Mupen64plus/IPL.n64 (64DD BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "IPL.n64": "8d3d9f294b6e174bc7b1d2fd1c727530"
+        }
+      },
+      "mednafen_psx_hw": {
+        "corename": "Beetle PSX HW",
+        "display_version": "v0.9.44.1",
+        "supported_extensions": "cue|toc|m3u|ccd|exe|pbp|chd|bin",
+        "firmware": [
+          {
+            "path": "scph5500.bin",
+            "desc": "scph5500.bin (PS1 JP BIOS)",
+            "opt": false
+          },
+          {
+            "path": "scph5501.bin",
+            "desc": "scph5501.bin (PS1 US BIOS)",
+            "opt": false
+          },
+          {
+            "path": "scph5502.bin",
+            "desc": "scph5502.bin (PS1 EU BIOS)",
+            "opt": false
+          },
+          {
+            "path": "psxonpsp660.bin",
+            "desc": "psxonpsp660.bin (PSP PS1 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "ps1_rom.bin",
+            "desc": "ps1_rom.bin (PS3 PS1 BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "scph5500.bin": "8dd7d5296a650fac7319bce665a6a53c",
+          "scph5501.bin": "490f666e1afb15b7362b406ed1cea246",
+          "scph5502.bin": "32736f17079d0b2b7024407c39bd3050",
+          "psxonpsp660.bin": "c53ca5908936d412331790f4426c6c33",
+          "ps1_rom.bin": "81bbe60ba7a3d1cea1d48c14cbcc647b"
+        }
+      },
+      "mednafen_psx": {
+        "corename": "Beetle PSX",
+        "display_version": "v0.9.44.1",
+        "supported_extensions": "cue|toc|m3u|ccd|exe|pbp|chd|bin",
+        "firmware": [
+          {
+            "path": "scph5500.bin",
+            "desc": "scph5500.bin (PS1 JP BIOS)",
+            "opt": false
+          },
+          {
+            "path": "scph5501.bin",
+            "desc": "scph5501.bin (PS1 US BIOS)",
+            "opt": false
+          },
+          {
+            "path": "scph5502.bin",
+            "desc": "scph5502.bin (PS1 EU BIOS)",
+            "opt": false
+          },
+          {
+            "path": "psxonpsp660.bin",
+            "desc": "psxonpsp660.bin (PSP PS1 BIOS)",
+            "opt": true
+          },
+          {
+            "path": "ps1_rom.bin",
+            "desc": "ps1_rom.bin (PS3 PS1 BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "scph5500.bin": "8dd7d5296a650fac7319bce665a6a53c",
+          "scph5501.bin": "490f666e1afb15b7362b406ed1cea246",
+          "scph5502.bin": "32736f17079d0b2b7024407c39bd3050",
+          "psxonpsp660.bin": "c53ca5908936d412331790f4426c6c33",
+          "ps1_rom.bin": "81bbe60ba7a3d1cea1d48c14cbcc647b"
+        }
+      },
+      "ppsspp": {
+        "corename": "PPSSPP",
+        "display_version": "Git",
+        "supported_extensions": "elf|iso|cso|prx|pbp|chd",
+        "firmware": [
+          {
+            "path": "PPSSPP/ppge_atlas.zim",
+            "desc": "ppge_atlas.zim (PPSSPP Data ROM)",
+            "opt": false
+          }
+        ],
+        "notes_md5": {
+          "ppge_atlas.zim": "866855cc330b9b95cc69135fb7b41d38"
+        }
+      },
+      "azahar": {
+        "corename": "Azahar",
+        "display_version": "Git",
+        "supported_extensions": "3ds|3dsx|z3dsx|elf|axf|cci|zcci|cxi|zcxi|app",
+        "firmware": [],
+        "notes_md5": {}
+      }
+    }
+  },
+  "systemDat": {
+    "repository": "https://github.com/libretro/libretro-database",
+    "path": "dat/System.dat",
+    "commit": "f206bf65",
+    "version": "v1.19.0",
+    "roms": [
+      {
+        "section": "Arcade",
+        "name": "neogeo.zip",
+        "size": 1859335,
+        "crc": "81315163",
+        "md5": "00dad01abdbf8ea9e79ad2fe11bdb182",
+        "sha1": "deb62b0074b8cae4f162c257662136733cfc76ad"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/bubsys.zip",
+        "size": 7950,
+        "crc": "8fc2fd2e",
+        "md5": "f81298afd68a1a24a49a1a2d9f087964",
+        "sha1": "1c0ffcd308b0c8c6dbb74ad8b811a0767200d366"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/cchip.zip",
+        "size": 2700,
+        "crc": "23debecb",
+        "md5": "df6f8a3d83c028a5cb9f2f2be60773f3",
+        "sha1": "364f2302a145a0fd6de767d7f8484badde1d1a6e"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/decocass.zip",
+        "size": 16107,
+        "crc": "5de524e5",
+        "md5": "b7e1189b341bf6a8e270017c096d21b0",
+        "sha1": "30b97b2670b79d0de41cba190324c504846c6fa1"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/isgsm.zip",
+        "size": 10207,
+        "crc": "26856bf9",
+        "md5": "4a56d56e2219c5e2b006b66a4263c01c",
+        "sha1": "f590ccf688b4c05fa1da5c5dd92c224545170c3b"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/midssio.zip",
+        "size": 163,
+        "crc": "7620bd32",
+        "md5": "5904b0de768d1d506e766aa7e18994c1",
+        "sha1": "54275c9833e497f71f76ab239030cc386c863991"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/neogeo.zip",
+        "size": 1859335,
+        "crc": "81315163",
+        "md5": "00dad01abdbf8ea9e79ad2fe11bdb182",
+        "sha1": "deb62b0074b8cae4f162c257662136733cfc76ad"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/nmk004.zip",
+        "size": 3556,
+        "crc": "a6099353",
+        "md5": "bfacf1a68792d5348f93cf724d2f1dda",
+        "sha1": "489256f5e2001070d2ad94c90d255282c71ed274"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/pgm.zip",
+        "size": 2094636,
+        "crc": "bf3dd2ef",
+        "md5": "87cc944eef4c671aa2629a8ba48a08e0",
+        "sha1": "c0c001ec80fa860857000f4cfc9844a28498a355"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/skns.zip",
+        "size": 924762,
+        "crc": "5692af22",
+        "md5": "3f956c4e7008804cb47cbde49bd5b908",
+        "sha1": "4257bd14b541fafbd555cb98ba079a3416a45934"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/ym2608.zip",
+        "size": 7609,
+        "crc": "5b4c29c4",
+        "md5": "79ae0d2bb1901b7e606b6dc339b79a97",
+        "sha1": "06fc753d015b43ca1787f4cfd9331b1674202e64"
+      },
+      {
+        "section": "Arcade",
+        "name": "aes.zip",
+        "size": 850591,
+        "crc": "91e93107",
+        "md5": "9d2ff2333e23910cf56f7f785609d36a",
+        "sha1": "43c6aa6ba46adbeefb2b014899bcb4b2db7986af"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/channelf.zip",
+        "size": 2705,
+        "crc": "332807d9",
+        "md5": "2f2f8de3827ae1faf2495e497ca95232",
+        "sha1": "1cb23b462b990241013deb4b5e07ce741af28267"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/coleco.zip",
+        "size": 28014,
+        "crc": "eea6c08b",
+        "md5": "94915714a814a84f7c292e6db71f3ad2",
+        "sha1": "db2190922f359f19b47f8270fa87a7c1b38f5b2b"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/fdsbios.zip",
+        "size": 5758,
+        "crc": "3d54fe55",
+        "md5": "c26bf1744cb7f6ffe441f463870321f8",
+        "sha1": "c25686d24c7205473741f948f8a9df9906823145"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/hiscore.dat",
+        "size": 324575,
+        "crc": "92cfba00",
+        "md5": "37fc4e050b53a1ef2c2e7f3042553025",
+        "sha1": "1bef29ccc16eeb2e3c0759bfd2a4f86b1aba03a7"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/msx.zip",
+        "size": 193854,
+        "crc": "2ae71804",
+        "md5": "25a8912d7bf3cdad9beaa6d5cc14ea38",
+        "sha1": "c0673df5af0ea7728aedf637f18d118e6f7cb778"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/namcoc69.zip",
+        "size": 7771,
+        "crc": "be241255",
+        "md5": "ad9af7a9560cad74f1644328213748f6",
+        "sha1": "1cc7452608d44af8171270530a995644fb213d1d"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/namcoc70.zip",
+        "size": 7822,
+        "crc": "2d71120c",
+        "md5": "aa569a303793510b2b4173480148de4b",
+        "sha1": "ab8375fcb12791d35b11df801041f965a40b21d9"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/namcoc75.zip",
+        "size": 8709,
+        "crc": "cf65b189",
+        "md5": "17516c33298e52424ffb58afc2ad208c",
+        "sha1": "0649e27b7d605add7fc4215ee628b71e3c835328"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/neocdz.zip",
+        "size": 214681,
+        "crc": "6fc3e0de",
+        "md5": "62d56b126e78f3d82faa4ee8a92c3e82",
+        "sha1": "4f28af31ca0defdd73d80edec2fa296908e624dc"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/ngp.zip",
+        "size": 74758,
+        "crc": "6a679292",
+        "md5": "5bc25f80395a68790a69b7eb3e57b897",
+        "sha1": "f677361cd05cf2d146730890298985290b3dbc69"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/spec128.zip",
+        "size": 25489,
+        "crc": "705f7138",
+        "md5": "1a524bfa489cec90c941e6587d553a56",
+        "sha1": "b88619a845cbba8bc04ad396e99a02aa6d2da7c1"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/spectrum.zip",
+        "size": 12432,
+        "crc": "eea59503",
+        "md5": "4698414be3369fff17bf6d3111734c6c",
+        "sha1": "9428d8b7c6d4db78f00a58915dccdf33f3b5d98b"
+      },
+      {
+        "section": "Arcade",
+        "name": "fbneo/spec1282a.zip",
+        "size": 41653,
+        "crc": "b952cbe2",
+        "md5": "b2fed9c6a9e54af7d90b6f2b3516fcf9",
+        "sha1": "d3a94d7a098a0cad5f49cf19a74ed1f9138a20f7"
+      },
+      {
+        "section": "Nintendo - Famicom Disk System",
+        "name": "disksys.rom",
+        "size": 8192,
+        "crc": "5e607dcf",
+        "md5": "ca30b50f880eb660a320674ed365ef7a",
+        "sha1": "57fe1bdee955bb48d357e463ccbf129496930b62"
+      },
+      {
+        "section": "Nintendo - Famicom Disk System",
+        "name": "gamegenie.nes",
+        "size": 24592,
+        "crc": "4c514089",
+        "md5": "7f98d77d7a094ad7d069b74bd553ec98",
+        "sha1": "f430a0d752a9fa0c7032db8131f9090d18f71779"
+      },
+      {
+        "section": "Nintendo - Gameboy",
+        "name": "dmg_boot.bin",
+        "size": 256,
+        "crc": "59c8598e",
+        "md5": "32fbbd84168d3482956eb3c5051637f5",
+        "sha1": "4ed31ec6b0b175bb109c0eb5fd3d193da823339f"
+      },
+      {
+        "section": "Nintendo - Gameboy",
+        "name": "gb_bios.bin",
+        "size": 256,
+        "crc": "59c8598e",
+        "md5": "32fbbd84168d3482956eb3c5051637f5",
+        "sha1": "4ed31ec6b0b175bb109c0eb5fd3d193da823339f"
+      },
+      {
+        "section": "Nintendo - Gameboy",
+        "name": "dmg_rom.bin",
+        "size": 256,
+        "crc": "59c8598e",
+        "md5": "32fbbd84168d3482956eb3c5051637f5",
+        "sha1": "4ed31ec6b0b175bb109c0eb5fd3d193da823339f"
+      },
+      {
+        "section": "Nintendo - Game Boy Advance",
+        "name": "gba_bios.bin",
+        "size": 16384,
+        "crc": "81977335",
+        "md5": "a860e8c0b6d573d191e4ec7db1b1e4f6",
+        "sha1": "300c20df6731a33952ded8c436f7f186d25d3492"
+      },
+      {
+        "section": "Nintendo - Gameboy Color",
+        "name": "cgb_boot.bin",
+        "size": 2304,
+        "crc": "41884e46",
+        "md5": "dbfce9db9deaa2567f6a84fde55f9680",
+        "sha1": "1293d68bf9643bc4f36954c1e80e38f39864528d"
+      },
+      {
+        "section": "Nintendo - Gameboy Color",
+        "name": "gbc_bios.bin",
+        "size": 2304,
+        "crc": "41884e46",
+        "md5": "dbfce9db9deaa2567f6a84fde55f9680",
+        "sha1": "1293d68bf9643bc4f36954c1e80e38f39864528d"
+      },
+      {
+        "section": "Nintendo - Gameboy Color",
+        "name": "cgb_bios.bin",
+        "size": 2304,
+        "crc": "41884e46",
+        "md5": "dbfce9db9deaa2567f6a84fde55f9680",
+        "sha1": "1293d68bf9643bc4f36954c1e80e38f39864528d"
+      },
+      {
+        "section": "Nintendo - Nintendo 64DD",
+        "name": "64DD_IPL.bin",
+        "size": 4194304,
+        "crc": "7f933ce2",
+        "md5": "8d3d9f294b6e174bc7b1d2fd1c727530",
+        "sha1": "bf861922dcb78c316360e3e742f4f70ff63c9bc3"
+      },
+      {
+        "section": "Nintendo - Nintendo 64DD",
+        "name": "Mupen64plus/IPL.n64",
+        "size": 4194304,
+        "crc": "7f933ce2",
+        "md5": "8d3d9f294b6e174bc7b1d2fd1c727530",
+        "sha1": "bf861922dcb78c316360e3e742f4f70ff63c9bc3"
+      },
+      {
+        "section": "Nintendo - Nintendo DS",
+        "name": "bios7.bin",
+        "size": 16384,
+        "crc": "1280f0d5",
+        "md5": "df692a80a5b1bc90728bc3dfc76cd948",
+        "sha1": "24f67bdea115a2c847c8813a262502ee1607b7df"
+      },
+      {
+        "section": "Nintendo - Nintendo DS",
+        "name": "bios9.bin",
+        "size": 4096,
+        "crc": "2ab23573",
+        "md5": "a392174eb3e572fed6447e956bde4b25",
+        "sha1": "bfaac75f101c135e32e2aaf541de6b1be4c8c62d"
+      },
+      {
+        "section": "Nintendo - Nintendo DS",
+        "name": "firmware.bin",
+        "size": 262144,
+        "crc": "945f9dc9",
+        "md5": "e45033d9b0fa6b0de071292bba7c9d13",
+        "sha1": "cfe072921ee3fb93f688743f8beef89043c3e9ad"
+      },
+      {
+        "section": "Nintendo - Nintendo DS",
+        "name": "nds7.bin",
+        "size": 16384,
+        "crc": "1280f0d5",
+        "md5": "df692a80a5b1bc90728bc3dfc76cd948",
+        "sha1": "24f67bdea115a2c847c8813a262502ee1607b7df"
+      },
+      {
+        "section": "Nintendo - Nintendo DS",
+        "name": "nds9.bin",
+        "size": 4096,
+        "crc": "2ab23573",
+        "md5": "a392174eb3e572fed6447e956bde4b25",
+        "sha1": "bfaac75f101c135e32e2aaf541de6b1be4c8c62d"
+      },
+      {
+        "section": "Nintendo - Nintendo Entertainment System",
+        "name": "NstDatabase.xml",
+        "size": 1009534,
+        "crc": "ebb2196c",
+        "md5": "7bfe8c0540ed4bd6a0f1e2a0f0118ced",
+        "sha1": "26322f182540211e9b5e3647675b7c593706ae2b"
+      },
+      {
+        "section": "Nintendo - Satellaview",
+        "name": "BS-X.bin",
+        "size": 1048576,
+        "crc": "f51f07a0",
+        "md5": "fed4d8242cfbed61343d53d48432aced",
+        "sha1": "604556b2e62860af18db5a77f2956ebc75450020"
+      },
+      {
+        "section": "Nintendo - Satellaview",
+        "name": "BS-X (En).bin",
+        "size": 1048576,
+        "crc": "347e1c4e",
+        "md5": "33b62505da6ca4525e3839db4e1a7bca",
+        "sha1": "f3cdff70de5d0f5c52ca3a8f46588b863d48b8ec"
+      },
+      {
+        "section": "Nintendo - Satellaview",
+        "name": "BS-X (En) (DRM-Free).bin",
+        "size": 1048576,
+        "crc": "8c573c7e",
+        "md5": "4ed9648505ab33a4daec93707b16caba",
+        "sha1": "7996bd1c01b99800e0d5d34beff93db283784864"
+      },
+      {
+        "section": "Nintendo - SuFami Turbo",
+        "name": "STBIOS.bin",
+        "size": 262144,
+        "crc": "9b4ca911",
+        "md5": "d3a44ba7d42a74d3ac58cb9c14c6a5ca",
+        "sha1": "ef86ea192eed03d5c413fdbbfd46043be1d7a127"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "SGB1.sfc",
+        "size": 262144,
+        "crc": "8a4a174f",
+        "md5": "b15ddb15721c657d82c5bab6db982ee9",
+        "sha1": "973e10840db683cf3faf61bd443090786b3a9f04"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "SGB2.sfc",
+        "size": 524288,
+        "crc": "cb176e45",
+        "md5": "8ecd73eb4edf7ed7e81aef1be80031d5",
+        "sha1": "e5b2922ca137051059e4269b236d07a22c07bc84"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb1.program.rom",
+        "size": 262144,
+        "crc": "8a4a174f",
+        "md5": "b15ddb15721c657d82c5bab6db982ee9",
+        "sha1": "973e10840db683cf3faf61bd443090786b3a9f04"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb2.program.rom",
+        "size": 524288,
+        "crc": "cb176e45",
+        "md5": "8ecd73eb4edf7ed7e81aef1be80031d5",
+        "sha1": "e5b2922ca137051059e4269b236d07a22c07bc84"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb2_bios.bin",
+        "size": 256,
+        "crc": "53d0dd63",
+        "md5": "e0430bca9925fb9882148fd2dc2418c1",
+        "sha1": "93407ea10d2f30ab96a314d8eca44fe160aea734"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb_bios.bin",
+        "size": 256,
+        "crc": "ec8a83b9",
+        "md5": "d574d4f9c12f305074798f54c091a8b4",
+        "sha1": "aa2f50a77dfb4823da96ba99309085a3c6278515"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "SGB1.sfc/sgb1.boot.rom",
+        "size": 256,
+        "crc": "ec8a83b9",
+        "md5": "d574d4f9c12f305074798f54c091a8b4",
+        "sha1": "aa2f50a77dfb4823da96ba99309085a3c6278515"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "SGB2.sfc/sgb2.boot.rom",
+        "size": 256,
+        "crc": "53d0dd63",
+        "md5": "e0430bca9925fb9882148fd2dc2418c1",
+        "sha1": "93407ea10d2f30ab96a314d8eca44fe160aea734"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb_boot.bin",
+        "size": 256,
+        "crc": "ec8a83b9",
+        "md5": "d574d4f9c12f305074798f54c091a8b4",
+        "sha1": "aa2f50a77dfb4823da96ba99309085a3c6278515"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb.boot.rom",
+        "size": 256,
+        "crc": "ec8a83b9",
+        "md5": "d574d4f9c12f305074798f54c091a8b4",
+        "sha1": "aa2f50a77dfb4823da96ba99309085a3c6278515"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "sgb2_boot.bin",
+        "size": 256,
+        "crc": "53d0dd63",
+        "md5": "e0430bca9925fb9882148fd2dc2418c1",
+        "sha1": "93407ea10d2f30ab96a314d8eca44fe160aea734"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "SGB1.sfc/program.rom",
+        "size": 262144,
+        "crc": "8a4a174f",
+        "md5": "b15ddb15721c657d82c5bab6db982ee9",
+        "sha1": "973e10840db683cf3faf61bd443090786b3a9f04"
+      },
+      {
+        "section": "Nintendo - Super Game Boy",
+        "name": "SGB2.sfc/program.rom",
+        "size": 524288,
+        "crc": "cb176e45",
+        "md5": "8ecd73eb4edf7ed7e81aef1be80031d5",
+        "sha1": "e5b2922ca137051059e4269b236d07a22c07bc84"
+      },
+      {
+        "section": "Sega - Game Gear",
+        "name": "bios.gg",
+        "size": 1024,
+        "crc": "0ebea9d4",
+        "md5": "672e104c3be3a238301aceffc3b23fd6",
+        "sha1": "914aa165e3d879f060be77870d345b60cfeb4ede"
+      },
+      {
+        "section": "Sega - Master System - Mark III",
+        "name": "bios.sms",
+        "size": 8192,
+        "crc": "0072ed54",
+        "md5": "840481177270d5642a14ca71ee72844c",
+        "sha1": "c315672807d8ddb8d91443729405c766dd95cae7"
+      },
+      {
+        "section": "Sega - Master System - Mark III",
+        "name": "bios_E.sms",
+        "size": 8192,
+        "crc": "0072ed54",
+        "md5": "840481177270d5642a14ca71ee72844c",
+        "sha1": "c315672807d8ddb8d91443729405c766dd95cae7"
+      },
+      {
+        "section": "Sega - Master System - Mark III",
+        "name": "bios_J.sms",
+        "size": 8192,
+        "crc": "48d44a13",
+        "md5": "24a519c53f67b00640d0048ef7089105",
+        "sha1": "a8c1b39a2e41137835eda6a5de6d46dd9fadbaf2"
+      },
+      {
+        "section": "Sega - Master System - Mark III",
+        "name": "bios_U.sms",
+        "size": 8192,
+        "crc": "0072ed54",
+        "md5": "840481177270d5642a14ca71ee72844c",
+        "sha1": "c315672807d8ddb8d91443729405c766dd95cae7"
+      },
+      {
+        "section": "Sega - Mega CD - Sega CD",
+        "name": "bios_CD_E.bin",
+        "size": 131072,
+        "crc": "529ac15a",
+        "md5": "e66fa1dc5820d254611fdcdba0662372",
+        "sha1": "f891e0ea651e2232af0c5c4cb46a0cae2ee8f356"
+      },
+      {
+        "section": "Sega - Mega CD - Sega CD",
+        "name": "bios_CD_J.bin",
+        "size": 131072,
+        "crc": "9d2da8f2",
+        "md5": "278a9397d192149e84e820ac621a8edd",
+        "sha1": "4846f448160059a7da0215a5df12ca160f26dd69"
+      },
+      {
+        "section": "Sega - Mega CD - Sega CD",
+        "name": "bios_CD_U.bin",
+        "size": 131072,
+        "crc": "c6d10268",
+        "md5": "2efd74e3232ff260e371b99f84024f7f",
+        "sha1": "f4f315adcef9b8feb0364c21ab7f0eaf5457f3ed"
+      },
+      {
+        "section": "Sega - Mega Drive - Genesis",
+        "name": "areplay.bin",
+        "size": 32768,
+        "crc": "95ff7c3e",
+        "md5": "a0028b3043f9d59ceeb03da5b073b30d",
+        "sha1": "1e0f246826be4ebc7b99bb3f9de7f1de347122e5"
+      },
+      {
+        "section": "Sega - Mega Drive - Genesis",
+        "name": "bios_MD.bin",
+        "size": 2048,
+        "crc": "3f888cf4",
+        "md5": "d3293ebaaa7f4eb2a6766b68a0fb4609",
+        "sha1": "3f50b76b0529db7f79c396b5e808cc0786ffc311"
+      },
+      {
+        "section": "Sega - Mega Drive - Genesis",
+        "name": "ggenie.bin",
+        "size": 32768,
+        "crc": "14dbce4a",
+        "md5": "e8af7fe115a75c849f6aab3701e7799b",
+        "sha1": "937e1878ebd104f489e6bdbc410a184f79f1144a"
+      },
+      {
+        "section": "Sega - Mega Drive - Genesis",
+        "name": "rom.db",
+        "size": 17742,
+        "crc": "c94e8c8b",
+        "md5": "ff4a3572475236e859e3e9ac5c87d1f1",
+        "sha1": "02c287d10da6de579af7a4ce73b134bbdf23c970"
+      },
+      {
+        "section": "Sega - Mega Drive - Genesis",
+        "name": "sk.bin",
+        "size": 2097152,
+        "crc": "0658f691",
+        "md5": "4ea493ea4e9f6c9ebfccbdb15110367e",
+        "sha1": "88d6499d874dcb5721ff58d76fe1b9af811192e3"
+      },
+      {
+        "section": "Sega - Mega Drive - Genesis",
+        "name": "sk2chip.bin",
+        "size": 262144,
+        "crc": "4dcfd55c",
+        "md5": "b4e76e416b887f4e7413ba76fa735f16",
+        "sha1": "70429f1d80503a0632f603bf762fe0bbaa881d22"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph1000.bin",
+        "size": 524288,
+        "crc": "3b601fc8",
+        "md5": "239665b1a3dade1b5a52c06338011044",
+        "sha1": "343883a7b555646da8cee54aadd2795b6e7dd070"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph1001.bin",
+        "size": 524288,
+        "crc": "37157331",
+        "md5": "924e392ed05558ffdb115408c263dccf",
+        "sha1": "10155d8d6e6e832d6ea66db9bc098321fb5e8ebf"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph1002.bin",
+        "size": 524288,
+        "crc": "9bb87c4b",
+        "md5": "54847e693405ffeb0359c6287434cbef",
+        "sha1": "20b98f3d80f11cbf5a7bfd0779b0e63760ecc62c"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph100.bin",
+        "size": 524288,
+        "crc": "f2af798b",
+        "md5": "8abc1b549a4a80954addc48ef02c4521",
+        "sha1": "339a48f4fcf63e10b5b867b8c93cfd40945faf6c"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph101.bin",
+        "size": 524288,
+        "crc": "171bdcec",
+        "md5": "6e3735ff4c7dc899ee98981385f6f3d0",
+        "sha1": "dcffe16bd90a723499ad46c641424981338d8378"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph102A.bin",
+        "size": 524288,
+        "crc": "0bad7ea9",
+        "md5": "b10f5e0e3d9eb60e5159690680b1e774",
+        "sha1": "beb0ac693c0dc26daf5665b3314db81480fa5c7c"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph102B.bin",
+        "size": 524288,
+        "crc": "76b880e5",
+        "md5": "de93caec13d1a141a40a79f5c86168d6",
+        "sha1": "dbc7339e5d85827c095764fc077b41f78fd2ecae"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph102C.bin",
+        "size": 524288,
+        "crc": "76b880e5",
+        "md5": "de93caec13d1a141a40a79f5c86168d6",
+        "sha1": "dbc7339e5d85827c095764fc077b41f78fd2ecae"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph3000.bin",
+        "size": 524288,
+        "crc": "3539def6",
+        "md5": "849515939161e62f6b866f6853006780",
+        "sha1": "b06f4a861f74270be819aa2a07db8d0563a7cc4e"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph3500.bin",
+        "size": 524288,
+        "crc": "bc190209",
+        "md5": "cba733ceeff5aef5c32254f1d617fa62",
+        "sha1": "e38466a4ba8005fba7e9e3c7b9efeba7205bee3f"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph5000.bin",
+        "size": 524288,
+        "crc": "8c93a399",
+        "md5": "eb201d2d98251a598af467d4347bb62f",
+        "sha1": "e340db2696274dda5fdc25e434a914db71e8b02b"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph5500.bin",
+        "size": 524288,
+        "crc": "ff3eeb8c",
+        "md5": "8dd7d5296a650fac7319bce665a6a53c",
+        "sha1": "b05def971d8ec59f346f2d9ac21fb742e3eb6917"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph5501.bin",
+        "size": 524288,
+        "crc": "8d8cb7e4",
+        "md5": "490f666e1afb15b7362b406ed1cea246",
+        "sha1": "0555c6fae8906f3f09baf5988f00e55f88e9f30b"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph5502.bin",
+        "size": 524288,
+        "crc": "d786f0b9",
+        "md5": "32736f17079d0b2b7024407c39bd3050",
+        "sha1": "f6bc2d1f5eb6593de7d089c425ac681d6fffd3f0"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph5552.bin",
+        "size": 524288,
+        "crc": "d786f0b9",
+        "md5": "32736f17079d0b2b7024407c39bd3050",
+        "sha1": "f6bc2d1f5eb6593de7d089c425ac681d6fffd3f0"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph7001.bin",
+        "size": 524288,
+        "crc": "502224b6",
+        "md5": "1e68c231d0896b7eadcad1d7d8e76129",
+        "sha1": "14df4f6c1e367ce097c11deae21566b4fe5647a9"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph7002.bin",
+        "size": 524288,
+        "crc": "318178bf",
+        "md5": "b9d9a0286c33dc6b7237bb13cd46fdee",
+        "sha1": "8d5de56a79954f29e9006929ba3fed9b6a418c1d"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph7003.bin",
+        "size": 524288,
+        "crc": "8d8cb7e4",
+        "md5": "490f666e1afb15b7362b406ed1cea246",
+        "sha1": "0555c6fae8906f3f09baf5988f00e55f88e9f30b"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph7502.bin",
+        "size": 524288,
+        "crc": "318178bf",
+        "md5": "b9d9a0286c33dc6b7237bb13cd46fdee",
+        "sha1": "8d5de56a79954f29e9006929ba3fed9b6a418c1d"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "scph9002(7502).bin",
+        "size": 524288,
+        "crc": "318178bf",
+        "md5": "b9d9a0286c33dc6b7237bb13cd46fdee",
+        "sha1": "8d5de56a79954f29e9006929ba3fed9b6a418c1d"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "psxonpsp660.bin",
+        "size": 524288,
+        "crc": "5660f34f",
+        "md5": "c53ca5908936d412331790f4426c6c33",
+        "sha1": "96880d1ca92a016ff054be5159bb06fe03cb4e14"
+      },
+      {
+        "section": "Sony - PlayStation",
+        "name": "ps1_rom.bin",
+        "size": 524288,
+        "crc": "2f53b852",
+        "md5": "81bbe60ba7a3d1cea1d48c14cbcc647b",
+        "sha1": "c40146361eb8cf670b19fdc9759190257803cab7"
+      },
+      {
+        "section": "Sony - PlayStation Portable",
+        "name": "PPSSPP/ppge_atlas.zim",
+        "size": 666530,
+        "crc": "7b57fa78",
+        "md5": "866855cc330b9b95cc69135fb7b41d38",
+        "sha1": "30a33f3651f8e1b0967a5dfe6ff714baebcce41a"
+      }
+    ]
+  }
+}

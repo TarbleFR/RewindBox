@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/neoswap_locale.dart';
+import 'package:neostation/screens/libretro/libretro_bios_checker_screen.dart';
 import 'package:neostation/screens/settings_screen/neoswap_dialog.dart';
 import 'package:neostation/l10n/jit_fallback_locale.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
@@ -50,15 +53,49 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
     _refreshJitFallbackState();
   }
 
-  int getItemCount() => 3;
+  /// The BIOS checker of the embedded libretro cores (Build 438) exists on
+  /// iOS only, where the engine runs (the platform Flutter reports, so a
+  /// widget test can stand in for an iPhone).
+  bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Pairing, JIT fallback and NeoSwap everywhere; the BIOS checker fourth,
+  /// on iOS.
+  int getItemCount() => _showBiosChecker ? 4 : 3;
+
+  final List<GlobalKey> _rowKeys = List<GlobalKey>.generate(
+    4,
+    (_) => GlobalKey(),
+  );
 
   void _openNeoSwap() {
     showDialog<void>(context: context, builder: (_) => const NeoSwapDialog());
   }
 
-  void scrollToIndex(int index) {}
+  void _openBiosChecker() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const LibretroBiosCheckerScreen(),
+      ),
+    );
+  }
+
+  /// Keeps the row the controller selects on screen.
+  void scrollToIndex(int index) {
+    if (index < 0 || index >= _rowKeys.length) return;
+    final rowContext = _rowKeys[index].currentContext;
+    if (rowContext == null) return;
+    Scrollable.ensureVisible(
+      rowContext,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 150),
+    );
+  }
 
   void selectItem(int index) {
+    if (index == 3 && _showBiosChecker) {
+      _openBiosChecker();
+      return;
+    }
     if (index == 2) {
       _openNeoSwap();
       return;
@@ -277,6 +314,7 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
             physics: const ClampingScrollPhysics(),
             children: [
               SettingsCardRow(
+                key: _rowKeys[0],
                 icon: Symbols.key_rounded,
                 title: PairingFileLocale.get(context, PairingFileLocale.title),
                 subtitle: '$pairingStatus — $pairingDescription',
@@ -299,6 +337,7 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
                       ),
               ),
               SettingsCardRow(
+                key: _rowKeys[1],
                 icon: Symbols.swap_horiz_rounded,
                 title: JitFallbackLocale.get(context, JitFallbackLocale.title),
                 subtitle: '$fallbackStatus — $fallbackDescription',
@@ -322,6 +361,7 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
                       ),
               ),
               SettingsCardRow(
+                key: _rowKeys[2],
                 icon: Icons.memory,
                 title: NeoSwapLocale.get(context, 'title'),
                 subtitle: NeoSwapLocale.get(context, 'scope'),
@@ -331,6 +371,19 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
                 onTap: _openNeoSwap,
                 trailing: const Icon(Icons.chevron_right),
               ),
+              if (_showBiosChecker)
+                SettingsCardRow(
+                  key: _rowKeys[3],
+                  icon: Symbols.fact_check_rounded,
+                  title: LibretroLocale.text(context, 'biosCheckerTitle'),
+                  subtitle: LibretroLocale.text(context, 'biosCheckerSubtitle'),
+                  subtitleMaxLines: 4,
+                  selected:
+                      widget.isContentFocused &&
+                      widget.selectedContentIndex == 3,
+                  onTap: _openBiosChecker,
+                  trailing: const Icon(Icons.chevron_right),
+                ),
             ],
           ),
         ),

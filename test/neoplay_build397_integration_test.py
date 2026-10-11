@@ -282,13 +282,19 @@ class Build398Integration(unittest.TestCase):
         subprocess.run([sys.executable, str(ROOT / 'test/rpcs3_input_bridge_test.py')], cwd=ROOT, check=True, timeout=30)
         subprocess.run([sys.executable, str(ROOT / 'test/rpcs3_performance_snapshot_test.py')], cwd=ROOT, check=True, timeout=30)
     def test_screen_sharing_moves_to_the_main_menu_and_preserves_other_tools(self):
-        text = (ROOT/'lib/screens/settings_screen/new_settings_options/tools_settings_content.dart').read_text()
-        self.assertIn('int getItemCount() => 3;', text)
+        text = (ROOT/'lib/screens/settings_screen/new_settings_options/tools_settings_content.dart').read_text(encoding='utf-8')
+        # Build438 replaces the three-item contract: three tools everywhere,
+        # plus the BIOS checker as the fourth on iOS only; index 3 is never
+        # NeoPlay (test/libretro_bios_checker_screen_test.dart drives it).
+        self.assertIn('int getItemCount() => _showBiosChecker ? 4 : 3;', text)
+        self.assertIn('bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;', text)
+        self.assertRegex(text, r'if \(index == 3 && _showBiosChecker\)\s*\{\s*_openBiosChecker\(\);')
+        self.assertEqual(text.count('index == 3'), 1)
+        self.assertEqual(text.count('onTap: _openBiosChecker'), 1)
         self.assertRegex(text, r'if \(index == 2\)\s*\{\s*_openNeoSwap\(\);')
         self.assertEqual(text.count('onTap: _openNeoSwap'), 1)
         self.assertNotIn('showNeoPlayDialog', text)
         self.assertNotIn('NeoPlayLocale', text)
-        self.assertNotIn('index == 3', text)
         # Build410: AirPlay is a cell of the main menu pill, after Search and
         # before Achievements, never a control outside the strip.
         header = (ROOT/'lib/widgets/header.dart').read_text()
