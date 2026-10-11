@@ -62,7 +62,49 @@ surface. Les autres moteurs gardent la recopie dans cette build. Détail :
 - `test/localization_12_locale_coverage_test.py` : catalogues
   `dolphin_display_locale.dart` et `rpcs3_saves_locale.dart`.
 
-## Vérifications et résultats
+## Vérifications et résultats (11 octobre 2026, soir)
 
-Voir la section « Résultats » ajoutée à la fin de ce document après les
-exécutions locales et CI.
+Windows (Flutter 3.47.2, Python 3.12, sans Xcode ni Swift) :
+
+- `flutter analyze --no-fatal-infos` : aucune erreur ni avertissement
+  (52 informations préexistantes) ;
+- `flutter test` ciblé : 148 réussis (`rpcs3_save_exchange_service_test`,
+  `rpcs3_saves_locale_test`, `rpcs3_save_export_contract_test`,
+  `rpcs3_internal_integration_test`, `rpcs3_firmware_library_test`,
+  `rpcs3_rap_import_menu_test`, `rpcs3_rap_licence_service_test`,
+  `rpcs3_lazy_load_contract_test`, `dolphin_shake_locale_test`,
+  `dolphin_wii_motion_panel_test`, `rpcs3_embedded_identity_test`) et
+  52 réussis pour les tests du dialogue de réglages système
+  (`armsx2_embedded_library_contract_test`, `gamepad_settings_scrolling_test`,
+  `libretro_engine_settings_test`, `rpcs3_embedded_identity_test`) ;
+- contrats Python : `rpcs3_ui_status_cleanup_test`,
+  `diagnostics_files_workspace_test`, `localization_12_locale_coverage_test`
+  (12 langues, 917 clés AppLocale), `dolphin_shake_wiring_test`,
+  `retroarch_baseline_scope_test`, `cheats_media_source_contract_test`,
+  `ui_refresh_rate_scope_test`, `dolphin_external_display_test` (contrats de
+  source ; exécution sur macOS) : réussis ;
+- couverture du `DELTA` : chaque entrée modifiée depuis la référence est
+  enregistrée (`BUILD442_DELTA`, 48 fichiers ; vérification hors ligne par
+  comparaison Git, le vérificateur complet exigeant les modes de fichier
+  POSIX).
+
+macOS CI, `dolphin-motion-check.yml` (`workflow_dispatch --ref Claude`) :
+
+| Run | Révision | Résultat |
+|---|---|---|
+| `38169421678`, `38169517739`, `38169592767` | `2f85ad47`, `0696f243`, `7a353ef0` | échecs du harnais (espacement des opérateurs Swift dans le test, non dans le produit) |
+| `38169663106` | `39dabcf8` | harnais secousse vert (352 assertions) ; harnais tactile interrompu sans message (relancé, vert ensuite : aucune modification de l’arbitre) |
+| `38169810165` | `01d7b03d` | harnais Swift, placement (24), vérification de type iOS verts ; harnais simulateur sans CoreGraphics lié |
+| `38170060946` | `71a00189` | **réussi** : 352 + 47 + 24 assertions, routage, localisations, vérification de type Swift/Objective-C++, simulateur iOS : 4 tests écran externe/réglages/compteurs et 11 tests bouton tactile/ligne Commandes (dont la ligne Sensibilité en 12 langues), 0 échec |
+
+`dolphin-pacing-check.yml` n'a pas été lancé : il échoue avant ses tests sur
+le verrou NeoSwap connu depuis la Build 440 ; ses contrôles de syntaxe et le
+test de placement sont couverts par `dolphin-motion-check.yml`.
+
+Les révisions `0696f243` à `71a00189` ne diffèrent de `2f85ad47` que par
+`test/dolphin_phone_shake_test.py`, `test/dolphin_touch_shake_test.py` et
+`test/dolphin_external_display_ui_test.py` : aucune entrée de l'application
+ne change.
+
+Livraison `retroarch-delivery.yml`, `build_number=442` : voir la section
+suivante.
