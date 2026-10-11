@@ -127,7 +127,14 @@ class LibrarySourceHealthStore extends ChangeNotifier {
     }
     _reports.clear();
     for (final entry in stored.entries) {
-      final report = LibrarySourceHealthReport.fromJson(entry.value);
+      // One damaged report (e.g. a field of the wrong type) is dropped; it
+      // must not make the whole store unreadable for the session.
+      final LibrarySourceHealthReport? report;
+      try {
+        report = LibrarySourceHealthReport.fromJson(entry.value);
+      } on TypeError {
+        continue;
+      }
       if (report != null) _reports[report.sourceId] = report;
     }
   }

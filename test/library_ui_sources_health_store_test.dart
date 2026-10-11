@@ -1,5 +1,6 @@
 // LibrarySourceHealthStore: one report per Aidoku source id in
 // source-health.json, atomic writes, a damaged file kept aside.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +54,8 @@ LibrarySourceHealthReport _report(
 }
 
 void main() {
+  group('damaged entries', _damagedEntryTests);
+
   late Directory root;
 
   setUp(() async {
@@ -127,6 +130,59 @@ void main() {
         '{not json',
         reason: 'the first damaged copy is never replaced',
       );
+    },
+  );
+}
+
+void _damagedEntryTests() {
+  late Directory root;
+
+  setUp(() async {
+    root = await Directory.systemTemp.createTemp('ns_health_entry_');
+  });
+
+  tearDown(() async {
+    if (await root.exists()) await root.delete(recursive: true);
+  });
+
+  test(
+    'a damaged report is skipped, the others and new results kept',
+    () async {
+      final file = File(p.join(root.path, LibrarySourceHealthStore.fileName));
+      await file.writeAsString(
+        jsonEncode(<String, Object?>{
+          'schema': LibrarySourceHealthStore.schema,
+          'reports': <String, Object?>{
+            'fr.sushiscan': _report(
+              'fr.sushiscan',
+              DateTime.utc(2026, 10, 11, 9),
+            ).toJson(),
+            'fr.lelscanfr': <String, Object?>{
+              'sourceId': 'fr.lelscanfr',
+              'checkedAt': '2026-10-11T09:00:00.000Z',
+              'steps': <Object?>[
+                <String, Object?>{
+                  'step': 'listing',
+                  'ok': false,
+                  'statusCode': '403',
+                },
+              ],
+            },
+          },
+        }),
+      );
+      final store = LibrarySourceHealthStore(directory: () async => root);
+      await store.load();
+      expect(store.latest('fr.sushiscan'), isNotNull);
+      expect(store.latest('fr.lelscanfr'), isNull);
+
+      await store.record(
+        _report('fr.lelscanfr', DateTime.utc(2026, 10, 11, 10)),
+      );
+      final reloaded = LibrarySourceHealthStore(directory: () async => root);
+      await reloaded.load();
+      expect(reloaded.latest('fr.lelscanfr')!.readingWorking, isTrue);
+      expect(reloaded.latest('fr.sushiscan'), isNotNull);
     },
   );
 }
