@@ -298,8 +298,12 @@ class LibraryReaderFloatingBackButton extends StatelessWidget {
 /// the bars are shown, else a [LibraryReaderFloatingBackButton] at the same
 /// place (inside the safe area). It never hides by itself and calls
 /// [onBack], the reader's own close path. The control that is hidden is
-/// neither hit-testable nor in the semantics tree.
-class LibraryReaderChromeOverlay extends StatelessWidget {
+/// neither in the semantics tree nor reachable with the keyboard, and the
+/// hidden bars take no touch. While the top bar slides in, the floating
+/// button still takes the touches at its place until the bar's arrow covers
+/// it: a tap there always means Back (both call [onBack]), never a page
+/// turn.
+class LibraryReaderChromeOverlay extends StatefulWidget {
   const LibraryReaderChromeOverlay({
     super.key,
     required this.visible,
@@ -324,18 +328,52 @@ class LibraryReaderChromeOverlay extends StatelessWidget {
   static const Duration duration = Duration(milliseconds: 200);
 
   @override
+  State<LibraryReaderChromeOverlay> createState() =>
+      _LibraryReaderChromeOverlayState();
+}
+
+class _LibraryReaderChromeOverlayState
+    extends State<LibraryReaderChromeOverlay> {
+  /// Whether the floating back button takes touches: while the bars are
+  /// hidden, and while the top bar slides in, until its arrow covers the
+  /// button's place (the bar starts above the screen and reaches that place
+  /// near the end of its slide). Without it a tap there in that moment
+  /// would reach the page and turn it.
+  late bool _floatingTouchable = !widget.visible;
+
+  @override
+  void didUpdateWidget(covariant LibraryReaderChromeOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Hiding: the top bar ignores touches at once, the floating button
+    // takes them at once.
+    if (!widget.visible) _floatingTouchable = true;
+  }
+
+  /// End of a slide of the top bar.
+  void _onTopBarSlideEnd() {
+    if (!mounted || !widget.visible || !_floatingTouchable) return;
+    // Slid in: its arrow is now over the floating button's place.
+    setState(() => _floatingTouchable = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visible = widget.visible;
+    final duration = LibraryReaderChromeOverlay.duration;
     final padding = MediaQuery.paddingOf(context);
     final rightToLeft = Directionality.of(context) == TextDirection.rtl;
+    final bottomBar = widget.bottomBar;
     return Stack(
       children: <Widget>[
-        Positioned.fill(child: content),
+        Positioned.fill(child: widget.content),
         // Below the top bar, which slides over it when the bars come back.
         PositionedDirectional(
           top: padding.top + _kBackTopGap,
           start: (rightToLeft ? padding.right : padding.left) + _kBackSideGap,
           child: IgnorePointer(
-            ignoring: visible,
+            ignoring: !_floatingTouchable,
+            // Out of the semantics tree and of focus as soon as the bars
+            // are shown: VoiceOver and the keyboard find one Back.
             child: ExcludeSemantics(
               excluding: visible,
               child: ExcludeFocus(
@@ -344,8 +382,8 @@ class LibraryReaderChromeOverlay extends StatelessWidget {
                   opacity: visible ? 0 : 1,
                   duration: duration,
                   child: LibraryReaderFloatingBackButton(
-                    palette: palette,
-                    onPressed: onBack,
+                    palette: widget.palette,
+                    onPressed: widget.onBack,
                   ),
                 ),
               ),
@@ -362,14 +400,19 @@ class LibraryReaderChromeOverlay extends StatelessWidget {
             // floating back button is never announced next to its arrow.
             child: ExcludeSemantics(
               excluding: !visible,
-              child: AnimatedSlide(
-                offset: visible ? Offset.zero : const Offset(0, -1),
-                duration: duration,
-                curve: Curves.easeOut,
-                child: AnimatedOpacity(
-                  opacity: visible ? 1 : 0,
+              // Hidden, its controls take no keyboard focus (Tab) either.
+              child: ExcludeFocus(
+                excluding: !visible,
+                child: AnimatedSlide(
+                  offset: visible ? Offset.zero : const Offset(0, -1),
                   duration: duration,
-                  child: topBar,
+                  curve: Curves.easeOut,
+                  onEnd: _onTopBarSlideEnd,
+                  child: AnimatedOpacity(
+                    opacity: visible ? 1 : 0,
+                    duration: duration,
+                    child: widget.topBar,
+                  ),
                 ),
               ),
             ),
@@ -382,14 +425,17 @@ class LibraryReaderChromeOverlay extends StatelessWidget {
             bottom: 0,
             child: IgnorePointer(
               ignoring: !visible,
-              child: AnimatedSlide(
-                offset: visible ? Offset.zero : const Offset(0, 1),
-                duration: duration,
-                curve: Curves.easeOut,
-                child: AnimatedOpacity(
-                  opacity: visible ? 1 : 0,
+              child: ExcludeFocus(
+                excluding: !visible,
+                child: AnimatedSlide(
+                  offset: visible ? Offset.zero : const Offset(0, 1),
                   duration: duration,
-                  child: bottomBar,
+                  curve: Curves.easeOut,
+                  child: AnimatedOpacity(
+                    opacity: visible ? 1 : 0,
+                    duration: duration,
+                    child: bottomBar,
+                  ),
                 ),
               ),
             ),

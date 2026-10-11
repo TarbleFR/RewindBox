@@ -167,6 +167,24 @@ class LibraryReflowStyle {
   /// Horizontal margin in logical pixels (added to the safe area).
   final double margin;
 
+  /// Font size of the headings h1 to h6, in em.
+  static const List<double> headingScales = <double>[
+    1.6,
+    1.4,
+    1.25,
+    1.12,
+    1.05,
+    1.0,
+  ];
+
+  /// Line height of the headings.
+  static const double headingLineHeight = 1.25;
+
+  /// Height of the tallest text line laid out: a body line, or an h1 line
+  /// when the body lines are shorter.
+  double get tallestLine =>
+      fontSize * math.max(lineHeight, headingScales.first * headingLineHeight);
+
   TextStyle get base => TextStyle(
     color: palette.text,
     fontSize: fontSize,
@@ -390,11 +408,10 @@ class LibraryReflowUnitViewState extends State<LibraryReflowUnitView> {
     switch (block.kind) {
       case LibraryTextBlockKind.heading:
         final level = block.headingLevel.clamp(1, 6);
-        const scales = <double>[1.6, 1.4, 1.25, 1.12, 1.05, 1.0];
         final heading = base.copyWith(
-          fontSize: em * scales[level - 1],
+          fontSize: em * LibraryReflowStyle.headingScales[level - 1],
           fontWeight: FontWeight.w700,
-          height: 1.25,
+          height: LibraryReflowStyle.headingLineHeight,
         );
         return Padding(
           padding: padding.add(

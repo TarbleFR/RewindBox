@@ -856,13 +856,34 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   // ------------------------------------------------------------ actions --
 
+  /// Longest scroll of one step: the text area below the back control,
+  /// less its tallest line. Turning a page forward, the line cut by the
+  /// bottom edge then lands below the back control, on the reading line or
+  /// under it, never under the floating back button; turning back, the line
+  /// cut under the back control lands whole on screen. No line is shown
+  /// only behind the button, and the position saved after a turn is never
+  /// past a line not shown yet.
+  double _pageStep(double viewport) {
+    final line = LibraryReflowStyle.of(
+      _settings,
+      _palette(context),
+    ).tallestLine;
+    return math.max(viewport - _topInset - line, line);
+  }
+
   void _scrollBy(double viewports) {
     final scroll = _scroll;
     if (scroll == null || !scroll.hasClients) return;
     _userMoved();
     final position = scroll.position;
-    final target = (position.pixels + position.viewportDimension * viewports)
-        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    final viewport = position.viewportDimension;
+    // Page turns (0.9 screen) are capped to [_pageStep]; the shorter
+    // controller steps (0.3 screen) stay as they were.
+    final distance = math.min(viewport * viewports.abs(), _pageStep(viewport));
+    final target = (position.pixels + distance * viewports.sign).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
     scroll.animateTo(
       target,
       duration: const Duration(milliseconds: 220),

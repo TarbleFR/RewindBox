@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,7 @@ import 'package:neostation/screens/library_screen/reader/library_page_source.dar
 import 'package:neostation/screens/library_screen/reader/library_reader_chrome.dart';
 import 'package:neostation/screens/library_screen/reader/library_reader_palette.dart';
 import 'package:neostation/screens/library_screen/reader/library_reflow_source.dart';
+import 'package:neostation/screens/library_screen/reader/library_reflow_view.dart';
 import 'package:neostation/services/library_http.dart';
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
@@ -83,20 +85,45 @@ Future<void> waitForBarsToHide(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-/// Exactly one Back can be reached, by touch and by VoiceOver: the top
-/// bar's arrow when [barsVisible], else the floating back button. The other
-/// one is neither hit-testable nor in the semantics tree.
+/// Focus node of the Back control inside [owner] (the one of its
+/// InkResponse).
+FocusNode backFocus(WidgetTester tester, Finder owner, String label) =>
+    Focus.of(
+      tester.element(
+        find.descendant(of: backIn(owner, label), matching: find.byType(Icon)),
+      ),
+    );
+
+/// Exactly one Back can be reached, by touch, by VoiceOver and with the
+/// keyboard: the top bar's arrow when [barsVisible], else the floating back
+/// button. The other one is neither hit-testable, nor in the semantics
+/// tree, nor focusable.
+///
+/// [slidingIn]: the top bar is still sliding in. Until its arrow covers the
+/// floating button's place, the floating button keeps the touches there
+/// (both close the reader: a tap at that place is never a page turn), but
+/// it is already out of the semantics tree and of focus.
 void expectOneBack(
   WidgetTester tester, {
   required bool barsVisible,
   String? label,
+  bool slidingIn = false,
 }) {
+  assert(!slidingIn || barsVisible);
   final text = label ?? en('back');
   final shown = barsVisible ? topBar() : floatingBack();
   final hidden = barsVisible ? floatingBack() : topBar();
-  expect(find.byTooltip(text).hitTestable(), findsOne);
   expect(backIn(shown, text).hitTestable(), findsOne);
-  expect(backIn(hidden, text).hitTestable(), findsNothing);
+  if (slidingIn) {
+    expect(backIn(hidden, text).hitTestable(), findsOne);
+    expect(find.byTooltip(text).hitTestable(), findsNWidgets(2));
+  } else {
+    expect(find.byTooltip(text).hitTestable(), findsOne);
+    expect(backIn(hidden, text).hitTestable(), findsNothing);
+  }
+  // Keyboard: only the shown control can take the focus.
+  expect(backFocus(tester, shown, text).canRequestFocus, isTrue);
+  expect(backFocus(tester, hidden, text).canRequestFocus, isFalse);
   expect(find.semantics.byLabel(text), findsOne);
   // The one node is the shown control's; the hidden one has none.
   final shownNode = find.descendant(
@@ -117,6 +144,106 @@ void expectOneBack(
     final former = (element as RenderObjectElement).renderObject.debugSemantics;
     expect(former?.attached ?? false, isFalse, reason: 'hidden control');
   }
+}
+
+/// Where the keyboard focus lands on each of [count] Tab presses: `top`
+/// (in the top bar), `bottom` (in the bottom bar), `floating` (the
+/// floating back button), else `other` or `none`.
+Future<List<String>> tabStops(WidgetTester tester, {int count = 8}) async {
+  final stops = <String>[];
+  for (var i = 0; i < count; i++) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final context = FocusManager.instance.primaryFocus?.context;
+    if (context == null) {
+      stops.add('none');
+    } else if (context.findAncestorWidgetOfExactType<LibraryReaderTopBar>() !=
+        null) {
+      stops.add('top');
+    } else if (context
+            .findAncestorWidgetOfExactType<LibraryReaderBottomBar>() !=
+        null) {
+      stops.add('bottom');
+    } else if (context
+            .findAncestorWidgetOfExactType<LibraryReaderFloatingBackButton>() !=
+        null) {
+      stops.add('floating');
+    } else {
+      stops.add('other');
+    }
+  }
+  return stops;
+}
+
+/// One line of the reflowed text: the book position where it starts and
+/// the box of its glyphs on screen.
+class TextLine {
+  TextLine(this.position, this.rect);
+
+  final LibraryReflowPosition position;
+  final Rect rect;
+
+  String get key => '${position.chapter}:${position.block}:${position.offset}';
+
+  @override
+  String toString() => '$key $rect';
+}
+
+/// Orders two book positions.
+int comparePositions(LibraryReflowPosition a, LibraryReflowPosition b) {
+  if (a.chapter != b.chapter) return a.chapter.compareTo(b.chapter);
+  if (a.block != b.block) return a.block.compareTo(b.block);
+  return a.offset.compareTo(b.offset);
+}
+
+/// Every text line the book reader has laid out (on screen and in its
+/// cache), top to bottom.
+List<TextLine> textLines(WidgetTester tester) {
+  final lines = <TextLine>[];
+  for (final element in find.byType(LibraryReflowUnitView).evaluate()) {
+    final unit = (element.widget as LibraryReflowUnitView).unit;
+    void visit(Element child) {
+      final object = child.renderObject;
+      if (child is RenderObjectElement &&
+          object is RenderParagraph &&
+          object.attached &&
+          object.hasSize) {
+        final length = object.text.toPlainText().length;
+        final boxes = object.getBoxesForSelection(
+          TextSelection(baseOffset: 0, extentOffset: length),
+        );
+        // One box per run: the runs of a line share its top.
+        final byTop = <double, Rect>{};
+        for (final box in boxes) {
+          final rect = box.toRect();
+          final top = (rect.top * 2).roundToDouble() / 2;
+          byTop[top] = byTop[top]?.expandToInclude(rect) ?? rect;
+        }
+        final origin = object.localToGlobal(Offset.zero);
+        for (final rect in byTop.values) {
+          final start = object
+              .getPositionForOffset(Offset(rect.left, rect.center.dy))
+              .offset;
+          lines.add(
+            TextLine(
+              LibraryReflowPosition(
+                unit.chapter,
+                unit.block,
+                unit.start + start,
+              ),
+              rect.shift(origin),
+            ),
+          );
+        }
+        return;
+      }
+      child.visitChildren(visit);
+    }
+
+    element.visitChildren(visit);
+  }
+  lines.sort((a, b) => a.rect.top.compareTo(b.rect.top));
+  return lines;
 }
 
 /// The floating button calls the reader's own close action: the one of the
@@ -352,6 +479,80 @@ void main() {
       });
     }
 
+    // Build 438 review: the floating Back stopped taking touches as soon as
+    // the bars were shown, while the top bar only covers its place near the
+    // end of its 200 ms slide. A tap there in between reached the page (left
+    // zone: a page back) instead of leaving.
+    for (final gap in <int>[20, 60, 100, 140, 250]) {
+      testWidgets('a tap at the back place $gap ms after the bars are shown '
+          'leaves the reader once, never turns a page', (tester) async {
+        usePhone(tester);
+        final (store, _) = await createStore(tester);
+        final pops = PopRecorder();
+        final navigator = await pumpReader(
+          tester,
+          LibraryPageReaderScreen(
+            content: FakePageContent(progressKey: 'local:place'),
+            store: store,
+          ),
+          opener: StoreWatcher(store: store, progressKey: 'local:place'),
+          navigatorObservers: <NavigatorObserver>[pops],
+        );
+        final state = pageState(tester);
+        for (var i = 0; i < 2; i++) {
+          state.gamepadBindings.right!();
+          await frames(tester);
+        }
+        await waitForBarsToHide(tester);
+        final place = tester.getCenter(floatingBack());
+        // A shows the bars; their slide starts on the next frame.
+        state.gamepadBindings.select!();
+        await tester.pump();
+        await tester.pump(Duration(milliseconds: gap));
+        expect(state.chromeVisible, isTrue);
+
+        await tester.tapAt(place);
+        expect(state.controller.page, 2);
+        expect(store.progressFor('local:place')!.pageIndex, 2);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.byType(LibraryPageReaderScreen), findsNothing);
+        expect(pops.popped, hasLength(1));
+        expect(find.text('home page:2'), findsOneWidget);
+        expect(navigator.currentState!.canPop(), isTrue, reason: 'opener');
+        expect(tester.takeException(), isNull);
+        await flushStore(tester, store);
+      });
+    }
+
+    testWidgets('the keyboard reaches one Back: the hidden bars take no '
+        'focus', (tester) async {
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(content: FakePageContent(), store: store),
+      );
+      final state = pageState(tester);
+      // Bars shown: their controls, not the floating Back.
+      expect(state.chromeVisible, isTrue);
+      final shown = await tabStops(tester);
+      expect(shown, containsAll(<String>['top', 'bottom']));
+      expect(shown, isNot(contains('floating')));
+      // Bars hidden (Build 438 review: Tab still went through the invisible
+      // top bar's Back and settings and the bottom bar).
+      await waitForBarsToHide(tester);
+      expect(state.chromeVisible, isFalse);
+      final hidden = await tabStops(tester);
+      expect(hidden, contains('floating'));
+      expect(hidden, isNot(contains('top')));
+      expect(hidden, isNot(contains('bottom')));
+      // Moving the focus neither shows the bars nor turns a page.
+      expect(state.chromeVisible, isFalse);
+      expect(state.controller.page, 0);
+      await closeAll(tester, store);
+    });
+
     testWidgets('the floating Back turns no page and does not show the bars', (
       tester,
     ) async {
@@ -432,9 +633,11 @@ void main() {
       expect(state.zoomed, isTrue);
       expect(state.chromeVisible, isFalse);
       expectOneBack(tester, barsVisible: false);
-      // A tap shows the bars over the zoomed page: the arrow again, also
-      // while the bar is still sliding in (it does not cover the floating
-      // button yet).
+      // A tap shows the bars over the zoomed page: the arrow is the one
+      // Back for VoiceOver and the keyboard at once. While the bar is still
+      // sliding in (it does not cover the floating button yet), the
+      // floating button keeps the touches at its place (Build 438 review:
+      // a tap there reached the page and turned it); then only the arrow.
       await tester.tapAt(const Offset(196, 426));
       await tester.pump(const Duration(milliseconds: 400));
       expect(state.chromeVisible, isTrue);
@@ -445,8 +648,9 @@ void main() {
             .first,
       );
       expect(slide.position.value.dy, inExclusiveRange(-1, 0));
-      expectOneBack(tester, barsVisible: true);
+      expectOneBack(tester, barsVisible: true, slidingIn: true);
       await tester.pump(const Duration(milliseconds: 300));
+      expect(slide.position.value.dy, 0);
       expectOneBack(tester, barsVisible: true);
 
       // Vertical strip (webtoon), bars hidden again.
@@ -731,6 +935,155 @@ void main() {
         await closeAll(tester, store);
       });
     }
+
+    // Build 438 review: a page turn moved 0.9 screen, so the first line not
+    // shown yet landed under the floating Back (portrait y 67-95, landscape
+    // y 21-40) and the position saved was often the line after it.
+    for (final landscape in <bool>[false, true]) {
+      testWidgets('a page turn never leaves a line not read yet under the '
+          'floating Back (${landscape ? 'landscape' : 'portrait'})', (
+        tester,
+      ) async {
+        usePhone(tester, landscape: landscape);
+        final size = tester.view.physicalSize;
+        final (store, _) = await createStore(tester);
+        await pumpReader(tester, bookReader(store, progressKey: 'local:turns'));
+        await settle(tester, rounds: 2);
+        final state = bookState(tester);
+        await waitForBarsToHide(tester);
+        expect(state.chromeVisible, isFalse);
+        final disc = tester.getRect(
+          find.descendant(of: floatingBack(), matching: find.byType(Ink)),
+        );
+
+        Future<void> turn(String how, Future<void> Function() action) async {
+          await action();
+          await frames(tester);
+          await settle(tester, rounds: 1);
+          expect(state.chromeVisible, isFalse, reason: how);
+        }
+
+        // Forward: the first line not wholly on screen (cut by the bottom
+        // edge or below it) lands wholly below the floating Back, and every
+        // line now under the button was read before the turn.
+        Future<void> forward(String how, Future<void> Function() action) async {
+          final before = textLines(tester);
+          final read = <String>{
+            for (final line in before)
+              if (line.rect.top >= 0 &&
+                  line.rect.bottom <= size.height &&
+                  !line.rect.overlaps(disc))
+                line.key,
+          };
+          final next = before.firstWhere(
+            (line) => line.rect.bottom > size.height,
+          );
+          await turn(how, action);
+          final after = textLines(tester);
+          final moved = after.singleWhere((line) => line.key == next.key);
+          expect(
+            moved.rect.top,
+            greaterThanOrEqualTo(disc.bottom),
+            reason: '$how: $next lands under the floating Back at $moved',
+          );
+          expect(moved.rect.bottom, lessThanOrEqualTo(size.height));
+          for (final line in after.where((line) => line.rect.overlaps(disc))) {
+            expect(read, contains(line.key), reason: '$how: $line not read');
+          }
+          // The position saved is never past a line not shown yet.
+          expect(
+            comparePositions(state.currentPosition!, next.position),
+            lessThanOrEqualTo(0),
+            reason: '$how: ${state.currentPosition} after $next',
+          );
+          // Still a page turn: most of a screen.
+          expect(
+            next.rect.top - moved.rect.top,
+            greaterThan(size.height * 0.7),
+          );
+        }
+
+        // Back: the last line above the text below the button (cut by it,
+        // under it or above the screen) lands wholly on screen below it.
+        Future<void> back(String how, Future<void> Function() action) async {
+          final before = textLines(tester);
+          final previous = before.lastWhere(
+            (line) => line.rect.top < disc.bottom,
+          );
+          await turn(how, action);
+          final moved = textLines(
+            tester,
+          ).singleWhere((line) => line.key == previous.key);
+          expect(
+            moved.rect.top,
+            greaterThanOrEqualTo(disc.bottom),
+            reason: '$how: $previous at $moved',
+          );
+          expect(
+            moved.rect.bottom,
+            lessThanOrEqualTo(size.height),
+            reason: '$how: $previous skipped (now at $moved)',
+          );
+          expect(
+            moved.rect.top - previous.rect.top,
+            greaterThan(size.height * 0.7),
+          );
+        }
+
+        final right = Offset(size.width - 24, size.height / 2);
+        final left = Offset(24, size.height / 2);
+        for (var i = 0; i < 3; i++) {
+          await forward('right third', () => tester.tapAt(right));
+          await forward('controller right', () async {
+            state.gamepadBindings.right!();
+          });
+        }
+        for (var i = 0; i < 2; i++) {
+          await back('left third', () => tester.tapAt(left));
+          await back('controller left', () async {
+            state.gamepadBindings.left!();
+          });
+        }
+        await closeAll(tester, store);
+      });
+    }
+
+    testWidgets('a tap at the back place while the bars slide in closes the '
+        'book, never pages up', (tester) async {
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      final pops = PopRecorder();
+      await pumpReader(
+        tester,
+        bookReader(store, progressKey: 'local:place'),
+        opener: StoreWatcher(store: store, progressKey: 'local:place'),
+        navigatorObservers: <NavigatorObserver>[pops],
+      );
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      state.gamepadBindings.right!();
+      await frames(tester);
+      await waitForBarsToHide(tester);
+      final shown = state.currentPosition!;
+      final place = tester.getCenter(floatingBack());
+      state.gamepadBindings.select!();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(state.chromeVisible, isTrue);
+
+      await tester.tapAt(place);
+      expect(
+        store.progressFor('local:place')!.location,
+        'txt:${200 * shown.chapter + shown.block}:${shown.offset}',
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(LibraryBookReaderScreen), findsNothing);
+      expect(pops.popped, hasLength(1));
+      expect(tester.takeException(), isNull);
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
 
     testWidgets('the floating Back neither scrolls nor shows the bars', (
       tester,
