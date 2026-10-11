@@ -23,6 +23,7 @@ ns['TESTS'] = r'''
 #import <MetalKit/MetalKit.h>
 #import "DolphinExternalDisplay.h"
 #import "DolphinFramePacing.h"
+static char kScreensSetterKey;
 @interface ExternalDisplay442Tests : XCTestCase
 @end
 @implementation ExternalDisplay442Tests {
@@ -55,11 +56,11 @@ ns['TESTS'] = r'''
   display.windowFactory = ^UIWindow*(UIScreen* screen) { return window; };
   NSMutableArray* states = _states;
   display.stateChanged = ^(BOOL active) { [states addObject:@(active)]; };
-  objc_setAssociatedObject(display, "screens", ^(NSArray<UIScreen*>* next) { current = next; }, OBJC_ASSOCIATION_COPY);
+  objc_setAssociatedObject(display, &kScreensSetterKey, ^(NSArray<UIScreen*>* next) { current = next; }, OBJC_ASSOCIATION_COPY);
   return display;
 }
 - (void (^)(NSArray<UIScreen*>*))screensSetter:(DolphinExternalDisplay*)display {
-  return objc_getAssociatedObject(display, "screens");
+  return objc_getAssociatedObject(display, &kScreensSetterKey);
 }
 - (void)testFitMovesOnlyTheRenderViewAndKeepsTheControlsOnThePhone {
   DolphinExternalDisplay* display = [self displayWithScreens:@[UIScreen.mainScreen]];
