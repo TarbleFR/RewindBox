@@ -466,7 +466,10 @@ class LibraryFeedSource {
   int _pagesWithoutNew = 0;
   bool _loadingMore = false;
   bool _slow = false;
-  bool _cacheRead = false;
+
+  /// The one read of the cached page 1; every open waits for it, so a
+  /// second open made meanwhile sees whether that copy is fresh.
+  Future<void>? _cacheRead;
   bool _cacheFresh = false;
   LibraryFeedFailure? _failure;
   LibraryFeedFailure? _pageFailure;
@@ -975,11 +978,8 @@ class LibraryCatalogFeed extends ChangeNotifier {
     LibraryFeedSource source, {
     required bool manual,
   }) async {
-    if (!source._cacheRead) {
-      source._cacheRead = true;
-      await _readCache(source);
-      if (!_isCurrent(source)) return;
-    }
+    await (source._cacheRead ??= _readCache(source));
+    if (!_isCurrent(source)) return;
     if (source._loading) return;
     if (source._queued) {
       // Already waiting for a slot (e.g. a tab switch while 4+ sources

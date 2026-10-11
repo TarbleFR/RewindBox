@@ -453,6 +453,29 @@ void main() {
     },
   );
 
+  test(
+    'opening again while the cache is read keeps a fresh copy offline',
+    () async {
+      final source = aidokuTestAddon('fr.alpha');
+      backend.cachedPages['fr.alpha'] = testPage(
+        [testItem('cached')],
+        fromCache: true,
+        fetchedAt: clock.now.subtract(const Duration(minutes: 3)),
+      );
+      backend.pages['fr.alpha'] = (_) async => testPage([testItem('network')]);
+      final feed = newFeed();
+      // Back from Sources: the section reports its change and the hub
+      // reopens too, before the first cache read has answered.
+      final first = feed.open([source]);
+      final second = feed.open([source]);
+      await Future.wait([first, second]);
+      await settle();
+      expect(titles(feed), ['cached']);
+      expect(backend.callsOf('cache'), hasLength(1));
+      expect(backend.callsOf('page'), isEmpty);
+    },
+  );
+
   test('a refresh while a source waits for a slot refreshes it once', () async {
     final a = aidokuTestAddon('fr.a');
     final b = aidokuTestAddon('fr.b');
