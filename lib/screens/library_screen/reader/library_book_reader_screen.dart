@@ -238,6 +238,15 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     });
   }
 
+  /// The route was popped (Back, B, the iOS back swipe): the screen below
+  /// is on stage from now on, so landscape is restored now rather than in
+  /// [dispose], after the reverse transition. [dispose] stays the fallback
+  /// (the session stops once).
+  void _onPopped(bool didPop, Object? _) {
+    if (!didPop) return;
+    unawaited(_system.stop());
+  }
+
   // ----------------------------------------------------------- opening --
 
   Future<void> _open() async {
@@ -902,61 +911,64 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       _setAnchor(_anchorPending ? _anchor : (_lastPosition ?? _anchor));
     }
     _lastWidth = width;
-    return LibraryReaderGamepadScope(
-      name: 'library_book_reader',
-      bindings: gamepadBindings,
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: palette.isDark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark,
-        child: Scaffold(
-          backgroundColor: palette.background,
-          // The chrome follows the position and its visibility; the text
-          // (child) is not rebuilt for either.
-          body: ListenableBuilder(
-            listenable: Listenable.merge(<Listenable>[
-              _chrome,
-              _shownPosition,
-              _sliderValue,
-            ]),
-            child: _buildBody(context, palette),
-            builder: (context, body) {
-              final position = _shownPosition.value ?? _anchor;
-              final chapterTitle = ready
-                  ? _tocTitleFor(position.chapter)
-                  : null;
-              return LibraryReaderChromeOverlay(
-                visible: _chrome.visible || !ready,
-                content: body!,
-                topBar: LibraryReaderTopBar(
-                  palette: palette,
-                  title: widget.title,
-                  subtitle: chapterTitle ?? widget.subtitle,
-                  onBack: _close,
-                  actions: <Widget>[
-                    if (ready && source.toc.isNotEmpty)
-                      LibraryReaderIconButton(
-                        icon: Icons.toc_rounded,
-                        tooltip: LibraryReaderLocale.text(
-                          context,
-                          'tableOfContents',
+    return PopScope<Object?>(
+      onPopInvokedWithResult: _onPopped,
+      child: LibraryReaderGamepadScope(
+        name: 'library_book_reader',
+        bindings: gamepadBindings,
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: palette.isDark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark,
+          child: Scaffold(
+            backgroundColor: palette.background,
+            // The chrome follows the position and its visibility; the text
+            // (child) is not rebuilt for either.
+            body: ListenableBuilder(
+              listenable: Listenable.merge(<Listenable>[
+                _chrome,
+                _shownPosition,
+                _sliderValue,
+              ]),
+              child: _buildBody(context, palette),
+              builder: (context, body) {
+                final position = _shownPosition.value ?? _anchor;
+                final chapterTitle = ready
+                    ? _tocTitleFor(position.chapter)
+                    : null;
+                return LibraryReaderChromeOverlay(
+                  visible: _chrome.visible || !ready,
+                  content: body!,
+                  topBar: LibraryReaderTopBar(
+                    palette: palette,
+                    title: widget.title,
+                    subtitle: chapterTitle ?? widget.subtitle,
+                    onBack: _close,
+                    actions: <Widget>[
+                      if (ready && source.toc.isNotEmpty)
+                        LibraryReaderIconButton(
+                          icon: Icons.toc_rounded,
+                          tooltip: LibraryReaderLocale.text(
+                            context,
+                            'tableOfContents',
+                          ),
+                          onPressed: _openToc,
+                          color: palette.chromeForeground,
                         ),
-                        onPressed: _openToc,
+                      LibraryReaderIconButton(
+                        icon: Icons.text_format_rounded,
+                        tooltip: LibraryReaderLocale.text(context, 'settings'),
+                        onPressed: _openSettings,
                         color: palette.chromeForeground,
                       ),
-                    LibraryReaderIconButton(
-                      icon: Icons.text_format_rounded,
-                      tooltip: LibraryReaderLocale.text(context, 'settings'),
-                      onPressed: _openSettings,
-                      color: palette.chromeForeground,
-                    ),
-                  ],
-                ),
-                bottomBar: ready && source.chapterCount > 0
-                    ? _buildBottomBar(context, palette, source, position)
-                    : null,
-              );
-            },
+                    ],
+                  ),
+                  bottomBar: ready && source.chapterCount > 0
+                      ? _buildBottomBar(context, palette, source, position)
+                      : null,
+                );
+              },
+            ),
           ),
         ),
       ),

@@ -262,6 +262,15 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     });
   }
 
+  /// The route was popped (Back, B, the iOS back swipe): the screen below
+  /// is on stage from now on, so landscape is restored now rather than in
+  /// [dispose], after the reverse transition. [dispose] stays the fallback
+  /// (the session stops once).
+  void _onPopped(bool didPop, Object? _) {
+    if (!didPop) return;
+    unawaited(_system.stop());
+  }
+
   // ---------------------------------------------------------- navigation --
 
   int get _leading =>
@@ -820,39 +829,42 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final palette = _palette(context);
     final ready = _controller.status == LibraryPageReaderStatus.ready;
     final tracks = widget.content.tracksChapters;
-    return LibraryReaderGamepadScope(
-      name: 'library_page_reader',
-      bindings: gamepadBindings,
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: palette.isDark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark,
-        child: Scaffold(
-          backgroundColor: palette.background,
-          // Showing or hiding the chrome does not rebuild the pages (child).
-          body: ListenableBuilder(
-            listenable: Listenable.merge(<Listenable>[_chrome, _sliderPage]),
-            child: _buildContent(context, palette),
-            builder: (context, content) => LibraryReaderChromeOverlay(
-              visible: _chrome.visible || !ready,
-              content: content!,
-              topBar: LibraryReaderTopBar(
-                palette: palette,
-                title: widget.content.title,
-                subtitle: tracks
-                    ? _chapterLabel(context, _controller.chapter)
-                    : widget.content.subtitle,
-                onBack: _close,
-                actions: <Widget>[
-                  LibraryReaderIconButton(
-                    icon: Icons.tune_rounded,
-                    tooltip: LibraryReaderLocale.text(context, 'settings'),
-                    onPressed: _openSettings,
-                    color: palette.chromeForeground,
-                  ),
-                ],
+    return PopScope<Object?>(
+      onPopInvokedWithResult: _onPopped,
+      child: LibraryReaderGamepadScope(
+        name: 'library_page_reader',
+        bindings: gamepadBindings,
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: palette.isDark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark,
+          child: Scaffold(
+            backgroundColor: palette.background,
+            // Showing or hiding the chrome does not rebuild the pages (child).
+            body: ListenableBuilder(
+              listenable: Listenable.merge(<Listenable>[_chrome, _sliderPage]),
+              child: _buildContent(context, palette),
+              builder: (context, content) => LibraryReaderChromeOverlay(
+                visible: _chrome.visible || !ready,
+                content: content!,
+                topBar: LibraryReaderTopBar(
+                  palette: palette,
+                  title: widget.content.title,
+                  subtitle: tracks
+                      ? _chapterLabel(context, _controller.chapter)
+                      : widget.content.subtitle,
+                  onBack: _close,
+                  actions: <Widget>[
+                    LibraryReaderIconButton(
+                      icon: Icons.tune_rounded,
+                      tooltip: LibraryReaderLocale.text(context, 'settings'),
+                      onPressed: _openSettings,
+                      color: palette.chromeForeground,
+                    ),
+                  ],
+                ),
+                bottomBar: ready ? _buildBottomBar(context, palette) : null,
               ),
-              bottomBar: ready ? _buildBottomBar(context, palette) : null,
             ),
           ),
         ),

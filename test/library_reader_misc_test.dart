@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/screens/library_screen/library_pdf_reader_screen.dart';
@@ -17,6 +18,7 @@ import 'package:neostation/screens/library_screen/reader/library_reflow_view.dar
 import 'package:neostation/services/library_aidoku_engines.dart';
 import 'package:neostation/services/library_http.dart';
 import 'package:neostation/services/library_local_models.dart';
+import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -317,6 +319,48 @@ void main() {
       root.currentState!.pop();
       await frames(tester);
       await tester.pump(const Duration(milliseconds: 400));
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
+
+    // Regression: landscape came back only in dispose, after the reverse
+    // transition (the screen below was shown in portrait first).
+    testWidgets('the PDF reader restores landscape as soon as it is popped', (
+      tester,
+    ) async {
+      useSurface(tester);
+      // pdfrx asks path_provider for its cache folder.
+      const pathProvider = MethodChannel('plugins.flutter.io/path_provider');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
+        pathProvider,
+        (call) async => Directory.systemTemp.path,
+      );
+      addTearDown(() => messenger.setMockMethodCallHandler(pathProvider, null));
+      final (store, _) = await createStore(tester);
+      final platform = RecordingOrientationPlatform();
+      final orientation = LibraryReaderOrientation(
+        platform: platform,
+        isIOS: true,
+      );
+      final navigator = await pumpReader(
+        tester,
+        LibraryPdfReaderScreen(
+          filePath: '${Directory.systemTemp.path}/missing-orientation.pdf',
+          title: 'Missing',
+          store: store,
+          orientation: orientation,
+        ),
+      );
+      await tester.pump();
+      await expectLandscapeWhenPopStarts(
+        tester,
+        navigator,
+        platform,
+        orientation,
+        LibraryPdfReaderScreen,
+      );
       await settle(tester, rounds: 2);
       await flushStore(tester, store);
     });

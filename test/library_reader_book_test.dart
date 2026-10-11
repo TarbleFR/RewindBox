@@ -11,6 +11,7 @@ import 'package:neostation/screens/library_screen/reader/library_reflow_source.d
 import 'package:neostation/screens/library_screen/reader/library_reflow_view.dart';
 import 'package:neostation/services/library_epub.dart';
 import 'package:neostation/services/library_local_models.dart';
+import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/library_text_document.dart';
 
@@ -444,6 +445,42 @@ void main() {
       expect(find.text(en('errorWorker')), findsNothing);
       expect(state.currentPosition, LibraryReflowPosition.start);
       await closeBook(tester, store);
+    });
+
+    // Regression: landscape came back only in dispose, after the reverse
+    // transition (the screen below was shown in portrait first).
+    testWidgets('landscape is restored as soon as the reader is popped', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final platform = RecordingOrientationPlatform();
+      final orientation = LibraryReaderOrientation(
+        platform: platform,
+        isIOS: true,
+      );
+      final navigator = await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryTextReflowSource(
+            LibraryTextDocument.fromText(sampleText()),
+          ),
+          progressKey: 'local:rotation',
+          title: 'Sample',
+          store: store,
+          orientation: orientation,
+        ),
+      );
+      await settle(tester, rounds: 2);
+      await expectLandscapeWhenPopStarts(
+        tester,
+        navigator,
+        platform,
+        orientation,
+        LibraryBookReaderScreen,
+      );
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
     });
 
     // Regression: with VoiceOver the bars hid after 4 s, taking their

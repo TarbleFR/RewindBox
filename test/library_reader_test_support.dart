@@ -124,6 +124,62 @@ Future<GlobalKey<NavigatorState>> pumpReader(
   return navigator;
 }
 
+/// Records the orientation calls of the readers in the order they reach
+/// the platform (the native mask always grants portrait).
+class RecordingOrientationPlatform implements LibraryReaderOrientationPlatform {
+  final List<String> calls = <String>[];
+
+  @override
+  Future<bool> setNativePortraitAllowed(bool allowed) async {
+    calls.add('native:$allowed');
+    return true;
+  }
+
+  @override
+  Future<void> setPreferredOrientations(
+    List<DeviceOrientation> orientations,
+  ) async {
+    calls.add(
+      orientations.contains(DeviceOrientation.portraitUp)
+          ? 'flutter:portrait+landscape'
+          : 'flutter:landscape',
+    );
+  }
+}
+
+/// Orientation calls of a reader that was opened and then closed.
+const List<String> readerOrientationRoundTrip = <String>[
+  'native:true',
+  'flutter:portrait+landscape',
+  'flutter:landscape',
+  'native:false',
+];
+
+/// Pops the reader route above home and checks that landscape is restored
+/// as soon as the pop starts: 120 ms into the reverse transition the
+/// reader ([readerType]) is still on screen and the four calls are made.
+Future<void> expectLandscapeWhenPopStarts(
+  WidgetTester tester,
+  GlobalKey<NavigatorState> navigator,
+  RecordingOrientationPlatform platform,
+  LibraryReaderOrientation orientation,
+  Type readerType,
+) async {
+  expect(platform.calls, readerOrientationRoundTrip.sublist(0, 2));
+  expect(orientation.portraitActive, isTrue);
+  navigator.currentState!.pop();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 120));
+  expect(find.byType(readerType), findsOneWidget, reason: 'still leaving');
+  expect(platform.calls, readerOrientationRoundTrip);
+  expect(orientation.portraitActive, isFalse);
+  expect(orientation.depth, 0);
+  // The end of the transition (dispose) changes nothing more.
+  await tester.pump(const Duration(milliseconds: 400));
+  expect(find.byType(readerType), findsNothing);
+  expect(platform.calls, readerOrientationRoundTrip);
+}
+
 /// Pages decoded from tiny PNGs kept in memory.
 class MemoryPageSource implements LibraryPageSource {
   MemoryPageSource(int count, {this.key = 'memory', this.failing = const {}})

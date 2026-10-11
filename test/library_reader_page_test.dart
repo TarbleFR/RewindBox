@@ -809,6 +809,40 @@ void main() {
     });
   });
 
+  group('closing', () {
+    // Regression: landscape came back only in dispose, after the reverse
+    // transition, so the landscape-only screen below was laid out in
+    // portrait for about 300 ms and then rotated.
+    testWidgets('landscape is restored as soon as the reader is popped', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final platform = RecordingOrientationPlatform();
+      final orientation = LibraryReaderOrientation(
+        platform: platform,
+        isIOS: true,
+      );
+      final navigator = await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(),
+          store: store,
+          orientation: orientation,
+        ),
+      );
+      await tester.pump();
+      await expectLandscapeWhenPopStarts(
+        tester,
+        navigator,
+        platform,
+        orientation,
+        LibraryPageReaderScreen,
+      );
+      await flushStore(tester, store);
+    });
+  });
+
   group('VoiceOver', () {
     // Regression: the bars hid 4 s after being shown, taking Back, the
     // settings, the chapter buttons and the slider out of the

@@ -183,6 +183,15 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     });
   }
 
+  /// The route was popped (Back, B, the iOS back swipe): the screen below
+  /// is on stage from now on, so landscape is restored now rather than in
+  /// [dispose], after the reverse transition. [dispose] stays the fallback
+  /// (the session stops once).
+  void _onPopped(bool didPop, Object? _) {
+    if (!didPop) return;
+    unawaited(_system.stop());
+  }
+
   void _onPageChanged(int? pageNumber) {
     if (pageNumber == null) return;
     final turned = _reportedPage != null && _reportedPage != pageNumber;
@@ -390,69 +399,72 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
             ),
           );
     String t(String key) => LibraryReaderLocale.text(context, key);
-    return LibraryReaderGamepadScope(
-      name: 'library_pdf_reader',
-      bindings: gamepadBindings,
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: palette.isDark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark,
-        child: Scaffold(
-          backgroundColor: palette.background,
-          body: ListenableBuilder(
-            listenable: Listenable.merge(<Listenable>[_chrome, _page]),
-            child: viewer,
-            builder: (context, content) => LibraryReaderChromeOverlay(
-              visible: _chrome.visible || !_ready,
-              content: content!,
-              topBar: LibraryReaderTopBar(
-                palette: palette,
-                title: widget.title,
-                subtitle: widget.subtitle,
-                onBack: _close,
-                actions: <Widget>[
-                  if (_ready)
-                    LibraryReaderIconButton(
-                      icon: Icons.toc_rounded,
-                      tooltip: t('tableOfContents'),
-                      onPressed: _openOutline,
-                      color: palette.chromeForeground,
-                    ),
-                  if (_ready)
-                    LibraryReaderIconButton(
-                      icon: Icons.fit_screen_rounded,
-                      tooltip: t('fitPage'),
-                      onPressed: _fitPage,
-                      color: palette.chromeForeground,
-                    ),
-                  LibraryReaderIconButton(
-                    icon: Icons.tune_rounded,
-                    tooltip: t('settings'),
-                    onPressed: _openSettings,
-                    color: palette.chromeForeground,
-                  ),
-                ],
-              ),
-              bottomBar: _ready && _pageCount > 0
-                  ? LibraryReaderBottomBar(
-                      palette: palette,
-                      child: LibraryReaderPageSlider(
-                        palette: palette,
-                        page: _page.value - 1,
-                        pageCount: _pageCount,
-                        onChangeStart: (_) {
-                          _sliderDragging = true;
-                          _chrome.hold();
-                        },
-                        onChangeEnd: (page) {
-                          _sliderDragging = false;
-                          _chrome.release();
-                          _goToPage(page + 1);
-                        },
-                        onChanged: (page) => _page.value = page + 1,
+    return PopScope<Object?>(
+      onPopInvokedWithResult: _onPopped,
+      child: LibraryReaderGamepadScope(
+        name: 'library_pdf_reader',
+        bindings: gamepadBindings,
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: palette.isDark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark,
+          child: Scaffold(
+            backgroundColor: palette.background,
+            body: ListenableBuilder(
+              listenable: Listenable.merge(<Listenable>[_chrome, _page]),
+              child: viewer,
+              builder: (context, content) => LibraryReaderChromeOverlay(
+                visible: _chrome.visible || !_ready,
+                content: content!,
+                topBar: LibraryReaderTopBar(
+                  palette: palette,
+                  title: widget.title,
+                  subtitle: widget.subtitle,
+                  onBack: _close,
+                  actions: <Widget>[
+                    if (_ready)
+                      LibraryReaderIconButton(
+                        icon: Icons.toc_rounded,
+                        tooltip: t('tableOfContents'),
+                        onPressed: _openOutline,
+                        color: palette.chromeForeground,
                       ),
-                    )
-                  : null,
+                    if (_ready)
+                      LibraryReaderIconButton(
+                        icon: Icons.fit_screen_rounded,
+                        tooltip: t('fitPage'),
+                        onPressed: _fitPage,
+                        color: palette.chromeForeground,
+                      ),
+                    LibraryReaderIconButton(
+                      icon: Icons.tune_rounded,
+                      tooltip: t('settings'),
+                      onPressed: _openSettings,
+                      color: palette.chromeForeground,
+                    ),
+                  ],
+                ),
+                bottomBar: _ready && _pageCount > 0
+                    ? LibraryReaderBottomBar(
+                        palette: palette,
+                        child: LibraryReaderPageSlider(
+                          palette: palette,
+                          page: _page.value - 1,
+                          pageCount: _pageCount,
+                          onChangeStart: (_) {
+                            _sliderDragging = true;
+                            _chrome.hold();
+                          },
+                          onChangeEnd: (page) {
+                            _sliderDragging = false;
+                            _chrome.release();
+                            _goToPage(page + 1);
+                          },
+                          onChanged: (page) => _page.value = page + 1,
+                        ),
+                      )
+                    : null,
+              ),
             ),
           ),
         ),
