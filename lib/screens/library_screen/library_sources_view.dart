@@ -317,6 +317,7 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
   Object? _loadError;
   String? _focusedAddonId;
   int _reloadGeneration = 0;
+  StreamSubscription<Set<String>>? _fileRemovals;
 
   LibrarySourceCatalogService get _catalogService =>
       widget.catalogService ?? LibrarySourceCatalogService.instance;
@@ -337,7 +338,20 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
     widget.controller.attach(_delegate);
     _health.addListener(_onHealthChanged);
     unawaited(_health.load().catchError((Object _) {}));
-    unawaited(_reload());
+    _listenToFileRemovals();
+    // Opening the section checks the source files first (iOS).
+    unawaited(_reload(syncSourceFiles: true));
+  }
+
+  /// A source whose file was deleted outside NeoStation is removed by
+  /// [LibraryAddonService]; the list then refreshes like after an in-app
+  /// deactivation, silently.
+  void _listenToFileRemovals() {
+    _fileRemovals = _addonService.removedThroughSourceFiles.listen((_) {
+      if (!mounted) return;
+      widget.onSourcesChanged();
+      unawaited(_reload());
+    });
   }
 
   @override
@@ -352,6 +366,10 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
           .removeListener(_onHealthChanged);
       _health.addListener(_onHealthChanged);
     }
+    if (!identical(oldWidget.addonService, widget.addonService)) {
+      unawaited(_fileRemovals?.cancel());
+      _listenToFileRemovals();
+    }
   }
 
   @override
@@ -360,6 +378,7 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
     // Leaving the section gives the focus highlight back to touch mode.
     scheduleMicrotask(LibraryFocusNavigation.restoreTouchHighlight);
     _health.removeListener(_onHealthChanged);
+    unawaited(_fileRemovals?.cancel());
     _scope.dispose();
     _scroll.dispose();
     super.dispose();
@@ -369,9 +388,12 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
     if (mounted) setState(() {});
   }
 
-  Future<void> _reload() async {
+  Future<void> _reload({bool syncSourceFiles = false}) async {
     final generation = ++_reloadGeneration;
     try {
+      if (syncSourceFiles) {
+        await _addonService.syncSourceFiles(reason: 'sources view');
+      }
       final results = await Future.wait<Object>(<Future<Object>>[
         _catalogService.list(),
         _addonService.load(),
@@ -498,6 +520,7 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
       context,
       preview,
       catalogService: _catalogService,
+      addonService: _addonService,
       aidokuService: _aidoku,
       imageCache: widget.imageCache,
       enableGamepad: widget.enableGamepad,

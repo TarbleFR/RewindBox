@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:neostation/l10n/library_sources_locale.dart';
+import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_aidoku_native_service.dart';
 import 'package:neostation/services/library_image_cache.dart';
 import 'package:neostation/services/library_source_catalog_service.dart';
@@ -21,6 +22,7 @@ class LibraryCatalogPreviewScreen extends StatefulWidget {
     super.key,
     required this.preview,
     this.catalogService,
+    this.addonService,
     this.aidokuService,
     this.imageCache,
     this.enableGamepad = true,
@@ -30,6 +32,11 @@ class LibraryCatalogPreviewScreen extends StatefulWidget {
 
   /// Defaults to [LibrarySourceCatalogService.instance].
   final LibrarySourceCatalogService? catalogService;
+
+  /// Must be the add-on service used by [catalogService]; defaults to
+  /// [LibraryAddonService.instance]. Only followed for sources removed
+  /// outside the app, so their rows stop showing them as installed.
+  final LibraryAddonService? addonService;
   final LibraryAidokuNativeService? aidokuService;
   final LibraryImageCache? imageCache;
   final bool enableGamepad;
@@ -44,6 +51,7 @@ class LibraryCatalogPreviewScreen extends StatefulWidget {
     BuildContext context,
     LibraryCatalogPreview preview, {
     LibrarySourceCatalogService? catalogService,
+    LibraryAddonService? addonService,
     LibraryAidokuNativeService? aidokuService,
     LibraryImageCache? imageCache,
     bool enableGamepad = true,
@@ -53,6 +61,7 @@ class LibraryCatalogPreviewScreen extends StatefulWidget {
         builder: (_) => LibraryCatalogPreviewScreen(
           preview: preview,
           catalogService: catalogService,
+          addonService: addonService,
           aidokuService: aidokuService,
           imageCache: imageCache,
           enableGamepad: enableGamepad,
@@ -74,11 +83,53 @@ class _LibraryCatalogPreviewScreenState
   bool _activating = false;
   final FocusNode _activateFocus = FocusNode(debugLabel: 'preview_activate');
 
+  /// Add-on ids of installed sources removed outside the app (their file
+  /// deleted) while this preview is shown.
+  final Set<String> _removedAddonIds = <String>{};
+  StreamSubscription<Set<String>>? _removals;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToRemovals();
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryCatalogPreviewScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.addonService, widget.addonService)) {
+      unawaited(_removals?.cancel());
+      _listenToRemovals();
+    }
+  }
+
   @override
   void dispose() {
+    unawaited(_removals?.cancel());
     _activateFocus.dispose();
     super.dispose();
   }
+
+  void _listenToRemovals() {
+    final addons = widget.addonService ?? LibraryAddonService.instance;
+    _removals = addons.removedThroughSourceFiles.listen((ids) {
+      if (!mounted) return;
+      final shown = ids.where(
+        (id) => _preview.sources.any(
+          (entry) => entry.addonId == id && entry.alreadyInstalled,
+        ),
+      );
+      if (shown.isEmpty) return;
+      setState(() => _removedAddonIds.addAll(shown));
+    });
+  }
+
+  /// [entry] with its current install state: a source removed meanwhile is
+  /// no longer shown as installed.
+  LibraryCatalogSourceEntry _current(LibraryCatalogSourceEntry entry) =>
+      entry.alreadyInstalled && _removedAddonIds.contains(entry.addonId)
+      ? entry.withInstallState(alreadyInstalled: false, updateAvailable: false)
+      : entry;
 
   LibraryCatalogPreview get _preview => widget.preview;
   LibrarySourceCatalogService get _catalogService =>
@@ -108,7 +159,8 @@ class _LibraryCatalogPreviewScreenState
 
   void _selectWithReader() {
     setState(() {
-      for (final entry in _preview.sources) {
+      for (final source in _preview.sources) {
+        final entry = _current(source);
         final current = entry.alreadyInstalled && !entry.updateAvailable;
         if (_hasReader(entry) && !current) _selected.add(entry.id);
       }
@@ -249,7 +301,7 @@ class _LibraryCatalogPreviewScreenState
                                 LibraryCatalogPreviewScreen.debugBuiltRows++;
                                 return true;
                               }());
-                              final entry = preview.sources[index];
+                              final entry = _current(preview.sources[index]);
                               return _EntryRow(
                                 key: ValueKey<String>('entry-${entry.id}'),
                                 entry: entry,

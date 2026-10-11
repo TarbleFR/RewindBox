@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Directory;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
@@ -6,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_http.dart';
+import 'library_source_files.dart';
 
 enum LibrarySourceKind { catalog, localLibrary, metadataOnly }
 
@@ -589,12 +591,36 @@ class LibraryAddonException implements Exception {
 }
 
 class LibraryAddonService {
-  LibraryAddonService._();
+  LibraryAddonService._() {
+    // iOS: each installed source is also a file of Files › NeoStation ›
+    // Library › Sources; deleting the file removes the source (Build 438).
+    if (LibrarySourceFiles.supportedByPlatform) {
+      final files = LibrarySourceFiles(this);
+      _sourceFiles = files;
+      files.removals.listen(
+        (removed) => LibrarySourceFiles.refreshLibraryFeed(this, removed),
+      );
+    }
+  }
 
   /// Independent instance backed by the same preferences key (tests only; the
-  /// app uses [instance]).
+  /// app uses [instance]). With [sourceFiles], its sources are mirrored in
+  /// [sourceFilesDirectory] (default: `Documents/Library/Sources` from
+  /// path_provider) like the app's on iOS.
   @visibleForTesting
-  LibraryAddonService.forTesting();
+  LibraryAddonService.forTesting({
+    bool sourceFiles = false,
+    Future<Directory> Function()? sourceFilesDirectory,
+    bool sourceFilesFollowLifecycle = true,
+  }) {
+    if (sourceFiles) {
+      _sourceFiles = LibrarySourceFiles(
+        this,
+        directory: sourceFilesDirectory,
+        followLifecycle: sourceFilesFollowLifecycle,
+      );
+    }
+  }
 
   static final LibraryAddonService instance = LibraryAddonService._();
 
@@ -606,11 +632,45 @@ class LibraryAddonService {
   final List<LibraryAddon> _addons = [];
   bool _loaded = false;
 
+  /// Files of the installed sources (null where they are not mirrored).
+  LibrarySourceFiles? _sourceFiles;
+  Future<void>? _sourceFilesStarted;
+
   List<LibraryAddon> get addons => List.unmodifiable(_addons);
 
-  Future<List<LibraryAddon>> load() async {
-    if (_loaded) return addons;
+  /// Source files of this service (tests).
+  @visibleForTesting
+  LibrarySourceFiles? get sourceFiles => _sourceFiles;
 
+  /// Ids of the sources removed because the user deleted their file from
+  /// the Sources folder, once per reconciliation that removed some.
+  Stream<Set<String>> get removedThroughSourceFiles =>
+      _sourceFiles?.removals ?? const Stream<Set<String>>.empty();
+
+  /// Reconciles the installed sources with their files (iOS): a source
+  /// whose file the user deleted is removed, a missing file is written.
+  /// Never throws; completes at once where sources are not mirrored.
+  Future<void> syncSourceFiles({String reason = 'request'}) =>
+      _sourceFiles?.sync(reason: reason) ?? Future<void>.value();
+
+  Future<List<LibraryAddon>> load() async {
+    if (!_loaded) await _loadStored();
+    final files = _sourceFiles;
+    if (files != null && !files.isReconciling) {
+      // The first load of the process reconciles the source files before
+      // anyone sees the list, then follows the app's return to foreground.
+      await (_sourceFilesStarted ??= files.start());
+    }
+    return addons;
+  }
+
+  /// Writes or deletes the source files right after an in-app change.
+  Future<void> _sourceFilesChanged() async {
+    final files = _sourceFiles;
+    if (files != null) await files.sync(reason: 'in-app change');
+  }
+
+  Future<void> _loadStored() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_prefsKey);
     _addons.clear();
@@ -650,7 +710,6 @@ class LibraryAddonService {
     _sortAddons();
     _loaded = true;
     if (needsPersist) await _persist();
-    return addons;
   }
 
   Future<LibraryAddonBatchInstallResult> installDocumentFromUrl(
@@ -669,12 +728,11 @@ class LibraryAddonService {
 
         if (_looksLikeKeiyoushiDeprecationStub(response.bodyBytes) &&
             candidate.path.endsWith('/index.min.json')) {
-          final fullPath =
-              candidate.path.substring(
-                0,
-                candidate.path.length - 'index.min.json'.length,
-              ) +
-              'index.json';
+          final folderPath = candidate.path.substring(
+            0,
+            candidate.path.length - 'index.min.json'.length,
+          );
+          final fullPath = '${folderPath}index.json';
           final fullUri = candidate.replace(path: fullPath);
           try {
             final fullResponse = await _downloadRepository(fullUri);
@@ -1275,6 +1333,7 @@ class LibraryAddonService {
 
     _sortAddons();
     await _persist();
+    await _sourceFilesChanged();
     return LibraryAddonBatchInstallResult(
       addons: List.unmodifiable(incoming),
       addedCount: addedCount,
@@ -1301,7 +1360,10 @@ class LibraryAddonService {
           addon.repositoryOrigin == normalized,
     );
     final removed = before - _addons.length;
-    if (removed > 0) await _persist();
+    if (removed > 0) {
+      await _persist();
+      await _sourceFilesChanged();
+    }
     return removed;
   }
 
@@ -1311,6 +1373,7 @@ class LibraryAddonService {
     _addons.removeWhere((addon) => addon.id == id);
     if (_addons.length == before) return false;
     await _persist();
+    await _sourceFilesChanged();
     return true;
   }
 
@@ -1337,6 +1400,7 @@ class LibraryAddonService {
     if (incoming.isNotEmpty) {
       _sortAddons();
       await _persist();
+      await _sourceFilesChanged();
     }
     return LibraryAddonUpsertResult(
       addedIds: List.unmodifiable(addedIds),
@@ -1346,7 +1410,8 @@ class LibraryAddonService {
 
   /// Removes the add-ons with the given ids and returns how many were
   /// removed. Reading progress and favourites are stored elsewhere and are
-  /// not affected.
+  /// not affected. Also the path of a source whose file the user deleted
+  /// ([LibrarySourceFiles]).
   Future<int> removeMany(Iterable<String> ids) async {
     await load();
     final targets = ids.toSet();
@@ -1354,7 +1419,10 @@ class LibraryAddonService {
     final before = _addons.length;
     _addons.removeWhere((addon) => targets.contains(addon.id));
     final removed = before - _addons.length;
-    if (removed > 0) await _persist();
+    if (removed > 0) {
+      await _persist();
+      await _sourceFilesChanged();
+    }
     return removed;
   }
 
