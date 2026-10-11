@@ -707,6 +707,7 @@ NEOSWAP_MELONX_DELTA = {
     'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
     'test/neoswap_demand_test.cpp',
     'test/neoswap_pool_fragmentation_test.cpp',
+    'test/neoswap_relay_loans_test.cpp',
     'test/relay_backend_test.cpp',
 }
 DELTA |= NEOSWAP_MELONX_DELTA

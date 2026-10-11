@@ -401,7 +401,15 @@ int main() {
         }
         shelf = loans();
         assert(os.maps == maps_before + 5 && shelf.shelf_hits[2] >= 5 && !shelf.shelf_ready_blocks[2]);
-        assert(shelf.padding_bytes == padding_before + 5 * (256 * KiB - 200 * KiB) && shelf.live_blocks == 5);
+        // Padding measures the shelf interval minus the host-page-rounded
+        // request, not minus the raw requested bytes: 200 KiB stays 200 KiB
+        // with 4 KiB pages and becomes 208 KiB with Apple 16 KiB pages.
+        const long host_page_long = ::sysconf(_SC_PAGESIZE);
+        assert(host_page_long > 0);
+        const auto host_page = static_cast<uint64_t>(host_page_long);
+        const uint64_t rounded_request = ((200 * KiB + host_page - 1) / host_page) * host_page;
+        assert(rounded_request <= 256 * KiB);
+        assert(shelf.padding_bytes == padding_before + 5 * (256 * KiB - rounded_request) && shelf.live_blocks == 5);
         // A sixth request of the class misses again until the next tick.
         assert(!neostation::swap::try_allocate_cpu(0, 200 * KiB, 65536));
         // Releases re-shelve into the class; the hits keep the stock alive
