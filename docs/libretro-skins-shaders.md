@@ -98,6 +98,9 @@ nominale de la console.
 
 ### Tactile
 
+Moteur tactile, verrou d'appui par images, filtre iPhone et diagnostic :
+voir [l'audit tactile / skins](libretro-touch-skins-audit.md).
+
 Toute touche dans l'écran tactile (rectangle réellement dessiné, publié par le
 présentateur à chaque image) est convertie par `LibretroPointerFromPoint` en
 coordonnées sur l'image complète du cœur : le tactile reste juste après rotation,
@@ -115,9 +118,13 @@ efface aussi ses sélections (`forgetSkin`).
 ### Import et catalogue
 
 - Fichiers : sélecteur iOS (`.deltaskin`, `.manicskin`, `.zip`).
-- Catalogue : `https://provenance-emu.com/skins/catalog.json` (même fichier sur
-  GitHub), filtré par console, avec nom, auteur, vignette, nombre de
-  téléchargements. Les liens qui ne mènent pas à une archive sont refusés.
+- Catalogues unifiés (octobre 2026) : Provenance
+  (`https://provenance-emu.com/skins/catalog.json`, même fichier sur GitHub),
+  site Delta Skins, overlays RetroArch PocketArch et common-overlays convertis
+  sur l'appareil ; dédoublonnés, filtrés par console, source, orientation et
+  favoris, chaque entrée jugée par le filtre iPhone central avant d'être
+  proposée. Les liens qui ne mènent pas à une archive sont refusés. Détails :
+  [audit et bilan tactile / skins](libretro-touch-skins-audit.md).
 - Vérifications : signature ZIP, ≤ 50 Mo, ≤ 200 Mo décompressés, ≤ 1024 entrées,
   pas de chemin absolu ni `..`, `info.json` à la racine (ou dans un seul dossier
   racine), entrées `__MACOSX` ignorées, images ≤ 8192 px, nom réservé

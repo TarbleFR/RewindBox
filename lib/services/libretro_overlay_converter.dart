@@ -11,8 +11,10 @@ import 'package:path/path.dart' as path;
 /// semantics come from RetroArch's own sources (tasks/task_overlay.c,
 /// input/input_driver.c):
 /// - one page per orientation: a page named "portrait" / "landscape" (pause,
-///   menu and hidden pages left out), else the declared aspect ratio; the
-///   page must be `full_screen` and `normalized`;
+///   menu and hidden pages left out), else the declared aspect ratio, else
+///   the first page (the one RetroArch shows) in the orientation the .cfg's
+///   path names (landscape by default); the page must be `full_screen` and
+///   `normalized` (pixel coordinates depend on image sizes: refused);
 /// - a desc "names,x,y,shape,range_x,range_y" is centred on (x, y) with half
 ///   sizes range_x / range_y of the page; its touch area grows by
 ///   `reach_*` (> 1 only: a smaller reach keeps the drawn area); a reach of 0
@@ -136,9 +138,19 @@ class LibretroOverlayConverter {
     for (var index = 0; index < count; index++) {
       pages[index] = _Page(index, conf);
     }
+    final picked = <String, _Page?>{
+      'portrait': _pickPage(pages.values, 'portrait'),
+      'landscape': _pickPage(pages.values, 'landscape'),
+    };
+    if (picked.values.every((page) => page == null)) {
+      // No page meant for an orientation: RetroArch shows the first one;
+      // the .cfg's path tells its orientation (".../gb_anim_portrait/...").
+      final first = pages.values.where((page) => !page.auxiliary).firstOrNull;
+      if (first != null) picked[cfgPath.toLowerCase().contains('portrait') ? 'portrait' : 'landscape'] = first;
+    }
     final representations = <String, Object?>{};
     for (final orientation in const <String>['portrait', 'landscape']) {
-      final page = _pickPage(pages.values, orientation);
+      final page = picked[orientation];
       if (page == null) continue;
       if (!page.normalized || !page.fullScreen) {
         problems.add('page ${page.name.isEmpty ? page.index : page.name} is not full_screen and normalized');
@@ -190,10 +202,6 @@ class LibretroOverlayConverter {
       final aspect = page.aspect;
       if (page.name.toLowerCase().contains(orientation == 'portrait' ? 'landscape' : 'portrait')) continue;
       if (aspect != null && (orientation == 'portrait' ? aspect < 1 : aspect >= 1)) return page;
-    }
-    // A single unnamed page without aspect ratio: landscape (RetroArch's default).
-    if (orientation == 'landscape' && usable.length == 1 && usable.first.aspect == null && usable.first.name.isEmpty) {
-      return usable.first;
     }
     return null;
   }

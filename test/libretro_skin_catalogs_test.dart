@@ -215,6 +215,40 @@ overlay0_desc3_up = "l"
       expect(snes['mappingSize'], <String, Object?>{'width': 1000.0, 'height': 461.54});
     });
 
+    test('pages meant for no orientation: the first one, in the orientation its path names', () {
+      const pages = '''
+overlays = 3
+overlay0_name = "GameBoy"
+overlay0_full_screen = true
+overlay0_normalized = true
+overlay0_descs = 1
+overlay0_desc0 = "a,0.8,0.8,radial,0.05,0.05"
+overlay1_name = "GameBoyColor"
+overlay1_full_screen = true
+overlay1_normalized = true
+overlay1_descs = 1
+overlay1_desc0 = "b,0.8,0.8,radial,0.05,0.05"
+overlay2_name = "hidden"
+overlay2_full_screen = true
+overlay2_normalized = true
+overlay2_descs = 0
+''';
+      LibretroOverlayConversion at(String cfgPath) => LibretroOverlayConverter.convert(pages,
+          cfgPath: cfgPath, console: 'gb', name: 'GB', identifier: 'org.neostation.overlay.gb');
+      final portrait = at('gamepads/gb_anim_portrait/gb_big.cfg');
+      expect(portrait.orientations, <String>['portrait']);
+      expect(_items(_layout(portrait, 'portrait')).single['inputs'], <String>['a']);
+      final landscape = at('gamepads/arcade-anim/gb.cfg');
+      expect(landscape.orientations, <String>['landscape']);
+      expect(_items(_layout(landscape, 'landscape')).single['inputs'], <String>['a']);
+
+      // Pixel coordinates depend on the images' sizes: refused with the reason.
+      final pixels = LibretroOverlayConverter.convert(pages.replaceAll('_normalized = true', '_normalized = false'),
+          cfgPath: 'gamepads/old/gb.cfg', console: 'gb', name: 'GB', identifier: 'org.neostation.overlay.gb');
+      expect(pixels.converted, isFalse);
+      expect(pixels.problems.single, contains('normalized'));
+    });
+
     test('sticks, Nintendo 64 C buttons, the DS screens and iPad layouts', () {
       const sticks = '''
 overlays = 1
