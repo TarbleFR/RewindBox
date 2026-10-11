@@ -711,6 +711,86 @@ void main() {
     expect(index['books'] as List, hasLength(2));
   });
 
+  test('a later damaged index never replaces the first kept copy', () async {
+    await service().importFiles(<String>[await pick('one.epub', buildEpub3())]);
+    await File(roots.indexPath).writeAsString('first damage');
+    final first = service();
+    await first.load();
+    expect(first.indexRecovered, isTrue);
+    // Invalid UTF-8 is bad content, not an I/O failure.
+    await File(
+      roots.indexPath,
+    ).writeAsBytes(const <int>[0xFF, 0xFE, 0x00, 0x7B]);
+    final second = service();
+    await second.load();
+    expect(second.indexRecovered, isTrue);
+    expect(second.indexUnreadable, isFalse);
+    expect(second.books, hasLength(1));
+    final copies = Directory(roots.supportLibrary)
+        .listSync()
+        .whereType<File>()
+        .map((file) => p.basename(file.path))
+        .where((name) => name.startsWith('local-index.json.corrupt'))
+        .toList();
+    expect(copies, hasLength(2));
+    expect(
+      File('${roots.indexPath}.corrupt').readAsStringSync(),
+      'first damage',
+    );
+  });
+
+  test('an index that cannot be read is never replaced, and is merged once '
+      'readable', () async {
+    final library = service();
+    final imported = await library.importFiles(<String>[
+      await pick('one.epub', buildEpub3()),
+      await pick('two.cbz', buildCbz()),
+    ]);
+    final one = imported[0].book!;
+    final two = imported[1].book!;
+    await library.rename(one.id, 'Kept title');
+    final saved = await File(roots.indexPath).readAsString();
+
+    // The index exists but cannot be read: a directory at its path stands
+    // for an I/O failure on every platform.
+    await File(roots.indexPath).delete();
+    await Directory(roots.indexPath).create();
+    final blocked = service();
+    await blocked.load();
+    expect(blocked.indexUnreadable, isTrue);
+    expect(blocked.indexRecovered, isFalse);
+    expect(
+      blocked.books.map((b) => b.relativePath),
+      unorderedEquals(<String>['Books/one.epub', 'Books/two.cbz']),
+    );
+    expect(blocked.bookById(one.id)!.customTitle, isNull);
+    await blocked.rename(two.id, 'Session title');
+    expect(Directory(roots.indexPath).existsSync(), isTrue);
+    expect(
+      Directory(
+        roots.supportLibrary,
+      ).listSync().map((entity) => p.basename(entity.path)),
+      isNot(contains(startsWith('local-index.json.corrupt'))),
+    );
+
+    // Readable again: the next save merges it with the current state.
+    await Directory(roots.indexPath).delete();
+    await File(roots.indexPath).writeAsString(saved);
+    await blocked.rename(two.id, 'Session title');
+    expect(blocked.indexUnreadable, isFalse);
+    expect(blocked.bookById(one.id)!.title, 'Kept title');
+    expect(blocked.bookById(one.id)!.addedAtMs, one.addedAtMs);
+    expect(blocked.bookById(two.id)!.addedAtMs, two.addedAtMs);
+    expect(blocked.bookById(two.id)!.title, 'Session title');
+
+    final reopened = service();
+    await reopened.load();
+    expect(reopened.indexUnreadable, isFalse);
+    expect(reopened.bookById(one.id)!.title, 'Kept title');
+    expect(reopened.bookById(one.id)!.addedAtMs, one.addedAtMs);
+    expect(reopened.bookById(two.id)!.title, 'Session title');
+  });
+
   test(
     're-importing a book whose file vanished keeps its id and custom title',
     () async {

@@ -152,6 +152,10 @@ class LibraryLocalLibraryService extends ChangeNotifier {
   bool _scanning = false;
   bool _indexRecovered = false;
 
+  /// The index file exists but could not be read (I/O error, not bad
+  /// content): it is never replaced until a later read succeeds.
+  bool _indexUnreadable = false;
+
   /// Indexed books, in index order. Use [query] for search and sorting.
   List<LibraryLocalBook> get books =>
       List<LibraryLocalBook>.unmodifiable(_books.values);
@@ -165,8 +169,16 @@ class LibraryLocalLibraryService extends ChangeNotifier {
 
   /// True when the last [load] found a damaged index and rebuilt it from
   /// the files (custom titles of that index are lost; the damaged file is
-  /// kept as `local-index.json.corrupt`).
+  /// kept as `local-index.json.corrupt`, or `local-index.json.corrupt-<ms>`
+  /// when an earlier copy exists).
   bool get indexRecovered => _indexRecovered;
+
+  /// True while the index file exists but cannot be read (I/O error, for
+  /// instance data protection before the first unlock). The books found by
+  /// the scan are shown, but the file is left untouched: it is read again
+  /// before each save, and once that succeeds its custom titles and dates
+  /// are merged with the current state.
+  bool get indexUnreadable => _indexUnreadable;
 
   LibraryLocalRoots? get roots => _roots;
 
@@ -431,9 +443,15 @@ class LibraryLocalLibraryService extends ChangeNotifier {
         snapshot.ignored.map((file) => MapEntry(file.relativePath, file)),
       );
     _indexRecovered = snapshot.recovered;
+    _indexUnreadable = snapshot.unreadable;
     if (snapshot.recovered) {
       _log.w(
         'Library index was damaged and is rebuilt from the files: ${snapshot.detail}',
+      );
+    }
+    if (snapshot.unreadable) {
+      _log.w(
+        'Library index cannot be read, kept untouched until it can: ${snapshot.detail}',
       );
     }
     _loaded = true;
@@ -862,7 +880,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
     }
     return book.copyWith(
       addedAtMs: replaced.addedAtMs,
-      customTitle: replaced.customTitle,
+      customTitle: book.customTitle ?? replaced.customTitle,
     );
   }
 
@@ -1002,17 +1020,94 @@ class LibraryLocalLibraryService extends ChangeNotifier {
 
   Future<void> _saveIndex() async {
     final roots = _requireRoots();
+    final path = roots.indexPath;
+    if (_indexUnreadable && !await _readIndexAgain(path)) {
+      // Never replace an index that could not be read: its custom titles
+      // and dates exist nowhere else.
+      _log.w('Library index still cannot be read: not saved');
+      return;
+    }
     final json = <String, Object?>{
       'version': indexVersion,
       'books': <Object?>[for (final book in _books.values) book.toJson()],
       'ignored': <Object?>[for (final file in _ignored.values) file.toJson()],
     };
-    final path = roots.indexPath;
     try {
       await _writeIndexInIsolate(path, json);
     } catch (error) {
       // The books stay in memory and on disk; the next scan restores them.
       _log.e('Library index not saved', error: error);
+    }
+  }
+
+  /// Reads again the index that could not be read. Returns false while it
+  /// still cannot be read; otherwise merges it with the current state.
+  Future<bool> _readIndexAgain(String path) async {
+    final _IndexSnapshot stored;
+    try {
+      stored = await _readIndexInIsolate(path);
+    } catch (_) {
+      return false;
+    }
+    if (stored.unreadable) return false;
+    _indexUnreadable = false;
+    if (stored.recovered) {
+      _indexRecovered = true;
+      _log.w('Library index was damaged and is set aside: ${stored.detail}');
+    }
+    await _mergeStoredIndex(stored);
+    notifyListeners();
+    return true;
+  }
+
+  /// Merges the index read late with the state built meanwhile from the
+  /// files. The current state wins; the stored index brings back custom
+  /// titles, dates added, the identity of books edited in place meanwhile,
+  /// and the books and ignored files the scans did not see (the next
+  /// complete scan settles them).
+  Future<void> _mergeStoredIndex(_IndexSnapshot stored) async {
+    final atPath = <String, LibraryLocalBook>{
+      for (final book in _books.values) book.relativePath: book,
+    };
+    for (final book in stored.books) {
+      final current = _books[book.id];
+      if (current != null) {
+        _books[book.id] = current.copyWith(
+          addedAtMs: book.addedAtMs,
+          customTitle: current.customTitle ?? book.customTitle,
+        );
+        continue;
+      }
+      final identity = LibraryBookIdentity.of(book);
+      final replacing = atPath[book.relativePath];
+      if (replacing != null) {
+        // Edited in place while the index could not be read.
+        _books[replacing.id] = await _inheritIdentity(replacing, identity);
+        continue;
+      }
+      final ignored = _ignored[book.relativePath];
+      if (ignored != null) {
+        if (ignored.replacedBook == null &&
+            ignored.issue != LibraryBookIssue.duplicate) {
+          _ignored[book.relativePath] = LibraryIgnoredFile(
+            relativePath: ignored.relativePath,
+            sizeBytes: ignored.sizeBytes,
+            modifiedMs: ignored.modifiedMs,
+            issue: ignored.issue,
+            replacedBook: identity,
+          );
+        }
+        continue;
+      }
+      _books[book.id] = book;
+      atPath[book.relativePath] = book;
+    }
+    for (final file in stored.ignored) {
+      if (atPath.containsKey(file.relativePath) ||
+          _ignored.containsKey(file.relativePath)) {
+        continue;
+      }
+      _ignored[file.relativePath] = file;
     }
   }
 
@@ -1216,22 +1311,43 @@ class _IndexSnapshot {
     this.books,
     this.ignored, {
     this.recovered = false,
+    this.unreadable = false,
     this.detail,
   });
 
   final List<LibraryLocalBook> books;
   final List<LibraryIgnoredFile> ignored;
+
+  /// The file had invalid content and was set aside.
   final bool recovered;
+
+  /// The file exists but could not be read (or, damaged, could not be set
+  /// aside): it must not be replaced.
+  final bool unreadable;
   final String? detail;
 }
 
+/// Reads the index. A missing file gives an empty index. Only invalid
+/// content (bad UTF-8, JSON or structure) is set aside as `.corrupt`; an
+/// I/O failure leaves the file untouched and reports it as unreadable.
 _IndexSnapshot _readIndexFile(String path) {
   final file = File(path);
-  if (!file.existsSync()) {
-    return const _IndexSnapshot(<LibraryLocalBook>[], <LibraryIgnoredFile>[]);
+  final Uint8List bytes;
+  try {
+    if (FileSystemEntity.typeSync(path) == FileSystemEntityType.notFound) {
+      return const _IndexSnapshot(<LibraryLocalBook>[], <LibraryIgnoredFile>[]);
+    }
+    bytes = file.readAsBytesSync();
+  } on FileSystemException catch (error) {
+    return _IndexSnapshot(
+      const <LibraryLocalBook>[],
+      const <LibraryIgnoredFile>[],
+      unreadable: true,
+      detail: error.toString(),
+    );
   }
   try {
-    final json = jsonDecode(file.readAsStringSync());
+    final json = jsonDecode(utf8.decode(bytes));
     if (json is! Map || json['version'] is! int) {
       throw const FormatException('not a NeoStation library index');
     }
@@ -1261,16 +1377,54 @@ _IndexSnapshot _readIndexFile(String path) {
     }
     return _IndexSnapshot(books, ignored);
   } catch (error) {
-    // Keep the damaged file for diagnosis; the scan rebuilds the index.
-    try {
-      file.renameSync('$path.corrupt');
-    } catch (_) {}
+    // Invalid content: keep the damaged file for diagnosis, without
+    // replacing an earlier copy; the scan rebuilds the index.
+    if (!_keepCorruptIndex(file)) {
+      return _IndexSnapshot(
+        const <LibraryLocalBook>[],
+        const <LibraryIgnoredFile>[],
+        unreadable: true,
+        detail: 'damaged index could not be set aside: $error',
+      );
+    }
     return _IndexSnapshot(
       const <LibraryLocalBook>[],
       const <LibraryIgnoredFile>[],
       recovered: true,
       detail: error.toString(),
     );
+  }
+}
+
+/// Moves a damaged index to `<path>.corrupt`, or to a unique
+/// `<path>.corrupt-<ms>` name when an earlier copy exists. Returns false
+/// when no copy could be kept.
+bool _keepCorruptIndex(File file) {
+  final base = '${file.path}.corrupt';
+  var target = base;
+  try {
+    final stamp = DateTime.now().toUtc().millisecondsSinceEpoch;
+    for (
+      var n = 1;
+      FileSystemEntity.typeSync(target, followLinks: false) !=
+          FileSystemEntityType.notFound;
+      n++
+    ) {
+      target = n == 1 ? '$base-$stamp' : '$base-$stamp-$n';
+    }
+  } on FileSystemException {
+    return false;
+  }
+  try {
+    file.renameSync(target);
+    return true;
+  } on FileSystemException {
+    try {
+      file.copySync(target);
+      return true;
+    } on FileSystemException {
+      return false;
+    }
   }
 }
 
