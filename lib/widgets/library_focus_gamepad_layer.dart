@@ -116,6 +116,7 @@ class LibraryFocusGamepadLayer extends StatefulWidget {
     required this.child,
     this.onBack,
     this.onSecondary,
+    this.onUnhandledMove,
     this.debugLabel = 'library',
     this.enableGamepad = true,
     this.autofocus = true,
@@ -128,6 +129,11 @@ class LibraryFocusGamepadLayer extends StatefulWidget {
 
   /// X button.
   final VoidCallback? onSecondary;
+
+  /// D-pad direction in which no control can take the focus; returns
+  /// whether it moved the focus itself (e.g. to a button that the
+  /// directional search cannot reach from a full-width list row).
+  final bool Function(TraversalDirection direction)? onUnhandledMove;
   final String debugLabel;
 
   /// False in tests that must not start the gamepad plugin.
@@ -197,8 +203,11 @@ class LibraryFocusGamepadLayerState extends State<LibraryFocusGamepadLayer> {
   /// closes that top route.
   bool get _uncovered => mounted && (ModalRoute.isCurrentOf(context) ?? true);
 
-  bool move(TraversalDirection direction) =>
-      _uncovered && LibraryFocusNavigation.move(_root, direction);
+  bool move(TraversalDirection direction) {
+    if (!_uncovered) return false;
+    if (LibraryFocusNavigation.move(_root, direction)) return true;
+    return widget.onUnhandledMove?.call(direction) ?? false;
+  }
 
   void activateFocused() {
     if (!_uncovered) return;

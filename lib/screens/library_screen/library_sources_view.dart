@@ -1268,6 +1268,7 @@ class LibraryStatusChip extends StatelessWidget {
     required this.label,
     required this.state,
     this.icon,
+    this.maxLines,
   });
 
   final String label;
@@ -1276,6 +1277,9 @@ class LibraryStatusChip extends StatelessWidget {
   /// Replaces the icon of [state] (e.g. for a neutral label that is not a
   /// verification result).
   final IconData? icon;
+
+  /// Lines of [label] at most, ellipsized (null: wraps as needed).
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -1304,6 +1308,8 @@ class LibraryStatusChip extends StatelessWidget {
           Flexible(
             child: Text(
               label,
+              maxLines: maxLines,
+              overflow: maxLines == null ? null : TextOverflow.ellipsis,
               style: Theme.of(
                 context,
               ).textTheme.labelSmall?.copyWith(color: scheme.onSurface),

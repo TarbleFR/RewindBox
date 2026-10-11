@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:neostation/l10n/library_sources_locale.dart';
@@ -32,6 +34,12 @@ class LibraryCatalogPreviewScreen extends StatefulWidget {
   final LibraryImageCache? imageCache;
   final bool enableGamepad;
 
+  /// Source rows built since the last reset (debug builds only): a jump
+  /// across a long catalogue must build the rows it shows, not every row
+  /// it passes.
+  @visibleForTesting
+  static int debugBuiltRows = 0;
+
   static Future<LibraryActivationResult?> open(
     BuildContext context,
     LibraryCatalogPreview preview, {
@@ -64,6 +72,13 @@ class _LibraryCatalogPreviewScreenState
   /// Ticked source ids. Empty when the screen opens.
   final Set<String> _selected = <String>{};
   bool _activating = false;
+  final FocusNode _activateFocus = FocusNode(debugLabel: 'preview_activate');
+
+  @override
+  void dispose() {
+    _activateFocus.dispose();
+    super.dispose();
+  }
 
   LibraryCatalogPreview get _preview => widget.preview;
   LibrarySourceCatalogService get _catalogService =>
@@ -98,6 +113,25 @@ class _LibraryCatalogPreviewScreenState
         if (_hasReader(entry) && !current) _selected.add(entry.id);
       }
     });
+  }
+
+  /// Controller X: activates the ticked sources (the button sits below the
+  /// list, after every row in the focus order).
+  void _secondary() {
+    if (_selected.isNotEmpty && !_activating) unawaited(_activate());
+  }
+
+  /// Controller left/right where no control lies that way (a source row
+  /// spans the width): jumps to "Activate" once something is ticked, so a
+  /// long catalogue need not be walked row by row to reach it.
+  bool _unhandledMove(TraversalDirection direction) {
+    if (direction != TraversalDirection.left &&
+        direction != TraversalDirection.right) {
+      return false;
+    }
+    if (_selected.isEmpty || _activating) return false;
+    _activateFocus.requestFocus();
+    return true;
   }
 
   Future<void> _activate() async {
@@ -171,6 +205,8 @@ class _LibraryCatalogPreviewScreenState
       child: LibraryFocusGamepadLayer(
         enableGamepad: widget.enableGamepad,
         debugLabel: 'catalog_preview',
+        onSecondary: _secondary,
+        onUnhandledMove: _unhandledMove,
         child: Scaffold(
           appBar: AppBar(
             title: Text(preview.name ?? _t('previewTitle')),
@@ -200,9 +236,19 @@ class _LibraryCatalogPreviewScreenState
                       else
                         SliverPadding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          sliver: SliverList.builder(
+                          // Every row has the height of the prototype, so a
+                          // jump across thousands of sources (a status bar
+                          // tap, a fling) lays out only the rows it shows;
+                          // with rows of their own heights the list laid
+                          // out every row it passed.
+                          sliver: SliverPrototypeExtentList.builder(
+                            prototypeItem: _prototypeRow(),
                             itemCount: preview.sources.length,
                             itemBuilder: (context, index) {
+                              assert(() {
+                                LibraryCatalogPreviewScreen.debugBuiltRows++;
+                                return true;
+                              }());
                               final entry = preview.sources[index];
                               return _EntryRow(
                                 key: ValueKey<String>('entry-${entry.id}'),
@@ -238,6 +284,7 @@ class _LibraryCatalogPreviewScreenState
                         const Spacer(),
                         FilledButton.icon(
                           key: const ValueKey<String>('activate-button'),
+                          focusNode: _activateFocus,
                           onPressed: count == 0 || _activating
                               ? null
                               : _activate,
@@ -258,6 +305,32 @@ class _LibraryCatalogPreviewScreenState
       ),
     );
   }
+
+  /// The tallest row a source can have: name, details and chips, each on
+  /// one line, with every chip. Laid out once, never shown.
+  Widget _prototypeRow() => ExcludeFocus(
+    child: ExcludeSemantics(
+      child: _EntryRow(
+        entry: LibraryCatalogSourceEntry(
+          id: 'prototype',
+          addonId: 'prototype',
+          name: 'Prototype',
+          version: 1,
+          versionLabel: '1',
+          languages: List<String>.filled(160, 'xx'),
+          contentRating: 2,
+          alreadyInstalled: true,
+          updateAvailable: true,
+        ),
+        selected: false,
+        selectable: true,
+        aidokuFormat: true,
+        hasReader: true,
+        unsupportedKey: 'stateChallenge',
+        onToggle: () {},
+      ),
+    ),
+  );
 
   Widget _buildSelectionBar(int count) {
     return Padding(
@@ -449,6 +522,33 @@ class _EntryRow extends StatelessWidget {
             'version': entry.installedVersionLabel ?? entry.versionLabel,
           })
         : null;
+    // Flex in proportion to the label (plus the chip's icon and padding).
+    (int, Widget) chip(String label, LibraryLadderState state) => (
+      label.length + 5,
+      LibraryStatusChip(label: label, state: state, maxLines: 1),
+    );
+    final ratingKey = switch (entry.contentRating) {
+      <= 0 => 'ratingSafe',
+      1 => 'ratingSuggestive',
+      _ => 'ratingExplicit',
+    };
+    final chips = <(int, Widget)>[
+      (
+        t(ratingKey).length + 2,
+        LibraryRatingBadge(rating: entry.contentRating),
+      ),
+      if (installState != null)
+        chip(
+          installState,
+          entry.updateAvailable
+              ? LibraryLadderState.unknown
+              : LibraryLadderState.ok,
+        ),
+      if (aidokuFormat && hasReader)
+        chip(t('adapterAvailable'), LibraryLadderState.ok),
+      if (unsupportedKey != null)
+        chip(t(unsupportedKey!), LibraryLadderState.failed),
+    ];
 
     return LibraryFocusRing(
       radius: 10,
@@ -498,35 +598,22 @@ class _EntryRow extends StatelessWidget {
                           ),
                           Text(
                             details.join(' • '),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: muted,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
+                          // One line (rows share one height): each chip gets
+                          // room in proportion to its label and ellipsizes
+                          // when the row is too narrow for all of them.
+                          Row(
                             children: <Widget>[
-                              LibraryRatingBadge(rating: entry.contentRating),
-                              if (installState != null)
-                                LibraryStatusChip(
-                                  label: installState,
-                                  state: entry.updateAvailable
-                                      ? LibraryLadderState.unknown
-                                      : LibraryLadderState.ok,
-                                ),
-                              if (aidokuFormat && hasReader)
-                                LibraryStatusChip(
-                                  label: t('adapterAvailable'),
-                                  state: LibraryLadderState.ok,
-                                ),
-                              if (unsupportedKey != null)
-                                LibraryStatusChip(
-                                  label: t(unsupportedKey!),
-                                  state: LibraryLadderState.failed,
-                                ),
+                              for (final (index, chip) in chips.indexed) ...[
+                                if (index > 0) const SizedBox(width: 6),
+                                Flexible(flex: chip.$1, child: chip.$2),
+                              ],
                             ],
                           ),
                         ],

@@ -338,7 +338,169 @@ void main() {
   });
 }
 
+void _controllerActivateTests() {
+  LibraryCatalogPreview forty() => _aidokuPreview(<LibraryCatalogSourceEntry>[
+    _entry('fr.lelscanfr', 'LelscanFR'),
+    for (var index = 1; index < 40; index++)
+      _entry('fr.source$index', 'Source $index'),
+  ]);
+
+  LibraryFocusGamepadLayerState layerOf(WidgetTester tester) =>
+      tester.state<LibraryFocusGamepadLayerState>(
+        find.byType(LibraryFocusGamepadLayer),
+      );
+
+  bool activateFocused(WidgetTester tester) => tester
+      .widget<FilledButton>(
+        find.byKey(const ValueKey<String>('activate-button')),
+      )
+      .focusNode!
+      .hasPrimaryFocus;
+
+  testWidgets('a controller reaches Activate with left/right from a row', (
+    tester,
+  ) async {
+    final host = await _host(tester, forty());
+    final layer = layerOf(tester);
+    bool focusInFirstRow() {
+      final focused = FocusManager.instance.primaryFocus?.context;
+      var inside = false;
+      focused?.visitAncestorElements((element) {
+        inside =
+            element.widget.key == const ValueKey<String>('entry-fr.lelscanfr');
+        return !inside;
+      });
+      return inside;
+    }
+
+    // Down to the first source row.
+    for (var press = 0; press < 6 && !focusInFirstRow(); press++) {
+      layer.move(TraversalDirection.down);
+      await tester.pumpAndSettle();
+    }
+    expect(focusInFirstRow(), isTrue);
+
+    // Nothing ticked: right has nowhere to go.
+    layer.move(TraversalDirection.right);
+    await tester.pumpAndSettle();
+    expect(activateFocused(tester), isFalse);
+    expect(focusInFirstRow(), isTrue);
+
+    // A ticks the row.
+    layer.activateFocused();
+    await tester.pumpAndSettle();
+    expect(find.text('Activate (1)'), findsOneWidget);
+
+    // One press instead of 40: right jumps to Activate, A activates.
+    expect(layer.move(TraversalDirection.right), isTrue);
+    await tester.pumpAndSettle();
+    expect(activateFocused(tester), isTrue);
+    layer.activateFocused();
+    await tester.pumpAndSettle();
+    expect(find.text('Added: 1'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(host.result?.added.single.aidokuSourceId, 'fr.lelscanfr');
+  });
+
+  testWidgets('controller X activates the ticked sources', (tester) async {
+    final host = await _host(tester, forty());
+    final layer = layerOf(tester);
+    // Nothing ticked: X does nothing.
+    layer.secondary();
+    await tester.pumpAndSettle();
+    expect(find.text('Activation finished'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey<String>('entry-fr.lelscanfr')));
+    await tester.pump();
+    layer.secondary();
+    await tester.pumpAndSettle();
+    expect(find.text('Added: 1'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(host.result?.added.single.aidokuSourceId, 'fr.lelscanfr');
+  });
+}
+
+void _longCatalogTests() {
+  testWidgets('a jump across a 3000-source catalog builds only the rows it '
+      'shows, and every row has one height', (tester) async {
+    final preview = _aidokuPreview(<LibraryCatalogSourceEntry>[
+      for (var index = 0; index < 3000; index++)
+        LibraryCatalogSourceEntry(
+          id: 'xx.source$index',
+          addonId: LibraryAddon.aidokuAddonId('xx.source$index'),
+          name: index.isEven
+              ? 'Source $index'
+              : 'Source $index with a very long name ' * 4,
+          version: 3,
+          versionLabel: '3',
+          languages: index % 3 == 0
+              ? const <String>['fr']
+              : List<String>.filled(40, 'es-419'),
+          contentRating: index % 3,
+          alreadyInstalled: index % 4 == 0,
+          updateAvailable: index % 8 == 0,
+        ),
+    ]);
+    await pumpLibraryUi(
+      tester,
+      LibraryCatalogPreviewScreen(
+        preview: preview,
+        aidokuService: FakeAidokuService(),
+        imageCache: NoImageCache(),
+        enableGamepad: false,
+      ),
+      size: const Size(844, 390),
+      wrapInScaffold: false,
+      locale: const Locale('de'),
+    );
+    await tester.pumpAndSettle();
+    final heights = <double>{
+      for (final index in <int>[0, 1, 2, 3])
+        tester
+            .getSize(
+              find.byKey(
+                ValueKey<String>('entry-xx.source$index'),
+                skipOffstage: false,
+              ),
+            )
+            .height,
+    };
+    expect(heights, hasLength(1), reason: 'rows share one height: $heights');
+
+    final scroll = tester
+        .state<ScrollableState>(
+          find
+              .descendant(
+                of: find.byKey(const ValueKey<String>('preview-scroll')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    LibraryCatalogPreviewScreen.debugBuiltRows = 0;
+    scroll.jumpTo(scroll.maxScrollExtent);
+    await tester.pump();
+    expect(find.byKey(const ValueKey<String>('entry-xx.source2999')), findsOne);
+    expect(
+      LibraryCatalogPreviewScreen.debugBuiltRows,
+      lessThan(40),
+      reason: 'rows built for a jump to the end',
+    );
+
+    LibraryCatalogPreviewScreen.debugBuiltRows = 0;
+    scroll.jumpTo(scroll.maxScrollExtent / 2);
+    await tester.pump();
+    expect(LibraryCatalogPreviewScreen.debugBuiltRows, lessThan(40));
+    expect(tester.takeException(), isNull);
+  });
+}
+
 void _controllerListTests() {
+  _controllerActivateTests();
+  _longCatalogTests();
+
   testWidgets('on a landscape iPhone several sources are visible at once', (
     tester,
   ) async {
