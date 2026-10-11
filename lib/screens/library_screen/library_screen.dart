@@ -1250,6 +1250,7 @@ class LibraryScreenState extends State<LibraryScreen>
             aidokuSourceId: entry.addon?.aidokuSourceId,
           );
         } catch (error) {
+          if (!mounted) return;
           _showError(_lt('openFailed'), technical: error.toString());
         }
       case LibraryFeedSourceKind.catalog:
@@ -1267,6 +1268,7 @@ class LibraryScreenState extends State<LibraryScreen>
       _showMessage(_lt('loadingBook'));
       text = await _catalogService.loadReadableText(item);
     } catch (error) {
+      if (!mounted) return;
       if (item.description.isNotEmpty) {
         text = item.description;
       } else {
@@ -1356,6 +1358,7 @@ class LibraryScreenState extends State<LibraryScreen>
       if (!mounted) return;
       await _showTextReader(item, text);
     } catch (error) {
+      if (!mounted) return;
       _showError(_lt('readFailed'), technical: _technicalOf(error));
     }
   }
