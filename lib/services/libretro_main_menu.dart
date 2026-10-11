@@ -103,9 +103,11 @@ class LibretroMainMenu {
   LibretroMainMenu({
     Future<List<String>> Function()? availableCores,
     @visibleForTesting bool Function(SqliteConfigProvider provider)? isReady,
+    @visibleForTesting Future<SharedPreferences> Function()? preferences,
   }) : _availableCores =
            availableCores ?? LibretroInternalBridge.availableCores,
-       _isReady = isReady ?? _initialized;
+       _isReady = isReady ?? _initialized,
+       _preferences = preferences ?? SharedPreferences.getInstance;
 
   static final LibretroMainMenu instance = LibretroMainMenu();
 
@@ -121,10 +123,13 @@ class LibretroMainMenu {
 
   final Future<List<String>> Function() _availableCores;
   final bool Function(SqliteConfigProvider provider) _isReady;
+  final Future<SharedPreferences> Function() _preferences;
 
   List<String> _pinned = const <String>[];
+  bool _loaded = false;
   Future<void>? _loading;
-  Future<Set<String>?>? _bundled;
+  Set<String>? _bundled;
+  Future<Set<String>?>? _bundledReading;
   final Set<String> _adding = <String>{};
 
   SqliteConfigProvider? _provider;
@@ -145,18 +150,22 @@ class LibretroMainMenu {
   bool isAdding(String consoleId) => _adding.contains(consoleId);
 
   /// Reads the remembered consoles once; a failed read is retried by the
-  /// next call.
-  Future<void> load() => _loading ??= _readPins();
+  /// next call, and nothing is remembered before a read succeeded (an add
+  /// would otherwise overwrite the stored list).
+  Future<void> load() {
+    if (_loaded) return Future<void>.value();
+    return _loading ??= _readPins().whenComplete(() => _loading = null);
+  }
 
   Future<void> _readPins() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = await _preferences();
       _pinned = List<String>.unmodifiable(
         preferences.getStringList(preferenceKey) ?? const <String>[],
       );
+      _loaded = true;
     } catch (error) {
       _log.w('Libretro main menu consoles not read: $error');
-      _loading = null;
     }
   }
 
@@ -200,18 +209,23 @@ class LibretroMainMenu {
   /// Ids of the consoles whose core ships in this build (default core or
   /// an alternative of the console's import system); null when the build
   /// could not be asked, retried by the next call.
-  Future<Set<String>?> bundledConsoles() => _bundled ??= _readBundled();
+  Future<Set<String>?> bundledConsoles() {
+    final known = _bundled;
+    if (known != null) return Future<Set<String>?>.value(known);
+    return _bundledReading ??= _readBundled().whenComplete(
+      () => _bundledReading = null,
+    );
+  }
 
   Future<Set<String>?> _readBundled() async {
     try {
       final cores = (await _availableCores()).toSet();
-      return <String>{
+      return _bundled = Set<String>.unmodifiable(<String>{
         for (final console in LibretroCoreCatalog.consoles.values)
           if (_coresOf(console).any(cores.contains)) console.id,
-      };
+      });
     } catch (error) {
       _log.w('Embedded libretro cores not listed: $error');
-      _bundled = null;
       return null;
     }
   }
@@ -377,10 +391,11 @@ class LibretroMainMenu {
 
   /// Remembers [consoleId]; returns the failure detail, null when saved.
   Future<String?> _pin(String consoleId) async {
+    if (!_loaded) return '$preferenceKey not read';
     if (_pinned.contains(consoleId)) return null;
     final next = <String>[..._pinned, consoleId];
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = await _preferences();
       if (!await preferences.setStringList(preferenceKey, next)) {
         return '$preferenceKey not saved';
       }
@@ -392,12 +407,13 @@ class LibretroMainMenu {
   }
 
   Future<void> _unpin(String consoleId) async {
+    if (!_loaded) return;
     final next = <String>[
       for (final id in _pinned)
         if (id != consoleId) id,
     ];
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = await _preferences();
       if (await preferences.setStringList(preferenceKey, next)) {
         _pinned = List<String>.unmodifiable(next);
       }
