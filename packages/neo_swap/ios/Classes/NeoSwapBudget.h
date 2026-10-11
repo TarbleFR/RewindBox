@@ -95,6 +95,12 @@ struct Decision {
     std::uint64_t bounded_growth_grant_bytes = 0;
     std::uint64_t pending_reserved_bytes = 0;
     std::uint64_t guest_prepare_grant_bytes = 0;
+    // Build 444: direct guest admission allowed between two utility passes.
+    // A promise over the same measured room as the other grants (a created
+    // object is counted in relay_guest_live_bytes by the next sample), never
+    // above the ramped grant or the free relay capacity, zero when growth is
+    // not admitted, under pressure, in the background or without a relay.
+    std::uint64_t direct_guest_allowance_bytes = 0;
     std::uint64_t relay_growth_grant_bytes = 0;
     // Relay host loans: ceiling of live bytes the broker may hold for RSX CPU
     // data, host-visible Vulkan buffers and video frames. Existing loans are
@@ -291,6 +297,12 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         remaining -= guest_grant;
         const auto promised_guest = saturating_add(in.relay_guest_live_bytes, guest_grant);
         if (promised_guest > out.guest_reserve_bytes) out.guest_reserve_bytes = promised_guest;
+        // Guest data has priority over speculative host loans: the direct
+        // allowance is the whole ramped grant, bounded by what the relay can
+        // still back. It is not subtracted from `remaining` because it is
+        // consumed only by actual guest allocations, which the next sample
+        // sees in relay_guest_live_bytes.
+        out.direct_guest_allowance_bytes = bounded_grant < free ? bounded_grant : free;
     }
     // Contiguous donor demand cannot use a partial grant. Prioritize a whole
     // queued chunk, including 1-16 MiB requests below the global hysteresis
@@ -341,6 +353,7 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.donor_growth_admitted = false;
         out.donor_room_bytes = 0;
         out.guest_prepare_grant_bytes = 0;
+        out.direct_guest_allowance_bytes = 0;
         out.relay_growth_grant_bytes = 0;
         out.small_cpu_admitted = false;
         out.host_loan_quota_bytes = in.relay_host_live_bytes;
@@ -352,6 +365,7 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.donor_growth_admitted = false;
         out.donor_room_bytes = 0;
         out.guest_prepare_grant_bytes = 0;
+        out.direct_guest_allowance_bytes = 0;
         out.relay_growth_grant_bytes = 0;
         out.small_cpu_admitted = false;
         out.host_loan_quota_bytes = in.relay_host_live_bytes;

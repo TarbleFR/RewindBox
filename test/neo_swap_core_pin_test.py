@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = '1bd59add61f51b7188b0d02a14903230e8915e606da1c62230c210114ce6e1d6'
+PATCH_SHA256 = '4c9a2f9e135136481883e684b81429be5db7fa1301f19afde236922953f63fde'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -84,6 +84,8 @@ CORE_INPUTS = (
     'test/rpcs3_armsx3_performance_patch_test.py',
     'test/rpcs3_build435_core_delta_test.py',
     'test/native/rpcs3_build435_core_delta_test.cpp',
+    'test/rpcs3_build444_core_delta_test.py',
+    'test/native/rpcs3_build444_core_delta_test.cpp',
     'test/rpcs3_ios_ppu_compile_budget_test.cpp',
     'test/rpcs3_ppu_no_size_split_policy_test.cpp',
     'test/rpcs3_xitrix_v0101_native_test.py',

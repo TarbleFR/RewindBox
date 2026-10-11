@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <thread>
@@ -841,7 +842,194 @@ static void prepared_all_aligned_sizes_and_tick_limits() {
     assert(f.backend.collect() == 0 && f.backend.shutdown() == 0);
 }
 
+
+static NeoSwapDirectRelayStats direct_stats(Backend& backend) {
+    NeoSwapDirectRelayStats result{};
+    result.struct_size = sizeof(result);
+    assert(backend.direct_snapshot(&result) == NEOSWAP_RELAY_OK);
+    return result;
+}
+
+// Build 444: a stock miss may create an exact-size guest object at once, within
+// the budget allowance of the current interval, with the create() admission and
+// without touching pages. The token behaves like a prepared loan afterwards.
+static void direct_guest_creation_is_nonblocking_and_budgeted() {
+    Fixture f(16 * page);
+    std::uint64_t token = 0;
+    auto before = direct_stats(f.backend);
+    assert(before.struct_size == sizeof(before) && before.abi_version == NEOSWAP_DIRECT_RELAY_ABI);
+    assert(!before.requests && !before.allowance_bytes && !before.allowance_grants);
+    // No allowance installed yet: refused by budget before any OS sample.
+    const auto samples = f.os.headroom_calls.load();
+    const auto maps = f.os.map_calls.load();
+    assert(f.backend.try_create_guest(0, 3 * page, &token) == NEOSWAP_RELAY_QUOTA && !token);
+    auto stats = direct_stats(f.backend);
+    assert(stats.requests == 1 && stats.requested_bytes == 3 * page && stats.refused_budget == 1);
+    assert(f.os.headroom_calls == samples && !f.stats().live_bytes);
+    // Owner, alignment and oversize bookkeeping.
+    assert(f.backend.try_create_guest(1, page, &token) == NEOSWAP_RELAY_INVALID);
+    assert(f.backend.try_create_guest(0, page + 1, &token) == NEOSWAP_RELAY_INVALID);
+    assert(f.backend.try_create_guest(0, 0, &token) == NEOSWAP_RELAY_INVALID);
+    assert(f.backend.try_create_guest(0, page, nullptr) == NEOSWAP_RELAY_INVALID);
+    assert(direct_stats(f.backend).refused_invalid == 4 && direct_stats(f.backend).requests == 5);
+    f.backend.set_direct_guest_allowance(8 * page);
+    stats = direct_stats(f.backend);
+    assert(stats.allowance_bytes == 8 * page && stats.allowance_grants == 1 && stats.allowance_granted_bytes == 8 * page);
+    assert(f.backend.try_create_guest(0, 3 * page, &token) == 0 && token);
+    stats = direct_stats(f.backend);
+    assert(stats.created == 1 && stats.created_bytes == 3 * page && stats.allowance_bytes == 5 * page);
+    // One admission sample, no alias, no page touch; the commitment is counted
+    // like a borrowed prepared object until its first published view.
+    assert(f.os.headroom_calls == samples + 1 && f.os.map_calls == maps && !f.os.zero_calls);
+    assert(prepared_stats(f.backend).unpublished_bytes == 3 * page);
+    assert(f.stats().live_bytes == 3 * page && f.stats().object_count == 1);
+    assert(!f.backend.pressure_diagnostics().owner_published_live_bytes[0]);
+    void* view = nullptr;
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ_WRITE, &view) == 0);
+    assert(!prepared_stats(f.backend).unpublished_bytes);
+    assert(f.backend.pressure_diagnostics().owner_published_live_bytes[0] == 3 * page);
+    assert(f.backend.return_unused_prepared(token) == NEOSWAP_RELAY_UNKNOWN); // published
+    f.os.write(view, 0, 0x5c);
+    assert(f.backend.unmap(token, view) == 0);
+    // Retirement defers the scrub to the utility collect(), as for the stock.
+    assert(f.backend.retire(token) == 0 && f.stats().live_bytes == 3 * page && !f.os.zero_calls);
+    assert(prepared_stats(f.backend).pending_scrub_bytes == 3 * page);
+    assert(f.backend.collect() == 0 && !f.stats().live_bytes && f.os.zero_calls == 1);
+    // An unpublished direct object returns like a prepared loan: no syscall.
+    assert(f.backend.try_create_guest(0, 2 * page, &token) == 0 && token);
+    assert(prepared_stats(f.backend).unpublished_bytes == 2 * page);
+    assert(f.backend.return_unused_prepared(token) == 0);
+    assert(f.backend.return_unused_prepared(token) == NEOSWAP_RELAY_UNKNOWN);
+    assert(f.backend.collect() == 0 && !f.stats().live_bytes && f.os.zero_calls == 1);
+    assert(!prepared_stats(f.backend).unpublished_bytes);
+    assert(direct_stats(f.backend).allowance_bytes == 3 * page); // 8 - 3 - 2: never refunded
+    assert(f.backend.try_create_guest(0, 4 * page, &token) == NEOSWAP_RELAY_QUOTA && !token);
+    assert(direct_stats(f.backend).refused_budget == 2);
+    // A new interval replaces the allowance instead of accumulating it.
+    f.backend.set_direct_guest_allowance(8 * page);
+    assert(direct_stats(f.backend).allowance_bytes == 8 * page && direct_stats(f.backend).allowance_grants == 2);
+    // Pressure (dispatch flag, then kernel sample) refuses without consuming it.
+    f.backend.set_pressure(true);
+    assert(f.backend.try_create_guest(0, page, &token) == NEOSWAP_RELAY_PRESSURE);
+    f.backend.set_pressure(false);
+    f.os.budget = 0;
+    assert(f.backend.try_create_guest(0, page, &token) == NEOSWAP_RELAY_PRESSURE);
+    f.os.budget = neostation::relay::maximum_capacity;
+    stats = direct_stats(f.backend);
+    assert(stats.refused_pressure == 2 && stats.allowance_bytes == 8 * page && stats.created == 2);
+    // Retained capacity (16 pages) bounds a 32-page request: a capacity refusal, not budget.
+    f.backend.set_direct_guest_allowance(64 * page);
+    assert(f.backend.try_create_guest(0, 32 * page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(direct_stats(f.backend).refused_capacity == 1 && direct_stats(f.backend).refused_budget == 2);
+    // Disabled owner mask refuses before the budget.
+    assert(f.backend.configure(0) == 0);
+    assert(f.backend.try_create_guest(0, page, &token) == NEOSWAP_RELAY_DISABLED);
+    assert(direct_stats(f.backend).refused_disabled == 1);
+    assert(f.backend.configure(1) == 0);
+    assert(f.backend.shutdown() == 0);
+    assert(direct_stats(f.backend).allowance_bytes == 0); // shutdown closes direct admission
+    // Sizes above the 16 MiB stock maximum are admitted directly when capacity allows.
+    Fixture big(neostation::relay::maximum_segment_bytes);
+    constexpr std::uint64_t thirty_two = 32ULL * 1024 * 1024;
+    big.backend.set_direct_guest_allowance(256ULL * 1024 * 1024);
+    std::uint64_t direct_token = 0;
+    assert(big.backend.try_create_guest(0, thirty_two, &direct_token) == 0 && direct_token);
+    stats = direct_stats(big.backend);
+    assert(stats.oversize_requests == 1 && stats.oversize_requested_bytes == thirty_two && stats.oversize_max_bytes == thirty_two);
+    assert(stats.created == 1 && stats.created_bytes == thirty_two && stats.allowance_bytes == 224ULL * 1024 * 1024);
+    assert(big.backend.try_acquire_prepared(0, thirty_two, &token) == NEOSWAP_RELAY_INVALID); // stock still bounded
+    assert(prepared_stats(big.backend).unsupported_count == 1);
+    assert(big.backend.return_unused_prepared(direct_token) == 0);
+    assert(big.backend.collect() == 0 && !big.stats().live_bytes && big.backend.shutdown() == 0);
+}
+
+static void direct_guest_creation_does_not_wait_for_maintenance() {
+    Fixture f(8 * page);
+    f.backend.set_direct_guest_allowance(8 * page);
+    std::uint64_t first = 0;
+    f.os.block_headroom = true;
+    f.os.entered_headroom = false;
+    std::thread worker([&] { assert(f.backend.create(0, page, &first) == 0); });
+    while (!f.os.entered_headroom.load()) std::this_thread::yield();
+    std::uint64_t token = 0;
+    // The worker holds the backend mutex inside a simulated slow OS sample:
+    // a direct request returns BUSY immediately, consuming nothing.
+    assert(f.backend.try_create_guest(0, page, &token) == NEOSWAP_RELAY_BUSY && !token);
+    f.os.block_headroom = false;
+    worker.join();
+    auto stats = direct_stats(f.backend);
+    assert(stats.busy == 1 && stats.allowance_bytes == 8 * page && !stats.created);
+    assert(f.backend.try_create_guest(0, page, &token) == 0 && token);
+    assert(f.backend.return_unused_prepared(token) == 0);
+    assert(f.backend.collect() == 0 && f.backend.release(first) == 0 && f.backend.shutdown() == 0);
+}
+
+// Build 444: a class that recorded a burst is restocked for the whole burst in
+// one pass; the eight-object, growth and target bounds of a pass still hold.
+static void restock_follows_same_size_bursts() {
+    Fixture f(512 * page);
+    std::uint64_t token = 0;
+    for (unsigned n = 0; n != 4; ++n)
+        assert(f.backend.try_acquire_prepared(0, 2 * page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(prepared_stats(f.backend).demand_count == 4 && prepared_stats(f.backend).demand_bytes == 8 * page);
+    assert(f.backend.maintain_guest_pool(16 * page, 8 * page) == 0);
+    auto stock = prepared_stats(f.backend);
+    assert(stock.prepared_count == 4 && stock.prepared_bytes == 8 * page && !stock.demand_count);
+    std::uint64_t tokens[4] = {};
+    for (auto& held : tokens) assert(f.backend.try_acquire_prepared(0, 2 * page, &held) == 0 && held);
+    assert(f.backend.try_acquire_prepared(0, 2 * page, &token) == NEOSWAP_RELAY_QUOTA && !token);
+    // Growth bounds a burst: one page of growth prepares one object of the class.
+    assert(prepared_stats(f.backend).demand_count == 4); // replacements recorded on success, capped
+    assert(f.backend.maintain_guest_pool(16 * page, 2 * page) == 0);
+    assert(prepared_stats(f.backend).prepared_count == 1 && prepared_stats(f.backend).demand_count == 3);
+    // The eight-object bound applies across classes within one pass.
+    for (unsigned n = 0; n != 4; ++n) (void)f.backend.try_acquire_prepared(0, page, &token);
+    for (unsigned n = 0; n != 4; ++n) (void)f.backend.try_acquire_prepared(0, 3 * page, &token);
+    assert(f.backend.maintain_guest_pool(64 * page, 32 * page) == 0);
+    assert(prepared_stats(f.backend).prepared_count == 9); // 1 kept + 8 new
+    for (auto held : tokens) assert(f.backend.return_unused_prepared(held) == 0);
+    assert(f.backend.collect() == 0 && f.backend.shutdown() == 0);
+}
+
+static int g_demand_signals = 0;
+static void* g_demand_context = nullptr;
+// Build 444: an empty-stock miss or a budget refusal wakes the host maintenance
+// pass at most once per 50 ms; BUSY, pressure and successes never signal.
+static void demand_signal_is_rate_limited() {
+    Fixture f(8 * page);
+    g_demand_signals = 0;
+    g_demand_context = nullptr;
+    f.backend.set_demand_signal([](void* context) { ++g_demand_signals; g_demand_context = context; }, &f);
+    std::uint64_t token = 0;
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(g_demand_signals == 1 && g_demand_context == &f);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(g_demand_signals == 1); // within the interval
+    assert(f.backend.try_create_guest(0, page, &token) == NEOSWAP_RELAY_QUOTA); // budget refusal
+    assert(g_demand_signals == 1 && direct_stats(f.backend).wakeups == 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    assert(f.backend.try_create_guest(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(g_demand_signals == 2 && direct_stats(f.backend).wakeups == 2);
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    f.backend.set_direct_guest_allowance(8 * page);
+    assert(f.backend.try_create_guest(0, page, &token) == 0 && token); // success: no signal
+    assert(f.backend.return_unused_prepared(token) == 0);
+    f.backend.set_pressure(true);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_PRESSURE); // fail closed: no signal
+    f.backend.set_pressure(false);
+    assert(g_demand_signals == 2);
+    f.backend.set_demand_signal(nullptr, nullptr);
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(g_demand_signals == 2 && direct_stats(f.backend).wakeups == 2);
+    assert(f.backend.collect() == 0 && f.backend.shutdown() == 0);
+}
+
 int main() {
+    direct_guest_creation_is_nonblocking_and_budgeted();
+    direct_guest_creation_does_not_wait_for_maintenance();
+    restock_follows_same_size_bursts();
+    demand_signal_is_rate_limited();
     prepared_guest_lifecycle_and_accounting();
     prepared_miss_return_and_pressure();
     prepared_try_acquire_does_not_wait_for_maintenance();
@@ -862,5 +1050,5 @@ int main() {
     every_fixed_alias_is_attempted_before_retire_returns();
     retirement_is_bounded_and_fair();
     eight_gibibyte_capacity_keeps_bounded_tokens_and_wide_counters();
-    std::cout << "relay backend: prepared guest admission, nonblocking acquire/return, common grants, 256 exact sizes, deferred scrub, published accounting, alias identity, fixed reservations, failure ownership, pressure, coalescing and lifecycle checks passed\n";
+    std::cout << "relay backend: direct budgeted admission, burst restock, rate-limited demand signal, prepared guest admission, nonblocking acquire/return, common grants, 256 exact sizes, deferred scrub, published accounting, alias identity, fixed reservations, failure ownership, pressure, coalescing and lifecycle checks passed\n";
 }

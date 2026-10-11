@@ -94,6 +94,41 @@ static uint64_t RPCS3ProcessFootprintBytes(void) {
   return info.phys_footprint;
 }
 
+static void RPCS3SampleNeoSwapGuestStatsExt(rpcs3_ios_neoswap_relay_stats_ext_getter getter,
+                                           NSString* title, uint64_t epoch, const char* phase) {
+  NeoSwapRelayClientStatsExt stats = {};
+  stats.struct_size = sizeof(stats);
+  stats.abi_version = NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI;
+  const int result = getter ? getter(&stats) : NEOSWAP_RELAY_DISABLED;
+  const bool valid = result == NEOSWAP_RELAY_OK && stats.struct_size == sizeof(stats) &&
+      stats.abi_version == NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI;
+  if (!valid) {
+    RPCS3Diagnostic(@"neoswap_guest_sample_ext", [NSString stringWithFormat:
+        @"title=%@ schema=1 valid=0 result=%d sample_epoch=%llu phase=%s scope=process_lifetime",
+        title, result, (unsigned long long)epoch, phase]);
+    return; // An older Core has no extension: unknown, never measured zeros.
+  }
+  // Cumulative independent atomics except fallback_live_*, which are current
+  // live counts of candidate objects on ordinary backing.
+  RPCS3Diagnostic(@"neoswap_guest_sample_ext", [NSString stringWithFormat:
+      @"title=%@ schema=1 valid=1 result=%d sample_epoch=%llu phase=%s scope=process_lifetime "
+       "gameplay_direct_requests=%llu gameplay_direct_creates=%llu gameplay_direct_create_bytes=%llu "
+       "gameplay_direct_busy=%llu gameplay_direct_pressure=%llu gameplay_direct_budget=%llu gameplay_direct_other=%llu "
+       "gameplay_fallbacks=%llu gameplay_fallback_bytes=%llu fallback_live_objects=%llu fallback_live_bytes=%llu "
+       "oversize_requests=%llu oversize_requested_bytes=%llu boot_creates=%llu boot_create_bytes=%llu "
+       "direct_published_objects=%llu direct_published_bytes=%llu",
+      title, result, (unsigned long long)epoch, phase,
+      (unsigned long long)stats.gameplay_direct_requests, (unsigned long long)stats.gameplay_direct_creates,
+      (unsigned long long)stats.gameplay_direct_create_bytes, (unsigned long long)stats.gameplay_direct_busy,
+      (unsigned long long)stats.gameplay_direct_pressure, (unsigned long long)stats.gameplay_direct_budget,
+      (unsigned long long)stats.gameplay_direct_other, (unsigned long long)stats.gameplay_fallbacks,
+      (unsigned long long)stats.gameplay_fallback_bytes, (unsigned long long)stats.fallback_live_objects,
+      (unsigned long long)stats.fallback_live_bytes, (unsigned long long)stats.oversize_requests,
+      (unsigned long long)stats.oversize_requested_bytes, (unsigned long long)stats.boot_creates,
+      (unsigned long long)stats.boot_create_bytes, (unsigned long long)stats.direct_published_objects,
+      (unsigned long long)stats.direct_published_bytes]);
+}
+
 static void RPCS3SampleNeoSwapGuestStats(rpcs3_ios_neoswap_relay_stats_getter getter,
                                         NSString* title, uint64_t epoch, const char* phase) {
   NeoSwapRelayClientStats stats = {};
@@ -111,6 +146,8 @@ static void RPCS3SampleNeoSwapGuestStats(rpcs3_ios_neoswap_relay_stats_getter ge
   // Cumulative independent atomics, not a transactional allocation snapshot.
   // The timed first-map body excludes client-mutex acquisition, outer VM locks
   // and the ordinary allocator used after a declined relay candidate.
+  // Build 444: the extension line reports the direct-admission outcome, the
+  // bytes durably excluded on ordinary backing and the boot-path creations.
   RPCS3Diagnostic(@"neoswap_guest_sample", [NSString stringWithFormat:
       @"title=%@ schema=1 valid=1 result=%d sample_epoch=%llu phase=%s scope=process_lifetime gameplay_active=%u "
        "candidate_first_maps=%llu requested_bytes=%llu gameplay_first_maps=%llu gameplay_requested_bytes=%llu "
@@ -299,6 +336,7 @@ static UIViewController* RPCS3RootViewController(void) {
   rpcs3_ios_api _api;
   int32_t (*_neoSwapClientStats)(NeoSwapClientStats*);
   rpcs3_ios_neoswap_relay_stats_getter _neoSwapRelayClientStats;
+  rpcs3_ios_neoswap_relay_stats_ext_getter _neoSwapRelayClientStatsExt;
   neostation::rpcs3::early_escrow::EarlyAddressSpaceEscrow _jitEscrow;
 }
 
@@ -453,6 +491,7 @@ static void RPCS3Progress(void* context,
   }
 
   _neoSwapRelayClientStats = nullptr;
+  _neoSwapRelayClientStatsExt = nullptr;
 
   // libRPCS3Core.dylib is loaded into NeoStation itself, not a child process.
   // This is debugger authorization only, never proof of usable JIT memory.
@@ -600,6 +639,19 @@ static void RPCS3Progress(void* context,
       @"abi=1 bind_result=%d host_api=%d core_binder=%d stats=%d scope=new_unpublished_guest_objects",
       preparedRelayResult, preparedRelay != nullptr, bindPreparedRelay != nullptr,
       _neoSwapRelayClientStats != nullptr]);
+  // Build 444: optional direct admission on a stock miss, separate ABI. An
+  // older Core keeps the Build 441 ready-only gameplay policy.
+  auto bindDirectRelay = reinterpret_cast<rpcs3_ios_neoswap_direct_relay_binder>(
+      dlsym(handle, "rpcs3_ios_set_neoswap_direct_relay_api"));
+  const auto* directRelay = NeoSwap_GetDirectRelayAPI(NEOSWAP_DIRECT_RELAY_ABI);
+  const int directRelayResult = bindDirectRelay && directRelay
+      ? bindDirectRelay(directRelay) : NEOSWAP_RELAY_DISABLED;
+  _neoSwapRelayClientStatsExt = reinterpret_cast<rpcs3_ios_neoswap_relay_stats_ext_getter>(
+      dlsym(handle, "rpcs3_ios_get_neoswap_relay_client_stats_ext"));
+  RPCS3Diagnostic(@"neoswap_direct_guest_client", [NSString stringWithFormat:
+      @"abi=1 bind_result=%d host_api=%d core_binder=%d stats_ext=%d scope=gameplay_stock_miss_direct_admission",
+      directRelayResult, directRelay != nullptr, bindDirectRelay != nullptr,
+      _neoSwapRelayClientStatsExt != nullptr]);
   using StorageBinder = int32_t (*)(const NeoSwapStorageAPI*);
   auto bindStorage = reinterpret_cast<StorageBinder>(dlsym(handle, "rpcs3_ios_set_storage_cache_api"));
   const int storageResult = bindStorage ? bindStorage(NeoSwapStorage_GetAPI(NEOSWAP_STORAGE_ABI)) : NS_STORAGE_DISABLED;
@@ -828,6 +880,7 @@ static void RPCS3Progress(void* context,
     const uint64_t epoch = strongSelf->_performanceEpoch;
     if (!strongSelf->_performanceSnapshot.accepts(epoch)) return;
     RPCS3SampleNeoSwapGuestStats(strongSelf->_neoSwapRelayClientStats, strongSelf.activeTitleId, epoch, "sample");
+    RPCS3SampleNeoSwapGuestStatsExt(strongSelf->_neoSwapRelayClientStatsExt, strongSelf.activeTitleId, epoch, "sample");
     rpcs3_ios_performance_metrics metrics = {};
     metrics.size = sizeof(metrics);
     const rpcs3_ios_status metricStatus = strongSelf->_api.get_performance_metrics(&metrics);
@@ -941,8 +994,10 @@ static void RPCS3Progress(void* context,
   [self invalidatePerformanceSnapshotForBoot];
   NSString* guestTitle = title ? [NSString stringWithUTF8String:title] : @"";
   RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "before_boot");
+  RPCS3SampleNeoSwapGuestStatsExt(_neoSwapRelayClientStatsExt, guestTitle, _performanceEpoch, "before_boot");
   const rpcs3_ios_status status = _api.boot_game(title, identifier);
   RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "boot_return");
+  RPCS3SampleNeoSwapGuestStatsExt(_neoSwapRelayClientStatsExt, guestTitle, _performanceEpoch, "boot_return");
   if (status != 0) _performanceSnapshot.end();
   return status;
 }
@@ -1562,9 +1617,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       dispatch_async(dispatch_get_main_queue(), ^{ if (result) result(@NO); });
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
-    if (self.activeTitleId.length)
+    if (self.activeTitleId.length) {
       RPCS3SampleNeoSwapGuestStats(self->_neoSwapRelayClientStats, self.activeTitleId,
                                  self->_performanceEpoch, "session_end");
+      RPCS3SampleNeoSwapGuestStatsExt(self->_neoSwapRelayClientStatsExt, self.activeTitleId,
+                                    self->_performanceEpoch, "session_end");
+    }
     NeoSwapStorage_EndSession();
     const int sessionResult = NeoSwap_SetOwnerSessionActive(NEOSWAP_RPCS3, 0);
     RPCS3Diagnostic(@"neoswap_session", [NSString stringWithFormat:@"active=0 result=%d", sessionResult]);

@@ -15,6 +15,11 @@ struct NeoSwapPreparedRelayAPI;
 struct NeoSwapRelayClientStats;
 typedef int32_t (*rpcs3_ios_neoswap_prepared_relay_binder)(const struct NeoSwapPreparedRelayAPI*);
 typedef int32_t (*rpcs3_ios_neoswap_relay_stats_getter)(struct NeoSwapRelayClientStats*);
+// Build 444: optional direct guest admission and the diagnostics extension.
+struct NeoSwapDirectRelayAPI;
+struct NeoSwapRelayClientStatsExt;
+typedef int32_t (*rpcs3_ios_neoswap_direct_relay_binder)(const struct NeoSwapDirectRelayAPI*);
+typedef int32_t (*rpcs3_ios_neoswap_relay_stats_ext_getter)(struct NeoSwapRelayClientStatsExt*);
 
 typedef void (*rpcs3_ios_log_callback)(void* context,
                                        int32_t level,

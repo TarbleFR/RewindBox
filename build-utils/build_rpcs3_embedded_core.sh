@@ -130,6 +130,8 @@ env -u SDKROOT CXX="$HOST_CXX" HOST_MACOS_SDK="$HOST_MACOS_SDK" \
 env -u SDKROOT CXX="$HOST_CXX" HOST_MACOS_SDK="$HOST_MACOS_SDK" \
   python3 "$PWD/test/rpcs3_build435_core_delta_test.py" "$SRC" --sanitize
 env -u SDKROOT CXX="$HOST_CXX" HOST_MACOS_SDK="$HOST_MACOS_SDK" \
+  python3 "$PWD/test/rpcs3_build444_core_delta_test.py" "$SRC" --sanitize
+env -u SDKROOT CXX="$HOST_CXX" HOST_MACOS_SDK="$HOST_MACOS_SDK" \
   python3 "$PWD/test/rpcs3_shader_storage_test.py" "$SRC"
 env -u SDKROOT CXX="$HOST_CXX" HOST_MACOS_SDK="$HOST_MACOS_SDK" \
   python3 "$PWD/test/rpcs3_source_archive_test.py" "$SRC"

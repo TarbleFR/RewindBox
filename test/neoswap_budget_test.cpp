@@ -67,6 +67,37 @@ int main() {
     assert(d.host_loan_quota_bytes - grow.relay_host_live_bytes == maximum_growth_grant_bytes);
     assert(d.donor_room_bytes == 0 && !d.donor_growth_admitted && !d.storage_shrink_requested);
     assert(std::strcmp(d.reason, "measured_room_available") == 0);
+    // Build 444: direct guest admission gets the whole ramped grant (guest data
+    // outranks speculative host loans) bounded by the free relay capacity; it
+    // is a promise, not a second deduction from the sample's room.
+    assert(d.direct_guest_allowance_bytes == d.bounded_growth_grant_bytes && d.bounded_growth_grant_bytes == maximum_growth_grant_bytes);
+    {
+        Inputs tight_relay = device_inputs();
+        tight_relay.relay_capacity_bytes = tight_relay.relay_guest_live_bytes + tight_relay.relay_host_live_bytes + 24 * MiB;
+        assert(decide(tight_relay, {}).direct_guest_allowance_bytes == 24 * MiB);
+        Inputs no_relay = device_inputs();
+        no_relay.relay_ready = false;
+        assert(decide(no_relay, {}).direct_guest_allowance_bytes == 0);
+        Inputs below_quantum = device_inputs();
+        below_quantum.system_usable_bytes = reserve + growth_quantum_bytes - MiB;
+        const auto held = decide(below_quantum, {});
+        assert(held.state == State::holding && held.direct_guest_allowance_bytes == 0);
+        Inputs pressured = device_inputs();
+        pressured.dispatch_warning = true;
+        assert(decide(pressured, {}).state == State::pressure && decide(pressured, {}).direct_guest_allowance_bytes == 0);
+        Inputs background = device_inputs();
+        background.foreground = false;
+        assert(decide(background, {}).direct_guest_allowance_bytes == 0);
+        Inputs shrinking = device_inputs();
+        shrinking.system_usable_bytes = reserve - MiB;
+        assert(decide(shrinking, {}).state == State::shrinking && decide(shrinking, {}).direct_guest_allowance_bytes == 0);
+        Inputs unknown_system = device_inputs();
+        unknown_system.system_valid = false;
+        assert(decide(unknown_system, {}).direct_guest_allowance_bytes == 0);
+        Inputs idle_session = device_inputs();
+        idle_session.session_active = false;
+        assert(decide(idle_session, {}).direct_guest_allowance_bytes == 0);
+    }
 
     // When the relay capacity caps the ceiling, donors receive the remainder of
     // the grant: relay growth plus donor room equals the bounded grant exactly.
@@ -449,5 +480,5 @@ int main() {
 
     std::puts("PASS NeoSwap budget: idle/warming/growing/holding/shrinking/pressure, measured room, guest reserve, "
               "shared guest/relay/donor grants, pending IPC, callback allowance, donor floors, small-CPU gate, hysteresis, saturating sums, "
-              "measured host envelope (limit estimate, safety reserve, ramp, background)");
+              "measured host envelope (limit estimate, safety reserve, ramp, background), direct guest allowance");
 }

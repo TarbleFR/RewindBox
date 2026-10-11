@@ -403,6 +403,27 @@ NSDictionary* capabilityCheck() {
             @"unpublishedCommittedBytes":@(prepared.unpublished_bytes),
             @"preparedIsDonated":@NO, @"residencyMeasured":@NO}
         : @{@"schema":@1, @"available":@NO, @"result":@(preparedResult)};
+    // Build 444: direct admission on stock misses. Counters are cumulative
+    // process-lifetime observations; allowanceBytes is the budget in force.
+    NeoSwapDirectRelayStats direct{};
+    direct.struct_size = sizeof(direct);
+    direct.abi_version = NEOSWAP_DIRECT_RELAY_ABI;
+    const auto* directAPI = NeoSwap_GetDirectRelayAPI(NEOSWAP_DIRECT_RELAY_ABI);
+    const int directResult = directAPI ? directAPI->snapshot(&direct) : NEOSWAP_RELAY_DISABLED;
+    result[@"guestDirectCreation"] = directResult == NEOSWAP_RELAY_OK
+        ? @{@"schema":@1, @"available":@YES,
+            @"requests":@(direct.requests), @"requestedBytes":@(direct.requested_bytes),
+            @"created":@(direct.created), @"createdBytes":@(direct.created_bytes),
+            @"busy":@(direct.busy), @"refusedPressure":@(direct.refused_pressure),
+            @"refusedBudget":@(direct.refused_budget), @"refusedCapacity":@(direct.refused_capacity),
+            @"refusedDisabled":@(direct.refused_disabled), @"refusedLimit":@(direct.refused_limit),
+            @"refusedInvalid":@(direct.refused_invalid),
+            @"oversizeRequests":@(direct.oversize_requests), @"oversizeRequestedBytes":@(direct.oversize_requested_bytes),
+            @"oversizeMaxBytes":@(direct.oversize_max_bytes),
+            @"allowanceBytes":@(direct.allowance_bytes), @"allowanceGrants":@(direct.allowance_grants),
+            @"allowanceGrantedBytes":@(direct.allowance_granted_bytes), @"wakeups":@(direct.wakeups),
+            @"createdIsDonated":@NO, @"residencyMeasured":@NO}
+        : @{@"schema":@1, @"available":@NO, @"result":@(directResult)};
     if (stats.quarantined_fixed_alias_count) {
         result[@"ready"] = @NO;
         result[@"state"] = @"fixed_alias_quarantined";

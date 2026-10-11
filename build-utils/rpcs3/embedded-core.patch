@@ -11,7 +11,7 @@ index 2caa77d..daac444 100644
  option(RUN_RPCS3_TESTS "Run RPCS3 unit tests. Requires BUILD_RPCS3_TESTS" OFF)
  option(USE_GAMEMODE "Choose whether to enable GameMode features or not." ON)
 diff --git a/Utilities/JIT.h b/Utilities/JIT.h
-index 6e17c58..09ff972 100644
+index 6e17c582c..c0c9cd214 100644
 --- a/Utilities/JIT.h
 +++ b/Utilities/JIT.h
 @@ -123,8 +123,11 @@ struct jit_runtime final : jit_runtime_base
@@ -38,6 +38,21 @@ index 6e17c58..09ff972 100644
  	jit_announce(result, code.codeSize(), name);
  	return reinterpret_cast<FT>(uptr(result));
  }
+@@ -625,6 +632,14 @@ public:
+ 	// Get system triple (SPU)
+ 	static std::string triple2();
+ 
++	// NEOSTATION_BUILD444_PPU_CACHE_IDENTITY_V1: short digest of the LLVM
++	// release, the configure-time digest of the translator/engine sources and
++	// the target features this JIT advertises. Part of the PPU object name.
++	static std::string codegen_identity();
++
++	// The explicit target features advertised to LLVM on this device.
++	static const std::vector<std::string>& target_attributes();
++
+ 	bool add_sub_disk_space(ssz space);
+ };
+ 
 diff --git a/Utilities/JITASM.cpp b/Utilities/JITASM.cpp
 index f58f045..abf76ff 100644
 --- a/Utilities/JITASM.cpp
@@ -1056,18 +1071,28 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e..d8905c7 100644
+index 863624e0a..39bd862d9 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
-@@ -43,6 +43,7 @@ LOG_CHANNEL(jit_log, "JIT");
+@@ -13,6 +13,8 @@
+ #ifdef RPCS3_IOS
+ #include "JITIOS.h"
+ #include "JITProfile.h"
++#include "JITPhaseProfile.h"
++#include "Crypto/sha1.h"
+ #endif
+ 
+ #include <atomic>
+@@ -43,6 +45,8 @@ LOG_CHANNEL(jit_log, "JIT");
  #pragma GCC diagnostic ignored "-Wmissing-noreturn"
  #endif
  #include <llvm/Support/CodeGen.h>
 +#include <llvm/Support/CommandLine.h>
++#include <llvm/Config/llvm-config.h>
  #include "llvm/Support/TargetSelect.h"
  #include "llvm/TargetParser/Host.h"
  #include "llvm/ExecutionEngine/ExecutionEngine.h"
-@@ -71,18 +72,15 @@ namespace
+@@ -71,18 +75,15 @@ namespace
  
  	void maybe_log_ios_jit_arena_pressure(bool executable)
  	{
@@ -1090,7 +1115,7 @@ index 863624e..d8905c7 100644
  			if (next_warning.compare_exchange_strong(threshold, initial_threshold,
  				std::memory_order_relaxed, std::memory_order_relaxed))
  			{
-@@ -105,6 +103,11 @@ namespace
+@@ -105,6 +106,11 @@ namespace
  
  		if (crossed_threshold)
  		{
@@ -1102,7 +1127,7 @@ index 863624e..d8905c7 100644
  			constexpr usz mib = 1024 * 1024;
  			jit_log.warning(
  				"JIT_ARENA_LOW_SPACE: iOS JIT %s arena has live=%u MiB, free=%u MiB (%llu bytes), "
-@@ -117,7 +120,7 @@ namespace
+@@ -117,7 +123,7 @@ namespace
  				static_cast<u64>(largest_free),
  				runtime / mib,
  				peak / mib,
@@ -1111,7 +1136,128 @@ index 863624e..d8905c7 100644
  		}
  	}
  #endif
-@@ -904,6 +907,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -653,6 +659,7 @@ public:
+ 
+ 	void notifyObjectCompiled(const llvm::Module* _module, llvm::MemoryBufferRef obj) override
+ 	{
++		const jit_phase::scope phase_timer(jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());
+ 		std::string name = m_path;
+ 
+ 		name.append(_module->getName());
+@@ -699,6 +706,8 @@ public:
+ 
+ 	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path)
+ 	{
++		jit_phase::scope phase_timer(jit_phase::ppu_cache_read, utils::get_tsc);
++
+ 		if (fs::file cached{path + ".gz", fs::read})
+ 		{
+ 			const std::vector<u8> cached_data = cached.to_vector<u8>();
+@@ -718,6 +727,7 @@ public:
+ 
+ 			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(out.size());
+ 			std::memcpy(buf->getBufferStart(), out.data(), out.size());
++			phase_timer.bytes = out.size();
+ 			return buf;
+ 		}
+ 
+@@ -730,6 +740,7 @@ public:
+ 
+ 			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(cached.size());
+ 			cached.read(buf->getBufferStart(), buf->getBufferSize());
++			phase_timer.bytes = cached.size();
+ 			return buf;
+ 		}
+ 
+@@ -751,6 +762,87 @@ public:
+ 	}
+ };
+ 
++const std::vector<std::string>& jit_compiler::target_attributes()
++{
++	static const std::vector<std::string> attributes = []()
++	{
++		std::vector<std::string> result;
++
++#if defined(ARCH_ARM64)
++		if (utils::has_sha3())
++			result.push_back("+sha3");
++		else
++			result.push_back("-sha3");
++
++		if (utils::has_dotprod())
++			result.push_back("+dotprod");
++		else
++			result.push_back("-dotprod");
++
++		// The recompilers emit i8mm intrinsics (e.g. ummla) gated on utils::has_i8mm().
++		// The JIT target features must advertise i8mm too, otherwise the backend fails
++		// with "Cannot select: intrinsic %llvm.aarch64.neon.ummla" whenever the resolved
++		// -mcpu does not already imply it (e.g. the cortex-a78 fallback on Apple silicon).
++		if (utils::has_i8mm())
++			result.push_back("+i8mm");
++		else
++			result.push_back("-i8mm");
++
++		if (utils::has_sve())
++			result.push_back("+sve");
++		else
++			result.push_back("-sve");
++
++		if (utils::has_sve2())
++			result.push_back("+sve2");
++		else
++			result.push_back("-sve2");
++#endif
++
++		return result;
++	}();
++
++	return attributes;
++}
++
++std::string jit_compiler::codegen_identity()
++{
++	// NEOSTATION_BUILD444_PPU_CACHE_IDENTITY_V1. Everything that shapes a PPU
++	// object besides the module hash, the settings bits and the CPU name: the
++	// LLVM release, the configure-time digest of the translator/engine sources
++	// (NEOSTATION_PPU_CODEGEN_ID, see rpcs3/Emu/CMakeLists.txt), the advertised
++	// target features and the fixed backend options. A different identity never
++	// reuses an object; it recompiles once into a new file name.
++	static const std::string identity = []()
++	{
++		std::string seed = LLVM_VERSION_STRING;
++		seed += '|';
++#ifdef NEOSTATION_PPU_CODEGEN_ID
++		seed += NEOSTATION_PPU_CODEGEN_ID;
++#else
++		seed += "unversioned";
++#endif
++		seed += '|';
++
++		for (const auto& attribute : target_attributes())
++		{
++			seed += attribute;
++			seed += ',';
++		}
++
++		seed += "|aggressive|pic|interleaved-load-combine-off|ghc-emergency-spill-v1";
++
++		u8 output[20]{};
++		sha1_context ctx{};
++		sha1_starts(&ctx);
++		sha1_update(&ctx, reinterpret_cast<const u8*>(seed.data()), seed.size());
++		sha1_finish(&ctx, output);
++		return fmt::base57(output, 12);
++	}();
++
++	return identity;
++}
++
+ std::string jit_compiler::cpu(std::string_view _cpu)
+ {
+ 	std::string m_cpu = std::string(_cpu);
+@@ -904,6 +996,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		return true;
  	}();
  
@@ -1138,6 +1284,219 @@ index 863624e..d8905c7 100644
  	std::string result;
  
  	auto null_mod = std::make_unique<llvm::Module> ("null_", *m_context);
+@@ -929,38 +1041,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+ 		mem = std::make_unique<MemoryManager1>(std::move(symbols_cement));
+ 	}
+ 
+-	std::vector<std::string> attributes;
+-
+-#if defined(ARCH_ARM64)
+-	if (utils::has_sha3())
+-		attributes.push_back("+sha3");
+-	else
+-		attributes.push_back("-sha3");
+-
+-	if (utils::has_dotprod())
+-		attributes.push_back("+dotprod");
+-	else
+-		attributes.push_back("-dotprod");
+-
+-	// The recompilers emit i8mm intrinsics (e.g. ummla) gated on utils::has_i8mm().
+-	// The JIT target features must advertise i8mm too, otherwise the backend fails
+-	// with "Cannot select: intrinsic %llvm.aarch64.neon.ummla" whenever the resolved
+-	// -mcpu does not already imply it (e.g. the cortex-a78 fallback on Apple silicon).
+-	if (utils::has_i8mm())
+-		attributes.push_back("+i8mm");
+-	else
+-		attributes.push_back("-i8mm");
+-
+-	if (utils::has_sve())
+-		attributes.push_back("+sve");
+-	else
+-		attributes.push_back("-sve");
+-
+-	if (utils::has_sve2())
+-		attributes.push_back("+sve2");
+-	else
+-		attributes.push_back("-sve2");
+-#endif
++	const std::vector<std::string> attributes = target_attributes();
+ 
+ 	{
+ 		m_engine.reset(llvm::EngineBuilder(std::move(null_mod))
+@@ -1030,7 +1111,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
+ 
+ 	const auto ptr = _module.get();
+ 	m_engine->addModule(std::move(_module));
+-	m_engine->generateCodeForModule(ptr);
++	{
++		const jit_phase::scope phase_timer(jit_phase::ppu_codegen, utils::get_tsc);
++		m_engine->generateCodeForModule(ptr);
++	}
+ 	m_engine->setObjectCache(nullptr);
+ 
+ 	for (auto& func : ptr->functions())
+@@ -1050,6 +1134,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+ 
+ 	if (!run_recoverable_llvm([&]()
+ 	{
++		const jit_phase::scope phase_timer(jit_phase::ppu_codegen, utils::get_tsc);
+ 		m_engine->generateCodeForModule(ptr);
+ 	}, error))
+ 	{
+@@ -1106,6 +1191,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
+ 
+ bool jit_compiler::add(const std::string& path)
+ {
++	jit_phase::scope phase_timer(jit_phase::ppu_object_load, utils::get_tsc);
+ 	auto cache = ObjectCache::load(path);
+ 
+ 	if (!cache)
+@@ -1114,6 +1200,8 @@ bool jit_compiler::add(const std::string& path)
+ 		return false;
+ 	}
+ 
++	phase_timer.bytes = cache->getBufferSize();
++
+ 	if (auto object_file = llvm::object::ObjectFile::createObjectFile(*cache))
+ 	{
+ 		m_engine->addObjectFile(llvm::object::OwningBinary<llvm::object::ObjectFile>(std::move(*object_file), std::move(cache)));
+diff --git a/Utilities/JITPhaseProfile.h b/Utilities/JITPhaseProfile.h
+new file mode 100644
+index 000000000..e550931da
+--- /dev/null
++++ b/Utilities/JITPhaseProfile.h
+@@ -0,0 +1,130 @@
++#pragma once
++
++// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: process-wide, allocation-free
++// counters of the LLVM compilation phases of the PPU and SPU recompilers.
++// Each phase records events, exclusive ticks (nested phases of the same thread
++// are subtracted), the longest single event and a byte figure (guest code or
++// object bytes). The performance reporter exchanges the counters with zero and
++// prints one JITPROF line per window. Pure diagnostics: no decision in the
++// Core reads these values and no code generation depends on them.
++#include <atomic>
++#include <cstdint>
++#include <limits>
++
++namespace jit_phase
++{
++	enum phase : unsigned
++	{
++		ppu_translate,   // PPUTranslator IR generation, bytes = guest code
++		ppu_opt,         // optional ARM64 IR passes (ppu_llvm_ir_passes)
++		ppu_verify,      // llvm::verifyModule
++		ppu_codegen,     // MCJIT code generation of a cache miss (excludes the cache write)
++		ppu_cache_write, // object compression + file write, bytes = object size
++		ppu_cache_read,  // object file read + decompression, bytes = object size
++		ppu_object_load, // object parsing + MCJIT addObjectFile (excludes the read)
++		ppu_finalize,    // finalizeObject relocation per JIT instance
++		ppu_symbols,     // symbol resolver lookups
++		spu_build,       // SPU LLVM IR construction, bytes = guest code
++		spu_passes,      // SPU function pass pipeline
++		spu_codegen,     // SPU code generation + finalization
++		count
++	};
++
++	inline constexpr const char* names[count] = {
++		"ppu_translate", "ppu_opt", "ppu_verify", "ppu_codegen", "ppu_cache_write", "ppu_cache_read",
++		"ppu_object_load", "ppu_finalize", "ppu_symbols", "spu_build", "spu_passes", "spu_codegen",
++	};
++
++	struct snapshot
++	{
++		std::uint64_t events[count];
++		std::uint64_t ticks[count];
++		std::uint64_t max_ticks[count];
++		std::uint64_t bytes[count];
++		// Lowest process memory headroom sampled after a PPU module compile in
++		// the window; headroom_samples == 0 means no compile completed.
++		std::uint64_t headroom_min_bytes;
++		std::uint64_t headroom_samples;
++	};
++
++	struct registry
++	{
++		std::atomic<std::uint64_t> events[count]{};
++		std::atomic<std::uint64_t> ticks[count]{};
++		std::atomic<std::uint64_t> max_ticks[count]{};
++		std::atomic<std::uint64_t> bytes[count]{};
++		std::atomic<std::uint64_t> headroom_min{std::numeric_limits<std::uint64_t>::max()};
++		std::atomic<std::uint64_t> headroom_samples{0};
++
++		void add(phase which, std::uint64_t elapsed_ticks, std::uint64_t byte_count = 0) noexcept
++		{
++			if (which >= count) return;
++			events[which].fetch_add(1, std::memory_order_relaxed);
++			ticks[which].fetch_add(elapsed_ticks, std::memory_order_relaxed);
++			bytes[which].fetch_add(byte_count, std::memory_order_relaxed);
++			auto previous = max_ticks[which].load(std::memory_order_relaxed);
++			while (previous < elapsed_ticks &&
++				!max_ticks[which].compare_exchange_weak(previous, elapsed_ticks, std::memory_order_relaxed)) {}
++		}
++
++		void note_headroom(std::uint64_t headroom_bytes) noexcept
++		{
++			headroom_samples.fetch_add(1, std::memory_order_relaxed);
++			auto previous = headroom_min.load(std::memory_order_relaxed);
++			while (previous > headroom_bytes &&
++				!headroom_min.compare_exchange_weak(previous, headroom_bytes, std::memory_order_relaxed)) {}
++		}
++
++		snapshot exchange() noexcept
++		{
++			snapshot result{};
++			for (unsigned which = 0; which < count; ++which)
++			{
++				result.events[which] = events[which].exchange(0, std::memory_order_relaxed);
++				result.ticks[which] = ticks[which].exchange(0, std::memory_order_relaxed);
++				result.max_ticks[which] = max_ticks[which].exchange(0, std::memory_order_relaxed);
++				result.bytes[which] = bytes[which].exchange(0, std::memory_order_relaxed);
++			}
++			result.headroom_samples = headroom_samples.exchange(0, std::memory_order_relaxed);
++			result.headroom_min_bytes = headroom_min.exchange(std::numeric_limits<std::uint64_t>::max(), std::memory_order_relaxed);
++			if (!result.headroom_samples) result.headroom_min_bytes = 0;
++			return result;
++		}
++	};
++
++	// Constant-initialized: no constructor runs during the Core's dlopen.
++	inline constinit registry g_counters{};
++
++	// Ticks of nested scopes on this thread, subtracted by the enclosing scope.
++	inline thread_local std::uint64_t t_nested_ticks = 0;
++
++	// RAII exclusive timer. `now` supplies monotonic ticks (utils::get_tsc in the
++	// Core, which is not declared noexcept; tests inject a counter). Set `bytes`
++	// before the scope ends.
++	class scope
++	{
++		phase m_phase;
++		std::uint64_t (*m_now)();
++		std::uint64_t m_start;
++		std::uint64_t m_nested_at_start;
++
++	public:
++		std::uint64_t bytes;
++
++		scope(phase which, std::uint64_t (*now)(), std::uint64_t byte_count = 0) noexcept
++			: m_phase(which), m_now(now), m_start(now()), m_nested_at_start(t_nested_ticks), bytes(byte_count)
++		{
++		}
++
++		scope(const scope&) = delete;
++		scope& operator=(const scope&) = delete;
++
++		~scope()
++		{
++			const std::uint64_t elapsed = m_now() - m_start;
++			const std::uint64_t nested = t_nested_ticks - m_nested_at_start;
++			g_counters.add(m_phase, elapsed > nested ? elapsed - nested : 0, bytes);
++			t_nested_ticks += elapsed;
++		}
++	};
++}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
 index 9445110..4efc4f0 100644
 --- a/Utilities/Thread.cpp
@@ -1511,10 +1870,10 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea11d968a105a0845652d936f5acd0ab69d0..d3d05cdc67e7ce54b85b2ac86894c6224a0d0889 100644
+index 9bb3ea11d..8fde142c9 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -25,6 +25,13 @@ if(USE_LTO)
+@@ -25,6 +25,40 @@ if(USE_LTO)
      set_target_properties(rpcs3_emu PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
  endif()
  
@@ -1525,10 +1884,37 @@ index 9bb3ea11d968a105a0845652d936f5acd0ab69d0..d3d05cdc67e7ce54b85b2ac86894c622
 +    target_compile_definitions(rpcs3_emu PRIVATE NEOSTATION_SELECTIVE_THINLTO=1)
 +endif()
 +
++# NEOSTATION_BUILD444_PPU_CACHE_IDENTITY_V1: configure-time digest of the sources
++# that shape PPU LLVM objects (translator, engine, backend spill patch). It joins
++# the LLVM release and the JIT target features in the PPU object cache name, so
++# a changed Core never reuses objects built by another one; it recompiles once.
++if(RPCS3_FRONTEND STREQUAL "IOS")
++    set(NEOSTATION_PPU_CODEGEN_DIGEST "")
++    foreach(NEOSTATION_PPU_CODEGEN_SOURCE IN ITEMS
++        Cell/PPUTranslator.cpp
++        Cell/PPUTranslator.h
++        Cell/PPUThread.h
++        Cell/PPUFunction.h
++        Cell/PPUOpcodes.h
++        CPU/CPUTranslator.cpp
++        CPU/CPUTranslator.h
++        ../../Utilities/JIT.h
++        ../../Utilities/JITLLVM.cpp
++        ../../Utilities/JITPhaseProfile.h
++        ../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp)
++        file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${NEOSTATION_PPU_CODEGEN_SOURCE}" NEOSTATION_PPU_CODEGEN_FILE_SHA256)
++        string(APPEND NEOSTATION_PPU_CODEGEN_DIGEST "${NEOSTATION_PPU_CODEGEN_SOURCE}:${NEOSTATION_PPU_CODEGEN_FILE_SHA256};")
++    endforeach()
++    string(SHA256 NEOSTATION_PPU_CODEGEN_ID "${NEOSTATION_PPU_CODEGEN_DIGEST}")
++    string(SUBSTRING "${NEOSTATION_PPU_CODEGEN_ID}" 0 16 NEOSTATION_PPU_CODEGEN_ID)
++    target_compile_definitions(rpcs3_emu PRIVATE NEOSTATION_PPU_CODEGEN_ID="${NEOSTATION_PPU_CODEGEN_ID}")
++    message(STATUS "NeoStation PPU codegen identity: ${NEOSTATION_PPU_CODEGEN_ID}")
++endif()
++
  if(USE_ASAN)
      set_source_files_properties(../../Utilities/Thread.cpp PROPERTIES COMPILE_DEFINITIONS USE_ASAN)
  endif()
-@@ -100,7 +107,12 @@ if(APPLE)
+@@ -100,7 +134,12 @@ if(APPLE)
  endif()
  
  if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -1541,7 +1927,7 @@ index 9bb3ea11d968a105a0845652d936f5acd0ab69d0..d3d05cdc67e7ce54b85b2ac86894c622
          Io/IOS/IOSPadHandler.cpp
          Io/IOS/IOSPadHandler.h
          ../../Utilities/JITArenaAllocator.h
-@@ -721,9 +733,14 @@ if(TARGET 3rdparty_vulkan)
+@@ -721,9 +760,14 @@ if(TARGET 3rdparty_vulkan)
  
      if(RPCS3_FRONTEND STREQUAL "IOS")
          target_sources(rpcs3_emu PRIVATE
@@ -2562,10 +2948,17 @@ index 0000000..76893b1
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a74..5a34ba5 100644
+index b1f1a749b..f08886c0b 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
-@@ -62,6 +62,7 @@
+@@ -1,5 +1,6 @@
+ #include "stdafx.h"
+ #include "Utilities/JIT.h"
++#include "Utilities/JITPhaseProfile.h"
+ #ifdef RPCS3_IOS
+ #include "Utilities/JITIOSLayoutPolicy.h"
+ #include "ios/IOSMemoryPressurePolicy.h"
+@@ -62,6 +63,7 @@
  #include <cctype>
  #include <span>
  #include <optional>
@@ -2573,7 +2966,7 @@ index b1f1a74..5a34ba5 100644
  #include <charconv>
  
  #include "util/asm.hpp"
-@@ -186,7 +187,17 @@ static void ppu_break(ppu_thread&, ppu_opcode_t, be_t<u32>*, ppu_intrp_func*);
+@@ -186,7 +188,17 @@ static void ppu_break(ppu_thread&, ppu_opcode_t, be_t<u32>*, ppu_intrp_func*);
  
  extern void do_cell_atomic_128_store(u32 addr, const void* to_write);
  
@@ -2592,7 +2985,7 @@ index b1f1a74..5a34ba5 100644
  {
  	// Gateway for PPU, converts from native to GHC calling convention, also saves RSP value for escape
  	using namespace asmjit;
-@@ -412,8 +423,11 @@ const auto ppu_gateway = build_function_asm<void(*)(ppu_thread*)>("ppu_gateway",
+@@ -412,8 +424,11 @@ const auto ppu_gateway = build_function_asm<void(*)(ppu_thread*)>("ppu_gateway",
  	c.ret(a64::x30);
  #endif
  });
@@ -2605,7 +2998,7 @@ index b1f1a74..5a34ba5 100644
  {
  	using namespace asmjit;
  
-@@ -435,19 +449,26 @@ const extern auto ppu_escape = build_function_asm<void(*)(ppu_thread*)>("ppu_esc
+@@ -435,19 +450,26 @@ const extern auto ppu_escape = build_function_asm<void(*)(ppu_thread*)>("ppu_esc
  	c.ret(a64::x30);
  #endif
  });
@@ -2634,7 +3027,7 @@ index b1f1a74..5a34ba5 100644
  {
  	using namespace asmjit;
  
-@@ -468,10 +489,54 @@ const auto ppu_recompiler_fallback_ghc = build_function_asm<void(*)(ppu_thread&
+@@ -468,10 +490,54 @@ const auto ppu_recompiler_fallback_ghc = build_function_asm<void(*)(ppu_thread&
  	c.bind(fallback_fn);
  	c.embedUInt64(reinterpret_cast<u64>(ppu_recompiler_fallback));
  	c.bind(escape_fn);
@@ -2690,7 +3083,7 @@ index b1f1a74..5a34ba5 100644
  // Get pointer to executable cache
  static inline u8* ppu_ptr(u32 addr)
  {
-@@ -3643,6 +3708,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3643,6 +3709,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  				{
  					// Full lock (heavyweight)
  					// TODO: vm::check_addr
@@ -2708,7 +3101,7 @@ index b1f1a74..5a34ba5 100644
  					vm::writer_lock lock(addr, range_lock);
  
  					if (cmp_rdata(ppu.rdata, super_data))
-@@ -4315,7 +4391,17 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4315,7 +4392,17 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  	// The growth in memory requirements of LLVM is not linear with file size of course
  	// But these estimates should hopefully protect RPCS3 in the coming years
  	// Especially when thread count is on the rise with each CPU generation
@@ -2726,7 +3119,7 @@ index b1f1a74..5a34ba5 100644
  
  	const u32 software_thread_limit = std::min<u32>(rpcs3::utils::get_max_threads(), ::size32(file_queue));
  	const u32 cpu_thread_limit = utils::get_thread_count() > 8u ? std::max<u32>(utils::get_thread_count(), 2) - 1 : utils::get_thread_count(); // One LLVM thread less
-@@ -5540,6 +5626,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5540,6 +5627,12 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				daz_and_ftz,
  				arm64_codegen_v2,
  				arm64_codegen_v3,
@@ -2735,10 +3128,11 @@ index b1f1a74..5a34ba5 100644
 +				xer_layout_v1,
 +				arm64_codegen_v6,
 +				arithmetic_codegen_v4,
++				arm64_ir_passes,
  
  				__bitset_enum_max
  			};
-@@ -5547,6 +5638,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5547,6 +5640,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			be_t<bs_t<ppu_settings>> settings{};
  
  			settings += ppu_settings::_reserved_for_backwards_compatibility;
@@ -2749,7 +3143,7 @@ index b1f1a74..5a34ba5 100644
  #if !defined(_WIN32) && !defined(__APPLE__)
  			settings += ppu_settings::platform_bit;
  #endif
-@@ -5573,10 +5668,22 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5573,10 +5670,27 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  #if defined(ARCH_ARM64)
  			settings += ppu_settings::arm64_codegen_v2;
  			settings += ppu_settings::arm64_codegen_v3;
@@ -2758,21 +3152,26 @@ index b1f1a74..5a34ba5 100644
 +			settings += ppu_settings::arm64_codegen_v4;
 +			settings += ppu_settings::arm64_codegen_v5;
 +			settings += ppu_settings::arm64_codegen_v6;
++			// NEOSTATION_BUILD444_PPU_IR_PASSES_V1: objects built with the
++			// opt-in ARM64 IR passes never mix with objects built without.
++			if (g_cfg.core.ppu_llvm_ir_passes)
++				settings += ppu_settings::arm64_ir_passes;
 +#endif
  #endif
  
  			// Write version, hash, CPU, settings
 +#ifdef RPCS3_IOS
-+			// Separate this source-built Core's LLVM objects from earlier IPA cores.
-+			// Preserve old files; only recompile incompatible objects once.
-+			fmt::append(obj_name, "v8-neostation-embedded1-%s-%s-%s.obj", fmt::base57(output, 16), fmt::base57(settings), jit_compiler::cpu(g_cfg.core.llvm_cpu.to_string()));
++			// NEOSTATION_BUILD444_PPU_CACHE_IDENTITY_V1: module hash, settings,
++			// CPU name and the codegen identity (LLVM release, source digest,
++			// target features). Old files are preserved and never reused.
++			fmt::append(obj_name, "v9-neostation-%s-%s-%s-%s.obj", fmt::base57(output, 16), fmt::base57(settings), jit_compiler::cpu(g_cfg.core.llvm_cpu.to_string()), jit_compiler::codegen_identity());
 +#else
  			fmt::append(obj_name, "v8-kusa-%s-%s-%s.obj", fmt::base57(output, 16), fmt::base57(settings), jit_compiler::cpu(g_cfg.core.llvm_cpu.to_string()));
 +#endif
  		}
  
  		if (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped())
-@@ -5591,8 +5698,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5591,8 +5705,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			link_workload.emplace_back(obj_name, false);
  		}
  
@@ -2788,7 +3187,19 @@ index b1f1a74..5a34ba5 100644
  		{
  			if (!is_being_used_in_emulation && !check_only)
  			{
-@@ -5824,6 +5936,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5717,6 +5836,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+ 						ppu_initialize2(jit2, part, cache_path, obj_name);
+ 					}
+ 
++#ifdef RPCS3_IOS
++					// JITPROF headroom_min: the lowest process headroom seen
++					// right after a module compile approximates the LLVM peak.
++					jit_phase::g_counters.note_headroom(rpcs3::ios::available_process_memory_headroom());
++#endif
+ 					ppu_log.success("LLVM: Compiled module %s", obj_name);
+ 				}
+ 
+@@ -5824,6 +5948,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				break;
  			}
  
@@ -2798,20 +3209,100 @@ index b1f1a74..5a34ba5 100644
  			if (!failed_to_load && !jits[mod_index / c_modules_per_jit]->add(cache_path + obj_name))
  			{
  				ppu_log.error("LLVM: Failed to load module %s", obj_name);
-@@ -5877,7 +5992,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5877,7 +6004,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  	{
  		for (auto& jit : jits)
  		{
+-			jit->fin();
 +#ifdef RPCS3_IOS
 +			ppu_log.notice("NeoStation PPU relocation begin");
 +#endif
- 			jit->fin();
++			{
++				const jit_phase::scope phase_timer(jit_phase::ppu_finalize, utils::get_tsc);
++				jit->fin();
++			}
 +#ifdef RPCS3_IOS
 +			ppu_log.notice("NeoStation PPU relocation complete");
 +#endif
  		}
  	}
  
+@@ -5901,7 +6037,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+ 					index++;
+ 
+ 					ensure(!sim);
+-					sim = ensure(reinterpret_cast<void(*)(u8*, u64)>(jits[index]->get("__resolve_symbols")));
++					{
++						const jit_phase::scope phase_timer(jit_phase::ppu_symbols, utils::get_tsc);
++						sim = ensure(reinterpret_cast<void(*)(u8*, u64)>(jits[index]->get("__resolve_symbols")));
++					}
+ 
+ 					ppu_log.notice("Resolved symbol resolver function #%u", index);
+ 				}
+@@ -6052,6 +6191,12 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+ 		FunctionPassManager fpm;
+ 		// Basic optimizations
+ 		fpm.addPass(EarlyCSEPass());
++#ifdef RPCS3_IOS
++		// NEOSTATION_BUILD444_PPU_IR_PASSES_V1: upstream runs this pipeline on
++		// x86-64 only. On ARM64 it is an opt-in measured through JITPROF; off
++		// keeps the upstream behavior of translating straight to the backend.
++		const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes;
++#endif
+ 
+ 		u32 guest_code_size = 0;
+ 		u32 min_addr = umax;
+@@ -6081,11 +6226,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+ 				min_addr = std::min<u32>(min_addr, mod_func.addr);
+ 
+ 				// Translate
+-				if ([[maybe_unused]] const auto func = translator.Translate(mod_func))
++				const u64 translate_started = utils::get_tsc();
++				[[maybe_unused]] const auto func = translator.Translate(mod_func);
++				jit_phase::g_counters.add(jit_phase::ppu_translate, utils::get_tsc() - translate_started, mod_func.size);
++
++				if (func)
+ 				{
+ #ifdef ARCH_X64 // TODO
+ 					// Run optimization passes
+ 					fpm.run(*func, fam);
++#elif defined(RPCS3_IOS)
++					if (run_ir_passes)
++					{
++						const u64 opt_started = utils::get_tsc();
++						fpm.run(*func, fam);
++						jit_phase::g_counters.add(jit_phase::ppu_opt, utils::get_tsc() - opt_started, mod_func.size);
++					}
+ #endif // ARCH_X64
+ 				}
+ 				else
+@@ -6104,6 +6260,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+ #ifdef ARCH_X64 // TODO
+ 				// Run optimization passes
+ 				fpm.run(*func, fam);
++#elif defined(RPCS3_IOS)
++				if (run_ir_passes)
++				{
++					const u64 opt_started = utils::get_tsc();
++					fpm.run(*func, fam);
++					jit_phase::g_counters.add(jit_phase::ppu_opt, utils::get_tsc() - opt_started);
++				}
+ #endif // ARCH_X64
+ 			}
+ 			else
+@@ -6131,7 +6294,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+ 			result.clear();
+ 		}
+ 
+-		if (verifyModule(*_module, &out))
++		const u64 verify_started = utils::get_tsc();
++		const bool verification_failed = verifyModule(*_module, &out);
++		jit_phase::g_counters.add(jit_phase::ppu_verify, utils::get_tsc() - verify_started, guest_code_size);
++
++		if (verification_failed)
+ 		{
+ 			out.flush();
+ 			ppu_log.error("LLVM: Verification failed for %s:\n%s", obj_name, result);
 diff --git a/rpcs3/Emu/Cell/PPUThread.h b/rpcs3/Emu/Cell/PPUThread.h
 index 9a135c0..618b1e5 100644
 --- a/rpcs3/Emu/Cell/PPUThread.h
@@ -5425,7 +5916,7 @@ index 0000000..9d19266
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c7..a715849 100644
+index 9a1e4c790..129770096 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,8 @@
@@ -5437,7 +5928,7 @@ index 9a1e4c7..a715849 100644
  
  #include "Emu/System.h"
  #include "Emu/system_config.h"
-@@ -8,6 +11,11 @@
+@@ -8,8 +11,14 @@
  #include "Emu/Cell/lv2/sys_time.h"
  #include "Emu/Memory/vm_reservation.h"
  #include "Emu/RSX/Core/RSXReservationLock.hpp"
@@ -5448,8 +5939,11 @@ index 9a1e4c7..a715849 100644
 +// NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
  #include "Crypto/sha1.h"
  #include "Utilities/JIT.h"
++#include "Utilities/JITPhaseProfile.h"
  
-@@ -27,6 +35,19 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+ #include "SPUThread.h"
+ #include "SPUAnalyser.h"
+@@ -27,6 +36,19 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
  
  #ifdef LLVM_AVAILABLE
  
@@ -5469,7 +5963,7 @@ index 9a1e4c7..a715849 100644
  #include "Emu/CPU/CPUTranslator.h"
  
  #ifdef _MSC_VER
-@@ -61,9 +82,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+@@ -61,9 +83,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
  #endif
  
  #ifdef ARCH_ARM64
@@ -5482,7 +5976,7 @@ index 9a1e4c7..a715849 100644
  
  namespace
  {
-@@ -706,19 +730,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -706,19 +731,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -5527,7 +6021,7 @@ index 9a1e4c7..a715849 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -728,6 +777,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -728,6 +778,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto e = m_ir->CreateAnd(val, 0x7f800000);
  			return uint64_as_double(m_ir->CreateSelect(m_ir->CreateIsNotNull(e), f, s));
  		}
@@ -5535,7 +6029,7 @@ index 9a1e4c7..a715849 100644
  
  		const auto s = m_ir->CreateShl(m_ir->CreateAnd(x, 0x80000000), 32);
  		const auto a = m_ir->CreateAnd(x, 0x7fffffff);
-@@ -735,6 +785,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -735,6 +786,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		const auto r = m_ir->CreateSelect(m_ir->CreateICmpSGT(a, splat<u64[4]>(0x7fffff).eval(m_ir)), m, splat<u64[4]>(0).eval(m_ir));
  		const auto f = m_ir->CreateOr(s, r);
  		return uint64_as_double(f);
@@ -5543,7 +6037,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	// Clamp double values to ±Smax, flush values smaller than ±Smin to positive zero
-@@ -742,6 +793,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -742,6 +794,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -5551,7 +6045,7 @@ index 9a1e4c7..a715849 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -754,6 +806,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -754,6 +807,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto r = m_ir->CreateOr(c, m_ir->CreateAnd(d, 0x8000000000000000));
  			return uint64_as_double(m_ir->CreateSelect(n, r, splat<u64[4]>(0).eval(m_ir)));
  		}
@@ -5559,7 +6053,7 @@ index 9a1e4c7..a715849 100644
  
  		const auto smax = uint64_as_double(splat<u64[4]>(0x47ffffffe0000000).eval(m_ir));
  		const auto smin = uint64_as_double(splat<u64[4]>(0x3810000000000000).eval(m_ir));
-@@ -770,10 +823,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -770,10 +824,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	// Expand 32-bit mask for xfloat values to 64-bit, 29 least significant bits are always zero
  	llvm::Value* conv_xfloat_mask(llvm::Value* val)
  	{
@@ -5839,7 +6333,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	llvm::Value* get_reg_raw(u32 index)
-@@ -1160,10 +1482,27 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -1160,10 +1483,27 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		m_ir->SetInsertPoint(check);
  		update_pc(addr);
  
@@ -5868,7 +6362,7 @@ index 9a1e4c7..a715849 100644
  
  		if (may_be_unsafe_for_savestate)
  		{
-@@ -1674,6 +2013,12 @@ public:
+@@ -1674,6 +2014,12 @@ public:
  			return nullptr;
  		}
  
@@ -5881,7 +6375,7 @@ index 9a1e4c7..a715849 100644
  		const spu_program& func = add_loc->data;
  
  		if (func.entry_point != start0)
-@@ -1689,6 +2034,10 @@ public:
+@@ -1689,6 +2035,10 @@ public:
  				add_loc->compiled.wait(nullptr, atomic_wait_timeout{10'000'000});
  			}
  
@@ -5892,7 +6386,7 @@ index 9a1e4c7..a715849 100644
  			return add_loc->compiled;
  		}
  
-@@ -1702,6 +2051,10 @@ public:
+@@ -1702,6 +2052,10 @@ public:
  				add_loc->llvm_compile_state.wait(1, atomic_wait_timeout{10'000'000});
  			}
  
@@ -5903,7 +6397,7 @@ index 9a1e4c7..a715849 100644
  			return add_loc->llvm_compile_state == 2 ? add_loc->compiled.load() : nullptr;
  		}
  
-@@ -1722,11 +2075,25 @@ public:
+@@ -1722,11 +2076,25 @@ public:
  
  		bool add_to_file = false;
  
@@ -5930,7 +6424,7 @@ index 9a1e4c7..a715849 100644
  		{
  			sha1_context ctx;
  			u8 output[20];
-@@ -1764,13 +2131,21 @@ public:
+@@ -1764,13 +2132,21 @@ public:
  		m_pp_id = 0;
  
  		std::string function_log;
@@ -5956,7 +6450,7 @@ index 9a1e4c7..a715849 100644
  			{
  				// Fallback: write to main log
  				to_log_func = true;
-@@ -1786,11 +2161,13 @@ public:
+@@ -1786,11 +2162,13 @@ public:
  			if (itype == spu_itype::RDCH && op.ra == SPU_RdDec)
  			{
  				to_log_func = true;
@@ -5970,7 +6464,7 @@ index 9a1e4c7..a715849 100644
  			spu_log.notice("Function %s dump:\n%s", m_hash, function_log);
  		}
  
-@@ -1875,6 +2252,7 @@ public:
+@@ -1875,6 +2253,7 @@ public:
  			[[maybe_unused]] u32 elements;
  			[[maybe_unused]] u32 dwords;
  
@@ -5978,7 +6472,7 @@ index 9a1e4c7..a715849 100644
  			if (m_use_avx512)
  			{
  				stride = 64;
-@@ -1888,6 +2266,7 @@ public:
+@@ -1888,6 +2267,7 @@ public:
  				dwords = 4;
  			}
  			else
@@ -5986,7 +6480,21 @@ index 9a1e4c7..a715849 100644
  			{
  				stride = 16;
  				elements = 4;
-@@ -3885,6 +4264,12 @@ public:
+@@ -3853,6 +4233,13 @@ public:
+ 			m_function_table->eraseFromParent();
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// JITPROF: IR construction ends here; the pass pipeline and the code
++		// generation below are measured separately (SPUPROF keeps the total).
++		const u64 passes_started = utils::get_tsc();
++		jit_phase::g_counters.add(jit_phase::spu_build, passes_started - compile_started, m_size);
++#endif
++
+ 		// Create the analysis managers.
+ 		// These must be declared in this order so that they are destroyed in the
+ 		// correct order due to inter-analysis-manager references.
+@@ -3885,6 +4272,12 @@ public:
  		for (auto& f : *m_module)
  		{
  			run_transforms(f);
@@ -5999,10 +6507,15 @@ index 9a1e4c7..a715849 100644
  		}
  
  		for (const auto& func : m_functions)
-@@ -3893,6 +4278,22 @@ public:
+@@ -3893,6 +4286,27 @@ public:
  			fpm.run(*f, fam);
  		}
  
++#ifdef RPCS3_IOS
++		const u64 codegen_started = utils::get_tsc();
++		jit_phase::g_counters.add(jit_phase::spu_passes, codegen_started - passes_started, m_size);
++#endif
++
 +		// Upstream e826098: remove helpers that became unreachable after the
 +		// per-function optimization passes. Besides shrinking the generated
 +		// module this lets LLVM omit the corresponding SPU state/dispatch paths
@@ -6022,7 +6535,7 @@ index 9a1e4c7..a715849 100644
  		// Clear context (TODO)
  		m_blocks.clear();
  		m_block_queue.clear();
-@@ -3904,12 +4305,28 @@ public:
+@@ -3904,12 +4318,28 @@ public:
  		std::string& llvm_log = function_log;
  		raw_string_ostream out(llvm_log);
  
@@ -6056,7 +6569,7 @@ index 9a1e4c7..a715849 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed at 0x%x:\n%s", func.entry_point, llvm_log);
  
-@@ -3951,25 +4368,10 @@ public:
+@@ -3951,25 +4381,10 @@ public:
  
  			if (recoverable)
  			{
@@ -6085,7 +6598,7 @@ index 9a1e4c7..a715849 100644
  
  				if (!added || !m_jit.try_fin(llvm_error))
  				{
-@@ -3983,19 +4385,7 @@ public:
+@@ -3983,19 +4398,7 @@ public:
  			}
  			else
  			{
@@ -6106,7 +6619,15 @@ index 9a1e4c7..a715849 100644
  
  				m_jit.fin();
  			}
-@@ -4022,7 +4412,12 @@ public:
+@@ -4018,11 +4421,20 @@ public:
+ #endif
+ 		}
+ 
++#ifdef RPCS3_IOS
++		jit_phase::g_counters.add(jit_phase::spu_codegen, utils::get_tsc() - codegen_started, m_size);
++#endif
++
+ 		// Register function pointer
  		const spu_function_t fn = reinterpret_cast<spu_function_t>(m_jit.get_engine().getPointerToFunction(main_func));
  
  		// Install unconditionally, possibly replacing existing one from spu_fast
@@ -6119,7 +6640,7 @@ index 9a1e4c7..a715849 100644
  
  		// Rebuild trampoline if necessary
  		if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
-@@ -4069,7 +4464,7 @@ public:
+@@ -4069,7 +4481,7 @@ public:
  				cache.add(func);
  			}
  
@@ -6128,7 +6649,7 @@ index 9a1e4c7..a715849 100644
  		}
  
  		return fn;
-@@ -4159,14 +4554,13 @@ public:
+@@ -4159,14 +4571,13 @@ public:
  		// Pinned constant, address of first register
  		m_interp_regs = _ptr(m_thread, get_reg_offset(0));
  
@@ -6147,7 +6668,7 @@ index 9a1e4c7..a715849 100644
  
  		// Decode (shift) and load function pointer
  		const auto first = m_ir->CreateLoad(get_type<u8*>(), m_ir->CreateGEP(get_type<u8*>(), m_interp_table, m_ir->CreateLShr(m_interp_op, 32u - m_interp_magn)));
-@@ -4444,17 +4838,34 @@ public:
+@@ -4444,17 +4855,34 @@ public:
  		for (auto& f : *_module)
  		{
  			run_transforms(f);
@@ -6187,7 +6708,7 @@ index 9a1e4c7..a715849 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed:\n%s", llvm_log);
  
-@@ -4466,6 +4877,10 @@ public:
+@@ -4466,6 +4894,10 @@ public:
  			fmt::throw_exception("Compilation failed");
  		}
  
@@ -6198,7 +6719,7 @@ index 9a1e4c7..a715849 100644
  		if (g_cfg.core.spu_debug)
  		{
  			// Testing only
-@@ -4479,11 +4894,22 @@ public:
+@@ -4479,11 +4911,22 @@ public:
  		{
  			m_jit.add(std::move(_module));
  		}
@@ -6221,7 +6742,7 @@ index 9a1e4c7..a715849 100644
  
  		for (u32 i = 0; i < spu_runtime::g_interpreter_table.size(); i++)
  		{
-@@ -4507,7 +4933,7 @@ public:
+@@ -4507,7 +4950,7 @@ public:
  
  	static bool exec_check_state(spu_thread* _spu)
  	{
@@ -6230,7 +6751,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	template <spu_intrp_func_t F>
-@@ -4924,9 +5350,25 @@ public:
+@@ -4924,9 +5367,25 @@ public:
  			{
  				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
  				{
@@ -6257,7 +6778,7 @@ index 9a1e4c7..a715849 100644
  				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
  				break;
  			}
-@@ -5200,7 +5642,7 @@ public:
+@@ -5200,7 +5659,7 @@ public:
  				}
  			}
  
@@ -6266,7 +6787,7 @@ index 9a1e4c7..a715849 100644
  			//m_ir->CreateStore(val.value, spu_ptr(&spu_thread::ch_mfc_cmd, &spu_mfc_cmd::eah));
  			return;
  		}
-@@ -5403,6 +5845,16 @@ public:
+@@ -5403,6 +5862,16 @@ public:
  					}
  					}
  
@@ -6283,7 +6804,7 @@ index 9a1e4c7..a715849 100644
  					// Check if the LS address is constant and 256 bit aligned
  					u64 clsa = umax;
  
-@@ -5411,20 +5863,19 @@ public:
+@@ -5411,20 +5880,19 @@ public:
  						clsa = ci->getZExtValue();
  					}
  
@@ -6306,7 +6827,7 @@ index 9a1e4c7..a715849 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5558,7 +6009,7 @@ public:
+@@ -5558,7 +6026,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -6315,7 +6836,7 @@ index 9a1e4c7..a715849 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6031,8 @@ public:
+@@ -5580,29 +6048,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -6347,7 +6868,7 @@ index 9a1e4c7..a715849 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6132,34 @@ public:
+@@ -5702,14 +6149,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -6382,7 +6903,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6197,13 @@ public:
+@@ -5747,7 +6214,13 @@ public:
  			return;
  		}
  
@@ -6396,7 +6917,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6222,13 @@ public:
+@@ -5766,7 +6239,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -6410,7 +6931,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6266,13 @@ public:
+@@ -5804,7 +6283,13 @@ public:
  			return;
  		}
  
@@ -6424,7 +6945,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +6726,12 @@ public:
+@@ -6258,13 +6743,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -6442,7 +6963,7 @@ index 9a1e4c7..a715849 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +6740,17 @@ public:
+@@ -6273,7 +6757,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -6460,7 +6981,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +6811,24 @@ public:
+@@ -6334,20 +6828,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -6485,7 +7006,7 @@ index 9a1e4c7..a715849 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +6985,14 @@ public:
+@@ -6504,8 +7002,14 @@ public:
  			}
  		}
  
@@ -6500,7 +7021,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7005,27 @@ public:
+@@ -6518,15 +7022,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -6528,7 +7049,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7060,13 @@ public:
+@@ -6561,11 +7077,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -6542,7 +7063,7 @@ index 9a1e4c7..a715849 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7075,13 @@ public:
+@@ -6574,11 +7092,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -6556,7 +7077,7 @@ index 9a1e4c7..a715849 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7227,16 @@ public:
+@@ -6724,6 +7244,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -6573,7 +7094,7 @@ index 9a1e4c7..a715849 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7245,16 @@ public:
+@@ -6732,6 +7262,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -6590,7 +7111,7 @@ index 9a1e4c7..a715849 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7264,16 @@ public:
+@@ -6741,6 +7281,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -6607,7 +7128,7 @@ index 9a1e4c7..a715849 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7306,7 @@ public:
+@@ -6773,6 +7323,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -6615,7 +7136,7 @@ index 9a1e4c7..a715849 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7323,7 @@ public:
+@@ -6789,6 +7340,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -6623,7 +7144,7 @@ index 9a1e4c7..a715849 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7347,17 @@ public:
+@@ -6812,6 +7364,17 @@ public:
  			return;
  		}
  
@@ -6641,7 +7162,7 @@ index 9a1e4c7..a715849 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7396,31 @@ public:
+@@ -6850,11 +7413,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -6673,7 +7194,7 @@ index 9a1e4c7..a715849 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7431,16 @@ public:
+@@ -6865,6 +7448,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -6690,7 +7211,7 @@ index 9a1e4c7..a715849 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7501,28 @@ public:
+@@ -6925,16 +7518,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -6719,7 +7240,7 @@ index 9a1e4c7..a715849 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8005,32 @@ public:
+@@ -7417,6 +8022,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -6752,7 +7273,7 @@ index 9a1e4c7..a715849 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8065,18 @@ public:
+@@ -7451,6 +8082,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -6771,7 +7292,7 @@ index 9a1e4c7..a715849 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8087,21 @@ public:
+@@ -7461,6 +8104,21 @@ public:
  			return;
  		}
  
@@ -6793,7 +7314,7 @@ index 9a1e4c7..a715849 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7568,6 +8209,28 @@ public:
+@@ -7568,6 +8226,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -6822,7 +7343,7 @@ index 9a1e4c7..a715849 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8290,12 @@ public:
+@@ -7627,12 +8307,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -6840,7 +7361,7 @@ index 9a1e4c7..a715849 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8338,14 @@ public:
+@@ -7675,6 +8355,14 @@ public:
  				return;
  			}
  
@@ -6855,7 +7376,7 @@ index 9a1e4c7..a715849 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8365,15 @@ public:
+@@ -7694,6 +8382,15 @@ public:
  			return;
  		}
  
@@ -6871,7 +7392,7 @@ index 9a1e4c7..a715849 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8381,14 @@ public:
+@@ -7701,6 +8398,14 @@ public:
  			return;
  		}
  
@@ -6886,7 +7407,7 @@ index 9a1e4c7..a715849 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8641,7 @@ public:
+@@ -7953,6 +8658,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -6894,7 +7415,7 @@ index 9a1e4c7..a715849 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8649,7 @@ public:
+@@ -7960,6 +8666,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -6902,7 +7423,7 @@ index 9a1e4c7..a715849 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8683,7 @@ public:
+@@ -7993,6 +8700,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -6910,7 +7431,7 @@ index 9a1e4c7..a715849 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8694,7 @@ public:
+@@ -8003,6 +8711,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -6918,7 +7439,7 @@ index 9a1e4c7..a715849 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +8750,15 @@ public:
+@@ -8058,6 +8767,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -6934,7 +7455,7 @@ index 9a1e4c7..a715849 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +8855,15 @@ public:
+@@ -8154,6 +8872,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -6950,7 +7471,7 @@ index 9a1e4c7..a715849 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9142,15 @@ public:
+@@ -8432,6 +9159,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -6966,7 +7487,7 @@ index 9a1e4c7..a715849 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9200,15 @@ public:
+@@ -8481,6 +9217,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -6982,7 +7503,7 @@ index 9a1e4c7..a715849 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9397,7 @@ public:
+@@ -8669,6 +9414,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -6990,7 +7511,7 @@ index 9a1e4c7..a715849 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9406,7 @@ public:
+@@ -8677,6 +9423,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -6998,7 +7519,7 @@ index 9a1e4c7..a715849 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9419,7 @@ public:
+@@ -8689,6 +9436,7 @@ public:
  			}
  		});
  
@@ -7006,7 +7527,7 @@ index 9a1e4c7..a715849 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9433,7 @@ public:
+@@ -8702,6 +9450,7 @@ public:
  			});
  		}
  		else
@@ -7014,7 +7535,7 @@ index 9a1e4c7..a715849 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9642,38 @@ public:
+@@ -8910,17 +9659,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -7053,7 +7574,7 @@ index 9a1e4c7..a715849 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +9799,7 @@ public:
+@@ -9046,6 +9816,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -7061,7 +7582,7 @@ index 9a1e4c7..a715849 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +9810,7 @@ public:
+@@ -9056,6 +9827,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -7069,7 +7590,7 @@ index 9a1e4c7..a715849 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10066,7 @@ public:
+@@ -9311,6 +10083,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -7077,7 +7598,7 @@ index 9a1e4c7..a715849 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10074,7 @@ public:
+@@ -9318,6 +10091,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -7085,7 +7606,7 @@ index 9a1e4c7..a715849 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10407,7 @@ public:
+@@ -9650,7 +10424,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -7094,7 +7615,7 @@ index 9a1e4c7..a715849 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10424,13 @@ public:
+@@ -9667,6 +10441,13 @@ public:
  		return addr;
  	}
  
@@ -7108,7 +7629,7 @@ index 9a1e4c7..a715849 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10454,7 @@ public:
+@@ -9690,7 +10471,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -7117,7 +7638,7 @@ index 9a1e4c7..a715849 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10513,7 @@ public:
+@@ -9749,7 +10530,7 @@ public:
  
  		if (op.d)
  		{
@@ -7126,7 +7647,7 @@ index 9a1e4c7..a715849 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +10800,7 @@ public:
+@@ -10036,7 +10817,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -12947,10 +13468,18 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..a9d1a8f 100644
+index 7072922d2..eea0b6aa3 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -107,8 +107,16 @@ struct cfg_root : cfg::node
+@@ -26,6 +26,7 @@ struct cfg_root : cfg::node
+ 		cfg::string llvm_cpu{ this, "Use LLVM CPU" };
+ 		cfg::_int<0, 1024> llvm_threads{ this, "Max LLVM Compile Threads", 0 };
+ 		cfg::_bool llvm_precompilation{ this, "LLVM Precompilation", true };
++		cfg::_bool ppu_llvm_ir_passes{ this, "PPU LLVM IR Passes", false }; // NEOSTATION_BUILD444: ARM64 opt-in EarlyCSE, measured via JITPROF
+ 		cfg::_enum<thread_scheduler_mode> thread_scheduler{this, "Thread Scheduler Mode", thread_scheduler_mode::os};
+ 		cfg::_bool set_daz_and_ftz{ this, "Set DAZ and FTZ", false };
+ 		cfg::_enum<spu_decoder_type> spu_decoder{ this, "SPU Decoder", spu_decoder_type::llvm };
+@@ -107,8 +108,16 @@ struct cfg_root : cfg::node
  		cfg::_bool host_root{ this, "Enable /host_root/" };
  		cfg::_bool init_dirs{ this, "Initialize Directories", true };
  
@@ -12967,7 +13496,7 @@ index 7072922..a9d1a8f 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -134,6 +142,7 @@ struct cfg_root : cfg::node
+@@ -134,6 +143,7 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -14252,10 +14781,10 @@ index 0000000..91bb89d
 +} NeoSwapClientStats;
 diff --git a/rpcs3/ios/NeoSwapRelay.h b/rpcs3/ios/NeoSwapRelay.h
 new file mode 100644
-index 0000000..25a589a
+index 000000000..7c8d6165c
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapRelay.h
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,165 @@
 +// SPDX-License-Identifier: MIT
 +#ifndef NEOSTATION_NEOSWAP_RELAY_H
 +#define NEOSTATION_NEOSWAP_RELAY_H
@@ -14368,16 +14897,65 @@ index 0000000..25a589a
 +    int32_t last_result;
 +    uint32_t reserved_result;
 +} NeoSwapRelayClientStats;
++
++/* Optional, separate ABI (Build 444): direct admission on a stock miss.
++ * On a prepared-stock miss the caller may create an exact-size guest object
++ * without waiting. The call tries the metadata lock only, applies the same
++ * admission as create() (dispatch pressure, kernel headroom sample, retained
++ * capacity, owner quota) plus the budget allowance installed by the host
++ * controller for the current maintenance interval, and touches no page. A
++ * token follows the prepared lifecycle: RelayAPI map/unmap/retire, or
++ * PreparedRelayAPI.return_unused before any published view. Every refusal
++ * leaves the caller on ordinary backing; no FILE object migrates later.
++ */
++enum { NEOSWAP_DIRECT_RELAY_ABI = 1 };
++typedef struct NeoSwapDirectRelayStats {
++    uint32_t struct_size, abi_version;
++    uint64_t requests, requested_bytes, created, created_bytes;
++    uint64_t busy, refused_pressure, refused_budget, refused_capacity;
++    uint64_t refused_disabled, refused_limit, refused_invalid;
++    /* Requests above the prepared stock maximum (16 MiB); created counts them too. */
++    uint64_t oversize_requests, oversize_requested_bytes, oversize_max_bytes;
++    /* Allowance in force until the next utility pass, and cumulative grants. */
++    uint64_t allowance_bytes, allowance_grants, allowance_granted_bytes;
++    /* Maintenance wake-ups signalled after misses (rate limited by the backend). */
++    uint64_t wakeups;
++} NeoSwapDirectRelayStats;
++typedef struct NeoSwapDirectRelayAPI {
++    uint32_t struct_size, abi_version;
++    int (*try_create)(uint32_t owner, uint64_t bytes, uint64_t* token);
++    int (*snapshot)(NeoSwapDirectRelayStats* stats);
++} NeoSwapDirectRelayAPI;
++#if defined(__GNUC__)
++__attribute__((visibility("default")))
++#endif
++const NeoSwapDirectRelayAPI* NeoSwap_GetDirectRelayAPI(uint32_t abi_version);
++
++/* Optional Core diagnostics extension (Build 444); independent from
++ * NeoSwapRelayClientStats and from every relay function table. */
++enum { NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI = 1 };
++typedef struct NeoSwapRelayClientStatsExt {
++    uint32_t struct_size, abi_version;
++    uint64_t gameplay_direct_requests, gameplay_direct_creates, gameplay_direct_create_bytes;
++    uint64_t gameplay_direct_busy, gameplay_direct_pressure, gameplay_direct_budget, gameplay_direct_other;
++    /* Candidate objects that selected ordinary backing during gameplay (permanent). */
++    uint64_t gameplay_fallbacks, gameplay_fallback_bytes;
++    /* Candidate objects currently alive on ordinary backing: durably excluded bytes. */
++    uint64_t fallback_live_objects, fallback_live_bytes;
++    uint64_t oversize_requests, oversize_requested_bytes;
++    uint64_t boot_creates, boot_create_bytes;
++    uint64_t direct_published_objects, direct_published_bytes;
++} NeoSwapRelayClientStatsExt;
 +#ifdef __cplusplus
 +}
 +#endif
 +#endif
 diff --git a/rpcs3/ios/NeoSwapRelayClient.h b/rpcs3/ios/NeoSwapRelayClient.h
 new file mode 100644
-index 0000000..5a8d01e
+index 000000000..2299c6c2a
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapRelayClient.h
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,336 @@
 +// SPDX-License-Identifier: MIT
 +#pragma once
 +#include "NeoSwapRelay.h"
@@ -14393,6 +14971,8 @@ index 0000000..5a8d01e
 +// linked into the Core. Neither installation allocates or prepares memory.
 +inline constinit std::atomic<const NeoSwapRelayAPI*> client_api{nullptr};
 +inline constinit std::atomic<const NeoSwapPreparedRelayAPI*> prepared_api{nullptr};
++// Build 444: optional direct admission on a stock miss (host ABI, may be absent).
++inline constinit std::atomic<const NeoSwapDirectRelayAPI*> direct_api{nullptr};
 +inline constinit std::atomic<bool> gameplay_active{false};
 +inline constinit std::atomic<std::uint64_t> gameplay_fallbacks{0};
 +inline void set_gameplay_active(bool active) noexcept {
@@ -14413,6 +14993,15 @@ index 0000000..5a8d01e
 +        return NEOSWAP_RELAY_INVALID;
 +    const NeoSwapPreparedRelayAPI* expected = nullptr;
 +    if (!prepared_api.compare_exchange_strong(expected, api, std::memory_order_acq_rel) && expected != api)
++        return NEOSWAP_RELAY_BUSY;
++    return NEOSWAP_RELAY_OK;
++}
++inline int install_direct(const NeoSwapDirectRelayAPI* api) noexcept {
++    if (!api || api->struct_size != sizeof(*api) || api->abi_version != NEOSWAP_DIRECT_RELAY_ABI ||
++        !api->try_create || !api->snapshot)
++        return NEOSWAP_RELAY_INVALID;
++    const NeoSwapDirectRelayAPI* expected = nullptr;
++    if (!direct_api.compare_exchange_strong(expected, api, std::memory_order_acq_rel) && expected != api)
 +        return NEOSWAP_RELAY_BUSY;
 +    return NEOSWAP_RELAY_OK;
 +}
@@ -14446,6 +15035,35 @@ index 0000000..5a8d01e
 +    return NEOSWAP_RELAY_OK;
 +}
 +#undef NEOSWAP_RELAY_CLIENT_COUNTERS
++
++// Build 444 extension: direct admission outcomes, bytes durably excluded on
++// ordinary backing (live counts) and the boot-path creations. Separate ABI.
++#define NEOSWAP_RELAY_CLIENT_EXT_COUNTERS(F) \
++    F(gameplay_direct_requests) F(gameplay_direct_creates) F(gameplay_direct_create_bytes) \
++    F(gameplay_direct_busy) F(gameplay_direct_pressure) F(gameplay_direct_budget) F(gameplay_direct_other) \
++    F(gameplay_fallbacks) F(gameplay_fallback_bytes) F(fallback_live_objects) F(fallback_live_bytes) \
++    F(oversize_requests) F(oversize_requested_bytes) F(boot_creates) F(boot_create_bytes) \
++    F(direct_published_objects) F(direct_published_bytes)
++struct client_ext_counters {
++#define NEOSWAP_RELAY_COUNTER(name) std::atomic<std::uint64_t> name{0};
++    NEOSWAP_RELAY_CLIENT_EXT_COUNTERS(NEOSWAP_RELAY_COUNTER)
++#undef NEOSWAP_RELAY_COUNTER
++};
++inline constinit client_ext_counters ext_counters;
++inline int snapshot_ext(NeoSwapRelayClientStatsExt* out) noexcept {
++    if (!out || out->struct_size != sizeof(*out) || out->abi_version != NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI)
++        return NEOSWAP_RELAY_INVALID;
++    NeoSwapRelayClientStatsExt result{};
++    result.struct_size = sizeof(result);
++    result.abi_version = NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI;
++#define NEOSWAP_RELAY_READ(name) result.name = ext_counters.name.load(std::memory_order_relaxed);
++    NEOSWAP_RELAY_CLIENT_EXT_COUNTERS(NEOSWAP_RELAY_READ)
++#undef NEOSWAP_RELAY_READ
++    *out = result;
++    return NEOSWAP_RELAY_OK;
++}
++#undef NEOSWAP_RELAY_CLIENT_EXT_COUNTERS
++inline constexpr std::uint64_t prepared_stock_maximum_bytes = 16ULL * 1024 * 1024;
 +
 +// Measures only the first candidate call AFTER taking its client mutex. This
 +// includes selection and the first Relay map if attempted, not the outer VM
@@ -14485,6 +15103,9 @@ index 0000000..5a8d01e
 +    const NeoSwapPreparedRelayAPI* prepared = nullptr;
 +    std::uint64_t token = 0, bytes = 0;
 +    bool published = false;
++    // Build 444: FILE selected after a candidate miss (live exclusion counted
++    // until destruction) and tokens obtained through the direct path.
++    bool excluded = false, direct = false;
 +    struct alias { void* address = nullptr; alias* next = nullptr; bool heap = false; };
 +    // g_base, g_sudo and map_self need no metadata allocation. Additional
 +    // existing alias uses retain the old fallible allocation before mapping.
@@ -14518,9 +15139,16 @@ index 0000000..5a8d01e
 +    }
 +    map_result fallback(int result, bool gameplay) noexcept {
 +        state = mode::file;
++        excluded = true;
 +        counters.ordinary_fallbacks.fetch_add(1, std::memory_order_relaxed);
 +        counters.ordinary_fallback_bytes.fetch_add(bytes, std::memory_order_relaxed);
-+        if (gameplay) gameplay_fallbacks.fetch_add(1, std::memory_order_relaxed);
++        ext_counters.fallback_live_objects.fetch_add(1, std::memory_order_relaxed);
++        ext_counters.fallback_live_bytes.fetch_add(bytes, std::memory_order_relaxed);
++        if (gameplay) {
++            gameplay_fallbacks.fetch_add(1, std::memory_order_relaxed);
++            ext_counters.gameplay_fallbacks.fetch_add(1, std::memory_order_relaxed);
++            ext_counters.gameplay_fallback_bytes.fetch_add(bytes, std::memory_order_relaxed);
++        }
 +        return finish(false, nullptr, result);
 +    }
 +public:
@@ -14542,6 +15170,10 @@ index 0000000..5a8d01e
 +            return finish(true, nullptr, NEOSWAP_RELAY_INVALID);
 +        }
 +        if (state == mode::candidate) {
++            if (bytes > prepared_stock_maximum_bytes) {
++                ext_counters.oversize_requests.fetch_add(1, std::memory_order_relaxed);
++                ext_counters.oversize_requested_bytes.fetch_add(bytes, std::memory_order_relaxed);
++            }
 +            api = client_api.load(std::memory_order_acquire);
 +            if (!api) return fallback(NEOSWAP_RELAY_DISABLED, gameplay);
 +            const auto* ready = prepared_api.load(std::memory_order_acquire);
@@ -14554,13 +15186,39 @@ index 0000000..5a8d01e
 +            } else {
 +                counters.prepared_misses.fetch_add(1, std::memory_order_relaxed);
 +                counters.prepared_miss_bytes.fetch_add(bytes, std::memory_order_relaxed);
-+                // No slow create, pressure sampling or extension request in
-+                // gameplay. A ready miss selects ordinary backing permanently.
-+                if (gameplay) return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
-+                if (!api->enabled(NEOSWAP_RPCS3)) return fallback(NEOSWAP_RELAY_DISABLED, gameplay);
-+                result = api->create(NEOSWAP_RPCS3, bytes, &token);
-+                if (result != NEOSWAP_RELAY_OK || !token)
-+                    return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
++                if (gameplay) {
++                    // No blocking create, extension request or lock wait in
++                    // gameplay. Build 444: an empty stock (QUOTA) or a size
++                    // above the stock maximum (INVALID) may still be admitted
++                    // at once by the host's non-blocking direct path, within
++                    // the budget allowance of the current interval. Every
++                    // other outcome selects ordinary backing permanently.
++                    const auto* admit = direct_api.load(std::memory_order_acquire);
++                    if (!admit || !ready || (result != NEOSWAP_RELAY_QUOTA && result != NEOSWAP_RELAY_INVALID))
++                        return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
++                    ext_counters.gameplay_direct_requests.fetch_add(1, std::memory_order_relaxed);
++                    result = admit->try_create(NEOSWAP_RPCS3, bytes, &token);
++                    if (result != NEOSWAP_RELAY_OK || !token) {
++                        switch (result) {
++                        case NEOSWAP_RELAY_BUSY: ext_counters.gameplay_direct_busy.fetch_add(1, std::memory_order_relaxed); break;
++                        case NEOSWAP_RELAY_PRESSURE: ext_counters.gameplay_direct_pressure.fetch_add(1, std::memory_order_relaxed); break;
++                        case NEOSWAP_RELAY_QUOTA: ext_counters.gameplay_direct_budget.fetch_add(1, std::memory_order_relaxed); break;
++                        default: ext_counters.gameplay_direct_other.fetch_add(1, std::memory_order_relaxed); break;
++                        }
++                        return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
++                    }
++                    prepared = ready;
++                    direct = true;
++                    ext_counters.gameplay_direct_creates.fetch_add(1, std::memory_order_relaxed);
++                    ext_counters.gameplay_direct_create_bytes.fetch_add(bytes, std::memory_order_relaxed);
++                } else {
++                    if (!api->enabled(NEOSWAP_RPCS3)) return fallback(NEOSWAP_RELAY_DISABLED, gameplay);
++                    result = api->create(NEOSWAP_RPCS3, bytes, &token);
++                    if (result != NEOSWAP_RELAY_OK || !token)
++                        return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
++                    ext_counters.boot_creates.fetch_add(1, std::memory_order_relaxed);
++                    ext_counters.boot_create_bytes.fetch_add(bytes, std::memory_order_relaxed);
++                }
 +            }
 +            state = mode::relay;
 +        }
@@ -14576,7 +15234,10 @@ index 0000000..5a8d01e
 +            record->next = aliases;
 +            aliases = record;
 +            if (published) counters.alias_maps.fetch_add(1, std::memory_order_relaxed);
-+            else if (prepared) {
++            else if (direct) {
++                ext_counters.direct_published_objects.fetch_add(1, std::memory_order_relaxed);
++                ext_counters.direct_published_bytes.fetch_add(bytes, std::memory_order_relaxed);
++            } else if (prepared) {
 +                counters.prepared_published_objects.fetch_add(1, std::memory_order_relaxed);
 +                counters.prepared_published_bytes.fetch_add(bytes, std::memory_order_relaxed);
 +            }
@@ -14622,7 +15283,13 @@ index 0000000..5a8d01e
 +        }
 +        return true;
 +    }
-+    ~shared_memory() { (void)retire(); }
++    ~shared_memory() {
++        (void)retire();
++        if (excluded) {
++            ext_counters.fallback_live_objects.fetch_sub(1, std::memory_order_relaxed);
++            ext_counters.fallback_live_bytes.fetch_sub(bytes, std::memory_order_relaxed);
++        }
++    }
 +};
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/Client.h b/rpcs3/ios/NeoSwapStorage/Client.h
@@ -15276,7 +15943,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..efda59b 100644
+index 74a6dc731..1ece3a973 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,4 +1,8 @@
@@ -15484,7 +16151,9 @@ index 74a6dc7..efda59b 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_prepare",
 +			rpcs3::ios::jit::last_error());
-+	}
+ 	}
+-	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
+-		!rpcs3::ios::jit::seal_arena())
 +
 +	// No process-global runtime has been changed before this point. An early
 +	// reservation failure can be retried by the user after helper completion.
@@ -15493,10 +16162,13 @@ index 74a6dc7..efda59b 100644
 +	g_initialization_attempted = true;
 +	emit_log(2, "asmjit_global_runtime_begin");
 +	if (!asmjit::initialize_global_runtime())
-+	{
+ 	{
+-		set_error(rpcs3::ios::jit::last_error());
+-		g_lifecycle.finish_initialize(false);
+-		return RPCS3_IOS_JIT_MAPPING_FAILED;
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "asmjit_global_runtime",
 +			rpcs3::ios::jit::last_error());
-+	}
+ 	}
 +	emit_log(2, "asmjit_global_runtime_end");
 +
 +	std::string trampoline_error;
@@ -15505,18 +16177,13 @@ index 74a6dc7..efda59b 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
--	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
--		!rpcs3::ios::jit::seal_arena())
++	}
 +	trampoline_error.clear();
 +	if (!ppu_function_manager::initialize_ghc_trampolines(trampoline_error))
- 	{
--		set_error(rpcs3::ios::jit::last_error());
--		g_lifecycle.finish_initialize(false);
--		return RPCS3_IOS_JIT_MAPPING_FAILED;
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
++	}
 +	emit_log(2, "ppu_trampoline_init_end");
 +
 +	trampoline_error.clear();
@@ -15899,7 +16566,7 @@ index 74a6dc7..efda59b 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4852,3 +5147,42 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4852,3 +5147,55 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	emit_log(1, text);
  	std::abort();
  }
@@ -15931,6 +16598,19 @@ index 74a6dc7..efda59b 100644
 +	return neostation::relay::snapshot(out);
 +}
 +
++// Build 444: optional direct admission on a stock miss and the diagnostics
++// extension. Installing either does no I/O; without the host table the Core
++// keeps the Build 441 ready-only gameplay policy.
++extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_neoswap_direct_relay_api(const NeoSwapDirectRelayAPI* api) noexcept
++{
++	return neostation::relay::install_direct(api);
++}
++
++extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_relay_client_stats_ext(NeoSwapRelayClientStatsExt* out) noexcept
++{
++	return neostation::relay::snapshot_ext(out);
++}
++
 +// Optional host-owned regenerable bytecode cache; installing it does no I/O.
 +extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_storage_cache_api(const NeoSwapStorageAPI* api) noexcept
 +{
@@ -15943,10 +16623,10 @@ index 74a6dc7..efda59b 100644
 +    return neostation::source_client::install(api);
 +}
 diff --git a/rpcs3/ios/RPCS3IOS.exports b/rpcs3/ios/RPCS3IOS.exports
-index d7529ab..8a90790 100644
+index d7529ab6a..c0cfac03b 100644
 --- a/rpcs3/ios/RPCS3IOS.exports
 +++ b/rpcs3/ios/RPCS3IOS.exports
-@@ -72,3 +72,15 @@ _rpcs3_ios_stop_emulation
+@@ -72,3 +72,17 @@ _rpcs3_ios_stop_emulation
  _rpcs3_ios_get_state
  _rpcs3_ios_shutdown
  _rpcs3_ios_last_error
@@ -15960,10 +16640,12 @@ index d7529ab..8a90790 100644
 +_rpcs3_ios_set_neoswap_relay_api
 +_rpcs3_ios_set_neoswap_prepared_relay_api
 +_rpcs3_ios_get_neoswap_relay_client_stats
++_rpcs3_ios_set_neoswap_direct_relay_api
++_rpcs3_ios_get_neoswap_relay_client_stats_ext
 +_rpcs3_ios_set_storage_cache_api
 +_rpcs3_ios_set_source_archive_api
 diff --git a/rpcs3/ios/RPCS3IOS.h b/rpcs3/ios/RPCS3IOS.h
-index 20526d0..367413d 100644
+index 20526d090..d9d1ddcdc 100644
 --- a/rpcs3/ios/RPCS3IOS.h
 +++ b/rpcs3/ios/RPCS3IOS.h
 @@ -3,6 +3,8 @@
@@ -15983,7 +16665,7 @@ index 20526d0..367413d 100644
      uint32_t expanded_jit_arena;
      uint32_t reserved;
  } rpcs3_ios_config;
-@@ -792,6 +795,18 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_boot_progress(
+@@ -792,6 +795,24 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_boot_progress(
  // lifecycle lock. Fields without a valid_fields bit must not be displayed.
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_performance_metrics(
      rpcs3_ios_performance_metrics* metrics) RPCS3_IOS_NOEXCEPT;
@@ -15995,6 +16677,12 @@ index 20526d0..367413d 100644
 +    const NeoSwapPreparedRelayAPI* api) RPCS3_IOS_NOEXCEPT;
 +RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_relay_client_stats(
 +    NeoSwapRelayClientStats* stats) RPCS3_IOS_NOEXCEPT;
++// Build 444: optional direct admission on a prepared-stock miss (separate
++// ABI) and the process-lifetime diagnostics extension.
++RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_neoswap_direct_relay_api(
++    const NeoSwapDirectRelayAPI* api) RPCS3_IOS_NOEXCEPT;
++RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_relay_client_stats_ext(
++    NeoSwapRelayClientStatsExt* stats) RPCS3_IOS_NOEXCEPT;
 +// Optional allocator diagnostics: caller supplies the exact struct size and
 +// NEOSWAP_CLIENT_STATS_ABI. Independent of the main Core and allocator ABI.
 +RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_client_stats(
@@ -16070,13 +16758,14 @@ index 8fba197..8aa46a0 100644
  
  // Replaced only while boot is serialized and before emulation workers exist.
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..1e704ee 100644
+index d8005424b..c255eba41 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,128 @@
+@@ -1,26 +1,129 @@
  #include "stdafx.h"
  #include "RPCS3IOSPerformance.h"
 +#include "Emu/Cell/SPUWarmupPolicy.h"
++#include "Utilities/JITPhaseProfile.h"
  
  #include "util/cpu_stats.hpp"
 +#include "util/logs.hpp"
@@ -16202,7 +16891,7 @@ index d800542..1e704ee 100644
  
  u64 process_memory_footprint()
  {
-@@ -41,23 +143,287 @@ u64 process_memory_footprint()
+@@ -41,23 +144,287 @@ u64 process_memory_footprint()
  class performance_registry final
  {
  public:
@@ -16499,7 +17188,7 @@ index d800542..1e704ee 100644
  	}
  
  	rpcs3_ios_status snapshot(rpcs3_ios_performance_metrics* metrics)
-@@ -72,7 +438,7 @@ public:
+@@ -72,7 +439,7 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -16508,7 +17197,7 @@ index d800542..1e704ee 100644
  		const bool presented_since_last_sample = !m_has_fps_baseline || frame_count > m_last_frame_count;
  		rpcs3_ios_performance_metrics result{};
  		result.struct_size = sizeof(result);
-@@ -113,7 +479,279 @@ public:
+@@ -113,7 +480,297 @@ public:
  	}
  
  private:
@@ -16649,6 +17338,24 @@ index d800542..1e704ee 100644
 +			writer_count[4], milliseconds(writer_acquire[4]), milliseconds(writer_hold[4]),
 +			writer_avoided[1], writer_avoided[3]);
 +
++		// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: name=events:total_ms:max_ms:bytes
++		// per LLVM phase, exclusive of nested phases; headroom_min_mib is the
++		// lowest process headroom sampled after a PPU module compile.
++		{
++			const auto jit = jit_phase::g_counters.exchange();
++			std::string jit_line = fmt::format("JITPROF session=%llu", profile_session);
++
++			for (unsigned phase = 0; phase < jit_phase::count; ++phase)
++			{
++				fmt::append(jit_line, " %s=%llu:%.3f:%.3f:%llu", jit_phase::names[phase], jit.events[phase],
++					milliseconds(jit.ticks[phase]), milliseconds(jit.max_ticks[phase]), jit.bytes[phase]);
++			}
++
++			fmt::append(jit_line, " headroom_samples=%llu headroom_min_mib=%.3f", jit.headroom_samples,
++				jit.headroom_samples ? static_cast<double>(jit.headroom_min_bytes) / 0x100000 : 0.0);
++			ios_core_profiler.notice("%s", jit_line);
++		}
++
 +		const u64 memory_reclaims = m_memory_reclaim_attempts.exchange(0, std::memory_order_relaxed);
 +		const u64 memory_reclaim_effective = m_memory_reclaim_effective.exchange(0, std::memory_order_relaxed);
 +		const u64 memory_reclaim_deferred = m_memory_reclaim_deferred.exchange(0, std::memory_order_relaxed);
@@ -16788,7 +17495,7 @@ index d800542..1e704ee 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +759,73 @@ private:
+@@ -121,6 +778,73 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -16862,7 +17569,7 @@ index d800542..1e704ee 100644
  };
  
  performance_registry g_performance_registry;
-@@ -138,6 +843,111 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +862,111 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -16974,7 +17681,7 @@ index d800542..1e704ee 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +957,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +976,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -17072,7 +17779,7 @@ index 88392e0..97bef8b 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..94e20a7 100644
+index b7b047471..5c1c5facc 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -17100,7 +17807,7 @@ index b7b0474..94e20a7 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -134,6 +138,7 @@ const std::array catalog{
+@@ -134,9 +138,11 @@ const std::array catalog{
  	SETTING("experimental.vulkan_command_buffer_reclamation", "Experimental", "Vulkan Memory", "Per-command-buffer ring reclamation", "Returns completed Vulkan ring allocations after each command buffer, including loads with no presentation. Disable to restore frame-only reclamation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.vulkan_command_buffer_reclamation, 0, 0, 0),
  	SETTING("experimental.expanded_spu_scratch", "Experimental", "SPU", "Expanded ARM64 SPU scratch", "Reserves 256 KiB instead of RPCS3's 8 KiB for generated ARM64 SPU spills. Disable to restore the original reservation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.expanded_spu_scratch, 0, 0, 0),
  	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Unavailable on ARM64 because cached objects contain process-specific addresses. The setting is retained only for configuration compatibility.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
@@ -17108,7 +17815,11 @@ index b7b0474..94e20a7 100644
  
  	// Emulator
  	SETTING("emulator.max_llvm_threads", "Emulator", "Compilation", "Max LLVM Compile Threads", "Limits concurrent LLVM compilation threads; zero uses the iOS memory-safe automatic limit.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.core.llvm_threads, 0, 64, 1),
-@@ -205,6 +210,89 @@ const std::array catalog{
++	SETTING("emulator.ppu_llvm_ir_passes", "Emulator", "Compilation", "PPU LLVM IR passes (ARM64)", "Runs LLVM's EarlyCSE on translated PPU functions before ARM64 code generation, as RPCS3 does on x86-64. Off keeps the upstream ARM64 behavior. Objects compiled with each setting are cached separately; compare JITPROF and COREPROF before enabling it by default. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.ppu_llvm_ir_passes, 0, 1, 1),
+ 	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
+ 	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
+ 	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
+@@ -205,6 +211,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -17198,7 +17909,7 @@ index b7b0474..94e20a7 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +661,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +662,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

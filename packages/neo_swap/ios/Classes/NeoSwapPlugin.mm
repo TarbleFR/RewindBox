@@ -64,10 +64,14 @@ static_assert(kDonationInitialChunkBytes == neostation::preparation::chunk_bytes
     uint64_t _budgetStateChanges;
     uint64_t _budgetLastChangeMs;
     uint64_t _budgetDonorCommittedBytes;
+    // Build 444: utility passes started by a Core-side stock miss or budget
+    // refusal (relay demand signal), in addition to the 250 ms tick.
+    uint64_t _demandWakeups;
     neostation::preparation::Lifecycle _donorPreparation;
 }
 @property(nonatomic, strong) dispatch_queue_t queue;
 @property(nonatomic, strong) dispatch_source_t timer;
+@property(nonatomic, strong) dispatch_source_t demandSource;
 @property(nonatomic, strong) dispatch_source_t cpuBufferPressureSource;
 @property(nonatomic, assign) BOOL cpuBufferPressureRaised;
 // Build434: iOS applies its lower inactive limit to a backgrounded process;
@@ -142,6 +146,17 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     return result;
 }
 
+#if defined(NEOSWAP_RELAY)
+// The relay backend calls this from a guest thread (possibly under RPCS3's VM
+// lock) after an empty-stock miss or a budget refusal, at most once per 50 ms.
+// Merging into a DATA_ADD source never blocks; the utility queue runs the pass.
+static dispatch_source_t g_neoSwapDemandSource;
+static void NeoSwapDemandSignal(void*) {
+    dispatch_source_t source = g_neoSwapDemandSource;
+    if (source) dispatch_source_merge_data(source, 1);
+}
+#endif
+
 @implementation NeoSwapPlugin
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
     // One shared broker and one logger even if Flutter creates another engine.
@@ -194,6 +209,21 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     dispatch_source_set_timer(self.timer, dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC/4),
         NSEC_PER_SEC/4, NSEC_PER_SEC/20);
     __weak NeoSwapPlugin* weakSelf = self;
+#if defined(NEOSWAP_RELAY)
+    // Build 444: a guest-thread miss wakes the budget pass early instead of
+    // waiting for the next 250 ms tick, so the stock is restocked and the
+    // direct allowance refreshed while a burst is still in progress.
+    self.demandSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD, 0, 0, self.queue);
+    dispatch_source_set_event_handler(self.demandSource, ^{
+        NeoSwapPlugin* strongSelf = weakSelf;
+        if (!strongSelf) return;
+        ++strongSelf->_demandWakeups;
+        if (NeoSwap_OwnerSessionActive(NEOSWAP_RPCS3)) [strongSelf applyBudget];
+    });
+    dispatch_resume(self.demandSource);
+    g_neoSwapDemandSource = self.demandSource;
+    neostation::relay::set_demand_signal(NeoSwapDemandSignal, nullptr);
+#endif
     // Wake the existing worker before display setup/LLVM warmup. Waiting for
     // the periodic tick used to waste up to 250 ms of the short boot window.
     [NSNotificationCenter.defaultCenter addObserverForName:@"NeoSwapRPCS3SessionStarted"
@@ -919,6 +949,9 @@ static NSDictionary* NeoSwapEffectivePermissions() {
         in.relay_guest_prepared_bytes, decision.guest_prepare_grant_bytes);
     (void)neostation::relay::maintain_guest_pool(guestTarget,
         drainCache ? 0 : decision.guest_prepare_grant_bytes);
+    // Build 444: the direct allowance of this interval replaces the previous
+    // one; it is never accumulated across passes.
+    neostation::relay::set_direct_guest_allowance(drainCache ? 0 : decision.direct_guest_allowance_bytes);
 #endif
 #if defined(NEOSWAP_DONATION)
     [self reclaimIdleDonors];
@@ -1132,6 +1165,8 @@ static NSDictionary* NeoSwapEffectivePermissions() {
         @"pendingReservedBytes":@(decision.pending_reserved_bytes),
         @"guestUnpublishedReservedBytes":@(decision.guest_unpublished_reserved_bytes),
         @"guestPrepareGrantBytes":@(decision.guest_prepare_grant_bytes),
+        @"directGuestAllowanceBytes":@(decision.direct_guest_allowance_bytes),
+        @"demandWakeups":@(_demandWakeups),
         @"relayGrowthGrantBytes":@(decision.relay_growth_grant_bytes),
         @"donorRoomBytes":@(decision.donor_room_bytes),
         @"donorCommittedBytes":@(_budgetDonorCommittedBytes),

@@ -894,6 +894,30 @@ BUILD442_DELTA = {
     'test/rpcs3_ui_status_cleanup_test.py',
 }
 DELTA |= BUILD442_DELTA
+BUILD444_DELTA = {
+    'build-utils/build_rpcs3_embedded_core.sh',
+    'build-utils/rpcs3/canonical-source.json',
+    'build-utils/rpcs3/embedded-core.patch',
+    'build-utils/verify_delivery_reuse.py',
+    'native/import-memory-candidate.json',
+    'native/neoswap-relay/Backend.cpp',
+    'native/neoswap-relay/Backend.h',
+    'packages/neo_swap/ios/Classes/NeoSwapBudget.h',
+    'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+    'packages/neo_swap/ios/Classes/NeoSwapRelay.h',
+    'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
+    'test/native/rpcs3_build444_core_delta_test.cpp',
+    'test/native/rpcs3_neoswap_relay_test.cpp',
+    'test/neo_swap_core_pin_test.py',
+    'test/neoswap_budget_test.cpp',
+    'test/relay_backend_test.cpp',
+    'test/rpcs3_build444_core_delta_test.py',
+    'test/rpcs3_neoswap_build_comparison_test.py',
+    'test/rpcs3_neoswap_relay_test.py',
+}
+DELTA |= BUILD444_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

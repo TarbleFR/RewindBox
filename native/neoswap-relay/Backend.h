@@ -77,9 +77,23 @@ public:
                              std::uint64_t* token) noexcept;
     int return_unused_prepared(std::uint64_t token) noexcept;
     int prepared_snapshot(NeoSwapPreparedRelayStats*) noexcept;
+    // Build 444: direct guest admission on a prepared-stock miss (owner 0 only).
+    // Non-blocking: metadata try-lock, the create() admission (pressure, kernel
+    // headroom sample, capacity, quota) and the budget allowance below. The
+    // token is a pool-origin object: unpublished return and deferred scrub.
+    int try_create_guest(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept;
+    int direct_snapshot(NeoSwapDirectRelayStats*) noexcept;
+    // Utility worker only: replaces the allowance that try_create_guest may
+    // consume until the next pass. Zero closes direct admission.
+    void set_direct_guest_allowance(std::uint64_t bytes) noexcept;
+    // Host maintenance wake-up after an empty-stock miss or a budget refusal.
+    // Invoked outside the backend lock, at most once per 50 ms; null clears it.
+    void set_demand_signal(void (*callback)(void*), void* context) noexcept;
     // Utility worker only. Prepared bytes already count in owner_live_bytes[0].
     // Target is a total stock ceiling, growth is a NEW shared-budget grant.
-    // At most eight objects / 32 MiB created per call. No pre-faulting or alias.
+    // At most eight objects / 32 MiB created per call; one size class may
+    // receive up to its recorded demand (four) in the same call (Build 444).
+    // No pre-faulting or alias.
     int maintain_guest_pool(std::uint64_t target_prepared_bytes,
                             std::uint64_t growth_grant_bytes) noexcept;
     int map(std::uint64_t token, void* target, std::uint32_t protection, void** mapped) noexcept;
@@ -117,4 +131,6 @@ int shutdown() noexcept;
 int collect() noexcept;
 int maintain_guest_pool(std::uint64_t target_prepared_bytes,
                         std::uint64_t growth_grant_bytes) noexcept;
+void set_direct_guest_allowance(std::uint64_t bytes) noexcept;
+void set_demand_signal(void (*callback)(void*), void* context) noexcept;
 } // namespace neostation::relay

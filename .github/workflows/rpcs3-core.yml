@@ -31,6 +31,8 @@ on:
       - 'test/rpcs3_spu_warmup_test.py'
       - 'test/rpcs3_build435_core_delta_test.py'
       - 'test/native/rpcs3_build435_core_delta_test.cpp'
+      - 'test/rpcs3_build444_core_delta_test.py'
+      - 'test/native/rpcs3_build444_core_delta_test.cpp'
       - 'test/native/rpcs3_vk_*'
       - 'test/native/rpcs3_neoswap_stats_getter_test.cpp'
       - 'test/rpcs3_neoswap_vulkan_buffer_test.py'

@@ -110,6 +110,55 @@ typedef struct NeoSwapRelayClientStats {
     int32_t last_result;
     uint32_t reserved_result;
 } NeoSwapRelayClientStats;
+
+/* Optional, separate ABI (Build 444): direct admission on a stock miss.
+ * On a prepared-stock miss the caller may create an exact-size guest object
+ * without waiting. The call tries the metadata lock only, applies the same
+ * admission as create() (dispatch pressure, kernel headroom sample, retained
+ * capacity, owner quota) plus the budget allowance installed by the host
+ * controller for the current maintenance interval, and touches no page. A
+ * token follows the prepared lifecycle: RelayAPI map/unmap/retire, or
+ * PreparedRelayAPI.return_unused before any published view. Every refusal
+ * leaves the caller on ordinary backing; no FILE object migrates later.
+ */
+enum { NEOSWAP_DIRECT_RELAY_ABI = 1 };
+typedef struct NeoSwapDirectRelayStats {
+    uint32_t struct_size, abi_version;
+    uint64_t requests, requested_bytes, created, created_bytes;
+    uint64_t busy, refused_pressure, refused_budget, refused_capacity;
+    uint64_t refused_disabled, refused_limit, refused_invalid;
+    /* Requests above the prepared stock maximum (16 MiB); created counts them too. */
+    uint64_t oversize_requests, oversize_requested_bytes, oversize_max_bytes;
+    /* Allowance in force until the next utility pass, and cumulative grants. */
+    uint64_t allowance_bytes, allowance_grants, allowance_granted_bytes;
+    /* Maintenance wake-ups signalled after misses (rate limited by the backend). */
+    uint64_t wakeups;
+} NeoSwapDirectRelayStats;
+typedef struct NeoSwapDirectRelayAPI {
+    uint32_t struct_size, abi_version;
+    int (*try_create)(uint32_t owner, uint64_t bytes, uint64_t* token);
+    int (*snapshot)(NeoSwapDirectRelayStats* stats);
+} NeoSwapDirectRelayAPI;
+#if defined(__GNUC__)
+__attribute__((visibility("default")))
+#endif
+const NeoSwapDirectRelayAPI* NeoSwap_GetDirectRelayAPI(uint32_t abi_version);
+
+/* Optional Core diagnostics extension (Build 444); independent from
+ * NeoSwapRelayClientStats and from every relay function table. */
+enum { NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI = 1 };
+typedef struct NeoSwapRelayClientStatsExt {
+    uint32_t struct_size, abi_version;
+    uint64_t gameplay_direct_requests, gameplay_direct_creates, gameplay_direct_create_bytes;
+    uint64_t gameplay_direct_busy, gameplay_direct_pressure, gameplay_direct_budget, gameplay_direct_other;
+    /* Candidate objects that selected ordinary backing during gameplay (permanent). */
+    uint64_t gameplay_fallbacks, gameplay_fallback_bytes;
+    /* Candidate objects currently alive on ordinary backing: durably excluded bytes. */
+    uint64_t fallback_live_objects, fallback_live_bytes;
+    uint64_t oversize_requests, oversize_requested_bytes;
+    uint64_t boot_creates, boot_create_bytes;
+    uint64_t direct_published_objects, direct_published_bytes;
+} NeoSwapRelayClientStatsExt;
 #ifdef __cplusplus
 }
 #endif

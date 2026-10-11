@@ -61,7 +61,9 @@ template<class T> struct atomic_t {
     exported_functions = []
     for name in ('rpcs3_ios_set_neoswap_relay_api',
                  'rpcs3_ios_set_neoswap_prepared_relay_api',
-                 'rpcs3_ios_get_neoswap_relay_client_stats'):
+                 'rpcs3_ios_get_neoswap_relay_client_stats',
+                 'rpcs3_ios_set_neoswap_direct_relay_api',
+                 'rpcs3_ios_get_neoswap_relay_client_stats_ext'):
         function = re.search(r'extern "C" RPCS3_IOS_EXPORT int32_t ' + name + r'\([^\n]+\) noexcept\n\{.*?\n\}', core_source, re.S)
         assert function, f'missing production optional export: {name}'
         assert '_' + name in exports, f'missing link export: {name}'
@@ -73,5 +75,5 @@ template<class T> struct atomic_t {
                     '-fvisibility=hidden', '-fvisibility-inlines-hidden', '-I', str(source / 'rpcs3'),
                     '-c', str(setter_source), '-o', str(setter_object)], check=True, env=environment)
     symbols = subprocess.check_output(['nm', str(setter_object)], text=True)
-    assert not re.search(r'_GLOBAL__sub_I|__cxx_global_var_init|__cxa_guard|NeoSwap_Get(?:Prepared)?RelayAPI', symbols), 'relay exports add initialization or a broker dependency'
-print('PASS: actual RPCS3 shared-memory adapter, prepared gameplay loans, empty/busy fallback, unused return, coherent aliases, retirement and optional exports')
+    assert not re.search(r'_GLOBAL__sub_I|__cxx_global_var_init|__cxa_guard|NeoSwap_Get(?:Prepared|Direct)?RelayAPI', symbols), 'relay exports add initialization or a broker dependency'
+print('PASS: actual RPCS3 shared-memory adapter, prepared gameplay loans, direct budgeted admission, empty/busy fallback, unused return, coherent aliases, retirement and optional exports')

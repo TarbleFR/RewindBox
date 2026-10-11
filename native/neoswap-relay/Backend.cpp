@@ -6,6 +6,7 @@
 #include <atomic>
 #include <bitset>
 #include <cerrno>
+#include <chrono>
 #include <limits>
 #include <mutex>
 #include <new>
@@ -25,6 +26,8 @@ constexpr std::uint64_t alignment = NEOSWAP_RELAY_ALIGNMENT;
 constexpr std::uint64_t prepared_maximum_bytes = 16ULL * 1024 * 1024;
 constexpr std::size_t prepared_bins = prepared_maximum_bytes / alignment, prepared_slots = 128;
 constexpr std::uint32_t maximum_bin_demand = 4;
+// Build 444: the host maintenance pass is signalled at most this often.
+constexpr std::uint64_t wakeup_interval_ns = 50'000'000;
 static_assert(std::atomic<std::uint64_t>::is_always_lock_free,
     "Prepared relay requests must not hide an atomic implementation lock");
 constexpr std::size_t maximum_entries = 16;
@@ -87,6 +90,16 @@ struct Backend::State {
     std::atomic<std::uint64_t> request_count{0}, requested_bytes{0}, miss_busy{0};
     std::atomic<std::uint64_t> unsupported_count{0}, demand_overflow{0};
     NeoSwapPreparedRelayStats prepared_stats{};
+    // Build 444 direct admission. Counters taken before the lock are atomics;
+    // the rest of direct_stats and the allowance are written under the mutex.
+    std::atomic<std::uint64_t> direct_requests{0}, direct_requested_bytes{0}, direct_busy{0};
+    std::atomic<std::uint64_t> direct_refused_invalid{0}, oversize_requests{0};
+    std::atomic<std::uint64_t> oversize_requested_bytes{0}, oversize_max_bytes{0}, wakeups{0};
+    std::atomic<void (*)(void*)> demand_callback{nullptr};
+    std::atomic<void*> demand_context{nullptr};
+    std::atomic<std::uint64_t> last_wakeup_ns{0};
+    NeoSwapDirectRelayStats direct_stats{};
+    std::uint64_t direct_allowance = 0;
     std::uint64_t maintenance_tick = 0;
     std::size_t next_demand = 0;
     PressureDiagnostics pressure_diagnostics;
@@ -105,6 +118,8 @@ struct Backend::State {
         stats.abi_version = NEOSWAP_RELAY_ABI;
         prepared_stats.struct_size = sizeof(prepared_stats);
         prepared_stats.abi_version = NEOSWAP_PREPARED_RELAY_ABI;
+        direct_stats.struct_size = sizeof(direct_stats);
+        direct_stats.abi_version = NEOSWAP_DIRECT_RELAY_ABI;
         for (std::size_t i = 0; i != demands.size(); ++i)
             demands[i].bytes.store(alignment * (i + 1), std::memory_order_relaxed);
     }
@@ -117,6 +132,26 @@ struct Backend::State {
             !demands[index].count.compare_exchange_strong(count, count + 1, std::memory_order_relaxed))
             demand_overflow.fetch_add(1, std::memory_order_relaxed);
         return index;
+    }
+    // Never called with the mutex held. The callback must not block: the host
+    // merges data into a dispatch source and the utility pass runs later.
+    void signal_demand() noexcept {
+        const auto callback = demand_callback.load(std::memory_order_acquire);
+        if (!callback) return;
+        const auto now = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+        auto previous = last_wakeup_ns.load(std::memory_order_relaxed);
+        if (previous && now - previous < wakeup_interval_ns) return;
+        if (!last_wakeup_ns.compare_exchange_strong(previous, now, std::memory_order_relaxed)) return;
+        wakeups.fetch_add(1, std::memory_order_relaxed);
+        callback(demand_context.load(std::memory_order_acquire));
+    }
+    void note_oversize(std::uint64_t bytes) noexcept {
+        if (bytes <= prepared_maximum_bytes) return;
+        oversize_requests.fetch_add(1, std::memory_order_relaxed);
+        oversize_requested_bytes.fetch_add(bytes, std::memory_order_relaxed);
+        auto maximum = oversize_max_bytes.load(std::memory_order_relaxed);
+        while (maximum < bytes && !oversize_max_bytes.compare_exchange_weak(maximum, bytes, std::memory_order_relaxed)) {}
     }
     int create_object(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept;
     bool available() const noexcept {
@@ -464,7 +499,98 @@ int Backend::try_acquire_prepared(std::uint32_t owner, std::uint64_t bytes,
         return NEOSWAP_RELAY_OK;
     }
     ++s.prepared_stats.miss_empty;
+    guard.unlock();
+    s.signal_demand();
     return NEOSWAP_RELAY_QUOTA;
+}
+// Build 444. The stock serves exact sizes it already holds; this call admits a
+// new exact-size object when the stock misses, without waiting for the utility
+// pass. It never blocks a guest thread: a held metadata lock is BUSY, and the
+// allowance installed by the budget controller bounds what one interval may
+// admit beyond the stock. The object is pool-origin: an unpublished token can
+// be returned without syscalls, and a published one is scrubbed by collect().
+int Backend::try_create_guest(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept {
+    if (token) *token = 0;
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    auto& s = *state_;
+    s.direct_requests.fetch_add(1, std::memory_order_relaxed);
+    s.direct_requested_bytes.fetch_add(bytes, std::memory_order_relaxed);
+    if (!token || owner != 0 || !valid_size(bytes) || bytes > maximum_segment_bytes) {
+        s.direct_refused_invalid.fetch_add(1, std::memory_order_relaxed);
+        return NEOSWAP_RELAY_INVALID;
+    }
+    s.note_oversize(bytes);
+    std::unique_lock<std::mutex> guard(s.mutex, std::try_to_lock);
+    if (!guard.owns_lock()) {
+        s.direct_busy.fetch_add(1, std::memory_order_relaxed);
+        return NEOSWAP_RELAY_BUSY;
+    }
+    if (s.closing || !(s.stats.enabled_owner_mask & 1U) || !s.stats.capacity_bytes ||
+        s.stats.quarantined_fixed_alias_count) {
+        ++s.direct_stats.refused_disabled;
+        return NEOSWAP_RELAY_DISABLED;
+    }
+    if (s.stats.pressure_raised) {
+        ++s.direct_stats.refused_pressure;
+        return NEOSWAP_RELAY_PRESSURE;
+    }
+    if (bytes > s.direct_allowance) {
+        ++s.direct_stats.refused_budget;
+        guard.unlock();
+        s.signal_demand();
+        return NEOSWAP_RELAY_QUOTA;
+    }
+    const int result = s.create_object(0, bytes, token);
+    if (result != NEOSWAP_RELAY_OK) {
+        switch (result) {
+        case NEOSWAP_RELAY_PRESSURE: ++s.direct_stats.refused_pressure; break;
+        case NEOSWAP_RELAY_QUOTA: ++s.direct_stats.refused_capacity; break;
+        case NEOSWAP_RELAY_LIMIT: ++s.direct_stats.refused_limit; break;
+        case NEOSWAP_RELAY_DISABLED: ++s.direct_stats.refused_disabled; break;
+        default: s.direct_refused_invalid.fetch_add(1, std::memory_order_relaxed); break;
+        }
+        return result;
+    }
+    auto* object = s.object(*token);
+    object->pool_origin = true;
+    s.returnable[*token & index_mask].store(*token, std::memory_order_release);
+    s.direct_allowance -= bytes;
+    s.prepared_stats.unpublished_bytes += bytes;
+    ++s.direct_stats.created;
+    s.direct_stats.created_bytes += bytes;
+    return NEOSWAP_RELAY_OK;
+}
+int Backend::direct_snapshot(NeoSwapDirectRelayStats* output) noexcept {
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    if (!output || output->struct_size < sizeof(*output)) return NEOSWAP_RELAY_INVALID;
+    auto& s = *state_;
+    std::lock_guard<std::mutex> guard(s.mutex);
+    *output = s.direct_stats;
+    output->requests = s.direct_requests.load(std::memory_order_relaxed);
+    output->requested_bytes = s.direct_requested_bytes.load(std::memory_order_relaxed);
+    output->busy = s.direct_busy.load(std::memory_order_relaxed);
+    output->refused_invalid = s.direct_refused_invalid.load(std::memory_order_relaxed);
+    output->oversize_requests = s.oversize_requests.load(std::memory_order_relaxed);
+    output->oversize_requested_bytes = s.oversize_requested_bytes.load(std::memory_order_relaxed);
+    output->oversize_max_bytes = s.oversize_max_bytes.load(std::memory_order_relaxed);
+    output->allowance_bytes = s.direct_allowance;
+    output->wakeups = s.wakeups.load(std::memory_order_relaxed);
+    return NEOSWAP_RELAY_OK;
+}
+void Backend::set_direct_guest_allowance(std::uint64_t bytes) noexcept {
+    if (!state_) return;
+    auto& s = *state_;
+    std::lock_guard<std::mutex> guard(s.mutex);
+    s.direct_allowance = bytes;
+    ++s.direct_stats.allowance_grants;
+    s.direct_stats.allowance_granted_bytes += bytes;
+}
+void Backend::set_demand_signal(void (*callback)(void*), void* context) noexcept {
+    if (!state_) return;
+    // Publish the context before the callback so a concurrent signal never
+    // runs a new callback with a stale context.
+    state_->demand_context.store(callback ? context : nullptr, std::memory_order_release);
+    state_->demand_callback.store(callback, std::memory_order_release);
 }
 int Backend::return_unused_prepared(std::uint64_t token) noexcept {
     if (!state_) return NEOSWAP_RELAY_DISABLED;
@@ -531,25 +657,34 @@ int Backend::maintain_guest_pool(std::uint64_t target, std::uint64_t growth) noe
         if (!bytes || !demand.count.load(std::memory_order_relaxed)) continue;
         if (s.prepared_stats.prepared_bytes >= target ||
             bytes > target - s.prepared_stats.prepared_bytes || bytes > growth) continue;
-        State::Prepared* slot = nullptr;
-        for (auto& candidate : s.prepared) if (!candidate.token) { slot = &candidate; break; }
-        if (!slot) break;
-        std::uint64_t token = 0;
-        --remaining;
+        // Build 444: a class that recorded a burst (up to four waiting
+        // demands) is restocked for the whole burst in one pass, still within
+        // the eight-object, growth and target bounds of this call.
         s.next_demand = (bin + 1) % s.demands.size();
-        const int result = s.create_object(0, bytes, &token);
-        if (result) { ++s.prepared_stats.prepare_failures; continue; }
-        auto* object = s.object(token);
-        object->prepared = object->pool_origin = true;
-        *slot = {token, s.maintenance_tick, bin};
-        demand.count.fetch_sub(1, std::memory_order_relaxed);
-        s.prepared_stats.prepared_bytes += bytes;
-        s.prepared_stats.unpublished_bytes += bytes;
-        ++s.prepared_stats.prepared_count;
-        ++s.prepared_stats.prepared_total;
-        s.prepared_stats.peak_prepared_bytes = std::max(s.prepared_stats.peak_prepared_bytes,
-                                                       s.prepared_stats.prepared_bytes);
-        growth -= bytes;
+        bool exhausted = false;
+        while (remaining && demand.count.load(std::memory_order_relaxed) &&
+               s.prepared_stats.prepared_bytes < target &&
+               bytes <= target - s.prepared_stats.prepared_bytes && bytes <= growth) {
+            State::Prepared* slot = nullptr;
+            for (auto& candidate : s.prepared) if (!candidate.token) { slot = &candidate; break; }
+            if (!slot) { exhausted = true; break; }
+            std::uint64_t token = 0;
+            --remaining;
+            const int result = s.create_object(0, bytes, &token);
+            if (result) { ++s.prepared_stats.prepare_failures; break; }
+            auto* object = s.object(token);
+            object->prepared = object->pool_origin = true;
+            *slot = {token, s.maintenance_tick, bin};
+            demand.count.fetch_sub(1, std::memory_order_relaxed);
+            s.prepared_stats.prepared_bytes += bytes;
+            s.prepared_stats.unpublished_bytes += bytes;
+            ++s.prepared_stats.prepared_count;
+            ++s.prepared_stats.prepared_total;
+            s.prepared_stats.peak_prepared_bytes = std::max(s.prepared_stats.peak_prepared_bytes,
+                                                           s.prepared_stats.prepared_bytes);
+            growth -= bytes;
+        }
+        if (exhausted) break;
     }
     return NEOSWAP_RELAY_OK;
 }
@@ -754,6 +889,7 @@ int Backend::shutdown() noexcept {
     if (result) return result;
     s.closing = false;
     s.stats.pressure_raised = 0;
+    s.direct_allowance = 0;
     for (auto& demand : s.demands) demand.count.store(0, std::memory_order_relaxed);
     return s.success();
 }
@@ -838,6 +974,10 @@ int collect() noexcept { return backend().collect(); }
 int maintain_guest_pool(std::uint64_t target, std::uint64_t growth) noexcept {
     return backend().maintain_guest_pool(target, growth);
 }
+void set_direct_guest_allowance(std::uint64_t bytes) noexcept { backend().set_direct_guest_allowance(bytes); }
+void set_demand_signal(void (*callback)(void*), void* context) noexcept {
+    backend().set_demand_signal(callback, context);
+}
 } // namespace neostation::relay
 
 extern "C" const NeoSwapRelayAPI* NeoSwap_GetRelayAPI(std::uint32_t abi) {
@@ -868,4 +1008,15 @@ extern "C" const NeoSwapPreparedRelayAPI* NeoSwap_GetPreparedRelayAPI(std::uint3
             return neostation::relay::backend().prepared_snapshot(stats);
         }};
     return abi == NEOSWAP_PREPARED_RELAY_ABI ? &api : nullptr;
+}
+
+extern "C" const NeoSwapDirectRelayAPI* NeoSwap_GetDirectRelayAPI(std::uint32_t abi) {
+    static const NeoSwapDirectRelayAPI api{sizeof(NeoSwapDirectRelayAPI), NEOSWAP_DIRECT_RELAY_ABI,
+        [](std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) {
+            return neostation::relay::backend().try_create_guest(owner, bytes, token);
+        },
+        [](NeoSwapDirectRelayStats* stats) {
+            return neostation::relay::backend().direct_snapshot(stats);
+        }};
+    return abi == NEOSWAP_DIRECT_RELAY_ABI ? &api : nullptr;
 }

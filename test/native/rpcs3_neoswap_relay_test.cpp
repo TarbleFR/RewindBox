@@ -132,6 +132,28 @@ int return_unused(std::uint64_t token) {
 }
 int prepared_snapshot(NeoSwapPreparedRelayStats*) { return NEOSWAP_RELAY_OK; }
 const NeoSwapPreparedRelayAPI prepared={sizeof(prepared),NEOSWAP_PREPARED_RELAY_ABI,try_acquire,return_unused,prepared_snapshot};
+// Build 444 direct admission fixture: the production backend shares one
+// metadata mutex between create() and try_create(), so a held broker lock is
+// BUSY here too; the allowance models the host budget of one interval.
+std::uint64_t direct_allowance=0;
+int direct_requests=0, direct_creates=0;
+int try_create(std::uint32_t owner,std::uint64_t size,std::uint64_t* token) {
+ *token=0; ++direct_requests; assert(owner==NEOSWAP_RPCS3);
+ if(!size || size%bytes) return NEOSWAP_RELAY_INVALID;
+ std::unique_lock lock(broker_mutex,std::try_to_lock);
+ if(!lock.owns_lock()) return NEOSWAP_RELAY_BUSY;
+ if(!active) return NEOSWAP_RELAY_DISABLED;
+ if(size>direct_allowance) return NEOSWAP_RELAY_QUOTA;
+ direct_allowance-=size; ++creates; ++direct_creates;
+ int file=rpcs3::ios::create_shared_memory_file("/tmp/",size); assert(file>=0);
+ *token=++serial; objects.emplace(*token,object{file,size,{}}); return NEOSWAP_RELAY_OK;
+}
+int direct_snapshot(NeoSwapDirectRelayStats*) { return NEOSWAP_RELAY_OK; }
+const NeoSwapDirectRelayAPI direct={sizeof(direct),NEOSWAP_DIRECT_RELAY_ABI,try_create,direct_snapshot};
+NeoSwapRelayClientStatsExt client_ext_stats() {
+ NeoSwapRelayClientStatsExt result{}; result.struct_size=sizeof(result); result.abi_version=NEOSWAP_RELAY_CLIENT_STATS_EXT_ABI;
+ assert(neostation::relay::snapshot_ext(&result)==NEOSWAP_RELAY_OK); return result;
+}
 void prepare(std::uint64_t size=bytes) {
  std::uint64_t token=0; assert(create(NEOSWAP_RPCS3,size,&token)==NEOSWAP_RELAY_OK);
  for(auto& slot:ready) if(!slot.token) { slot={token,size}; return; }
@@ -201,12 +223,30 @@ int main() {
  assert(neostation::relay::snapshot(nullptr)==NEOSWAP_RELAY_INVALID);
  NeoSwapRelayClientStats invalid_stats{};
  assert(neostation::relay::snapshot(&invalid_stats)==NEOSWAP_RELAY_INVALID);
+ // Build 444: the direct table is optional and validated like the others.
+ assert(neostation::relay::install_direct(nullptr)==NEOSWAP_RELAY_INVALID);
+ auto invalid_direct=direct; invalid_direct.try_create=nullptr;
+ assert(neostation::relay::install_direct(&invalid_direct)==NEOSWAP_RELAY_INVALID);
+ invalid_direct=direct; invalid_direct.abi_version=NEOSWAP_DIRECT_RELAY_ABI+1;
+ assert(neostation::relay::install_direct(&invalid_direct)==NEOSWAP_RELAY_INVALID);
+ assert(neostation::relay::install_direct(&direct)==NEOSWAP_RELAY_OK);
+ assert(neostation::relay::install_direct(&direct)==NEOSWAP_RELAY_OK);
+ invalid_direct=direct;
+ assert(neostation::relay::install_direct(&invalid_direct)==NEOSWAP_RELAY_BUSY);
+ assert(neostation::relay::snapshot_ext(nullptr)==NEOSWAP_RELAY_INVALID);
+ NeoSwapRelayClientStatsExt invalid_ext{};
+ assert(neostation::relay::snapshot_ext(&invalid_ext)==NEOSWAP_RELAY_INVALID);
  const auto before_prepared=client_stats();
+ const auto before_ext=client_ext_stats();
  neostation::relay::set_gameplay_active(true);
  const int no_slow_create=creates, no_slow_map=maps;
  // An empty pool cannot enter the legacy broker even if its mutex is held.
+ // Build 444: the direct path shares that lock and answers BUSY at once.
+ direct_allowance=64*bytes;
  { std::lock_guard blocked(broker_mutex); fallback(false); }
  assert(creates==no_slow_create && maps==no_slow_map);
+ assert(client_ext_stats().gameplay_direct_busy-before_ext.gameplay_direct_busy==1);
+ direct_allowance=0;
  // Contended prepared admission also falls back immediately. The producer
  // keeps its lock until the ordinary mappings have completed on this thread.
  std::atomic<bool> held=false, done=false;
@@ -260,21 +300,64 @@ int main() {
   reject_return=false;
  }
  assert(retire_calls==before_retire); reject_map=false; drain_returns(); assert(objects.empty());
- // Unsupported sizes stay ordinary during gameplay; there is no slow create.
+ // Sizes above the 16 MiB stock maximum never enter the stock. Build 444:
+ // without an allowance they stay ordinary (budget refusal, no blocking
+ // create); with one they are admitted directly and published through the
+ // unchanged RelayAPI map path.
  {
   neostation::relay::shared_memory memory; memory.configure(32*1024*1024,true);
   const int before=creates; const auto result=memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true);
-  assert(!result.handled && result.result==NEOSWAP_RELAY_INVALID && creates==before);
+  assert(!result.handled && result.result==NEOSWAP_RELAY_QUOTA && creates==before);
+  const auto live=client_ext_stats();
+  assert(live.fallback_live_objects-before_ext.fallback_live_objects==1);
+  assert(live.fallback_live_bytes-before_ext.fallback_live_bytes==32*1024*1024);
+  assert(live.gameplay_direct_budget-before_ext.gameplay_direct_budget==2);
+  assert(live.oversize_requests-before_ext.oversize_requests==1);
  }
+ assert(client_ext_stats().fallback_live_objects==before_ext.fallback_live_objects); // destroyed: no longer excluded
+ {
+  direct_allowance=32*1024*1024;
+  neostation::relay::shared_memory memory; memory.configure(32*1024*1024,true);
+  const int before=creates; const auto result=memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true);
+  assert(result.handled && result.address && result.result==NEOSWAP_RELAY_OK);
+  assert(creates==before+1 && direct_allowance==0 && objects.size()==1);
+  assert(static_cast<unsigned char*>(result.address)[0]==0);
+  int unmapped=-1; assert(memory.unmap(result.address,unmapped) && unmapped==NEOSWAP_RELAY_OK);
+  const auto admitted=client_ext_stats();
+  assert(admitted.gameplay_direct_creates-before_ext.gameplay_direct_creates==1);
+  assert(admitted.gameplay_direct_create_bytes-before_ext.gameplay_direct_create_bytes==32*1024*1024);
+  assert(admitted.direct_published_objects-before_ext.direct_published_objects==1);
+  assert(admitted.direct_published_bytes-before_ext.direct_published_bytes==32*1024*1024);
+ }
+ assert(objects.empty()); // retired through the unchanged RelayAPI lifecycle
+ // A direct token whose first map fails returns through return_unused, never a legacy release.
+ {
+  direct_allowance=bytes; reject_map=true;
+  const int returns=unused_returns;
+  neostation::relay::shared_memory memory; memory.configure(bytes,true);
+  const auto result=memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true);
+  assert(!result.handled && result.result==NEOSWAP_RELAY_MAPPING && unused_returns==returns+1);
+  reject_map=false;
+ }
+ drain_returns(); assert(objects.empty());
  const auto after_prepared=client_stats();
+ const auto after_ext=client_ext_stats();
+ assert(after_ext.gameplay_direct_requests-before_ext.gameplay_direct_requests==5);
+ assert(after_ext.gameplay_direct_busy-before_ext.gameplay_direct_busy==1);
+ assert(after_ext.gameplay_direct_budget-before_ext.gameplay_direct_budget==2);
+ assert(after_ext.gameplay_direct_creates-before_ext.gameplay_direct_creates==2);
+ assert(after_ext.gameplay_direct_pressure==before_ext.gameplay_direct_pressure && after_ext.gameplay_direct_other==before_ext.gameplay_direct_other);
+ assert(after_ext.gameplay_fallbacks-before_ext.gameplay_fallbacks==6);
+ assert(after_ext.boot_creates==before_ext.boot_creates); // nothing went through the blocking path in gameplay
+ assert(after_ext.fallback_live_objects==before_ext.fallback_live_objects && after_ext.fallback_live_bytes==before_ext.fallback_live_bytes);
  assert(after_prepared.gameplay_active==1);
  assert(after_prepared.prepared_hits-before_prepared.prepared_hits==3);
  assert(after_prepared.prepared_hit_bytes-before_prepared.prepared_hit_bytes==3*bytes);
  assert(after_prepared.prepared_published_objects-before_prepared.prepared_published_objects==1);
  assert(after_prepared.prepared_published_bytes-before_prepared.prepared_published_bytes==bytes);
  assert(after_prepared.alias_maps-before_prepared.alias_maps==6);
- assert(after_prepared.map_failures-before_prepared.map_failures==2);
- assert(after_prepared.ordinary_fallbacks-before_prepared.ordinary_fallbacks==5);
+ assert(after_prepared.map_failures-before_prepared.map_failures==3);
+ assert(after_prepared.ordinary_fallbacks-before_prepared.ordinary_fallbacks==6);
  assert(after_prepared.first_map_total_ns>=after_prepared.first_map_max_ns);
  assert(after_prepared.first_map_max_ns>0);
  neostation::relay::set_gameplay_active(false);
@@ -284,10 +367,13 @@ int main() {
  reject_create=true; fallback(false); assert(objects.empty()); reject_create=false;
  reject_map=true; fallback(false); assert(objects.empty()); reject_map=false;
  void* base=reserve(bytes); void* sudo=reserve(bytes);
+ const auto before_boot_ext=client_ext_stats();
  {
    // Actual preallocated main/video/stack constructor, not a test-only shim.
    utils::shm memory(bytes,std::string("_block_x00010000"),utils::shm_use::guest_data);
    assert(memory.map_critical(base,utils::protection::ro).first==base);
+   assert(client_ext_stats().boot_creates-before_boot_ext.boot_creates==1);
+   assert(client_ext_stats().boot_create_bytes-before_boot_ext.boot_create_bytes==bytes);
    neostation::relay::set_gameplay_active(true);
    // A boot-published object retains its shared relay backing in gameplay.
    assert(memory.map_critical(sudo).first==sudo);
@@ -380,5 +466,5 @@ int main() {
  reject_release=false; collect(); assert(objects.empty());
  assert(retire_calls>=5);
  { utils::shm general(bytes); const int before=creates; assert(general.map_self()); assert(creates==before); }
- std::printf("PASS relay shm: creates=%d maps=%d unmaps=%d releases=%d normal_live=0; fixed_failure_quarantine=2 until process exit; coherent fixed/self aliases, protection, fallback, concurrent map_self, relaunch\n",creates,maps,unmaps,releases);
+ std::printf("PASS relay shm: creates=%d direct_creates=%d maps=%d unmaps=%d releases=%d normal_live=0; fixed_failure_quarantine=2 until process exit; coherent fixed/self aliases, protection, fallback, direct budgeted admission, concurrent map_self, relaunch\n",creates,direct_creates,maps,unmaps,releases);
 }
