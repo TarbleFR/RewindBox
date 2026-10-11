@@ -339,6 +339,40 @@ void main() {
     expect(fixture.health.recordCount, 1);
   });
 
+  testWidgets('testing a source without a reader explains why it fails', (
+    tester,
+  ) async {
+    // The real service reports the first step before any await.
+    final aidoku = LibraryAidokuNativeService(
+      fetcher:
+          (
+            LibraryRequest request, {
+            LibraryFetchMode mode = LibraryFetchMode.cacheFirst,
+            LibraryCancelToken? cancel,
+          }) => throw StateError('no network: ${request.uri}'),
+    );
+    expect(aidoku.supports(astral), isFalse);
+    final health = MemoryHealthStore();
+    await pumpLibraryUi(
+      tester,
+      LibrarySourceHealthDialog(
+        addon: astral,
+        aidokuService: aidoku,
+        healthStore: health,
+        connectivityProbe: () async => true,
+        enableGamepad: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text('NeoStation has no reader for this source.'),
+      findsOneWidget,
+    );
+    expect(find.text('This source does not work right now.'), findsOneWidget);
+    expect(health.recordCount, 1);
+  });
+
   testWidgets('deactivation explains that favourites are kept', (tester) async {
     final fixture = await _fixture(installed: <LibraryAddon>[lelscan, books]);
     await pumpLibraryUi(tester, fixture.view());
