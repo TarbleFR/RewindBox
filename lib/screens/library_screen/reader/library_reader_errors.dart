@@ -125,8 +125,9 @@ class LibraryReaderErrorInfo {
   /// inspector): password, DRM (unsupported security handler), unreadable
   /// file, anything else damaged.
   static LibraryBookIssue pdfIssue(Object error) {
-    if (error is PdfPasswordException)
+    if (error is PdfPasswordException) {
       return LibraryBookIssue.passwordProtected;
+    }
     if (error is PdfException) {
       return switch (error.errorCode) {
         2 => LibraryBookIssue.unreadable,

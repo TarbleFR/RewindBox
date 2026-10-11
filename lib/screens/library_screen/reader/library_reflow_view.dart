@@ -320,8 +320,9 @@ class LibraryReflowUnitViewState extends State<LibraryReflowUnitView> {
   InlineSpan _span(LibraryTextSpan span, TextStyle style) {
     var effective = style;
     if (span.bold) effective = effective.copyWith(fontWeight: FontWeight.w700);
-    if (span.italic)
+    if (span.italic) {
       effective = effective.copyWith(fontStyle: FontStyle.italic);
+    }
     if (span.monospace) {
       effective = effective.copyWith(
         fontFamily: LibraryReaderFonts.monospace,
