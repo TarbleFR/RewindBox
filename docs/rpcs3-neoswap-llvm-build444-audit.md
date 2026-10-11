@@ -386,22 +386,39 @@ Exécutés sur ce poste (Windows, zig 0.17.0 `c++` en C++20, `-UNDEBUG`,
 | `build-utils/materialize_rpcs3_core.py` sur un arbre XITRIX vierge, hashes des 211 sections | PASS |
 | `test/neoswap_relay_extension_test.py` (contrats sources du service relais) | 9 réussis, 3 erreurs d'import de module voisin propres à ce poste, 1 ignoré |
 
-Non exécutables ici (fork/mmap, ObjC++, LLVM) et confiés à la CI sur
-`7ec94a8c` : `test/rpcs3_neoswap_relay_test.py` (client matérialisé, chemin
-direct, contrats de verrou), compilation ObjC++ du plugin et du pont, run
-`rpcs3-core.yml` `38177331182` (Core complet avec ses tests préalables, dont
-le test 444), run `neoswap-relay-check.yml` `38177333574` (backend ASan/UBSan,
-extension, simulateur). Le run `neoswap-check.yml` `38177335871` s'arrête à
-`check_neo_swap_scope.py` sur un contrôle antérieur à ce cycle (reconstruction
-de `neoswap-ipa.yml` figée avant les épingles 441) ; ce contrôle n'est pas dans
-la livraison. Les résultats de ces runs sont consignés dans §11 à leur
-conclusion.
+Non exécutables ici (fork/mmap, ObjC++, LLVM) et confiés à la CI :
+`neoswap-relay-check.yml` run `38177333574` sur `7ec94a8c` (backend
+ASan/UBSan, extension, simulateur) réussi ; `rpcs3-core.yml` run
+`38177331182` sur `7ec94a8c` arrêté par le portail de syntaxe iOS sur deux
+erreurs de compilation (`fmt::base57` retourné comme `std::string`,
+copie d'un `cfg::_bool` dans un `bool`), corrigées par `dcf0df67` (patch
+`f19ec0f8…c7cfb7`) ; `rpcs3-core.yml` run `38178247609` sur `dcf0df67`
+réussi en 59 min (tests préalables dont `rpcs3_neoswap_relay_test.py` et le
+test 444, Core complet, artefact `RPCS3Core-dcf0df67…`, 28 312 061 octets),
+épinglé dans les workflows de livraison. La compilation ObjC++ du plugin et du
+pont est faite par le job `native` de la livraison. Le run `neoswap-check.yml` `38177335871` s'arrêtait à
+`check_neo_swap_scope.py` : la reconstruction de `neoswap-ipa.yml` était figée
+avant les épingles 441, puis trois fichiers revus avaient changé en 437 et 442.
+Les commits `4af4618c` et `36d14530` corrigent ces deux points (chaîne
+`IPA_WORKFLOW_BUILD441/444_LINES`, re-pins) ; le run `38178170697` passe alors
+ces contrôles et s'arrête sur la liste des « empreintes de production
+approuvées » de `native/import-memory-candidate.json`, obsolète pour 78
+fichiers modifiés par les Builds 437 à 444 de plusieurs sessions. Cette liste
+n'est pas rafraîchie ici (ce serait approuver en bloc des changements d'autres
+cycles) ; la décision revient au mainteneur. Ce contrôle ne fait pas partie de
+la livraison. Les résultats des runs sont consignés dans §11 à leur conclusion.
 
 Outil de comparaison : `tools/compare_rpcs3_neoswap_builds.py` lit désormais
 `neoswap_guest_sample_ext`, `JITPROF`, `guestDirectCreation`,
 `directGuestAllowanceBytes`, `demandWakeups`, `fileFallbackLiveBytes`, et
 accepte `--mode cross-title` (deux titres, un seul commit, même appareil et
 réglages) ; tests unitaires dans `test/rpcs3_neoswap_build_comparison_test.py`.
+
+Livraison : l'artefact chiffré est adressé à la clé passée par la nouvelle
+entrée `recipient` du workflow de livraison (défaut : la clé 443 de l'autre
+session ; cette livraison passe `build-utils/delivery-424-recipient.pem`, la
+seule clé privée présente sur ce poste). Le résultat de la livraison 444 est
+consigné dans `docs/build444-delivery.md`.
 
 ## 10. Protocole de validation sur iPhone
 
@@ -442,9 +459,10 @@ réglages) ; tests unitaires dans `test/rpcs3_neoswap_build_comparison_test.py`.
   minimale après chaque module est une approximation.
 - Les objets SPU ne sont toujours pas persistants sur ARM64 ; le Core natif
   garde son ordonnancement générique armv8.4-a ; PGO non entrepris.
-- `check_neo_swap_scope.py` et `import_memory_candidate_scope_test.py`
-  échouaient déjà sur `Claude` avant ce cycle (reconstructions figées avant
-  les épingles 441) et n'ont pas été étendus ; ils ne font pas partie de la
-  livraison.
+- `check_neo_swap_scope.py` (via `import_memory_candidate_scope_test.py`)
+  échouait déjà sur `Claude` avant ce cycle ; sa chaîne de reconstruction et
+  ses re-pins sont à jour, mais sa liste d'empreintes approuvées est obsolète
+  pour 78 fichiers de plusieurs builds : à rafraîchir ou retirer sur décision
+  du mainteneur. Il ne fait pas partie de la livraison.
 - Le catalogue de réglages du Core (dont la nouvelle option) n'est pas traduit
   dans les douze langues de l'application, comme ses autres entrées.

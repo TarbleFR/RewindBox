@@ -20,6 +20,11 @@ run-name: NeoStation Build ${{ inputs.build_number || '427' }} • ${{ github.sh
         description: Measure a cold and a cached build on comparable macOS runners
         type: boolean
         default: false
+      recipient:
+        description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
+        required: false
+        default: build-utils/delivery-443-recipient.pem
+        type: string
 permissions:
   contents: read
   actions: read
@@ -431,7 +436,7 @@ jobs:
     - native
     env:
       BUILD_NUMBER: ${{ inputs.build_number || '427' }}
-      DELIVERY_RECIPIENT: build-utils/delivery-443-recipient.pem
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-443-recipient.pem' }}
       IPA_NAME: NeoStation
       ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '427' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
@@ -441,8 +446,8 @@ jobs:
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
       ARMSX2_CORE_RUN_ID: '37641466835'
-      RPCS3_CORE_HOST_SHA: 351b738c8d4d5fbe2c7498d4438776baecdba613
-      RPCS3_CORE_RUN_ID: '38163319515'
+      RPCS3_CORE_HOST_SHA: dcf0df67b3edf923d5dd54071f5228e6cf6882b6
+      RPCS3_CORE_RUN_ID: '38178247609'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
       DUSKLIGHT_CORE_RUN_ID: '37641472546'
       LIBRETRO_CORES_HOST_SHA: 48635465f4bdb324db4ff41b8b9815ff101ad360
@@ -1317,7 +1322,7 @@ jobs:
     - cold
     env:
       BUILD_NUMBER: ${{ inputs.build_number || '427' }}
-      DELIVERY_RECIPIENT: build-utils/delivery-443-recipient.pem
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-443-recipient.pem' }}
       IPA_NAME: NeoStation
       ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '427' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
@@ -1327,8 +1332,8 @@ jobs:
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
       ARMSX2_CORE_RUN_ID: '37641466835'
-      RPCS3_CORE_HOST_SHA: 351b738c8d4d5fbe2c7498d4438776baecdba613
-      RPCS3_CORE_RUN_ID: '38163319515'
+      RPCS3_CORE_HOST_SHA: dcf0df67b3edf923d5dd54071f5228e6cf6882b6
+      RPCS3_CORE_RUN_ID: '38178247609'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
       DUSKLIGHT_CORE_RUN_ID: '37641472546'
       LIBRETRO_CORES_HOST_SHA: 48635465f4bdb324db4ff41b8b9815ff101ad360

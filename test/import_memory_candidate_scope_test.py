@@ -1038,9 +1038,12 @@ IPA_WORKFLOW_BUILD441_LINES = (
      "          assert identity['neoswap_prepared_relay_abi'] == 1, identity\n"
      "          assert identity['neoswap_relay_client_stats_abi'] == 1, identity\n"),
 )
-# Build 444 (11 October 2026): direct guest admission Core delta test inputs;
-# the Core pin pair is appended once its run succeeds.
+# Build 444 (11 October 2026): direct guest admission Core delta test inputs and
+# the Core pinned after run 38178247609 on dcf0df67 succeeded.
 IPA_WORKFLOW_BUILD444_LINES = (
+    ('      RPCS3_CORE_HOST_SHA: 351b738c8d4d5fbe2c7498d4438776baecdba613\n',
+     '      RPCS3_CORE_HOST_SHA: dcf0df67b3edf923d5dd54071f5228e6cf6882b6\n'),
+    ("      RPCS3_CORE_RUN_ID: '38163319515'\n", "      RPCS3_CORE_RUN_ID: '38178247609'\n"),
     ('            test/rpcs3_build435_core_delta_test.py \\\n'
      '            test/native/rpcs3_build435_core_delta_test.cpp \\\n',
      '            test/rpcs3_build435_core_delta_test.py \\\n'
