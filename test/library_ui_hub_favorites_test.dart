@@ -180,12 +180,14 @@ void main() {
   Future<void> pumpView(
     WidgetTester tester, {
     Future<LibraryLocalBook?> Function(String id)? resolve,
+    Size size = const Size(1280, 900),
+    double devicePixelRatio = 1.0,
   }) async {
     openedItem = null;
     openedAddon = null;
     openedSourceId = null;
-    tester.view.physicalSize = const Size(1280, 900);
-    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = size * devicePixelRatio;
+    tester.view.devicePixelRatio = devicePixelRatio;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ScreenUtilInit(
@@ -233,6 +235,14 @@ void main() {
     expect(find.text('Provider download'), findsNothing);
     expect(find.text('Old Title'), findsOneWidget);
     expect(find.text('Source inactive'), findsOneWidget);
+  });
+
+  testWidgets('fits an iPhone in landscape', (tester) async {
+    // iPhone 15 in landscape: 852 x 393 pt at 3x.
+    await pumpView(tester, size: const Size(852, 393), devicePixelRatio: 3);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'no layout overflow');
+    expect(find.text('42% read'), findsOneWidget);
   });
 
   testWidgets('A on an online position opens the title rebuilt from the '

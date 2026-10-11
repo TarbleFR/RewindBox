@@ -151,9 +151,11 @@ void main() {
     WidgetTester tester, {
     List<LibraryAddon> addons = const <LibraryAddon>[],
     LibraryOnlineTitleOpenerForTest? openOnline,
+    Size size = const Size(1280, 720),
+    double devicePixelRatio = 1.0,
   }) async {
-    tester.view.physicalSize = const Size(1280, 720);
-    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = size * devicePixelRatio;
+    tester.view.devicePixelRatio = devicePixelRatio;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(hub(addons: addons, openOnline: openOnline));
     await tester.pump();
@@ -640,6 +642,35 @@ void main() {
     // Flutter's own focus actions: one key press must pop one route).
     expect(find.byType(LibraryScreen), findsOneWidget);
     expect(stateOf(tester).mounted, isTrue);
+  });
+
+  testWidgets('a long choice list fits an iPhone in landscape', (tester) async {
+    final sources = [
+      for (var i = 0; i < 12; i++)
+        aidokuTestAddon('fr.s$i', name: 'Source number $i'),
+    ];
+    for (var i = 0; i < 12; i++) {
+      serve('fr.s$i', [testItem('t$i', title: 'Title $i')]);
+    }
+    // iPhone 15 in landscape: 852 x 393 pt at 3x.
+    await pumpHub(
+      tester,
+      addons: sources,
+      size: const Size(852, 393),
+      devicePixelRatio: 3,
+    );
+    // Source filter (4th control).
+    LibraryScreen.navigateDown();
+    for (var i = 0; i < 3; i++) {
+      LibraryScreen.navigateRight();
+    }
+    LibraryScreen.selectCurrent();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'no layout overflow');
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.tap(find.text('Source number 0'));
+    await tester.pumpAndSettle();
+    expect(visibleTitles(tester), ['Title 0']);
   });
 
   testWidgets('search: two characters minimum, progressive status, cancel on '

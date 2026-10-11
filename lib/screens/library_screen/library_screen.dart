@@ -2543,7 +2543,7 @@ class _LibraryChoiceDialog<T> extends StatefulWidget {
 }
 
 class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
-  static const double _rowExtent = 52;
+  static const double _rowExtent = 48;
 
   late final GamepadNavigation _gamepadNav;
   late final String _layerId =
@@ -2629,10 +2629,6 @@ class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
     final size = MediaQuery.sizeOf(context);
     final message = widget.message;
     final choices = widget.choices;
-    final listHeight = math.min(
-      choices.length * _rowExtent,
-      math.max(_rowExtent, size.height * 0.5),
-    );
     final dialog = AlertDialog(
       title: Text(widget.title, maxLines: 2, overflow: TextOverflow.ellipsis),
       content: SizedBox(
@@ -2646,9 +2642,11 @@ class _LibraryChoiceDialogState<T> extends State<_LibraryChoiceDialog<T>> {
               const SizedBox(height: 10),
             ],
             if (choices.isNotEmpty)
-              SizedBox(
-                height: listHeight,
+              Flexible(
+                // Takes what the dialog leaves (an iPhone in landscape
+                // has room for a few rows only) and scrolls the rest.
                 child: ListView.builder(
+                  shrinkWrap: true,
                   controller: _scroll,
                   itemExtent: _rowExtent,
                   itemCount: choices.length,
