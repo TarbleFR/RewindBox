@@ -189,11 +189,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Add to favourites'));
+    await tester.tap(find.text('Add to favorites'));
     await tester.pump();
     expect(store.isFavorite(key), isTrue);
-    expect(find.text('Added to favourites.'), findsOneWidget);
-    expect(find.text('Remove from favourites'), findsOneWidget);
+    expect(find.text('Added to favorites.'), findsOneWidget);
+    expect(find.text('Remove from favorites'), findsOneWidget);
     await tester.runAsync(store.flush);
 
     final reloaded = LibraryReadingStore(directory: directory);
@@ -207,7 +207,7 @@ void main() {
     expect(reopened.raw['aidokuSourceId'], 'fr.lelscanfr');
     expect(reopened.title, 'One Piece');
 
-    await tester.tap(find.text('Remove from favourites'));
+    await tester.tap(find.text('Remove from favorites'));
     await tester.pump();
     expect(store.isFavorite(key), isFalse);
     await tester.runAsync(store.flush);

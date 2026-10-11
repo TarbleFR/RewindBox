@@ -9,7 +9,7 @@ abstract final class LibraryLocalLocale {
   values = <String, Map<String, String>>{
     'en': <String, String>{
       'title': "My books",
-      'intro': "Books stored on this device. No account or catalogue needed.",
+      'intro': "Books stored on this device. No account or catalog needed.",
       'back': "Back",
       'close': "Close",
       'cancel': "Cancel",
@@ -334,7 +334,7 @@ abstract final class LibraryLocalLocale {
     'pt': <String, String>{
       'title': "Meus livros",
       'intro':
-          "Livros guardados neste dispositivo. Não é preciso conta nem catálogo.",
+          "Livros salvos neste dispositivo. Não é preciso conta nem catálogo.",
       'back': "Voltar",
       'close': "Fechar",
       'cancel': "Cancelar",
@@ -574,7 +574,7 @@ abstract final class LibraryLocalLocale {
       'descending': "Decrescente",
       'formatsFilter': "Formati",
       'rescan': "Analizza di nuovo le cartelle",
-      'scanning': "Analisi della libreria…",
+      'scanning': "Analisi della biblioteca…",
       'bookCount': "Libri: {count}",
       'importing': "Importazione…",
       'importProgress': "{index} / {total} – {name} – {stage}",
@@ -584,7 +584,7 @@ abstract final class LibraryLocalLocale {
       'resultsTitle': "Risultato dell’importazione",
       'resultsSummary': "Importati: {imported}, non importati: {refused}",
       'outcomeImported': "Importato",
-      'outcomeDuplicateOf': "Già nella libreria come «{title}».",
+      'outcomeDuplicateOf': "Già nella biblioteca come «{title}».",
       'issueUnsupportedFormat':
           "Formato non supportato. NeoStation legge EPUB, PDF, CBZ e TXT.",
       'issueRarArchive':
@@ -603,7 +603,7 @@ abstract final class LibraryLocalLocale {
       'issueNoContent':
           "Non è stata trovata alcuna pagina o capitolo leggibile.",
       'issueTooLarge': "Il file è troppo grande.",
-      'issueDuplicate': "Questo libro è già nella libreria.",
+      'issueDuplicate': "Questo libro è già nella biblioteca.",
       'issueDuplicateInSelection':
           "Lo stesso libro è stato selezionato due volte in questa importazione.",
       'issueSameNameInSelection':
@@ -649,9 +649,9 @@ abstract final class LibraryLocalLocale {
       'emptyBody':
           "Importa file EPUB, PDF, CBZ o TXT. Funziona anche un file .cbr che in realtà è un archivio ZIP. Puoi anche copiare i file in File › Su iPhone › NeoStation iOS › Library › Books e poi analizzare di nuovo.",
       'noMatch': "Nessun libro corrisponde a questa ricerca o filtro.",
-      'loadFailed': "Impossibile leggere la libreria.",
+      'loadFailed': "Impossibile leggere la biblioteca.",
       'indexRecovered':
-          "L’indice della libreria era danneggiato ed è stato ricostruito dai file. I titoli personalizzati potrebbero essere andati persi.",
+          "L’indice della biblioteca era danneggiato ed è stato ricostruito dai file. I titoli personalizzati potrebbero essere andati persi.",
       'openFailed': "Impossibile aprire questo libro.",
       'importFailed': "Impossibile completare l’importazione.",
       'sizeKb': "{size} KB",
@@ -1100,7 +1100,7 @@ abstract final class LibraryLocalLocale {
       'descending': "降序",
       'formatsFilter': "格式",
       'rescan': "重新扫描文件夹",
-      'scanning': "正在扫描书库…",
+      'scanning': "正在扫描资料库…",
       'bookCount': "{count} 本书",
       'importing': "正在导入…",
       'importProgress': "{index} / {total} – {name} – {stage}",
@@ -1110,7 +1110,7 @@ abstract final class LibraryLocalLocale {
       'resultsTitle': "导入结果",
       'resultsSummary': "已导入 {imported} 个，未导入 {refused} 个",
       'outcomeImported': "已导入",
-      'outcomeDuplicateOf': "书库中已有此书，名为“{title}”。",
+      'outcomeDuplicateOf': "资料库中已有此书，名为“{title}”。",
       'issueUnsupportedFormat': "不支持的格式。NeoStation 可读取 EPUB、PDF、CBZ 和 TXT。",
       'issueRarArchive':
           "RAR/CBR 压缩包：需要 RAR 支持，而 NeoStation 不包含该功能。请将其转换为 CBZ。",
@@ -1125,7 +1125,7 @@ abstract final class LibraryLocalLocale {
       'issueCorrupt': "文件已损坏或不完整。",
       'issueNoContent': "未找到可阅读的页面或章节。",
       'issueTooLarge': "文件过大。",
-      'issueDuplicate': "书库中已有此书。",
+      'issueDuplicate': "资料库中已有此书。",
       'issueDuplicateInSelection': "本次导入中同一本书被选择了两次。",
       'issueSameNameInSelection': "另一个选中的文件同名：iOS 文件选择器只保留了其中一个。请分别导入。",
       'issueUnreadable': "无法读取该文件。",
@@ -1166,8 +1166,8 @@ abstract final class LibraryLocalLocale {
       'emptyBody':
           "导入 EPUB、PDF、CBZ 或 TXT 文件。实际为 ZIP 压缩包的 .cbr 文件也可以使用。你也可以把文件复制到 文件 › 我的 iPhone › NeoStation iOS › Library › Books，然后重新扫描。",
       'noMatch': "没有符合此搜索或筛选条件的书。",
-      'loadFailed': "无法读取书库。",
-      'indexRecovered': "书库索引已损坏，已根据文件重建。自定义书名可能已丢失。",
+      'loadFailed': "无法读取资料库。",
+      'indexRecovered': "资料库索引已损坏，已根据文件重建。自定义书名可能已丢失。",
       'openFailed': "无法打开这本书。",
       'importFailed': "无法完成导入。",
       'sizeKb': "{size} KB",
@@ -1197,7 +1197,7 @@ abstract final class LibraryLocalLocale {
       'descending': "遞減",
       'formatsFilter': "格式",
       'rescan': "重新掃描資料夾",
-      'scanning': "正在掃描書庫…",
+      'scanning': "正在掃描資料庫…",
       'bookCount': "{count} 本書",
       'importing': "正在匯入…",
       'importProgress': "{index} / {total} – {name} – {stage}",
@@ -1207,7 +1207,7 @@ abstract final class LibraryLocalLocale {
       'resultsTitle': "匯入結果",
       'resultsSummary': "已匯入 {imported} 個，未匯入 {refused} 個",
       'outcomeImported': "已匯入",
-      'outcomeDuplicateOf': "書庫中已有這本書，名稱為「{title}」。",
+      'outcomeDuplicateOf': "資料庫中已有這本書，名稱為「{title}」。",
       'issueUnsupportedFormat': "不支援的格式。NeoStation 可讀取 EPUB、PDF、CBZ 與 TXT。",
       'issueRarArchive': "RAR/CBR 壓縮檔：需要 RAR 支援，但 NeoStation 未包含此功能。請轉換為 CBZ。",
       'issueSevenZipArchive': "7z/CB7 壓縮檔：不支援。請轉換為 CBZ。",
@@ -1221,7 +1221,7 @@ abstract final class LibraryLocalLocale {
       'issueCorrupt': "檔案已損壞或不完整。",
       'issueNoContent': "找不到可閱讀的頁面或章節。",
       'issueTooLarge': "檔案過大。",
-      'issueDuplicate': "書庫中已有這本書。",
+      'issueDuplicate': "資料庫中已有這本書。",
       'issueDuplicateInSelection': "這次匯入中同一本書被選取了兩次。",
       'issueSameNameInSelection': "另一個選取的檔案同名：iOS 檔案選擇器只保留了其中一個。請分開匯入。",
       'issueUnreadable': "無法讀取這個檔案。",
@@ -1262,8 +1262,8 @@ abstract final class LibraryLocalLocale {
       'emptyBody':
           "匯入 EPUB、PDF、CBZ 或 TXT 檔案。實際上是 ZIP 壓縮檔的 .cbr 檔案也可以使用。你也可以把檔案拷貝到 檔案 › 我的 iPhone › NeoStation iOS › Library › Books，然後重新掃描。",
       'noMatch': "沒有符合這個搜尋或篩選條件的書。",
-      'loadFailed': "無法讀取書庫。",
-      'indexRecovered': "書庫索引已損壞，已根據檔案重建。自訂的書名可能已遺失。",
+      'loadFailed': "無法讀取資料庫。",
+      'indexRecovered': "資料庫索引已損壞，已根據檔案重建。自訂的書名可能已遺失。",
       'openFailed': "無法開啟這本書。",
       'importFailed': "無法完成匯入。",
       'sizeKb': "{size} KB",

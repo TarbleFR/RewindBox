@@ -151,7 +151,7 @@ void main() {
     await pumpLibraryUi(tester, fixture.view(), size: const Size(1280, 2000));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sources and catalogues'), findsOneWidget);
+    expect(find.text('Sources and catalogs'), findsOneWidget);
     expect(find.text('Aidoku FR'), findsOneWidget);
     expect(find.text(_catalogUrl), findsOneWidget);
     expect(find.textContaining('10 source(s)'), findsOneWidget);
@@ -161,7 +161,7 @@ void main() {
     expect(
       find.descendant(
         of: lelscanRow,
-        matching: find.text('Catalogue imported'),
+        matching: find.text('Catalog imported'),
       ),
       findsOneWidget,
     );
@@ -245,7 +245,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: booksRow, matching: find.text('Catalogue imported')),
+      find.descendant(of: booksRow, matching: find.text('Catalog imported')),
       findsNothing,
     );
   });
@@ -459,7 +459,7 @@ void main() {
     expect(find.text('Deactivate LelscanFR?'), findsOneWidget);
     expect(
       find.textContaining(
-        'favourites, reading progress and read chapters are '
+        'favorites, reading progress and read chapters are '
         'kept',
       ),
       findsOneWidget,
@@ -487,7 +487,7 @@ void main() {
       await pumpLibraryUi(tester, fixture.view());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Add a catalogue (URL)'));
+      await tester.tap(find.text('Add a catalog (URL)'));
       await tester.pumpAndSettle();
       // The field takes the focus at once (keyboard ready for paste).
       final field = tester.widget<EditableText>(
@@ -566,7 +566,7 @@ void main() {
     );
     await pumpLibraryUi(tester, fixture.view());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add a catalogue (URL)'));
+    await tester.tap(find.text('Add a catalog (URL)'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey<String>('catalog-url-field')),
@@ -575,7 +575,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Show sources'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Loading the catalogue…'), findsOneWidget);
+    expect(find.text('Loading the catalog…'), findsOneWidget);
 
     // Another part of the app shows a page while the catalogue loads.
     unawaited(
@@ -592,7 +592,7 @@ void main() {
     expect(find.byType(LibraryCatalogPreviewScreen), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
-    expect(find.text('Loading the catalogue…'), findsNothing);
+    expect(find.text('Loading the catalog…'), findsNothing);
     expect(find.text('Other page'), findsOneWidget, reason: 'left open');
   });
 
@@ -610,7 +610,7 @@ void main() {
     await tester.tap(find.text('Import a file'));
     await tester.pumpAndSettle();
     expect(
-      find.text('Choose a catalogue file ending in .json or .aix.'),
+      find.text('Choose a catalog file ending in .json or .aix.'),
       findsOneWidget,
     );
     expect(find.byType(LibraryCatalogPreviewScreen), findsNothing);
@@ -656,7 +656,7 @@ void main() {
     await pumpLibraryUi(tester, fixture.view());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Add a catalogue (URL)'));
+    await tester.tap(find.text('Add a catalog (URL)'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey<String>('catalog-url-field')),
@@ -665,7 +665,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Show sources'));
     await tester.pumpAndSettle();
 
-    expect(find.text('The catalogue could not be opened'), findsOneWidget);
+    expect(find.text('The catalog could not be opened'), findsOneWidget);
     expect(
       find.text("The site's server is unavailable right now. Try again later."),
       findsOneWidget,
@@ -697,7 +697,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Forget'));
     await tester.pumpAndSettle();
-    expect(find.text('Forget this catalogue?'), findsOneWidget);
+    expect(find.text('Forget this catalog?'), findsOneWidget);
     await tester.tap(find.text('Deactivate its sources'));
     await tester.pumpAndSettle();
 
@@ -705,7 +705,7 @@ void main() {
     expect(fixture.addons.addons.map((addon) => addon.id), <String>[books.id]);
     expect(fixture.sourcesChanged, 1);
     expect(
-      find.text('Catalogue forgotten. 1 source(s) deactivated.'),
+      find.text('Catalog forgotten. 1 source(s) deactivated.'),
       findsOneWidget,
     );
   });
@@ -729,7 +729,7 @@ void main() {
     expect(fixture.controller.back(), isFalse);
 
     // Right / left move between the two import actions of one row.
-    final addUrl = Focus.of(tester.element(find.text('Add a catalogue (URL)')));
+    final addUrl = Focus.of(tester.element(find.text('Add a catalog (URL)')));
     final importFile = Focus.of(tester.element(find.text('Import a file')));
     addUrl.requestFocus();
     await tester.pump();
@@ -743,7 +743,7 @@ void main() {
     // A activates the focused action: the URL dialog opens.
     fixture.controller.activate();
     await tester.pumpAndSettle();
-    expect(find.text('Catalogue address'), findsOneWidget);
+    expect(find.text('Catalog address'), findsOneWidget);
   });
 
   testWidgets('with the keyboard up on a landscape iPhone, the URL field and '
@@ -774,7 +774,7 @@ void main() {
       ),
     );
 
-    final add = find.text('Add a catalogue (URL)');
+    final add = find.text('Add a catalog (URL)');
     await tester.ensureVisible(add);
     await tester.tap(add);
     await tester.pumpAndSettle();

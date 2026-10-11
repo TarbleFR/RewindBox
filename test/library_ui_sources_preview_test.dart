@@ -145,7 +145,7 @@ void main() {
     await _host(tester, _aidokuPreview(sources));
 
     expect(find.text('Aidoku FR'), findsOneWidget);
-    expect(find.text('Aidoku catalogue (former format)'), findsOneWidget);
+    expect(find.text('Aidoku catalog (former format)'), findsOneWidget);
     expect(find.textContaining('5 source(s)'), findsOneWidget);
     expect(_checkboxValues(tester), everyElement(isFalse));
     expect(_checkboxValues(tester), hasLength(5));
