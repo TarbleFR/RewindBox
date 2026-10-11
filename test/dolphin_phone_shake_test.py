@@ -275,7 +275,10 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run(['swiftc','-swift-version','5',str(TOUCH/'DolphinShakeDetector.swift'),
                     str(folder/'Sensor.swift'),str(folder/'Owner.swift'),str(folder/'main.swift'),
                     '-o',str(binary)],check=True)
-    result=subprocess.run([str(binary)],text=True,capture_output=True,check=True)
+    result=subprocess.run([str(binary)],text=True,capture_output=True)
+    if result.returncode!=0:
+        print(result.stdout);print(result.stderr)
+        raise SystemExit('phone shake harness failed with status '+str(result.returncode))
     print(result.stdout)
     output=ROOT/'build/dolphin-motion/tests.json'
     output.parent.mkdir(parents=True,exist_ok=True)

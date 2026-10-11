@@ -223,7 +223,12 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run(['swiftc', '-swift-version', '5', str(TOUCH / 'DolphinShakeDetector.swift'),
                     str(TOUCH / 'DolphinShakeInput.swift'), str(folder / 'main.swift'),
                     '-o', str(binary)], check=True)
-    result = subprocess.run([str(binary)], text=True, capture_output=True, check=True, timeout=120)
+    result = subprocess.run([str(binary)], text=True, capture_output=True, timeout=120)
+    if result.returncode != 0:
+        # A failed precondition traps (SIGTRAP); show its message instead of only the signal.
+        print(result.stdout)
+        print(result.stderr)
+        raise SystemExit('touch shake harness failed with status ' + str(result.returncode))
     print(result.stdout)
     output = ROOT / 'build/dolphin-motion/touch-shake-tests.json'
     output.parent.mkdir(parents=True, exist_ok=True)
