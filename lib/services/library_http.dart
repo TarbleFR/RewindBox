@@ -7,9 +7,10 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import 'library_io_client.dart';
 
 /// Shared network layer of the reading Library (Build 437).
 ///
@@ -527,7 +528,9 @@ class LibraryHttp {
       ..maxConnectionsPerHost = math.max(1, maxConnectionsPerHost)
       ..autoUncompress = true
       ..userAgent = defaultUserAgent;
-    return IOClient(inner);
+    // Not IOClient: an abort must close the connection whenever it comes
+    // (see LibraryIoClient).
+    return LibraryIoClient(inner);
   }
 
   /// Global limit of requests on the wire.
