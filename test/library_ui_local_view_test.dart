@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/l10n/library_local_locale.dart';
 import 'package:neostation/screens/library_screen/library_gamepad_view_controller.dart';
 import 'package:neostation/screens/library_screen/library_local_view.dart';
 import 'package:neostation/services/library_local_library_service.dart';
@@ -580,6 +581,36 @@ void main() {
     expect(added, contains('2026'));
     expect(find.text(added), findsOneWidget);
     expect(find.textContaining('Oct'), findsNothing);
+  });
+
+  testWidgets('sizes use the decimal separator of the Library language', (
+    tester,
+  ) async {
+    final big = _book(
+      'g',
+      'Gros livre',
+      LibraryBookFormat.pdf,
+      size: (12.5 * 1024 * 1024).round(),
+    );
+    for (final (locale, size) in <(Locale, String)>[
+      (const Locale('fr'), '12,5 Mo'),
+      (const Locale('de'), '12,5 MB'),
+      (const Locale('en'), '12.5 MB'),
+    ]) {
+      await _pump(tester, <LibraryLocalBook>[big], locale: locale);
+      await tester.tap(
+        find.byTooltip(
+          LibraryLocalLocale.formatLocale(locale, 'moreActions', {
+            'title': 'Gros livre',
+          }),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(LibraryLocalLocale.forLocale(locale, 'info')));
+      await tester.pumpAndSettle();
+      expect(find.text(size), findsOneWidget, reason: '$locale');
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
   testWidgets('sort, order and format filters re-query the library', (

@@ -92,7 +92,7 @@ String _sizeText(BuildContext context, int bytes) {
     });
   }
   return LibraryLocalLocale.format(context, 'sizeMb', {
-    'size': (bytes / (1024 * 1024)).toStringAsFixed(1),
+    'size': LibraryLocalLocale.decimal(context, bytes / (1024 * 1024)),
   });
 }
 

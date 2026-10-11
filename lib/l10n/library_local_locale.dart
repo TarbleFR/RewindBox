@@ -1306,6 +1306,39 @@ abstract final class LibraryLocalLocale {
     return value;
   }
 
+  /// Decimal separator of each catalog language (a number format, not a
+  /// text): a comma in French, German, Spanish, Italian, Brazilian
+  /// Portuguese, Russian and Indonesian.
+  static const Map<String, String> _decimalSeparators = <String, String>{
+    'en': '.',
+    'es': ',',
+    'ru': ',',
+    'zh': '.',
+    'zh_Hant': '.',
+    'pt': ',',
+    'fr': ',',
+    'de': ',',
+    'it': ',',
+    'id': ',',
+    'ja': '.',
+    'ko': '.',
+  };
+
+  /// [value] with [digits] decimals and the decimal separator of [locale]
+  /// (12,5 in French, 12.5 in English).
+  static String decimalLocale(Locale locale, double value, {int digits = 1}) {
+    final text = value.toStringAsFixed(digits);
+    final separator = _decimalSeparators[localeKey(locale)] ?? '.';
+    return separator == '.' ? text : text.replaceFirst('.', separator);
+  }
+
+  static String decimal(BuildContext context, double value, {int digits = 1}) =>
+      decimalLocale(
+        Localizations.maybeLocaleOf(context) ?? const Locale('en'),
+        value,
+        digits: digits,
+      );
+
   static String text(BuildContext context, String key) => forLocale(
     Localizations.maybeLocaleOf(context) ?? const Locale('en'),
     key,
