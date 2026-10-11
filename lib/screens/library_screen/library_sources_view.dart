@@ -435,16 +435,30 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
         retry: () => _previewAndOpenUrl(url, refresh: refresh),
       );
 
+  /// True while the system file picker is up. It can take a moment to
+  /// appear; a second request then fails on iOS (file_picker answers
+  /// 'multiple_request') and its error dialog stayed behind the picker.
+  bool _picking = false;
+
   Future<void> _importFile() async {
-    final LibraryPickedCatalogFile? file;
+    if (_picking) return;
+    setState(() => _picking = true);
+    LibraryPickedCatalogFile? file;
+    Object? pickError;
     try {
       file = await (widget.catalogFilePicker ?? libraryPickCatalogFile)();
     } on Object catch (error) {
-      if (!mounted) return;
-      await _showError(error, titleKey: 'fileUnreadable');
+      pickError = error;
+    } finally {
+      _picking = false;
+      if (mounted) setState(() {});
+    }
+    if (!mounted) return;
+    if (pickError != null) {
+      await _showError(pickError, titleKey: 'fileUnreadable');
       return;
     }
-    if (!mounted || file == null) return;
+    if (file == null) return;
     final extension = p.extension(file.name).toLowerCase();
     if (extension != '.json' && extension != '.aix') {
       _snack(_t('fileWrongType'));
@@ -814,7 +828,8 @@ class _LibrarySourcesViewState extends State<LibrarySourcesView>
           label: Text(_t('addCatalogUrl')),
         ),
         OutlinedButton.icon(
-          onPressed: _importFile,
+          key: const ValueKey<String>('import-catalog-file'),
+          onPressed: _picking ? null : _importFile,
           icon: const Icon(Symbols.upload_file_rounded),
           label: Text(_t('importCatalogFile')),
         ),

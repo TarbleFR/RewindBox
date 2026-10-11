@@ -57,9 +57,18 @@ class _Fixture {
       return deviceOnline;
     },
     imageCache: images,
-    catalogFilePicker: () async => pickedFile,
+    catalogFilePicker: () async {
+      picks++;
+      final gate = pickerGate;
+      return gate == null ? pickedFile : gate.future;
+    },
     enableGamepad: false,
   );
+
+  /// Calls of the file picker; while [pickerGate] is set, the picker is
+  /// still up until it completes.
+  int picks = 0;
+  Completer<LibraryPickedCatalogFile?>? pickerGate;
 
   final NoImageCache images = NoImageCache();
   LibraryPickedCatalogFile? pickedFile;
@@ -159,10 +168,7 @@ void main() {
     // LelscanFR: adapter, verified from a PC on 2026-10-10.
     final lelscanRow = _rowOf(lelscan.id);
     expect(
-      find.descendant(
-        of: lelscanRow,
-        matching: find.text('Catalog imported'),
-      ),
+      find.descendant(of: lelscanRow, matching: find.text('Catalog imported')),
       findsOneWidget,
     );
     expect(
@@ -640,6 +646,44 @@ void main() {
       reason: 'a single source is not pre-selected either',
     );
     expect(find.text('Activate (0)'), findsOneWidget);
+  });
+
+  testWidgets('Import a file asks the picker once while it is up', (
+    tester,
+  ) async {
+    final fixture = await _fixture();
+    await pumpLibraryUi(tester, fixture.view());
+    await tester.pumpAndSettle();
+    final gate = fixture.pickerGate = Completer<LibraryPickedCatalogFile?>();
+    final button = find.byKey(const ValueKey<String>('import-catalog-file'));
+
+    // A controller user presses A on the button, then again while the
+    // system picker is still appearing; a touch user taps twice.
+    Focus.of(tester.element(find.text('Import a file'))).requestFocus();
+    await tester.pump();
+    fixture.controller.activate();
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(fixture.picks, 1);
+    fixture.controller.activate();
+    await tester.pump();
+    await tester.tap(button, warnIfMissed: false);
+    await tester.pump();
+    expect(fixture.picks, 1);
+    expect(
+      tester.widget<OutlinedButton>(button).onPressed,
+      isNull,
+      reason: 'disabled while the picker is up',
+    );
+
+    // Cancelled: the button works again, and no error was left behind.
+    gate.complete(null);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(tester.widget<OutlinedButton>(button).onPressed, isNotNull);
+    fixture.pickerGate = null;
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(fixture.picks, 2);
   });
 
   testWidgets('a catalogue error is translated, with the raw detail apart', (
