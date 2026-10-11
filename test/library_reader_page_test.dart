@@ -902,10 +902,9 @@ void main() {
       await tester.pump();
       // 900 x 600 at ratio 1, rounded up to steps of 128 px.
       expect(source.requests, isNotEmpty);
-      expect(
-        source.requests.map((r) => (r.$2, r.$3)).toSet(),
-        <(int?, int?)>{(1024, 640)},
-      );
+      expect(source.requests.map((r) => (r.$2, r.$3)).toSet(), <(int?, int?)>{
+        (1024, 640),
+      });
 
       source.requests.clear();
       readerState(tester).controller.toggleMode();
@@ -913,10 +912,9 @@ void main() {
       await tester.pump();
       expect(find.byType(ListView), findsOneWidget);
       expect(source.requests, isNotEmpty);
-      expect(
-        source.requests.map((r) => (r.$2, r.$3)).toSet(),
-        <(int?, int?)>{(1024, null)},
-      );
+      expect(source.requests.map((r) => (r.$2, r.$3)).toSet(), <(int?, int?)>{
+        (1024, null),
+      });
       await closeAll(tester, store);
     });
 
@@ -940,10 +938,9 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(
-        source.requests.map((r) => (r.$2, r.$3)).toSet(),
-        <(int?, int?)>{(2400, 1280)},
-      );
+      expect(source.requests.map((r) => (r.$2, r.$3)).toSet(), <(int?, int?)>{
+        (2400, 1280),
+      });
       await closeAll(tester, store);
     });
 
@@ -957,10 +954,9 @@ void main() {
       ))!;
       // A tall page: 200 x 600 shown in a 400 x 300 screen.
       final cache = _pageImageCache(directory, buildPng(200, 600));
-      final source = LibraryNetworkPageSource(
-        const <String>['https://example.org/p1.png'],
-        cache: cache,
-      );
+      final source = LibraryNetworkPageSource(const <String>[
+        'https://example.org/p1.png',
+      ], cache: cache);
       await pumpReader(
         tester,
         LibraryPageReaderScreen(
@@ -1144,8 +1140,7 @@ class _SlowPageSource implements LibraryPageSource {
   void prefetch(int index) => prefetched.add(index);
 
   @override
-  void cancelPrefetchOutside(int first, int last) =>
-      windows.add((first, last));
+  void cancelPrefetchOutside(int first, int last) => windows.add((first, last));
 
   @override
   Future<void> dispose() async {}
