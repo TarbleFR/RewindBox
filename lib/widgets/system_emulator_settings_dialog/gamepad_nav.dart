@@ -61,6 +61,12 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
       }
       return;
     }
+    // Embedded libretro engine panel: it owns its rows (Build 438).
+    final libretroPanel = _libretroPanel;
+    if (libretroPanel != null) {
+      libretroPanel.moveUp();
+      return;
+    }
     if (_currentTab == 1) {
       if (_totalEmulators == 0) return;
 
@@ -104,6 +110,11 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
           const DirectionalFocusIntent(TraversalDirection.down),
         );
       }
+      return;
+    }
+    final libretroPanel = _libretroPanel;
+    if (libretroPanel != null) {
+      libretroPanel.moveDown();
       return;
     }
     if (_currentTab == 1) {
@@ -194,6 +205,13 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
       if (focusedContext != null) {
         Actions.invoke(focusedContext, const ActivateIntent());
       }
+      return;
+    }
+    // A opens the highlighted row of the embedded engine panel; this runs
+    // before the iOS status-only rule below, which concerns emulator apps.
+    final libretroPanel = _libretroPanel;
+    if (libretroPanel != null) {
+      libretroPanel.trigger();
       return;
     }
     if (_currentTab == 1) {

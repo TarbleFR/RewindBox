@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 
-/// iOS-specific first-run setup copy used by the RetroArch linking step.
+/// iOS-specific first-run setup copy: the "link a folder without moving it"
+/// option of the setup wizard and the relaunch message shown once a folder is
+/// linked. Any games folder can be linked (RetroArch's is only an example);
+/// embedded consoles never need the RetroArch app (Build 438).
 abstract final class IosSetupLocale {
   static const Map<String, String> _linkTitles = {
     'de': 'RetroArch verknüpfen',
@@ -18,18 +21,18 @@ abstract final class IosSetupLocale {
   };
 
   static const Map<String, String> _linkDescriptions = {
-    'de': 'Verknüpfe den eigenen Ordner von RetroArch, damit NeoStation deine Spiele sehen und mit einem Tipp direkt starten kann.',
-    'en': 'Link RetroArch\'s own folder so NeoStation can see your games and launch them directly with one tap.',
-    'es': 'Vincula la carpeta propia de RetroArch para que NeoStation pueda ver tus juegos e iniciarlos directamente con un toque.',
-    'fr': 'Liez le dossier propre à RetroArch afin que NeoStation puisse voir vos jeux et les lancer directement en un toucher.',
-    'id': 'Tautkan folder milik RetroArch agar NeoStation dapat melihat game Anda dan menjalankannya langsung dengan satu ketukan.',
-    'it': 'Collega la cartella di RetroArch affinché NeoStation possa vedere i tuoi giochi e avviarli direttamente con un tocco.',
-    'ja': 'RetroArch のフォルダをリンクすると、NeoStation からゲームを認識してワンタップで直接起動できます。',
-    'ko': 'RetroArch 폴더를 연결하면 NeoStation에서 게임을 확인하고 한 번의 탭으로 바로 실행할 수 있습니다.',
-    'pt': 'Vincule a pasta do RetroArch para que o NeoStation possa ver seus jogos e iniciá-los diretamente com um toque.',
-    'ru': 'Подключите папку RetroArch, чтобы NeoStation мог видеть ваши игры и запускать их напрямую одним нажатием.',
-    'zh': '连接 RetroArch 自己的文件夹，让 NeoStation 能够识别你的游戏并一键直接启动。',
-    'zh_Hant': '連結 RetroArch 自己的資料夾，讓 NeoStation 能夠識別你的遊戲並一鍵直接啟動。',
+    'de': 'Wähle einen Ordner, der deine Spiele bereits enthält, zum Beispiel den von RetroArch. NeoStation liest ihn direkt dort, ohne etwas zu kopieren oder zu verschieben.',
+    'en': 'Choose a folder that already holds your games, RetroArch’s for example. NeoStation reads it in place, without copying or moving anything.',
+    'es': 'Elige una carpeta que ya contenga tus juegos, por ejemplo la de RetroArch. NeoStation la lee donde está, sin copiar ni mover nada.',
+    'fr': 'Choisissez un dossier qui contient déjà vos jeux, celui de RetroArch par exemple. NeoStation le lit sur place, sans rien copier ni déplacer.',
+    'id': 'Pilih folder yang sudah berisi game Anda, misalnya folder RetroArch. NeoStation membacanya langsung di tempat tanpa menyalin atau memindahkan apa pun.',
+    'it': 'Scegli una cartella che contiene già i tuoi giochi, per esempio quella di RetroArch. NeoStation la legge dove si trova, senza copiare né spostare nulla.',
+    'ja': 'ゲームが入っているフォルダ（たとえば RetroArch のフォルダ）を選んでください。NeoStation は何もコピーや移動をせず、その場所から読み込みます。',
+    'ko': '게임이 이미 들어 있는 폴더(예: RetroArch 폴더)를 선택하세요. NeoStation은 아무것도 복사하거나 옮기지 않고 그 자리에서 읽습니다.',
+    'pt': 'Escolha uma pasta que já contenha seus jogos, a do RetroArch por exemplo. O NeoStation a lê no lugar, sem copiar nem mover nada.',
+    'ru': 'Выберите папку, в которой уже есть ваши игры, например папку RetroArch. NeoStation читает её на месте, ничего не копируя и не перемещая.',
+    'zh': '选择一个已存放游戏的文件夹，例如 RetroArch 的文件夹。NeoStation 会直接在原处读取，不复制也不移动任何内容。',
+    'zh_Hant': '選擇一個已存放遊戲的資料夾，例如 RetroArch 的資料夾。NeoStation 會直接在原處讀取，不會複製或移動任何內容。',
   };
 
   static const Map<String, String> _linked = {
@@ -63,18 +66,18 @@ abstract final class IosSetupLocale {
   };
 
   static const Map<String, String> _restartDescriptions = {
-    'de': 'RetroArch ist verknüpft. Starte NeoStation neu, um deine synchronisierten Spiele hier zu sehen.',
-    'en': 'RetroArch is linked. Relaunch NeoStation to see your synced games here.',
-    'es': 'RetroArch está vinculado. Reinicia NeoStation para ver aquí tus juegos sincronizados.',
-    'fr': 'RetroArch est lié. Relancez NeoStation pour voir ici vos jeux synchronisés.',
-    'id': 'RetroArch sudah tertaut. Jalankan ulang NeoStation untuk melihat game yang telah disinkronkan di sini.',
-    'it': 'RetroArch è collegato. Riavvia NeoStation per vedere qui i giochi sincronizzati.',
-    'ja': 'RetroArch はリンクされています。NeoStation を再起動すると、同期済みのゲームがここに表示されます。',
-    'ko': 'RetroArch가 연결되었습니다. NeoStation을 다시 실행하면 동기화된 게임이 여기에 표시됩니다.',
-    'pt': 'O RetroArch está vinculado. Reinicie o NeoStation para ver aqui seus jogos sincronizados.',
-    'ru': 'RetroArch подключён. Перезапустите NeoStation, чтобы увидеть здесь синхронизированные игры.',
-    'zh': 'RetroArch 已连接。重新启动 NeoStation 即可在这里看到已同步的游戏。',
-    'zh_Hant': 'RetroArch 已連結。重新啟動 NeoStation 即可在這裡看到已同步的遊戲。',
+    'de': 'Dein Spieleordner ist verknüpft. Starte NeoStation neu, um deine Spiele hier zu sehen.',
+    'en': 'Your games folder is linked. Relaunch NeoStation to see your games here.',
+    'es': 'Tu carpeta de juegos está vinculada. Reinicia NeoStation para ver aquí tus juegos.',
+    'fr': 'Votre dossier de jeux est lié. Relancez NeoStation pour voir vos jeux ici.',
+    'id': 'Folder game Anda sudah tertaut. Jalankan ulang NeoStation untuk melihat game Anda di sini.',
+    'it': 'La cartella dei giochi è collegata. Riavvia NeoStation per vedere qui i tuoi giochi.',
+    'ja': 'ゲームフォルダはリンクされています。NeoStation を再起動すると、ゲームがここに表示されます。',
+    'ko': '게임 폴더가 연결되었습니다. NeoStation을 다시 실행하면 게임이 여기에 표시됩니다.',
+    'pt': 'Sua pasta de jogos está vinculada. Reinicie o NeoStation para ver seus jogos aqui.',
+    'ru': 'Папка с играми подключена. Перезапустите NeoStation, чтобы увидеть здесь свои игры.',
+    'zh': '游戏文件夹已连接。重新启动 NeoStation 即可在这里看到你的游戏。',
+    'zh_Hant': '遊戲資料夾已連結。重新啟動 NeoStation 即可在這裡看到你的遊戲。',
   };
 
   static const Map<String, String> _linkActionLabels = {

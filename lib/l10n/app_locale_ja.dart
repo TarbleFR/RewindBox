@@ -932,12 +932,12 @@ const Map<String, dynamic> appLocaleJa = {
   AppLocale.iosMelonxSyncRequested: "MeloNX の Nintendo Switch ライブラリの同期を要求しました。エクスポートの準備が完了すると、MeloNX は自動的に NeoStation に戻ります。",
   AppLocale.iosMelonxUnavailable: "MeloNX に接続できませんでした。インストールされていますか？",
   AppLocale.iosRetroarchStatusNeedsLink:
-      "RetroArch のフォルダをリンクすると、コピーせずに NeoStation からゲームへ直接アクセスできます。",
+      "任意です。RetroArch アプリのフォルダ、またはゲームを入れた任意のフォルダをリンクすると、NeoStation はコピーせずにその場所から読み込みます。内蔵エンジン対応ゲーム機に RetroArch アプリは不要です。",
   AppLocale.iosRetroarchStatusNeedsSync:
-      "フォルダをリンクしました。ライブラリを同期すると、ワンタップで RetroArch から直接ゲームを起動できます。",
+      "フォルダをリンクしました。内蔵エンジン対応ゲーム機は NeoStation 内で起動します。RetroArch アプリのライブラリ同期は、アプリ自身が起動するゲームにだけ必要です。",
   AppLocale.iosRetroarchStatusSynced:
-      "フォルダとライブラリを同期済み — ゲームは RetroArch で直接起動します。",
-  AppLocale.iosRetroarchLinkSuccess: "フォルダをリンクしました。NeoStation はコピーせず、その場所を直接スキャンします。ここで見つかったゲームは RetroArch で直接起動します。",
+      "フォルダをリンクし、RetroArch のライブラリを同期しました。内蔵エンジン対応ゲーム機は NeoStation 内で起動し、その他のゲームは RetroArch アプリで開きます。",
+  AppLocale.iosRetroarchLinkSuccess: "フォルダをリンクしました。NeoStation はコピーせず、その場所を直接スキャンします。",
   AppLocale.iosArmsx2StatusNeedsLink: "ARMSX2 は RetroArch と同じ ROM フォルダを使用します。共有 ROM フォルダをリンクしてから、ARMSX2 ライブラリを同期してください。",
   AppLocale.iosArmsx2StatusNeedsSync:
       "共有 ROM フォルダをリンクしました。ARMSX2 を同期して PS2 ライブラリを NeoStation にインポートしてください。",

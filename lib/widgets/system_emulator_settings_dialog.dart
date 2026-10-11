@@ -40,6 +40,8 @@ import '../utils/image_utils.dart';
 import '../widgets/core_footer.dart';
 import '../services/permission_service.dart';
 import '../widgets/tv_directory_picker.dart';
+import '../services/libretro_internal_service.dart';
+import 'libretro_engine_panel.dart';
 
 part 'system_emulator_settings_dialog/gamepad_nav.dart';
 part 'system_emulator_settings_dialog/row_builders.dart';
@@ -110,6 +112,26 @@ class _SystemEmulatorSettingsDialogState
       _ => null,
     };
   }
+
+  /// iOS systems run by the embedded libretro engine ("Embedded RetroArch",
+  /// Build 438): the Emulators tab shows the engine panel instead of the
+  /// RetroArch app row. Systems without an embedded core keep that row.
+  bool get _isLibretroEngine =>
+      _iosEmbeddedEngineName == null &&
+      LibretroInternalService.handlesSystemModel(_system);
+
+  /// Canonical catalog key of the system for the embedded engine.
+  String get _libretroSystemKey => LibretroInternalService.systemKey(_system);
+
+  /// Receives the controller's up/down/A while the engine panel is shown.
+  final GlobalKey<LibretroEngineSettingsPanelState> _libretroPanelKey =
+      GlobalKey<LibretroEngineSettingsPanelState>();
+
+  /// The engine panel when it is on screen, null otherwise.
+  LibretroEngineSettingsPanelState? get _libretroPanel =>
+      _currentTab == 1 && _isLibretroEngine
+      ? _libretroPanelKey.currentState
+      : null;
 
   // Focus nodes for arrow key navigation blocking
   late final FocusNode _headerCloseButtonFocusNode;

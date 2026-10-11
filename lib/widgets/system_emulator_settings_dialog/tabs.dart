@@ -613,6 +613,15 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
         ),
       );
     }
+    // Systems run by the embedded libretro engine: "Embedded RetroArch" in
+    // the same style, with the console's skins, the BIOS checker and the
+    // in-game settings reminder, instead of the RetroArch app row.
+    if (_isLibretroEngine) {
+      return LibretroEngineSettingsPanel(
+        key: _libretroPanelKey,
+        systemKey: _libretroSystemKey,
+      );
+    }
     return _buildCoresList();
   }
 

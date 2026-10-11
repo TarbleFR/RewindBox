@@ -19,7 +19,9 @@ import 'package:neostation/services/dolphin_internal_v2_service.dart';
 // DOLPHIN_ISOLATION_END: emulator_identity_imports
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/services/libretro_core_catalog.dart';
+import 'package:neostation/services/libretro_engine_choices.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
+import 'package:neostation/widgets/libretro_engine_panel.dart';
 
 /// Per-game emulator override tab for [GameSettingsDialog].
 ///
@@ -71,8 +73,10 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
   // DOLPHIN_ISOLATION_END: emulator_identity_gate
 
   // LIBRETRO_INTERNAL_BEGIN: core_choice
-  /// Systems run by the embedded libretro engine offer their bundled cores
-  /// and the RetroArch app; the choice is stored per game.
+  /// Systems run by the embedded libretro engine offer their bundled cores;
+  /// the choice is stored per game. The RetroArch app is no longer offered
+  /// (Build 438): a game already set to it keeps that earlier setting, shown
+  /// last, until a core is chosen (see [libretroEngineChoices]).
   bool get _isLibretroSystem =>
       LibretroInternalService.handlesSystem(_libretroSystemKey);
 
@@ -85,20 +89,17 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
   List<String> _libretroChoices = const <String>[];
   String? _libretroChoice;
 
+  /// The list is computed once per visit: after a game leaves the earlier
+  /// RetroArch setting, its row stays until the tab is reopened, so the
+  /// highlighted row does not jump and the change can be undone.
   Future<void> _loadLibretroChoices() async {
-    final cores = LibretroCoreCatalog.coresFor(_libretroSystemKey)
-        .map((core) => core.id)
-        .toList();
     final choice = await LibretroInternalService.coreChoiceFor(
       _libretroSystemKey,
       widget.game.romname,
     );
     if (!mounted) return;
     setState(() {
-      _libretroChoices = <String>[
-        ...cores,
-        LibretroInternalService.retroArchChoice,
-      ];
+      _libretroChoices = libretroEngineChoices(_libretroSystemKey, choice);
       _libretroChoice = choice;
     });
   }
@@ -148,6 +149,12 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Same identity as the other embedded engines; not a navigable row,
+          // so the row indices below still map one to one to the choices.
+          LibretroEngineIdentityTile(
+            systemKey: _libretroSystemKey,
+            active: _libretroChoice != LibretroInternalService.retroArchChoice,
+          ),
           Padding(
             padding: EdgeInsets.only(left: 4.r, bottom: 4.r),
             child: Text(

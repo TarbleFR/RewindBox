@@ -914,12 +914,12 @@ const Map<String, dynamic> appLocaleZhHant = {
       "已要求同步 MeloNX 的 Nintendo Switch 遊戲庫。匯出準備完成後，MeloNX 會自動返回 NeoStation。",
   AppLocale.iosMelonxUnavailable: "無法連線到 MeloNX。是否已安裝？",
   AppLocale.iosRetroarchStatusNeedsLink:
-      "連結 RetroArch 資料夾，讓 NeoStation 直接存取遊戲，無需複製。",
+      "選用。連結 RetroArch 應用程式的資料夾或任何存放遊戲的資料夾，NeoStation 會直接在原處讀取，無需複製。內建引擎主機不需要 RetroArch 應用程式。",
   AppLocale.iosRetroarchStatusNeedsSync:
-      "資料夾已連結。同步遊戲庫後，即可一鍵直接在 RetroArch 中啟動遊戲。",
-  AppLocale.iosRetroarchStatusSynced: "資料夾已連結且遊戲庫已同步——遊戲可直接在 RetroArch 中啟動。",
+      "資料夾已連結。內建引擎主機會在 NeoStation 中啟動。只有由 RetroArch 應用程式自行啟動的遊戲，才需要同步它的遊戲庫。",
+  AppLocale.iosRetroarchStatusSynced: "資料夾已連結，RetroArch 遊戲庫已同步。內建引擎主機在 NeoStation 中啟動，其他遊戲在 RetroArch 應用程式中開啟。",
   AppLocale.iosRetroarchLinkSuccess:
-      "資料夾已連結。NeoStation 會直接掃描此資料夾，無需複製。在此找到的遊戲將直接在 RetroArch 中啟動。",
+      "資料夾已連結。NeoStation 會直接在原處掃描，無需複製。",
   AppLocale.iosArmsx2StatusNeedsLink:
       "ARMSX2 與 RetroArch 使用相同的 ROM 資料夾。先連結共用 ROM 資料夾，再同步 ARMSX2 遊戲庫。",
   AppLocale.iosArmsx2StatusNeedsSync:

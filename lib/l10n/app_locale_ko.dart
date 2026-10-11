@@ -940,12 +940,12 @@ const Map<String, dynamic> appLocaleKo = {
   AppLocale.iosMelonxSyncRequested: "MeloNX Nintendo Switch 라이브러리 동기화를 요청했습니다. 내보내기가 준비되면 MeloNX가 자동으로 NeoStation으로 돌아옵니다.",
   AppLocale.iosMelonxUnavailable: "MeloNX에 연결할 수 없습니다. 설치되어 있나요?",
   AppLocale.iosRetroarchStatusNeedsLink:
-      "RetroArch 폴더를 연결하면 복사 없이 NeoStation에서 게임에 직접 접근할 수 있습니다.",
+      "선택 사항입니다. RetroArch 앱 폴더나 게임이 들어 있는 아무 폴더를 연결하면 NeoStation이 복사 없이 그 자리에서 읽습니다. 내장 엔진 콘솔에는 RetroArch 앱이 필요하지 않습니다.",
   AppLocale.iosRetroarchStatusNeedsSync:
-      "폴더가 연결되었습니다. 라이브러리를 동기화하면 한 번의 탭으로 RetroArch에서 게임을 바로 실행할 수 있습니다.",
+      "폴더가 연결되었습니다. 내장 엔진 콘솔은 NeoStation에서 실행됩니다. RetroArch 앱 라이브러리 동기화는 앱이 직접 실행하는 게임에만 필요합니다.",
   AppLocale.iosRetroarchStatusSynced:
-      "폴더와 라이브러리가 동기화되었습니다 — 게임이 RetroArch에서 바로 실행됩니다.",
-  AppLocale.iosRetroarchLinkSuccess: "폴더가 연결되었습니다. NeoStation이 복사 없이 해당 위치를 직접 스캔합니다. 여기서 찾은 게임은 RetroArch에서 바로 실행됩니다.",
+      "폴더가 연결되고 RetroArch 라이브러리가 동기화되었습니다. 내장 엔진 콘솔은 NeoStation에서 실행되고, 다른 게임은 RetroArch 앱에서 열립니다.",
+  AppLocale.iosRetroarchLinkSuccess: "폴더가 연결되었습니다. NeoStation이 복사 없이 해당 위치를 직접 스캔합니다.",
   AppLocale.iosArmsx2StatusNeedsLink: "ARMSX2는 RetroArch와 같은 ROM 폴더를 사용합니다. 공유 ROM 폴더를 연결한 뒤 ARMSX2 라이브러리를 동기화하세요.",
   AppLocale.iosArmsx2StatusNeedsSync:
       "공유 ROM 폴더가 연결되었습니다. ARMSX2를 동기화하여 PS2 라이브러리를 NeoStation으로 가져오세요.",

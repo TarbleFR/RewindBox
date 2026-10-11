@@ -23,6 +23,12 @@ void main() {
       AppLocale.iosRetroarchSyncTimedOut,
       AppLocale.iosRetroarchSyncEmpty,
       AppLocale.iosRetroarchSyncInvalid,
+      // RetroArch card of Settings › Folders, reworded in Build 438: the
+      // app is optional and embedded consoles start in NeoStation.
+      AppLocale.iosRetroarchStatusNeedsLink,
+      AppLocale.iosRetroarchStatusNeedsSync,
+      AppLocale.iosRetroarchStatusSynced,
+      AppLocale.iosRetroarchLinkSuccess,
     ]) {
       for (final catalog in catalogs) {
         expect(catalog[key], isNotEmpty, reason: key);
