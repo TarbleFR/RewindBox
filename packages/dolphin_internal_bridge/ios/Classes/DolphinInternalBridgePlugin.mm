@@ -8,6 +8,7 @@
 #import "DolphinPerformanceOverlay.h"
 #import "DolphinSessionLifecycle.h"
 #include "TouchController/DolphinPhoneShakeRouting.h"
+#include "TouchController/DolphinShakeAssignment.h"
 #import "DolphinRecordingController.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
@@ -225,6 +226,9 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   self.view = _metalView;
 
   self.touchOverlay = [[DOLTouchOverlay alloc] initWithWii:self.wii];
+  // Translated session labels (DolphinShakeLocale); GameCube has no Shake control.
+  self.touchOverlay.shakeAccessibilityLabel = self.labels[@"shakeTouchButton"];
+  self.touchOverlay.shakeAccessibilityHint = self.labels[@"shakeTouchHint"];
   self.touchOverlay.frame = self.view.bounds;
   self.touchOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   [self.view addSubview:self.touchOverlay];
@@ -1276,6 +1280,27 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         DolphinInternalBridgePlugin* bridge = weakSelf;
         if (!bridge) { completion(NO); return; }
         dispatch_async(bridge->_runtimeQueue, ^{
+          if (DOLIsShakeAssignmentRequest(request)) {
+            // Composite Shake row: three existing binding requests with rollback,
+            // run inline on this runtime queue (never dispatch_sync onto it).
+            BOOL assigned = NO;
+            @try {
+              assigned = !bridge.stopInProgress && bridge.dolphinController == owner &&
+                  DOLApplyShakeAssignmentRequestOnRuntime(request);
+            } @catch (NSException* exception) {
+              assigned = NO;
+            }
+            DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"menu.shake_assignment",
+                assigned ? @"Controller shake assigned to Shake X, Y and Z." :
+                    @"Controller shake assignment refused or failed; previous bindings restored.", nil);
+            dispatch_async(dispatch_get_main_queue(), ^{
+              if (!bridge.stopInProgress && bridge.dolphinController == owner) {
+                [owner markControllersChanged];
+                completion(assigned);
+              }
+            });
+            return;
+          }
           NSData* data = DOLSerializeMenuRequest(request);
           NSString* text = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
           BOOL success = NO;

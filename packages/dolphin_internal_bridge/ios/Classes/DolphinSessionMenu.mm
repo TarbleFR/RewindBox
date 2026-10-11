@@ -4,6 +4,7 @@
 #import "DolphinFramePacing.h"
 #include "DolphinPhoneShakeLabels.h"
 #include "TouchController/TCManagerInterface.h"
+#include "TouchController/DolphinShakeAssignment.h"
 #include "DOLTextureLabels.h"
 static NSString* const DOLPhoneShakeKey=@"NeoStation.Dolphin.PhoneShake.Enabled";
 static BOOL DOLPhoneShakeEnabled(void) {
@@ -30,6 +31,9 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 @property(nonatomic, copy) NSString* stateMessage;
 @property(nonatomic, copy) NSDictionary* recordingSnapshot;
 @property(nonatomic, copy) NSDictionary* cheatsSnapshot;
+// Wii game session, taken from the root page; GameCube sessions never show
+// the composite Shake row, whichever controller page is browsed.
+@property(nonatomic, assign) BOOL shakeSession;
 - (UINavigationBarAppearance*)modernNavigationAppearance;
 - (void)reloadCheats;
 @end
@@ -53,6 +57,44 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 - (NSString*)text:(NSString*)key {
   if ([key isEqual:@"downloadGecko"]) return NeoCheatText(@"downloadCatalogs",self.labels[@"__locale"]);
   return self.labels[key] ?: key;
+}
+
+// Controls page of a Wii game: section 1 is the composite Shake row, so the
+// per-control bindings move to section 2. Section 0 is unchanged.
+- (BOOL)showsShakeAssignment {
+  return self.page == DOLMenuControls && self.wii && self.shakeSession;
+}
+
+- (NSInteger)bindingsSection {
+  return [self showsShakeAssignment] ? 2 : 1;
+}
+
+- (BOOL)isShakeAssignmentSection:(NSInteger)section {
+  return [self showsShakeAssignment] && section == 1;
+}
+
+- (NSString*)shakeAssignmentDetail {
+  NSArray* controls = [self.snapshot[@"controls"] isKindOfClass:NSArray.class] ? self.snapshot[@"controls"] : @[];
+  std::string expressions[3];
+  int found = 0;
+  for (int axis = 0; axis < 3; ++axis) {
+    NSString* identifier = @(DolphinShakeAssignment::ControlId(axis));
+    for (id control in controls) {
+      if (![control isKindOfClass:NSDictionary.class] || ![control[@"id"] isEqual:identifier]) continue;
+      id expression = control[@"expression"];
+      if ([expression isKindOfClass:NSString.class] && [expression UTF8String]) {
+        expressions[axis] = [expression UTF8String];
+        ++found;
+      }
+      break;
+    }
+  }
+  if (found != 3) return nil;
+  const DolphinShakeAssignment::Summary summary = DolphinShakeAssignment::Summarize(
+      expressions[0], expressions[1], expressions[2], (int)self.slot);
+  if (summary.mixed) return [self text:@"shakeMixed"];
+  if (summary.input.empty()) return [self text:@"unassigned"];
+  return [NSString stringWithUTF8String:summary.input.c_str()];
 }
 
 - (NSString*)controlLabel:(NSString*)value {
@@ -328,6 +370,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   child.page = page;
   child.title = title;
   child.wii = self.wii;
+  child.shakeSession = self.page == DOLMenuRoot ? self.wii : self.shakeSession;
   child.gameTitle = self.gameTitle;
   child.stateActionsAvailable = self.stateActionsAvailable;
   child.slot = self.slot;
@@ -353,7 +396,8 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView*)tableView {
-  return self.page == DOLMenuControls ? 2 : 1;
+  if (self.page != DOLMenuControls) return 1;
+  return [self bindingsSection] + 1;
 }
 
 - (NSInteger)tableView:(UITableView*)tableView numberOfRowsInSection:(NSInteger)section {
@@ -371,14 +415,16 @@ static void DOLMenuOnMain(dispatch_block_t block) {
           [self.cheatsSnapshot[@"actionReplay"] count] : 0;
     case DOLMenuAchievements: return self.snapshot ? 3 : 0;
     case DOLMenuControls:
-      return section == 0 ? (self.wii ? 5 : 3) : [self.snapshot[@"controls"] count];
+      if (section == 0) return self.wii ? 5 : 3;
+      if ([self isShakeAssignmentSection:section]) return 1;
+      return [self.snapshot[@"controls"] count];
     case DOLMenuDevices: return [self.snapshot[@"devices"] count] + 1;
     default: return self.choices.count;
   }
 }
 
 - (NSString*)tableView:(UITableView*)tableView titleForHeaderInSection:(NSInteger)section {
-  if (self.page == DOLMenuControls && section == 1) return [self text:@"bindings"];
+  if (self.page == DOLMenuControls && section == [self bindingsSection]) return [self text:@"bindings"];
   return nil;
 }
 
@@ -409,7 +455,9 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   if (self.page == DOLMenuConsole) return [self text:@"languageHelp"];
   if (self.page == DOLMenuControls && section == 0 && self.wii)
     return DOLPhoneShakeText(@"help",self.labels[@"__locale"]);
-  if (self.page == DOLMenuControls && section == 1) return [self text:@"bindingsHelp"];
+  if (self.page == DOLMenuControls && [self isShakeAssignmentSection:section])
+    return [self text:@"shakeAssignHelp"];
+  if (self.page == DOLMenuControls && section == [self bindingsSection]) return [self text:@"bindingsHelp"];
   return nil;
 }
 
@@ -620,6 +668,15 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       cell.accessoryType = enabled && !failed ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
       return cell;
     }
+    if ([self isShakeAssignmentSection:indexPath.section]) {
+      // One controller button for Shake X, Y and Z (player 1 keeps touch/phone).
+      cell.textLabel.text = [self text:@"shakeAssign"];
+      cell.detailTextLabel.text = [self shakeAssignmentDetail];
+      cell.imageView.image = [UIImage systemImageNamed:@"hand.wave"];
+      cell.imageView.tintColor = UIColor.systemIndigoColor;
+      cell.accessibilityIdentifier = @"dolphinShakeAssignment";
+      return cell;
+    }
     if (indexPath.section == 0) {
       cell.textLabel.text = [self text:(self.wii ? @[@"controllerType", @"player", @"physicalController", @"extension"] : @[@"controllerType", @"player", @"physicalController"])[row]];
       if (row == 0) cell.detailTextLabel.text = self.wii ? [self text:@"wiimote"] : @"GameCube";
@@ -666,6 +723,12 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 }
 
 - (NSDictionary*)bindingRequest:(NSString*)expression {
+  if ([self.binding[@"id"] isEqual:DOLShakeAssignmentControlId()]) {
+    // The bridge writes the three axes itself; this id never reaches the donor.
+    if (![expression isKindOfClass:NSString.class]) return nil;
+    return @{@"kind": DOLShakeAssignmentKind(), @"expression": expression,
+             @"wii": @(self.wii), @"slot": @(self.slot)};
+  }
   return @{@"kind": @"binding", @"id": self.binding[@"id"], @"expression": expression,
            @"wii": @(self.wii), @"slot": @(self.slot)};
 }
@@ -829,7 +892,15 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     [tableView reloadData];
     return;
   }
-    if (indexPath.section == 1) {
+    if ([self isShakeAssignmentSection:indexPath.section]) {
+      if (!self.snapshot) return;
+      DolphinSessionMenu* child = [self child:DOLMenuDevices title:[self text:@"chooseInput"]];
+      child.binding = @{@"id": DOLShakeAssignmentControlId(), @"group": @"Shake", @"name": @"X/Y/Z"};
+      child.returnPage = self;
+      [self.navigationController pushViewController:child animated:YES];
+      return;
+    }
+    if (indexPath.section == [self bindingsSection]) {
       DolphinSessionMenu* child = [self child:DOLMenuDevices title:[self text:@"chooseInput"]];
       child.binding = self.snapshot[@"controls"][row];
       child.returnPage = self;

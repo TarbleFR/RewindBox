@@ -7,13 +7,23 @@ import GameController
   private var layoutName = ""
   @objc public var sessionInputActive = false { didSet { refreshPhoneShake() } }
   private var appActive = UIApplication.shared.applicationState == .active
+  // Phone and touch shakes press the same first Wii Remote inputs. One owner
+  // decides when the shake actually ends.
+  private let shakeInput: DolphinShakeInput
+  private let touchShake: DolphinTouchShakeHold
+  private var shakeButton: DolphinShakeButton?
   private lazy var phoneShake = DolphinPhoneShake(
     prepare: { TCManagerInterface.preparePhoneShakeRouting() },
-    unavailable: { TCManagerInterface.reportPhoneShakeSensorUnavailable() }) { pressed in
-    for button in DolphinPhoneShakePolicy.shakeButtons {
-      TCManagerInterface.setButtonStateFor(button,
-        controller: DolphinPhoneShakePolicy.touchPort, state: pressed)
-    }
+    unavailable: { TCManagerInterface.reportPhoneShakeSensorUnavailable() }) { [input = self.shakeInput] pressed in
+    if pressed { input.press(.phone) } else { input.release(.phone) }
+  }
+
+  /// Translated by the session labels (DolphinShakeLocale on the Dart side).
+  @objc public var shakeAccessibilityLabel: String? {
+    didSet { shakeButton?.accessibilityLabel = shakeAccessibilityLabel }
+  }
+  @objc public var shakeAccessibilityHint: String? {
+    didSet { shakeButton?.accessibilityHint = shakeAccessibilityHint }
   }
 
   public override var isHidden: Bool { didSet { refreshPhoneShake() } }
@@ -36,6 +46,8 @@ import GameController
       // The default device/profile can change while the sensor stays enabled.
       // Re-qualify phone shake inputs for the new profile before accepting one.
       phoneShake.stop()
+      // The game view also clears every touch input on a hot-plug.
+      touchShake.cancelled()
     }
     refreshPhoneShake()
   }
@@ -57,13 +69,59 @@ import GameController
       visible: window != nil && !isHidden, touchEnabled: isUserInteractionEnabled,
       appActive: appActive, physicalController: !GCController.controllers().isEmpty,
       enabled: enabled))
+    refreshTouchShake()
+  }
+
+  /// Touch Shake accepts a press only on the Wii Remote layout of a running,
+  /// visible, interactive session in the foreground.
+  private var touchShakeAvailable: Bool {
+    return wii && layoutName == "wii" && sessionInputActive && window != nil && !isHidden &&
+      isUserInteractionEnabled && appActive
+  }
+
+  private func refreshTouchShake() {
+    shakeButton?.isHidden = !(wii && layoutName == "wii")
+    if !sessionInputActive || !isUserInteractionEnabled || !appActive || window == nil {
+      // Pause (menu), background and game close: nothing may keep shaking.
+      // The phone owner was invalidated just before and cannot press again.
+      touchShake.cancelled()
+      shakeInput.releaseAll()
+    } else if !touchShakeAvailable {
+      touchShake.cancelled()
+    }
+  }
+
+  private func touchShakeBegan() -> Bool {
+    guard touchShakeAvailable else { return false }
+    touchShake.began()
+    return true
+  }
+
+  private static func emitShake(_ pressed: Bool) {
+    for button in DolphinPhoneShakePolicy.shakeButtons {
+      TCManagerInterface.setButtonStateFor(button,
+        controller: DolphinPhoneShakePolicy.touchPort, state: pressed)
+    }
   }
 
   @objc(initWithWii:) public init(wii: Bool) {
     self.wii = wii
+    let input = DolphinShakeInput(emit: DolphinTouchOverlay.emitShake)
+    shakeInput = input
+    touchShake = DolphinTouchShakeHold(input: input)
     super.init(frame: .zero)
     backgroundColor = .clear
     isMultipleTouchEnabled = true
+    if wii {
+      // GameCube never gets this control and never touches port 4.
+      let button = DolphinShakeButton(frame: CGRect(x: 0, y: 0,
+        width: DolphinShakeLayout.diameter, height: DolphinShakeLayout.diameter))
+      button.onBegan = { [weak self] in self?.touchShakeBegan() ?? false }
+      button.onEnded = { [weak self] in self?.touchShake.ended() }
+      button.onCancelled = { [weak self] in self?.touchShake.cancelled() }
+      addSubview(button)
+      shakeButton = button
+    }
     updateExtension("Nunchuk")
     for name in [UIApplication.willResignActiveNotification, UIApplication.didBecomeActiveNotification,
                  NSNotification.Name.GCControllerDidConnect, NSNotification.Name.GCControllerDidDisconnect,
@@ -75,12 +133,18 @@ import GameController
 
   public required init?(coder: NSCoder) { return nil }
 
-  deinit { phoneShake.stop(); NotificationCenter.default.removeObserver(self) }
+  deinit {
+    phoneShake.stop()
+    touchShake.cancelled()
+    shakeInput.releaseAll()
+    NotificationCenter.default.removeObserver(self)
+  }
 
   @objc public func updateExtension(_ name: String) {
     let wanted = !wii ? "gc" : name == "Classic" ? "classic" : "wii"
     guard wanted != layoutName else { return }
     phoneShake.stop()
+    touchShake.cancelled()
     layoutName = wanted
     pad?.removeFromSuperview()
     let view: TCView
@@ -91,9 +155,15 @@ import GameController
     view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     view.backgroundColor = .clear
     if let remote = view as? TCWiiPad { remote.setTouchIRMode(.follow) }
-    addSubview(view)
+    // The pad stays first and below the Shake control.
+    insertSubview(view, at: 0)
     pad = view
     refreshPhoneShake()
+    setNeedsLayout()
+  }
+
+  public override func safeAreaInsetsDidChange() {
+    super.safeAreaInsetsDidChange()
     setNeedsLayout()
   }
 
@@ -103,5 +173,29 @@ import GameController
     if let remote = pad as? TCWiiPad {
       remote.recalculatePointerValues(new_rect: bounds, game_aspect: 16.0 / 9.0)
     }
+    layoutShakeButton()
+  }
+
+  private func layoutShakeButton() {
+    guard let button = shakeButton, !button.isHidden, let pad = pad else { return }
+    pad.layoutIfNeeded()
+    var column: [CGRect] = []
+    var controls: [CGRect] = []
+    func visit(_ view: UIView) {
+      for child in view.subviews where !child.isHidden {
+        if let control = child as? TCButton {
+          let frame = control.convert(control.bounds, to: self)
+          controls.append(frame)
+          if DolphinShakeLayout.rightColumn.contains(control.controllerButton) { column.append(frame) }
+        } else if child is TCJoystick || child is TCDirectionalPad {
+          controls.append(child.convert(child.bounds, to: self))
+        } else {
+          visit(child)
+        }
+      }
+    }
+    visit(pad)
+    button.frame = DolphinShakeLayout.frame(column: column, obstacles: controls,
+                                            safe: bounds.inset(by: safeAreaInsets))
   }
 }

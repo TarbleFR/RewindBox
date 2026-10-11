@@ -12,7 +12,7 @@ jobs:
   test:
     if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +26,10 @@ jobs:
           python3 test/dolphin_phone_shake_test.py
           python3 test/dolphin_phone_shake_routing_test.py
           python3 test/dolphin_motion_localizations_test.py
+      - name: Execute touch Shake arbiter, hold timing, placement and Shake X/Y/Z assignment
+        run: |
+          python3 test/dolphin_touch_shake_test.py
+          python3 test/dolphin_shake_assignment_test.py
       - name: Type-check real CoreMotion and all production touch controls for iOS
         run: |
           set -euo pipefail
@@ -33,7 +37,22 @@ jobs:
           TOUCH=packages/dolphin_internal_bridge/ios/Classes/TouchController
           xcrun swiftc -typecheck -swift-version 5 -sdk "$SDK" -target arm64-apple-ios17.4 \
             -module-name dolphin_internal_bridge -import-objc-header "$TOUCH/TCManagerInterface.h" "$TOUCH/"*.swift
+          for source in "$TOUCH/DolphinShakeAssignment.mm" packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.mm; do
+            xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" \
+              -target arm64-apple-ios17.4 -Ipackages/dolphin_internal_bridge/ios/Classes "$source"
+          done
+      - name: Exercise the real Wii touch Shake control and Controls Shake row in the iOS Simulator
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          python3 test/dolphin_touch_shake_ui_test.py > /tmp/touch-shake.log 2>&1 || { tail -n 200 /tmp/touch-shake.log; exit 1; }
+          tail -n 40 /tmp/touch-shake.log
+      - name: Keep simulator diagnostics
+        if: failure()
+        run: |
+          mkdir -p build/dolphin-motion
+          cp /tmp/touch-shake.log build/dolphin-motion/ 2>/dev/null || true
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: Dolphin-Phone-Shake-Tests-${{ github.sha }}
           path: build/dolphin-motion/
