@@ -1,9 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart' show getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_http.dart';
 
 import 'library_catalog_import_fakes.dart';
+import 'library_local_fixtures.dart'
+    show FixtureZipEntry, buildEpub3, buildZip, containerXml, xhtml;
 
 LibraryAddon _catalogAddon({bool gallica = false}) =>
     LibraryAddon.fromManifest(<String, dynamic>{
@@ -172,5 +179,152 @@ void main() {
       throwsA(isA<LibraryAddonException>()),
     );
     expect(fetcher.calls, isEmpty);
+  });
+
+  group('EPUB text of remote and downloaded books', () {
+    const bookUrl = 'https://example.com/books/b1.epub';
+    final remoteBook = LibraryCatalogItem.fromJson(<String, dynamic>{
+      'id': 'b1',
+      'title': 'Book',
+      'readerUrl': 'books/b1.epub',
+    }, baseUri: Uri.parse('https://example.com/'));
+    late Directory downloads;
+
+    setUp(() async {
+      downloads = await Directory.systemTemp.createTemp('library_epub_text_');
+    });
+
+    tearDown(() async {
+      try {
+        await downloads.delete(recursive: true);
+      } catch (_) {}
+    });
+
+    Future<String> readDownloaded(Uint8List epub) async {
+      final file = File('${downloads.path}${Platform.pathSeparator}b1.epub');
+      await file.writeAsBytes(epub, flush: true);
+      return service.loadReadableFile(file.path);
+    }
+
+    /// EPUB whose spine lists [chapters] (name -> raw deflated entry).
+    Uint8List epubWith(List<FixtureZipEntry> chapters) {
+      final opf =
+          '''<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Big</dc:title></metadata>
+  <manifest>
+${[for (var i = 0; i < chapters.length; i++) '    <item id="c$i" href="${chapters[i].name.substring('OEBPS/'.length)}" media-type="application/xhtml+xml"/>'].join('\n')}
+  </manifest>
+  <spine>
+${[for (var i = 0; i < chapters.length; i++) '    <itemref idref="c$i"/>'].join('\n')}
+  </spine>
+</package>''';
+      return buildZip(<FixtureZipEntry>[
+        FixtureZipEntry.text(
+          'mimetype',
+          'application/epub+zip',
+          deflate: false,
+        ),
+        FixtureZipEntry.text('META-INF/container.xml', containerXml),
+        FixtureZipEntry.text('OEBPS/content.opf', opf),
+        ...chapters,
+      ]);
+    }
+
+    /// A chapter that really expands to [size] bytes (spaces compress to
+    /// almost nothing), with an honest declared size.
+    FixtureZipEntry expandingChapter(String name, int size) {
+      final data = Uint8List(size)..fillRange(0, size, 0x20);
+      final head = utf8.encode('<html><body><p>');
+      final tail = utf8.encode('end</p></body></html>');
+      data.setRange(0, head.length, head);
+      data.setRange(size - tail.length, size, tail);
+      return FixtureZipEntry(name, data);
+    }
+
+    Matcher tooLarge() => throwsA(
+      isA<LibraryAddonException>().having(
+        (e) => e.message,
+        'message',
+        'This EPUB is too large for the integrated text reader.',
+      ),
+    );
+
+    test('chapters are read in spine order, remote or downloaded', () async {
+      final epub = buildEpub3();
+      fetcher.routes[bookUrl] = FakeRoute.bytes(epub);
+
+      final remote = await service.loadReadableText(remoteBook);
+      final downloaded = await readDownloaded(epub);
+
+      for (final text in <String>[remote, downloaded]) {
+        expect(text.indexOf('Chapter One'), greaterThanOrEqualTo(0));
+        expect(
+          text.indexOf('Chapter Two'),
+          greaterThan(text.indexOf('Second para.')),
+        );
+        expect(text, isNot(contains('Contents')));
+      }
+      expect(fetcher.calls.single.request.cache, same(LibraryCachePolicy.none));
+    });
+
+    test('a symbolic link entry is never decompressed', () async {
+      // archive's ZipDecoder inflated every UNIX symlink entry while listing
+      // the archive, without any size limit: a damaged (or huge) one made
+      // the whole book unreadable.
+      final epub = markAsCorruptSymlink(
+        buildEpub3(
+          extra: <FixtureZipEntry>[
+            FixtureZipEntry.text('OEBPS/text/link', 'ch1.xhtml'),
+          ],
+        ),
+        'OEBPS/text/link',
+      );
+      fetcher.routes[bookUrl] = FakeRoute.bytes(epub);
+
+      expect(await service.loadReadableText(remoteBook), contains('Third'));
+      expect(await readDownloaded(epub), contains('Third'));
+    });
+
+    test(
+      'a chapter expanding beyond the per-document cap is refused',
+      () async {
+        final epub = epubWith(<FixtureZipEntry>[
+          FixtureZipEntry.text('OEBPS/one.xhtml', xhtml('<p>Small one.</p>')),
+          expandingChapter(
+            'OEBPS/two.xhtml',
+            LibraryCatalogService.maxEpubEntryBytes + 1024 * 1024,
+          ),
+        ]);
+        expect(epub.length, lessThan(256 * 1024));
+        fetcher.routes[bookUrl] = FakeRoute.bytes(epub);
+
+        await expectLater(service.loadReadableText(remoteBook), tooLarge());
+        await expectLater(readDownloaded(epub), tooLarge());
+      },
+    );
+
+    test('the chapters of one book are capped together', () async {
+      const chapterSize = 14 * 1024 * 1024;
+      final count = LibraryCatalogService.maxEpubTextBytes ~/ chapterSize + 1;
+      final template = expandingChapter('OEBPS/c.xhtml', chapterSize);
+      final payload = ZLibCodec(raw: true, level: 6).encode(template.data);
+      final crc = getCrc32(template.data);
+      final epub = epubWith(<FixtureZipEntry>[
+        for (var index = 0; index < count; index++)
+          FixtureZipEntry(
+            'OEBPS/c$index.xhtml',
+            const <int>[],
+            payload: payload,
+            crc: crc,
+            declaredSize: chapterSize,
+          ),
+      ]);
+      expect(epub.length, lessThan(512 * 1024));
+      fetcher.routes[bookUrl] = FakeRoute.bytes(epub);
+
+      await expectLater(service.loadReadableText(remoteBook), tooLarge());
+      await expectLater(readDownloaded(epub), tooLarge());
+    });
   });
 }

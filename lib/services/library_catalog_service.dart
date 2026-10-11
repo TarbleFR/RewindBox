@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as path;
 import 'package:xml/xml.dart';
 
 import 'library_addon_service.dart';
+import 'library_book_formats.dart'
+    show LibraryBookLimits, LibraryZipArchive, LibraryZipEntry;
 import 'library_http.dart';
+import 'library_local_models.dart' show LibraryBookException, LibraryBookIssue;
 
 enum LibraryMediaType { book, manga, novel, comic, anime, unknown }
 
@@ -237,6 +240,19 @@ class LibraryCatalogService {
   static const int _maxCatalogBytes = 12 * 1024 * 1024;
   static const int _maxReaderBytes = 32 * 1024 * 1024;
 
+  /// Decompressed size allowed for one EPUB content document.
+  static const int maxEpubEntryBytes = 16 * 1024 * 1024;
+
+  /// Decompressed size allowed for all the content documents read from one
+  /// EPUB (a ZIP entry can expand about 1000 times).
+  static const int maxEpubTextBytes = LibraryBookLimits.maxTextBytes;
+
+  /// Most content documents read from one EPUB.
+  static const int _maxEpubSections = 400;
+
+  static const String _epubTooLarge =
+      'This EPUB is too large for the integrated text reader.';
+
   final LibraryFetcher _fetcher;
 
   // Resolved at call time so that creating the service never touches
@@ -389,11 +405,11 @@ class LibraryCatalogService {
         'Downloaded Library file no longer exists.',
       );
     }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
+    final length = await file.length();
+    if (length == 0) {
       throw const LibraryAddonException('Downloaded Library file is empty.');
     }
-    if (bytes.length > _maxReaderBytes) {
+    if (length > _maxReaderBytes) {
       throw const LibraryAddonException(
         'This downloaded item is too large for the integrated text reader.',
       );
@@ -401,8 +417,9 @@ class LibraryCatalogService {
 
     final extension = path.extension(file.path).toLowerCase();
     if (extension == '.epub') {
-      return _decodeEpubText(bytes);
+      return _epubTextOfFile(file.path);
     }
+    final bytes = await file.readAsBytes();
     if (extension == '.txt' ||
         extension == '.md' ||
         extension == '.html' ||
@@ -512,50 +529,131 @@ class LibraryCatalogService {
       accept: 'application/epub+zip, application/octet-stream',
       cancel: cancel,
     );
-    return _decodeEpubText(response.bodyBytes);
+    return _epubTextOfBytes(response.bodyBytes);
   }
 
-  static String _decodeEpubText(List<int> bytes) {
-    Archive archive;
+  /// Text of an EPUB held in memory (a remote book). The bytes are written
+  /// to a temporary file so the bounded, lazy ZIP reader of the local
+  /// library can read them in a worker isolate.
+  static Future<String> _epubTextOfBytes(List<int> bytes) async {
+    final Directory directory;
     try {
-      archive = ZipDecoder().decodeBytes(bytes);
-    } catch (_) {
+      directory = await Directory.systemTemp.createTemp('neostation_epub_');
+    } on FileSystemException {
       throw const LibraryAddonException('Unable to open this EPUB.');
     }
-
-    final files = <String, ArchiveFile>{};
-    for (final file in archive) {
-      if (!file.isFile) continue;
-      files[_normalizeArchivePath(file.name)] = file;
-    }
-
-    final readingOrder = _epubReadingOrder(files);
-    if (readingOrder.isEmpty) {
-      throw const LibraryAddonException(
-        'The EPUB contains no readable XHTML/HTML pages.',
-      );
-    }
-
-    final sections = <String>[];
-    for (final file in readingOrder.take(400)) {
+    try {
+      final file = File(path.join(directory.path, 'book.epub'));
+      await file.writeAsBytes(bytes);
+      return await _epubTextOfFile(file.path);
+    } on FileSystemException {
+      throw const LibraryAddonException('Unable to open this EPUB.');
+    } finally {
       try {
-        final content = file.content as List<int>;
-        final markup = utf8.decode(content, allowMalformed: true);
-        final text = _markupToText(markup);
-        if (text.isNotEmpty) sections.add(text);
+        await directory.delete(recursive: true);
       } catch (_) {
-        // Skip one corrupt chapter and keep the rest of the book readable.
+        // The system clears its temporary directory.
       }
     }
-
-    final result = sections.join('\n\n').trim();
-    if (result.isEmpty) {
-      throw const LibraryAddonException('The EPUB contains no readable text.');
-    }
-    return result;
   }
 
-  static List<ArchiveFile> _epubReadingOrder(Map<String, ArchiveFile> files) {
+  /// Extracts the text of the EPUB at [filePath] in a worker isolate, so
+  /// neither decompression nor XHTML parsing runs on the UI isolate.
+  static Future<String> _epubTextOfFile(String filePath) async {
+    final (text, error) = await Isolate.run(() => _epubTextInWorker(filePath));
+    if (text == null) {
+      throw LibraryAddonException(error ?? 'Unable to open this EPUB.');
+    }
+    return text;
+  }
+
+  /// Runs in the worker isolate: returns the text, or the technical message
+  /// of the failure (exceptions are not sent between isolates).
+  static (String?, String?) _epubTextInWorker(String filePath) {
+    try {
+      return (_epubText(filePath), null);
+    } on LibraryAddonException catch (error) {
+      return (null, error.message);
+    } catch (_) {
+      return (null, 'Unable to open this EPUB.');
+    }
+  }
+
+  /// Reads the spine documents of the EPUB at [filePath] through
+  /// [LibraryZipArchive]: only the central directory is listed (symbolic
+  /// links and directories are never decompressed), every entry is inflated
+  /// at most to its declared size, a content document may expand to
+  /// [maxEpubEntryBytes] and all of them together to [maxEpubTextBytes].
+  static String _epubText(String filePath) {
+    final LibraryZipArchive zip;
+    try {
+      zip = LibraryZipArchive.open(filePath);
+    } on LibraryBookException {
+      throw const LibraryAddonException('Unable to open this EPUB.');
+    }
+    try {
+      final files = <String, LibraryZipEntry>{};
+      for (final entry in zip.entries) {
+        if (!entry.isFile) continue;
+        files[_normalizeArchivePath(entry.name)] = entry;
+      }
+
+      final readingOrder = _epubReadingOrder(
+        files,
+        (entry) =>
+            zip.read(entry, maxBytes: LibraryBookLimits.maxMetadataBytes),
+      ).take(_maxEpubSections).toList();
+      if (readingOrder.isEmpty) {
+        throw const LibraryAddonException(
+          'The EPUB contains no readable XHTML/HTML pages.',
+        );
+      }
+      // The declared sizes bound the inflation (an entry never expands
+      // beyond its own), so a bomb is refused before anything is inflated.
+      var declared = 0;
+      for (final entry in readingOrder) {
+        if (entry.uncompressedSize > maxEpubEntryBytes) {
+          throw const LibraryAddonException(_epubTooLarge);
+        }
+        declared += entry.uncompressedSize;
+      }
+      if (declared > maxEpubTextBytes) {
+        throw const LibraryAddonException(_epubTooLarge);
+      }
+
+      final sections = <String>[];
+      for (final entry in readingOrder) {
+        try {
+          final content = zip.read(entry, maxBytes: maxEpubEntryBytes);
+          final markup = utf8.decode(content, allowMalformed: true);
+          final text = _markupToText(markup);
+          if (text.isNotEmpty) sections.add(text);
+        } on LibraryBookException catch (error) {
+          if (error.issue == LibraryBookIssue.tooLarge) {
+            throw const LibraryAddonException(_epubTooLarge);
+          }
+          // Skip one corrupt chapter and keep the rest of the book readable.
+        } catch (_) {
+          // Same for a chapter whose markup cannot be read.
+        }
+      }
+
+      final result = sections.join('\n\n').trim();
+      if (result.isEmpty) {
+        throw const LibraryAddonException(
+          'The EPUB contains no readable text.',
+        );
+      }
+      return result;
+    } finally {
+      zip.close();
+    }
+  }
+
+  static List<LibraryZipEntry> _epubReadingOrder(
+    Map<String, LibraryZipEntry> files,
+    List<int> Function(LibraryZipEntry entry) readMetadata,
+  ) {
     final fallback = files.entries.where((entry) {
       final name = entry.key.toLowerCase();
       return name.endsWith('.xhtml') ||
@@ -569,7 +667,7 @@ class LibraryCatalogService {
         return fallback.map((entry) => entry.value).toList();
       }
       final containerXml = utf8.decode(
-        containerFile.content as List<int>,
+        readMetadata(containerFile),
         allowMalformed: true,
       );
       final container = XmlDocument.parse(containerXml);
@@ -588,10 +686,7 @@ class LibraryCatalogService {
         return fallback.map((entry) => entry.value).toList();
       }
 
-      final opfXml = utf8.decode(
-        opfFile.content as List<int>,
-        allowMalformed: true,
-      );
+      final opfXml = utf8.decode(readMetadata(opfFile), allowMalformed: true);
       final opf = XmlDocument.parse(opfXml);
       final manifest = <String, String>{};
       for (final item in opf.descendants.whereType<XmlElement>().where(
@@ -610,7 +705,7 @@ class LibraryCatalogService {
       }
 
       final baseDir = path.posix.dirname(normalizedOpfPath);
-      final ordered = <ArchiveFile>[];
+      final ordered = <LibraryZipEntry>[];
       final seen = <String>{};
       for (final itemRef in opf.descendants.whereType<XmlElement>().where(
         (element) => element.name.local == 'itemref',
