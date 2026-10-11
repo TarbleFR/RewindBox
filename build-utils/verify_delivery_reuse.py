@@ -674,6 +674,7 @@ BUILD437_DELTA = {
     'test/library_reader_orientation_test.dart',
     'test/library_reader_page_test.dart',
     'test/library_reader_test_support.dart',
+    'test/library_reading_store_notify_test.dart',
     'test/library_ui_details_progressive_test.dart',
     'test/library_ui_details_screen_test.dart',
     'test/library_ui_hub_favorites_test.dart',
