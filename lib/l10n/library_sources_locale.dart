@@ -344,6 +344,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "Nothing is saved for this title on this device.",
       'openFailed': "The chapter could not be opened.",
       'refreshFailed': "The title could not be updated.",
+      'resumeReload': "Reload to continue reading",
     },
     'fr': <String, String>{
       'title': "Sources et catalogues",
@@ -568,6 +569,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "Rien n’est enregistré pour ce titre sur cet appareil.",
       'openFailed': "Le chapitre n’a pas pu être ouvert.",
       'refreshFailed': "Le titre n’a pas pu être mis à jour.",
+      'resumeReload': "Recharger pour reprendre la lecture",
     },
     'es': <String, String>{
       'title': "Fuentes y catálogos",
@@ -794,6 +796,7 @@ abstract final class LibrarySourcesLocale {
           "No hay nada guardado para este título en este dispositivo.",
       'openFailed': "No se pudo abrir el capítulo.",
       'refreshFailed': "No se pudo actualizar el título.",
+      'resumeReload': "Recargar para seguir leyendo",
     },
     'pt': <String, String>{
       'title': "Fontes e catálogos",
@@ -1016,6 +1019,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "Nada está salvo para este título neste dispositivo.",
       'openFailed': "Não foi possível abrir o capítulo.",
       'refreshFailed': "Não foi possível atualizar o título.",
+      'resumeReload': "Recarregar para continuar lendo",
     },
     'de': <String, String>{
       'title': "Quellen und Kataloge",
@@ -1243,6 +1247,7 @@ abstract final class LibrarySourcesLocale {
           "Für diesen Titel ist auf diesem Gerät nichts gespeichert.",
       'openFailed': "Das Kapitel konnte nicht geöffnet werden.",
       'refreshFailed': "Der Titel konnte nicht aktualisiert werden.",
+      'resumeReload': "Neu laden, um weiterzulesen",
     },
     'it': <String, String>{
       'title': "Fonti e cataloghi",
@@ -1467,6 +1472,7 @@ abstract final class LibrarySourcesLocale {
           "Non c’è nulla di salvato per questo titolo su questo dispositivo.",
       'openFailed': "Impossibile aprire il capitolo.",
       'refreshFailed': "Impossibile aggiornare il titolo.",
+      'resumeReload': "Ricarica per continuare a leggere",
     },
     'id': <String, String>{
       'title': "Sumber dan katalog",
@@ -1687,6 +1693,7 @@ abstract final class LibrarySourcesLocale {
           "Belum ada data tersimpan untuk judul ini di perangkat ini.",
       'openFailed': "Bab tidak dapat dibuka.",
       'refreshFailed': "Judul tidak dapat diperbarui.",
+      'resumeReload': "Muat ulang untuk lanjut membaca",
     },
     'ru': <String, String>{
       'title': "Источники и каталоги",
@@ -1904,6 +1911,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "Для этого тайтла на устройстве ничего не сохранено.",
       'openFailed': "Не удалось открыть главу.",
       'refreshFailed': "Не удалось обновить тайтл.",
+      'resumeReload': "Обновить, чтобы продолжить чтение",
     },
     'ja': <String, String>{
       'title': "ソースとカタログ",
@@ -2105,6 +2113,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "このデバイスにはこの作品の保存データがありません。",
       'openFailed': "チャプターを開けませんでした。",
       'refreshFailed': "作品を更新できませんでした。",
+      'resumeReload': "再読み込みして続きを読む",
     },
     'ko': <String, String>{
       'title': "소스 및 카탈로그",
@@ -2306,6 +2315,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "이 기기에 이 작품에 대해 저장된 내용이 없습니다.",
       'openFailed': "챕터를 열 수 없습니다.",
       'refreshFailed': "작품을 업데이트할 수 없습니다.",
+      'resumeReload': "다시 불러와 이어 읽기",
     },
     'zh': <String, String>{
       'title': "来源与目录",
@@ -2502,6 +2512,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "此设备上还没有保存此作品的任何内容。",
       'openFailed': "无法打开该章节。",
       'refreshFailed': "无法更新此作品。",
+      'resumeReload': "重新加载以继续阅读",
     },
     'zh_Hant': <String, String>{
       'title': "來源與目錄",
@@ -2699,6 +2710,7 @@ abstract final class LibrarySourcesLocale {
       'nothingSaved': "這部裝置上還沒有儲存這部作品的任何內容。",
       'openFailed': "無法開啟這個章節。",
       'refreshFailed': "無法更新這部作品。",
+      'resumeReload': "重新載入以繼續閱讀",
     },
   };
 

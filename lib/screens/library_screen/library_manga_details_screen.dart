@@ -153,6 +153,80 @@ class LibraryMangaDetailsScreen extends StatefulWidget {
     );
   }
 
+  /// [details] with another chapter list.
+  static LibraryMangaDetails _withChapters(
+    LibraryMangaDetails details,
+    List<LibraryMangaChapter> chapters, {
+    required bool complete,
+  }) => LibraryMangaDetails(
+    item: details.item,
+    fetchedAt: details.fetchedAt,
+    author: details.author,
+    artist: details.artist,
+    status: details.status,
+    genres: details.genres,
+    readingMode: details.readingMode,
+    contentRating: details.contentRating,
+    chapters: chapters,
+    alternativeTitles: details.alternativeTitles,
+    typeLabel: details.typeLabel,
+    chaptersComplete: complete,
+    fromCache: details.fromCache,
+    stale: details.stale,
+  );
+
+  /// What one result of a load puts on screen. A complete result replaces
+  /// everything. A partial one (LelscanFR serves its chapter list page by
+  /// page, and a list page can fail) updates the title fields but never
+  /// removes a chapter of the list that was on screen when the load
+  /// started: its chapters are merged into that list, so a refresh of a
+  /// 546-chapter title does not shrink to the first list page, lose the
+  /// scroll position, or keep a hole where a list page failed.
+  @visibleForTesting
+  static LibraryMangaDetails keepShownChapters(
+    LibraryMangaDetails details,
+    LibraryMangaDetails? shown,
+  ) {
+    if (details.chaptersComplete || shown == null || shown.chapters.isEmpty) {
+      return details;
+    }
+    return _withChapters(
+      details,
+      mergeChapters(details.chapters, shown.chapters),
+      complete: shown.chaptersComplete,
+    );
+  }
+
+  /// [fresh] (site order, newest first) plus every chapter of [previous]
+  /// it lacks, each placed after the chapter that preceded it in
+  /// [previous]: chapters missing at the end of a partial list stay at the
+  /// end, those of a failed middle page stay in the middle, and new
+  /// chapters at the top of [fresh] stay first.
+  @visibleForTesting
+  static List<LibraryMangaChapter> mergeChapters(
+    List<LibraryMangaChapter> fresh,
+    List<LibraryMangaChapter> previous,
+  ) {
+    final freshIds = <String>{for (final chapter in fresh) chapter.id};
+    final after = <String?, List<LibraryMangaChapter>>{};
+    String? anchor;
+    for (final chapter in previous) {
+      if (freshIds.contains(chapter.id)) {
+        anchor = chapter.id;
+      } else {
+        (after[anchor] ??= <LibraryMangaChapter>[]).add(chapter);
+      }
+    }
+    if (after.isEmpty) return fresh;
+    return List<LibraryMangaChapter>.unmodifiable(<LibraryMangaChapter>[
+      ...?after[null],
+      for (final chapter in fresh) ...<LibraryMangaChapter>[
+        chapter,
+        ...?after[chapter.id],
+      ],
+    ]);
+  }
+
   @override
   State<LibraryMangaDetailsScreen> createState() =>
       _LibraryMangaDetailsScreenState();
@@ -353,15 +427,23 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
       _refreshError = null;
       if (_details == null) _error = null;
     });
+    // The list on screen when this load starts (saved copy or previous
+    // load): partial results are merged into it, see
+    // [LibraryMangaDetailsScreen.keepShownChapters].
+    final shown = _details;
+    LibraryMangaDetails? last;
     _subscription = _aidoku
         .watchManga(addon, widget.item, mode: mode, cancel: token)
         .listen(
           (details) {
             if (!mounted || token.isCancelled) return;
+            last = details;
             setState(() {
-              _apply(details);
+              _apply(
+                LibraryMangaDetailsScreen.keepShownChapters(details, shown),
+              );
               _loading = false;
-              _loadingMore = !details.chaptersComplete;
+              _loadingMore = !_details!.chaptersComplete;
             });
           },
           onError: (Object error) {
@@ -377,6 +459,22 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
           onDone: () {
             if (mounted && !token.isCancelled) {
               setState(() {
+                final result = last;
+                final current = _details;
+                // The load ended with a list page missing: the merged list
+                // kept the earlier chapters, but it may lack new ones.
+                if (result != null &&
+                    !result.chaptersComplete &&
+                    current != null &&
+                    current.chaptersComplete) {
+                  _apply(
+                    LibraryMangaDetailsScreen._withChapters(
+                      current,
+                      current.chapters,
+                      complete: false,
+                    ),
+                  );
+                }
                 _loading = false;
                 _refreshing = false;
                 _loadingMore = false;
@@ -523,40 +621,75 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
       _details?.chaptersComplete == false &&
       (_loadingMore || _refreshing || _loading);
 
-  /// Resume target: the saved chapter and page, else the first chapter.
-  /// Null while the list is partial and still loading and the saved
-  /// chapter is not in it yet: the oldest chapter on screen is then not the
-  /// first one of the title.
-  ({LibraryMangaChapter chapter, int? startPage, String label})? _resume() {
+  String _continueLabel(LibraryMangaChapter chapter, int page) {
+    if (chapter.isVolume) {
+      return _f('continueVolume', <String, Object?>{
+        'volume': LibraryMangaChapter.formatNumber(chapter.volume!),
+        'page': page,
+      });
+    }
+    if (chapter.number != null) {
+      return _f('continueChapter', <String, Object?>{
+        'chapter': LibraryMangaChapter.formatNumber(chapter.number!),
+        'page': page,
+      });
+    }
+    return _f('continueTitle', <String, Object?>{
+      'title': chapter.displayTitle,
+      'page': page,
+    });
+  }
+
+  /// Resume target: the saved chapter and page; the next chapter when the
+  /// saved one was finished (the reader would otherwise reopen its last
+  /// page); else the first chapter. A null chapter means "reload the list"
+  /// (the button then refreshes): the saved chapter is missing from a list
+  /// that could not be loaded completely, and opening another chapter
+  /// would replace the saved position. Null while the list is partial and
+  /// still loading and the saved chapter is not in it yet: the oldest
+  /// chapter on screen is then not the first one of the title.
+  ({LibraryMangaChapter? chapter, int? startPage, String label})? _resume() {
     if (_ascending.isEmpty) return null;
     final progress = _store.progressFor(_onlineKey);
     final chapterId = progress?.chapterId;
     if (progress != null && chapterId != null) {
-      for (final chapter in _ascending) {
-        if (chapter.id != chapterId) continue;
+      final index = _ascending.indexWhere((chapter) => chapter.id == chapterId);
+      if (index >= 0) {
+        final chapter = _ascending[index];
         final pageIndex = progress.pageIndex ?? progress.locationPage ?? 0;
-        final page = pageIndex + 1;
-        final String label;
-        if (chapter.isVolume) {
-          label = _f('continueVolume', <String, Object?>{
-            'volume': LibraryMangaChapter.formatNumber(chapter.volume!),
-            'page': page,
-          });
-        } else if (chapter.number != null) {
-          label = _f('continueChapter', <String, Object?>{
-            'chapter': LibraryMangaChapter.formatNumber(chapter.number!),
-            'page': page,
-          });
-        } else {
-          label = _f('continueTitle', <String, Object?>{
-            'title': chapter.displayTitle,
-            'page': page,
-          });
+        final marks = _store.chapterMarks(_onlineKey);
+        final mark = marks[chapterId];
+        final count = progress.pageCount ?? mark?.pageCount;
+        final finished =
+            mark?.read == true && (count == null || pageIndex >= count - 1);
+        if (finished && index + 1 < _ascending.length) {
+          // Same rule as the reader for the chapter it opens with no page
+          // given: its saved page, unless that chapter was finished too.
+          final next = _ascending[index + 1];
+          final nextMark = marks[next.id];
+          var nextPage = nextMark?.page ?? 0;
+          final nextCount = nextMark?.pageCount;
+          if (nextMark?.read == true &&
+              (nextCount == null || nextPage >= nextCount - 1)) {
+            nextPage = 0;
+          }
+          return (
+            chapter: next,
+            startPage: null,
+            label: _continueLabel(next, nextPage + 1),
+          );
         }
-        return (chapter: chapter, startPage: pageIndex, label: label);
+        return (
+          chapter: chapter,
+          startPage: pageIndex,
+          label: _continueLabel(chapter, pageIndex + 1),
+        );
       }
     }
     if (_chaptersPending) return null;
+    if (chapterId != null && _active && _details?.chaptersComplete == false) {
+      return (chapter: null, startPage: null, label: _t('resumeReload'));
+    }
     return (
       chapter: _ascending.first,
       startPage: null,
@@ -739,8 +872,10 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen> {
               key: const ValueKey<String>('resume-button'),
               onPressed: resume == null || !_active
                   ? null
+                  : resume.chapter == null
+                  ? (_refreshing || _loading ? null : _refresh)
                   : () => _openChapter(
-                      resume.chapter,
+                      resume.chapter!,
                       startPage: resume.startPage,
                     ),
               icon: const Icon(Icons.menu_book),
