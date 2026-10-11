@@ -139,8 +139,8 @@
     "rpcs3/ios/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
     "rpcs3/ios/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
     "rpcs3/ios/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
-    "rpcs3/ios/NeoSwapRelay.h": "c1d727c589dded13993f979ce33683df45728a92d387ee7e2a0533f7dfcf1ecd",
-    "rpcs3/ios/NeoSwapRelayClient.h": "e095c8efef2ff4cf69afa3aaf3ceee90c615b131b2d4355df12e18d7ff27cce8",
+    "rpcs3/ios/NeoSwapRelay.h": "08d2632221a714a434cde3e5e0ad3efe178236ac15b85f9374cf1aa45e6d907e",
+    "rpcs3/ios/NeoSwapRelayClient.h": "2533338d128bae47549019b8d56f595591c24af924a62d63dd2ee223d63d9f32",
     "rpcs3/ios/NeoSwapStorage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
     "rpcs3/ios/NeoSwapStorage/FrameClient.h": "37064b3a8845e7b31fd287d2165d97a47dc1b955c465fc5fb4e99b70abf12da3",
     "rpcs3/ios/NeoSwapStorage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
@@ -150,9 +150,9 @@
     "rpcs3/ios/NeoSwapStorage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
     "rpcs3/ios/NeoSwapStorage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140",
     "rpcs3/ios/NeoSwapVulkanBuffer.h": "721d0f983eb1c482c638213dbf05ce70541f50584f65056f713266aa4d86a5a7",
-    "rpcs3/ios/RPCS3IOS.cpp": "56dae9db556ec043b0aeb656e0e2a0e4e8f91ff4c2b9a39f472bd157fe6403b9",
-    "rpcs3/ios/RPCS3IOS.exports": "59b8e924659e6391fb215a3fb499a6b174267ab9a98c3a489b7becc463e1be62",
-    "rpcs3/ios/RPCS3IOS.h": "2de3446d20494b821e15c90fec17460fc46d48dfe6077fcd861bbc19a19ba140",
+    "rpcs3/ios/RPCS3IOS.cpp": "bb72fee5f11e017c4bb8005ab518f79ad38b589f5abf93ca8f4332ce10664fd9",
+    "rpcs3/ios/RPCS3IOS.exports": "890899a7f1d9483da34969f48cb5aad6ad3db719cbe47cada3c22cd4abe1f1b3",
+    "rpcs3/ios/RPCS3IOS.h": "72546b7aadec136d3f6b57bd544fe802fdd2201f20238d362ed41abbb316d9f6",
     "rpcs3/ios/RPCS3IOSContract.h": "db4e45fb3044f10a9f026e89cb8bfff65ea5a2ebd88c2b0a03c83001cdbd26cf",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "a59994cc0afe0994e44141f11537b4971e4840b58e92228766e0ff7aaccbe378",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "c75400cd39f0c1dc37dc0a9e53fb05829bc84f8f9a01b1469e9f5f0a010f5b25",
@@ -218,8 +218,8 @@
     "rpcs3/util/vm.hpp": "ac58df153ca5e9b1e9f69511879035493338265ee2de96656072ab777a07ecbc",
     "rpcs3/util/vm_native.cpp": "2c8c9547fc4ae1b6c7d2b39d19475c64b6922d4ac21b193cbded859fc2796a8c"
   },
-  "patch_sha256": "82690d3d19c0ce7a631709f9e798603f94a65505724198d7674f26f162c8efe4",
-  "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import.",
+  "patch_sha256": "1bd59add61f51b7188b0d02a14903230e8915e606da1c62230c210114ce6e1d6",
+  "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import. Build441: optional prepared guest relay ABI 1 permits new eligible shared-memory objects during gameplay by borrowing host-prepared exact-size tokens only; no slow create during gameplay, no migration of published or FILE backing, unchanged alias and retirement semantics, four inline alias records, optional process-lifetime client metrics; no iPhone gameplay validation.",
   "schema_version": 2,
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "upstream_repository": "XITRIX/rpcs3",
@@ -325,7 +325,7 @@
     "request_flag": "NEOSWAP_REQUEST_FAST",
     "scope": "ready-only host loans with try-lock admission and ordinary allocator fallback",
     "slow_prepare": "existing maintenance queue",
-    "guest_gameplay": "new unpublished backing uses original RPCS3 mapping; published aliases retain coherent backing",
+    "guest_gameplay": "New eligible guest backing borrows an exact-size host-prepared token through separate ABI 1, or permanently uses original RPCS3 mapping before first publication; published aliases retain coherent backing. Final Relay map still takes the host lock and enters the kernel.",
     "deferred_release": "loans remain owned and charged until maintenance completes retirement",
     "device_tested": false
   },
@@ -361,5 +361,21 @@
       "fd130035396959514675b88ac1f9422fbf7c2faf": "Legacy shader compiler retirement; per-title configuration migration"
     },
     "device_runtime_tested": false
+  },
+  "neoswap_prepared_guest_relay": {
+    "abi": 1,
+    "client_stats_abi": 1,
+    "minimum_bytes": 65536,
+    "maximum_bytes": 16777216,
+    "scope": "new unpublished guest-data shared-memory objects only; no executable, COW or FILE migration",
+    "prepare": "host utility maintenance, outside RPCS3 VM/range locks",
+    "acquire": "bounded exact-size metadata try-lock; no create, OS sampling, map, scrub or allocation",
+    "first_map": "unchanged RelayAPI.map still uses the backend mutex and kernel; client metric excludes outer lock wait and subsequent ordinary FILE mapping",
+    "unused_return": "ownership transfer without locks or OS calls; only never-published prepared tokens",
+    "aliases": "four inline client records; further aliases retain fallible pre-map metadata allocation",
+    "main_core_abi": 30,
+    "relay_api_abi": 1,
+    "device_runtime_tested": false,
+    "gameplay_validated": false
   }
 }

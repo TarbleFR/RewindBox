@@ -51,6 +51,11 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Lecteurs de la Bibliothèque : un retour en un geste, toujours accessible (bouton flottant quand les barres sont masquées). Voir `docs/library-reader-back-button-build440.md`.
 - Sources de la Bibliothèque : chaque source installée a un fichier dans Fichiers › NeoStation › Library › Sources, et supprimer ce fichier retire la source. Consigne du mainteneur : les gens doivent trouver ce dossier par eux-mêmes. Ne jamais ajouter dans l’app de bouton, lien, chemin, aide ou message vers ce dossier, ni le mentionner dans le README. Voir `docs/library-source-files-build440.md`.
 
+## Décision du mainteneur — Build 441, 11 octobre 2026
+
+- Après l'audit NeoSwap, le mainteneur demande l'implémentation et la production du Build 441 sur `Claude`, limitée à RPCS3 et NeoSwap, en conservant les ajouts 440. Les demandes antérieures « audit seulement » et « pas d'IPA » sont remplacées par cette autorisation explicite. Voir `docs/neoswap-build441.md`.
+- Ouvrir les nouvelles allocations invitées pendant le jeu via un stock préparé, partager le budget selon les demandes, et distinguer préparé/attribué/footprint. Aucun transfert des objets FILE déjà publiés ni réactivation de la compilation SPU différée.
+
 ## Précision du mainteneur — 9 octobre 2026, 13 h
 
 - L'état fonctionnel confirmé est NeoStation Build 422 : bibliothèque visible et lancement RetroArch lorsque l'application externe reste en arrière-plan. Conserver ces sources de lancement/synchronisation ; ne pas prendre le récepteur autonome 781 pour une mise à jour NeoStation.

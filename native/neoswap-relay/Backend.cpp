@@ -3,6 +3,7 @@
 #include "Backend.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bitset>
 #include <cerrno>
 #include <limits>
@@ -21,6 +22,11 @@
 namespace neostation::relay {
 namespace {
 constexpr std::uint64_t alignment = NEOSWAP_RELAY_ALIGNMENT;
+constexpr std::uint64_t prepared_maximum_bytes = 16ULL * 1024 * 1024;
+constexpr std::size_t prepared_bins = prepared_maximum_bytes / alignment, prepared_slots = 128;
+constexpr std::uint32_t maximum_bin_demand = 4;
+static_assert(std::atomic<std::uint64_t>::is_always_lock_free,
+    "Prepared relay requests must not hide an atomic implementation lock");
 constexpr std::size_t maximum_entries = 16;
 // More retained named-object capacity does not multiply host metadata. Large
 // segments still share the original bounded token/alias tables; exhaustion
@@ -61,7 +67,7 @@ struct Backend::State {
         std::uint32_t entry = 0, owner = 0, aliases = 0;
         bool retiring = false;
         int quarantine_error = 0;
-        bool published = false;
+        bool published = false, prepared = false, pool_origin = false;
     };
     struct Alias {
         std::uint64_t token = 0, bytes = 0;
@@ -69,6 +75,20 @@ struct Backend::State {
         bool fixed = false;
         bool quarantined = false;
     };
+    struct Demand {
+        std::atomic<std::uint64_t> bytes{0};
+        std::atomic<std::uint64_t> count{0};
+    };
+    struct Prepared { std::uint64_t token = 0, tick = 0; std::size_t bin = 0; };
+    std::array<Demand, prepared_bins> demands{};
+    std::array<Prepared, prepared_slots> prepared{};
+    std::array<std::atomic<std::uint64_t>, maximum_objects> returnable{}, returned{};
+    std::atomic<std::uint64_t> returned_count{0};
+    std::atomic<std::uint64_t> request_count{0}, requested_bytes{0}, miss_busy{0};
+    std::atomic<std::uint64_t> unsupported_count{0}, demand_overflow{0};
+    NeoSwapPreparedRelayStats prepared_stats{};
+    std::uint64_t maintenance_tick = 0;
+    std::size_t next_demand = 0;
     PressureDiagnostics pressure_diagnostics;
     const Operations ops;
     void* context;
@@ -83,7 +103,22 @@ struct Backend::State {
     State(const Operations& operations, void* user) noexcept : ops(operations), context(user) {
         stats.struct_size = sizeof(stats);
         stats.abi_version = NEOSWAP_RELAY_ABI;
+        prepared_stats.struct_size = sizeof(prepared_stats);
+        prepared_stats.abi_version = NEOSWAP_PREPARED_RELAY_ABI;
+        for (std::size_t i = 0; i != demands.size(); ++i)
+            demands[i].bytes.store(alignment * (i + 1), std::memory_order_relaxed);
     }
+    // Every aligned size through 16 MiB has a permanent counter. Direct lookup
+    // and one CAS never spin, allocate, or exhaust a size-registration table.
+    std::size_t request(std::uint64_t bytes) noexcept {
+        const auto index = static_cast<std::size_t>(bytes / alignment - 1);
+        auto count = demands[index].count.load(std::memory_order_relaxed);
+        if (count >= maximum_bin_demand ||
+            !demands[index].count.compare_exchange_strong(count, count + 1, std::memory_order_relaxed))
+            demand_overflow.fetch_add(1, std::memory_order_relaxed);
+        return index;
+    }
+    int create_object(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept;
     bool available() const noexcept {
         return ops.retain && ops.drop && ops.map && ops.unmap && ops.zero && ops.headroom;
     }
@@ -131,8 +166,19 @@ struct Backend::State {
     int finish_object(Object& object) noexcept {
         if (object.aliases) return fail(NEOSWAP_RELAY_BUSY);
         auto& entry = entries[object.entry];
-        const int result = ops.zero(context, entry.window + object.offset, object.bytes);
-        if (result) return fail(NEOSWAP_RELAY_CLEANUP, result);
+        // Prepared tokens have never exposed a caller alias. Fresh backing is
+        // zero-filled and reclaimed backing was scrubbed before bitmap release.
+        // Do not fault unused prepared pages merely to return their reservation.
+        if (!object.pool_origin || object.published) {
+            const int result = ops.zero(context, entry.window + object.offset, object.bytes);
+            if (result) return fail(NEOSWAP_RELAY_CLEANUP, result);
+        }
+        if (object.pool_origin && object.retiring) {
+            prepared_stats.pending_scrub_bytes -= object.bytes;
+            --prepared_stats.pending_scrub_count;
+        }
+        if (object.pool_origin && !object.published)
+            prepared_stats.unpublished_bytes -= object.bytes;
         const auto first = object.offset / alignment;
         for (std::size_t n = 0; n < object.bytes / alignment; ++n) entry.occupied.reset(first + n);
         entry.occupied_pages -= object.bytes / alignment;
@@ -147,9 +193,26 @@ struct Backend::State {
         object = {};
         return success();
     }
+    void drain_unused() noexcept {
+        if (!returned_count.load(std::memory_order_acquire)) return;
+        unsigned remaining = 128;
+        for (std::size_t i = 0; i < returned.size() && remaining; ++i) {
+            const auto token = returned[i].exchange(0, std::memory_order_acquire);
+            if (!token) continue;
+            --remaining;
+            returned_count.fetch_sub(1, std::memory_order_relaxed);
+            auto* value = object(token);
+            // CAS admission only accepts a currently borrowed, never-published
+            // generation. Lifecycle calls cannot race under the API contract.
+            if (!value || !value->pool_origin || value->published || value->aliases || value->prepared)
+                continue;
+            ++prepared_stats.reclaimed_total;
+            finish_object(*value);
+        }
+    }
     int collect_object(Object& object, unsigned& remaining_unmaps, bool initial_retirement = false) noexcept {
         int failure = NEOSWAP_RELAY_OK;
-        for (auto& alias : aliases) {
+        if (object.aliases) for (auto& alias : aliases) {
             if (alias.token != object.token) continue;
             if (alias.quarantined) continue;
             // No deferred fixed-address writes: the caller can reuse that
@@ -184,6 +247,9 @@ struct Backend::State {
             return NEOSWAP_RELAY_CLEANUP;
         }
         if (object.aliases) return fail(NEOSWAP_RELAY_BUSY);
+        // A pooled object is scrubbed only by utility collect(), never by its
+        // retiring guest thread. FIXED aliases above are still replaced now.
+        if (initial_retirement && object.pool_origin) return success();
         return finish_object(object);
     }
 };
@@ -257,39 +323,36 @@ int Backend::set_owner_quota(std::uint32_t owner, std::uint64_t bytes) noexcept 
     s.pressure_diagnostics.owner_quota_bytes[owner] = bytes;
     return NEOSWAP_RELAY_OK;
 }
-int Backend::create(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept {
-    if (token) *token = 0;
-    if (!state_) return NEOSWAP_RELAY_DISABLED;
-    auto& s = *state_;
-    std::lock_guard<std::mutex> guard(s.mutex);
-    if (!token || !valid_size(bytes) || owner >= 32) return s.fail(NEOSWAP_RELAY_INVALID);
-    if (bytes > maximum_segment_bytes) return s.fail(NEOSWAP_RELAY_QUOTA);
-    if (!(s.stats.enabled_owner_mask & (1U << owner)) || !s.stats.capacity_bytes || s.closing ||
-        s.stats.quarantined_fixed_alias_count)
-        return s.fail(NEOSWAP_RELAY_DISABLED);
-    if (s.stats.pressure_raised || s.ops.headroom(s.context) < bytes) {
-        ++s.pressure_diagnostics.create_refusals;
-        return s.fail(NEOSWAP_RELAY_PRESSURE);
+int Backend::State::create_object(std::uint32_t owner, std::uint64_t bytes,
+                                  std::uint64_t* token) noexcept {
+    if (!token || !valid_size(bytes) || owner >= 32) return fail(NEOSWAP_RELAY_INVALID);
+    if (bytes > maximum_segment_bytes) return fail(NEOSWAP_RELAY_QUOTA);
+    if (!(stats.enabled_owner_mask & (1U << owner)) || !stats.capacity_bytes || closing ||
+        stats.quarantined_fixed_alias_count)
+        return fail(NEOSWAP_RELAY_DISABLED);
+    if (stats.pressure_raised || ops.headroom(context) < bytes) {
+        ++pressure_diagnostics.create_refusals;
+        return fail(NEOSWAP_RELAY_PRESSURE);
     }
-    if (bytes > s.stats.capacity_bytes - s.stats.live_bytes) return s.fail(NEOSWAP_RELAY_QUOTA);
+    if (bytes > stats.capacity_bytes - stats.live_bytes) return fail(NEOSWAP_RELAY_QUOTA);
     if (owner < tracked_owner_count) {
         // A per-owner ceiling bounds HOST loans so guest objects retain their
         // reserved share. Zero means the owner is bounded by capacity only.
-        const auto quota = s.pressure_diagnostics.owner_quota_bytes[owner];
-        const auto live = s.pressure_diagnostics.owner_live_bytes[owner];
+        const auto quota = pressure_diagnostics.owner_quota_bytes[owner];
+        const auto live = pressure_diagnostics.owner_live_bytes[owner];
         if (quota && (live >= quota || bytes > quota - live)) {
-            ++s.pressure_diagnostics.quota_refusals;
-            return s.fail(NEOSWAP_RELAY_QUOTA);
+            ++pressure_diagnostics.quota_refusals;
+            return fail(NEOSWAP_RELAY_QUOTA);
         }
     }
-    if (s.next_serial > (std::numeric_limits<std::uint64_t>::max() >> token_shift))
-        return s.fail(NEOSWAP_RELAY_LIMIT);
+    if (next_serial > (std::numeric_limits<std::uint64_t>::max() >> token_shift))
+        return fail(NEOSWAP_RELAY_LIMIT);
     std::size_t object_index = maximum_objects;
     for (std::size_t i = 0; i < maximum_objects; ++i) {
-        const auto index = (s.next_object + i) % maximum_objects;
-        if (!s.objects[index].token) { object_index = index; break; }
+        const auto index = (next_object + i) % maximum_objects;
+        if (!objects[index].token) { object_index = index; break; }
     }
-    if (object_index == maximum_objects) return s.fail(NEOSWAP_RELAY_LIMIT);
+    if (object_index == maximum_objects) return fail(NEOSWAP_RELAY_LIMIT);
     const std::size_t pages = bytes / alignment;
     // Adapt DonatedMemory's best-fit policy from MeloNX 2889267834c7581a:
     // preserve large contiguous runs for guest backing instead of splitting
@@ -297,8 +360,8 @@ int Backend::create(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* tok
     // no allocation, page access or remapping, and stop at an exact fit.
     std::size_t best_entry = maximum_entries, best_first = 0;
     std::size_t best_pages = maximum_segment_pages + 1;
-    for (std::size_t index = 0; index < s.entries.size(); ++index) {
-        const auto& entry = s.entries[index];
+    for (std::size_t index = 0; index < entries.size(); ++index) {
+        const auto& entry = entries[index];
         if (!entry.ready || entry.bytes < bytes) continue;
         const auto end = entry.bytes / alignment;
         if (end - entry.occupied_pages < pages) continue;
@@ -331,25 +394,164 @@ int Backend::create(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* tok
         if (best_pages == pages) break;
     }
     if (best_entry == maximum_entries)
-        return s.fail(NEOSWAP_RELAY_QUOTA); // Total free capacity can be fragmented.
-    auto& entry = s.entries[best_entry];
+        return fail(NEOSWAP_RELAY_QUOTA); // Total free capacity can be fragmented.
+    auto& entry = entries[best_entry];
     for (auto n = best_first; n < best_first + pages; ++n) entry.occupied.set(n);
     entry.occupied_pages += pages;
-    auto& object = s.objects[object_index];
-    object = {(s.next_serial++ << token_shift) | object_index, bytes,
+    auto& object = objects[object_index];
+    object = {(next_serial++ << token_shift) | object_index, bytes,
               best_first * alignment, static_cast<std::uint32_t>(best_entry), owner, 0, false, 0};
-    s.next_object = (object_index + 1) % maximum_objects;
-    s.stats.live_bytes += bytes;
-    s.stats.peak_live_bytes = std::max(s.stats.peak_live_bytes, s.stats.live_bytes);
+    next_object = (object_index + 1) % maximum_objects;
+    stats.live_bytes += bytes;
+    stats.peak_live_bytes = std::max(stats.peak_live_bytes, stats.live_bytes);
     if (owner < tracked_owner_count) {
-        auto& live = s.pressure_diagnostics.owner_live_bytes[owner];
+        auto& live = pressure_diagnostics.owner_live_bytes[owner];
         live += bytes;
-        s.pressure_diagnostics.owner_peak_bytes[owner] =
-            std::max(s.pressure_diagnostics.owner_peak_bytes[owner], live);
+        pressure_diagnostics.owner_peak_bytes[owner] =
+            std::max(pressure_diagnostics.owner_peak_bytes[owner], live);
     }
-    ++s.stats.object_count;
+    ++stats.object_count;
     *token = object.token;
-    return s.success();
+    return success();
+}
+int Backend::create(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept {
+    if (token) *token = 0;
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    std::lock_guard<std::mutex> guard(state_->mutex);
+    return state_->create_object(owner, bytes, token);
+}
+int Backend::try_acquire_prepared(std::uint32_t owner, std::uint64_t bytes,
+                                  std::uint64_t* token) noexcept {
+    if (token) *token = 0;
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    auto& s = *state_;
+    s.request_count.fetch_add(1, std::memory_order_relaxed);
+    s.requested_bytes.fetch_add(bytes, std::memory_order_relaxed);
+    if (!token || owner != 0 || !valid_size(bytes) || bytes > prepared_maximum_bytes) {
+        s.unsupported_count.fetch_add(1, std::memory_order_relaxed);
+        return NEOSWAP_RELAY_INVALID;
+    }
+    std::unique_lock<std::mutex> guard(s.mutex, std::try_to_lock);
+    if (!guard.owns_lock()) {
+        s.miss_busy.fetch_add(1, std::memory_order_relaxed);
+        s.request(bytes);
+        return NEOSWAP_RELAY_BUSY;
+    }
+    if (s.closing || !(s.stats.enabled_owner_mask & 1U) || !s.stats.capacity_bytes ||
+        s.stats.quarantined_fixed_alias_count) {
+        ++s.prepared_stats.refused_disabled;
+        return NEOSWAP_RELAY_DISABLED;
+    }
+    if (s.stats.pressure_raised) {
+        ++s.prepared_stats.refused_pressure;
+        return NEOSWAP_RELAY_PRESSURE;
+    }
+    // Record a replacement on success too; utility preparation follows actual
+    // consumption. Each exact-size demand is bounded to four waiting objects.
+    s.request(bytes);
+    for (auto& slot : s.prepared) {
+        if (!slot.token) continue;
+        auto* object = s.object(slot.token);
+        if (!object || object->bytes != bytes) continue;
+        object->prepared = false;
+        s.returnable[object->token & index_mask].store(object->token, std::memory_order_release);
+        *token = object->token;
+        s.prepared_stats.prepared_bytes -= bytes;
+        --s.prepared_stats.prepared_count;
+        ++s.prepared_stats.acquired_count;
+        s.prepared_stats.acquired_bytes += bytes;
+        slot = {};
+        return NEOSWAP_RELAY_OK;
+    }
+    ++s.prepared_stats.miss_empty;
+    return NEOSWAP_RELAY_QUOTA;
+}
+int Backend::return_unused_prepared(std::uint64_t token) noexcept {
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    if (!token) return NEOSWAP_RELAY_UNKNOWN;
+    auto& s = *state_;
+    const auto index = token & index_mask;
+    auto expected = token;
+    if (!s.returnable[index].compare_exchange_strong(expected, 0, std::memory_order_acq_rel))
+        return NEOSWAP_RELAY_UNKNOWN;
+    // Increment before publication: a concurrent worker may defer seeing the
+    // queue cell to its next bounded tick, but cannot underflow its count.
+    s.returned_count.fetch_add(1, std::memory_order_relaxed);
+    s.returned[index].store(token, std::memory_order_release);
+    return NEOSWAP_RELAY_OK;
+}
+int Backend::prepared_snapshot(NeoSwapPreparedRelayStats* output) noexcept {
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    if (!output || output->struct_size < sizeof(*output)) return NEOSWAP_RELAY_INVALID;
+    auto& s = *state_;
+    std::lock_guard<std::mutex> guard(s.mutex);
+    *output = s.prepared_stats;
+    output->request_count = s.request_count.load(std::memory_order_relaxed);
+    output->requested_bytes = s.requested_bytes.load(std::memory_order_relaxed);
+    output->miss_busy = s.miss_busy.load(std::memory_order_relaxed);
+    output->unsupported_count = s.unsupported_count.load(std::memory_order_relaxed);
+    output->demand_overflow = s.demand_overflow.load(std::memory_order_relaxed);
+    for (const auto& demand : s.demands) {
+        const auto count = demand.count.load(std::memory_order_relaxed);
+        output->demand_count += count;
+        output->demand_bytes += count * demand.bytes.load(std::memory_order_relaxed);
+    }
+    return NEOSWAP_RELAY_OK;
+}
+int Backend::maintain_guest_pool(std::uint64_t target, std::uint64_t growth) noexcept {
+    if (!state_) return NEOSWAP_RELAY_DISABLED;
+    auto& s = *state_;
+    std::lock_guard<std::mutex> guard(s.mutex);
+    ++s.maintenance_tick;
+    s.drain_unused();
+    target = std::min<std::uint64_t>(target, 64ULL * 1024 * 1024);
+    growth = std::min<std::uint64_t>(growth, 32ULL * 1024 * 1024);
+    if (s.closing || s.stats.pressure_raised || !(s.stats.enabled_owner_mask & 1U) ||
+        s.stats.quarantined_fixed_alias_count) target = growth = 0;
+    // Untouched reservations can be returned without scrubbing or syscalls.
+    // Eight-second idle expiry at the host's 250 ms maintenance cadence keeps
+    // obsolete size classes from monopolizing a small stock.
+    for (auto& slot : s.prepared) {
+        if (!slot.token) continue;
+        if (s.prepared_stats.prepared_bytes <= target && s.maintenance_tick - slot.tick < 32) continue;
+        auto* object = s.object(slot.token);
+        if (!object) continue;
+        s.prepared_stats.prepared_bytes -= object->bytes;
+        --s.prepared_stats.prepared_count;
+        ++s.prepared_stats.reclaimed_total;
+        s.finish_object(*object);
+        slot = {};
+    }
+    unsigned remaining = 8;
+    const auto first = s.next_demand;
+    for (std::size_t i = 0; i < s.demands.size() && remaining; ++i) {
+        const auto bin = (first + i) % s.demands.size();
+        auto& demand = s.demands[bin];
+        const auto bytes = demand.bytes.load(std::memory_order_relaxed);
+        if (!bytes || !demand.count.load(std::memory_order_relaxed)) continue;
+        if (s.prepared_stats.prepared_bytes >= target ||
+            bytes > target - s.prepared_stats.prepared_bytes || bytes > growth) continue;
+        State::Prepared* slot = nullptr;
+        for (auto& candidate : s.prepared) if (!candidate.token) { slot = &candidate; break; }
+        if (!slot) break;
+        std::uint64_t token = 0;
+        --remaining;
+        s.next_demand = (bin + 1) % s.demands.size();
+        const int result = s.create_object(0, bytes, &token);
+        if (result) { ++s.prepared_stats.prepare_failures; continue; }
+        auto* object = s.object(token);
+        object->prepared = object->pool_origin = true;
+        *slot = {token, s.maintenance_tick, bin};
+        demand.count.fetch_sub(1, std::memory_order_relaxed);
+        s.prepared_stats.prepared_bytes += bytes;
+        s.prepared_stats.unpublished_bytes += bytes;
+        ++s.prepared_stats.prepared_count;
+        ++s.prepared_stats.prepared_total;
+        s.prepared_stats.peak_prepared_bytes = std::max(s.prepared_stats.peak_prepared_bytes,
+                                                       s.prepared_stats.prepared_bytes);
+        growth -= bytes;
+    }
+    return NEOSWAP_RELAY_OK;
 }
 int Backend::map(std::uint64_t token, void* target, std::uint32_t protection, void** mapped) noexcept {
     if (mapped) *mapped = nullptr;
@@ -358,7 +560,7 @@ int Backend::map(std::uint64_t token, void* target, std::uint32_t protection, vo
     std::lock_guard<std::mutex> guard(s.mutex);
     auto* object = s.object(token);
     if (!object) return s.fail(NEOSWAP_RELAY_UNKNOWN);
-    if (object->retiring) return s.fail(NEOSWAP_RELAY_BUSY);
+    if (object->retiring || object->prepared) return s.fail(NEOSWAP_RELAY_BUSY);
     const auto address = reinterpret_cast<std::uintptr_t>(target);
     if (!mapped || (protection != NEOSWAP_RELAY_NONE && protection != NEOSWAP_RELAY_READ &&
                     protection != NEOSWAP_RELAY_READ_WRITE) || (address && !valid_range(address, object->bytes)))
@@ -382,6 +584,8 @@ int Backend::map(std::uint64_t token, void* target, std::uint32_t protection, vo
         if (!alias.token && alias_index == maximum_aliases) alias_index = index;
         if (address && alias.token && overlaps(address, object->bytes, alias.address, alias.bytes))
             return s.fail(NEOSWAP_RELAY_INVALID);
+        // ANYWHERE is chosen by the kernel and cannot overlap live mappings.
+        if (!address && alias_index != maximum_aliases) break;
     }
     if (address) for (const auto& entry : s.entries) {
         if (entry.window && overlaps(address, object->bytes, entry.window, entry.bytes))
@@ -402,6 +606,10 @@ int Backend::map(std::uint64_t token, void* target, std::uint32_t protection, vo
         ++s.pressure_diagnostics.existing_alias_maps;
     if (!object->published && object->owner < tracked_owner_count)
         s.pressure_diagnostics.owner_published_live_bytes[object->owner] += object->bytes;
+    if (!object->published && object->pool_origin)
+        s.prepared_stats.unpublished_bytes -= object->bytes;
+    if (object->pool_origin)
+        s.returnable[token & index_mask].store(0, std::memory_order_release);
     object->published = true;
     // Darwin guarantees aligned ANYWHERE and exact FIXED results. A mock must
     // honor the same contract; bookkeeping uses the returned live address.
@@ -419,7 +627,7 @@ int Backend::unmap(std::uint64_t token, void* address) noexcept {
     std::lock_guard<std::mutex> guard(s.mutex);
     auto* object = s.object(token);
     if (!object) return s.fail(NEOSWAP_RELAY_UNKNOWN);
-    if (object->retiring) return s.fail(NEOSWAP_RELAY_BUSY);
+    if (object->retiring || object->prepared) return s.fail(NEOSWAP_RELAY_BUSY);
     for (auto& alias : s.aliases) {
         if (alias.token != token || alias.address != reinterpret_cast<std::uintptr_t>(address)) continue;
         const int result = s.ops.unmap(s.context, alias.address, alias.bytes, alias.fixed);
@@ -438,6 +646,18 @@ int Backend::release(std::uint64_t token) noexcept {
     std::lock_guard<std::mutex> guard(s.mutex);
     auto* object = s.object(token);
     if (!object) return s.fail(NEOSWAP_RELAY_UNKNOWN);
+    if (object->prepared || object->retiring) return s.fail(NEOSWAP_RELAY_BUSY);
+    if (object->pool_origin) {
+        if (object->aliases) return s.fail(NEOSWAP_RELAY_BUSY);
+        s.returnable[token & index_mask].store(0, std::memory_order_release);
+        if (object->published)
+            s.pressure_diagnostics.owner_published_live_bytes[object->owner] -= object->bytes;
+        object->retiring = true;
+        ++s.stats.retiring_object_count;
+        s.prepared_stats.pending_scrub_bytes += object->bytes;
+        ++s.prepared_stats.pending_scrub_count;
+        return s.success();
+    }
     return s.finish_object(*object);
 }
 int Backend::retire(std::uint64_t token) noexcept {
@@ -446,12 +666,19 @@ int Backend::retire(std::uint64_t token) noexcept {
     std::lock_guard<std::mutex> guard(s.mutex);
     auto* object = s.object(token);
     if (!object) return s.fail(NEOSWAP_RELAY_UNKNOWN);
+    if (object->prepared) return s.fail(NEOSWAP_RELAY_BUSY);
     const bool initial_retirement = !object->retiring;
     if (initial_retirement) {
+        if (object->pool_origin)
+            s.returnable[token & index_mask].store(0, std::memory_order_release);
         if (object->published && object->owner < tracked_owner_count)
             s.pressure_diagnostics.owner_published_live_bytes[object->owner] -= object->bytes;
         object->retiring = true;
         ++s.stats.retiring_object_count;
+        if (object->pool_origin) {
+            s.prepared_stats.pending_scrub_bytes += object->bytes;
+            ++s.prepared_stats.pending_scrub_count;
+        }
     }
     unsigned remaining_unmaps = 64;
     return s.collect_object(*object, remaining_unmaps, initial_retirement);
@@ -460,6 +687,7 @@ int Backend::collect() noexcept {
     if (!state_) return NEOSWAP_RELAY_DISABLED;
     auto& s = *state_;
     std::lock_guard<std::mutex> guard(s.mutex);
+    s.drain_unused();
     unsigned remaining_unmaps = 64, remaining_objects = 4;
     int failure = NEOSWAP_RELAY_OK;
     int failure_os = 0;
@@ -505,6 +733,15 @@ int Backend::shutdown() noexcept {
     if (!state_) return NEOSWAP_RELAY_DISABLED;
     auto& s = *state_;
     std::lock_guard<std::mutex> guard(s.mutex);
+    s.drain_unused();
+    for (auto& slot : s.prepared) if (slot.token) {
+        auto* object = s.object(slot.token);
+        s.prepared_stats.prepared_bytes -= object->bytes;
+        --s.prepared_stats.prepared_count;
+        ++s.prepared_stats.reclaimed_total;
+        s.finish_object(*object);
+        slot = {};
+    }
     if (s.stats.object_count) return s.fail(NEOSWAP_RELAY_BUSY);
     s.closing = true;
     s.stats.enabled_owner_mask = 0;
@@ -517,6 +754,7 @@ int Backend::shutdown() noexcept {
     if (result) return result;
     s.closing = false;
     s.stats.pressure_raised = 0;
+    for (auto& demand : s.demands) demand.count.store(0, std::memory_order_relaxed);
     return s.success();
 }
 
@@ -597,6 +835,9 @@ int adopt(std::uint32_t entry, std::uint64_t bytes, std::int32_t pid, std::uint6
 void set_pressure(bool raised) noexcept { backend().set_pressure(raised); }
 int shutdown() noexcept { return backend().shutdown(); }
 int collect() noexcept { return backend().collect(); }
+int maintain_guest_pool(std::uint64_t target, std::uint64_t growth) noexcept {
+    return backend().maintain_guest_pool(target, growth);
+}
 } // namespace neostation::relay
 
 extern "C" const NeoSwapRelayAPI* NeoSwap_GetRelayAPI(std::uint32_t abi) {
@@ -613,4 +854,18 @@ extern "C" const NeoSwapRelayAPI* NeoSwap_GetRelayAPI(std::uint32_t abi) {
         [](NeoSwapRelayStats* stats) { return neostation::relay::backend().snapshot(stats); },
         [](std::uint64_t token) { return neostation::relay::backend().retire(token); }};
     return abi == NEOSWAP_RELAY_ABI ? &api : nullptr;
+}
+
+extern "C" const NeoSwapPreparedRelayAPI* NeoSwap_GetPreparedRelayAPI(std::uint32_t abi) {
+    static const NeoSwapPreparedRelayAPI api{sizeof(NeoSwapPreparedRelayAPI), NEOSWAP_PREPARED_RELAY_ABI,
+        [](std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) {
+            return neostation::relay::backend().try_acquire_prepared(owner, bytes, token);
+        },
+        [](std::uint64_t token) {
+            return neostation::relay::backend().return_unused_prepared(token);
+        },
+        [](NeoSwapPreparedRelayStats* stats) {
+            return neostation::relay::backend().prepared_snapshot(stats);
+        }};
+    return abi == NEOSWAP_PREPARED_RELAY_ABI ? &api : nullptr;
 }

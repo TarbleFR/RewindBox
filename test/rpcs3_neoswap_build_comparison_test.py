@@ -60,6 +60,33 @@ def fixture(source="a" * 40, pid=123):
     return info, memory, diagnostics
 
 
+def donated_fixture():
+    info, memory, diagnostics = fixture()
+    # Disjoint peaks occur in different samples: the total is never their sum.
+    for row, (guest, relay, donor) in zip(memory, ((40, 0, 0), (0, 45, 5), (0, 0, 0))):
+        row["neoswapContribution"].update({
+            "schema": 2, "donatedBytes": guest + relay + donor,
+            "donatedGuestBytes": guest, "donatedHostRelayBytes": relay, "donatedDonorBytes": donor,
+        })
+    return info, memory, diagnostics
+
+
+def guest_fixture():
+    info, memory, diagnostics = donated_fixture()
+    for index, (timestamp, phase) in enumerate(((100.1, "before_boot"), (101, "boot_return"),
+                                               (106, "sample"), (109.5, "session_end"))):
+        counters = {key: 100 + 10 * index for key in MODULE.GUEST_COUNTERS}
+        counters.update(prepared_hit_bytes=(1 << 53) + 17 + 128 * index,
+                        first_map_total_ns=100000 + 12000 * index, first_map_max_ns=5000 + 100 * index)
+        message = (f"title=BCES00510 schema=1 valid=1 result=0 sample_epoch=1 phase={phase} "
+                   "scope=process_lifetime gameplay_active=1 " +
+                   " ".join(f"{key}={value}" for key, value in counters.items()))
+        diagnostics.append({"pid": info["pid"], "timestamp": timestamp,
+                            "stage": "neoswap_guest_sample", "message": message})
+    diagnostics.sort(key=lambda row: row["timestamp"])
+    return info, memory, diagnostics
+
+
 class ComparisonTest(unittest.TestCase):
     def test_observed_metrics_respect_units_and_semantics(self):
         info, memory, diagnostics = fixture()
@@ -81,6 +108,7 @@ class ComparisonTest(unittest.TestCase):
         self.assertIsNone(value("session_frame_p95_ms"))
         # Max of simultaneous disjoint values, NOT sum of unrelated high-water marks.
         self.assertEqual(value("neoswap_live_backing_peak_bytes"), 60)
+        self.assertIsNone(value("neoswap_donated_peak_bytes"))
         self.assertEqual(value("cpu_buffer_fallbacks"), 2)
         self.assertEqual(value("fast_acquisition_requests"), 4)
         self.assertEqual(value("fast_acquisition_total_time_us"), 16)
@@ -90,6 +118,116 @@ class ComparisonTest(unittest.TestCase):
         self.assertIsNone(value("neoswap_fallback_latency_ms"))
         self.assertTrue(report["donorPreparation"]["readinessTimedOut"])
         self.assertIn("relay-only", report["donorPreparation"]["modesObserved"])
+
+    def test_active_donation_does_not_count_idle_capacity_or_add_independent_peaks(self):
+        info, memory, diagnostics = donated_fixture()
+        for row in memory:
+            row["donationPreparedBytes"] = 8 << 30
+            row["neoswapContribution"].update({
+                "donorLoanLiveBytes": 100, "relayGuestLiveBytes": 300,
+                "relayHostLoanLiveBytes": 200,
+            })
+        report = MODULE.measure(info, memory, diagnostics)
+        value = lambda key: report["metrics"][key]["value"]
+        self.assertEqual(value("neoswap_donated_peak_bytes"), 50)
+        self.assertEqual(value("neoswap_donated_guest_peak_bytes"), 40)
+        self.assertEqual(value("neoswap_donated_host_relay_peak_bytes"), 45)
+        self.assertEqual(value("neoswap_donated_donor_peak_bytes"), 5)
+        self.assertEqual(value("neoswap_live_backing_peak_bytes"), 600)
+        self.assertEqual(value("donor_prepared_peak_bytes"), 8 << 30)
+        self.assertEqual(value("process_footprint_peak_bytes"), 102)
+        self.assertIn("idle host-loan shelves", report["metrics"]["neoswap_live_backing_peak_bytes"]["source"])
+
+    def test_active_donation_rejects_missing_legacy_inconsistent_or_non_uint64_samples(self):
+        changes = [
+            lambda row: row.pop("neoswapContribution"),
+            lambda row: row["neoswapContribution"].pop("schema"),
+            lambda row: row["neoswapContribution"].update(schema=1),
+            lambda row: row["neoswapContribution"].update(schema=2.0),
+            lambda row: row["neoswapContribution"].update(donatedBytes=49),
+        ]
+        for _, name in MODULE.DONATED_FIELDS:
+            changes.append(lambda row, key=name: row["neoswapContribution"].pop(key))
+            for bad in (None, True, False, -1, 1.5, 50.0, float("nan"), float("inf"), 1 << 64):
+                changes.append(lambda row, key=name, value=bad: row["neoswapContribution"].update({key: value}))
+        for index, change in enumerate(changes):
+            with self.subTest(change=index):
+                args = donated_fixture()
+                change(args[1][1])
+                report = MODULE.measure(*args)
+                for key, _ in MODULE.DONATED_FIELDS:
+                    self.assertIsNone(report["metrics"][key]["value"], key)
+                    self.assertTrue(report["metrics"][key]["reason"], key)
+                self.assertEqual(report["metrics"]["process_footprint_peak_bytes"]["value"], 102)
+
+    def test_active_donation_preserves_valid_zero_and_exact_uint64_boundary(self):
+        for expected in (0, (1 << 64) - 1):
+            with self.subTest(bytes=expected):
+                args = donated_fixture()
+                for row in args[1]:
+                    row["neoswapContribution"].update({
+                        "donatedBytes": expected, "donatedGuestBytes": expected,
+                        "donatedHostRelayBytes": 0, "donatedDonorBytes": 0,
+                    })
+                measured = MODULE.measure(*args)["metrics"]["neoswap_donated_peak_bytes"]
+                self.assertEqual(measured["value"], expected)
+                self.assertIsNone(measured["reason"])
+
+    def test_comparing_legacy_to_active_donation_keeps_change_unknown(self):
+        before = MODULE.measure(*fixture())
+        after = MODULE.measure(*donated_fixture())
+        report = MODULE.compare(before, after)
+        self.assertIsNone(report["afterMinusBefore"]["neoswap_donated_peak_bytes"])
+        self.assertEqual(after["metrics"]["neoswap_donated_peak_bytes"]["value"], 50)
+        self.assertFalse(report["deviceValidationPassed"])
+
+    def test_guest_deltas_include_boot_and_keep_exact_large_counters(self):
+        report = MODULE.measure(*guest_fixture())
+        value = lambda name: report["metrics"][name]["value"]
+        self.assertEqual(value("guest_relay_candidate_first_maps"), 30)
+        self.assertEqual(value("guest_relay_prepared_hit_bytes"), 384)
+        self.assertEqual(value("guest_relay_prepared_published_bytes"), 30)
+        self.assertEqual(value("guest_relay_ordinary_fallback_bytes"), 30)
+        self.assertEqual(value("guest_relay_first_map_total_ns"), 36000)
+        self.assertEqual(value("guest_relay_first_map_body_mean_us"), 1.2)
+        self.assertEqual(value("guest_relay_first_map_process_lifetime_max_ns"), 5300)
+        # Publication bytes are not added to active backing or deducted from footprint.
+        self.assertEqual(value("neoswap_donated_peak_bytes"), 50)
+        self.assertEqual(value("process_footprint_peak_bytes"), 102)
+
+    def test_guest_missing_endpoints_or_invalid_snapshot_never_becomes_zero(self):
+        mutations = [
+            lambda rows: rows.pop(0),
+            lambda rows: rows.pop(),
+            lambda rows: rows[1].update(message=rows[1]["message"].replace("valid=1", "valid=0")),
+            lambda rows: rows[1].update(message=rows[1]["message"].replace("schema=1", "schema=2")),
+            lambda rows: rows[1].update(message=rows[1]["message"].replace("map_failures=110", "")),
+            lambda rows: rows[1].update(message=rows[1]["message"].replace("requested_bytes=110", "requested_bytes=1.5")),
+            lambda rows: rows[1].update(message=rows[1]["message"].replace("requested_bytes=110", f"requested_bytes={1 << 64}")),
+        ]
+        for index, mutation in enumerate(mutations):
+            with self.subTest(change=index):
+                info, memory, diagnostics = guest_fixture()
+                rows = [row for row in diagnostics if row["stage"] == "neoswap_guest_sample"]
+                mutation(rows)
+                diagnostics = [row for row in diagnostics if row["stage"] != "neoswap_guest_sample"] + rows
+                diagnostics.sort(key=lambda row: row["timestamp"])
+                report = MODULE.measure(info, memory, diagnostics)
+                self.assertIsNone(report["metrics"]["guest_relay_candidate_first_maps"]["value"])
+                self.assertIsNone(report["metrics"]["guest_relay_first_map_body_mean_us"]["value"])
+                self.assertEqual(report["metrics"]["neoswap_donated_peak_bytes"]["value"], 50)
+
+    def test_guest_counter_resets_and_different_epoch_rejected(self):
+        for old, new in (("candidate_first_maps=110", "candidate_first_maps=1"),
+                         ("first_map_max_ns=5100", "first_map_max_ns=1"),
+                         ("sample_epoch=1", "sample_epoch=2"),
+                         ("title=BCES00510", "title=OTHER0001")):
+            with self.subTest(field=old):
+                args = guest_fixture()
+                row = next(row for row in args[2] if row["stage"] == "neoswap_guest_sample" and "phase=boot_return" in row["message"])
+                row["message"] = row["message"].replace(old, new)
+                with self.assertRaises(ValueError):
+                    MODULE.measure(*args)
 
     def test_before_after_different_revisions_allowed_and_not_device_validation(self):
         before = MODULE.measure(*fixture())

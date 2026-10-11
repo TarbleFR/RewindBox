@@ -73,6 +73,15 @@ public:
     // tokens, aliases and their data are never revoked by policy.
     int set_owner_quota(std::uint32_t owner, std::uint64_t bytes) noexcept;
     int create(std::uint32_t owner, std::uint64_t bytes, std::uint64_t* token) noexcept;
+    int try_acquire_prepared(std::uint32_t owner, std::uint64_t bytes,
+                             std::uint64_t* token) noexcept;
+    int return_unused_prepared(std::uint64_t token) noexcept;
+    int prepared_snapshot(NeoSwapPreparedRelayStats*) noexcept;
+    // Utility worker only. Prepared bytes already count in owner_live_bytes[0].
+    // Target is a total stock ceiling, growth is a NEW shared-budget grant.
+    // At most eight objects / 32 MiB created per call. No pre-faulting or alias.
+    int maintain_guest_pool(std::uint64_t target_prepared_bytes,
+                            std::uint64_t growth_grant_bytes) noexcept;
     int map(std::uint64_t token, void* target, std::uint32_t protection, void** mapped) noexcept;
     int unmap(std::uint64_t token, void* address) noexcept;
     int release(std::uint64_t token) noexcept;
@@ -106,4 +115,6 @@ int adopt(std::uint32_t entry, std::uint64_t bytes, std::int32_t creator_pid,
 void set_pressure(bool raised) noexcept;
 int shutdown() noexcept;
 int collect() noexcept;
+int maintain_guest_pool(std::uint64_t target_prepared_bytes,
+                        std::uint64_t growth_grant_bytes) noexcept;
 } // namespace neostation::relay

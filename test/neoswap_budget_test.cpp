@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 
 using namespace neostation::budget;
 
@@ -76,6 +77,124 @@ int main() {
     assert(d.host_loan_quota_bytes == capped.relay_host_live_bytes + 10 * MiB);
     assert(d.donor_room_bytes == maximum_growth_grant_bytes - 10 * MiB && d.donor_growth_admitted);
     assert((d.host_loan_quota_bytes - capped.relay_host_live_bytes) + d.donor_room_bytes == maximum_growth_grant_bytes);
+
+    // A real small miss can reach the donors even while relay host loans have
+    // capacity. The 64/32 MiB admission threshold applies to global room, not
+    // each contiguous chunk, and the same bytes cannot go to both backings.
+    for (const auto requested : {1 * MiB, 16 * MiB, 64 * MiB, 256 * MiB}) {
+        Inputs demand = device_inputs();
+        demand.donor_demand_bytes = requested;
+        const auto granted = decide(demand, {});
+        assert(granted.donor_growth_admitted && granted.donor_room_bytes == requested);
+        assert(granted.relay_growth_grant_bytes == maximum_growth_grant_bytes - requested);
+        assert(granted.relay_growth_grant_bytes + granted.donor_room_bytes == granted.bounded_growth_grant_bytes);
+    }
+    Inputs demanded = device_inputs();
+    demanded.donor_demand_bytes = maximum_growth_grant_bytes + MiB;
+    d = decide(demanded, {});
+    assert(!d.donor_growth_admitted && d.donor_room_bytes == 0); // no useless partial contiguous grant
+    assert(d.relay_growth_grant_bytes == maximum_growth_grant_bytes);
+    demanded.donor_demand_bytes = MiB;
+    demanded.system_usable_bytes = reserve + growth_quantum_bytes - MiB;
+    assert(!decide(demanded, {}).donor_growth_admitted); // a demand never bypasses global admission
+    d = decide(demanded, decide(device_inputs(), {}));
+    assert(d.donor_growth_admitted && d.donor_room_bytes == MiB); // growing-state hysteresis still applies
+
+    // Guest stock is counted once in relay capacity, but its as-yet-unfaulted
+    // promise also reserves system room. The worker can only spend 32 MiB in
+    // this pass and keeps at most 64 MiB ready, leaving room for actual donors.
+    Inputs prepared = device_inputs();
+    prepared.relay_guest_prepared_bytes = 32 * MiB;
+    prepared.relay_guest_unpublished_bytes = 48 * MiB; // 16 MiB borrowed, not yet mapped
+    prepared.relay_guest_demand_bytes = 96 * MiB;
+    prepared.donor_demand_bytes = 16 * MiB;
+    d = decide(prepared, {});
+    assert(d.growth_room_bytes == prepared.system_usable_bytes - reserve - 48 * MiB);
+    assert(d.guest_prepare_grant_bytes == 32 * MiB && d.donor_room_bytes == 16 * MiB);
+    assert(d.relay_growth_grant_bytes == 208 * MiB);
+    assert(d.guest_prepare_grant_bytes + d.relay_growth_grant_bytes + d.donor_room_bytes == d.bounded_growth_grant_bytes);
+    assert(d.mobilized_bytes == prepared.relay_guest_live_bytes + prepared.relay_host_live_bytes + prepared.donor_live_bytes);
+    prepared.relay_guest_prepared_bytes = maximum_guest_prepared_bytes;
+    prepared.relay_guest_unpublished_bytes = maximum_guest_prepared_bytes;
+    d = decide(prepared, {});
+    assert(d.guest_prepare_grant_bytes == 0 && d.donor_room_bytes == 16 * MiB);
+    prepared.system_usable_bytes = reserve + maximum_guest_prepared_bytes + 32 * MiB;
+    d = decide(prepared, {});
+    assert(d.growth_room_bytes == 32 * MiB && !d.host_loans_admitted && !d.donor_growth_admitted);
+    // Saturation/fail-closed: neither impossible commitments nor missing
+    // system samples can wrap into new guest preparation room.
+    prepared.relay_guest_unpublished_bytes = UINT64_MAX;
+    assert(decide(prepared, {}).growth_room_bytes == 0);
+    prepared.system_valid = false;
+    assert(decide(prepared, {}).guest_prepare_grant_bytes == 0);
+
+    // Once guest use exceeds its floor, the new prepared grant also reserves
+    // relay capacity before the host ceiling is installed.
+    Inputs full_relay = device_inputs();
+    full_relay.relay_guest_live_bytes = 2 * GiB;
+    full_relay.relay_capacity_bytes = full_relay.relay_guest_live_bytes + full_relay.relay_host_live_bytes + 40 * MiB;
+    full_relay.relay_guest_demand_bytes = 32 * MiB;
+    d = decide(full_relay, {});
+    assert(d.guest_prepare_grant_bytes == 32 * MiB && d.relay_growth_grant_bytes == 8 * MiB);
+    assert(d.guest_reserve_bytes == 2 * GiB + 32 * MiB);
+    assert(d.host_loan_quota_bytes + d.guest_reserve_bytes == full_relay.relay_capacity_bytes);
+    full_relay.relay_capacity_bytes -= 40 * MiB;
+    assert(decide(full_relay, {}).guest_prepare_grant_bytes == 0);
+
+    // Helper IPC in flight reserves the common grant even before a system
+    // sample sees its pages. It prevents another IPC, but not safe relay work.
+    Inputs preparing = device_inputs();
+    preparing.donor_preparing_bytes = 16 * MiB;
+    preparing.donor_demand_bytes = 16 * MiB;
+    preparing.relay_guest_demand_bytes = 32 * MiB;
+    d = decide(preparing, {});
+    assert(d.pending_reserved_bytes == 16 * MiB && !d.donor_growth_admitted);
+    assert(d.guest_prepare_grant_bytes == 32 * MiB && d.relay_growth_grant_bytes == 208 * MiB);
+    assert(d.pending_reserved_bytes + d.guest_prepare_grant_bytes + d.relay_growth_grant_bytes + d.donor_room_bytes
+        == d.bounded_growth_grant_bytes);
+    preparing.donor_preparing_bytes = UINT64_MAX;
+    d = decide(preparing, {});
+    assert(d.pending_reserved_bytes == d.bounded_growth_grant_bytes);
+    assert(!d.host_loans_admitted && !d.donor_growth_admitted && d.guest_prepare_grant_bytes == 0);
+
+    // Several successful/refused IPC callbacks between samples cannot refund
+    // the allowance. The next sample reserves any still-pending request.
+    Inputs callback = device_inputs();
+    callback.donor_demand_bytes = 64 * MiB;
+    const auto callback_budget = decide(callback, {});
+    std::uint64_t committed = 0;
+    for (unsigned i = 0; i < 4; ++i) {
+        assert(remaining_donor_room(callback_budget, committed) == (4 - i) * 16 * MiB);
+        committed = saturating_add(committed, 16 * MiB);
+    }
+    assert(remaining_donor_room(callback_budget, committed) == 0);
+    assert(remaining_donor_room(callback_budget, UINT64_MAX) == 0);
+    callback.donor_preparing_bytes = 16 * MiB;
+    assert(remaining_donor_room(decide(callback, callback_budget), 0) == 0);
+
+    // Every combination shares one ramped grant. Pressure, background and
+    // shrink hysteresis close new guest preparation together with other growth.
+    for (unsigned i = 0; i < 100; ++i) {
+        Inputs mixed = device_inputs();
+        mixed.relay_guest_prepared_bytes = (i % 5) * 16 * MiB;
+        mixed.relay_guest_unpublished_bytes = mixed.relay_guest_prepared_bytes + (i % 3) * MiB;
+        mixed.relay_guest_demand_bytes = i * MiB;
+        mixed.donor_demand_bytes = (i % 17) * MiB;
+        mixed.donor_preparing_bytes = (i % 7 == 0) ? 16 * MiB : 0;
+        const auto mixed_budget = decide(mixed, {});
+        assert(mixed_budget.pending_reserved_bytes + mixed_budget.guest_prepare_grant_bytes +
+            mixed_budget.relay_growth_grant_bytes + mixed_budget.donor_room_bytes == mixed_budget.bounded_growth_grant_bytes);
+        assert(mixed_budget.bounded_growth_grant_bytes <= maximum_growth_grant_bytes);
+        mixed.dispatch_warning = true;
+        const auto pressured = decide(mixed, {});
+        assert(pressured.guest_prepare_grant_bytes == 0 && pressured.bounded_growth_grant_bytes == 0);
+        mixed.dispatch_warning = false;
+        mixed.foreground = false;
+        assert(decide(mixed, {}).guest_prepare_grant_bytes == 0);
+        mixed.foreground = true;
+        mixed.system_usable_bytes = reserve + reserve / 4;
+        assert(decide(mixed, pressured).guest_prepare_grant_bytes == 0);
+    }
 
     // The process jetsam headroom cannot throttle relay or donor pages, but
     // below the reserve it asks the storage tier to archive cold data early.
@@ -329,6 +448,6 @@ int main() {
     }
 
     std::puts("PASS NeoSwap budget: idle/warming/growing/holding/shrinking/pressure, measured room, guest reserve, "
-              "relay host quota bounds, donor floors, small-CPU gate, hysteresis, saturating sums, "
+              "shared guest/relay/donor grants, pending IPC, callback allowance, donor floors, small-CPU gate, hysteresis, saturating sums, "
               "measured host envelope (limit estimate, safety reserve, ramp, background)");
 }

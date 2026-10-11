@@ -66,10 +66,21 @@ struct Inputs {
     std::uint64_t relay_capacity_bytes = 0;
     std::uint64_t relay_guest_live_bytes = 0;
     std::uint64_t relay_host_live_bytes = 0;
+    // Prepared guest tokens already belong to guest_live. Until their first
+    // publication they can still fault pages without another budget decision,
+    // so their promise also reserves measured system room (not relay capacity
+    // a second time). Demand is the unfilled, bounded utility-worker queue.
+    std::uint64_t relay_guest_prepared_bytes = 0;
+    std::uint64_t relay_guest_unpublished_bytes = 0;
+    std::uint64_t relay_guest_demand_bytes = 0;
     // Donor pool: verified prepared bytes and active loans.
     bool donors_available = false;
     std::uint64_t donor_prepared_bytes = 0;
     std::uint64_t donor_live_bytes = 0;
+    // Smallest real contiguous request, and helper IPC already committed but
+    // not acknowledged. The latter may not yet appear in the kernel sample.
+    std::uint64_t donor_demand_bytes = 0;
+    std::uint64_t donor_preparing_bytes = 0;
     // File fallback and storage tier (live archived bytes, not cumulative).
     std::uint64_t file_live_bytes = 0;
     std::uint64_t storage_archived_live_bytes = 0;
@@ -80,6 +91,11 @@ struct Decision {
     std::uint64_t operational_reserve_bytes = 0;
     std::uint64_t growth_room_bytes = 0;
     std::uint64_t guest_reserve_bytes = 0;
+    std::uint64_t guest_unpublished_reserved_bytes = 0;
+    std::uint64_t bounded_growth_grant_bytes = 0;
+    std::uint64_t pending_reserved_bytes = 0;
+    std::uint64_t guest_prepare_grant_bytes = 0;
+    std::uint64_t relay_growth_grant_bytes = 0;
     // Relay host loans: ceiling of live bytes the broker may hold for RSX CPU
     // data, host-visible Vulkan buffers and video frames. Existing loans are
     // never revoked; a ceiling below the live value only refuses new loans.
@@ -89,8 +105,9 @@ struct Decision {
     // Donor manager policy: floor and reserve for adaptive_donation_target().
     std::uint64_t donor_floor_bytes = 0;
     std::uint64_t donor_reserve_bytes = 0;
-    // Measured room left for donor growth this sample after the relay host-loan
-    // ceiling took its share: one sample never grants the same room twice.
+    // NEW donor room, excluding outstanding IPC. Requested chunks take an
+    // exact share before speculative host-loan growth; without a request the
+    // previous fallback policy remains. One sample never grants room twice.
     std::uint64_t donor_room_bytes = 0;
     bool donor_growth_admitted = false;
     // Storage tier: prefer archiving cold owned data while this is set.
@@ -127,6 +144,10 @@ constexpr std::uint64_t growth_quantum_bytes = 64 * MiB;
 // once permits a burst before the next pressure sample. Admit at most one
 // maximum native donor block per decision, shared by relay and donor growth.
 constexpr std::uint64_t maximum_growth_grant_bytes = 256 * MiB;
+// Matches the prepared guest worker's bounded pass. A larger queued demand
+// must not reserve room the worker cannot consume in this decision.
+constexpr std::uint64_t maximum_guest_prepare_grant_bytes = 32 * MiB;
+constexpr std::uint64_t maximum_guest_prepared_bytes = 64 * MiB;
 // Hysteresis of the growing state: admission starts with one growth quantum
 // of measured room and ends only below half of it, so sample jitter or the
 // bytes a maintenance pass hands back cannot flip the state every tick.
@@ -223,8 +244,13 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.reason = "no_active_rpcs3_session";
         return out;
     }
-    if (in.system_valid && in.system_usable_bytes > out.operational_reserve_bytes)
-        out.growth_room_bytes = in.system_usable_bytes - out.operational_reserve_bytes;
+    out.guest_unpublished_reserved_bytes = in.relay_guest_unpublished_bytes > in.relay_guest_prepared_bytes
+        ? in.relay_guest_unpublished_bytes : in.relay_guest_prepared_bytes;
+    if (in.system_valid && in.system_usable_bytes > out.operational_reserve_bytes) {
+        const auto room = in.system_usable_bytes - out.operational_reserve_bytes;
+        out.growth_room_bytes = room > out.guest_unpublished_reserved_bytes
+            ? room - out.guest_unpublished_reserved_bytes : 0;
+    }
     if (os_pressure || !in.foreground) {
         // Background: iOS applies the inactive limit, far below the active
         // one measured here. Treat it exactly like pressure: fail closed,
@@ -239,8 +265,6 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.donor_reserve_bytes = 0;
         return out;
     }
-    const std::uint64_t relay_free_for_host = in.relay_capacity_bytes > out.guest_reserve_bytes
-        ? in.relay_capacity_bytes - out.guest_reserve_bytes : 0;
     const std::uint64_t admission_room = previous.state == State::growing
         ? growth_hold_quantum_bytes : growth_quantum_bytes;
     // The bounded grant of this sample, slowed by the host envelope ramp. A
@@ -248,15 +272,43 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
     // brake on the shared grant, never a second admission gate.
     const auto bounded_grant = ramped(out.growth_room_bytes < maximum_growth_grant_bytes
         ? out.growth_room_bytes : maximum_growth_grant_bytes, out.growth_ramp_percent);
+    out.bounded_growth_grant_bytes = bounded_grant;
+    out.pending_reserved_bytes = in.donor_preparing_bytes < bounded_grant
+        ? in.donor_preparing_bytes : bounded_grant;
+    auto remaining = bounded_grant - out.pending_reserved_bytes;
+    const bool growth_admitted = in.system_valid && out.growth_room_bytes >= admission_room;
+    if (in.relay_ready && growth_admitted) {
+        const auto occupied = saturating_add(in.relay_guest_live_bytes, in.relay_host_live_bytes);
+        const auto free = in.relay_capacity_bytes > occupied ? in.relay_capacity_bytes - occupied : 0;
+        auto guest_grant = in.relay_guest_demand_bytes < maximum_guest_prepare_grant_bytes
+            ? in.relay_guest_demand_bytes : maximum_guest_prepare_grant_bytes;
+        const auto stock_room = maximum_guest_prepared_bytes > in.relay_guest_prepared_bytes
+            ? maximum_guest_prepared_bytes - in.relay_guest_prepared_bytes : 0;
+        if (guest_grant > stock_room) guest_grant = stock_room;
+        if (guest_grant > remaining) guest_grant = remaining;
+        if (guest_grant > free) guest_grant = free;
+        out.guest_prepare_grant_bytes = guest_grant;
+        remaining -= guest_grant;
+        const auto promised_guest = saturating_add(in.relay_guest_live_bytes, guest_grant);
+        if (promised_guest > out.guest_reserve_bytes) out.guest_reserve_bytes = promised_guest;
+    }
+    // Contiguous donor demand cannot use a partial grant. Prioritize a whole
+    // queued chunk, including 1-16 MiB requests below the global hysteresis
+    // threshold; that threshold applies to measured room, not chunk size.
+    const auto requested_donor_grant = growth_admitted && !in.donor_preparing_bytes &&
+        in.donor_demand_bytes <= remaining ? in.donor_demand_bytes : 0;
+    remaining -= requested_donor_grant;
+    const std::uint64_t relay_free_for_host = in.relay_capacity_bytes > out.guest_reserve_bytes
+        ? in.relay_capacity_bytes - out.guest_reserve_bytes : 0;
     if (in.relay_ready) {
         // Grow only by measured room; a ceiling never exceeds what the relay
         // can still back after the guest reserve.
-        const auto grant = bounded_grant;
+        const auto grant = remaining;
         const auto desired = saturating_add(in.relay_host_live_bytes, grant);
         out.host_loan_quota_bytes = desired < relay_free_for_host ? desired : relay_free_for_host;
         if (out.host_loan_quota_bytes < in.relay_host_live_bytes)
             out.host_loan_quota_bytes = in.relay_host_live_bytes;
-        out.host_loans_admitted = in.system_valid && out.growth_room_bytes >= admission_room &&
+        out.host_loans_admitted = growth_admitted &&
                                   out.host_loan_quota_bytes > in.relay_host_live_bytes;
     }
     // Donors are the fallback backing. While relay host loans are admitted the
@@ -271,11 +323,11 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.donor_floor_bytes = legacy_donor_floor_bytes;
         out.donor_reserve_bytes = legacy_donor_reserve_bytes;
     }
-    const std::uint64_t relay_growth = out.host_loans_admitted && out.host_loan_quota_bytes > in.relay_host_live_bytes
+    out.relay_growth_grant_bytes = out.host_loans_admitted && out.host_loan_quota_bytes > in.relay_host_live_bytes
         ? out.host_loan_quota_bytes - in.relay_host_live_bytes : 0;
-    const auto grant = bounded_grant;
-    out.donor_room_bytes = grant > relay_growth ? grant - relay_growth : 0;
-    out.donor_growth_admitted = in.system_valid && out.donor_room_bytes >= admission_room;
+    out.donor_room_bytes = requested_donor_grant + remaining - out.relay_growth_grant_bytes;
+    out.donor_growth_admitted = growth_admitted && !in.donor_preparing_bytes &&
+        (requested_donor_grant != 0 || out.donor_room_bytes >= admission_room);
     out.small_cpu_admitted = in.system_valid && in.system_usable_bytes >= small_cpu_minimum_room_bytes &&
         ((in.relay_ready && out.host_loans_admitted) || in.donors_available);
     const bool was_shrinking = previous.state == State::shrinking || previous.state == State::pressure;
@@ -288,6 +340,8 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.host_loans_admitted = false;
         out.donor_growth_admitted = false;
         out.donor_room_bytes = 0;
+        out.guest_prepare_grant_bytes = 0;
+        out.relay_growth_grant_bytes = 0;
         out.small_cpu_admitted = false;
         out.host_loan_quota_bytes = in.relay_host_live_bytes;
     } else if (below_reserve || (was_shrinking && !recovered)) {
@@ -297,12 +351,14 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
         out.host_loans_admitted = false;
         out.donor_growth_admitted = false;
         out.donor_room_bytes = 0;
+        out.guest_prepare_grant_bytes = 0;
+        out.relay_growth_grant_bytes = 0;
         out.small_cpu_admitted = false;
         out.host_loan_quota_bytes = in.relay_host_live_bytes;
     } else if (!in.relay_ready) {
         out.state = State::warming;
         out.reason = in.donors_available ? "relay_not_ready_donors_serve" : "relay_not_ready";
-    } else if (out.host_loans_admitted) {
+    } else if (out.host_loans_admitted || out.guest_prepare_grant_bytes || requested_donor_grant) {
         out.state = State::growing;
         out.reason = "measured_room_available";
     } else {
@@ -322,6 +378,15 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
     if (out.host_room_valid && out.host_room_bytes == 0)
         out.storage_shrink_requested = true;
     return out;
+}
+
+// A donor completion can immediately start another request before the next
+// sampling tick. Completing/refusing the IPC must not refund this decision's
+// allowance: only the next decision may authorize those bytes again.
+constexpr std::uint64_t remaining_donor_room(const Decision& decision,
+                                            std::uint64_t committed_bytes) noexcept {
+    return decision.donor_growth_admitted && decision.donor_room_bytes > committed_bytes
+        ? decision.donor_room_bytes - committed_bytes : 0;
 }
 
 constexpr const char* state_name(State state) noexcept {

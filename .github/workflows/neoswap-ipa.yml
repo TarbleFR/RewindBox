@@ -893,6 +893,8 @@ jobs:
           assert identity['neoswap_client_abi'] == 1, identity
           assert identity['neoswap_client_stats_abi'] == 1, identity
           assert identity['neoswap_relay_abi'] == 1, identity
+          assert identity['neoswap_prepared_relay_abi'] == 1, identity
+          assert identity['neoswap_relay_client_stats_abi'] == 1, identity
           assert identity['neoswap_storage_abi'] == 1, identity
           assert identity['neoswap_source_archive_abi'] == 1, identity
           validate_core_input_identity(identity)

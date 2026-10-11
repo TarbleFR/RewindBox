@@ -25,6 +25,18 @@ import statistics
 PAIR = re.compile(r"\b([A-Za-z][A-Za-z0-9_]*)=([^\s]+)")
 IDENTITY = ("sourceCommit", "pid", "sessionSequence", "bootTimestamp", "title",
             "workloadId", "deviceId", "settingsId")
+DONATED_FIELDS = (
+    ("neoswap_donated_peak_bytes", "donatedBytes"),
+    ("neoswap_donated_guest_peak_bytes", "donatedGuestBytes"),
+    ("neoswap_donated_host_relay_peak_bytes", "donatedHostRelayBytes"),
+    ("neoswap_donated_donor_peak_bytes", "donatedDonorBytes"),
+)
+GUEST_COUNTERS = (
+    "candidate_first_maps", "requested_bytes", "gameplay_first_maps", "gameplay_requested_bytes",
+    "prepared_hits", "prepared_hit_bytes", "prepared_misses", "prepared_miss_bytes",
+    "ordinary_fallbacks", "ordinary_fallback_bytes", "map_failures", "alias_maps",
+    "prepared_published_objects", "prepared_published_bytes", "first_map_total_ns",
+)
 
 
 def number(value):
@@ -43,6 +55,45 @@ def field(record, path):
     for key in path.split("."):
         record = record.get(key) if isinstance(record, dict) else None
     return record
+
+
+def active_donation(record):
+    """Accept only the measured schema-2 total and its disjoint active parts.
+
+    Earlier occupied-backing counters include idle shelves and cannot recover
+    this measure. Unknown, inconsistent and out-of-range samples stay unknown.
+    """
+    contribution = record.get("neoswapContribution")
+    if not isinstance(contribution, dict) or type(contribution.get("schema")) is not int or contribution["schema"] != 2:
+        return None
+    values = {name: contribution.get(name) for _, name in DONATED_FIELDS}
+    if any(type(value) is not int or not 0 <= value <= (1 << 64) - 1 for value in values.values()):
+        return None
+    if values["donatedBytes"] != sum(values[name] for _, name in DONATED_FIELDS[1:]):
+        return None
+    return values
+
+
+def guest_sample(record):
+    """Parse exact uint64 counters without rounding bytes through a float."""
+    values = dict(PAIR.findall(str(record.get("message", ""))))
+    if (values.get("schema") != "1" or values.get("valid") != "1" or
+            values.get("result") != "0" or values.get("scope") != "process_lifetime" or
+            values.get("gameplay_active") not in ("0", "1") or
+            values.get("phase") not in ("before_boot", "boot_return", "sample", "session_end")):
+        return None
+    parsed = {}
+    for name in (*GUEST_COUNTERS, "first_map_max_ns", "sample_epoch"):
+        value = values.get(name, "")
+        if not re.fullmatch(r"[0-9]+", value):
+            return None
+        parsed[name] = int(value)
+        if parsed[name] > (1 << 64) - 1:
+            return None
+    if not parsed["sample_epoch"]:
+        return None
+    parsed["phase"] = values["phase"]
+    return parsed
 
 
 def read_logs(paths):
@@ -116,9 +167,9 @@ def select_session(info, memory, diagnostics):
         values = dict(PAIR.findall(str(row.get("message", ""))))
         if "title" in values and values["title"] != info["title"]:
             raise ValueError("Diagnostic title differs from selected workload")
-        if row.get("stage") == "performance_sample" and values.get("title") != info["title"]:
-            raise ValueError("Performance sample requires an explicit matching title")
-        if row.get("stage") == "performance_sample" and "sample_epoch" in values:
+        if row.get("stage") in ("performance_sample", "neoswap_guest_sample") and values.get("title") != info["title"]:
+            raise ValueError("Performance/guest sample requires an explicit matching title")
+        if row.get("stage") in ("performance_sample", "neoswap_guest_sample") and "sample_epoch" in values:
             epochs.add(values["sample_epoch"])
     if len(epochs) > 1:
         raise ValueError("Performance epoch reset/relaunch inside selected session")
@@ -243,7 +294,40 @@ def measure(info, memory, diagnostics):
                   ("donorLoanLiveBytes", "relayGuestLiveBytes", "relayHostLoanLiveBytes")]
         backing.append({"live": sum(values) if all(number(v) and v >= 0 for v in values) else None})
     aggregate("neoswap_live_backing_peak_bytes", backing, "live", max, "bytes",
-              "simultaneous disjoint donor loans + guest relay + host relay; not resident RAM/capacity")
+              "simultaneous occupied donor + guest relay + host relay backing, including idle host-loan shelves; not active donation/resident RAM/capacity")
+    donations = [active_donation(row) for row in rows]
+    donation_valid = bool(donations) and all(value is not None for value in donations)
+    for key, name in DONATED_FIELDS:
+        put(key, max(value[name] for value in donations) if donation_valid else None, "bytes",
+            "neoswapContribution.schema=2/" + name + "; active backing, not residency or footprint savings",
+            "schema_2_active_donation_missing_invalid_or_inconsistent_in_session_samples")
+    guest = [guest_sample(row) for row in diagnostics if row.get("stage") == "neoswap_guest_sample"]
+    guest_valid = bool(guest) and all(row is not None for row in guest)
+    # Explicit endpoints retain loading and final gameplay requests. A rotated
+    # or truncated capture must not masquerade as a complete guest delta.
+    if guest_valid:
+        phases = [row["phase"] for row in guest]
+        guest_valid = (phases[0] == "before_boot" and phases[-1] == "session_end" and
+                       phases.count("before_boot") == phases.count("session_end") == 1)
+    for name in GUEST_COUNTERS:
+        values = [row[name] for row in guest] if guest_valid else []
+        if any(current < prior for prior, current in zip(values, values[1:])):
+            raise ValueError(f"Cumulative guest counter reset within session: {name}")
+        unit = "bytes" if name.endswith("_bytes") else "ns" if name.endswith("_ns") else "count"
+        put("guest_relay_" + name, values[-1] - values[0] if values else None, unit,
+            "neoswap_guest_sample process-lifetime counter delta: " + name,
+            "complete_valid_guest_samples_with_boot_and_end_not_recorded")
+    maxima = [row["first_map_max_ns"] for row in guest] if guest_valid else []
+    if any(current < prior for prior, current in zip(maxima, maxima[1:])):
+        raise ValueError("Cumulative guest maximum reset within session: first_map_max_ns")
+    put("guest_relay_first_map_process_lifetime_max_ns", max(maxima) if maxima else None, "ns",
+        "first-map body after client mutex acquired; process maximum may predate this boot",
+        "complete_valid_guest_samples_with_boot_and_end_not_recorded")
+    count = metrics["guest_relay_candidate_first_maps"]["value"]
+    elapsed = metrics["guest_relay_first_map_total_ns"]["value"]
+    put("guest_relay_first_map_body_mean_us", elapsed / count / 1000 if count and elapsed is not None else None,
+        "us", "first-map total_ns / candidate_first_maps; excludes client-mutex wait, outer VM locks and ordinary fallback",
+        "no_measured_candidate_first_maps_or_guest_samples_missing")
     put("neoswap_usable_capacity_bytes", None, "bytes", "none",
         "live_mappings_and_preparation_do_not_establish_additional_usable_capacity_under_gameplay_pressure")
     put("neoswap_fault_latency_ms", None, "ms", "none", "per_fault_duration_not_exported")
@@ -292,6 +376,8 @@ def compare(before, after):
                 "Loading SPU classification denotes startup compile scope, not the first playable frame.",
                 "Range-lock waits are guest VM contention; NeoSwap acquisition latency is a separate measurement.",
                 "Resident bytes, process footprint, prepared capacity and shared live backing must not be added as physical RAM.",
+                "Schema-2 donated bytes exclude idle shelves; older occupied-backing counters cannot establish this value or footprint savings.",
+                "Guest prepared hits/publications are cumulative objects/bytes, not active or resident RAM; first-map timing excludes mutex acquisition and the ordinary fallback allocator.",
                 "No 50 s / 8.8 s / 118 ms / million-block baseline is assumed without identified source logs.",
             ]}
 

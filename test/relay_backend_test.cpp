@@ -3,9 +3,11 @@
 // residency evidence; a separate real-kernel probe exercises the same ABI.
 #include "../native/neoswap-relay/Backend.h"
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <iostream>
 #include <map>
+#include <thread>
 #include <vector>
 
 using neostation::relay::Backend;
@@ -26,6 +28,8 @@ struct FakeOS {
     std::uint64_t budget = neostation::relay::maximum_capacity;
     int fail_retain = 0, fail_drop = 0, fail_map = 0, fail_unmap = 0, fail_zero = 0;
     int zero_calls = 0, unmap_calls = 0, fixed_replacements = 0, fixed_deallocation_holes = 0;
+    std::atomic<int> headroom_calls{0}, map_calls{0};
+    std::atomic<bool> block_headroom{false}, entered_headroom{false};
     void add(std::uint32_t port, std::uint64_t bytes) { entries[port].bytes = bytes; }
     void reserve(std::uintptr_t at, std::uint64_t bytes) { mappings[at] = {0, 0, bytes, NEOSWAP_RELAY_NONE}; }
     static bool fail(int& remaining) { if (!remaining) return false; --remaining; return true; }
@@ -47,6 +51,7 @@ struct FakeOS {
                    std::uint64_t bytes, std::uintptr_t target, std::uint32_t protection,
                    std::uintptr_t* mapped) {
         auto& self = *static_cast<FakeOS*>(context);
+        ++self.map_calls;
         if (fail(self.fail_map)) return 104;
         const auto& entry = self.entries.at(port);
         if (offset > entry.bytes || bytes > entry.bytes - offset) return 105;
@@ -92,7 +97,13 @@ struct FakeOS {
         }
         return 0;
     }
-    static std::uint64_t headroom(void* context) { return static_cast<FakeOS*>(context)->budget; }
+    static std::uint64_t headroom(void* context) {
+        auto& self = *static_cast<FakeOS*>(context);
+        ++self.headroom_calls;
+        self.entered_headroom = true;
+        while (self.block_headroom.load()) std::this_thread::yield();
+        return self.budget;
+    }
     static Operations operations() { return {retain, drop, map, unmap, zero, headroom}; }
     void write(void* view, std::uint64_t index, unsigned char value) {
         const auto& mapping = mappings.at(reinterpret_cast<std::uintptr_t>(view));
@@ -661,7 +672,181 @@ static void best_fit_preserves_large_runs() {
     assert(f.backend.shutdown() == 0);
 }
 
+static NeoSwapPreparedRelayStats prepared_stats(Backend& backend) {
+    NeoSwapPreparedRelayStats result{};
+    result.struct_size = sizeof(result);
+    assert(backend.prepared_snapshot(&result) == NEOSWAP_RELAY_OK);
+    return result;
+}
+
+static void prepared_guest_lifecycle_and_accounting() {
+    Fixture f(16 * page);
+    std::uint64_t token = 0;
+    assert(f.backend.try_acquire_prepared(0, 3 * page, &token) == NEOSWAP_RELAY_QUOTA && !token);
+    auto demand = prepared_stats(f.backend);
+    assert(demand.demand_count == 1 && demand.demand_bytes == 3 * page);
+    const auto maps = f.os.map_calls.load();
+    const int scrubs = f.os.zero_calls;
+    assert(f.backend.maintain_guest_pool(6 * page, 3 * page) == 0);
+    auto stock = prepared_stats(f.backend);
+    assert(stock.prepared_bytes == 3 * page && stock.prepared_count == 1 && !stock.demand_bytes);
+    assert(stock.unpublished_bytes == 3 * page && f.stats().live_bytes == 3 * page);
+    assert(!f.backend.pressure_diagnostics().owner_published_live_bytes[0]);
+    assert(f.os.map_calls == maps && f.os.zero_calls == scrubs); // No page touch or alias in preparation.
+    const auto samples = f.os.headroom_calls.load();
+    assert(f.backend.try_acquire_prepared(0, 3 * page, &token) == 0 && token);
+    assert(f.os.headroom_calls == samples && f.os.map_calls == maps && f.os.zero_calls == scrubs);
+    stock = prepared_stats(f.backend);
+    assert(!stock.prepared_bytes && stock.unpublished_bytes == 3 * page);
+    void *rw = nullptr, *ro = nullptr;
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ_WRITE, &rw) == 0);
+    assert(!prepared_stats(f.backend).unpublished_bytes);
+    f.os.write(rw, 0, 0xA3);
+    assert(f.backend.return_unused_prepared(token) == NEOSWAP_RELAY_UNKNOWN);
+    f.backend.set_pressure(true);
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ, &ro) == 0);
+    assert(f.os.read(ro, 0) == 0xA3);
+    assert(f.backend.pressure_diagnostics().owner_published_live_bytes[0] == 3 * page);
+    assert(f.backend.unmap(token, rw) == 0 && f.backend.unmap(token, ro) == 0);
+    assert(f.backend.release(token) == 0 && f.os.zero_calls == scrubs);
+    assert(!f.backend.pressure_diagnostics().owner_published_live_bytes[0]);
+    assert(prepared_stats(f.backend).pending_scrub_bytes == 3 * page);
+    f.os.fail_zero = 1;
+    assert(f.backend.collect() == NEOSWAP_RELAY_CLEANUP);
+    assert(f.stats().live_bytes == 3 * page); // Failed scrub cannot reissue dirty backing.
+    assert(f.backend.collect() == 0 && !f.stats().live_bytes);
+    assert(!prepared_stats(f.backend).pending_scrub_bytes);
+    f.backend.set_pressure(false);
+    assert(f.backend.maintain_guest_pool(3 * page, 3 * page) == 0);
+    std::uint64_t next = 0;
+    assert(f.backend.try_acquire_prepared(0, 3 * page, &next) == 0 && next != token);
+    assert(f.backend.map(next, nullptr, NEOSWAP_RELAY_READ_WRITE, &rw) == 0);
+    assert(f.os.read(rw, 0) == 0);
+    assert(f.backend.retire(next) == 0); // Aliases removed, scrub remains utility-only.
+    assert(f.backend.collect() == 0 && f.backend.shutdown() == 0);
+}
+
+static void prepared_miss_return_and_pressure() {
+    Fixture f(8 * page);
+    std::uint64_t token = 0;
+    assert(f.backend.try_acquire_prepared(1, page, &token) == NEOSWAP_RELAY_INVALID);
+    assert(f.backend.try_acquire_prepared(0, 32 * 1024 * 1024, &token) == NEOSWAP_RELAY_INVALID);
+    assert(prepared_stats(f.backend).unsupported_count == 2);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(f.backend.maintain_guest_pool(0, page) == 0 && !prepared_stats(f.backend).prepared_bytes);
+    assert(f.backend.maintain_guest_pool(page, 0) == 0 && !prepared_stats(f.backend).prepared_bytes);
+    assert(f.backend.maintain_guest_pool(page, page) == 0);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == 0);
+    f.os.budget = 0;
+    void* mapped = nullptr;
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ_WRITE, &mapped) == NEOSWAP_RELAY_PRESSURE);
+    const auto samples = f.os.headroom_calls.load();
+    const auto maps = f.os.map_calls.load();
+    assert(f.backend.return_unused_prepared(token) == 0);
+    assert(f.backend.return_unused_prepared(token) == NEOSWAP_RELAY_UNKNOWN);
+    assert(!f.os.zero_calls && f.os.headroom_calls == samples && f.os.map_calls == maps);
+    assert(prepared_stats(f.backend).unpublished_bytes == page); // Promise held until collection.
+    assert(f.backend.collect() == 0 && !f.os.zero_calls);
+    assert(!prepared_stats(f.backend).unpublished_bytes && !f.stats().live_bytes);
+    f.os.budget = 8 * page;
+    assert(f.backend.maintain_guest_pool(page, page) == 0);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == 0);
+    f.os.fail_map = 1;
+    assert(f.backend.map(token, nullptr, NEOSWAP_RELAY_READ_WRITE, &mapped) == NEOSWAP_RELAY_MAPPING);
+    assert(f.backend.return_unused_prepared(token) == 0 && f.backend.collect() == 0);
+    assert(!f.os.zero_calls && !f.backend.pressure_diagnostics().owner_published_live_bytes[0]);
+    assert(f.backend.maintain_guest_pool(page, page) == 0);
+    f.backend.set_pressure(true);
+    std::uint64_t held = 0;
+    assert(f.backend.try_acquire_prepared(0, page, &held) == NEOSWAP_RELAY_PRESSURE && !held);
+    assert(f.backend.maintain_guest_pool(page, page) == 0 && !prepared_stats(f.backend).prepared_bytes);
+    assert(!f.os.zero_calls && f.backend.shutdown() == 0);
+}
+
+static void prepared_try_acquire_does_not_wait_for_maintenance() {
+    Fixture f(8 * page);
+    std::uint64_t first = 0;
+    f.os.block_headroom = true;
+    f.os.entered_headroom = false;
+    std::thread worker([&] { assert(f.backend.create(0, page, &first) == 0); });
+    while (!f.os.entered_headroom.load()) std::this_thread::yield();
+    std::uint64_t token = 0;
+    // The worker holds the backend mutex inside a simulated slow OS sample.
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_BUSY && !token);
+    f.os.block_headroom = false;
+    worker.join();
+    assert(prepared_stats(f.backend).miss_busy == 1);
+    assert(prepared_stats(f.backend).demand_bytes == page);
+    assert(f.backend.maintain_guest_pool(page, page) == 0);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == 0);
+    // Returning an unused object also succeeds while the metadata lock is held.
+    f.os.block_headroom = true;
+    f.os.entered_headroom = false;
+    std::uint64_t second = 0;
+    std::thread busy([&] { assert(f.backend.create(0, page, &second) == 0); });
+    while (!f.os.entered_headroom.load()) std::this_thread::yield();
+    assert(f.backend.return_unused_prepared(token) == 0);
+    f.os.block_headroom = false;
+    busy.join();
+    assert(f.backend.collect() == 0);
+    assert(f.backend.release(first) == 0 && f.backend.release(second) == 0);
+    assert(f.backend.shutdown() == 0);
+}
+
+static void prepared_demand_is_bounded_and_idle_stock_expires() {
+    Fixture f(512 * page);
+    std::uint64_t token = 0;
+    for (unsigned n = 0; n != 100; ++n)
+        assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(prepared_stats(f.backend).demand_count == 4);
+    assert(prepared_stats(f.backend).demand_overflow == 96);
+    // Per-tick growth is limited to the supplied common-budget promise.
+    assert(f.backend.maintain_guest_pool(4 * page, page) == 0);
+    assert(prepared_stats(f.backend).prepared_bytes == page);
+    for (unsigned i = 0; i != 3; ++i)
+        assert(f.backend.maintain_guest_pool(4 * page, page) == 0);
+    assert(prepared_stats(f.backend).prepared_bytes == 4 * page);
+    assert(!prepared_stats(f.backend).demand_bytes);
+    for (unsigned i = 0; i != 32; ++i)
+        assert(f.backend.maintain_guest_pool(4 * page, 0) == 0);
+    assert(!prepared_stats(f.backend).prepared_bytes && !f.os.zero_calls);
+    assert(f.backend.shutdown() == 0);
+    assert(f.backend.configure(1) == 0 && f.backend.adopt(42, 512 * page, 1234, 2) == 0);
+    assert(f.backend.try_acquire_prepared(0, page, &token) == NEOSWAP_RELAY_QUOTA);
+    assert(f.backend.maintain_guest_pool(page, page) == 0);
+    assert(f.backend.shutdown() == 0); // Unused prepared tokens do not block stop/restart.
+}
+
+static void prepared_all_aligned_sizes_and_tick_limits() {
+    Fixture f(512 * page);
+    std::uint64_t token = 0;
+    for (unsigned pages = 1; pages <= 256; ++pages)
+        assert(f.backend.try_acquire_prepared(0, pages * page, &token) == NEOSWAP_RELAY_QUOTA);
+    auto stats = prepared_stats(f.backend);
+    assert(stats.demand_count == 256 && !stats.demand_overflow);
+    assert(stats.demand_bytes == (256ULL * 257 / 2) * page);
+    const auto samples = f.os.headroom_calls.load();
+    assert(f.backend.maintain_guest_pool(64 * 1024 * 1024, 256 * 1024 * 1024) == 0);
+    stats = prepared_stats(f.backend);
+    assert(stats.prepared_count == 8 && f.os.headroom_calls == samples + 8);
+    assert(stats.prepared_bytes == 36 * page && stats.demand_count == 248);
+    // There is no exhausted dynamic-size table: a late exact size is still
+    // admitted after smaller stock is drained and the round-robin gets to it.
+    for (unsigned i = 0; i < 256; ++i) {
+        assert(f.backend.maintain_guest_pool(32 * 1024 * 1024, 32 * 1024 * 1024) == 0);
+        if (f.backend.try_acquire_prepared(0, 255 * page, &token) == 0) break;
+        assert(f.backend.maintain_guest_pool(0, 0) == 0);
+    }
+    assert(token && f.backend.return_unused_prepared(token) == 0);
+    assert(f.backend.collect() == 0 && f.backend.shutdown() == 0);
+}
+
 int main() {
+    prepared_guest_lifecycle_and_accounting();
+    prepared_miss_return_and_pressure();
+    prepared_try_acquire_does_not_wait_for_maintenance();
+    prepared_demand_is_bounded_and_idle_stock_expires();
+    prepared_all_aligned_sizes_and_tick_limits();
     published_backing_counts_successful_active_objects_once();
     best_fit_preserves_large_runs();
     host_loan_owner_quota_protects_guest_share();
@@ -677,5 +862,5 @@ int main() {
     every_fixed_alias_is_attempted_before_retire_returns();
     retirement_is_bounded_and_fair();
     eight_gibibyte_capacity_keeps_bounded_tokens_and_wide_counters();
-    std::cout << "relay backend: alias identity, fixed reservations, failure ownership, zeroing, pressure, coalescing, deferred retirement, published backing, host-loan owner quotas and lifecycle checks passed\n";
+    std::cout << "relay backend: prepared guest admission, nonblocking acquire/return, common grants, 256 exact sizes, deferred scrub, published accounting, alias identity, fixed reservations, failure ownership, pressure, coalescing and lifecycle checks passed\n";
 }

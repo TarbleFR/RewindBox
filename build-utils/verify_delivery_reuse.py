@@ -840,6 +840,98 @@ BUILD440_DELTA = {
 DELTA |= BUILD440_DELTA
 INPUT_ROOTS =('lib/', 'packages/', 'native/', 'build-utils/', 'assets/', 'test/')
 
+# Build 441 changes RPCS3/NeoSwap only. The targeted lane retains the actual
+# Build 440 evidence and rejects every other runtime, dependency or recipe delta.
+NEOSWAP_441_REFERENCE = '0913f260beb71874ac4aea48ac3ac8014232f119'
+NEOSWAP_441_EVIDENCE = (
+    (38161126590, 'cbd0ff0124a4af7a34d1b10b3e22e0991d7d5e64', '.github/workflows/retroarch-delivery.yml', ('checks', 'native', 'Release device build • cold')),
+    (38161934907, NEOSWAP_441_REFERENCE, '.github/workflows/dolphin-motion-check.yml', ()),
+    (38161174475, '1bc0edf8396c913c4c7d6d0d2665decdaa09c23a', '.github/workflows/ui-refresh-rate-check.yml', ()),
+)
+NEOSWAP_441_DELTA = {
+    'build-utils/rpcs3/embedded-core.patch',
+    'build-utils/rpcs3/canonical-source.json',
+    'build-utils/build_rpcs3_embedded_core.sh',
+    'build-utils/verify_delivery_reuse.py',
+    'native/neoswap-relay/Backend.cpp',
+    'native/neoswap-relay/Backend.h',
+    'packages/neo_swap/ios/Classes/NeoSwapRelay.h',
+    'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+    'packages/neo_swap/ios/Classes/NeoSwapBudget.h',
+    'packages/neo_swap/ios/Classes/NeoSwap.cpp',
+    'packages/neo_swap/ios/Classes/NeoSwapHost.h',
+    'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
+    'test/neo_swap_core_pin_test.py',
+    'test/rpcs3_neoswap_relay_test.py',
+    'test/native/rpcs3_neoswap_relay_test.cpp',
+    'test/relay_backend_test.cpp',
+    'test/neoswap_budget_test.cpp',
+    'test/delivery_pipeline_test.py',
+    'test/rpcs3_neoswap_build_comparison_test.py',
+    'test/neoswap_donor_contract_test.py',
+    'tools/compare_rpcs3_neoswap_builds.py',
+    '.github/workflows/rpcs3-core.yml',
+    '.github/workflows/retroarch-delivery.yml',
+    '.github/workflows/neoswap-ipa.yml',
+}
+DELTA |= NEOSWAP_441_DELTA
+
+
+def verify_neoswap_tree(reference=NEOSWAP_441_REFERENCE):
+    """Closed Build440 inputs; only reviewed RPCS3/NeoSwap paths may differ."""
+    roots = INPUT_ROOTS + ('tools/', '.github/workflows/')
+    tracked = lambda path: path.startswith(roots) or path in ('pubspec.yaml', 'pubspec.lock')
+    old = {}
+    for line in subprocess.check_output(['git', 'ls-tree', '-r', reference], cwd=ROOT, text=True).splitlines():
+        metadata, path = line.split('\t', 1)
+        if tracked(path):
+            old[path] = metadata.split()
+    current = {p for p in subprocess.check_output(['git', 'ls-files'], cwd=ROOT, text=True).splitlines() if tracked(p)}
+    changed, unchanged = [], {}
+    for path in sorted(set(old) | current):
+        file = ROOT / path
+        data = file.read_bytes() if file.is_file() and not file.is_symlink() else None
+        oid = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() if data is not None else None
+        if path in old and data is not None:
+            mode = '100755' if file.stat().st_mode & 0o111 else '100644'
+            if mode != old[path][0]:
+                raise ValueError('NeoSwap delivery input mode changed: ' + path)
+        if path in old and old[path][2] == oid:
+            unchanged[path] = sha(data)
+            continue
+        if path == 'pubspec.yaml' and data is not None:
+            before = subprocess.check_output(['git', 'show', reference + ':' + path], cwd=ROOT)
+            strip_version = lambda payload: b'\n'.join(line for line in payload.splitlines() if not line.startswith(b'version: '))
+            if strip_version(before) != strip_version(data):
+                raise ValueError('NeoSwap delivery changed dependencies instead of only the build version')
+        elif path not in NEOSWAP_441_DELTA:
+            raise ValueError('Unreviewed NeoSwap delivery input changed: ' + path)
+        if data is None:
+            raise ValueError('NeoSwap delivery input is missing or symlinked: ' + path)
+        changed.append(path)
+    return changed, unchanged
+
+
+def verify_neoswap_evidence():
+    records = []
+    for run_id, commit, workflow, required_jobs in NEOSWAP_441_EVIDENCE:
+        run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{run_id}']))
+        if run['head_sha'] != commit or run['conclusion'] != 'success' or run['path'] != workflow:
+            raise ValueError('Build440 evidence is not successful at its exact reference: ' + str(run_id))
+        jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{run_id}/jobs']))['jobs']
+        if required_jobs:
+            for name in required_jobs:
+                if not any(job['name'] == name and job['conclusion'] == 'success' for job in jobs):
+                    raise ValueError('Build440 evidence lacks successful job ' + name)
+        elif not jobs or any(job['conclusion'] != 'success' for job in jobs):
+            raise ValueError('Build440 follow-up includes an unsuccessful job: ' + str(run_id))
+        records.append({'run': run_id, 'testedSHA': commit, 'workflow': workflow,
+                        'successfulJobs': [job['name'] for job in jobs if job['conclusion'] == 'success']})
+    return records
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -878,9 +970,19 @@ def verify_tree():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--scope', choices=('full', 'rpcs3_neoswap'), default='full')
     parser.add_argument('--output', default='build/delivery/reused-validation.json')
     args = parser.parse_args()
     changed, unchanged = verify_tree()
+    scoped = None
+    if args.scope == 'rpcs3_neoswap':
+        scoped_changed, scoped_unchanged = verify_neoswap_tree()
+        scoped = {'referenceSHA': NEOSWAP_441_REFERENCE,
+                  'changedInputsRequiringNewTests': scoped_changed,
+                  'unchangedInputCount': len(scoped_unchanged),
+                  'unchangedInputsSha256': sha(json.dumps(scoped_unchanged, sort_keys=True).encode()),
+                  'evidence': [] if args.offline else verify_neoswap_evidence(),
+                  'onlineSuccessVerified': not args.offline}
     run = None
     if not args.offline:
         run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{REFERENCE_RUN}']))
@@ -894,7 +996,7 @@ def main():
         if (receiver_run['head_sha'] != RECEIVER_REFERENCE or receiver_run['conclusion'] != 'success'
                 or receiver_run['path'] != '.github/workflows/retroarch-source-proof.yml'):
             raise ValueError('Pinned receiver validation was not successful')
-    report = {'referenceSHA': REFERENCE, 'referenceRun': REFERENCE_RUN,
+    report = {'scope': args.scope, 'build440Reuse': scoped, 'referenceSHA': REFERENCE, 'referenceRun': REFERENCE_RUN,
               'onlineSuccessVerified': run is not None,
               'receiverReferenceSHA': RECEIVER_REFERENCE, 'receiverReferenceRun': RECEIVER_RUN,
               'unchangedInputCount': len(unchanged),

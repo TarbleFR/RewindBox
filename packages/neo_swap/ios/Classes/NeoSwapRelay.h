@@ -64,6 +64,52 @@ typedef struct NeoSwapRelayAPI {
 __attribute__((visibility("default")))
 #endif
 const NeoSwapRelayAPI* NeoSwap_GetRelayAPI(uint32_t abi_version);
+
+/* Optional, separate ABI. Prepared objects have no caller alias and are not
+ * donated until RelayAPI.map first publishes them. Acquisition only tries a
+ * metadata lock: it never allocates, samples the OS, maps or touches pages.
+ * A successful token uses the unchanged RelayAPI lifecycle. Misses record
+ * bounded demand for a utility worker; callers may use ordinary backing.
+ */
+enum { NEOSWAP_PREPARED_RELAY_ABI = 1 };
+typedef struct NeoSwapPreparedRelayStats {
+    uint32_t struct_size, abi_version;
+    uint64_t prepared_bytes, prepared_count, demand_bytes, demand_count;
+    uint64_t request_count, requested_bytes, acquired_count, acquired_bytes;
+    uint64_t miss_busy, miss_empty, refused_pressure, refused_disabled;
+    uint64_t unsupported_count, demand_overflow;
+    uint64_t prepared_total, reclaimed_total, prepare_failures, peak_prepared_bytes;
+    uint64_t pending_scrub_bytes, pending_scrub_count;
+    /* Includes prepared + borrowed-but-unpublished + their pending cleanup.
+     * These commitments have not necessarily consumed physical pages yet. */
+    uint64_t unpublished_bytes;
+} NeoSwapPreparedRelayStats;
+typedef struct NeoSwapPreparedRelayAPI {
+    uint32_t struct_size, abi_version;
+    int (*try_acquire)(uint32_t owner, uint64_t bytes, uint64_t* token);
+    /* Only before any successful map, with no concurrent user of the token.
+     * OK transfers ownership to utility cleanup without locks or OS calls;
+     * failure retains ownership. Does not accept legacy create() tokens. */
+    int (*return_unused)(uint64_t token);
+    int (*snapshot)(NeoSwapPreparedRelayStats* stats);
+} NeoSwapPreparedRelayAPI;
+#if defined(__GNUC__)
+__attribute__((visibility("default")))
+#endif
+const NeoSwapPreparedRelayAPI* NeoSwap_GetPreparedRelayAPI(uint32_t abi_version);
+
+/* Optional Core diagnostics; independent from both relay function tables. */
+enum { NEOSWAP_RELAY_CLIENT_STATS_ABI = 1 };
+typedef struct NeoSwapRelayClientStats {
+    uint32_t struct_size, abi_version, gameplay_active, reserved;
+    uint64_t candidate_first_maps, requested_bytes, gameplay_first_maps, gameplay_requested_bytes;
+    uint64_t prepared_hits, prepared_hit_bytes, prepared_misses, prepared_miss_bytes;
+    uint64_t ordinary_fallbacks, ordinary_fallback_bytes, map_failures, alias_maps;
+    uint64_t prepared_published_objects, prepared_published_bytes;
+    uint64_t first_map_total_ns, first_map_max_ns;
+    int32_t last_result;
+    uint32_t reserved_result;
+} NeoSwapRelayClientStats;
 #ifdef __cplusplus
 }
 #endif

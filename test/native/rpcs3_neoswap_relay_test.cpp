@@ -1,6 +1,7 @@
 #include "util/vm.hpp"
 #include "ios/RPCS3IOSSharedMemory.h"
 #include <cassert>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -41,6 +42,12 @@ int creates=0, releases=0, maps=0, unmaps=0;
 bool active=true, reject_create=false, reject_map=false, reject_release=false;
 int reject_unmap=0, retire_calls=0;
 std::mutex broker_mutex;
+std::mutex prepared_mutex;
+struct ready_object { std::uint64_t token=0, size=0; };
+std::array<ready_object,8> ready{};
+std::array<std::uint64_t,8> returned{};
+bool reject_return=false;
+int prepared_requests=0, unused_returns=0;
 void* reserve(std::size_t size) {
  void* raw=mmap(nullptr,size+bytes,PROT_NONE,MAP_ANON|MAP_PRIVATE,-1,0);
  assert(raw!=MAP_FAILED);
@@ -106,6 +113,37 @@ void collect() {
 int enabled(std::uint32_t owner) { assert(owner==0); return active; }
 int snapshot(NeoSwapRelayStats*) { return NEOSWAP_RELAY_OK; }
 const NeoSwapRelayAPI api={sizeof(api),NEOSWAP_RELAY_ABI,create,map,unmap,release,enabled,snapshot,retire};
+int try_acquire(std::uint32_t owner,std::uint64_t size,std::uint64_t* token) {
+ *token=0; ++prepared_requests; assert(owner==NEOSWAP_RPCS3);
+ if(!active) return NEOSWAP_RELAY_DISABLED;
+ if(!size || size%bytes || size>16*1024*1024) return NEOSWAP_RELAY_INVALID;
+ std::unique_lock lock(prepared_mutex,std::try_to_lock);
+ if(!lock.owns_lock()) return NEOSWAP_RELAY_BUSY;
+ for(auto& object:ready) if(object.token && object.size==size) {
+  *token=object.token; object={}; return NEOSWAP_RELAY_OK;
+ }
+ return NEOSWAP_RELAY_QUOTA;
+}
+int return_unused(std::uint64_t token) {
+ if(reject_return) return NEOSWAP_RELAY_BUSY;
+ assert(objects.at(token).aliases.empty());
+ for(auto& slot:returned) if(!slot) { slot=token; ++unused_returns; return NEOSWAP_RELAY_OK; }
+ std::abort();
+}
+int prepared_snapshot(NeoSwapPreparedRelayStats*) { return NEOSWAP_RELAY_OK; }
+const NeoSwapPreparedRelayAPI prepared={sizeof(prepared),NEOSWAP_PREPARED_RELAY_ABI,try_acquire,return_unused,prepared_snapshot};
+void prepare(std::uint64_t size=bytes) {
+ std::uint64_t token=0; assert(create(NEOSWAP_RPCS3,size,&token)==NEOSWAP_RELAY_OK);
+ for(auto& slot:ready) if(!slot.token) { slot={token,size}; return; }
+ std::abort();
+}
+void drain_returns() {
+ for(auto& slot:returned) if(slot) { assert(release(slot)==NEOSWAP_RELAY_OK); slot=0; }
+}
+NeoSwapRelayClientStats client_stats() {
+ NeoSwapRelayClientStats result{}; result.struct_size=sizeof(result); result.abi_version=NEOSWAP_RELAY_CLIENT_STATS_ABI;
+ assert(neostation::relay::snapshot(&result)==NEOSWAP_RELAY_OK); return result;
+}
 void fault(void* pointer,bool write) {
  const pid_t child=fork(); assert(child>=0);
  if(!child) { volatile unsigned char* p=static_cast<unsigned char*>(pointer); if(write) *p=0x55; else { const auto v=*p;(void)v; } _exit(0); }
@@ -153,6 +191,93 @@ int main() {
   fallback(false); // next loading cycle can acquire a fresh relay object
   assert(creates==before_creates+1 && objects.empty());
  }
+ assert(neostation::relay::install_prepared(nullptr)==NEOSWAP_RELAY_INVALID);
+ auto invalid_prepared=prepared; invalid_prepared.return_unused=nullptr;
+ assert(neostation::relay::install_prepared(&invalid_prepared)==NEOSWAP_RELAY_INVALID);
+ assert(neostation::relay::install_prepared(&prepared)==NEOSWAP_RELAY_OK);
+ assert(neostation::relay::install_prepared(&prepared)==NEOSWAP_RELAY_OK);
+ invalid_prepared=prepared;
+ assert(neostation::relay::install_prepared(&invalid_prepared)==NEOSWAP_RELAY_BUSY);
+ assert(neostation::relay::snapshot(nullptr)==NEOSWAP_RELAY_INVALID);
+ NeoSwapRelayClientStats invalid_stats{};
+ assert(neostation::relay::snapshot(&invalid_stats)==NEOSWAP_RELAY_INVALID);
+ const auto before_prepared=client_stats();
+ neostation::relay::set_gameplay_active(true);
+ const int no_slow_create=creates, no_slow_map=maps;
+ // An empty pool cannot enter the legacy broker even if its mutex is held.
+ { std::lock_guard blocked(broker_mutex); fallback(false); }
+ assert(creates==no_slow_create && maps==no_slow_map);
+ // Contended prepared admission also falls back immediately. The producer
+ // keeps its lock until the ordinary mappings have completed on this thread.
+ std::atomic<bool> held=false, done=false;
+ std::thread producer([&] {
+  std::lock_guard blocked(prepared_mutex); held.store(true);
+  while(!done.load()) std::this_thread::yield();
+ });
+ while(!held.load()) std::this_thread::yield();
+ fallback(false); done.store(true); producer.join();
+ assert(creates==no_slow_create && maps==no_slow_map);
+ // Already FILE-backed objects never migrate when a prepared loan appears.
+ {
+  neostation::relay::shared_memory memory; memory.configure(bytes,true);
+  assert(!memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true).handled);
+  prepare(); const int requests=prepared_requests;
+  assert(!memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true).handled);
+  assert(prepared_requests==requests);
+ }
+ // The real adapter consumes the prepared token without create, preserving
+ // all fixed aliases, including overflow beyond its four inline records.
+ {
+  const int before=creates; utils::shm memory(bytes,0,utils::shm_use::guest_data);
+  std::array<void*,6> views{};
+  for(auto& view:views) { view=reserve(bytes); assert(memory.map_critical(view).first==view); }
+  assert(creates==before && objects.size()==1 && objects.begin()->second.aliases.size()==views.size());
+  static_cast<unsigned char*>(views[0])[0]=0x92;
+  for(auto* view:views) assert(static_cast<unsigned char*>(view)[0]==0x92);
+  for(auto* view:views) memory.unmap_critical(view);
+  assert(objects.begin()->second.aliases.empty());
+  assert(memory.map_critical(views[0]).first==views[0]);
+  assert(static_cast<unsigned char*>(views[0])[0]==0x92);
+  memory.unmap_critical(views[0]);
+  for(auto* view:views) assert(munmap(view,bytes)==0);
+ }
+ assert(objects.empty());
+ // First mapping failure returns ownership without synchronous legacy scrub.
+ prepare(); reject_map=true; reject_release=true;
+ const int before_returns=unused_returns, before_releases=releases;
+ fallback(false);
+ assert(unused_returns==before_returns+1 && releases==before_releases && objects.size()==1);
+ reject_map=false; reject_release=false; drain_returns(); assert(objects.empty());
+ // A failed return cannot forget its token or permit FILE fallback. A later
+ // destructor retries the unused return, rather than retiring a live alias.
+ prepare(); reject_map=true; reject_return=true;
+ const int before_retire=retire_calls;
+ {
+  neostation::relay::shared_memory memory; memory.configure(bytes,true);
+  const auto result=memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true);
+  assert(result.handled && !result.address && result.result==NEOSWAP_RELAY_MAPPING);
+  assert(objects.size()==1 && objects.begin()->second.aliases.empty());
+  reject_return=false;
+ }
+ assert(retire_calls==before_retire); reject_map=false; drain_returns(); assert(objects.empty());
+ // Unsupported sizes stay ordinary during gameplay; there is no slow create.
+ {
+  neostation::relay::shared_memory memory; memory.configure(32*1024*1024,true);
+  const int before=creates; const auto result=memory.map(nullptr,NEOSWAP_RELAY_READ_WRITE,true);
+  assert(!result.handled && result.result==NEOSWAP_RELAY_INVALID && creates==before);
+ }
+ const auto after_prepared=client_stats();
+ assert(after_prepared.gameplay_active==1);
+ assert(after_prepared.prepared_hits-before_prepared.prepared_hits==3);
+ assert(after_prepared.prepared_hit_bytes-before_prepared.prepared_hit_bytes==3*bytes);
+ assert(after_prepared.prepared_published_objects-before_prepared.prepared_published_objects==1);
+ assert(after_prepared.prepared_published_bytes-before_prepared.prepared_published_bytes==bytes);
+ assert(after_prepared.alias_maps-before_prepared.alias_maps==6);
+ assert(after_prepared.map_failures-before_prepared.map_failures==2);
+ assert(after_prepared.ordinary_fallbacks-before_prepared.ordinary_fallbacks==5);
+ assert(after_prepared.first_map_total_ns>=after_prepared.first_map_max_ns);
+ assert(after_prepared.first_map_max_ns>0);
+ neostation::relay::set_gameplay_active(false);
  const int boot_creates=creates;
  fallback(true); assert(creates==boot_creates); // COW excludes relay before any view
  fallback(false,utils::protection::rx); assert(creates==boot_creates); // executable excluded

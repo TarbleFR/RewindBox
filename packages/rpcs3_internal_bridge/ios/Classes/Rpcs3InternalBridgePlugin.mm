@@ -94,6 +94,40 @@ static uint64_t RPCS3ProcessFootprintBytes(void) {
   return info.phys_footprint;
 }
 
+static void RPCS3SampleNeoSwapGuestStats(rpcs3_ios_neoswap_relay_stats_getter getter,
+                                        NSString* title, uint64_t epoch, const char* phase) {
+  NeoSwapRelayClientStats stats = {};
+  stats.struct_size = sizeof(stats);
+  stats.abi_version = NEOSWAP_RELAY_CLIENT_STATS_ABI;
+  const int result = getter ? getter(&stats) : NEOSWAP_RELAY_DISABLED;
+  const bool valid = result == NEOSWAP_RELAY_OK && stats.struct_size == sizeof(stats) &&
+      stats.abi_version == NEOSWAP_RELAY_CLIENT_STATS_ABI && stats.gameplay_active <= 1;
+  if (!valid) {
+    RPCS3Diagnostic(@"neoswap_guest_sample", [NSString stringWithFormat:
+        @"title=%@ schema=1 valid=0 result=%d sample_epoch=%llu phase=%s scope=process_lifetime",
+        title, result, (unsigned long long)epoch, phase]);
+    return; // Missing/old Core diagnostics are unknown, never measured zeros.
+  }
+  // Cumulative independent atomics, not a transactional allocation snapshot.
+  // The timed first-map body excludes client-mutex acquisition, outer VM locks
+  // and the ordinary allocator used after a declined relay candidate.
+  RPCS3Diagnostic(@"neoswap_guest_sample", [NSString stringWithFormat:
+      @"title=%@ schema=1 valid=1 result=%d sample_epoch=%llu phase=%s scope=process_lifetime gameplay_active=%u "
+       "candidate_first_maps=%llu requested_bytes=%llu gameplay_first_maps=%llu gameplay_requested_bytes=%llu "
+       "prepared_hits=%llu prepared_hit_bytes=%llu prepared_misses=%llu prepared_miss_bytes=%llu "
+       "ordinary_fallbacks=%llu ordinary_fallback_bytes=%llu map_failures=%llu alias_maps=%llu "
+       "prepared_published_objects=%llu prepared_published_bytes=%llu first_map_total_ns=%llu first_map_max_ns=%llu last_result=%d",
+      title, result, (unsigned long long)epoch, phase, stats.gameplay_active,
+      (unsigned long long)stats.candidate_first_maps, (unsigned long long)stats.requested_bytes,
+      (unsigned long long)stats.gameplay_first_maps, (unsigned long long)stats.gameplay_requested_bytes,
+      (unsigned long long)stats.prepared_hits, (unsigned long long)stats.prepared_hit_bytes,
+      (unsigned long long)stats.prepared_misses, (unsigned long long)stats.prepared_miss_bytes,
+      (unsigned long long)stats.ordinary_fallbacks, (unsigned long long)stats.ordinary_fallback_bytes,
+      (unsigned long long)stats.map_failures, (unsigned long long)stats.alias_maps,
+      (unsigned long long)stats.prepared_published_objects, (unsigned long long)stats.prepared_published_bytes,
+      (unsigned long long)stats.first_map_total_ns, (unsigned long long)stats.first_map_max_ns, stats.last_result]);
+}
+
 static UIViewController* RPCS3RootViewController(void) {
   UIWindow* keyWindow = nil;
   for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
@@ -264,6 +298,7 @@ static UIViewController* RPCS3RootViewController(void) {
   RPCS3FrameRateHold _diagnosticFrameRateHold;
   rpcs3_ios_api _api;
   int32_t (*_neoSwapClientStats)(NeoSwapClientStats*);
+  rpcs3_ios_neoswap_relay_stats_getter _neoSwapRelayClientStats;
   neostation::rpcs3::early_escrow::EarlyAddressSpaceEscrow _jitEscrow;
 }
 
@@ -417,6 +452,8 @@ static void RPCS3Progress(void* context,
     return YES;
   }
 
+  _neoSwapRelayClientStats = nullptr;
+
   // libRPCS3Core.dylib is loaded into NeoStation itself, not a child process.
   // This is debugger authorization only, never proof of usable JIT memory.
   // The final nonce below proves live ownership before this single dlopen.
@@ -550,6 +587,19 @@ static void RPCS3Progress(void* context,
     _neoSwapClientStats = nullptr;
     return NO;
   }
+  // Optional prepared guest objects use their own ABI. An older Core keeps
+  // its existing first-map policy; no main Core or relay-v1 layout changes.
+  auto bindPreparedRelay = reinterpret_cast<rpcs3_ios_neoswap_prepared_relay_binder>(
+      dlsym(handle, "rpcs3_ios_set_neoswap_prepared_relay_api"));
+  const auto* preparedRelay = NeoSwap_GetPreparedRelayAPI(NEOSWAP_PREPARED_RELAY_ABI);
+  const int preparedRelayResult = bindPreparedRelay && preparedRelay
+      ? bindPreparedRelay(preparedRelay) : NEOSWAP_RELAY_DISABLED;
+  _neoSwapRelayClientStats = reinterpret_cast<rpcs3_ios_neoswap_relay_stats_getter>(
+      dlsym(handle, "rpcs3_ios_get_neoswap_relay_client_stats"));
+  RPCS3Diagnostic(@"neoswap_prepared_guest_client", [NSString stringWithFormat:
+      @"abi=1 bind_result=%d host_api=%d core_binder=%d stats=%d scope=new_unpublished_guest_objects",
+      preparedRelayResult, preparedRelay != nullptr, bindPreparedRelay != nullptr,
+      _neoSwapRelayClientStats != nullptr]);
   using StorageBinder = int32_t (*)(const NeoSwapStorageAPI*);
   auto bindStorage = reinterpret_cast<StorageBinder>(dlsym(handle, "rpcs3_ios_set_storage_cache_api"));
   const int storageResult = bindStorage ? bindStorage(NeoSwapStorage_GetAPI(NEOSWAP_STORAGE_ABI)) : NS_STORAGE_DISABLED;
@@ -777,6 +827,7 @@ static void RPCS3Progress(void* context,
         strongSelf->_performanceProducerGeneration != producerGeneration) return;
     const uint64_t epoch = strongSelf->_performanceEpoch;
     if (!strongSelf->_performanceSnapshot.accepts(epoch)) return;
+    RPCS3SampleNeoSwapGuestStats(strongSelf->_neoSwapRelayClientStats, strongSelf.activeTitleId, epoch, "sample");
     rpcs3_ios_performance_metrics metrics = {};
     metrics.size = sizeof(metrics);
     const rpcs3_ios_status metricStatus = strongSelf->_api.get_performance_metrics(&metrics);
@@ -888,7 +939,10 @@ static void RPCS3Progress(void* context,
 
 - (rpcs3_ios_status)bootTitleForCore:(const char*)title savestate:(const char*)identifier {
   [self invalidatePerformanceSnapshotForBoot];
+  NSString* guestTitle = title ? [NSString stringWithUTF8String:title] : @"";
+  RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "before_boot");
   const rpcs3_ios_status status = _api.boot_game(title, identifier);
+  RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "boot_return");
   if (status != 0) _performanceSnapshot.end();
   return status;
 }
@@ -1508,6 +1562,9 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       dispatch_async(dispatch_get_main_queue(), ^{ if (result) result(@NO); });
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
+    if (self.activeTitleId.length)
+      RPCS3SampleNeoSwapGuestStats(self->_neoSwapRelayClientStats, self.activeTitleId,
+                                 self->_performanceEpoch, "session_end");
     NeoSwapStorage_EndSession();
     const int sessionResult = NeoSwap_SetOwnerSessionActive(NEOSWAP_RPCS3, 0);
     RPCS3Diagnostic(@"neoswap_session", [NSString stringWithFormat:@"active=0 result=%d", sessionResult]);

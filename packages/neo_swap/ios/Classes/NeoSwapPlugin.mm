@@ -63,6 +63,7 @@ static_assert(kDonationInitialChunkBytes == neostation::preparation::chunk_bytes
     uint64_t _budgetDecisionCount;
     uint64_t _budgetStateChanges;
     uint64_t _budgetLastChangeMs;
+    uint64_t _budgetDonorCommittedBytes;
     neostation::preparation::Lifecycle _donorPreparation;
 }
 @property(nonatomic, strong) dispatch_queue_t queue;
@@ -367,6 +368,8 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     neostation::donation::PoolSnapshot pool{};
     neostation::donation::pool_snapshot(pool);
     if (pool.generation != self.donorEpoch || pool.retained_bytes >= pool.target_bytes) return 0;
+    // One preparation IPC at a time, including callbacks between budget ticks.
+    if (self.donorPendingIndexes.count) return 0;
     // The global budget controller refuses donor growth without measured room
     // or while the system is shrinking; explicit demands wait with everyone else.
     if (!_budgetDecision.donor_growth_admitted) {
@@ -381,13 +384,14 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     // phys_footprint includes uncompressed-page equivalents of compressed
     // memory. It is a diagnostic ledger, not free physical RAM to subtract.
     uint64_t available = sampled ? system.usable_bytes : 0;
-    // The controller granted part of the measured room to relay host loans in
-    // this sample; donors may only take what is left of that room.
-    if (available > _budgetDecision.donor_room_bytes) available = _budgetDecision.donor_room_bytes;
-    // Reserve outstanding requests too: their pages may not yet appear in
-    // the kernel sample. Never grant the same headroom to concurrent helpers.
+    // The decision reserved guest preparation, relay loans and already pending
+    // IPC once. A completion cannot spend this tick's donor share again.
+    const uint64_t remaining = neostation::budget::remaining_donor_room(
+        _budgetDecision, _budgetDonorCommittedBytes);
+    if (available > remaining) available = remaining;
+    // Pending IPC was reserved by the global policy, so do not debit it twice.
     available = neostation::donation::pending_headroom_budget(available,
-        pool.target_bytes - pool.retained_bytes, [self pendingDonationBytes], vm_page_size);
+        pool.target_bytes - pool.retained_bytes, 0, vm_page_size);
     if (available < kMiB) {
         self.donorGrowthRefusal = @{@"stage":sampled ? @"insufficient_system_headroom" :
             [NSString stringWithUTF8String:neostation::donation::stage_name(sampled.stage)],
@@ -431,6 +435,7 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     [self.donorReclaimingIndexes removeIndex:index];
     self.donorAdoptedChunks[index] = @0;
     self.donorPendingMaximums[index] = @(first);
+    _budgetDonorCommittedBytes = neostation::budget::saturating_add(_budgetDonorCommittedBytes, first);
     [self.donorPendingIndexes addIndex:index];
     [session start];
 }
@@ -564,6 +569,8 @@ static NSDictionary* NeoSwapEffectivePermissions() {
             if ([session requestNextChunkWithMaximumBytes:self.donorDemand.bytes]) {
                 [self.donorPendingIndexes addIndex:index];
                 self.donorPendingMaximums[index] = @(self.donorDemand.bytes);
+                _budgetDonorCommittedBytes = neostation::budget::saturating_add(
+                    _budgetDonorCommittedBytes, self.donorDemand.bytes);
                 return;
             }
         }
@@ -628,6 +635,7 @@ static NSDictionary* NeoSwapEffectivePermissions() {
         }
         [self.donorPendingIndexes addIndex:chosen];
         self.donorPendingMaximums[chosen] = @(requested);
+        _budgetDonorCommittedBytes = neostation::budget::saturating_add(_budgetDonorCommittedBytes, requested);
         pending += requested;
         budget = budget > requested ? budget - requested : 0;
         if (budget < kMiB) break;
@@ -835,6 +843,7 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     in.donors_available = pool.state == neostation::donation::PoolState::verified && pool.donor_count > 0;
     in.donor_prepared_bytes = pool.prepared_bytes;
     in.donor_live_bytes = pool.live_bytes;
+    in.donor_preparing_bytes = [self pendingDonationBytes];
 #endif
 #if defined(NEOSWAP_RELAY)
     if (NeoSwapExperimentProfile().relay()) {
@@ -846,6 +855,14 @@ static NSDictionary* NeoSwapEffectivePermissions() {
             in.relay_capacity_bytes = stats.capacity_bytes;
             in.relay_guest_live_bytes = owners.owner_live_bytes[0];
             in.relay_host_live_bytes = owners.owner_live_bytes[neostation::relay::host_loan_owner];
+            const auto* prepared = NeoSwap_GetPreparedRelayAPI(NEOSWAP_PREPARED_RELAY_ABI);
+            NeoSwapPreparedRelayStats guest{};
+            guest.struct_size = sizeof(guest); guest.abi_version = NEOSWAP_PREPARED_RELAY_ABI;
+            if (prepared && prepared->snapshot(&guest) == NEOSWAP_RELAY_OK) {
+                in.relay_guest_prepared_bytes = guest.prepared_bytes;
+                in.relay_guest_unpublished_bytes = guest.unpublished_bytes;
+                in.relay_guest_demand_bytes = guest.demand_bytes;
+            }
         }
     }
 #endif
@@ -854,6 +871,15 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     if (NeoSwap_Snapshot(&totals) == NEOSWAP_OK && NeoSwap_HostSnapshot(&host) == NEOSWAP_OK) {
         const uint64_t outside = host.relay_loan_live_bytes + host.owner_donated_live_bytes[NEOSWAP_RPCS3];
         in.file_live_bytes = totals.live_bytes > outside ? totals.live_bytes - outside : 0;
+#if defined(NEOSWAP_DONATION)
+        if (NeoSwapExperimentProfile().donors()) {
+            // Match refresh_idle_demand: the smallest queued or claimed
+            // contiguous allocation receives a share before speculative loans.
+            const auto queued = host.donor_pending_demand_bytes;
+            const auto claimed = host.donor_inflight_demand_bytes;
+            in.donor_demand_bytes = !queued ? claimed : !claimed ? queued : std::min(queued, claimed);
+        }
+#endif
     }
 #if defined(NEOSWAP_SHADER_STORAGE)
     id archived = [NeoSwapStorage_Diagnostics() valueForKeyPath:@"sourceArchive.videoPixelLiveArchivedBytes"];
@@ -863,6 +889,7 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     const Decision decision = decide(in, previous);
     _budgetInputs = in;
     _budgetDecision = decision;
+    _budgetDonorCommittedBytes = 0;
     ++_budgetDecisionCount;
     const uint64_t nowMs = static_cast<uint64_t>(NSProcessInfo.processInfo.systemUptime * 1000.0);
     // Apply: relay host-loan ceiling and admission (quota never below live),
@@ -885,6 +912,14 @@ static NSDictionary* NeoSwapEffectivePermissions() {
     const bool drainCache = !NeoSwapExperimentProfile().relay() || decision.state == State::idle ||
                             decision.state == State::shrinking || decision.state == State::pressure;
     (void)NeoSwap_RelayLoanMaintain(0, drainCache);
+#if defined(NEOSWAP_RELAY)
+    // This serial utility queue consumes the guest grant synchronously, once,
+    // after both host ceilings are installed. No delayed task can reuse it.
+    const uint64_t guestTarget = drainCache ? 0 : neostation::budget::saturating_add(
+        in.relay_guest_prepared_bytes, decision.guest_prepare_grant_bytes);
+    (void)neostation::relay::maintain_guest_pool(guestTarget,
+        drainCache ? 0 : decision.guest_prepare_grant_bytes);
+#endif
 #if defined(NEOSWAP_DONATION)
     [self reclaimIdleDonors];
 #endif
@@ -1093,6 +1128,13 @@ static NSDictionary* NeoSwapEffectivePermissions() {
         @"operationalReserveBytes":@(decision.operational_reserve_bytes),
         @"growthRoomBytes":@(decision.growth_room_bytes),
         @"maximumGrowthGrantBytes":@(neostation::budget::maximum_growth_grant_bytes),
+        @"boundedGrowthGrantBytes":@(decision.bounded_growth_grant_bytes),
+        @"pendingReservedBytes":@(decision.pending_reserved_bytes),
+        @"guestUnpublishedReservedBytes":@(decision.guest_unpublished_reserved_bytes),
+        @"guestPrepareGrantBytes":@(decision.guest_prepare_grant_bytes),
+        @"relayGrowthGrantBytes":@(decision.relay_growth_grant_bytes),
+        @"donorRoomBytes":@(decision.donor_room_bytes),
+        @"donorCommittedBytes":@(_budgetDonorCommittedBytes),
 #if defined(NEOSWAP_DONATION)
         @"donorPressureRetirements":@(self.donorPressureRetirements),
         @"donorCapacityCeilingBytes":@(kDonationHardLimitBytes),
@@ -1124,6 +1166,11 @@ static NSDictionary* NeoSwapEffectivePermissions() {
             @"systemPressure":@(static_cast<uint32_t>(in.system_pressure)),
             @"dispatchWarning":@(in.dispatch_warning), @"thermalSerious":@(in.thermal_serious),
             @"relayReady":@(in.relay_ready), @"relayCapacityBytes":@(in.relay_capacity_bytes),
+            @"relayGuestPreparedBytes":@(in.relay_guest_prepared_bytes),
+            @"relayGuestUnpublishedBytes":@(in.relay_guest_unpublished_bytes),
+            @"relayGuestDemandBytes":@(in.relay_guest_demand_bytes),
+            @"donorDemandBytes":@(in.donor_demand_bytes),
+            @"donorPreparingBytes":@(in.donor_preparing_bytes),
             @"donorsAvailable":@(in.donors_available), @"donorPreparedBytes":@(in.donor_prepared_bytes)},
         @"relayHostLoans":@{
             @"available":@(relayLoans.available), @"admitted":@(relayLoans.admitted),

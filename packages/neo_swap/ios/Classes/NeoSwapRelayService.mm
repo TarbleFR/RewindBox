@@ -95,6 +95,7 @@ NSDictionary* capabilityCheck() {
     BOOL _ready;
     BOOL _sessionObserved;
     BOOL _memoryPressureRaised;
+    BOOL _maintenancePending;
     uint64_t _generation;
     NSTimeInterval _retryAfter;
     NSUInteger _fastFootprintRetryCount;
@@ -103,7 +104,8 @@ NSDictionary* capabilityCheck() {
 - (instancetype)init {
     if ((self = [super init])) {
         _lock = [NSLock new];
-        _queue = dispatch_queue_create("neostation.neoswap.guest-relay", DISPATCH_QUEUE_SERIAL);
+        _queue = dispatch_queue_create("neostation.neoswap.guest-relay",
+            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
         _details = @{@"state":@"idle", @"targetCapacityBytes":@(kCapacity)};
         _pressure = dispatch_source_create(DISPATCH_SOURCE_TYPE_MEMORYPRESSURE, 0,
             DISPATCH_MEMORYPRESSURE_NORMAL | DISPATCH_MEMORYPRESSURE_WARN | DISPATCH_MEMORYPRESSURE_CRITICAL, _queue);
@@ -291,7 +293,16 @@ NSDictionary* capabilityCheck() {
 }
 - (void)maintain {
     if (!NeoSwapExperimentProfile().relay()) return;
+    // A slow kernel cleanup must not accumulate one queued maintenance block
+    // per timer tick. Keep at most one successor behind the current pass.
+    [_lock lock];
+    if (_maintenancePending) { [_lock unlock]; return; }
+    _maintenancePending = YES;
+    [_lock unlock];
     dispatch_async(_queue, ^{
+        [self->_lock lock];
+        self->_maintenancePending = NO;
+        [self->_lock unlock];
         (void)neostation::relay::collect();
         // Preserve preparation until RPCS3 can map Core data. After a game,
         // idle maintenance only retires RPCS3 pages, never starts a helper.
@@ -372,6 +383,26 @@ NSDictionary* capabilityCheck() {
     result[@"hostLoanQuotaBytes"] = @(pressure.owner_quota_bytes[kHostLoans]);
     result[@"hostLoanQuotaRefusals"] = @(pressure.quota_refusals);
     result[@"hostLoanOwnerEnabled"] = @(hostLoanOwnerEnabled);
+    NeoSwapPreparedRelayStats prepared{};
+    prepared.struct_size = sizeof(prepared);
+    prepared.abi_version = NEOSWAP_PREPARED_RELAY_ABI;
+    const auto* preparedAPI = NeoSwap_GetPreparedRelayAPI(NEOSWAP_PREPARED_RELAY_ABI);
+    const int preparedResult = preparedAPI ? preparedAPI->snapshot(&prepared) : NEOSWAP_RELAY_DISABLED;
+    result[@"guestPreparation"] = preparedResult == NEOSWAP_RELAY_OK
+        ? @{@"schema":@1, @"available":@YES,
+            @"preparedBytes":@(prepared.prepared_bytes), @"preparedCount":@(prepared.prepared_count),
+            @"demandBytes":@(prepared.demand_bytes), @"demandCount":@(prepared.demand_count),
+            @"requestCount":@(prepared.request_count), @"requestedBytes":@(prepared.requested_bytes),
+            @"acquiredCount":@(prepared.acquired_count), @"acquiredBytes":@(prepared.acquired_bytes),
+            @"busyMisses":@(prepared.miss_busy), @"emptyMisses":@(prepared.miss_empty),
+            @"pressureRefusals":@(prepared.refused_pressure), @"disabledRefusals":@(prepared.refused_disabled),
+            @"unsupportedCount":@(prepared.unsupported_count), @"demandOverflow":@(prepared.demand_overflow),
+            @"preparedTotal":@(prepared.prepared_total), @"reclaimedTotal":@(prepared.reclaimed_total),
+            @"prepareFailures":@(prepared.prepare_failures), @"peakPreparedBytes":@(prepared.peak_prepared_bytes),
+            @"pendingScrubBytes":@(prepared.pending_scrub_bytes), @"pendingScrubCount":@(prepared.pending_scrub_count),
+            @"unpublishedCommittedBytes":@(prepared.unpublished_bytes),
+            @"preparedIsDonated":@NO, @"residencyMeasured":@NO}
+        : @{@"schema":@1, @"available":@NO, @"result":@(preparedResult)};
     if (stats.quarantined_fixed_alias_count) {
         result[@"ready"] = @NO;
         result[@"state"] = @"fixed_alias_quarantined";

@@ -54,18 +54,24 @@ template<class T> struct atomic_t {
                     '-pthread', '-DRPCS3_IOS=1', '-I', str(out), '-I', str(source / 'rpcs3'),
                     str(here / 'native/rpcs3_neoswap_relay_test.cpp'), '-o', str(executable)], check=True, env=environment)
     subprocess.run([str(executable)], check=True, timeout=60)
-    # Compile the actual exported setter separately: installing the borrowed
-    # vtable must not introduce constructors or link another host broker.
+    # Compile the actual optional exports separately: borrowed vtable binding
+    # and atomic diagnostics must not initialize or link another host broker.
     core_source = (source / 'rpcs3/ios/RPCS3IOS.cpp').read_text()
-    setter = re.search(r'extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_neoswap_relay_api\([^\n]+\) noexcept\n\{.*?\n\}', core_source, re.S)
-    assert setter, 'missing production relay setter'
-    assert '_rpcs3_ios_set_neoswap_relay_api' in (source / 'rpcs3/ios/RPCS3IOS.exports').read_text().splitlines()
+    exports = (source / 'rpcs3/ios/RPCS3IOS.exports').read_text().splitlines()
+    exported_functions = []
+    for name in ('rpcs3_ios_set_neoswap_relay_api',
+                 'rpcs3_ios_set_neoswap_prepared_relay_api',
+                 'rpcs3_ios_get_neoswap_relay_client_stats'):
+        function = re.search(r'extern "C" RPCS3_IOS_EXPORT int32_t ' + name + r'\([^\n]+\) noexcept\n\{.*?\n\}', core_source, re.S)
+        assert function, f'missing production optional export: {name}'
+        assert '_' + name in exports, f'missing link export: {name}'
+        exported_functions.append(function[0])
     setter_source = out / 'relay-setter.cpp'
-    setter_source.write_text('#define RPCS3_IOS_CORE_BUILD 1\n#include "ios/RPCS3IOS.h"\n#include "ios/NeoSwapRelayClient.h"\n' + setter[0] + '\n')
+    setter_source.write_text('#define RPCS3_IOS_CORE_BUILD 1\n#include "ios/RPCS3IOS.h"\n#include "ios/NeoSwapRelayClient.h"\n' + '\n'.join(exported_functions) + '\n')
     setter_object = out / 'relay-setter.o'
     subprocess.run([*compiler, '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror',
                     '-fvisibility=hidden', '-fvisibility-inlines-hidden', '-I', str(source / 'rpcs3'),
                     '-c', str(setter_source), '-o', str(setter_object)], check=True, env=environment)
     symbols = subprocess.check_output(['nm', str(setter_object)], text=True)
-    assert not re.search(r'_GLOBAL__sub_I|__cxx_global_var_init|__cxa_guard|NeoSwap_GetRelayAPI', symbols), 'relay setter adds initialization or a broker dependency'
-print('PASS: actual RPCS3 shared-memory adapter, coherent aliases, protection, fallback and retirement')
+    assert not re.search(r'_GLOBAL__sub_I|__cxx_global_var_init|__cxa_guard|NeoSwap_Get(?:Prepared)?RelayAPI', symbols), 'relay exports add initialization or a broker dependency'
+print('PASS: actual RPCS3 shared-memory adapter, prepared gameplay loans, empty/busy fallback, unused return, coherent aliases, retirement and optional exports')

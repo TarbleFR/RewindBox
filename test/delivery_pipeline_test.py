@@ -125,6 +125,62 @@ class DeliveryPipeline(unittest.TestCase):
         self.assertIn('codesign', (ROOT/'build-utils/sign_delivery.py').read_text())
         self.assertIn('allCompiledCodeAndDataSectionsUnchangedBySigning',(ROOT/'build-utils/delivery_benchmark.py').read_text())
 
+    def test_targeted_reuse_rejects_unrelated_code_dependencies_and_modes(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp)
+            files={
+                'native/neoswap-relay/Backend.cpp': b'reviewed relay\n',
+                'native/armsx2_internal_helper/Info.plist': b'unchanged engine\n',
+                'pubspec.yaml': b'name: neostation\nversion: 1.0.0+440\ndependencies: fixed\n',
+            }
+            for name,data in files.items():
+                path=folder/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+            subprocess.run(['git','init','-q',str(folder)],check=True)
+            subprocess.run(['git','-C',str(folder),'add','.'],check=True)
+            subprocess.run(['git','-C',str(folder),'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','baseline'],check=True)
+            with patch.object(reuse,'ROOT',folder):
+                self.assertEqual(reuse.verify_neoswap_tree('HEAD')[0],[])
+                relay=folder/'native/neoswap-relay/Backend.cpp';relay.write_bytes(b'prepared relay\n')
+                pubspec=folder/'pubspec.yaml';pubspec.write_bytes(files['pubspec.yaml'].replace(b'+440',b'+441'))
+                self.assertEqual(set(reuse.verify_neoswap_tree('HEAD')[0]),{'native/neoswap-relay/Backend.cpp','pubspec.yaml'})
+                unrelated=folder/'native/armsx2_internal_helper/Info.plist';unrelated.write_bytes(b'other engine changed\n')
+                with self.assertRaisesRegex(ValueError,'Unreviewed NeoSwap delivery input changed'):
+                    reuse.verify_neoswap_tree('HEAD')
+                unrelated.write_bytes(files['native/armsx2_internal_helper/Info.plist'])
+                pubspec.write_bytes(files['pubspec.yaml'].replace(b'fixed',b'new dependency'))
+                with self.assertRaisesRegex(ValueError,'changed dependencies'):
+                    reuse.verify_neoswap_tree('HEAD')
+                pubspec.write_bytes(files['pubspec.yaml'])
+                relay.chmod(0o755)
+                with self.assertRaisesRegex(ValueError,'input mode changed'):
+                    reuse.verify_neoswap_tree('HEAD')
+
+    def test_targeted_reuse_never_accepts_failed_or_wrong_revision_evidence(self):
+        from unittest.mock import patch
+        run,commit,workflow,jobs=reuse.NEOSWAP_441_EVIDENCE[0]
+        for conclusion,sha in (('failure',commit),('success','0'*40)):
+            with self.subTest(conclusion=conclusion,sha=sha),patch.object(reuse.subprocess,'check_output',return_value=json.dumps({'conclusion':conclusion,'head_sha':sha,'path':workflow}).encode()):
+                with self.assertRaisesRegex(ValueError,'not successful at its exact reference'):
+                    reuse.verify_neoswap_evidence()
+        successful={'conclusion':'success','head_sha':commit,'path':workflow}
+        failed_jobs={'jobs':[{'name':name,'conclusion':'failure' if name=='native' else 'success'} for name in jobs]}
+        with patch.object(reuse.subprocess,'check_output',side_effect=[json.dumps(successful).encode(),json.dumps(failed_jobs).encode()]):
+            with self.assertRaisesRegex(ValueError,'lacks successful job native'):
+                reuse.verify_neoswap_evidence()
+
+    def test_targeted_lane_checks_changed_native_inputs_and_separates_evidence(self):
+        workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
+        self.assertIn('options: [full, rpcs3_neoswap]',workflow)
+        self.assertIn('default: full',workflow)
+        self.assertIn('--scope rpcs3_neoswap',workflow)
+        self.assertIn('neoswap-host-validation.json',workflow)
+        self.assertIn('test/neoswap_budget_test.cpp',workflow)
+        self.assertIn('rpcs3-bridge-arm64-syntax.txt',workflow)
+        self.assertIn('packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',workflow)
+        self.assertIn('flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart test/rpcs3_embedded_identity_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart',workflow)
+        self.assertIn('python3 test/neo_swap_core_pin_test.py --source-only',workflow)
+
     def test_final_payload_check_rejects_changed_device_code(self):
         benchmark=module('delivery_benchmark')
         header=struct.pack('<8I',0xfeedfacf,0x0100000c,0,2,2,176,0,0)

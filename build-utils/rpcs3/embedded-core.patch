@@ -14255,7 +14255,7 @@ new file mode 100644
 index 0000000..25a589a
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapRelay.h
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,116 @@
 +// SPDX-License-Identifier: MIT
 +#ifndef NEOSTATION_NEOSWAP_RELAY_H
 +#define NEOSTATION_NEOSWAP_RELAY_H
@@ -14322,6 +14322,52 @@ index 0000000..25a589a
 +__attribute__((visibility("default")))
 +#endif
 +const NeoSwapRelayAPI* NeoSwap_GetRelayAPI(uint32_t abi_version);
++
++/* Optional, separate ABI. Prepared objects have no caller alias and are not
++ * donated until RelayAPI.map first publishes them. Acquisition only tries a
++ * metadata lock: it never allocates, samples the OS, maps or touches pages.
++ * A successful token uses the unchanged RelayAPI lifecycle. Misses record
++ * bounded demand for a utility worker; callers may use ordinary backing.
++ */
++enum { NEOSWAP_PREPARED_RELAY_ABI = 1 };
++typedef struct NeoSwapPreparedRelayStats {
++    uint32_t struct_size, abi_version;
++    uint64_t prepared_bytes, prepared_count, demand_bytes, demand_count;
++    uint64_t request_count, requested_bytes, acquired_count, acquired_bytes;
++    uint64_t miss_busy, miss_empty, refused_pressure, refused_disabled;
++    uint64_t unsupported_count, demand_overflow;
++    uint64_t prepared_total, reclaimed_total, prepare_failures, peak_prepared_bytes;
++    uint64_t pending_scrub_bytes, pending_scrub_count;
++    /* Includes prepared + borrowed-but-unpublished + their pending cleanup.
++     * These commitments have not necessarily consumed physical pages yet. */
++    uint64_t unpublished_bytes;
++} NeoSwapPreparedRelayStats;
++typedef struct NeoSwapPreparedRelayAPI {
++    uint32_t struct_size, abi_version;
++    int (*try_acquire)(uint32_t owner, uint64_t bytes, uint64_t* token);
++    /* Only before any successful map, with no concurrent user of the token.
++     * OK transfers ownership to utility cleanup without locks or OS calls;
++     * failure retains ownership. Does not accept legacy create() tokens. */
++    int (*return_unused)(uint64_t token);
++    int (*snapshot)(NeoSwapPreparedRelayStats* stats);
++} NeoSwapPreparedRelayAPI;
++#if defined(__GNUC__)
++__attribute__((visibility("default")))
++#endif
++const NeoSwapPreparedRelayAPI* NeoSwap_GetPreparedRelayAPI(uint32_t abi_version);
++
++/* Optional Core diagnostics; independent from both relay function tables. */
++enum { NEOSWAP_RELAY_CLIENT_STATS_ABI = 1 };
++typedef struct NeoSwapRelayClientStats {
++    uint32_t struct_size, abi_version, gameplay_active, reserved;
++    uint64_t candidate_first_maps, requested_bytes, gameplay_first_maps, gameplay_requested_bytes;
++    uint64_t prepared_hits, prepared_hit_bytes, prepared_misses, prepared_miss_bytes;
++    uint64_t ordinary_fallbacks, ordinary_fallback_bytes, map_failures, alias_maps;
++    uint64_t prepared_published_objects, prepared_published_bytes;
++    uint64_t first_map_total_ns, first_map_max_ns;
++    int32_t last_result;
++    uint32_t reserved_result;
++} NeoSwapRelayClientStats;
 +#ifdef __cplusplus
 +}
 +#endif
@@ -14331,24 +14377,22 @@ new file mode 100644
 index 0000000..5a8d01e
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapRelayClient.h
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,247 @@
 +// SPDX-License-Identifier: MIT
 +#pragma once
 +#include "NeoSwapRelay.h"
 +#include "NeoSwap.h"
 +#include <atomic>
++#include <chrono>
 +#include <cstdint>
 +#include <mutex>
-+#include <memory>
 +#include <new>
 +
 +namespace neostation::relay {
-+// The Core borrows the host vtable; no broker, extension, allocation or static
-+// constructor is linked into the Core. The installed vtable lives for its lifetime.
++// Borrowed vtables live for the Core lifetime; no host broker or extension is
++// linked into the Core. Neither installation allocates or prepares memory.
 +inline constinit std::atomic<const NeoSwapRelayAPI*> client_api{nullptr};
-+// Only loading may select NEW guest relay backing. Once gameplay starts,
-+// first-map misses use RPCS3's original shared mapping without contacting the
-+// relay. Existing published aliases must always keep their original bytes.
++inline constinit std::atomic<const NeoSwapPreparedRelayAPI*> prepared_api{nullptr};
 +inline constinit std::atomic<bool> gameplay_active{false};
 +inline constinit std::atomic<std::uint64_t> gameplay_fallbacks{0};
 +inline void set_gameplay_active(bool active) noexcept {
@@ -14363,21 +14407,123 @@ index 0000000..5a8d01e
 +        return NEOSWAP_RELAY_BUSY;
 +    return NEOSWAP_RELAY_OK;
 +}
++inline int install_prepared(const NeoSwapPreparedRelayAPI* api) noexcept {
++    if (!api || api->struct_size != sizeof(*api) || api->abi_version != NEOSWAP_PREPARED_RELAY_ABI ||
++        !api->try_acquire || !api->snapshot || !api->return_unused)
++        return NEOSWAP_RELAY_INVALID;
++    const NeoSwapPreparedRelayAPI* expected = nullptr;
++    if (!prepared_api.compare_exchange_strong(expected, api, std::memory_order_acq_rel) && expected != api)
++        return NEOSWAP_RELAY_BUSY;
++    return NEOSWAP_RELAY_OK;
++}
 +
-+// One shared-memory object selects its backing once. File fallback is permitted
-+// only before any alias has been exposed: mixing file and relay views would
-+// silently give g_base/g_sudo/map_self different bytes.
++#define NEOSWAP_RELAY_CLIENT_COUNTERS(F) \
++    F(candidate_first_maps) F(requested_bytes) \
++    F(gameplay_first_maps) F(gameplay_requested_bytes) \
++    F(prepared_hits) F(prepared_hit_bytes) F(prepared_misses) F(prepared_miss_bytes) \
++    F(ordinary_fallbacks) F(ordinary_fallback_bytes) F(map_failures) F(alias_maps) \
++    F(prepared_published_objects) F(prepared_published_bytes) \
++    F(first_map_total_ns) F(first_map_max_ns)
++struct client_counters {
++#define NEOSWAP_RELAY_COUNTER(name) std::atomic<std::uint64_t> name{0};
++    NEOSWAP_RELAY_CLIENT_COUNTERS(NEOSWAP_RELAY_COUNTER)
++#undef NEOSWAP_RELAY_COUNTER
++    std::atomic<std::int32_t> last_result{NEOSWAP_RELAY_OK};
++};
++inline constinit client_counters counters;
++inline int snapshot(NeoSwapRelayClientStats* out) noexcept {
++    if (!out || out->struct_size != sizeof(*out) || out->abi_version != NEOSWAP_RELAY_CLIENT_STATS_ABI)
++        return NEOSWAP_RELAY_INVALID;
++    NeoSwapRelayClientStats result{};
++    result.struct_size = sizeof(result);
++    result.abi_version = NEOSWAP_RELAY_CLIENT_STATS_ABI;
++    result.gameplay_active = gameplay_active.load(std::memory_order_acquire);
++#define NEOSWAP_RELAY_READ(name) result.name = counters.name.load(std::memory_order_relaxed);
++    NEOSWAP_RELAY_CLIENT_COUNTERS(NEOSWAP_RELAY_READ)
++#undef NEOSWAP_RELAY_READ
++    result.last_result = counters.last_result.load(std::memory_order_relaxed);
++    *out = result;
++    return NEOSWAP_RELAY_OK;
++}
++#undef NEOSWAP_RELAY_CLIENT_COUNTERS
++
++// Measures only the first candidate call AFTER taking its client mutex. This
++// includes selection and the first Relay map if attempted, not the outer VM
++// lock wait, later alias calls or utils::shm's subsequent ordinary FILE mapping.
++class first_map_measurement {
++    using clock = std::chrono::steady_clock;
++    bool enabled;
++    clock::time_point start{};
++public:
++    first_map_measurement(bool candidate, bool gameplay, std::uint64_t bytes) noexcept : enabled(candidate) {
++        if (!enabled) return;
++        start = clock::now();
++        counters.candidate_first_maps.fetch_add(1, std::memory_order_relaxed);
++        counters.requested_bytes.fetch_add(bytes, std::memory_order_relaxed);
++        if (gameplay) {
++            counters.gameplay_first_maps.fetch_add(1, std::memory_order_relaxed);
++            counters.gameplay_requested_bytes.fetch_add(bytes, std::memory_order_relaxed);
++        }
++    }
++    ~first_map_measurement() {
++        if (!enabled) return;
++        const auto elapsed = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - start).count());
++        counters.first_map_total_ns.fetch_add(elapsed, std::memory_order_relaxed);
++        auto previous = counters.first_map_max_ns.load(std::memory_order_relaxed);
++        while (previous < elapsed && !counters.first_map_max_ns.compare_exchange_weak(previous, elapsed, std::memory_order_relaxed)) {}
++    }
++};
++
++// One shared-memory object selects its backing once. No FILE object migrates;
++// fallback requires that no alias has ever been published and that ownership
++// has safely returned to the host. Every published alias keeps the same bytes.
 +class shared_memory {
 +    enum class mode { file, candidate, relay };
 +    mutable std::mutex mutex;
 +    mode state = mode::file;
 +    const NeoSwapRelayAPI* api = nullptr;
++    const NeoSwapPreparedRelayAPI* prepared = nullptr;
 +    std::uint64_t token = 0, bytes = 0;
 +    bool published = false;
-+    struct alias { void* address = nullptr; alias* next = nullptr; };
++    struct alias { void* address = nullptr; alias* next = nullptr; bool heap = false; };
++    // g_base, g_sudo and map_self need no metadata allocation. Additional
++    // existing alias uses retain the old fallible allocation before mapping.
++    mutable alias inline_aliases[4]{};
 +    mutable alias* aliases = nullptr;
++    alias* reserve_alias() noexcept {
++        for (auto& record : inline_aliases) if (!record.address) return &record;
++        alias* record = new (std::nothrow) alias;
++        if (record) record->heap = true;
++        return record;
++    }
++    static void discard_alias(alias* record) noexcept {
++        if (record->heap) delete record;
++        else *record = {};
++    }
++    bool return_unpublished() noexcept {
++        if (published) return false;
++        // Returning an unused prepared loan must not synchronously scrub/map
++        // memory under the VM lock. The host retains it for later maintenance.
++        const int result = prepared ? prepared->return_unused(token) : api->release(token);
++        if (result != NEOSWAP_RELAY_OK) return false;
++        token = 0;
++        return true;
++    }
 +public:
 +    struct map_result { bool handled; void* address; int result; };
++private:
++    map_result finish(bool handled, void* address, int result) noexcept {
++        counters.last_result.store(result, std::memory_order_relaxed);
++        return {handled, address, result};
++    }
++    map_result fallback(int result, bool gameplay) noexcept {
++        state = mode::file;
++        counters.ordinary_fallbacks.fetch_add(1, std::memory_order_relaxed);
++        counters.ordinary_fallback_bytes.fetch_add(bytes, std::memory_order_relaxed);
++        if (gameplay) gameplay_fallbacks.fetch_add(1, std::memory_order_relaxed);
++        return finish(false, nullptr, result);
++    }
++public:
 +    shared_memory() = default;
 +    shared_memory(const shared_memory&) = delete;
 +    shared_memory& operator=(const shared_memory&) = delete;
@@ -14389,56 +14535,62 @@ index 0000000..5a8d01e
 +    map_result map(void* target, std::uint32_t protection, bool compatible) noexcept {
 +        const std::lock_guard lock(mutex);
 +        if (state == mode::file) return {false, nullptr, NEOSWAP_RELAY_DISABLED};
++        const bool gameplay = gameplay_active.load(std::memory_order_acquire);
++        first_map_measurement measurement(state == mode::candidate, gameplay, bytes);
 +        if (!compatible || (target && reinterpret_cast<std::uintptr_t>(target) % NEOSWAP_RELAY_ALIGNMENT)) {
-+            if (state == mode::candidate) {
-+                state = mode::file;
-+                return {false, nullptr, NEOSWAP_RELAY_DISABLED};
-+            }
-+            return {true, nullptr, NEOSWAP_RELAY_INVALID};
++            if (state == mode::candidate) return fallback(NEOSWAP_RELAY_DISABLED, gameplay);
++            return finish(true, nullptr, NEOSWAP_RELAY_INVALID);
 +        }
 +        if (state == mode::candidate) {
-+            if (gameplay_active.load(std::memory_order_acquire)) {
-+                state = mode::file;
-+                gameplay_fallbacks.fetch_add(1, std::memory_order_relaxed);
-+                return {false, nullptr, NEOSWAP_RELAY_DISABLED};
-+            }
 +            api = client_api.load(std::memory_order_acquire);
-+            // Uses the unchanged common NeoSwap owner ABI.
-+            if (!api || !api->enabled(NEOSWAP_RPCS3) || api->create(NEOSWAP_RPCS3, bytes, &token) != NEOSWAP_RELAY_OK || !token) {
-+                state = mode::file;
-+                return {false, nullptr, NEOSWAP_RELAY_DISABLED};
++            if (!api) return fallback(NEOSWAP_RELAY_DISABLED, gameplay);
++            const auto* ready = prepared_api.load(std::memory_order_acquire);
++            int result = NEOSWAP_RELAY_DISABLED;
++            if (ready) result = ready->try_acquire(NEOSWAP_RPCS3, bytes, &token);
++            if (result == NEOSWAP_RELAY_OK && token) {
++                prepared = ready;
++                counters.prepared_hits.fetch_add(1, std::memory_order_relaxed);
++                counters.prepared_hit_bytes.fetch_add(bytes, std::memory_order_relaxed);
++            } else {
++                counters.prepared_misses.fetch_add(1, std::memory_order_relaxed);
++                counters.prepared_miss_bytes.fetch_add(bytes, std::memory_order_relaxed);
++                // No slow create, pressure sampling or extension request in
++                // gameplay. A ready miss selects ordinary backing permanently.
++                if (gameplay) return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
++                if (!api->enabled(NEOSWAP_RPCS3)) return fallback(NEOSWAP_RELAY_DISABLED, gameplay);
++                result = api->create(NEOSWAP_RPCS3, bytes, &token);
++                if (result != NEOSWAP_RELAY_OK || !token)
++                    return fallback(result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_INVALID : result, gameplay);
 +            }
 +            state = mode::relay;
 +        }
-+        // Allocate bookkeeping before publishing a mapping. OOM must not
-+        // produce an untracked alias after the kernel has replaced a range.
-+        std::unique_ptr<alias> record(new (std::nothrow) alias);
++        alias* record = reserve_alias();
 +        if (!record) {
-+            if (!published && api->release(token) == NEOSWAP_RELAY_OK) {
-+                token = 0;
-+                state = mode::file;
-+                return {false, nullptr, NEOSWAP_RELAY_LIMIT};
-+            }
-+            return {true, nullptr, NEOSWAP_RELAY_LIMIT};
++            if (return_unpublished()) return fallback(NEOSWAP_RELAY_LIMIT, gameplay);
++            return finish(true, nullptr, NEOSWAP_RELAY_LIMIT);
 +        }
 +        void* address = nullptr;
 +        const int result = api->map(token, target, protection, &address);
 +        if (result == NEOSWAP_RELAY_OK && address) {
 +            record->address = address;
 +            record->next = aliases;
-+            aliases = record.release();
++            aliases = record;
++            if (published) counters.alias_maps.fetch_add(1, std::memory_order_relaxed);
++            else if (prepared) {
++                counters.prepared_published_objects.fetch_add(1, std::memory_order_relaxed);
++                counters.prepared_published_bytes.fetch_add(bytes, std::memory_order_relaxed);
++            }
 +            published = true;
-+            return {true, address, result};
++            return finish(true, address, result);
 +        }
-+        if (!published && api->release(token) == NEOSWAP_RELAY_OK) {
-+            token = 0;
-+            state = mode::file;
-+            return {false, nullptr, result};
-+        }
-+        return {true, nullptr, result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_MAPPING : result};
++        discard_alias(record);
++        counters.map_failures.fetch_add(1, std::memory_order_relaxed);
++        const int error = result == NEOSWAP_RELAY_OK ? NEOSWAP_RELAY_MAPPING : result;
++        if (return_unpublished()) return fallback(error, gameplay);
++        return finish(true, nullptr, error);
 +    }
-+    // Returns whether this object owns the alias. Failed cleanup must never
-+    // fall through to munmap/free or release the token for another guest.
++    // Failed cleanup never falls through to munmap/free and never permits a
++    // published object to switch backing even when temporarily without aliases.
 +    bool unmap(void* address, int& result) const noexcept {
 +        const std::lock_guard lock(mutex);
 +        if (state != mode::relay) return false;
@@ -14452,24 +14604,21 @@ index 0000000..5a8d01e
 +        if (result == NEOSWAP_RELAY_OK) {
 +            alias* retired = *found;
 +            *found = retired->next;
-+            delete retired;
++            discard_alias(retired);
 +        }
 +        return true;
 +    }
-+    // Destruction transfers cleanup ownership to the host before dropping local
-+    // metadata. All users must be quiesced; the token can never map again.
-+    // The host retires aliases, then scrubs/reclaims only after the last one.
-+    // Failed fixed-address retirement remains quarantined: retrying an overwrite
-+    // after this call could corrupt a later guest using the same reservation.
++    // Destruction transfers ownership after users are quiesced. Failed fixed
++    // aliases stay quarantined; a later guest may already reuse their range.
 +    bool retire() noexcept {
 +        const std::lock_guard lock(mutex);
 +        if (!token || !api) return false;
-+        (void)api->retire(token);
++        if (!prepared || published || !return_unpublished()) (void)api->retire(token);
 +        token = 0;
 +        while (aliases) {
 +            alias* retired = aliases;
 +            aliases = retired->next;
-+            delete retired;
++            discard_alias(retired);
 +        }
 +        return true;
 +    }
@@ -15750,7 +15899,7 @@ index 74a6dc7..efda59b 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4852,3 +5147,32 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4852,3 +5147,42 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	emit_log(1, text);
  	std::abort();
  }
@@ -15772,6 +15921,16 @@ index 74a6dc7..efda59b 100644
 +	return neostation::relay::install(api);
 +}
 +
++extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_neoswap_prepared_relay_api(const NeoSwapPreparedRelayAPI* api) noexcept
++{
++	return neostation::relay::install_prepared(api);
++}
++
++extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_relay_client_stats(NeoSwapRelayClientStats* out) noexcept
++{
++	return neostation::relay::snapshot(out);
++}
++
 +// Optional host-owned regenerable bytecode cache; installing it does no I/O.
 +extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_storage_cache_api(const NeoSwapStorageAPI* api) noexcept
 +{
@@ -15787,7 +15946,7 @@ diff --git a/rpcs3/ios/RPCS3IOS.exports b/rpcs3/ios/RPCS3IOS.exports
 index d7529ab..8a90790 100644
 --- a/rpcs3/ios/RPCS3IOS.exports
 +++ b/rpcs3/ios/RPCS3IOS.exports
-@@ -72,3 +72,13 @@ _rpcs3_ios_stop_emulation
+@@ -72,3 +72,15 @@ _rpcs3_ios_stop_emulation
  _rpcs3_ios_get_state
  _rpcs3_ios_shutdown
  _rpcs3_ios_last_error
@@ -15799,6 +15958,8 @@ index d7529ab..8a90790 100644
 +_rpcs3_ios_get_neoswap_client_stats
 +
 +_rpcs3_ios_set_neoswap_relay_api
++_rpcs3_ios_set_neoswap_prepared_relay_api
++_rpcs3_ios_get_neoswap_relay_client_stats
 +_rpcs3_ios_set_storage_cache_api
 +_rpcs3_ios_set_source_archive_api
 diff --git a/rpcs3/ios/RPCS3IOS.h b/rpcs3/ios/RPCS3IOS.h
@@ -15822,13 +15983,18 @@ index 20526d0..367413d 100644
      uint32_t expanded_jit_arena;
      uint32_t reserved;
  } rpcs3_ios_config;
-@@ -792,6 +795,13 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_boot_progress(
+@@ -792,6 +795,18 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_boot_progress(
  // lifecycle lock. Fields without a valid_fields bit must not be displayed.
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_performance_metrics(
      rpcs3_ios_performance_metrics* metrics) RPCS3_IOS_NOEXCEPT;
 +// Optional guest-data relay, bound by the host before initialize/boot.
 +RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_neoswap_relay_api(
 +    const NeoSwapRelayAPI* api) RPCS3_IOS_NOEXCEPT;
++// Optional ready-only guest backing and process-lifetime client diagnostics.
++RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_neoswap_prepared_relay_api(
++    const NeoSwapPreparedRelayAPI* api) RPCS3_IOS_NOEXCEPT;
++RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_relay_client_stats(
++    NeoSwapRelayClientStats* stats) RPCS3_IOS_NOEXCEPT;
 +// Optional allocator diagnostics: caller supplies the exact struct size and
 +// NEOSWAP_CLIENT_STATS_ABI. Independent of the main Core and allocator ABI.
 +RPCS3_IOS_EXPORT int32_t rpcs3_ios_get_neoswap_client_stats(

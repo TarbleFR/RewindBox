@@ -11,6 +11,11 @@ run-name: NeoStation Build ${{ inputs.build_number || '427' }} • ${{ github.sh
         required: true
         default: '427'
         type: string
+      validation_scope:
+        description: Reuse exact Build 440 evidence outside RPCS3 and NeoSwap
+        type: choice
+        options: [full, rpcs3_neoswap]
+        default: full
       benchmark:
         description: Measure a cold and a cached build on comparable macOS runners
         type: boolean
@@ -40,6 +45,7 @@ jobs:
         persist-credentials: false
     - name: Reuse successful unchanged Dart validation
       id: dart-evidence
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
       uses: actions/cache@v4
       # The key also covers the native files some Dart tests read (the bridge's
       # Objective-C sources and headers, the cores manifest, NeoSwap's canonical
@@ -55,16 +61,16 @@ jobs:
         flutter-version: 3.47.2
         channel: stable
         cache: true
-      if: ${{ steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify closed validation input tree and previous CI success
-      run: python3 build-utils/verify_delivery_reuse.py
+      run: python3 build-utils/verify_delivery_reuse.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
         flutter analyze --no-fatal-infos
-      if: ${{ steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Reproduce the seven-root registration defect on the unchanged 422 code
-      if: ${{ steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.dart-evidence.outputs.cache-hit != 'true' }}
       run: |
         python3 - <<'PYTHON'
         import json,subprocess
@@ -104,8 +110,9 @@ jobs:
         from pathlib import Path
         Path("build/delivery/dart-validation.json").write_text(json.dumps({"result":"passed","testedSHA":os.environ["GITHUB_SHA"],"key":"neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}","tool":"Flutter 3.47.2, Ubuntu 24.04"}))
         PY
-      if: ${{ steps.dart-evidence.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify reused Dart evidence and changed pipeline guards
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
       run: |
         python3 - <<'PY'
         import json
@@ -134,6 +141,28 @@ jobs:
         python3 test/rpcs3_ui_status_cleanup_test.py
         python3 test/ui_refresh_rate_scope_test.py
         python3 test/libretro_bios_requirements_test.py
+    - name: Validate only changed RPCS3 and NeoSwap contracts
+      if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        flutter pub get --enforce-lockfile
+        flutter analyze --no-fatal-infos packages/neo_swap lib/l10n/neoswap_locale.dart lib/screens/settings_screen/neoswap_dialog.dart
+        flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart test/rpcs3_embedded_identity_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart
+        python3 test/delivery_pipeline_test.py
+        python3 test/neo_swap_core_pin_test.py --source-only
+        # These two host contracts use no macOS signing/project fixture.
+        python3 test/neoswap_donor_contract_test.py DonorContractTests.test_ipa_validator_matches_single_relay_lifecycle_ownership DonorContractTests.test_rpcs3_waits_before_first_map_and_uses_session_scoped_adaptive_pool
+        python3 test/rpcs3_neoswap_build_comparison_test.py
+        python3 test/localization_12_locale_coverage_test.py
+        python3 - <<'PYTHON'
+        import json,os
+        from pathlib import Path
+        Path('build/delivery/neoswap-host-validation.json').write_text(json.dumps({
+            'result':'passed','testedSHA':os.environ['GITHUB_SHA'],
+            'scope':'rpcs3_neoswap','tool':'Flutter 3.47.2, Ubuntu 24.04',
+            'historicalEvidence':'reused-validation.json','deviceGameplayValidated':False},indent=2)+'\n')
+        PYTHON
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
@@ -153,6 +182,11 @@ jobs:
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '26.3'
+    - name: Verify exact Build 440 inputs before targeted native reuse
+      if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: python3 build-utils/verify_delivery_reuse.py --scope rpcs3_neoswap
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       shell: bash
       run: |
@@ -188,6 +222,9 @@ jobs:
         xcrun clang++ "${common[@]}" "${includes[@]}" -Ipackages/rpcs3_internal_bridge/ios/Classes \
           test/neoswap_usage_policy_test.cpp -o "$RUNNER_TEMP/neoswap-usage-policy"
         "$RUNNER_TEMP/neoswap-usage-policy" 2>&1 | tee build/delivery/neoswap/usage-policy.txt
+        xcrun clang++ "${common[@]}" "${includes[@]}" test/neoswap_budget_test.cpp \
+          -o "$RUNNER_TEMP/neoswap-budget"
+        "$RUNNER_TEMP/neoswap-budget" 2>&1 | tee build/delivery/neoswap/budget.txt
         # Executes all twelve Foundation catalogues and compiles the actual
         # UIKit memory graph for arm64 iPhone; no device runtime claim.
         python3 test/rpcs3_neoswap_localizations_test.py 2>&1 | tee build/delivery/neoswap/overlay-locales.txt
@@ -205,6 +242,44 @@ jobs:
           packages/neo_swap/ios/Classes/NeoSwapPlugin.mm \
           packages/neo_swap/ios/Classes/NeoSwapRelayService.mm \
           2>&1 | tee build/delivery/neoswap/iphone-arm64-syntax.txt
+        STUB="$RUNNER_TEMP/flutter-stub"
+        mkdir -p "$STUB/Flutter"
+        cat > "$STUB/Flutter/Flutter.h" <<'EOF'
+        #import <Foundation/Foundation.h>
+        #import <UIKit/UIKit.h>
+        typedef void (^FlutterResult)(id _Nullable result);
+        FOUNDATION_EXPORT NSObject* const FlutterMethodNotImplemented;
+        @protocol FlutterBinaryMessenger <NSObject>
+        @end
+        @class FlutterMethodCall;
+        @class FlutterMethodChannel;
+        @protocol FlutterPluginRegistrar <NSObject>
+        @property(nonatomic, readonly) NSObject<FlutterBinaryMessenger>* messenger;
+        @property(nonatomic, readonly, nullable) UIViewController* viewController;
+        - (void)addMethodCallDelegate:(id)delegate channel:(FlutterMethodChannel*)channel;
+        @end
+        @protocol FlutterPlugin <NSObject>
+        + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar;
+        @end
+        @interface FlutterViewController : UIViewController
+        @end
+        @interface FlutterMethodCall : NSObject
+        @property(nonatomic, readonly) NSString* method;
+        @property(nonatomic, readonly) id arguments;
+        @end
+        @interface FlutterMethodChannel : NSObject
+        + (instancetype)methodChannelWithName:(NSString*)name
+                          binaryMessenger:(NSObject<FlutterBinaryMessenger>*)messenger;
+        - (void)invokeMethod:(NSString*)method arguments:(id)arguments;
+        @end
+        EOF
+        mkdir -p "$STUB/neo_swap"
+        cp packages/neo_swap/ios/Classes/*.h "$STUB/neo_swap/"
+        xcrun --sdk iphoneos clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ \
+          -arch arm64 -isysroot "$SDK" -miphoneos-version-min=17.4 \
+          -I"$STUB" -Ipackages/rpcs3_internal_bridge/ios/Classes \
+          packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm \
+          2>&1 | tee build/delivery/neoswap/rpcs3-bridge-arm64-syntax.txt
         python3 - <<'PY'
         import hashlib,json,os,subprocess
         from pathlib import Path
@@ -218,7 +293,7 @@ jobs:
         paths.update(Path(p) for p in (
             'test/neoswap_pool_fragmentation_test.cpp','test/neoswap_preparation_test.cpp',
             'test/neoswap_demand_test.cpp','test/relay_backend_test.cpp','test/neoswap_relay_loans_test.cpp',
-            'test/neoswap_usage_policy_test.cpp','test/rpcs3_neoswap_localizations_test.py',
+            'test/neoswap_usage_policy_test.cpp','test/neoswap_budget_test.cpp','test/rpcs3_neoswap_localizations_test.py',
             'packages/neo_swap/ios/neo_swap.podspec',
             '.github/workflows/retroarch-delivery.yml','build-utils/verify_delivery_reuse.py','test/delivery_pipeline_test.py'))
         record={'result':'passed','testedSHA':os.environ['GITHUB_SHA'],
@@ -237,6 +312,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
     - name: Verify prior Swift success for identical transport inputs
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
       id: native-evidence
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -259,23 +335,24 @@ jobs:
         print('Swift validation reused from run 37844950677' if reused else 'Swift transport inputs require new validation')
         PYTHON
     - name: Validate changed Swift transport and compile the actual iPhone plugin
-      if: ${{ steps.native-evidence.outputs.reused != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && steps.native-evidence.outputs.reused != 'true' }}
       run: |-
         swiftc -warnings-as-errors packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift test/retroarch_url_handoff_test.swift -o "$RUNNER_TEMP/retroarch-handoff"
         "$RUNNER_TEMP/retroarch-handoff"
         xcrun swiftc -parse -target arm64-apple-ios18.0 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" packages/external_folder_access/ios/Classes/ExternalFolderAccessPlugin.swift packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift
     - name: Run the embedded libretro host against a test core
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' }}
       run: python3 test/libretro_host_test.py
     - name: Run the portable libretro frontend modules (geometry, controls, settings, skins)
       # Runs even when an earlier native check failed, so one round reports
       # every native problem; the job still fails and blocks the IPA.
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' }}
       run: python3 test/libretro_frontend_test.py
     - name: Compile and render every libretro shader preset with Metal
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' }}
       run: python3 test/libretro_shader_test.py
     - name: Compile and link every libretro bridge source for iPhone
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' }}
       run: python3 test/libretro_ios_syntax_test.py
   cold:
     name: Release device build • cold
@@ -333,7 +410,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 build-utils/verify_delivery_reuse.py
+        python3 build-utils/verify_delivery_reuse.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -527,6 +604,8 @@ jobs:
         assert identity['neoswap_client_abi'] == 1, identity
         assert identity['neoswap_client_stats_abi'] == 1, identity
         assert identity['neoswap_relay_abi'] == 1, identity
+        assert identity['neoswap_prepared_relay_abi'] == 1, identity
+        assert identity['neoswap_relay_client_stats_abi'] == 1, identity
         assert identity['neoswap_storage_abi'] == 1, identity
         assert identity['neoswap_source_archive_abi'] == 1, identity
         validate_core_input_identity(identity)
@@ -1215,7 +1294,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 build-utils/verify_delivery_reuse.py
+        python3 build-utils/verify_delivery_reuse.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4

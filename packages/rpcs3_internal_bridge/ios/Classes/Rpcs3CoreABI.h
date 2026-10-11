@@ -11,6 +11,10 @@ typedef int32_t rpcs3_ios_status;
 // Optional NeoSwap relay symbol, separate from the immutable main Core ABI.
 struct NeoSwapRelayAPI;
 typedef int32_t (*rpcs3_ios_neoswap_relay_binder)(const struct NeoSwapRelayAPI*);
+struct NeoSwapPreparedRelayAPI;
+struct NeoSwapRelayClientStats;
+typedef int32_t (*rpcs3_ios_neoswap_prepared_relay_binder)(const struct NeoSwapPreparedRelayAPI*);
+typedef int32_t (*rpcs3_ios_neoswap_relay_stats_getter)(struct NeoSwapRelayClientStats*);
 
 typedef void (*rpcs3_ios_log_callback)(void* context,
                                        int32_t level,

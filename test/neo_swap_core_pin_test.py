@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = '82690d3d19c0ce7a631709f9e798603f94a65505724198d7674f26f162c8efe4'
+PATCH_SHA256 = '1bd59add61f51b7188b0d02a14903230e8915e606da1c62230c210114ce6e1d6'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -160,6 +160,10 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
             'Unexpected diagnostics ABI')
     require('NEOSWAP_RELAY_ABI = 1' in (root / 'packages/neo_swap/ios/Classes/NeoSwapRelay.h').read_text(),
             'Unexpected page-relay ABI')
+    require('NEOSWAP_PREPARED_RELAY_ABI = 1' in (root / 'packages/neo_swap/ios/Classes/NeoSwapRelay.h').read_text(),
+            'Prepared admission must retain its separate optional ABI 1')
+    require('NEOSWAP_RELAY_CLIENT_STATS_ABI = 1' in (root / 'packages/neo_swap/ios/Classes/NeoSwapRelay.h').read_text(),
+            'Relay client diagnostics must retain its separate ABI 1')
     for name in ('StorageABI.h', 'Client.h', 'ShaderKey.h', 'SourceABI.h', 'SourceClient.h', 'SourceClient.cpp', 'FrameClient.h', 'VideoBuffer.h'):
         payload = (root/'native/neoswap-storage'/name).read_bytes()
         require(hashlib.sha256(payload).hexdigest() == manifest['files_sha256']['rpcs3/ios/NeoSwapStorage/'+name], 'Storage Core contract differs: '+name)
@@ -180,7 +184,13 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
     validate_core_scheduling(core_workflow)
     require('_rpcs3_ios_get_neoswap_client_stats' in core_workflow, 'Getter export must be verified')
     require('_rpcs3_ios_set_neoswap_relay_api' in core_workflow, 'Relay setter export must be verified')
+    require('_rpcs3_ios_set_neoswap_prepared_relay_api' in core_workflow,
+            'Prepared-relay setter export must be verified')
+    require('_rpcs3_ios_get_neoswap_relay_client_stats' in core_workflow,
+            'Relay-client diagnostics export must be verified')
     require("'neoswap_relay_abi':1" in core_workflow, 'Missing relay identity ABI')
+    require("'neoswap_prepared_relay_abi':1" in core_workflow, 'Missing prepared-relay identity ABI')
+    require("'neoswap_relay_client_stats_abi':1" in core_workflow, 'Missing relay-client diagnostics identity ABI')
     require("'neoswap_client_stats_abi':1" in core_workflow, 'Missing diagnostics identity ABI')
     require("'neoswap_source_archive_abi':1" in core_workflow and
             '_rpcs3_ios_set_source_archive_api' in core_workflow, 'Missing cold-source ABI/export identity')
@@ -198,6 +208,19 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
             'IPA must verify the complete Core input identity')
     require("assert identity['neoswap_source_archive_abi'] == 1" in ipa_workflow,
             'IPA must reject a Core without cold-source archive ABI 1')
+    require("assert identity['neoswap_prepared_relay_abi'] == 1" in ipa_workflow,
+            'IPA must reject a Core without prepared-relay ABI 1')
+    require("assert identity['neoswap_relay_client_stats_abi'] == 1" in ipa_workflow,
+            'IPA must reject a Core without relay-client diagnostics ABI 1')
+    delivery_workflow = (root / '.github/workflows/retroarch-delivery.yml').read_text()
+    delivery_block = delivery_workflow.split('# RPCS3_CORE_INPUTS_BEGIN\n', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
+    delivery_inputs = re.findall(r'(?:build-utils|test|packages|native|\.github)/[^\s\\]+', delivery_block)
+    require(len(delivery_inputs) == len(CORE_INPUTS) and set(delivery_inputs) == set(CORE_INPUTS),
+            'Delivery exact-diff inputs differ from the published Core input identity')
+    require("assert identity['neoswap_prepared_relay_abi'] == 1" in delivery_workflow,
+            'Delivery must reject a Core without prepared-relay ABI 1')
+    require("assert identity['neoswap_relay_client_stats_abi'] == 1" in delivery_workflow,
+            'Delivery must reject a Core without relay-client diagnostics ABI 1')
     if source_root is not None:
         head = subprocess.check_output(['git', '-C', str(source_root), 'rev-parse', 'HEAD'], text=True).strip()
         require(head == UPSTREAM, 'Materialized source base changed')
@@ -212,6 +235,12 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
         require('_rpcs3_ios_set_neoswap_relay_api' in
                 (source_root / 'rpcs3/ios/RPCS3IOS.exports').read_text().splitlines(),
                 'Materialized relay setter is not exported')
+        require('_rpcs3_ios_set_neoswap_prepared_relay_api' in
+                (source_root / 'rpcs3/ios/RPCS3IOS.exports').read_text().splitlines(),
+                'Materialized prepared-relay setter is not exported')
+        require('_rpcs3_ios_get_neoswap_relay_client_stats' in
+                (source_root / 'rpcs3/ios/RPCS3IOS.exports').read_text().splitlines(),
+                'Materialized relay-client diagnostics getter is not exported')
 
 
 def validate_exact_pin(commit: str, root: Path = ROOT) -> None:
@@ -232,6 +261,7 @@ def validate_exact_pin(commit: str, root: Path = ROOT) -> None:
 def validate_core_input_identity(identity: dict, root: Path = ROOT) -> None:
     for name, expected in (
         ('abi_version', 30), ('neoswap_client_abi', 1), ('neoswap_client_stats_abi', 1), ('neoswap_relay_abi', 1),
+        ('neoswap_prepared_relay_abi', 1), ('neoswap_relay_client_stats_abi', 1),
         ('neoswap_storage_abi', 1), ('neoswap_source_archive_abi', 1),
         ('source_commit', UPSTREAM), ('source_patch_sha256', PATCH_SHA256),
     ):

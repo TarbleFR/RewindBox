@@ -269,7 +269,27 @@ class DonorContractTests(unittest.TestCase):
         self.assertIn('if (NeoSwapExperimentProfile().configured) return 32*kMiB;', reserve)
         self.assertIn('return _budgetDecisionCount ? _budgetDecision.donor_reserve_bytes : kDonationReserveBytes;', reserve)
         self.assertIn('if (!_budgetDecision.donor_growth_admitted) {', plugin)
-        self.assertIn('if (available > _budgetDecision.donor_room_bytes) available = _budgetDecision.donor_room_bytes;', plugin)
+        # Build441: callbacks can request another chunk before the next timer
+        # tick. Only unspent credit is usable; completing an IPC is no refund.
+        budget = plugin.split('- (uint64_t)nextDonationBudget {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('if (self.donorPendingIndexes.count) return 0;', budget)
+        self.assertIn('neostation::budget::remaining_donor_room(\n        _budgetDecision, _budgetDonorCommittedBytes)', budget)
+        self.assertIn('if (available > remaining) available = remaining;', budget)
+        self.assertIn('pool.target_bytes - pool.retained_bytes, 0, vm_page_size)', budget)
+        self.assertNotIn('available = _budgetDecision.donor_room_bytes', budget)
+        apply = plugin.split('- (void)applyBudget {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('in.donor_preparing_bytes = [self pendingDonationBytes];', apply)
+        self.assertIn('_budgetDecision = decision;\n    _budgetDonorCommittedBytes = 0;', apply)
+        self.assertEqual(plugin.count('_budgetDonorCommittedBytes = 0;'), 1)
+        launch = plugin.split('- (void)launchDonor:', 1)[1].split('\n}', 1)[0]
+        self.assertIn('_budgetDonorCommittedBytes = neostation::budget::saturating_add(_budgetDonorCommittedBytes, first);', launch)
+        self.assertLess(launch.index('_budgetDonorCommittedBytes ='), launch.index('[session start]'))
+        advance = plugin.split('- (void)advanceDonors {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('_budgetDonorCommittedBytes, self.donorDemand.bytes)', advance)
+        self.assertIn('_budgetDonorCommittedBytes, requested)', advance)
+        self.assertEqual(plugin.count('_budgetDonorCommittedBytes = neostation::budget::saturating_add('), 3)
+        clear = plugin.split('- (void)clearPendingDonor:', 1)[1].split('\n}', 1)[0]
+        self.assertNotIn('_budgetDonorCommittedBytes', clear)
         self.assertIn('@"stage":@"global_budget_refused_growth"', plugin)
         self.assertIn('bytes > neostation::donation::max_chunk_bytes', ipc)
         self.assertIn('maximum > neostation::donation::max_chunk_bytes', handler)
