@@ -392,5 +392,40 @@ void main() {
       await settle(tester, rounds: 2);
       await flushStore(tester, store);
     });
+
+    // Above 200 000 characters the paragraphs are split in another isolate:
+    // the closure sent there must not capture the reader's State.
+    testWidgets('a long text is split off the UI isolate and opens', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final text = List<String>.generate(
+        3000,
+        (i) => 'Paragraph $i ${List<String>.filled(12, 'lorem').join(' ')}',
+      ).join('\n\n');
+      expect(text.length, greaterThan(200000));
+      await pumpReader(
+        tester,
+        LibraryReaderScreen(title: 'Long', text: text, store: store),
+      );
+      await settle(tester, rounds: 12);
+      final state = tester.state<LibraryBookReaderScreenState>(
+        find.byType(LibraryBookReaderScreen),
+      );
+      expect(
+        find.text(LibraryReaderLocale.values['en']!['errorGeneric']!),
+        findsNothing,
+      );
+      expect(state.source, isNotNull);
+      expect(state.source!.chapterCount, 15);
+      expect(
+        find.textContaining('Paragraph 0 lorem', findRichText: true),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
   });
 }
