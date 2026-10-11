@@ -1302,10 +1302,10 @@ class LibraryReadingStore extends ChangeNotifier {
       _progress.remove(entry.key);
     }
     _evictedProgress += dropped.length;
+    // Counts only: the keys name what the user reads.
     _log.w(
       'Library reading store: ${dropped.length} oldest reading positions '
-      'dropped over the limit of $maxProgressEntries '
-      '(${dropped.map((entry) => entry.key).join(', ')}); '
+      'dropped over the limit of $maxProgressEntries; '
       '$_evictedProgress in total',
     );
   }
@@ -1335,8 +1335,8 @@ class LibraryReadingStore extends ChangeNotifier {
     _evictedMarkTitles += dropped.length;
     _log.w(
       'Library reading store: chapter marks of ${dropped.length} titles '
-      'dropped over the limit of $maxChapterMarkTitles '
-      '(${dropped.join(', ')}); $_evictedMarkTitles in total',
+      'dropped over the limit of $maxChapterMarkTitles; '
+      '$_evictedMarkTitles in total',
     );
   }
 }
