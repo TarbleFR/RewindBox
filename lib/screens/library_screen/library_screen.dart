@@ -23,6 +23,7 @@ import 'package:neostation/services/library_manga_models.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
+import 'package:neostation/widgets/library_book_cover.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_favorites_view.dart';
@@ -2992,8 +2993,10 @@ class _LibraryCatalogCard extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(7.r),
+                      LibraryBookCover(
+                        selected: selected,
+                        rightToLeft: item.mediaType == LibraryMediaType.manga,
+                        radius: 7.r,
                         child: coverUrl == null
                             ? placeholder
                             : Image(

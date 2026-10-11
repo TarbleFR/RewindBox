@@ -17,6 +17,7 @@ import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_http.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
+import 'package:neostation/widgets/library_book_cover.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_feed_test_fakes.dart';
@@ -173,6 +174,41 @@ void main() {
     backend.pages[sourceId] = (call) async =>
         testPage(call.page == 1 ? items : const [], hasMore: false);
   }
+
+  testWidgets(
+    'book covers follow controller selection without opening a title',
+    (tester) async {
+      final source = aidokuTestAddon('fr.covers');
+      serve('fr.covers', [
+        testItem('a', title: 'Alpha Manga'),
+        testItem('b', title: 'Beta Manga'),
+      ]);
+      final opened = <String>[];
+      await pumpHub(
+        tester,
+        addons: [source],
+        openOnline: (item, addon) async => opened.add(item.id),
+      );
+      List<LibraryBookCover> covers() => tester
+          .widgetList<LibraryBookCover>(find.byType(LibraryBookCover))
+          .toList();
+      expect(covers(), hasLength(2));
+      expect(covers().every((cover) => cover.rightToLeft), isTrue);
+      expect(covers().where((cover) => cover.selected), isEmpty);
+      LibraryScreen.navigateDown();
+      LibraryScreen.navigateDown();
+      await tester.pumpAndSettle();
+      expect(covers().map((cover) => cover.selected), [true, false]);
+      LibraryScreen.navigateRight();
+      await tester.pumpAndSettle();
+      expect(covers().map((cover) => cover.selected), [false, true]);
+      expect(opened, isEmpty);
+      LibraryScreen.selectCurrent();
+      await tester.pump();
+      expect(opened, ['b']);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('safe mode keeps nsfw:0 titles, hides rating-2 sources and '
       'explicit titles', (tester) async {
