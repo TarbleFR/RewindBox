@@ -7,6 +7,10 @@ workloadId (save/route/duration), deviceId, settingsId, memoryLogs and rpcs3Logs
 Log paths are relative to the manifest. Workload/device/settings must match.
 The source SHA may differ, unlike compare_neoswap_sessions.py's mode experiment.
 
+--mode cross-title instead compares two titles captured on one build: title and
+workloadId may differ, but device, settings, physical memory, OS version and
+sourceCommit must match. It explains differences between games, not builds.
+
 Only complete, unambiguous memory sessions are accepted. Missing instrumentation
 is null with a reason, never a zero. All totals cover observed log windows, not
 an assertion of gap-free capture or device validation. COREPROF window p95 is
@@ -23,8 +27,14 @@ import statistics
 
 
 PAIR = re.compile(r"\b([A-Za-z][A-Za-z0-9_]*)=([^\s]+)")
+# JITPROF prints each phase as events:total_ms:max_ms:bytes (%llu:%.3f:%.3f:%llu).
+JIT_TUPLE = re.compile(r"([0-9]+):([0-9]+(?:\.[0-9]+)?):([0-9]+(?:\.[0-9]+)?):([0-9]+)")
 IDENTITY = ("sourceCommit", "pid", "sessionSequence", "bootTimestamp", "title",
             "workloadId", "deviceId", "settingsId")
+SHARED_IDENTITY = ("deviceId", "settingsId", "physicalMemoryBytes", "osVersion")
+COMPARISON_MODES = ("same-title", "cross-title")
+SAMPLE_STAGES = ("performance_sample", "neoswap_guest_sample", "neoswap_guest_sample_ext")
+GUEST_PHASES = ("before_boot", "boot_return", "sample", "session_end")
 DONATED_FIELDS = (
     ("neoswap_donated_peak_bytes", "donatedBytes"),
     ("neoswap_donated_guest_peak_bytes", "donatedGuestBytes"),
@@ -36,6 +46,28 @@ GUEST_COUNTERS = (
     "prepared_hits", "prepared_hit_bytes", "prepared_misses", "prepared_miss_bytes",
     "ordinary_fallbacks", "ordinary_fallback_bytes", "map_failures", "alias_maps",
     "prepared_published_objects", "prepared_published_bytes", "first_map_total_ns",
+)
+# Build 444 neoswap_guest_sample_ext counters: cumulative independent atomics,
+# except the fallback_live_* pair, which are current live counts of candidate
+# objects on ordinary backing.
+GUEST_EXT_COUNTERS = (
+    "gameplay_direct_requests", "gameplay_direct_creates", "gameplay_direct_create_bytes",
+    "gameplay_direct_busy", "gameplay_direct_pressure", "gameplay_direct_budget", "gameplay_direct_other",
+    "gameplay_fallbacks", "gameplay_fallback_bytes", "fallback_live_objects", "fallback_live_bytes",
+    "oversize_requests", "oversize_requested_bytes", "boot_creates", "boot_create_bytes",
+    "direct_published_objects", "direct_published_bytes",
+)
+GUEST_EXT_LIVE_COUNTERS = ("fallback_live_objects", "fallback_live_bytes")
+JIT_PHASES = (
+    "ppu_translate", "ppu_opt", "ppu_verify", "ppu_codegen", "ppu_cache_write", "ppu_cache_read",
+    "ppu_object_load", "ppu_finalize", "ppu_symbols", "spu_build", "spu_passes", "spu_codegen",
+)
+JIT_FIELDS = (("events", sum, "count"), ("total_ms", sum, "ms"), ("max_ms", max, "ms"), ("bytes", sum, "bytes"))
+# Host-sampled guestRelay.guestDirectCreation cumulative counters (Build 444).
+DIRECT_CREATION_COUNTERS = (
+    "requests", "requestedBytes", "created", "createdBytes", "busy", "refusedPressure", "refusedBudget",
+    "refusedCapacity", "refusedDisabled", "refusedLimit", "refusedInvalid", "oversizeRequests",
+    "oversizeRequestedBytes", "allowanceGrants", "allowanceGrantedBytes", "wakeups",
 )
 
 
@@ -74,16 +106,15 @@ def active_donation(record):
     return values
 
 
-def guest_sample(record):
+def guest_counters(record, names):
     """Parse exact uint64 counters without rounding bytes through a float."""
     values = dict(PAIR.findall(str(record.get("message", ""))))
     if (values.get("schema") != "1" or values.get("valid") != "1" or
             values.get("result") != "0" or values.get("scope") != "process_lifetime" or
-            values.get("gameplay_active") not in ("0", "1") or
-            values.get("phase") not in ("before_boot", "boot_return", "sample", "session_end")):
+            values.get("phase") not in GUEST_PHASES):
         return None
     parsed = {}
-    for name in (*GUEST_COUNTERS, "first_map_max_ns", "sample_epoch"):
+    for name in (*names, "sample_epoch"):
         value = values.get(name, "")
         if not re.fullmatch(r"[0-9]+", value):
             return None
@@ -94,6 +125,29 @@ def guest_sample(record):
         return None
     parsed["phase"] = values["phase"]
     return parsed
+
+
+def guest_sample(record):
+    """Base guest line; it additionally carries the gameplay_active flag."""
+    values = dict(PAIR.findall(str(record.get("message", ""))))
+    if values.get("gameplay_active") not in ("0", "1"):
+        return None
+    return guest_counters(record, (*GUEST_COUNTERS, "first_map_max_ns"))
+
+
+def guest_sample_ext(record):
+    """Build 444 extension line: same strictness, no gameplay_active flag."""
+    return guest_counters(record, GUEST_EXT_COUNTERS)
+
+
+def complete_endpoints(samples):
+    """Explicit endpoints retain loading and final gameplay requests. A rotated
+    or truncated capture must not masquerade as a complete guest delta."""
+    if not samples or any(row is None for row in samples):
+        return False
+    phases = [row["phase"] for row in samples]
+    return (phases[0] == "before_boot" and phases[-1] == "session_end" and
+            phases.count("before_boot") == phases.count("session_end") == 1)
 
 
 def read_logs(paths):
@@ -116,7 +170,7 @@ def read_logs(paths):
 
 
 def manifest(path):
-    result = json.loads(path.read_text())
+    result = json.loads(path.read_text(encoding="utf-8"))
     for key in IDENTITY:
         if key not in result or result[key] is None or result[key] == "":
             raise ValueError(f"{path}: missing identity {key}")
@@ -167,9 +221,9 @@ def select_session(info, memory, diagnostics):
         values = dict(PAIR.findall(str(row.get("message", ""))))
         if "title" in values and values["title"] != info["title"]:
             raise ValueError("Diagnostic title differs from selected workload")
-        if row.get("stage") in ("performance_sample", "neoswap_guest_sample") and values.get("title") != info["title"]:
+        if row.get("stage") in SAMPLE_STAGES and values.get("title") != info["title"]:
             raise ValueError("Performance/guest sample requires an explicit matching title")
-        if row.get("stage") in ("performance_sample", "neoswap_guest_sample") and "sample_epoch" in values:
+        if row.get("stage") in SAMPLE_STAGES and "sample_epoch" in values:
             epochs.add(values["sample_epoch"])
     if len(epochs) > 1:
         raise ValueError("Performance epoch reset/relaunch inside selected session")
@@ -180,13 +234,33 @@ def select_session(info, memory, diagnostics):
     return rows, selected, bool(commits)
 
 
-def profile_rows(diagnostics, marker):
+def profile_rows(diagnostics, marker, convert=numeric):
     result = []
     for row in diagnostics:
         message = str(row.get("message", ""))
         if row.get("stage") == "core_log" and re.search(r"\b" + marker + r" ", message):
-            values = {key: numeric(value) for key, value in PAIR.findall(message)}
+            values = {key: convert(value) for key, value in PAIR.findall(message)}
             result.append(values)
+    return result
+
+
+def jit_rows(diagnostics):
+    """Split JITPROF name=events:total_ms:max_ms:bytes tuples into exact fields.
+
+    A malformed or absent tuple leaves that phase unknown in its window; the
+    generic numeric conversion would otherwise silently drop every tuple.
+    """
+    result = []
+    for raw in profile_rows(diagnostics, "JITPROF", str):
+        window = {key: numeric(raw.get(key)) for key in ("session", "headroom_samples", "headroom_min_mib")}
+        for name in JIT_PHASES:
+            match = JIT_TUPLE.fullmatch(raw.get(name, ""))
+            events, total_ms, max_ms, size = match.groups() if match else (None,) * 4
+            window[name + "_events"] = int(events) if match else None
+            window[name + "_total_ms"] = float(total_ms) if match else None
+            window[name + "_max_ms"] = float(max_ms) if match else None
+            window[name + "_bytes"] = int(size) if match else None
+        result.append(window)
     return result
 
 
@@ -198,11 +272,11 @@ def measure(info, memory, diagnostics):
         metrics[key] = {"value": value, "unit": unit, "source": source,
                         "reason": reason if value is None else None}
 
-    def aggregate(key, records, path, operation, unit, source):
+    def aggregate(key, records, path, operation, unit, source, empty_reason=None):
         values = [field(row, path) for row in records]
         valid = bool(values) and all(number(value) and value >= 0 for value in values)
         put(key, operation(values) if valid else None, unit, source,
-            "missing_or_invalid_field_in_observed_records")
+            empty_reason if empty_reason and not values else "missing_or_invalid_field_in_observed_records")
 
     def delta(key, path, unit):
         values = [field(row, path) for row in rows]
@@ -257,6 +331,24 @@ def measure(info, memory, diagnostics):
         ("range_lock_max_blockers", "blocker_max", max, "count"),
     ):
         aggregate(key, ranges, path, operation, unit, "RANGELOCKPROF observed windows")
+    # JITPROF (Build 444) shares the profile reset epoch of the other windows.
+    jit = jit_rows(diagnostics)
+    jit_epochs = {row.get("session") for row in jit}
+    if jit and (None in jit_epochs or len(jit_epochs) != 1 or
+                (epochs and jit_epochs != epochs) or (range_epochs and jit_epochs != range_epochs)):
+        raise ValueError("JITPROF/SPUPROF/RANGELOCKPROF reset epochs disagree")
+    jit_reason = "jitprof_not_recorded_by_this_core" if not jit else None
+    for name in JIT_PHASES:
+        for suffix, operation, unit in JIT_FIELDS:
+            aggregate(f"jit_{name}_{suffix}", jit, f"{name}_{suffix}", operation, unit,
+                      "JITPROF per-phase compile accounting, exclusive of nested phases; observed windows",
+                      jit_reason)
+    headroom = [row for row in jit if number(row["headroom_samples"]) and row["headroom_samples"] > 0]
+    aggregate("jit_headroom_min_mib", headroom, "headroom_min_mib", min, "MiB",
+              "lowest process headroom sampled after a PPU module compile; JITPROF windows with headroom_samples > 0",
+              jit_reason or "no_ppu_module_compiled_in_observed_windows")
+    put("jit_windows", len(jit) if jit else None, "count", "JITPROF windows observed",
+        "jitprof_not_recorded_by_this_core")
     # Native window summaries are valid observations but do not retain the
     # underlying distribution needed to reconstruct session percentiles.
     aggregate("native_frame_window_mean_ms", core, "frametime_ms", statistics.mean, "ms",
@@ -302,13 +394,7 @@ def measure(info, memory, diagnostics):
             "neoswapContribution.schema=2/" + name + "; active backing, not residency or footprint savings",
             "schema_2_active_donation_missing_invalid_or_inconsistent_in_session_samples")
     guest = [guest_sample(row) for row in diagnostics if row.get("stage") == "neoswap_guest_sample"]
-    guest_valid = bool(guest) and all(row is not None for row in guest)
-    # Explicit endpoints retain loading and final gameplay requests. A rotated
-    # or truncated capture must not masquerade as a complete guest delta.
-    if guest_valid:
-        phases = [row["phase"] for row in guest]
-        guest_valid = (phases[0] == "before_boot" and phases[-1] == "session_end" and
-                       phases.count("before_boot") == phases.count("session_end") == 1)
+    guest_valid = complete_endpoints(guest)
     for name in GUEST_COUNTERS:
         values = [row[name] for row in guest] if guest_valid else []
         if any(current < prior for prior, current in zip(values, values[1:])):
@@ -328,6 +414,29 @@ def measure(info, memory, diagnostics):
     put("guest_relay_first_map_body_mean_us", elapsed / count / 1000 if count and elapsed is not None else None,
         "us", "first-map total_ns / candidate_first_maps; excludes client-mutex wait, outer VM locks and ordinary fallback",
         "no_measured_candidate_first_maps_or_guest_samples_missing")
+    # Build 444 extension line. An older Core answers the extension query with
+    # valid=0 (no counters) or never logs the line: unknown, never measured zeros.
+    extension = [row for row in diagnostics if row.get("stage") == "neoswap_guest_sample_ext"]
+    ext = [guest_sample_ext(row) for row in extension]
+    ext_valid = complete_endpoints(ext)
+    ext_reason = ("complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"
+                  if any(dict(PAIR.findall(str(row.get("message", "")))).get("valid") == "1" for row in extension)
+                  else "extension_line_not_recorded_by_this_core")
+    for name in GUEST_EXT_COUNTERS:
+        values = [row[name] for row in ext] if ext_valid else []
+        unit = "bytes" if name.endswith("_bytes") else "count"
+        if name in GUEST_EXT_LIVE_COUNTERS:
+            put(f"guest_relay_ext_{name}_peak", max(values) if values else None, unit,
+                "neoswap_guest_sample_ext current live candidates on ordinary backing, maximum over session samples: " + name,
+                ext_reason)
+            put(f"guest_relay_ext_{name}_end", values[-1] if values else None, unit,
+                "neoswap_guest_sample_ext current live candidates on ordinary backing at session_end: " + name,
+                ext_reason)
+            continue
+        if any(current < prior for prior, current in zip(values, values[1:])):
+            raise ValueError(f"Cumulative guest extension counter reset within session: {name}")
+        put("guest_relay_ext_" + name, values[-1] - values[0] if values else None, unit,
+            "neoswap_guest_sample_ext process-lifetime counter delta: " + name, ext_reason)
     put("neoswap_usable_capacity_bytes", None, "bytes", "none",
         "live_mappings_and_preparation_do_not_establish_additional_usable_capacity_under_gameplay_pressure")
     put("neoswap_fault_latency_ms", None, "ms", "none", "per_fault_duration_not_exported")
@@ -343,6 +452,33 @@ def measure(info, memory, diagnostics):
     put("fast_acquisition_mean_us", total_time / requests if requests and total_time is not None else None,
         "us", "delta acquisition total_time_us / delta requests; includes refusals",
         "no_measured_requests_or_acquisition_counters_missing")
+    # Build 444 host-side direct admission on prepared-stock misses. The object
+    # is only measured when the host reports it available in every sample.
+    direct = "guestRelay.guestDirectCreation."
+    admissions = [field(row, "guestRelay.guestDirectCreation") for row in rows]
+    direct_recorded = bool(admissions) and all(isinstance(row, dict) and row.get("available") is True
+                                               for row in admissions)
+    for name in DIRECT_CREATION_COUNTERS:
+        unit = "bytes" if name.endswith("Bytes") else "count"
+        if direct_recorded:
+            delta("host_direct_" + name, direct + name, unit)
+        else:
+            put("host_direct_" + name, None, unit, direct + name, "direct_admission_not_recorded_by_this_host")
+    for key, name, operation, unit, source in (
+        ("host_direct_oversizeMaxBytes", "oversizeMaxBytes", max, "bytes",
+         "largest oversize request; process-lifetime high-water mark; may predate this session"),
+        ("host_direct_allowanceBytes_mean", "allowanceBytes", statistics.mean, "bytes",
+         "mean of the sampled direct allowance in force; a budget, not RAM"),
+    ):
+        if direct_recorded:
+            aggregate(key, rows, direct + name, operation, unit, direct + name + "; " + source)
+        else:
+            put(key, None, unit, direct + name, "direct_admission_not_recorded_by_this_host")
+    aggregate("budget_direct_guest_allowance_mean_bytes", rows, "budget.directGuestAllowanceBytes", statistics.mean,
+              "bytes", "budget.directGuestAllowanceBytes; mean of sampled allowance in force, not RAM")
+    delta("budget_demand_wakeups", "budget.demandWakeups", "count")
+    aggregate("file_fallback_live_peak_bytes", rows, "neoswapContribution.fileFallbackLiveBytes", max, "bytes",
+              "neoswapContribution.fileFallbackLiveBytes; file-backed fallback objects live at a sample, not RAM")
     preparation = [row["donationPreparation"] for row in rows if isinstance(row.get("donationPreparation"), dict)]
     warmup = {"modesObserved": sorted({row["mode"] for row in preparation if isinstance(row.get("mode"), str)}),
               "readinessTimedOut": any(row.get("readinessTimedOut") is True for row in preparation) if preparation else None,
@@ -354,12 +490,20 @@ def measure(info, memory, diagnostics):
     return {"identity": identity, "sourceCommitEvidence": "log_and_manifest" if commit_verified else "manifest_only",
             "durationSeconds": rows[-1]["timestamp"] - info["bootTimestamp"],
             "observations": {"memory": len(rows), "spuWindows": len(spu), "coreWindows": len(core),
-                             "rangeWindows": len(ranges), "fpsSamples": len(samples)},
+                             "rangeWindows": len(ranges), "jitWindows": len(jit), "fpsSamples": len(samples)},
             "donorPreparation": warmup, "metrics": metrics}
 
 
-def compare(before, after):
-    for key in ("title", "workloadId", "deviceId", "settingsId", "physicalMemoryBytes", "osVersion"):
+def compare(before, after, mode="same-title"):
+    if mode not in COMPARISON_MODES:
+        raise ValueError(f"Unknown comparison mode: {mode}")
+    # One title on two builds shares its workload; two titles on one build
+    # share the device and the source instead.
+    if mode == "cross-title":
+        keys = (*SHARED_IDENTITY, "sourceCommit")
+    else:
+        keys = ("title", "workloadId", *SHARED_IDENTITY)
+    for key in keys:
         old, new = before["identity"][key], after["identity"][key]
         if old is None or old != new:
             raise ValueError(f"Incompatible comparison identity: {key}")
@@ -367,25 +511,34 @@ def compare(before, after):
     for key, old in before["metrics"].items():
         new = after["metrics"][key]
         changes[key] = new["value"] - old["value"] if number(old["value"]) and number(new["value"]) else None
-    return {"schema": 1, "before": before, "after": after, "afterMinusBefore": changes,
+    limitations = [
+        "Workload/device/settings identities are operator attestations; source SHA is log-verified only where recorded.",
+        "Observed log-window totals may omit initial/final partial windows or dropped messages.",
+        "Cumulative counter deltas cover the first-to-last memory sample; process lifetime maxima can predate the boot.",
+        "Loading SPU classification denotes startup compile scope, not the first playable frame.",
+        "Range-lock waits are guest VM contention; NeoSwap acquisition latency is a separate measurement.",
+        "Resident bytes, process footprint, prepared capacity and shared live backing must not be added as physical RAM.",
+        "Schema-2 donated bytes exclude idle shelves; older occupied-backing counters cannot establish this value or footprint savings.",
+        "Guest prepared hits/publications are cumulative objects/bytes, not active or resident RAM; first-map timing excludes mutex acquisition and the ordinary fallback allocator.",
+        "No 50 s / 8.8 s / 118 ms / million-block baseline is assumed without identified source logs.",
+    ]
+    if mode == "cross-title":
+        limitations.append(
+            "Cross-title comparison explains differences between two games on one build; it is not a "
+            "build-to-build improvement measurement and different workloads are not comparable in duration.")
+    return {"schema": 1, "mode": mode, "before": before, "after": after, "afterMinusBefore": changes,
             "deviceValidationPassed": False, "automaticPromotionAllowed": False,
-            "limitations": [
-                "Workload/device/settings identities are operator attestations; source SHA is log-verified only where recorded.",
-                "Observed log-window totals may omit initial/final partial windows or dropped messages.",
-                "Cumulative counter deltas cover the first-to-last memory sample; process lifetime maxima can predate the boot.",
-                "Loading SPU classification denotes startup compile scope, not the first playable frame.",
-                "Range-lock waits are guest VM contention; NeoSwap acquisition latency is a separate measurement.",
-                "Resident bytes, process footprint, prepared capacity and shared live backing must not be added as physical RAM.",
-                "Schema-2 donated bytes exclude idle shelves; older occupied-backing counters cannot establish this value or footprint savings.",
-                "Guest prepared hits/publications are cumulative objects/bytes, not active or resident RAM; first-map timing excludes mutex acquisition and the ordinary fallback allocator.",
-                "No 50 s / 8.8 s / 118 ms / million-block baseline is assumed without identified source logs.",
-            ]}
+            "limitations": limitations}
 
 
 def markdown(report):
-    lines = ["RPCS3 + NeoSwap — observed before/after measurements", "",
-             f"Before: `{report['before']['identity']['sourceCommit']}`",
-             f"After: `{report['after']['identity']['sourceCommit']}`", "",
+    before, after = report["before"]["identity"], report["after"]["identity"]
+    if report.get("mode", "same-title") == "cross-title":
+        heading = [f"Title A: {before['title']} (`{before['sourceCommit']}`)",
+                   f"Title B: {after['title']} (`{after['sourceCommit']}`)"]
+    else:
+        heading = [f"Before: `{before['sourceCommit']}`", f"After: `{after['sourceCommit']}`"]
+    lines = ["RPCS3 + NeoSwap — observed before/after measurements", "", *heading, "",
              "| Metric | Unit | Before | After | Change |", "|---|---|---:|---:|---:|"]
     for key, old in report["before"]["metrics"].items():
         new = report["after"]["metrics"][key]
@@ -402,6 +555,9 @@ def main():
     parser.add_argument("--after", type=Path, required=True, help="after-run manifest JSON")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--markdown", type=Path)
+    parser.add_argument("--mode", choices=COMPARISON_MODES, default="same-title",
+                        help="same-title: one title on two builds (default); "
+                             "cross-title: two titles on one build and device")
     args = parser.parse_args()
     reports = []
     try:
@@ -412,12 +568,12 @@ def main():
             report = measure(info, memory, diagnostics)
             report["inputs"] = memory_files + diagnostic_files
             reports.append(report)
-        result = compare(*reports)
+        result = compare(*reports, mode=args.mode)
     except (ValueError, OSError, KeyError, TypeError) as error:
         parser.error(str(error))
-    args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+    args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     if args.markdown:
-        args.markdown.write_text(markdown(result))
+        args.markdown.write_text(markdown(result), encoding="utf-8")
     print("Observed comparison recorded; iPhone validation remains pending.")
 
 

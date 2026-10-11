@@ -18,9 +18,9 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
-def fixture(source="a" * 40, pid=123):
+def fixture(source="a" * 40, pid=123, title="BCES00510", workload="save-fixture-route-10s"):
     info = {"sourceCommit": source, "pid": pid, "sessionSequence": 1, "bootTimestamp": 100,
-            "title": "BCES00510", "workloadId": "save-fixture-route-10s", "deviceId": "fixture-device",
+            "title": title, "workloadId": workload, "deviceId": "fixture-device",
             "settingsId": "fixture-settings"}
     memory = []
     for index, timestamp in enumerate((100, 105, 110)):
@@ -44,7 +44,7 @@ def fixture(source="a" * 40, pid=123):
         })
     def diag(timestamp, stage, message):
         return {"pid": pid, "timestamp": timestamp, "stage": stage, "message": message}
-    diagnostics = [diag(100, "game_boot_begin", "BCES00510")]
+    diagnostics = [diag(100, "game_boot_begin", title)]
     for index, timestamp in enumerate((104, 109)):
         diagnostics.extend([
             diag(timestamp, "core_log", "SPUPROF session=7 loading_attempts=2 loading_failures=0 "
@@ -55,7 +55,7 @@ def fixture(source="a" * 40, pid=123):
             diag(timestamp, "core_log", "COREPROF frames=10 range_wait_ms=0.25 range_stalls=50 "
                  "frametime_ms=33 p95_ms=40"),
             diag(timestamp, "core_log", "COREPROF_RESILIENCE spu_compile_ms=23"),
-            diag(timestamp, "performance_sample", f"title=BCES00510 valid=0x1 fps={index * 20} sample_epoch=1"),
+            diag(timestamp, "performance_sample", f"title={title} valid=0x1 fps={index * 20} sample_epoch=1"),
         ])
     return info, memory, diagnostics
 
@@ -84,6 +84,62 @@ def guest_fixture():
         diagnostics.append({"pid": info["pid"], "timestamp": timestamp,
                             "stage": "neoswap_guest_sample", "message": message})
     diagnostics.sort(key=lambda row: row["timestamp"])
+    return info, memory, diagnostics
+
+
+def ext_fixture():
+    """Build 444 Core: the extension line accompanies each base guest line.
+
+    Cumulative counters grow by 10 per sample; the fallback_live_* pair is a
+    current count that rises and falls as candidate objects die.
+    """
+    info, memory, diagnostics = guest_fixture()
+    for index, (timestamp, phase) in enumerate(((100.1, "before_boot"), (101, "boot_return"),
+                                               (106, "sample"), (109.5, "session_end"))):
+        counters = {key: 200 + 10 * index for key in MODULE.GUEST_EXT_COUNTERS}
+        counters.update(gameplay_direct_create_bytes=(1 << 53) + 5 + 64 * index,
+                        fallback_live_objects=(3, 7, 2, 4)[index], fallback_live_bytes=(300, 900, 100, 500)[index])
+        message = (f"title=BCES00510 schema=1 valid=1 result=0 sample_epoch=1 phase={phase} "
+                   "scope=process_lifetime " + " ".join(f"{key}={value}" for key, value in counters.items()))
+        diagnostics.append({"pid": info["pid"], "timestamp": timestamp,
+                            "stage": "neoswap_guest_sample_ext", "message": message})
+    diagnostics.sort(key=lambda row: row["timestamp"])
+    return info, memory, diagnostics
+
+
+def jit_line(index, session=7):
+    """One Build 444 JITPROF window; each phase tuple is events:total_ms:max_ms:bytes.
+
+    The first window completed no PPU module, so its printed 0.000 headroom
+    must never become the session minimum.
+    """
+    phases = " ".join(
+        f"{name}={1 + index + position}:{10.5 * (index + 1):.3f}:{6.25 + index:.3f}:{1024 * (index + 1)}"
+        for position, name in enumerate(MODULE.JIT_PHASES))
+    headroom = ("headroom_samples=0 headroom_min_mib=0.000", "headroom_samples=2 headroom_min_mib=512.250")[index]
+    return f"JITPROF session={session} {phases} {headroom}"
+
+
+def jit_fixture():
+    info, memory, diagnostics = fixture()
+    for index, timestamp in enumerate((104.5, 109.6)):
+        diagnostics.append({"pid": info["pid"], "timestamp": timestamp, "stage": "core_log",
+                            "message": jit_line(index)})
+    diagnostics.sort(key=lambda row: row["timestamp"])
+    return info, memory, diagnostics
+
+
+def direct_fixture():
+    """Build 444 host: direct admission object, budget allowance/wakeups, file fallback."""
+    info, memory, diagnostics = fixture()
+    for index, row in enumerate(memory):
+        admission = {key: 50 + 5 * index for key in MODULE.DIRECT_CREATION_COUNTERS}
+        admission.update(schema=1, available=True, requestedBytes=(1 << 40) + 4096 * index,
+                         oversizeMaxBytes=(0, 4096, 2048)[index], allowanceBytes=(100, 200, 300)[index],
+                         createdIsDonated=False, residencyMeasured=False)
+        row["guestRelay"] = {"guestDirectCreation": admission}
+        row["budget"] = {"directGuestAllowanceBytes": (10, 20, 30)[index], "demandWakeups": 7 + 3 * index}
+        row["neoswapContribution"]["fileFallbackLiveBytes"] = (0, 777, 5)[index]
     return info, memory, diagnostics
 
 
@@ -307,6 +363,276 @@ class ComparisonTest(unittest.TestCase):
             (directory / "bad.jsonl").write_text('{"timestamp":1}\n{')
             with self.assertRaisesRegex(ValueError, "incomplete/invalid JSONL"):
                 MODULE.read_logs([directory / "bad.jsonl"])
+
+    # --- Build 444: guest extension line, JITPROF, host direct admission, cross-title mode.
+
+    def test_guest_extension_deltas_and_live_peaks_keep_exact_counters(self):
+        report = MODULE.measure(*ext_fixture())
+        value = lambda name: report["metrics"][name]["value"]
+        self.assertEqual(value("guest_relay_ext_gameplay_direct_requests"), 30)
+        self.assertEqual(value("guest_relay_ext_gameplay_direct_create_bytes"), 192)
+        self.assertEqual(value("guest_relay_ext_boot_creates"), 30)
+        self.assertEqual(value("guest_relay_ext_direct_published_bytes"), 30)
+        self.assertEqual(report["metrics"]["guest_relay_ext_direct_published_bytes"]["unit"], "bytes")
+        self.assertEqual(report["metrics"]["guest_relay_ext_boot_creates"]["unit"], "count")
+        self.assertIsNone(report["metrics"]["guest_relay_ext_gameplay_direct_requests"]["reason"])
+        # Live counts rise and fall with object lifetime: a peak and an end value, never a delta.
+        self.assertEqual(value("guest_relay_ext_fallback_live_bytes_peak"), 900)
+        self.assertEqual(value("guest_relay_ext_fallback_live_bytes_end"), 500)
+        self.assertEqual(value("guest_relay_ext_fallback_live_objects_peak"), 7)
+        self.assertEqual(value("guest_relay_ext_fallback_live_objects_end"), 4)
+        for name in MODULE.GUEST_EXT_LIVE_COUNTERS:
+            self.assertNotIn("guest_relay_ext_" + name, report["metrics"])
+        self.assertEqual(len([key for key in report["metrics"] if key.startswith("guest_relay_ext_")]),
+                         len(MODULE.GUEST_EXT_COUNTERS) + len(MODULE.GUEST_EXT_LIVE_COUNTERS))
+        # Base counters, donation and footprint are untouched by the extension.
+        self.assertEqual(value("guest_relay_candidate_first_maps"), 30)
+        self.assertEqual(value("neoswap_donated_peak_bytes"), 50)
+        self.assertEqual(value("process_footprint_peak_bytes"), 102)
+
+    def test_guest_extension_missing_or_incomplete_is_null_with_reason(self):
+        phase = lambda row: dict(MODULE.PAIR.findall(row["message"]))["phase"]
+        older_core = ("title=BCES00510 schema=1 valid=0 result=-3 sample_epoch=1 phase={} scope=process_lifetime")
+        cases = [
+            (lambda rows: rows.clear(), "extension_line_not_recorded_by_this_core"),
+            (lambda rows: [row.update(message=older_core.format(phase(row))) for row in rows],
+             "extension_line_not_recorded_by_this_core"),
+            (lambda rows: rows.pop(), "complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"),
+            (lambda rows: rows.pop(0), "complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"),
+            (lambda rows: rows[1].update(message=rows[1]["message"].replace("boot_creates=210", "")),
+             "complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"),
+            (lambda rows: rows[1].update(message=rows[1]["message"].replace("boot_creates=210", "boot_creates=2.5")),
+             "complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"),
+            (lambda rows: rows[1].update(message=rows[1]["message"].replace("boot_creates=210", f"boot_creates={1 << 64}")),
+             "complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"),
+            (lambda rows: rows[1].update(message=rows[1]["message"].replace("valid=1", "valid=0")),
+             "complete_valid_guest_extension_samples_with_boot_and_end_not_recorded"),
+        ]
+        for index, (mutation, reason) in enumerate(cases):
+            with self.subTest(change=index):
+                info, memory, diagnostics = ext_fixture()
+                rows = [row for row in diagnostics if row["stage"] == "neoswap_guest_sample_ext"]
+                mutation(rows)
+                diagnostics = [row for row in diagnostics if row["stage"] != "neoswap_guest_sample_ext"] + rows
+                diagnostics.sort(key=lambda row: row["timestamp"])
+                report = MODULE.measure(info, memory, diagnostics)
+                keys = [key for key in report["metrics"] if key.startswith("guest_relay_ext_")]
+                self.assertEqual(len(keys), len(MODULE.GUEST_EXT_COUNTERS) + len(MODULE.GUEST_EXT_LIVE_COUNTERS))
+                for key in keys:
+                    self.assertIsNone(report["metrics"][key]["value"], key)
+                    self.assertEqual(report["metrics"][key]["reason"], reason, key)
+                # The base line keeps measuring independently of the extension.
+                self.assertEqual(report["metrics"]["guest_relay_candidate_first_maps"]["value"], 30)
+
+    def test_guest_extension_counter_reset_or_other_epoch_rejected(self):
+        for old, new in (("gameplay_direct_requests=210", "gameplay_direct_requests=1"),
+                         ("direct_published_bytes=210", "direct_published_bytes=199"),
+                         ("sample_epoch=1", "sample_epoch=2"),
+                         ("title=BCES00510", "title=OTHER0001")):
+            with self.subTest(field=old):
+                args = ext_fixture()
+                row = next(row for row in args[2] if row["stage"] == "neoswap_guest_sample_ext" and "phase=boot_return" in row["message"])
+                row["message"] = row["message"].replace(old, new)
+                with self.assertRaises(ValueError):
+                    MODULE.measure(*args)
+
+    def test_jitprof_tuples_use_sum_max_and_min_semantics(self):
+        report = MODULE.measure(*jit_fixture())
+        value = lambda name: report["metrics"][name]["value"]
+        self.assertEqual(value("jit_ppu_translate_events"), 3)
+        self.assertEqual(value("jit_ppu_translate_total_ms"), 31.5)
+        self.assertEqual(value("jit_ppu_translate_max_ms"), 7.25)
+        self.assertEqual(value("jit_ppu_translate_bytes"), 3072)
+        self.assertEqual(value("jit_spu_codegen_events"), 25)
+        self.assertEqual(value("jit_spu_codegen_bytes"), 3072)
+        for suffix, unit in (("events", "count"), ("total_ms", "ms"), ("max_ms", "ms"), ("bytes", "bytes")):
+            self.assertEqual(report["metrics"][f"jit_ppu_cache_read_{suffix}"]["unit"], unit)
+        # The window without a completed PPU module prints 0.000: it is not a minimum.
+        self.assertEqual(value("jit_headroom_min_mib"), 512.25)
+        self.assertEqual(report["metrics"]["jit_headroom_min_mib"]["unit"], "MiB")
+        self.assertEqual(value("jit_windows"), 2)
+        self.assertEqual(report["observations"]["jitWindows"], 2)
+        self.assertEqual(len([key for key in report["metrics"] if key.startswith("jit_")]),
+                         len(MODULE.JIT_PHASES) * len(MODULE.JIT_FIELDS) + 2)
+        # The generic numeric profile parser cannot read a tuple: unknown, never zero.
+        self.assertIsNone(MODULE.profile_rows(jit_fixture()[2], "JITPROF")[0]["ppu_translate"])
+        # One malformed tuple leaves only its phase unknown in the observed windows.
+        info, memory, diagnostics = jit_fixture()
+        row = next(row for row in diagnostics if row["message"].startswith("JITPROF") and "session=7 ppu_translate=1:" in row["message"])
+        row["message"] = row["message"].replace("ppu_opt=2:10.500:6.250:1024", "ppu_opt=2:10.500")
+        partial = MODULE.measure(info, memory, diagnostics)["metrics"]
+        for suffix in ("events", "total_ms", "max_ms", "bytes"):
+            self.assertIsNone(partial[f"jit_ppu_opt_{suffix}"]["value"])
+            self.assertEqual(partial[f"jit_ppu_opt_{suffix}"]["reason"], "missing_or_invalid_field_in_observed_records")
+        self.assertEqual(partial["jit_ppu_translate_events"]["value"], 3)
+
+    def test_jitprof_missing_or_without_compiles_is_null_with_reason(self):
+        report = MODULE.measure(*fixture())
+        keys = [key for key in report["metrics"] if key.startswith("jit_")]
+        self.assertEqual(len(keys), len(MODULE.JIT_PHASES) * len(MODULE.JIT_FIELDS) + 2)
+        for key in keys:
+            self.assertIsNone(report["metrics"][key]["value"], key)
+            self.assertEqual(report["metrics"][key]["reason"], "jitprof_not_recorded_by_this_core", key)
+        self.assertEqual(report["observations"]["jitWindows"], 0)
+        info, memory, diagnostics = jit_fixture()
+        for row in diagnostics:
+            row["message"] = row["message"].replace("headroom_samples=2 headroom_min_mib=512.250",
+                                                    "headroom_samples=0 headroom_min_mib=0.000")
+        idle = MODULE.measure(info, memory, diagnostics)["metrics"]
+        self.assertIsNone(idle["jit_headroom_min_mib"]["value"])
+        self.assertEqual(idle["jit_headroom_min_mib"]["reason"], "no_ppu_module_compiled_in_observed_windows")
+        self.assertEqual(idle["jit_ppu_translate_events"]["value"], 3)
+        self.assertEqual(idle["jit_windows"]["value"], 2)
+
+    def test_jitprof_epoch_must_match_spu_and_range_lock_profiles(self):
+        def rejected(change):
+            info, memory, diagnostics = jit_fixture()
+            change(diagnostics)
+            with self.assertRaisesRegex(ValueError, "epoch"):
+                MODULE.measure(info, memory, diagnostics)
+        jit = lambda rows: [row for row in rows if row["message"].startswith("JITPROF")]
+        rejected(lambda rows: [row.update(message=row["message"].replace("session=7", "session=8")) for row in jit(rows)])
+        rejected(lambda rows: jit(rows)[1].update(message=jit(rows)[1]["message"].replace("session=7", "session=8")))
+        rejected(lambda rows: jit(rows)[0].update(message=jit(rows)[0]["message"].replace("session=7 ", "")))
+        # Without SPUPROF/RANGELOCKPROF windows, one JITPROF epoch stands on its own.
+        info, memory, diagnostics = jit_fixture()
+        alone = [row for row in diagnostics if "SPUPROF" not in row["message"] and "RANGELOCKPROF" not in row["message"]]
+        for row in jit(alone):
+            row["message"] = row["message"].replace("session=7", "session=8")
+        self.assertEqual(MODULE.measure(info, memory, alone)["metrics"]["jit_windows"]["value"], 2)
+
+    def test_host_direct_admission_deltas_budget_allowance_and_file_fallback(self):
+        report = MODULE.measure(*direct_fixture())
+        value = lambda name: report["metrics"][name]["value"]
+        self.assertEqual(value("host_direct_requests"), 10)
+        self.assertEqual(value("host_direct_requestedBytes"), 8192)
+        self.assertEqual(value("host_direct_refusedInvalid"), 10)
+        self.assertEqual(value("host_direct_wakeups"), 10)
+        self.assertEqual(report["metrics"]["host_direct_createdBytes"]["unit"], "bytes")
+        self.assertEqual(report["metrics"]["host_direct_refusedPressure"]["unit"], "count")
+        self.assertIsNone(report["metrics"]["host_direct_requests"]["reason"])
+        self.assertEqual(value("host_direct_oversizeMaxBytes"), 4096)
+        self.assertEqual(value("host_direct_allowanceBytes_mean"), 200)
+        self.assertEqual(value("budget_direct_guest_allowance_mean_bytes"), 20)
+        self.assertEqual(value("budget_demand_wakeups"), 6)
+        self.assertEqual(value("file_fallback_live_peak_bytes"), 777)
+        self.assertEqual(len([key for key in report["metrics"] if key.startswith("host_direct_")]),
+                         len(MODULE.DIRECT_CREATION_COUNTERS) + 2)
+        # Admission objects and budgets are never added to donation, backing or footprint.
+        self.assertEqual(value("process_footprint_peak_bytes"), 102)
+        self.assertEqual(value("neoswap_live_backing_peak_bytes"), 60)
+        self.assertIsNone(value("neoswap_donated_peak_bytes"))
+
+    def test_host_direct_admission_absent_or_unavailable_is_null_not_zero(self):
+        absent = MODULE.measure(*fixture())["metrics"]
+        for key in [key for key in absent if key.startswith("host_direct_")]:
+            self.assertIsNone(absent[key]["value"], key)
+            self.assertEqual(absent[key]["reason"], "direct_admission_not_recorded_by_this_host", key)
+        for key, reason in (("budget_direct_guest_allowance_mean_bytes", "missing_or_invalid_field_in_observed_records"),
+                            ("budget_demand_wakeups", "counter_not_recorded_in_all_session_samples"),
+                            ("file_fallback_live_peak_bytes", "missing_or_invalid_field_in_observed_records")):
+            self.assertIsNone(absent[key]["value"], key)
+            self.assertEqual(absent[key]["reason"], reason, key)
+        changes = [
+            lambda row: row.pop("guestRelay"),
+            lambda row: row["guestRelay"].pop("guestDirectCreation"),
+            lambda row: row["guestRelay"]["guestDirectCreation"].update(available=False),
+            lambda row: row["guestRelay"]["guestDirectCreation"].update(available=1),
+            lambda row: row["guestRelay"].update(guestDirectCreation={"schema": 1, "available": False, "result": -3}),
+        ]
+        for index, change in enumerate(changes):
+            with self.subTest(change=index):
+                info, memory, diagnostics = direct_fixture()
+                change(memory[1])
+                metrics = MODULE.measure(info, memory, diagnostics)["metrics"]
+                for key in [key for key in metrics if key.startswith("host_direct_")]:
+                    self.assertIsNone(metrics[key]["value"], key)
+                    self.assertEqual(metrics[key]["reason"], "direct_admission_not_recorded_by_this_host", key)
+                self.assertEqual(metrics["budget_demand_wakeups"]["value"], 6)
+        # A cumulative admission counter running backwards is a reset, not a negative delta.
+        info, memory, diagnostics = direct_fixture()
+        memory[2]["guestRelay"]["guestDirectCreation"]["created"] = 1
+        with self.assertRaisesRegex(ValueError, "guestDirectCreation.created"):
+            MODULE.measure(info, memory, diagnostics)
+
+    def test_cross_title_mode_compares_two_titles_on_one_build_only(self):
+        before = MODULE.measure(*fixture())
+        other = MODULE.measure(*fixture(pid=456, title="NPUB30000", workload="save-other-route-5s"))
+        report = MODULE.compare(before, other, mode="cross-title")
+        self.assertEqual(report["mode"], "cross-title")
+        self.assertEqual(report["schema"], 1)
+        self.assertEqual(report["afterMinusBefore"]["spu_gameplay_total_ms"], 0)
+        self.assertIsNone(report["afterMinusBefore"]["neoswap_fault_latency_ms"])
+        self.assertFalse(report["deviceValidationPassed"])
+        self.assertFalse(report["automaticPromotionAllowed"])
+        self.assertIn("Cross-title comparison explains differences between two games on one build; it is not a "
+                      "build-to-build improvement measurement and different workloads are not comparable in duration.",
+                      report["limitations"])
+        text = MODULE.markdown(report)
+        self.assertIn(f"Title A: BCES00510 (`{'a' * 40}`)", text)
+        self.assertIn(f"Title B: NPUB30000 (`{'a' * 40}`)", text)
+        self.assertNotIn("Before: `", text)
+        self.assertNotIn("After: `", text)
+        self.assertIn("| Metric | Unit | Before | After | Change |", text)
+        # The other title on another build is two builds: refused on the commit.
+        rebuilt = MODULE.measure(*fixture("b" * 40, 789, title="NPUB30000", workload="save-other-route-5s"))
+        with self.assertRaisesRegex(ValueError, "sourceCommit"):
+            MODULE.compare(before, rebuilt, mode="cross-title")
+        for key in ("deviceId", "settingsId", "physicalMemoryBytes", "osVersion"):
+            with self.subTest(key=key):
+                bad = copy.deepcopy(other)
+                bad["identity"][key] = "unrelated"
+                with self.assertRaisesRegex(ValueError, key):
+                    MODULE.compare(before, bad, mode="cross-title")
+        with self.assertRaisesRegex(ValueError, "mode"):
+            MODULE.compare(before, other, mode="any-title")
+
+    def test_same_title_mode_still_refuses_other_titles_and_keeps_its_report(self):
+        before = MODULE.measure(*fixture())
+        other = MODULE.measure(*fixture(pid=456, title="NPUB30000", workload="save-other-route-5s"))
+        for options in ({}, {"mode": "same-title"}):
+            with self.subTest(options=options):
+                with self.assertRaisesRegex(ValueError, "title"):
+                    MODULE.compare(before, other, **options)
+        report = MODULE.compare(before, MODULE.measure(*fixture("b" * 40, 456)))
+        self.assertEqual(report["mode"], "same-title")
+        self.assertFalse(any("Cross-title" in note for note in report["limitations"]))
+        text = MODULE.markdown(report)
+        self.assertIn(f"Before: `{'a' * 40}`", text)
+        self.assertIn(f"After: `{'b' * 40}`", text)
+        self.assertNotIn("Title A:", text)
+
+    def test_cli_mode_flag_selects_cross_title_comparison(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            for name, args in (("a", fixture()),
+                               ("b", fixture(pid=456, title="NPUB30000", workload="save-other-route-5s")),
+                               ("c", fixture("b" * 40, 789, title="NPUB30000", workload="save-other-route-5s"))):
+                info, memory, diagnostics = args
+                for kind, records in (("memory", memory), ("rpcs3", diagnostics)):
+                    (directory / f"{name}-{kind}.jsonl").write_text(
+                        "".join(json.dumps(row) + "\n" for row in records), encoding="utf-8")
+                info.update(memoryLogs=[f"{name}-memory.jsonl"], rpcs3Logs=[f"{name}-rpcs3.jsonl"])
+                (directory / f"{name}.json").write_text(json.dumps(info), encoding="utf-8")
+            command = [sys.executable, str(TOOL), "--before", str(directory / "a.json"),
+                       "--output", str(directory / "report.json"), "--markdown", str(directory / "report.md")]
+            refused = subprocess.run(command + ["--after", str(directory / "b.json")], capture_output=True, text=True)
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertIn("title", refused.stderr)
+            subprocess.run(command + ["--after", str(directory / "b.json"), "--mode", "cross-title"],
+                           check=True, capture_output=True, text=True)
+            result = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+            self.assertEqual(result["mode"], "cross-title")
+            self.assertEqual((result["before"]["identity"]["title"], result["after"]["identity"]["title"]),
+                             ("BCES00510", "NPUB30000"))
+            self.assertIn(f"Title B: NPUB30000 (`{'a' * 40}`)", (directory / "report.md").read_text(encoding="utf-8"))
+            rebuilt = subprocess.run(command + ["--after", str(directory / "c.json"), "--mode", "cross-title"],
+                                     capture_output=True, text=True)
+            self.assertNotEqual(rebuilt.returncode, 0)
+            self.assertIn("sourceCommit", rebuilt.stderr)
+            unknown = subprocess.run(command + ["--after", str(directory / "b.json"), "--mode", "any-title"],
+                                     capture_output=True, text=True)
+            self.assertNotEqual(unknown.returncode, 0)
 
 
 if __name__ == "__main__":
