@@ -37,7 +37,7 @@ final class CMMotionManager {
   func deliver(_ handler:@escaping(CMDeviceMotion?,Error?)->Void,_ motion:CMDeviceMotion?,_ error:Error?=nil){
     lock.lock();let queue=deliveryQueue;lock.unlock()
     guard let queue=queue else{return}
-    if queue = == OperationQueue.main && Thread.isMainThread {handler(motion,error);return}
+    if queue === OperationQueue.main && Thread.isMainThread {handler(motion,error);return}
     queue.addOperations([BlockOperation{handler(motion,error)}],waitUntilFinished:true)
   }
   func send(_ strength:Double,age:Double=0){
