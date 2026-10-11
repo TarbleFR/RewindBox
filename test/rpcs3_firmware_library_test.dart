@@ -163,10 +163,14 @@ void main() {
           find.byKey(const ValueKey('rpcs3-internal-import-menu')),
         );
         await tester.pumpAndSettle();
+        // Current labels of the import menu (Rpcs3UiLocale and, since
+        // Build 438, Rpcs3RapLocale). Save export moved to the RPCS3
+        // manager, which "Open RPCS3" opens.
         expect(find.text('Import games'), findsOneWidget);
-        expect(find.text('Import decrypted game folder'), findsOneWidget);
-        expect(find.text('Import PS3 firmware'), findsOneWidget);
-        expect(find.text('Export save data'), findsOneWidget);
+        expect(find.text('Import a decrypted game folder'), findsOneWidget);
+        expect(find.text('Import RAP licenses'), findsOneWidget);
+        expect(find.text('Install PS3 firmware'), findsOneWidget);
+        expect(find.text('Open RPCS3'), findsOneWidget);
         expect(nativeCalls, isEmpty);
         await tester.pumpWidget(const SizedBox.shrink());
       }
