@@ -831,8 +831,12 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
     if (title.isEmpty) title = progress.key;
     final percentLabel = _ltf('progressPercent', {'percent': percent});
     return Semantics(
+      container: true,
       button: true,
       label: '$title, $percentLabel',
+      // The card's own tap is excluded with its texts: VoiceOver
+      // activates it through this node.
+      onTap: onTap,
       excludeSemantics: true,
       child: _SelectableCard(
         selected: selected,

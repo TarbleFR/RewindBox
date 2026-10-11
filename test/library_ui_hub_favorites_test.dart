@@ -268,6 +268,27 @@ void main() {
     expect(openedSourceId, 'fr.sushiscan');
   });
 
+  testWidgets('VoiceOver opens a position from its card', (tester) async {
+    SfxService().setEnabled(false);
+    addTearDown(() => SfxService().setEnabled(true));
+    final semantics = tester.ensureSemantics();
+    await pumpView(tester);
+    final card = find.semantics.byLabel('One Piece, 42% read');
+    expect(card, findsOne);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('One Piece, 42% read')),
+      matchesSemantics(
+        label: 'One Piece, 42% read',
+        isButton: true,
+        hasTapAction: true,
+      ),
+    );
+    tester.semantics.tap(card);
+    await tester.pump();
+    expect(openedItem?.id, 'one-piece');
+    semantics.dispose();
+  });
+
   testWidgets('a favourite of an inactive source opens without addon', (
     tester,
   ) async {
