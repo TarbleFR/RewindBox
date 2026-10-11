@@ -190,6 +190,7 @@ class LibraryScreenState extends State<LibraryScreen> {
       ..addListener(_onSearchScroll);
     _section = _sectionFromName(_memory.section);
     _searchController.text = _memory.query;
+    _searchFocus.addListener(_onSearchFocusChanged);
     _seenContentVersion = _feed.contentVersion;
     _feed.addListener(_onFeedChanged);
     if (_memory.searchMode) {
@@ -233,7 +234,9 @@ class LibraryScreenState extends State<LibraryScreen> {
     _searchScroll.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
-    _searchFocus.dispose();
+    _searchFocus
+      ..removeListener(_onSearchFocusChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -1157,6 +1160,22 @@ class LibraryScreenState extends State<LibraryScreen> {
     _searchFocus.requestFocus();
   }
 
+  /// Typing in the field folds the filter panel away: with the keyboard up
+  /// an iPhone in landscape has no room for it (the panel comes back with
+  /// the Filters button). Also repaints the field's focus ring.
+  void _onSearchFocusChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (_searchFocus.hasFocus && _searchFiltersExpanded) {
+        _searchFiltersExpanded = false;
+        if (_focus == _HubFocus.filters) {
+          _focus = _HubFocus.searchBar;
+          _searchBarItem = _SearchBarItem.field;
+        }
+      }
+    });
+  }
+
   void _toggleSearchFilters() {
     _searchFocus.unfocus();
     unawaited(_dismissKeyboard());
@@ -1737,32 +1756,43 @@ class LibraryScreenState extends State<LibraryScreen> {
     final theme = Theme.of(context);
     final visible = _visibleEntries();
     // The query band stays fixed and only the results scroll, so the iOS
-    // keyboard never covers the field being typed in.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildSearchRow(context, theme, visible),
-        if (_searchFiltersExpanded) ...[
-          SizedBox(height: 8.r),
-          _buildFilters(context, visible, includeSearch: false),
-        ],
-        SizedBox(height: 8.r),
-        _buildSearchStatusRow(context, theme),
-        SizedBox(height: 8.r),
-        Expanded(
-          child: CustomScrollView(
-            controller: _searchScroll,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            slivers: [
-              _buildGridSliver(context, theme, visible, _searchGrid),
-              SliverToBoxAdapter(child: SizedBox(height: 42.r)),
+    // keyboard never covers the field being typed in. With the keyboard up
+    // an iPhone in landscape leaves about 130 pt: the per-source status
+    // row then gives way to the results (the field keeps its "searching"
+    // indicator) and comes back when the keyboard closes.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showStatus = constraints.maxHeight >= 220;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildSearchRow(context, theme, visible),
+            if (_searchFiltersExpanded) ...[
+              SizedBox(height: 8.r),
+              _buildFilters(context, visible, includeSearch: false),
             ],
-          ),
-        ),
-      ],
+            if (showStatus) ...[
+              SizedBox(height: 8.r),
+              _buildSearchStatusRow(context, theme),
+            ],
+            SizedBox(height: 8.r),
+            Expanded(
+              child: CustomScrollView(
+                controller: _searchScroll,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
+                  _buildGridSliver(context, theme, visible, _searchGrid),
+                  SliverToBoxAdapter(child: SizedBox(height: 42.r)),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

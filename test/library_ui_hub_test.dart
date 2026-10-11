@@ -673,6 +673,73 @@ void main() {
     expect(visibleTitles(tester), ['Title 0']);
   });
 
+  testWidgets('the search fits an iPhone in landscape with the keyboard up', (
+    tester,
+  ) async {
+    final source = aidokuTestAddon('fr.a', name: 'Alpha Scans');
+    backend.pages['fr.a'] = (call) async => call.query.isEmpty
+        ? testPage([testItem('l', title: 'Listing title')], hasMore: false)
+        : testPage([testItem('s', title: 'Solo Leveling')], hasMore: false);
+    // iPhone 15 in landscape: 852 x 393 pt at 3x, notch and home indicator.
+    await pumpHub(
+      tester,
+      addons: [source],
+      size: const Size(852, 393),
+      devicePixelRatio: 3,
+    );
+    tester.view.padding = const FakeViewPadding(
+      left: 59 * 3,
+      right: 59 * 3,
+      bottom: 21 * 3,
+    );
+    await tester.pump();
+
+    // Search, then its filter panel (the keyboard closes for it).
+    LibraryScreen.navigateDown();
+    for (var i = 0; i < 5; i++) {
+      LibraryScreen.navigateRight();
+    }
+    LibraryScreen.selectCurrent();
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Filters'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Language: All'), findsOneWidget);
+
+    // Back to the field: the keyboard (about 200 pt) comes up.
+    tester.view.viewInsets = const FakeViewPadding(bottom: 200 * 3);
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.pump();
+    expect(tester.takeException(), isNull, reason: 'no layout overflow');
+    expect(
+      find.byTooltip('Language: All'),
+      findsNothing,
+      reason: 'the filter panel folds away while typing',
+    );
+
+    await tester.enterText(find.byType(TextField), 'solo');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Solo Leveling'), findsOneWidget);
+    expect(
+      find.text('Alpha Scans: 1 result(s)'),
+      findsNothing,
+      reason: 'no room for the per-source row above the keyboard',
+    );
+
+    // Keyboard closed: the per-source row is back.
+    tester.view.resetViewInsets();
+    LibraryScreen.backCurrent();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Alpha Scans: 1 result(s)'), findsOneWidget);
+  });
+
   testWidgets('search: two characters minimum, progressive status, cancel on '
       'close', (tester) async {
     final source = aidokuTestAddon('fr.a', name: 'Alpha Scans');
