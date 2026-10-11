@@ -1127,7 +1127,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
           horizontalPadding: horizontal,
           registry: _registry,
           onLink: (href) => unawaited(_onLink(href)),
-          loadImage: _images.load,
+          images: _images,
           maxImageHeight: maxImageHeight,
         );
 

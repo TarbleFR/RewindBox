@@ -7,6 +7,7 @@ import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/screens/library_screen/reader/library_book_reader_screen.dart';
 import 'package:neostation/screens/library_screen/reader/library_reader_palette.dart';
 import 'package:neostation/screens/library_screen/reader/library_reflow_source.dart';
+import 'package:neostation/screens/library_screen/reader/library_reflow_view.dart';
 import 'package:neostation/services/library_epub.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
@@ -28,6 +29,7 @@ LibraryBookReaderScreenState bookState(WidgetTester tester) => tester
 
 Future<LibraryEpubDocument> openEpub(
   WidgetTester tester, {
+  String? chapter1,
   String? chapter2,
 }) async {
   return (await tester.runAsync(() async {
@@ -35,7 +37,7 @@ Future<LibraryEpubDocument> openEpub(
     final file = await writeFile(
       directory,
       'book.epub',
-      buildEpub3(chapter2: chapter2),
+      buildEpub3(chapter1: chapter1, chapter2: chapter2),
     );
     return LibraryEpubDocument.open(file.path);
   }))!;
@@ -558,6 +560,97 @@ void main() {
       await tester.pump();
       await settle(tester);
       expect(state.currentPosition, const LibraryReflowPosition(0, 2, 0));
+      await closeBook(tester, store);
+    });
+
+    // Regression: a rebuilt image unit showed a placeholder of half the width
+    // for a frame, then the image: scrolling back up over an illustration
+    // pushed the text being read down by the difference.
+    testWidgets('an image built again has its final height at once', (
+      tester,
+    ) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final paragraphs = List<String>.generate(
+        80,
+        (i) =>
+            '<p>Paragraph $i ${List<String>.filled(30, 'text').join(' ')}</p>',
+      ).join();
+      final document = await openEpub(
+        tester,
+        chapter1: xhtml(
+          '<h1>Chapter One</h1><p><img src="../images/cover%20art.png" '
+          'alt="Cover"/></p>$paragraphs',
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryEpubReflowSource(document),
+          progressKey: 'local:image',
+          title: 'Pictures',
+          store: store,
+        ),
+      );
+      await settle(tester);
+      final image = find.byWidgetPredicate(
+        (widget) =>
+            widget is LibraryReflowUnitView &&
+            widget.unit.source.kind == LibraryTextBlockKind.image,
+      );
+      expect(image, findsOneWidget);
+      final height = tester.getSize(image).height;
+      // 40 x 60 picture: 1.5 x the text width, capped at 85 % of the screen.
+      expect(height, greaterThan(400));
+      final picture = tester.widget<RawImage>(
+        find.descendant(of: image, matching: find.byType(RawImage)),
+      );
+      expect(picture.image, isNotNull);
+      expect(picture.image!.height / picture.image!.width, closeTo(1.5, 0.01));
+      expect(find.bySemanticsLabel('Cover'), findsOneWidget);
+
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).last,
+      );
+      final top = scrollable.position.pixels;
+      // Far enough for the image unit to be disposed, then back above it.
+      scrollable.position.jumpTo(top + 4000);
+      await tester.pump();
+      await tester.pump();
+      expect(image, findsNothing);
+      scrollable.position.jumpTo(top + 200);
+      await tester.pump();
+      expect(image, findsOneWidget);
+      expect(tester.getSize(image).height, height);
+      await closeBook(tester, store);
+    });
+
+    testWidgets('a missing image is announced as unavailable', (tester) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final document = await openEpub(
+        tester,
+        chapter1: xhtml(
+          '<h1>Chapter One</h1><p><img src="../images/missing.png"/></p>'
+          '<p>After the picture.</p>',
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryBookReaderScreen(
+          open: () async => LibraryEpubReflowSource(document),
+          progressKey: 'local:missing',
+          title: 'Pictures',
+          store: store,
+        ),
+      );
+      await settle(tester);
+      expect(find.bySemanticsLabel(en('imageUnavailable')), findsOneWidget);
+      expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
+      expect(
+        find.text('After the picture.', findRichText: true),
+        findsOneWidget,
+      );
       await closeBook(tester, store);
     });
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
@@ -221,7 +222,7 @@ class LibraryReflowUnitView extends StatefulWidget {
     required this.horizontalPadding,
     required this.registry,
     required this.onLink,
-    required this.loadImage,
+    required this.images,
     required this.maxImageHeight,
   });
 
@@ -232,7 +233,9 @@ class LibraryReflowUnitView extends StatefulWidget {
   final EdgeInsets horizontalPadding;
   final LibraryReflowUnitRegistry registry;
   final ValueChanged<String> onLink;
-  final LibraryReflowImageLoader loadImage;
+
+  /// Book images of the reader (bytes and remembered sizes).
+  final LibraryReflowImageCache images;
   final double maxImageHeight;
 
   @override
@@ -484,7 +487,7 @@ class LibraryReflowUnitViewState extends State<LibraryReflowUnitView> {
           child: _ReflowImage(
             href: block.imageHref,
             alt: block.imageAlt,
-            loadImage: widget.loadImage,
+            images: widget.images,
             maxHeight: widget.maxImageHeight,
             palette: palette,
           ),
@@ -498,18 +501,22 @@ class LibraryReflowUnitViewState extends State<LibraryReflowUnitView> {
   }
 }
 
+/// A book image decoded at the screen width. Its height is reserved from
+/// the first frame once its proportions are known (remembered by
+/// [LibraryReflowImageCache]), so a unit built again while the reader
+/// scrolls back up never pushes the text being read.
 class _ReflowImage extends StatefulWidget {
   const _ReflowImage({
     required this.href,
     required this.alt,
-    required this.loadImage,
+    required this.images,
     required this.maxHeight,
     required this.palette,
   });
 
   final String? href;
   final String? alt;
-  final LibraryReflowImageLoader loadImage;
+  final LibraryReflowImageCache images;
   final double maxHeight;
   final LibraryReaderPalette palette;
 
@@ -518,88 +525,193 @@ class _ReflowImage extends StatefulWidget {
 }
 
 class _ReflowImageState extends State<_ReflowImage> {
-  Future<Uint8List>? _bytes;
+  Uint8List? _bytes;
+  bool _failed = false;
+  int _request = 0;
+  int _decodeWidth = 0;
+  ImageStream? _stream;
+  ImageInfo? _info;
+  late final ImageStreamListener _listener = ImageStreamListener(
+    _onImage,
+    onError: _onError,
+  );
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadBytes();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    final width = MediaQuery.sizeOf(context).width;
+    _decodeWidth = (width * ratio).ceil().clamp(64, 2048);
+    _resolve();
   }
 
   @override
   void didUpdateWidget(covariant _ReflowImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.href != widget.href) _load();
+    if (oldWidget.href != widget.href ||
+        !identical(oldWidget.images, widget.images)) {
+      _stopListening();
+      _info?.dispose();
+      _info = null;
+      _bytes = null;
+      _failed = false;
+      _loadBytes();
+      _resolve();
+    }
   }
 
-  void _load() {
+  @override
+  void dispose() {
+    _request++;
+    _stopListening();
+    _info?.dispose();
+    _info = null;
+    super.dispose();
+  }
+
+  void _loadBytes() {
+    final request = ++_request;
     final href = widget.href;
-    _bytes = href == null || href.isEmpty ? null : widget.loadImage(href);
+    if (href == null || href.isEmpty) {
+      _failed = true;
+      return;
+    }
+    // Already loaded: no frame waits for a future.
+    final loaded = widget.images.loaded(href);
+    if (loaded != null) {
+      _bytes = loaded;
+      return;
+    }
+    widget.images
+        .load(href)
+        .then(
+          (bytes) {
+            if (!mounted || request != _request) return;
+            setState(() => _bytes = bytes);
+            _resolve();
+          },
+          onError: (Object _) {
+            if (!mounted || request != _request) return;
+            setState(() => _failed = true);
+          },
+        );
+  }
+
+  /// Decodes the bytes at the current width (never upscaled).
+  void _resolve() {
+    final bytes = _bytes;
+    if (bytes == null || _failed || _decodeWidth == 0) return;
+    final provider = ResizeImage.resizeIfNeeded(
+      _decodeWidth,
+      null,
+      MemoryImage(bytes),
+    );
+    final stream = provider.resolve(ImageConfiguration.empty);
+    if (_stream?.key != null && stream.key == _stream?.key) return;
+    _stopListening();
+    _stream = stream;
+    stream.addListener(_listener);
+  }
+
+  void _stopListening() {
+    _stream?.removeListener(_listener);
+    _stream = null;
+  }
+
+  void _onImage(ImageInfo info, bool synchronousCall) {
+    final href = widget.href;
+    final image = info.image;
+    if (href != null && image.width > 0) {
+      widget.images.rememberAspect(href, image.height / image.width);
+    }
+    if (!mounted) {
+      info.dispose();
+      return;
+    }
+    setState(() {
+      _info?.dispose();
+      _info = info;
+    });
+  }
+
+  void _onError(Object error, StackTrace? stackTrace) {
+    if (!mounted) return;
+    setState(() => _failed = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_failed) {
+      return Semantics(
+        label: LibraryReaderLocale.text(context, 'imageUnavailable'),
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              color: widget.palette.secondaryText,
+            ),
+          ),
+        ),
+      );
+    }
     final alt = widget.alt?.trim();
     final label = alt != null && alt.isNotEmpty
         ? alt
         : LibraryReaderLocale.text(context, 'image');
-    final unavailable = Semantics(
-      label: LibraryReaderLocale.text(context, 'imageUnavailable'),
-      child: SizedBox(
-        height: 48,
-        child: Center(
-          child: Icon(
-            Icons.image_not_supported_outlined,
-            color: widget.palette.secondaryText,
-          ),
-        ),
-      ),
-    );
-    final bytes = _bytes;
-    if (bytes == null) return unavailable;
+    final href = widget.href;
+    final aspect = href == null ? null : widget.images.aspectOf(href);
+    final info = _info;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final ratio = MediaQuery.devicePixelRatioOf(context);
-        final decodeWidth = (constraints.maxWidth * ratio).ceil().clamp(
-          64,
-          2048,
-        );
-        return FutureBuilder<Uint8List>(
-          future: bytes,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) return unavailable;
-            final data = snapshot.data;
-            if (data == null) {
-              return SizedBox(height: constraints.maxWidth * 0.5);
-            }
-            return Semantics(
-              image: true,
-              label: label,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: widget.maxHeight),
-                child: Image.memory(
-                  data,
-                  cacheWidth: decodeWidth,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, _, _) => unavailable,
-                ),
-              ),
-            );
-          },
+        final width = constraints.maxWidth;
+        // The height the picture takes once shown (full width, capped);
+        // half the width while its proportions are still unknown.
+        final height = aspect == null
+            ? width * 0.5
+            : math.min(width * aspect, widget.maxHeight);
+        return Semantics(
+          image: info != null,
+          label: label,
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: info == null
+                ? null
+                : RawImage(
+                    image: info.image,
+                    scale: info.scale,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
+          ),
         );
       },
     );
   }
 }
 
-/// Keeps the bytes of the last book images requested.
+/// Book images of an open reader: the bytes of the last ones requested and
+/// the proportions of every image decoded (heights reserved before decode).
 class LibraryReflowImageCache {
-  LibraryReflowImageCache(this._load, {this.capacity = 24});
+  LibraryReflowImageCache(
+    this._load, {
+    this.capacity = 24,
+    this.maxRemembered = 1024,
+  });
 
   final LibraryReflowImageLoader _load;
   final int capacity;
+  final int maxRemembered;
   final Map<String, Future<Uint8List>> _entries = <String, Future<Uint8List>>{};
+  final Map<String, Uint8List> _loaded = <String, Uint8List>{};
+  final Map<String, double> _aspects = <String, double>{};
 
   Future<Uint8List> load(String href) {
     final cached = _entries.remove(href);
@@ -609,12 +721,40 @@ class LibraryReflowImageCache {
     }
     final future = _load(href);
     _entries[href] = future;
-    future.then<void>((_) {}, onError: (Object _) => _entries.remove(href));
+    future.then<void>(
+      (bytes) {
+        if (identical(_entries[href], future)) _loaded[href] = bytes;
+      },
+      onError: (Object _) {
+        if (identical(_entries[href], future)) _entries.remove(href);
+      },
+    );
     while (_entries.length > capacity) {
-      _entries.remove(_entries.keys.first);
+      final oldest = _entries.keys.first;
+      _entries.remove(oldest);
+      _loaded.remove(oldest);
     }
     return future;
   }
 
-  void clear() => _entries.clear();
+  /// Bytes of [href] when they are already loaded.
+  Uint8List? loaded(String href) => _loaded[href];
+
+  /// Height / width of [href] once it has been decoded.
+  double? aspectOf(String href) => _aspects[href];
+
+  void rememberAspect(String href, double aspect) {
+    if (!aspect.isFinite || aspect <= 0) return;
+    _aspects.remove(href);
+    _aspects[href] = aspect;
+    while (_aspects.length > maxRemembered) {
+      _aspects.remove(_aspects.keys.first);
+    }
+  }
+
+  void clear() {
+    _entries.clear();
+    _loaded.clear();
+    _aspects.clear();
+  }
 }
