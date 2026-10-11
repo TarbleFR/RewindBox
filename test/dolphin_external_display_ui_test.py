@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 origin = ROOT / 'test/dolphin_account_267_test.py'
 source = origin.read_text().replace("'CLANG_ENABLE_OBJC_ARC': 'YES',", "'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',")
-source = source.replace("{'sdk': 'UIKit.framework'}", "{'sdk': 'UniformTypeIdentifiers.framework'}, {'sdk': 'UIKit.framework'}")
+source = source.replace("{'sdk': 'UIKit.framework'}", "{'sdk': 'CoreGraphics.framework'}, {'sdk': 'UniformTypeIdentifiers.framework'}, {'sdk': 'UIKit.framework'}")
 source = source.replace('DolphinAccount267', 'DolphinExternalDisplay442').replace('DolphinAccountHost', 'DolphinExternalDisplayHost').replace('DolphinAccountTests', 'DolphinExternalDisplayTests')
 source = source.replace('dolphin-account-tests-', 'dolphin-external-display-tests-')
 ns = {'__file__': str(origin), '__name__': 'external_display_tests'}
