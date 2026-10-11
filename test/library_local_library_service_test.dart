@@ -804,6 +804,43 @@ void main() {
     expect(reopened.books, hasLength(2));
   });
 
+  test('a title restored while the index cannot be read is not replaced by '
+      'the stored one', () async {
+    final library = service();
+    final imported = await library.importFiles(<String>[
+      await pick('one.epub', buildEpub3()),
+      await pick('two.cbz', buildCbz()),
+    ]);
+    final one = imported[0].book!;
+    final two = imported[1].book!;
+    expect(one.customTitle, isNull);
+    await library.rename(one.id, 'Old title');
+    final saved = await File(roots.indexPath).readAsString();
+
+    await File(roots.indexPath).delete();
+    await Directory(roots.indexPath).create();
+    final blocked = service();
+    await blocked.load();
+    expect(blocked.indexUnreadable, isTrue);
+    await blocked.rename(one.id, 'Session title');
+    // Back to the metadata title.
+    await blocked.rename(one.id, '');
+    expect(blocked.bookById(one.id)!.customTitle, isNull);
+
+    await Directory(roots.indexPath).delete();
+    await File(roots.indexPath).writeAsString(saved);
+    await blocked.rename(two.id, 'Two');
+    expect(blocked.indexUnreadable, isFalse);
+    expect(blocked.bookById(one.id)!.customTitle, isNull);
+    expect(blocked.bookById(one.id)!.title, one.title);
+    expect(blocked.bookById(one.id)!.addedAtMs, one.addedAtMs);
+
+    final reopened = service();
+    await reopened.load();
+    expect(reopened.bookById(one.id)!.customTitle, isNull);
+    expect(reopened.bookById(two.id)!.title, 'Two');
+  });
+
   test('a book renamed over another one while the index cannot be read keeps '
       'its own identity', () async {
     final moves = <String>[];

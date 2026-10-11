@@ -156,6 +156,11 @@ class LibraryLocalLibraryService extends ChangeNotifier {
   /// content): it is never replaced until a later read succeeds.
   bool _indexUnreadable = false;
 
+  /// Books renamed while the index could not be read: the title chosen
+  /// then (the metadata title included) wins over the stored custom title
+  /// when the index is merged.
+  final Set<String> _renamedWhileUnreadable = <String>{};
+
   /// Indexed books, in index order. Use [query] for search and sorting.
   List<LibraryLocalBook> get books =>
       List<LibraryLocalBook>.unmodifiable(_books.values);
@@ -276,6 +281,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
           ? book.copyWith(clearCustomTitle: true)
           : book.copyWith(customTitle: value);
       _books[id] = updated;
+      if (_indexUnreadable) _renamedWhileUnreadable.add(id);
       await _saveIndex();
       notifyListeners();
       return updated;
@@ -1056,6 +1062,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       _log.w('Library index was damaged and is set aside: ${stored.detail}');
     }
     await _mergeStoredIndex(stored);
+    _renamedWhileUnreadable.clear();
     notifyListeners();
     return true;
   }
@@ -1089,7 +1096,10 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       if (current != null) {
         _books[book.id] = current.copyWith(
           addedAtMs: book.addedAtMs,
-          customTitle: current.customTitle ?? book.customTitle,
+          // A title chosen meanwhile, even the metadata title, is kept.
+          customTitle: _renamedWhileUnreadable.contains(current.id)
+              ? current.customTitle
+              : current.customTitle ?? book.customTitle,
         );
         continue;
       }
@@ -1101,7 +1111,16 @@ class LibraryLocalLibraryService extends ChangeNotifier {
         // renamed over this one) is not new content and keeps its own
         // identity.
         if (!storedIds.contains(replacing.id)) {
-          _books[replacing.id] = await _inheritIdentity(replacing, identity);
+          _books[replacing.id] = await _inheritIdentity(
+            replacing,
+            _renamedWhileUnreadable.contains(replacing.id)
+                ? LibraryBookIdentity(
+                    id: identity.id,
+                    format: identity.format,
+                    addedAtMs: identity.addedAtMs,
+                  )
+                : identity,
+          );
         }
         continue;
       }
