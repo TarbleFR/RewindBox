@@ -199,9 +199,12 @@ static NSArray<NSString*>* TouchDefaults(void) {
   XCTAssertNotNil(overlay);
   overlay.shakeAccessibilityLabel = @"Secouer la Wiimote";
   overlay.shakeAccessibilityHint = @"Maintenez pour continuer à secouer.";
-  overlay.frame = CGRectMake(0, 0, 844, 390);
   UIWindow* window = UIApplication.sharedApplication.delegate.window;
   XCTAssertNotNil(window);
+  // Like the game view, the overlay fills its window. A fixed landscape frame
+  // would overflow a portrait simulator window, and the safe area UIKit gives
+  // the overflowing part (hence the Shake placement) would decide the result.
+  overlay.frame = window.bounds;
   [window addSubview:overlay];
   overlay.sessionInputActive = YES;
   [overlay setNeedsLayout];

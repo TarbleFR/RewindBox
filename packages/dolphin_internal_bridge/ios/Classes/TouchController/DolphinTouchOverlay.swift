@@ -97,7 +97,9 @@ import GameController
     return true
   }
 
-  private static func emitShake(_ pressed: Bool) {
+  // Runs on the phone input queue and the touch-hold release queue, not only
+  // on main: it must not inherit UIView's main-actor isolation.
+  nonisolated private static func emitShake(_ pressed: Bool) {
     for button in DolphinPhoneShakePolicy.shakeButtons {
       TCManagerInterface.setButtonStateFor(button,
         controller: DolphinPhoneShakePolicy.touchPort, state: pressed)

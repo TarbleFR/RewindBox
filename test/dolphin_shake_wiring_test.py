@@ -40,5 +40,10 @@ assert 'neostation_dolphin_menu_apply' not in intercept
 
 overlay = (TOUCH / 'DolphinTouchOverlay.swift').read_text(encoding='utf-8')
 assert 'insertSubview(view, at: 0)' in overlay and 'addSubview(view)' not in overlay, 'pad stays below the Shake control'
+# The arbiter calls this emitter from the phone input queue and the touch-hold
+# release queue; as a UIView member it would otherwise be main-actor isolated.
+assert re.search(r'\bnonisolated\s+private\s+static\s+func\s+emitShake\b', overlay), \
+    'the shake emitter must not inherit UIView main-actor isolation'
+assert 'DolphinShakeInput(emit: DolphinTouchOverlay.emitShake)' in overlay
 
-print('PASS: Wii Shake private header, Foundation-only arbiter, runtime-queue intercept without queue hop')
+print('PASS: Wii Shake private header, Foundation-only arbiter, nonisolated emitter, runtime-queue intercept without queue hop')
