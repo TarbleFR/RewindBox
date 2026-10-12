@@ -108,6 +108,10 @@ void main() {
   final audio = AudioPolicyService();
   final music = MusicPlayerService();
   final sfx = SfxService();
+  // HomeMusicService (Build 448) restarts the ambient music when the
+  // manager notifies that its session is over: that notification must come
+  // after the audio session is restored and the menu voices resumed.
+  manager.addListener(() { if (!manager.isActive) events.add('inactive'); });
   setUp(() { events.clear(); audio.active = false; audio.activation = null; music.failResume = false; });
   test('100 returns reactivate before voices and preserve muted preferences', () async {
     for (var i = 0; i < 100; ++i) {
@@ -124,8 +128,11 @@ void main() {
       await flush();
       expect(events.where((e) => e == 'activate').length, 1);
       expect(music.playing, isFalse); expect(sfx.isEnabled, isFalse);
+      expect(events, isNot(contains('inactive')));
       audio.activation!.complete(); await flush();
       expect(events.indexOf('activated'), lessThan(events.indexOf('resume')));
+      expect(events.indexOf('resume'), lessThan(events.indexOf('inactive')));
+      expect(events.where((e) => e == 'inactive').length, 1);
       expect(manager.isActive, isFalse);
       expect(music.playing, playing); expect(sfx.isEnabled, effects);
     }
@@ -145,6 +152,7 @@ void main() {
         expect(events.indexOf('reopen-device'), lessThan(events.indexOf('home-ready')));
         expect(events.indexOf('home-ready'), lessThan(events.indexOf('sfx:$enabled', events.indexOf('home-ready'))));
         expect(events.where((e) => e == 'reopen-device').length, 1);
+        expect(events.indexOf('home-ready'), lessThan(events.indexOf('inactive')));
         expect(sfx.isEnabled, enabled); expect(music.playing, enabled);
         expect(manager.isActive, false);
       }

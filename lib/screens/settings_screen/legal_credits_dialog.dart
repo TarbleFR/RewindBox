@@ -86,6 +86,13 @@ class LegalCreditsDialog {
       'assets/legal/RiiSU-ATTRIBUTION.md',
     ),
     _LegalEntry(
+      'Once Upon a Time (loop)',
+      'TAD; default ambient music of the menus',
+      'CC0-1.0 (public domain dedication)',
+      'https://opengameart.org/content/once-upon-a-time-loop',
+      'assets/legal/OnceUponATime-CC0-1.0.txt',
+    ),
+    _LegalEntry(
       'RetroArch / libretro',
       'libretro and RetroArch contributors',
       'External integration; upstream licenses apply',

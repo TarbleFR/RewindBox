@@ -29,6 +29,7 @@ REQUIRED_LEGAL_FILES = (
     "NeoStation-GPL-3.0.txt",
     "GameDB-PS3-GPL-3.0.txt",
     "Guest-Page-Relay-MIT.txt",
+    "OnceUponATime-CC0-1.0.txt",
 )
 
 

@@ -9,6 +9,7 @@ import '../providers/sqlite_config_provider.dart';
 import '../services/dolphin_internal_v2_service.dart';
 import '../services/dolphin_smart_import_service.dart';
 import '../services/dolphin_system_files.dart';
+import '../services/home_music_service.dart';
 import '../services/logger_service.dart';
 
 /// An action inside the existing media tab pill, never a positioned overlay.
@@ -131,7 +132,14 @@ class _DolphinInternalPlaylistActionsState
     try {
       int? count;
       if (action == 'wiiMenu' && !_isGameCube) {
-        final report = await DolphinInternalV2Service.launchWiiMenu();
+        // Outside the game launch dialog: the ambient music fades out before
+        // Dolphin starts and comes back when its session ends (Build 448).
+        final report = await HomeMusicService().holdForSideSession(
+          launch: DolphinInternalV2Service.launchWiiMenu,
+          started: (report) => report.ready,
+          ended: () =>
+              HomeMusicService.embeddedSessionEnded('ios_dolphin_internal'),
+        );
         if (!report.ready) {
           _notice(
             report.failedStage == 'wii.menu_missing'

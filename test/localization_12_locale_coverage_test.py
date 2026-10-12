@@ -42,7 +42,8 @@ def main():
         "ui_refresh_rate_locale.dart",
         "external_display_locale.dart",
         "storage_locale.dart",
-        "ios_setup_locale.dart","embedded_emulator_locale.dart"
+        "ios_setup_locale.dart","embedded_emulator_locale.dart",
+        "ambient_music_locale.dart"
     ):
         require_locales(L10N / name)
 

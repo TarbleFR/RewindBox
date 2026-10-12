@@ -14,6 +14,7 @@ import '../repositories/game_repository.dart';
 import '../models/game_model.dart';
 
 import 'package:neostation/services/audio_policy_service.dart';
+import 'package:neostation/services/home_music_service.dart';
 
 /// Service responsible for background music playback, metadata extraction, and
 /// visualization data.
@@ -112,6 +113,9 @@ class MusicPlayerService extends ChangeNotifier {
   bool get isActiveTrackLooping => isLoopingFor(activeTrack?.romPath);
   bool get isShuffle => _isShuffle;
   double get volume => _volume;
+
+  /// A game preview video plays with sound (the ambient music follows it).
+  bool get isDucked => _isDucked;
   List<GameModel> get playlist => _playlist;
   int get currentIndex => _currentIndex;
   GameModel? get activeTrack => _activeTrack;
@@ -183,6 +187,9 @@ class MusicPlayerService extends ChangeNotifier {
   void _teardownEngine() {
     _wasPlayingBeforePause = _isPlaying || _wasPlayingBeforeGame;
     _resumeIndexAfterPause = _activeIndex;
+    // The ambient music keeps its position before its voice dies with the
+    // engine.
+    HomeMusicService().handleEngineTearingDown();
     try {
       SoLoud.instance.deinit();
     } catch (e) {
@@ -418,6 +425,9 @@ class MusicPlayerService extends ChangeNotifier {
     if (_isDucked == value) return;
     _isDucked = value;
     _applyVolume();
+    // _applyVolume notifies only once this player has been initialized; the
+    // ambient music (HomeMusicService) follows the ducking in every case.
+    if (!_isInitialized) notifyListeners();
     _logger.i("Music ducking: ${value ? 'ENABLED' : 'DISABLED'}");
   }
 

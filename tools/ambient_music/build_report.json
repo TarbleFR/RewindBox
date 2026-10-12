@@ -1,0 +1,25 @@
+{
+  "sourceSha256": "20c5f05efcf9fd973c4eda5d9d4f214a64ae81e0dbc4e4cd1356b1b41475e280",
+  "sampleRate": 44100,
+  "channels": 2,
+  "loopFrames": 2539957,
+  "loopSeconds": 57.595396825396826,
+  "musicStartInDecodedMp3": 1057,
+  "seamFadeSamples": 32,
+  "modifiedFrames": [
+    0,
+    31
+  ],
+  "seamTransientBeforeDb": {
+    "vsLocalMedian": 9.44,
+    "vsLocalP90": 6.04
+  },
+  "seamTransientAfterDb": {
+    "vsLocalMedian": -2.01,
+    "vsLocalP90": -5.41
+  },
+  "pcmMd5": "dcddd082bc5061c88809afc4069fad4b",
+  "vorbisQuality": 8,
+  "assetBytes": 1752020,
+  "assetSha256": "86a12b262f8e959c387180b735cdf69521a9042657f1d64c8f835ce3199d20b9"
+}

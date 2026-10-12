@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:fullscreen_window/fullscreen_window.dart';
 import 'package:neostation/services/external_display_service.dart';
+import 'package:neostation/services/home_music_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/ui_refresh_rate_service.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
@@ -19,6 +20,7 @@ import '../../../widgets/custom_toggle_switch.dart';
 import 'settings_title.dart';
 import 'widgets/setting_row.dart';
 import 'widgets/setting_value_chip.dart';
+import 'widgets/ambient_music_setting_rows.dart';
 import 'widgets/external_display_setting_rows.dart';
 import 'widgets/language_picker_overlay.dart';
 import 'widgets/ui_refresh_rate_setting_row.dart';
@@ -67,7 +69,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
 
     // Pre-allocate keys for maximum theoretical setting items (the fixed rows
     // plus one per navigation tab that can be toggled).
-    for (int i = 0; i < 15 + NavTab.values.length; i++) {
+    for (int i = 0; i < 17 + NavTab.values.length; i++) {
       _itemKeys.add(GlobalKey());
     }
   }
@@ -177,6 +179,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     count++; // Scan on Startup
     count++; // Ignore hidden files in scan
     count++; // SFX Sounds
+    count += 2; // Ambient music: switch, volume (Build 448)
     count++; // 12-Hour Clock
     if (UiRefreshRateService.isSupportedPlatform) {
       count++; // 120 Hz interface (iOS)
@@ -226,6 +229,22 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     if (index == currentItemIndex) {
       final sfxEnabled = configProvider.config.sfxEnabled;
       configProvider.updateSfxEnabled(!sfxEnabled);
+      return;
+    }
+    currentItemIndex++;
+
+    // Protocol: Ambient music (Build 448) — the switch, then the volume
+    // stepped by 10 %.
+    if (index == currentItemIndex) {
+      final music = HomeMusicService();
+      music.setEnabled(!music.enabled);
+      return;
+    }
+    currentItemIndex++;
+
+    if (index == currentItemIndex) {
+      final music = HomeMusicService();
+      music.setVolume(AmbientMusicVolumeRow.nextStep(music.volume));
       return;
     }
     currentItemIndex++;
@@ -439,6 +458,28 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                   );
                 }(),
 
+
+                // Setting: Ambient music (Build 448) — switch and volume.
+                SizedBox(height: 12.r),
+                () {
+                  final index = currentItemIdx++;
+                  return AmbientMusicEnabledRow(
+                    key: _itemKeys[index],
+                    focused:
+                        widget.isContentFocused &&
+                        widget.selectedContentIndex == index,
+                  );
+                }(),
+                SizedBox(height: 12.r),
+                () {
+                  final index = currentItemIdx++;
+                  return AmbientMusicVolumeRow(
+                    key: _itemKeys[index],
+                    focused:
+                        widget.isContentFocused &&
+                        widget.selectedContentIndex == index,
+                  );
+                }(),
 
                 // Setting: 12-Hour Clock Format.
                 SizedBox(height: 12.r),

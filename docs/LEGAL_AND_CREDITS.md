@@ -211,6 +211,22 @@ license does not relicense downloaded artwork.
 Usage, compatibility and source references:
 [Controller skin guide](SKINS.md).
 
+## Ambient music: "Once Upon a Time (loop)"
+
+- **Work:** "Once Upon a Time (loop)" by **TAD**,
+  https://opengameart.org/content/once-upon-a-time-loop
+- **License:** CC0 1.0 Universal (public domain dedication), as published on
+  the OpenGameArt page of the work. CC0 asks for no attribution; the author is
+  credited by courtesy.
+
+NeoStation bundles it as the default ambient music of the menus
+(`assets/sounds/once_upon_a_time_loop.ogg`, Build 448). The published MP3 was
+cut to its exact music samples, its first 32 samples were cross-faded for a
+seamless loop, and it was encoded as Ogg Vorbis by
+`tools/ambient_music/build_ambient_music_asset.py`; the full notice is
+`assets/legal/OnceUponATime-CC0-1.0.txt`. A music file chosen by the user is
+copied to the device only and is never redistributed.
+
 ## Reading Library: Aidoku source catalogues and local books
 
 NeoStation's reading Library can import **Aidoku** source catalogues that the

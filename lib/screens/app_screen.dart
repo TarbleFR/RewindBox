@@ -323,6 +323,10 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
       );
 
       _runUpdateSequence();
+
+      // Ambient music (Build 448): one voice for every section, from the
+      // first frame of the frontend.
+      unawaited(HomeMusicService().attachFrontend());
     });
 
     // Secondary-display theme sync is attached in didChangeDependencies, where
@@ -685,12 +689,8 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
 
   /// Handles tab selection lifecycle including state updates and UI side-effects.
   void _onTabSelected(int index) {
-    if (index != AppTabs.systems) {
-      // Stop ambience immediately, before the outgoing Systems widget's
-      // asynchronous dispose/post-frame callbacks can race the destination tab.
-      unawaited(HomeMusicService().setMainMenuActive(false));
-    }
-
+    // The ambient music follows the whole frontend (Build 448): a tab change
+    // never stops or restarts it.
     setState(() {
       _selectedTabIndex = index;
       _selectedSystemIndex = 0;

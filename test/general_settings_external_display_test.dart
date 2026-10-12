@@ -67,11 +67,12 @@ void main() {
 
   String en(String key) => ExternalDisplayLocale.values['en']![key]!;
 
-  // Row order on iOS: scan 0, hidden files 1, sounds 2, clock 3, 120 Hz 4,
-  // then the three external display rows.
-  const enabledIndex = 5;
-  const modeIndex = 6;
-  const menuIndex = 7;
+  // Row order on iOS: scan 0, hidden files 1, sounds 2, ambient music 3 and
+  // its volume 4 (Build 448, which moved the rows below by two), clock 5,
+  // 120 Hz 6, then the three external display rows.
+  const enabledIndex = 7;
+  const modeIndex = 8;
+  const menuIndex = 9;
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});

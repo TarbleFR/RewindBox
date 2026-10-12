@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/custom_background_locale.dart';
-import 'package:neostation/l10n/home_music_locale.dart';
+import 'package:neostation/l10n/ambient_music_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/services/home_music_service.dart';
@@ -56,9 +56,9 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     _initializeKeys();
     final homeMusic = HomeMusicService();
     homeMusic.addListener(_onHomeMusicChanged);
-    // Theme is never the Systems main menu. Set the visibility state before
-    // initialization so entering this panel cannot restart menu music.
-    homeMusic.setMainMenuActive(false).then((_) {
+    // The ambient music plays on in this panel (Build 448); the card only
+    // needs the stored track.
+    homeMusic.init().then((_) {
       if (mounted) setState(() {});
     });
   }
@@ -164,23 +164,13 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
       await _pickCustomBackground();
       return;
     } else if (index == menuMusicIndex) {
-      await _toggleHomeMusic();
+      await _pickHomeMusic();
       return;
     } else {
       return;
     }
     if (mounted) setState(() {});
     widget.onSelectionChanged?.call(index);
-  }
-
-  Future<void> _toggleHomeMusic() async {
-    final music = HomeMusicService();
-    if (music.hasMusic) {
-      await music.setEnabled(!music.enabled);
-    } else {
-      await music.chooseMusic();
-    }
-    if (mounted) setState(() {});
   }
 
   Future<void> _pickHomeMusic() async {
@@ -335,33 +325,58 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
               }
 
               if (index == menuMusicIndex) {
+                // Ambient music (Build 448): the switch and the volume are
+                // in Settings › General; this card chooses the track — your
+                // file, or the bundled loop again.
                 final music = HomeMusicService();
                 final fileName = music.selectedFileName;
-                final musicSubtitle = music.hasMusic
-                    ? '${music.enabled ? HomeMusicLocale.active(context) : HomeMusicLocale.disabled(context)} · ${fileName ?? ''}'
-                    : HomeMusicLocale.subtitle(context);
+                final track = music.hasMusic && fileName != null
+                    ? AmbientMusicLocale.format(
+                        context,
+                        AmbientMusicLocale.cardCustom,
+                        <String, Object?>{'track': fileName},
+                      )
+                    : AmbientMusicLocale.format(
+                        context,
+                        AmbientMusicLocale.cardDefault,
+                        <String, Object?>{
+                          'track': HomeMusicService.bundledTrackTitle,
+                        },
+                      );
+                final state = AmbientMusicLocale.text(
+                  context,
+                  music.enabled ? AmbientMusicLocale.on : AmbientMusicLocale.off,
+                );
 
                 return Container(
                   key: _itemKeys[index],
                   child: _HomeMusicCard(
-                    label: HomeMusicLocale.title(context),
-                    subtitle: musicSubtitle,
-                    hasMusic: music.hasMusic,
+                    label: AmbientMusicLocale.text(
+                      context,
+                      AmbientMusicLocale.title,
+                    ),
+                    subtitle: '$state · $track',
+                    hasMusic: true,
                     enabled: music.enabled,
                     isFocused: isFocused,
                     onTap: () {
                       SfxService().playNavSound();
                       widget.onSelectionChanged?.call(index);
-                      _toggleHomeMusic();
+                      _pickHomeMusic();
                     },
-                    onReplace: music.hasMusic
-                        ? () {
-                            SfxService().playNavSound();
-                            _pickHomeMusic();
-                          }
-                        : null,
+                    onReplace: () {
+                      SfxService().playNavSound();
+                      _pickHomeMusic();
+                    },
                     onDelete: music.hasMusic ? _clearHomeMusic : null,
-                    replaceTooltip: HomeMusicLocale.replace(context),
+                    replaceTooltip: AmbientMusicLocale.text(
+                      context,
+                      AmbientMusicLocale.choose,
+                    ),
+                    deleteTooltip: AmbientMusicLocale.text(
+                      context,
+                      AmbientMusicLocale.restoreDefault,
+                    ),
                   ),
                 );
               }
@@ -552,6 +567,7 @@ class _HomeMusicCard extends StatelessWidget {
     required this.isFocused,
     required this.onTap,
     required this.replaceTooltip,
+    required this.deleteTooltip,
     this.onReplace,
     this.onDelete,
   });
@@ -565,6 +581,7 @@ class _HomeMusicCard extends StatelessWidget {
   final VoidCallback? onReplace;
   final VoidCallback? onDelete;
   final String replaceTooltip;
+  final String deleteTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -646,19 +663,23 @@ class _HomeMusicCard extends StatelessWidget {
                     Positioned(
                       top: 4.r,
                       right: 4.r,
-                      child: Material(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        shape: const CircleBorder(),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          canRequestFocus: false,
-                          onTap: onDelete,
-                          child: Padding(
-                            padding: EdgeInsets.all(3.r),
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: Colors.white,
-                              size: 16.r,
+                      child: Tooltip(
+                        message: deleteTooltip,
+                        child: Material(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            canRequestFocus: false,
+                            onTap: onDelete,
+                            child: Padding(
+                              padding: EdgeInsets.all(3.r),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 16.r,
+                                semanticLabel: deleteTooltip,
+                              ),
                             ),
                           ),
                         ),

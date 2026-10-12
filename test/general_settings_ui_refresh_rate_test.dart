@@ -167,7 +167,8 @@ void main() {
     expect(toggle(tester).value, isTrue);
     expect(toggle(tester).disabled, isFalse);
 
-    // Row order: scan, hidden files, sounds, clock, then 120 Hz (index 4).
+    // Row order: scan, hidden files, sounds, ambient music and its volume
+    // (Build 448), clock, then 120 Hz (index 6; 4 before Build 448).
     final clock = tester.getTopLeft(
       find.text(AppLocale.en[AppLocale.use12HourClock] as String),
     );
@@ -175,7 +176,7 @@ void main() {
     expect(row.dy, greaterThan(clock.dy));
 
     // Gamepad A on the row stores the opposite choice for the next launch.
-    general.selectItem(4);
+    general.selectItem(6);
     await tester.pumpAndSettle();
     expect(calls.where((c) => c.method == 'setEnabled').single.arguments, {
       'enabled': false,
@@ -183,7 +184,7 @@ void main() {
     expect(toggle(tester).value, isFalse);
     expect(find.text(en(UiRefreshRateLocale.restartRequired)), findsOneWidget);
 
-    general.selectItem(4);
+    general.selectItem(6);
     await tester.pumpAndSettle();
     expect(toggle(tester).value, isTrue);
     expect(find.text(en(UiRefreshRateLocale.restartRequired)), findsNothing);
@@ -203,7 +204,7 @@ void main() {
       find.text('Not available on this screen (maximum 60 Hz).'),
       findsOneWidget,
     );
-    general.selectItem(4);
+    general.selectItem(6);
     await tester.pumpAndSettle();
     expect(calls.where((c) => c.method == 'setEnabled'), isEmpty);
   }, variant: ios);
@@ -249,7 +250,7 @@ void main() {
         return native;
       },
     );
-    general.selectItem(4);
+    general.selectItem(6);
     await tester.pumpAndSettle();
     expect(find.text(en(UiRefreshRateLocale.saveFailed)), findsOneWidget);
     expect(find.text('Technical code: SAVE_FAILED'), findsOneWidget);

@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
 import '../services/armsx2_internal_service.dart';
+import '../services/home_music_service.dart';
 import 'armsx2_bios_picker.dart';
 import '../services/stikjit_armsx2_service.dart';
 
@@ -63,8 +64,13 @@ class _Armsx2InternalPlaylistActionsState
       } else if (action == 'boot_bios') {
         final selected = await showArmsx2BiosPicker(context);
         if (selected == null || !mounted) return;
-        final launched = await StikJitArmsx2Service.launchBios(
-          uiLocale: Localizations.localeOf(context).toLanguageTag(),
+        final uiLocale = Localizations.localeOf(context).toLanguageTag();
+        // Outside the game launch dialog: the ambient music fades out before
+        // ARMSX2 boots and comes back at its session end (Build 448).
+        final launched = await HomeMusicService().holdForSideSession(
+          launch: () => StikJitArmsx2Service.launchBios(uiLocale: uiLocale),
+          started: (launched) => launched,
+          ended: HomeMusicService.armsx2SessionEnded,
         );
         if (!launched) {
           _notice(
