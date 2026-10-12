@@ -919,6 +919,12 @@ iOS.
 Les recommandations entre parenthèses sont celles de l'audit ; sans réponse, elles seront
 appliquées et consignées.
 
+**Réponses du mainteneur (12 octobre 2026)** : 4 quater — version iOS inconnue, les deux
+régimes sont couverts et la version sera consignée à la première validation ; 4 bis —
+ré-épinglage des cœurs immédiat ; 21 à 25 — **chantier musique reporté** (fichier et
+licence inaccessibles d'ici) ; 1 — **une seule IPA** en fin de cycle. Les autres
+recommandations s'appliquent sauf avis contraire (consigné dans AGENTS.md).
+
 **Transversal**
 1. Nombre de builds : une seule IPA en fin de cycle (recommandé par AGENTS.md) ou une IPA
    intermédiaire après AirPlay pour lever tôt l'hypothèse de la scène externe ?
