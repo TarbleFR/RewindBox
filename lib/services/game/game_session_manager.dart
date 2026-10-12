@@ -165,6 +165,25 @@ class GameSessionManager {
     _startPlaytimeTimer();
   }
 
+  /// Undoes [registerGameLaunch] for an external handoff that was refused
+  /// before any game ran (Build 448): no playtime is recorded, and the
+  /// frontend media barrier held by the registration is released at once.
+  /// Before, the session stayed open until the next foreground return, and
+  /// previews and the ambient music with it.
+  static void cancelGameLaunch() {
+    if (!_isGameLaunched) return;
+    _stopPlaytimeTimer();
+    _isGameLaunched = false;
+    _launchPending = false;
+    _gameLaunchTime = null;
+    _lastPlaytimeSave = null;
+    _launchedEmulatorExe = null;
+    _currentGameSystem = null;
+    _currentGame = null;
+    if (Platform.isAndroid) GameSessionPersistence.clearGameSession();
+    FrontendMediaGate.instance.release('gameSession');
+  }
+
   /// Starts the periodic timer for incremental playtime persistence.
   static void _startPlaytimeTimer() {
     _playtimeTimer?.cancel();

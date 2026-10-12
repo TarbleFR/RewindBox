@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:fullscreen_window/fullscreen_window.dart';
 import 'package:neostation/services/external_display_service.dart';
+import 'package:neostation/services/embedded_engine_policy.dart';
 import 'package:neostation/services/home_music_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/ui_refresh_rate_service.dart';
@@ -21,6 +22,7 @@ import 'settings_title.dart';
 import 'widgets/setting_row.dart';
 import 'widgets/setting_value_chip.dart';
 import 'widgets/ambient_music_setting_rows.dart';
+import 'widgets/embedded_engines_setting_row.dart';
 import 'widgets/external_display_setting_rows.dart';
 import 'widgets/language_picker_overlay.dart';
 import 'widgets/ui_refresh_rate_setting_row.dart';
@@ -187,6 +189,9 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     if (ExternalDisplayService.isSupportedPlatform) {
       count += 3; // AirPlay and external screen: switch, format, menu (iOS)
     }
+    if (EmbeddedEnginePolicy.isSupportedPlatform) {
+      count++; // Use built-in emulators (iOS, Build 448)
+    }
     count += hidableNavTabs().length; // Navigation tab visibility
     count++; // Language
     if (!kIsWeb &&
@@ -284,6 +289,16 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
 
       if (index == currentItemIndex) {
         ExternalDisplayService.instance.toggleMenuOnTV();
+        return;
+      }
+      currentItemIndex++;
+    }
+
+    // Protocol: Use built-in emulators (iOS, Build 448).
+    if (EmbeddedEnginePolicy.isSupportedPlatform) {
+      if (index == currentItemIndex) {
+        final policy = EmbeddedEnginePolicy.instance;
+        policy.setUseEmbedded(!policy.useEmbedded);
         return;
       }
       currentItemIndex++;
@@ -547,6 +562,21 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                   () {
                     final index = currentItemIdx++;
                     return ExternalDisplayMenuRow(
+                      key: _itemKeys[index],
+                      focused:
+                          widget.isContentFocused &&
+                          widget.selectedContentIndex == index,
+                    );
+                  }(),
+                ],
+
+                // Setting: Use built-in emulators (iOS, Build 448) — off,
+                // NeoStation is a frontend for external apps.
+                if (EmbeddedEnginePolicy.isSupportedPlatform) ...[
+                  SizedBox(height: 12.r),
+                  () {
+                    final index = currentItemIdx++;
+                    return EmbeddedEnginesSettingRow(
                       key: _itemKeys[index],
                       focused:
                           widget.isContentFocused &&

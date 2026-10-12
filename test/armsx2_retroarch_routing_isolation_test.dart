@@ -13,7 +13,12 @@ void main() {
       contains('final isArmsx2OwnedRom = Armsx2FolderService.ownsRomPath'),
     );
     expect(launch, contains('if (isArmsx2OwnedRom || isArmsx2VirtualRom)'));
-    expect(launch, contains("'Could not launch this PS2 game in ARMSX2.'"));
+    // Build 448: the refusal is no longer the English sentence 'Could not
+    // launch this PS2 game in ARMSX2.' shown as is, but its translation in
+    // the twelve languages (ConsoleManagerLocale), the native error kept as
+    // the technical detail. The ownership boundary itself is unchanged.
+    expect(launch, isNot(contains("'Could not launch this PS2 game in ARMSX2.'")));
+    expect(launch, contains('ConsoleManagerLocale.launchArmsx2Failed'));
 
     final ownershipIndex = launch.indexOf('final isArmsx2OwnedRom');
     final retroFallbackIndex = launch.indexOf(

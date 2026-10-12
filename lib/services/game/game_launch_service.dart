@@ -7,6 +7,7 @@ import 'package:neostation/l10n/dusklight_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
 import 'package:neostation/l10n/ports_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
+import 'package:neostation/l10n/console_manager_locale.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,8 @@ import 'favorites_service.dart';
 import 'game_session_manager.dart';
 import '../frontend_media_gate.dart';
 import '../embedded_ios_session_status.dart';
+import '../console_catalog.dart';
+import '../embedded_engine_policy.dart';
 import '../gamepad/gamepad_navigation_manager.dart';
 
 /// Represents the result of a game launch attempt.
@@ -99,6 +102,28 @@ class GameLaunchService {
       GameSessionManager.clearLaunchPending();
       FrontendMediaGate.instance.release(mediaOwner);
     }
+  }
+
+  /// Refusal of a console whose embedded engine is switched off (Consoles
+  /// tab or Settings › General, Build 448) when no external app can run it:
+  /// translated, with the console in the technical detail.
+  static GameLaunchResult _embeddedEngineOff(
+    BuildContext context,
+    SystemModel system, {
+    String? technical,
+  }) {
+    final locale = Localizations.localeOf(context);
+    final console =
+        ConsoleCatalog.entryForSystem(system)?.name ??
+        (system.realName.isNotEmpty ? system.realName : system.folderName);
+    return GameLaunchResult.failure(
+      ConsoleManagerLocale.format(
+        locale,
+        ConsoleManagerLocale.launchEngineOff,
+        <String, Object?>{'console': console},
+      ),
+      technical ?? 'embedded engine off: ${system.folderName}',
+    );
   }
 
   static Future<GameLaunchResult> _launchGameImpl(
@@ -185,6 +210,12 @@ class GameLaunchService {
       // this block and continues through the byte-for-byte existing router.
       if (Platform.isIOS &&
           DolphinInternalV2Service.isDolphinSystem(system.folderName)) {
+        // Build 448: the user switched Dolphin off for this console (or all
+        // embedded engines). No external app runs GameCube/Wii games: say so.
+        final dolphinAllowed =
+            await EmbeddedEnginePolicy.instance.allowsSystem(system);
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!dolphinAllowed) return _embeddedEngineOff(context, system);
         final gamePath = game.romPath;
         if (gamePath == null || gamePath.isEmpty) {
           return GameLaunchResult.failure(
@@ -220,6 +251,11 @@ class GameLaunchService {
       // A staged KartPad import must never fall through into Dusklight,
       // RetroArch or the iOS share sheet while its callable Core is unfinished.
       if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {
+        // Build 448: KartPad and Dusklight switched off; no external app.
+        final portsAllowed =
+            await EmbeddedEnginePolicy.instance.allowsSystem(system);
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!portsAllowed) return _embeddedEngineOff(context, system);
         final locale = Localizations.localeOf(context);
         final gamePath = game.romPath;
         if (gamePath == null || gamePath.isEmpty) {
@@ -309,6 +345,11 @@ class GameLaunchService {
         final isPs3 = system.folderName.toLowerCase() == 'ps3';
         if (isPs3 &&
             (isRpcs3VirtualRom || (game.titleId?.trim().isNotEmpty ?? false))) {
+          // Build 448: RPCS3 switched off; no external app runs PS3 games.
+          final rpcs3Allowed =
+              await EmbeddedEnginePolicy.instance.allowsSystem(system);
+          if (!context.mounted) return GameLaunchResult.failure('', '');
+          if (!rpcs3Allowed) return _embeddedEngineOff(context, system);
           final titleId = Rpcs3LaunchService.normalizeTitleId(game.titleId);
           if (titleId == null) {
             return GameLaunchResult.failure(
@@ -350,7 +391,10 @@ class GameLaunchService {
         // never falls through to RetroArch.
         if (LibretroInternalService.handlesSystemModel(system)) {
           final locale = Localizations.localeOf(context);
-          if (await LibretroInternalService.shouldLaunchEmbedded(system, game)) {
+          // Build 448: with the console's embedded engine switched off, its
+          // games take the RetroArch app route below, like a game set to it.
+          if (await EmbeddedEnginePolicy.instance.allowsSystem(system) &&
+              await LibretroInternalService.shouldLaunchEmbedded(system, game)) {
             final outcome = await LibretroInternalService.launch(
               system: system,
               game: game,
@@ -381,6 +425,22 @@ class GameLaunchService {
           'ios_direct_launch',
         );
         await FavoritesService.recordGamePlayed(game);
+        // A handoff refused below ran no game: undo the registration, so the
+        // frontend media barrier (previews, ambient music) is released at
+        // once instead of at the next foreground return (Build 448).
+        GameLaunchResult failExternal(GameLaunchResult result) {
+          GameSessionManager.cancelGameLaunch();
+          return result;
+        }
+
+        final embeddedAllowed =
+            await EmbeddedEnginePolicy.instance.allowsSystem(system);
+        if (!context.mounted) {
+          return failExternal(GameLaunchResult.failure('', ''));
+        }
+        final retroArchStandsIn =
+            !embeddedAllowed &&
+            (ConsoleCatalog.entryForSystem(system)?.retroArchFallback ?? false);
 
         // Nintendo Switch: MeloNX exposes an alternate-frontend library export
         // and direct-launch URL scheme. Imported virtual rows launch immediately;
@@ -401,10 +461,14 @@ class GameLaunchService {
           // A virtual MeloNX row has no local file to hand to another emulator
           // if its deeplink failed. Stop here instead of trying file fallbacks.
           if (isMeloNXVirtualRom) {
-            return GameLaunchResult.failure(
-              'Could not launch this Nintendo Switch game in MeloNX.',
+            if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
+            return failExternal(GameLaunchResult.failure(
+              ConsoleManagerLocale.forLocale(
+                Localizations.localeOf(context),
+                ConsoleManagerLocale.launchMelonxFailed,
+              ),
               game.romPath,
-            );
+            ));
           }
         }
 
@@ -417,36 +481,49 @@ class GameLaunchService {
             game.romPath,
             ConfigService.linkedArmsx2FolderPath,
           );
-          try {
-            final launched = await Armsx2LibraryService.launchGameByRomPath(
-              game.romPath!,
-              uiLocale: Localizations.localeOf(context).toLanguageTag(),
-            );
-            if (launched) {
-              // Override the generic iOS handoff identity before
-              // GameLaunchManager starts monitoring. ARMSX2 is an in-process
-              // native session, not an external process to poll.
-              GameSessionManager.registerGameLaunch(
-                system,
-                game,
-                'ios_armsx2_internal',
-              );
-              return GameLaunchResult.success();
+          // Build 448: ARMSX2 switched off. Its own games have no external
+          // route; the other PS2 games keep the RetroArch fallback below.
+          if (!embeddedAllowed) {
+            if (isArmsx2OwnedRom || isArmsx2VirtualRom) {
+              if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
+              return failExternal(_embeddedEngineOff(context, system));
             }
-          } catch (e) {
-            _log.e('ARMSX2 launch failed for ${game.romPath}: $e');
-          }
+          } else {
+            try {
+              final launched = await Armsx2LibraryService.launchGameByRomPath(
+                game.romPath!,
+                uiLocale: Localizations.localeOf(context).toLanguageTag(),
+              );
+              if (launched) {
+                // Override the generic iOS handoff identity before
+                // GameLaunchManager starts monitoring. ARMSX2 is an in-process
+                // native session, not an external process to poll.
+                GameSessionManager.registerGameLaunch(
+                  system,
+                  game,
+                  'ios_armsx2_internal',
+                );
+                return GameLaunchResult.success();
+              }
+            } catch (e) {
+              _log.e('ARMSX2 launch failed for ${game.romPath}: $e');
+            }
 
-          // An ARMSX2-owned path must never be reinterpreted as a RetroArch
-          // game. This is the hard ownership boundary between both bookmarks.
-          if (isArmsx2OwnedRom || isArmsx2VirtualRom) {
-            final nativeError = Armsx2LibraryService.lastLaunchError?.trim();
-            return GameLaunchResult.failure(
-              nativeError != null && nativeError.isNotEmpty
-                  ? nativeError
-                  : 'Could not launch this PS2 game in ARMSX2.',
-              game.romPath,
-            );
+            // An ARMSX2-owned path must never be reinterpreted as a RetroArch
+            // game. This is the hard ownership boundary between both bookmarks.
+            if (isArmsx2OwnedRom || isArmsx2VirtualRom) {
+              final nativeError = Armsx2LibraryService.lastLaunchError?.trim();
+              if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
+              return failExternal(GameLaunchResult.failure(
+                ConsoleManagerLocale.forLocale(
+                  Localizations.localeOf(context),
+                  ConsoleManagerLocale.launchArmsx2Failed,
+                ),
+                nativeError != null && nativeError.isNotEmpty
+                    ? nativeError
+                    : game.romPath,
+              ));
+            }
           }
         }
 
@@ -454,23 +531,37 @@ class GameLaunchService {
         // retroarch://game/<filename>. This remains the general iOS direct
         // launch path for systems RetroArch knows about, and the fallback for
         // PS2 games that are not owned by the linked ARMSX2 root.
+        // Build 448: when RetroArch stands in for a switched-off embedded
+        // engine, its failure says why the game did not run in NeoStation.
+        String retroArchFailure() {
+          if (!retroArchStandsIn) {
+            return AppLocale.failedToLaunchRetroArch.getString(context);
+          }
+          final entry = ConsoleCatalog.entryForSystem(system);
+          return ConsoleManagerLocale.format(
+            Localizations.localeOf(context),
+            ConsoleManagerLocale.launchEngineOffRetroArch,
+            <String, Object?>{'console': entry?.name ?? system.folderName},
+          );
+        }
+
         try {
           final attempt = await RetroArchLibraryService.launchGameWithDiagnostics(
             game.romPath!,
           );
           if (attempt.accepted) return GameLaunchResult.success();
-          if (!context.mounted) return GameLaunchResult.failure('', '');
-          return GameLaunchResult.failure(
-            AppLocale.failedToLaunchRetroArch.getString(context),
+          if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
+          return failExternal(GameLaunchResult.failure(
+            retroArchFailure(),
             attempt.details,
-          );
+          ));
         } catch (e) {
           _log.e('RetroArch launch preparation failed: $e');
-          if (!context.mounted) return GameLaunchResult.failure('', '');
-          return GameLaunchResult.failure(
-            AppLocale.failedToLaunchRetroArch.getString(context),
+          if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
+          return failExternal(GameLaunchResult.failure(
+            retroArchFailure(),
             'stage=preparationError\nerror=$e',
-          );
+          ));
         }
       }
 

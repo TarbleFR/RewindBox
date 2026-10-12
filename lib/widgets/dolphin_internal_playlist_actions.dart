@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/console_manager_locale.dart';
 import '../l10n/dolphin_import_locale.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../services/dolphin_internal_v2_service.dart';
 import '../services/dolphin_smart_import_service.dart';
 import '../services/dolphin_system_files.dart';
+import '../services/embedded_engine_policy.dart';
 import '../services/home_music_service.dart';
 import '../services/logger_service.dart';
 
@@ -132,6 +134,21 @@ class _DolphinInternalPlaylistActionsState
     try {
       int? count;
       if (action == 'wiiMenu' && !_isGameCube) {
+        // Build 448: Dolphin switched off for the Wii (Consoles tab or
+        // Settings › General) launches nothing, the Wii Menu included.
+        final policy = EmbeddedEnginePolicy.instance;
+        await policy.load();
+        if (!mounted) return;
+        if (!policy.allows('wii')) {
+          _notice(
+            ConsoleManagerLocale.format(
+              Localizations.localeOf(context),
+              ConsoleManagerLocale.launchEngineOff,
+              <String, Object?>{'console': 'Nintendo Wii'},
+            ),
+          );
+          return;
+        }
         // Outside the game launch dialog: the ambient music fades out before
         // Dolphin starts and comes back when its session ends (Build 448).
         final report = await HomeMusicService().holdForSideSession(

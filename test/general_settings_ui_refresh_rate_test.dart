@@ -156,8 +156,10 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     final general = await pumpGeneral(tester);
     // +1 for this row; +3 for the external display rows that share the iOS
-    // condition since Build 447 (test/general_settings_external_display_test.dart).
-    expect(general.getItemCount(), withoutRow + 1 + 3);
+    // condition since Build 447 (test/general_settings_external_display_test.dart);
+    // +1 for "Use built-in emulators", iOS only since Build 448
+    // (test/console_manager_test.dart).
+    expect(general.getItemCount(), withoutRow + 1 + 3 + 1);
     expect(find.byType(UiRefreshRateSettingRow), findsOneWidget);
     expect(find.text(en(UiRefreshRateLocale.title)), findsOneWidget);
     expect(find.text(en(UiRefreshRateLocale.description)), findsOneWidget);

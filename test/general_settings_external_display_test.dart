@@ -202,8 +202,9 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     await tester.pumpWidget(const SizedBox.shrink());
     final general = await pumpGeneral(tester);
-    // +1 for 120 Hz, +3 for the external display.
-    expect(general.getItemCount(), withoutRows + 4);
+    // +1 for 120 Hz, +3 for the external display, +1 for "Use built-in
+    // emulators" (iOS only, Build 448).
+    expect(general.getItemCount(), withoutRows + 5);
     expect(find.byType(ExternalDisplayEnabledRow), findsOneWidget);
     expect(find.byType(ExternalDisplayModeRow), findsOneWidget);
     expect(find.byType(ExternalDisplayMenuRow), findsOneWidget);

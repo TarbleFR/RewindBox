@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
+import '../l10n/console_manager_locale.dart';
 import '../services/armsx2_internal_service.dart';
+import '../services/embedded_engine_policy.dart';
 import '../services/home_music_service.dart';
 import 'armsx2_bios_picker.dart';
 import '../services/stikjit_armsx2_service.dart';
@@ -62,6 +64,21 @@ class _Armsx2InternalPlaylistActionsState
       } else if (action == 'choose_bios') {
         await showArmsx2BiosPicker(context);
       } else if (action == 'boot_bios') {
+        // Build 448: ARMSX2 switched off (Consoles tab or Settings ›
+        // General) boots nothing, the BIOS included.
+        final policy = EmbeddedEnginePolicy.instance;
+        await policy.load();
+        if (!mounted) return;
+        if (!policy.allows('ps2')) {
+          _notice(
+            ConsoleManagerLocale.format(
+              Localizations.localeOf(context),
+              ConsoleManagerLocale.launchEngineOff,
+              <String, Object?>{'console': 'PlayStation 2'},
+            ),
+          );
+          return;
+        }
         final selected = await showArmsx2BiosPicker(context);
         if (selected == null || !mounted) return;
         final uiLocale = Localizations.localeOf(context).toLanguageTag();

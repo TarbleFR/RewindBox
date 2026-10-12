@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/system_model.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../repositories/system_repository.dart';
+import 'console_catalog.dart';
 import 'libretro_core_catalog.dart';
 import 'libretro_internal_service.dart';
 import 'logger_service.dart';
@@ -81,8 +82,28 @@ class LibretroMainMenuAddResult {
       status == LibretroMainMenuAddStatus.alreadyPresent;
 }
 
-/// Embedded (libretro) consoles the user added to the main menu from the
-/// consoles tab (Build 440).
+/// Outcome of a change applied to several consoles at once (Consoles tab:
+/// "Show all", "Restore defaults").
+class ConsoleMenuBulkResult {
+  const ConsoleMenuBulkResult({
+    this.shown = 0,
+    this.removed = 0,
+    this.failed = const <String>[],
+  });
+
+  /// Consoles shown (added or unhidden) in the main menu.
+  final int shown;
+
+  /// Consoles added without games and taken out of the main menu again.
+  final int removed;
+
+  /// Console ids left unchanged, with the technical detail in the log.
+  final List<String> failed;
+}
+
+/// Consoles the user added to the main menu from the consoles tab: the
+/// embedded libretro consoles since Build 440, every console of
+/// [ConsoleCatalog] since Build 448, which also shows and hides them there.
 ///
 /// A console is in the main menu when one of its systems is detected
 /// (`user_detected_systems`), whatever its game count. Adding one registers
@@ -111,7 +132,9 @@ class LibretroMainMenu {
 
   static final LibretroMainMenu instance = LibretroMainMenu();
 
-  /// SharedPreferences list of the console ids added from the consoles tab.
+  /// SharedPreferences list of the console ids added from the consoles tab
+  /// ([ConsoleEntry.id]: the libretro console ids of Build 440 keep their
+  /// meaning).
   static const String preferenceKey = 'libretro_main_menu_v1';
 
   /// Systems bound to a console for its core and frontend settings only,
@@ -206,6 +229,33 @@ class LibretroMainMenu {
     );
   }
 
+  /// [stateOf] for any console of the Consoles tab: the detected systems
+  /// whose [ConsoleCatalog.entryForSystem] is [entry].
+  static LibretroMainMenuState stateOfEntry(
+    ConsoleEntry entry,
+    Iterable<SystemModel> detected,
+    Set<String> hidden,
+  ) {
+    final systems = <SystemModel>[
+      for (final system in detected)
+        if (ConsoleCatalog.entryForSystem(system)?.id == entry.id) system,
+    ];
+    final shown = <SystemModel>[
+      for (final system in systems)
+        if (!hidden.contains(system.folderName)) system,
+    ];
+    if (shown.isNotEmpty) {
+      return LibretroMainMenuState(LibretroMainMenuPresence.present, shown);
+    }
+    if (systems.isNotEmpty) {
+      return LibretroMainMenuState(LibretroMainMenuPresence.hidden, systems);
+    }
+    return const LibretroMainMenuState(
+      LibretroMainMenuPresence.absent,
+      <SystemModel>[],
+    );
+  }
+
   /// Ids of the consoles whose core ships in this build (default core or
   /// an alternative of the console's import system); null when the build
   /// could not be asked, retried by the next call.
@@ -237,22 +287,36 @@ class LibretroMainMenu {
         : <String>[binding.coreId, ...binding.alternatives];
   }
 
-  /// Puts [console] in the main menu: shows it again when it is hidden,
-  /// otherwise adds its import system, remembered so that it stays after
-  /// the next scans. Writes nothing when the console is already present.
+  /// Puts the libretro [console] in the main menu ([showEntry]).
   Future<LibretroMainMenuAddResult> add(
     LibretroConsole console,
     SqliteConfigProvider provider,
+  ) {
+    final entry = ConsoleCatalog.byId(console.id);
+    if (entry == null) {
+      return Future<LibretroMainMenuAddResult>.value(
+        const LibretroMainMenuAddResult(LibretroMainMenuAddStatus.systemUnknown),
+      );
+    }
+    return showEntry(entry, provider);
+  }
+
+  /// Puts [entry] in the main menu: shows it again when it is hidden,
+  /// otherwise adds its import system, remembered so that it stays after
+  /// the next scans. Writes nothing when the console is already present.
+  Future<LibretroMainMenuAddResult> showEntry(
+    ConsoleEntry entry,
+    SqliteConfigProvider provider,
   ) async {
-    if (!_adding.add(console.id)) {
+    if (!_adding.add(entry.id)) {
       return const LibretroMainMenuAddResult(
         LibretroMainMenuAddStatus.inProgress,
       );
     }
     try {
       await load();
-      final state = stateOf(
-        console,
+      final state = stateOfEntry(
+        entry,
         provider.detectedSystems,
         provider.hiddenSystemFolders,
       );
@@ -263,36 +327,86 @@ class LibretroMainMenu {
             system: state.systems.first,
           );
         case LibretroMainMenuPresence.hidden:
-          return await _show(console, state, provider);
+          return await _show(entry, state, provider);
         case LibretroMainMenuPresence.absent:
-          return await _addSystem(console, provider);
+          return await _addSystem(entry, provider);
       }
     } catch (error) {
-      _log.w(
-        'Libretro console ${console.id} not added to the main menu: $error',
-      );
+      _log.w('Console ${entry.id} not added to the main menu: $error');
       return LibretroMainMenuAddResult(
         LibretroMainMenuAddStatus.failed,
         error: '$error',
       );
     } finally {
-      _adding.remove(console.id);
+      _adding.remove(entry.id);
+    }
+  }
+
+  /// Hides [entry] in the main menu (Settings › Systems shows the same
+  /// state): its games, covers, saves and settings stay, and a console
+  /// added without games stays remembered, hidden.
+  Future<LibretroMainMenuAddResult> hideEntry(
+    ConsoleEntry entry,
+    SqliteConfigProvider provider,
+  ) async {
+    if (!_adding.add(entry.id)) {
+      return const LibretroMainMenuAddResult(
+        LibretroMainMenuAddStatus.inProgress,
+      );
+    }
+    try {
+      final state = stateOfEntry(
+        entry,
+        provider.detectedSystems,
+        provider.hiddenSystemFolders,
+      );
+      if (!state.isPresent) {
+        return const LibretroMainMenuAddResult(
+          LibretroMainMenuAddStatus.alreadyPresent,
+        );
+      }
+      for (final system in state.systems) {
+        if (!provider.hiddenSystemFolders.contains(system.folderName)) {
+          await provider.toggleSystemHidden(system.folderName);
+        }
+      }
+      if (stateOfEntry(
+        entry,
+        provider.detectedSystems,
+        provider.hiddenSystemFolders,
+      ).isPresent) {
+        return LibretroMainMenuAddResult(
+          LibretroMainMenuAddStatus.failed,
+          error: '${entry.id} still shown',
+        );
+      }
+      return LibretroMainMenuAddResult(
+        LibretroMainMenuAddStatus.shown,
+        system: state.systems.first,
+      );
+    } catch (error) {
+      _log.w('Console ${entry.id} not hidden in the main menu: $error');
+      return LibretroMainMenuAddResult(
+        LibretroMainMenuAddStatus.failed,
+        error: '$error',
+      );
+    } finally {
+      _adding.remove(entry.id);
     }
   }
 
   Future<LibretroMainMenuAddResult> _show(
-    LibretroConsole console,
+    ConsoleEntry entry,
     LibretroMainMenuState state,
     SqliteConfigProvider provider,
   ) async {
     final target = state.systems.firstWhere(
-      (system) =>
-          LibretroInternalService.systemKey(system) == console.importSystem,
+      (system) => ConsoleCatalog.systemKey(system) == entry.importSystem,
       orElse: () => state.systems.first,
     );
     // Without games, the next scan would drop the shown system again.
     if (target.romCount == 0) {
-      final pinError = await _pin(console.id);
+      final pinError = await _pin(<String>[entry.id]);
       if (pinError != null) {
         return LibretroMainMenuAddResult(
           LibretroMainMenuAddStatus.failed,
@@ -303,8 +417,8 @@ class LibretroMainMenu {
     if (provider.hiddenSystemFolders.contains(target.folderName)) {
       await provider.toggleSystemHidden(target.folderName);
     }
-    if (!stateOf(
-      console,
+    if (!stateOfEntry(
+      entry,
       provider.detectedSystems,
       provider.hiddenSystemFolders,
     ).isPresent) {
@@ -320,19 +434,20 @@ class LibretroMainMenu {
   }
 
   Future<LibretroMainMenuAddResult> _addSystem(
-    LibretroConsole console,
+    ConsoleEntry entry,
     SqliteConfigProvider provider,
   ) async {
     final system =
-        _knownSystem(console, provider) ?? await _storedSystem(console);
+        _knownSystem(entry.importSystem, provider) ??
+        await _storedSystem(entry.importSystem);
     final systemId = system?.id;
     if (system == null || systemId == null) {
       return const LibretroMainMenuAddResult(
         LibretroMainMenuAddStatus.systemUnknown,
       );
     }
-    final newlyPinned = !_pinned.contains(console.id);
-    final pinError = await _pin(console.id);
+    final newlyPinned = !_pinned.contains(entry.id);
+    final pinError = await _pin(<String>[entry.id]);
     if (pinError != null) {
       return LibretroMainMenuAddResult(
         LibretroMainMenuAddStatus.failed,
@@ -347,15 +462,15 @@ class LibretroMainMenu {
       }
       await provider.refreshDetectedSystems();
     } catch (_) {
-      if (newlyPinned) await _unpin(console.id);
+      if (newlyPinned) await _unpin(<String>[entry.id]);
       rethrow;
     }
-    if (!stateOf(
-      console,
+    if (!stateOfEntry(
+      entry,
       provider.detectedSystems,
       provider.hiddenSystemFolders,
     ).isPresent) {
-      if (newlyPinned) await _unpin(console.id);
+      if (newlyPinned) await _unpin(<String>[entry.id]);
       return LibretroMainMenuAddResult(
         LibretroMainMenuAddStatus.failed,
         error: '$systemId not listed after refresh',
@@ -367,33 +482,195 @@ class LibretroMainMenu {
     );
   }
 
-  /// The import system of [console] among the provider's systems (memory).
+  /// Shows every console of [entries] in the main menu at once (Consoles
+  /// tab › "Show all"): hidden ones are shown again, absent ones are added
+  /// and remembered. One refresh of the main menu at the end.
+  Future<ConsoleMenuBulkResult> showAll(
+    Iterable<ConsoleEntry> entries,
+    SqliteConfigProvider provider,
+  ) => _bulk(() async {
+    await load();
+    var shown = 0;
+    final failed = <String>[];
+    final toAdd = <ConsoleEntry, SystemModel>{};
+    for (final entry in entries) {
+      final state = stateOfEntry(
+        entry,
+        provider.detectedSystems,
+        provider.hiddenSystemFolders,
+      );
+      if (state.isPresent) continue;
+      if (state.isHidden) {
+        try {
+          final target = state.systems.firstWhere(
+            (system) => ConsoleCatalog.systemKey(system) == entry.importSystem,
+            orElse: () => state.systems.first,
+          );
+          if (target.romCount == 0) toAdd[entry] = target;
+          await provider.toggleSystemHidden(target.folderName);
+          shown++;
+        } catch (error) {
+          _log.w('Console ${entry.id} not shown: $error');
+          failed.add(entry.id);
+        }
+        continue;
+      }
+      final system =
+          _knownSystem(entry.importSystem, provider) ??
+          await _storedSystem(entry.importSystem);
+      if (system?.id == null) {
+        failed.add(entry.id);
+        continue;
+      }
+      toAdd[entry] = system!;
+    }
+    if (toAdd.isEmpty) {
+      return ConsoleMenuBulkResult(shown: shown, failed: failed);
+    }
+    // Remembered first: the scanner keeps only systems with games.
+    final pinError = await _pin(<String>[for (final e in toAdd.keys) e.id]);
+    if (pinError != null) {
+      _log.w('Consoles not remembered: $pinError');
+      return ConsoleMenuBulkResult(
+        shown: shown,
+        failed: <String>[...failed, for (final e in toAdd.keys) e.id],
+      );
+    }
+    for (final added in toAdd.entries) {
+      final state = stateOfEntry(
+        added.key,
+        provider.detectedSystems,
+        provider.hiddenSystemFolders,
+      );
+      if (!state.isAbsent) continue; // shown again above, kept by its pin
+      try {
+        await SystemRepository.addDetectedSystem(
+          added.value.id!,
+          added.value.folderName,
+        );
+        if (provider.hiddenSystemFolders.contains(added.value.folderName)) {
+          await provider.toggleSystemHidden(added.value.folderName);
+        }
+        shown++;
+      } catch (error) {
+        _log.w('Console ${added.key.id} not added: $error');
+        failed.add(added.key.id);
+      }
+    }
+    await provider.refreshDetectedSystems();
+    return ConsoleMenuBulkResult(shown: shown, failed: failed);
+  });
+
+  /// Consoles tab › "Restore defaults", for the consoles of [entries]: every
+  /// hidden one is shown again, and the ones added from the tab without
+  /// games leave the main menu as before they were added (their remembered
+  /// id and their empty detected system). Games, covers, saves, settings and
+  /// ROM folders are never touched.
+  Future<ConsoleMenuBulkResult> restoreDefaults(
+    Iterable<ConsoleEntry> entries,
+    SqliteConfigProvider provider,
+  ) => _bulk(() async {
+    await load();
+    final listed = <String, ConsoleEntry>{
+      for (final entry in entries) entry.id: entry,
+    };
+    final failed = <String>[];
+    var shown = 0;
+    var removed = 0;
+    // Forgotten first, so the keeper never adds them back.
+    final pinned = <String>[
+      for (final id in _pinned)
+        if (listed.containsKey(id)) id,
+    ];
+    final unpinned = await _unpin(pinned);
+    for (final entry in listed.values) {
+      final state = stateOfEntry(
+        entry,
+        provider.detectedSystems,
+        provider.hiddenSystemFolders,
+      );
+      if (state.isAbsent) continue;
+      final empty = state.systems.every((system) => system.romCount == 0);
+      if (unpinned && pinned.contains(entry.id) && empty) {
+        try {
+          for (final system in state.systems) {
+            final id = system.id;
+            if (id == null) continue;
+            await SystemRepository.removeDetectedSystem(id);
+            if (provider.hiddenSystemFolders.contains(system.folderName)) {
+              await SystemRepository.setSystemHidden(system.folderName, false);
+            }
+          }
+          removed++;
+        } catch (error) {
+          _log.w('Console ${entry.id} not removed: $error');
+          failed.add(entry.id);
+        }
+        continue;
+      }
+      for (final system in state.systems) {
+        if (!provider.hiddenSystemFolders.contains(system.folderName)) continue;
+        try {
+          await provider.toggleSystemHidden(system.folderName);
+          shown++;
+        } catch (error) {
+          _log.w('Console ${entry.id} not shown: $error');
+          failed.add(entry.id);
+        }
+      }
+    }
+    await provider.refreshDetectedSystems();
+    return ConsoleMenuBulkResult(
+      shown: shown,
+      removed: removed,
+      failed: failed,
+    );
+  });
+
+  /// Runs a change of several consoles with the keeper paused, then lets
+  /// the keeper look at the result once.
+  Future<ConsoleMenuBulkResult> _bulk(
+    Future<ConsoleMenuBulkResult> Function() change,
+  ) async {
+    final wasRestoring = _restoring;
+    _restoring = true;
+    try {
+      return await change();
+    } finally {
+      _restoring = wasRestoring;
+      if (!wasRestoring) _onProviderChanged();
+    }
+  }
+
+  /// The system [systemId] among the provider's systems (memory).
   static SystemModel? _knownSystem(
-    LibretroConsole console,
+    String systemId,
     SqliteConfigProvider provider,
   ) {
     for (final system in provider.availableSystems) {
-      if (system.id == console.importSystem) return system;
+      if (system.id == systemId) return system;
     }
     return null;
   }
 
-  static Future<SystemModel?> _storedSystem(LibretroConsole console) async {
+  static Future<SystemModel?> _storedSystem(String systemId) async {
     try {
-      return await SystemRepository.getSystemById(console.importSystem);
+      return await SystemRepository.getSystemById(systemId);
     } catch (error) {
-      _log.w(
-        'Libretro import system ${console.importSystem} unavailable: $error',
-      );
+      _log.w('Console import system $systemId unavailable: $error');
       return null;
     }
   }
 
-  /// Remembers [consoleId]; returns the failure detail, null when saved.
-  Future<String?> _pin(String consoleId) async {
+  /// Remembers [consoleIds]; returns the failure detail, null when saved.
+  Future<String?> _pin(List<String> consoleIds) async {
     if (!_loaded) return '$preferenceKey not read';
-    if (_pinned.contains(consoleId)) return null;
-    final next = <String>[..._pinned, consoleId];
+    final added = <String>[
+      for (final id in consoleIds)
+        if (!_pinned.contains(id)) id,
+    ];
+    if (added.isEmpty) return null;
+    final next = <String>[..._pinned, ...added.toSet()];
     try {
       final preferences = await _preferences();
       if (!await preferences.setStringList(preferenceKey, next)) {
@@ -406,20 +683,24 @@ class LibretroMainMenu {
     }
   }
 
-  Future<void> _unpin(String consoleId) async {
-    if (!_loaded) return;
+  /// Forgets [consoleIds]; true when nothing remembered is left of them.
+  Future<bool> _unpin(List<String> consoleIds) async {
+    if (!_loaded) return false;
+    if (consoleIds.isEmpty) return true;
     final next = <String>[
       for (final id in _pinned)
-        if (id != consoleId) id,
+        if (!consoleIds.contains(id)) id,
     ];
     try {
       final preferences = await _preferences();
       if (await preferences.setStringList(preferenceKey, next)) {
         _pinned = List<String>.unmodifiable(next);
+        return true;
       }
     } catch (error) {
-      _log.w('Libretro main menu console $consoleId not forgotten: $error');
+      _log.w('Main menu consoles $consoleIds not forgotten: $error');
     }
+    return false;
   }
 
   /// Starts the keeper on [provider] once the remembered consoles are read.
@@ -461,18 +742,17 @@ class LibretroMainMenu {
       !_isReady(provider);
 
   /// Remembered consoles that no detected system stands for.
-  List<LibretroConsole> _missing(SqliteConfigProvider provider) =>
-      <LibretroConsole>[
-        for (final id in _pinned)
-          if (!_adding.contains(id))
-            if (LibretroCoreCatalog.consoles[id] case final console?)
-              if (stateOf(
-                console,
-                provider.detectedSystems,
-                provider.hiddenSystemFolders,
-              ).isAbsent)
-                console,
-      ];
+  List<ConsoleEntry> _missing(SqliteConfigProvider provider) => <ConsoleEntry>[
+    for (final id in _pinned)
+      if (!_adding.contains(id))
+        if (ConsoleCatalog.byId(id) case final entry?)
+          if (stateOfEntry(
+            entry,
+            provider.detectedSystems,
+            provider.hiddenSystemFolders,
+          ).isAbsent)
+            entry,
+  ];
 
   /// Adds the dropped consoles back once the provider is idle: on each
   /// busy-to-idle edge (scans) and whenever the set of dropped consoles
@@ -501,18 +781,19 @@ class LibretroMainMenu {
 
   Future<void> _restore(
     SqliteConfigProvider provider,
-    List<LibretroConsole> missing,
+    List<ConsoleEntry> missing,
   ) async {
     _restoring = true;
     try {
       var written = false;
-      for (final console in missing) {
+      for (final entry in missing) {
         final system =
-            _knownSystem(console, provider) ?? await _storedSystem(console);
+            _knownSystem(entry.importSystem, provider) ??
+            await _storedSystem(entry.importSystem);
         final systemId = system?.id;
         if (system == null || systemId == null) {
           _log.w(
-            'Libretro console ${console.id} not restored: no ${console.importSystem} system',
+            'Console ${entry.id} not restored: no ${entry.importSystem} system',
           );
           continue;
         }
