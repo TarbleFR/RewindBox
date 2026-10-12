@@ -83,7 +83,7 @@ Non exécuté ici : XCTest et compilation iPhone (CI macOS seulement), et tout e
 | Run | `retroarch-delivery.yml` `38286881882` (build 447, périmètre `full`), 17 h 50 → 18 h 11 UTC le 12 octobre 2026 ; jobs `checks` (tests Dart exécutés à `af3cec8a`, non réutilisés), `native` et « Release device build • cold » réussis |
 | Cœurs et moteurs | identités vérifiées par la livraison : RPCS3 `dcf0df67` (run `38178247609`), Dolphin `ae7d46f9`, ARMSX2 `899d3c44` (run `37641466835`), Dusklight `899d3c44` (run `37641472546`), cœurs libretro `ba3dc14d` (run `38195212647` ; validation de l'IPA : nestopia, snes9x, gambatte, mgba, genesis_plus_gx, genesis_plus_gx_wide, picodrive, fbneo, desmume, mupen64plus_next, mednafen_psx_hw, mednafen_psx, ppsspp, azahar), KartPad `3934ac9d` (run `36322395443`) |
 | Artefact | `NeoStation-Build-447-af3cec8af0a373641abbf0b11a286bf2c7d5cb03-cold` (identifiant `11764636973`), 208 284 573 octets, SHA-256 de l'archive `bec0ee1daa0fe829d65fd2949eba71dc9f8a452342eec9bd223891f4fee8c9da`, conservé jusqu'au 26 octobre 2026, 18 h 11 UTC ; chiffré pour `build-utils/delivery-424-recipient.pem` |
-| IPA | `NeoStation-Build447-af3cec8af0a373641abbf0b11a286bf2c7d5cb03-cold.ipa`, dans l'archive chiffrée ; son SHA-256 et sa taille sont dans `SHA256SUMS` et `signed-payload-identity.json` (`ipaSha256`, `ipaBytes`) et restent **à consigner après le déchiffrement** (illisibles depuis le conteneur de cette session). Le hash `08d53732…` imprimé par l'étape d'empaquetage est celui de l'IPA avant le scellement pour SideStore, qui la recrée : ce n'est pas l'IPA livrée. |
+| IPA | `NeoStation-Build447-af3cec8af0a373641abbf0b11a286bf2c7d5cb03-cold.ipa`, **208 051 121 octets**, SHA-256 **`b4e9d6a75caf1c4bc7b75f4965a5377a9c163bb6f1af6a211ca41b3133adcdb3`**, égal à `SHA256SUMS` et à `signed-payload-identity.json` (`ipaSha256`, `ipaBytes`). Relevé le 12 octobre 2026 vers 18 h 36 UTC, après déchiffrement sur le PC du mainteneur avec sa clé 424 (archive téléchargée vérifiée : 208 284 573 octets, SHA-256 `bec0ee1d…c9da`, mot de passe de session supprimé). Le hash `08d53732…` imprimé par l'étape d'empaquetage est celui de l'IPA avant le scellement pour SideStore, qui la recrée : ce n'est pas l'IPA livrée. |
 
 Destinataire : le PC du mainteneur était hors ligne pendant la livraison, et la clé privée 445 n'existe que dans le
 conteneur temporaire de cette session ; l'artefact est donc chiffré pour la clé 424, que détient le mainteneur (comme
@@ -100,7 +100,8 @@ tar -xf artifact.tar
 ```
 
 Comparer le SHA-256 de l'IPA à `SHA256SUMS` et à `signed-payload-identity.json`, puis supprimer `password` et
-`artifact.tar`. L'IPA est scellée pour la re-signature Apple et le provisioning que SideStore applique ; la signature
+`artifact.tar`. Copie locale vérifiée : `C:\Users\Coren\Downloads\NeoStation-Build447-af3cec8.ipa` ;
+déchiffrement dans `C:\Users\Coren\nsw\b447`. L'IPA est scellée pour la re-signature Apple et le provisioning que SideStore applique ; la signature
 ad hoc de préparation ne les remplace pas. Ne pas réutiliser le numéro 447.
 
 ## Ce qui n'est pas vérifié et protocole sur iPhone
