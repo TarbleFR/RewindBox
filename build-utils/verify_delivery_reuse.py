@@ -1152,6 +1152,10 @@ BUILD447_STORAGE_DELTA = {
     'build-utils/verify_delivery_reuse.py',
     'lib/l10n/storage_locale.dart',
     'lib/repositories/storage_maintenance_repository.dart',
+    'lib/screens/settings_screen/new_settings_options/tools_settings_content.dart',
+    'lib/screens/storage/storage_audit_screen.dart',
+    'lib/screens/storage/storage_cleanup_preview_screen.dart',
+    'lib/screens/storage/storage_screen_widgets.dart',
     'lib/services/armsx2_internal_service.dart',
     'lib/services/dolphin_internal_v2_service.dart',
     'lib/services/dolphin_smart_import_service.dart',
@@ -1169,7 +1173,11 @@ BUILD447_STORAGE_DELTA = {
     'lib/services/storage/storage_roots.dart',
     'lib/services/storage/storage_scanner.dart',
     'lib/services/storage/storage_stat_ffi.dart',
+    'test/jit_backend_preference_service_test.dart',
+    'test/libretro_bios_checker_screen_test.dart',
     'test/localization_12_locale_coverage_test.py',
+    'test/neoplay_build397_integration_test.py',
+    'test/storage_audit_screen_test.dart',
     'test/storage_categorizer_test.dart',
     'test/storage_cleanup_planner_test.dart',
     'test/storage_contract_test.py',
@@ -1183,6 +1191,7 @@ BUILD447_STORAGE_DELTA = {
     'test/storage_roots_test.dart',
     'test/storage_scanner_test.dart',
     'test/storage_stat_ffi_test.dart',
+    'test/storage_tools_row_test.dart',
 }
 DELTA |= BUILD447_STORAGE_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.

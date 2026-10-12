@@ -7,8 +7,10 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/neoswap_locale.dart';
+import 'package:neostation/l10n/storage_locale.dart';
 import 'package:neostation/screens/libretro/libretro_bios_checker_screen.dart';
 import 'package:neostation/screens/settings_screen/neoswap_dialog.dart';
+import 'package:neostation/screens/storage/storage_audit_screen.dart';
 import 'package:neostation/l10n/jit_fallback_locale.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
 import 'package:neostation/services/jit_backend_preference_service.dart';
@@ -58,12 +60,17 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   /// widget test can stand in for an iPhone).
   bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;
 
-  /// Pairing, JIT fallback and NeoSwap everywhere; the BIOS checker fourth,
-  /// on iOS.
-  int getItemCount() => _showBiosChecker ? 4 : 3;
+  /// The storage analysis and cleanup (docs/storage-audit-cleanup.md § 3.10)
+  /// measures the iOS app container: iOS only, the same gate as the BIOS
+  /// checker.
+  bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Pairing, JIT fallback and NeoSwap everywhere; the BIOS checker fourth
+  /// and the storage analysis fifth, on iOS.
+  int getItemCount() => _showBiosChecker ? 5 : 3;
 
   final List<GlobalKey> _rowKeys = List<GlobalKey>.generate(
-    4,
+    5,
     (_) => GlobalKey(),
   );
 
@@ -79,6 +86,12 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
     );
   }
 
+  void _openStorageAudit() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const StorageAuditScreen()));
+  }
+
   /// Keeps the row the controller selects on screen.
   void scrollToIndex(int index) {
     if (index < 0 || index >= _rowKeys.length) return;
@@ -92,6 +105,10 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   }
 
   void selectItem(int index) {
+    if (index == 4 && _showStorageAudit) {
+      _openStorageAudit();
+      return;
+    }
     if (index == 3 && _showBiosChecker) {
       _openBiosChecker();
       return;
@@ -382,6 +399,22 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
                       widget.isContentFocused &&
                       widget.selectedContentIndex == 3,
                   onTap: _openBiosChecker,
+                  trailing: const Icon(Icons.chevron_right),
+                ),
+              if (_showStorageAudit)
+                SettingsCardRow(
+                  key: _rowKeys[4],
+                  icon: Symbols.storage_rounded,
+                  title: StorageLocale.text(context, StorageLocale.toolTitle),
+                  subtitle: StorageLocale.text(
+                    context,
+                    StorageLocale.toolSubtitle,
+                  ),
+                  subtitleMaxLines: 4,
+                  selected:
+                      widget.isContentFocused &&
+                      widget.selectedContentIndex == 4,
+                  onTap: _openStorageAudit,
                   trailing: const Icon(Icons.chevron_right),
                 ),
             ],

@@ -45,9 +45,12 @@ void main() {
 
   // Build 440 replaces the three-entry contract: screen sharing still lives
   // in the main menu, and iOS gains the BIOS checker of the embedded libretro
-  // cores as a fourth entry. Every other platform keeps exactly three.
+  // cores as a fourth entry. Chantier 5 (docs/storage-audit-cleanup.md
+  // § 3.10) adds the storage analysis as a fifth entry on iOS. Every other
+  // platform keeps exactly three.
   test(
-    'Tools has three controller entries, plus the BIOS checker on iOS',
+    'Tools has three controller entries, plus the BIOS checker and the '
+    'storage analysis on iOS',
     () {
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       for (final platform in TargetPlatform.values) {
@@ -61,7 +64,7 @@ void main() {
 
         expect(
           state.getItemCount(),
-          platform == TargetPlatform.iOS ? 4 : 3,
+          platform == TargetPlatform.iOS ? 5 : 3,
           reason:
               'Controller navigation must match the visible tools on $platform',
         );
@@ -89,7 +92,11 @@ void main() {
     );
     expect(tools, contains('builder: (_) => const LibretroBiosCheckerScreen()'));
     expect(RegExp(r'index == 3').allMatches(tools).length, 1);
-    expect(tools, isNot(contains('index == 4')));
+    // Index 4 is the iOS-only storage analysis (chantier 5), never NeoPlay.
+    expect(tools, contains('if (index == 4 && _showStorageAudit)'));
+    expect(RegExp(r'index == 4').allMatches(tools).length, 1);
+    expect(tools, contains('builder: (_) => const StorageAuditScreen()'));
+    expect(tools, isNot(contains('index == 5')));
     expect(tools, isNot(contains('showNeoPlayDialog(context)')));
     expect(RegExp(r'CustomToggleSwitch\(').allMatches(tools).length, 1);
     expect(tools, isNot(contains('LocalJitTunnel')));

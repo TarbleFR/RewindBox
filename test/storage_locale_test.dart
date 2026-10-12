@@ -647,6 +647,7 @@ void main() {
       r"\bStorageLocale\.(?:text|format|forLocale)\(\s*[^,()]+,\s*'(\w+)'",
     );
     final used = <String, String>{};
+    final storagePages = <String>{};
     for (final entity in Directory(
       'lib',
     ).listSync(recursive: true, followLinks: false)) {
@@ -654,15 +655,31 @@ void main() {
       final path = entity.path.replaceAll(r'\', '/');
       if (path == 'lib/l10n/storage_locale.dart') continue;
       final source = entity.readAsStringSync();
+      final page = path.startsWith('lib/screens/storage/');
       for (final match in members.allMatches(source)) {
-        if (!api.contains(match[1])) used[match[1]!] = entity.path;
+        if (!api.contains(match[1])) {
+          used[match[1]!] = entity.path;
+          if (page) storagePages.add(match[1]!);
+        }
       }
       for (final match in literals.allMatches(source)) {
         used[match[1]!] = entity.path;
+        if (page) storagePages.add(match[1]!);
       }
     }
     for (final use in used.entries) {
       expect(english.containsKey(use.key), isTrue, reason: '$use');
     }
+    // Phase 5d: the pages of § 3.10 exist and name their texts from this
+    // catalog (83 keys in lib/, 75 in lib/screens/storage/ when they landed;
+    // the other keys are reached through categoryKeys, containerKeys,
+    // levelKeys, levelHelpKeys and refusalKeys). A page that stopped using
+    // the catalog would drop below these floors.
+    expect(used.length, greaterThanOrEqualTo(80), reason: '${used.keys}');
+    expect(
+      storagePages.length,
+      greaterThanOrEqualTo(70),
+      reason: '$storagePages',
+    );
   });
 }

@@ -506,16 +506,148 @@ class HelperNeverFollowsLinks(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# RESERVED FOR THE LEAD (phase 5d): screen and locale checks of test J.
-# docs/storage-audit-cleanup.md § 6, row J: no "Library/Sources" string in
-# lib/screens/storage/ nor in lib/l10n/storage_locale.dart (INV-15 stays
-# aggregated under « Bibliothèque », § 1). Add those checks here so that
-# `python3 test/storage_contract_test.py` remains the single Python gate of
-# the storage lane (§ 5).
+# Phase 5d: screen and locale checks of test J (docs/storage-audit-cleanup.md
+# § 6, row J, and § 3.10). No "Library/Sources" string in lib/screens/storage/
+# nor in lib/l10n/storage_locale.dart (INV-15 stays aggregated under
+# « Bibliothèque », § 1); the pages never empty tmp/ nor delete by themselves;
+# nothing reaches them from lib/main.dart; every StorageLocale key they use
+# exists. `python3 test/storage_contract_test.py` remains the single Python
+# gate of the storage lane (§ 5). The behaviour itself is tested by
+# test/storage_audit_screen_test.dart and test/storage_tools_row_test.dart.
 # ---------------------------------------------------------------------------
+PAGES = 'lib/screens/storage'
+LOCALE = 'lib/l10n/storage_locale.dart'
+TOOLS = 'lib/screens/settings_screen/new_settings_options/tools_settings_content.dart'
+PREVIEW = PAGES + '/storage_cleanup_preview_screen.dart'
+AUDIT = PAGES + '/storage_audit_screen.dart'
+# StorageLocale members that are its API, not catalog keys.
+LOCALE_API = {'values', 'codeFor', 'forLocale', 'text', 'format', 'fill', 'categoryKeys',
+              'containerKeys', 'levelKeys', 'levelHelpKeys', 'refusalKeys'}
+
+
+def page_sources():
+    files = sorted((ROOT / PAGES).glob('*.dart'))
+    return [Source(str(path.relative_to(ROOT))) for path in files]
+
+
+def catalog():
+    """(constants, keys of each language block) of storage_locale.dart."""
+    source = Source(LOCALE)
+    constants = dict(re.findall(r"static const (\w+) = '(\w+)';", source.text))
+    start = source.masked.find('static const Map<String, Map<String, String>> values = {')
+    assert start >= 0
+    values_end = matching(source.masked, source.masked.index('{', start), '{', '}')
+    languages = {}
+    for match in re.finditer(r"'(\w+)': \{", source.text[start:values_end]):
+        at = start + match.end() - 1
+        block = source.masked[at:matching(source.masked, at, '{', '}')]
+        languages[match.group(1)] = set(re.findall(r'^\s+(\w+):', block, re.M))
+    return constants, languages
+
+
 class StorageScreensAndLocaleContract(unittest.TestCase):
-    def test_reserved_for_the_screen_and_locale_checks(self) -> None:
-        self.skipTest('phase 5d: screen and locale checks to be added by the lead')
+    def test_the_pages_exist(self) -> None:
+        names = {Path(source.relative).name for source in page_sources()}
+        self.assertLessEqual({'storage_audit_screen.dart', 'storage_cleanup_preview_screen.dart'}, names)
+
+    def test_the_hidden_library_folder_is_never_named(self) -> None:
+        # § 1: comments included, in the pages and in the catalog.
+        for source in page_sources() + [Source(LOCALE)]:
+            with self.subTest(file=source.relative):
+                self.assertNotIn('Sources', source.text)
+                self.assertIsNone(re.search(r'library\s*[/\\]+\s*sources', source.text, re.I))
+        # Nor reached through its service or its own catalog.
+        for source in page_sources():
+            for token in ('LibrarySourceFiles', 'library_source_files', 'LibrarySourcesLocale',
+                          'library_sources_locale'):
+                self.assertNotIn(token, source.text, source.relative + ': ' + token)
+
+    def test_the_pages_never_empty_tmp_nor_delete_by_themselves(self) -> None:
+        for source in page_sources():
+            with self.subTest(file=source.relative):
+                for token in ('clearTemporaryFiles', 'FilePicker', '.delete(', 'deleteSync', 'recursive: true',
+                              'resetDatabase', 'UserDataLocationService', '.rawDelete(', 'rawQuery(',
+                              'transaction('):
+                    self.assertNotIn(token, source.masked, token)
+                # SQL lives in string literals, blanked in the masked text.
+                self.assertIsNone(re.search(r'\b(?:DELETE|DROP|UPDATE|INSERT|VACUUM)\b', source.text), 'SQL')
+                for package in ('dart:io', 'package:file_picker/'):
+                    self.assertIsNone(re.search(r"^import\s+'" + re.escape(package), source.text, re.M), package)
+        # Only the preview runs a plan, once, after its confirmation dialog,
+        # the page's controller layer paused around the dialog: the only
+        # `.execute(` of the pages (no database statement either).
+        self.assertEqual(sum(source.masked.count('.execute(') for source in page_sources()), 1)
+        self.assertNotIn('.execute(', Source(AUDIT).masked)
+        preview = Source(PREVIEW)
+        self.assertEqual(preview.masked.count('.execute('), 1)
+        confirm = Span(preview, 'Future<void> _confirmAndDelete(')
+        pause = confirm.find('pausePageNavigation();')
+        dialog = confirm.find('showDialog<bool>(')
+        resume = confirm.find('resumePageNavigation();')
+        refused = confirm.find('if (!confirmed || !mounted) return;')
+        run = confirm.find('await _execute(selection);')
+        self.assertLess(pause, dialog)
+        self.assertLess(dialog, resume)
+        self.assertLess(resume, refused)
+        self.assertLess(refused, run)
+        Span(preview, 'Future<void> _execute(').find('widget.deletionManager.execute(')
+        # The selection starts as the plan's own preselection (levels 1-2).
+        self.assertIn('late final Set<String> _selection = {...widget.plan.preselectedPaths};', preview.masked)
+
+    def test_nothing_reaches_the_pages_from_main_or_at_startup(self) -> None:
+        main = Source('lib/main.dart')
+        for token in ('StorageAuditScreen', 'StorageCleanupPreviewScreen', 'screens/storage/', 'services/storage/',
+                      'StorageScanner', 'StorageCleanupPlanner', 'StorageDeletionManager', 'StorageOrphanDetector',
+                      'StorageMaintenanceRepository', 'storage_maintenance_repository', 'StorageReport',
+                      'StorageLocale', 'storage_locale'):
+            self.assertNotIn(token, main.text, token)
+        # The fifth Tools row is the only way in.
+        for path in dart_files():
+            relative = str(path.relative_to(ROOT))
+            if relative.startswith(PAGES + '/') or relative == TOOLS:
+                continue
+            masked = Source(relative).masked
+            for token in ('StorageAuditScreen(', 'StorageCleanupPreviewScreen('):
+                self.assertNotIn(token, masked, relative + ': ' + token)
+        tools = Source(TOOLS)
+        self.assertEqual(tools.masked.count('StorageAuditScreen('), 1)
+        self.assertIn('bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;', tools.masked)
+        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 3;', tools.masked)
+        select = Span(tools, 'void selectItem(')
+        self.assertLess(select.find('if (index == 4 && _showStorageAudit) {'), select.find('_openStorageAudit();'))
+
+    def test_every_key_the_pages_use_exists_in_the_twelve_languages(self) -> None:
+        constants, languages = catalog()
+        for name, value in constants.items():
+            self.assertEqual(name, value)
+        self.assertEqual(len(languages), 12)
+        for language, keys in languages.items():
+            self.assertEqual(keys, set(constants), language)
+        used = set()
+        literal = re.compile(r"\bStorageLocale\.(?:text|format|forLocale)\(\s*[^,()]+,\s*'(\w+)'")
+        for source in page_sources() + [Source(TOOLS)]:
+            for match in re.finditer(r'\bStorageLocale\.(\w+)', source.masked):
+                if match.group(1) in LOCALE_API:
+                    continue
+                self.assertIn(match.group(1), constants, f'{source.relative}:{source.line(match.start())}')
+                used.add(match.group(1))
+            for match in literal.finditer(source.text):
+                self.assertIn(match.group(1), constants, f'{source.relative}:{source.line(match.start())}')
+                used.add(match.group(1))
+        self.assertGreaterEqual(len(used), 70, 'the pages name their texts from StorageLocale')
+        self.assertLessEqual({'toolTitle', 'toolSubtitle'}, used, 'the Tools row texts')
+        # The root labels the pages show come from the registry.
+        labels = set(re.findall(r"labelKey: '(\w+)'", Source('lib/services/storage/storage_roots.dart').text))
+        self.assertTrue(labels)
+        self.assertLessEqual(labels, set(constants))
+
+    def test_sizes_are_formatted_by_the_shared_helper_only(self) -> None:
+        # Decimal units as the Files app shows them, never translated.
+        sources = page_sources()
+        self.assertEqual(sum(source.masked.count('formatBytes(') for source in sources), 1)
+        for source in sources:
+            for unit in re.finditer(r"'[^'\n]*\b(?:KB|MB|GB|TB|Ko|Mo|Go|To)\b[^'\n]*'", source.text):
+                self.fail(f'{source.relative}:{source.line(unit.start())} spells a size unit')
 
 
 if __name__ == '__main__':

@@ -630,3 +630,81 @@ l'appelant.
 `flutter test test/storage_cleanup_planner_test.dart test/storage_deletion_manager_test.dart
 test/storage_report_test.dart` : 39 tests (14 + 20 + 5), avec `Rpcs3InternalService.runSaveExchange` réel pour
 `gameRunning` et `libraryBusy`. Les limites du § 7 restent : aucun de ces comportements n'est vérifié sur iPhone.
+
+## 9. Déviations des phases 5d et 5e (12 octobre 2026)
+
+Pages `lib/screens/storage/storage_audit_screen.dart`, `storage_cleanup_preview_screen.dart` et
+`storage_screen_widgets.dart` (éléments partagés : carte de section, bloc en lecture seule focalisable, badge
+d'avertissement, ligne dépliable, ligne d'arbre et `storageSize`, seul appel à `formatBytes`) ; cinquième rangée
+d'Outils ; tests `test/storage_audit_screen_test.dart` et `test/storage_tools_row_test.dart`. Aucune clé
+`StorageLocale` ajoutée : les pages n'emploient que celles du § 3.11.
+
+### 9.1 Signatures
+
+- `registry` n'est fixé que par les tests ; nul, il est résolu à chaque analyse depuis
+  `SqliteConfigProvider.config.romFolders`. Fournisseur absent : l'analyse est refusée avec l'erreur brute plutôt que
+  lancée sans les dossiers de bibliothèque.
+- Les autres collaborateurs sont injectés comme instances ; par défaut, ils sont construits pour le registre de
+  l'analyse et partagent une même `StorageSessionGuard(containers:)`.
+- Aperçu : `deletionManager` (requis), `registry` (libellés des racines) et `onFinished` (lance la nouvelle analyse et
+  transmet `lastCleanup` à l'export) s'ajoutent à `plan` et `level`.
+- Les quatre préférences du § 3.10 sont des constantes de `StorageAuditPreferences`.
+
+### 9.2 Page d'analyse
+
+- Retour au premier plan : ignoré tant que la feuille de partage est ouverte ; différé pendant la construction d'un
+  plan ou tant que l'aperçu est ouvert, puis lancé à sa fermeture, comme après un nettoyage. Revenir de l'aperçu sans
+  nettoyage ni retour au premier plan ne relance aucune analyse.
+- Travail annulé écarté : une analyse annulée garde le résultat précédent ; une détection d'orphelins annulée n'est
+  pas affichée. Le commutateur « Calculer les empreintes » ne relance que la détection et reste inactif pendant un
+  travail.
+- Arbre par racine : les 50 plus gros enfants de chaque dossier, puis une ligne « … Éléments : N » ; racines vides
+  masquées, sauf NeoSwap (`limitNeoSwap`) ; les sous-arbres du dossier caché de la Bibliothèque ne sont jamais listés
+  (`registry.isAggregateOnly`).
+- `limitFfi` n'apparaît qu'en cas de repli sur les tailles logiques ; les neuf autres limites sont toujours affichées.
+- Résumé, lignes de catégorie, feuilles de l'arbre, refus et limites sont des blocs en lecture seule focalisables,
+  pour que la croix directionnelle fasse défiler la page jusqu'à eux.
+- Le dernier nettoyage est résumé sur la page d'analyse (`resultDeleted`).
+
+### 9.3 Aperçu et suppression
+
+- Lignes de motif : `{count}` et `{size}` portent sur les candidats listés sous la ligne dans son groupe de racine, pas
+  sur tout l'aperçu (seuls des doublons répartis sur plusieurs racines font une différence).
+- Les groupes sont ouverts au départ quand le plan compte au plus 50 candidats, fermés sinon.
+- Dialogue de confirmation : couche de manette propre (la croix directionnelle commence sur Annuler, B annule), aucune
+  fermeture par un toucher à l'extérieur ; il reste entre `pausePageNavigation()` et `resumePageNavigation()`.
+- Exception inattendue du gestionnaire de suppression : `refuseUnknown` et son `technicalCode` sur la page de
+  résultat ; la nouvelle analyse a lieu au retour.
+
+### 9.4 Lanes et contrats remplacés (5e)
+
+- `retroarch-delivery.yml`, job `checks` : `flutter test test/storage_*_test.dart` après la ligne
+  `flutter test test/dolphin_shake_locale_test.dart …` (un motif plutôt que la liste fixe du § 5 : un nouveau test de
+  stockage ne peut pas être oublié ; les quatorze fichiers du § 5 sont exactement ceux qu'il retient) ;
+  `python3 test/storage_contract_test.py` après `python3 test/libretro_bios_requirements_test.py`.
+- `libretro-checks.yml` (déclenché par un envoi sur `Claude`) : même motif dans l'étape des tests Dart, et filtres de
+  chemins `lib/screens/storage/**`, `lib/services/storage/**`, `lib/repositories/storage_maintenance_repository.dart`,
+  `lib/l10n/storage_locale.dart`, `test/storage_*`.
+- Cinq outils sur iOS au lieu de quatre, contrat remplacé et commenté dans `test/libretro_bios_checker_screen_test.dart`,
+  `test/jit_backend_preference_service_test.dart` (l'index 4 est l'analyse du stockage, une seule fois, jamais
+  NeoPlay, et aucun index 5) et `test/neoplay_build397_integration_test.py` (même contrat ; ses quatre échecs et son
+  erreur, antérieurs à ce chantier et étrangers à Outils, ne changent pas).
+- `test/storage_locale_test.dart` exige au moins 80 clés employées dans `lib/` (83 à l'arrivée des pages) et 70 dans
+  `lib/screens/storage/` (75).
+- `test/storage_contract_test.py` remplace la réserve des pages par six vérifications : aucune mention de « Sources »
+  ni de `Library/Sources`, ni du service ou du catalogue des sources de la Bibliothèque, dans les pages et
+  `storage_locale.dart` ; aucun `clearTemporaryFiles`, `FilePicker`, appel de suppression ni SQL dans les pages ; un
+  seul `.execute(`, après le dialogue, entre la pause et la reprise de la navigation ; rien depuis `main.dart`, et
+  seule la rangée d'Outils ouvre les pages ; chaque clé employée, y compris les `labelKey` du registre, existe dans les
+  douze langues ; tailles affichées par le seul assistant partagé.
+- `BUILD447_STORAGE_DELTA` déclare les trois pages, la rangée d'Outils et les tests ci-dessus.
+
+### 9.5 Vérifications
+
+Copie isolée de la révision : `verify_delivery_reuse.py --offline`, `delivery_pipeline_test.py`,
+`retroarch_baseline_scope_test.py`, `storage_contract_test.py` (21), `localization_12_locale_coverage_test.py` ;
+`flutter test test/storage_*_test.dart` : 189 réussis, 1 ignoré (dossier illisible par `chmod 000` du scanner :
+root le lit quand même ; couvert par le test du listeur) ; `jit_backend_preference_service_test.dart` et `libretro_bios_checker_screen_test.dart` : 14 réussis ;
+`flutter analyze` : les 52 remarques de niveau « info » sont identiques à celles de la source de la Build 446, aucune
+dans les fichiers de ce chantier. Rien n'est vérifié sur iPhone (mise en page, manette réelle, ancrage du partage sur
+iPad).

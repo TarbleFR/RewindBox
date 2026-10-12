@@ -286,7 +286,14 @@ class Build398Integration(unittest.TestCase):
         # Build440 replaces the three-item contract: three tools everywhere,
         # plus the BIOS checker as the fourth on iOS only; index 3 is never
         # NeoPlay (test/libretro_bios_checker_screen_test.dart drives it).
-        self.assertIn('int getItemCount() => _showBiosChecker ? 4 : 3;', text)
+        # Build 447 (docs/storage-audit-cleanup.md § 3.10) adds the storage
+        # analysis as the fifth iOS tool; index 4 is never NeoPlay either
+        # (test/storage_tools_row_test.dart drives it).
+        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 3;', text)
+        self.assertIn('bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;', text)
+        self.assertRegex(text, r'if \(index == 4 && _showStorageAudit\)\s*\{\s*_openStorageAudit\(\);')
+        self.assertEqual(text.count('index == 4'), 1)
+        self.assertEqual(text.count('onTap: _openStorageAudit'), 1)
         self.assertIn('bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;', text)
         self.assertRegex(text, r'if \(index == 3 && _showBiosChecker\)\s*\{\s*_openBiosChecker\(\);')
         self.assertEqual(text.count('index == 3'), 1)
