@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:neostation/l10n/library_reader_locale.dart';
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 import 'library_reader_palette.dart';
 
@@ -308,7 +309,9 @@ class LibraryReaderFloatingBackButton extends StatelessWidget {
 /// hidden bars take no touch. While the top bar slides in, the floating
 /// button still takes the touches at its place until the bar's arrow covers
 /// it: a tap there always means Back (both call [onBack]), never a page
-/// turn.
+/// turn. With Reduce Motion ([libraryReduceMotion]) the bars do not slide:
+/// they fade in and out in place, and the floating button leaves as soon as
+/// they are shown.
 class LibraryReaderChromeOverlay extends StatefulWidget {
   const LibraryReaderChromeOverlay({
     super.key,
@@ -366,6 +369,13 @@ class _LibraryReaderChromeOverlayState
   Widget build(BuildContext context) {
     final visible = widget.visible;
     final duration = LibraryReaderChromeOverlay.duration;
+    final reduceMotion = libraryReduceMotion(context);
+    // Reduce Motion: the bars stay in place and only fade (a cross-fade is
+    // not motion).
+    final slide = reduceMotion ? Duration.zero : duration;
+    final inPlace = visible || reduceMotion;
+    // The bar is in place at once: its arrow takes the touches now.
+    if (reduceMotion && visible) _floatingTouchable = false;
     final padding = MediaQuery.paddingOf(context);
     final rightToLeft = Directionality.of(context) == TextDirection.rtl;
     final bottomBar = widget.bottomBar;
@@ -410,10 +420,11 @@ class _LibraryReaderChromeOverlayState
               child: ExcludeFocus(
                 excluding: !visible,
                 child: AnimatedSlide(
-                  offset: visible ? Offset.zero : const Offset(0, -1),
-                  duration: duration,
+                  offset: inPlace ? Offset.zero : const Offset(0, -1),
+                  duration: slide,
                   curve: Curves.easeOut,
-                  onEnd: _onTopBarSlideEnd,
+                  // A slide of no duration ends while it is built.
+                  onEnd: reduceMotion ? null : _onTopBarSlideEnd,
                   child: AnimatedOpacity(
                     opacity: visible ? 1 : 0,
                     duration: duration,
@@ -434,8 +445,8 @@ class _LibraryReaderChromeOverlayState
               child: ExcludeFocus(
                 excluding: !visible,
                 child: AnimatedSlide(
-                  offset: visible ? Offset.zero : const Offset(0, 1),
-                  duration: duration,
+                  offset: inPlace ? Offset.zero : const Offset(0, 1),
+                  duration: slide,
                   curve: Curves.easeOut,
                   child: AnimatedOpacity(
                     opacity: visible ? 1 : 0,

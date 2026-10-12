@@ -144,6 +144,7 @@ jobs:
         python3 test/localization_12_locale_coverage_test.py
         python3 test/cheats_media_source_contract_test.py
         python3 test/library_reader_orientation_contract_test.py
+        python3 test/library_books_3d_contract_test.py
         python3 test/neoswap_donor_contract_test.py
         python3 test/dolphin_shake_wiring_test.py
         python3 test/dolphin_shake_assignment_test.py

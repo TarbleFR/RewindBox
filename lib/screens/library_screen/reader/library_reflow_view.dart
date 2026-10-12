@@ -769,6 +769,13 @@ class LibraryReflowImageCache {
     }
   }
 
+  /// Memory pressure: forgets the bytes (read again when asked) but keeps
+  /// the proportions, so that no image on screen changes height.
+  void releaseBytes() {
+    _entries.clear();
+    _loaded.clear();
+  }
+
   void clear() {
     _entries.clear();
     _loaded.clear();

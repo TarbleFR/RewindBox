@@ -9,6 +9,7 @@ import 'package:neostation/services/library_local_models.dart'
     show LibraryBookException, LibraryBookIssue;
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 import 'reader/library_page_curl.dart' show LibraryPageTurnDirection;
 import 'reader/library_page_spreads.dart';
@@ -22,6 +23,7 @@ import 'reader/library_reader_palette.dart';
 import 'reader/library_reader_sheets.dart';
 import 'reader/library_reader_system.dart';
 import 'reader/library_reader_toolbar.dart';
+import 'reader/library_reader_trace.dart';
 
 /// Full-screen PDF reader (local library books and Library downloads), in
 /// two modes (docs/library-books-3d-plan.md § 3.6):
@@ -45,6 +47,13 @@ import 'reader/library_reader_toolbar.dart';
 /// removes the bookmark of the page or spread shown, `page:N`; a ribbon
 /// shows it), the table of contents, the progress with the time left, the
 /// mode switch and Library (the reader's close path).
+///
+/// Accessibility and memory (§ 3.12, phase 8): Reduce Motion (also iOS's,
+/// followed live) turns the pages and moves the scroll viewer without
+/// animation; a memory pressure keeps only the textures of the spread on
+/// screen (the pages mode purges its own; the pdfrx viewer of the scroll
+/// mode manages its cache itself); the trace `library.reader.*` reports
+/// the curl, the textures and the pressure.
 class LibraryPdfReaderScreen extends StatefulWidget {
   const LibraryPdfReaderScreen({
     super.key,
@@ -122,6 +131,9 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   final LibraryReadingPace _pace = LibraryReadingPace();
   int _pacePage = -1;
   int _paceLastShown = -1;
+
+  /// Trace `library.reader.*` of this opening.
+  final LibraryReaderTrace _trace = LibraryReaderTrace();
 
   /// Mode chosen by [toggleMode] for this session; dropped when the stored
   /// choice changes (the settings sheet, another reader).
@@ -211,6 +223,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     _system = LibraryReaderSystemSession(orientation: widget.orientation);
     _store.addListener(_onStore);
     WidgetsBinding.instance.addObserver(this);
+    _trace.traceCurl();
     unawaited(_start());
   }
 
@@ -241,7 +254,28 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     // VoiceOver: the bars stay until the user hides them.
     _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
     // Reduce Motion: the pages mode turns without animation.
-    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _reduceMotion = libraryReduceMotion(context);
+  }
+
+  /// iOS's Reduce Motion changes no MediaQuery value: read again when it is
+  /// turned on or off.
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (!mounted) return;
+    final reduceMotion = libraryReduceMotion(context);
+    if (reduceMotion != _reduceMotion) {
+      setState(() => _reduceMotion = reduceMotion);
+    }
+  }
+
+  /// The pages mode keeps only the textures of the spread on screen (its
+  /// view purges them, as the page curl purges its own); the pdfrx viewer
+  /// of the scroll mode has no purge of its own to call.
+  @override
+  void didHaveMemoryPressure() {
+    _trace.memoryPressure();
+    // Once every observer (the pages view, the page curl) has purged.
+    scheduleMicrotask(() => _trace.textures(_pagesView?.textures));
   }
 
   @override
@@ -253,6 +287,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     _chrome.dispose();
     _page.dispose();
     _closeDocument();
+    _trace.dispose();
     unawaited(_system.stop());
     unawaited(_store.flush().catchError((Object _) {}));
     super.dispose();
@@ -475,6 +510,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   void _onPagesPageChanged(int page) {
     if (_leaving) return;
     _pageReached(page + 1, turned: true);
+    _trace.textures(_pagesView?.textures);
   }
 
   void _pageReached(int pageNumber, {required bool turned}) {
@@ -537,7 +573,11 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     }
     if (!_viewer.isReady) return;
     final target = (_page.value + delta).clamp(1, _viewer.pageCount);
-    unawaited(_viewer.goToPage(pageNumber: target));
+    unawaited(
+      _reduceMotion
+          ? _viewer.goToPage(pageNumber: target, duration: Duration.zero)
+          : _viewer.goToPage(pageNumber: target),
+    );
   }
 
   void _goToPage(int pageNumber) {
@@ -559,7 +599,12 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   void _fitPage() {
     if (_mode != LibraryPdfMode.scroll || !_ready || !_viewer.isReady) return;
     final matrix = _viewer.calcMatrixForFit(pageNumber: _page.value);
-    if (matrix != null) unawaited(_viewer.goTo(matrix));
+    if (matrix == null) return;
+    unawaited(
+      _reduceMotion
+          ? _viewer.goTo(matrix, duration: Duration.zero)
+          : _viewer.goTo(matrix),
+    );
   }
 
   /// A tap on the pages: a side third turns toward it (tap zones), the
@@ -996,6 +1041,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
                         LibraryBookmarkRibbon(
                           visible: bookmarked && _settings.bookmarkRibbon,
                           palette: palette,
+                          animate: !_reduceMotion,
                         ),
                       ],
                     ),

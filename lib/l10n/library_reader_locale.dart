@@ -164,6 +164,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Bookmarks stay in NeoStation: they are not shared with other reading apps.',
       'bookSettingsActive': 'Settings specific to this book',
+      'applyNavigationToAllBooks': 'Apply to all books',
+      'navigationAppliedToAllBooks':
+          'These navigation settings now apply to every book without settings of its own.',
     },
     'es': {
       'back': 'Atrás',
@@ -325,6 +328,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Los marcadores se quedan en NeoStation: no se intercambian con otras aplicaciones de lectura.',
       'bookSettingsActive': 'Ajustes propios de este libro',
+      'applyNavigationToAllBooks': 'Aplicar a todos los libros',
+      'navigationAppliedToAllBooks':
+          'Estos ajustes de navegación ahora se aplican a todos los libros que no tienen ajustes propios.',
     },
     'ru': {
       'back': 'Назад',
@@ -482,6 +488,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Закладки хранятся только в NeoStation: они не передаются в другие приложения для чтения.',
       'bookSettingsActive': 'Настройки только для этой книги',
+      'applyNavigationToAllBooks': 'Применить ко всем книгам',
+      'navigationAppliedToAllBooks':
+          'Теперь эти настройки навигации действуют для всех книг, у которых нет собственных настроек.',
     },
     'zh': {
       'back': '返回',
@@ -622,6 +631,8 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom': '缩放时会停用仿真翻页。',
       'bookmarksLocalOnly': '书签仅保存在 NeoStation 中，不会与其他阅读器互通。',
       'bookSettingsActive': '本书专属设置',
+      'applyNavigationToAllBooks': '应用到所有书籍',
+      'navigationAppliedToAllBooks': '这些导航设置现已应用于所有没有专属设置的书籍。',
     },
     'zh_Hant': {
       'back': '返回',
@@ -762,6 +773,8 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom': '縮放時會停用擬真翻頁。',
       'bookmarksLocalOnly': '書籤只會保留在 NeoStation 中，不會與其他閱讀器互通。',
       'bookSettingsActive': '本書專屬設定',
+      'applyNavigationToAllBooks': '套用到所有書籍',
+      'navigationAppliedToAllBooks': '這些導覽設定現在會套用到所有沒有專屬設定的書籍。',
     },
     'pt': {
       'back': 'Voltar',
@@ -922,6 +935,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Os marcadores ficam no NeoStation: eles não são compartilhados com outros apps de leitura.',
       'bookSettingsActive': 'Ajustes próprios deste livro',
+      'applyNavigationToAllBooks': 'Aplicar a todos os livros',
+      'navigationAppliedToAllBooks':
+          'Estes ajustes de navegação agora valem para todos os livros que não têm ajustes próprios.',
     },
     'fr': {
       'back': 'Retour',
@@ -1083,6 +1099,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Les marque-pages restent dans NeoStation : ils ne sont pas échangés avec d’autres lecteurs.',
       'bookSettingsActive': 'Réglages propres à ce livre',
+      'applyNavigationToAllBooks': 'Appliquer à tous les livres',
+      'navigationAppliedToAllBooks':
+          'Ces réglages de navigation s’appliquent maintenant à tous les livres qui n’ont pas les leurs.',
     },
     'de': {
       'back': 'Zurück',
@@ -1247,6 +1266,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Lesezeichen bleiben in NeoStation: sie werden nicht mit anderen Lese-Apps ausgetauscht.',
       'bookSettingsActive': 'Eigene Einstellungen für dieses Buch',
+      'applyNavigationToAllBooks': 'Auf alle Bücher anwenden',
+      'navigationAppliedToAllBooks':
+          'Diese Navigationseinstellungen gelten jetzt für alle Bücher ohne eigene Einstellungen.',
     },
     'it': {
       'back': 'Indietro',
@@ -1408,6 +1430,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'I segnalibri restano in NeoStation: non vengono condivisi con altre app di lettura.',
       'bookSettingsActive': 'Impostazioni specifiche di questo libro',
+      'applyNavigationToAllBooks': 'Applica a tutti i libri',
+      'navigationAppliedToAllBooks':
+          'Queste impostazioni di navigazione ora valgono per tutti i libri che non hanno impostazioni proprie.',
     },
     'id': {
       'back': 'Kembali',
@@ -1565,6 +1590,9 @@ abstract final class LibraryReaderLocale {
       'bookmarksLocalOnly':
           'Penanda hanya disimpan di NeoStation: penanda tidak dibagikan dengan aplikasi baca lain.',
       'bookSettingsActive': 'Pengaturan khusus untuk buku ini',
+      'applyNavigationToAllBooks': 'Terapkan ke semua buku',
+      'navigationAppliedToAllBooks':
+          'Pengaturan navigasi ini kini berlaku untuk semua buku yang tidak memiliki pengaturan khusus.',
     },
     'ja': {
       'back': '戻る',
@@ -1707,6 +1735,9 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom': 'ズーム中は「紙のようにめくる」効果がオフになります。',
       'bookmarksLocalOnly': 'しおりは NeoStation 内にのみ保存され、ほかの読書アプリとは共有されません。',
       'bookSettingsActive': 'この本だけの設定',
+      'applyNavigationToAllBooks': 'すべての本に適用',
+      'navigationAppliedToAllBooks':
+          'これらのナビゲーション設定が、独自の設定がないすべての本に適用されるようになりました。',
     },
     'ko': {
       'back': '뒤로',
@@ -1851,6 +1882,8 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom': '확대/축소 중에는 페이지 말림이 꺼집니다.',
       'bookmarksLocalOnly': '책갈피는 NeoStation에만 저장되며 다른 읽기 앱과 공유되지 않습니다.',
       'bookSettingsActive': '이 책 전용 설정',
+      'applyNavigationToAllBooks': '모든 책에 적용',
+      'navigationAppliedToAllBooks': '이제 이 탐색 설정이 전용 설정이 없는 모든 책에 적용됩니다.',
     },
   };
 

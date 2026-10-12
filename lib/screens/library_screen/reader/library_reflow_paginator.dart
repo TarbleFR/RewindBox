@@ -280,8 +280,13 @@ class LibraryReflowPaginationStats {
 ///    `Directionality`, as in the scroll view), not the page progression.
 ///
 /// 7. [cancel] when leaving the pages layout, [dispose] with the reader;
-///    [statsOf] gives the cost of a chapter for the trace
+///    [statsOf] gives the cost of a chapter, and [onPaginated] reports each
+///    chapter laid out, for the trace
 ///    `library.reader.paginate:<chapter>:<ms>`.
+///
+/// 8. Memory pressure: [releaseImages] keeps the decoded images of the
+///    pages on screen only; a page painted again afterwards calls
+///    [prepare] first when [imagesGeneration] changed since it did.
 class LibraryReflowPaginator {
   LibraryReflowPaginator({
     required this.source,
@@ -295,6 +300,7 @@ class LibraryReflowPaginator {
     LibraryReflowImageCache? images,
     double devicePixelRatio = 1.0,
     this.maxChapters = 4,
+    this.onPaginated,
   }) : _style = style,
        _layout = _PageLayout(
          style: style,
@@ -317,6 +323,11 @@ class LibraryReflowPaginator {
   /// Chapters whose pages stay memoized (least recently used dropped).
   final int maxChapters;
 
+  /// Called once for every chapter whose pagination completes (not for a
+  /// cancelled or failed one), with its cost: the reader's trace
+  /// `library.reader.paginate:<chapter>:<ms>`.
+  final void Function(LibraryReflowPaginationStats stats)? onPaginated;
+
   LibraryReflowStyle _style;
   _PageLayout _layout;
   final LibraryReflowImageCache _images;
@@ -338,6 +349,7 @@ class LibraryReflowPaginator {
       LinkedHashMap<String, ui.Image>();
   final Map<String, Future<void>> _decoding = <String, Future<void>>{};
   final Set<String> _undecodable = <String>{};
+  int _imagesGeneration = 0;
 
   static const int _maxImageSizes = 1024;
   static const int _maxDecoded = 6;
@@ -443,6 +455,13 @@ class LibraryReflowPaginator {
   /// cancelled).
   LibraryReflowPaginationStats? statsOf(int chapter) =>
       _stats[chapter]?.snapshot(chapter);
+
+  /// Changes whenever [releaseImages] released decoded images: a page
+  /// painted again since it was prepared is prepared again first.
+  int get imagesGeneration => _imagesGeneration;
+
+  /// Decoded images held for [paint] (tests, memory checks).
+  int get decodedImages => _decoded.length;
 
   // ----------------------------------------------------------- changes --
 
@@ -666,6 +685,14 @@ class LibraryReflowPaginator {
       stats.wall.stop();
       job.exited.complete();
     }
+    final report = onPaginated;
+    if (report != null && stats.complete && !job.cancelled && !_disposed) {
+      try {
+        report(stats.snapshot(job.chapter));
+      } catch (_) {
+        // A report never disturbs the pagination.
+      }
+    }
   }
 
   // ----------------------------------------------------------- images --
@@ -740,6 +767,49 @@ class LibraryReflowPaginator {
       );
     }
     await Future.wait(work);
+  }
+
+  /// Memory pressure: releases the decoded images, except those of [keep]
+  /// (the pages on screen). A picture painted before keeps drawing its
+  /// images; a page painted again calls [prepare] first (see
+  /// [imagesGeneration]), which decodes them again.
+  void releaseImages({
+    Iterable<LibraryReflowPageSpec> keep = const <LibraryReflowPageSpec>[],
+  }) {
+    final kept = <String>{
+      for (final page in keep)
+        for (final slice in page.slices)
+          if (slice.kind == LibraryReflowSliceKind.image) _decodedKey(slice),
+    };
+    final released = <String>[
+      for (final key in _decoded.keys)
+        if (!kept.contains(key)) key,
+    ];
+    for (final key in released) {
+      _decoded.remove(key)?.dispose();
+    }
+    _imagesGeneration++;
+  }
+
+  /// Whether [prepare] has images of [page] left to decode (neither decoded
+  /// nor known to be unavailable).
+  bool needsPrepare(LibraryReflowPageSpec page) {
+    for (final slice in page.slices) {
+      if (slice.kind != LibraryReflowSliceKind.image || slice.imageFailed) {
+        continue;
+      }
+      final href = slice.unit.source.imageHref;
+      if (href == null || _undecodable.contains(href)) continue;
+      if (!_decoded.containsKey(_decodedKey(slice))) return true;
+    }
+    return false;
+  }
+
+  /// Whether the image of [slice] cannot be shown (unreadable or not
+  /// decodable): it is painted as unavailable.
+  bool _unavailable(LibraryReflowPageSlice slice) {
+    final href = slice.unit.source.imageHref;
+    return slice.imageFailed || (href != null && _undecodable.contains(href));
   }
 
   /// Decodes [href] into [_decoded] (a failure marks it undecodable).
@@ -849,8 +919,7 @@ class LibraryReflowPaginator {
     LibraryReflowPageSlice slice,
     LibraryReaderPalette palette,
   ) {
-    final href = slice.unit.source.imageHref;
-    if (slice.imageFailed || (href != null && _undecodable.contains(href))) {
+    if (_unavailable(slice)) {
       const icon = Icons.image_not_supported_outlined;
       final painter = TextPainter(
         text: TextSpan(
@@ -885,8 +954,11 @@ class LibraryReflowPaginator {
   }
 
   /// Text of [page] for assistive technologies: the characters of its lines
-  /// (one paragraph per unit) and the alternative text of its images.
-  String textOf(LibraryReflowPageSpec page) {
+  /// (one paragraph per unit) and the alternative text of its images. An
+  /// image that cannot be shown (unreadable, or found undecodable by
+  /// [prepare]) reads [imageUnavailable] instead, like the scroll view's
+  /// placeholder, when it is given.
+  String textOf(LibraryReflowPageSpec page, {String? imageUnavailable}) {
     final parts = <String>[];
     for (final slice in page.slices) {
       switch (slice.kind) {
@@ -896,8 +968,12 @@ class LibraryReflowPaginator {
           ).substring(slice.startOffset, slice.endOffset).trim();
           if (text.isNotEmpty) parts.add(text);
         case LibraryReflowSliceKind.image:
-          final alt = slice.unit.source.imageAlt?.trim();
-          if (alt != null && alt.isNotEmpty) parts.add(alt);
+          if (imageUnavailable != null && _unavailable(slice)) {
+            parts.add(imageUnavailable);
+          } else {
+            final alt = slice.unit.source.imageAlt?.trim();
+            if (alt != null && alt.isNotEmpty) parts.add(alt);
+          }
         case LibraryReflowSliceKind.rule:
           break;
       }

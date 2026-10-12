@@ -144,8 +144,9 @@ class LibraryPageReaderController extends ChangeNotifier {
   LibraryPageTurnStyle get turnStyle => effective.turnStyle;
 
   /// The system asks for reduced motion (the reader passes
-  /// `MediaQuery.disableAnimationsOf`): pages turn without animation,
-  /// whatever the settings say (a session override, never saved).
+  /// `libraryReduceMotion`, iOS's Reduce Motion included): pages turn
+  /// without animation, whatever the settings say (a session override,
+  /// never saved).
   bool get reduceMotion => _reduceMotion;
 
   set reduceMotion(bool value) {

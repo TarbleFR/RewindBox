@@ -11,7 +11,9 @@
 /// view, or half of it for a spread). The spread on screen and its
 /// neighbours are kept; renders of the other pages are cancelled. No zoom,
 /// no text selection and no links in this mode (the scroll mode keeps
-/// them).
+/// them). VoiceOver reads each spread as one image, "Page N of M" or
+/// "Pages N and N+1 of M", followed by "Image unavailable" for a page that
+/// PDFium could not render.
 ///
 /// The scroll mode lays its pages out in two columns with
 /// [libraryPdfSpreadLayout] where the two-page spread applies.
@@ -28,6 +30,7 @@ import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/services/library_http.dart' show LibraryCancelToken;
 import 'package:neostation/services/library_reading_store.dart'
     show LibraryDoublePageMode, LibraryPageTurnStyle;
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 import 'library_page_curl.dart';
 import 'library_page_spreads.dart';
@@ -204,8 +207,8 @@ class LibraryPdfPagesView extends StatefulWidget {
   /// the middle (the reader decides what it does).
   final ValueChanged<int> onTap;
 
-  /// Page turn; Reduce Motion (`MediaQuery.disableAnimationsOf`) always
-  /// turns without animation.
+  /// Page turn; Reduce Motion ([libraryReduceMotion]) always turns without
+  /// animation.
   final LibraryPageTurnStyle turnStyle;
   final LibraryDoublePageMode doublePage;
   final bool firstPageAlone;
@@ -244,8 +247,13 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
   double _ratio = 1;
   bool _syncScheduled = false;
 
-  /// Textures of the pages (shared by the items and the curl).
-  @visibleForTesting
+  /// Pages (zero-based) whose last render failed or gave no image (not
+  /// cancelled): VoiceOver says they are unavailable until a render
+  /// succeeds.
+  final Set<int> _unavailable = <int>{};
+
+  /// Textures of the pages (shared by the items and the curl; the reader's
+  /// trace reads their counters).
   LibraryPageTextureCache get textures => _textures;
 
   @visibleForTesting
@@ -259,6 +267,10 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
 
   /// Spread on screen.
   int get spreadIndex => _index;
+
+  /// Pages whose image could not be rendered (zero-based).
+  @visibleForTesting
+  Set<int> get unavailablePages => Set<int>.unmodifiable(_unavailable);
 
   /// Page the reader is at (zero-based).
   int get page => _page;
@@ -275,7 +287,8 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
   int get _pageCount => widget.document.pages.length;
 
   /// Page turn of the last build: [LibraryPdfPagesView.turnStyle], or none
-  /// with Reduce Motion (`MediaQuery.disableAnimationsOf`).
+  /// with Reduce Motion ([libraryReduceMotion]; the reader rebuilds the
+  /// view when iOS's setting changes).
   LibraryPageTurnStyle _style = LibraryPageTurnStyle.none;
 
   @override
@@ -295,6 +308,7 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
       // layer stops a turn when its content changes).
       _turnTarget = null;
       _textures.purge();
+      _unavailable.clear();
       _page = _clampPage(widget.initialPage);
       _spreads = null;
     }
@@ -502,10 +516,27 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
     int page,
     Size pixelSize,
     LibraryCancelToken cancel,
-  ) {
-    final pages = widget.document.pages;
-    if (page < 0 || page >= pages.length) return Future<ui.Image?>.value();
-    return libraryPdfRenderPage(pages[page], pixelSize, cancel);
+  ) async {
+    final document = widget.document;
+    final pages = document.pages;
+    if (page < 0 || page >= pages.length) return null;
+    try {
+      final image = await libraryPdfRenderPage(pages[page], pixelSize, cancel);
+      if (!cancel.isCancelled) _rendered(document, page, image != null);
+      return image;
+    } catch (_) {
+      if (!cancel.isCancelled) _rendered(document, page, false);
+      rethrow;
+    }
+  }
+
+  /// Records whether [page] of [document] could be rendered (VoiceOver).
+  void _rendered(PdfDocument document, int page, bool success) {
+    if (!mounted || !identical(document, widget.document)) return;
+    final changed = success
+        ? _unavailable.remove(page)
+        : _unavailable.add(page);
+    if (changed) setState(() {});
   }
 
   void _scheduleSync() {
@@ -561,7 +592,7 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
       _ratio = ratio;
       _scheduleSync();
     }
-    _style = MediaQuery.disableAnimationsOf(context)
+    _style = libraryReduceMotion(context)
         ? LibraryPageTurnStyle.none
         : widget.turnStyle;
     final curl = _style == LibraryPageTurnStyle.curl;
@@ -627,11 +658,30 @@ class LibraryPdfPagesViewState extends State<LibraryPdfPagesView>
           });
     final pixels = _pixelSizeOf(face.isSpread);
     final pages = widget.document.pages;
-    // One node per spread: "Page N of M", or "Pages N and N+1 of M".
+    final unavailable = <int>[
+      for (final page in spread.pages)
+        if (_unavailable.contains(page)) page,
+    ];
+    final imageUnavailable = LibraryReaderLocale.text(
+      context,
+      'imageUnavailable',
+    );
+    // One node per spread: "Page N of M", or "Pages N and N+1 of M", then
+    // "Image unavailable" for a page PDFium could not render (in a pair,
+    // after that page's number).
     return Semantics(
       container: true,
-      image: true,
-      label: label,
+      image: unavailable.length < spread.pages.length,
+      label: <String>[
+        label,
+        for (final page in unavailable) ...<String>[
+          if (second != null)
+            LibraryReaderLocale.format(context, 'pageNumber', <String, Object?>{
+              'page': page + 1,
+            }),
+          imageUnavailable,
+        ],
+      ].join('\n'),
       child: ExcludeSemantics(
         child: ColoredBox(
           color: widget.palette.background,

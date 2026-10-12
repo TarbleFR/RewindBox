@@ -10,8 +10,10 @@
 ///   spreads around a spread, in reading order.
 /// * [LibraryBookSpreadView], [LibraryBookPageCanvas]: a spread drawn like
 ///   the page curl draws it ([LibraryPageSpreadLayout]), each page from its
-///   picture ([LibraryReflowPaginator.paint]), labelled with its text for
-///   VoiceOver ([LibraryReflowPaginator.textOf]).
+///   picture ([LibraryReflowPaginator.paint]), announced by VoiceOver as
+///   "Page N of M" or "Pages N and N+1 of M" (in its chapter) followed by
+///   the text of its pages ([LibraryReflowPaginator.textOf]; an image that
+///   cannot be shown reads "Image unavailable").
 /// * [LibraryBookPagePlaceholder]: a neighbour still being laid out, or one
 ///   whose chapter could not be read.
 library;
@@ -23,6 +25,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show OrdinalSortKey;
 
+import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/services/library_reading_store.dart'
     show LibraryDoublePageMode;
 
@@ -341,22 +344,61 @@ class LibraryBookSpreadView extends StatelessWidget {
   final LibraryReflowPaginator paginator;
   final LibraryReaderPalette palette;
 
+  /// What VoiceOver says of the spread before the text of its pages: "Page
+  /// N of M" or "Pages N and N+1 of M", numbered in the chapter like the
+  /// toolbar; "Page N" (each page) while the chapter is still being laid
+  /// out.
+  static String labelOf(
+    BuildContext context,
+    LibraryBookSpread spread,
+    LibraryReflowPaginator paginator,
+  ) {
+    final total = paginator.pageCountOf(spread.chapter);
+    final first = spread.first.indexInChapter + 1;
+    final second = spread.isPair ? spread.last.indexInChapter + 1 : null;
+    if (total == null) {
+      return <String>[
+        for (final page in <int?>[first, second])
+          if (page != null)
+            LibraryReaderLocale.format(context, 'pageNumber', <String, Object?>{
+              'page': page,
+            }),
+      ].join('\n');
+    }
+    if (second == null) {
+      return LibraryReaderLocale.format(
+        context,
+        'pageOfTotal',
+        <String, Object?>{'page': first, 'total': total},
+      );
+    }
+    return LibraryReaderLocale.format(
+      context,
+      'pagesOfTotal',
+      <String, Object?>{'first': first, 'second': second, 'total': total},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = spread.pages;
-    return LibraryPageSpreadLayout(
-      // Pages named by their place in the reading order of the spread.
-      face: spread.faceWith(pages.indexOf),
-      pageBuilder: (context, index, alignment) => LibraryBookPageCanvas(
-        key: ValueKey<(int, int)>((
-          pages[index].chapter,
-          pages[index].indexInChapter,
-        )),
-        page: pages[index],
-        paginator: paginator,
-        palette: palette,
-        alignment: alignment,
-        readingOrder: index,
+    return Semantics(
+      container: true,
+      label: labelOf(context, spread, paginator),
+      child: LibraryPageSpreadLayout(
+        // Pages named by their place in the reading order of the spread.
+        face: spread.faceWith(pages.indexOf),
+        pageBuilder: (context, index, alignment) => LibraryBookPageCanvas(
+          key: ValueKey<(int, int)>((
+            pages[index].chapter,
+            pages[index].indexInChapter,
+          )),
+          page: pages[index],
+          paginator: paginator,
+          palette: palette,
+          alignment: alignment,
+          readingOrder: index,
+        ),
       ),
     );
   }
@@ -368,7 +410,10 @@ class LibraryBookSpreadView extends StatelessWidget {
 ///
 /// The picture is painted once (again after a palette change, or once the
 /// page's images are decoded by [LibraryReflowPaginator.prepare]) and
-/// disposed with the widget.
+/// disposed with the widget. Painted again after the paginator released its
+/// decoded images (memory pressure), the page prepares them first. Its text
+/// is read again once the images are prepared (an image found undecodable
+/// reads "Image unavailable").
 class LibraryBookPageCanvas extends StatefulWidget {
   const LibraryBookPageCanvas({
     super.key,
@@ -399,10 +444,21 @@ class LibraryBookPageCanvasState extends State<LibraryBookPageCanvas> {
   String? _text;
   int _prepare = 0;
 
+  /// [LibraryReflowPaginator.imagesGeneration] when the images were last
+  /// prepared.
+  int _imagesGeneration = -1;
+
   @override
   void initState() {
     super.initState();
     _prepareImages();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // "Image unavailable" in the language of the app.
+    _text = null;
   }
 
   @override
@@ -432,33 +488,44 @@ class LibraryBookPageCanvasState extends State<LibraryBookPageCanvas> {
 
   void _prepareImages() {
     final page = widget.page;
+    _imagesGeneration = widget.paginator.imagesGeneration;
     final hasImages = page.slices.any(
       (slice) =>
           slice.kind == LibraryReflowSliceKind.image && !slice.imageFailed,
     );
     if (!hasImages) return;
     final request = ++_prepare;
+    void prepared() {
+      if (!mounted || request != _prepare) return;
+      // Painted again with its decoded images; its text says which images
+      // could not be decoded.
+      setState(() {
+        _drop();
+        _text = null;
+      });
+    }
+
     widget.paginator
         .prepare(page)
-        .then(
-          (_) {
-            if (!mounted || request != _prepare) return;
-            // Painted again with its decoded images.
-            setState(_drop);
-          },
-          onError: (Object _) {
-            if (!mounted || request != _prepare) return;
-            setState(_drop);
-          },
-        );
+        .then((_) => prepared(), onError: (Object _) => prepared());
   }
 
   @override
   Widget build(BuildContext context) {
     final paginator = widget.paginator;
     final page = widget.page;
+    if (_picture == null &&
+        _imagesGeneration != paginator.imagesGeneration &&
+        paginator.needsPrepare(page)) {
+      // The decoded images were released (memory pressure) since they were
+      // prepared: decoded again, then painted again.
+      _prepareImages();
+    }
     final picture = _picture ??= paginator.paint(page);
-    final text = _text ??= paginator.textOf(page);
+    final text = _text ??= paginator.textOf(
+      page,
+      imageUnavailable: LibraryReaderLocale.text(context, 'imageUnavailable'),
+    );
     final order = widget.readingOrder;
     return Semantics(
       container: true,

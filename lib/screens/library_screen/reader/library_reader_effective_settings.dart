@@ -86,7 +86,6 @@ class LibraryReaderEffectiveSettings {
     LibraryReaderSessionOverrides? session,
   }) {
     final mangaMode = book?.mangaMode ?? global.mangaMode;
-    final automatic = mangaMode == LibraryMangaMode.auto;
     final mode =
         session?.mode ??
         switch (mangaMode) {
@@ -100,7 +99,7 @@ class LibraryReaderEffectiveSettings {
     final direction =
         session?.pageDirection ??
         book?.pageDirection ??
-        (automatic ? _hintedDirection(hint) : null) ??
+        hintedDirection(global: global, book: book, hint: hint) ??
         global.pageDirection;
     return LibraryReaderEffectiveSettings._(
       mode: mode,
@@ -113,6 +112,21 @@ class LibraryReaderEffectiveSettings {
       toolbarMode: global.toolbarMode,
       bookmarkRibbon: global.bookmarkRibbon,
     );
+  }
+
+  /// The direction the content's [hint] gives a title that has no
+  /// direction of its own (it comes before the [global] one): only in
+  /// automatic mode (the mode chosen for the title in [book], else the
+  /// global one) and for a hint that names a direction. Null when the
+  /// global direction applies.
+  static LibraryPageDirection? hintedDirection({
+    required LibraryReaderSettings global,
+    LibraryReaderBookSettings? book,
+    LibraryPageLayoutHint hint = LibraryPageLayoutHint.unknown,
+  }) {
+    final mangaMode = book?.mangaMode ?? global.mangaMode;
+    if (mangaMode != LibraryMangaMode.auto) return null;
+    return _hintedDirection(hint);
   }
 
   static LibraryPageDirection? _hintedDirection(LibraryPageLayoutHint hint) =>

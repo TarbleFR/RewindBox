@@ -642,3 +642,54 @@ conservées sauf mention ci-dessous.
   pose aussi la barre de message dans la route en dessous, masquée par le lecteur.
 - Tests : les nouveaux fichiers importent les aides d'autres tests avec `show` (`expectOneBack`, `usePhone`,
   `PopRecorder`, `FakeOpener`, `rendered`, `mockPathProvider`) plutôt que de les dupliquer.
+
+### 7.10 Phase 8 — mouvement réduit, mémoire, VoiceOver, trace (et suite de la phase 7)
+
+- « Appliquer à tous les livres » (`applyNavigationToAllBooks`, confirmation `navigationAppliedToAllBooks`, douze
+  langues) rétablit un chemin vers les réglages généraux de navigation, que l'écriture par livre de la phase 7 avait
+  fait disparaître (en 440, le sens et le mode de lecture s'écrivaient en global depuis le lecteur). La ligne n'est
+  proposée que si le livre a ses propres réglages ; elle copie ses valeurs dans les réglages généraux, puis ne garde
+  au livre que les champs pour lesquels un indice de contenu s'applique et diffère de son choix (l'indice l'emporte
+  sur le global : les effacer changerait ce que le livre affiche) ; les autres livres gardent leurs réglages. La
+  confirmation s'affiche dans la feuille, en région annoncée à VoiceOver (une barre de message serait cachée par la
+  feuille) ; ordre : « Réglages propres à ce livre », « Appliquer à tous les livres », « Revenir aux réglages
+  généraux ».
+- Mouvement réduit : `libraryReduceMotion(context)` (`lib/widgets/library_reduce_motion.dart`) vaut
+  `disableAnimations` ou `accessibilityFeatures.reduceMotion`, seul signal d'iOS ; les trois lecteurs l'observent
+  (`didChangeAccessibilityFeatures`). Au-delà du style de tour forcé à « aucun » : barres en fondu sur place (le bouton
+  Retour flottant cesse de recevoir les touchers dès qu'elles paraissent), feuilles et dialogue de lien sans
+  animation (`AnimationStyle.noAnimation`), défilement de focus immédiat, bande verticale et zoom par double toucher
+  immédiats, défilement continu EPUB/TXT par sauts, PDF en défilement sans durée. La couverture lit le drapeau au
+  moment où elle commencerait à bouger (aucun observateur par tuile) ; le volume n'a pas d'animation propre ;
+  `LibraryBookOpenTransition` est inchangée (elle lisait déjà le drapeau sans dépendre de MediaQuery et compte aussi
+  `accessibleNavigation`).
+- Pression mémoire : le lecteur de pages purge ses textures sauf la planche affichée (la couche du pli purge aussi) ;
+  pour le PDF, la vue des pages et la couche purgent déjà, et le cache de pdfrx en défilement (100 Mio par défaut) n'a
+  pas de purge publique : la méthode du lecteur n'écrit que la ligne de trace ; EPUB/TXT : textures, images décodées
+  (`LibraryReflowPaginator.releaseImages(keep:)`) et octets d'images (`LibraryReflowImageCache.releaseBytes()`,
+  proportions conservées) ; une page repeinte après une libération décode d'abord ses images.
+- VoiceOver : une page seule dit « Page N sur M » (pages et bande verticale ; avant : « Page N »), contrat de
+  `library_reader_page_spreads_test` remplacé ; une page en échec donne son numéro, puis l'erreur et « Réessayer » en
+  nœuds séparés ; un échec que la Bibliothèque ne sait pas nommer affiche et annonce `imageUnavailable` au lieu de
+  `errorGeneric` (texte visible changé) ; PDF : un rendu en échec est noté (`unavailablePages`) et lu « Page N sur M »
+  puis « Image indisponible » ; EPUB/TXT : « Page N sur M » ou « Pages N et N+1 sur M », numérotées dans le chapitre
+  (« Page N » pendant la mise en page) ; une image impossible à afficher en mode pages est lue « Image indisponible »
+  comme en défilement. Aucune clé ajoutée pour ces annonces.
+- Trace (`LibraryReaderTrace`, niveau info, jusque dans le fichier journal) : `textures` relevé aux changements de
+  page et après une pression mémoire, écrit seulement quand il change et jamais à 0/0 ; `curl:<shader|painter>` une
+  fois par ouverture, défilement compris ; `paginate:<chapitre>:<ms>` par `LibraryReflowPaginator.onPaginated`
+  (préchargements et remises en page compris) ; `memory_pressure`. Les tests lisent ces lignes par
+  `Logger.addLogListener`.
+- Visibilité : `LibraryPdfPagesViewState.textures` n'est plus réservé aux tests (la trace le lit) ; points de test
+  `LibraryBookReaderScreenState.reflowImages` et `unavailablePages`.
+
+### 7.11 Phase 9 — contrat et livraison
+
+`test/library_books_3d_contract_test.py` (7 tests), exécuté par le job `checks` juste après le contrat d'orientation :
+shader déclaré dans `pubspec.yaml` et chargé seulement par `LibraryPageCurlProgram` ; `pubspec.lock` identique à la
+source 446 (SHA-256 épinglé : aucune dépendance) ; `libraryReduceMotion`, `didChangeAccessibilityFeatures` et
+`didHaveMemoryPressure` dans les trois lecteurs, et plus aucun `MediaQuery.disableAnimationsOf` seul ; couverture et
+ouverture lisent le drapeau d'iOS ; clic du stick droit relié (Ajuster, PDF en défilement seulement) ; aucun texte
+littéral visible dans les fichiers des livres ; aucune mention du dossier `Library/Sources` ; `BUILD447_BOOKS_DELTA`
+déclare les entrées et les tests du chantier, sans entrée périmée. Les tests Dart restent pris par
+`flutter test test/library_*_test.dart`.

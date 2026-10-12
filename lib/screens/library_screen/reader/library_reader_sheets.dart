@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 
 import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 import 'library_reader_chrome.dart';
 import 'library_reader_gamepad.dart';
 import 'library_reader_palette.dart';
+
+/// How the readers' sheets and dialogs come and go: without animation when
+/// the system asks for reduced motion ([libraryReduceMotion]), else the
+/// Material default.
+AnimationStyle? libraryReaderSheetAnimation(BuildContext context) =>
+    libraryReduceMotion(context) ? AnimationStyle.noAnimation : null;
 
 // ---------------------------------------------------------------------------
 // Settings sheet
@@ -34,11 +41,16 @@ class LibraryReaderSectionHeader extends LibraryReaderSettingItem {
 }
 
 /// A sentence about the rows around it (what a choice implies, where it is
-/// kept).
+/// kept), or the [confirmation] of an action just done (announced by
+/// VoiceOver as it appears).
 class LibraryReaderSettingNote extends LibraryReaderSettingItem {
-  const LibraryReaderSettingNote(super.text);
+  const LibraryReaderSettingNote(super.text, {this.confirmation = false});
 
   String get text => label;
+
+  /// Shown by the sheet once a [LibraryReaderActionSetting] with a
+  /// confirmation was pressed.
+  final bool confirmation;
 
   @override
   bool get focusable => false;
@@ -50,10 +62,17 @@ class LibraryReaderActionSetting extends LibraryReaderSettingItem {
     required String label,
     required this.onPressed,
     this.icon,
+    this.confirmation,
   }) : super(label);
 
   final VoidCallback onPressed;
   final IconData? icon;
+
+  /// Said in the sheet once the action is done, at the end of the rows (the
+  /// row itself may be gone), until the action is offered again or the
+  /// sheet closes: a message at the bottom of the reader would be hidden by
+  /// the sheet.
+  final String? confirmation;
 }
 
 class LibraryReaderSliderSetting extends LibraryReaderSettingItem {
@@ -148,6 +167,7 @@ Future<void> showLibraryReaderSettingsSheet(
     context: context,
     useSafeArea: true,
     isScrollControlled: true,
+    sheetAnimationStyle: libraryReaderSheetAnimation(context),
     backgroundColor: Color.alphaBlend(
       palette.chromeBackground,
       palette.background,
@@ -190,6 +210,10 @@ class _LibraryReaderSettingsSheetState
   int _focus = 0;
   bool _gamepadUsed = false;
 
+  /// Confirmation of the action last pressed ([LibraryReaderActionSetting.
+  /// confirmation]), shown after the rows.
+  String? _confirmation;
+
   @override
   void initState() {
     super.initState();
@@ -215,6 +239,36 @@ class _LibraryReaderSettingsSheetState
     widget.store.updateSettings(settings);
     // The store clamps; show what it kept.
     setState(() => _settings = widget.store.settings);
+  }
+
+  /// Runs [action] (a tap, or A on the controller), then says its
+  /// confirmation, if it has one (an action without one ends the previous
+  /// confirmation).
+  void _press(LibraryReaderActionSetting action) {
+    action.onPressed();
+    if (mounted) setState(() => _confirmation = action.confirmation);
+  }
+
+  /// The rows of [widget.builder], then the confirmation of the action
+  /// last pressed, until that action is offered again.
+  List<LibraryReaderSettingItem> _items(BuildContext context) {
+    final items = widget.builder(context, _settings, _update);
+    final confirmation = _confirmation;
+    if (confirmation == null) return items;
+    final offered = items.any(
+      (item) =>
+          item is LibraryReaderActionSetting &&
+          item.confirmation == confirmation,
+    );
+    if (offered) {
+      // The action can be done again: its confirmation is past.
+      _confirmation = null;
+      return items;
+    }
+    return <LibraryReaderSettingItem>[
+      ...items,
+      LibraryReaderSettingNote(confirmation, confirmation: true),
+    ];
   }
 
   /// Indices of the rows the focus stops on.
@@ -248,7 +302,9 @@ class _LibraryReaderSettingsSheetState
     if (rowContext != null) {
       Scrollable.ensureVisible(
         rowContext,
-        duration: const Duration(milliseconds: 150),
+        duration: libraryReduceMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         alignmentPolicy: delta > 0
             ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
             : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
@@ -292,7 +348,7 @@ class _LibraryReaderSettingsSheetState
       case final LibraryReaderToggleSetting toggle:
         toggle.onChanged(!toggle.value);
       case final LibraryReaderActionSetting action:
-        action.onPressed();
+        _press(action);
       case LibraryReaderSectionHeader():
       case LibraryReaderSettingNote():
         break;
@@ -302,7 +358,7 @@ class _LibraryReaderSettingsSheetState
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette;
-    final items = widget.builder(context, _settings, _update);
+    final items = _items(context);
     while (_rowKeys.length < items.length) {
       _rowKeys.add(GlobalKey());
     }
@@ -347,7 +403,11 @@ class _LibraryReaderSettingsSheetState
                     ),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _SettingRow(item: items[index], palette: palette),
+                  child: _SettingRow(
+                    item: items[index],
+                    palette: palette,
+                    onAction: _press,
+                  ),
                 ),
               ),
             ),
@@ -359,10 +419,17 @@ class _LibraryReaderSettingsSheetState
 }
 
 class _SettingRow extends StatelessWidget {
-  const _SettingRow({required this.item, required this.palette});
+  const _SettingRow({
+    required this.item,
+    required this.palette,
+    required this.onAction,
+  });
 
   final LibraryReaderSettingItem item;
   final LibraryReaderPalette palette;
+
+  /// Runs an action row (and shows its confirmation).
+  final ValueChanged<LibraryReaderActionSetting> onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -452,6 +519,35 @@ class _SettingRow extends StatelessWidget {
             ),
           ),
         );
+      case final LibraryReaderSettingNote note when note.confirmation:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          // Read by VoiceOver as it appears.
+          child: Semantics(
+            liveRegion: true,
+            container: true,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 18,
+                  color: palette.accent,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    note.text,
+                    style: TextStyle(
+                      color: palette.chromeForeground,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       case final LibraryReaderSettingNote note:
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
@@ -469,7 +565,7 @@ class _SettingRow extends StatelessWidget {
               label: action.label,
               icon: action.icon,
               palette: palette,
-              onPressed: action.onPressed,
+              onPressed: () => onAction(action),
             ),
           ),
         );
@@ -562,6 +658,7 @@ Future<int?> showLibraryReaderListSheet(
     context: context,
     useSafeArea: true,
     isScrollControlled: true,
+    sheetAnimationStyle: libraryReaderSheetAnimation(context),
     backgroundColor: Color.alphaBlend(
       palette.chromeBackground,
       palette.background,
@@ -767,6 +864,7 @@ Future<bool> showLibraryReaderLinkDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
+    animationStyle: libraryReaderSheetAnimation(context),
     builder: (dialogContext) => Theme(
       data: palette.materialTheme(Theme.of(context)),
       child: LibraryReaderGamepadScope(
@@ -865,12 +963,21 @@ class LibraryReaderBookSettingsEditor {
   const LibraryReaderBookSettingsEditor({
     required this.store,
     required this.key,
+    this.hintedDirection,
   });
 
   final LibraryReadingStore store;
 
   /// Reading key of the title; empty when the reader saves nothing.
   final String key;
+
+  /// The direction the content gives this title when it has none of its
+  /// own, where the content decides before the general settings: the
+  /// layout hint of the page reader in automatic mode
+  /// (`LibraryReaderEffectiveSettings.hintedDirection`), the book's own
+  /// direction for EPUB and TXT (the general direction never applies to
+  /// them). Null when the general direction applies (PDF, no hint).
+  final LibraryPageDirection? hintedDirection;
 
   /// Whether the choices are kept for the title (it has a key).
   bool get perBook => key.isNotEmpty;
@@ -898,6 +1005,60 @@ class LibraryReaderBookSettingsEditor {
   /// The title follows the global settings again.
   void reset() {
     if (perBook) store.clearBookSettings(key);
+  }
+
+  /// The general settings with the title's choices [own] (each field it
+  /// sets).
+  static LibraryReaderSettings _applied(
+    LibraryReaderSettings global,
+    LibraryReaderBookSettings own,
+  ) => global.copyWith(
+    turnStyle: own.turnStyle,
+    doublePage: own.doublePage,
+    firstPageAlone: own.firstPageAlone,
+    pageDirection: own.pageDirection,
+    mangaMode: own.mangaMode,
+    pdfMode: own.pdfMode,
+    textLayout: own.textLayout,
+  );
+
+  /// What the title keeps of [own] once its choices are the general ones:
+  /// the fields its content would otherwise decide differently (the hint
+  /// comes before the general settings), that is a direction other than
+  /// [hintedDirection]; nothing else. Every other field resolves to the
+  /// general value just written, the same.
+  LibraryReaderBookSettings _kept(LibraryReaderBookSettings own) {
+    final direction = own.pageDirection;
+    final hinted = hintedDirection;
+    if (direction != null && hinted != null && direction != hinted) {
+      return LibraryReaderBookSettings(pageDirection: direction);
+    }
+    return const LibraryReaderBookSettings();
+  }
+
+  /// Whether "Apply to all books" changes anything: the title has choices
+  /// of its own that are not the general ones yet, or that it does not
+  /// need to keep.
+  bool get canApplyToAllBooks {
+    final own = settings;
+    if (own == null) return false;
+    final global = store.settings;
+    return _applied(global, own) != global || _kept(own) != own;
+  }
+
+  /// "Apply to all books": the title's navigation choices become the
+  /// general ones (each field it sets is written into the global settings)
+  /// and the title follows them again, except where its content would
+  /// then decide otherwise (a direction against [hintedDirection], kept
+  /// for the title): the title shows exactly what it showed. Titles with
+  /// choices of their own keep them. Nothing happens without choices of
+  /// its own.
+  void applyToAllBooks() {
+    final own = settings;
+    if (own == null) return;
+    store.updateSettings(_applied(store.settings, own));
+    // Empty settings clear the entry.
+    store.updateBookSettings(key, _kept(own));
   }
 }
 
@@ -1111,8 +1272,10 @@ abstract final class LibraryReaderCommonSettings {
     ...toggles(context, settings, update, tapZones: tapZones),
   ];
 
-  /// "Settings specific to this book" and "Revert to general settings",
-  /// while the title has navigation choices of its own.
+  /// "Settings specific to this book", "Apply to all books" (its
+  /// navigation choices become the general ones, confirmed in the sheet;
+  /// offered while it would change something) and "Revert to general
+  /// settings", while the title has navigation choices of its own.
   static List<LibraryReaderSettingItem> bookReset(
     BuildContext context,
     LibraryReaderBookSettingsEditor editor,
@@ -1121,6 +1284,13 @@ abstract final class LibraryReaderCommonSettings {
     String t(String key) => LibraryReaderLocale.text(context, key);
     return <LibraryReaderSettingItem>[
       LibraryReaderSettingNote(t('bookSettingsActive')),
+      if (editor.canApplyToAllBooks)
+        LibraryReaderActionSetting(
+          label: t('applyNavigationToAllBooks'),
+          icon: Icons.library_books_rounded,
+          onPressed: editor.applyToAllBooks,
+          confirmation: t('navigationAppliedToAllBooks'),
+        ),
       LibraryReaderActionSetting(
         label: t('resetBookSettings'),
         icon: Icons.settings_backup_restore_rounded,

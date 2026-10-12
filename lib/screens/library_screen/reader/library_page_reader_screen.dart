@@ -13,6 +13,7 @@ import 'package:neostation/services/library_http.dart' show LibraryCancelToken;
 import 'package:neostation/services/library_manga_models.dart';
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 import 'library_page_curl.dart';
 import 'library_page_reader_content.dart';
@@ -22,12 +23,14 @@ import 'library_page_spreads.dart';
 import 'library_page_textures.dart';
 import 'library_reader_bookmarks.dart';
 import 'library_reader_chrome.dart';
+import 'library_reader_effective_settings.dart';
 import 'library_reader_errors.dart';
 import 'library_reader_gamepad.dart';
 import 'library_reader_palette.dart';
 import 'library_reader_sheets.dart';
 import 'library_reader_system.dart';
 import 'library_reader_toolbar.dart';
+import 'library_reader_trace.dart';
 
 /// Comic / manga reader for online chapters and CBZ books.
 ///
@@ -55,6 +58,12 @@ import 'library_reader_toolbar.dart';
 /// the progress with the time left, and Library (the reader's close path).
 /// Hidden after 4 s, or always shown ([LibraryReaderToolbarMode.always]:
 /// the pages are then laid out between the bars).
+///
+/// Accessibility and memory (§ 3.12, phase 8): Reduce Motion (also iOS's,
+/// followed live) turns, scrolls and zooms without animation; VoiceOver
+/// reads "Page N of M" or "Pages N and N+1 of M"; a memory pressure keeps
+/// only the textures of the spread on screen; the trace `library.reader.*`
+/// reports the curl, the textures and the pressure.
 class LibraryPageReaderScreen extends StatefulWidget {
   const LibraryPageReaderScreen({
     super.key,
@@ -105,6 +114,9 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   int _paceGeneration = -1;
   int _pacePage = -1;
   int _paceLastShown = -1;
+
+  /// Trace `library.reader.*` of this opening.
+  final LibraryReaderTrace _trace = LibraryReaderTrace();
 
   // Paged mode.
   PageController? _pageController;
@@ -258,6 +270,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     _zoom.addListener(_onZoom);
     _verticalZoom.addListener(_onVerticalZoom);
     WidgetsBinding.instance.addObserver(this);
+    _trace.traceCurl();
     unawaited(_start());
   }
 
@@ -284,8 +297,39 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     // VoiceOver: the bars stay until the user hides them.
     _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
     // Reduce Motion: pages turn without animation (no curl, no slide).
-    _controller.reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _controller.reduceMotion = libraryReduceMotion(context);
   }
+
+  /// iOS's Reduce Motion changes no MediaQuery value: read again when it is
+  /// turned on or off (the controller then rebuilds the reader).
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (mounted) _controller.reduceMotion = libraryReduceMotion(context);
+  }
+
+  /// Keeps only the textures of the spread on screen (the page curl purges
+  /// its cache too); Flutter empties its image cache itself, and the pages
+  /// on screen keep their images.
+  @override
+  void didHaveMemoryPressure() {
+    final source = _controller.source;
+    final shown = _vertical ? const <int>[] : _shownPages();
+    _textures.purge(
+      keep: <Object>{
+        for (final key in _textures.retained)
+          if (key is LibraryPageTextureKey &&
+              key.source == source?.key &&
+              shown.contains(key.page))
+            key,
+      },
+    );
+    _trace.memoryPressure();
+    // Once every observer (the page curl) has purged.
+    scheduleMicrotask(() => _trace.textures(_textures));
+  }
+
+  /// Animations follow Reduce Motion (the controller holds it).
+  bool get _reduceMotion => _controller.reduceMotion;
 
   @override
   void dispose() {
@@ -300,6 +344,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     // and released its retained textures).
     _curl.dispose();
     _textures.dispose();
+    _trace.dispose();
     _pageController?.dispose();
     _scrollController?.dispose();
     _zoom.dispose();
@@ -355,6 +400,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   void _onController() {
     if (!mounted) return;
     _followPace();
+    _trace.textures(_textures);
     setState(() {});
     if (_controller.status == LibraryPageReaderStatus.ready) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _prefetchAround());
@@ -463,11 +509,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         // Show the end card below the last page.
         final scroll = _scrollController;
         if (scroll != null && scroll.hasClients) {
-          scroll.animateTo(
-            scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-          );
+          _scrollTo(scroll, scroll.position.maxScrollExtent);
         }
         return;
       }
@@ -542,11 +584,8 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     }
     if (_vertical) {
       if (_controller.page == 0) {
-        _scrollController?.animateTo(
-          0,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-        );
+        final scroll = _scrollController;
+        if (scroll != null && scroll.hasClients) _scrollTo(scroll, 0);
         return;
       }
       _jumpToPage(_controller.page - 1, animate: true);
@@ -568,7 +607,24 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     return scroll.position.extentAfter < 1;
   }
 
+  /// Scrolls the vertical strip to [offset] (at once with Reduce Motion).
+  void _scrollTo(ScrollController scroll, double offset) {
+    if (_reduceMotion) {
+      scroll.jumpTo(offset);
+      return;
+    }
+    unawaited(
+      scroll.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      ),
+    );
+  }
+
   void _jumpToPage(int page, {bool animate = false}) {
+    // Reduce Motion: every move is immediate.
+    final animated = animate && !_reduceMotion;
     final count = _controller.pageCount;
     if (count == 0) return;
     final target = page.clamp(0, count - 1);
@@ -578,7 +634,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
       final offset = _offsetOfItem(
         _leading + target,
       ).clamp(0.0, scroll.position.maxScrollExtent);
-      if (animate) {
+      if (animated) {
         _trackTurn(
           target,
           scroll.animateTo(
@@ -595,7 +651,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final pages = _pageController;
     if (pages == null || !pages.hasClients) return;
     final item = _itemOfPage(target);
-    if (animate) {
+    if (animated) {
       _trackTurn(
         target,
         pages.animateToPage(
@@ -615,6 +671,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final position = scroll.position;
     final target = (position.pixels + position.viewportDimension * viewports)
         .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (_reduceMotion) {
+      scroll.jumpTo(target);
+      return;
+    }
     scroll.animateTo(
       target,
       duration: const Duration(milliseconds: 200),
@@ -764,6 +824,12 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
 
   void _animateZoom(TransformationController transform, Matrix4 target) {
     _zoomAnimation?.dispose();
+    _zoomAnimation = null;
+    if (_reduceMotion) {
+      // Reduce Motion: zoomed in or out at once.
+      transform.value = target;
+      return;
+    }
     final animation = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -1275,9 +1341,17 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         palette: palette,
         builder: (context, settings, update) {
           String t(String key) => LibraryReaderLocale.text(context, key);
+          final key = widget.content.progressKey;
           final editor = LibraryReaderBookSettingsEditor(
             store: _store,
-            key: widget.content.progressKey,
+            key: key,
+            // The content's hint decides the direction of a title without
+            // its own in automatic mode ("Apply to all books" keeps it).
+            hintedDirection: LibraryReaderEffectiveSettings.hintedDirection(
+              global: settings,
+              book: _store.bookSettingsFor(key),
+              hint: widget.content.layoutHint,
+            ),
           );
           final book = editor.settings;
           final turnStyle = book?.turnStyle ?? settings.turnStyle;
@@ -1403,6 +1477,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
           LibraryBookmarkRibbon(
             visible: bookmarked && _settings.bookmarkRibbon,
             palette: palette,
+            animate: !_reduceMotion,
           ),
         ],
       ),
@@ -1747,6 +1822,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         key: ValueKey<String>('${source.key}#$page'),
         provider: _provider(source, page),
         pageNumber: page + 1,
+        pageCount: pageCount,
         fit: BoxFit.contain,
         alignment: alignment,
         labelled: !pair,
@@ -1817,6 +1893,7 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
             key: ValueKey<String>('${source.key}#$page'),
             provider: _provider(source, page),
             pageNumber: page + 1,
+            pageCount: count,
             fit: BoxFit.fill,
             palette: palette,
             onMeasured: (aspect) => _onMeasured(page, aspect),
@@ -1979,6 +2056,11 @@ class _ChapterCard extends StatelessWidget {
 
 /// One page image with its own loading and error states (retry) and the
 /// measured aspect ratio reported to the reader.
+///
+/// VoiceOver reads "Page N of M" ("Page N" without [pageCount]); a page
+/// that failed reads its number, then the error and Retry. A failure the
+/// Library cannot name (the image data cannot be decoded) says "Image
+/// unavailable" rather than a generic reading error.
 class LibraryReaderPageImage extends StatefulWidget {
   const LibraryReaderPageImage({
     super.key,
@@ -1986,6 +2068,7 @@ class LibraryReaderPageImage extends StatefulWidget {
     required this.pageNumber,
     required this.fit,
     required this.palette,
+    this.pageCount,
     this.alignment = Alignment.center,
     this.labelled = true,
     this.onMeasured,
@@ -1995,14 +2078,17 @@ class LibraryReaderPageImage extends StatefulWidget {
 
   /// One-based page number (accessibility label).
   final int pageNumber;
+
+  /// Pages of the chapter or book (the label's total), when known.
+  final int? pageCount;
   final BoxFit fit;
   final LibraryReaderPalette palette;
 
   /// Where the image sits in its box (a spread's pages lean on the spine).
   final Alignment alignment;
 
-  /// Whether the page announces itself ("Page N"). False inside a spread
-  /// that announces both its pages; the error view keeps its retry.
+  /// Whether the page announces itself ("Page N of M"). False inside a
+  /// spread that announces both its pages; the error view keeps its retry.
   final bool labelled;
 
   /// Height / width of the decoded image.
@@ -2080,11 +2166,15 @@ class _LibraryReaderPageImageState extends State<LibraryReaderPageImage> {
 
   @override
   Widget build(BuildContext context) {
-    final label = LibraryReaderLocale.format(
-      context,
-      'pageNumber',
-      <String, Object?>{'page': widget.pageNumber},
-    );
+    final total = widget.pageCount;
+    final label = total != null && total > 0
+        ? LibraryReaderLocale.format(context, 'pageOfTotal', <String, Object?>{
+            'page': widget.pageNumber,
+            'total': total,
+          })
+        : LibraryReaderLocale.format(context, 'pageNumber', <String, Object?>{
+            'page': widget.pageNumber,
+          });
     final info = _info;
     if (info != null) {
       final image = RawImage(
@@ -2099,12 +2189,21 @@ class _LibraryReaderPageImageState extends State<LibraryReaderPageImage> {
     }
     final error = _error;
     if (error != null) {
-      return LibraryReaderErrorView(
-        error: LibraryReaderErrorInfo.from(error),
+      var info = LibraryReaderErrorInfo.from(error);
+      if (info.messageKey == 'errorGeneric') {
+        // Nothing typed went wrong (network, archive, worker): the image
+        // data could not be decoded.
+        info = LibraryReaderErrorInfo('imageUnavailable', detail: info.detail);
+      }
+      final view = LibraryReaderErrorView(
+        error: info,
         palette: widget.palette,
         compact: true,
         onRetry: _retry,
       );
+      if (!widget.labelled) return view;
+      // The page's number, then the error and Retry.
+      return Semantics(container: true, label: label, child: view);
     }
     final placeholder = Center(
       child: Text(

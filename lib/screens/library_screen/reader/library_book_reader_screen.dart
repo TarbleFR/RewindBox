@@ -13,6 +13,7 @@ import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/services/library_http.dart' show LibraryCancelToken;
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 import 'library_book_pages_view.dart';
 import 'library_page_curl.dart';
@@ -27,6 +28,7 @@ import 'library_reader_palette.dart';
 import 'library_reader_sheets.dart';
 import 'library_reader_system.dart';
 import 'library_reader_toolbar.dart';
+import 'library_reader_trace.dart';
 import 'library_reflow_paginator.dart';
 import 'library_reflow_source.dart';
 import 'library_reflow_view.dart';
@@ -101,6 +103,13 @@ class _BookPagesGeometry {
 /// it), the contents, the progress with the time left (pages layout), the
 /// layout switch and Library (the reader's close path). Always shown, the
 /// toolbar keeps the last lines of the text free above it.
+///
+/// Accessibility and memory (§ 3.12, phase 8): Reduce Motion (also iOS's,
+/// followed live) turns the pages without animation and jumps the
+/// continuous scroll; a memory pressure keeps only the spread on screen
+/// (its textures and decoded images) and the trace `library.reader.*`
+/// reports the curl, the textures, each chapter's pagination and the
+/// pressure.
 class LibraryBookReaderScreen extends StatefulWidget {
   const LibraryBookReaderScreen({
     super.key,
@@ -163,6 +172,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// Reading pace of the pages layout (time left in the toolbar).
   final LibraryReadingPace _pace = LibraryReadingPace();
+
+  /// Trace `library.reader.*` of this opening.
+  final LibraryReaderTrace _trace = LibraryReaderTrace();
 
   /// Layout chosen for this session by [setTextLayout] (before the book's
   /// setting, which it also writes).
@@ -354,6 +366,10 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   @visibleForTesting
   LibraryPageTextureCache? get pageTextures => _textures;
 
+  /// The book's image bytes and proportions (both layouts).
+  @visibleForTesting
+  LibraryReflowImageCache get reflowImages => _images;
+
   /// Whether the spread or line shown carries a bookmark (the ribbon).
   @visibleForTesting
   bool get bookmarkShown => _bookmarkShown.value;
@@ -428,6 +444,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _images = LibraryReflowImageCache(_loadResource);
     _store.addListener(_onStore);
     WidgetsBinding.instance.addObserver(this);
+    _trace.traceCurl();
     unawaited(_open());
   }
 
@@ -436,6 +453,39 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     super.didChangeDependencies();
     // VoiceOver: the bars stay until the user hides them.
     _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
+  }
+
+  /// iOS's Reduce Motion changes no MediaQuery value: read again
+  /// ([libraryReduceMotion]) when it is turned on or off.
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (mounted) setState(() {});
+  }
+
+  /// Keeps only the spread on screen: its textures (the page curl purges
+  /// its cache too) and the decoded images of its pages; the book's image
+  /// bytes are read again when needed.
+  @override
+  void didHaveMemoryPressure() {
+    final spread = _activeLayout == LibraryTextLayout.pages ? _spread : null;
+    final shown = <int>{
+      if (spread != null)
+        for (final page in spread.pages) _pageIdOf(page),
+    };
+    final textures = _textures;
+    textures?.purge(
+      keep: <Object>{
+        for (final key in textures.retained)
+          if (key is LibraryPageTextureKey && shown.contains(key.page)) key,
+      },
+    );
+    _paginator?.releaseImages(
+      keep: spread?.pages ?? const <LibraryReflowPageSpec>[],
+    );
+    _images.releaseBytes();
+    _trace.memoryPressure();
+    // Once every observer (the page curl) has purged.
+    scheduleMicrotask(() => _trace.textures(_textures));
   }
 
   @override
@@ -456,6 +506,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _textures?.dispose();
     _paginator?.dispose();
     _images.clear();
+    _trace.dispose();
     unawaited(_system.stop());
     unawaited(_store.flush().catchError((Object _) {}));
     final source = _source;
@@ -1264,6 +1315,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _updateBookmarkShown();
     _fetchNeighbours();
     _watchChapter(paginator, spread.chapter);
+    _trace.textures(_textures);
   }
 
   /// Lays out the neighbours of the spread shown (at once when their pages
@@ -1489,7 +1541,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         ? LibraryPageTurnDirection.forward
         : LibraryPageTurnDirection.backward;
     final style = _effective(
-      reduceMotion: MediaQuery.disableAnimationsOf(context),
+      reduceMotion: libraryReduceMotion(context),
     ).turnStyle;
     if (style == LibraryPageTurnStyle.none) {
       _arriveAt(index);
@@ -1707,6 +1759,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         locale: locale,
         images: _images,
         devicePixelRatio: geometry.devicePixelRatio,
+        onPaginated: _trace.paginated,
       );
       _pagesLayout++;
       _pagesGeometry = geometry;
@@ -2298,6 +2351,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       position.minScrollExtent,
       position.maxScrollExtent,
     );
+    if (libraryReduceMotion(context)) {
+      // Reduce Motion: the text moves at once.
+      scroll.jumpTo(target);
+      return;
+    }
     scroll.animateTo(
       target,
       duration: const Duration(milliseconds: 220),
@@ -2427,6 +2485,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
           final editor = LibraryReaderBookSettingsEditor(
             store: _store,
             key: widget.progressKey,
+            // Without a direction of its own the book has its own
+            // (page-progression-direction), never the general one.
+            hintedDirection: widget.rightToLeft
+                ? LibraryPageDirection.rtl
+                : LibraryPageDirection.ltr,
           );
           final layout = _desiredLayout();
           final pages = layout == LibraryTextLayout.pages;
@@ -2629,6 +2692,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
                         LibraryBookmarkRibbon(
                           visible: bookmarked && _settings.bookmarkRibbon,
                           palette: palette,
+                          animate: !libraryReduceMotion(context),
                         ),
                       ],
                     ),
@@ -2869,7 +2933,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       builder: (context, constraints) {
         final body = constraints.biggest;
         final effective = _effective(
-          reduceMotion: MediaQuery.disableAnimationsOf(context),
+          reduceMotion: libraryReduceMotion(context),
         );
         final geometry = _syncPages(context, body, palette, effective);
         final error = _pagesError;

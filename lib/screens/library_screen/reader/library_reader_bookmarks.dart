@@ -298,6 +298,7 @@ Future<void> showLibraryReaderBookmarksSheet(
     context: context,
     useSafeArea: true,
     isScrollControlled: true,
+    sheetAnimationStyle: libraryReaderSheetAnimation(context),
     backgroundColor: Color.alphaBlend(
       palette.chromeBackground,
       palette.background,
@@ -725,7 +726,7 @@ class LibraryBookmarkRibbon extends StatelessWidget {
   final LibraryReaderPalette palette;
 
   /// Whether it slides in and out (false: it appears and disappears at
-  /// once).
+  /// once). The readers pass false with Reduce Motion (`libraryReduceMotion`).
   final bool animate;
 
   /// Width of the ribbon.

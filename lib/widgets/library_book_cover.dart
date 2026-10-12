@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:neostation/services/library_local_models.dart'
     show LibraryBookFormat;
 import 'package:neostation/widgets/library_book_volume.dart';
+import 'package:neostation/widgets/library_reduce_motion.dart';
 
 export 'package:neostation/widgets/library_book_volume.dart'
     show LibraryBookThickness;
@@ -215,11 +216,15 @@ class _LibraryBookCoverState extends State<LibraryBookCover>
   }
 
   void _updateTarget() {
-    // Accessibility keeps the cover still. Hidden routes finish immediately
-    // and never keep a decorative ticker alive in the background.
-    if (_reduceMotion || !_tickerEnabled) {
+    // Accessibility keeps the cover still: Reduce Motion (iOS's setting,
+    // which changes no MediaQuery value, is read here, when the cover would
+    // move: a grid needs no observer per cover) or VoiceOver. Hidden routes
+    // finish immediately and never keep a decorative ticker alive in the
+    // background.
+    final still = _reduceMotion || libraryReduceMotion(context);
+    if (still || !_tickerEnabled) {
       _controller.stop();
-      _controller.value = _reduceMotion ? 0 : (_open ? 1 : 0);
+      _controller.value = still ? 0 : (_open ? 1 : 0);
       return;
     }
     if (_open) {

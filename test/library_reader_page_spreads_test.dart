@@ -596,10 +596,24 @@ void main() {
         return text;
       }
 
+      // An image node with exactly this label (the page slider says "Page N
+      // of M" too, not as an image).
+      SemanticsFinder image(String label) => find.semantics.byPredicate(
+        (node) =>
+            node.label == label &&
+            node.getSemanticsData().flagsCollection.isImage,
+      );
+      // Contract changed in phase 8 (docs/library-books-3d-plan.md § 4 row
+      // 8): a page alone said "Page N"; it now says "Page N of M", as an
+      // image, like the PDF and EPUB pages.
       expect(
         find.semantics.byLabel(
           format('pageNumber', <String, Object>{'page': 1}),
         ),
+        findsNothing,
+      );
+      expect(
+        image(format('pageOfTotal', <String, Object>{'page': 1, 'total': 5})),
         findsOne,
       );
       state.gamepadBindings.right!();
@@ -623,6 +637,12 @@ void main() {
         expect(
           find.semantics.byLabel(
             format('pageNumber', <String, Object>{'page': page}),
+          ),
+          findsNothing,
+        );
+        expect(
+          image(
+            format('pageOfTotal', <String, Object>{'page': page, 'total': 5}),
           ),
           findsNothing,
         );
