@@ -46,6 +46,7 @@ import 'package:path/path.dart' as p;
 
 import '../../l10n/storage_locale.dart';
 import '../game_launch_manager.dart';
+import '../libretro_3ds_system_data_service.dart';
 import 'storage_categorizer.dart';
 import 'storage_deletion_manager.dart' show StorageRefusalReason;
 import 'storage_orphan_detector.dart';
@@ -692,8 +693,10 @@ class StorageCleanupPlanner {
   /// the marker belongs to an interrupted pass, recovered from it (and from
   /// its staging folder) by the 3DS page: that folder and every 3DS staging
   /// folder are then never proposed.
-  static const String threeDsPassLogName = '.neostation-pass.jsonl';
-  static const String threeDsCompleteMarkerName = '.neostation-complete.json';
+  static const String threeDsPassLogName =
+      Libretro3dsSystemDataService.passLogName;
+  static const String threeDsCompleteMarkerName =
+      Libretro3dsSystemDataService.completeMarkerName;
 
   static const String _threeDsStagingRuleId = 'INV-14.3dsStaging';
 
