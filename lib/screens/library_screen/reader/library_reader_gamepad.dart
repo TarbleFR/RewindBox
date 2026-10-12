@@ -18,6 +18,7 @@ class LibraryReaderGamepadBindings {
     this.x,
     this.y,
     this.start,
+    this.rightStickClick,
   });
 
   final VoidCallback? up;
@@ -37,6 +38,10 @@ class LibraryReaderGamepadBindings {
 
   /// Start / Menu.
   final VoidCallback? start;
+
+  /// Right stick click (R3): "Fit" of the PDF scroll mode
+  /// (docs/library-books-3d-plan.md § 3.10).
+  final VoidCallback? rightStickClick;
 }
 
 /// Owns a modal [GamepadNavigationManager] layer while mounted, so the
@@ -83,6 +88,7 @@ class _LibraryReaderGamepadScopeState extends State<LibraryReaderGamepadScope> {
       onXButton: () => b().x?.call(),
       onFavorite: () => b().y?.call(),
       onSettings: () => b().start?.call(),
+      onRightStickClick: () => b().rightStickClick?.call(),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;

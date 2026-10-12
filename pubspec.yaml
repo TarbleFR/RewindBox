@@ -129,3 +129,4 @@ flutter:
     - assets/shaders/gif_player.frag
     - assets/shaders/music_visualizer.frag
     - assets/shaders/music_card_background.frag
+    - assets/shaders/page_curl.frag
