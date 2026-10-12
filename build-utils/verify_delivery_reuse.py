@@ -1088,6 +1088,15 @@ BUILD447_3DS_DELTA = {
     'test/libretro_locale_test.dart',
 }
 DELTA |= BUILD447_3DS_DELTA
+# Build 447 chantier 3, books and mangas in 3D (12 October 2026,
+# docs/library-books-3d-plan.md): every created or modified input, file by
+# file, added as each phase lands (reader catalog first).
+BUILD447_BOOKS_DELTA = {
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/library_reader_locale.dart',
+    'test/library_reader_locale_test.dart',
+}
+DELTA |= BUILD447_BOOKS_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

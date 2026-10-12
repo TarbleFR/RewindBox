@@ -21,6 +21,10 @@ void main() {
     // Percentages written like English in these languages.
     'pt:percentRead', 'it:percentRead', 'id:percentRead', 'ja:percentRead',
     'ko:percentRead', 'zh:percentRead', 'zh_Hant:percentRead',
+    // Reader settings: "Navigation" and "Pages" are the maintainer's French
+    // words; "Text" and "Navigation" are the usual German words.
+    'fr:sectionNavigation', 'fr:textLayoutPages',
+    'de:sectionText', 'de:sectionNavigation',
   };
 
   test('the reader catalog covers exactly the twelve NeoStation languages', () {
