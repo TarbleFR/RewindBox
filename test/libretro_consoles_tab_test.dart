@@ -361,6 +361,35 @@ void main() {
     expect(find.text(c(ConsoleManagerLocale.restoreDone)), findsOneWidget);
   });
 
+  testWidgets('Restore defaults keeps a console the tab added once it holds games', (tester) async {
+    // Added from the tab without games, then a game imported for it: it is
+    // a console with games now, shown, never taken out of the main menu.
+    await pumpTab(tester);
+    await tester.tap(visible('gc'));
+    await settle(tester);
+    expect(menu.pinned, ['gc']);
+    await db.insert('user_roms', {
+      'filename': 'Game.iso',
+      'rom_path': '/library/gc/Game.iso',
+      'app_system_id': 'gc',
+      'play_time': 42,
+    });
+    await provider.refreshDetectedSystems();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('consoles-restore-defaults')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, c(ConsoleManagerLocale.restoreDefaults)).last);
+    await settle(tester);
+    await tester.pumpAndSettle();
+
+    expect(menu.pinned, isEmpty);
+    expect(provider.detectedSystems.map((s) => s.folderName), contains('gc'));
+    expect(switchOf(tester, visible('gc')).value, isTrue);
+    final rows = await db.query('user_roms', where: 'app_system_id = ?', whereArgs: ['gc']);
+    expect(rows.single['play_time'], 42);
+  });
+
   testWidgets('Skins opens the skin manager of the console', (tester) async {
     await pumpTab(tester);
     await tester.tap(find.byKey(const ValueKey('libretro-console-skins-gba')));

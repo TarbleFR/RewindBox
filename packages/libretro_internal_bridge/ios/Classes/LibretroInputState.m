@@ -42,7 +42,6 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
 @implementation LibretroInputState {
   // Shared with the emulation thread (under _lock).
   os_unfair_lock _lock;
-  LibretroCoreInput _touch;
   int16_t _pointerX;
   int16_t _pointerY;
   BOOL _pointerPressed;
@@ -75,8 +74,8 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
 
 - (void)setTouchInput:(LibretroCoreInput)input {
   os_unfair_lock_lock(&_lock);
-  _touch = input;
   LibretroInputLatchSetButtons(&_latch, input.buttons);
+  LibretroInputLatchSetAnalog(&_latch, input.analog);
   os_unfair_lock_unlock(&_lock);
 }
 
@@ -208,16 +207,19 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
   if (snapshot == NULL) return;
   os_unfair_lock_lock(&_lock);
   uint16_t allowed = (uint16_t)~_blockedButtons;
-  // Touch presses as latched for this frame (never shorter than a read).
+  // Touch presses as latched for this frame (never shorter than a read),
+  // analog axes too: a C button tapped between two reads still arrives.
   uint16_t touchButtons = LibretroInputLatchButtons(&_latch, frame);
   bool pointerPressed = LibretroInputLatchPointer(&_latch, frame);
+  int16_t touchAnalog[2][2];
+  LibretroInputLatchAnalog(&_latch, frame, touchAnalog);
   for (unsigned port = 0; port < LIBRETRO_MAX_PORTS; port++) {
     uint16_t buttons = _padButtons[port] | (port == 0 ? touchButtons : 0);
     snapshot->buttons[port] = (uint16_t)(buttons & allowed);
     for (unsigned stick = 0; stick < 2; stick++) {
       for (unsigned axis = 0; axis < 2; axis++) {
         int16_t value = _padAnalog[port][stick][axis];
-        if (port == 0 && _touch.analog[stick][axis] != 0) value = _touch.analog[stick][axis];
+        if (port == 0 && touchAnalog[stick][axis] != 0) value = touchAnalog[stick][axis];
         snapshot->analog[port][stick][axis] = value;
       }
     }
@@ -240,7 +242,6 @@ static GCControllerButtonInput *ElementButton(GCExtendedGamepad *pad, NSString *
 
 - (void)reset {
   os_unfair_lock_lock(&_lock);
-  memset(&_touch, 0, sizeof(_touch));
   _pointerPressed = NO;
   LibretroInputLatchReset(&_latch);
   os_unfair_lock_unlock(&_lock);

@@ -258,27 +258,38 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
 
 /// Stick deflection mapped to its up / down / left / right inputs with
 /// their magnitudes (libretro y: positive downward). Returns YES when the
-/// stick drives at least one supported input (centred or not), so a held
-/// working stick stays highlighted.
-- (BOOL)applyStick:(LibretroLaidOutItem *)laidOut x:(double)x y:(double)y sink:(LibretroTouchSink)sink {
+/// stick drives at least one supported input (centred or not), so its knob
+/// follows the finger. `lit` says whether it may be highlighted now: an
+/// analog stick while held, a stick over digital targets only (a skin's
+/// thumbstick on a console without one drives the D-pad) while a direction
+/// really reaches the core, never a halo that sends nothing.
+- (BOOL)applyStick:(LibretroLaidOutItem *)laidOut
+                 x:(double)x
+                 y:(double)y
+              sink:(LibretroTouchSink)sink
+               lit:(BOOL *)lit {
+  if (lit != NULL) *lit = NO;
   double stickX = 0, stickY = 0;
   LibretroStickVector(laidOut.frame, x, y, &stickX, &stickY);
   NSArray<NSString *> *inputs = [self inputsForItem:laidOut.item];
   if (inputs.count < 4) return NO;
-  BOOL functional = NO;
+  BOOL functional = NO, analog = NO, sent = NO;
   for (NSUInteger index = 0; index < 4; index++) {
-    if ([self inputHasEffect:inputs[index]]) functional = YES;
+    if (![self inputHasEffect:inputs[index]]) continue;
+    functional = YES;
+    if ([_inputMap targetForInput:inputs[index]].kind == LibretroInputTargetAnalog) analog = YES;
   }
   if (stickY < 0) {
-    [self applyInput:inputs[0] magnitude:-stickY sink:sink];
+    if ([self applyInput:inputs[0] magnitude:-stickY sink:sink]) sent = YES;
   } else if (stickY > 0) {
-    [self applyInput:inputs[1] magnitude:stickY sink:sink];
+    if ([self applyInput:inputs[1] magnitude:stickY sink:sink]) sent = YES;
   }
   if (stickX < 0) {
-    [self applyInput:inputs[2] magnitude:-stickX sink:sink];
+    if ([self applyInput:inputs[2] magnitude:-stickX sink:sink]) sent = YES;
   } else if (stickX > 0) {
-    [self applyInput:inputs[3] magnitude:stickX sink:sink];
+    if ([self applyInput:inputs[3] magnitude:stickX sink:sink]) sent = YES;
   }
+  if (lit != NULL) *lit = analog ? functional : sent;
   return functional;
 }
 
@@ -341,10 +352,11 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
         {
           NSString *identifier = track.bound.item.identifier ?: @"";
           if (identifier.length > 0) [touched addObject:identifier];
-          BOOL functional = [self applyStick:track.bound x:x y:y sink:sink];
+          BOOL lit = NO;
+          BOOL functional = [self applyStick:track.bound x:x y:y sink:sink lit:&lit];
           if (identifier.length > 0) {
             if (functional) {
-              [pressed addObject:identifier];
+              if (lit) [pressed addObject:identifier];
               double stickX = 0, stickY = 0;
               LibretroStickVector(track.bound.frame, x, y, &stickX, &stickY);
               LibretroSize vector = {stickX, stickY};
@@ -548,6 +560,12 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   if (!self.controlsDisabled && !touchItemOnly && hits.count > 0) {
     LibretroLaidOutItem *first = hits.firstObject;
     if (hits.count == 1 && first.item.kind == LibretroSkinItemKindThumbstick) {
+      // One finger drives a stick (Delta): a second finger landing on a
+      // stick already held is ignored, never mixed into its axes.
+      if ([self stickHeld:first]) {
+        track.mode = LibretroTouchModeIgnored;
+        return track;
+      }
       track.mode = LibretroTouchModeStick;
       track.bound = first;
       return track;
@@ -569,9 +587,22 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   return track;
 }
 
+/// A finger already holds `stick`.
+- (BOOL)stickHeld:(LibretroLaidOutItem *)stick {
+  NSString *identifier = stick.item.identifier ?: @"";
+  for (LibretroTouchTrack *track in _tracks.allValues) {
+    if (track.mode != LibretroTouchModeStick || track.bound == nil) continue;
+    if (track.bound == stick) return YES;
+    if (identifier.length > 0 && [track.bound.item.identifier isEqualToString:identifier]) return YES;
+  }
+  return NO;
+}
+
 - (void)beginTouch:(id<NSCopying>)key x:(double)x y:(double)y {
   if (key == nil) return;
-  // A key reused without an end (lost event) starts a new finger.
+  // A key reused without an end (lost event) ends its old finger first,
+  // then starts a new one.
+  [self endTouch:key];
   _tracks[key] = [self trackAtX:x y:y];
 }
 

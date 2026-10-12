@@ -343,7 +343,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
           LibretroFocusRing(
             child: Badge(
               isLabelVisible: active > 0 && !filtersOpen,
-              label: Text('$active'),
+              label: Text(active.toString()),
               child: IconButton.filledTonal(
                 key: const ValueKey('skin-catalog-filters'),
                 tooltip: SkinBrowserLocale.text(context, SkinBrowserLocale.filters),

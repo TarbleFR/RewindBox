@@ -188,6 +188,99 @@ int main(void) {
   }
   CHECK(frames == 3, "buttons and pointer latch over the same frames");
 
+  // Build 448: a finger sliding from up to down and lifting before the core
+  // read either never shows up and down together (the latch used to keep
+  // both pending: the core saw both for 2 frames).
+  latch = Fresh();
+  LibretroInputLatchSetButtons(&latch, BIT(PAD_UP));
+  LibretroInputLatchSetButtons(&latch, BIT(PAD_DOWN));
+  LibretroInputLatchSetButtons(&latch, 0);
+  uint16_t flicked = LibretroInputLatchButtons(&latch, 1);
+  Frames(&latch, 1, 4, BIT(PAD_DOWN), seen);
+  CHECK(flicked == BIT(PAD_DOWN) && strcmp(seen, "1100") == 0,
+        "a slide to the opposite direction between two reads shows only the last one");
+  latch = Fresh();
+  LibretroInputLatchSetButtons(&latch, BIT(PAD_LEFT));
+  LibretroInputLatchSetButtons(&latch, BIT(PAD_RIGHT) | BIT(PAD_UP));
+  LibretroInputLatchSetButtons(&latch, 0);
+  CHECK(LibretroInputLatchButtons(&latch, 1) == (BIT(PAD_RIGHT) | BIT(PAD_UP)),
+        "a slide onto the opposite diagonal keeps the diagonal, drops the left direction");
+  // Two fingers holding opposite directions are still both shown (what
+  // the fingers really press).
+  latch = Fresh();
+  LibretroInputLatchSetButtons(&latch, BIT(PAD_UP) | BIT(PAD_DOWN));
+  CHECK(LibretroInputLatchButtons(&latch, 1) == (BIT(PAD_UP) | BIT(PAD_DOWN)),
+        "two fingers on opposite directions keep both");
+
+  // Build 448: analog axes (an N64 C button maps to the right stick) are
+  // latched like buttons. Before, a C tap between two reads lit the button
+  // and never reached the core.
+  int16_t live[2][2] = {{0, 0}, {0, 0}};
+  int16_t shown[2][2];
+  latch = Fresh();
+  live[1][1] = -32767;  // C-Up: right stick up
+  LibretroInputLatchSetAnalog(&latch, live);
+  live[1][1] = 0;
+  LibretroInputLatchSetAnalog(&latch, live);
+  for (int index = 0; index < 5; index++) {
+    LibretroInputLatchAnalog(&latch, (uint64_t)(index + 1), shown);
+    seen[index] = shown[1][1] == -32767 ? '1' : shown[1][1] == 0 ? '0' : '?';
+  }
+  seen[5] = '\0';
+  CHECK(strcmp(seen, "11100") == 0, "an analog tap shorter than one read reaches the core for 3 frames");
+  if (strcmp(seen, "11100") != 0) printf("  seen %s\n", seen);
+
+  // A held deflection passes through with its live value, released at once
+  // after the minimum.
+  latch = Fresh();
+  live[0][0] = 12000;
+  live[1][1] = 0;
+  LibretroInputLatchSetAnalog(&latch, live);
+  LibretroInputLatchAnalog(&latch, 1, shown);
+  bool firstValue = shown[0][0] == 12000;
+  live[0][0] = 30000;
+  LibretroInputLatchSetAnalog(&latch, live);
+  for (uint64_t frame = 2; frame <= 5; frame++) LibretroInputLatchAnalog(&latch, frame, shown);
+  bool followed = shown[0][0] == 30000;
+  live[0][0] = 0;
+  LibretroInputLatchSetAnalog(&latch, live);
+  LibretroInputLatchAnalog(&latch, 6, shown);
+  CHECK(firstValue && followed && shown[0][0] == 0, "a held stick follows the finger and recentres at once");
+
+  // Two quick C taps on the same axis (C-Left then C-Right): two presses,
+  // a centred frame between them, each with its own sign.
+  latch = Fresh();
+  live[0][0] = 0;
+  live[1][0] = -32767;
+  LibretroInputLatchSetAnalog(&latch, live);
+  live[1][0] = 0;
+  LibretroInputLatchSetAnalog(&latch, live);
+  int16_t values[6];
+  LibretroInputLatchAnalog(&latch, 1, shown);
+  values[0] = shown[1][0];
+  live[1][0] = 32767;
+  LibretroInputLatchSetAnalog(&latch, live);
+  live[1][0] = 0;
+  LibretroInputLatchSetAnalog(&latch, live);
+  for (int index = 1; index < 6; index++) {
+    LibretroInputLatchAnalog(&latch, (uint64_t)(index + 1), shown);
+    values[index] = shown[1][0];
+  }
+  CHECK(values[0] == -32767 && values[1] == 0 && values[2] == 32767 && values[3] == 32767 && values[4] == 32767 &&
+            values[5] == 0,
+        "a second analog tap is shown after a centred frame, with its own direction");
+
+  // Reset forgets an analog press the core has not seen.
+  latch = Fresh();
+  live[1][0] = 32767;
+  LibretroInputLatchSetAnalog(&latch, live);
+  live[1][0] = 0;
+  LibretroInputLatchSetAnalog(&latch, live);
+  LibretroInputLatchReset(&latch);
+  LibretroInputLatchAnalog(&latch, 1, shown);
+  CHECK(shown[1][0] == 0 && shown[1][1] == 0 && shown[0][0] == 0 && shown[0][1] == 0,
+        "reset drops pending analog presses");
+
   if (failures > 0) {
     printf("%d input latch check(s) failed\n", failures);
     return 1;

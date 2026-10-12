@@ -360,8 +360,14 @@ static void TestHitTesting(void) {
                                  @[ @"touchScreen" ], 0, NO);
   LibretroSkinItem *overTouch = Item(@"fast", LibretroSkinItemKindButton, LibretroRectMake(0, 400, 50, 50),
                                      @[ @"toggleFastForward" ], 0, YES);
+  // Build 448: a stick with 12-point edges beside a drawn button.
+  LibretroSkinItem *edgeStick = Item(@"edgeStick", LibretroSkinItemKindThumbstick, LibretroRectMake(0, 110, 60, 60),
+                                     @[ @"rightStickUp", @"rightStickDown", @"rightStickLeft", @"rightStickRight" ], 12, YES);
+  LibretroSkinItem *besideStick = Item(@"besideStick", LibretroSkinItemKindButton, LibretroRectMake(66, 110, 40, 40),
+                                       @[ @"x" ], 0, YES);
   LibretroSkinRepresentation *rep =
-      Representation(LibretroSkinOrientationLandscape, 400, 600, @[ touch, overTouch, stick, underStick, menu, underMenu, x, y, dpad ], @[]);
+      Representation(LibretroSkinOrientationLandscape, 400, 600,
+                     @[ touch, overTouch, stick, underStick, menu, underMenu, x, y, dpad, edgeStick, besideStick ], @[]);
   rep.generated = YES;
   LibretroSkinLayoutResult *layout = [LibretroSkinLayout layoutRepresentation:rep
                                                                      viewSize:(LibretroSize){400, 600}
@@ -369,6 +375,15 @@ static void TestHitTesting(void) {
                                                                     overrides:nil];
   CHECK([Identifiers([LibretroSkinLayout itemsAtX:60 y:60 inLayout:layout]) isEqualToString:@"stick"],
         @"a thumbstick wins alone over a button under it");
+  // Build 448: the stick's extended edges no longer take a finger placed on
+  // another control's drawn frame (before: the stick won there and the
+  // button was never sent); they still catch a finger outside every frame.
+  CHECK([Identifiers([LibretroSkinLayout itemsAtX:69 y:130 inLayout:layout]) isEqualToString:@"besideStick"],
+        @"a drawn button beats a stick's extended edges");
+  CHECK([Identifiers([LibretroSkinLayout itemsAtX:65 y:105 inLayout:layout]) isEqualToString:@"edgeStick"],
+        @"a stick's extended edges still catch a finger outside every control");
+  CHECK([Identifiers([LibretroSkinLayout itemsAtX:30 y:140 inLayout:layout]) isEqualToString:@"edgeStick"],
+        @"inside its frame the stick wins");
   CHECK([Identifiers([LibretroSkinLayout itemsAtX:230 y:30 inLayout:layout]) isEqualToString:@"menu"],
         @"menu is exclusive");
   CHECK([Identifiers([LibretroSkinLayout itemsAtX:250 y:50 inLayout:layout]) isEqualToString:@"underMenu"],

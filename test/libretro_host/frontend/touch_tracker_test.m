@@ -547,8 +547,38 @@ static void TestImportedSkin(void) {
   [tracker moveTouch:@1 x:stick.frame.x + stick.frame.w y:MidY(stick.frame)];
   CHECK([tracker resolve].coreInput.buttons == BIT(RIGHT), @"pushing that stick right presses D-pad right");
   [tracker moveTouch:@1 x:MidX(stick.frame) + stick.frame.w * 0.1 y:MidY(stick.frame)];
-  CHECK([tracker resolve].coreInput.buttons == 0, @"a small push stays under the digital threshold");
+  LibretroTouchResolution *small = [tracker resolve];
+  CHECK(small.coreInput.buttons == 0, @"a small push stays under the digital threshold");
+  // Build 448: below the threshold the D-pad stick sends nothing, so it is
+  // not lit (before: lit with nothing sent); its knob still follows the
+  // finger and it is not reported dead.
+  CHECK(![small.pressedItems containsObject:stick.item.identifier] && small.stickVectors[stick.item.identifier] != nil &&
+            ![small.inertItems containsObject:stick.item.identifier],
+        @"a D-pad stick under its threshold moves its knob without a halo (%@)", Describe(small));
+  [tracker moveTouch:@1 x:stick.frame.x + stick.frame.w y:MidY(stick.frame)];
+  CHECK([[tracker resolve].pressedItems containsObject:stick.item.identifier],
+        @"the same stick lights up once a direction reaches the core");
+  // Build 448: one finger drives a stick (Delta). A second finger landing
+  // on the held stick is ignored (before: its direction was added, left and
+  // right reached the core together).
+  [tracker beginTouch:@2 x:stick.frame.x + stick.frame.w * 0.1 y:MidY(stick.frame)];
+  LibretroTouchResolution *twoFingers = [tracker resolve];
+  CHECK(twoFingers.coreInput.buttons == BIT(RIGHT), @"a second finger on a held stick is ignored (%@)",
+        Describe(twoFingers));
+  [tracker endTouch:@2];
   [tracker endTouch:@1];
+  // Once released, the stick takes the next finger again.
+  [tracker beginTouch:@2 x:MidX(stick.frame) y:MidY(stick.frame)];
+  [tracker moveTouch:@2 x:stick.frame.x y:MidY(stick.frame)];
+  CHECK([tracker resolve].coreInput.buttons == BIT(LEFT), @"a released stick takes the next finger");
+  [tracker endTouch:@2];
+  // A key reused without an end (lost event) is a new finger, not a
+  // second finger on its own stick.
+  [tracker beginTouch:@3 x:MidX(stick.frame) y:MidY(stick.frame)];
+  [tracker beginTouch:@3 x:MidX(stick.frame) y:MidY(stick.frame)];
+  [tracker moveTouch:@3 x:stick.frame.x + stick.frame.w y:MidY(stick.frame)];
+  CHECK([tracker resolve].coreInput.buttons == BIT(RIGHT), @"a reused finger key keeps driving the stick");
+  [tracker endTouch:@3];
   // The unusable button: drawn, dead, never lit.
   LibretroLaidOutItem *x = LaidOut(layout, [prefix stringByAppendingString:@"item11"]);
   [tracker beginTouch:@1 x:MidX(x.frame) y:MidY(x.frame)];

@@ -422,6 +422,19 @@ static BOOL LayoutOnTouchScreen(LibretroSkinLayoutResult *layout, NSArray<NSValu
       stickDistance = distance;
     }
   }
+  // Its extended edges never take a finger from another control's drawn
+  // frame (the rule of the buttons below): a finger on a drawn button
+  // presses that button, not the stick beside it.
+  if (stick != nil && !LayoutContains(stick.frame, x, y)) {
+    for (LibretroLaidOutItem *laidOut in layout.items) {
+      LibretroSkinItemKind kind = laidOut.item.kind;
+      if (kind != LibretroSkinItemKindThumbstick && kind != LibretroSkinItemKindTouchScreen &&
+          LayoutContains(laidOut.frame, x, y)) {
+        stick = nil;
+        break;
+      }
+    }
+  }
   if (stick != nil) return @[ stick ];
 
   NSMutableArray<LibretroLaidOutItem *> *hits = [NSMutableArray array];

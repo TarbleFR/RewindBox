@@ -37,6 +37,23 @@ Défauts confirmés dans les sources de départ (`dcf0df6`) :
 | 4 | Les orthographes Provenance / Manic n'étaient pas reconnues : `upLeft` et variantes diagonales, `run`/`play`, `zl`/`zr`, `c up`, `rightAnalog*`, stick sur une console sans stick. | Boutons dessinés inertes dans des skins installés. |
 | 5 | Les `extendedEdges` d'un voisin ajoutaient un second appui à un doigt posé sur un bouton dessiné. | Appuis parasites (A+B au lieu de A). |
 
+Défauts confirmés à la relecture de la Build 448 (12 octobre 2026, branche
+`Claude`, base `bdae27e9`), corrigés avec un test natif chacun :
+
+| # | Défaut | Effet visible | Correction | Test |
+|---|--------|---------------|------------|------|
+| 6 | Les axes analogiques tactiles passaient à côté du verrou : un bouton mappé sur une direction de stick (boutons C de la N64, stick remappé) tapé entre deux lectures n'atteignait jamais le cœur. | Bouton C allumé, aucune action sur les taps brefs. | `LibretroInputLatchSetAnalog` / `LibretroInputLatchAnalog` : un axe qui quitte le centre est un appui montré au moins 3 images avec sa valeur ; deux taps rapides restent deux appuis séparés par une image centrée. | `input_latch_test.m` (exécutable aussi en C hors macOS ; les nouveaux cas échouent sur l'ancienne version) |
+| 7 | Un doigt glissant de Haut à Bas puis relâché avant la lecture laissait les deux directions en attente. | Haut + Bas envoyés ensemble 2 images. | Une direction qui monte retire l'opposée encore en attente. Deux doigts réellement posés sur deux opposés restent transmis. | `input_latch_test.m` |
+| 8 | Les bords étendus d'un stick prenaient un doigt posé sur le cadre dessiné d'un autre contrôle (skin 3DS par défaut : bord du C-stick sur le bouton X). | Stick dévié, bouton X jamais envoyé. | Même règle que pour les boutons : un cadre dessiné l'emporte sur les bords étendus d'un stick. | `skin_layout_test.m` |
+| 9 | Un stick converti en croix (skin d'une console sans stick) restait allumé sous le seuil numérique (la moitié de la déviation), sans rien envoyer. | Halo sans commande. | Un stick à cibles numériques ne s'allume que lorsqu'une direction est réellement envoyée ; son pommeau suit toujours le doigt ; un stick analogique reste allumé tant qu'il est tenu. | `touch_tracker_test.m` |
+| 10 | Un second doigt posé sur un stick déjà tenu ajoutait sa direction à celle du premier. | Gauche + Droite ensemble, ou axe écrasé. | Un seul doigt pilote un stick (comme Delta) ; le second est ignoré jusqu'à son relâchement. Une clé de doigt réutilisée sans fin termine d'abord l'ancien doigt. | `touch_tracker_test.m` |
+
+Constats non corrigés (sans défaut démontré ou hors du chemin tactile) :
+le bouton « échanger les écrans » d'un skin importé affiche la raison au lieu
+d'échanger ; `screenshot` (Delta) et `lid` (MelonDS) restent inertes et sont
+signalés comme tels par le diagnostic, jamais allumés ; deux boutons C opposés
+pressés ensemble partagent un seul axe.
+
 Hypothèse non démontrée : un retard de livraison des touches par iOS sur les
 bords d'écran (gestes système). Ce point n'est pas corrigé à l'aveugle : il est
 mesuré par le diagnostic (§ 6), qui affiche le délai entre l'horodatage

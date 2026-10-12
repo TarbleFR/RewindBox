@@ -35,6 +35,14 @@ extern "C" {
 /// way. Frames are counted by the frontend (one per retro_run), never by
 /// reads: some cores read the pad several times per frame.
 ///
+/// The touch analog axes (port 0 sticks) are latched too: an axis leaving
+/// the centre is a press the core sees for at least
+/// LIBRETRO_LATCH_PRESS_FRAMES frames with the value it was pressed with,
+/// then the live value. A button mapped to a stick direction (the N64 C
+/// buttons) thereby reaches the core even when tapped between two reads.
+/// A finger sliding from one D-pad direction to the opposite one before
+/// the core read the first drops it: one slide never shows both ends.
+///
 /// Not thread safe: the caller serialises SetButtons / SetPointer (UI
 /// thread) and Buttons / Pointer (emulation thread) under its own lock.
 typedef struct {
@@ -48,6 +56,14 @@ typedef struct {
   bool pointerExposed;
   uint8_t pointerHold;
   uint8_t pointerGap;
+  /// Analog axes, index stick * 2 + axis (libretro: x then y).
+  int16_t axisLive[4];
+  int16_t axisPendingValue[4];
+  int16_t axisHeld[4];
+  int16_t axisExposed[4];
+  bool axisPending[4];
+  uint8_t axisHold[4];
+  uint8_t axisGap[4];
   uint64_t frame;
   bool started;
 } LibretroInputLatch;
@@ -63,6 +79,10 @@ void LibretroInputLatchSetButtons(LibretroInputLatch *latch, uint16_t buttons);
 /// New live state of the touch-screen pointer press.
 void LibretroInputLatchSetPointer(LibretroInputLatch *latch, bool pressed);
 
+/// New live state of the touch analog axes, [stick][axis]. Every axis that
+/// leaves the centre becomes a press the core will see.
+void LibretroInputLatchSetAnalog(LibretroInputLatch *latch, const int16_t analog[2][2]);
+
 /// Buttons the core sees during `frame` (monotonic frame counter of the
 /// frontend). Several reads in the same frame give the same latched presses
 /// plus any press that arrived since the previous read.
@@ -70,6 +90,9 @@ uint16_t LibretroInputLatchButtons(LibretroInputLatch *latch, uint64_t frame);
 
 /// Pointer press the core sees during `frame`.
 bool LibretroInputLatchPointer(LibretroInputLatch *latch, uint64_t frame);
+
+/// Analog axes the core sees during `frame`, written to `analog`.
+void LibretroInputLatchAnalog(LibretroInputLatch *latch, uint64_t frame, int16_t analog[2][2]);
 
 #ifdef __cplusplus
 }

@@ -130,7 +130,15 @@ require('errorBuilder' in catalog, 'broken thumbnails')
 # (10 October 2026: never a second library next to theirs; NeoStation's roms
 # folder only when none is registered), rescan of the receiving system only,
 # and NeoStation's library actions (console folders, moving a library in).
-require('LibretroCoreCatalog.consoles.values' in consoles, 'every embedded console is listed')
+# Build 448: the tab lists every console of ConsoleCatalog (the 17 embedded
+# libretro consoles, the other engines and the RetroArch systems) instead of
+# LibretroCoreCatalog.consoles.values directly. The catalog is built from
+# that map, so every embedded console stays listed; the catalog itself is
+# tested by test/console_manager_test.dart, the rows by
+# test/libretro_consoles_tab_test.dart.
+console_catalog = read('lib/services/console_catalog.dart')
+require('for (final console in LibretroCoreCatalog.consoles.values)' in console_catalog
+        and 'for (final entry in ConsoleCatalog.entries)' in consoles, 'every embedded console is listed')
 require('LibretroInternalService.importGamesForConsole(' in consoles, 'import for a console without games')
 require('chooseLibretroImportDestination(' in consoles and 'library: destination.library' in consoles,
         "imports land in one of the user's library folders")
@@ -186,17 +194,39 @@ header = read('lib/widgets/header.dart')
 require('NavTabIcon(spec: navTabSpec(tab), tint: tint)' in header and 'navTabLabel(context, tab)' in header,
         'the header draws every tab, consoles included, with the same icon box, tint and label')
 
-# The consoles page adds consoles to the main menu through LibretroMainMenu.
-require('_mainMenu.add(console, provider)' in consoles, 'Add goes through LibretroMainMenu')
-require('LibretroMainMenu.stateOf(' in consoles, 'each console shows its place in the main menu')
-for key in ('addToMainMenu', 'showInMainMenu', 'inMainMenu', 'hiddenInMainMenu', 'consoleAdded',
-            'consoleAddFailed', 'consoleSystemUnknown', 'consoleUnavailable'):
-    require(f"'{key}'" in consoles, f'consoles page shows {key}')
+# The consoles page changes the main menu through LibretroMainMenu.
+#
+# Build 448 replaced the Build 440 contract of this block. Then the page had
+# an "Add to the main menu" / "Show in the main menu" button per embedded
+# console (LibretroLocale keys addToMainMenu, showInMainMenu, inMainMenu,
+# hiddenInMainMenu, consoleAdded, consoleAddFailed, consoleSystemUnknown,
+# consoleUnavailable) and the store never removed a detected system. Now each
+# console of ConsoleCatalog has a visibility switch (showEntry / hideEntry),
+# with "Show all" and "Restore defaults", its texts in ConsoleManagerLocale
+# (twelve languages, test/console_manager_test.dart). "Restore defaults"
+# takes back out of the main menu the consoles the tab itself added and that
+# still hold no game: removeDetectedSystem, in restoreDefaults only, only for
+# a console the tab pinned whose systems all have zero games — the same row
+# the scanner's own pruning removes for an empty system (scanning.dart,
+# SYSTEM PRUNING). A console with games is shown again, never removed
+# (test/libretro_consoles_tab_test.dart, "Restore defaults keeps a console
+# the tab added once it holds games").
+for call in ('_mainMenu.showEntry(entry, provider)', '_mainMenu.hideEntry(entry, provider)',
+             '_mainMenu.showAll(', '_mainMenu.restoreDefaults(ConsoleCatalog.entries, provider)'):
+    require(call in consoles, f'the switch and the bulk actions go through LibretroMainMenu: {call}')
+require('LibretroMainMenu.stateOfEntry(' in consoles, 'each console shows its place in the main menu')
+require('ConsoleManagerLocale.' in consoles, 'the consoles page texts come from ConsoleManagerLocale')
 main_menu = read('lib/services/libretro_main_menu.dart')
 require('SystemRepository.addDetectedSystem(' in main_menu and 'refreshDetectedSystems()' in main_menu,
         'consoles are added through the public detected-systems API')
-for forbidden in ('removeDetectedSystem', 'updateDetectedSystems', 'addRomFolder', 'removeRomFolder', 'scanSystems(',
-                  'deleteRoms', 'saveConfig'):
+require(main_menu.count('SystemRepository.removeDetectedSystem(') == 1, 'one removal, in restoreDefaults')
+restore = main_menu[main_menu.index('Future<ConsoleMenuBulkResult> restoreDefaults('):]
+restore = restore[:restore.index('/// Runs a change of several consoles')]
+require('SystemRepository.removeDetectedSystem(' in restore
+        and 'state.systems.every((system) => system.romCount == 0)' in restore
+        and 'if (unpinned && pinned.contains(entry.id) && empty) {' in restore,
+        'restoreDefaults removes only a console the tab pinned that holds no game')
+for forbidden in ('updateDetectedSystems', 'addRomFolder', 'removeRomFolder', 'scanSystems(', 'deleteRoms', 'saveConfig'):
     require(forbidden not in main_menu, f'the main-menu store never calls {forbidden}')
 
 # 3. Playlist actions.

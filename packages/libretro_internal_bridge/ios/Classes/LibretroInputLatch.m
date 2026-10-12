@@ -20,7 +20,14 @@ void LibretroInputLatchReset(LibretroInputLatch *latch) {
 
 void LibretroInputLatchSetButtons(LibretroInputLatch *latch, uint16_t buttons) {
   if (latch == NULL) return;
-  latch->pending |= (uint16_t)(buttons & ~latch->live);
+  uint16_t rising = (uint16_t)(buttons & ~latch->live);
+  // A finger that slid onto a direction drops the opposite one it left
+  // before the core read it: one slide never shows both ends of an axis.
+  if ((rising & LATCH_BIT(LATCH_UP)) != 0) latch->pending &= (uint16_t)~LATCH_BIT(LATCH_DOWN);
+  if ((rising & LATCH_BIT(LATCH_DOWN)) != 0) latch->pending &= (uint16_t)~LATCH_BIT(LATCH_UP);
+  if ((rising & LATCH_BIT(LATCH_LEFT)) != 0) latch->pending &= (uint16_t)~LATCH_BIT(LATCH_RIGHT);
+  if ((rising & LATCH_BIT(LATCH_RIGHT)) != 0) latch->pending &= (uint16_t)~LATCH_BIT(LATCH_LEFT);
+  latch->pending |= rising;
   latch->live = buttons;
 }
 
@@ -28,6 +35,20 @@ void LibretroInputLatchSetPointer(LibretroInputLatch *latch, bool pressed) {
   if (latch == NULL) return;
   if (pressed && !latch->pointerLive) latch->pointerPending = true;
   latch->pointerLive = pressed;
+}
+
+void LibretroInputLatchSetAnalog(LibretroInputLatch *latch, const int16_t analog[2][2]) {
+  if (latch == NULL || analog == NULL) return;
+  for (unsigned index = 0; index < 4; index++) {
+    int16_t value = analog[index / 2][index % 2];
+    // A press keeps the newest value of its finger until the core reads
+    // it; released before that read, it keeps its last value.
+    if (value != 0 && (latch->axisLive[index] == 0 || latch->axisPending[index])) {
+      latch->axisPending[index] = true;
+      latch->axisPendingValue[index] = value;
+    }
+    latch->axisLive[index] = value;
+  }
 }
 
 static uint8_t LatchCountdown(uint8_t value, uint64_t elapsed) {
@@ -48,6 +69,10 @@ static void LatchAdvance(LibretroInputLatch *latch, uint64_t frame) {
   }
   latch->pointerHold = LatchCountdown(latch->pointerHold, elapsed);
   latch->pointerGap = LatchCountdown(latch->pointerGap, elapsed);
+  for (unsigned index = 0; index < 4; index++) {
+    latch->axisHold[index] = LatchCountdown(latch->axisHold[index], elapsed);
+    latch->axisGap[index] = LatchCountdown(latch->axisGap[index], elapsed);
+  }
 }
 
 /// One input: a pending press is shown once the core has seen a release
@@ -125,4 +150,24 @@ bool LibretroInputLatchPointer(LibretroInputLatch *latch, uint64_t frame) {
   latch->pointerPending = pending;
   latch->pointerExposed = on;
   return on;
+}
+
+void LibretroInputLatchAnalog(LibretroInputLatch *latch, uint64_t frame, int16_t analog[2][2]) {
+  if (analog == NULL) return;
+  memset(analog, 0, sizeof(int16_t) * 4);
+  if (latch == NULL) return;
+  LatchAdvance(latch, frame);
+  for (unsigned index = 0; index < 4; index++) {
+    bool pending = latch->axisPending[index];
+    int16_t live = latch->axisLive[index];
+    bool on = LatchDecide(live != 0, &pending, latch->axisExposed[index] != 0, &latch->axisHold[index],
+                          &latch->axisGap[index], LIBRETRO_LATCH_PRESS_FRAMES);
+    // The press just shown keeps its value for the hold; the live value
+    // wins while a finger deflects the axis.
+    if (latch->axisPending[index] && !pending) latch->axisHeld[index] = latch->axisPendingValue[index];
+    latch->axisPending[index] = pending;
+    int16_t shown = !on ? 0 : live != 0 ? live : latch->axisHeld[index];
+    latch->axisExposed[index] = shown;
+    analog[index / 2][index % 2] = shown;
+  }
 }
