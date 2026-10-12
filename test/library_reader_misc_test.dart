@@ -17,13 +17,41 @@ import 'package:neostation/screens/library_screen/reader/library_reader_palette.
 import 'package:neostation/screens/library_screen/reader/library_reflow_view.dart';
 import 'package:neostation/services/library_aidoku_engines.dart';
 import 'package:neostation/services/library_http.dart';
+import 'package:neostation/services/library_local_library_service.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_book_open_transition.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_reader_test_support.dart';
+
+/// Routes pushed on a navigator.
+class _PushLog extends NavigatorObserver {
+  _PushLog(this.routes);
+
+  final List<Route<dynamic>> routes;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      routes.add(route);
+}
+
+/// A loaded library: the launcher opens its books at once.
+class _LoadedLibrary extends LibraryLocalLibraryService {
+  _LoadedLibrary(this.documents) : super(picker: () async => null);
+
+  final String documents;
+
+  @override
+  LibraryLocalRoots? get roots =>
+      LibraryLocalRoots(documentsLibrary: documents, supportLibrary: documents);
+
+  @override
+  String absolutePath(LibraryLocalBook book) =>
+      '$documents/${book.relativePath}';
+}
 
 void main() {
   setUpReaderEnvironment();
@@ -289,15 +317,34 @@ void main() {
       expect(content.progressKey, 'local:0123456789abcdef0123456789abcdef');
     });
 
+    // The EPUB's page-progression-direction, read at import, was given to
+    // the CBZ reader only.
+    test('the reading direction of the book reaches the EPUB reader', () {
+      for (final rtl in <bool>[false, true]) {
+        final epub = LibraryReaderLauncher.readerForLocalBook(
+          book(LibraryBookFormat.epub, rtl: rtl),
+          '/books/book.epub',
+        );
+        expect((epub as LibraryBookReaderScreen).rightToLeft, rtl);
+        final txt = LibraryReaderLauncher.readerForLocalBook(
+          book(LibraryBookFormat.txt, rtl: rtl),
+          '/books/book.txt',
+        );
+        expect((txt as LibraryBookReaderScreen).rightToLeft, rtl);
+      }
+    });
+
     testWidgets('readers are pushed on the root navigator', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
       final root = GlobalKey<NavigatorState>();
       final nested = GlobalKey<NavigatorState>();
+      final pushed = <Route<dynamic>>[];
       late BuildContext inner;
       await tester.pumpWidget(
         MaterialApp(
           navigatorKey: root,
+          navigatorObservers: <NavigatorObserver>[_PushLog(pushed)],
           home: Navigator(
             key: nested,
             onGenerateRoute: (_) => MaterialPageRoute<void>(
@@ -316,11 +363,95 @@ void main() {
       await tester.pump();
       expect(root.currentState!.canPop(), isTrue);
       expect(nested.currentState!.canPop(), isFalse);
+      expect(pushed.last, isA<LibraryReaderRoute<void>>());
+      expect(
+        (pushed.last as LibraryReaderRoute<void>).origin,
+        isNull,
+        reason: 'a downloaded PDF has no tile to open from',
+      );
       root.currentState!.pop();
       await frames(tester);
       await tester.pump(const Duration(milliseconds: 400));
       await settle(tester, rounds: 2);
       await flushStore(tester, store);
+    });
+
+    testWidgets('a local book opens from its tile in a reader route of the '
+        'root navigator', (tester) async {
+      useSurface(tester);
+      final (store, _) = await createStore(tester);
+      final root = GlobalKey<NavigatorState>();
+      final nested = GlobalKey<NavigatorState>();
+      final pushed = <Route<dynamic>>[];
+      late BuildContext inner;
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: root,
+          navigatorObservers: <NavigatorObserver>[_PushLog(pushed)],
+          home: Navigator(
+            key: nested,
+            onGenerateRoute: (_) => MaterialPageRoute<void>(
+              builder: (context) {
+                inner = context;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+      LibraryReadingStore.instance = store;
+      const origin = LibraryBookOpenOrigin(
+        rect: Rect.fromLTWH(20, 30, 100, 150),
+      );
+      // ignore: unawaited_futures
+      LibraryReaderLauncher.openLocalBook(
+        inner,
+        book(LibraryBookFormat.pdf),
+        service: _LoadedLibrary('${Directory.systemTemp.path}/missing-library'),
+        origin: origin,
+      );
+      await tester.pump();
+      expect(root.currentState!.canPop(), isTrue);
+      expect(nested.currentState!.canPop(), isFalse);
+      final route = pushed.last;
+      expect(route, isA<LibraryReaderRoute<void>>());
+      expect((route as LibraryReaderRoute<void>).origin, same(origin));
+      expect(route.showsBook, isTrue, reason: 'the book flies from its tile');
+      expect(find.byType(LibraryBookOpenOverlay), findsOneWidget);
+      root.currentState!.pop();
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryBookOpenOverlay), findsNothing);
+      expect(root.currentState!.canPop(), isFalse);
+      await settle(tester, rounds: 2);
+      await flushStore(tester, store);
+    });
+
+    testWidgets('an opener that takes the origin receives it; any other '
+        'opener is called as before', (tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      final context = tester.element(find.byType(SizedBox));
+      const origin = LibraryBookOpenOrigin(rect: Rect.fromLTWH(0, 0, 10, 15));
+      final epub = book(LibraryBookFormat.epub);
+      final calls = <String>[];
+      LibraryBookOpenOrigin? received;
+      await LibraryReaderLauncher.openLocalBookWith(
+        (context, opened, {LibraryBookOpenOrigin? origin}) async {
+          calls.add('with origin ${opened.id}');
+          received = origin;
+        },
+        context,
+        epub,
+        origin: origin,
+      );
+      expect(received, same(origin));
+      await LibraryReaderLauncher.openLocalBookWith(
+        (context, opened) async => calls.add('plain ${opened.id}'),
+        context,
+        epub,
+        origin: origin,
+      );
+      expect(calls, <String>['with origin ${epub.id}', 'plain ${epub.id}']);
     });
 
     // Regression: landscape came back only in dispose, after the reverse

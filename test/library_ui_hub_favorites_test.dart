@@ -20,6 +20,7 @@ import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_open_transition.dart';
 import 'package:neostation/widgets/library_book_volume.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -533,6 +534,78 @@ void main() {
     expect(selected(), <bool>[false, false, false, true]);
     expect(tester.binding.hasScheduledFrame, isFalse);
     expect(events, isEmpty, reason: 'selection opens nothing');
+  });
+
+  testWidgets('a local book opens from its card: the box, image, hinge side '
+      'and thickness of the volume on screen; online titles have none', (
+    tester,
+  ) async {
+    SfxService().setEnabled(false);
+    addTearDown(() => SfxService().setEnabled(true));
+    const coverPath = '/nonexistent/neostation/covers/book1.png';
+    final origins = <LibraryBookOpenOrigin?>[];
+    await pumpView(
+      tester,
+      localCoverPath: (book) => coverPath,
+      openLocal: (context, book, {LibraryBookOpenOrigin? origin}) async {
+        events.add('local:${book.id}');
+        origins.add(origin);
+      },
+    );
+    await tester.pump();
+    final card = find
+        .ancestor(of: find.text('Mon livre'), matching: find.byType(Row))
+        .first;
+    final volume = find.descendant(
+      of: card,
+      matching: find.byType(LibraryBookCover),
+    );
+    final cover = tester.widget<LibraryBookCover>(volume);
+
+    await tester.tap(find.text('Mon livre'));
+    await tester.pump();
+    expect(events, <String>['local:book1']);
+    final touched = origins.single!;
+    expect(touched.rect, tester.getRect(volume));
+    expect(identical(touched.image, cover.image), isTrue, reason: 'the card');
+    expect(
+      ((touched.image! as ResizeImage).imageProvider as FileImage).file.path,
+      coverPath,
+    );
+    expect(touched.rightToLeft, isFalse);
+    expect(touched.thickness, cover.resolvedThickness);
+    expect(touched.thickness, LibraryBookThickness.minimum, reason: '10 B');
+    await tester.pumpAndSettle();
+
+    // The controller's A on the selected card opens it from there too.
+    controller.navigate(1, 0);
+    controller.activate();
+    await tester.pump();
+    expect(events, <String>['local:book1', 'local:book1']);
+    expect(origins.last!.rect, tester.getRect(volume));
+
+    // An online position opens its title page.
+    controller.navigate(-1, 0);
+    controller.activate();
+    await tester.pump();
+    expect(events.last, 'online:one-piece');
+    expect(origins, hasLength(2));
+
+    // Read now, the book comes first in "Continue reading": the book flies
+    // back to its card where it is now.
+    final before = tester.getRect(volume);
+    store._progressList[1] = LibraryReadingProgress(
+      key: 'local:book1',
+      location: 'epubcfi(/6/4!/4/2:0)',
+      fraction: 0.2,
+      title: 'Mon livre',
+      updatedAt: DateTime.utc(2026, 10, 12, 9),
+    );
+    store.notifyListeners();
+    await tester.pumpAndSettle();
+    final now = tester.getRect(volume);
+    expect(now.left, lessThan(before.left), reason: 'moved to the front');
+    expect(touched.locate!(), now);
   });
 
   testWidgets('a favourite cover is also drawn on the spine of its volume', (

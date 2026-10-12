@@ -17,6 +17,7 @@ import 'package:neostation/services/library_local_library_service.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_open_transition.dart';
 import 'package:neostation/widgets/library_book_volume.dart';
 import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 
@@ -917,6 +918,63 @@ void _bookVolumeTests() {
       'Memo, Not started\nPDF\nPDF\nMemo',
     );
     semantics.dispose();
+  });
+
+  testWidgets('a tile opens its book from its cover: the box, image, hinge '
+      'side and thickness of the volume on screen', (tester) async {
+    final folder = Directory.systemTemp.createTempSync('neostation-origin-');
+    addTearDown(() => folder.deleteSync(recursive: true));
+    final controller = LibraryGamepadViewController();
+    final opened = <LibraryLocalBook>[];
+    final origins = <LibraryBookOpenOrigin?>[];
+    await pumpLibraryUi(
+      tester,
+      LibraryLocalView(
+        controller: controller,
+        onBack: () {},
+        service: _FakeLibrary(
+          <LibraryLocalBook>[novel, comic, memo],
+          covers: <String, String>{comic.id: '${folder.path}/comic.png'},
+        ),
+        readingStore: MemoryReadingStore(),
+        bookOpener: (context, book, {LibraryBookOpenOrigin? origin}) async {
+          opened.add(book);
+          origins.add(origin);
+        },
+        enableGamepad: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    Rect volumeOf(LibraryLocalBook book) => tester.getRect(
+      find.descendant(of: tile(book), matching: find.byType(LibraryBookCover)),
+    );
+
+    await tester.tap(find.text('Comic'));
+    await tester.pump();
+    expect(opened.single.id, comic.id);
+    final touched = origins.single!;
+    final cover = coverOf(tester, comic);
+    expect(touched.rect, volumeOf(comic));
+    expect(identical(touched.image, cover.image), isTrue, reason: 'the tile');
+    expect(touched.image, isA<ResizeImage>());
+    expect(touched.rightToLeft, isTrue, reason: 'a manga');
+    expect(touched.thickness, cover.resolvedThickness);
+    expect(touched.thickness, LibraryBookThickness.maximum);
+    expect(touched.locate!(), volumeOf(comic), reason: 'found again on back');
+    await tester.pumpAndSettle();
+
+    // The controller's A opens the focused tile from its cover too.
+    Focus.of(tester.element(find.text('Novel'))).requestFocus();
+    await tester.pumpAndSettle();
+    expect(controller.activate(), isTrue);
+    await tester.pump();
+    expect(opened.last.id, novel.id);
+    final pressed = origins.last!;
+    expect(pressed.rect, volumeOf(novel));
+    expect(pressed.image, isNull, reason: 'no thumbnail');
+    expect(pressed.rightToLeft, isFalse);
+    expect(pressed.thickness, LibraryBookThickness.of(500));
+    await tester.pumpAndSettle();
   });
 }
 

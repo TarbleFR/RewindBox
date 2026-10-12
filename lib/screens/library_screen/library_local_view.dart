@@ -13,6 +13,7 @@ import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_open_transition.dart';
 import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
@@ -27,6 +28,9 @@ import 'library_sources_view.dart'
         libraryShortDate;
 
 /// Opens an imported book (default: [LibraryReaderLauncher.openLocalBook]).
+/// An opener that also takes `{LibraryBookOpenOrigin? origin}`
+/// ([LibraryLocalBookOriginOpener]) receives the tile the book is opened
+/// from.
 typedef LibraryLocalBookOpener =
     Future<void> Function(BuildContext context, LibraryLocalBook book);
 
@@ -398,14 +402,23 @@ class _LibraryLocalViewState extends State<LibraryLocalView>
 
   // ------------------------------------------------------------- books --
 
-  Future<void> _open(LibraryLocalBook book) async {
+  /// Opens [book]; from its tile's cover ([origin]) when opened from the
+  /// grid.
+  Future<void> _open(
+    LibraryLocalBook book, {
+    LibraryBookOpenOrigin? origin,
+  }) async {
     // The reader route stays open until it is closed: a second tap during
     // the push would open a second reader on top of the first.
     if (_opening) return;
-    final opener = widget.bookOpener ?? LibraryReaderLauncher.openLocalBook;
     _opening = true;
     try {
-      await opener(context, book);
+      await LibraryReaderLauncher.openLocalBookWith(
+        widget.bookOpener,
+        context,
+        book,
+        origin: origin,
+      );
     } on Object catch (error) {
       if (!mounted) return;
       final issue = error is LibraryBookException ? error.issue : null;
@@ -934,7 +947,7 @@ class _LibraryLocalViewState extends State<LibraryLocalView>
             coverPath: book.hasCover ? _coverPath(book) : null,
             cacheWidth: (tileWidth * dpr).round(),
             progress: _store.progressFor(book.readingKey),
-            onOpen: () => _open(book),
+            onOpen: (origin) => _open(book, origin: origin),
             onMenu: () => _showBookMenu(book),
             onFocusChange: (focused) {
               if (focused) {
@@ -1018,7 +1031,10 @@ class _BookTile extends StatefulWidget {
   final String? coverPath;
   final int cacheWidth;
   final LibraryReadingProgress? progress;
-  final VoidCallback onOpen;
+
+  /// Opens the book from this tile: the origin of the animated opening
+  /// (null while the cover is not on screen).
+  final ValueChanged<LibraryBookOpenOrigin?> onOpen;
   final VoidCallback onMenu;
   final ValueChanged<bool> onFocusChange;
 
@@ -1031,10 +1047,17 @@ class _BookTileState extends State<_BookTile> {
   /// like the hub's selection does.
   bool _focused = false;
 
+  /// The cover's volume: where the book flies from when it opens.
+  final GlobalKey _cover = GlobalKey(debugLabel: 'library-book-tile-cover');
+
   void _handleFocusChange(bool focused) {
     widget.onFocusChange(focused);
     if (mounted && focused != _focused) setState(() => _focused = focused);
   }
+
+  /// Touch, VoiceOver and the controller's A all open the book here, with
+  /// the cover's box, image, hinge side and thickness as the origin.
+  void _open() => widget.onOpen(LibraryBookOpenOrigin.ofCover(_cover));
 
   @override
   Widget build(BuildContext context) {
@@ -1067,7 +1090,7 @@ class _BookTileState extends State<_BookTile> {
         label: '${book.title}, $progressLabel',
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: widget.onOpen,
+          onTap: _open,
           onLongPress: widget.onMenu,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1077,6 +1100,7 @@ class _BookTileState extends State<_BookTile> {
                   fit: StackFit.expand,
                   children: <Widget>[
                     LibraryBookCover(
+                      key: _cover,
                       selected: _focused,
                       rightToLeft: book.rightToLeft,
                       radius: 8,

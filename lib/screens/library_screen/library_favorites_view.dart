@@ -18,6 +18,7 @@ import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/confirm_action_dialog.dart';
 import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_open_transition.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_gamepad_view_controller.dart';
@@ -72,7 +73,9 @@ class LibraryFavoritesView extends StatefulWidget {
   /// Thumbnail path of a local book; defaults to the local library service.
   final String? Function(LibraryLocalBook book)? localCoverPath;
 
-  /// Defaults to [LibraryReaderLauncher.openLocalBook].
+  /// Defaults to [LibraryReaderLauncher.openLocalBook]. An opener that also
+  /// takes `{LibraryBookOpenOrigin? origin}` ([LibraryLocalBookOriginOpener])
+  /// receives the card the book is opened from.
   final Future<void> Function(BuildContext context, LibraryLocalBook book)?
   openLocalBook;
 
@@ -214,6 +217,10 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
   final Map<String, _LocalBookState> _localBooks = <String, _LocalBookState>{};
   final Set<String> _resolving = <String>{};
 
+  /// Covers of the local books' cards, by card (`continue:<key>`,
+  /// `favorite:<key>`): where the book flies from when it opens.
+  final Map<String, GlobalKey> _coverKeys = <String, GlobalKey>{};
+
   List<LibraryReadingProgress> _continue = const <LibraryReadingProgress>[];
   List<LibraryFavorite> _favorites = const <LibraryFavorite>[];
   _FavoritesRegion _region = _FavoritesRegion.continueRow;
@@ -302,6 +309,11 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
           progress,
     ];
     _favorites = _store.favorites;
+    final cards = <String>{
+      for (final progress in _continue) _continueCard(progress.key),
+      for (final favorite in _favorites) _favoriteCard(favorite.key),
+    };
+    _coverKeys.removeWhere((card, _) => !cards.contains(card));
     if (_continueIndex >= _continue.length) {
       _continueIndex = _continue.isEmpty ? 0 : _continue.length - 1;
     }
@@ -326,6 +338,15 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
 
   static String _localBookId(String key) =>
       key.startsWith('local:') ? key.substring('local:'.length) : key;
+
+  static String _continueCard(String key) => 'continue:$key';
+  static String _favoriteCard(String key) => 'favorite:$key';
+
+  /// Cover key of a card; only local books open from their card.
+  GlobalKey? _coverKeyFor(String card, LibraryReadingKind kind) =>
+      kind == LibraryReadingKind.local
+      ? _coverKeys.putIfAbsent(card, () => GlobalKey(debugLabel: card))
+      : null;
 
   void _resolveLocal(String bookId) {
     if (_localBooks.containsKey(bookId) || !_resolving.add(bookId)) return;
@@ -397,7 +418,11 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
     }
   }
 
-  Future<void> _openProgress(LibraryReadingProgress progress) async {
+  /// Opens [progress]; a local book flies open from its card's [cover].
+  Future<void> _openProgress(
+    LibraryReadingProgress progress, {
+    GlobalKey? cover,
+  }) async {
     if (progress.kind == LibraryReadingKind.local) {
       final bookId = _localBookId(progress.key);
       var state = _localBooks[bookId];
@@ -418,9 +443,13 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
         _showMessage(_lt('bookMissing'));
         return;
       }
-      final open = widget.openLocalBook ?? LibraryReaderLauncher.openLocalBook;
       try {
-        await open(context, book);
+        await LibraryReaderLauncher.openLocalBookWith(
+          widget.openLocalBook,
+          context,
+          book,
+          origin: cover == null ? null : LibraryBookOpenOrigin.ofCover(cover),
+        );
       } catch (error) {
         if (mounted) _showError(_lt('readFailed'), error.toString());
       }
@@ -437,7 +466,10 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
     await _openOnline(item);
   }
 
-  Future<void> _openFavorite(LibraryFavorite favorite) async {
+  Future<void> _openFavorite(
+    LibraryFavorite favorite, {
+    GlobalKey? cover,
+  }) async {
     if (favorite.kind == LibraryReadingKind.local) {
       final progress = _store.progressFor(favorite.key);
       await _openProgress(
@@ -448,6 +480,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
               fraction: 0,
               title: favorite.title,
             ),
+        cover: cover,
       );
       return;
     }
@@ -601,14 +634,16 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
       case _FavoritesRegion.continueRow:
         if (_continueIndex < _continue.length) {
           final progress = _continue[_continueIndex];
-          unawaited(_openOnce(() => _openProgress(progress)));
+          final cover = _coverKeys[_continueCard(progress.key)];
+          unawaited(_openOnce(() => _openProgress(progress, cover: cover)));
           return true;
         }
         return false;
       case _FavoritesRegion.favorites:
         if (_favoriteIndex < _favorites.length) {
           final favorite = _favorites[_favoriteIndex];
-          unawaited(_openOnce(() => _openFavorite(favorite)));
+          final cover = _coverKeys[_favoriteCard(favorite.key)];
+          unawaited(_openOnce(() => _openFavorite(favorite, cover: cover)));
           return true;
         }
         return false;
@@ -802,12 +837,17 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
         itemExtent: _continueExtent,
         itemBuilder: (context, index) {
           final progress = _continue[index];
+          final cover = _coverKeyFor(
+            _continueCard(progress.key),
+            progress.kind,
+          );
           return Padding(
             padding: EdgeInsets.only(right: 12.r),
             child: _buildContinueCard(
               theme,
               progress,
               coverWidth,
+              coverKey: cover,
               selected:
                   _region == _FavoritesRegion.continueRow &&
                   _continueIndex == index,
@@ -817,7 +857,9 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
                   _region = _FavoritesRegion.continueRow;
                   _continueIndex = index;
                 });
-                unawaited(_openOnce(() => _openProgress(progress)));
+                unawaited(
+                  _openOnce(() => _openProgress(progress, cover: cover)),
+                );
               },
             ),
           );
@@ -830,6 +872,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
     ThemeData theme,
     LibraryReadingProgress progress,
     int coverWidth, {
+    GlobalKey? coverKey,
     required bool selected,
     required VoidCallback onTap,
   }) {
@@ -887,6 +930,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
               AspectRatio(
                 aspectRatio: 0.66,
                 child: _Cover(
+                  coverKey: coverKey,
                   image: cover,
                   selected: selected,
                   thickness: _thicknessOf(book),
@@ -1010,6 +1054,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
           );
     // A local favourite also listed in "Continue reading" is already known.
     final book = online ? null : _localBooks[_localBookId(favorite.key)]?.book;
+    final coverKey = _coverKeyFor(_favoriteCard(favorite.key), favorite.kind);
     return _SelectableCard(
       selected: selected,
       onTap: () {
@@ -1018,7 +1063,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
           _region = _FavoritesRegion.favorites;
           _favoriteIndex = index;
         });
-        unawaited(_openOnce(() => _openFavorite(favorite)));
+        unawaited(_openOnce(() => _openFavorite(favorite, cover: coverKey)));
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1028,6 +1073,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
               fit: StackFit.expand,
               children: [
                 _Cover(
+                  coverKey: coverKey,
                   image: cover,
                   selected: selected,
                   thickness: _thicknessOf(book),
@@ -1152,12 +1198,16 @@ class _SelectableCard extends StatelessWidget {
 /// shown on the front and on the spine.
 class _Cover extends StatelessWidget {
   const _Cover({
+    this.coverKey,
     required this.image,
     required this.selected,
     this.thickness = LibraryBookThickness.fixed,
     this.rightToLeft = false,
   });
 
+  /// Identifies the [LibraryBookCover] a local book opens from
+  /// ([LibraryBookOpenOrigin.ofCover]).
+  final GlobalKey? coverKey;
   final ImageProvider? image;
   final bool selected;
   final double thickness;
@@ -1178,6 +1228,7 @@ class _Cover extends StatelessWidget {
     );
     final provider = image;
     return LibraryBookCover(
+      key: coverKey,
       selected: selected,
       rightToLeft: rightToLeft,
       radius: 7.r,

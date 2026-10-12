@@ -24,6 +24,7 @@ import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_open_transition.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_favorites_view.dart';
@@ -1447,9 +1448,11 @@ class LibraryScreenState extends State<LibraryScreen>
     });
   }
 
+  // The readers of the hub open as the launcher's, without a tile to fly
+  // from: catalogue cards are never local books (a plain fade).
   Future<void> _showTextReader(LibraryCatalogItem item, String text) async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
+      LibraryReaderRoute<void>(
         builder: (_) => LibraryReaderScreen(
           title: item.title,
           subtitle: item.subtitle,
@@ -1467,7 +1470,7 @@ class LibraryScreenState extends State<LibraryScreen>
     String subtitle = '',
   }) async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
+      LibraryReaderRoute<void>(
         builder: (_) => LibraryReaderScreen(
           title: title,
           subtitle: subtitle,
