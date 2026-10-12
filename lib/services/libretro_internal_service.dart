@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:external_folder_access/external_folder_access.dart';
@@ -13,6 +14,7 @@ import '../models/game_model.dart';
 import '../models/system_model.dart';
 import '../repositories/system_repository.dart';
 import 'config_service.dart';
+import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'logger_service.dart';
 
@@ -95,6 +97,11 @@ abstract final class LibretroInternalService {
   static const String retroArchChoice = 'retroarch';
   static const String _retroArchImportKey = 'libretro-retroarch-import';
   static const int _maxSystemFileBytes = 512 * 1024 * 1024;
+
+  /// `library_name` the 3DS core declares (core_info fixture, `[HOST]
+  /// loaded Azahar`): the native session names its option file after it,
+  /// `Config/Azahar.json`.
+  static const String _azaharLibraryName = 'Azahar';
 
   static bool handlesSystem(String folderName) =>
       Platform.isIOS && LibretroCoreCatalog.handles(folderName);
@@ -263,7 +270,7 @@ abstract final class LibretroInternalService {
       'uiLocale': locale.toLanguageTag(),
       'retroLanguage': LibretroLocale.retroLanguage(locale),
       'uiText': LibretroLocale.nativeUI(locale),
-      'optionDefaults': core.optionDefaults,
+      'optionDefaults': await _optionDefaultsFor(core, locale),
       'noJitOverrides': core.noJitOverrides,
       'lockedOptions': core.lockedOptions,
       'coreSettings': LibretroLocale.coreSettings(locale, core),
@@ -297,6 +304,44 @@ abstract final class LibretroInternalService {
     } catch (error) {
       _log.e('Embedded libretro launch error: $error');
       return LibretroLaunchOutcome(success: false, technicalDetails: '$error');
+    }
+  }
+
+  /// NeoStation's default layer of core options for this launch (applied
+  /// by `LibretroCoreHost applyDefaults`, under any stored value and above
+  /// the core's own default): the catalog defaults, plus for the 3DS core
+  /// the system language matching the NeoStation language, only while
+  /// `Config/Azahar.json` stores no `citra_language_value` — a choice made
+  /// in the in-game menu or on the Nintendo 3DS page always wins. The
+  /// other cores keep the catalog map as it is.
+  static Future<Map<String, String>> _optionDefaultsFor(LibretroCore core, Locale locale) async {
+    if (core.id != 'azahar') return core.optionDefaults;
+    final stored = await _storedCoreOptions(_azaharLibraryName);
+    if (stored.containsKey(Libretro3dsLanguage.optionKey)) return core.optionDefaults;
+    return <String, String>{
+      ...core.optionDefaults,
+      Libretro3dsLanguage.optionKey: Libretro3dsLanguage.forAppLocale(locale),
+    };
+  }
+
+  /// Options the native session stored for one core
+  /// (`Config/<library>.json`, `{"values": {key: value}}`, read like
+  /// LibretroCoreOptions does: non-string values ignored); empty when the
+  /// file is absent or unreadable, which is also what the core would see.
+  static Future<Map<String, String>> _storedCoreOptions(String libraryName) async {
+    final file = File(path.join((await configDirectory()).path, '$libraryName.json'));
+    try {
+      if (!await file.exists()) return const <String, String>{};
+      final json = jsonDecode(await file.readAsString());
+      final values = json is Map ? json['values'] : null;
+      if (values is! Map) return const <String, String>{};
+      return <String, String>{
+        for (final entry in values.entries)
+          if (entry.value is String) entry.key.toString(): entry.value as String,
+      };
+    } catch (error) {
+      _log.w('Core options ${file.path} unreadable: $error');
+      return const <String, String>{};
     }
   }
 

@@ -10,6 +10,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/embedded_emulator_locale.dart';
 import 'package:neostation/l10n/ios_setup_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
+import 'package:neostation/screens/libretro/libretro_3ds_system_screen.dart';
 import 'package:neostation/screens/libretro/libretro_bios_checker_screen.dart';
 import 'package:neostation/screens/libretro/libretro_skin_manager_screen.dart';
 import 'package:neostation/services/libretro_core_catalog.dart';
@@ -64,6 +65,9 @@ const _newKeys = <String>[
   'engineSkinsSubtitle',
   'engineBiosChecker',
   'engineBiosCheckerSubtitle',
+  // Build 447: the Nintendo 3DS system row.
+  'engine3dsSystem',
+  'engine3dsSystemSubtitle',
 ];
 
 Future<void> _pump(WidgetTester tester, Widget child, {Locale locale = const Locale('en')}) async {
@@ -383,6 +387,69 @@ void main() {
       expect((bios as LibretroBiosCheckerScreen).console, 'psx');
       final all = LibretroEngineSettingsPanel.pageFor(LibretroEnginePage.biosChecker, null);
       expect((all as LibretroBiosCheckerScreen).console, isNull);
+    });
+
+    // Build 447 (docs/libretro-3ds-system-settings.md § 3.6): the Nintendo
+    // 3DS system row, for the 3ds console only, between skins and the BIOS
+    // checker.
+    testWidgets('the Nintendo 3DS system row exists for the 3ds console only, between skins and BIOS',
+        (tester) async {
+      final opened = await pumpPanel(tester, '3ds');
+      expect(panelState(tester).pages, <LibretroEnginePage>[
+        LibretroEnginePage.skins,
+        LibretroEnginePage.systemData3ds,
+        LibretroEnginePage.biosChecker,
+      ]);
+      expect(find.text('System settings'), findsOneWidget);
+      expect(find.text('Language, region, model and system files of the Nintendo 3DS'), findsOneWidget);
+      expect(find.byIcon(Symbols.sd_card_rounded), findsOneWidget);
+      // Drawn after Skins and before the BIOS checker.
+      expect(tester.getTopLeft(find.text('System settings')).dy,
+          greaterThan(tester.getTopLeft(find.text('Skins')).dy));
+      expect(tester.getTopLeft(find.text('System settings')).dy,
+          lessThan(tester.getTopLeft(find.text('BIOS checker')).dy));
+
+      // Touch opens it for the console; so does the controller.
+      await tester.tap(find.text('System settings'));
+      await tester.pumpAndSettle();
+      final panel = panelState(tester);
+      expect(panel.selectedIndex, 1);
+      panel.moveDown();
+      await tester.pump();
+      panel.moveUp();
+      await tester.pump();
+      await panel.trigger();
+      await tester.pumpAndSettle();
+      expect(opened, <(LibretroEnginePage, String?)>[
+        (LibretroEnginePage.systemData3ds, '3ds'),
+        (LibretroEnginePage.systemData3ds, '3ds'),
+      ]);
+
+      // Every other system keeps its rows exactly as before.
+      for (final system in <String>['snes', 'psx', 'md', 'gba', 'nds', 'psp']) {
+        await pumpPanel(tester, system);
+        expect(panelState(tester).pages, isNot(contains(LibretroEnginePage.systemData3ds)), reason: system);
+        expect(find.text('System settings'), findsNothing, reason: system);
+      }
+      await pumpPanel(tester, 'not-a-system');
+      expect(panelState(tester).pages, <LibretroEnginePage>[LibretroEnginePage.biosChecker]);
+    });
+
+    testWidgets('the Nintendo 3DS row is translated (fr, zh_Hant)', (tester) async {
+      await pumpPanel(tester, '3ds', locale: const Locale('fr'));
+      expect(find.text('Réglages système'), findsOneWidget);
+      expect(find.text('Langue, région, modèle et fichiers système de la Nintendo 3DS'), findsOneWidget);
+      await pumpPanel(tester, '3ds', locale: const Locale('zh', 'TW'));
+      expect(find.text(_t('zh_Hant', 'engine3dsSystem')), findsOneWidget);
+      expect(find.text(_t('zh_Hant', 'engine3dsSystemSubtitle').replaceAll('{console}', 'Nintendo 3DS')),
+          findsOneWidget);
+    });
+
+    test('the Nintendo 3DS row opens the system page with the app language names', () {
+      final page = LibretroEngineSettingsPanel.pageFor(LibretroEnginePage.systemData3ds, '3ds');
+      expect(page, isA<Libretro3dsSystemScreen>());
+      expect((page as Libretro3dsSystemScreen).languageNames, AppLocale.supportedLanguages);
+      expect(page.languageNames.keys.toSet(), _appLocales.toSet());
     });
   });
 

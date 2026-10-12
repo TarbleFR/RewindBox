@@ -32,6 +32,16 @@ void main() {
     'fr:paramGamma', 'es:paramGamma', 'it:paramGamma', 'de:paramGamma',
     'fr:paramAmplitude', 'pt:paramAmplitude', 'de:paramAmplitude',
     'fr:paramPhase', 'de:paramPhase',
+    // 3DS region names spelt the same as in English in that language:
+    // Europe (fr); Japan, China, Korea, Taiwan (de); Australia, China (es);
+    // Australia, Taiwan (it); China, Taiwan (pt); Australia, Korea, Taiwan
+    // (id). Every other region and language name is translated.
+    'fr:region3dsEurope',
+    'de:region3dsJapan', 'de:region3dsChina', 'de:region3dsKorea', 'de:region3dsTaiwan',
+    'es:region3dsAustralia', 'es:region3dsChina',
+    'it:region3dsAustralia', 'it:region3dsTaiwan',
+    'pt:region3dsChina', 'pt:region3dsTaiwan',
+    'id:region3dsAustralia', 'id:region3dsKorea', 'id:region3dsTaiwan',
   };
 
   const nativeClasses = 'packages/libretro_internal_bridge/ios/Classes';

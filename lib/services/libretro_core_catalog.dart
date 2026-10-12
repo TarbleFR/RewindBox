@@ -263,12 +263,66 @@ abstract final class LibretroCoreCatalog {
       // Top screen above the centred bottom screen, never swapped by the
       // core; the C-stick stays a stick instead of also driving a touch
       // cursor; stereoscopic modes would change the picture NeoStation crops.
+      // The core's user folder (keys, NAND titles, system save) stays under
+      // the libretro save directory, Files › NeoStation › Libretro › Saves,
+      // where the Nintendo 3DS page reads and installs it.
       lockedOptions: {
         'citra_layout_option': 'default',
         'citra_swap_screen': 'Top',
         'citra_analog_function': 'c_stick',
         'citra_render_3d': 'off',
+        'citra_use_libretro_save_path': 'LibRetro Default',
       },
+      // System region, language and model, also offered by the Nintendo 3DS
+      // page. The core applies the language only while the region is Auto,
+      // at the next launch or after "Restart game"; the model needs a new
+      // session. Raw values are the core's own.
+      settings: [
+        LibretroCuratedSetting(
+          'citra_region_value',
+          'setting3dsRegion',
+          ['Auto', 'Japan', 'USA', 'Europe', 'Australia', 'China', 'Korea', 'Taiwan'],
+          valueLabelKeys: {
+            'Auto': 'region3dsAuto',
+            'Japan': 'region3dsJapan',
+            'USA': 'region3dsUsa',
+            'Europe': 'region3dsEurope',
+            'Australia': 'region3dsAustralia',
+            'China': 'region3dsChina',
+            'Korea': 'region3dsKorea',
+            'Taiwan': 'region3dsTaiwan',
+          },
+        ),
+        LibretroCuratedSetting(
+          'citra_language_value',
+          'setting3dsLanguage',
+          [
+            'English', 'Japanese', 'French', 'Spanish', 'German', 'Italian',
+            'Dutch', 'Portuguese', 'Russian', 'Korean', 'Traditional Chinese',
+            'Simplified Chinese',
+          ],
+          valueLabelKeys: {
+            'English': 'lang3dsEnglish',
+            'Japanese': 'lang3dsJapanese',
+            'French': 'lang3dsFrench',
+            'Spanish': 'lang3dsSpanish',
+            'German': 'lang3dsGerman',
+            'Italian': 'lang3dsItalian',
+            'Dutch': 'lang3dsDutch',
+            'Portuguese': 'lang3dsPortuguese',
+            'Russian': 'lang3dsRussian',
+            'Korean': 'lang3dsKorean',
+            'Traditional Chinese': 'lang3dsZhHant',
+            'Simplified Chinese': 'lang3dsZhHans',
+          },
+        ),
+        LibretroCuratedSetting(
+          'citra_is_new_3ds',
+          'setting3dsModel',
+          ['New 3DS', 'Old 3DS'],
+          valueLabelKeys: {'New 3DS': 'model3dsNew', 'Old 3DS': 'model3dsOld'},
+        ),
+      ],
     ),
   };
 

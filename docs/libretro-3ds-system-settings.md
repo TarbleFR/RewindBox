@@ -236,3 +236,128 @@ Langue ignorée hors région Auto (cœur) ; langue ajustée aux régions du jeu 
 modèle à la prochaine session ; aucune distribution de clés, firmware ou polices
 (remplacements open source intégrés sauf polices CHN/KOR/TWN) ; images NAND chiffrées
 refusées ; réglages par console, pas par jeu ; aucune validation iPhone revendiquée.
+
+## 6. Déviations consignées (implémentation du 12 octobre 2026)
+
+Écarts par rapport aux § 3 et 4, minimaux et motivés ; rien n'est validé sur iPhone.
+
+### 6.1 Catalogue, langue automatique, défaut de lancement (§ 3.1, 3.2)
+
+- `Libretro3dsLanguage` porte trois membres de plus que l'API demandée : `optionKey`,
+  `fallback` et `isFallback(Locale)` (vrai seulement pour `id` ; faux pour `en` et pour
+  une langue que NeoStation ne livre pas, car `LibretroLocale.localeKey` affiche alors
+  NeoStation en anglais : l'anglais 3DS est une correspondance, pas le repli affiché).
+- Libellés : `region3dsUsa` = « United States » en anglais (« USA » en allemand),
+  `model3dsNew`/`model3dsOld` = « New model (New Nintendo 3DS) » / « Original model
+  (Nintendo 3DS) », `system3dsTitle` = « Nintendo 3DS system » (et non le seul nom de
+  produit), pour garder les libellés distincts de l'anglais et les noms de produits
+  intacts. `test/libretro_locale_test.dart` : l'ensemble d'exemptions `identical` existant
+  gagne 14 noms de régions réellement identiques à l'anglais dans leur langue (fr :
+  Europe ; de : Japan/China/Korea/Taiwan ; es : Australia/China ; it : Australia/Taiwan ;
+  pt : China/Taiwan ; id : Australia/Korea/Taiwan), par le mécanisme existant du test ;
+  aucune assertion affaiblie.
+- `test/libretro_core_catalog_test.dart` : l'attente exacte de `lockedOptions` du test
+  « DS and 3DS options NeoStation needs are locked for the session » inclut désormais
+  `citra_use_libretro_save_path` (remplacement de contrat commenté dans le test) ; un
+  nouveau test vérifie les trois réglages azahar, leurs libellés dans les douze cartes et
+  le rendu de `coreSettings()` dans chaque langue.
+- Aucun test Dart existant ne couvrait `optionDefaults` des requêtes de lancement : le
+  défaut par lancement est testé dans le nouveau `test/libretro_3ds_launch_default_test.dart`
+  (canaux `path_provider` et `neostation/libretro_internal` simulés, Documents temporaire).
+- Le service lit `Config/Azahar.json` par son propre `_storedCoreOptions('Azahar')` privé
+  (le lancement ne dépend pas du magasin § 3.3 écrit en parallèle) ; il n'écrit jamais le
+  fichier d'options.
+- `test/libretro_core_options_test.py` contrôle en plus les listes de valeurs exactes
+  (`CURATED_CHOICES`) des trois réglages azahar sans `--cores` ; renforcement seulement.
+
+### 6.2 Magasin d'options et service de données (§ 3.3, 3.5)
+
+- Un échec de la sonde `isSessionActive` (PlatformException, etc.) est rapporté comme
+  `sessionActive` avec `technicalDetail` « isSessionActive probe failed: … »
+  (fail-closed, aucune écriture) : le contrat ne nomme aucune erreur distincte pour un
+  état de session inconnu.
+- `Libretro3dsInstallStatus` ajoute `rolledBack` et `notAttempted` : après un échec de
+  commit, les éléments déjà déplacés dans le passage sont remis en place, le reste n'est
+  pas tenté ; la page affiche ces deux états comme `system3dsFailed` + code technique.
+- Reconnaissance des titres et de `config` par suffixe de chemin (`title/<8 hex>/<8 hex>/content/<hex>.app|.tmd|.cmd`,
+  `content/cmd/<hex>.cmd`, `data/<32 hex>/sysdata/00010017/00000000/config`), tout
+  préfixe toléré et id0 facultatif pour les titres (CTRNAND réel, dumps GodMode9) : un
+  sur-ensemble de la règle « préfixes `citra/`, `azahar/`, `user/`, `nand/` tolérés » ;
+  clés, seeddb et données de console reconnues par nom de base n'importe où et validées
+  par contenu. Les entrées contenant un segment `sdmc` ou `Nintendo 3DS` sont listées
+  comme ignorées ; un `config` nu n'est accepté que choisi seul.
+- Le parcours de dossier élague les dossiers connus sans données système d'un dossier
+  utilisateur Citra/Azahar (`sdmc`, `cache`, `states`, `shaders`, `log`, `logs`, `dump`,
+  `screenshots`, `load`, `cheats`, `__MACOSX`, `.git`) en plus des bornes profondeur 8 /
+  5 000 entrées ; `__MACOSX`, `.DS_Store`, `Thumbs.db`, `desktop.ini` et `._*` ne sont
+  jamais listés.
+- Refus de conteneur entier (entrée dangereuse, lien symbolique, trop d'entrées, trop
+  volumineux, fichier trop volumineux, ZIP illisible) = un seul élément refusé dont
+  `sourceEntry` est le nom du conteneur et `relativeTarget` nul (comme le flux RPCS3) ;
+  dans un dossier, un lien symbolique ne refuse que cette entrée, trop d'entrées refuse
+  le dossier entier.
+- `Libretro3dsRejection.invalid` couvre aussi : destination en double entre sources (la
+  première gagne), source manquante ou illisible, entrée ZIP chiffrée ou compression non
+  prise en charge, source modifiée entre l'analyse et l'installation.
+- Images NAND brutes : par nom (`nand.bin`, `*.img`, `ctrnand*`, `twln*`,
+  `essential.exefs`) et par contenu (`NCSD` à 0x100) sur fichiers isolés, fichiers de
+  dossier et entrées ZIP (préfixe diffusé en flux, au plus 0x200 octets décompressés) ;
+  une entrée ZIP au-dessus de 512 Mio est rapportée `fileTooLarge` pour toute l'archive
+  avant tout contrôle de contenu.
+- Validation : clés = ASCII ≤ 64 Kio, chaque ligne hors commentaire `nom=hex`, au moins
+  une clé `slot0x..`/`generator`/`commonN` ; seeddb = 16 + 32·n, ≤ 1 Mio, compte déclaré
+  ≤ n ; config = exactement 0x8000 octets, `total_entries` ≤ 1479,
+  `data_entries_offset` ≤ 0x8000 ; données de console ≤ 1 Mio ; titres non vides.
+- Horodatages UTC (staging, sauvegarde, journal) ; deux passages la même seconde donnent
+  `Backups/Azahar/<stamp>-2`, `-3`… et s'ajoutent au même journal ; l'événement `end` du
+  journal garde les comptes par statut sous `counts` et caviarde les racines absolues.
+- `restoreLastBackup()` recopie seulement les fichiers (ceux créés par le passage
+  restauré ne sont pas supprimés), via un staging `.neostation-3ds-restore-<stamp>` à
+  côté du dossier utilisateur ; les fichiers courants écrasés vont dans un nouveau dossier
+  de sauvegarde, qui devient la plus récente.
+- Le magasin trie les clés à l'écriture (l'ordre natif de NSJSONSerialization n'est pas
+  spécifié) ; un élément `skipIdentical` du plan n'est pas revérifié à l'installation.
+
+### 6.3 Page, panneau Émulateurs, CI (§ 3.4, 3.6, 4)
+
+- `Libretro3dsSystemScreen` reçoit `languageNames` (la liste des langues de l'application,
+  `AppLocale.supportedLanguages`, passée par `LibretroEngineSettingsPanel.pageFor`) pour
+  nommer la langue de NeoStation dans l'entrée « Automatique » et dans `lang3dsFallback` :
+  les pages de `lib/screens/libretro` ne peuvent pas référencer `AppLocale`
+  (`test/libretro_frontend_ui_contract_test.py`) et le catalogue n'a pas de libellé pour
+  l'indonésien. Sans cette liste, le libellé 3DS de la langue correspondante est utilisé
+  (la clé de catalogue pour le repli).
+- Les étapes (2) plan et (3) confirmation sont un seul dialogue : le bouton principal est
+  `system3dsConfirm` suivi du nombre d'éléments sélectionnés par les cases, les deux
+  cases sont toujours affichées, décochées, et désactivées quand le plan ne contient
+  aucun élément de leur sorte ; `system3dsNothingRecognized` remplace le bouton quand
+  rien n'est reconnu. L'analyse n'est pas relancée avant l'installation.
+- L'analyse s'exécute par `Isolate.run` sur `Libretro3dsSystemDataService.analyzeSources`
+  (chemin du dossier utilisateur résolu avant) ; la page accepte une analyse, un sélecteur
+  de fichiers et un sélecteur de dossier injectés pour les tests. ZIP et fichiers isolés
+  passent tous deux par `FilePicker.pickFiles(type: FileType.any, allowMultiple: true)`.
+- Progression d'installation indéterminée (le service n'expose aucun rappel de
+  progression) ; le dialogue de progression ne se ferme pas par B.
+- Clés réutilisées faute de clé dédiée dans le catalogue : `controlsEditDone` (« Done »)
+  ferme le dialogue de résultat ; `cancel` annule le plan ; la confirmation de
+  restauration (`ConfirmActionDialog`) reprend `system3dsRestoreBackup` et
+  `system3dsPlanReplace` (« À remplacer (une sauvegarde est conservée) »).
+- Le bouton `system3dsRestoreBackup` est désactivé sans sauvegarde, avec la note
+  `system3dsNoBackup` ; l'erreur `noBackup` du service reste traitée.
+- Chemins réels : le dossier utilisateur est montré comme dans Fichiers
+  (`libretroLibraryLocation`), chaque ligne de l'inventaire montre son chemin relatif brut,
+  la paire brute `clé = valeur` apparaît sous chaque réglage stocké ; les polices sont
+  listées par titre `0004009b/<low>`.
+- Les dialogues de la page reprennent les raccourcis de `libretroPage` (Entrée et flèches
+  réservés à la couche manette) pour qu'une touche n'agisse jamais deux fois ; aucun
+  nouveau calque `GamepadNavigationManager` n'est poussé pour eux.
+- Les commandes de la page restent actives pendant une écriture, un import ou une
+  restauration (leurs gestionnaires refusent la réentrance ; un indicateur tourne dans
+  l'en-tête de la carte) : constaté en test, désactiver la commande focalisée
+  (`onPressed: null`) pendant que le dialogue de choix se ferme fait sortir le focus de la
+  page (Flutter, `unfocus(previouslyFocusedChild)` remonte jusqu'à la route précédente) et
+  la manette n'agit plus sur rien de visible.
+- `test/libretro_engine_settings_test.dart` : `_newKeys` gagne `engine3dsSystem` et
+  `engine3dsSystemSubtitle` (renforcement) ; les attentes psx/md/gba/null sont inchangées.
+- `BUILD447_3DS_DELTA` liste aussi `build-utils/verify_delivery_reuse.py` ; les fichiers
+  non suivis ne sont jugés par `verify_delivery_reuse.py` qu'une fois commités.

@@ -1057,6 +1057,34 @@ BUILD447_EXTERNAL_DISPLAY_DELTA = {
     'test/rpcs3_external_display_test.py',
 }
 DELTA |= BUILD447_EXTERNAL_DISPLAY_DELTA
+# Build 447, Nintendo 3DS system settings and data (12 October 2026,
+# docs/libretro-3ds-system-settings.md): language/region/model of the
+# azahar core through the Dart option store, launch-time language default,
+# Emulators-tab page with system data inventory, import and restore, and
+# the CI lists that run their tests. Dart only: no native or core change.
+BUILD447_3DS_DELTA = {
+    '.github/workflows/libretro-checks.yml',
+    '.github/workflows/retroarch-delivery.yml',
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/libretro_locale.dart',
+    'lib/screens/libretro/libretro_3ds_system_screen.dart',
+    'lib/services/libretro_3ds_language.dart',
+    'lib/services/libretro_3ds_system_data_service.dart',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/services/libretro_core_option_store.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/widgets/libretro_engine_panel.dart',
+    'test/libretro_3ds_language_test.dart',
+    'test/libretro_3ds_launch_default_test.dart',
+    'test/libretro_3ds_system_data_service_test.dart',
+    'test/libretro_3ds_system_screen_test.dart',
+    'test/libretro_core_catalog_test.dart',
+    'test/libretro_core_option_store_test.dart',
+    'test/libretro_core_options_test.py',
+    'test/libretro_engine_settings_test.dart',
+    'test/libretro_locale_test.dart',
+}
+DELTA |= BUILD447_3DS_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

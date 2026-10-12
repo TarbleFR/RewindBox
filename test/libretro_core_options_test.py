@@ -42,14 +42,22 @@ CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?
 
 # Curated in-game settings, exactly. The DeSmuME screen layout setting was
 # removed on purpose: NeoStation now locks DeSmuME to stacked screens and
-# arranges them itself, so it moved to LOCKED below.
+# arranges them itself, so it moved to LOCKED below. The three Azahar
+# settings (system region, language and model, docs/libretro-3ds-system-
+# settings.md § 3.1) are proven key by key and value by value in the pinned
+# binary by binary_findings below, with --cores.
 CURATED = {
     ('mupen64plus_next', 'mupen64plus-43screensize'),
     ('mednafen_psx_hw', 'beetle_psx_hw_internal_resolution'),
     ('ppsspp', 'ppsspp_internal_resolution'),
+    ('azahar', 'citra_region_value'),
+    ('azahar', 'citra_language_value'),
+    ('azahar', 'citra_is_new_3ds'),
 }
 # Options NeoStation locks for the session, exactly (screen crop, touch
-# screen and sticks of the dual-screen consoles).
+# screen and sticks of the dual-screen consoles; the Azahar user folder
+# kept under the libretro save directory, where the Nintendo 3DS page reads
+# and installs the system files).
 LOCKED = {
     'desmume': {
         'desmume_screens_layout': 'top/bottom',
@@ -62,7 +70,18 @@ LOCKED = {
         'citra_swap_screen': 'Top',
         'citra_analog_function': 'c_stick',
         'citra_render_3d': 'off',
+        'citra_use_libretro_save_path': 'LibRetro Default',
     },
+}
+# The choices of every curated setting, exactly: the raw values the core
+# offers, which the catalog must spell the same way (a misspelt choice is
+# silently ignored by the host, like a locked value).
+CURATED_CHOICES = {
+    ('azahar', 'citra_region_value'): ['Auto', 'Japan', 'USA', 'Europe', 'Australia', 'China', 'Korea', 'Taiwan'],
+    ('azahar', 'citra_language_value'): ['English', 'Japanese', 'French', 'Spanish', 'German', 'Italian', 'Dutch',
+                                         'Portuguese', 'Russian', 'Korean', 'Traditional Chinese',
+                                         'Simplified Chinese'],
+    ('azahar', 'citra_is_new_3ds'): ['New 3DS', 'Old 3DS'],
 }
 
 
@@ -138,6 +157,9 @@ def main():
     require(curated == CURATED, f'curated settings {sorted(curated)} differ from {sorted(CURATED)}')
     require(all(values for entry in cores.values() for _, values in entry['settings']),
             'curated setting choices were not parsed')
+    choices = {(core_id, key): values for core_id, entry in cores.items() for key, values in entry['settings']}
+    for setting, expected in CURATED_CHOICES.items():
+        require(choices.get(setting) == expected, f'choices of {setting} {choices.get(setting)} differ from {expected}')
     locked = {core_id: entry['locked'] for core_id, entry in cores.items() if entry['locked']}
     require(locked == LOCKED, f'locked options {locked} differ from {LOCKED}')
     for core_id, entry in cores.items():

@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/libretro_locale.dart';
+import 'package:neostation/services/libretro_3ds_language.dart';
 import 'package:neostation/services/libretro_core_catalog.dart';
 
 Map<String, Map<String, dynamic>> _systemsById() {
@@ -212,11 +216,16 @@ void main() {
       'desmume_pointer_type': 'touch',
       'desmume_pointer_mouse': 'enabled',
     });
+    // Contract change (docs/libretro-3ds-system-settings.md § 3.1): the
+    // Azahar user folder is also locked under the libretro save directory,
+    // so the Nintendo 3DS page always finds the keys, NAND titles and
+    // system save in Libretro › Saves › Azahar › Azahar.
     expect(cores['azahar']!.lockedOptions, <String, String>{
       'citra_layout_option': 'default',
       'citra_swap_screen': 'Top',
       'citra_analog_function': 'c_stick',
       'citra_render_3d': 'off',
+      'citra_use_libretro_save_path': 'LibRetro Default',
     });
     for (final core in cores.values.where((core) => core.id != 'desmume' && core.id != 'azahar')) {
       expect(core.lockedOptions, isEmpty, reason: core.id);
@@ -240,6 +249,70 @@ void main() {
     expect(desmume.settings.map((setting) => setting.key), isNot(contains('desmume_screens_layout')));
     expect(desmume.optionDefaults.containsKey('desmume_screens_layout'), isFalse);
     expect(desmume.lockedOptions['desmume_screens_layout'], 'top/bottom');
+  });
+
+  test('the 3DS core offers system region, language and model, translated twelve times', () {
+    final azahar = LibretroCoreCatalog.cores['azahar']!;
+    expect(azahar.settings.map((setting) => setting.key).toList(),
+        <String>['citra_region_value', 'citra_language_value', 'citra_is_new_3ds']);
+    final region = azahar.settings[0];
+    final language = azahar.settings[1];
+    final model = azahar.settings[2];
+    expect(region.labelKey, 'setting3dsRegion');
+    expect(region.values, <String>['Auto', 'Japan', 'USA', 'Europe', 'Australia', 'China', 'Korea', 'Taiwan']);
+    expect(region.valueLabelKeys, <String, String>{
+      'Auto': 'region3dsAuto', 'Japan': 'region3dsJapan', 'USA': 'region3dsUsa', 'Europe': 'region3dsEurope',
+      'Australia': 'region3dsAustralia', 'China': 'region3dsChina', 'Korea': 'region3dsKorea',
+      'Taiwan': 'region3dsTaiwan',
+    });
+    expect(language.labelKey, 'setting3dsLanguage');
+    expect(language.values, <String>[
+      'English', 'Japanese', 'French', 'Spanish', 'German', 'Italian', 'Dutch', 'Portuguese', 'Russian', 'Korean',
+      'Traditional Chinese', 'Simplified Chinese',
+    ]);
+    expect(language.valueLabelKeys, <String, String>{
+      'English': 'lang3dsEnglish', 'Japanese': 'lang3dsJapanese', 'French': 'lang3dsFrench',
+      'Spanish': 'lang3dsSpanish', 'German': 'lang3dsGerman', 'Italian': 'lang3dsItalian', 'Dutch': 'lang3dsDutch',
+      'Portuguese': 'lang3dsPortuguese', 'Russian': 'lang3dsRussian', 'Korean': 'lang3dsKorean',
+      'Traditional Chinese': 'lang3dsZhHant', 'Simplified Chinese': 'lang3dsZhHans',
+    });
+    expect(model.labelKey, 'setting3dsModel');
+    expect(model.values, <String>['New 3DS', 'Old 3DS']);
+    expect(model.valueLabelKeys, <String, String>{'New 3DS': 'model3dsNew', 'Old 3DS': 'model3dsOld'});
+    // Every word value has a label; no stray label for a value the core
+    // does not offer.
+    for (final setting in azahar.settings) {
+      expect(setting.valueLabelKeys.keys.toSet(), setting.values.toSet(), reason: setting.key);
+    }
+    // The language default of a launch (Libretro3dsLanguage) and the in-game
+    // menu read the same value list.
+    expect(Libretro3dsLanguage.coreValues, language.values);
+    for (final value in language.values) {
+      expect(Libretro3dsLanguage.labelKeyFor(value), language.valueLabelKeys[value], reason: value);
+    }
+    // Labels and value labels exist, non-empty, in all twelve languages.
+    expect(LibretroLocale.values.keys.toSet(), AppLocale.supportedLanguages.keys.toSet());
+    for (final entry in LibretroLocale.values.entries) {
+      for (final setting in azahar.settings) {
+        for (final key in <String>[setting.labelKey, ...setting.valueLabelKeys.values]) {
+          expect(entry.value[key]?.trim(), isNotEmpty, reason: '${entry.key}:$key');
+        }
+      }
+      // The in-game menu shows the translation of each value's label key,
+      // never the raw-value fallback of coreSettings (in English the two
+      // can coincide, "Japan", so the key's text is what is compared).
+      final translated = LibretroLocale.coreSettings(Locale(entry.key), azahar);
+      expect(translated.map((setting) => setting['key']).toList(),
+          <String>['citra_region_value', 'citra_language_value', 'citra_is_new_3ds']);
+      for (var index = 0; index < azahar.settings.length; index++) {
+        final setting = azahar.settings[index];
+        expect(translated[index]['label'], entry.value[setting.labelKey], reason: '${entry.key}:${setting.key}');
+        for (final value in translated[index]['values'] as List<Map<String, String>>) {
+          final labelKey = setting.valueLabelKeys[value['value']]!;
+          expect(value['label'], entry.value[labelKey], reason: '${entry.key}:${value['value']}');
+        }
+      }
+    }
   });
 
   test('default core comes first, alternatives follow', () {

@@ -2,16 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../l10n/app_locale.dart';
 import '../l10n/embedded_emulator_locale.dart';
 import '../l10n/libretro_locale.dart';
+import '../screens/libretro/libretro_3ds_system_screen.dart';
 import '../screens/libretro/libretro_bios_checker_screen.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
 import '../services/libretro_core_catalog.dart';
 import '../services/sfx_service.dart';
 import '../themes/corner_radii.dart';
 
-/// Pages the embedded engine's settings panel opens.
-enum LibretroEnginePage { skins, biosChecker }
+/// Pages the embedded engine's settings panel opens. [systemData3ds] (the
+/// Nintendo 3DS system settings and data, Build 447) exists for the `3ds`
+/// console only.
+enum LibretroEnginePage { skins, systemData3ds, biosChecker }
+
+/// Console whose Emulators tab offers the Nintendo 3DS system page.
+const String _console3ds = '3ds';
 
 /// Opens [page] for [console] (a key of [LibretroCoreCatalog.consoles], null
 /// when the system has none) and completes when the page is closed.
@@ -96,6 +103,11 @@ class LibretroEngineSettingsPanel extends StatefulWidget {
   static Widget pageFor(LibretroEnginePage page, String? console) =>
       switch (page) {
         LibretroEnginePage.skins => LibretroSkinManagerScreen(console: console!),
+        // The page names NeoStation's current language in its "Automatic"
+        // entry with the app's own language list.
+        LibretroEnginePage.systemData3ds => const Libretro3dsSystemScreen(
+          languageNames: AppLocale.supportedLanguages,
+        ),
         LibretroEnginePage.biosChecker => LibretroBiosCheckerScreen(
           console: console,
         ),
@@ -128,9 +140,11 @@ class LibretroEngineSettingsPanelState
       LibretroCoreCatalog.consoleFor(widget.systemKey);
 
   /// Rows the controller moves through, in display order: skins belong to a
-  /// console, so the row exists only when the system has one.
+  /// console, so the row exists only when the system has one; the Nintendo
+  /// 3DS system page only for that console.
   List<LibretroEnginePage> get pages => <LibretroEnginePage>[
     if (_console != null) LibretroEnginePage.skins,
+    if (_console?.id == _console3ds) LibretroEnginePage.systemData3ds,
     LibretroEnginePage.biosChecker,
   ];
 
@@ -205,6 +219,15 @@ class LibretroEngineSettingsPanelState
         subtitle: LibretroLocale.formatContext(
           context,
           'engineSkinsSubtitle',
+          {'console': consoleName},
+        ),
+      ),
+      LibretroEnginePage.systemData3ds => (
+        icon: Symbols.sd_card_rounded,
+        title: LibretroLocale.text(context, 'engine3dsSystem'),
+        subtitle: LibretroLocale.formatContext(
+          context,
+          'engine3dsSystemSubtitle',
           {'console': consoleName},
         ),
       ),
