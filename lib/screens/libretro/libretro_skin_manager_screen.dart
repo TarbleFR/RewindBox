@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/libretro_locale.dart';
+import '../../l10n/skin_browser_locale.dart';
 import '../../services/gamepad/gamepad_navigation_manager.dart';
 import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_skin_compatibility.dart';
@@ -420,6 +421,14 @@ class LibretroSkinManagerScreen extends StatefulWidget {
   /// Skin service; created from NeoStation's directories when null.
   final LibretroSkinService? service;
 
+  /// Previews shown (Build 448): both orientations, or one of them larger,
+  /// whatever the device's orientation. Kept for the run, every console.
+  static String _previewMode = previewBoth;
+  static const String previewBoth = 'both';
+
+  @visibleForTesting
+  static void resetPreviewMode() => _previewMode = previewBoth;
+
   @override
   State<LibretroSkinManagerScreen> createState() => _LibretroSkinManagerScreenState();
 }
@@ -436,6 +445,11 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
   /// Previews the renderer could not draw: not asked for again while this
   /// page is open, asked for again on the next visit.
   final Map<String, Future<Uint8List?>> _missingPreviews = <String, Future<Uint8List?>>{};
+
+  static const String previewBoth = LibretroSkinManagerScreen.previewBoth;
+
+  String get _previewMode => LibretroSkinManagerScreen._previewMode;
+  set _previewMode(String value) => LibretroSkinManagerScreen._previewMode = value;
 
   LibretroSkinService? _skins;
   List<LibretroInstalledSkin> _installed = const <LibretroInstalledSkin>[];
@@ -643,6 +657,8 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
                         const SizedBox(height: 12),
                         _buildHeaderActions(),
                         const SizedBox(height: 12),
+                        _buildPreviewMode(context),
+                        const SizedBox(height: 12),
                         _buildSkinCard(context, null),
                         if (_installed.isNotEmpty) ...[
                           Padding(
@@ -725,6 +741,45 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
             onPressed: enabled ? _browseCatalog : null,
             icon: const Icon(Icons.travel_explore),
             label: Text(_t('skinsBrowseCatalog')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Portrait, landscape or both previews, independent of how the device is
+  /// held.
+  Widget _buildPreviewMode(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(SkinBrowserLocale.text(context, SkinBrowserLocale.preview), style: theme.textTheme.labelLarge),
+        LibretroFocusRing(
+          child: SegmentedButton<String>(
+            key: const ValueKey('skin-preview-mode'),
+            showSelectedIcon: false,
+            segments: <ButtonSegment<String>>[
+              ButtonSegment<String>(
+                value: previewBoth,
+                icon: const Icon(Icons.screen_rotation),
+                label: Text(_t('catalogOrientationAny')),
+              ),
+              ButtonSegment<String>(
+                value: LibretroSkinService.portrait,
+                icon: const Icon(Icons.stay_current_portrait),
+                label: Text(_t('orientationPortrait')),
+              ),
+              ButtonSegment<String>(
+                value: LibretroSkinService.landscape,
+                icon: const Icon(Icons.stay_current_landscape),
+                label: Text(_t('orientationLandscape')),
+              ),
+            ],
+            selected: <String>{_previewMode},
+            onSelectionChanged: (selection) => setState(() => _previewMode = selection.single),
           ),
         ),
       ],
@@ -834,30 +889,56 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
         ),
     ];
 
+    final header = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: details),
+        ),
+        if (badges.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: badges),
+        ],
+      ],
+    );
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final previews = _buildPreviews(
+              context,
+              skin,
+              portrait: portrait,
+              landscape: landscape,
+              maxWidth: constraints.maxWidth,
+            );
+            // Wide screens (iPad, phones in landscape): the previews beside
+            // the details; phones in portrait: under them.
+            final wide = constraints.maxWidth >= 640;
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: details),
-                ),
-                if (badges.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Wrap(spacing: 6, runSpacing: 6, children: badges),
+                if (wide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: header),
+                      const SizedBox(width: 16),
+                      previews,
+                    ],
+                  )
+                else ...[
+                  header,
+                  const SizedBox(height: 12),
+                  previews,
                 ],
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: actions),
               ],
-            ),
-            const SizedBox(height: 12),
-            _buildPreviews(context, skin, portrait: portrait, landscape: landscape),
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -888,21 +969,33 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
   }
 
   /// Portrait and landscape thumbnails, drawn natively at the size of this
-  /// device's screen (iPhone or iPad) and shown scaled down.
+  /// device's screen (iPhone or iPad) and shown scaled down: both, or the
+  /// one chosen by the preview selector, larger. A skin without the chosen
+  /// orientation shows the one it has.
   Widget _buildPreviews(
     BuildContext context,
     LibretroInstalledSkin? skin, {
     required bool portrait,
     required bool landscape,
+    required double maxWidth,
   }) {
     final media = MediaQuery.of(context);
     final shortest = media.size.shortestSide <= 0 ? 390.0 : media.size.shortestSide;
     final longest = media.size.longestSide <= 0 ? 844.0 : media.size.longestSide;
     final ratio = media.devicePixelRatio <= 0 ? 2.0 : media.devicePixelRatio;
-    const portraitHeight = 168.0;
-    const landscapeHeight = 112.0;
+    final mode = _previewMode;
+    final onlyPortrait = mode == LibretroSkinService.portrait && portrait;
+    final onlyLandscape = mode == LibretroSkinService.landscape && landscape;
+    final single = onlyPortrait || onlyLandscape;
+    final portraitHeight = single ? 300.0 : 168.0;
+    // A landscape preview never wider than the card.
+    final landscapeHeight = (single ? 210.0 : 112.0)
+        .clamp(60.0, (maxWidth - 8) * shortest / longest)
+        .toDouble();
     final portraitBox = Size(portraitHeight * shortest / longest, portraitHeight);
     final landscapeBox = Size(landscapeHeight * longest / shortest, landscapeHeight);
+    final showPortrait = portrait && !onlyLandscape;
+    final showLandscape = landscape && !onlyPortrait;
 
     Widget thumbnail(String orientation, Size box) {
       final view = orientation == LibretroSkinService.portrait ? Size(shortest, longest) : Size(longest, shortest);
@@ -911,12 +1004,13 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     }
 
     return Wrap(
+      key: ValueKey('skin-previews-$mode'),
       spacing: 12,
       runSpacing: 12,
       crossAxisAlignment: WrapCrossAlignment.end,
       children: [
-        if (portrait) thumbnail(LibretroSkinService.portrait, portraitBox),
-        if (landscape) thumbnail(LibretroSkinService.landscape, landscapeBox),
+        if (showPortrait) thumbnail(LibretroSkinService.portrait, portraitBox),
+        if (showLandscape) thumbnail(LibretroSkinService.landscape, landscapeBox),
       ],
     );
   }

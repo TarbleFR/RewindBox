@@ -3,11 +3,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../l10n/libretro_locale.dart';
+import '../../l10n/skin_browser_locale.dart';
 import '../../services/libretro_skin_catalogs.dart';
 import '../../services/libretro_skin_compatibility.dart';
 import '../../services/libretro_skin_service.dart';
 import '../../services/logger_service.dart';
 import 'libretro_skin_manager_screen.dart';
+
+/// What the catalog page of a console looked like when it was left (Build
+/// 448): its filters, its search and its scroll position come back when it
+/// is opened again during the same run.
+class _CatalogView {
+  String query = '';
+  String? source;
+  String? orientation;
+  bool favoritesOnly = false;
+  bool showHidden = false;
+  bool? filtersOpen;
+  double offset = 0;
+}
 
 /// Unified skin catalogs for one embedded console: Provenance (with the
 /// DeltaStyles and Delta Skins entries it lists), the Delta Skins site and
@@ -42,6 +56,14 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
     with LibretroPageNavigation<LibretroSkinCatalogScreen> {
   static final _log = LoggerService.instance;
 
+  /// Per console, for this run of the app.
+  static final Map<String, _CatalogView> _views = <String, _CatalogView>{};
+
+  late final _CatalogView _view = _views.putIfAbsent(widget.console, _CatalogView.new);
+  final ScrollController _scroll = ScrollController();
+  bool _offsetRestored = false;
+  bool _filtersToggled = false;
+
   late final LibretroSkinCatalogs _catalogs = widget.catalogs ?? LibretroSkinCatalogs.over(widget.skins);
   final TextEditingController _search = TextEditingController();
 
@@ -72,16 +94,64 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
   @override
   void initState() {
     super.initState();
+    _query = _view.query;
+    _search.text = _view.query;
+    _source = _view.source;
+    _orientation = _view.orientation;
+    _favoritesOnly = _view.favoritesOnly;
+    _showHidden = _view.showHidden;
+    _scroll.addListener(_rememberOffset);
     unawaited(_load());
   }
 
   @override
   void dispose() {
     _generation++;
+    _rememberView();
     if (widget.catalogs == null) _catalogs.dispose();
     _search.dispose();
+    _scroll.dispose();
     super.dispose();
   }
+
+  void _rememberOffset() {
+    // Not before the saved position was put back: the first layout starts
+    // at the top.
+    if (_offsetRestored && _scroll.hasClients) _view.offset = _scroll.offset;
+  }
+
+  void _rememberView() {
+    _view
+      ..query = _query
+      ..source = _source
+      ..orientation = _orientation
+      ..favoritesOnly = _favoritesOnly
+      ..showHidden = _showHidden;
+  }
+
+  /// Back where the page was left, once its entries are laid out.
+  void _restoreOffset() {
+    if (_offsetRestored) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _offsetRestored) return;
+      _offsetRestored = true;
+      if (!_scroll.hasClients) return;
+      final target = _view.offset.clamp(0.0, _scroll.position.maxScrollExtent).toDouble();
+      if (target > 0) _scroll.jumpTo(target);
+    });
+  }
+
+  /// Phones in landscape keep the screen for the skins: the filters start
+  /// folded there (and open elsewhere) until the user opens or folds them.
+  bool _filtersOpen(BuildContext context) {
+    final chosen = _view.filtersOpen;
+    if (chosen != null) return chosen;
+    final size = MediaQuery.sizeOf(context);
+    return !(size.width > size.height && size.shortestSide < 600);
+  }
+
+  int get _activeFilters =>
+      (_source == null ? 0 : 1) + (_orientation == null ? 0 : 1) + (_favoritesOnly ? 1 : 0);
 
   void _retry() {
     setState(() {
@@ -119,7 +189,10 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
         ..addAll(favorites);
       if (_source != null && !_entries.any((entry) => entry.source == _source)) _source = null;
     });
-    if (!_failed) unawaited(_classify(generation));
+    if (!_failed) {
+      _restoreOffset();
+      unawaited(_classify(generation));
+    }
   }
 
   Future<void> _classify(int generation) async {
@@ -196,33 +269,39 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
     final matching = _matching;
     final shown = matching.where((entry) => !_hidden(entry) && _inOrientation(entry)).toList();
     final hidden = matching.where(_hidden).toList();
+    final size = MediaQuery.sizeOf(context);
+    // Phones in landscape: a lower bar, the filters folded, more skins.
+    final compact = size.width > size.height && size.shortestSide < 600;
+    final ready = !_loading && !_failed;
+    final filtersOpen = ready && _filtersOpen(context);
+    final appBar = libretroPageAppBar(context, _t('catalogTitle'));
     return libretroPage(Scaffold(
-      appBar: libretroPageAppBar(context, _t('catalogTitle')),
+      appBar: compact
+          ? AppBar(
+              leading: appBar.leading,
+              title: appBar.title,
+              toolbarHeight: 44,
+            )
+          : appBar,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 860),
+            constraints: const BoxConstraints(maxWidth: 1180),
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: LibretroFocusRing(
-                    radius: 8,
-                    child: TextField(
-                      controller: _search,
-                      enabled: !_loading && !_failed,
-                      textInputAction: TextInputAction.search,
-                      decoration: InputDecoration(
-                        labelText: _t('catalogSearch'),
-                        prefixIcon: const Icon(Icons.search),
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (value) => setState(() => _query = value),
-                    ),
-                  ),
-                ),
-                if (!_loading && !_failed) _buildFilters(context),
-                if (!_loading && !_failed) _buildStatus(context),
+                _buildHeader(context, compact: compact, ready: ready, filtersOpen: filtersOpen),
+                // Animated when the user folds or opens them, not when the
+                // page appears.
+                if (_filtersToggled)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: filtersOpen ? _buildFilters(context) : const SizedBox(width: double.infinity),
+                  )
+                else if (filtersOpen)
+                  _buildFilters(context),
+                if (ready) _buildStatus(context),
                 Expanded(child: _buildBody(context, shown, hidden)),
               ],
             ),
@@ -230,6 +309,58 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
         ),
       ),
     ));
+  }
+
+  /// Search, and the button folding the filters (with the number of active
+  /// ones).
+  Widget _buildHeader(BuildContext context, {required bool compact, required bool ready, required bool filtersOpen}) {
+    final active = _activeFilters;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, compact ? 6 : 12, 16, compact ? 4 : 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: LibretroFocusRing(
+              radius: 8,
+              child: TextField(
+                controller: _search,
+                enabled: ready,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  labelText: _t('catalogSearch'),
+                  prefixIcon: const Icon(Icons.search),
+                  border: const OutlineInputBorder(),
+                  isDense: compact,
+                ),
+                onChanged: (value) => setState(() {
+                  _query = value;
+                  _view.query = value;
+                }),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          LibretroFocusRing(
+            child: Badge(
+              isLabelVisible: active > 0 && !filtersOpen,
+              label: Text('$active'),
+              child: IconButton.filledTonal(
+                key: const ValueKey('skin-catalog-filters'),
+                tooltip: SkinBrowserLocale.text(context, SkinBrowserLocale.filters),
+                isSelected: filtersOpen,
+                onPressed: ready
+                    ? () => setState(() {
+                          _filtersToggled = true;
+                          _view.filtersOpen = !filtersOpen;
+                        })
+                    : null,
+                icon: const Icon(Icons.tune),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _chip(String label, bool selected, VoidCallback onSelected, {IconData? icon}) => LibretroFocusRing(
@@ -244,11 +375,17 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
       );
 
   Widget _buildFilters(BuildContext context) {
+    final theme = Theme.of(context);
     final sources = <String>[
       for (final source in LibretroSkinSources.all)
         if (_entries.any((entry) => entry.source == source)) source,
     ];
+    void change(VoidCallback update) => setState(() {
+          update();
+          _rememberView();
+        });
     return Padding(
+      key: const ValueKey('skin-catalog-filter-panel'),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,31 +394,37 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
             spacing: 8,
             runSpacing: 4,
             children: [
-              _chip(_t('catalogSourcesAll'), _source == null, () => setState(() => _source = null)),
+              _chip(_t('catalogSourcesAll'), _source == null, () => change(() => _source = null)),
               for (final source in sources)
-                _chip(LibretroSkinSources.label(source), _source == source, () => setState(() => _source = source)),
+                _chip(LibretroSkinSources.label(source), _source == source, () => change(() => _source = source)),
             ],
           ),
           const SizedBox(height: 4),
+          // The preview orientation, whatever the device's: the skins playable
+          // in it, their verdict for it and thumbnails shaped like it.
           Wrap(
             spacing: 8,
             runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _chip(_t('catalogOrientationAny'), _orientation == null, () => setState(() => _orientation = null)),
+              Text(SkinBrowserLocale.text(context, SkinBrowserLocale.preview), style: theme.textTheme.labelLarge),
+              _chip(_t('catalogOrientationAny'), _orientation == null, () => change(() => _orientation = null)),
               _chip(
                 _t('orientationPortrait'),
                 _orientation == LibretroSkinService.portrait,
-                () => setState(() => _orientation = LibretroSkinService.portrait),
+                () => change(() => _orientation = LibretroSkinService.portrait),
+                icon: Icons.stay_current_portrait,
               ),
               _chip(
                 _t('orientationLandscape'),
                 _orientation == LibretroSkinService.landscape,
-                () => setState(() => _orientation = LibretroSkinService.landscape),
+                () => change(() => _orientation = LibretroSkinService.landscape),
+                icon: Icons.stay_current_landscape,
               ),
               _chip(
                 _t('catalogFavorites'),
                 _favoritesOnly,
-                () => setState(() => _favoritesOnly = !_favoritesOnly),
+                () => change(() => _favoritesOnly = !_favoritesOnly),
                 icon: _favoritesOnly ? Icons.star : Icons.star_border,
               ),
             ],
@@ -365,21 +508,47 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
         ),
       );
     }
-    final rows = <Widget>[
-      for (final entry in shown) _buildEntry(context, entry),
-      if (shown.isEmpty && !_checking)
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(_t('catalogEmpty'), textAlign: TextAlign.center),
-        ),
-      if (hidden.isNotEmpty) _buildHiddenHeader(context, hidden.length),
-      if (_showHidden)
-        for (final entry in hidden) _buildEntry(context, entry, excluded: true),
-    ];
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: rows.length,
-      itemBuilder: (context, index) => rows[index],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // One column on phones in portrait, up to three on wide screens.
+        final columns = (constraints.maxWidth / 420).floor().clamp(1, 3);
+        List<Widget> grid(List<LibretroCatalogSkin> entries, {bool excluded = false}) => <Widget>[
+              for (var index = 0; index < entries.length; index += columns)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var column = 0; column < columns; column++) ...[
+                      if (column > 0) const SizedBox(width: 10),
+                      Expanded(
+                        child: index + column < entries.length
+                            ? _buildEntry(context, entries[index + column], excluded: excluded)
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+            ];
+        final rows = <Widget>[
+          ...grid(shown),
+          if (shown.isEmpty && !_checking)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(_t('catalogEmpty'), textAlign: TextAlign.center),
+            ),
+          if (hidden.isNotEmpty) _buildHiddenHeader(context, hidden.length),
+          if (_showHidden) ...grid(hidden, excluded: true),
+        ];
+        return Scrollbar(
+          controller: _scroll,
+          child: ListView.builder(
+            key: const ValueKey('skin-catalog-list'),
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            itemCount: rows.length,
+            itemBuilder: (context, index) => rows[index],
+          ),
+        );
+      },
     );
   }
 
@@ -394,7 +563,10 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
           Expanded(child: Text(_f('catalogHidden', {'count': count}), style: theme.textTheme.bodySmall)),
           LibretroFocusRing(
             child: TextButton(
-              onPressed: () => setState(() => _showHidden = !_showHidden),
+              onPressed: () => setState(() {
+                _showHidden = !_showHidden;
+                _view.showHidden = _showHidden;
+              }),
               child: Text(_t(_showHidden ? 'catalogHideHidden' : 'catalogShowHidden')),
             ),
           ),
@@ -448,7 +620,15 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Thumbnail(url: _thumbnail(entry)),
+            Tooltip(
+              message: SkinBrowserLocale.text(context, SkinBrowserLocale.showDetails),
+              child: InkWell(
+                canRequestFocus: false,
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _showDetails(entry),
+                child: _Thumbnail(url: _thumbnail(entry), size: _thumbnailSize),
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -486,6 +666,61 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
     );
   }
 
+  /// Shaped like the preview orientation: tall for portrait, wide for
+  /// landscape, square for both.
+  Size get _thumbnailSize => switch (_orientation) {
+        LibretroSkinService.portrait => const Size(72, 128),
+        LibretroSkinService.landscape => const Size(150, 84),
+        _ => const Size(100, 100),
+      };
+
+  /// The skin's image as large as the screen allows, with its details.
+  Future<void> _showDetails(LibretroCatalogSkin entry) {
+    final verdict = _verdicts[entry.key];
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final size = MediaQuery.sizeOf(dialogContext);
+        final theme = Theme.of(dialogContext);
+        final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+        return AlertDialog(
+          key: const ValueKey('skin-catalog-details'),
+          title: Text(entry.name),
+          content: SizedBox(
+            width: (size.width * 0.8).clamp(240.0, 720.0).toDouble(),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: _Thumbnail(
+                      url: _thumbnail(entry),
+                      size: Size(
+                        (size.width * 0.7).clamp(200.0, 680.0).toDouble(),
+                        (size.height * 0.45).clamp(160.0, 520.0).toDouble(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(entry.author ?? _t('skinsAuthorUnknown'), style: muted),
+                  if (entry.license != null) Text(_f('skinsLicense', {'license': entry.license}), style: muted),
+                  if (verdict != null) ...libretroSkinVerdictRows(dialogContext, verdict),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(SkinBrowserLocale.text(dialogContext, SkinBrowserLocale.close)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// The catalog's thumbnail, or for an overlay its first image (the
   /// background of its first page in most overlays).
   static String? _thumbnail(LibretroCatalogSkin entry) {
@@ -496,13 +731,14 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
 }
 
 /// Catalog thumbnail: only https images, a neutral placeholder otherwise or
-/// when the image cannot be loaded.
+/// when the image cannot be loaded. The whole image is shown (a skin is a
+/// tall or a wide drawing: cropping it would hide its buttons), decoded at
+/// the size it is drawn and faded in once loaded.
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.url});
+  const _Thumbnail({required this.url, required this.size});
 
   final String? url;
-
-  static const double _size = 76;
+  final Size size;
 
   Uri? get _uri {
     final raw = url;
@@ -516,9 +752,10 @@ class _Thumbnail extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final placeholder = Center(child: Icon(Icons.image_outlined, color: scheme.onSurfaceVariant));
     final uri = _uri;
+    final ratio = MediaQuery.devicePixelRatioOf(context);
     return Container(
-      width: _size,
-      height: _size,
+      width: size.width,
+      height: size.height,
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
@@ -528,8 +765,22 @@ class _Thumbnail extends StatelessWidget {
           ? placeholder
           : Image.network(
               uri.toString(),
-              fit: BoxFit.cover,
-              cacheWidth: (_size * MediaQuery.devicePixelRatioOf(context)).round(),
+              fit: BoxFit.contain,
+              // Decoded no larger than drawn: the longest side bounds both.
+              cacheWidth: (size.longestSide * ratio).round(),
+              frameBuilder: (context, child, frame, synchronous) => synchronous
+                  ? child
+                  : Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (frame == null) placeholder,
+                        AnimatedOpacity(
+                          opacity: frame == null ? 0 : 1,
+                          duration: const Duration(milliseconds: 180),
+                          child: child,
+                        ),
+                      ],
+                    ),
               errorBuilder: (context, error, stackTrace) => placeholder,
             ),
     );

@@ -245,9 +245,12 @@ void main() {
     expect(find.text(english['skinsResetDefault']!), findsOneWidget);
     expect(find.text(english['skinsDelete']!), findsNothing);
     expect(find.text(english['skinsLicenseNotice']!), findsOneWidget);
-    // Both orientations are selected on the default skin.
-    expect(find.text(english['orientationPortrait']!), findsOneWidget);
-    expect(find.text(english['orientationLandscape']!), findsOneWidget);
+    // Both orientations are selected on the default skin (its card's badges;
+    // since Build 448 the preview selector above also names them).
+    final defaultCard = find.ancestor(of: find.text(english['skinDefaultName']!), matching: find.byType(Card));
+    expect(find.descendant(of: defaultCard, matching: find.text(english['orientationPortrait']!)), findsOneWidget);
+    expect(find.descendant(of: defaultCard, matching: find.text(english['orientationLandscape']!)), findsOneWidget);
+    expect(find.byKey(const ValueKey('skin-preview-mode')), findsOneWidget);
 
     // Selections come from the native frontend store of this console; the
     // previews of the default skin are asked for both orientations.
@@ -260,6 +263,26 @@ void main() {
     }
     // A missing preview leaves a placeholder, not an endless spinner.
     expect(find.byIcon(Icons.image_not_supported_outlined), findsNWidgets(2));
+  });
+
+  testWidgets('the preview selector shows one orientation larger, whatever the device (Build 448)', (tester) async {
+    addTearDown(LibretroSkinManagerScreen.resetPreviewMode);
+    await pumpManager(tester);
+    // Both by default: the two previews of the default skin.
+    expect(find.byKey(const ValueKey('skin-previews-both')), findsOneWidget);
+    expect(find.byIcon(Icons.image_not_supported_outlined), findsNWidgets(2));
+
+    final selector = find.byKey(const ValueKey('skin-preview-mode'));
+    await tester.tap(find.descendant(of: selector, matching: find.text(english['orientationLandscape']!)));
+    await settle(tester, find.byKey(const ValueKey('skin-previews-landscape')));
+    // The phone is held in portrait (600 x 1200): the landscape preview alone.
+    expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
+    final landscape = native.named('skinPreview').where((call) => call.arguments['orientation'] == 'landscape');
+    expect(landscape, isNotEmpty);
+
+    await tester.tap(find.descendant(of: selector, matching: find.text(english['orientationPortrait']!)));
+    await settle(tester, find.byKey(const ValueKey('skin-previews-portrait')));
+    expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
   });
 
   testWidgets('an installed skin shows its credits and remarks and can be chosen for one orientation',
@@ -522,6 +545,76 @@ void main() {
     await tester.pump();
     expect(find.text('Clear Game Gear'), findsOneWidget);
     expect(hiddenHeader, findsNothing);
+  });
+
+  testWidgets('on a phone in landscape the filters fold, and the page comes back where it was left (Build 448)',
+      (tester) async {
+    final entries = <String>[
+      for (var index = 0; index < 30; index++)
+        '{"id": "gba$index", "name": "Skin GBA $index", "author": "someone", "systems": ["gba"], '
+            '"downloadURL": "https://example.com/skins/gba$index.deltaskin", "downloadCount": ${100 - index}}',
+    ];
+    final catalog = '{"skins": [${entries.join(',')}]}';
+    final client = MockClient((request) async {
+      final file = request.url.pathSegments.last;
+      if (file == 'catalog.json') return http.Response(catalog, 200);
+      if (file.endsWith('.html')) return http.Response('<html><body></body></html>', 200);
+      // Not a skin: every entry stays listed while unchecked, then hidden.
+      return http.Response('not found', 404);
+    });
+    final catalogs = LibretroSkinCatalogs(
+      skins: service,
+      provenance: LibretroSkinCatalogService(cacheDirectory: path.join(root.path, 'Cache'), skins: service, client: client),
+      client: client,
+      overlayIndex: () async => '{"version": 1, "sources": {}, "entries": []}',
+    );
+    addTearDown(catalogs.dispose);
+    // iPhone held sideways: 844 x 390 points.
+    tester.view.physicalSize = const Size(1688, 780);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    Widget page() => MaterialApp(
+          locale: const Locale('en'),
+          home: LibretroSkinCatalogScreen(console: 'gba', skins: service, catalogs: catalogs),
+        );
+    await tester.pumpWidget(page());
+    final firstEntry = find.text('Skin GBA 0');
+    await settle(tester, firstEntry, rounds: 1000);
+
+    // The filters start folded; the button opens them, with the preview
+    // orientation choice.
+    expect(find.byKey(const ValueKey('skin-catalog-filter-panel')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('skin-catalog-filters')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('skin-catalog-filter-panel')), findsOneWidget);
+    expect(find.text(english['orientationLandscape']!), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('skin-catalog-filters')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('skin-catalog-filter-panel')), findsNothing);
+
+    // Two columns of entries on this width.
+    final first = tester.getTopLeft(find.text('Skin GBA 0'));
+    final second = tester.getTopLeft(find.text('Skin GBA 1'));
+    expect(second.dx, greaterThan(first.dx));
+    expect(second.dy, closeTo(first.dy, 1));
+
+    ScrollPosition position() => tester
+        .state<ScrollableState>(
+          find.descendant(of: find.byKey(const ValueKey('skin-catalog-list')), matching: find.byType(Scrollable)),
+        )
+        .position;
+    await tester.drag(find.byKey(const ValueKey('skin-catalog-list')), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    final left = position().pixels;
+    expect(left, greaterThan(100));
+
+    // Leave the page and open it again: same place, filters still folded.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(page());
+    await settle(tester, find.byKey(const ValueKey('skin-catalog-list')), rounds: 1000);
+    await tester.pump();
+    expect(position().pixels, closeTo(left, 1));
+    expect(find.byKey(const ValueKey('skin-catalog-filter-panel')), findsNothing);
   });
 
   testWidgets('a skin imported from Files for another console is announced as such on this page', (tester) async {
