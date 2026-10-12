@@ -204,6 +204,7 @@ class PackageWiringTests(unittest.TestCase):
                       "enum ExternalDisplayMode", "automatic(0)", "fit(1)", "fill(2)", "original(3)",
                       'factory ExternalDisplayState.fromMap', 'factory ExternalDisplayState.unreachable',
                       "'getState'", "'setEnabled'", "'setMode'", "'setMenuOnTV'", "'configureMenuEngine'", "'pushMenuState'",
+                      "'suspendForUnsupportedEngine'", "'resumeAfterUnsupportedEngine'",
                       'Stream<ExternalDisplayState> get events', 'on MissingPluginException'):
             self.assertIn(token, dart, token)
         for forbidden in ('dart:io', 'package:neostation', 'SharedPreferences', 'sqlite', 'internal_bridge'):

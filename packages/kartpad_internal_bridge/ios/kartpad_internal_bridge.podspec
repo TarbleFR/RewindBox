@@ -15,10 +15,6 @@ never linked or executed inside NeoStation.
   s.public_header_files = 'Classes/KartPadInternalBridgePlugin.h'
   s.preserve_paths   = 'Frameworks/KartPadCore.framework'
   s.dependency 'Flutter'
-  # Build 447: KartPad draws in an SDL window created by the locked donor
-  # core, so the bridge only hides the external-display window for the
-  # session (suspendForUnsupportedEngine) and shows it again afterwards.
-  s.dependency 'external_display'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UIKit', 'Foundation'

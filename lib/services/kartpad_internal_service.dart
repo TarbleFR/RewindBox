@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:kartpad_internal_bridge/kartpad_internal_bridge.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'external_display_service.dart';
 import 'logger_service.dart';
 
 class KartPadImportIssue {
@@ -386,6 +388,37 @@ class KartPadInternalService {
     }
   }
 
+  /// The native KartPad launch. Build 447
+  /// (docs/external-display-universal.md § 5): KartPad draws in the SDL
+  /// window of its locked donor core, so NeoStation's window on the external
+  /// screen is hidden for the session (iOS mirrors the iPhone) and shown
+  /// again on every end path. The pairing lives here because the KartPad
+  /// bridge stays byte-identical to its pinned Core.
+  @visibleForTesting
+  static Future<Map<String, dynamic>> launchNativeSession({
+    required String gamePath,
+    required String supportPath,
+    required String cachePath,
+    Map<String, String> uiText = const {},
+    ExternalDisplayService? externalDisplay,
+  }) =>
+      (externalDisplay ?? ExternalDisplayService.instance)
+          .runUnsupportedEngineSession<Map<String, dynamic>>(
+            engine: 'KartPad',
+            sessionEnded: KartPadInternalBridge.sessionEvents,
+            start: () => KartPadInternalBridge.launch(
+              gamePath: gamePath,
+              supportPath: supportPath,
+              cachePath: cachePath,
+              uiText: uiText,
+            ),
+            // A first-frame timeout leaves the core running (the bridge
+            // keeps the session owned): its end event shows the window again.
+            sessionContinues: (answer) =>
+                answer['success'] == true ||
+                answer['errorCode'] == 'KARTPAD_FIRST_FRAME_TIMEOUT',
+          );
+
   static Future<KartPadLaunchResult> launch(
     String gamePath, {
     Map<String, String> uiText = const <String, String>{},
@@ -436,7 +469,7 @@ class KartPadInternalService {
     final temporary = await getTemporaryDirectory();
     final supportRoot = await rootDirectory();
     trace('native_launch_begin');
-    final response = await KartPadInternalBridge.launch(
+    final response = await launchNativeSession(
       gamePath: game.path,
       supportPath: supportRoot.path,
       cachePath: path.join(temporary.path, 'KartPad'),

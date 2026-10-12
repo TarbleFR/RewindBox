@@ -953,7 +953,9 @@ DELTA |= BUILD445_DELTA
 # One host infrastructure (packages/external_display, dynamic framework) owns
 # the window of the external scene and places the TV menu (second Flutter
 # engine) or the running engine's render view on it; Dolphin, libretro, RPCS3
-# and ARMSX2 bridges adopt NeoExternalRenderHost, Dusklight/KartPad suspend it;
+# and ARMSX2 bridges adopt NeoExternalRenderHost, Dusklight suspends it and
+# KartPad through Flutter (its bridge stays pinned with its Core, delivery run
+# 38207626900 stopped at that guard before any IPA);
 # global setting in Settings > General; generated host role via
 # configure_external_display_ios.py. Every created or modified input, file by
 # file (docs/external-display-universal.md).
@@ -966,7 +968,6 @@ BUILD447_EXTERNAL_DISPLAY_DELTA = {
     '.github/workflows/dolphin-pacing-check.yml',
     '.github/workflows/external-display-check.yml',
     '.github/workflows/ios-ci.yml',
-    '.github/workflows/kartpad-core.yml',
     '.github/workflows/neoswap-ipa.yml',
     '.github/workflows/retroarch-delivery.yml',
     'build-utils/configure_external_display_ios.py',
@@ -983,6 +984,7 @@ BUILD447_EXTERNAL_DISPLAY_DELTA = {
     'lib/screens/systems_screen/my_systems_section/my_systems_grid.dart',
     'lib/screens/systems_screen/my_systems_section/my_systems_grid/theme_background.dart',
     'lib/services/external_display_service.dart',
+    'lib/services/kartpad_internal_service.dart',
     'lib/services/secondary_display_bridge.dart',
     'lib/widgets/neoplay_apple_tv_card.dart',
     'packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm',
@@ -1013,8 +1015,6 @@ BUILD447_EXTERNAL_DISPLAY_DELTA = {
     'packages/external_display/ios/external_display.podspec',
     'packages/external_display/lib/external_display.dart',
     'packages/external_display/pubspec.yaml',
-    'packages/kartpad_internal_bridge/ios/Classes/KartPadInternalBridgePlugin.mm',
-    'packages/kartpad_internal_bridge/ios/kartpad_internal_bridge.podspec',
     'packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
@@ -1043,6 +1043,7 @@ BUILD447_EXTERNAL_DISPLAY_DELTA = {
     'test/external_display_service_test.dart',
     'test/external_display_test.py',
     'test/external_display_ui_test.py',
+    'test/external_display_unsupported_engine_test.dart',
     'test/external_menu_screen_test.dart',
     'test/general_settings_external_display_test.dart',
     'test/general_settings_ui_refresh_rate_test.dart',

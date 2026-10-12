@@ -271,6 +271,13 @@ def plugin_contracts() -> None:
     check('configureWithEntrypoint:entrypoint libraryURI:libraryUri' in configure, 'configureMenuEngine stores the pair')
     push = source.split('isEqualToString:@"pushMenuState"', 1)[1]
     check('pushMenuState:json' in push and 'result(@YES);' in push, 'pushMenuState relays and answers true')
+    # KartPad (§ 8 bis): its pinned bridge cannot call the coordinator, so
+    # Flutter asks for the suspension around the native session.
+    for method in ('suspendForUnsupportedEngine', 'resumeAfterUnsupportedEngine'):
+        branch = source.split(f'isEqualToString:@"{method}"', 1)[1].split('return;', 1)[0]
+        check(f'[coordinator {method}];' in branch and 'result(@YES);' in branch, f'{method} reaches the coordinator')
+    check(source.index('isEqualToString:@"resumeAfterUnsupportedEngine"') < source.index('result(FlutterMethodNotImplemented);'),
+          'the two coordinator calls are answered before the fallback')
     header = read('ExternalDisplayPlugin.h')
     check('@interface ExternalDisplayPlugin : NSObject <FlutterPlugin>' in header, 'plugin class')
     check('pluginClass: ExternalDisplayPlugin' in (PACKAGE / 'pubspec.yaml').read_text(encoding='utf-8'), 'pubspec plugin class')

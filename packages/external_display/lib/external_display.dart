@@ -263,4 +263,22 @@ class ExternalDisplayChannel {
       return false;
     }
   }
+
+  /// Hides NeoStation's window on the external screen while an engine that
+  /// cannot draw there runs (iOS mirrors the iPhone meanwhile). Returns
+  /// false when the plugin is missing; other platform errors propagate.
+  Future<bool> suspendForUnsupportedEngine() =>
+      _invokeFlag('suspendForUnsupportedEngine');
+
+  /// Shows the window again after [suspendForUnsupportedEngine].
+  Future<bool> resumeAfterUnsupportedEngine() =>
+      _invokeFlag('resumeAfterUnsupportedEngine');
+
+  Future<bool> _invokeFlag(String method) async {
+    try {
+      return await channel.invokeMethod<bool>(method) ?? false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
 }

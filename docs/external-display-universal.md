@@ -166,6 +166,8 @@ Repli de lecture : si `NeoStation.ExternalDisplay.Mode` est absent et que la cl�
 | `setMenuOnTV` | `{enabled: bool}` | état |
 | `configureMenuEngine` | `{entrypoint: String, libraryUri: String}` | état (mémorise la paire pour la création paresseuse ; sans cet appel, aucun moteur externe n'est créé) |
 | `pushMenuState` | `{json: String}` | `true` ; relayé au second moteur par `BasicMessageChannel neostation/external_display/menu` (`StringCodec`) |
+| `suspendForUnsupportedEngine` | — | `true` ; masque la fenêtre externe pendant une session KartPad (iOS recopie l'iPhone) |
+| `resumeAfterUnsupportedEngine` | — | `true` ; la réaffiche |
 
 État (`getState` et chaque réponse) :
 `{supported: bool, connected: bool, content: 'none'|'menu'|'game', screenWidth: double, screenHeight: double, screenScale: double, mode: int, enabled: bool, menuOnTV: bool, mirroringActive: bool, accessoryStatus: String, sceneRole: 'scene'|'legacy'|'none', menuEngine: 'none'|'created'|'attached'|'destroyed'}`.
@@ -225,9 +227,10 @@ les douze codes et l'égalité des jeux de clés.
 | libretro | `LibretroGameViewController` adopte le protocole (`fixedDrawable = NO`, render = `_metalView`, placeholder = `self.view`) ; `externalSurfaceDidChange:scale:` mémorise `_externalSurface` ; `performSkinLayoutIfNeeded` calcule `drawableSize` et `points` depuis la surface externe quand elle existe (skin/overlay restent aux bounds iPhone) ; le présentateur accepte toute taille. `attachRenderHost:` dans `LibretroSession` après `viewDidAppear`, `detachRenderHost:` avant `stop`. Libellé `externalOnPhone` affiché par `showStatus:`. | 3DS inclus ; rendu à la résolution TV |
 | RPCS3 | `RPCS3GameViewController.loadView` : conteneur noir `UIView` racine + `RPCS3MetalView` en sous-vue d'index 0 (`metalLayer` renvoie la couche de la sous-vue), commandes au-dessus ; `fixedDrawable = YES` ; attach après la présentation réussie, detach avant `stopAndDismiss`. `Rpcs3InternalBridgePlugin` appelle `destroyMenuEngineForMemory` via le coordinateur à l'attach. Core et pont NeoSwap intacts. | `test/rpcs3_ui_status_cleanup_test.py` et `neoswap_donor_contract_test.py` inchangés |
 | ARMSX2 | `coreView` déjà sous-vue ; `fixedDrawable = YES` ; attach après présentation, detach avant arrêt. | pas de redimensionnement de la vue du Core |
-| Dusklight, KartPad | `suspendForUnsupportedEngine` au lancement, `resumeAfterUnsupportedEngine` à la fin. | fenêtre SDL intacte |
+| Dusklight | `suspendForUnsupportedEngine` au lancement, `resumeAfterUnsupportedEngine` à la fin (pont natif). | fenêtre SDL intacte |
+| KartPad | Même paire, demandée par Flutter : `KartPadInternalService.launchNativeSession` → `ExternalDisplayService.runUnsupportedEngineSession` → méthodes du canal (§ 3.6). Le pont KartPad reste identique octet pour octet à son Core épinglé (§ 8 bis). | fenêtre SDL intacte, pont non modifié |
 
-Chaque podspec de pont concerné ajoute `s.dependency 'external_display'`.
+Chaque podspec de pont concerné ajoute `s.dependency 'external_display'` (pas celui de KartPad).
 
 ## 6. Dart : service, réglages, traductions
 
@@ -361,6 +364,23 @@ Relevées par les agents d'implémentation et la revue contradictoire ; le code 
 - Tests déjà rouges avant ce chantier, non exécutés par la livraison, non affaiblis :
   `test/import_memory_candidate_scope_test.py`, `test/neoplay_build397_integration_test.py`
   (épinglages historiques), `test/library_cover_delivery_test.py` (voie 443 fermée).
+  Le premier est aussi lancé par `dolphin-pacing-check.yml` (rouge depuis la Build 440,
+  run 38161122592 sur `docs/LEGAL_AND_CREDITS.md`) ; ce chantier y ajoute deux écarts
+  attendus, `.github/workflows/neoswap-ipa.yml` (headers du pod mis en scène pour le
+  contrôle syntaxique RPCS3) et `lib/services/kartpad_internal_service.dart` (ci-dessous).
+- § 5 KartPad (correctif du 12 octobre 2026) : la première version modifiait
+  `KartPadInternalBridgePlugin.mm` et son podspec. La livraison épingle tout
+  `packages/kartpad_internal_bridge` sur `KARTPAD_CORE_HOST_SHA` (`3934ac9d`, étape
+  « Verify KartPad Core candidate identity ») : le run 38207626900 s'y est arrêté, avant
+  toute IPA. Le pont et `kartpad-core.yml` sont revenus à leurs octets épinglés ; la paire
+  suspend/resume est tenue par Flutter juste avant le lancement natif
+  (`KartPadInternalService.launchNativeSession`), relâchée une seule fois : réponse sans
+  session (refus du Core, session déjà active, erreur du canal), ou événement
+  `sessionEnded` de la transaction en cours (retour, redémarrage de langue, échec, plantage,
+  délai de première image, `stop`). Un délai de première image garde la fenêtre masquée
+  jusqu'à cet événement, comme le pont garde la session. Tests :
+  `test/external_display_unsupported_engine_test.dart` (comportement, vrai pont Dart KartPad
+  sur canal simulé) et `test/ports_external_display_test.py` (épinglage et câblage).
 
 ## 9. Ce qui reste à vérifier sur l'iPhone + Apple TV (jamais annoncé avant)
 

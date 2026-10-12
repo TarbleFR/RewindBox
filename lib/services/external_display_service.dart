@@ -289,6 +289,94 @@ class ExternalDisplayService extends ChangeNotifier {
     }
   }
 
+  int _unsupportedEngineHolds = 0;
+
+  /// Native sessions currently holding the external display hidden.
+  int get unsupportedEngineHolds => _unsupportedEngineHolds;
+
+  /// Runs the native session of an engine that cannot draw on the external
+  /// screen (KartPad: the SDL window of its locked donor core; its bridge
+  /// stays byte-identical to its pinned Core, so the pairing lives here).
+  ///
+  /// NeoStation's window on the external screen is hidden right before
+  /// [start] (iOS mirrors the iPhone meanwhile) and shown again exactly
+  /// once, at the first of: [start] throws, its answer leaves no session
+  /// running ([sessionContinues] false), or [sessionEnded] emits. Holds
+  /// overlap safely: the window comes back with the last release. Outside
+  /// iOS, [start] runs alone. A missing or failing plugin never blocks the
+  /// session.
+  Future<T> runUnsupportedEngineSession<T>({
+    required String engine,
+    required Stream<Object?> sessionEnded,
+    required Future<T> Function() start,
+    required bool Function(T answer) sessionContinues,
+  }) async {
+    if (!isSupportedPlatform) return start();
+    var held = true;
+    StreamSubscription<Object?>? ended;
+    Future<void> release(String reason) async {
+      if (!held) return;
+      held = false;
+      final subscription = ended;
+      ended = null;
+      unawaited(subscription?.cancel());
+      await _releaseUnsupportedEngine(engine, reason);
+    }
+
+    await _holdUnsupportedEngine(engine);
+    // Subscribed right before [start], with no await in between: an end
+    // reported while [start] is pending is not lost, and no event of an
+    // earlier session can be taken for this one.
+    ended = sessionEnded.listen(
+      (_) => unawaited(release('session ended')),
+      // An error on the event stream is not the end of the session.
+      onError: (Object error) =>
+          _log.w('External display: $engine end stream error ($error)'),
+    );
+    final T answer;
+    try {
+      answer = await start();
+    } catch (_) {
+      await release('start failed');
+      rethrow;
+    }
+    if (!sessionContinues(answer)) await release('no session');
+    return answer;
+  }
+
+  Future<void> _holdUnsupportedEngine(String engine) async {
+    _unsupportedEngineHolds++;
+    if (_unsupportedEngineHolds != 1) return;
+    try {
+      final applied = await _channel.suspendForUnsupportedEngine();
+      _log.i('External display: hidden for $engine (applied=$applied)');
+    } on PlatformException catch (error) {
+      _log.w('External display: hiding for $engine refused (${error.code})');
+    } catch (error) {
+      _log.w('External display: hiding for $engine failed ($error)');
+    }
+  }
+
+  Future<void> _releaseUnsupportedEngine(String engine, String reason) async {
+    if (_unsupportedEngineHolds == 0) return;
+    _unsupportedEngineHolds--;
+    if (_unsupportedEngineHolds != 0) return;
+    try {
+      final applied = await _channel.resumeAfterUnsupportedEngine();
+      _log.i(
+        'External display: shown again after $engine ($reason, '
+        'applied=$applied)',
+      );
+    } on PlatformException catch (error) {
+      _log.w(
+        'External display: showing again after $engine refused '
+        '(${error.code})',
+      );
+    } catch (error) {
+      _log.w('External display: showing again after $engine failed ($error)');
+    }
+  }
+
   @override
   void dispose() {
     unawaited(_events?.cancel());

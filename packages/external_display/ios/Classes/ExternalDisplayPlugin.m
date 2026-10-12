@@ -161,6 +161,20 @@ static FlutterError *NeoExternalSaveFailed(NSString *key) {
     result(@YES);
     return;
   }
+  // KartPad (docs/external-display-universal.md § 5): its bridge stays
+  // byte-identical to its pinned Core, so Flutter pairs the suspension
+  // around the native session (ExternalDisplayService
+  // .runUnsupportedEngineSession). Channel calls arrive on the main thread.
+  if ([call.method isEqualToString:@"suspendForUnsupportedEngine"]) {
+    [coordinator suspendForUnsupportedEngine];
+    result(@YES);
+    return;
+  }
+  if ([call.method isEqualToString:@"resumeAfterUnsupportedEngine"]) {
+    [coordinator resumeAfterUnsupportedEngine];
+    result(@YES);
+    return;
+  }
   result(FlutterMethodNotImplemented);
 }
 

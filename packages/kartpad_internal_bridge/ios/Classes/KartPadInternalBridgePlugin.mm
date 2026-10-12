@@ -8,15 +8,6 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 
-// Build 447: the external-display host (docs/external-display-universal.md
-// § 5). KartPad is an unsupported engine for it: only the suspend/resume
-// pair is used, never a render host.
-#if __has_include(<external_display/NeoExternalDisplayCoordinator.h>)
-#import <external_display/NeoExternalDisplayCoordinator.h>
-#else
-#import "NeoExternalDisplayCoordinator.h"
-#endif
-
 #include <cstring>
 #include <cstdio>
 
@@ -68,8 +59,6 @@ NSDictionary* Failure(NSString* code, NSString* stage, NSString* message) {
                                exitReason:(int)exitReason
                                   message:(NSString*)message
                                   success:(BOOL)success;
-- (void)suspendExternalDisplay;
-- (void)resumeExternalDisplay;
 @end
 
 static void OnCoreEvent(void* context, int state, const char* message) {
@@ -96,7 +85,6 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   NSString* _lifecycleLogPath;
   NSMutableArray<id>* _lifecycleObservers;
   NeoKartPadHostWindowAwaiter* _hostAwaiter;
-  BOOL _externalDisplaySuspended;
 }
 
 - (NSString*)recordHostBoundary:(NSString*)stage {
@@ -214,30 +202,6 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   pending(response);
 }
 
-// KartPad draws in an SDL window created by the locked donor core, so the
-// external-display window cannot host it: it is hidden for the session (iOS
-// resumes mirroring the iPhone) and shown again on every end path. The flag
-// pairs the two calls; the SDL window itself is never touched.
-- (void)suspendExternalDisplay {
-  if (_externalDisplaySuspended) return;
-  _externalDisplaySuspended = YES;
-  [NeoExternalDisplayCoordinator.shared suspendForUnsupportedEngine];
-}
-
-- (void)resumeExternalDisplay {
-  if (!_externalDisplaySuspended) return;
-  _externalDisplaySuspended = NO;
-  // The coordinator belongs to the main thread; a core event may not. The
-  // hop captures nothing, so it is also safe from dealloc.
-  if (NSThread.isMainThread) {
-    [NeoExternalDisplayCoordinator.shared resumeAfterUnsupportedEngine];
-    return;
-  }
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [NeoExternalDisplayCoordinator.shared resumeAfterUnsupportedEngine];
-  });
-}
-
 - (void)deliverSessionEndedForTransaction:(NSInteger)transaction
                                exitReason:(int)exitReason
                                   message:(NSString*)message
@@ -279,9 +243,6 @@ static void OnCoreEvent(void* context, int state, const char* message) {
 
   _sessionActive = NO;
   _activeTransaction = 0;
-  // The donor's SDL window is gone (or never came): give the TV back to
-  // NeoStation before Flutter learns the session ended.
-  [self resumeExternalDisplay];
 
   const BOOL cleanExit =
       exitReason == NEO_KARTPAD_EXIT_USER_RETURN ||
@@ -488,9 +449,6 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   NSLog(@"[NeoStation/KartPad] transaction=%ld session launch accepted",
         (long)_activeTransaction);
   char error[1024] = {};
-  // Native handoff: the external-display window stays hidden from here until
-  // the core reports the end of the session (or refuses the start below).
-  [self suspendExternalDisplay];
   const int started = _api->start(
       gamePath.fileSystemRepresentation, (__bridge void*)hostWindow,
       error, sizeof(error));
@@ -500,7 +458,6 @@ static void OnCoreEvent(void* context, int state, const char* message) {
         : @"KartPadCore could not start Mario Kart Wii.";
     _sessionActive = NO;
     _activeTransaction = 0;
-    [self resumeExternalDisplay];
     [self resolveLaunch:Failure(@"KARTPAD_START_FAILED", @"start", message)];
     return;
   }
@@ -522,8 +479,6 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   for (id observer in _lifecycleObservers)
     [NSNotificationCenter.defaultCenter removeObserver:observer];
   [_startupTimer invalidate];
-  // The callback is cleared below, so no core event will resume for us.
-  [self resumeExternalDisplay];
   if (_api) {
     _api->set_event_callback(nullptr, nullptr);
     if (_api->is_running()) _api->stop();
