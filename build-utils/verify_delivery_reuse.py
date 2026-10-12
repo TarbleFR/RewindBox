@@ -1220,6 +1220,76 @@ BUILD447_STORAGE_DELTA = {
     'test/storage_tools_row_test.dart',
 }
 DELTA |= BUILD447_STORAGE_DELTA
+# Build 448 (12 October 2026, docs/build448-plan.md): ambient music « Once
+# Upon a Time » (single manager, CC0 asset and notice), universal Consoles
+# tab with the built-in engine switches and Settings › General « Use the
+# built-in emulators », adaptive skin catalog and manager, confirmed touch
+# defects of the libretro bridge, 3DS essential.exefs and encrypted-game
+# check, and this session's delivery recipient key. Every created, modified
+# or deleted input since the Build 447 source af3cec8a, file by file.
+BUILD448_DELTA = {
+    'assets/legal/OnceUponATime-CC0-1.0.txt',
+    'assets/legal/THIRD_PARTY_NOTICES.md',
+    'assets/sounds/once_upon_a_time_loop.ogg',
+    'build-utils/delivery-448-recipient.pem',
+    'build-utils/embed_legal_bundle.py',
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/ambient_music_locale.dart',
+    'lib/l10n/console_manager_locale.dart',
+    'lib/l10n/home_music_locale.dart',
+    'lib/l10n/libretro_locale.dart',
+    'lib/l10n/skin_browser_locale.dart',
+    'lib/screens/app_screen.dart',
+    'lib/screens/libretro/libretro_3ds_system_screen.dart',
+    'lib/screens/libretro/libretro_consoles_screen.dart',
+    'lib/screens/libretro/libretro_skin_catalog_screen.dart',
+    'lib/screens/libretro/libretro_skin_manager_screen.dart',
+    'lib/screens/settings_screen/legal_credits_dialog.dart',
+    'lib/screens/settings_screen/new_settings_options/general_settings_content.dart',
+    'lib/screens/settings_screen/new_settings_options/themes_settings_content.dart',
+    'lib/screens/settings_screen/new_settings_options/widgets/ambient_music_setting_rows.dart',
+    'lib/screens/settings_screen/new_settings_options/widgets/embedded_engines_setting_row.dart',
+    'lib/services/console_catalog.dart',
+    'lib/services/embedded_engine_policy.dart',
+    'lib/services/game/game_launch_service.dart',
+    'lib/services/game/game_session_manager.dart',
+    'lib/services/home_music_service.dart',
+    'lib/services/libretro_3ds_containers.dart',
+    'lib/services/libretro_3ds_system_data_service.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/services/libretro_main_menu.dart',
+    'lib/services/music_player_service.dart',
+    'lib/widgets/armsx2_internal_playlist_actions.dart',
+    'lib/widgets/dolphin_internal_playlist_actions.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputLatch.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputLatch.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputState.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinLayout.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchTracker.m',
+    'test/ambient_music_locale_test.dart',
+    'test/ambient_music_loop_test.py',
+    'test/ambient_music_service_test.dart',
+    'test/armsx2_retroarch_routing_isolation_test.dart',
+    'test/console_manager_test.dart',
+    'test/embedded_engine_route_contract_test.py',
+    'test/game_audio_handoff_test.py',
+    'test/general_settings_external_display_test.dart',
+    'test/general_settings_ui_refresh_rate_test.dart',
+    'test/home_music_silent_mode_test.dart',
+    'test/libretro_3ds_encrypted_launch_test.dart',
+    'test/libretro_3ds_system_data_service_test.dart',
+    'test/libretro_3ds_system_screen_test.dart',
+    'test/libretro_consoles_tab_test.dart',
+    'test/libretro_frontend_ui_contract_test.py',
+    'test/libretro_host/frontend/input_latch_test.m',
+    'test/libretro_host/frontend/skin_layout_test.m',
+    'test/libretro_host/frontend/touch_tracker_test.m',
+    'test/libretro_skin_manager_test.dart',
+    'test/localization_12_locale_coverage_test.py',
+    'test/native/ambient_music_loop_harness.cpp',
+    'test/skin_browser_locale_test.dart',
+}
+DELTA |= BUILD448_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

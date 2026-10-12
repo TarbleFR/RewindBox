@@ -109,6 +109,14 @@ jobs:
         # Build 447: storage analysis and cleanup (services, picker copies,
         # pages, Tools row and 12-locale catalog; docs/storage-audit-cleanup.md).
         flutter test test/storage_*_test.dart
+        # Build 448 (docs/build448-plan.md): ambient music manager and its
+        # settings rows, Consoles tab catalog and built-in engine policy, skin
+        # browser texts, encrypted 3DS game check; then the real SoLoud render
+        # of 21 loops of the bundled asset (C++ harness against the resolved
+        # flutter_soloud sources) and the game audio hand-off harness.
+        flutter test test/ambient_music_service_test.dart test/ambient_music_locale_test.dart test/home_music_silent_mode_test.dart test/console_manager_test.dart test/skin_browser_locale_test.dart test/libretro_3ds_encrypted_launch_test.dart
+        python3 test/ambient_music_loop_test.py
+        python3 test/game_audio_handoff_test.py
         # Build 442: Wii phone-shake sensitivity panel (Dolphin external
         # display and pacing run natively in dolphin-motion-check).
         # Build 440: Wii Shake catalog, RAP licences, consoles tab, 120 Hz
@@ -162,6 +170,7 @@ jobs:
         python3 test/libretro_external_surface_test.py
         python3 test/libretro_bios_requirements_test.py
         python3 test/storage_contract_test.py
+        python3 test/embedded_engine_route_contract_test.py
     - name: Validate only changed RPCS3 and NeoSwap contracts
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
       shell: bash
