@@ -77,9 +77,10 @@ Décisions à prendre avant le code : § 11. Ordre des phases et builds : § 9.
   `test/delivery_pipeline_test.py:45-52` ; `pubspec.yaml`/`pubspec.lock` sans diff.
   ✱ vérif. : `test/delivery_pipeline_test.py:71-83,118-126` fige aussi la forme du job
   `checks` (trois `hashFiles` identiques, la ligne `flutter test …`, le nom de l'étape de
-  validation) ; les listes `flutter test` sont explicites, pas des globs (un
-  `test/storage_*_test.dart` ne tourne que s'il est ajouté) ; le périmètre « complet »
-  reste un jeu fermé, ce qui vaut aussi pour le chantier livres.
+  validation) ; les listes `flutter test` sont explicites sauf la ligne
+  `flutter test test/library_*_test.dart` (:106, glob : un test de bibliothèque nommé ainsi
+  tourne sans édition) — un `test/storage_*_test.dart` ne tourne que s'il est ajouté ; le
+  périmètre « complet » reste un jeu fermé, ce qui vaut aussi pour le chantier livres.
 - **Douze langues** par les catalogues du projet (`AppLocale` ×12, `LibretroLocale.values`,
   catalogues de fonctionnalité « values map » comme `UiRefreshRateLocale`), test de
   parité par catalogue, inscription dans `test/localization_12_locale_coverage_test.py:35-45`
