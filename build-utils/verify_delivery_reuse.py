@@ -1104,6 +1104,16 @@ BUILD447_BOOKS_DELTA = {
     'test/library_reading_store_bookmarks_test.dart',
 }
 DELTA |= BUILD447_BOOKS_DELTA
+# Build 447 chantier 5, storage analysis and cleanup (12 October 2026,
+# docs/storage-audit-cleanup.md): every created or modified input, file by
+# file, added as each phase lands (translation catalog first).
+BUILD447_STORAGE_DELTA = {
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/storage_locale.dart',
+    'test/localization_12_locale_coverage_test.py',
+    'test/storage_locale_test.dart',
+}
+DELTA |= BUILD447_STORAGE_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
