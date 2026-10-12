@@ -98,6 +98,36 @@ L'IPA est préparée ad hoc pour la re-signature par SideStore. Aucune
 installation, aucun comportement ni aucune fluidité sur iPhone n'est
 revendiqué avant l'essai du mainteneur.
 
-## Production
+## Production du 12 octobre 2026
 
-À compléter : run, nom, taille et SHA-256 de l'IPA, durées observées.
+Le run `38186199603` a réussi en 16 min 51 s (23:57:30 → 00:14:21 UTC), sur la
+source exacte `c0e33717a64f6b66280d6bef3aae6c4a8bcacd55`, avec le périmètre
+`full`. Le second build de benchmark n'est pas demandé.
+
+| Job | Durée | Contenu |
+|-----|-------|---------|
+| `checks` | 4 min 08 s | Analyse Dart et tests Dart exécutés à nouveau (dont `libretro_skin_catalogs_test.dart`) ; contrôle d'arbre fermé ; garde-fous Python |
+| `native` | 2 min 36 s | NeoSwap ; hôte, modules, shaders et liaison iPhone du pont libretro ; validation Swift réutilisée du run `37844950677`, entrées identiques |
+| `cold` | 12 min 30 s | Voir ci-dessous |
+
+Étapes du job `cold` :
+- Core RPCS3 épinglé `dcf0df67` vérifié par identité, ainsi que les cœurs
+  libretro, ARMSX2, Dusklight, KartPad et Dolphin ;
+- compilation Release : 4 min 57 s ;
+- empaquetage et validation de l'IPA : 1 min 59 s ;
+- scellement SideStore : 56 s ;
+- chiffrement et envoi.
+
+Artefact chiffré `NeoStation-Build-445-c0e33717…-cold` :
+- identifiant `11719853639` ;
+- 207 757 213 octets ;
+- empreinte GitHub
+  `sha256:f586c4689ad2a425617610d3f1761cb62925fc52b4513e5daddb5e32e587b835` ;
+- expire le 26 octobre 2026.
+
+Les diagnostics sont dans `NeoStation-Build-445-c0e33717…-cold-diagnostics`
+(`11720386403`), chiffrés pour la même clé.
+
+Le nom, la taille et le SHA-256 de l'IPA seront consignés après
+déchiffrement. Le téléchargement depuis la session est encore refusé par la
+politique réseau (`productionresultssa11.blob.core.windows.net`, 00:16 UTC).
