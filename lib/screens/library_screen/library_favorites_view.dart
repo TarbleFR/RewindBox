@@ -17,6 +17,7 @@ import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/confirm_action_dialog.dart';
+import 'package:neostation/widgets/library_book_cover.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_gamepad_view_controller.dart';
@@ -361,6 +362,21 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
       return null;
     }
   }
+
+  /// Thickness of a card's volume: estimated for a known local book, fixed
+  /// otherwise (online titles, local books not resolved yet).
+  static double _thicknessOf(LibraryLocalBook? book) => book == null
+      ? LibraryBookThickness.fixed
+      : LibraryBookThickness.estimate(
+          format: book.format,
+          pageCount: book.pageCount,
+          sizeBytes: book.sizeBytes,
+        );
+
+  /// Hinge side of a card's volume: the book's own reading direction; on the
+  /// right for online titles, which are Aidoku manga (the hub's rule).
+  static bool _rightToLeftOf(LibraryReadingKind kind, LibraryLocalBook? book) =>
+      kind == LibraryReadingKind.online || (book?.rightToLeft ?? false);
 
   LibraryAddon? _activeAddonFor(String sourceId) {
     for (final addon in widget.addons) {
@@ -822,9 +838,10 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
     String title = progress.title ?? '';
     String subtitle = progress.chapterTitle ?? progress.subtitle ?? '';
     var missing = false;
-    if (progress.kind == LibraryReadingKind.local) {
-      final state = _localBooks[_localBookId(progress.key)];
-      final book = state?.book;
+    final local = progress.kind == LibraryReadingKind.local;
+    final state = local ? _localBooks[_localBookId(progress.key)] : null;
+    final book = state?.book;
+    if (local) {
       missing = state?.missing ?? false;
       if (book != null) {
         if (title.isEmpty) title = book.title;
@@ -867,7 +884,15 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AspectRatio(aspectRatio: 0.66, child: _Cover(image: cover)),
+              AspectRatio(
+                aspectRatio: 0.66,
+                child: _Cover(
+                  image: cover,
+                  selected: selected,
+                  thickness: _thicknessOf(book),
+                  rightToLeft: _rightToLeftOf(progress.kind, book),
+                ),
+              ),
               SizedBox(width: 10.r),
               Expanded(
                 child: Column(
@@ -983,6 +1008,8 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
                 : favorite.coverHeaders,
             cacheWidth: coverWidth,
           );
+    // A local favourite also listed in "Continue reading" is already known.
+    final book = online ? null : _localBooks[_localBookId(favorite.key)]?.book;
     return _SelectableCard(
       selected: selected,
       onTap: () {
@@ -1000,7 +1027,12 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _Cover(image: cover),
+                _Cover(
+                  image: cover,
+                  selected: selected,
+                  thickness: _thicknessOf(book),
+                  rightToLeft: _rightToLeftOf(favorite.kind, book),
+                ),
                 if (inactive)
                   Positioned(
                     left: 6.r,
@@ -1116,10 +1148,20 @@ class _SelectableCard extends StatelessWidget {
   }
 }
 
+/// Cover of a card as a book volume (the same cover as the hub). [image] is
+/// shown on the front and on the spine.
 class _Cover extends StatelessWidget {
-  const _Cover({required this.image});
+  const _Cover({
+    required this.image,
+    required this.selected,
+    this.thickness = LibraryBookThickness.fixed,
+    this.rightToLeft = false,
+  });
 
   final ImageProvider? image;
+  final bool selected;
+  final double thickness;
+  final bool rightToLeft;
 
   @override
   Widget build(BuildContext context) {
@@ -1135,8 +1177,12 @@ class _Cover extends StatelessWidget {
       ),
     );
     final provider = image;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(7.r),
+    return LibraryBookCover(
+      selected: selected,
+      rightToLeft: rightToLeft,
+      radius: 7.r,
+      image: provider,
+      thickness: thickness,
       child: provider == null
           ? placeholder
           : Image(

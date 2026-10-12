@@ -2956,6 +2956,15 @@ class _LibraryCatalogCard extends StatelessWidget {
       ),
     );
     final coverUrl = item.coverUrl;
+    // One provider for the cover and the spine of its volume: both resolve
+    // to the same decoded image.
+    final coverImage = coverUrl == null
+        ? null
+        : LibraryNetworkImage(
+            coverUrl,
+            headers: entry.imageHeaders,
+            cacheWidth: cacheWidth,
+          );
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 140),
@@ -2997,14 +3006,13 @@ class _LibraryCatalogCard extends StatelessWidget {
                         selected: selected,
                         rightToLeft: item.mediaType == LibraryMediaType.manga,
                         radius: 7.r,
-                        child: coverUrl == null
+                        image: coverImage,
+                        // Online titles have no known length (Q15).
+                        thickness: LibraryBookThickness.fixed,
+                        child: coverImage == null
                             ? placeholder
                             : Image(
-                                image: LibraryNetworkImage(
-                                  coverUrl,
-                                  headers: entry.imageHeaders,
-                                  cacheWidth: cacheWidth,
-                                ),
+                                image: coverImage,
                                 fit: BoxFit.cover,
                                 excludeFromSemantics: true,
                                 gaplessPlayback: true,

@@ -15,12 +15,19 @@ import 'package:neostation/services/library_aidoku_native_service.dart';
 import 'package:neostation/services/library_catalog_feed.dart';
 import 'package:neostation/services/library_catalog_service.dart';
 import 'package:neostation/services/library_http.dart';
+import 'package:neostation/services/library_image_cache.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_volume.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_feed_test_fakes.dart';
+
+/// A 1x1 PNG served as a data URI: no disk cache and no network involved.
+const _onePixelPng =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lE'
+    'QVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 class _RecordingDelegate implements LibraryGamepadViewDelegate {
   final List<String> calls = <String>[];
@@ -209,6 +216,64 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('catalogue cards are fixed-thickness volumes whose spine reads '
+      'the card image', (tester) async {
+    final source = aidokuTestAddon('fr.volumes');
+    serve('fr.volumes', [
+      testItem('a', title: 'Alpha Manga', coverUrl: _onePixelPng),
+      testItem('b', title: 'Beta Manga'),
+    ]);
+    await pumpHub(tester, addons: [source]);
+    final covers = find.byType(LibraryBookCover);
+    expect(covers, findsNWidgets(2));
+    for (final cover in tester.widgetList<LibraryBookCover>(covers)) {
+      expect(cover.thickness, LibraryBookThickness.fixed);
+      expect(cover.resolvedThickness, LibraryBookThickness.fixed);
+      expect(cover.format, isNull, reason: 'online titles have no length');
+    }
+    expect(
+      tester
+          .widgetList<LibraryBookVolume>(find.byType(LibraryBookVolume))
+          .map((volume) => volume.thickness),
+      [LibraryBookThickness.fixed, LibraryBookThickness.fixed],
+    );
+
+    Finder card(String title) => find
+        .ancestor(of: find.text(title), matching: find.byType(InkWell))
+        .first;
+    LibraryBookCover coverOf(String title) => tester.widget<LibraryBookCover>(
+      find.descendant(of: card(title), matching: find.byType(LibraryBookCover)),
+    );
+    // The spine resolves the very provider of the card image: one
+    // download, one decode.
+    final alpha = coverOf('Alpha Manga');
+    final art = tester.widget<Image>(
+      find.descendant(of: card('Alpha Manga'), matching: find.byType(Image)),
+    );
+    expect(alpha.image, isA<LibraryNetworkImage>());
+    expect(identical(alpha.image, art.image), isTrue);
+    expect((alpha.image! as LibraryNetworkImage).url, _onePixelPng);
+    expect(coverOf('Beta Manga').image, isNull, reason: 'no cover URL');
+
+    // Selection is still the hub's index.
+    LibraryScreen.navigateDown();
+    LibraryScreen.navigateDown();
+    await tester.pumpAndSettle();
+    expect(tester.widgetList<LibraryBookCover>(covers).map((c) => c.selected), [
+      true,
+      false,
+    ]);
+    LibraryScreen.navigateRight();
+    await tester.pumpAndSettle();
+    expect(tester.widgetList<LibraryBookCover>(covers).map((c) => c.selected), [
+      false,
+      true,
+    ]);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('safe mode keeps nsfw:0 titles, hides rating-2 sources and '
       'explicit titles', (tester) async {

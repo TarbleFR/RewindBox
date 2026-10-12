@@ -14,10 +14,13 @@ import 'package:neostation/screens/library_screen/library_favorites_view.dart';
 import 'package:neostation/screens/library_screen/library_gamepad_view_controller.dart';
 import 'package:neostation/services/library_addon_service.dart';
 import 'package:neostation/services/library_catalog_service.dart';
+import 'package:neostation/services/library_image_cache.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/chrome_surface.dart';
+import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_volume.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_feed_test_fakes.dart';
@@ -128,6 +131,11 @@ const _book = LibraryLocalBook(
   metadataTitle: 'Mon livre',
 );
 
+/// A 1x1 PNG served as a data URI: no disk cache and no network involved.
+const _onePixelPng =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lE'
+    'QVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -186,6 +194,7 @@ void main() {
     Future<void> Function(BuildContext context, LibraryLocalBook book)?
     openLocal,
     Completer<void>? onlineGate,
+    String? Function(LibraryLocalBook book)? localCoverPath,
     Size size = const Size(1280, 900),
     double devicePixelRatio = 1.0,
   }) async {
@@ -211,7 +220,7 @@ void main() {
               store: store,
               resolveLocalBook:
                   resolve ?? (id) async => id == 'book1' ? _book : null,
-              localCoverPath: (_) => null,
+              localCoverPath: localCoverPath ?? (_) => null,
               openLocalBook:
                   openLocal ??
                   (context, book) async => events.add('local:${book.id}'),
@@ -441,6 +450,121 @@ void main() {
     expect(controller.back(), isFalse);
     await tester.pumpWidget(const SizedBox.shrink());
     expect(controller.isAttached, isFalse, reason: 'detached on dispose');
+  });
+
+  testWidgets('cards are book volumes: estimated for a local book, fixed and '
+      'hinged on the right for online titles, selected with the controller', (
+    tester,
+  ) async {
+    const manga = LibraryLocalBook(
+      id: 'book1',
+      fingerprint: '9:def',
+      format: LibraryBookFormat.cbz,
+      relativePath: 'Books/tome-1.cbz',
+      sizeBytes: 9000000,
+      modifiedMs: 0,
+      addedAtMs: 0,
+      metadataTitle: 'Mon livre',
+      rightToLeft: true,
+      pageCount: 1200,
+      hasCover: true,
+    );
+    const coverPath = '/nonexistent/neostation/covers/book1.png';
+    await pumpView(
+      tester,
+      resolve: (id) async => id == 'book1' ? manga : null,
+      localCoverPath: (book) => book.id == manga.id ? coverPath : null,
+    );
+    await tester.pump();
+
+    // Tree order: "Continue reading" (One Piece, Mon livre), then the
+    // favourites (One Piece, Old Title).
+    List<LibraryBookCover> covers() => tester
+        .widgetList<LibraryBookCover>(find.byType(LibraryBookCover))
+        .toList();
+    expect(covers(), hasLength(4));
+    final local = covers()[1];
+    expect(local.thickness, LibraryBookThickness.maximum, reason: '1200 pages');
+    expect(local.rightToLeft, isTrue, reason: 'the book reads right to left');
+    for (final online in <LibraryBookCover>[
+      covers()[0],
+      covers()[2],
+      covers()[3],
+    ]) {
+      expect(online.thickness, LibraryBookThickness.fixed);
+      expect(online.rightToLeft, isTrue, reason: 'manga, as in the hub');
+    }
+    expect(
+      tester
+          .widgetList<LibraryBookVolume>(find.byType(LibraryBookVolume))
+          .map((volume) => volume.thickness),
+      <double>[
+        LibraryBookThickness.fixed,
+        LibraryBookThickness.maximum,
+        LibraryBookThickness.fixed,
+        LibraryBookThickness.fixed,
+      ],
+    );
+
+    // The local spine resolves the card's own thumbnail provider.
+    final card = find
+        .ancestor(of: find.text('Mon livre'), matching: find.byType(Row))
+        .first;
+    final art = tester.widget<Image>(
+      find.descendant(of: card, matching: find.byType(Image)),
+    );
+    expect(identical(local.image, art.image), isTrue);
+    expect(
+      ((local.image! as ResizeImage).imageProvider as FileImage).file.path,
+      coverPath,
+    );
+
+    // The selection of the section opens the selected cover only.
+    List<bool> selected() => covers().map((cover) => cover.selected).toList();
+    expect(selected(), <bool>[true, false, false, false]);
+    controller.navigate(1, 0);
+    await tester.pumpAndSettle();
+    expect(selected(), <bool>[false, true, false, false]);
+    controller.navigate(0, 1);
+    await tester.pumpAndSettle();
+    expect(selected(), <bool>[false, false, true, false]);
+    controller.navigate(1, 0);
+    await tester.pumpAndSettle();
+    expect(selected(), <bool>[false, false, false, true]);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(events, isEmpty, reason: 'selection opens nothing');
+  });
+
+  testWidgets('a favourite cover is also drawn on the spine of its volume', (
+    tester,
+  ) async {
+    store = _MemoryStore(
+      favorites: [
+        LibraryFavorite(
+          key: 'online:fr.sushiscan:covered',
+          sourceId: 'fr.sushiscan',
+          mangaId: 'covered',
+          title: 'Covered title',
+          coverUrl: _onePixelPng,
+          addedAt: DateTime.utc(2026, 10, 2),
+        ),
+      ],
+    );
+    await pumpView(tester);
+    final cover = tester.widget<LibraryBookCover>(
+      find.byType(LibraryBookCover),
+    );
+    final art = tester.widget<Image>(
+      find.descendant(
+        of: find.byType(LibraryBookCover),
+        matching: find.byType(Image),
+      ),
+    );
+    expect(cover.image, isA<LibraryNetworkImage>());
+    expect(identical(cover.image, art.image), isTrue, reason: 'one download');
+    expect(cover.thickness, LibraryBookThickness.fixed);
+    expect(cover.selected, isTrue, reason: 'the only card, selected');
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   group('onlineItemFor', () {

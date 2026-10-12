@@ -16,6 +16,8 @@ import 'package:neostation/screens/library_screen/library_local_view.dart';
 import 'package:neostation/services/library_local_library_service.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
+import 'package:neostation/widgets/library_book_cover.dart';
+import 'package:neostation/widgets/library_book_volume.dart';
 import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 
 import 'library_ui_sources_harness.dart';
@@ -27,6 +29,9 @@ LibraryLocalBook _book(
   int size = 1000,
   String folder = 'Books',
   List<String> authors = const <String>[],
+  int? pageCount = 12,
+  bool rightToLeft = false,
+  bool hasCover = false,
 }) => LibraryLocalBook(
   id: id.padRight(32, '0'),
   fingerprint: '$size:$id',
@@ -38,7 +43,9 @@ LibraryLocalBook _book(
   metadataTitle: title,
   authors: authors,
   language: 'fr',
-  pageCount: 12,
+  rightToLeft: rightToLeft,
+  pageCount: pageCount,
+  hasCover: hasCover,
 );
 
 class _Query {
@@ -51,13 +58,18 @@ class _Query {
 }
 
 class _FakeLibrary extends LibraryLocalLibraryService {
-  _FakeLibrary(List<LibraryLocalBook> books)
-    : _items = <String, LibraryLocalBook>{
-        for (final book in books) book.id: book,
-      },
-      super(picker: () async => null);
+  _FakeLibrary(
+    List<LibraryLocalBook> books, {
+    this.covers = const <String, String>{},
+  }) : _items = <String, LibraryLocalBook>{
+         for (final book in books) book.id: book,
+       },
+       super(picker: () async => null);
 
   final Map<String, LibraryLocalBook> _items;
+
+  /// Thumbnail path by book id (none by default).
+  final Map<String, String> covers;
   final List<_Query> queries = <_Query>[];
   final List<String> deleted = <String>[];
   final List<(String, String)> renamed = <(String, String)>[];
@@ -88,7 +100,7 @@ class _FakeLibrary extends LibraryLocalLibraryService {
   LibraryLocalBook? bookById(String id) => _items[id];
 
   @override
-  String? coverPath(LibraryLocalBook book) => null;
+  String? coverPath(LibraryLocalBook book) => covers[book.id];
 
   @override
   Future<void> rescan() async {}
@@ -235,6 +247,7 @@ Future<void> _openMenu(WidgetTester tester, String title) async {
 }
 
 void main() {
+  _bookVolumeTests();
   _coveredSectionTests();
   _resultsControllerTests();
   _landscapeIphoneTests();
@@ -756,6 +769,154 @@ void main() {
     await tester.tap(find.text('Alpha'));
     await tester.pump();
     expect(host.opened.map((book) => book.id), <String>[bravo.id, alpha.id]);
+  });
+}
+
+void _bookVolumeTests() {
+  // 500 estimated pages, a manga at the 1200-page cap, a 12-page PDF.
+  final novel = _book('v', 'Novel', LibraryBookFormat.epub, size: 500 * 1800);
+  final comic = _book(
+    'w',
+    'Comic',
+    LibraryBookFormat.cbz,
+    size: 9 * 1024 * 1024,
+    pageCount: 1500,
+    rightToLeft: true,
+    hasCover: true,
+  );
+  final memo = _book('x', 'Memo', LibraryBookFormat.pdf, size: 4096);
+
+  Finder tile(LibraryLocalBook book) =>
+      find.byKey(ValueKey<String>('book-${book.id}'));
+  LibraryBookCover coverOf(WidgetTester tester, LibraryLocalBook book) =>
+      tester.widget<LibraryBookCover>(
+        find.descendant(
+          of: tile(book),
+          matching: find.byType(LibraryBookCover),
+        ),
+      );
+
+  Future<_Host> pumpVolumes(
+    WidgetTester tester, {
+    Map<String, String> covers = const <String, String>{},
+  }) async {
+    final host = _Host(
+      _FakeLibrary(<LibraryLocalBook>[novel, comic, memo], covers: covers),
+      MemoryReadingStore(),
+    );
+    await pumpLibraryUi(tester, host.view());
+    await tester.pumpAndSettle();
+    return host;
+  }
+
+  testWidgets('each tile is a volume as thick as its book, with the tile '
+      'thumbnail on its spine', (tester) async {
+    final folder = Directory.systemTemp.createTempSync('neostation-volume-');
+    addTearDown(() => folder.deleteSync(recursive: true));
+    // Never written: the tile shows its placeholder once the load fails.
+    final coverPath = '${folder.path}/comic.png';
+    await pumpVolumes(tester, covers: <String, String>{comic.id: coverPath});
+
+    for (final book in <LibraryLocalBook>[novel, comic, memo]) {
+      final cover = coverOf(tester, book);
+      expect(cover.format, book.format);
+      expect(cover.pageCount, book.pageCount);
+      expect(cover.sizeBytes, book.sizeBytes);
+      expect(cover.rightToLeft, book.rightToLeft);
+      expect(cover.thickness, isNull, reason: 'estimated from the book');
+      expect(cover.selected, isFalse);
+    }
+    expect(
+      coverOf(tester, novel).resolvedThickness,
+      LibraryBookThickness.of(500),
+    );
+    expect(
+      coverOf(tester, comic).resolvedThickness,
+      LibraryBookThickness.maximum,
+    );
+    expect(
+      coverOf(tester, memo).resolvedThickness,
+      LibraryBookThickness.minimum,
+    );
+    expect(
+      tester
+          .widget<LibraryBookVolume>(
+            find.descendant(
+              of: tile(comic),
+              matching: find.byType(LibraryBookVolume),
+            ),
+          )
+          .rightToLeft,
+      isTrue,
+      reason: 'a manga hinges on the right',
+    );
+
+    // The spine resolves the tile's own thumbnail-sized provider.
+    final comicCover = coverOf(tester, comic);
+    final art = tester.widget<Image>(
+      find.descendant(of: tile(comic), matching: find.byType(Image)),
+    );
+    expect(identical(comicCover.image, art.image), isTrue);
+    final resized = comicCover.image! as ResizeImage;
+    expect(resized.policy, ResizeImagePolicy.fit);
+    expect(resized.width, isNotNull);
+    expect((resized.imageProvider as FileImage).file.path, coverPath);
+    expect(coverOf(tester, novel).image, isNull, reason: 'no thumbnail');
+    expect(tester.binding.transientCallbackCount, 0, reason: 'all still');
+  });
+
+  testWidgets('the focused tile opens its cover; the controller still acts '
+      'on it', (tester) async {
+    final host = await pumpVolumes(tester);
+    List<bool> selected() => <bool>[
+      for (final book in <LibraryLocalBook>[novel, comic, memo])
+        coverOf(tester, book).selected,
+    ];
+    expect(selected(), <bool>[false, false, false]);
+
+    Focus.of(tester.element(find.text('Novel'))).requestFocus();
+    await tester.pumpAndSettle();
+    expect(selected(), <bool>[true, false, false]);
+
+    Focus.of(tester.element(find.text('Comic'))).requestFocus();
+    await tester.pumpAndSettle();
+    expect(selected(), <bool>[false, true, false]);
+    expect(host.controller.activate(), isTrue);
+    await tester.pump();
+    expect(host.opened.single.id, comic.id, reason: 'focus still reported');
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    expect(selected(), <bool>[false, false, false]);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('the tile is read exactly as before the volume', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final host = _Host(
+      _FakeLibrary(<LibraryLocalBook>[novel, memo]),
+      MemoryReadingStore(),
+    );
+    host.store.saveProgress(
+      LibraryReadingProgress(
+        key: novel.readingKey,
+        location: 'epubcfi(/6/4!/4/2:0)',
+        fraction: 0.5,
+      ),
+    );
+    await pumpLibraryUi(tester, host.view());
+    await tester.pumpAndSettle();
+    // Label of the tile, then the texts it merges (placeholder and badge
+    // format names, title), as the 437 tile reads them.
+    expect(
+      tester.getSemantics(tile(novel)).label,
+      'Novel, 50% read\nEPUB\nEPUB\nNovel',
+    );
+    expect(
+      tester.getSemantics(tile(memo)).label,
+      'Memo, Not started\nPDF\nPDF\nMemo',
+    );
+    semantics.dispose();
   });
 }
 

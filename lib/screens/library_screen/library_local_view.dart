@@ -12,6 +12,7 @@ import 'package:neostation/services/library_local_library_service.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/themes/chrome_surface.dart';
+import 'package:neostation/widgets/library_book_cover.dart';
 import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
@@ -1001,7 +1002,7 @@ class _LibraryLocalViewState extends State<LibraryLocalView>
 
 enum _BookAction { open, rename, delete, info }
 
-class _BookTile extends StatelessWidget {
+class _BookTile extends StatefulWidget {
   const _BookTile({
     super.key,
     required this.book,
@@ -1022,7 +1023,23 @@ class _BookTile extends StatelessWidget {
   final ValueChanged<bool> onFocusChange;
 
   @override
+  State<_BookTile> createState() => _BookTileState();
+}
+
+class _BookTileState extends State<_BookTile> {
+  /// Flutter focus (controller or keyboard) on the tile: it opens the cover
+  /// like the hub's selection does.
+  bool _focused = false;
+
+  void _handleFocusChange(bool focused) {
+    widget.onFocusChange(focused);
+    if (mounted && focused != _focused) setState(() => _focused = focused);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final book = widget.book;
+    final progress = widget.progress;
     final theme = Theme.of(context);
     final fraction = progress?.fraction ?? 0;
     final finished = progress?.isFinished ?? false;
@@ -1033,17 +1050,25 @@ class _BookTile extends StatelessWidget {
         : LibraryLocalLocale.format(context, 'progressPercent', {
             'percent': (fraction * 100).round(),
           });
-    final cover = coverPath;
+    final cover = widget.coverPath;
+    // One thumbnail-sized provider for the cover and the spine of its volume.
+    final coverImage = cover == null
+        ? null
+        : ResizeImage(
+            FileImage(File(cover)),
+            width: widget.cacheWidth,
+            policy: ResizeImagePolicy.fit,
+          );
     return LibraryFocusRing(
       radius: 10,
-      onFocusChange: onFocusChange,
+      onFocusChange: _handleFocusChange,
       child: Semantics(
         button: true,
         label: '${book.title}, $progressLabel',
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: onOpen,
-          onLongPress: onMenu,
+          onTap: widget.onOpen,
+          onLongPress: widget.onMenu,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -1051,16 +1076,18 @@ class _BookTile extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: cover == null
+                    LibraryBookCover(
+                      selected: _focused,
+                      rightToLeft: book.rightToLeft,
+                      radius: 8,
+                      image: coverImage,
+                      format: book.format,
+                      pageCount: book.pageCount,
+                      sizeBytes: book.sizeBytes,
+                      child: coverImage == null
                           ? _FormatPlaceholder(format: book.format)
                           : Image(
-                              image: ResizeImage(
-                                FileImage(File(cover)),
-                                width: cacheWidth,
-                                policy: ResizeImagePolicy.fit,
-                              ),
+                              image: coverImage,
                               fit: BoxFit.cover,
                               gaplessPlayback: true,
                               errorBuilder: (_, _, _) =>
@@ -1087,7 +1114,7 @@ class _BookTile extends StatelessWidget {
                             minHeight: 44,
                           ),
                           padding: EdgeInsets.zero,
-                          onPressed: onMenu,
+                          onPressed: widget.onMenu,
                           icon: DecoratedBox(
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.45),
