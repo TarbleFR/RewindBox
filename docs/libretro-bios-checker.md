@@ -21,7 +21,7 @@ Toutes les données sont dans `assets/data/libretro_bios_requirements.json`
 - `libretro-database` `dat/System.dat` `f206bf65` (v1.19.0) ;
 - documentation libretro (`docs.libretro.com/library/<cœur>`) ;
 - sources des cœurs au dernier commit précédant l’artefact épinglé
-  `LibretroCores-48635465…` (run `37945318237`) : `identity.json` n’enregistre
+  `LibretroCores-ba3dc14d…` (run `38195212647`, 12 octobre 2026 ; précédent `LibretroCores-48635465…`, run `37945318237`, expiré le 23 octobre 2026) : `identity.json` n’enregistre
   pas de commit source, d’où le contrôle des binaires sur CI.
 
 Une copie publique et réduite de ces références est versionnée dans

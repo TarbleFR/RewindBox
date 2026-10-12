@@ -386,6 +386,14 @@ du contrôleur.
   téléchargement de `retroarch-delivery.yml:453-454` échouent pour **toute** livraison ;
   un nouveau run du buildbot donnera un autre binaire nightly (autre commit Azahar,
   options non garanties) et une nouvelle paire `LIBRETRO_CORES_HOST_SHA/RUN_ID`.
+  **Fait le 12 octobre 2026 sur décision du mainteneur** : run `38195212647` (dispatch
+  sur `Claude`, HEAD `ba3dc14d`), artefact **11722558457**
+  `LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2`, 50 488 901 octets, digest
+  `sha256:5e778e2309229276bdc7eadf1d84d01d3d2e77b95a54b20def6d930efa246b11`, créé le
+  2026-10-12T02:18:14Z, **expire le 2026-10-26T02:18:08Z** (à renouveler avant toute
+  livraison ultérieure). Les commits amont de `coreSources` n'ont pas pu être re-dérivés
+  (dépôts amont inaccessibles d'ici) : les binaires nightly peuvent être plus récents que
+  a5c3d4f8 ; la preuve des options 3DS passe par `--cores` sur ce nouvel artefact. Indice favorable, pas une preuve : l'archive buildbot `azahar_libretro.dylib.zip` fait 27 474 904 octets dans les deux runs (même taille le 9 et le 12 octobre), identité binaire non comparée.
 - ✱ vérif. — clés AES : au commit a5c3d4f8, `ENABLE_BUILTIN_KEYBLOB` est **ON par
   défaut** (`src/core/hw/default_keys.h` existe, `GetKeysStream` déchiffre le blob si
   `sysdata/keys.txt` est absent) ; sauf désactivation par la recette du buildbot

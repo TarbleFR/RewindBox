@@ -40,8 +40,8 @@ jobs:
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-48635465f4bdb324db4ff41b8b9815ff101ad360
-        run-id: '37945318237'
+        name: LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2
+        run-id: '38195212647'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Fetch the pinned MoltenVK simulator slice and test content
@@ -78,8 +78,8 @@ jobs:
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-48635465f4bdb324db4ff41b8b9815ff101ad360
-        run-id: '37945318237'
+        name: LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2
+        run-id: '38195212647'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Fetch the pinned MoltenVK simulator slice and test content
@@ -117,8 +117,8 @@ jobs:
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-48635465f4bdb324db4ff41b8b9815ff101ad360
-        run-id: '37945318237'
+        name: LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2
+        run-id: '38195212647'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Fetch the pinned MoltenVK simulator slice and test content

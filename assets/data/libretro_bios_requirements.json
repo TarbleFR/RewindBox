@@ -15,9 +15,9 @@
       "date": "2026-06-14"
     },
     "coresArtifact": {
-      "name": "LibretroCores-48635465f4bdb324db4ff41b8b9815ff101ad360",
-      "run": "37945318237",
-      "created": "2026-10-09T14:35:32Z"
+      "name": "LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2",
+      "run": "38195212647",
+      "created": "2026-10-12T02:17:40Z"
     },
     "coreSources": {
       "nestopia": "libretro/nestopia b9fdc9c4",
@@ -35,7 +35,7 @@
       "ppsspp": "hrydgard/ppsspp ed7de3ea",
       "azahar": "azahar-emu/azahar a5c3d4f8"
     },
-    "coreSourcesNote": "identity.json records no source commit: these are the last commits on or before the pinned cores run (the buildbot rebuilds nightly). test/libretro_bios_requirements_test.py --cores checks the file names against the pinned binaries.",
+    "coreSourcesNote": "identity.json records no source commit: these are the last commits on or before the previous pinned cores run 37945318237 (2026-10-09); they were not re-derived for run 38195212647 (2026-10-12, upstream repositories unreachable from the work container), so the nightly binaries may be newer. test/libretro_bios_requirements_test.py --cores checks the file names against the pinned binaries.",
     "documentation": "https://docs.libretro.com/library/"
   },
   "flags": {
