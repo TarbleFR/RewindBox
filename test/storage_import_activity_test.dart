@@ -20,6 +20,7 @@ void main() {
     libretroActive: () async => false,
     dolphinMarkerPresent: () async => false,
     libretroJournalUnfinished: () async => false,
+    libraryScanActive: () => false,
   );
 
   test('an import counts from its start to its end', () async {
@@ -104,6 +105,7 @@ void main() {
       },
       dolphinMarkerPresent: () async => false,
       libretroJournalUnfinished: () async => false,
+      libraryScanActive: () => false,
     ).check();
     expect(state.importActive, isTrue);
     expect(state.wholeCleanupRefused, isTrue);

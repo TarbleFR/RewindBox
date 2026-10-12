@@ -262,21 +262,28 @@ void main() {
         'media/snes/videos/Deleted Game.mp4',
         'media/snes/box2d/Super Mario World (Hack).png',
         'media/psx/box2d/Final Fantasy VII (USA) (Disc 1).png', // disc without a row
-        'media/gc/box2d/Metroid Prime.png', // a known system without games
       ];
+      // Contract replaced by the review of the storage services: the media of
+      // a known system without any game row used to be orphan (preselected
+      // at level 2). Its rows may have been pruned by a scan of a library
+      // folder iOS could not read: they are not analysed now — neither
+      // orphan nor unattributed — and the report says so.
+      final notAnalysed = ['media/gc/box2d/Metroid Prime.png'];
       final ignored = [
         'media/snes/box2d/notes.txt',
         'media/snes/box2d/.DS_Store',
         'media/snes/covers/Deleted Game.png', // not a NeoStation media type
         'media/snes/box2d/sub/Deleted Game.png',
       ];
-      for (final path in [...kept, ...orphans, ...ignored]) {
+      for (final path in [...kept, ...orphans, ...notAnalysed, ...ignored]) {
         await write(doc(path), 10);
       }
       await write(doc('media/unknownsys/box2d/Game.png'), 10);
 
       final report = await detect();
       expect(relative(report.media), orphans.toSet());
+      expect(report.skipped['systemsWithoutGames'], 'media: gc');
+      expect(report.skipped.containsKey('media'), isFalse);
       for (final entry in report.media) {
         expect(entry.kind, StorageOrphanKind.media);
         expect(entry.selectable, isTrue);
@@ -291,6 +298,10 @@ void main() {
       expect(relative(report.unattributedMedia), {
         'media/unknownsys/box2d/Game.png',
       });
+      expect(
+        relative([...report.media, ...report.unattributedMedia]),
+        isNot(contains(notAnalysed.single)),
+      );
       expect(report.unattributedMedia.single.selectable, isFalse);
       expect(
         report.unattributedMedia.single.kind,
@@ -612,13 +623,26 @@ void main() {
         ).keep,
         StorageDuplicateKeep.referenced,
       );
-      final offered = copy(
+      // Contract replaced by the review of the storage services: without
+      // checksums the unreferenced copy used to be selectable. The same name
+      // and size do not make the same game (USA and EUR images, two
+      // GameCube discs of the standard size): it is listed, never offered,
+      // until « Calculer les empreintes » shows it equal to the referenced
+      // copy (end of this test).
+      final unhashed = copy(
         'Super Mario World.sfc',
         p.join(mine, 'snes/Super Mario World.sfc'),
       );
-      expect(offered.selectable, isTrue);
-      expect(offered.keep, isNull);
-      expect(mario.selectableBytes, 100);
+      expect(unhashed.selectable, isFalse);
+      expect(unhashed.keep, StorageDuplicateKeep.notHashed);
+      expect(unhashed.sha256, isNull);
+      expect(mario.selectableBytes, 0);
+      expect(
+        report.duplicates
+            .expand((group) => group.copies)
+            .where((candidate) => candidate.selectable),
+        isEmpty,
+      );
 
       for (final name in ['Metroid Prime.rvz', 'Mario Kart Wii.wbfs']) {
         for (final candidate in groups[name]!.copies) {
@@ -644,6 +668,20 @@ void main() {
       );
       expect(disc.selectable, isFalse);
       expect(disc.keep, StorageDuplicateKeep.companionFiles);
+      // With the checksums, the identical unreferenced copy is offered.
+      final hashed = await detect(libraryRoots: [mine], hash: true);
+      final hashedMario = hashed.duplicates.singleWhere(
+        (group) => group.name == 'Super Mario World.sfc',
+      );
+      expect(hashedMario.hashed, isTrue);
+      final offered = hashedMario.copies.singleWhere(
+        (candidate) =>
+            candidate.path == p.join(mine, 'snes/Super Mario World.sfc'),
+      );
+      expect(offered.selectable, isTrue);
+      expect(offered.keep, isNull);
+      expect(offered.sha256, hashedMario.sha256);
+      expect(hashedMario.selectableBytes, 100);
       // Nothing was deleted or written.
       expect(
         await home.list(recursive: true).map((entity) => entity.path).toSet(),
@@ -670,9 +708,33 @@ void main() {
         'Other.sfc',
       });
       expect(plain.duplicates.every((group) => !group.hashed), isTrue);
+      // Without checksums nothing is offered, whatever the content (review
+      // of the storage services): `Other.sfc` holds other bytes than the
+      // referenced copy, `Same.sfc` the same ones — neither is selectable.
+      for (final group in plain.duplicates) {
+        for (final candidate in group.copies) {
+          expect(candidate.selectable, isFalse, reason: candidate.path);
+          expect(
+            candidate.keep,
+            candidate.referenced
+                ? StorageDuplicateKeep.referenced
+                : StorageDuplicateKeep.notHashed,
+            reason: candidate.path,
+          );
+        }
+        expect(group.selectableBytes, 0);
+      }
 
       final hashed = await detect(libraryRoots: [mine], hash: true);
+      // The copies of different content are no group at all: nothing of
+      // `Other.sfc` can be offered.
       expect(hashed.duplicates.map((group) => group.name), ['Same.sfc']);
+      expect(
+        hashed.duplicates
+            .expand((group) => group.copies)
+            .where((candidate) => p.basename(candidate.path) == 'Other.sfc'),
+        isEmpty,
+      );
       final group = hashed.duplicates.single;
       expect(group.hashed, isTrue);
       expect(group.sha256, sha256.convert(same).toString());
@@ -721,5 +783,257 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  // Review of the storage services (12 October 2026): a scan of the library
+  // prunes the rows of a folder iOS could not read; the system then has no
+  // row left while its media and metadata are still the user's.
+  test('a known system without any game row: its media and metadata are not '
+      'analysed, the other systems are', () async {
+    await rom('snes', 'Zelda.sfc', doc('roms/snes/Zelda.sfc'));
+    await metadata('snes', 'Zelda.sfc');
+    await metadata('snes', 'Deleted.sfc');
+    await metadata('psx', 'Final Fantasy VII.cue');
+    await metadata('psx', 'Final Fantasy VIII.cue');
+    final psxMedia = [
+      'media/psx/box2d/Final Fantasy VII.png',
+      'media/psx/screenshots/Final Fantasy VII.png',
+      'media/psx/videos/Final Fantasy VII.mp4',
+      'media/psx/manuals/Final Fantasy VII.pdf',
+      'media/psx/box2d/Custom cover set by the user.png',
+    ];
+    for (final path in [
+      ...psxMedia,
+      'media/snes/box2d/Zelda.png',
+      'media/snes/box2d/Deleted.png',
+    ]) {
+      await write(doc(path), 10);
+    }
+    final report = await detect();
+    expect(relative(report.media), {'media/snes/box2d/Deleted.png'});
+    expect(report.unattributedMedia, isEmpty);
+    expect(report.metadata, const [
+      StorageOrphanMetadataKey('snes', 'Deleted.sfc'),
+    ]);
+    expect(report.skipped['systemsWithoutGames'], 'media: psx; metadata: psx');
+    // Only read.
+    for (final path in psxMedia) {
+      expect(await File(doc(path)).exists(), isTrue, reason: path);
+    }
+    expect(
+      (await db.rawQuery(
+        'SELECT COUNT(*) AS n FROM user_screenscraper_metadata',
+      )).single['n'],
+      4,
+    );
+    // Its first game row makes it analysed again.
+    await rom('psx', 'Final Fantasy VII.cue', doc('roms/psx/FF7.cue'));
+    final analysed = await detect();
+    expect(relative(analysed.media), {
+      'media/snes/box2d/Deleted.png',
+      'media/psx/box2d/Custom cover set by the user.png',
+    });
+    expect(analysed.metadata, const [
+      StorageOrphanMetadataKey('psx', 'Final Fantasy VIII.cue'),
+      StorageOrphanMetadataKey('snes', 'Deleted.sfc'),
+    ]);
+    expect(analysed.skipped.containsKey('systemsWithoutGames'), isFalse);
+  });
+
+  test('a registered library folder missing or unreadable: no media, metadata '
+      'or cover is claimed orphan', () async {
+    await rom('snes', 'Zelda.sfc', doc('roms/snes/Zelda.sfc'));
+    await write(doc('roms/snes/Zelda.sfc'), 10);
+    await write(doc('media/snes/box2d/Deleted.png'), 10);
+    await metadata('snes', 'Deleted.sfc');
+    await write(sup('Library/covers/b3.png'), 5);
+    await File(
+      sup('Library/local-index.json'),
+    ).writeAsString(jsonEncode({'version': 1, 'books': <Object>[]}));
+    final outside = await Directory.systemTemp.createTemp('orphans_out_');
+    addTearDown(() async {
+      if (await outside.exists()) await outside.delete(recursive: true);
+    });
+    final aFile = await write(doc('NotAFolder'), 3);
+
+    Future<StorageOrphanReport> detectWith({
+      List<String> libraryRoots = const [],
+      String? linked,
+      StorageDirectoryLister? lister,
+    }) async {
+      final registry = StorageRootRegistry(
+        containers,
+        libraryRoots: libraryRoots,
+        linkedExternalFolder: linked,
+      );
+      final result = await StorageScanner(lister: lister).scan(registry);
+      return StorageOrphanDetector(
+        database: () async => db,
+        registry: registry,
+      ).detect(result);
+    }
+
+    // Control: every folder readable.
+    final readable = await detectWith(
+      libraryRoots: [doc('roms'), outside.path],
+      linked: outside.path,
+    );
+    expect(relative(readable.media), {'media/snes/box2d/Deleted.png'});
+    expect(readable.metadata, isNotEmpty);
+    expect(relative(readable.libraryCovers), {'Library/covers/b3.png'});
+
+    Stream<FileSystemEntity> refusing(Directory directory) =>
+        p.basename(directory.path) == 'MyGames'
+        ? Stream<FileSystemEntity>.error(
+            FileSystemException(
+              'Directory listing failed',
+              directory.path,
+              const OSError('Operation not permitted', 1),
+            ),
+          )
+        : directory.list(followLinks: false);
+    await Directory(doc('MyGames')).create();
+    for (final (label, report) in [
+      (
+        'missing in the container',
+        await detectWith(libraryRoots: [doc('Gone')]),
+      ),
+      (
+        'missing outside the containers',
+        await detectWith(libraryRoots: [p.join(outside.path, 'gone')]),
+      ),
+      (
+        'linked folder missing',
+        await detectWith(linked: p.join(outside.path, 'linked')),
+      ),
+      ('not a folder', await detectWith(libraryRoots: [aFile.path])),
+      (
+        'unreadable in the analysis',
+        await detectWith(libraryRoots: [doc('MyGames')], lister: refusing),
+      ),
+    ]) {
+      expect(report.media, isEmpty, reason: label);
+      expect(report.metadata, isEmpty, reason: label);
+      expect(report.libraryCovers, isEmpty, reason: label);
+      for (final key in ['media', 'metadata', 'libraryCovers']) {
+        expect(
+          report.skipped[key],
+          startsWith('library folder missing or unreadable: '),
+          reason: '$label: $key',
+        );
+      }
+    }
+    final unreadable = await detectWith(
+      libraryRoots: [doc('MyGames')],
+      lister: refusing,
+    );
+    expect(
+      unreadable.skipped['media'],
+      contains('<Documents>/MyGames: inaccessible in the analysis'),
+    );
+    expect(
+      (await detectWith(libraryRoots: [doc('Gone')])).skipped['media'],
+      contains('<Documents>/Gone: missing'),
+    );
+    // A folder outside the containers is never spelled out.
+    final external = (await detectWith(
+      libraryRoots: [p.join(outside.path, 'gone')],
+    )).skipped['media'];
+    expect(external, contains('<library folder>: missing'));
+    expect(external, isNot(contains(outside.path)));
+    // Nothing was touched.
+    expect(await File(doc('media/snes/box2d/Deleted.png')).exists(), isTrue);
+    expect(await File(sup('Library/covers/b3.png')).exists(), isTrue);
+  });
+
+  test('recheck confirms only what is still orphan on a fresh read', () async {
+    await rom('snes', 'Zelda.sfc', doc('roms/snes/Zelda.sfc'));
+    await rom('psx', 'Final Fantasy VII.cue', doc('roms/psx/FF7.cue'));
+    await metadata('snes', 'Deleted.sfc');
+    await metadata('snes', 'Later.sfc');
+    final deleted = doc('media/snes/box2d/Deleted.png');
+    final later = doc('media/snes/box2d/Later.png');
+    for (final path in [deleted, later]) {
+      await write(path, 10);
+    }
+    await write(sup('Library/covers/b3.png'), 5);
+    await write(sup('Library/covers/b4.png'), 5);
+    final index = File(sup('Library/local-index.json'));
+    await index.writeAsString(jsonEncode({'version': 1, 'books': <Object>[]}));
+    final (result, registry) = await scan();
+    final detector = StorageOrphanDetector(
+      database: () async => db,
+      registry: registry,
+    );
+    final report = await detector.detect(result);
+    expect(relative(report.media), {
+      'media/snes/box2d/Deleted.png',
+      'media/snes/box2d/Later.png',
+    });
+    const keys = [
+      StorageOrphanMetadataKey('snes', 'Deleted.sfc'),
+      StorageOrphanMetadataKey('snes', 'Later.sfc'),
+    ];
+    expect(report.metadata, keys);
+
+    // A scan added Later.sfc, an import added book b4, since the preview.
+    await rom('snes', 'Later.sfc', doc('roms/snes/Later.sfc'));
+    await index.writeAsString(
+      jsonEncode({
+        'version': 1,
+        'books': [
+          {'id': 'b4', 'relativePath': 'Books/Four.epub'},
+        ],
+      }),
+    );
+    final now = await detector.recheck(
+      media: [deleted, later, doc('roms/snes/Zelda.sfc')],
+      covers: [sup('Library/covers/b3.png'), sup('Library/covers/b4.png')],
+      metadata: keys,
+    );
+    expect(now.refused, isNull);
+    expect(now.media, {storageCanonicalPath(deleted)});
+    expect(now.covers, {storageCanonicalPath(sup('Library/covers/b3.png'))});
+    expect(now.metadata, {keys.first});
+
+    // A system that lost all its rows is not analysed any more.
+    await db.execute("DELETE FROM user_roms WHERE app_system_id = 'snes'");
+    final pruned = await detector.recheck(media: [deleted], metadata: keys);
+    expect(pruned.refused, isNull);
+    expect(pruned.media, isEmpty);
+    expect(pruned.metadata, isEmpty);
+
+    // An unreadable index confirms no cover.
+    await index.writeAsString('{not json');
+    expect(
+      (await detector.recheck(covers: [sup('Library/covers/b3.png')])).covers,
+      isEmpty,
+    );
+
+    // An empty library, a missing library folder or the database itself
+    // refuse everything.
+    await db.execute('DELETE FROM user_roms');
+    final empty = await detector.recheck(media: [deleted], metadata: keys);
+    expect(empty.refused, 'user_roms is empty');
+    expect(empty.media, isEmpty);
+    expect(empty.metadata, isEmpty);
+    await rom('snes', 'Zelda.sfc', doc('roms/snes/Zelda.sfc'));
+    final missingFolder = await StorageOrphanDetector(
+      database: () async => db,
+      registry: StorageRootRegistry(containers, libraryRoots: [doc('Gone')]),
+    ).recheck(media: [deleted], metadata: keys);
+    expect(
+      missingFolder.refused,
+      startsWith('library folder missing or unreadable: '),
+    );
+    expect(missingFolder.media, isEmpty);
+    expect(missingFolder.metadata, isEmpty);
+    final closed = await StorageOrphanDetector(
+      database: () async => throw StateError('database closed'),
+      registry: registry,
+    ).recheck(media: [deleted], metadata: keys);
+    expect(closed.refused, startsWith('database: '));
+    expect(closed.media, isEmpty);
+    expect(await File(deleted).exists(), isTrue);
   });
 }

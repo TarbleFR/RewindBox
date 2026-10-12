@@ -61,6 +61,7 @@ class StorageAuditScreen extends StatefulWidget {
     this.deletionManager,
     this.maintenance,
     this.sharer,
+    this.libraryScanActive,
   });
 
   /// Measurement; [StorageScanner] by default.
@@ -88,6 +89,12 @@ class StorageAuditScreen extends StatefulWidget {
 
   /// Report sharing; [StorageReportSharer] by default.
   final StorageReportSharer? sharer;
+
+  /// Whether the game library is being scanned, for the session guard of
+  /// the cleanup (review of the storage services); by default the scan
+  /// state of `SqliteConfigProvider` (`isScanning`, `isScanningRoms`,
+  /// `isSilentScanning`). Without either, the guard counts a scan.
+  final bool Function()? libraryScanActive;
 
   @override
   State<StorageAuditScreen> createState() => _StorageAuditScreenState();
@@ -343,12 +350,7 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
       _orphansError = null;
     });
     try {
-      final detector =
-          widget.orphanDetector ??
-          StorageOrphanDetector(
-            database: () => SqliteService.instance.database,
-            registry: registry,
-          );
+      final detector = _detectorFor(registry);
       final report = await detector.detect(
         scan,
         hashDuplicates: _hashDuplicates,
@@ -365,6 +367,35 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
       );
       if (mounted) setState(() => _orphansError = error);
     }
+  }
+
+  /// The orphan detector of [registry] (the analysis, and the re-check of
+  /// a deletion).
+  StorageOrphanDetector _detectorFor(StorageRootRegistry registry) =>
+      widget.orphanDetector ??
+      StorageOrphanDetector(
+        database: () => SqliteService.instance.database,
+        registry: registry,
+      );
+
+  /// The library scan probe of the session guard: the injected one, else
+  /// the provider's scan state; without a provider a scan cannot be ruled
+  /// out (busy).
+  bool Function() _libraryScanProbe() {
+    final injected = widget.libraryScanActive;
+    if (injected != null) return injected;
+    final provider = Provider.of<SqliteConfigProvider?>(context, listen: false);
+    // Nobody can tell that no scan runs: the guard records the reason and
+    // counts a scan.
+    if (provider == null) {
+      return () => throw StateError(
+        'SqliteConfigProvider unavailable: library scan state unknown',
+      );
+    }
+    return () =>
+        provider.isScanning ||
+        provider.isScanningRoms ||
+        provider.isSilentScanning;
   }
 
   void _cancelAnalysis() {
@@ -421,7 +452,10 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
       ),
     );
     try {
-      final guard = StorageSessionGuard(containers: registry.containers);
+      final guard = StorageSessionGuard(
+        containers: registry.containers,
+        libraryScanActive: _libraryScanProbe(),
+      );
       final StorageCleanupPlan plan;
       try {
         final planner =
@@ -438,7 +472,11 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
       if (!mounted) return;
       final manager =
           widget.deletionManager ??
-          StorageDeletionManager(registry: registry, guard: guard);
+          StorageDeletionManager(
+            registry: registry,
+            guard: guard,
+            orphans: _detectorFor(registry),
+          );
       _previewOpen = true;
       try {
         await Navigator.of(context).push(
@@ -1130,6 +1168,7 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
     final orphansError = _orphansError;
     final counted = {
       for (final analyses in _counterAnalyses.values) ...analyses,
+      'systemsWithoutGames',
     };
     return StorageSectionCard(
       key: const ValueKey('storage-orphans'),
@@ -1165,6 +1204,22 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
                   }),
                   notAnalyzedKey: StorageLocale.orphanMetadataNotAnalyzed,
                 ),
+                // Consoles without any game row: their media and metadata
+                // are not analysed (review of the storage services).
+                if (orphans.skipped['systemsWithoutGames'] case final systems?)
+                  Column(
+                    key: const ValueKey('storage-systems-without-games'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_t(StorageLocale.emptySystemsNotAnalyzed)),
+                      Text(
+                        _t(StorageLocale.technicalCode, {
+                          'code': 'systemsWithoutGames: $systems',
+                        }),
+                        style: storageRawStyle(context),
+                      ),
+                    ],
+                  ),
                 _orphanCounter(
                   context,
                   orphans,
@@ -1198,6 +1253,12 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
                   }),
                   notAnalyzedKey: StorageLocale.duplicatesNotAnalyzed,
                 ),
+                // Listed without their checksums: none is offered.
+                if (orphans.duplicates.any((group) => !group.hashed))
+                  Text(
+                    _t(StorageLocale.duplicatesNeedHashes),
+                    key: const ValueKey('storage-duplicates-need-hashes'),
+                  ),
                 // Other analyses not made, with their raw reason.
                 for (final skipped in orphans.skipped.entries)
                   if (!counted.contains(skipped.key))

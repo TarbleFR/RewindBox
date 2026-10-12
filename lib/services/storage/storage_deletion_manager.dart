@@ -13,11 +13,12 @@
 /// file by file, then each directory with `Directory.delete(recursive:
 /// false)` (`notEmpty` otherwise); ENOENT is tolerated (`skippedMissing`),
 /// EACCES/EPERM are refused with the raw system text; (6) the session guard is
-/// checked again before the start and every 50 files (a game launch or an
-/// import, `StorageImportActivity`, stops the rest), a cancellation stops
-/// after the current file; (7) the Library caches go through their API, never
-/// file by file; (8) the metadata rows after the files: `VACUUM INTO` copy,
-/// then the transaction of [StorageMaintenanceRepository]; (9) a journal
+/// checked again before the start and every 50 files (a game launch, an
+/// import, `StorageImportActivity`, or a library scan stops the rest), a
+/// cancellation stops after the current file; (7) the Library caches go
+/// through their API, never file by file; (8) the metadata rows after the
+/// files, the guard checked again: `VACUUM INTO` copy, then the transaction
+/// of [StorageMaintenanceRepository]; (9) a journal
 /// `Documents/Diagnostics/storage-cleanup-<yyyyMMdd-HHmmss>.jsonl` (paths
 /// relative to their container, never absolute), at most 20 of them.
 ///
@@ -26,6 +27,13 @@
 /// (`gameRunning`, `libraryBusy`) refuses them all (`rpcs3Busy`); a
 /// redirection of `dev_hdd0` by `Data/vfs.yml` refuses INV-16 … INV-19
 /// (`redirected`).
+///
+/// Review of the storage services, before deleting: orphan media, covers
+/// and metadata rows are checked again against a fresh read of the database
+/// and of the library index ([StorageOrphanDetector.recheck]); a duplicate
+/// goes only if the kept copy still has its size and modification time and
+/// is another file (`dev:ino`); a 3DS staging folder goes only while no
+/// 3DS pass is interrupted on the disk.
 ///
 /// Never `FilePicker.clearTemporaryFiles()`, never a recursive deletion.
 library;
@@ -36,6 +44,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../data/datasources/sqlite_service.dart';
 import '../../repositories/storage_maintenance_repository.dart';
 import '../diagnostics_directory.dart';
 import '../library_http.dart';
@@ -44,6 +53,7 @@ import '../library_source_files.dart';
 import '../rpcs3_internal_service.dart';
 import '../rpcs3_rap_licence_service.dart';
 import 'storage_cleanup_planner.dart';
+import 'storage_orphan_detector.dart';
 import 'storage_roots.dart';
 import 'storage_scanner.dart';
 import 'storage_stat_ffi.dart';
@@ -77,6 +87,15 @@ enum StorageRefusalReason {
   rpcs3Busy,
   redirected,
   unknown,
+
+  /// The game library is being scanned (addition, review of the storage
+  /// services): the whole cleanup is refused or stopped.
+  libraryScanActive,
+
+  /// The library database held a transaction of another operation: the
+  /// metadata rows were left in place (addition, review of the storage
+  /// services).
+  databaseBusy,
 }
 
 /// Clears one Library cache through its API (INV-26).
@@ -126,6 +145,7 @@ class StorageDeletionResult {
     this.deletedDirectories = 0,
     this.clearedCaches = const [],
     this.stoppedBySession = false,
+    this.stopReason,
     this.journalDisplayPath,
     this.journalError,
   });
@@ -149,8 +169,13 @@ class StorageDeletionResult {
   final int deletedDirectories;
   final List<StorageCacheApi> clearedCaches;
 
-  /// A game or an import started: the rest was refused (`sessionActive`).
+  /// A game, an import or a library scan started: the rest was refused.
   final bool stoppedBySession;
+
+  /// Why it stopped ([StorageRefusalReason.sessionActive] for a game or an
+  /// import, [StorageRefusalReason.libraryScanActive] for a library scan);
+  /// null when it did not.
+  final StorageRefusalReason? stopReason;
 
   /// `<Documents>/Diagnostics/storage-cleanup-….jsonl`.
   final String? journalDisplayPath;
@@ -187,7 +212,7 @@ class _Validation {
   final int? errorCode;
 }
 
-/// Stops the deletion: a game or an import started.
+/// Stops the deletion: a game, an import or a library scan started.
 class _SessionStop implements Exception {
   const _SessionStop();
 }
@@ -208,6 +233,7 @@ class StorageDeletionManager {
     this.journalLimit = 20,
     StorageRpcs3Guard? rpcs3Guard,
     Future<bool> Function()? rpcs3Redirected,
+    StorageOrphanDetector? orphans,
   }) : _registry = registry,
        _guard = guard,
        _stat = stat,
@@ -215,7 +241,13 @@ class StorageDeletionManager {
        _journalDirectory = journalDirectory ?? _defaultJournalDirectory,
        _now = now ?? DateTime.now,
        _rpcs3Guard = rpcs3Guard ?? _defaultRpcs3Guard,
-       _rpcs3Redirected = rpcs3Redirected;
+       _rpcs3Redirected = rpcs3Redirected,
+       _orphans =
+           orphans ??
+           StorageOrphanDetector(
+             database: () => SqliteService.instance.database,
+             registry: registry,
+           );
 
   final StorageRootRegistry _registry;
   final StorageSessionGuard _guard;
@@ -225,6 +257,10 @@ class StorageDeletionManager {
   final DateTime Function() _now;
   final StorageRpcs3Guard _rpcs3Guard;
   final Future<bool> Function()? _rpcs3Redirected;
+
+  /// Checks orphans again before they go (review of the storage services);
+  /// by default the detector of the registry on `SqliteService`'s database.
+  final StorageOrphanDetector _orphans;
 
   /// `storage-cleanup-*.jsonl` journals kept (the newest).
   final int journalLimit;
@@ -312,6 +348,18 @@ class _Run {
   int _sinceCheck = 0;
   bool _stopped = false;
   bool _cancelled = false;
+
+  /// Why the run stopped (a game or an import, or a library scan).
+  StorageRefusalReason? _stopReason;
+
+  /// What the stop refuses: the reason of the stop, `sessionActive` when
+  /// unknown.
+  StorageRefusalReason get _stopRefusal =>
+      _stopReason ?? StorageRefusalReason.sessionActive;
+
+  /// [StorageOrphanDetector.recheck] of the selected orphans, made before
+  /// the files.
+  StorageOrphanRecheck? _orphansNow;
 
   int _deletedFiles = 0;
   int _deletedBytes = 0;
@@ -525,8 +573,13 @@ class _Run {
         probeErrors: {'guard': '$error'},
       );
     }
-    // A game launch or an import (review of 5d) stops the deletion.
-    if (_state.wholeCleanupRefused) _stopped = true;
+    // A game launch, an import (review of 5d) or a library scan (review of
+    // the storage services) stops the deletion.
+    final reason = _state.wholeCleanupReason;
+    if (reason != null && !_stopped) {
+      _stopped = true;
+      _stopReason = reason;
+    }
   }
 
   /// After each file: cancellation, then the guard every 50 files.
@@ -818,7 +871,7 @@ class _Run {
         return;
       }
       if (candidate.isDuplicate) {
-        final paired = await _pairedCopyStillThere(candidate);
+        final paired = await _pairedCopyStillThere(candidate, resolved);
         if (paired != null) {
           _refuse(
             entry.path,
@@ -876,14 +929,23 @@ class _Run {
   }
 
   /// Null while the copy the library uses is still a regular file of the
-  /// same name and size at its place; otherwise the technical code of why
-  /// the duplicate stays (`noReferencedCopy`, `referencedCopyInvalid`,
-  /// `referencedCopyMissing`, `referencedCopyChanged`, or the raw errno text).
+  /// same name at its place, with the size and modification time the
+  /// analysis saw, and another file than the copy at [resolved] (another
+  /// `dev:ino`: not a hard link, nor the same file under another case);
+  /// otherwise the technical code of why the duplicate stays
+  /// (`noReferencedCopy`, `notHashed`, `referencedCopyInvalid`,
+  /// `referencedCopyMissing`, `referencedCopyChanged`, `sameFile`,
+  /// `fileIdentityUnknown`, or the raw errno text).
   Future<String?> _pairedCopyStillThere(
     StorageCleanupCandidate candidate,
+    String resolved,
   ) async {
     final paired = candidate.pairedPath;
     if (paired == null) return 'noReferencedCopy';
+    // Only identical checksums make a duplicate (review of the storage
+    // services).
+    final digest = candidate.sha256;
+    if (digest == null || digest.isEmpty) return 'notHashed';
     if (storageCanonicalPath(paired) == storageCanonicalPath(candidate.path) ||
         p.basename(paired) != p.basename(candidate.path)) {
       return 'referencedCopyInvalid';
@@ -893,13 +955,23 @@ class _Run {
           FileSystemEntityType.file) {
         return 'referencedCopyMissing';
       }
-      final length = (await FileStat.stat(paired)).size;
-      if (length != candidate.logicalBytes) {
+      final stat = await FileStat.stat(paired);
+      final modified = candidate.pairedModified;
+      if (stat.size != (candidate.pairedLogicalBytes ?? -1) ||
+          modified == null ||
+          !stat.modified.isAtSameMomentAs(modified)) {
         return 'referencedCopyChanged';
       }
     } on FileSystemException catch (error) {
       return error.osError?.toString() ?? error.message;
     }
+    // Without `lstat` (StorageStatLogical: every inode reads 0) the two
+    // copies cannot be told apart: kept.
+    if (!_stat.available) return 'fileIdentityUnknown';
+    final mine = _stat.lstat(resolved);
+    final kept = _stat.lstat(paired);
+    if (mine == null || kept == null) return 'fileIdentityUnknown';
+    if (mine.dev == kept.dev && mine.ino == kept.ino) return 'sameFile';
     return null;
   }
 
@@ -977,12 +1049,98 @@ class _Run {
     }
   }
 
+  /// Why [candidate] may not go any more (review of the storage services),
+  /// as a refusal and its raw detail; null when it may.
+  Future<(StorageRefusalReason, String)?> _stillAllowed(
+    StorageCleanupCandidate candidate,
+  ) async {
+    switch (candidate.source) {
+      case StorageCandidateSource.orphanMedia:
+      case StorageCandidateSource.orphanCover:
+        final now = _orphansNow;
+        final refused = now?.refused;
+        if (now == null || refused != null) {
+          return (
+            StorageRefusalReason.changedSincePreview,
+            refused ?? 'orphanRecheckMissing',
+          );
+        }
+        final still = candidate.source == StorageCandidateSource.orphanMedia
+            ? now.media
+            : now.covers;
+        if (!still.contains(storageCanonicalPath(candidate.path))) {
+          return (StorageRefusalReason.changedSincePreview, 'noLongerOrphan');
+        }
+      case StorageCandidateSource.rule:
+        if (candidate.ruleId == StorageCleanupPlanner.threeDsStagingRuleId) {
+          final passes = await StorageCleanupPlanner.interrupted3dsPasses(
+            registry,
+          );
+          if (passes == null) {
+            return (
+              StorageRefusalReason.isProtected,
+              'threeDsBackupsUnreadable',
+            );
+          }
+          if (passes.isNotEmpty) {
+            return (StorageRefusalReason.isProtected, 'interrupted3dsPass');
+          }
+        }
+      case StorageCandidateSource.duplicate:
+      case StorageCandidateSource.cacheApi:
+        break;
+    }
+    return null;
+  }
+
+  /// The selected orphans, checked again on a fresh read before any file
+  /// goes.
+  Future<void> _recheckOrphans(List<StorageCleanupCandidate> chosen) async {
+    final media = <String>[];
+    final covers = <String>[];
+    for (final candidate in chosen) {
+      if (candidate.source == StorageCandidateSource.orphanMedia) {
+        media.add(candidate.path);
+      } else if (candidate.source == StorageCandidateSource.orphanCover) {
+        covers.add(candidate.path);
+      }
+    }
+    if (media.isEmpty && covers.isEmpty) return;
+    try {
+      _orphansNow = await manager._orphans.recheck(
+        media: media,
+        covers: covers,
+      );
+    } catch (error) {
+      _orphansNow = StorageOrphanRecheck(refused: 'recheck: $error');
+    }
+    _log('recheck', {
+      'media': media.length,
+      'stillMedia': _orphansNow!.media.length,
+      'covers': covers.length,
+      'stillCovers': _orphansNow!.covers.length,
+      'detail': _orphansNow!.refused,
+    });
+  }
+
   /// Every file of [candidate], then its directories.
   Future<void> _deleteCandidate(StorageCleanupCandidate candidate) async {
     final files = [
       for (final entry in candidate.entries)
         if (entry.kind == StorageEntryKind.file) entry,
     ];
+    final notAllowed = await _stillAllowed(candidate);
+    if (notAllowed != null) {
+      _done += files.length;
+      _refuse(
+        candidate.path,
+        notAllowed.$1,
+        rootId: candidate.rootId,
+        detail: notAllowed.$2,
+      );
+      _progress(candidate.path);
+      return;
+    }
     if (_excludedNow(candidate)) {
       _done += files.length;
       _refuse(
@@ -1087,16 +1245,12 @@ class _Run {
     }
   }
 
-  /// After a session stop: the remaining candidates are refused
-  /// (`sessionActive`); after a cancellation they are simply not done.
+  /// After a session stop: the remaining candidates are refused (the
+  /// reason of the stop); after a cancellation they are simply not done.
   void _refuseRest(List<StorageCleanupCandidate> rest) {
     if (_cancelled) return;
     for (final candidate in rest) {
-      _refuse(
-        candidate.path,
-        StorageRefusalReason.sessionActive,
-        rootId: candidate.rootId,
-      );
+      _refuse(candidate.path, _stopRefusal, rootId: candidate.rootId);
     }
   }
 
@@ -1200,11 +1354,7 @@ class _Run {
     for (final candidate in candidates) {
       if (_stopped || _cancelled) {
         if (!_cancelled) {
-          _refuse(
-            candidate.path,
-            StorageRefusalReason.sessionActive,
-            rootId: candidate.rootId,
-          );
+          _refuse(candidate.path, _stopRefusal, rootId: candidate.rootId);
         }
         continue;
       }
@@ -1267,16 +1417,41 @@ class _Run {
     }
   }
 
-  /// Step 8: the orphan metadata rows, after the files.
+  /// Step 8: the orphan metadata rows, after the files: the guard checked
+  /// again (a library scan rewrites `user_roms`), then the keys still
+  /// orphan on a fresh read (review of the storage services).
   Future<void> _deleteMetadata() async {
     const token = StorageCleanupPlan.metadataSelectionKey;
     if (!selected.contains(token) || plan.metadataKeys.isEmpty) return;
     _phase = StorageDeletionPhase.metadata;
     if (_cancelled) return;
+    if (!_stopped) await _checkSession();
     if (_stopped) {
-      _refuse(token, StorageRefusalReason.sessionActive);
+      _refuse(token, _stopRefusal);
       return;
     }
+    StorageOrphanRecheck now;
+    try {
+      now = await manager._orphans.recheck(metadata: plan.metadataKeys);
+    } catch (error) {
+      now = StorageOrphanRecheck(refused: 'recheck: $error');
+    }
+    final refusedNow = now.refused;
+    if (refusedNow != null) {
+      _refuse(
+        token,
+        StorageRefusalReason.changedSincePreview,
+        detail: refusedNow,
+      );
+      _log('metadata', {'error': refusedNow});
+      _done++;
+      _progress();
+      return;
+    }
+    final keys = [
+      for (final key in plan.metadataKeys)
+        if (now.metadata.contains(key)) key,
+    ];
     final repository = maintenance ?? StorageMaintenanceRepository();
     String? version;
     try {
@@ -1285,9 +1460,27 @@ class _Run {
       version = null;
     }
     try {
+      if (keys.isEmpty) {
+        _metadata = StorageMetadataDeletion(
+          deleted: 0,
+          skippedNotOrphan: plan.metadataKeys.length,
+          backupPath: '',
+        );
+        _log('metadata', {
+          'deleted': 0,
+          'skippedNotOrphan': plan.metadataKeys.length,
+          'keys': plan.metadataKeys.length,
+          'sqlite': version,
+        });
+        return;
+      }
       final String backup;
       try {
         backup = await repository.backupBeforeDeletion();
+      } on StorageMaintenanceBusy catch (error) {
+        _refuse(token, StorageRefusalReason.databaseBusy, detail: error.reason);
+        _log('metadata', {'error': error.reason, 'sqlite': version});
+        return;
       } catch (error) {
         _refuse(
           token,
@@ -1298,17 +1491,30 @@ class _Run {
         return;
       }
       try {
-        final deletion = await repository.deleteOrphanMetadata(
-          plan.metadataKeys,
+        final deletion = await repository.deleteOrphanMetadata(keys);
+        _metadata = StorageMetadataDeletion(
+          deleted: deletion.deleted,
+          skippedNotOrphan:
+              deletion.skippedNotOrphan +
+              plan.metadataKeys.length -
+              keys.length,
+          backupPath: deletion.backupPath,
         );
-        _metadata = deletion;
         _log('metadata', {
           'deleted': deletion.deleted,
-          'skippedNotOrphan': deletion.skippedNotOrphan,
+          'skippedNotOrphan': _metadata!.skippedNotOrphan,
           'keys': plan.metadataKeys.length,
           'backup': _display(
             deletion.backupPath.isEmpty ? backup : deletion.backupPath,
           ),
+          'sqlite': version,
+        });
+      } on StorageMaintenanceBusy catch (error) {
+        // Another operation's transaction was open: nothing was written.
+        _refuse(token, StorageRefusalReason.databaseBusy, detail: error.reason);
+        _log('metadata', {
+          'error': error.reason,
+          'backup': _display(backup),
           'sqlite': version,
         });
       } catch (error) {
@@ -1386,6 +1592,7 @@ class _Run {
       'metadataKeys': metadataSelected ? plan.metadataKeys.length : 0,
       'launchActive': _state.launchActive,
       'importActive': _state.importActive,
+      'libraryScanActive': _state.libraryScanActive,
       'libretroActive': _state.libretroActive,
       'libretroUnfinishedJournal': _state.libretroUnfinishedJournal,
       'dolphinMarker': _state.dolphinMarker,
@@ -1395,20 +1602,14 @@ class _Run {
     }
     if (_stopped) {
       for (final candidate in chosen) {
-        _refuse(
-          candidate.path,
-          StorageRefusalReason.sessionActive,
-          rootId: candidate.rootId,
-        );
+        _refuse(candidate.path, _stopRefusal, rootId: candidate.rootId);
       }
       if (metadataSelected) {
-        _refuse(
-          StorageCleanupPlan.metadataSelectionKey,
-          StorageRefusalReason.sessionActive,
-        );
+        _refuse(StorageCleanupPlan.metadataSelectionKey, _stopRefusal);
       }
     } else if (!_cancelled) {
       _progress();
+      await _recheckOrphans(chosen);
       await _deleteAll(files);
       await _deleteRpcs3(rpcs3);
       await _clearCaches(caches);
@@ -1444,6 +1645,7 @@ class _Run {
       deletedDirectories: _deletedDirectories,
       clearedCaches: List.unmodifiable(_cleared),
       stoppedBySession: _stopped,
+      stopReason: _stopped ? _stopRefusal : null,
       journalDisplayPath: _journalPath.isEmpty ? null : _display(_journalPath),
       journalError: _journalError,
     );

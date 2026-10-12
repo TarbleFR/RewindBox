@@ -24,24 +24,27 @@
 ///   its level-1 and level-2 candidates nor the metadata rows: each item is
 ///   ticked one by one, review of 5d): level 2, `Documents/Diagnostics/*`,
 ///   the native logs at the Documents root, Dolphin recordings, RPCS3 save
-///   exports and backups, the maintenance copies but the newest,
-///   `Libretro/Logs/*`, `user-data/app.log.old` (decision of the lead: level
-///   3), `dolphin-persistent.jsonl`, `RPCS3/Data/dev_hdd1`,
-///   `KartPad/Runtime/GameData`, the 3DS backups and the duplicate copies the
-///   library does not use.
+///   exports, `Libretro/Logs/*`, `user-data/app.log.old` (decision of the
+///   lead: level 3), `dolphin-persistent.jsonl`, `RPCS3/Data/dev_hdd1`,
+///   `KartPad/Runtime/GameData` and the duplicate copies the library does
+///   not use whose checksums equal the kept copy's. The backups NeoStation
+///   makes before a replacement (RPCS3 saves and licences, 3DS system data,
+///   the copies of data.sqlite) are never proposed (review of the storage
+///   services).
 ///
 /// Ages are idle times from the later of the modification and the status
 /// change (`FileStat.changed`) of an entry and of everything below it:
 /// file_picker's copies keep the original modification time, their status
 /// change is the copy itself (review of 5d).
 ///
-/// Session guards: nothing while a game runs (`GameLaunchManager().isActive`)
-/// or an import runs (`StorageImportActivity`); the libretro roots (INV-14,
-/// INV-25) while a libretro session is declared or its journal is
-/// unfinished; the Dolphin roots (INV-20 … INV-22) and the frame-pacing file
-/// while the Dolphin marker exists; every RPCS3 root (INV-16 … INV-19) while
-/// `Data/vfs.yml` redirects `dev_hdd0`. Excluded candidates are listed as
-/// refusals.
+/// Session guards: nothing while a game runs (`GameLaunchManager().isActive`),
+/// an import runs (`StorageImportActivity`) or the game library is scanned;
+/// the libretro roots (INV-14, INV-25) while a libretro session is declared
+/// or its journal is unfinished; the Dolphin roots (INV-20 … INV-22) and the
+/// frame-pacing file while the Dolphin marker exists; every RPCS3 root
+/// (INV-16 … INV-19) while `Data/vfs.yml` redirects `dev_hdd0`; the 3DS
+/// staging folders while a pass is interrupted on the disk or the walk of
+/// INV-14 was cut. Excluded candidates are listed as refusals.
 library;
 
 import 'dart:async';
@@ -148,6 +151,9 @@ class StorageCleanupCandidate {
     this.cacheApi,
     this.entries = const [],
     this.pairedDisplayPath,
+    this.pairedLogicalBytes,
+    this.pairedModified,
+    this.sha256,
   });
 
   /// Absolute path, as scanned: the selection key of the preview.
@@ -217,6 +223,16 @@ class StorageCleanupCandidate {
   /// `<Container>/relative` form of [pairedPath].
   final String? pairedDisplayPath;
 
+  /// Duplicate only (review of the storage services): size and
+  /// modification time of the kept copy at the analysis — the deletion
+  /// refuses when either changed since.
+  final int? pairedLogicalBytes;
+  final DateTime? pairedModified;
+
+  /// Duplicate only: the SHA-256 both copies share (a duplicate is offered
+  /// only once the checksums proved the copies identical).
+  final String? sha256;
+
   /// `<Documents>/a/b` form of [path].
   String get displayPath {
     final placeholder = StorageContainers.placeholderOf(container);
@@ -256,8 +272,8 @@ class StoragePlanRefusal {
   final String? detail;
   final int? errorCode;
 
-  /// [path] of a refusal that covers the whole plan (a game or an import is
-  /// running).
+  /// [path] of a refusal that covers the whole plan (a game, an import or
+  /// a library scan is running).
   static const String wholePlan = '';
 
   /// `StorageLocale` key of [reason].
@@ -321,7 +337,7 @@ class StorageCleanupPlan {
   /// Logical bytes of the preselected candidates.
   int get preselectedBytes => bytesOf(preselectedPaths);
 
-  /// A game or an import is running: nothing is proposed.
+  /// A game, an import or a library scan is running: nothing is proposed.
   bool get blocked => session.wholeCleanupRefused;
 
   bool get hasMetadata => metadataKeys.isNotEmpty;
@@ -399,11 +415,18 @@ class StorageSessionState {
     this.dolphinMarker = false,
     this.libretroUnfinishedJournal = false,
     this.importActive = false,
+    this.libraryScanActive = false,
     this.probeErrors = const {},
   });
 
   /// `GameLaunchManager().isActive`: nothing is cleaned.
   final bool launchActive;
+
+  /// The game library is being scanned (`SqliteConfigProvider.isScanning`,
+  /// `isScanningRoms`, `isSilentScanning`; addition, review of the storage
+  /// services): the scan rewrites `user_roms` and holds transactions on the
+  /// database — nothing is cleaned.
+  final bool libraryScanActive;
 
   /// `StorageImportActivity.active` (addition, review of 5d): an import runs
   /// between its Files pick and the end of its processing; nothing is
@@ -427,18 +450,32 @@ class StorageSessionState {
   /// INV-14 and INV-25 are excluded.
   bool get libretroBusy => libretroActive || libretroUnfinishedJournal;
 
-  /// A game or an import runs: the whole plan is refused and a deletion
-  /// stops (`sessionActive`).
-  bool get wholeCleanupRefused => launchActive || importActive;
+  /// A game, an import or a library scan runs: the whole plan is refused
+  /// and a deletion stops.
+  bool get wholeCleanupRefused =>
+      launchActive || importActive || libraryScanActive;
+
+  /// Why the whole cleanup is refused: [StorageRefusalReason.sessionActive]
+  /// for a game or an import, [StorageRefusalReason.libraryScanActive] for
+  /// a library scan alone; null when it is not.
+  StorageRefusalReason? get wholeCleanupReason => launchActive || importActive
+      ? StorageRefusalReason.sessionActive
+      : libraryScanActive
+      ? StorageRefusalReason.libraryScanActive
+      : null;
 
   bool get anyActive =>
-      launchActive || importActive || libretroBusy || dolphinMarker;
+      launchActive ||
+      importActive ||
+      libraryScanActive ||
+      libretroBusy ||
+      dolphinMarker;
 
   @override
   String toString() =>
       'StorageSessionState(launch: $launchActive, import: $importActive, '
-      'libretro: $libretroActive, journal: $libretroUnfinishedJournal, '
-      'dolphin: $dolphinMarker)';
+      'libraryScan: $libraryScanActive, libretro: $libretroActive, '
+      'journal: $libretroUnfinishedJournal, dolphin: $dolphinMarker)';
 }
 
 /// The session guards of planning and execution (§ 3.7). Each probe is
@@ -447,7 +484,10 @@ class StorageSessionState {
 /// Addition: [containers] gives the marker and journal paths without
 /// `path_provider` (the screens pass `registry.containers`); [importActive]
 /// (review of 5d) is `StorageImportActivity.active` by default, read last so
-/// an import started during the other probes counts.
+/// an import started during the other probes counts; [libraryScanActive]
+/// (review of the storage services) reads the library provider's scan
+/// state — the screens pass it. Without it nobody can tell that no scan
+/// runs: the guard then counts one (fail closed).
 class StorageSessionGuard {
   StorageSessionGuard({
     bool Function()? launchActive,
@@ -455,6 +495,7 @@ class StorageSessionGuard {
     Future<bool> Function()? dolphinMarkerPresent,
     Future<bool> Function()? libretroJournalUnfinished,
     bool Function()? importActive,
+    bool Function()? libraryScanActive,
     StorageContainers? containers,
   }) : _launchActive = launchActive ?? _gameLaunchActive,
        _libretroActive =
@@ -462,10 +503,12 @@ class StorageSessionGuard {
        _dolphinMarkerPresent = dolphinMarkerPresent,
        _libretroJournalUnfinished = libretroJournalUnfinished,
        _importActive = importActive ?? _importRunning,
+       _libraryScanActive = libraryScanActive ?? _libraryScanUnknown,
        _containers = containers;
 
   final bool Function() _launchActive;
   final bool Function() _importActive;
+  final bool Function() _libraryScanActive;
   final Future<bool> Function() _libretroActive;
   final Future<bool> Function()? _dolphinMarkerPresent;
   final Future<bool> Function()? _libretroJournalUnfinished;
@@ -479,6 +522,10 @@ class StorageSessionGuard {
   static bool _gameLaunchActive() => GameLaunchManager().isActive;
 
   static bool _importRunning() => StorageImportActivity.active;
+
+  /// No library scan probe was given: a scan cannot be ruled out.
+  static bool _libraryScanUnknown() =>
+      throw StateError('no library scan probe');
 
   Future<StorageContainers> _paths() async =>
       _containers ?? (_resolved ??= await StorageContainers.resolve());
@@ -521,6 +568,12 @@ class StorageSessionGuard {
             ),
           ),
     );
+    var scanning = true;
+    try {
+      scanning = _libraryScanActive();
+    } catch (error) {
+      errors['libraryScanActive'] = '$error';
+    }
     var importing = true;
     try {
       importing = _importActive();
@@ -533,6 +586,7 @@ class StorageSessionGuard {
       dolphinMarker: marker,
       libretroUnfinishedJournal: journal,
       importActive: importing,
+      libraryScanActive: scanning,
       probeErrors: Map.unmodifiable(errors),
     );
   }
@@ -604,9 +658,6 @@ enum _UnitMode {
   anywhere,
 }
 
-/// How the newest entries of a line are kept.
-enum _KeepOrder { modified, maintenanceStamp }
-
 class _Line {
   const _Line(
     this.ruleId,
@@ -615,7 +666,6 @@ class _Line {
     this.filesOnly = false,
     this.minimumAge,
     this.keepNewest = 0,
-    this.keepOrder = _KeepOrder.modified,
     this.warningKeys = const [],
     this.reasonKey,
   });
@@ -628,9 +678,9 @@ class _Line {
   /// Required age on top of the rule's own minimum age.
   final Duration? minimumAge;
 
-  /// The newest entries of the line kept (never proposed).
+  /// The newest entries of the line kept (never proposed), by modification
+  /// time.
   final int keepNewest;
-  final _KeepOrder keepOrder;
   final List<String> warningKeys;
 
   /// `StorageLocale` key replacing the category key of the candidates.
@@ -736,14 +786,52 @@ class StorageCleanupPlanner {
   /// (`Backups/Azahar/<stamp>`, crash-safe passes of
   /// `Libretro3dsSystemDataService`). A folder holding the journal without
   /// the marker belongs to an interrupted pass, recovered from it (and from
-  /// its staging folder) by the 3DS page: that folder and every 3DS staging
-  /// folder are then never proposed.
+  /// its staging folder) by the 3DS page: every 3DS staging folder is then
+  /// never proposed. The backup folders themselves are never proposed at
+  /// all (review of the storage services).
   static const String threeDsPassLogName =
       Libretro3dsSystemDataService.passLogName;
   static const String threeDsCompleteMarkerName =
       Libretro3dsSystemDataService.completeMarkerName;
 
-  static const String _threeDsStagingRuleId = 'INV-14.3dsStaging';
+  /// Rule of the 3DS staging folders (`Saves/Azahar/.neostation-3ds-*`).
+  static const String threeDsStagingRuleId = 'INV-14.3dsStaging';
+
+  /// Backup folders of interrupted 3DS passes, read from the disk at the
+  /// time of the call (review of the storage services: a scan cut by its
+  /// bounds may not have listed a pass journal). Null when the backups
+  /// folder cannot be read (or is no plain directory): nothing of the 3DS
+  /// is then offered, nor deleted.
+  static Future<Set<String>?> interrupted3dsPasses(
+    StorageRootRegistry registry,
+  ) async {
+    final backups = registry.pathIn(
+      StorageContainer.documents,
+      StorageLayout.libretro3dsBackups,
+    );
+    try {
+      final type = await FileSystemEntity.type(backups, followLinks: false);
+      if (type == FileSystemEntityType.notFound) return const {};
+      if (type != FileSystemEntityType.directory) return null;
+      final interrupted = <String>{};
+      await for (final entity in Directory(backups).list(followLinks: false)) {
+        if (entity is! Directory) continue;
+        // Listed rather than probed: a pass folder that cannot be read
+        // fails the whole check instead of reading as « no journal ».
+        final names = <String>{};
+        await for (final child in entity.list(followLinks: false)) {
+          names.add(p.basename(child.path));
+        }
+        if (names.contains(threeDsPassLogName) &&
+            !names.contains(threeDsCompleteMarkerName)) {
+          interrupted.add(storageCanonicalPath(entity.path));
+        }
+      }
+      return interrupted;
+    } on FileSystemException {
+      return null;
+    }
+  }
 
   static const String _part = StorageCategorizer.partOverrideRuleId;
 
@@ -977,20 +1065,9 @@ class StorageCleanupPlanner {
       _UnitMode.direct,
       filesOnly: true,
     ),
-    _Line(
-      'INV-19.saveBackups',
-      StorageCleanupLevel.confirmed,
-      _UnitMode.direct,
-    ),
-    _Line('INV-19.rapBackups', StorageCleanupLevel.confirmed, _UnitMode.direct),
-    _Line(
-      'INV-02.maintenanceBackup',
-      StorageCleanupLevel.confirmed,
-      _UnitMode.direct,
-      filesOnly: true,
-      keepNewest: 1,
-      keepOrder: _KeepOrder.maintenanceStamp,
-    ),
+    // The RPCS3 save and licence backups, the maintenance copies of
+    // data.sqlite and the 3DS backups are never proposed (review of the
+    // storage services: backups of user data).
     _Line('INV-14.logs', StorageCleanupLevel.confirmed, _UnitMode.direct),
     _Line(
       'INV-22.persistentLog',
@@ -1010,7 +1087,6 @@ class StorageCleanupPlanner {
       _UnitMode.direct,
       warningKeys: [StorageLocale.kartpadGameDataWarning],
     ),
-    _Line('INV-14.3dsBackups', StorageCleanupLevel.confirmed, _UnitMode.direct),
   ];
 
   /// Rule ids of the table, by level (tests and documentation).
@@ -1030,16 +1106,17 @@ class StorageCleanupPlanner {
     final builtAt = _now();
     final session = await _guard.check();
     final containers = _registry.containers;
-    if (session.wholeCleanupRefused) {
+    final refused = session.wholeCleanupReason;
+    if (refused != null) {
       return StorageCleanupPlan(
         level: level,
         builtAt: builtAt,
         candidates: const [],
         metadataKeys: const [],
-        refusals: const [
+        refusals: [
           StoragePlanRefusal(
             path: StoragePlanRefusal.wholePlan,
-            reason: StorageRefusalReason.sessionActive,
+            reason: refused,
           ),
         ],
         containers: containers,
@@ -1054,6 +1131,7 @@ class StorageCleanupPlanner {
       level: level,
       builtAt: builtAt,
       session: session,
+      interrupted3ds: await interrupted3dsPasses(_registry),
     ).build();
   }
 }
@@ -1066,6 +1144,7 @@ class _PlanBuilder {
     required this.level,
     required this.builtAt,
     required this.session,
+    required this.interrupted3ds,
   });
 
   final StorageRootRegistry registry;
@@ -1073,6 +1152,9 @@ class _PlanBuilder {
   final StorageOrphanReport orphans;
   final StorageCleanupLevel level;
   final DateTime builtAt;
+
+  /// [StorageCleanupPlanner.interrupted3dsPasses] at planning time.
+  final Set<String>? interrupted3ds;
   final StorageSessionState session;
 
   final Map<String, StorageRule> _rules = {};
@@ -1152,70 +1234,33 @@ class _PlanBuilder {
   static DateTime _newer(DateTime a, DateTime? b) =>
       b != null && b.isAfter(a) ? b : a;
 
-  /// A 3DS backup folder of an interrupted pass (journal, no marker).
-  static bool _unfinished3dsPass(StorageNode folder) {
-    var journal = false;
-    var complete = false;
-    for (final child in folder.children) {
-      if (child.name == StorageCleanupPlanner.threeDsPassLogName) {
-        journal = true;
-      } else if (child.name ==
-          StorageCleanupPlanner.threeDsCompleteMarkerName) {
-        complete = true;
+  /// Nothing of the 3DS may be offered (review of the storage services):
+  /// an interrupted pass on the disk, its backups folder unreadable, or the
+  /// walk of INV-14 cut by a bound or unreadable (the staging folders seen
+  /// may not be all, nor the pass journals).
+  bool get _threeDsBlocked {
+    final interrupted = interrupted3ds;
+    if (interrupted == null || interrupted.isNotEmpty) return true;
+    if (scan.truncations.any((cut) => cut.rootId == 'INV-14')) return true;
+    for (final location in scan.nodesOfRoot('INV-14')) {
+      if (location.truncated ||
+          location.kind == StorageEntryKind.inaccessible ||
+          location.kind == StorageEntryKind.link) {
+        return true;
       }
     }
-    return journal && !complete;
-  }
-
-  /// The scanned node of [absolutePath], if the scan listed it.
-  StorageNode? _nodeAt(String absolutePath) {
-    final target = storageCanonicalPath(absolutePath);
-    for (final location in scan.roots) {
-      final base = storageCanonicalPath(location.path);
-      if (base == target) return location;
-      if (!p.isWithin(base, target)) continue;
-      StorageNode? current = location;
-      for (final segment in p.split(p.relative(target, from: base))) {
-        StorageNode? next;
-        for (final child in current!.children) {
-          if (child.name == segment) {
-            next = child;
-            break;
-          }
-        }
-        current = next;
-        if (current == null) break;
-      }
-      if (current != null) return current;
-    }
-    return null;
-  }
-
-  /// Backup folders of interrupted 3DS passes, at any level.
-  Set<String> _interrupted3dsPasses() {
-    final backups = _nodeAt(
-      registry.pathIn(
-        StorageContainer.documents,
-        StorageLayout.libretro3dsBackups,
-      ),
-    );
-    return {
-      for (final folder in backups?.children ?? const <StorageNode>[])
-        if (folder.isDirectory && _unfinished3dsPass(folder))
-          storageCanonicalPath(folder.path),
-    };
+    return false;
   }
 
   StorageCleanupPlan build() {
     _index();
     final units = _traverse();
     final kept = _keepNewest(units);
-    final interrupted = _interrupted3dsPasses();
+    final threeDsBlocked = _threeDsBlocked;
     for (final unit in units) {
       if (kept.contains(unit)) continue;
-      if (interrupted.contains(storageCanonicalPath(unit.node.path))) continue;
-      if (interrupted.isNotEmpty &&
-          unit.line.ruleId == StorageCleanupPlanner._threeDsStagingRuleId) {
+      if (threeDsBlocked &&
+          unit.line.ruleId == StorageCleanupPlanner.threeDsStagingRuleId) {
         continue;
       }
       final candidate = _ruleCandidate(unit);
@@ -1368,13 +1413,8 @@ class _PlanBuilder {
     return units;
   }
 
-  static final RegExp _maintenanceName = RegExp(
-    r'^data-(\d{8}-\d{6})(?:-(\d+))?\.sqlite$',
-  );
-
   /// Units of the lines keeping their newest entries (Dolphin session logs
-  /// and KartPad logs: 10 by modification time, as `StorageLogRotation`;
-  /// maintenance copies: the most recent stamp).
+  /// and KartPad logs: 10 by modification time, as `StorageLogRotation`).
   Set<_Unit> _keepNewest(List<_Unit> units) {
     final kept = <_Unit>{};
     final groups = <String, List<_Unit>>{};
@@ -1385,31 +1425,13 @@ class _PlanBuilder {
           .add(unit);
     }
     for (final group in groups.values) {
-      final line = group.first.line;
-      switch (line.keepOrder) {
-        case _KeepOrder.modified:
-          group.sort((a, b) {
-            final byTime = (b.node.modified ?? _epoch()).compareTo(
-              a.node.modified ?? _epoch(),
-            );
-            return byTime != 0 ? byTime : b.node.name.compareTo(a.node.name);
-          });
-        case _KeepOrder.maintenanceStamp:
-          (String, int) key(_Unit unit) {
-            final match = _maintenanceName.firstMatch(unit.node.name);
-            return (
-              match?.group(1) ?? '',
-              int.tryParse(match?.group(2) ?? '') ?? 1,
-            );
-          }
-          group.sort((a, b) {
-            final left = key(a);
-            final right = key(b);
-            final byStamp = right.$1.compareTo(left.$1);
-            return byStamp != 0 ? byStamp : right.$2.compareTo(left.$2);
-          });
-      }
-      kept.addAll(group.take(line.keepNewest));
+      group.sort((a, b) {
+        final byTime = (b.node.modified ?? _epoch()).compareTo(
+          a.node.modified ?? _epoch(),
+        );
+        return byTime != 0 ? byTime : b.node.name.compareTo(a.node.name);
+      });
+      kept.addAll(group.take(group.first.line.keepNewest));
     }
     return kept;
   }
@@ -1596,9 +1618,13 @@ class _PlanBuilder {
   }
 
   /// Level 3: each copy the detector marked selectable, paired with the copy
-  /// the library references (shown and kept).
+  /// the library references (shown and kept). Only copies whose SHA-256
+  /// equals the kept copy's are offered (review of the storage services:
+  /// the same name and size do not make the same game — a USA and an EUR
+  /// image, two GameCube discs of the standard size).
   void _duplicates() {
     for (final group in orphans.duplicates) {
+      if (!group.hashed) continue;
       StorageDuplicateCopy? referenced;
       for (final copy in group.copies) {
         if (copy.referenced) {
@@ -1607,8 +1633,11 @@ class _PlanBuilder {
         }
       }
       if (referenced == null) continue;
+      final digest = referenced.sha256;
+      if (digest == null || digest.isEmpty) continue;
       for (final copy in group.copies) {
         if (!copy.selectable || copy.referenced) continue;
+        if (copy.sha256 != digest) continue;
         if (!StorageCleanupPlanner.duplicateRootIds.contains(copy.rootId)) {
           continue;
         }
@@ -1630,6 +1659,9 @@ class _PlanBuilder {
             preselected: false,
             pairedPath: referenced.path,
             pairedDisplayPath: referenced.displayPath,
+            pairedLogicalBytes: referenced.logicalBytes,
+            pairedModified: referenced.modified,
+            sha256: digest,
             engine: registry.rootById(copy.rootId)?.engine,
             level: StorageCleanupLevel.confirmed,
             source: StorageCandidateSource.duplicate,

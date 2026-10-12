@@ -626,7 +626,12 @@ class _StorageCleanupPreviewScreenState
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      _t(StorageLocale.sessionActive),
+                      // A game or an import, or a library scan.
+                      _t(
+                        StorageLocale.refusalKeys[result.stopReason?.name] ??
+                            StorageLocale.sessionActive,
+                      ),
+                      key: const ValueKey('storage-result-stopped'),
                       style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ),

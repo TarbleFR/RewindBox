@@ -98,16 +98,19 @@ void main() {
     bool Function()? launch,
     Future<bool> Function()? libretro,
     Future<bool> Function()? dolphinMarker,
+    bool Function()? scan,
   }) => StorageSessionGuard(
     launchActive: launch ?? () => false,
     libretroActive: libretro ?? () async => false,
     dolphinMarkerPresent: dolphinMarker ?? () async => false,
     libretroJournalUnfinished: () async => false,
+    libraryScanActive: scan ?? () => false,
   );
 
   Future<(StorageCleanupPlan, StorageRootRegistry)> planFor(
     StorageCleanupLevel level, {
     List<String> libraryRoots = const [],
+    bool hash = false,
   }) async {
     final registry = StorageRootRegistry(
       containers,
@@ -117,7 +120,7 @@ void main() {
     final orphans = await StorageOrphanDetector(
       database: () async => db,
       registry: registry,
-    ).detect(scan);
+    ).detect(scan, hashDuplicates: hash);
     final plan = await StorageCleanupPlanner(
       registry: registry,
       guard: guard(),
@@ -133,9 +136,11 @@ void main() {
     StorageRpcs3Guard? rpcs3Guard,
     Future<bool> Function()? rpcs3Redirected,
     int journalLimit = 20,
+    StorageStat? stat,
   }) => StorageDeletionManager(
     registry: registry,
     guard: sessions ?? guard(),
+    stat: stat,
     deleteFile: deleteFile,
     journalDirectory: () async => doc('Diagnostics'),
     now: () => clock,
@@ -170,9 +175,19 @@ void main() {
     expect(lines.first['op'], 'begin');
     expect(lines.last['op'], 'end');
     for (final line in lines) {
+      // 'recheck' (review of the storage services): the orphans selected,
+      // checked again on a fresh read before any file goes (counts only).
       expect(
         line['op'],
-        isIn(const ['begin', 'delete', 'skip', 'refuse', 'metadata', 'end']),
+        isIn(const [
+          'begin',
+          'recheck',
+          'delete',
+          'skip',
+          'refuse',
+          'metadata',
+          'end',
+        ]),
       );
       final text = jsonEncode(line);
       expect(text, isNot(contains(home.path)));
@@ -308,9 +323,12 @@ void main() {
     await write(tmp('picked.zip'), age: const Duration(hours: 1));
     await write(dolphin('ShaderCache/GALE01.uidcache'));
     await write(doc('Diagnostics/old.txt'));
+    // The duplicate is a level-3 candidate with the checksums only (review
+    // of the storage services; it used to be without).
     final (plan, registry) = await planFor(
       StorageCleanupLevel.confirmed,
       libraryRoots: [doc('MyGames')],
+      hash: true,
     );
     final level3 = {
       for (final value in plan.candidates)
@@ -861,6 +879,7 @@ void main() {
           libretroActive: () async => false,
           libretroJournalUnfinished: () async => false,
           containers: containers,
+          libraryScanActive: () => false,
         ),
       ).execute(again, selectedPaths: again.preselectedPaths);
       expect(
@@ -1115,19 +1134,38 @@ void main() {
       );
       await write(doc('roms/snes/Super Mario World.sfc'), length: 100);
       await write(p.join(mine, 'snes/Super Mario World.sfc'), length: 100);
+      // Contract replaced by the review of the storage services: without
+      // checksums the unused copy used to be a candidate. The same name and
+      // size do not prove the same content: it is offered only once the
+      // checksums are computed, and refused if selected without them.
+      final (unhashed, unhashedRegistry) = await planFor(
+        StorageCleanupLevel.confirmed,
+        libraryRoots: [mine],
+      );
+      expect(
+        unhashed.candidateFor(p.join(mine, 'snes/Super Mario World.sfc')),
+        isNull,
+      );
+      var result = await manager(unhashedRegistry).execute(
+        unhashed,
+        selectedPaths: {p.join(mine, 'snes/Super Mario World.sfc')},
+      );
+      expect(reasonsOf(result), {StorageRefusalReason.notInPlan});
       final (plan, registry) = await planFor(
         StorageCleanupLevel.confirmed,
         libraryRoots: [mine],
+        hash: true,
       );
       final copy = candidateOf(
         plan,
         p.join(mine, 'snes/Super Mario World.sfc'),
       );
       expect(copy.isDuplicate, isTrue);
+      expect(copy.sha256, isNotNull);
       expect(registry.isProtected(copy.path), isTrue);
 
       // The referenced copy is no candidate.
-      var result = await manager(
+      result = await manager(
         registry,
       ).execute(plan, selectedPaths: {doc('roms/snes/Super Mario World.sfc')});
       expect(reasonsOf(result), {StorageRefusalReason.notInPlan});
@@ -1298,4 +1336,472 @@ void main() {
       expect(refusal.localeKey, StorageLocale.refuseNotEmpty);
     },
   );
+
+  // ---------------------------------------------------------------------
+  // Review of the storage services (12 October 2026).
+  // ---------------------------------------------------------------------
+
+  test('F — a library scan running refuses everything under its own reason; '
+      'one starting during the cleanup stops it at the next check', () async {
+    for (var index = 0; index < 120; index++) {
+      await write(doc('user-data/temp/big/file-$index.bin'), length: 1);
+    }
+    await write(tmp('picked.zip'), age: const Duration(hours: 1));
+    final (plan, registry) = await planFor(StorageCleanupLevel.safe);
+    final before = await tree();
+    var result = await manager(
+      registry,
+      sessions: guard(scan: () => true),
+    ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(result.deletedFiles, 0);
+    expect(result.stoppedBySession, isTrue);
+    expect(result.stopReason, StorageRefusalReason.libraryScanActive);
+    expect(reasonsOf(result), {StorageRefusalReason.libraryScanActive});
+    expect(result.refusals.first.localeKey, StorageLocale.refuseLibraryScan);
+    expect(await tree(), before);
+    expect((await journalOf(result)).first['libraryScanActive'], isTrue);
+
+    // A scan probe that fails counts as a scan.
+    result = await manager(
+      registry,
+      sessions: guard(scan: () => throw StateError('provider disposed')),
+    ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(result.deletedFiles, 0);
+    expect(result.stopReason, StorageRefusalReason.libraryScanActive);
+    expect(await tree(), before);
+
+    // The user starts a library scan (another page) after the tenth file.
+    var scanning = false;
+    var deleted = 0;
+    result = await manager(
+      registry,
+      sessions: guard(scan: () => scanning),
+      deleteFile: (path) async {
+        await File(path).delete();
+        if (++deleted == 10) scanning = true;
+      },
+    ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(result.deletedFiles, 50);
+    expect(result.stoppedBySession, isTrue);
+    expect(result.stopReason, StorageRefusalReason.libraryScanActive);
+    expect(
+      {for (final refusal in result.refusals) refusal.path: refusal.reason},
+      {
+        doc('user-data/temp/big'): StorageRefusalReason.libraryScanActive,
+        tmp('picked.zip'): StorageRefusalReason.libraryScanActive,
+      },
+    );
+    expect(Directory(doc('user-data/temp/big')).listSync(), hasLength(70));
+    expect(await File(tmp('picked.zip')).exists(), isTrue);
+  });
+
+  group('duplicates', () {
+    late File visible;
+    late File hidden;
+
+    // GameCube full images all have the same size (1,459,978,240 bytes);
+    // 4096 bytes stand for it. The visible copy in Files, the copy the
+    // `gc` rows reference in the hidden Dolphin library.
+    setUp(() async {
+      await db.execute(
+        'INSERT INTO app_systems (id, real_name, folder_name) VALUES (?, ?, ?)',
+        ['gc', 'GameCube', 'gc'],
+      );
+      visible = File(doc('roms/gc/Zelda.iso'));
+      hidden = File(dolphin('Library/gc/Zelda.iso'));
+      await visible.parent.create(recursive: true);
+      await hidden.parent.create(recursive: true);
+      await db.execute(
+        'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+        ['gc', 'Zelda.iso', hidden.path],
+      );
+    });
+
+    test(
+      'a copy of other content (same name, same size) is never deleted',
+      () async {
+        await visible.writeAsBytes(List<int>.filled(4096, 0x55)); // USA
+        await hidden.writeAsBytes(List<int>.filled(4096, 0x45)); // EUR
+        for (final hash in [false, true]) {
+          final (plan, registry) = await planFor(
+            StorageCleanupLevel.confirmed,
+            hash: hash,
+          );
+          expect(plan.candidateFor(visible.path), isNull, reason: 'hash $hash');
+          final result = await manager(
+            registry,
+          ).execute(plan, selectedPaths: {visible.path});
+          expect(result.deletedFiles, 0);
+          expect(reasonsOf(result), {StorageRefusalReason.notInPlan});
+        }
+        expect(await visible.length(), 4096);
+        expect(await hidden.length(), 4096);
+      },
+    );
+
+    test('the referenced copy changed since the preview (modification time or '
+        'size) keeps the other one', () async {
+      await visible.writeAsBytes(List<int>.filled(4096, 0x55));
+      await hidden.writeAsBytes(List<int>.filled(4096, 0x55));
+      final previewed = (await hidden.stat()).modified;
+      final (plan, registry) = await planFor(
+        StorageCleanupLevel.confirmed,
+        hash: true,
+      );
+      final copy = candidateOf(plan, visible.path);
+      expect(copy.isDuplicate, isTrue);
+      expect(copy.pairedPath, hidden.path);
+      expect(copy.pairedModified, previewed);
+      expect(copy.pairedLogicalBytes, 4096);
+
+      // Rewritten in place since the preview: other bytes, same size.
+      await hidden.writeAsBytes(List<int>.filled(4096, 0x45));
+      await hidden.setLastModified(previewed.add(const Duration(minutes: 5)));
+      var result = await manager(
+        registry,
+      ).execute(plan, selectedPaths: {visible.path});
+      expect(result.deletedFiles, 0);
+      expect(reasonsOf(result), {StorageRefusalReason.changedSincePreview});
+      expect(result.refusals.single.detail, 'referencedCopyChanged');
+      expect(await visible.exists(), isTrue);
+
+      // Another size, the preview's time.
+      await hidden.writeAsBytes(List<int>.filled(4000, 0x55));
+      await hidden.setLastModified(previewed);
+      result = await manager(
+        registry,
+      ).execute(plan, selectedPaths: {visible.path});
+      expect(result.refusals.single.detail, 'referencedCopyChanged');
+      expect(await visible.exists(), isTrue);
+
+      // As it was at the preview: the unused copy goes, the other stays.
+      await hidden.writeAsBytes(List<int>.filled(4096, 0x55));
+      await hidden.setLastModified(previewed);
+      result = await manager(
+        registry,
+      ).execute(plan, selectedPaths: {visible.path});
+      expect(result.refusals, isEmpty);
+      expect(result.deletedFiles, 1);
+      expect(await visible.exists(), isFalse);
+      expect(await hidden.length(), 4096);
+    });
+
+    test('a hard link of the referenced copy is never deleted', () async {
+      await hidden.writeAsBytes(List<int>.filled(4096, 0x55));
+      final linked = await Process.run('ln', [hidden.path, visible.path]);
+      expect(linked.exitCode, 0, reason: '${linked.stderr}');
+      final (plan, registry) = await planFor(
+        StorageCleanupLevel.confirmed,
+        hash: true,
+      );
+      // Same name, same size, same checksum: offered by the analysis.
+      final copy = candidateOf(plan, visible.path);
+      expect(copy.isDuplicate, isTrue);
+      final ffi = StorageStatFfi.tryLoad(probePath: containers.documents);
+      final result = await manager(
+        registry,
+      ).execute(plan, selectedPaths: {visible.path});
+      expect(result.deletedFiles, 0);
+      expect(reasonsOf(result), {StorageRefusalReason.changedSincePreview});
+      expect(
+        result.refusals.single.detail,
+        ffi == null ? 'fileIdentityUnknown' : 'sameFile',
+      );
+      expect(await visible.exists(), isTrue);
+      expect(await hidden.length(), 4096);
+    });
+
+    test(
+      'without lstat the two copies cannot be told apart: both stay',
+      () async {
+        await visible.writeAsBytes(List<int>.filled(4096, 0x55));
+        await hidden.writeAsBytes(List<int>.filled(4096, 0x55));
+        final (plan, registry) = await planFor(
+          StorageCleanupLevel.confirmed,
+          hash: true,
+        );
+        expect(candidateOf(plan, visible.path).isDuplicate, isTrue);
+        final result = await manager(
+          registry,
+          stat: const StorageStatLogical(),
+        ).execute(plan, selectedPaths: {visible.path});
+        expect(result.deletedFiles, 0);
+        expect(result.refusals.single.detail, 'fileIdentityUnknown');
+        expect(await visible.exists(), isTrue);
+      },
+    );
+
+    test('a duplicate without checksum in a forged plan never goes', () async {
+      await visible.writeAsBytes(List<int>.filled(4096, 0x55));
+      await hidden.writeAsBytes(List<int>.filled(4096, 0x45));
+      final registry = StorageRootRegistry(containers);
+      final forgedCopy = await forged(
+        visible.path,
+        source: StorageCandidateSource.duplicate,
+        rootId: 'INV-01',
+        pairedPath: hidden.path,
+      );
+      final result = await manager(
+        registry,
+      ).execute(forgedPlan([forgedCopy]), selectedPaths: {visible.path});
+      expect(result.deletedFiles, 0);
+      expect(result.refusals.single.detail, 'notHashed');
+      expect(await visible.exists(), isTrue);
+    });
+  });
+
+  test('orphan media and covers are checked again before any file goes', () async {
+    await db.execute(
+      'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+      ['snes', 'Kept.sfc', doc('roms/snes/Kept.sfc')],
+    );
+    await write(doc('roms/snes/Kept.sfc'));
+    await write(doc('media/snes/box2d/Gone.png'));
+    await write(doc('media/snes/box2d/Back.png'));
+    final index = File(sup('Library/local-index.json'));
+    await index.create(recursive: true);
+    await index.writeAsString('{"version": 1, "books": []}');
+    await write(sup('Library/covers/b3.png'));
+    await write(sup('Library/covers/b4.png'));
+    final (plan, registry) = await planFor(
+      StorageCleanupLevel.regenerable,
+      libraryRoots: [doc('roms')],
+    );
+    final orphans = {
+      doc('media/snes/box2d/Gone.png'),
+      doc('media/snes/box2d/Back.png'),
+      sup('Library/covers/b3.png'),
+      sup('Library/covers/b4.png'),
+    };
+    expect(plan.preselectedPaths, containsAll(orphans));
+
+    // Since the preview a scan found Back.sfc again, an import added b4.
+    await db.execute(
+      'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+      ['snes', 'Back.sfc', doc('roms/snes/Back.sfc')],
+    );
+    await index.writeAsString(
+      '{"version": 1, "books": [{"id": "b4", "relativePath": "Books/b4.epub"}]}',
+    );
+    var result = await manager(registry).execute(plan, selectedPaths: orphans);
+    expect(result.deletedFiles, 2);
+    expect(await File(doc('media/snes/box2d/Gone.png')).exists(), isFalse);
+    expect(await File(sup('Library/covers/b3.png')).exists(), isFalse);
+    expect(await File(doc('media/snes/box2d/Back.png')).exists(), isTrue);
+    expect(await File(sup('Library/covers/b4.png')).exists(), isTrue);
+    expect(
+      {for (final refusal in result.refusals) refusal.path: refusal.detail},
+      {
+        doc('media/snes/box2d/Back.png'): 'noLongerOrphan',
+        sup('Library/covers/b4.png'): 'noLongerOrphan',
+      },
+    );
+    expect(reasonsOf(result), {StorageRefusalReason.changedSincePreview});
+    var lines = await journalOf(result);
+    expectRelative(lines);
+    final recheck = lines.singleWhere((line) => line['op'] == 'recheck');
+    expect(recheck['media'], 2);
+    expect(recheck['stillMedia'], 1);
+
+    // The library folder went away since the preview: nothing is confirmed.
+    await write(doc('media/snes/box2d/Other.png'));
+    final (again, againRegistry) = await planFor(
+      StorageCleanupLevel.regenerable,
+      libraryRoots: [doc('roms')],
+    );
+    expect(again.preselectedPaths, contains(doc('media/snes/box2d/Other.png')));
+    await Directory(doc('roms')).delete(recursive: true);
+    result = await manager(
+      againRegistry,
+    ).execute(again, selectedPaths: {doc('media/snes/box2d/Other.png')});
+    expect(result.deletedFiles, 0);
+    expect(
+      result.refusals.single.detail,
+      startsWith('library folder missing or unreadable: '),
+    );
+    expect(await File(doc('media/snes/box2d/Other.png')).exists(), isTrue);
+    lines = await journalOf(result);
+    expectRelative(lines);
+  });
+
+  group('metadata rows', () {
+    late StorageMaintenanceRepository maintenance;
+
+    Future<List<String>> rows() async => [
+      for (final row in await db.rawQuery(
+        'SELECT filename FROM user_screenscraper_metadata ORDER BY filename',
+      ))
+        row['filename'].toString(),
+    ];
+
+    setUp(() async {
+      await db.execute(
+        'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+        ['snes', 'Kept.sfc', doc('roms/snes/Kept.sfc')],
+      );
+      for (final name in ['Kept.sfc', 'Gone.sfc']) {
+        await db.execute(
+          'INSERT INTO user_screenscraper_metadata (app_system_id, filename) VALUES (?, ?)',
+          ['snes', name],
+        );
+      }
+      maintenance = StorageMaintenanceRepository(
+        database: () async => db,
+        backupDirectory: () async => sup('NeoStation/Maintenance'),
+        now: () => clock,
+      );
+    });
+
+    test('another operation\'s transaction open on the connection: refused '
+        '(databaseBusy), nothing removed', () async {
+      final (plan, registry) = await planFor(StorageCleanupLevel.regenerable);
+      expect(plan.metadataKeys, hasLength(1));
+      // The library scanner keeps its transaction open across file reads.
+      final release = Completer<void>();
+      final scanner = db.transaction((txn) async {
+        await txn.execute(
+          'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+          ['snes', 'New.sfc', doc('roms/snes/New.sfc')],
+        );
+        await release.future;
+      });
+      var result = await manager(registry).execute(
+        plan,
+        selectedPaths: {StorageCleanupPlan.metadataSelectionKey},
+        maintenance: maintenance,
+      );
+      expect(result.metadata, isNull);
+      expect(reasonsOf(result), {StorageRefusalReason.databaseBusy});
+      expect(
+        result.refusals.single.localeKey,
+        StorageLocale.refuseDatabaseBusy,
+      );
+      expect(result.refusals.single.detail, contains('autocommit off'));
+      release.complete();
+      await scanner;
+      expect(await rows(), ['Gone.sfc', 'Kept.sfc']);
+      expect(
+        Directory(sup('NeoStation/Maintenance')).existsSync()
+            ? Directory(sup('NeoStation/Maintenance')).listSync()
+            : const <FileSystemEntity>[],
+        isEmpty,
+        reason: 'no copy made inside another transaction',
+      );
+
+      // Committed: the scanner's row is there, the deletion now goes.
+      result = await manager(registry).execute(
+        plan,
+        selectedPaths: {StorageCleanupPlan.metadataSelectionKey},
+        maintenance: maintenance,
+      );
+      expect(result.refusals, isEmpty);
+      expect(result.metadata!.deleted, 1);
+      expect(await rows(), ['Kept.sfc']);
+      expect(
+        (await db.rawQuery('SELECT COUNT(*) AS n FROM user_roms')).single['n'],
+        2,
+      );
+    });
+
+    test('a key referenced again, or whose system lost all its games, since '
+        'the preview stays', () async {
+      final (plan, registry) = await planFor(StorageCleanupLevel.regenerable);
+      expect(plan.metadataKeys, const [
+        StorageOrphanMetadataKey('snes', 'Gone.sfc'),
+      ]);
+      await db.execute(
+        'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+        ['snes', 'Gone.sfc', doc('roms/snes/Gone.sfc')],
+      );
+      var result = await manager(registry).execute(
+        plan,
+        selectedPaths: {StorageCleanupPlan.metadataSelectionKey},
+        maintenance: maintenance,
+      );
+      expect(result.metadata!.deleted, 0);
+      expect(result.metadata!.skippedNotOrphan, 1);
+      expect(await rows(), ['Gone.sfc', 'Kept.sfc']);
+
+      // Every snes row pruned (a library folder iOS could not read), another
+      // system still has one: snes is not analysed any more.
+      await db.execute("DELETE FROM user_roms WHERE app_system_id = 'snes'");
+      await db.execute(
+        'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
+        ['psx', 'FF7.cue', doc('roms/psx/FF7.cue')],
+      );
+      result = await manager(registry).execute(
+        plan,
+        selectedPaths: {StorageCleanupPlan.metadataSelectionKey},
+        maintenance: maintenance,
+      );
+      expect(result.metadata!.deleted, 0);
+      expect(await rows(), ['Gone.sfc', 'Kept.sfc']);
+    });
+  });
+
+  test('3DS staging: a pass interrupted after the preview, or its backups '
+      'unreadable, keeps every staging', () async {
+    final staging = doc(
+      'Libretro/Saves/Azahar/.neostation-3ds-import-20261012-100000',
+    );
+    await write(p.join(staging, 'sysdata/keys.txt'));
+    final (plan, registry) = await planFor(StorageCleanupLevel.safe);
+    expect(plan.preselectedPaths, contains(staging));
+
+    final backup = doc('Libretro/Backups/Azahar/20261012-100000');
+    await write(p.join(backup, StorageCleanupPlanner.threeDsPassLogName));
+    var result = await manager(
+      registry,
+    ).execute(plan, selectedPaths: {staging});
+    expect(result.deletedFiles, 0);
+    expect(reasonsOf(result), {StorageRefusalReason.isProtected});
+    expect(result.refusals.single.detail, 'interrupted3dsPass');
+    expect(await File(p.join(staging, 'sysdata/keys.txt')).exists(), isTrue);
+
+    await Directory(doc('Libretro/Backups/Azahar')).delete(recursive: true);
+    await write(doc('Libretro/Backups/Azahar'));
+    result = await manager(registry).execute(plan, selectedPaths: {staging});
+    expect(result.deletedFiles, 0);
+    expect(result.refusals.single.detail, 'threeDsBackupsUnreadable');
+    expect(await File(p.join(staging, 'sysdata/keys.txt')).exists(), isTrue);
+  });
+
+  test('a level-1 cleanup with its preselection leaves the user\'s .part '
+      'files (production library inputs)', () async {
+    final userParts = [
+      doc('Library/Downloads/One Piece 1002.cbz.part'),
+      doc('ARMSX2/Games/God of War.iso.part'),
+      dolphin('Library/gc/Metroid Prime.rvz.part'),
+      doc('Libretro/Skins/delta-snes/assets.part'),
+      doc('user-data/themes/epic/bg.png.part'),
+    ];
+    for (final path in userParts) {
+      await write(path, length: 5000, age: const Duration(days: 3));
+    }
+    await write(tmp('picked.zip'), age: const Duration(hours: 2));
+    final (plan, registry) = await planFor(
+      StorageCleanupLevel.safe,
+      libraryRoots: [doc('roms'), doc('ARMSX2'), doc('ARMSX2/Games')],
+    );
+    expect(plan.preselectedPaths, {tmp('picked.zip')});
+    var result = await manager(
+      registry,
+    ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(result.deletedFiles, 1);
+    for (final path in userParts) {
+      expect(await File(path).length(), 5000, reason: path);
+    }
+    // Even in a forged plan they are protected.
+    result = await manager(registry).execute(
+      forgedPlan([
+        for (final path in userParts) await forged(path, rootId: 'INV-15'),
+      ]),
+      selectedPaths: userParts.toSet(),
+    );
+    expect(result.deletedFiles, 0);
+    expect(reasonsOf(result), {StorageRefusalReason.isProtected});
+    for (final path in userParts) {
+      expect(await File(path).exists(), isTrue, reason: path);
+    }
+  });
 }

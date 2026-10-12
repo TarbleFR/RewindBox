@@ -145,6 +145,19 @@ void main() {
     'exportPreparing',
   };
 
+  // Keys added by the review of the storage services (12 October 2026),
+  // French in [serviceReviewFrench]: the two refusal reasons added to
+  // StorageRefusalReason (a library scan in progress, the database busy with
+  // another operation's transaction), the duplicates that cannot be offered
+  // without checksums, and the consoles without any game whose media and
+  // metadata are not analysed.
+  const serviceReviewKeys = <String>{
+    'refuseLibraryScan',
+    'refuseDatabaseBusy',
+    'duplicatesNeedHashes',
+    'emptySystemsNotAnalyzed',
+  };
+
   // One text for each StorageRefusalReason of § 3.8 and each limit that § 7
   // announces on the screen but § 3.11 does not name.
   const coverageKeys = <String>{
@@ -274,6 +287,32 @@ void main() {
     'exportPreparing': 'Préparation du rapport…',
   };
 
+  // The French of [serviceReviewKeys] (review of the storage services).
+  const serviceReviewFrench = <String, String>{
+    'refuseLibraryScan':
+        'Nettoyage refusé : la bibliothèque de jeux est en cours d’analyse.',
+    'refuseDatabaseBusy':
+        'La base de la bibliothèque était utilisée par une autre opération : '
+        'rien n’a été modifié.',
+    'duplicatesNeedHashes':
+        'Même nom et même taille ne prouvent pas un contenu identique : '
+        'calculez les empreintes pour proposer une copie à la suppression.',
+    'emptySystemsNotAnalyzed':
+        'Consoles sans aucun jeu dans la bibliothèque : leurs médias et '
+        'métadonnées ne sont pas analysés.',
+  };
+
+  // The level-3 help of § 3.3, changed by the review of the storage
+  // services: the NeoStation backups (RapBackups, SaveBackups, the 3DS
+  // backups, the database copies) are never proposed any more, and a
+  // duplicate is offered only when its checksum equals the referenced
+  // copy's. It used to read « Niveau Régénérable, plus les diagnostics,
+  // enregistrements vidéo, exports, copies de sauvegarde et doublons, à
+  // cocher un par un. »
+  const levelConfirmedHelpFrench =
+      'Niveau Régénérable, plus les diagnostics, enregistrements vidéo, '
+      'exports et doublons aux empreintes identiques, à cocher un par un.';
+
   // Texts that are legitimately the English text in another language. None:
   // every label of this catalog has its own wording in the eleven other
   // languages (product names such as NeoSwap always come with a translated
@@ -307,21 +346,31 @@ void main() {
     () {
       expect(contractKeys.length, 89);
       expect(reviewKeys.length, 13);
+      expect(serviceReviewKeys.length, 4);
       expect(contractKeys.intersection(screenKeys), isEmpty);
       expect(contractKeys.intersection(coverageKeys), isEmpty);
       expect(screenKeys.intersection(coverageKeys), isEmpty);
       for (final other in [contractKeys, screenKeys, coverageKeys]) {
         expect(reviewKeys.intersection(other), isEmpty);
       }
+      for (final other in [contractKeys, screenKeys, coverageKeys]) {
+        expect(serviceReviewKeys.intersection(other), isEmpty);
+      }
+      expect(serviceReviewKeys.intersection(reviewKeys), isEmpty);
+      // Contract replaced by the review of the storage services: the catalog
+      // used to be exactly the four sets above; it now also holds
+      // [serviceReviewKeys].
       expect(english.keys.toSet(), {
         ...contractKeys,
         ...screenKeys,
         ...coverageKeys,
         ...reviewKeys,
+        ...serviceReviewKeys,
       });
       expect(maintainerFrench.keys, everyElement(isIn(contractKeys)));
       expect(requestedFrench.keys.toSet(), screenKeys);
       expect(reviewFrench.keys.toSet(), reviewKeys);
+      expect(serviceReviewFrench.keys.toSet(), serviceReviewKeys);
     },
   );
 
@@ -422,9 +471,23 @@ void main() {
       ...maintainerFrench,
       ...requestedFrench,
       ...reviewFrench,
+      ...serviceReviewFrench,
+      StorageLocale.levelConfirmedHelp: levelConfirmedHelpFrench,
     }.entries) {
       expect(french[wording.key], wording.value, reason: wording.key);
     }
+    // The level-3 help no longer announces backup copies, in any language
+    // (review of the storage services), and names the checksums the
+    // duplicates now need.
+    expect(
+      english[StorageLocale.levelConfirmedHelp],
+      isNot(contains('backup')),
+    );
+    expect(english[StorageLocale.levelConfirmedHelp], contains('checksums'));
+    expect(
+      french[StorageLocale.levelConfirmedHelp],
+      isNot(contains('sauvegarde')),
+    );
     for (final message in french.entries) {
       expect(
         message.value,
@@ -670,11 +733,25 @@ void main() {
         'lib/services/storage/storage_deletion_manager.dart',
       ),
     };
+    // Values added after the design document by the review of the storage
+    // services (12 October 2026): a library scan in progress and the
+    // database busy with another operation's transaction refuse with their
+    // own reasons. Contract replaced: the catalog used to map exactly the
+    // values of the document; it now maps the document's values followed by
+    // these, in this order, until docs/storage-audit-cleanup.md § 3.8 lists
+    // them itself (a value the document already lists is not repeated).
+    const reviewAdditions = <String, List<String>>{
+      'StorageRefusalReason': ['libraryScanActive', 'databaseBusy'],
+    };
     for (final entry in maps.entries) {
       final (keys, implementation) = entry.value;
       final contract = enumNames(document, entry.key);
       expect(contract, isNotNull, reason: entry.key);
-      expect(keys.keys.toList(), contract, reason: entry.key);
+      final added = [
+        for (final name in reviewAdditions[entry.key] ?? const <String>[])
+          if (!contract!.contains(name)) name,
+      ];
+      expect(keys.keys.toList(), [...contract!, ...added], reason: entry.key);
       // Once the service exists, its enum must match the catalog too.
       final file = File(implementation);
       if (file.existsSync()) {

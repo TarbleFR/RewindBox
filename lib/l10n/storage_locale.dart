@@ -164,6 +164,13 @@ abstract final class StorageLocale {
   static const orphansFailed = 'orphansFailed';
   static const journalNotSaved = 'journalNotSaved';
   static const exportPreparing = 'exportPreparing';
+  // Review of the storage services: a library scan or a busy database
+  // stops the cleanup; duplicates need their checksums; consoles
+  // without any game are not analysed.
+  static const refuseLibraryScan = 'refuseLibraryScan';
+  static const refuseDatabaseBusy = 'refuseDatabaseBusy';
+  static const duplicatesNeedHashes = 'duplicatesNeedHashes';
+  static const emptySystemsNotAnalyzed = 'emptySystemsNotAnalyzed';
 
   static const Map<String, Map<String, String>> values = {
     'en': {
@@ -227,7 +234,7 @@ abstract final class StorageLocale {
           'Safe level, plus caches, orphans (media, metadata, covers) and old logs. Everything can be recreated, sometimes at the cost of a recompilation or a new scrape.',
       levelConfirmed: 'With detailed confirmation',
       levelConfirmedHelp:
-          'Rebuildable level, plus diagnostics, video recordings, exports, backup copies and duplicates, to be ticked one by one.',
+          'Rebuildable level, plus diagnostics, video recordings, exports and duplicates with identical checksums, to be ticked one by one.',
       levelPreselectedNote: 'Items at this level are preselected.',
       levelNeverPreselectedNote:
           'Nothing is preselected: tick each item to delete.',
@@ -319,6 +326,13 @@ abstract final class StorageLocale {
       orphansFailed: 'Orphans and duplicates could not be analyzed.',
       journalNotSaved: 'The cleanup log could not be saved.',
       exportPreparing: 'Preparing the report…',
+      refuseLibraryScan: 'Cleanup refused: the game library is being scanned.',
+      refuseDatabaseBusy:
+          'The library database was in use by another operation: nothing was changed.',
+      duplicatesNeedHashes:
+          'The same name and size do not prove identical content: compute the checksums to offer a copy for deletion.',
+      emptySystemsNotAnalyzed:
+          'Consoles without any game in the library: their media and metadata are not analyzed.',
     },
     'es': {
       toolTitle: 'Análisis y limpieza del almacenamiento',
@@ -382,7 +396,7 @@ abstract final class StorageLocale {
           'Nivel Seguro más cachés, huérfanos (medios, metadatos, portadas) y registros antiguos. Todo se puede volver a crear, a veces a costa de una recompilación o de un nuevo scraping.',
       levelConfirmed: 'Con confirmación detallada',
       levelConfirmedHelp:
-          'Nivel Regenerable más diagnósticos, grabaciones de vídeo, exportaciones, copias de seguridad y duplicados, que se marcan uno a uno.',
+          'Nivel Regenerable más diagnósticos, grabaciones de vídeo, exportaciones y duplicados con sumas de verificación idénticas, que se marcan uno a uno.',
       levelPreselectedNote:
           'Los elementos de este nivel están preseleccionados.',
       levelNeverPreselectedNote:
@@ -480,6 +494,14 @@ abstract final class StorageLocale {
       orphansFailed: 'No se pudieron analizar los huérfanos y duplicados.',
       journalNotSaved: 'No se pudo guardar el registro de la limpieza.',
       exportPreparing: 'Preparando el informe…',
+      refuseLibraryScan:
+          'Limpieza rechazada: se está analizando la biblioteca de juegos.',
+      refuseDatabaseBusy:
+          'La base de datos de la biblioteca estaba en uso por otra operación: no se cambió nada.',
+      duplicatesNeedHashes:
+          'El mismo nombre y tamaño no prueban un contenido idéntico: calcula las sumas de verificación para proponer una copia para eliminar.',
+      emptySystemsNotAnalyzed:
+          'Consolas sin ningún juego en la biblioteca: sus medios y metadatos no se analizan.',
     },
     'ru': {
       toolTitle: 'Анализ и очистка хранилища',
@@ -542,7 +564,7 @@ abstract final class StorageLocale {
           'Уровень «Безопасный», а также кэши, потерянные данные (медиа, метаданные, обложки) и старые журналы. Всё можно восстановить, иногда ценой перекомпиляции или повторного скрапинга.',
       levelConfirmed: 'С подробным подтверждением',
       levelConfirmedHelp:
-          'Уровень «Восстанавливаемый», а также диагностика, видеозаписи, экспорт, резервные копии и дубликаты — каждый элемент отмечается отдельно.',
+          'Уровень «Восстанавливаемый», а также диагностика, видеозаписи, экспорт и дубликаты с одинаковыми контрольными суммами — каждый элемент отмечается отдельно.',
       levelPreselectedNote: 'Элементы этого уровня выбраны заранее.',
       levelNeverPreselectedNote:
           'Ничего не выбрано заранее: отметьте каждый элемент, который нужно удалить.',
@@ -637,6 +659,13 @@ abstract final class StorageLocale {
           'Не удалось проанализировать потерянные данные и дубликаты.',
       journalNotSaved: 'Не удалось сохранить журнал очистки.',
       exportPreparing: 'Подготовка отчёта…',
+      refuseLibraryScan: 'Очистка отклонена: идёт сканирование библиотеки игр.',
+      refuseDatabaseBusy:
+          'База данных библиотеки была занята другой операцией: ничего не изменено.',
+      duplicatesNeedHashes:
+          'Одинаковые имя и размер не доказывают одинаковое содержимое: вычислите контрольные суммы, чтобы предложить копию к удалению.',
+      emptySystemsNotAnalyzed:
+          'Консоли без игр в библиотеке: их медиа и метаданные не анализируются.',
     },
     'zh': {
       toolTitle: '存储空间分析与清理',
@@ -695,7 +724,7 @@ abstract final class StorageLocale {
       levelRegenerableHelp:
           '包括“安全”级别，以及缓存、孤立项（媒体、元数据、封面）和旧日志。均可重新生成，但有时需要重新编译或重新刮削。',
       levelConfirmed: '需逐项确认',
-      levelConfirmedHelp: '包括“可重新生成”级别，以及诊断、视频录制、导出文件、备份副本和重复项，需逐项勾选。',
+      levelConfirmedHelp: '包括“可重新生成”级别，以及诊断、视频录制、导出文件和校验和相同的重复项，需逐项勾选。',
       levelPreselectedNote: '此级别的项目已预先选中。',
       levelNeverPreselectedNote: '未预先选中任何项目：请逐一勾选要删除的项目。',
       preview: '清理预览',
@@ -764,6 +793,10 @@ abstract final class StorageLocale {
       orphansFailed: '无法分析孤立项与重复项。',
       journalNotSaved: '无法保存清理日志。',
       exportPreparing: '正在准备报告…',
+      refuseLibraryScan: '已拒绝清理：正在扫描游戏库。',
+      refuseDatabaseBusy: '游戏库数据库正被其他操作使用：未做任何更改。',
+      duplicatesNeedHashes: '名称和大小相同并不能证明内容相同：请先计算校验和，才会提供可删除的副本。',
+      emptySystemsNotAnalyzed: '游戏库中没有任何游戏的主机：不分析其媒体和元数据。',
     },
     'zh_Hant': {
       toolTitle: '儲存空間分析與清理',
@@ -822,7 +855,7 @@ abstract final class StorageLocale {
       levelRegenerableHelp:
           '包含「安全」層級，以及快取、孤立項目（媒體、中繼資料、封面）和舊記錄檔。皆可重新產生，但有時需要重新編譯或重新刮削。',
       levelConfirmed: '需逐項確認',
-      levelConfirmedHelp: '包含「可重新產生」層級，以及診斷、影片錄製、匯出檔案、備份副本和重複項目，需逐項勾選。',
+      levelConfirmedHelp: '包含「可重新產生」層級，以及診斷、影片錄製、匯出檔案和校驗和相同的重複項目，需逐項勾選。',
       levelPreselectedNote: '此層級的項目已預先選取。',
       levelNeverPreselectedNote: '未預先選取任何項目：請逐一勾選要刪除的項目。',
       preview: '清理預覽',
@@ -891,6 +924,10 @@ abstract final class StorageLocale {
       orphansFailed: '無法分析孤立項目與重複項目。',
       journalNotSaved: '無法儲存清理記錄檔。',
       exportPreparing: '正在準備報告…',
+      refuseLibraryScan: '已拒絕清理：正在掃描遊戲庫。',
+      refuseDatabaseBusy: '遊戲庫資料庫正被其他操作使用：未做任何變更。',
+      duplicatesNeedHashes: '名稱與大小相同並不能證明內容相同：請先計算校驗和，才會提供可刪除的副本。',
+      emptySystemsNotAnalyzed: '遊戲庫中沒有任何遊戲的主機：不分析其媒體和中繼資料。',
     },
     'pt': {
       toolTitle: 'Análise e limpeza do armazenamento',
@@ -954,7 +991,7 @@ abstract final class StorageLocale {
           'Nível Seguro, mais caches, órfãos (mídia, metadados, capas) e registros antigos. Tudo pode ser recriado, às vezes ao custo de uma recompilação ou de um novo scraping.',
       levelConfirmed: 'Com confirmação detalhada',
       levelConfirmedHelp:
-          'Nível Regenerável, mais diagnósticos, gravações de vídeo, exportações, cópias de backup e duplicatas, a marcar um por um.',
+          'Nível Regenerável, mais diagnósticos, gravações de vídeo, exportações e duplicatas com somas de verificação idênticas, a marcar um por um.',
       levelPreselectedNote: 'Os itens deste nível já vêm selecionados.',
       levelNeverPreselectedNote:
           'Nenhum item vem selecionado: marque cada item a excluir.',
@@ -1050,6 +1087,14 @@ abstract final class StorageLocale {
       orphansFailed: 'Não foi possível analisar os órfãos e as duplicatas.',
       journalNotSaved: 'Não foi possível salvar o registro da limpeza.',
       exportPreparing: 'Preparando o relatório…',
+      refuseLibraryScan:
+          'Limpeza recusada: a biblioteca de jogos está sendo analisada.',
+      refuseDatabaseBusy:
+          'O banco de dados da biblioteca estava em uso por outra operação: nada foi alterado.',
+      duplicatesNeedHashes:
+          'O mesmo nome e tamanho não provam conteúdo idêntico: calcule as somas de verificação para propor uma cópia para exclusão.',
+      emptySystemsNotAnalyzed:
+          'Consoles sem nenhum jogo na biblioteca: suas mídias e metadados não são analisados.',
     },
     'fr': {
       toolTitle: 'Analyse et nettoyage du stockage',
@@ -1113,7 +1158,7 @@ abstract final class StorageLocale {
           'Niveau Sûr, plus les caches, les orphelins (médias, métadonnées, couvertures) et les anciens journaux. Tout se recrée, parfois au prix d’une recompilation ou d’un nouveau scraping.',
       levelConfirmed: 'Avec confirmation détaillée',
       levelConfirmedHelp:
-          'Niveau Régénérable, plus les diagnostics, enregistrements vidéo, exports, copies de sauvegarde et doublons, à cocher un par un.',
+          'Niveau Régénérable, plus les diagnostics, enregistrements vidéo, exports et doublons aux empreintes identiques, à cocher un par un.',
       levelPreselectedNote: 'Les éléments de ce niveau sont présélectionnés.',
       levelNeverPreselectedNote:
           'Aucun élément n’est présélectionné : cochez chaque élément à supprimer.',
@@ -1208,6 +1253,14 @@ abstract final class StorageLocale {
           'Les orphelins et les doublons n’ont pas pu être analysés.',
       journalNotSaved: 'Le journal du nettoyage n’a pas pu être enregistré.',
       exportPreparing: 'Préparation du rapport…',
+      refuseLibraryScan:
+          'Nettoyage refusé : la bibliothèque de jeux est en cours d’analyse.',
+      refuseDatabaseBusy:
+          'La base de la bibliothèque était utilisée par une autre opération : rien n’a été modifié.',
+      duplicatesNeedHashes:
+          'Même nom et même taille ne prouvent pas un contenu identique : calculez les empreintes pour proposer une copie à la suppression.',
+      emptySystemsNotAnalyzed:
+          'Consoles sans aucun jeu dans la bibliothèque : leurs médias et métadonnées ne sont pas analysés.',
     },
     'de': {
       toolTitle: 'Speicheranalyse und -bereinigung',
@@ -1271,7 +1324,7 @@ abstract final class StorageLocale {
           'Stufe „Sicher“ plus Caches, verwaiste Daten (Medien, Metadaten, Cover) und alte Protokolle. Alles lässt sich neu erstellen, manchmal um den Preis einer Neukompilierung oder eines erneuten Scrapings.',
       levelConfirmed: 'Mit ausführlicher Bestätigung',
       levelConfirmedHelp:
-          'Stufe „Neu erstellbar“ plus Diagnosen, Videoaufnahmen, Exporte, Sicherungskopien und Duplikate, die einzeln angehakt werden.',
+          'Stufe „Neu erstellbar“ plus Diagnosen, Videoaufnahmen, Exporte und Duplikate mit identischen Prüfsummen, die einzeln angehakt werden.',
       levelPreselectedNote: 'Die Einträge dieser Stufe sind vorausgewählt.',
       levelNeverPreselectedNote:
           'Nichts ist vorausgewählt: Hake jeden Eintrag an, der gelöscht werden soll.',
@@ -1368,6 +1421,14 @@ abstract final class StorageLocale {
       journalNotSaved:
           'Das Protokoll der Bereinigung konnte nicht gespeichert werden.',
       exportPreparing: 'Bericht wird vorbereitet …',
+      refuseLibraryScan:
+          'Bereinigung abgelehnt: Die Spielebibliothek wird gerade durchsucht.',
+      refuseDatabaseBusy:
+          'Die Bibliotheksdatenbank wurde von einem anderen Vorgang verwendet: Nichts wurde geändert.',
+      duplicatesNeedHashes:
+          'Gleicher Name und gleiche Größe beweisen keinen identischen Inhalt: Berechnen Sie die Prüfsummen, um eine Kopie zum Löschen anzubieten.',
+      emptySystemsNotAnalyzed:
+          'Konsolen ohne Spiel in der Bibliothek: Ihre Medien und Metadaten werden nicht analysiert.',
     },
     'it': {
       toolTitle: 'Analisi e pulizia dello spazio di archiviazione',
@@ -1431,7 +1492,7 @@ abstract final class StorageLocale {
           'Livello Sicuro, più cache, orfani (media, metadati, copertine) e vecchi log. Tutto si può ricreare, a volte al prezzo di una ricompilazione o di un nuovo scraping.',
       levelConfirmed: 'Con conferma dettagliata',
       levelConfirmedHelp:
-          'Livello Rigenerabile, più diagnostica, registrazioni video, esportazioni, copie di backup e duplicati, da spuntare uno per uno.',
+          'Livello Rigenerabile, più diagnostica, registrazioni video, esportazioni e duplicati con checksum identici, da spuntare uno per uno.',
       levelPreselectedNote:
           'Gli elementi di questo livello sono preselezionati.',
       levelNeverPreselectedNote:
@@ -1529,6 +1590,14 @@ abstract final class StorageLocale {
       orphansFailed: 'Non è stato possibile analizzare orfani e duplicati.',
       journalNotSaved: 'Non è stato possibile salvare il log della pulizia.',
       exportPreparing: 'Preparazione del rapporto in corso…',
+      refuseLibraryScan:
+          'Pulizia rifiutata: è in corso l’analisi della libreria dei giochi.',
+      refuseDatabaseBusy:
+          'Il database della libreria era in uso da un’altra operazione: non è stato modificato nulla.',
+      duplicatesNeedHashes:
+          'Stesso nome e stessa dimensione non provano un contenuto identico: calcola i checksum per proporre una copia da eliminare.',
+      emptySystemsNotAnalyzed:
+          'Console senza alcun gioco nella libreria: i loro media e metadati non vengono analizzati.',
     },
     'id': {
       toolTitle: 'Analisis dan pembersihan penyimpanan',
@@ -1592,7 +1661,7 @@ abstract final class StorageLocale {
           'Tingkat “Aman”, ditambah cache, item yatim (media, metadata, sampul), dan log lama. Semuanya dapat dibuat ulang, kadang dengan kompilasi ulang atau scraping baru.',
       levelConfirmed: 'Dengan konfirmasi terperinci',
       levelConfirmedHelp:
-          'Tingkat “Dapat dibuat ulang”, ditambah diagnostik, rekaman video, ekspor, salinan cadangan, dan duplikat; centang satu per satu.',
+          'Tingkat “Dapat dibuat ulang”, ditambah diagnostik, rekaman video, ekspor, dan duplikat dengan checksum identik; centang satu per satu.',
       levelPreselectedNote: 'Item pada tingkat ini sudah dipilih sebelumnya.',
       levelNeverPreselectedNote:
           'Tidak ada yang dipilih sebelumnya: centang setiap item yang akan dihapus.',
@@ -1687,6 +1756,13 @@ abstract final class StorageLocale {
       orphansFailed: 'Item yatim dan duplikat tidak dapat dianalisis.',
       journalNotSaved: 'Log pembersihan tidak dapat disimpan.',
       exportPreparing: 'Menyiapkan laporan…',
+      refuseLibraryScan: 'Pembersihan ditolak: pustaka game sedang dipindai.',
+      refuseDatabaseBusy:
+          'Basis data pustaka sedang dipakai operasi lain: tidak ada yang diubah.',
+      duplicatesNeedHashes:
+          'Nama dan ukuran yang sama tidak membuktikan isi yang identik: hitung checksum untuk menawarkan salinan yang dapat dihapus.',
+      emptySystemsNotAnalyzed:
+          'Konsol tanpa game di pustaka: media dan metadatanya tidak dianalisis.',
     },
     'ja': {
       toolTitle: 'ストレージの分析とクリーンアップ',
@@ -1747,7 +1823,7 @@ abstract final class StorageLocale {
           '「安全」レベルの内容に加え、キャッシュ、孤立データ（メディア、メタデータ、表紙）、古いログが対象です。すべて再生成できますが、再コンパイルや再スクレイピングが必要になる場合があります。',
       levelConfirmed: '詳細な確認が必要',
       levelConfirmedHelp:
-          '「再生成可能」レベルの内容に加え、診断、ビデオ録画、エクスポートしたファイル、バックアップコピー、重複が対象です。1 つずつチェックします。',
+          '「再生成可能」レベルの内容に加え、診断、ビデオ録画、エクスポートしたファイル、チェックサムが同一の重複が対象です。1 つずつチェックします。',
       levelPreselectedNote: 'このレベルの項目はあらかじめ選択されています。',
       levelNeverPreselectedNote:
           'あらかじめ選択されている項目はありません。削除する項目を 1 つずつチェックしてください。',
@@ -1819,6 +1895,11 @@ abstract final class StorageLocale {
       orphansFailed: '孤立データと重複を分析できませんでした。',
       journalNotSaved: 'クリーンアップのログを保存できませんでした。',
       exportPreparing: 'レポートを準備中…',
+      refuseLibraryScan: 'クリーンアップを拒否しました：ゲームライブラリをスキャン中です。',
+      refuseDatabaseBusy: 'ライブラリのデータベースが別の処理で使用中でした：何も変更していません。',
+      duplicatesNeedHashes:
+          '名前とサイズが同じでも内容が同一とは限りません：削除できるコピーを表示するにはチェックサムを計算してください。',
+      emptySystemsNotAnalyzed: 'ライブラリにゲームがないゲーム機：そのメディアとメタデータは分析しません。',
     },
     'ko': {
       toolTitle: '저장 공간 분석 및 정리',
@@ -1879,7 +1960,7 @@ abstract final class StorageLocale {
           '‘안전’ 단계에 더해 캐시, 고아 항목(미디어, 메타데이터, 표지), 오래된 로그가 포함됩니다. 모두 다시 만들 수 있지만 다시 컴파일하거나 다시 스크래핑해야 할 수 있습니다.',
       levelConfirmed: '상세 확인 필요',
       levelConfirmedHelp:
-          '‘다시 생성 가능’ 단계에 더해 진단, 동영상 녹화, 내보낸 파일, 백업 사본, 중복 항목이 포함되며 하나씩 선택합니다.',
+          '‘다시 생성 가능’ 단계에 더해 진단, 동영상 녹화, 내보낸 파일, 체크섬이 같은 중복 항목이 포함되며 하나씩 선택합니다.',
       levelPreselectedNote: '이 단계의 항목은 미리 선택되어 있습니다.',
       levelNeverPreselectedNote: '미리 선택된 항목이 없습니다. 삭제할 항목을 하나씩 선택하세요.',
       preview: '정리 미리 보기',
@@ -1952,6 +2033,12 @@ abstract final class StorageLocale {
       orphansFailed: '고아 항목 및 중복을 분석할 수 없습니다.',
       journalNotSaved: '정리 로그를 저장할 수 없습니다.',
       exportPreparing: '보고서 준비 중…',
+      refuseLibraryScan: '정리 거부됨: 게임 라이브러리를 스캔하는 중입니다.',
+      refuseDatabaseBusy: '라이브러리 데이터베이스를 다른 작업이 사용 중이었습니다: 아무것도 변경되지 않았습니다.',
+      duplicatesNeedHashes:
+          '이름과 크기가 같다고 해서 내용이 같다는 보장은 없습니다: 삭제할 사본을 제안하려면 체크섬을 계산하세요.',
+      emptySystemsNotAnalyzed:
+          '라이브러리에 게임이 하나도 없는 콘솔: 해당 미디어와 메타데이터는 분석하지 않습니다.',
     },
   };
 
@@ -2009,6 +2096,8 @@ abstract final class StorageLocale {
     'rpcs3Busy': rpcs3Busy,
     'redirected': refuseRedirected,
     'unknown': refuseUnknown,
+    'libraryScanActive': refuseLibraryScan,
+    'databaseBusy': refuseDatabaseBusy,
   };
 
   /// Catalog code for [locale]: `zh_Hant` for Traditional Chinese (script

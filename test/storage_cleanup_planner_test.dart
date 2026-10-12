@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:neostation/l10n/storage_locale.dart';
+import 'package:neostation/services/libretro_3ds_system_data_service.dart';
 import 'package:neostation/services/library_source_files.dart';
 import 'package:neostation/services/storage/storage_cleanup_planner.dart';
 import 'package:neostation/services/storage/storage_import_activity.dart';
@@ -104,6 +105,7 @@ void main() {
     libretroActive: () async => libretro,
     dolphinMarkerPresent: () async => dolphinMarker,
     libretroJournalUnfinished: () async => journal,
+    libraryScanActive: () => false,
   );
 
   Future<(StorageCleanupPlan, StorageRootRegistry)> planFor(
@@ -111,17 +113,19 @@ void main() {
     StorageSessionGuard? sessions,
     List<String> libraryRoots = const [],
     bool redirected = false,
+    bool hash = false,
+    StorageScanner? scanner,
   }) async {
     final registry = StorageRootRegistry(
       containers,
       libraryRoots: libraryRoots,
       rpcs3Redirected: redirected,
     );
-    final scan = await StorageScanner().scan(registry);
+    final scan = await (scanner ?? StorageScanner()).scan(registry);
     final orphans = await StorageOrphanDetector(
       database: () async => db,
       registry: registry,
-    ).detect(scan);
+    ).detect(scan, hashDuplicates: hash);
     final plan = await StorageCleanupPlanner(
       registry: registry,
       guard: sessions ?? guard(),
@@ -141,6 +145,20 @@ void main() {
       parent == path || p.isWithin(parent, path);
 
   test('B — no plan of any level holds protected data', () async {
+    // Partial files of the user in games and user content folders, old
+    // enough for the one-hour `*.part` age.
+    final userParts = <String>[
+      doc('ARMSX2/Games/God of War.iso.part'),
+      dolphin('Library/gc/Metroid Prime.rvz.part'),
+      doc('Libretro/Skins/delta-snes/assets.part'),
+      dolphin('User/Load/Textures/GALE01/tex1_64x64_x.png.part'),
+      doc('Library/Downloads/One Piece 1002.cbz.part'),
+      doc('Library/Books/Dune.epub.part'),
+      doc('Ports/KartPad/Mods/track.szs.part'),
+      doc('user-data/themes/epic/bg.png.part'),
+      doc('Libretro/Cheats/Snes9x/Game.cht.part'),
+      doc('RPCS3/Import/Game Saves/save.zip.part'),
+    ];
     final protected = <String>[
       // Games, ROM, ISO, installed games.
       doc('roms'),
@@ -198,6 +216,15 @@ void main() {
       doc('stray.bin'),
       sup('NeoStation/Unknown'),
       cac('Somewhere'),
+      // Review of the storage services: the backups NeoStation makes of user
+      // data, the NSURLCache database, and the `.part` files of games and
+      // user content folders (where the `*.part` override used to apply).
+      sup('NeoStation/RPCS3/SaveBackups'),
+      sup('NeoStation/RPCS3/RapBackups'),
+      sup('NeoStation/Maintenance/data-20261001-100000.sqlite'),
+      doc('Libretro/Backups/Azahar'),
+      cac('com.neogamelab.neostation/Cache.db'),
+      ...userParts,
     ];
     for (final path in [
       doc('roms/snes/Super Mario World.sfc'),
@@ -260,6 +287,12 @@ void main() {
       doc('stray.bin'),
       sup('NeoStation/Unknown/x.bin'),
       cac('Somewhere/blob.bin'),
+      sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE01-1/PARAM.SFO'),
+      sup('NeoStation/RPCS3/RapBackups/EP0001.rap'),
+      sup('NeoStation/Maintenance/data-20261001-100000.sqlite'),
+      doc('Libretro/Backups/Azahar/20261001-100000/sysdata/otp.bin'),
+      cac('com.neogamelab.neostation/Cache.db'),
+      ...userParts,
     ]) {
       await write(path, length: 64, age: const Duration(days: 30));
     }
@@ -268,27 +301,39 @@ void main() {
     await write(doc('user-data/temp/snes/Game.zip/Game.sfc'));
     await write(sup('NeoStation/RPCS3/Cache/ppu-BLES00113/obj.bin'));
     await write(doc('Diagnostics/rpcs3_startup_debug.txt'));
+    await write(cac('com.neogamelab.neostation/fsCachedData/0A1B'));
 
     final mine = doc('MyGames');
-    final registry = StorageRootRegistry(containers, libraryRoots: [mine]);
-    for (final level in StorageCleanupLevel.values) {
-      final (plan, _) = await planFor(level, libraryRoots: [mine]);
-      expect(plan.candidates, isNotEmpty, reason: level.name);
-      for (final candidate in plan.candidates) {
-        expect(candidate.isDuplicate, isFalse);
-        final targets = [
-          candidate.path,
-          for (final entry in candidate.entries) entry.path,
-        ];
-        for (final target in targets) {
-          for (final path in protected) {
-            expect(
-              inside(path, target),
-              isFalse,
-              reason: '${level.name}: $target is inside protected $path',
-            );
+    // This test's library folder, then the production inputs as well:
+    // `Documents/roms` and the ARMSX2 linked folders that
+    // StorageRootRegistry.resolve() adds (review of the storage services).
+    for (final roots in [
+      [mine],
+      [doc('roms'), doc('ARMSX2'), doc('ARMSX2/Games'), mine],
+    ]) {
+      final registry = StorageRootRegistry(containers, libraryRoots: roots);
+      for (final (level, hash) in [
+        for (final level in StorageCleanupLevel.values) (level, false),
+        (StorageCleanupLevel.confirmed, true),
+      ]) {
+        final (plan, _) = await planFor(level, libraryRoots: roots, hash: hash);
+        expect(plan.candidates, isNotEmpty, reason: level.name);
+        for (final candidate in plan.candidates) {
+          expect(candidate.isDuplicate, isFalse);
+          final targets = [
+            candidate.path,
+            for (final entry in candidate.entries) entry.path,
+          ];
+          for (final target in targets) {
+            for (final path in protected) {
+              expect(
+                inside(path, target),
+                isFalse,
+                reason: '${level.name}: $target is inside protected $path',
+              );
+            }
+            expect(registry.isProtected(target), isFalse, reason: target);
           }
-          expect(registry.isProtected(target), isFalse, reason: target);
         }
       }
     }
@@ -371,7 +416,10 @@ void main() {
         doc('Ports/KartPad/Logs/run-02.log'),
         dolphin('CrashMarkers/active-session.json.1760000000000.recovered'),
         sup('Roboto-Regular_0123456789abcdef0123456789abcdef.ttf'),
-        cac('com.neogamelab.neostation/Cache.db'),
+        // Contract replaced by the review of the storage services: the
+        // NSURLCache database `Cache.db` used to be a level-2 candidate
+        // beside `fsCachedData`; an open SQLite file of the system, it is
+        // never proposed now (below).
         cac('com.neogamelab.neostation/fsCachedData'),
         cac('KartPad/shader.cache'),
         cac('Dusklight/pipeline'),
@@ -382,17 +430,27 @@ void main() {
         doc('NeoPlay.jsonl'),
         doc('Recordings/Dolphin/clip.mp4'),
         doc('RPCS3/Export/Game Saves/saves.zip'),
-        sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE01-20261001'),
-        sup('NeoStation/RPCS3/RapBackups/EP0001.rap'),
-        sup('NeoStation/Maintenance/data-20261001-100000.sqlite'),
         doc('Libretro/Logs/previous-session.log'),
         doc('Libretro/Logs/session.log'),
         dolphin('Logs/dolphin-persistent.jsonl'),
         data('dev_hdd1/caches'),
         doc('Ports/KartPad/Runtime/GameData/sys'),
-        doc('Libretro/Backups/Azahar/20261001-100000'),
-        doc('MyGames/snes/Super Mario World.sfc'),
       };
+      // Contract replaced by the review of the storage services: the RPCS3
+      // save and licence backups, the copies of data.sqlite and the 3DS
+      // backups used to be level-3 candidates; backups of user data, they
+      // are never proposed now. The unreferenced duplicate used to be one
+      // too without checksums: it is offered only when its checksum equals
+      // the referenced copy's (the hashed plan below).
+      final neverProposed = <String>{
+        sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE01-20261001'),
+        sup('NeoStation/RPCS3/RapBackups/EP0001.rap'),
+        sup('NeoStation/Maintenance/data-20261001-100000.sqlite'),
+        sup('NeoStation/Maintenance/data-20261002-100000.sqlite'),
+        doc('Libretro/Backups/Azahar/20261001-100000'),
+        cac('com.neogamelab.neostation/Cache.db'),
+      };
+      final duplicatePath = doc('MyGames/snes/Super Mario World.sfc');
 
       // Level 1 entries. The picker's copies wait one hour since the review
       // of phase 5d (they used to wait 10 minutes; a copy keeps the date of
@@ -516,10 +574,25 @@ void main() {
         StorageCleanupLevel.confirmed,
         libraryRoots: mine,
       );
+      final (hashed, _) = await planFor(
+        StorageCleanupLevel.confirmed,
+        libraryRoots: mine,
+        hash: true,
+      );
 
       expect(paths(safe), level1);
       expect(paths(regenerable), {...level1, ...level2});
       expect(paths(confirmed), {...level1, ...level2, ...level3});
+      expect(paths(hashed), {...level1, ...level2, ...level3, duplicatePath});
+      for (final plan in [safe, regenerable, confirmed, hashed]) {
+        for (final path in neverProposed) {
+          expect(
+            plan.candidates.where((value) => inside(path, value.path)),
+            isEmpty,
+            reason: '${plan.level.name}: $path',
+          );
+        }
+      }
       expect(safe.refusals, isEmpty);
       expect(confirmed.refusals, isEmpty);
 
@@ -619,17 +692,23 @@ void main() {
         ).warningKeys,
         [StorageLocale.kartpadGameDataWarning],
       );
-      final duplicate = candidate(
-        confirmed,
-        doc('MyGames/snes/Super Mario World.sfc'),
-      );
+      final duplicate = candidate(hashed, duplicatePath);
       expect(duplicate.isDuplicate, isTrue);
+      expect(duplicate.level, StorageCleanupLevel.confirmed);
       expect(duplicate.preselected, isFalse);
       expect(duplicate.warningKeys, [StorageLocale.duplicateWarning]);
       expect(duplicate.pairedPath, doc('roms/snes/Super Mario World.sfc'));
       expect(
         duplicate.pairedDisplayPath,
         '<Documents>/roms/snes/Super Mario World.sfc',
+      );
+      // What the deletion checks again: the checksum of both copies and the
+      // referenced copy's size and modification time at the preview.
+      expect(duplicate.sha256, isNotNull);
+      expect(duplicate.pairedLogicalBytes, 100);
+      expect(
+        duplicate.pairedModified,
+        File(doc('roms/snes/Super Mario World.sfc')).statSync().modified,
       );
 
       // The Library caches are one API candidate each, never their files.
@@ -722,6 +801,7 @@ void main() {
         dolphinMarkerPresent: () async => false,
         libretroJournalUnfinished: () async => false,
         importActive: () => throw StateError('import state unreadable'),
+        libraryScanActive: () => false,
       ),
     );
     expect(plan.session.importActive, isTrue);
@@ -731,6 +811,161 @@ void main() {
     );
     expect(plan.blocked, isTrue);
     expect(plan.candidates, isEmpty);
+  });
+
+  // Review of the storage services: the library scanner rewrites user_roms
+  // (the orphans are computed from it) and keeps a transaction open on the
+  // database while it reads files.
+  test(
+    'a library scan in progress: no candidate, one refusal of its own',
+    () async {
+      await write(tmp('picked.zip'), age: const Duration(hours: 1));
+      await write(doc('Diagnostics/x.txt'));
+      StorageSessionGuard scanning({
+        bool Function()? scan,
+        bool launch = false,
+      }) => StorageSessionGuard(
+        launchActive: () => launch,
+        libretroActive: () async => false,
+        dolphinMarkerPresent: () async => false,
+        libretroJournalUnfinished: () async => false,
+        importActive: () => false,
+        libraryScanActive: scan,
+      );
+      void expectRefused(StorageCleanupPlan plan, StorageRefusalReason reason) {
+        expect(plan.candidates, isEmpty);
+        expect(plan.metadataKeys, isEmpty);
+        expect(plan.blocked, isTrue);
+        expect(plan.refusals, hasLength(1));
+        expect(plan.refusals.single.path, StoragePlanRefusal.wholePlan);
+        expect(plan.refusals.single.reason, reason);
+      }
+
+      for (final level in StorageCleanupLevel.values) {
+        final (plan, _) = await planFor(
+          level,
+          sessions: scanning(scan: () => true),
+        );
+        expectRefused(plan, StorageRefusalReason.libraryScanActive);
+        expect(plan.refusals.single.localeKey, StorageLocale.refuseLibraryScan);
+        expect(plan.session.libraryScanActive, isTrue);
+        expect(plan.session.wholeCleanupRefused, isTrue);
+      }
+      // A game as well: the game's reason, as before.
+      var (plan, _) = await planFor(
+        StorageCleanupLevel.safe,
+        sessions: scanning(scan: () => true, launch: true),
+      );
+      expectRefused(plan, StorageRefusalReason.sessionActive);
+      // A failing probe counts as a scan.
+      (plan, _) = await planFor(
+        StorageCleanupLevel.safe,
+        sessions: scanning(scan: () => throw StateError('provider disposed')),
+      );
+      expectRefused(plan, StorageRefusalReason.libraryScanActive);
+      expect(
+        plan.session.probeErrors['libraryScanActive'],
+        contains('provider disposed'),
+      );
+      // No probe at all: nobody can tell that no scan runs (fail closed).
+      (plan, _) = await planFor(StorageCleanupLevel.safe, sessions: scanning());
+      expectRefused(plan, StorageRefusalReason.libraryScanActive);
+      expect(
+        plan.session.probeErrors['libraryScanActive'],
+        contains('no library scan probe'),
+      );
+      // Idle: the plan is built.
+      (plan, _) = await planFor(
+        StorageCleanupLevel.confirmed,
+        sessions: scanning(scan: () => false),
+      );
+      expect(plan.blocked, isFalse);
+      expect(
+        paths(plan),
+        containsAll([tmp('picked.zip'), doc('Diagnostics/x.txt')]),
+      );
+    },
+  );
+
+  test(
+    'a known system without any game row keeps all its media and metadata',
+    () async {
+      await db.execute(
+        'INSERT INTO app_systems (id, real_name, folder_name) VALUES (?, ?, ?)',
+        ['psx', 'PSX', 'psx'],
+      );
+      // snes has a game: the library is not empty.
+      await rom('snes', 'Zelda.sfc', doc('roms/snes/Zelda.sfc'));
+      for (final (system, name) in [
+        ('psx', 'Final Fantasy VII.cue'),
+        ('snes', 'Deleted Game.sfc'),
+      ]) {
+        await db.execute(
+          'INSERT INTO user_screenscraper_metadata (app_system_id, filename) VALUES (?, ?)',
+          [system, name],
+        );
+      }
+      // The psx games live in a library folder the last scan could not
+      // read: their rows are gone, their media are still there.
+      final psxMedia = [
+        doc('media/psx/box2d/Final Fantasy VII.png'),
+        doc('media/psx/screenshots/Final Fantasy VII.png'),
+        doc('media/psx/videos/Final Fantasy VII.mp4'),
+        doc('media/psx/manuals/Final Fantasy VII.pdf'),
+        doc('media/psx/box2d/Custom cover set by the user.png'),
+      ];
+      for (final path in psxMedia) {
+        await write(path, length: 2048);
+      }
+      await write(doc('media/snes/box2d/Zelda.png'), length: 2048);
+      await write(doc('media/snes/box2d/Deleted Game.png'), length: 2048);
+      for (final level in [
+        StorageCleanupLevel.regenerable,
+        StorageCleanupLevel.confirmed,
+      ]) {
+        final (plan, _) = await planFor(level);
+        expect(paths(plan).intersection(psxMedia.toSet()), isEmpty);
+        expect(paths(plan), contains(doc('media/snes/box2d/Deleted Game.png')));
+        expect(paths(plan), isNot(contains(doc('media/snes/box2d/Zelda.png'))));
+        expect(plan.metadataKeys, const [
+          StorageOrphanMetadataKey('snes', 'Deleted Game.sfc'),
+        ]);
+      }
+    },
+  );
+
+  test('a registered library folder missing: no orphan media, metadata or '
+      'cover is proposed, the caches still are', () async {
+    await rom('snes', 'Zelda.sfc', doc('roms/snes/Zelda.sfc'));
+    await write(doc('roms/snes/Zelda.sfc'));
+    await db.execute(
+      'INSERT INTO user_screenscraper_metadata (app_system_id, filename) VALUES (?, ?)',
+      ['snes', 'Deleted Game.sfc'],
+    );
+    await write(doc('media/snes/box2d/Deleted Game.png'));
+    File(sup('Library/local-index.json'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('{"version": 1, "books": []}');
+    await write(sup('Library/covers/orphan.png'));
+    await write(cac('Libretro/SkinCache/skin1/a.png'));
+    final orphans = {
+      doc('media/snes/box2d/Deleted Game.png'),
+      sup('Library/covers/orphan.png'),
+    };
+    var (plan, _) = await planFor(
+      StorageCleanupLevel.regenerable,
+      libraryRoots: [doc('roms')],
+    );
+    expect(paths(plan), containsAll(orphans));
+    expect(plan.metadataKeys, hasLength(1));
+    // The folder of the scan is gone (an external drive, a stale bookmark).
+    (plan, _) = await planFor(
+      StorageCleanupLevel.regenerable,
+      libraryRoots: [doc('roms'), doc('Removed Drive')],
+    );
+    expect(paths(plan).intersection(orphans), isEmpty);
+    expect(plan.metadataKeys, isEmpty);
+    expect(paths(plan), contains(cac('Libretro/SkinCache/skin1')));
   });
 
   Future<void> writeLibretroAndOthers() async {
@@ -788,6 +1023,7 @@ void main() {
         launchActive: () => false,
         libretroActive: () async => false,
         containers: containers,
+        libraryScanActive: () => false,
       );
 
       await journal.writeAsString(
@@ -848,11 +1084,15 @@ void main() {
         launchActive: () => false,
         libretroActive: () async => false,
         containers: containers,
+        libraryScanActive: () => false,
       );
 
+      // The duplicate in Dolphin/Library is offered with the checksums only
+      // (review of the storage services; it used to be without).
       var (plan, _) = await planFor(
         StorageCleanupLevel.confirmed,
         sessions: fromFiles(),
+        hash: true,
       );
       final dolphinPaths = {
         dolphin('Library/gc/Metroid Prime.rvz'),
@@ -868,6 +1108,7 @@ void main() {
       (plan, _) = await planFor(
         StorageCleanupLevel.confirmed,
         sessions: fromFiles(),
+        hash: true,
       );
       expect(plan.session.dolphinMarker, isTrue);
       expect(paths(plan).intersection(dolphinPaths), isEmpty);
@@ -894,6 +1135,7 @@ void main() {
         libretroActive: () async => throw StateError('channel closed'),
         dolphinMarkerPresent: () async => false,
         libretroJournalUnfinished: () async => false,
+        libraryScanActive: () => false,
       ),
     );
     expect(plan.session.libretroActive, isTrue);
@@ -1078,11 +1320,21 @@ void main() {
       ]) {
         await write(p.join(complete, name));
       }
+      // Contract replaced by the review of the storage services: the backup
+      // folders (`older`, `complete`) used to be level-3 candidates; they
+      // may hold the only copy of console-unique files and are never
+      // proposed now, whatever the level. The staging folders stay level-1
+      // candidates while no pass is interrupted.
+      bool any3ds(StorageCleanupPlan plan, Iterable<String> roots) => plan
+          .candidates
+          .any((value) => roots.any((root) => inside(root, value.path)));
       var (plan, _) = await planFor(StorageCleanupLevel.confirmed);
-      expect(
-        paths(plan),
-        containsAll([importStaging, restoreStaging, older, complete]),
-      );
+      expect(paths(plan), containsAll([importStaging, restoreStaging]));
+      expect(candidate(plan, importStaging).level, StorageCleanupLevel.safe);
+      for (final level in StorageCleanupLevel.values) {
+        (plan, _) = await planFor(level);
+        expect(any3ds(plan, [older, complete]), isFalse, reason: level.name);
+      }
 
       // A pass journal without its completion marker: an interrupted pass,
       // recovered from its backup folder and its staging by the 3DS page.
@@ -1093,16 +1345,114 @@ void main() {
       for (final level in StorageCleanupLevel.values) {
         (plan, _) = await planFor(level);
         expect(
-          paths(
-            plan,
-          ).intersection({importStaging, restoreStaging, interrupted}),
-          isEmpty,
+          any3ds(plan, [
+            importStaging,
+            restoreStaging,
+            older,
+            complete,
+            interrupted,
+          ]),
+          isFalse,
           reason: level.name,
         );
       }
-      expect(paths(plan), containsAll([older, complete]));
+      expect(
+        await StorageCleanupPlanner.interrupted3dsPasses(
+          StorageRootRegistry(containers),
+        ),
+        {storageCanonicalPath(interrupted)},
+      );
     },
   );
+
+  /// Lists a directory sorted by name, the 3DS pass journals last, so that
+  /// an entry bound is reached before them (test seam of the scanner).
+  Stream<FileSystemEntity> journalsLast(Directory directory) async* {
+    final entities = directory.listSync(followLinks: false)
+      ..sort((a, b) {
+        int rank(FileSystemEntity entity) =>
+            p.basename(entity.path) == StorageCleanupPlanner.threeDsPassLogName
+            ? 1
+            : 0;
+        final byRank = rank(a).compareTo(rank(b));
+        return byRank != 0 ? byRank : a.path.compareTo(b.path);
+      });
+    for (final entity in entities) {
+      yield entity;
+    }
+  }
+
+  // Review of the storage services: the interrupted passes are read from
+  // the disk, not from the scan, and an incomplete walk of INV-14 or an
+  // unreadable backups folder offers nothing of the 3DS (fail closed).
+  test('an interrupted 3DS pass hidden by a truncated scan still keeps every '
+      '3DS staging', () async {
+    const stamp = '20261012-100000';
+    final backup = doc('Libretro/Backups/Azahar/$stamp');
+    for (var index = 0; index < 40; index++) {
+      await write(p.join(backup, 'f$index.bin'));
+    }
+    await write(p.join(backup, StorageCleanupPlanner.threeDsPassLogName));
+    final staging = doc(
+      'Libretro/Saves/Azahar/${Libretro3dsSystemDataService.stagingPrefix}'
+      '$stamp',
+    );
+    await write(p.join(staging, 'sysdata/keys.txt'));
+    final truncated = StorageScanner(
+      maxEntriesPerRoot: 20,
+      lister: journalsLast,
+    );
+    for (final scanner in [null, truncated]) {
+      for (final level in StorageCleanupLevel.values) {
+        final (plan, _) = await planFor(level, scanner: scanner);
+        expect(plan.candidateFor(staging), isNull, reason: level.name);
+        expect(plan.preselectedPaths, isNot(contains(staging)));
+      }
+    }
+    // The truncated walk did not see the journal: the disk did.
+    final registry = StorageRootRegistry(containers);
+    final scan = await truncated.scan(registry);
+    expect(scan.truncations.map((cut) => cut.rootId), contains('INV-14'));
+    expect(
+      scan
+          .nodesOfRoot('INV-14')
+          .expand((node) => node.descendants)
+          .where(
+            (node) => node.name == StorageCleanupPlanner.threeDsPassLogName,
+          ),
+      isEmpty,
+    );
+
+    // The pass completes: the staging is offered again by a full walk,
+    // never by a truncated one.
+    await write(
+      p.join(backup, StorageCleanupPlanner.threeDsCompleteMarkerName),
+    );
+    var (plan, _) = await planFor(StorageCleanupLevel.safe);
+    expect(plan.candidateFor(staging), isNotNull);
+    expect(plan.preselectedPaths, contains(staging));
+    (plan, _) = await planFor(StorageCleanupLevel.safe, scanner: truncated);
+    expect(plan.candidateFor(staging), isNull);
+  });
+
+  test('an unreadable 3DS backups folder offers nothing of the 3DS', () async {
+    final staging = doc(
+      'Libretro/Saves/Azahar/${Libretro3dsSystemDataService.stagingPrefix}'
+      '20261012-100000',
+    );
+    await write(p.join(staging, 'nand/x'));
+    // Not a folder: its passes cannot be read.
+    await write(doc('Libretro/Backups/Azahar'));
+    final registry = StorageRootRegistry(containers);
+    expect(await StorageCleanupPlanner.interrupted3dsPasses(registry), isNull);
+    final (plan, _) = await planFor(StorageCleanupLevel.safe);
+    expect(plan.candidateFor(staging), isNull);
+    await File(doc('Libretro/Backups/Azahar')).delete();
+    // No backups folder at all: no pass, the staging is offered.
+    expect(await StorageCleanupPlanner.interrupted3dsPasses(registry), isEmpty);
+    final (open, _) = await planFor(StorageCleanupLevel.safe);
+    expect(open.candidateFor(staging), isNotNull);
+  });
 
   test(
     'the KartPad and Dusklight cache folders are level 2, never during a game',

@@ -310,6 +310,18 @@ void main() {
   test('a redirected RPCS3 tree protects every RPCS3 root', () {
     final open = registry();
     final redirected = registry(redirected: true);
+    // Contract replaced by the review of the storage services: the save
+    // backups (`SaveBackups`) used to be unprotected in an open tree (level
+    // 3); they are backups of user data, protected by their own rule
+    // whether the tree is redirected or not (below).
+    for (final path in [
+      sup('NeoStation/RPCS3/Cache/ppu-x.obj'),
+      sup('NeoStation/RPCS3/Data/dev_hdd0/tmp/x'),
+      sup('NeoStation/RPCS3/Data/dev_hdd1/x'),
+      sup('NeoStation/RPCS3/Imports/PS3UPDAT-1.PUP'),
+    ]) {
+      expect(open.isProtected(path), isFalse, reason: path);
+    }
     for (final path in [
       sup('NeoStation/RPCS3/Cache/ppu-x.obj'),
       sup('NeoStation/RPCS3/Data/dev_hdd0/tmp/x'),
@@ -317,7 +329,6 @@ void main() {
       sup('NeoStation/RPCS3/Imports/PS3UPDAT-1.PUP'),
       sup('NeoStation/RPCS3/SaveBackups/BLES-1/x'),
     ]) {
-      expect(open.isProtected(path), isFalse, reason: path);
       expect(redirected.isProtected(path), isTrue, reason: path);
       expect(redirected.isRpcs3Path(path), isTrue, reason: path);
       expect(
@@ -327,6 +338,13 @@ void main() {
         StorageProtectedReason.rpcs3Redirected,
       );
     }
+    final saveBackup = StorageCategorizer(open).classify(
+      sup('NeoStation/RPCS3/SaveBackups/BLES-1/x'),
+      StorageEntryKind.file,
+    );
+    expect(saveBackup.deletionClass, StorageDeletionClass.never);
+    expect(saveBackup.protectedReason, StorageProtectedReason.rule);
+    expect(saveBackup.ruleId, 'INV-19.saveBackups');
     expect(redirected.isProtected(tmp('Game.zip')), isFalse);
   });
 
@@ -483,36 +501,139 @@ void main() {
     },
   );
 
-  test(
-    '3DS backups need confirmation, staging is temporary, the NAND stays never',
-    () {
-      final categorizer = StorageCategorizer(registry());
-      StorageClassification of(String relative) =>
-          categorizer.classify(doc(relative), StorageEntryKind.file);
-      final backup = of(
-        'Libretro/Backups/Azahar/20261012-101010/sysdata/keys.txt',
-      );
-      expect(backup.ruleId, 'INV-14.3dsBackups');
-      expect(backup.category, StorageCategory.userContent);
-      expect(backup.deletionClass, StorageDeletionClass.confirmation);
-      for (final staging in [
-        'Libretro/Saves/Azahar/.neostation-3ds-import-20261012-101010/nand/x',
-        'Libretro/Saves/Azahar/.neostation-3ds-restore-20261012-101010',
-      ]) {
-        final value = of(staging);
-        expect(value.ruleId, 'INV-14.3dsStaging', reason: staging);
-        expect(value.category, StorageCategory.temporary);
-        expect(value.deletionClass, StorageDeletionClass.temporaryWhenIdle);
+  test('3DS backups are never proposed, staging is temporary, the NAND stays '
+      'never', () {
+    final categorizer = StorageCategorizer(registry());
+    StorageClassification of(String relative) =>
+        categorizer.classify(doc(relative), StorageEntryKind.file);
+    final backup = of(
+      'Libretro/Backups/Azahar/20261012-101010/sysdata/keys.txt',
+    );
+    expect(backup.ruleId, 'INV-14.3dsBackups');
+    expect(backup.category, StorageCategory.userContent);
+    // Contract replaced by the review of the storage services: the 3DS
+    // backups used to need a detailed confirmation (level 3); they may hold
+    // the only copy of console-unique files and are never proposed now.
+    expect(backup.deletionClass, StorageDeletionClass.never);
+    expect(backup.protectedReason, StorageProtectedReason.rule);
+    for (final staging in [
+      'Libretro/Saves/Azahar/.neostation-3ds-import-20261012-101010/nand/x',
+      'Libretro/Saves/Azahar/.neostation-3ds-restore-20261012-101010',
+    ]) {
+      final value = of(staging);
+      expect(value.ruleId, 'INV-14.3dsStaging', reason: staging);
+      expect(value.category, StorageCategory.temporary);
+      expect(value.deletionClass, StorageDeletionClass.temporaryWhenIdle);
+    }
+    for (final kept in [
+      'Libretro/Saves/Azahar/Azahar/nand/00000000000000000000000000000000/title/x',
+      'Libretro/Saves/Azahar/Azahar/sysdata/keys.txt',
+      'Libretro/Saves/Azahar/.other-staging/x',
+    ]) {
+      expect(of(kept).deletionClass, StorageDeletionClass.never, reason: kept);
+    }
+  });
+
+  // Review of the storage services (12 October 2026): the copies NeoStation
+  // makes of user data before replacing or removing it are never proposed,
+  // whatever the level, wherever they are and whatever their file kind.
+  test('the NeoStation backups of user data are never proposed', () {
+    final categorizer = StorageCategorizer(registry());
+    for (final (path, rule) in [
+      (
+        sup('NeoStation/Maintenance/data-20261012-101010.sqlite'),
+        'INV-02.maintenanceBackup',
+      ),
+      (
+        sup('NeoStation/Maintenance/data-20261012-101010-2.sqlite'),
+        'INV-02.maintenanceBackup',
+      ),
+      (
+        sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE-1/PARAM.SFO'),
+        'INV-19.saveBackups',
+      ),
+      (
+        sup(
+          'NeoStation/RPCS3/RapBackups/EP0001-NPEB00001_00-0000000000000001.rap',
+        ),
+        'INV-19.rapBackups',
+      ),
+      (
+        doc('Libretro/Backups/Azahar/20261012-101010/nand/x'),
+        'INV-14.3dsBackups',
+      ),
+    ]) {
+      for (final kind in [StorageEntryKind.file, StorageEntryKind.directory]) {
+        final value = categorizer.classify(path, kind);
+        expect(value.ruleId, rule, reason: path);
+        expect(value.deletionClass, StorageDeletionClass.never, reason: path);
+        expect(value.protectedReason, StorageProtectedReason.rule);
       }
-      for (final kept in [
-        'Libretro/Saves/Azahar/Azahar/nand/00000000000000000000000000000000/title/x',
-        'Libretro/Saves/Azahar/Azahar/sysdata/keys.txt',
-        'Libretro/Saves/Azahar/.other-staging/x',
+      // Their folders too.
+      expect(
+        categorizer
+            .classify(p.dirname(path), StorageEntryKind.directory)
+            .deletionClass,
+        StorageDeletionClass.never,
+        reason: p.dirname(path),
+      );
+    }
+    // A `.part` beside them keeps their class (user content).
+    expect(
+      categorizer
+          .classify(
+            sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE-1/x.part'),
+            StorageEntryKind.file,
+          )
+          .deletionClass,
+      StorageDeletionClass.never,
+    );
+  });
+
+  // Review of the storage services: NSURLCache keeps its index in an open
+  // SQLite database beside `fsCachedData`; removing it under the system's
+  // feet is never proposed (the Library cache API empties the cache).
+  test(
+    'the URL cache database is never, the cached data stays regenerable',
+    () {
+      for (final (value, bundle) in [
+        (registry(bundle: 'com.example.renamed'), 'com.example.renamed'),
+        (registry(), 'com.neogamelab.neostation.ABCDE12345'),
       ]) {
+        final categorizer = StorageCategorizer(value);
+        for (final name in ['Cache.db', 'Cache.db-wal', 'Cache.db-shm']) {
+          final classification = categorizer.classify(
+            cac('$bundle/$name'),
+            StorageEntryKind.file,
+          );
+          expect(classification.ruleId, 'NEVER.urlCacheDatabase', reason: name);
+          expect(
+            classification.deletionClass,
+            StorageDeletionClass.never,
+            reason: name,
+          );
+          expect(
+            classification.protectedReason,
+            StorageProtectedReason.neverList,
+          );
+          expect(classification.category, StorageCategory.caches);
+          expect(value.isProtected(cac('$bundle/$name')), isTrue, reason: name);
+        }
+        final data = categorizer.classify(
+          cac('$bundle/fsCachedData/0A1B2C3D'),
+          StorageEntryKind.file,
+        );
+        expect(data.ruleId, 'INV-29.urlCache');
+        expect(data.deletionClass, StorageDeletionClass.regenerableAtCost);
+        // Names that only start like it are not the database.
         expect(
-          of(kept).deletionClass,
-          StorageDeletionClass.never,
-          reason: kept,
+          categorizer
+              .classify(
+                cac('$bundle/fsCachedData/Cache.dbx'),
+                StorageEntryKind.file,
+              )
+              .deletionClass,
+          StorageDeletionClass.regenerableAtCost,
         );
       }
     },

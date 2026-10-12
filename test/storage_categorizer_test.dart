@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/storage/storage_categorizer.dart';
 import 'package:neostation/services/storage/storage_roots.dart';
 import 'package:path/path.dart' as p;
@@ -188,6 +189,56 @@ void main() {
     });
   });
 
+  // The sidecar of the Library reading store (Build 447,
+  // `LibraryReadingStore.extraFileName`): its atomic-write `.tmp` and kept
+  // `.corrupt` copies follow the main file's pattern. It used to match no
+  // rule (protected, but counted as unknown data).
+  test(
+    'the reading store sidecar is classified exactly like reading-state.json',
+    () {
+      expect(LibraryReadingStore.extraFileName, 'reading-state-extra.json');
+      expect(LibraryReadingStore.fileName, 'reading-state.json');
+      for (final suffix in [
+        '',
+        '.tmp',
+        LibraryReadingStore.corruptSuffix,
+        '${LibraryReadingStore.corruptSuffix}-1760000000000',
+      ]) {
+        final main = sup('Library/${LibraryReadingStore.fileName}$suffix');
+        final extra = sup(
+          'Library/${LibraryReadingStore.extraFileName}$suffix',
+        );
+        expectNever({main: StorageCategory.indexFiles});
+        expectNever({extra: StorageCategory.indexFiles});
+        for (final kind in [
+          StorageEntryKind.file,
+          StorageEntryKind.directory,
+        ]) {
+          final expected = categorizer.classify(main, kind);
+          final value = categorizer.classify(extra, kind);
+          expect(value.ruleId, expected.ruleId, reason: extra);
+          expect(
+            value.protectedReason,
+            expected.protectedReason,
+            reason: extra,
+          );
+          expect(value.rootId, 'INV-23', reason: extra);
+          expect(value.engine, StorageEngine.library, reason: extra);
+        }
+        expect(
+          categorizer.classify(extra, StorageEntryKind.file).ruleId,
+          suffix.isEmpty ? 'NEVER.readingState' : 'INV-23.index',
+          reason: extra,
+        );
+      }
+      // Only these names: another file beside them stays unknown data.
+      expect(
+        file(sup('Library/reading-state-other.json')).category,
+        StorageCategory.unknown,
+      );
+    },
+  );
+
   test('the hidden library folder is never deletable and aggregate-only', () {
     for (final path in [
       doc('Library/Sources'),
@@ -356,16 +407,6 @@ void main() {
               StorageCategory.temporary,
               'INV-19.firmwareImport',
             ),
-            sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE-1/x'): (
-              StorageDeletionClass.confirmation,
-              StorageCategory.userContent,
-              'INV-19.saveBackups',
-            ),
-            sup('NeoStation/RPCS3/RapBackups/x.rap'): (
-              StorageDeletionClass.confirmation,
-              StorageCategory.userContent,
-              'INV-19.rapBackups',
-            ),
             dolphin('ShaderCache/x.cache'): (
               StorageDeletionClass.regenerableAtCost,
               StorageCategory.caches,
@@ -436,11 +477,6 @@ void main() {
               StorageCategory.logs,
               'INV-02.appLogOld',
             ),
-            sup('NeoStation/Maintenance/data-20261012-101010.sqlite'): (
-              StorageDeletionClass.confirmation,
-              StorageCategory.userContent,
-              'INV-02.maintenanceBackup',
-            ),
             dolphin('Logs/dolphin-2026-10-12T10-00-00.000Z.jsonl'): (
               StorageDeletionClass.regenerableAtCost,
               StorageCategory.logs,
@@ -463,6 +499,35 @@ void main() {
         expect(classification.ruleId, value.$3, reason: path);
         expect(classification.protectedReason, isNull, reason: path);
       });
+      // Contract replaced by the review of the storage services: the RPCS3
+      // save and licence backups and the copies of data.sqlite used to need
+      // a detailed confirmation (level 3). Backups of user data, they are
+      // never proposed now, by their own rule (same category and rule id).
+      for (final (path, rule) in [
+        (
+          sup('NeoStation/RPCS3/SaveBackups/BLES00113-SAVE-1/x'),
+          'INV-19.saveBackups',
+        ),
+        (sup('NeoStation/RPCS3/RapBackups/x.rap'), 'INV-19.rapBackups'),
+        (
+          sup('NeoStation/Maintenance/data-20261012-101010.sqlite'),
+          'INV-02.maintenanceBackup',
+        ),
+      ]) {
+        final classification = file(path);
+        expect(
+          classification.deletionClass,
+          StorageDeletionClass.never,
+          reason: '$path → $classification',
+        );
+        expect(classification.category, StorageCategory.userContent);
+        expect(classification.ruleId, rule, reason: path);
+        expect(
+          classification.protectedReason,
+          StorageProtectedReason.rule,
+          reason: path,
+        );
+      }
       expect(file(tmp('Game.zip')).minimumAge, const Duration(minutes: 10));
       expect(
         file(sup('NeoStation/RPCS3/Imports/PS3UPDAT-1.PUP')).minimumAge,
@@ -471,36 +536,120 @@ void main() {
     },
   );
 
-  test(
-    '*.part is temporary after the rule, except where never-lists or saves rule',
-    () {
-      final iso = file(doc('ARMSX2/Games/Game.iso.part'));
-      expect(iso.deletionClass, StorageDeletionClass.temporaryWhenIdle);
-      expect(iso.ruleId, StorageCategorizer.partOverrideRuleId);
-      expect(iso.minimumAge, StorageCategorizer.partMinimumAge);
-      expect(iso.engine, StorageEngine.armsx2);
+  test('*.part is temporary after the rule, except where never-lists, saves, '
+      'system files, NeoSwap, index, games or user content rule', () {
+    // Contract replaced by the review of the storage services: a `.part`
+    // in a games folder (`ARMSX2/Games`, `Dolphin/Library`) used to become
+    // a temporary of level 1, preselected. A partial file there — a
+    // download, a copy the user started — is the user's: games and user
+    // content now keep their rule's class, as saves, system files, NeoSwap
+    // and index files already did. The override still applies under the
+    // other rules (media, caches, logs).
+    expect(
+      StorageCategorizer.partOverrideExcluded,
+      containsAll([StorageCategory.games, StorageCategory.userContent]),
+    );
+    for (final (path, rule, engine) in [
+      (
+        doc('media/snes/box2d/Game.png.part'),
+        'INV-05.media',
+        StorageEngine.frontend,
+      ),
+      (
+        sup('NeoStation/RPCS3/Cache/ppu-x.obj.part'),
+        'INV-18.cache',
+        StorageEngine.rpcs3,
+      ),
+      (doc('Diagnostics/trace.txt.part'), 'INV-06.diagnostics', null),
+      (
+        cac('Libretro/SkinCache/x.png.part'),
+        'INV-25.skinCache',
+        StorageEngine.libretro,
+      ),
+    ]) {
+      final value = file(path);
       expect(
-        file(dolphin('Library/gc/Game.rvz.part')).deletionClass,
+        value.deletionClass,
         StorageDeletionClass.temporaryWhenIdle,
+        reason: path,
       );
-      for (final kept in [
-        doc('roms/snes/Game.sfc.part'),
-        doc('MyGames/Game.iso.part'),
-        doc('Libretro/Saves/Snes9x/Game.srm.part'),
-        doc('Libretro/System/bios.bin.part'),
-        sup('StikJIT/pairing.part'),
-        data('dev_hdd0/game/BLES00113/x.part'),
-        doc('unknown.part'),
-        cac('NeoSwap-v1/x.part'),
+      expect(value.category, StorageCategory.temporary, reason: path);
+      expect(value.ruleId, StorageCategorizer.partOverrideRuleId);
+      expect(value.minimumAge, StorageCategorizer.partMinimumAge);
+      expect(value.rule?.id, rule, reason: path);
+      if (engine != null) expect(value.engine, engine, reason: path);
+    }
+    // The games and user content folders, with this test's registry and
+    // with the production inputs (`Documents/roms` and the ARMSX2 linked
+    // folders that StorageRootRegistry.resolve() adds).
+    final production = StorageCategorizer(
+      StorageRootRegistry(
+        containers,
+        libraryRoots: [doc('roms'), doc('ARMSX2'), doc('ARMSX2/Games')],
+      ),
+    );
+    for (final (path, category) in [
+      (doc('ARMSX2/Games/Game.iso.part'), StorageCategory.games),
+      (dolphin('Library/gc/Game.rvz.part'), StorageCategory.games),
+      (
+        doc('Libretro/Skins/delta-snes/assets.part'),
+        StorageCategory.userContent,
+      ),
+      (
+        dolphin('User/Load/Textures/GALE01/tex1_64x64_x.png.part'),
+        StorageCategory.userContent,
+      ),
+      (
+        doc('Library/Downloads/One Piece 1002.cbz.part'),
+        StorageCategory.userContent,
+      ),
+      (doc('Library/Books/Dune.epub.part'), StorageCategory.userContent),
+      (doc('Ports/KartPad/Mods/track.szs.part'), StorageCategory.userContent),
+      (doc('user-data/themes/epic/bg.png.part'), StorageCategory.userContent),
+      (
+        doc('Libretro/Cheats/Snes9x/Game.cht.part'),
+        StorageCategory.userContent,
+      ),
+      (
+        doc('RPCS3/Import/Game Saves/save.zip.part'),
+        StorageCategory.userContent,
+      ),
+    ]) {
+      for (final value in [
+        file(path),
+        production.classify(path, StorageEntryKind.file),
       ]) {
+        expect(value.deletionClass, StorageDeletionClass.never, reason: path);
+        expect(value.category, category, reason: path);
         expect(
-          file(kept).deletionClass,
-          StorageDeletionClass.never,
-          reason: kept,
+          value.ruleId,
+          isNot(StorageCategorizer.partOverrideRuleId),
+          reason: path,
         );
       }
-    },
-  );
+    }
+    // NeoStation's own partial files there keep their explicit rules.
+    expect(
+      file(doc('Ports/KartPad/Games/RMCP01.wbfs.part')).ruleId,
+      'INV-12.gamePart',
+    );
+    for (final kept in [
+      doc('roms/snes/Game.sfc.part'),
+      doc('MyGames/Game.iso.part'),
+      doc('Libretro/Saves/Snes9x/Game.srm.part'),
+      doc('Libretro/System/bios.bin.part'),
+      sup('StikJIT/pairing.part'),
+      data('dev_hdd0/game/BLES00113/x.part'),
+      doc('unknown.part'),
+      cac('NeoSwap-v1/x.part'),
+    ]) {
+      expect(
+        file(kept).deletionClass,
+        StorageDeletionClass.never,
+        reason: kept,
+      );
+    }
+  });
 
   test('classifyChild gives exactly the decision of classify', () {
     final paths = [

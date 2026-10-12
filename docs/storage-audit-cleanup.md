@@ -780,3 +780,70 @@ Vérifications sur une copie isolée de la révision : porte de réutilisation, 
 6 échecs, les mêmes que sur la source 446 (`dolphin_import_ui_test` ×2, `dolphin_isolation_contract_test` ×2,
 `rpcs3_import_spu_build230_contract_test` ×2, hors livraison) ; suite Python complète : mêmes échecs que sur la source
 446, sauf `dolphin_external_display_ui_test.py`, désormais vert. Rien n'est vérifié sur iPhone.
+
+### 9.7 Corrections de la revue contradictoire des services (12 octobre 2026)
+
+Revue en lecture seule des services à `72b96dd2` ; cinq défauts, dont trois pouvaient coûter des données, et des
+renforcements. Écarts aux §§ 3.1, 3.4–3.8 et 8.
+
+1. **Doublons.** Ils étaient reconnus au nom et à la taille seuls : deux ROM ou ISO différentes de même nom et de même
+   taille (versions USA et EUR, ISO GameCube de taille unique) auraient permis de supprimer un jeu unique. Une copie
+   n'est désormais proposée que si les empreintes ont été calculées et que son SHA-256 égale celui de la copie
+   conservée ; sans empreintes, les copies restent listées (`StorageDuplicateKeep.notHashed`) mais ne sont jamais
+   sélectionnables, avec la ligne `duplicatesNeedHashes`. Les candidats portent `sha256`, `pairedLogicalBytes` et
+   `pairedModified` ; à l'exécution, refus `changedSincePreview` si la copie conservée a changé de taille ou de date
+   (`referencedCopyChanged`), si les deux chemins désignent le même fichier (même dev:ino, `sameFile`), si l'identité
+   ne peut être lue (`fileIdentityUnknown`) ou sans empreintes (`notHashed`). Aucune nouvelle empreinte n'est calculée
+   à l'exécution : une copie réécrite à la même taille avec sa date d'origine remise ne serait pas vue.
+2. **Fichiers `*.part`.** L'exception par nom ne s'applique plus aux classes `games` et `userContent`
+   (`partOverrideExcluded`) : un `.part` d'un dossier de jeux, de livres, de skins, de triches, de mods, de textures,
+   de thèmes ou d'import RPCS3 n'est plus proposé en niveau Sûr.
+3. **Orphelins.** (a) Une console sans aucune ligne dans `user_roms` n'est pas analysée (`systemsWithoutGames`, ligne
+   `emptySystemsNotAnalyzed`) : le scanner verrouillé retire les lignes d'un dossier illisible (signet périmé d'un
+   dossier lié), et les illustrations remplacées par l'utilisateur vivent dans les mêmes dossiers de médias ; requête
+   des métadonnées avec `AND EXISTS (… user_roms …)` et `storageMetadataSystemsWithoutGamesQuery`. (b) Si un dossier
+   de bibliothèque enregistré ou le dossier lié est absent ou illisible (sur le disque et dans l'analyse), médias,
+   métadonnées et couvertures ne sont pas analysés, avec la raison brute. (c) La garde de session reçoit une sonde
+   d'analyse de la bibliothèque (`isScanning`, `isScanningRoms`, `isSilentScanning` de `SqliteConfigProvider`) ;
+   sonde absente, en échec ou fournisseur manquant valent « analyse en cours » : plan refusé et suppression arrêtée
+   (`libraryScanActive`, texte `refuseLibraryScan`). (d) À l'exécution, médias, couvertures et clés de métadonnées
+   sélectionnés sont revérifiés sur une lecture neuve (`StorageOrphanDetector.recheck`) ; ce qui n'est plus orphelin
+   est refusé (`noLongerOrphan`) ; ligne de journal `recheck` (comptes seulement).
+4. **Transaction des métadonnées.** `DatabaseAdapter.transaction()` rejoint toute transaction déjà ouverte sur la
+   connexion partagée (le scanner garde la sienne pendant des lectures de fichiers) : une suppression partielle
+   aurait pu être validée par le scanner, ou annulée en silence alors qu'elle était annoncée. La sauvegarde et la
+   suppression refusent désormais (`StorageMaintenanceBusy`, raison `databaseBusy`, texte `refuseDatabaseBusy`) tant
+   que `autocommit` est faux, et la suppression est un seul `BEGIN IMMEDIATE … COMMIT` synchrone sur `rawDb`, sans
+   attente entre la vérification et la validation ; l'étape revérifie aussi la session.
+5. **3DS.** La protection des passes interrompues se fondait sur l'analyse et cédait si le parcours d'INV-14 était
+   tronqué. `StorageCleanupPlanner.interrupted3dsPasses` lit le disque (constantes du service 3DS) ; aucun dossier de
+   préparation n'est proposé si une passe est interrompue, si le dossier des sauvegardes est illisible ou si le
+   parcours d'INV-14 est tronqué, inaccessible ou un lien ; l'exécution revérifie (`isProtected`,
+   `interrupted3dsPass` ou `threeDsBackupsUnreadable`).
+6. **Renforcements.** (a) Sauvegardes faites par NeoStation avant un remplacement — `RPCS3/SaveBackups`,
+   `RPCS3/RapBackups`, copies de `data.sqlite` et `Libretro/Backups/Azahar/<horodatage>` — passent en classe
+   « jamais » (mesurées, montrées comme protégées, jamais proposées) : elles contiennent des sauvegardes, des licences
+   ou des données de console, que le mainteneur exclut de toute suppression ; le texte d'aide du niveau 3 ne promet
+   plus de copies de sauvegarde (douze langues ; français : « Niveau Régénérable, plus les diagnostics,
+   enregistrements vidéo, exports et doublons aux empreintes identiques, à cocher un par un. »). (b) `Cache.db`,
+   `Cache.db-wal` et `Cache.db-shm` de `NSURLCache` (fichiers SQLite ouverts) sont en classe « jamais »
+   (`NEVER.urlCacheDatabase`) ; le filtre préalable des noms « jamais » ne regardait que `.json`, `.yml`, `.sqlite` et
+   `.icloud`, il est corrigé. (c) Le fichier annexe des livres `Library/reading-state-extra.json` et ses copies
+   `.tmp`, `.corrupt` sont classés comme `reading-state.json` (`^reading-state(?:-extra)?\.json$`, INV-23.index).
+7. **Tests.** Test B du planificateur avec des `.part` de jeux et de contenu utilisateur, les sauvegardes et
+   `Cache.db`, avec les entrées de production et avec empreintes ; doublons de contenu différent et liens physiques ;
+   console sans jeu ; analyse tronquée ; transaction rejointe. Contrats remplacés et commentés (sauvegardes en
+   « jamais », doublons à empreintes, consoles sans jeu, `.part` des dossiers de jeux).
+
+Quatre clés ajoutées (`refuseLibraryScan`, `refuseDatabaseBusy`, `duplicatesNeedHashes`, `emptySystemsNotAnalyzed`)
+et une modifiée (`levelConfirmedHelp`), dans les douze langues. `StorageRefusalReason` gagne `libraryScanActive` et
+`databaseBusy` ; `StorageDeletionResult.stopReason` est affiché par la page de résultat. Restent tels quels : les
+copies de préparation KartPad `GameData.{import,rollback}-*` au niveau 1 (données de jeu extraites et régénérables) ;
+`Dolphin/User/{GC,Wii}.previous*` et `.incoming`, déjà jamais proposés (classés inconnus). Non testés ici : la
+disposition `struct stat` de Darwin pour le contrôle dev:ino (vérifié sous Linux) et l'échec fermé d'un dossier de
+passe 3DS illisible (aucun point d'injection, root ignore `chmod`).
+
+Vérifications sur une copie isolée : porte de réutilisation, gardes d'identité identiques, contrats Python du job
+`checks` ; `flutter analyze` : 52 remarques « info » identiques à la source 446 ; suite Dart complète : 2 836 réussis,
+5 ignorés, les 6 mêmes échecs que la source 446 ; suite Python : mêmes échecs que la source 446, un de moins. Rien
+n'est vérifié sur iPhone.

@@ -22,13 +22,28 @@ import 'storage_roots.dart';
 import 'storage_scanner.dart';
 
 /// Orphan metadata rows: the LEFT JOIN of § 3.5 on
-/// `UNIQUE(app_system_id, filename)` (`sqlite_service.dart:1894`).
+/// `UNIQUE(app_system_id, filename)` (`sqlite_service.dart:1894`), of the
+/// systems that still have at least one game row (review of the storage
+/// services: a system without any row — its library folder unreadable and
+/// its rows pruned by a scan — is not evidence that its metadata is
+/// orphan; [storageMetadataSystemsWithoutGamesQuery] lists them).
 const String storageOrphanMetadataQuery =
     'SELECT m.app_system_id, m.filename '
     'FROM user_screenscraper_metadata m '
     'LEFT JOIN user_roms r ON r.app_system_id = m.app_system_id '
     'AND r.filename = m.filename '
-    'WHERE r.filename IS NULL ORDER BY 1, 2';
+    'WHERE r.filename IS NULL '
+    'AND EXISTS (SELECT 1 FROM user_roms s '
+    'WHERE s.app_system_id = m.app_system_id) '
+    'ORDER BY 1, 2';
+
+/// Systems holding metadata rows but no game row: their metadata is not
+/// analysed.
+const String storageMetadataSystemsWithoutGamesQuery =
+    'SELECT DISTINCT m.app_system_id FROM user_screenscraper_metadata m '
+    'WHERE NOT EXISTS (SELECT 1 FROM user_roms s '
+    'WHERE s.app_system_id = m.app_system_id) '
+    'ORDER BY 1';
 
 /// Key of one `user_screenscraper_metadata` row.
 class StorageOrphanMetadataKey {
@@ -139,6 +154,10 @@ enum StorageDuplicateKeep {
 
   /// The SHA-256 differs from the other copies (hashing requested).
   differentContent,
+
+  /// The checksums were not computed: the same name and size do not prove
+  /// the same content (review of the storage services), nothing is offered.
+  notHashed,
 }
 
 /// One copy of a duplicate group.
@@ -170,8 +189,10 @@ class StorageDuplicateCopy {
 
   /// The only copies a level-3 cleanup may offer (never preselected): not
   /// referenced, not a companion of a descriptor, in a group where another
-  /// copy is referenced. Every copy lies in a never-class game folder
-  /// (`isProtected` is true); this flag is the only exception of § 3.7.
+  /// copy is referenced, with the same SHA-256 as the referenced copy (the
+  /// checksums computed: review of the storage services). Every copy lies
+  /// in a never-class game folder (`isProtected` is true); this flag is the
+  /// only exception of § 3.7.
   final bool selectable;
 
   /// Why it is not [selectable] (null when it is).
@@ -269,12 +290,92 @@ class _Database {
     required this.extensions,
     required this.roms,
     required this.metadata,
+    required this.metadataSystemsWithoutGames,
   });
 
   final Map<String, String> folderOfSystem;
   final Map<String, Set<String>> extensions;
   final List<_Rom> roms;
   final List<StorageOrphanMetadataKey> metadata;
+
+  /// `app_system_id` of the metadata rows whose system has no game row.
+  final List<String> metadataSystemsWithoutGames;
+}
+
+/// The names the media of each system folder are matched against (§ 3.5):
+/// the four variants of every game row (and the Title ID of the virtual
+/// rows), by `app_systems.folder_name`.
+class _MediaIndex {
+  _MediaIndex(_Database database) {
+    database.folderOfSystem.forEach((id, folder) {
+      _systemsOfFolder.putIfAbsent(folder, () => <String>{}).add(id);
+    });
+    for (final rom in database.roms) {
+      final folder = database.folderOfSystem[rom.systemId];
+      if (folder == null) continue;
+      final variants = _names.putIfAbsent(folder, () => <String>{});
+      variants.addAll(
+        StorageOrphanDetector.mediaNameVariants(
+          rom.filename,
+          database.extensions[folder] ?? const {},
+        ),
+      );
+      // GameModel looks MeloNX/RPCS3 virtual rows up by Title ID first.
+      final lower = rom.romPath.toLowerCase();
+      final virtual =
+          lower.startsWith('melonx://') ||
+          lower.startsWith('rpcs3-library://') ||
+          rom.filename.toLowerCase().endsWith('.melonx') ||
+          rom.filename.toLowerCase().endsWith('.rpcs3');
+      final titleId = rom.titleId?.trim();
+      if (virtual && titleId != null && titleId.isNotEmpty) {
+        variants.add(titleId);
+      }
+    }
+  }
+
+  final Map<String, Set<String>> _systemsOfFolder = {};
+  final Map<String, Set<String>> _names = {};
+
+  /// A folder of `app_systems`.
+  bool known(String folder) => _systemsOfFolder.containsKey(folder);
+
+  /// A known folder one of whose systems has a game row (review of the
+  /// storage services: the others are not analysed).
+  bool analysed(String folder) => _names.containsKey(folder);
+
+  bool attributed(String folder, String base) =>
+      _names[folder]?.contains(base) ?? false;
+}
+
+/// What a media file is for the orphan analysis.
+enum _MediaVerdict { ignored, unattributed, notAnalysed, attributed, orphan }
+
+/// What is still orphan when a cleanup runs (review of the storage
+/// services): the same matching as [StorageOrphanDetector.detect], on a
+/// fresh read of the database, of the library index and of the registered
+/// library folders.
+class StorageOrphanRecheck {
+  const StorageOrphanRecheck({
+    this.media = const {},
+    this.covers = const {},
+    this.metadata = const {},
+    this.refused,
+  });
+
+  /// Canonical paths of the media still orphan.
+  final Set<String> media;
+
+  /// Canonical paths of the library covers still orphan.
+  final Set<String> covers;
+
+  /// Metadata keys still orphan.
+  final Set<StorageOrphanMetadataKey> metadata;
+
+  /// Raw reason nothing could be confirmed (database unreadable, library
+  /// empty, a library folder missing or unreadable); every set is then
+  /// empty.
+  final String? refused;
 }
 
 class StorageOrphanDetector {
@@ -365,10 +466,35 @@ class StorageOrphanDetector {
       skipped['libretroStates'] = reason;
     }
 
+    // A registered library folder the analysis cannot see may have lost its
+    // games' rows to a scan: nothing is then claimed orphan from the rows or
+    // from the library index (review of the storage services).
+    final unreadable = await unreadableLibraryFolders(scan);
+    final foldersSeen = unreadable.isEmpty;
+    if (!foldersSeen) {
+      final reason =
+          'library folder missing or unreadable: ${unreadable.join('; ')}';
+      skipped['media'] = reason;
+      skipped['metadata'] = reason;
+      skipped['libraryCovers'] = reason;
+    }
+
     final media = <StorageOrphanEntry>[];
     final unattributed = <StorageOrphanEntry>[];
-    if (database != null && hasGames) {
-      _media(scan, database, media, unattributed);
+    final mediaNotAnalysed = <String>{};
+    if (database != null && hasGames && foldersSeen) {
+      _media(scan, database, media, unattributed, mediaNotAnalysed);
+      // A known system without any game row: its media and metadata are
+      // not analysed (its rows may have been pruned).
+      final metadataNotAnalysed = database.metadataSystemsWithoutGames;
+      if (mediaNotAnalysed.isNotEmpty || metadataNotAnalysed.isNotEmpty) {
+        skipped['systemsWithoutGames'] = [
+          if (mediaNotAnalysed.isNotEmpty)
+            'media: ${(mediaNotAnalysed.toList()..sort()).join(', ')}',
+          if (metadataNotAnalysed.isNotEmpty)
+            'metadata: ${metadataNotAnalysed.join(', ')}',
+        ].join('; ');
+      }
     } else if (database == null) {
       skipped['media'] = 'database unavailable';
     }
@@ -376,7 +502,9 @@ class StorageOrphanDetector {
       return StorageOrphanReport(skipped: skipped, cancelled: true);
     }
 
-    final covers = await _covers(scan, skipped);
+    final covers = foldersSeen
+        ? await _covers(scan, skipped)
+        : const <StorageOrphanEntry>[];
     final libretroSaves = <StorageOrphanEntry>[];
     final libretroStates = <StorageOrphanEntry>[];
     if (database != null && hasGames) {
@@ -423,7 +551,7 @@ class StorageOrphanDetector {
       media: List.unmodifiable(media),
       unattributedMedia: List.unmodifiable(unattributed),
       libraryCovers: List.unmodifiable(covers),
-      metadata: database == null || !hasGames
+      metadata: database == null || !hasGames || !foldersSeen
           ? const []
           : List.unmodifiable(database.metadata),
       libretroSaves: List.unmodifiable(libretroSaves),
@@ -481,11 +609,18 @@ class StorageOrphanDetector {
           row['filename'].toString(),
         ),
     ];
+    final withoutGames = [
+      for (final row in await db.rawQuery(
+        storageMetadataSystemsWithoutGamesQuery,
+      ))
+        if (row['app_system_id'] != null) row['app_system_id'].toString(),
+    ];
     return _Database(
       folderOfSystem: folderOfSystem,
       extensions: extensions,
       roms: roms,
       metadata: metadata,
+      metadataSystemsWithoutGames: withoutGames,
     );
   }
 
@@ -530,78 +665,73 @@ class StorageOrphanDetector {
     return current;
   }
 
+  /// The verdict of the media file [name] of the [type] folder of the
+  /// system [folder]: the same for an analysis and for a re-check.
+  static _MediaVerdict _mediaVerdict(
+    _MediaIndex index,
+    String folder,
+    String type,
+    String name,
+  ) {
+    if (!mediaTypes.contains(type) || name.startsWith('.')) {
+      return _MediaVerdict.ignored;
+    }
+    final dot = name.lastIndexOf('.');
+    final extension = dot == -1 ? '' : name.substring(dot + 1).toLowerCase();
+    if (!mediaExtensions.contains(extension)) return _MediaVerdict.ignored;
+    final base = dot == -1 ? name : name.substring(0, dot);
+    if (!index.known(folder)) return _MediaVerdict.unattributed;
+    if (!index.analysed(folder)) return _MediaVerdict.notAnalysed;
+    return index.attributed(folder, base)
+        ? _MediaVerdict.attributed
+        : _MediaVerdict.orphan;
+  }
+
   void _media(
     StorageScanResult scan,
     _Database database,
     List<StorageOrphanEntry> orphans,
     List<StorageOrphanEntry> unattributed,
+    Set<String> notAnalysed,
   ) {
-    // Variants of every row, by system folder (app_systems.folder_name).
-    final systemsOfFolder = <String, Set<String>>{};
-    database.folderOfSystem.forEach((id, folder) {
-      systemsOfFolder.putIfAbsent(folder, () => <String>{}).add(id);
-    });
-    final names = <String, Set<String>>{};
-    for (final rom in database.roms) {
-      final folder = database.folderOfSystem[rom.systemId];
-      if (folder == null) continue;
-      final variants = names.putIfAbsent(folder, () => <String>{});
-      variants.addAll(
-        mediaNameVariants(
-          rom.filename,
-          database.extensions[folder] ?? const {},
-        ),
-      );
-      // GameModel looks MeloNX/RPCS3 virtual rows up by Title ID first.
-      final lower = rom.romPath.toLowerCase();
-      final virtual =
-          lower.startsWith('melonx://') ||
-          lower.startsWith('rpcs3-library://') ||
-          rom.filename.toLowerCase().endsWith('.melonx') ||
-          rom.filename.toLowerCase().endsWith('.rpcs3');
-      final titleId = rom.titleId?.trim();
-      if (virtual && titleId != null && titleId.isNotEmpty) {
-        variants.add(titleId);
-      }
-    }
+    final index = _MediaIndex(database);
     for (final location in scan.nodesOfRoot('INV-05')) {
       for (final system in location.children) {
         if (!system.isDirectory) continue;
         final folder = system.name;
-        final known = systemsOfFolder.containsKey(folder);
-        final variants = names[folder] ?? const <String>{};
         for (final type in system.children) {
-          if (!type.isDirectory || !mediaTypes.contains(type.name)) continue;
+          if (!type.isDirectory) continue;
           for (final file in type.children) {
             if (file.kind != StorageEntryKind.file) continue;
             final name = file.name;
-            if (name.startsWith('.')) continue;
             final dot = name.lastIndexOf('.');
-            final extension = dot == -1
-                ? ''
-                : name.substring(dot + 1).toLowerCase();
-            if (!mediaExtensions.contains(extension)) continue;
             final base = dot == -1 ? name : name.substring(0, dot);
-            if (!known) {
-              unattributed.add(
-                _entry(
-                  file,
-                  StorageOrphanKind.unattributedMedia,
-                  base,
-                  group: folder,
-                  selectable: false,
-                ),
-              );
-            } else if (!variants.contains(base)) {
-              orphans.add(
-                _entry(
-                  file,
-                  StorageOrphanKind.media,
-                  base,
-                  group: folder,
-                  selectable: true,
-                ),
-              );
+            switch (_mediaVerdict(index, folder, type.name, name)) {
+              case _MediaVerdict.ignored:
+              case _MediaVerdict.attributed:
+                break;
+              case _MediaVerdict.notAnalysed:
+                notAnalysed.add(folder);
+              case _MediaVerdict.unattributed:
+                unattributed.add(
+                  _entry(
+                    file,
+                    StorageOrphanKind.unattributedMedia,
+                    base,
+                    group: folder,
+                    selectable: false,
+                  ),
+                );
+              case _MediaVerdict.orphan:
+                orphans.add(
+                  _entry(
+                    file,
+                    StorageOrphanKind.media,
+                    base,
+                    group: folder,
+                    selectable: true,
+                  ),
+                );
             }
           }
         }
@@ -610,6 +740,43 @@ class StorageOrphanDetector {
     orphans.sort((a, b) => a.path.compareTo(b.path));
     unattributed.sort((a, b) => a.path.compareTo(b.path));
   }
+
+  /// `id` of every book of `local-index.json`; null (with the reason in
+  /// [skipped], when given) when the index is missing or unreadable.
+  Future<Set<String>?> _libraryIndexIds([Map<String, String>? skipped]) async {
+    final index = File(
+      _registry.pathIn(
+        StorageContainer.applicationSupport,
+        StorageLayout.libraryIndex,
+      ),
+    );
+    try {
+      if (!await index.exists()) {
+        skipped?['libraryCovers'] = 'local-index.json missing';
+        return null;
+      }
+      final decoded = jsonDecode(utf8.decode(await index.readAsBytes()));
+      if (decoded is! Map ||
+          decoded['version'] is! int ||
+          decoded['books'] is! List) {
+        skipped?['libraryCovers'] = 'local-index.json is not a library index';
+        return null;
+      }
+      return {
+        for (final book in decoded['books'] as List)
+          if (book is Map && book['id'] is String) book['id'] as String,
+      };
+    } catch (error) {
+      skipped?['libraryCovers'] = 'local-index.json unreadable: $error';
+      return null;
+    }
+  }
+
+  /// Book id of the cover file [name] (`<id>.png`), null for any other.
+  static String? _coverId(String name) =>
+      name.startsWith('.') || !name.endsWith('.png') || name.length <= 4
+      ? null
+      : name.substring(0, name.length - 4);
 
   Future<List<StorageOrphanEntry>> _covers(
     StorageScanResult scan,
@@ -623,52 +790,142 @@ class StorageOrphanDetector {
       );
       if (directory == null) continue;
       for (final file in directory.children) {
-        if (file.kind == StorageEntryKind.file &&
-            !file.name.startsWith('.') &&
-            file.name.endsWith('.png')) {
+        if (file.kind == StorageEntryKind.file && _coverId(file.name) != null) {
           covers.add(file);
         }
       }
     }
     if (covers.isEmpty) return const [];
-    final index = File(
-      _registry.pathIn(
-        StorageContainer.applicationSupport,
-        StorageLayout.libraryIndex,
-      ),
-    );
-    final Set<String> ids;
-    try {
-      if (!await index.exists()) {
-        skipped['libraryCovers'] = 'local-index.json missing';
-        return const [];
-      }
-      final decoded = jsonDecode(utf8.decode(await index.readAsBytes()));
-      if (decoded is! Map ||
-          decoded['version'] is! int ||
-          decoded['books'] is! List) {
-        skipped['libraryCovers'] = 'local-index.json is not a library index';
-        return const [];
-      }
-      ids = {
-        for (final book in decoded['books'] as List)
-          if (book is Map && book['id'] is String) book['id'] as String,
-      };
-    } catch (error) {
-      skipped['libraryCovers'] = 'local-index.json unreadable: $error';
-      return const [];
-    }
+    final ids = await _libraryIndexIds(skipped);
+    if (ids == null) return const [];
     final orphans = [
       for (final file in covers)
-        if (!ids.contains(file.name.substring(0, file.name.length - 4)))
+        if (!ids.contains(_coverId(file.name)))
           _entry(
             file,
             StorageOrphanKind.libraryCover,
-            file.name.substring(0, file.name.length - 4),
+            _coverId(file.name)!,
             selectable: true,
           ),
     ]..sort((a, b) => a.path.compareTo(b.path));
     return orphans;
+  }
+
+  /// The registered library folders (`libraryRoots`, the linked folder)
+  /// the analysis cannot see, with the raw reason (review of the storage
+  /// services): missing, or unreadable on the disk or in [scan] (a stale
+  /// bookmark on iOS). Each is named `<Documents>/…` inside a container,
+  /// `<library folder>` outside. A scan of the library prunes the rows of an
+  /// unreadable folder, so while one is listed no media, metadata or cover
+  /// is claimed orphan.
+  Future<List<String>> unreadableLibraryFolders([
+    StorageScanResult? scan,
+  ]) async {
+    final problems = <String>[];
+    final seen = <String>{};
+    for (final folder in [
+      ..._registry.libraryRoots,
+      ?_registry.linkedExternalFolder,
+    ]) {
+      final trimmed = folder.trim();
+      if (trimmed.isEmpty) continue;
+      final canonical = storageCanonicalPath(trimmed);
+      if (!seen.add(canonical)) continue;
+      // A folder outside the containers is never spelled out (a name the
+      // user chose; the journal and the report hold relative paths only).
+      final shown =
+          _registry.containers.displayPathOf(trimmed) ?? '<library folder>';
+      if (scan != null) {
+        for (final node in scan.nodesOfRoot('INV-01')) {
+          if (storageCanonicalPath(node.path) != canonical) continue;
+          if (node.kind != StorageEntryKind.directory) {
+            problems.add('$shown: ${node.kind.name} in the analysis');
+          } else if (node.modified == null) {
+            problems.add('$shown: missing in the analysis');
+          }
+        }
+      }
+      try {
+        final type = await FileSystemEntity.type(trimmed);
+        if (type != FileSystemEntityType.directory) {
+          problems.add(
+            '$shown: ${type == FileSystemEntityType.notFound ? 'missing' : type.toString()}',
+          );
+          continue;
+        }
+        await Directory(trimmed).list(followLinks: false).take(1).drain<void>();
+      } on FileSystemException catch (error) {
+        problems.add('$shown: ${error.osError?.toString() ?? error.message}');
+      }
+    }
+    return problems;
+  }
+
+  /// What is still orphan now among [media], [covers] and [metadata] (the
+  /// paths and keys of a previewed plan): the same matching as [detect] on
+  /// a fresh read of the database, of `local-index.json` and of the
+  /// registered library folders (review of the storage services: a scan or
+  /// an import may have run since the preview).
+  Future<StorageOrphanRecheck> recheck({
+    Iterable<String> media = const [],
+    Iterable<String> covers = const [],
+    Iterable<StorageOrphanMetadataKey> metadata = const [],
+  }) async {
+    final _Database database;
+    try {
+      database = await _load();
+    } catch (error) {
+      return StorageOrphanRecheck(refused: 'database: $error');
+    }
+    if (database.roms.isEmpty) {
+      return const StorageOrphanRecheck(refused: 'user_roms is empty');
+    }
+    final unreadable = await unreadableLibraryFolders();
+    if (unreadable.isNotEmpty) {
+      return StorageOrphanRecheck(
+        refused:
+            'library folder missing or unreadable: ${unreadable.join('; ')}',
+      );
+    }
+    final index = _MediaIndex(database);
+    final mediaRoot = storageCanonicalPath(_registry.mediaPath);
+    final stillMedia = <String>{};
+    for (final path in media) {
+      final canonical = storageCanonicalPath(path);
+      if (!p.isWithin(mediaRoot, canonical)) continue;
+      final segments = p.split(p.relative(canonical, from: mediaRoot));
+      if (segments.length != 3) continue;
+      if (_mediaVerdict(index, segments[0], segments[1], segments[2]) ==
+          _MediaVerdict.orphan) {
+        stillMedia.add(canonical);
+      }
+    }
+    final stillCovers = <String>{};
+    final coverPaths = covers.toList();
+    if (coverPaths.isNotEmpty) {
+      final ids = await _libraryIndexIds();
+      final coversRoot = storageCanonicalPath(
+        _registry.pathIn(
+          StorageContainer.applicationSupport,
+          StorageLayout.libraryCovers,
+        ),
+      );
+      for (final path in coverPaths) {
+        final canonical = storageCanonicalPath(path);
+        if (ids == null || p.dirname(canonical) != coversRoot) continue;
+        final id = _coverId(p.basename(canonical));
+        if (id != null && !ids.contains(id)) stillCovers.add(canonical);
+      }
+    }
+    final orphanKeys = database.metadata.toSet();
+    return StorageOrphanRecheck(
+      media: stillMedia,
+      covers: stillCovers,
+      metadata: {
+        for (final key in metadata)
+          if (orphanKeys.contains(key)) key,
+      },
+    );
   }
 
   /// Every prefix of [name] at a dot, longest first (`a.b.c` → `a.b.c`,
@@ -1152,12 +1409,17 @@ class StorageOrphanDetector {
         final copies = <StorageDuplicateCopy>[];
         for (final index in indexes) {
           final (node, companion) = members[index];
+          // Without checksums the same name and size do not make the same
+          // game (USA and EUR images, two GameCube discs of the standard
+          // size): listed, never offered (review of the storage services).
           final StorageDuplicateKeep? keep = referenced[index]
               ? StorageDuplicateKeep.referenced
               : companion
               ? StorageDuplicateKeep.companionFiles
               : !anyReferenced
               ? StorageDuplicateKeep.noReferencedCopy
+              : !hashed
+              ? StorageDuplicateKeep.notHashed
               : null;
           copies.add(
             StorageDuplicateCopy(

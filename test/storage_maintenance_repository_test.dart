@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -203,6 +204,139 @@ void main() {
         .where((entity) => entity.path.endsWith('.sqlite'))
         .toList();
     expect(copies, hasLength(1));
+  });
+
+  // Review of the storage services (12 October 2026): the connection is
+  // shared with the rest of the app, whose `DatabaseAdapter.transaction()`
+  // joins a transaction already open instead of starting its own (the
+  // library scanner keeps one open across its file reads). A deletion run
+  // then would have joined the scanner's transaction: a failure of the
+  // deletion left its first rows deleted (no ROLLBACK of its own), and a
+  // rollback of the scanner undid rows reported as deleted.
+  group('inside another operation\'s transaction (the joined branch)', () {
+    const keys = [
+      StorageOrphanMetadataKey('snes', 'Deleted A.sfc'),
+      StorageOrphanMetadataKey('snes', 'Deleted B.sfc'),
+      StorageOrphanMetadataKey('psx', 'Deleted C.cue'),
+    ];
+
+    test(
+      'a deletion is refused before any statement, even one that would '
+      'fail half-way, and the other transaction commits its own rows',
+      () async {
+        final repo = repository();
+        final backup = await repo.backupBeforeDeletion();
+        final before = await metadataKeys();
+        await db.execute('''
+        CREATE TRIGGER storage_simulated_failure BEFORE DELETE ON user_screenscraper_metadata
+        WHEN old.filename = 'Deleted B.sfc'
+        BEGIN SELECT RAISE(ABORT, 'simulated failure'); END
+      ''');
+        final changes = <sqlite.SqliteUpdate>[];
+        final subscription = db.rawDb.updatesSync.listen(changes.add);
+        addTearDown(subscription.cancel);
+        final release = Completer<void>();
+        final scanner = db.transaction((txn) async {
+          await txn.execute(
+            "INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES ('snes', 'New.sfc', '/roms/snes/New.sfc')",
+          );
+          await release.future; // a file read of the scanner
+        });
+        expect(db.rawDb.autocommit, isFalse);
+        await expectLater(
+          repo.deleteOrphanMetadata(keys),
+          throwsA(
+            isA<StorageMaintenanceBusy>().having(
+              (error) => error.reason,
+              'reason',
+              contains('autocommit off'),
+            ),
+          ),
+        );
+        // Not one statement of the deletion ran (only the scanner's insert).
+        expect(changes.map((change) => change.tableName), ['user_roms']);
+        // The pending copy is kept for the next attempt.
+        expect(repo.lastBackupPath, backup);
+        release.complete();
+        await scanner;
+        expect(db.rawDb.autocommit, isTrue);
+        expect(await metadataKeys(), before);
+        expect(
+          (await romRows()).map((row) => row['filename']),
+          contains('New.sfc'),
+        );
+      },
+    );
+
+    test('a scanner rolling its transaction back undoes nothing of a deletion '
+        'reported as done', () async {
+      final repo = repository();
+      await repo.backupBeforeDeletion();
+      final before = await metadataKeys();
+      final release = Completer<void>();
+      final scanner = db.transaction((txn) async {
+        await release.future;
+        throw StateError('scanner batch failed');
+      });
+      Object? error;
+      StorageMetadataDeletion? reported;
+      try {
+        reported = await repo.deleteOrphanMetadata(keys);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(reported, isNull, reason: 'nothing is reported as deleted');
+      expect(error, isA<StorageMaintenanceBusy>());
+      release.complete();
+      await expectLater(scanner, throwsA(isA<StateError>()));
+      expect(await metadataKeys(), before);
+      // Once the connection is free the same keys go, for real.
+      final result = await repo.deleteOrphanMetadata(keys);
+      expect(result.deleted, 3);
+      expect(await metadataKeys(), before.difference(keys.toSet()));
+    });
+
+    test('VACUUM INTO is refused too, no copy is written', () async {
+      final release = Completer<void>();
+      final scanner = db.transaction((txn) async {
+        await release.future;
+      });
+      await expectLater(
+        repository().backupBeforeDeletion(),
+        throwsA(isA<StorageMaintenanceBusy>()),
+      );
+      release.complete();
+      await scanner;
+      expect(
+        await backups.list().where((e) => e.path.endsWith('.sqlite')).toList(),
+        isEmpty,
+      );
+    });
+  });
+
+  test('a key of a system without any game row is never deleted', () async {
+    // The psx games' folder could not be read: their rows were pruned.
+    await db.execute("DELETE FROM user_roms WHERE app_system_id = 'psx'");
+    final repo = repository();
+    final keys = await repo.previewOrphanMetadata();
+    expect(keys, const [
+      StorageOrphanMetadataKey('snes', 'Deleted A.sfc'),
+      StorageOrphanMetadataKey('snes', 'Deleted B.sfc'),
+    ]);
+    final result = await repo.deleteOrphanMetadata(const [
+      StorageOrphanMetadataKey('psx', 'Deleted C.cue'),
+      StorageOrphanMetadataKey('psx', 'Zelda.sfc'),
+      StorageOrphanMetadataKey('snes', 'Deleted A.sfc'),
+    ]);
+    expect(result.deleted, 1);
+    expect(result.skippedNotOrphan, 2);
+    expect(await metadataKeys(), {
+      const StorageOrphanMetadataKey('snes', 'Super Mario World.sfc'),
+      const StorageOrphanMetadataKey('snes', 'Deleted B.sfc'),
+      const StorageOrphanMetadataKey('psx', 'Final Fantasy VII.m3u'),
+      const StorageOrphanMetadataKey('psx', 'Deleted C.cue'),
+      const StorageOrphanMetadataKey('psx', 'Zelda.sfc'),
+    });
   });
 
   test(

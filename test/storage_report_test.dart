@@ -227,13 +227,37 @@ void main() {
       final orphanTotals = report['orphans']! as Map<String, Object?>;
       expect(orphanTotals['media'], {'count': 1, 'logicalBytes': 10});
       expect(orphanTotals['metadata'], {'count': 0});
+      // Contract replaced by the review of the storage services: without
+      // checksums the unreferenced copy used to count as selectable (1 copy,
+      // 1000 bytes). The same name and size do not prove the same content: a
+      // copy is selectable only once « Calculer les empreintes » showed it
+      // equal to the referenced one (below).
       expect(report['duplicates'], {
+        'groups': 1,
+        'copies': 2,
+        'referencedCopies': 1,
+        'selectableCopies': 0,
+        'selectableBytes': 0,
+        'hashedGroups': 0,
+      });
+      final registry = StorageRootRegistry(
+        containers,
+        libraryRoots: [doc('MyGames')],
+      );
+      final hashed = StorageReport.aggregate(
+        scan,
+        orphans: await StorageOrphanDetector(
+          database: () async => db,
+          registry: registry,
+        ).detect(scan, hashDuplicates: true),
+      );
+      expect(hashed['duplicates'], {
         'groups': 1,
         'copies': 2,
         'referencedCopies': 1,
         'selectableCopies': 1,
         'selectableBytes': 1000,
-        'hashedGroups': 0,
+        'hashedGroups': 1,
       });
       expect(report['lastCleanup'], isNull);
       expect((report['inaccessible']! as Map)['count'], 0);

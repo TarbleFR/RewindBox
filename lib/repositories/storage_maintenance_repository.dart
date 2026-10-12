@@ -5,6 +5,14 @@
 /// `user_screenscraper_metadata` is ever written; `user_roms` and every
 /// other table are only read. A `VACUUM INTO` copy is made first, outside
 /// the transaction, under `Support/NeoStation/Maintenance`.
+///
+/// The connection is shared with the rest of the app, whose
+/// `DatabaseAdapter.transaction()` joins any transaction already open (the
+/// library scanner keeps one open across file reads). Review of the storage
+/// services: the backup and the deletion refuse ([StorageMaintenanceBusy])
+/// while the connection is inside a transaction, and the deletion runs as
+/// one synchronous `BEGIN … COMMIT` — nothing else of the app can run on the
+/// connection between the check and the commit.
 library;
 
 import 'dart:collection';
@@ -35,6 +43,17 @@ class StorageMetadataDeletion {
   final String backupPath;
 }
 
+/// The connection was inside another operation's transaction: nothing was
+/// written (review of the storage services). [reason] is raw technical text.
+class StorageMaintenanceBusy implements Exception {
+  const StorageMaintenanceBusy(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'StorageMaintenanceBusy: $reason';
+}
+
 class StorageMaintenanceRepository {
   StorageMaintenanceRepository({
     Future<DatabaseAdapter> Function()? database,
@@ -58,12 +77,15 @@ class StorageMaintenanceRepository {
   /// deletion.
   String? get lastBackupPath => _lastBackup;
 
-  /// The same join as `storageOrphanMetadataQuery`, for one key.
+  /// The same join as `storageOrphanMetadataQuery`, for one key: still
+  /// unreferenced, and its system still has a game row.
   static const String _stillOrphan =
       'SELECT 1 FROM user_screenscraper_metadata m '
       'LEFT JOIN user_roms r ON r.app_system_id = m.app_system_id '
       'AND r.filename = m.filename '
       'WHERE m.app_system_id = ? AND m.filename = ? AND r.filename IS NULL '
+      'AND EXISTS (SELECT 1 FROM user_roms s '
+      'WHERE s.app_system_id = m.app_system_id) '
       'LIMIT 1';
 
   static const String _delete =
@@ -93,11 +115,29 @@ class StorageMaintenanceRepository {
     ]);
   }
 
-  /// Deletes exactly [keys] (duplicates ignored) in one
-  /// `DatabaseAdapter.transaction()`: every key is checked again by the
-  /// join and skipped when a game references it again. Any failure rolls
-  /// the whole transaction back (nothing removed) and is rethrown. The
-  /// backup of [backupBeforeDeletion] is made first when none is pending.
+  /// Refuses while [db] is inside a transaction (its `autocommit` is off):
+  /// a statement run now would join another operation's transaction, and
+  /// that operation would commit or roll it back.
+  static void _ensureNoOpenTransaction(DatabaseAdapter db, String operation) {
+    if (!db.rawDb.autocommit) {
+      throw StorageMaintenanceBusy(
+        '$operation: a transaction is open on the connection (autocommit off)',
+      );
+    }
+  }
+
+  /// Deletes exactly [keys] (duplicates ignored) in one transaction: every
+  /// key is checked again by the join and skipped when a game references
+  /// it again or its system has no game row any more. Any failure rolls the
+  /// whole transaction back (nothing removed) and is rethrown; a
+  /// transaction already open on the connection refuses it
+  /// ([StorageMaintenanceBusy], nothing removed). The backup of
+  /// [backupBeforeDeletion] is made first when none is pending.
+  ///
+  /// The transaction is synchronous, from the `autocommit` check to the
+  /// `COMMIT` (review of the storage services): `DatabaseAdapter
+  /// .transaction()` would join an open transaction instead of refusing,
+  /// and its awaits would let another operation run on the connection.
   Future<StorageMetadataDeletion> deleteOrphanMetadata(
     List<StorageOrphanMetadataKey> keys,
   ) async {
@@ -111,30 +151,7 @@ class StorageMaintenanceRepository {
     }
     final backupPath = _lastBackup ?? await backupBeforeDeletion();
     final db = await _database();
-    final counts = await db.transaction<(int, int)>((txn) async {
-      var deleted = 0;
-      var skipped = 0;
-      final hasGames = await _libraryHasGames(txn);
-      for (final key in unique) {
-        if (!hasGames) {
-          skipped++;
-          continue;
-        }
-        final orphan = await txn.rawQuery(_stillOrphan, [
-          key.appSystemId,
-          key.filename,
-        ]);
-        if (orphan.isEmpty) {
-          skipped++;
-          continue;
-        }
-        deleted += await txn.rawDelete(_delete, [
-          key.appSystemId,
-          key.filename,
-        ]);
-      }
-      return (deleted, skipped);
-    });
+    final counts = _deleteNow(db, unique);
     // The copy belongs to this deletion; the next one makes its own.
     _lastBackup = null;
     try {
@@ -147,6 +164,36 @@ class StorageMaintenanceRepository {
       skippedNotOrphan: counts.$2,
       backupPath: backupPath,
     );
+  }
+
+  /// The transaction of [deleteOrphanMetadata]: no await from the check to
+  /// the commit.
+  static (int, int) _deleteNow(
+    DatabaseAdapter db,
+    Iterable<StorageOrphanMetadataKey> keys,
+  ) {
+    _ensureNoOpenTransaction(db, 'deleteOrphanMetadata');
+    final raw = db.rawDb;
+    raw.execute('BEGIN IMMEDIATE');
+    try {
+      var deleted = 0;
+      var skipped = 0;
+      final hasGames = raw.select('SELECT 1 FROM user_roms LIMIT 1').isNotEmpty;
+      for (final key in keys) {
+        if (!hasGames ||
+            raw.select(_stillOrphan, [key.appSystemId, key.filename]).isEmpty) {
+          skipped++;
+          continue;
+        }
+        raw.execute(_delete, [key.appSystemId, key.filename]);
+        deleted += raw.updatedRows;
+      }
+      raw.execute('COMMIT');
+      return (deleted, skipped);
+    } catch (_) {
+      if (!raw.autocommit) raw.execute('ROLLBACK');
+      rethrow;
+    }
   }
 
   /// `PRAGMA integrity_check`: `ok` when the database is sound.
@@ -173,6 +220,8 @@ class StorageMaintenanceRepository {
   /// `<backupDirectory>/data-<yyyyMMdd-HHmmss>.sqlite` (`-<n>` when two
   /// copies share a second), then keeps the [keptBackups] newest copies:
   /// only this repository's own `data-*.sqlite` regular files are removed.
+  /// Refused ([StorageMaintenanceBusy]) while a transaction is open on the
+  /// connection.
   Future<String> backupBeforeDeletion() async {
     final directory = await _backupDirectory();
     await Directory(directory).create(recursive: true);
@@ -187,6 +236,7 @@ class StorageMaintenanceRepository {
       target = p.join(directory, 'data-$stamp-$index.sqlite');
     }
     final db = await _database();
+    _ensureNoOpenTransaction(db, 'backupBeforeDeletion');
     await db.execute('VACUUM INTO ?', [target]);
     _lastBackup = target;
     await _prune(directory, keep: target);

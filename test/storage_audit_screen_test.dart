@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:neostation/l10n/storage_locale.dart';
+import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/repositories/storage_maintenance_repository.dart';
 import 'package:neostation/screens/storage/storage_audit_screen.dart';
 import 'package:neostation/screens/storage/storage_cleanup_preview_screen.dart';
@@ -23,6 +24,7 @@ import 'package:neostation/services/storage/storage_roots.dart';
 import 'package:neostation/services/storage/storage_scanner.dart';
 import 'package:neostation/services/storage/storage_stat_ffi.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'database_test_helper.dart';
@@ -65,11 +67,21 @@ String en(String key, [Map<String, Object?> values = const {}]) =>
 
 String size(int bytes) => Rpcs3SaveExchangeService.formatBytes(bytes);
 
+/// The library provider in the middle of a scan (review of the storage
+/// services).
+class _ScanningLibrary extends SqliteConfigProvider {
+  bool scanning = true;
+
+  @override
+  bool get isScanning => scanning;
+}
+
 StorageSessionGuard _idleGuard() => StorageSessionGuard(
   launchActive: () => false,
   libretroActive: () async => false,
   dolphinMarkerPresent: () async => false,
   libretroJournalUnfinished: () async => false,
+  libraryScanActive: () => false,
 );
 
 StorageNode _node(
@@ -379,10 +391,14 @@ final _orphanReport = StorageOrphanReport(
       selectable: false,
     ),
   ],
+  // Review of the storage services: only a group whose checksums were
+  // computed offers a copy (this one used to be unhashed).
   duplicates: [
     StorageDuplicateGroup(
       name: 'Zelda.sfc',
       size: 1000,
+      hashed: true,
+      sha256: _zeldaSha256,
       copies: [
         StorageDuplicateCopy(
           path: _abs(StorageContainer.documents, 'roms/snes/Zelda.sfc'),
@@ -394,6 +410,7 @@ final _orphanReport = StorageOrphanReport(
           referenced: true,
           selectable: false,
           keep: StorageDuplicateKeep.referenced,
+          sha256: _zeldaSha256,
         ),
         StorageDuplicateCopy(
           path: _abs(StorageContainer.documents, 'MyGames/snes/Zelda.sfc'),
@@ -404,11 +421,15 @@ final _orphanReport = StorageOrphanReport(
           modified: _modified,
           referenced: false,
           selectable: true,
+          sha256: _zeldaSha256,
         ),
       ],
     ),
   ],
 );
+
+const _zeldaSha256 =
+    '5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592';
 
 StorageCleanupCandidate _candidate(
   String rootId,
@@ -2191,6 +2212,126 @@ void main() {
       );
     });
 
+    // Review of the storage services.
+    // Review of the storage services: the deletion says what stopped it.
+    testWidgets('a cleanup stopped by a library scan says so, a game or an '
+        'import keeps its own text', (tester) async {
+      for (final (reason, key) in [
+        (
+          StorageRefusalReason.libraryScanActive,
+          StorageLocale.refuseLibraryScan,
+        ),
+        (StorageRefusalReason.sessionActive, StorageLocale.sessionActive),
+        (null, StorageLocale.sessionActive),
+      ]) {
+        manager.result = StorageDeletionResult(
+          deletedFiles: 1,
+          deletedBytes: 10,
+          skippedChanged: 0,
+          skippedMissing: 0,
+          refusals: [
+            StoragePlanRefusal(
+              path: _diagnostics.path,
+              reason: reason ?? StorageRefusalReason.sessionActive,
+              displayPath: '<Documents>/Diagnostics/rpcs3_startup_debug.txt',
+              rootId: 'INV-06',
+            ),
+          ],
+          journalPath: manager.result.journalPath,
+          journalDisplayPath: manager.result.journalDisplayPath,
+          cancelled: false,
+          stoppedBySession: true,
+          stopReason: reason,
+        );
+        // A fresh page each time (the previous result page is left).
+        await tester.pumpWidget(const SizedBox());
+        await pumpAudit(tester);
+        await openPreview(tester, StorageCleanupLevel.regenerable);
+        await tapKey(tester, 'storage-preview-delete');
+        await tester.tap(find.byKey(const ValueKey('storage-confirm-delete')));
+        await tester.pumpAndSettle();
+        final stopped = find.byKey(const ValueKey('storage-result-stopped'));
+        expect(stopped, findsOneWidget, reason: '$reason');
+        expect(tester.widget<Text>(stopped).data, en(key), reason: '$reason');
+      }
+    });
+
+    testWidgets('consoles without games and duplicates without checksums say '
+        'why nothing of them is offered', (tester) async {
+      final unhashed = _orphanReport.duplicates.single;
+      detector.report = StorageOrphanReport(
+        media: _orphanReport.media,
+        duplicates: [
+          StorageDuplicateGroup(
+            name: unhashed.name,
+            size: unhashed.size,
+            copies: [
+              unhashed.copies.first,
+              StorageDuplicateCopy(
+                path: unhashed.copies.last.path,
+                relativePath: unhashed.copies.last.relativePath,
+                container: unhashed.copies.last.container,
+                rootId: unhashed.copies.last.rootId,
+                logicalBytes: 1000,
+                modified: _modified,
+                referenced: false,
+                selectable: false,
+                keep: StorageDuplicateKeep.notHashed,
+              ),
+            ],
+          ),
+        ],
+        skipped: const {'systemsWithoutGames': 'media: psx; metadata: psx'},
+      );
+      await pumpAudit(tester);
+      final systems = find.byKey(
+        const ValueKey('storage-systems-without-games'),
+      );
+      expect(
+        find.descendant(
+          of: systems,
+          matching: find.text(en(StorageLocale.emptySystemsNotAnalyzed)),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: systems,
+          matching: find.text(
+            en(StorageLocale.technicalCode, {
+              'code': 'systemsWithoutGames: media: psx; metadata: psx',
+            }),
+          ),
+        ),
+        findsOneWidget,
+      );
+      // Said once, not again among the other analyses not made.
+      expect(find.textContaining('systemsWithoutGames'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('storage-duplicates-need-hashes')),
+        findsOneWidget,
+      );
+      expect(find.text(en(StorageLocale.duplicatesNeedHashes)), findsOneWidget);
+      // Nothing offered: the duplicates line counts no bytes.
+      expect(
+        find.text(en(StorageLocale.duplicates, {'count': 1, 'size': size(0)})),
+        findsOneWidget,
+      );
+
+      // With the checksums (the default fixture) and every console
+      // analysed, neither line is shown.
+      detector.report = _orphanReport;
+      await tapKey(tester, 'storage-scan-again');
+      expect(
+        find.byKey(const ValueKey('storage-systems-without-games')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('storage-duplicates-need-hashes')),
+        findsNothing,
+      );
+    });
+
     testWidgets('one analysis skipped: only its counter says so', (
       tester,
     ) async {
@@ -2477,8 +2618,14 @@ void main() {
         containers: _containers,
       );
       await pumpPreview(tester, plan);
+      // The level-3 help gained a line (review of the storage services: the
+      // duplicates need identical checksums): the refusal header is built
+      // just below the test viewport; it is looked up offstage too.
       expect(
-        find.text(en(StorageLocale.resultRefused, {'count': 2000})),
+        find.text(
+          en(StorageLocale.resultRefused, {'count': 2000}),
+          skipOffstage: false,
+        ),
         findsOneWidget,
       );
       final built = find
@@ -2841,8 +2988,14 @@ void main() {
     /// The page as the Tools row opens it, but on [real]: its own scanner,
     /// orphan detector (the test database), planner, deletion manager and
     /// session guard (GameLaunchManager, the libretro bridge, the Dolphin
-    /// marker, the libretro journal and StorageImportActivity).
-    Future<void> pumpProduction(WidgetTester tester) async {
+    /// marker, the libretro journal, StorageImportActivity and — review of
+    /// the storage services — the library provider's scan state, provided
+    /// above the page as in the app; [library] null leaves it out).
+    Future<void> pumpProduction(
+      WidgetTester tester, {
+      SqliteConfigProvider? library,
+      bool withLibrary = true,
+    }) async {
       final old = DateTime.now().subtract(const Duration(days: 3));
       await tester.runAsync(() async {
         for (final path in [
@@ -2859,11 +3012,19 @@ void main() {
       tester.view.physicalSize = const Size(1200, 6000);
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
+      final page = MaterialApp(
+        locale: const Locale('en'),
+        home: StorageAuditScreen(registry: real, sharer: sharer),
+      );
+      final provider = withLibrary ? library ?? SqliteConfigProvider() : null;
+      if (provider != null && library == null) addTearDown(provider.dispose);
       await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('en'),
-          home: StorageAuditScreen(registry: real, sharer: sharer),
-        ),
+        provider == null
+            ? page
+            : ChangeNotifierProvider<SqliteConfigProvider>.value(
+                value: provider,
+                child: page,
+              ),
       );
       await settleReal(tester, find.byKey(const ValueKey('storage-orphans')));
     }
@@ -2953,6 +3114,53 @@ void main() {
         find.byKey(const ValueKey('storage-preview-root-INV-06')),
         findsOneWidget,
       );
+    });
+
+    // Review of the storage services: a library scan rewrites user_roms
+    // and holds a transaction on the database.
+    testWidgets('a library scan running (the provider says so): the default '
+        'guard refuses the whole plan with its own reason', (tester) async {
+      final scanning = _ScanningLibrary();
+      addTearDown(scanning.dispose);
+      await pumpProduction(tester, library: scanning);
+      await openLevel3(tester);
+      expect(
+        find.byKey(const ValueKey('storage-preview-blocked')),
+        findsOneWidget,
+      );
+      expect(find.text(en(StorageLocale.refuseLibraryScan)), findsOneWidget);
+      expect(find.text(en(StorageLocale.sessionActive)), findsNothing);
+      expect(find.byType(CheckboxListTile), findsNothing);
+      expect(
+        find.byKey(const ValueKey('storage-preview-delete')),
+        findsNothing,
+      );
+
+      // The scan ends: the next preview proposes again.
+      scanning.scanning = false;
+      await tester.pageBack();
+      await settleReal(tester, find.byKey(const ValueKey('storage-orphans')));
+      await openLevel3(tester);
+      expect(
+        find.byKey(const ValueKey('storage-preview-blocked')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('storage-preview-root-INV-06')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('no library provider above the page: a scan cannot be ruled '
+        'out, the whole plan is refused', (tester) async {
+      await pumpProduction(tester, withLibrary: false);
+      await openLevel3(tester);
+      expect(
+        find.byKey(const ValueKey('storage-preview-blocked')),
+        findsOneWidget,
+      );
+      expect(find.text(en(StorageLocale.refuseLibraryScan)), findsOneWidget);
+      expect(find.byType(CheckboxListTile), findsNothing);
     });
   });
 

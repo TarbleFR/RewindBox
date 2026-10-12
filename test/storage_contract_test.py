@@ -805,11 +805,30 @@ class ImportsInProgress(unittest.TestCase):
         planner = Source(PLANNER)
         self.assertIn('static bool _importRunning() => StorageImportActivity.active;', planner.masked)
         self.assertIn('_importActive = importActive ?? _importRunning', planner.masked)
-        self.assertIn('bool get wholeCleanupRefused => launchActive || importActive;', planner.masked)
+        # Contract replaced by the review of the storage services (12 October
+        # 2026): a library scan in progress also refuses the whole plan and
+        # stops a deletion, under its own reason. The getter used to read
+        # `launchActive || importActive`, the plan to test
+        # `session.wholeCleanupRefused` and the deletion to set `_stopped`
+        # from it; the plan and the deletion now read the reason, null only
+        # when no game, import or library scan runs. The scan probe the
+        # screens do not give fails closed (counted as a scan).
+        self.assertRegex(planner.masked,
+                         r'bool get wholeCleanupRefused =>\s+launchActive \|\| importActive \|\| libraryScanActive;')
+        self.assertRegex(planner.masked,
+                         r'StorageRefusalReason\? get wholeCleanupReason => launchActive \|\| importActive\s+'
+                         r'\? StorageRefusalReason\.sessionActive\s+: libraryScanActive\s+'
+                         r'\? StorageRefusalReason\.libraryScanActive\s+: null;')
+        self.assertIn('_libraryScanActive = libraryScanActive ?? _libraryScanUnknown', planner.masked)
+        self.assertRegex(planner.masked, r'static bool _libraryScanUnknown\(\) =>\s+throw StateError\(')
         plan = Span(planner, 'Future<StorageCleanupPlan> plan(')
-        self.assertLess(plan.find('if (session.wholeCleanupRefused)'), plan.find('_PlanBuilder('))
+        self.assertLess(plan.find('final refused = session.wholeCleanupReason;'), plan.find('if (refused != null) {'))
+        self.assertLess(plan.find('if (refused != null) {'), plan.find('_PlanBuilder('))
         manager = Source(MANAGER)
-        self.assertIn('if (_state.wholeCleanupRefused) _stopped = true;', manager.masked)
+        check = Span(manager, 'Future<void> _checkSession(')
+        self.assertLess(check.find('final reason = _state.wholeCleanupReason;'),
+                        check.find('if (reason != null && !_stopped) {'))
+        self.assertLess(check.find('if (reason != null && !_stopped) {'), check.find('_stopped = true;'))
         # Read by the guard only; reset by the tests only.
         for path in dart_files():
             relative = str(path.relative_to(ROOT))

@@ -833,11 +833,14 @@ class StorageRootRegistry {
   }
 
   StorageRule? _nameNever(String parent, String name) {
-    // Cheap filter: every global never name contains one of these.
+    // Cheap filter: every global never name contains one of these (the
+    // NSURLCache database `Cache.db*` since the review of the storage
+    // services).
     if (!name.contains('.json') &&
         !name.contains('.yml') &&
         !name.contains('.sqlite') &&
-        !name.endsWith('.icloud')) {
+        !name.endsWith('.icloud') &&
+        !name.startsWith('Cache.db')) {
       return null;
     }
     for (final entry in _neverNames) {
@@ -1106,8 +1109,9 @@ class StorageRootRegistry {
     );
 
     // Names protected wherever they are (§ 3.4 list 1). The VACUUM INTO
-    // backups of § 3.6 are the only exemption of `*.sqlite*`: level 3
-    // proposes them (all but the most recent).
+    // backups of § 3.6 are the only exemption of `*.sqlite*`: they keep
+    // their own rule (INV-02.maintenanceBackup), never proposed either
+    // since the review of the storage services (backups of user data).
     StorageRule named(Pattern pattern, StorageCategory category, String id) =>
         StorageRule(
           relative: '',
@@ -1125,6 +1129,16 @@ class StorageRootRegistry {
       _NameNever(
         named('config.json', StorageCategory.indexFiles, 'NEVER.config'),
       ),
+      // NSURLCache's database (`Caches/<bundle-id>/Cache.db` and its WAL):
+      // open SQLite files of the system, emptied through the Library cache
+      // API only (review of the storage services).
+      _NameNever(
+        named(
+          RegExp(r'^Cache\.db(?:-wal|-shm)?$'),
+          StorageCategory.caches,
+          'NEVER.urlCacheDatabase',
+        ),
+      ),
       _NameNever(
         named(
           RegExp(r'^local-index\.json'),
@@ -1132,9 +1146,11 @@ class StorageRootRegistry {
           'NEVER.libraryIndex',
         ),
       ),
+      // The Library reading store and its sidecar of Build 447
+      // (`reading-state-extra.json`), classified alike.
       _NameNever(
         named(
-          'reading-state.json',
+          RegExp(r'^reading-state(?:-extra)?\.json$'),
           StorageCategory.indexFiles,
           'NEVER.readingState',
         ),
@@ -1237,12 +1253,16 @@ class StorageRootRegistry {
             deletionClass: confirmation,
             id: 'INV-02.appLogOld',
           ),
+          // The copies of data.sqlite made before a metadata deletion:
+          // backups of user data, never proposed (review of the storage
+          // services; § 3.7 offered them at level 3). The repository keeps
+          // its three newest itself.
           StorageRule(
             relative: StorageLayout.maintenance,
             container: support,
             namePattern: StorageLayout.maintenanceBackup,
             category: user,
-            deletionClass: confirmation,
+            deletionClass: never,
             id: 'INV-02.maintenanceBackup',
           ),
         ],
@@ -1637,13 +1657,15 @@ class StorageRootRegistry {
             id: 'INV-14.logs',
           ),
           // Nintendo 3DS system data (chantier 2): backups of replaced
-          // files (level 3, never preselected) and the staging folders an
-          // interrupted import or restore leaves beside the user directory.
-          // Everything else under Saves/Azahar stays never (NAND, sysdata).
+          // files — they may hold console-unique files, never proposed
+          // (review of the storage services; level 3 before) — and the
+          // staging folders an interrupted import or restore leaves beside
+          // the user directory. Everything else under Saves/Azahar stays
+          // never (NAND, sysdata).
           const StorageRule(
             relative: StorageLayout.libretro3dsBackups,
             category: user,
-            deletionClass: confirmation,
+            deletionClass: never,
             engine: StorageEngine.libretro,
             id: 'INV-14.3dsBackups',
           ),
@@ -1786,17 +1808,20 @@ class StorageRootRegistry {
             minimumAge: hour,
             id: 'INV-19.firmwareImport',
           ),
+          // The saves and licences a replacement moved aside: backups of
+          // user data, never proposed (review of the storage services;
+          // level 3 before).
           const StorageRule(
             relative: StorageLayout.rpcs3SaveBackups,
             category: user,
-            deletionClass: confirmation,
+            deletionClass: never,
             engine: StorageEngine.rpcs3,
             id: 'INV-19.saveBackups',
           ),
           const StorageRule(
             relative: StorageLayout.rpcs3RapBackups,
             category: user,
-            deletionClass: confirmation,
+            deletionClass: never,
             engine: StorageEngine.rpcs3,
             id: 'INV-19.rapBackups',
           ),
@@ -1930,8 +1955,10 @@ class StorageRootRegistry {
         rules: [
           StorageRule(
             relative: StorageLayout.supportLibrary,
+            // Their atomic-write `.tmp` and kept `.corrupt` copies too
+            // (prefix match), the reading store's sidecar included.
             namePattern: RegExp(
-              r'^(?:local-index|catalogs|source-health|reading-state)\.json',
+              r'^(?:local-index|catalogs|source-health|reading-state(?:-extra)?)\.json',
             ),
             category: index,
             deletionClass: never,
