@@ -462,3 +462,139 @@ caduque dans ce cycle (dépendance AirPlay) et n'est pas réparée ici.
   `library.reader.textures:<n>/<octets>`, `library.reader.paginate:<chapitre>:<ms>`,
   `library.reader.curl:<shader|painter>`, `library.reader.memory_pressure`. Protocole de
   validation iPhone à joindre au rapport final, comme l'exige AGENTS.md.
+
+## 7. Déviations consignées à l'implémentation (12 octobre 2026)
+
+Relevées dans les rapports des phases et vérifiées par le lead à l'intégration. Les signatures des §§ 3.1–3.12 sont
+conservées sauf mention ci-dessous.
+
+### 7.1 Phase 1 — magasin
+
+- `LibraryReaderBookSettings.updatedAt` est facultatif au constructeur, non nul à la lecture (époque par défaut) et
+  ignoré par l'égalité : `updateBookSettings` saute une écriture sans changement, comme `updateSettings`.
+- Un champ s'efface par `copyWith(clear: {LibraryReaderBookField.x})` ; donné et effacé à la fois, il est effacé.
+- `maxBookSettingsTitles` est un paramètre du constructeur (1 000 par défaut), comme `maxChapterMarkTitles` ; les
+  retraits sont comptés, enregistrés et journalisés ; seules les clés `local:` et la clé en cours d'écriture sont
+  protégées (pas les favoris).
+- `addBookmark` refuse aussi, sans rien écrire, un identifiant déjà présent pour le titre et une clé, un identifiant
+  ou un emplacement vide ; il enregistre le marque-page normalisé par `fromJson(toJson())` (NaN → 0, `createdAt` en
+  millisecondes UTC) ; avant le chargement il renvoie `true` et la relecture du fichier le vérifie à nouveau.
+- `updateBookSettings` avec des réglages vides vaut `clearBookSettings` ; une clé vide est ignorée.
+- `moveProgress` déplace aussi marque-pages et réglages du livre, sans jamais écraser la destination : un livre local
+  modifié sur place change d'identifiant, et ses marque-pages, jamais évincés, resteraient orphelins.
+- `_readDate` renvoie `null` pour une date hors plage au lieu de lever : une seule date invalide faisait traiter tout
+  le fichier comme corrompu (mis de côté, magasin vide).
+- Le style de tour résolu n'est pas forcé à « aucun » en défilement vertical ni en zoom : les lecteurs en décident.
+
+### 7.2 Phase 2 — volume
+
+- Type vectoriel propre (`LibraryBookVector3`) : importer `vector_math`, dépendance transitive, déclencherait
+  `depend_on_referenced_packages`, et `pubspec.yaml` ne change pas pour cela.
+- `project` et `sortedFaces` gagnent un `pitch` facultatif ; le signe de `tilt` code le côté de la charnière
+  (positif : gauche).
+- Projection en perspective décentrée dont le plan image est la face avant (rectangle 443 inchangé) ; œil côté
+  charnière, un peu au-dessus : dos et tête visibles, la gouttière ne l'est pas, les « trois traits » de tranche sont
+  donc sur la tête. Éclairage de Lambert par normale de face (lumière au-dessus, côté gouttière), visibilité par
+  l'orientation du quadrilatère projeté, faces latérales peintes en extrusion du contour arrondi de la couverture
+  (0,75 px dessous) pour supprimer une encoche et un liseré vus au rendu.
+- Un EPUB ou TXT sans `sizeBytes` reçoit l'épaisseur `fixed` ; couverture et favoris utilisent `estimate`.
+- Mise en page 443 : la marge fixe (1, 2, 5, 5) devient les marges du volume plus les retraits du dos et de la tête
+  (face avant un peu plus petite pour un livre épais) ; le dos `DecoratedBox` et son `BoxShadow` sont remplacés par
+  le volume ; les trois feuillets sont rentrés d'un pixel côté charnière. Les transformations 443 ne changent pas.
+- Défaut 443 corrigé : un appui commencé sur une couverture puis emporté par un long glissement appelait `reverse()`
+  sur un contrôleur libéré (`mounted` vérifié ; le test de non-régression échoue sans le correctif).
+- Le dos résout l'image par `ScrollAwareImageProvider` (rien n'est chargé pendant un défilement rapide), ne garde que
+  la première image et ne signale pas les erreurs, laissées à l'`Image` de la face ; `LibraryBookVolume.image` est un
+  `ui.Image` décodé, pas un provider.
+- Favoris : côté de la charnière transmis (valeur du livre local ; `true` pour les titres en ligne, mangas Aidoku
+  comme dans le hub) ; un favori local n'a une épaisseur estimée que s'il figure déjà dans « Reprendre ».
+
+### 7.3 Phase 3 — ouverture
+
+- Reduce Motion d'iOS : le moteur ne règle que `AccessibilityFeatures.reduceMotion` et `disableAnimations` n'est
+  jamais vrai sur iOS. La route lit donc aussi `PlatformDispatcher.accessibilityFeatures.reduceMotion` ; la phase 8
+  étend cette lecture à la couverture, au volume, aux trois lecteurs et au ruban.
+- La route écoute son propre contrôleur : le `HeroController` de `MaterialApp` montre la page poussée hors écran
+  pendant sa première image, où `ModalRoute.animation` est déjà « terminée ».
+- Sans origine : 520/360 ms avec un fondu sur toute la durée, au lieu d'un fondu retardé depuis 0,65 qui figeait
+  environ 340 ms ; mouvement réduit : 200 ms dans les deux sens.
+- Au retour, le livre revole vers la position actuelle de la tuile (`locate`, sinon `origin.rect`) : la lecture le
+  place en tête de « Reprendre » et une première lecture ajoute une barre de progression ; si la taille de l'overlay
+  a changé (rotation), simple fondu.
+- `_push` reçoit le `NavigatorState` racine, capturé avant le chargement asynchrone ; les couvertures
+  `LibraryNetworkImage` sont recréées avec `cacheWidth` (`ResizeImage` ne peut pas envelopper un provider qui fixe
+  lui-même la taille de décodage) ; la tuile reste visible sous le livre en vol, assombrie jusqu'à 45 %.
+
+### 7.4 Phase 4 — textures, pli, planches
+
+- Uniformes supplémentaires `uPage`, `uAlign`, `uShadow`, tailles des trois images et `uPaper` ; la géométrie est
+  calculée en Dart et partagée avec le peintre de repli.
+- Un geste de plus de 600 px/s dans le sens opposé annule le tour, même au-delà de 30 %.
+- Une exception du shader pendant la peinture bascule l'instance et marque le programme en échec : tout le processus
+  passe au peintre, plutôt qu'une exception par tour.
+- `LibraryPageCurl` gagne `spread` et `paperColor` ; `under` nul vaut du papier (la couche recouvre un `PageView` qui
+  montre encore la page courante).
+- Progression = déplacement du doigt / largeur de page (demi-largeur en planche) ; fin du tour en 380 ms × fraction
+  restante, 120 ms au moins.
+- Pages seules en double page : couverture à droite en lecture de gauche à droite (à gauche de droite à gauche),
+  dernière page seule du côté opposé ; dans un tour de planche, seule la page extérieure se soulève et son verso
+  montre la page en vis-à-vis de la planche visée.
+- La couche purge elle-même son cache ; `retain()` annule les rendus hors de l'ensemble retenu ; une texture non
+  retenue arrivant dans un cache plein de textures retenues est libérée et `acquire` renvoie `null`.
+- Page impossible à rendre (résultat nul ou exception, hors annulation) : les tours depuis cette page glissent
+  (`PageView`) ; nouvel essai au préchargement suivant.
+- Pas de `LibraryPagedSurface` : recette documentée dans `library_page_curl.dart` et `LibraryPageSpreadLayout`.
+
+### 7.5 Phase 4b — lecteur CBZ et chapitres en ligne
+
+- Les tests du chemin 440 posent explicitement `turnStyle: slide` et aussi `doublePage: never` (surface de test en
+  paysage).
+- Reduce Motion est une surcharge de session du contrôleur (repli : saut, § 3.12).
+- API du contrôleur étendue ; `fraction` et marques de lecture tiennent compte des planches.
+- Repli de décodage : un pli ne démarre que si chaque page de la face actuelle et de la face visée est dessinable
+  (texture prête, ou image décodée dans le cache d'images de Flutter sous une clé synchrone) ; sinon le tour glisse,
+  ou saute avec le style « aucun » ou Reduce Motion. Une page en chargement ou en échec n'est jamais pliée ; seules
+  les pages déjà décodées reçoivent une texture d'avance, les autres au début du tour, avant sa première image.
+
+### 7.6 Phase 5 — PDF
+
+- Mode pages : `LibraryPdfPagesView` ; aucune carte de début ni de fin ; zones de toucher ajoutées (réglage `tapZones`
+  existant, montré en mode pages seulement, aucun texte nouveau).
+- Jusqu'à 6 textures en planches paysage (trois planches × deux pages retenues, jamais évincées) ; 5 au plus en
+  pages simples, ce que vérifie le test.
+- Page enregistrée pour une planche : la page courante si la planche la contient, sinon sa première page, ou la
+  dernière page du livre quand elle est affichée (un livre lu jusqu'à sa dernière planche est terminé).
+- Un tour en cours à la fermeture, au passage en arrière-plan ou au changement de mode enregistre la page visée, comme
+  le correctif 440 du lecteur CBZ.
+- Corrigé en cours de travail : quitter le style « pli » relâchait les textures conservées ; la vue les reprend à
+  l'image suivante.
+- `library_reader_misc_test` (restauration en paysage) ouvre en mode pages, où l'ouverture réelle n'aboutit jamais
+  sans PDFium ; il reste vert.
+
+### 7.7 Phase 6 — pagination EPUB et TXT
+
+- API ajoutée : `locate`, `prefetch`, `pageAt`, `next`, `previous`, `update`, `prepare`, `textOf` (VoiceOver),
+  `linkAt` (liens en mode pages), `statsOf` (trace), `dispose` ; constructeur : `textDirection`, `locale`, `images`,
+  `devicePixelRatio`, `maxChapters` ; `paint(pixelRatio:)`.
+- Images : pas de résolveur externe ; la mise en page ne lit que l'en-tête (`ImageDescriptor`) avec le cache
+  d'octets partagé avec le défilement ; `prepare(page)` décode à la largeur du texte × densité (2 048 px au plus,
+  jamais agrandi), six conservées ; `paint` reste synchrone. Plafond : `min(0,85 × hauteur de page, zone de texte −
+  1 em)`.
+- Espacement supprimé en haut d'une page ouverte par une coupure, conservé en première page de chapitre ; un titre
+  n'est jamais coupé (sauf plus haut qu'une page) et reste avec le texte qui suit ; chaque chapitre, et chaque
+  section TXT de 200 paragraphes, commence une page ; hauteur d'un élément de liste = max(puce, texte) ; les pages
+  d'une mise en page précédente se peignent avec leur géométrie, dans la palette courante.
+- Position en mode pages : début de la dernière page atteinte par un tour, ou, jusqu'au tour suivant, la position
+  d'ouverture ou de saut ; les remises en page la conservent, sans dérive en arrière.
+- Textures du pli par `toImageSync` ; en planche, TXT ne laisse seule que la première page ; style « aucun » : le
+  glissement du doigt fait encore glisser le `PageView`, toucher, manette et sauts sont immédiats ; le sens global
+  (réglage manga) ne s'applique pas à EPUB et TXT.
+
+### 7.8 Traductions
+
+- 46 clés : les 37 du § 3.11 et neuf de plus (`chapters`, `bookmarkedPage`, `navigationPerBookNote`,
+  `pdfPagesLimits`, `textPagesLimits`, `doublePageNotVertical`, `curlDisabledZoom`, `bookmarksLocalOnly`,
+  `bookSettingsActive`). `pdfPagesLimits` cite le texte `pdfModeScroll` de chaque langue ; « 500 » et « 4 s » sont
+  écrits dans les textes et changeraient dans les douze langues avec leurs constantes. Égalités légitimes ajoutées à
+  la liste `identical` : `fr:sectionNavigation`, `fr:textLayoutPages`, `de:sectionText`, `de:sectionNavigation`.
+  Aucune relecture par des locuteurs natifs.
