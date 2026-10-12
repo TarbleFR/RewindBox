@@ -140,7 +140,16 @@ extension _SecondaryDisplay on _SystemGamesListState {
     GameModel game, {
     bool forceMediaRefresh = false,
   }) async {
-    if (_secondaryDisplayState == null || _isNavigatingBack) return;
+    if (_isNavigatingBack) return;
+    if (_secondaryDisplayState == null) {
+      // iOS TV menu (Build 447, docs/external-display-universal.md § 8 bis):
+      // the selection's images, only while a TV shows the menu. The Android
+      // path below is unchanged.
+      if (SecondaryDisplayBridge.instance.forwardsSelections) {
+        await _forwardSelectionToTV(game);
+      }
+      return;
+    }
 
     final systemFolderName =
         (widget.system.folderName == 'all' ||
@@ -303,6 +312,70 @@ extension _SecondaryDisplay on _SystemGamesListState {
         );
       }
     }
+  }
+
+  /// iOS TV menu: the same media resolution as the Android push, images
+  /// only (no video decoder nor music artwork bytes on the TV), skipped when
+  /// the TV already shows that selection.
+  Future<void> _forwardSelectionToTV(GameModel game) async {
+    final systemFolderName =
+        (widget.system.folderName == 'all' ||
+                widget.system.folderName == SystemFolderNames.favorites) &&
+            game.systemFolderName != null
+        ? game.systemFolderName!
+        : widget.system.primaryFolderName;
+    final isMusicSystem = widget.system.folderName == 'music';
+    String? present(String path) =>
+        !isMusicSystem && path.isNotEmpty && File(path).existsSync()
+        ? path
+        : null;
+    final fanart = present(
+      game.getImagePath(systemFolderName, 'fanarts', _fileProvider),
+    );
+    final screenshot = present(
+      game.getScreenshotPath(systemFolderName, _fileProvider),
+    );
+    final wheel = present(
+      game.getImagePath(systemFolderName, 'wheels', _fileProvider),
+    );
+    final gameId = isMusicSystem
+        ? MusicPlayerService().activeTrack?.romPath
+        : game.romPath;
+    final bridge = SecondaryDisplayBridge.instance;
+    if (SecondaryDisplayBridge.showsSelection(
+      bridge.latest,
+      systemName: widget.system.realName,
+      gameId: gameId,
+      fanart: fanart,
+      screenshot: screenshot,
+      wheel: wheel,
+      isGameLaunching: _isGameLaunching,
+    )) {
+      return;
+    }
+    final isScraperLoggedIn = await ScreenScraperService.hasSavedCredentials();
+    if (!mounted ||
+        _previewIsSuppressed ||
+        _isNavigatingBack ||
+        _selectedGame != game) {
+      return;
+    }
+    final backgroundColor = Theme.of(
+      context,
+    ).scaffoldBackgroundColor.toARGB32();
+    await bridge.forward(
+      (current) => SecondaryDisplayBridge.gameSelected(
+        current,
+        systemName: widget.system.realName,
+        gameId: gameId,
+        fanart: fanart,
+        screenshot: screenshot,
+        wheel: wheel,
+        backgroundColor: backgroundColor,
+        isGameLaunching: _isGameLaunching,
+        isScraperLoggedIn: isScraperLoggedIn,
+      ),
+    );
   }
 
   /// Pushes specific video path updates to the secondary screen.

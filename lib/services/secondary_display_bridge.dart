@@ -76,4 +76,74 @@ class SecondaryDisplayBridge {
   /// Pushes [state] as is (no merge).
   Future<bool> forwardState(SecondaryDisplayStateData state) =>
       forward((_) => state);
+
+  /// True while a TV shows NeoStation's menu (iOS, connected, own window
+  /// enabled, menu on the TV). Producers that change on every selection (the
+  /// games lists) forward only then, so an iPhone without a TV pays no file
+  /// checks or channel messages per selection.
+  bool get forwardsSelections {
+    if (!isSupportedPlatform) return false;
+    final state = _service.state;
+    return state != null &&
+        state.supported &&
+        state.connected &&
+        state.enabled &&
+        state.menuOnTV;
+  }
+
+  /// The TV menu state of a game selected in a games list, merged into
+  /// [current] like the Android push of `_updateSecondaryDisplay`, images
+  /// only: no video (no second decoder, no sound on the TV) and no music
+  /// artwork bytes (they stay on the iPhone).
+  static SecondaryDisplayStateData gameSelected(
+    SecondaryDisplayStateData current, {
+    required String systemName,
+    required String? gameId,
+    String? fanart,
+    String? screenshot,
+    String? wheel,
+    int? backgroundColor,
+    bool isGameLaunching = false,
+    bool? isScraperLoggedIn,
+  }) => current.copyWith(
+    systemName: systemName,
+    gameFanart: fanart,
+    clearFanart: fanart == null,
+    gameScreenshot: screenshot,
+    clearScreenshot: screenshot == null,
+    gameWheel: wheel,
+    clearWheel: wheel == null,
+    gameVideo: null,
+    clearVideo: true,
+    gameImageBytes: null,
+    clearImageBytes: true,
+    isGameSelected: true,
+    backgroundColor: backgroundColor,
+    isGameLaunching: isGameLaunching,
+    gameId: gameId,
+    clearGameId: gameId == null,
+    isScraperLoggedIn: isScraperLoggedIn,
+    showAchievementPanel: false,
+  );
+
+  /// Whether [latest] already shows that selection (the games list skips the
+  /// push then, like the Android dedup of `_updateSecondaryDisplay`).
+  static bool showsSelection(
+    SecondaryDisplayStateData? latest, {
+    required String systemName,
+    required String? gameId,
+    String? fanart,
+    String? screenshot,
+    String? wheel,
+    bool isGameLaunching = false,
+  }) =>
+      latest != null &&
+      latest.isGameSelected &&
+      latest.systemName == systemName &&
+      latest.gameId == gameId &&
+      latest.gameFanart == fanart &&
+      latest.gameScreenshot == screenshot &&
+      latest.gameWheel == wheel &&
+      latest.gameVideo == null &&
+      latest.isGameLaunching == isGameLaunching;
 }

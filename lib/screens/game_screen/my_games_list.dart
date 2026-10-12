@@ -38,6 +38,7 @@ import '../../repositories/system_repository.dart';
 import '../../repositories/game_repository.dart';
 import '../../services/screenscraper_service.dart';
 import '../../services/secondary_achievements_controller.dart';
+import '../../services/secondary_display_bridge.dart';
 import '../../services/game_legend_visibility.dart';
 import '../../utils/gamepad_nav.dart';
 import '../../utils/letter_jump.dart';
@@ -584,6 +585,39 @@ class _SystemGamesListState extends State<SystemGamesList> {
       clearImageBytes: true,
       clearGameId: true,
     );
+    // iOS TV menu (Build 447): the same system branding, while a TV shows
+    // the menu.
+    if (mounted && SecondaryDisplayBridge.instance.forwardsSelections) {
+      final backgroundColor = Theme.of(
+        context,
+      ).scaffoldBackgroundColor.toARGB32();
+      unawaited(
+        SecondaryDisplayBridge.instance.forward(
+          (current) => current.copyWith(
+            systemName: widget.system.realName,
+            isGameSelected: false,
+            isVideoMuted: !configProvider.config.videoSound,
+            backgroundColor: backgroundColor,
+            systemLogo: systemLogo,
+            isLogoAsset: isLogoAsset,
+            systemBackground: systemBackground,
+            clearSystemBackground: systemBackground == null,
+            isBackgroundAsset: false,
+            useShader: systemBackground == null,
+            shaderColor1: widget.system.color1AsColor?.toARGB32(),
+            shaderColor2: widget.system.color2AsColor?.toARGB32(),
+            useFluidShader: false,
+            isOled: isOled,
+            clearFanart: true,
+            clearScreenshot: true,
+            clearWheel: true,
+            clearVideo: true,
+            clearImageBytes: true,
+            clearGameId: true,
+          ),
+        ),
+      );
+    }
 
     setState(() {
       _canPop = true;

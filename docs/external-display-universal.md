@@ -349,9 +349,15 @@ Relevées par les agents d'implémentation et la revue contradictoire ; le code 
 - § 4 : chaîne d'import AOT réelle : `lib/main.dart` → `lib/screens/main_screen.dart` →
   `lib/screens/app_screen.dart` → `external_display_service.dart` →
   `external_display_entrypoint.dart`. Producteurs qui alimentent le téléviseur sur iOS :
-  grille des consoles (`theme_background.dart`), onglets et thème (`app_screen.dart`) ; la
-  liste des jeux (`my_games_list/secondary_display.dart`) et les succès ne sont pas encore
-  relayés (le téléviseur garde le dernier visuel de console) — suite possible.
+  grille des consoles (`theme_background.dart`), onglets et thème (`app_screen.dart`), et
+  depuis le 12 octobre la liste des jeux (`my_games_list/secondary_display.dart`, retour
+  `_goBack` compris) : images seulement (fanart, capture, logo), jamais la vidéo d'aperçu
+  (pas de second décodeur ni de son sur le téléviseur) ni les octets de pochette musicale,
+  et seulement tant qu'un téléviseur affiche le menu (`SecondaryDisplayBridge
+  .forwardsSelections`), pour qu'un iPhone sans téléviseur ne paie aucun contrôle de
+  fichier ni message de canal par sélection ; une sélection déjà affichée n'est pas
+  renvoyée (`showsSelection`). Le chemin Android est inchangé. Test :
+  `test/external_display_games_list_test.dart`. Les succès ne sont pas relayés.
 - § 6 : le texte Apple TV (`appleTVOwnWindow`) renvoie au libellé réel de l'onglet,
   « Paramètres › Général » en français (`AppLocale.settings`), pas « Réglages ».
 - § 7 : assertion IPA étendue aux quatre ponts (`NeoExternalRenderHost` dans leurs
