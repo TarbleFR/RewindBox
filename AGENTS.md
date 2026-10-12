@@ -80,6 +80,12 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
   - `test/libretro_skin_catalogs_test.dart` est exécuté par le contrôle de livraison.
 - Livraison 445 vérifiée : source `c0e33717a64f6b66280d6bef3aae6c4a8bcacd55`, run `38186199603`, IPA SHA-256 `c7ab05534373af4e27ec63f01341705b24f6bc793b9fbddfb16e3c4bf57db598` (207 536 562 octets), aucune validation iPhone. Plan, vérifications et remise : `docs/build445-plan.md`. Ne pas réutiliser le numéro 445.
 
+## Décision du mainteneur — Build 446, 12 octobre 2026
+
+- Constat du mainteneur sur la Build 445 installée (vidéo) : aucun catalogue de skins ne se charge, recherche grisée, message « The catalog could not be loaded ». Demande : « apporte un correctif et produit le build 446 ».
+- Cause démontrée : `LibretroSkinCatalogs.normalizeDownloadURL` décodait deux fois les segments d'URL ; deux liens DeltaStyles réels du catalogue Provenance (« pokÃ©mon pinball GBA », « DK control + real dpad Â ») levaient une exception hors de tout `try` dans `load()`, ce qui faisait échouer tous les catalogues de toutes les consoles (régression de `6639e7a3`, 444/445). Correctif : plus de second décodage, aucune exception possible, une entrée Provenance ou une carte Delta Skins inutilisable est ignorée sans bloquer les autres. Tests de non-régression avec ces liens réels. Aucun libellé, natif ni écran modifié. Voir `docs/build446-plan.md`.
+- Règle : une entrée de catalogue externe, quelle qu'elle soit, ne doit jamais empêcher le chargement des autres entrées ni des autres sources.
+
 ## Précision du mainteneur — 9 octobre 2026, 13 h
 
 - L'état fonctionnel confirmé est NeoStation Build 422 : bibliothèque visible et lancement RetroArch lorsque l'application externe reste en arrière-plan. Conserver ces sources de lancement/synchronisation ; ne pas prendre le récepteur autonome 781 pour une mise à jour NeoStation.

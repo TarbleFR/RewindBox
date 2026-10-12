@@ -184,6 +184,13 @@ Fonctionnement :
   répond (ni Provenance, même en cache, ni le site Delta Skins). L'index des
   overlays, livré avec l'application, ne prouve pas l'accès au réseau.
 
+**Correctif Build 446 (12 octobre 2026).** Les catalogues de la 444/445 ne se
+chargeaient plus du tout sur l'iPhone : `normalizeDownloadURL` décodait deux
+fois les segments d'URL et levait une exception sur deux liens DeltaStyles
+réels à caractères non ASCII, ce qui interrompait tout `load()`. Le double
+décodage est supprimé et une entrée inutilisable est désormais ignorée sans
+bloquer les autres entrées ni les autres sources. Détails : `docs/build446-plan.md`.
+
 ## 5. Conversion des formats
 
 - **Delta / Manic / Provenance (`info.json`).** Le parseur natif existant lit

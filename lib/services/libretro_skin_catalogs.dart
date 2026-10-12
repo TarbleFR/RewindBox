@@ -210,7 +210,15 @@ class LibretroSkinCatalogs {
     } else {
       any = true;
       for (final entry in provenanceEntries) {
-        final skin = fromProvenance(entry);
+        // One unusable entry is skipped; it never takes the other catalog
+        // entries and sources down with it (Build 446).
+        final LibretroCatalogSkin skin;
+        try {
+          skin = fromProvenance(entry);
+        } catch (error) {
+          _log.w('Provenance skin skipped (${entry.downloadURL}): $error');
+          continue;
+        }
         merged.putIfAbsent(skin.key, () => skin);
       }
     }
@@ -282,11 +290,21 @@ class LibretroSkinCatalogs {
   /// and `raw.githubusercontent.com/OWNER/REPO/REF/PATH` agree, host case
   /// and percent-encoding are ignored.
   static String normalizeDownloadURL(String url) {
-    final uri = Uri.tryParse(url.trim().replaceAll(' ', '%20').replaceAll('#', '%23'));
-    if (uri == null || uri.host.isEmpty) return url.trim().toLowerCase();
+    final trimmed = url.trim();
+    final uri = Uri.tryParse(trimmed.replaceAll(' ', '%20').replaceAll('#', '%23'));
+    if (uri == null || uri.host.isEmpty) return trimmed.toLowerCase();
+    // pathSegments are already percent-decoded. Decoding them a second time
+    // threw on any non-ASCII character or literal '%': two published
+    // DeltaStyles links ("pokÃ©mon pinball GBA", "DK control + real dpad Â")
+    // made every catalog fail to load in Builds 444 and 445.
+    List<String> segments;
+    try {
+      segments = uri.pathSegments.toList();
+    } catch (_) {
+      return trimmed.toLowerCase();
+    }
     var host = uri.host.toLowerCase();
     if (host.startsWith('www.')) host = host.substring(4);
-    var segments = uri.pathSegments.map(Uri.decodeComponent).toList();
     if (host == 'github.com' && segments.length > 4 && (segments[2] == 'raw' || segments[2] == 'blob')) {
       host = 'raw.githubusercontent.com';
       segments = <String>[segments[0], segments[1], ...segments.sublist(3)];
@@ -311,7 +329,16 @@ class LibretroSkinCatalogs {
   static List<LibretroCatalogSkin> parseDeltaSkinsPage(String html) {
     final entries = <LibretroCatalogSkin>[];
     for (final tag in RegExp(r'<img\b[^>]*\bdata-download\s*=[^>]*>', caseSensitive: false).allMatches(html)) {
-      final text = tag.group(0)!;
+      final card = _deltaSkinsCard(tag.group(0)!);
+      if (card != null) entries.add(card);
+    }
+    return entries;
+  }
+
+  /// One card of a Delta Skins site page; null when it is unusable (a bad
+  /// card is skipped, the rest of the page is kept).
+  static LibretroCatalogSkin? _deltaSkinsCard(String text) {
+    try {
       String? attribute(String name) {
         final match = RegExp('\\b$name\\s*=\\s*("([^"]*)"|\'([^\']*)\')', caseSensitive: false).firstMatch(text);
         final value = match?.group(2) ?? match?.group(3);
@@ -321,9 +348,9 @@ class LibretroSkinCatalogs {
       final download = attribute('data-download');
       final name = attribute('alt');
       final console = attribute('data-console');
-      if (download == null || name == null || console == null) continue;
+      if (download == null || name == null || console == null) return null;
       final consoles = _deltaSkinsConsoles(console, name);
-      if (consoles.isEmpty) continue;
+      if (consoles.isEmpty) return null;
       final source = attribute('src');
       final thumbnail = source == null
           ? null
@@ -337,7 +364,7 @@ class LibretroSkinCatalogs {
         thumbnailURL: thumbnail,
         source: 'delta-skins.github.io',
       );
-      entries.add(LibretroCatalogSkin(
+      return LibretroCatalogSkin(
         key: normalizeDownloadURL(download),
         source: LibretroSkinSources.deltaSkins,
         name: name,
@@ -347,9 +374,11 @@ class LibretroSkinCatalogs {
         archive: archive,
         supports: attribute('data-supports'),
         excludedReason: archive.isDirectDownload ? null : LibretroSkinCompatibility.notDirect,
-      ));
+      );
+    } catch (error) {
+      _log.w('Delta Skins card skipped: $error');
+      return null;
     }
-    return entries;
   }
 
   static List<String> _deltaSkinsConsoles(String page, String name) {

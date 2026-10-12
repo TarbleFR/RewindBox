@@ -499,6 +499,78 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       );
     });
 
+    test('links with non-ASCII characters or a literal percent sign never throw', () {
+      // Two links published in Provenance's catalog (October 2026) whose
+      // second decoding threw and made every catalog fail to load.
+      const pinball = 'https://deltastyles.com/files/skins/pokÃ©mon pinball GBA.deltaskin';
+      const donkeyKong = 'https://deltastyles.com/files/skins/652/DK control + real dpad Â (1981) v.05.zip';
+      expect(LibretroSkinCatalogs.normalizeDownloadURL(pinball), 'deltastyles.com/files/skins/pokÃ©mon pinball GBA.deltaskin');
+      expect(
+        LibretroSkinCatalogs.normalizeDownloadURL(
+            'https://DeltaStyles.com/files/skins/pok%C3%83%C2%A9mon%20pinball%20GBA.deltaskin'),
+        LibretroSkinCatalogs.normalizeDownloadURL(pinball),
+      );
+      expect(LibretroSkinCatalogs.normalizeDownloadURL(donkeyKong),
+          'deltastyles.com/files/skins/652/DK control + real dpad Â (1981) v.05.zip');
+      expect(LibretroSkinCatalogs.normalizeDownloadURL('https://example.com/skins/100%25%20Orange.deltaskin'),
+          'example.com/skins/100% Orange.deltaskin');
+      // Dart's parser re-encodes a stray '%' itself: same key, no exception.
+      expect(LibretroSkinCatalogs.normalizeDownloadURL('https://example.com/bad%zz.deltaskin'),
+          'example.com/bad%zz.deltaskin');
+      final entry = LibretroSkinCatalogs.fromProvenance(const LibretroSkinCatalogEntry(
+        id: 'pinball',
+        name: 'Pokémon Pinball',
+        systems: <String>['gba'],
+        downloadURL: pinball,
+        source: 'DeltaStyles.com',
+      ));
+      expect(entry.excludedReason, isNull);
+      expect(entry.archive!.downloadUri!.path, '/files/skins/pok%C3%83%C2%A9mon%20pinball%20GBA.deltaskin');
+    });
+
+    test('one unusable catalog entry never takes the other entries and sources down', () async {
+      // The two real links above, a regular entry and a site card with a
+      // non-ASCII link: every catalog still loads, for every console.
+      const provenanceCatalog = '''
+{"skins": [
+  {"id": "1", "name": "Regular", "author": "A", "systems": ["gba"], "downloadCount": 9,
+   "downloadURL": "https://github.com/o/r/raw/main/Regular.deltaskin"},
+  {"id": "2", "name": "Pokémon Pinball", "author": "B", "systems": ["gba"], "downloadCount": 4,
+   "downloadURL": "https://deltastyles.com/files/skins/pokÃ©mon pinball GBA.deltaskin", "source": "DeltaStyles.com"},
+  {"id": "3", "name": "DK control", "author": "C", "systems": ["nes"], "downloadCount": 2,
+   "downloadURL": "https://deltastyles.com/files/skins/652/DK control + real dpad Â (1981) v.05.zip", "source": "DeltaStyles.com"},
+  {"id": "4", "name": "PlayStation", "author": "D", "systems": ["psx"], "downloadCount": 1,
+   "downloadURL": "https://example.com/psx.deltaskin"}
+]}
+''';
+      const page = '''
+<img data-console="gba" data-download="https://example.com/café skin.deltaskin" alt="Café" src="c.png">
+''';
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('catalog.json')) return http.Response.bytes(utf8.encode(provenanceCatalog), 200);
+        if (request.url.path.endsWith('/gba.html')) return http.Response.bytes(utf8.encode(page), 200);
+        if (request.url.path.endsWith('.html')) return http.Response('', 200);
+        return http.Response('missing', 404);
+      });
+      final unified = catalogs(client);
+      final entries = await unified.load();
+      expect(entries, isNotNull);
+      expect(unified.unavailableSources, isEmpty);
+      expect(entries!.map((entry) => entry.name),
+          containsAll(<String>['Regular', 'Pokémon Pinball', 'DK control', 'PlayStation', 'Café']));
+      expect(LibretroSkinCatalogs.forConsole(entries, 'gba').map((entry) => entry.name),
+          <String>['Regular', 'Pokémon Pinball', 'Café']);
+      expect(LibretroSkinCatalogs.forConsole(entries, 'psx').map((entry) => entry.name), <String>['PlayStation']);
+      expect(
+          LibretroSkinCatalogs.search(LibretroSkinCatalogs.forConsole(entries, 'gba'), 'pinball')
+              .map((entry) => entry.name),
+          <String>['Pokémon Pinball']);
+      final pinball = entries.firstWhere((entry) => entry.name == 'Pokémon Pinball');
+      expect(pinball.source, LibretroSkinSources.deltaStyles);
+      expect(pinball.excludedReason, isNull);
+    });
+
+
     test('the Delta Skins site cards', () {
       const html = '''
 <div class="skin"><img data-console="gbc" data-maker="Maker &amp; Co" data-supports="All phones"
