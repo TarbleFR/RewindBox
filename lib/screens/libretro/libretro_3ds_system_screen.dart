@@ -14,6 +14,7 @@ import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_core_option_store.dart';
 import '../../services/logger_service.dart';
 import '../../services/rpcs3_save_exchange_service.dart' show Rpcs3SaveExchangeService;
+import '../../services/storage/storage_import_activity.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import 'libretro_library_actions.dart' show libretroLibraryLocation;
 import 'libretro_skin_manager_screen.dart';
@@ -479,7 +480,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
 
   /// Import assistant: source, recovery and analysis, plan and
   /// confirmation, installation, result.
-  Future<void> _import() async {
+  Future<void> _import() => StorageImportActivity.run(() async {
     if (_busy) return;
     final title = _t('system3dsImport');
     final labels = {
@@ -578,7 +579,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
         await _reload();
       }
     }
-  }
+  });
 
   /// Runs [work] behind a progress dialog that B cannot close; the dialog
   /// closes when the work ends. Errors propagate to the caller.

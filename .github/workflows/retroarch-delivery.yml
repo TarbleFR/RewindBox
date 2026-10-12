@@ -106,15 +106,15 @@ jobs:
         flutter test test/library_*_test.dart
         # Donation settings and the canonical twelve-locale catalogue changed.
         flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart
+        # Build 447: storage analysis and cleanup (services, picker copies,
+        # pages, Tools row and 12-locale catalog; docs/storage-audit-cleanup.md).
+        flutter test test/storage_*_test.dart
         # Build 442: Wii phone-shake sensitivity panel (Dolphin external
         # display and pacing run natively in dolphin-motion-check).
         # Build 440: Wii Shake catalog, RAP licences, consoles tab, 120 Hz
         # interface, BIOS checker and Embedded RetroArch settings (the reader
         # Back button and Library source files are in test/library_*).
         flutter test test/dolphin_shake_locale_test.dart test/dolphin_wii_motion_panel_test.dart test/rpcs3_save_exchange_service_test.dart test/rpcs3_saves_locale_test.dart test/rpcs3_rap_licence_service_test.dart test/rpcs3_rap_locale_test.dart test/rpcs3_rap_import_menu_test.dart test/rpcs3_firmware_library_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/frame_cadence_estimator_test.dart test/ui_refresh_rate_service_test.dart test/ui_refresh_rate_locale_test.dart test/general_settings_ui_refresh_rate_test.dart test/notification_bell_idle_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/external_display_locale_test.dart test/external_display_service_test.dart test/external_display_unsupported_engine_test.dart test/external_display_games_list_test.dart test/general_settings_external_display_test.dart test/external_menu_screen_test.dart test/libretro_3ds_language_test.dart test/libretro_core_option_store_test.dart test/libretro_3ds_system_data_service_test.dart test/libretro_3ds_system_screen_test.dart test/libretro_3ds_launch_default_test.dart
-        # Build 447: storage analysis and cleanup (services, picker copies,
-        # pages, Tools row and 12-locale catalog; docs/storage-audit-cleanup.md).
-        flutter test test/storage_*_test.dart
         python3 - <<'PY'
         import json,os
         from pathlib import Path

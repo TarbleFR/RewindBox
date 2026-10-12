@@ -123,6 +123,28 @@ void main() {
     'metadataBackupNote',
   };
 
+  // Keys added by the review of phase 5d (12 October 2026), French in
+  // [reviewFrench]: the ticked count of a preview group, the incomplete walks
+  // (entry and depth bounds, partly analysed folders), the analyses not made
+  // (instead of a misleading « 0 »), the failures that had borrowed
+  // `scanFailed` or showed a raw text alone, and the report being prepared
+  // in the background.
+  const reviewKeys = <String>{
+    'groupSelected',
+    'truncatedEntries',
+    'truncatedDepth',
+    'truncatedNode',
+    'orphanMediaNotAnalyzed',
+    'orphanMetadataNotAnalyzed',
+    'orphanCoversNotAnalyzed',
+    'orphanSavesNotAnalyzed',
+    'duplicatesNotAnalyzed',
+    'planFailed',
+    'orphansFailed',
+    'journalNotSaved',
+    'exportPreparing',
+  };
+
   // One text for each StorageRefusalReason of § 3.8 and each limit that § 7
   // announces on the screen but § 3.11 does not name.
   const coverageKeys = <String>{
@@ -166,6 +188,9 @@ void main() {
     'resultMetadata': {'{count}'},
     'journalSaved': {'{path}'},
     'technicalCode': {'{code}'},
+    'groupSelected': {'{count}', '{total}'},
+    'truncatedEntries': {'{count}'},
+    'truncatedDepth': {'{count}'},
   };
 
   // The maintainer's French of § 3.11. The design document types a straight
@@ -225,6 +250,30 @@ void main() {
         'métadonnées.',
   };
 
+  // The French of [reviewKeys] (review of phase 5d).
+  const reviewFrench = <String, String>{
+    'groupSelected': 'Sélectionnés : {count} sur {total}',
+    'truncatedEntries':
+        'Analyse incomplète : ce dossier contient plus de {count} éléments, '
+        'le reste n’est pas compté.',
+    'truncatedDepth':
+        'Analyse incomplète : les dossiers imbriqués sur plus de {count} '
+        'niveaux ne sont pas comptés.',
+    'truncatedNode': 'Analysé en partie',
+    'orphanMediaNotAnalyzed': 'Médias sans jeu associé : non analysés',
+    'orphanMetadataNotAnalyzed': 'Métadonnées sans jeu associé : non analysées',
+    'orphanCoversNotAnalyzed': 'Couvertures sans livre associé : non analysées',
+    'orphanSavesNotAnalyzed':
+        'Sauvegardes et états sans jeu associé : non analysés',
+    'duplicatesNotAnalyzed':
+        'Doublons possibles (même nom, même taille) : non analysés',
+    'planFailed': 'L’aperçu du nettoyage n’a pas pu être préparé.',
+    'orphansFailed':
+        'Les orphelins et les doublons n’ont pas pu être analysés.',
+    'journalNotSaved': 'Le journal du nettoyage n’a pas pu être enregistré.',
+    'exportPreparing': 'Préparation du rapport…',
+  };
+
   // Texts that are legitimately the English text in another language. None:
   // every label of this catalog has its own wording in the eleven other
   // languages (product names such as NeoSwap always come with a translated
@@ -253,19 +302,28 @@ void main() {
     },
   );
 
-  test('English holds the § 3.11 keys, the screen and coverage keys', () {
-    expect(contractKeys.length, 89);
-    expect(contractKeys.intersection(screenKeys), isEmpty);
-    expect(contractKeys.intersection(coverageKeys), isEmpty);
-    expect(screenKeys.intersection(coverageKeys), isEmpty);
-    expect(english.keys.toSet(), {
-      ...contractKeys,
-      ...screenKeys,
-      ...coverageKeys,
-    });
-    expect(maintainerFrench.keys, everyElement(isIn(contractKeys)));
-    expect(requestedFrench.keys.toSet(), screenKeys);
-  });
+  test(
+    'English holds the § 3.11 keys, the screen, coverage and review keys',
+    () {
+      expect(contractKeys.length, 89);
+      expect(reviewKeys.length, 13);
+      expect(contractKeys.intersection(screenKeys), isEmpty);
+      expect(contractKeys.intersection(coverageKeys), isEmpty);
+      expect(screenKeys.intersection(coverageKeys), isEmpty);
+      for (final other in [contractKeys, screenKeys, coverageKeys]) {
+        expect(reviewKeys.intersection(other), isEmpty);
+      }
+      expect(english.keys.toSet(), {
+        ...contractKeys,
+        ...screenKeys,
+        ...coverageKeys,
+        ...reviewKeys,
+      });
+      expect(maintainerFrench.keys, everyElement(isIn(contractKeys)));
+      expect(requestedFrench.keys.toSet(), screenKeys);
+      expect(reviewFrench.keys.toSet(), reviewKeys);
+    },
+  );
 
   test('each key constant is its own name and has an English text', () {
     final source = File('lib/l10n/storage_locale.dart').readAsStringSync();
@@ -360,7 +418,11 @@ void main() {
   });
 
   test('the maintainer wording is used in French', () {
-    for (final wording in {...maintainerFrench, ...requestedFrench}.entries) {
+    for (final wording in {
+      ...maintainerFrench,
+      ...requestedFrench,
+      ...reviewFrench,
+    }.entries) {
       expect(french[wording.key], wording.value, reason: wording.key);
     }
     for (final message in french.entries) {

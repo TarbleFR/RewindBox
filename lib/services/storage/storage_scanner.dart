@@ -56,7 +56,8 @@ class StorageCategoryTotals {
 /// One measured entry. Directories carry the totals of their subtree.
 ///
 /// Additions to § 3.2 (documented deviations): [container], [rootId],
-/// [icloudCount], [truncated], [byCategory] (location nodes only). A
+/// [icloudCount], [truncated], [byCategory] (location nodes only),
+/// [changed] (status change, review of 5d). A
 /// subtree measured but never detailed (the hidden library folder) has no
 /// node: its bytes are in its parent's totals, not in its children.
 class StorageNode {
@@ -73,6 +74,7 @@ class StorageNode {
     this.inaccessibleCount = 0,
     this.icloudCount = 0,
     this.modified,
+    this.changed,
     required this.category,
     required this.deletionClass,
     this.ruleId,
@@ -106,6 +108,11 @@ class StorageNode {
   final int inaccessibleCount;
   final int icloudCount;
   final DateTime? modified;
+
+  /// `FileStat.changed`: the last status change (ctime on iOS and Linux).
+  /// A copy made by file_picker keeps the original [modified] time but its
+  /// status change is the copy: idle ages use the later of the two.
+  final DateTime? changed;
   final StorageCategory category;
   final StorageDeletionClass deletionClass;
   final String? ruleId;
@@ -146,6 +153,35 @@ class StorageNode {
       'StorageNode($displayPath, ${kind.name}, $logicalBytes B, ${category.name}/${deletionClass.name})';
 }
 
+/// Which bound of [StorageScanner] stopped the walk of a root.
+enum StorageScanLimit {
+  /// `maxDepth`: folders nested deeper were not listed.
+  depth,
+
+  /// `maxEntriesPerRoot`: the root holds more entries than were listed.
+  entries,
+}
+
+/// A root whose walk was cut by [limit] (addition, review of 5d): its
+/// totals are incomplete.
+class StorageScanTruncation {
+  const StorageScanTruncation({
+    required this.rootId,
+    required this.limit,
+    required this.value,
+  });
+
+  final String rootId;
+  final StorageScanLimit limit;
+
+  /// The bound reached ([StorageScanner.maxDepth] or
+  /// [StorageScanner.maxEntriesPerRoot]).
+  final int value;
+
+  @override
+  String toString() => 'StorageScanTruncation($rootId, ${limit.name}, $value)';
+}
+
 class StorageScanProgress {
   const StorageScanProgress({
     required this.rootsDone,
@@ -184,6 +220,7 @@ class StorageScanResult {
     this.entries = 0,
     this.byCategory = const {},
     this.statLayout,
+    this.truncations = const [],
   });
 
   final StorageContainers containers;
@@ -213,6 +250,9 @@ class StorageScanResult {
   final int entries;
   final Map<StorageCategory, StorageCategoryTotals> byCategory;
   final String? statLayout;
+
+  /// Roots whose walk a bound cut, with the bound (addition, review of 5d).
+  final List<StorageScanTruncation> truncations;
 
   /// Some subtree was not fully listed.
   bool get truncated => roots.any((root) => root.truncated);
@@ -291,6 +331,7 @@ class StorageScanner {
     final locations = registry.locations;
     final nodes = <StorageNode>[];
     final inaccessible = <String>[];
+    final truncations = <StorageScanTruncation>[];
     var entries = 0;
     var bytes = 0;
     var done = 0;
@@ -349,6 +390,24 @@ class StorageScanner {
         }
         nodes.addAll(output.nodes);
         inaccessible.addAll(output.inaccessible);
+        if (output.depthLimited) {
+          truncations.add(
+            StorageScanTruncation(
+              rootId: root.id,
+              limit: StorageScanLimit.depth,
+              value: maxDepth,
+            ),
+          );
+        }
+        if (output.entriesLimited) {
+          truncations.add(
+            StorageScanTruncation(
+              rootId: root.id,
+              limit: StorageScanLimit.entries,
+              value: maxEntriesPerRoot,
+            ),
+          );
+        }
         entries += output.entries;
         bytes += output.logicalBytes;
       }
@@ -382,6 +441,7 @@ class StorageScanner {
       entries: entries,
       byCategory: Map.unmodifiable(byCategory),
       statLayout: stat is StorageStatFfi ? stat.layout.name : null,
+      truncations: List.unmodifiable(truncations),
     );
   }
 
@@ -483,6 +543,8 @@ class _RootOutput {
     required this.entries,
     required this.logicalBytes,
     required this.cancelled,
+    this.depthLimited = false,
+    this.entriesLimited = false,
   });
 
   final List<StorageNode> nodes;
@@ -490,6 +552,8 @@ class _RootOutput {
   final int entries;
   final int logicalBytes;
   final bool cancelled;
+  final bool depthLimited;
+  final bool entriesLimited;
 }
 
 Future<_RootOutput> _scanRootInIsolate(_RootInput input) async {
@@ -518,6 +582,8 @@ Future<_RootOutput> _scanRootInIsolate(_RootInput input) async {
       entries: walker.entries,
       logicalBytes: walker.logicalBytes,
       cancelled: false,
+      depthLimited: walker.depthLimited,
+      entriesLimited: walker.entriesLimited,
     );
   } finally {
     control.close();
@@ -562,6 +628,7 @@ class _Frame {
     required this.depth,
     required this.classification,
     required this.modified,
+    required this.changed,
     required this.fold,
   });
 
@@ -571,6 +638,7 @@ class _Frame {
   final int depth;
   final StorageClassification classification;
   final DateTime? modified;
+  final DateTime? changed;
 
   /// Measured, no node kept (aggregate-only subtree).
   final bool fold;
@@ -608,6 +676,8 @@ class _RootWalker {
   final StorageCategorizer categorizer;
   final bool ffi;
   bool cancelled = false;
+  bool depthLimited = false;
+  bool entriesLimited = false;
   int entries = 0;
   int logicalBytes = 0;
   int _sinceProgress = 0;
@@ -687,13 +757,15 @@ class _RootWalker {
     }
 
     final context = registry.contextFor(location.path);
+    final (rootModified, rootChanged) = _times(location.path);
     final rootFrame = _Frame(
       path: location.path,
       relative: location.relative,
       context: context,
       depth: 0,
       classification: classification,
-      modified: _modified(location.path),
+      modified: rootModified,
+      changed: rootChanged,
       fold: context.aggregate,
     );
     final stack = <_Frame>[rootFrame];
@@ -705,6 +777,8 @@ class _RootWalker {
         frame.listed = true;
         if (frame.depth >= input.maxDepth || entries >= input.maxEntries) {
           frame.truncated = true;
+          if (frame.depth >= input.maxDepth) depthLimited = true;
+          if (entries >= input.maxEntries) entriesLimited = true;
         } else {
           await _list(frame, location, totals);
           if (cancelled) return null;
@@ -739,6 +813,7 @@ class _RootWalker {
         inaccessibleCount: node.inaccessibleCount,
         icloudCount: node.icloudCount,
         modified: node.modified,
+        changed: node.changed,
         category: node.category,
         deletionClass: node.deletionClass,
         ruleId: node.ruleId,
@@ -755,12 +830,14 @@ class _RootWalker {
     }
   }
 
-  static DateTime? _modified(String path) {
+  /// `(modified, changed)` of [path]; nulls when it cannot be read.
+  static (DateTime?, DateTime?) _times(String path) {
     try {
       final stat = FileStat.statSync(path);
-      return stat.type == FileSystemEntityType.notFound ? null : stat.modified;
+      if (stat.type == FileSystemEntityType.notFound) return (null, null);
+      return (stat.modified, stat.changed);
     } on FileSystemException {
-      return null;
+      return (null, null);
     }
   }
 
@@ -774,6 +851,7 @@ class _RootWalker {
         if (cancelled) return;
         if (entries >= input.maxEntries) {
           frame.truncated = true;
+          entriesLimited = true;
           return;
         }
         final childPath = entity.path;
@@ -799,6 +877,7 @@ class _RootWalker {
           );
         } else if (entity is Directory) {
           final child = registry.childContext(frame.context, name);
+          final (modified, changed) = _times(childPath);
           frame.pending.add(
             _Frame(
               path: childPath,
@@ -810,7 +889,8 @@ class _RootWalker {
                 name,
                 StorageEntryKind.directory,
               ),
-              modified: _modified(childPath),
+              modified: modified,
+              changed: changed,
               fold: frame.fold || child.aggregate,
             ),
           );
@@ -881,7 +961,11 @@ class _RootWalker {
     StorageMatchContext parent,
     _CategoryAccumulator totals,
   ) {
-    StorageNode zero(StorageEntryKind kind, DateTime? modified) {
+    StorageNode zero(
+      StorageEntryKind kind,
+      DateTime? modified, [
+      DateTime? changed,
+    ]) {
       final classification = categorizer.classifyChild(parent, name, kind);
       totals.add(
         classification.category,
@@ -903,6 +987,7 @@ class _RootWalker {
         inaccessibleCount: kind == StorageEntryKind.inaccessible ? 1 : 0,
         icloudCount: kind == StorageEntryKind.icloudPlaceholder ? 1 : 0,
         modified: modified,
+        changed: changed,
         category: classification.category,
         deletionClass: classification.deletionClass,
         ruleId: classification.ruleId,
@@ -910,7 +995,8 @@ class _RootWalker {
     }
 
     if (StorageLayout.icloudPlaceholder.hasMatch(name)) {
-      return zero(StorageEntryKind.icloudPlaceholder, _modified(path));
+      final (modified, changed) = _times(path);
+      return zero(StorageEntryKind.icloudPlaceholder, modified, changed);
     }
     final FileStat stat;
     try {
@@ -956,6 +1042,7 @@ class _RootWalker {
       allocatedBytes: ffi ? allocated : null,
       fileCount: 1,
       modified: stat.modified,
+      changed: stat.changed,
       category: classification.category,
       deletionClass: classification.deletionClass,
       ruleId: classification.ruleId,
@@ -982,6 +1069,7 @@ class _RootWalker {
       inaccessibleCount: frame.unreadable,
       icloudCount: frame.icloud,
       modified: frame.modified,
+      changed: frame.changed,
       category: frame.classification.category,
       deletionClass: failed
           ? StorageDeletionClass.never

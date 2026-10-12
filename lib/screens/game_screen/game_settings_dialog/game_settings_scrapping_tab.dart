@@ -18,6 +18,7 @@ import 'package:neostation/screens/game_screen/my_games_grid.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/screenscraper_service.dart';
 import 'package:neostation/services/sfx_service.dart';
+import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/utils/artwork_cache.dart';
 import 'package:neostation/widgets/custom_notification.dart';
 
@@ -325,49 +326,50 @@ class GameSettingsScrappingTabState extends State<GameSettingsScrappingTab> {
       ? widget.game.getScreenshotPath(_folder, widget.fileProvider)
       : widget.game.getImagePath(_folder, type, widget.fileProvider);
 
-  Future<void> _replaceImage(String type) async {
-    final result = await FilePicker.pickFiles(type: FileType.image);
-    final srcPath = result?.files.single.path;
-    if (srcPath == null || !mounted) return;
+  Future<void> _replaceImage(String type) =>
+      StorageImportActivity.run(() async {
+        final result = await FilePicker.pickFiles(type: FileType.image);
+        final srcPath = result?.files.single.path;
+        if (srcPath == null || !mounted) return;
 
-    try {
-      final targetPath = _pathForImageType(type);
-      await File(targetPath).parent.create(recursive: true);
-      await File(srcPath).copy(targetPath);
-      await evictScrapedArtwork([targetPath]);
-      GamesGrid.evictArtworkCaches([targetPath]);
-      GamesCarousel.evictArtworkCaches([targetPath]);
+        try {
+          final targetPath = _pathForImageType(type);
+          await File(targetPath).parent.create(recursive: true);
+          await File(srcPath).copy(targetPath);
+          await evictScrapedArtwork([targetPath]);
+          GamesGrid.evictArtworkCaches([targetPath]);
+          GamesCarousel.evictArtworkCaches([targetPath]);
 
-      // Keep the grid's layout math correct for the new boxart dimensions.
-      if (type == 'box2d' && widget.game.systemId != null) {
-        final bytes = await File(targetPath).readAsBytes();
-        final decoded = await decodeImageFromList(bytes);
-        await GameRepository.updateBox2dAspectRatio(
-          widget.game.systemId!,
-          widget.game.romname,
-          '${decoded.width}/${decoded.height}',
-        );
-      }
+          // Keep the grid's layout math correct for the new boxart dimensions.
+          if (type == 'box2d' && widget.game.systemId != null) {
+            final bytes = await File(targetPath).readAsBytes();
+            final decoded = await decodeImageFromList(bytes);
+            await GameRepository.updateBox2dAspectRatio(
+              widget.game.systemId!,
+              widget.game.romname,
+              '${decoded.width}/${decoded.height}',
+            );
+          }
 
-      if (!mounted) return;
-      setState(() => _thumbsVersion++);
-      widget.onGameUpdated?.call();
-      AppNotification.showNotification(
-        context,
-        AppLocale.imageUpdated.getString(context),
-        type: NotificationType.success,
-      );
-    } catch (e) {
-      _log.e('Artwork replacement failed: $e');
-      if (mounted) {
-        AppNotification.showNotification(
-          context,
-          AppLocale.failedToSaveSetting.getString(context),
-          type: NotificationType.error,
-        );
-      }
-    }
-  }
+          if (!mounted) return;
+          setState(() => _thumbsVersion++);
+          widget.onGameUpdated?.call();
+          AppNotification.showNotification(
+            context,
+            AppLocale.imageUpdated.getString(context),
+            type: NotificationType.success,
+          );
+        } catch (e) {
+          _log.e('Artwork replacement failed: $e');
+          if (mounted) {
+            AppNotification.showNotification(
+              context,
+              AppLocale.failedToSaveSetting.getString(context),
+              type: NotificationType.error,
+            );
+          }
+        }
+      });
 
   // ── Gamepad delegates ───────────────────────────────────────────────────
 

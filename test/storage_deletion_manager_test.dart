@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,6 +10,7 @@ import 'package:neostation/services/library_source_files.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/storage/storage_cleanup_planner.dart';
 import 'package:neostation/services/storage/storage_deletion_manager.dart';
+import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/services/storage/storage_orphan_detector.dart';
 import 'package:neostation/services/storage/storage_roots.dart';
 import 'package:neostation/services/storage/storage_scanner.dart';
@@ -20,11 +22,12 @@ import 'database_test_helper.dart';
 
 /// docs/storage-audit-cleanup.md § 3.8 and tests C, E and F of § 6
 /// (deletion side), on real temporary trees: nothing is deleted without a
-/// plan and a selection, level 3 stays unchecked; links escaping a root,
+/// plan and a selection, level 3 starts with nothing ticked; links escaping a root,
 /// roots, protected folders and paths outside the whitelist are refused even
 /// in a forged plan; a file changed since the preview is kept, ENOENT is
-/// tolerated, EACCES/EPERM keep their raw text; the session guard before the
-/// start and every 50 files, the libretro and Dolphin exclusions, the RPCS3
+/// tolerated, EACCES/EPERM keep their raw text; the session guard (a game or
+/// an import) before the start and every 50 files, the libretro and Dolphin
+/// exclusions, the RPCS3
 /// guard (`gameRunning`, `libraryBusy`, redirection), the cancellation, the
 /// journal (relative paths, 20 files at most), the duplicate exception, the
 /// metadata rows and the Library caches through their API.
@@ -294,7 +297,8 @@ void main() {
     expect(await File(doc('Diagnostics/old.txt')).exists(), isTrue);
   });
 
-  test('C — level 3 stays unchecked: the preselection keeps it', () async {
+  test('C — level 3 starts unchecked: its preselection is empty, only the '
+      'ticked items go', () async {
     await db.execute(
       'INSERT INTO user_roms (app_system_id, filename, rom_path) VALUES (?, ?, ?)',
       ['snes', 'Super Mario World.sfc', doc('roms/snes/Super Mario World.sfc')],
@@ -316,11 +320,25 @@ void main() {
       doc('Diagnostics/old.txt'),
       doc('MyGames/snes/Super Mario World.sfc'),
     });
-    expect(plan.preselectedPaths.intersection(level3), isEmpty);
-
-    final result = await manager(
+    // Review of phase 5d: a level-3 plan preselects nothing at all (its
+    // level-1 and level-2 lines used to be ticked): run as it opens, the
+    // preview deletes nothing.
+    expect(plan.preselectedPaths, isEmpty);
+    final before = await tree();
+    var result = await manager(
       registry,
     ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(result.deletedFiles, 0);
+    expect(result.refusals, isEmpty);
+    expect(await tree(), before);
+
+    // The user ticks the two lower-level items: exactly they go.
+    final lower = {
+      for (final value in plan.candidates)
+        if (value.level != StorageCleanupLevel.confirmed) value.path,
+    };
+    expect(lower, {tmp('picked.zip'), dolphin('ShaderCache/GALE01.uidcache')});
+    result = await manager(registry).execute(plan, selectedPaths: lower);
     expect(result.deletedFiles, 2);
     expect(await File(tmp('picked.zip')).exists(), isFalse);
     expect(
@@ -698,6 +716,60 @@ void main() {
     expect(reasonsOf(result), {StorageRefusalReason.sessionActive});
     expect(result.refusals, hasLength(2));
     expect(await tree(), before);
+
+    // An import following a Files pick (review of phase 5d), read by the
+    // default guard from StorageImportActivity.
+    addTearDown(StorageImportActivity.reset);
+    final picking = Completer<void>();
+    final import = StorageImportActivity.run(() => picking.future);
+    final imported = await manager(
+      registry,
+    ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(imported.deletedFiles, 0);
+    expect(imported.stoppedBySession, isTrue);
+    expect(reasonsOf(imported), {StorageRefusalReason.sessionActive});
+    expect(imported.refusals, hasLength(2));
+    expect(await tree(), before);
+    final lines = await journalOf(imported);
+    expect(lines.first['importActive'], isTrue);
+    expect(lines.first['launchActive'], isFalse);
+    picking.complete();
+    await import;
+  });
+
+  test('F — an import starting during the cleanup stops it at the next '
+      'check, like a game', () async {
+    for (var index = 0; index < 120; index++) {
+      await write(doc('user-data/temp/big/file-$index.bin'), length: 1);
+    }
+    final (plan, registry) = await planFor(StorageCleanupLevel.safe);
+    addTearDown(StorageImportActivity.reset);
+    final picking = Completer<void>();
+    Future<void>? import;
+    var deleted = 0;
+    final result = await manager(
+      registry,
+      // The default guard reads StorageImportActivity; the user starts an
+      // import (another page) after the tenth file.
+      deleteFile: (path) async {
+        await File(path).delete();
+        if (++deleted == 10) {
+          import = StorageImportActivity.run(() => picking.future);
+        }
+      },
+    ).execute(plan, selectedPaths: plan.preselectedPaths);
+    expect(StorageImportActivity.active, isTrue);
+    expect(result.deletedFiles, 50);
+    expect(result.stoppedBySession, isTrue);
+    expect(
+      {for (final refusal in result.refusals) refusal.path: refusal.reason},
+      {doc('user-data/temp/big'): StorageRefusalReason.sessionActive},
+    );
+    expect(Directory(doc('user-data/temp/big')).listSync(), hasLength(70));
+    expect((await journalOf(result)).first['importActive'], isFalse);
+    picking.complete();
+    await import;
+    expect(StorageImportActivity.active, isFalse);
   });
 
   test(

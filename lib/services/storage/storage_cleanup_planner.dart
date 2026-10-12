@@ -3,7 +3,7 @@
 /// is deleted, nothing is written; [StorageDeletionManager] executes a plan.
 ///
 /// - Level 1 « Sûr » (preselected): picker copies in `tmp/` and
-///   `tmp/*-Inbox/` (regular files, at least 10 minutes old), the SoLoud
+///   `tmp/*-Inbox/` (regular files, idle for at least one hour), the SoLoud
 ///   temporary files, the Dolphin frame-pacing file without the Dolphin
 ///   marker, `*.part` older than one hour, `user-data/temp/**`,
 ///   `Skins/.staging/*` older than one hour, `background.importing*`,
@@ -20,20 +20,28 @@
 ///   google_fonts copies, `Caches/<bundle-id>/` and the KartPad and
 ///   Dusklight cache folders `Caches/{KartPad,Dusklight}/*` (decision of the
 ///   lead).
-/// - Level 3 « Avec confirmation détaillée » (never preselected): level 2,
-///   `Documents/Diagnostics/*`, the native logs at the Documents root, Dolphin
-///   recordings, RPCS3 save exports and backups, the maintenance copies but
-///   the newest, `Libretro/Logs/*`, `user-data/app.log.old` (decision of the
-///   lead: level 3), `dolphin-persistent.jsonl`, `RPCS3/Data/dev_hdd1`,
+/// - Level 3 « Avec confirmation détaillée » (nothing preselected, not even
+///   its level-1 and level-2 candidates nor the metadata rows: each item is
+///   ticked one by one, review of 5d): level 2, `Documents/Diagnostics/*`,
+///   the native logs at the Documents root, Dolphin recordings, RPCS3 save
+///   exports and backups, the maintenance copies but the newest,
+///   `Libretro/Logs/*`, `user-data/app.log.old` (decision of the lead: level
+///   3), `dolphin-persistent.jsonl`, `RPCS3/Data/dev_hdd1`,
 ///   `KartPad/Runtime/GameData`, the 3DS backups and the duplicate copies the
 ///   library does not use.
 ///
-/// Session guards: nothing while a game or an import runs
-/// (`GameLaunchManager().isActive`); the libretro roots (INV-14, INV-25)
-/// while a libretro session is declared or its journal is unfinished; the
-/// Dolphin roots (INV-20 … INV-22) and the frame-pacing file while the Dolphin
-/// marker exists; every RPCS3 root (INV-16 … INV-19) while `Data/vfs.yml`
-/// redirects `dev_hdd0`. Excluded candidates are listed as refusals.
+/// Ages are idle times from the later of the modification and the status
+/// change (`FileStat.changed`) of an entry and of everything below it:
+/// file_picker's copies keep the original modification time, their status
+/// change is the copy itself (review of 5d).
+///
+/// Session guards: nothing while a game runs (`GameLaunchManager().isActive`)
+/// or an import runs (`StorageImportActivity`); the libretro roots (INV-14,
+/// INV-25) while a libretro session is declared or its journal is
+/// unfinished; the Dolphin roots (INV-20 … INV-22) and the frame-pacing file
+/// while the Dolphin marker exists; every RPCS3 root (INV-16 … INV-19) while
+/// `Data/vfs.yml` redirects `dev_hdd0`. Excluded candidates are listed as
+/// refusals.
 library;
 
 import 'dart:async';
@@ -49,6 +57,7 @@ import '../game_launch_manager.dart';
 import '../libretro_3ds_system_data_service.dart';
 import 'storage_categorizer.dart';
 import 'storage_deletion_manager.dart' show StorageRefusalReason;
+import 'storage_import_activity.dart';
 import 'storage_orphan_detector.dart';
 import 'storage_roots.dart';
 import 'storage_scanner.dart';
@@ -171,7 +180,9 @@ class StorageCleanupCandidate {
   /// `StorageLocale` keys of the warnings (`rpcs3CacheWarning`, …).
   final List<String> warningKeys;
 
-  /// Levels 1 and 2 are preselected, level 3 never.
+  /// Ticked when the preview opens: the candidates of a level-1 or level-2
+  /// plan but its level-3 ones; nothing in a level-3 plan, where each item
+  /// is ticked one by one (review of 5d).
   final bool preselected;
 
   /// Duplicate only: the copy the library references, which is kept.
@@ -311,17 +322,19 @@ class StorageCleanupPlan {
   int get preselectedBytes => bytesOf(preselectedPaths);
 
   /// A game or an import is running: nothing is proposed.
-  bool get blocked => session.launchActive;
+  bool get blocked => session.wholeCleanupRefused;
 
   bool get hasMetadata => metadataKeys.isNotEmpty;
 
-  /// Levels 2 and 3 preselect the metadata rows.
+  /// Level 2 preselects the metadata rows; level 3 preselects nothing, its
+  /// metadata rows included (review of phase 5d).
   bool get metadataPreselected =>
-      hasMetadata && level.index >= StorageCleanupLevel.regenerable.index;
+      hasMetadata && level == StorageCleanupLevel.regenerable;
 
   bool get isEmpty => candidates.isEmpty && metadataKeys.isEmpty;
 
-  /// Initial selection of the preview: levels 1 and 2 checked, level 3 not.
+  /// Initial selection of the preview: the candidates and metadata rows of a
+  /// level-1 or level-2 plan; empty at level 3.
   Set<String> get preselectedPaths => {
     for (final candidate in candidates)
       if (candidate.preselected) candidate.path,
@@ -385,11 +398,17 @@ class StorageSessionState {
     this.libretroActive = false,
     this.dolphinMarker = false,
     this.libretroUnfinishedJournal = false,
+    this.importActive = false,
     this.probeErrors = const {},
   });
 
   /// `GameLaunchManager().isActive`: nothing is cleaned.
   final bool launchActive;
+
+  /// `StorageImportActivity.active` (addition, review of 5d): an import runs
+  /// between its Files pick and the end of its processing; nothing is
+  /// cleaned.
+  final bool importActive;
 
   /// `LibretroInternalBridge.isSessionActive()` (true when the probe fails).
   final bool libretroActive;
@@ -408,34 +427,45 @@ class StorageSessionState {
   /// INV-14 and INV-25 are excluded.
   bool get libretroBusy => libretroActive || libretroUnfinishedJournal;
 
-  bool get anyActive => launchActive || libretroBusy || dolphinMarker;
+  /// A game or an import runs: the whole plan is refused and a deletion
+  /// stops (`sessionActive`).
+  bool get wholeCleanupRefused => launchActive || importActive;
+
+  bool get anyActive =>
+      launchActive || importActive || libretroBusy || dolphinMarker;
 
   @override
   String toString() =>
-      'StorageSessionState(launch: $launchActive, libretro: $libretroActive, '
-      'journal: $libretroUnfinishedJournal, dolphin: $dolphinMarker)';
+      'StorageSessionState(launch: $launchActive, import: $importActive, '
+      'libretro: $libretroActive, journal: $libretroUnfinishedJournal, '
+      'dolphin: $dolphinMarker)';
 }
 
 /// The session guards of planning and execution (§ 3.7). Each probe is
 /// injectable; a probe that fails counts as busy (never an unknown state).
 ///
 /// Addition: [containers] gives the marker and journal paths without
-/// `path_provider` (the screens pass `registry.containers`).
+/// `path_provider` (the screens pass `registry.containers`); [importActive]
+/// (review of 5d) is `StorageImportActivity.active` by default, read last so
+/// an import started during the other probes counts.
 class StorageSessionGuard {
   StorageSessionGuard({
     bool Function()? launchActive,
     Future<bool> Function()? libretroActive,
     Future<bool> Function()? dolphinMarkerPresent,
     Future<bool> Function()? libretroJournalUnfinished,
+    bool Function()? importActive,
     StorageContainers? containers,
   }) : _launchActive = launchActive ?? _gameLaunchActive,
        _libretroActive =
            libretroActive ?? LibretroInternalBridge.isSessionActive,
        _dolphinMarkerPresent = dolphinMarkerPresent,
        _libretroJournalUnfinished = libretroJournalUnfinished,
+       _importActive = importActive ?? _importRunning,
        _containers = containers;
 
   final bool Function() _launchActive;
+  final bool Function() _importActive;
   final Future<bool> Function() _libretroActive;
   final Future<bool> Function()? _dolphinMarkerPresent;
   final Future<bool> Function()? _libretroJournalUnfinished;
@@ -447,6 +477,8 @@ class StorageSessionGuard {
   static const int journalTail = 4096;
 
   static bool _gameLaunchActive() => GameLaunchManager().isActive;
+
+  static bool _importRunning() => StorageImportActivity.active;
 
   Future<StorageContainers> _paths() async =>
       _containers ?? (_resolved ??= await StorageContainers.resolve());
@@ -489,11 +521,18 @@ class StorageSessionGuard {
             ),
           ),
     );
+    var importing = true;
+    try {
+      importing = _importActive();
+    } catch (error) {
+      errors['importActive'] = '$error';
+    }
     return StorageSessionState(
       launchActive: launch,
       libretroActive: libretro,
       dolphinMarker: marker,
       libretroUnfinishedJournal: journal,
+      importActive: importing,
       probeErrors: Map.unmodifiable(errors),
     );
   }
@@ -644,8 +683,14 @@ class StorageCleanupPlanner {
   final StorageSessionGuard _guard;
   final DateTime Function() _now;
 
-  /// Picker copies are never proposed before this age (§ 3.7).
-  static const Duration pickerCopyAge = Duration(minutes: 10);
+  /// Picker copies (regular files of `tmp/` and `tmp/*-Inbox/`) are never
+  /// proposed before this idle time: 10 minutes in § 3.7, one hour since the
+  /// review of 5d (defence in depth behind [StorageImportActivity]).
+  static const Duration pickerCopyAge = Duration(hours: 1);
+
+  /// The music player's metadata copies (decision of the lead, 12 October
+  /// 2026): not picker copies, they keep the 10 minutes of § 3.7.
+  static const Duration musicCopyAge = Duration(minutes: 10);
 
   /// `*.part`, `Skins/.staging/*` and `*.PUP` age (§ 3.7).
   static const Duration staleAge = Duration(hours: 1);
@@ -804,7 +849,7 @@ class StorageCleanupPlanner {
       StorageCleanupLevel.safe,
       _UnitMode.direct,
       filesOnly: true,
-      minimumAge: pickerCopyAge,
+      minimumAge: musicCopyAge,
     ),
     // Level 2 « Régénérable ».
     _Line(
@@ -985,7 +1030,7 @@ class StorageCleanupPlanner {
     final builtAt = _now();
     final session = await _guard.check();
     final containers = _registry.containers;
-    if (session.launchActive) {
+    if (session.wholeCleanupRefused) {
       return StorageCleanupPlan(
         level: level,
         builtAt: builtAt,
@@ -1094,6 +1139,15 @@ class _PlanBuilder {
       b != null && b > a ? b : a;
 
   static DateTime _epoch() => DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Last activity of [node]: the later of its modification and its status
+  /// change (`FileStat.changed`). file_picker's copies keep the original
+  /// modification time; their status change is the copy (review of 5d).
+  static DateTime _activityOf(StorageNode node) =>
+      _newer(node.modified ?? _epoch(), node.changed);
+
+  /// A level-3 plan preselects nothing (review of 5d, decision of the lead).
+  bool get _preselects => level != StorageCleanupLevel.confirmed;
 
   static DateTime _newer(DateTime a, DateTime? b) =>
       b != null && b.isAfter(a) ? b : a;
@@ -1369,7 +1423,10 @@ class _PlanBuilder {
     if (node.deletionClass == StorageDeletionClass.temporaryWhenIdle) {
       required = _longest(required, StorageCleanupPlanner.idleAge);
     }
+    // Newest modification (the preview's date and the deletion's re-stat
+    // keep modification times) and last activity (the idle age).
     var newest = node.modified ?? _epoch();
+    var active = _activityOf(node);
     final files = <StorageCandidateEntry>[];
     final directories = <StorageCandidateEntry>[];
     var bytes = 0;
@@ -1395,6 +1452,7 @@ class _PlanBuilder {
       // Activity anywhere below counts, even in parts never deleted.
       for (final descendant in node.descendants) {
         newest = _newer(newest, descendant.modified);
+        active = _newer(active, _activityOf(descendant));
       }
       final stack = <StorageNode>[...node.children.reversed];
       while (stack.isNotEmpty) {
@@ -1421,7 +1479,7 @@ class _PlanBuilder {
       );
       directories.add(entryOf(node));
     }
-    if (now.difference(newest) < required) return null;
+    if (now.difference(active) < required) return null;
     final rootId = node.rootId;
     return StorageCleanupCandidate(
       path: node.path,
@@ -1436,7 +1494,7 @@ class _PlanBuilder {
           StorageLocale.categoryKeys[node.category.name] ??
           StorageLocale.catUnknown,
       warningKeys: line.warningKeys,
-      preselected: line.level != StorageCleanupLevel.confirmed,
+      preselected: _preselects && line.level != StorageCleanupLevel.confirmed,
       engine: _engineOf(rootId, node.ruleId),
       level: line.level,
       source: StorageCandidateSource.rule,
@@ -1477,7 +1535,7 @@ class _PlanBuilder {
             category: child.category,
             deletionClass: child.deletionClass,
             reasonKey: StorageLocale.catCaches,
-            preselected: true,
+            preselected: _preselects,
             engine: StorageEngine.library,
             level: StorageCleanupLevel.regenerable,
             source: StorageCandidateSource.cacheApi,
@@ -1515,7 +1573,7 @@ class _PlanBuilder {
         deletionClass: entry.deletionClass,
         reasonKey: reasonKey,
         warningKeys: warnings,
-        preselected: true,
+        preselected: _preselects,
         engine: _engineOf(entry.rootId, entry.ruleId),
         level: StorageCleanupLevel.regenerable,
         source: source,

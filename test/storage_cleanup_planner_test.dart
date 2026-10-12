@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +6,7 @@ import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:neostation/l10n/storage_locale.dart';
 import 'package:neostation/services/library_source_files.dart';
 import 'package:neostation/services/storage/storage_cleanup_planner.dart';
+import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/services/storage/storage_orphan_detector.dart';
 import 'package:neostation/services/storage/storage_roots.dart';
 import 'package:neostation/services/storage/storage_scanner.dart';
@@ -17,9 +19,11 @@ import 'database_test_helper.dart';
 /// part), on real temporary trees: no plan of any level holds games, saves,
 /// states, memory cards, BIOS, firmware, NAND, licences, pairing, books,
 /// skins, settings, NeoSwap or unknown data; each level holds exactly its
-/// lines and the lower levels, levels 1–2 preselected and level 3 never;
-/// ages, kept logs, session exclusions (game or import running, libretro
-/// session or unfinished journal, Dolphin marker) and the RPCS3 redirection.
+/// lines and the lower levels, levels 1–2 preselected and nothing at all in
+/// a level-3 plan; ages (from the later of the modification and the status
+/// change, one hour for the picker's copies), kept logs, session exclusions
+/// (game or import running, libretro session or unfinished journal, Dolphin
+/// marker) and the RPCS3 redirection.
 void main() {
   final helper = DatabaseTestHelper();
   late DatabaseAdapter db;
@@ -390,13 +394,15 @@ void main() {
         doc('MyGames/snes/Super Mario World.sfc'),
       };
 
-      // Level 1 entries.
-      await write(tmp('picked.zip'), age: minute * 20);
+      // Level 1 entries. The picker's copies wait one hour since the review
+      // of phase 5d (they used to wait 10 minutes; a copy keeps the date of
+      // its original, and an import may still be reading it).
+      await write(tmp('picked.zip'), age: minute * 65);
       await write(
         tmp('com.neogamelab.neostation-Inbox/picked.zip'),
-        age: minute * 20,
+        age: minute * 65,
       );
-      await write(tmp('armsx2-shaders-1234.zip'), age: minute * 20);
+      await write(tmp('armsx2-shaders-1234.zip'), age: minute * 65);
       await write(cac('SoLoudLoader-Temp-Files/nav.wav'));
       await write(tmp('NeoStation-Dolphin-FramePacing.json'));
       await write(doc('media/snes/box2d/Partial.png.part'), age: hour * 2);
@@ -432,6 +438,7 @@ void main() {
       await write(data('dev_hdd0/tmp/update.tmp'));
       // Never proposed: too recent, not a picker copy, not a line.
       await write(tmp('fresh.zip'), age: minute * 5);
+      await write(tmp('recent.zip'), age: minute * 30);
       await write(tmp('org.example-Inbox/sub/deep.bin'), age: hour);
       await write(tmp('someDir/x.bin'), age: hour);
       await write(doc('media/snes/box2d/Recent.png.part'), age: minute * 30);
@@ -524,9 +531,12 @@ void main() {
               ? StorageCleanupLevel.regenerable
               : StorageCleanupLevel.confirmed;
           expect(value.level, expectedLevel, reason: value.path);
+          // Review of phase 5d: a level-3 plan preselects nothing, its
+          // level-1 and level-2 lines included (they used to be ticked).
           expect(
             value.preselected,
-            expectedLevel != StorageCleanupLevel.confirmed,
+            plan.level != StorageCleanupLevel.confirmed &&
+                expectedLevel != StorageCleanupLevel.confirmed,
             reason: value.path,
           );
           expect(value.relativePath, isNot(startsWith('/')));
@@ -541,8 +551,12 @@ void main() {
           }
         }
       }
-      // Level 3 is never preselected; levels 1 and 2 are.
-      expect(confirmed.preselectedPaths, {
+      // Levels 1 and 2 are preselected; a level-3 plan preselects nothing,
+      // not even its level-1 and level-2 lines nor the metadata rows (review
+      // of phase 5d: they used to be ticked there too).
+      expect(confirmed.preselectedPaths, isEmpty);
+      expect(confirmed.preselectedBytes, 0);
+      expect(regenerable.preselectedPaths, {
         ...level1,
         ...level2,
         StorageCleanupPlan.metadataSelectionKey,
@@ -555,6 +569,9 @@ void main() {
         StorageOrphanMetadataKey('snes', 'Deleted Game.sfc'),
       ]);
       expect(regenerable.metadataPreselected, isTrue);
+      // Listed at level 3 too, never ticked there.
+      expect(confirmed.metadataKeys, regenerable.metadataKeys);
+      expect(confirmed.metadataPreselected, isFalse);
 
       // Warnings and reasons.
       expect(
@@ -656,17 +673,64 @@ void main() {
   test('a game or an import running: no candidate, one refusal', () async {
     await write(tmp('picked.zip'), age: const Duration(hours: 1));
     await write(doc('Diagnostics/x.txt'));
-    final (plan, _) = await planFor(
+    void expectRefused(StorageCleanupPlan plan) {
+      expect(plan.candidates, isEmpty);
+      expect(plan.metadataKeys, isEmpty);
+      expect(plan.blocked, isTrue);
+      expect(plan.refusals, hasLength(1));
+      expect(plan.refusals.single.path, StoragePlanRefusal.wholePlan);
+      expect(plan.refusals.single.reason, StorageRefusalReason.sessionActive);
+      expect(plan.refusals.single.localeKey, StorageLocale.sessionActive);
+    }
+
+    var (plan, _) = await planFor(
       StorageCleanupLevel.confirmed,
       sessions: guard(launch: true),
     );
-    expect(plan.candidates, isEmpty);
-    expect(plan.metadataKeys, isEmpty);
+    expectRefused(plan);
+    expect(plan.session.launchActive, isTrue);
+
+    // An import that follows a Files pick (review of phase 5d): the default
+    // guard reads StorageImportActivity, the whole plan is refused too.
+    addTearDown(StorageImportActivity.reset);
+    final picking = Completer<void>();
+    final import = StorageImportActivity.run(() => picking.future);
+    for (final level in StorageCleanupLevel.values) {
+      (plan, _) = await planFor(level);
+      expectRefused(plan);
+      expect(plan.session.importActive, isTrue, reason: level.name);
+      expect(plan.session.launchActive, isFalse);
+    }
+    picking.complete();
+    await import;
+    (plan, _) = await planFor(StorageCleanupLevel.confirmed);
+    expect(plan.blocked, isFalse);
+    expect(plan.session.importActive, isFalse);
+    expect(
+      paths(plan),
+      containsAll([tmp('picked.zip'), doc('Diagnostics/x.txt')]),
+    );
+  });
+
+  test('a failing import probe counts as an import running', () async {
+    await write(tmp('picked.zip'), age: const Duration(hours: 1));
+    final (plan, _) = await planFor(
+      StorageCleanupLevel.safe,
+      sessions: StorageSessionGuard(
+        launchActive: () => false,
+        libretroActive: () async => false,
+        dolphinMarkerPresent: () async => false,
+        libretroJournalUnfinished: () async => false,
+        importActive: () => throw StateError('import state unreadable'),
+      ),
+    );
+    expect(plan.session.importActive, isTrue);
+    expect(
+      plan.session.probeErrors['importActive'],
+      contains('import state unreadable'),
+    );
     expect(plan.blocked, isTrue);
-    expect(plan.refusals, hasLength(1));
-    expect(plan.refusals.single.path, StoragePlanRefusal.wholePlan);
-    expect(plan.refusals.single.reason, StorageRefusalReason.sessionActive);
-    expect(plan.refusals.single.localeKey, StorageLocale.sessionActive);
+    expect(plan.candidates, isEmpty);
   });
 
   Future<void> writeLibretroAndOthers() async {
@@ -885,8 +949,12 @@ void main() {
     await write(doc('user-data/temp/old-part/x.part'), age: minute * 90);
     await write(doc('Libretro/Skins/.staging/a/x'), age: minute * 61);
     await write(doc('Libretro/Skins/.staging/b/x'), age: minute * 59);
+    // The picker's copies wait one hour (review of phase 5d: 10 minutes
+    // before, when eleven.zip was proposed).
     await write(tmp('nine.zip'), age: minute * 9);
     await write(tmp('eleven.zip'), age: minute * 11);
+    await write(tmp('fifty-nine.zip'), age: minute * 59);
+    await write(tmp('sixty-one.zip'), age: minute * 61);
     await write(doc('media/snes/x.png.part'), age: minute * 59);
     await write(doc('media/snes/y.png.part'), age: minute * 61);
     // A partial picker copy is a *.part too: one hour.
@@ -897,10 +965,55 @@ void main() {
       doc('user-data/temp/old'),
       doc('user-data/temp/old-part'),
       doc('Libretro/Skins/.staging/a'),
-      tmp('eleven.zip'),
+      tmp('sixty-one.zip'),
       doc('media/snes/y.png.part'),
       tmp('old.iso.part'),
     });
+  });
+
+  test('ages count from the later of the modification and the status change '
+      '(a copy keeps the date of its original)', () async {
+    final real = DateTime.now();
+    // The picker just copied an old game (its modification date is the
+    // original's, three days old) and an import unpacked an old archive
+    // into user-data/temp: their status change is the copy, just now.
+    now = real.add(const Duration(minutes: 30));
+    await write(tmp('Old Game.zip'), age: const Duration(days: 3));
+    await write(
+      doc('user-data/temp/unpacked/Old Game.sfc'),
+      age: const Duration(days: 3),
+    );
+    final (scan, plan) = await () async {
+      final registry = StorageRootRegistry(containers);
+      final scan = await StorageScanner().scan(registry);
+      final plan = await StorageCleanupPlanner(
+        registry: registry,
+        guard: guard(),
+        now: () => now,
+      ).plan(scan, const StorageOrphanReport(), StorageCleanupLevel.safe);
+      return (scan, plan);
+    }();
+    // The scanner keeps both dates.
+    final copy = scan.allNodes.firstWhere(
+      (node) => node.path == tmp('Old Game.zip'),
+    );
+    expect(
+      copy.modified!.isBefore(real.subtract(const Duration(days: 2))),
+      isTrue,
+    );
+    expect(copy.changed, isNotNull);
+    expect(
+      copy.changed!.isAfter(real.subtract(const Duration(minutes: 5))),
+      isTrue,
+    );
+    // Idle for 30 minutes since the copy: under the picker's hour, over
+    // user-data/temp's 10 minutes.
+    expect(paths(plan), {doc('user-data/temp/unpacked')});
+
+    // Two hours after the copy, the picker's copy is idle long enough.
+    now = real.add(const Duration(hours: 2));
+    final (later, _) = await planFor(StorageCleanupLevel.safe);
+    expect(paths(later), {tmp('Old Game.zip'), doc('user-data/temp/unpacked')});
   });
 
   test(
@@ -926,11 +1039,18 @@ void main() {
         [for (final entry in folder.entries) entry.path],
         [doc('Diagnostics/sub/a.txt'), doc('Diagnostics/sub')],
       );
+      // Preselected in a level-1 plan; a level-3 plan preselects nothing
+      // (review of phase 5d: the level-1 line used to be ticked there too).
       expect(
-        candidate(confirmed, doc('Diagnostics/sub/b.part')).preselected,
+        candidate(safe, doc('Diagnostics/sub/b.part')).preselected,
         isTrue,
       );
+      expect(
+        candidate(confirmed, doc('Diagnostics/sub/b.part')).preselected,
+        isFalse,
+      );
       expect(folder.preselected, isFalse);
+      expect(confirmed.preselectedPaths, isEmpty);
       expect(confirmed.bytes, 30);
     },
   );
@@ -1006,7 +1126,13 @@ void main() {
         for (final path in caches) {
           final value = candidate(plan, path);
           expect(value.level, StorageCleanupLevel.regenerable);
-          expect(value.preselected, isTrue);
+          // Ticked in the level-2 plan only: a level-3 plan preselects
+          // nothing (review of phase 5d).
+          expect(
+            value.preselected,
+            level == StorageCleanupLevel.regenerable,
+            reason: level.name,
+          );
           expect(value.reasonKey, StorageLocale.catCaches);
           expect(
             value.engine,

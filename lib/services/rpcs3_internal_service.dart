@@ -20,6 +20,7 @@ import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
 import 'rpcs3_game_profile_service.dart';
 import 'rpcs3_library_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 enum Rpcs3RuntimePhase {
@@ -610,7 +611,7 @@ class Rpcs3InternalService {
     return staged.path;
   }
 
-  static Future<bool> importFirmware() async {
+  static Future<bool> importFirmware() => StorageImportActivity.run(() async {
     // Present the picker immediately. JIT/Core preparation happens only after
     // the user has actually selected a firmware file.
     final picked = await FilePicker.pickFiles(
@@ -687,9 +688,9 @@ class Rpcs3InternalService {
         } catch (_) {}
       }
     }
-  }
+  });
 
-  static Future<Rpcs3ImportResult> importGames() async {
+  static Future<Rpcs3ImportResult> importGames() => StorageImportActivity.run(() async {
     final picked = await FilePicker.pickFiles(
       dialogTitle: _ui('importGames'),
       allowMultiple: true,
@@ -776,9 +777,9 @@ class Rpcs3InternalService {
       rejected: rejected,
       errors: errors,
     );
-  }
+  });
 
-  static Future<bool> importExtractedGameFolder() async {
+  static Future<bool> importExtractedGameFolder() => StorageImportActivity.run(() async {
     final folder = await FilePicker.getDirectoryPath(
       dialogTitle: _ui('importDecryptedFolder'),
     );
@@ -811,7 +812,7 @@ class Rpcs3InternalService {
       coreReady: true,
     );
     return true;
-  }
+  });
 
   static Future<bool> launchTitle(
     String titleId, {

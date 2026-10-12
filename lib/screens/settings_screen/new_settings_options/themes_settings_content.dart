@@ -22,6 +22,7 @@ import 'package:neostation/responsive.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../services/storage/storage_import_activity.dart';
 import 'settings_title.dart';
 
 /// A specialized content panel for selecting application color themes and a
@@ -192,7 +193,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _pickCustomBackground() async {
+  Future<void> _pickCustomBackground() => StorageImportActivity.run(() async {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     try {
       String? filePath;
@@ -232,7 +233,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
         );
       }
     }
-  }
+  });
 
   Future<void> _clearCustomBackground() async {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);

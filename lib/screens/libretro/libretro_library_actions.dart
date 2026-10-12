@@ -9,6 +9,7 @@ import '../../services/config_service.dart';
 import '../../services/ios_rom_library_root_resolver.dart';
 import '../../services/libretro_internal_service.dart';
 import '../../services/neostation_rom_library.dart';
+import '../../services/storage/storage_import_activity.dart';
 import 'libretro_skin_manager_screen.dart';
 
 /// Where imported games go ([chooseLibretroImportDestination]).
@@ -206,7 +207,7 @@ Future<LibretroLibraryMoveOutcome?> moveLibraryIntoNeoStation(
   SqliteConfigProvider provider, {
   required Future<bool> Function(String folder) confirm,
   void Function(int done, int total)? onProgress,
-}) async {
+}) => StorageImportActivity.run(() async {
   final picked = await ExternalFolderAccess.pickAndActivateFolder(key: libretroLibraryMoveBookmarkKey);
   if (picked == null) return null;
   final systems =
@@ -242,4 +243,4 @@ Future<LibretroLibraryMoveOutcome?> moveLibraryIntoNeoStation(
   if (replaced.isEmpty) await provider.scanSystems();
   if (move.complete) await ExternalFolderAccess.clearBookmark(key: libretroLibraryMoveBookmarkKey);
   return LibretroLibraryMoveOutcome(source: libretroLibraryLocation(source), move: move);
-}
+});

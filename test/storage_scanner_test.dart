@@ -321,6 +321,14 @@ void main() {
       expect(roms.truncated, isTrue);
       expect(roms.logicalBytes, 1);
       expect(limited.truncated, isTrue);
+      // The root and the bound it reached, for the page (review of 5d).
+      expect(
+        [
+          for (final cut in limited.truncations)
+            (cut.rootId, cut.limit, cut.value),
+        ],
+        [('INV-01', StorageScanLimit.depth, 3)],
+      );
       final full = await StorageScanner().scan(StorageRootRegistry(containers));
       // Default maxDepth 24 also stops before level 30.
       expect(full.nodesOfRoot('INV-01').first.truncated, isTrue);
@@ -330,6 +338,7 @@ void main() {
       ).scan(StorageRootRegistry(containers));
       expect(unlimited.nodesOfRoot('INV-01').first.truncated, isFalse);
       expect(unlimited.nodesOfRoot('INV-01').first.logicalBytes, 100);
+      expect(unlimited.truncations, isEmpty);
 
       for (var index = 0; index < 40; index++) {
         await write(tmp('copy-$index.bin'), 10);
@@ -344,8 +353,37 @@ void main() {
       expect(temporary.truncated, isTrue);
       expect(temporary.children.length, lessThanOrEqualTo(15));
       expect(temporary.logicalBytes, lessThanOrEqualTo(150));
+      expect(
+        [
+          for (final cut in bounded.truncations)
+            if (cut.rootId == 'INV-28') (cut.limit, cut.value),
+        ],
+        [(StorageScanLimit.entries, 15)],
+      );
     },
   );
+
+  test('nodes keep their status change beside their modification '
+      '(review of 5d: a copy keeps the date of its original)', () async {
+    final copied = await write(tmp('Picked Game.zip'), 10);
+    final old = DateTime.now().subtract(const Duration(days: 3));
+    await copied.setLastModified(old);
+    await write(doc('user-data/temp/unpacked/game.sfc'), 5);
+    final started = DateTime.now().subtract(const Duration(minutes: 5));
+    final scan = await StorageScanner().scan(StorageRootRegistry(containers));
+    final file = scan.allNodes.firstWhere(
+      (node) => node.path == tmp('Picked Game.zip'),
+    );
+    expect(file.modified!.difference(old).inSeconds.abs(), lessThan(2));
+    expect(file.changed, isNotNull);
+    expect(file.changed!.isAfter(started), isTrue);
+    final folder = scan.allNodes.firstWhere(
+      (node) => node.path == doc('user-data/temp/unpacked'),
+    );
+    expect(folder.isDirectory, isTrue);
+    expect(folder.changed, isNotNull);
+    expect(folder.changed!.isAfter(started), isTrue);
+  });
 
   test('iCloud placeholders count 0 bytes and are never deletable', () async {
     await write(doc('roms/snes/.Chrono Trigger.sfc.icloud'), 4096);

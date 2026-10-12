@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'dusklight_game_identity.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 class DusklightImportIssue {
@@ -99,7 +100,7 @@ class DusklightInternalService {
     }
   }
 
-  static Future<DusklightImportResult> importGames() async {
+  static Future<DusklightImportResult> importGames() => StorageImportActivity.run(() async {
     await ensureLayout();
     final extensions = supportedGameExtensions.toList()..sort();
     final selection = await FilePicker.pickFiles(
@@ -190,7 +191,7 @@ class DusklightInternalService {
       errors: errors,
       importedPaths: importedPaths,
     );
-  }
+  });
 
   static Future<DusklightLaunchResult> launch(String gamePath, {
     Map<String, String> uiText = const {},

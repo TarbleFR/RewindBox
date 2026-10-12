@@ -17,6 +17,7 @@ import 'config_service.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'logger_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 class LibretroLaunchOutcome {
@@ -408,7 +409,7 @@ abstract final class LibretroInternalService {
     String systemFolder, {
     Iterable<String>? systemExtensions,
     LibretroImportLibrary? library,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     final folder = systemFolder.toLowerCase();
     final indexed = systemExtensions ?? await _indexedExtensions(folder);
     final extensions = LibretroCoreCatalog.importExtensionsFor(folder, indexed: indexed).toList()..sort();
@@ -479,7 +480,7 @@ abstract final class LibretroInternalService {
       systemFolder: folder,
       createdLibraryRoot: library == null ? destination.parent.path : null,
     );
-  }
+  });
 
   /// [importGames] for a system model: its canonical folder and the
   /// extensions it carries from the database.
@@ -550,7 +551,7 @@ abstract final class LibretroInternalService {
   /// Copies RetroArch's `saves`, `states` and `system` folders from a folder
   /// the user picks (normally On My iPhone › RetroArch). Existing NeoStation
   /// files are kept; RetroArch's files are only read.
-  static Future<LibretroRetroArchCopy?> copyRetroArchData() async {
+  static Future<LibretroRetroArchCopy?> copyRetroArchData() => StorageImportActivity.run(() async {
     final picked = await ExternalFolderAccess.pickAndActivateFolder(key: _retroArchImportKey);
     if (picked == null) return null;
     await ensureLayout();
@@ -563,7 +564,7 @@ abstract final class LibretroInternalService {
       states: states == null ? 0 : await _copyTree(states, await statesDirectory()),
       system: system == null ? 0 : await _copyTree(system, await systemDirectory()),
     );
-  }
+  });
 
   static Future<Directory?> _findFolder(Directory root, String name, {int depth = 3}) async {
     if (path.basename(root.path).toLowerCase() == name) return root;

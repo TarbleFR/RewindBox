@@ -13,7 +13,8 @@
 /// file by file, then each directory with `Directory.delete(recursive:
 /// false)` (`notEmpty` otherwise); ENOENT is tolerated (`skippedMissing`),
 /// EACCES/EPERM are refused with the raw system text; (6) the session guard is
-/// checked again before the start and every 50 files, a cancellation stops
+/// checked again before the start and every 50 files (a game launch or an
+/// import, `StorageImportActivity`, stops the rest), a cancellation stops
 /// after the current file; (7) the Library caches go through their API, never
 /// file by file; (8) the metadata rows after the files: `VACUUM INTO` copy,
 /// then the transaction of [StorageMaintenanceRepository]; (9) a journal
@@ -524,7 +525,8 @@ class _Run {
         probeErrors: {'guard': '$error'},
       );
     }
-    if (_state.launchActive) _stopped = true;
+    // A game launch or an import (review of 5d) stops the deletion.
+    if (_state.wholeCleanupRefused) _stopped = true;
   }
 
   /// After each file: cancellation, then the guard every 50 files.
@@ -1383,6 +1385,7 @@ class _Run {
       'selected': chosen.length,
       'metadataKeys': metadataSelected ? plan.metadataKeys.length : 0,
       'launchActive': _state.launchActive,
+      'importActive': _state.importActive,
       'libretroActive': _state.libretroActive,
       'libretroUnfinishedJournal': _state.libretroUnfinishedJournal,
       'dolphinMarker': _state.dolphinMarker,

@@ -6,6 +6,7 @@ import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
 import 'rpcs3_internal_service.dart';
 import 'rpcs3_library_service.dart';
+import 'storage/storage_import_activity.dart';
 
 class Rpcs3ContentImportProgress {
   const Rpcs3ContentImportProgress({
@@ -94,7 +95,7 @@ class Rpcs3ContentImportService {
         message.contains('re-import this title from a complete iso');
   }
 
-  static Future<Rpcs3ImportResult> importGames() async {
+  static Future<Rpcs3ImportResult> importGames() => StorageImportActivity.run(() async {
     var imported = 0;
     var rejected = 0;
     final errors = <String>[];
@@ -226,7 +227,7 @@ class Rpcs3ContentImportService {
       pendingIncompleteErrors = incompleteErrors;
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
-  }
+  });
 
   static Future<String?> _resolveUnpackedGameFolder(String selectedPath) async {
     bool directLayout(String root) {
@@ -264,7 +265,7 @@ class Rpcs3ContentImportService {
     return null;
   }
 
-  static Future<bool> importExtractedGameFolder() async {
+  static Future<bool> importExtractedGameFolder() => StorageImportActivity.run(() async {
     final selected = await Rpcs3InternalBridge.pickGameFolderOpenInPlace();
     if (selected == null || selected.isEmpty) return false;
 
@@ -303,5 +304,5 @@ class Rpcs3ContentImportService {
       _itemCount = 0;
       await Rpcs3InternalBridge.releaseScopedResources();
     }
-  }
+  });
 }

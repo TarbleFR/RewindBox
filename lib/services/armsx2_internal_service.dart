@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'armsx2_folder_service.dart';
 import 'config_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 class Armsx2ImportResult {
@@ -73,7 +74,7 @@ class Armsx2InternalService {
           .map((extension) => extension.replaceFirst('.', '').toLowerCase())
           .toSet();
 
-  static Future<Armsx2ImportResult> importGames() async {
+  static Future<Armsx2ImportResult> importGames() => StorageImportActivity.run(() async {
     await ensureLayout();
     final extensions = supportedGameExtensions.toList()..sort();
     final selection = await FilePicker.pickFiles(
@@ -93,9 +94,9 @@ class Armsx2InternalService {
       destination,
       acceptedExtensions: supportedGameExtensions,
     );
-  }
+  });
 
-  static Future<Armsx2ImportResult> importBios() async {
+  static Future<Armsx2ImportResult> importBios() => StorageImportActivity.run(() async {
     await ensureLayout();
     // BIOS dumps are encountered with several extensions (and occasionally
     // none). Let the Core's IsBIOS validation remain authoritative at launch.
@@ -109,7 +110,7 @@ class Armsx2InternalService {
       return const Armsx2ImportResult(imported: 0, rejected: 0);
     }
     return _copySelection(selection.files, await biosDirectory());
-  }
+  });
 
   static Future<Armsx2ImportResult> _copySelection(
     List<PlatformFile> files,

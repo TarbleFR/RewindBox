@@ -6,6 +6,7 @@ import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
 import 'logger_service.dart';
 import 'rpcs3_internal_service.dart';
+import 'storage/storage_import_activity.dart';
 
 /// Final state of one file picked for a RAP licence import.
 enum Rpcs3RapImportStatus { imported, replaced, alreadyPresent, rejected }
@@ -480,7 +481,7 @@ abstract final class Rpcs3RapLicenceService {
   /// library.
   static Future<Rpcs3RapImportReport?> importFromFiles({
     required Future<bool> Function(List<String> contentIds) confirmReplace,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     if (_running) {
       _log.w('Rpcs3Rap import ignored: another import is running');
       return null;
@@ -520,7 +521,7 @@ abstract final class Rpcs3RapLicenceService {
     } finally {
       _running = false;
     }
-  }
+  });
 
   /// Null when RPCS3 reads `dev_hdd0` from `<dataRoot>/dev_hdd0/`; otherwise
   /// a raw description of the redirection found in `Data/vfs.yml`.

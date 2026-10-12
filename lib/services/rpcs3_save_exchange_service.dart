@@ -13,6 +13,7 @@ import 'logger_service.dart';
 import 'rpcs3_internal_service.dart';
 import 'rpcs3_param_sfo.dart';
 import 'rpcs3_rap_licence_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 /// Where the saves of an import come from.
@@ -797,7 +798,7 @@ class Rpcs3SaveExchangeService {
   Future<Rpcs3SaveImportReport?> importGuarded(
     Rpcs3SaveImportSourceKind kind, {
     required Rpcs3SaveReplaceConfirmation confirmReplace,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     String? pickedPath;
     // The picked ZIP (the picker's copy under tmp/ on iOS) with the length
     // read when it was opened for the import; null for the other sources.
@@ -874,7 +875,7 @@ class Rpcs3SaveExchangeService {
         );
       }
     }
-  }
+  });
 
   // ---------------------------------------------------------------------
   // ZIP source

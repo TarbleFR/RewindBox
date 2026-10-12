@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'external_display_service.dart';
 import 'logger_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 class KartPadImportIssue {
@@ -113,7 +114,7 @@ class KartPadInternalService {
     }
   }
 
-  static Future<KartPadImportResult> importGame() async {
+  static Future<KartPadImportResult> importGame() => StorageImportActivity.run(() async {
     await ensureLayout();
     final selection = await FilePicker.pickFiles(
       allowMultiple: false,
@@ -244,7 +245,7 @@ class KartPadInternalService {
         ],
       );
     }
-  }
+  });
 
   static Future<KartPadDiscIdentity?> inspectGameFile(File file) async {
     final extension =

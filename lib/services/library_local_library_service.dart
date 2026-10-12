@@ -10,6 +10,7 @@ import 'package:neostation/services/library_book_formats.dart';
 import 'package:neostation/services/library_local_models.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/logger_service.dart';
+import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -237,7 +238,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
   /// does not distinguish them).
   Future<List<LibraryImportOutcome>?> pickAndImport({
     void Function(LibraryImportProgress progress)? onProgress,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     final picked = await _picker();
     if (picked == null) return null;
     if (picked.paths.isEmpty) return const <LibraryImportOutcome>[];
@@ -246,7 +247,7 @@ class LibraryLocalLibraryService extends ChangeNotifier {
       onProgress: onProgress,
       sourcesAreTemporaryCopies: picked.temporaryCopies,
     );
-  }
+  });
 
   /// Imports [paths] one at a time, in order; one outcome per path.
   ///

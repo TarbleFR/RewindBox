@@ -18,6 +18,7 @@ import 'logger_service.dart';
 import 'dolphin_system_files.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 /// IPL slots exposed by the native GameCube playlist.
@@ -224,7 +225,9 @@ class DolphinInternalV2Service {
     await _recoverPreviousCrash(root);
   }
 
-  static Future<DolphinImportResult> importGames(String folderName) async {
+  static Future<DolphinImportResult> importGames(
+    String folderName,
+  ) => StorageImportActivity.run(() async {
     final system = _normalizeSystem(folderName);
     await ensureLayout();
     final extensions = extensionsFor(system).toList()..sort();
@@ -304,7 +307,7 @@ class DolphinInternalV2Service {
       rejected: rejected,
       errors: errors,
     );
-  }
+  });
 
   static Future<bool> importIpl(DolphinIplRegion region) =>
       _withSystemImport(() async {
@@ -409,7 +412,9 @@ class DolphinInternalV2Service {
         throw const DolphinSystemFilesException('busy');
       }
       await ensureLayout();
-      return await action();
+      // The pick and the processing of the system files: an import for the
+      // storage cleanup (review of phase 5d).
+      return await StorageImportActivity.run(action);
     } finally {
       _systemImportBusy = false;
     }

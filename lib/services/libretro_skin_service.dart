@@ -14,6 +14,7 @@ import 'libretro_core_catalog.dart';
 import 'libretro_internal_service.dart';
 import 'libretro_skin_compatibility.dart';
 import 'logger_service.dart';
+import 'storage/storage_import_activity.dart';
 
 /// LibretroLocale keys of the skin import messages. Native codes (the
 /// `SKIN_*` constants of LibretroSkin.h) are translated through
@@ -344,7 +345,7 @@ class LibretroSkinService {
   /// Lets the user pick an archive in Files. Every file type is offered:
   /// `.deltaskin` and `.manicskin` have no system type on iOS, and the
   /// content is checked anyway. Null when the picker was cancelled.
-  Future<LibretroSkinImportResult?> pickAndImport() async {
+  Future<LibretroSkinImportResult?> pickAndImport() => StorageImportActivity.run(() async {
     final selection = await FilePicker.pickFiles(
       allowMultiple: false,
       type: FileType.any,
@@ -354,7 +355,7 @@ class LibretroSkinService {
     final picked = selection?.files.single.path;
     if (picked == null) return null;
     return importFromFile(picked);
-  }
+  });
 
   /// Checks, unpacks and parses an archive, then installs it unless an
   /// installed skin has the same identifier.

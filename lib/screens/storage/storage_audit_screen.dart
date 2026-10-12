@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -44,10 +45,12 @@ abstract final class StorageAuditPreferences {
 /// and only what the user ticked and confirmed.
 ///
 /// The analysis runs when the page opens, on « Analyser à nouveau » and when
-/// the app comes back to the foreground (files may have changed in the Files
-/// app). While a cleanup preview is open, nothing is analysed: the analysis
-/// runs when the preview closes after a cleanup or after a return to the
-/// foreground. Every collaborator is injectable (tests).
+/// the app comes back to the foreground after it was hidden or paused (files
+/// may have changed in the Files app; a mere inactive spell — Control
+/// Centre, a system alert — is no return). While a cleanup preview is open,
+/// nothing is analysed: the analysis runs when the preview closes after a
+/// cleanup or after a return to the foreground. Every collaborator is
+/// injectable (tests).
 class StorageAuditScreen extends StatefulWidget {
   const StorageAuditScreen({
     super.key,
@@ -129,7 +132,13 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
   bool _previewOpen = false;
   bool _analyseAfterPreview = false;
 
+  /// The app was hidden or paused since it was last in the foreground.
+  bool _leftForeground = false;
+
   bool _sharing = false;
+
+  /// The report is being built (the detailed one in a background isolate).
+  bool _preparingReport = false;
   Object? _shareError;
   final GlobalKey _shareAnchor = GlobalKey();
 
@@ -157,14 +166,27 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed || _sharing) return;
-    // Never under a cleanup: the preview's plan stays the one the user saw;
-    // the analysis runs once the preview is closed.
-    if (_cleanupOpen) {
-      _analyseAfterPreview = true;
-      return;
+    switch (state) {
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        _leftForeground = true;
+      case AppLifecycleState.resumed:
+        // Only a return from hidden or paused: inactive → resumed (Control
+        // Centre, a system alert) left the files where they were.
+        final returned = _leftForeground;
+        _leftForeground = false;
+        if (!returned || _sharing) return;
+        // Never under a cleanup: the preview's plan stays the one the user
+        // saw; the analysis runs once the preview is closed.
+        if (_cleanupOpen) {
+          _analyseAfterPreview = true;
+          return;
+        }
+        unawaited(_analyse());
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
     }
-    unawaited(_analyse());
   }
 
   Future<void> _start() async {
@@ -462,30 +484,29 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
   }
 
   /// Totals only by default; relative paths in the opt-in detailed mode
-  /// (`StorageReport`, § 3.9).
+  /// (`StorageReport`, § 3.9), built in a background isolate while the page
+  /// shows its progress ([storageReportJson]).
   Future<void> _share() async {
     final scan = _scan;
     if (scan == null || _sharing) return;
     final origin = _shareOrigin();
     setState(() {
       _sharing = true;
+      _preparingReport = true;
       _shareError = null;
     });
     pausePageNavigation();
     try {
-      final report = _detailedExport
-          ? StorageReport.detailed(
-              scan,
-              orphans: _orphans,
-              lastCleanup: _lastCleanup,
-            )
-          : StorageReport.aggregate(
-              scan,
-              orphans: _orphans,
-              lastCleanup: _lastCleanup,
-            );
+      final content = await storageReportJson(
+        scan,
+        orphans: _orphans,
+        lastCleanup: _lastCleanup,
+        detailed: _detailedExport,
+      );
+      if (!mounted) return;
+      setState(() => _preparingReport = false);
       await _sharer.share(
-        StorageReport.encode(report),
+        content,
         fileName: StorageReport.fileNameFor(DateTime.now()),
         origin: origin,
       );
@@ -494,7 +515,12 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
       if (mounted) setState(() => _shareError = error);
     } finally {
       resumePageNavigation();
-      if (mounted) setState(() => _sharing = false);
+      if (mounted) {
+        setState(() {
+          _sharing = false;
+          _preparingReport = false;
+        });
+      }
     }
   }
 
@@ -523,7 +549,8 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
   };
 
   /// Translated detail of a tree node: its category, its files, links,
-  /// unreadable entries and iCloud placeholders.
+  /// unreadable entries and iCloud placeholders, and « Analysé en partie »
+  /// when a bound of the scanner cut its walk.
   String _nodeDetail(StorageNode node) => [
     _category(node.category),
     if (node.isDirectory) _t(StorageLocale.entries, {'count': node.fileCount}),
@@ -532,6 +559,7 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
       _t(StorageLocale.inaccessible, {'count': node.inaccessibleCount}),
     if (node.icloudCount > 0)
       _t(StorageLocale.icloudPlaceholders, {'count': node.icloudCount}),
+    if (node.truncated) _t(StorageLocale.truncatedNode),
   ].join(' · ');
 
   // ------------------------------------------------------------- build
@@ -749,6 +777,7 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
             Text(_t(StorageLocale.inaccessible, {'count': unreadable})),
           if (icloud > 0)
             Text(_t(StorageLocale.icloudPlaceholders, {'count': icloud})),
+          ..._truncationLines(context, scan),
           const SizedBox(height: 8),
           Text(
             _t(StorageLocale.gapExplanation),
@@ -759,6 +788,54 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
         ],
       ),
     );
+  }
+
+  /// A bound of the scanner cut the walk of a root: which bound, then the
+  /// raw root id and folder, apart. A root marked cut without its bound (an
+  /// analysis made otherwise) still says « Analysé en partie ».
+  List<Widget> _truncationLines(BuildContext context, StorageScanResult scan) {
+    final theme = Theme.of(context);
+    final error = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.error,
+    );
+    final named = {for (final cut in scan.truncations) cut.rootId};
+    final unnamed = <String>{
+      for (final node in scan.roots)
+        if (node.truncated && !named.contains(node.rootId)) node.rootId,
+    };
+    Widget where(String rootId) => Text(
+      [
+        rootId,
+        for (final node in scan.nodesOfRoot(rootId)) node.displayPath,
+      ].join(' · '),
+      style: storageRawStyle(context),
+    );
+    return [
+      for (final (index, cut) in scan.truncations.indexed) ...[
+        const SizedBox(height: 6),
+        Text(
+          _t(
+            switch (cut.limit) {
+              StorageScanLimit.entries => StorageLocale.truncatedEntries,
+              StorageScanLimit.depth => StorageLocale.truncatedDepth,
+            },
+            {'count': cut.value},
+          ),
+          key: ValueKey('storage-truncated-$index'),
+          style: error,
+        ),
+        where(cut.rootId),
+      ],
+      for (final rootId in unnamed) ...[
+        const SizedBox(height: 6),
+        Text(
+          _t(StorageLocale.truncatedNode),
+          key: ValueKey('storage-truncated-$rootId'),
+          style: error,
+        ),
+        where(rootId),
+      ],
+    ];
   }
 
   Widget _buildCategories(BuildContext context, StorageScanResult scan) {
@@ -847,18 +924,21 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
     var links = 0;
     var unreadable = 0;
     var icloud = 0;
+    var truncated = false;
     for (final node in locations) {
       bytes += node.logicalBytes;
       files += node.fileCount;
       links += node.linkCount;
       unreadable += node.inaccessibleCount;
       icloud += node.icloudCount;
+      if (node.truncated) truncated = true;
     }
     final counters = [
       _t(StorageLocale.entries, {'count': files}),
       if (links > 0) _t(StorageLocale.links, {'count': links}),
       if (unreadable > 0) _t(StorageLocale.inaccessible, {'count': unreadable}),
       if (icloud > 0) _t(StorageLocale.icloudPlaceholders, {'count': icloud}),
+      if (truncated) _t(StorageLocale.truncatedNode),
     ];
     return StorageExpandableTile(
       key: ValueKey('storage-root-$rootId'),
@@ -975,10 +1055,82 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
     );
   }
 
-  Widget _buildOrphans(BuildContext context) {
+  /// Raw keys of `StorageOrphanReport.skipped` each counter depends on: one
+  /// of them skipped, the counter would read « 0 found » — it reads « not
+  /// analysed » instead, with the raw reasons under it.
+  static const Map<String, List<String>> _counterAnalyses = {
+    'storage-orphan-media': ['database', 'media'],
+    'storage-orphan-metadata': ['database', 'metadata'],
+    'storage-orphan-covers': ['libraryCovers'],
+    'storage-orphan-saves': [
+      'database',
+      'libretroSaves',
+      'libretroStates',
+      'rpcs3Savedata',
+      'armsx2Savestates',
+    ],
+    'storage-duplicates': ['database', 'duplicateReferences'],
+  };
+
+  /// The counter [name] of [orphans], or its « not analysed » line and the
+  /// raw reasons of the analyses it lacks.
+  Widget _orphanCounter(
+    BuildContext context,
+    StorageOrphanReport orphans, {
+    required String name,
+    required String counter,
+    required String notAnalyzedKey,
+  }) {
+    final reasons = [
+      for (final analysis in _counterAnalyses[name] ?? const <String>[])
+        if (orphans.skipped[analysis] case final reason?) (analysis, reason),
+    ];
+    if (reasons.isEmpty) return Text(counter, key: ValueKey(name));
+    return Column(
+      key: ValueKey('$name-skipped'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_t(notAnalyzedKey)),
+        for (final (analysis, reason) in reasons)
+          Text(
+            _t(StorageLocale.technicalCode, {'code': '$analysis: $reason'}),
+            style: storageRawStyle(context),
+          ),
+      ],
+    );
+  }
+
+  /// A failure: the translated explanation, then the raw error apart.
+  List<Widget> _failureLines(
+    BuildContext context,
+    String explanationKey,
+    Object error,
+    String key,
+  ) {
     final theme = Theme.of(context);
+    return [
+      Text(
+        _t(explanationKey),
+        key: ValueKey(key),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.error,
+        ),
+      ),
+      Text(
+        _t(StorageLocale.technicalCode, {'code': error}),
+        key: ValueKey('$key-code'),
+        style: storageRawStyle(context),
+      ),
+    ];
+  }
+
+  Widget _buildOrphans(BuildContext context) {
     final orphans = _orphans;
     final detecting = _activity == _Activity.detecting;
+    final orphansError = _orphansError;
+    final counted = {
+      for (final analyses in _counterAnalyses.values) ...analyses,
+    };
     return StorageSectionCard(
       key: const ValueKey('storage-orphans'),
       icon: Icons.link_off_rounded,
@@ -989,8 +1141,11 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _t(StorageLocale.orphanMedia, {
+                _orphanCounter(
+                  context,
+                  orphans,
+                  name: 'storage-orphan-media',
+                  counter: _t(StorageLocale.orphanMedia, {
                     'count': orphans.media.length,
                     'size': storageSize(
                       orphans.media.fold<int>(
@@ -999,28 +1154,40 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
                       ),
                     ),
                   }),
-                  key: const ValueKey('storage-orphan-media'),
+                  notAnalyzedKey: StorageLocale.orphanMediaNotAnalyzed,
                 ),
-                Text(
-                  _t(StorageLocale.orphanMetadata, {
+                _orphanCounter(
+                  context,
+                  orphans,
+                  name: 'storage-orphan-metadata',
+                  counter: _t(StorageLocale.orphanMetadata, {
                     'count': orphans.metadata.length,
                   }),
-                  key: const ValueKey('storage-orphan-metadata'),
+                  notAnalyzedKey: StorageLocale.orphanMetadataNotAnalyzed,
                 ),
-                Text(
-                  _t(StorageLocale.orphanCovers, {
+                _orphanCounter(
+                  context,
+                  orphans,
+                  name: 'storage-orphan-covers',
+                  counter: _t(StorageLocale.orphanCovers, {
                     'count': orphans.libraryCovers.length,
                   }),
-                  key: const ValueKey('storage-orphan-covers'),
+                  notAnalyzedKey: StorageLocale.orphanCoversNotAnalyzed,
                 ),
-                Text(
-                  _t(StorageLocale.orphanSavesInfo, {
+                _orphanCounter(
+                  context,
+                  orphans,
+                  name: 'storage-orphan-saves',
+                  counter: _t(StorageLocale.orphanSavesInfo, {
                     'count': orphans.savesAndStates.length,
                   }),
-                  key: const ValueKey('storage-orphan-saves'),
+                  notAnalyzedKey: StorageLocale.orphanSavesNotAnalyzed,
                 ),
-                Text(
-                  _t(StorageLocale.duplicates, {
+                _orphanCounter(
+                  context,
+                  orphans,
+                  name: 'storage-duplicates',
+                  counter: _t(StorageLocale.duplicates, {
                     'count': orphans.duplicates.length,
                     'size': storageSize(
                       orphans.duplicates.fold<int>(
@@ -1029,16 +1196,17 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
                       ),
                     ),
                   }),
-                  key: const ValueKey('storage-duplicates'),
+                  notAnalyzedKey: StorageLocale.duplicatesNotAnalyzed,
                 ),
-                // Analyses not made, with their raw reason.
+                // Other analyses not made, with their raw reason.
                 for (final skipped in orphans.skipped.entries)
-                  Text(
-                    _t(StorageLocale.technicalCode, {
-                      'code': '${skipped.key}: ${skipped.value}',
-                    }),
-                    style: storageRawStyle(context),
-                  ),
+                  if (!counted.contains(skipped.key))
+                    Text(
+                      _t(StorageLocale.technicalCode, {
+                        'code': '${skipped.key}: ${skipped.value}',
+                      }),
+                      style: storageRawStyle(context),
+                    ),
               ],
             ),
           )
@@ -1049,13 +1217,12 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
             ),
             key: const ValueKey('storage-orphans-running'),
           ),
-        if (_orphansError != null)
-          Text(
-            _t(StorageLocale.scanFailed, {'error': _orphansError}),
-            key: const ValueKey('storage-orphans-error'),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.error,
-            ),
+        if (orphansError != null)
+          ..._failureLines(
+            context,
+            StorageLocale.orphansFailed,
+            orphansError,
+            'storage-orphans-error',
           ),
         LibretroFocusRing(
           radius: 12,
@@ -1138,13 +1305,12 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
               onTap: () => unawaited(_openPreview(level)),
             ),
           ),
-        if (_planError != null)
-          Text(
-            _t(StorageLocale.scanFailed, {'error': _planError}),
-            key: const ValueKey('storage-plan-error'),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.error,
-            ),
+        if (_planError case final error?)
+          ..._failureLines(
+            context,
+            StorageLocale.planFailed,
+            error,
+            'storage-plan-error',
           ),
         if (cleanup != null)
           Padding(
@@ -1195,6 +1361,18 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
             ),
           ),
         ),
+        if (_preparingReport) ...[
+          const SizedBox(height: 8),
+          const LinearProgressIndicator(
+            key: ValueKey('storage-export-progress'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _t(StorageLocale.exportPreparing),
+            key: const ValueKey('storage-export-preparing'),
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
         if (_shareError != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -1265,3 +1443,38 @@ class _StorageAuditScreenState extends State<StorageAuditScreen>
     );
   }
 }
+
+/// The JSON of the storage report (§ 3.9). The detailed report walks every
+/// node of the analysis, so it is built in a background isolate: measured
+/// on a 300 000-node analysis (review of phase 5d), building it on the UI
+/// thread took 325 ms (median of five), against 182 ms to copy the analysis
+/// into the isolate. The aggregate report reads only the totals (under 1 ms)
+/// and is built at once.
+@visibleForTesting
+Future<String> storageReportJson(
+  StorageScanResult scan, {
+  StorageOrphanReport? orphans,
+  StorageDeletionResult? lastCleanup,
+  required bool detailed,
+}) => detailed
+    ? _detailedReportInBackground(scan, orphans, lastCleanup)
+    : Future.sync(
+        () => StorageReport.encode(
+          StorageReport.aggregate(
+            scan,
+            orphans: orphans,
+            lastCleanup: lastCleanup,
+          ),
+        ),
+      );
+
+/// Top level: the isolate's closure captures its three arguments only.
+Future<String> _detailedReportInBackground(
+  StorageScanResult scan,
+  StorageOrphanReport? orphans,
+  StorageDeletionResult? lastCleanup,
+) => Isolate.run(
+  () => StorageReport.encode(
+    StorageReport.detailed(scan, orphans: orphans, lastCleanup: lastCleanup),
+  ),
+);

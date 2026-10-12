@@ -181,7 +181,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
     );
   }
 
-  Future<void> _pickAndSaveImage() async {
+  Future<void> _pickAndSaveImage() => StorageImportActivity.run(() async {
     try {
       String? pickedPath;
 
@@ -274,7 +274,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
         );
       }
     }
-  }
+  });
 
   Future<void> _resetImage() async {
     try {
@@ -316,7 +316,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
     }
   }
 
-  Future<void> _pickAndSaveLogoImage() async {
+  Future<void> _pickAndSaveLogoImage() => StorageImportActivity.run(() async {
     try {
       String? pickedPath;
 
@@ -391,7 +391,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
         );
       }
     }
-  }
+  });
 
   Future<void> _resetLogoImage() async {
     try {

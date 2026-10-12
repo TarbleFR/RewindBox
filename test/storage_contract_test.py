@@ -10,8 +10,10 @@ this file pins where the helpers are called, in which order, and that
 nothing runs at startup. Method bodies are found by parsing the Dart sources
 (comments and string literals blanked, braces matched), not by line numbers.
 
-The last section is reserved for the screen and locale checks of test J
-(phase 5d).
+The screen and locale checks of test J (phase 5d) follow, then the imports
+in progress (review of phase 5d): every import that follows a Files pick
+runs inside StorageImportActivity.run, so the cleanup refuses itself while
+the picker's copies are still being read.
 """
 import re
 import unittest
@@ -591,15 +593,40 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
         self.assertLess(resume, refused)
         self.assertLess(refused, run)
         Span(preview, 'Future<void> _execute(').find('widget.deletionManager.execute(')
-        # The selection starts as the plan's own preselection (levels 1-2).
-        self.assertIn('late final Set<String> _selection = {...widget.plan.preselectedPaths};', preview.masked)
+        # `_execute(`: its definition and exactly one call, the one after the
+        # dialog (review of phase 5d).
+        self.assertEqual(preview.masked.count('_execute('), 2)
+        self.assertEqual(preview.masked.count('await _execute(selection);'), 1)
+        self.assertEqual(confirm.count('_execute('), 1)
+        # The selection the deletion receives is the boxes' own.
+        self.assertLess(confirm.find('final selection = _selection.selected;'), dialog)
+        # Contract replaced by the review of phase 5d: the selection used to
+        # start as the plan's preselection whatever the level
+        # (`{...widget.plan.preselectedPaths}`); it now starts empty at level
+        # 3, whichever of the page or the plan says level 3, and as the plan's
+        # preselection at levels 1 and 2 only.
+        self.assertNotIn('late final Set<String> _selection = {...widget.plan.preselectedPaths};', preview.masked)
+        initial = Span(preview, 'static Set<String> initialSelection(')
+        body = preview.masked[initial.start:initial.end]
+        self.assertRegex(body, r'level == StorageCleanupLevel\.confirmed \|\|\s+plan\.level == StorageCleanupLevel\.confirmed\s+\? <String>\{\}\s+: \{\.\.\.plan\.preselectedPaths\}')
+        self.assertEqual(preview.masked.count('preselectedPaths'), 1, 'only initialSelection reads the preselection')
+        self.assertRegex(preview.masked, r'_PreviewSelection _selection = _PreviewSelection\(\s*widget\.plan,\s*'
+                                         r'StorageCleanupPreviewScreen\.initialSelection\(widget\.plan, widget\.level\),\s*\);')
+        # Lazy lists only (review of phase 5d): the page scrolls a
+        # CustomScrollView of slivers; the only SingleChildScrollView left is
+        # the confirmation dialog's.
+        self.assertIn('child: CustomScrollView(', preview.masked)
+        self.assertEqual(preview.masked.count('SingleChildScrollView('), 1)
+        self.assertGreater(preview.masked.index('SingleChildScrollView('),
+                           preview.masked.index('class _ConfirmDeletionDialogState'))
+        self.assertGreaterEqual(preview.masked.count('SliverList.builder('), 3)
 
     def test_nothing_reaches_the_pages_from_main_or_at_startup(self) -> None:
         main = Source('lib/main.dart')
         for token in ('StorageAuditScreen', 'StorageCleanupPreviewScreen', 'screens/storage/', 'services/storage/',
                       'StorageScanner', 'StorageCleanupPlanner', 'StorageDeletionManager', 'StorageOrphanDetector',
                       'StorageMaintenanceRepository', 'storage_maintenance_repository', 'StorageReport',
-                      'StorageLocale', 'storage_locale'):
+                      'StorageLocale', 'storage_locale', 'StorageImportActivity', 'storage_import_activity'):
             self.assertNotIn(token, main.text, token)
         # The fifth Tools row is the only way in.
         for path in dart_files():
@@ -648,6 +675,220 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
         for source in sources:
             for unit in re.finditer(r"'[^'\n]*\b(?:KB|MB|GB|TB|Ko|Mo|Go|To)\b[^'\n]*'", source.text):
                 self.fail(f'{source.relative}:{source.line(unit.start())} spells a size unit')
+
+
+# ---------------------------------------------------------------------------
+# Imports in progress (review of phase 5d, docs/storage-audit-cleanup.md
+# § 3.7). Every import that follows a Files pick runs inside
+# StorageImportActivity.run, from the pick to the end of its processing: the
+# session guard reports it (`importActive`), the planner then refuses the
+# whole plan and the deletion manager stops. The behaviour is tested by
+# test/storage_import_activity_test.dart, the planner, deletion manager and
+# screen tests; this section pins where the imports are wrapped and that no
+# pick escapes the list.
+# ---------------------------------------------------------------------------
+ACTIVITY = 'lib/services/storage/storage_import_activity.dart'
+PLANNER = 'lib/services/storage/storage_cleanup_planner.dart'
+MANAGER = 'lib/services/storage/storage_deletion_manager.dart'
+WRAP = 'StorageImportActivity.run('
+# `part of` files import through their library.
+LIBRARY_OF = {'lib/widgets/system_emulator_settings_dialog/tabs.dart': 'lib/widgets/system_emulator_settings_dialog.dart'}
+
+# file -> signatures whose whole body is `=> StorageImportActivity.run(...)`.
+# Extending or shrinking this list is a contract change.
+IMPORT_SITES = {
+    'lib/services/libretro_internal_service.dart': (
+        'static Future<LibretroImportResult> importGames(',
+        'static Future<LibretroRetroArchCopy?> copyRetroArchData(',),
+    'lib/services/libretro_skin_service.dart': (
+        'Future<LibretroSkinImportResult?> pickAndImport(',),
+    'lib/services/dolphin_internal_v2_service.dart': (
+        'static Future<DolphinImportResult> importGames(',),
+    'lib/services/dolphin_smart_import_service.dart': (
+        'static Future<DolphinSmartImportResult> importGames(',),
+    'lib/services/kartpad_internal_service.dart': (
+        'static Future<KartPadImportResult> importGame(',),
+    'lib/services/dusklight_internal_service.dart': (
+        'static Future<DusklightImportResult> importGames(',),
+    'lib/services/armsx2_internal_service.dart': (
+        'static Future<Armsx2ImportResult> importGames(',
+        'static Future<Armsx2ImportResult> importBios(',),
+    'lib/services/rpcs3_internal_service.dart': (
+        'static Future<bool> importFirmware(',
+        'static Future<Rpcs3ImportResult> importGames(',
+        'static Future<bool> importExtractedGameFolder(',),
+    'lib/services/rpcs3_content_import_service.dart': (
+        'static Future<Rpcs3ImportResult> importGames(',
+        'static Future<bool> importExtractedGameFolder(',),
+    'lib/services/rpcs3_save_exchange_service.dart': (
+        'Future<Rpcs3SaveImportReport?> importGuarded(',),
+    'lib/services/rpcs3_rap_licence_service.dart': (
+        'static Future<Rpcs3RapImportReport?> importFromFiles(',),
+    'lib/services/pairing_file_service.dart': (
+        'static Future<PairingFileImportResult?> importFromPicker(',),
+    'lib/services/home_music_service.dart': (
+        'Future<bool> _pickAndStoreMusic(',),
+    'lib/services/library_local_library_service.dart': (
+        'Future<List<LibraryImportOutcome>?> pickAndImport(',),
+    'lib/screens/libretro/libretro_3ds_system_screen.dart': (
+        'Future<void> _import(',),
+    'lib/screens/libretro/libretro_library_actions.dart': (
+        'Future<LibretroLibraryMoveOutcome?> moveLibraryIntoNeoStation(',),
+    'lib/screens/settings_screen/new_settings_options/themes_settings_content.dart': (
+        'Future<void> _pickCustomBackground(',),
+    'lib/screens/game_screen/game_settings_dialog/game_settings_scrapping_tab.dart': (
+        'Future<void> _replaceImage(',),
+    'lib/widgets/system_emulator_settings_dialog/tabs.dart': (
+        'Future<void> _pickAndSaveImage(',
+        'Future<void> _pickAndSaveLogoImage(',),
+}
+
+# Dolphin's system files (IPL, Wii keys, system folders): every body given
+# to `_withSystemImport(` runs inside the wrapper, which holds the run.
+SYSTEM_WRAPPER = ('lib/services/dolphin_internal_v2_service.dart',
+                  'static Future<T> _withSystemImport<T>(', '_withSystemImport(')
+
+# Pick helpers reached only from a wrapped import of their own file: helper
+# -> (how it is called, the wrapped import calling it).
+PICK_HELPERS = {
+    'lib/screens/libretro/libretro_3ds_system_screen.dart': {
+        'Future<List<String>?> _pickFiles(': ('_pickFiles()', 'Future<void> _import('),
+        'Future<String?> _pickFolder(': ('_pickFolder()', 'Future<void> _import('),
+    },
+    # The default `_picker` of the service.
+    'lib/services/library_local_library_service.dart': {
+        'Future<LibraryPickedFiles?> libraryPickBookFiles(': (
+            '_picker()', 'Future<List<LibraryImportOutcome>?> pickAndImport('),
+    },
+}
+
+PICKS = ('FilePicker.pickFiles(', 'FilePicker.getDirectoryPath(', 'FilePicker.saveFile(',
+         'ExternalFolderAccess.pickAndActivateFolder(', 'ExternalFolderAccess.pickAndBookmarkFolder(')
+
+# Picks that start no import into the container, by file and count: folder
+# links (bookmarked and scanned where they are, nothing copied under tmp/),
+# desktop executables (a path saved in the settings) and the Library's
+# catalogue file (read at once, in the library lane, which this lane does not
+# edit; its copy waits the picker's hour like any other).
+NOT_IMPORTS = {
+    'lib/providers/sqlite_config_provider/scanning.dart': {'FilePicker.getDirectoryPath(': 1},
+    'lib/screens/settings_screen/new_settings_options/directories_settings_content.dart': {
+        'FilePicker.getDirectoryPath(': 3, 'ExternalFolderAccess.pickAndBookmarkFolder(': 1},
+    'lib/widgets/setup_wizard.dart': {
+        'FilePicker.getDirectoryPath(': 2, 'ExternalFolderAccess.pickAndActivateFolder(': 1},
+    'lib/widgets/system_emulator_settings_dialog.dart': {'FilePicker.pickFiles(': 2},
+    'lib/screens/library_screen/library_sources_view.dart': {'FilePicker.pickFiles(': 1},
+}
+
+
+class Range:
+    def __init__(self, start: int, end: int) -> None:
+        self.start, self.end = start, end
+
+
+class ImportsInProgress(unittest.TestCase):
+    def test_the_activity_is_a_counter_released_in_a_finally(self) -> None:
+        source = Source(ACTIVITY)
+        run = Span(source, 'static Future<T> run<T>(')
+        increment = run.find('_running++;')
+        body = run.find('return await body();')
+        decrement = run.find('_running--;')
+        self.assertLess(increment, run.find('try {'))
+        self.assertLess(run.find('try {'), body)
+        self.assertLess(body, run.find('} finally {'))
+        self.assertLess(run.find('} finally {'), decrement)
+        self.assertIn('static bool get active => _running > 0;', source.masked)
+        for package in ('dart:io', 'package:file_picker/'):
+            self.assertNotIn(package, source.text)
+
+    def test_the_guard_reads_it_and_refuses_the_whole_plan(self) -> None:
+        planner = Source(PLANNER)
+        self.assertIn('static bool _importRunning() => StorageImportActivity.active;', planner.masked)
+        self.assertIn('_importActive = importActive ?? _importRunning', planner.masked)
+        self.assertIn('bool get wholeCleanupRefused => launchActive || importActive;', planner.masked)
+        plan = Span(planner, 'Future<StorageCleanupPlan> plan(')
+        self.assertLess(plan.find('if (session.wholeCleanupRefused)'), plan.find('_PlanBuilder('))
+        manager = Source(MANAGER)
+        self.assertIn('if (_state.wholeCleanupRefused) _stopped = true;', manager.masked)
+        # Read by the guard only; reset by the tests only.
+        for path in dart_files():
+            relative = str(path.relative_to(ROOT))
+            masked = Source(relative).masked
+            if relative not in (ACTIVITY, PLANNER):
+                self.assertNotIn('StorageImportActivity.active', masked, relative)
+            if relative != ACTIVITY:
+                self.assertNotIn('StorageImportActivity.reset(', masked, relative)
+
+    def test_every_listed_import_runs_inside_the_activity(self) -> None:
+        for relative, signatures in IMPORT_SITES.items():
+            source = Source(relative)
+            library = Source(LIBRARY_OF.get(relative, relative))
+            self.assertIsNotNone(
+                re.search(r"(?m)^import '(?:[^']*services/|(?:\.\./)*)storage/storage_import_activity\.dart';$",
+                          library.text),
+                relative)
+            for signature in signatures:
+                with self.subTest(site=relative + ': ' + signature):
+                    span = Span(source, signature)
+                    self.assertRegex(source.masked[span.start:span.end], r'^=>\s*StorageImportActivity\.run\(')
+                    self.assertEqual(span.count(WRAP), 1)
+        relative, signature, call = SYSTEM_WRAPPER
+        source = Source(relative)
+        wrapper = Span(source, signature)
+        self.assertLess(wrapper.find('throw const DolphinSystemFilesException('),
+                        wrapper.find('return await StorageImportActivity.run(action);'))
+
+    def test_no_pick_escapes_the_list(self) -> None:
+        covered = {}
+        for relative, signatures in IMPORT_SITES.items():
+            source = Source(relative)
+            covered.setdefault(relative, []).extend(Span(source, s) for s in signatures)
+        relative, signature, call = SYSTEM_WRAPPER
+        source = Source(relative)
+        wrapped = 0
+        for match in re.finditer(r'=>\s*' + re.escape(call), source.masked):
+            # The declaration owning this `=> _withSystemImport(` body.
+            start = source.masked.rfind('static Future<', 0, match.start())
+            end = matching(source.masked, match.end() - 1, '(', ')')
+            covered[relative].append(Range(start, end))
+            wrapped += 1
+        # IPL, Wii system files, system folder.
+        self.assertEqual(wrapped, 3)
+        for relative, helpers in PICK_HELPERS.items():
+            source = Source(relative)
+            importer = None
+            for helper, (call, owner) in helpers.items():
+                span = Span(source, helper)
+                importer = Span(source, owner)
+                name = call[:-1]
+                declaration = source.masked.find(helper) + helper.index(name) if name in helper else -1
+                calls = [m.start() for m in re.finditer(re.escape(call), source.masked) if m.start() != declaration]
+                self.assertTrue(calls, helper)
+                for at in calls:
+                    if span.start <= at < span.end:
+                        continue
+                    self.assertTrue(importer.start <= at < importer.end, f'{relative}: {call} outside {owner}')
+                covered.setdefault(relative, []).append(span)
+        # The book picker is reached through `_picker` only.
+        library = Source('lib/services/library_local_library_service.dart')
+        self.assertIn('_picker = picker ?? libraryPickBookFiles,', library.masked)
+        self.assertEqual(sum(Source(str(path.relative_to(ROOT))).masked.count('libraryPickBookFiles')
+                             for path in dart_files()), 2)
+        unlisted = {}
+        for path in dart_files():
+            relative = str(path.relative_to(ROOT))
+            if relative.startswith('lib/services/storage/'):
+                continue
+            source = Source(relative)
+            for token in PICKS:
+                for match in re.finditer(re.escape(token), source.masked):
+                    at = match.start()
+                    if any(span.start <= at < span.end for span in covered.get(relative, ())):
+                        continue
+                    unlisted.setdefault(relative, {}).setdefault(token, 0)
+                    unlisted[relative][token] += 1
+        self.maxDiff = None
+        self.assertEqual(unlisted, NOT_IMPORTS)
 
 
 if __name__ == '__main__':

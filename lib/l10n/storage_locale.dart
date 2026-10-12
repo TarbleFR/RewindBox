@@ -148,6 +148,23 @@ abstract final class StorageLocale {
   // Raw diagnostics, shown apart from the translated explanation.
   static const technicalCode = 'technicalCode';
 
+  // Review of phase 5d: ticked items of a preview group, incomplete
+  // walks, analyses not made, failures with their own explanation, the
+  // report being prepared.
+  static const groupSelected = 'groupSelected';
+  static const truncatedEntries = 'truncatedEntries';
+  static const truncatedDepth = 'truncatedDepth';
+  static const truncatedNode = 'truncatedNode';
+  static const orphanMediaNotAnalyzed = 'orphanMediaNotAnalyzed';
+  static const orphanMetadataNotAnalyzed = 'orphanMetadataNotAnalyzed';
+  static const orphanCoversNotAnalyzed = 'orphanCoversNotAnalyzed';
+  static const orphanSavesNotAnalyzed = 'orphanSavesNotAnalyzed';
+  static const duplicatesNotAnalyzed = 'duplicatesNotAnalyzed';
+  static const planFailed = 'planFailed';
+  static const orphansFailed = 'orphansFailed';
+  static const journalNotSaved = 'journalNotSaved';
+  static const exportPreparing = 'exportPreparing';
+
   static const Map<String, Map<String, String>> values = {
     'en': {
       toolTitle: 'Storage analysis and cleanup',
@@ -284,6 +301,24 @@ abstract final class StorageLocale {
           'Nothing is ever cleaned automatically, neither at startup nor in the background.',
       limitUnverified: 'Figures not verified on iPhone.',
       technicalCode: 'Technical code: {code}',
+      groupSelected: 'Selected: {count} of {total}',
+      truncatedEntries:
+          'Incomplete analysis: this folder holds more than {count} items; the rest is not counted.',
+      truncatedDepth:
+          'Incomplete analysis: folders nested more than {count} levels deep are not counted.',
+      truncatedNode: 'Partly analyzed',
+      orphanMediaNotAnalyzed: 'Media without a matching game: not analyzed',
+      orphanMetadataNotAnalyzed:
+          'Metadata without a matching game: not analyzed',
+      orphanCoversNotAnalyzed: 'Covers without a matching book: not analyzed',
+      orphanSavesNotAnalyzed:
+          'Saves and states without a matching game: not analyzed',
+      duplicatesNotAnalyzed:
+          'Possible duplicates (same name and size): not analyzed',
+      planFailed: 'The cleanup preview could not be prepared.',
+      orphansFailed: 'Orphans and duplicates could not be analyzed.',
+      journalNotSaved: 'The cleanup log could not be saved.',
+      exportPreparing: 'Preparing the report…',
     },
     'es': {
       toolTitle: 'Análisis y limpieza del almacenamiento',
@@ -428,6 +463,23 @@ abstract final class StorageLocale {
           'Nunca se limpia nada automáticamente, ni al iniciar ni en segundo plano.',
       limitUnverified: 'Cifras no verificadas en iPhone.',
       technicalCode: 'Código técnico: {code}',
+      groupSelected: 'Seleccionados: {count} de {total}',
+      truncatedEntries:
+          'Análisis incompleto: esta carpeta contiene más de {count} elementos; el resto no se cuenta.',
+      truncatedDepth:
+          'Análisis incompleto: no se cuentan las carpetas anidadas a más de {count} niveles.',
+      truncatedNode: 'Analizado en parte',
+      orphanMediaNotAnalyzed: 'Medios sin juego asociado: sin analizar',
+      orphanMetadataNotAnalyzed: 'Metadatos sin juego asociado: sin analizar',
+      orphanCoversNotAnalyzed: 'Portadas sin libro asociado: sin analizar',
+      orphanSavesNotAnalyzed:
+          'Partidas y estados guardados sin juego asociado: sin analizar',
+      duplicatesNotAnalyzed:
+          'Posibles duplicados (mismo nombre y tamaño): sin analizar',
+      planFailed: 'No se pudo preparar la vista previa de la limpieza.',
+      orphansFailed: 'No se pudieron analizar los huérfanos y duplicados.',
+      journalNotSaved: 'No se pudo guardar el registro de la limpieza.',
+      exportPreparing: 'Preparando el informe…',
     },
     'ru': {
       toolTitle: 'Анализ и очистка хранилища',
@@ -565,6 +617,26 @@ abstract final class StorageLocale {
           'Ничего не очищается автоматически — ни при запуске, ни в фоне.',
       limitUnverified: 'Цифры не проверены на iPhone.',
       technicalCode: 'Технический код: {code}',
+      groupSelected: 'Выбрано: {count} из {total}',
+      truncatedEntries:
+          'Неполный анализ: в этой папке больше {count} элементов, остальные не учтены.',
+      truncatedDepth:
+          'Неполный анализ: папки с вложенностью больше {count} уровней не учтены.',
+      truncatedNode: 'Проанализировано частично',
+      orphanMediaNotAnalyzed: 'Медиа без связанной игры: не проанализированы',
+      orphanMetadataNotAnalyzed:
+          'Записи метаданных без связанной игры: не проанализированы',
+      orphanCoversNotAnalyzed:
+          'Обложки без связанной книги: не проанализированы',
+      orphanSavesNotAnalyzed:
+          'Сохранения и состояния без связанной игры: не проанализированы',
+      duplicatesNotAnalyzed:
+          'Возможные дубликаты (те же имя и размер): не проанализированы',
+      planFailed: 'Не удалось подготовить предпросмотр очистки.',
+      orphansFailed:
+          'Не удалось проанализировать потерянные данные и дубликаты.',
+      journalNotSaved: 'Не удалось сохранить журнал очистки.',
+      exportPreparing: 'Подготовка отчёта…',
     },
     'zh': {
       toolTitle: '存储空间分析与清理',
@@ -679,6 +751,19 @@ abstract final class StorageLocale {
       limitNoAutoPurge: '不会自动清理任何内容，启动时和后台均不会。',
       limitUnverified: '数据尚未在 iPhone 上验证。',
       technicalCode: '技术代码：{code}',
+      groupSelected: '已选择：{count}/{total}',
+      truncatedEntries: '分析不完整：此文件夹包含超过 {count} 个项目，其余未计入。',
+      truncatedDepth: '分析不完整：嵌套超过 {count} 层的文件夹未计入。',
+      truncatedNode: '仅部分分析',
+      orphanMediaNotAnalyzed: '无对应游戏的媒体：未分析',
+      orphanMetadataNotAnalyzed: '无对应游戏的元数据：未分析',
+      orphanCoversNotAnalyzed: '无对应书籍的封面：未分析',
+      orphanSavesNotAnalyzed: '无对应游戏的存档与即时存档：未分析',
+      duplicatesNotAnalyzed: '可能的重复项（名称和大小相同）：未分析',
+      planFailed: '无法准备清理预览。',
+      orphansFailed: '无法分析孤立项与重复项。',
+      journalNotSaved: '无法保存清理日志。',
+      exportPreparing: '正在准备报告…',
     },
     'zh_Hant': {
       toolTitle: '儲存空間分析與清理',
@@ -793,6 +878,19 @@ abstract final class StorageLocale {
       limitNoAutoPurge: '不會自動清理任何內容，啟動時與背景中皆不會。',
       limitUnverified: '數值尚未在 iPhone 上驗證。',
       technicalCode: '技術代碼：{code}',
+      groupSelected: '已選取：{count}/{total}',
+      truncatedEntries: '分析不完整：此資料夾包含超過 {count} 個項目，其餘未計入。',
+      truncatedDepth: '分析不完整：巢狀超過 {count} 層的資料夾未計入。',
+      truncatedNode: '僅部分分析',
+      orphanMediaNotAnalyzed: '無對應遊戲的媒體：未分析',
+      orphanMetadataNotAnalyzed: '無對應遊戲的中繼資料：未分析',
+      orphanCoversNotAnalyzed: '無對應書籍的封面：未分析',
+      orphanSavesNotAnalyzed: '無對應遊戲的存檔與即時存檔：未分析',
+      duplicatesNotAnalyzed: '可能的重複項目（名稱與大小相同）：未分析',
+      planFailed: '無法準備清理預覽。',
+      orphansFailed: '無法分析孤立項目與重複項目。',
+      journalNotSaved: '無法儲存清理記錄檔。',
+      exportPreparing: '正在準備報告…',
     },
     'pt': {
       toolTitle: 'Análise e limpeza do armazenamento',
@@ -935,6 +1033,23 @@ abstract final class StorageLocale {
           'Nada é limpo automaticamente, nem ao iniciar nem em segundo plano.',
       limitUnverified: 'Números não verificados no iPhone.',
       technicalCode: 'Código técnico: {code}',
+      groupSelected: 'Selecionados: {count} de {total}',
+      truncatedEntries:
+          'Análise incompleta: esta pasta contém mais de {count} itens; o restante não é contado.',
+      truncatedDepth:
+          'Análise incompleta: pastas aninhadas em mais de {count} níveis não são contadas.',
+      truncatedNode: 'Analisado em parte',
+      orphanMediaNotAnalyzed: 'Mídia sem jogo associado: não analisada',
+      orphanMetadataNotAnalyzed: 'Metadados sem jogo associado: não analisados',
+      orphanCoversNotAnalyzed: 'Capas sem livro associado: não analisadas',
+      orphanSavesNotAnalyzed:
+          'Dados salvos e estados salvos sem jogo associado: não analisados',
+      duplicatesNotAnalyzed:
+          'Possíveis duplicatas (mesmo nome e tamanho): não analisadas',
+      planFailed: 'Não foi possível preparar a pré-visualização da limpeza.',
+      orphansFailed: 'Não foi possível analisar os órfãos e as duplicatas.',
+      journalNotSaved: 'Não foi possível salvar o registro da limpeza.',
+      exportPreparing: 'Preparando o relatório…',
     },
     'fr': {
       toolTitle: 'Analyse et nettoyage du stockage',
@@ -1075,6 +1190,24 @@ abstract final class StorageLocale {
           'Aucun nettoyage automatique, ni au démarrage ni en arrière-plan.',
       limitUnverified: 'Chiffres non vérifiés sur iPhone.',
       technicalCode: 'Code technique : {code}',
+      groupSelected: 'Sélectionnés : {count} sur {total}',
+      truncatedEntries:
+          'Analyse incomplète : ce dossier contient plus de {count} éléments, le reste n’est pas compté.',
+      truncatedDepth:
+          'Analyse incomplète : les dossiers imbriqués sur plus de {count} niveaux ne sont pas comptés.',
+      truncatedNode: 'Analysé en partie',
+      orphanMediaNotAnalyzed: 'Médias sans jeu associé : non analysés',
+      orphanMetadataNotAnalyzed: 'Métadonnées sans jeu associé : non analysées',
+      orphanCoversNotAnalyzed: 'Couvertures sans livre associé : non analysées',
+      orphanSavesNotAnalyzed:
+          'Sauvegardes et états sans jeu associé : non analysés',
+      duplicatesNotAnalyzed:
+          'Doublons possibles (même nom, même taille) : non analysés',
+      planFailed: 'L’aperçu du nettoyage n’a pas pu être préparé.',
+      orphansFailed:
+          'Les orphelins et les doublons n’ont pas pu être analysés.',
+      journalNotSaved: 'Le journal du nettoyage n’a pas pu être enregistré.',
+      exportPreparing: 'Préparation du rapport…',
     },
     'de': {
       toolTitle: 'Speicheranalyse und -bereinigung',
@@ -1215,6 +1348,26 @@ abstract final class StorageLocale {
           'Nichts wird automatisch bereinigt, weder beim Start noch im Hintergrund.',
       limitUnverified: 'Zahlen nicht auf dem iPhone überprüft.',
       technicalCode: 'Technischer Code: {code}',
+      groupSelected: 'Ausgewählt: {count} von {total}',
+      truncatedEntries:
+          'Unvollständige Analyse: Dieser Ordner enthält mehr als {count} Elemente, der Rest wird nicht gezählt.',
+      truncatedDepth:
+          'Unvollständige Analyse: Ordner, die tiefer als {count} Ebenen verschachtelt sind, werden nicht gezählt.',
+      truncatedNode: 'Teilweise analysiert',
+      orphanMediaNotAnalyzed: 'Medien ohne zugehöriges Spiel: nicht analysiert',
+      orphanMetadataNotAnalyzed:
+          'Metadaten ohne zugehöriges Spiel: nicht analysiert',
+      orphanCoversNotAnalyzed: 'Cover ohne zugehöriges Buch: nicht analysiert',
+      orphanSavesNotAnalyzed:
+          'Spielstände und Zustände ohne zugehöriges Spiel: nicht analysiert',
+      duplicatesNotAnalyzed:
+          'Mögliche Duplikate (gleicher Name, gleiche Größe): nicht analysiert',
+      planFailed: 'Die Vorschau der Bereinigung konnte nicht erstellt werden.',
+      orphansFailed:
+          'Verwaiste Daten und Duplikate konnten nicht analysiert werden.',
+      journalNotSaved:
+          'Das Protokoll der Bereinigung konnte nicht gespeichert werden.',
+      exportPreparing: 'Bericht wird vorbereitet …',
     },
     'it': {
       toolTitle: 'Analisi e pulizia dello spazio di archiviazione',
@@ -1357,6 +1510,25 @@ abstract final class StorageLocale {
           'Nessuna pulizia automatica, né all’avvio né in background.',
       limitUnverified: 'Cifre non verificate su iPhone.',
       technicalCode: 'Codice tecnico: {code}',
+      groupSelected: 'Selezionati: {count} su {total}',
+      truncatedEntries:
+          'Analisi incompleta: questa cartella contiene più di {count} elementi; il resto non viene contato.',
+      truncatedDepth:
+          'Analisi incompleta: le cartelle annidate oltre {count} livelli non vengono contate.',
+      truncatedNode: 'Analizzato in parte',
+      orphanMediaNotAnalyzed: 'Media senza gioco associato: non analizzati',
+      orphanMetadataNotAnalyzed:
+          'Metadati senza gioco associato: non analizzati',
+      orphanCoversNotAnalyzed:
+          'Copertine senza libro associato: non analizzate',
+      orphanSavesNotAnalyzed:
+          'Salvataggi e stati senza gioco associato: non analizzati',
+      duplicatesNotAnalyzed:
+          'Possibili duplicati (stesso nome e dimensione): non analizzati',
+      planFailed: 'Non è stato possibile preparare l’anteprima della pulizia.',
+      orphansFailed: 'Non è stato possibile analizzare orfani e duplicati.',
+      journalNotSaved: 'Non è stato possibile salvare il log della pulizia.',
+      exportPreparing: 'Preparazione del rapporto in corso…',
     },
     'id': {
       toolTitle: 'Analisis dan pembersihan penyimpanan',
@@ -1497,6 +1669,24 @@ abstract final class StorageLocale {
           'Tidak ada pembersihan otomatis, baik saat memulai maupun di latar belakang.',
       limitUnverified: 'Angka belum diverifikasi di iPhone.',
       technicalCode: 'Kode teknis: {code}',
+      groupSelected: 'Dipilih: {count} dari {total}',
+      truncatedEntries:
+          'Analisis tidak lengkap: folder ini berisi lebih dari {count} item; sisanya tidak dihitung.',
+      truncatedDepth:
+          'Analisis tidak lengkap: folder yang bersarang lebih dari {count} tingkat tidak dihitung.',
+      truncatedNode: 'Dianalisis sebagian',
+      orphanMediaNotAnalyzed: 'Media tanpa game terkait: tidak dianalisis',
+      orphanMetadataNotAnalyzed:
+          'Metadata tanpa game terkait: tidak dianalisis',
+      orphanCoversNotAnalyzed: 'Sampul tanpa buku terkait: tidak dianalisis',
+      orphanSavesNotAnalyzed:
+          'Simpanan dan status tanpa game terkait: tidak dianalisis',
+      duplicatesNotAnalyzed:
+          'Kemungkinan duplikat (nama dan ukuran sama): tidak dianalisis',
+      planFailed: 'Pratinjau pembersihan tidak dapat disiapkan.',
+      orphansFailed: 'Item yatim dan duplikat tidak dapat dianalisis.',
+      journalNotSaved: 'Log pembersihan tidak dapat disimpan.',
+      exportPreparing: 'Menyiapkan laporan…',
     },
     'ja': {
       toolTitle: 'ストレージの分析とクリーンアップ',
@@ -1616,6 +1806,19 @@ abstract final class StorageLocale {
       limitNoAutoPurge: '起動時にもバックグラウンドでも、自動でクリーンアップすることはありません。',
       limitUnverified: '数値は iPhone で検証されていません。',
       technicalCode: '技術コード：{code}',
+      groupSelected: '選択中：{count}/{total}',
+      truncatedEntries: '分析が不完全です：このフォルダーには {count} 個を超える項目があり、残りは数えられていません。',
+      truncatedDepth: '分析が不完全です：{count} 階層より深いフォルダーは数えられていません。',
+      truncatedNode: '一部のみ分析',
+      orphanMediaNotAnalyzed: '対応するゲームがないメディア：未分析',
+      orphanMetadataNotAnalyzed: '対応するゲームがないメタデータ：未分析',
+      orphanCoversNotAnalyzed: '対応する本がない表紙：未分析',
+      orphanSavesNotAnalyzed: '対応するゲームがないセーブデータとステートセーブ：未分析',
+      duplicatesNotAnalyzed: '重複の可能性（同じ名前とサイズ）：未分析',
+      planFailed: 'クリーンアップのプレビューを準備できませんでした。',
+      orphansFailed: '孤立データと重複を分析できませんでした。',
+      journalNotSaved: 'クリーンアップのログを保存できませんでした。',
+      exportPreparing: 'レポートを準備中…',
     },
     'ko': {
       toolTitle: '저장 공간 분석 및 정리',
@@ -1735,6 +1938,20 @@ abstract final class StorageLocale {
       limitNoAutoPurge: '시작할 때나 백그라운드에서 자동으로 정리하지 않습니다.',
       limitUnverified: 'iPhone에서 검증되지 않은 수치입니다.',
       technicalCode: '기술 코드: {code}',
+      groupSelected: '선택됨: {count}/{total}',
+      truncatedEntries:
+          '분석이 불완전합니다. 이 폴더에 {count}개가 넘는 항목이 있어 나머지는 집계되지 않았습니다.',
+      truncatedDepth: '분석이 불완전합니다. {count}단계보다 깊이 중첩된 폴더는 집계되지 않았습니다.',
+      truncatedNode: '일부만 분석됨',
+      orphanMediaNotAnalyzed: '연결된 게임이 없는 미디어: 분석하지 않음',
+      orphanMetadataNotAnalyzed: '연결된 게임이 없는 메타데이터: 분석하지 않음',
+      orphanCoversNotAnalyzed: '연결된 책이 없는 표지: 분석하지 않음',
+      orphanSavesNotAnalyzed: '연결된 게임이 없는 세이브 데이터 및 상태 저장: 분석하지 않음',
+      duplicatesNotAnalyzed: '중복 가능 항목(이름과 크기가 같음): 분석하지 않음',
+      planFailed: '정리 미리 보기를 준비할 수 없습니다.',
+      orphansFailed: '고아 항목 및 중복을 분석할 수 없습니다.',
+      journalNotSaved: '정리 로그를 저장할 수 없습니다.',
+      exportPreparing: '보고서 준비 중…',
     },
   };
 

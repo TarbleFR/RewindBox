@@ -636,8 +636,8 @@ test/storage_report_test.dart` : 39 tests (14 + 20 + 5), avec `Rpcs3InternalServ
 Pages `lib/screens/storage/storage_audit_screen.dart`, `storage_cleanup_preview_screen.dart` et
 `storage_screen_widgets.dart` (éléments partagés : carte de section, bloc en lecture seule focalisable, badge
 d'avertissement, ligne dépliable, ligne d'arbre et `storageSize`, seul appel à `formatBytes`) ; cinquième rangée
-d'Outils ; tests `test/storage_audit_screen_test.dart` et `test/storage_tools_row_test.dart`. Aucune clé
-`StorageLocale` ajoutée : les pages n'emploient que celles du § 3.11.
+d'Outils ; tests `test/storage_audit_screen_test.dart` et `test/storage_tools_row_test.dart`. À leur arrivée, les
+pages n'employaient que les clés du § 3.11 ; la revue contradictoire en a ajouté treize (§ 9.6).
 
 ### 9.1 Signatures
 
@@ -678,8 +678,10 @@ d'Outils ; tests `test/storage_audit_screen_test.dart` et `test/storage_tools_ro
 
 ### 9.4 Lanes et contrats remplacés (5e)
 
-- `retroarch-delivery.yml`, job `checks` : `flutter test test/storage_*_test.dart` après la ligne
-  `flutter test test/dolphin_shake_locale_test.dart …` (un motif plutôt que la liste fixe du § 5 : un nouveau test de
+- `retroarch-delivery.yml`, job `checks` : `flutter test test/storage_*_test.dart` avant la ligne
+  `flutter test test/dolphin_shake_locale_test.dart …`, qui doit rester la dernière de l'étape
+  (`test/external_display_host_plist_test.py` y cherche les tests AirPlay ; placée après, la ligne du stockage
+  faisait échouer ce contrat, corrigé avant toute livraison) (un motif plutôt que la liste fixe du § 5 : un nouveau test de
   stockage ne peut pas être oublié ; les quatorze fichiers du § 5 sont exactement ceux qu'il retient) ;
   `python3 test/storage_contract_test.py` après `python3 test/libretro_bios_requirements_test.py`.
 - `libretro-checks.yml` (déclenché par un envoi sur `Claude`) : même motif dans l'étape des tests Dart, et filtres de
@@ -708,3 +710,73 @@ root le lit quand même ; couvert par le test du listeur) ; `jit_backend_prefere
 `flutter analyze` : les 52 remarques de niveau « info » sont identiques à celles de la source de la Build 446, aucune
 dans les fichiers de ce chantier. Rien n'est vérifié sur iPhone (mise en page, manette réelle, ancrage du partage sur
 iPad).
+
+### 9.6 Corrections de la revue contradictoire des pages (12 octobre 2026)
+
+Revue en lecture seule de `03921328` : huit constats, tous corrigés ; écarts aux §§ 3.2, 3.7, 3.8, 3.10, 3.11 et 9.
+
+1. **Niveau 3 (grave).** L'aperçu du niveau 3 cochait les candidats des niveaux 1 et 2, les caches, les orphelins et
+   les métadonnées, alors que la page annonçait « Aucun élément n'est présélectionné », et au-delà de 50 candidats ces
+   cases n'étaient pas même construites. Désormais le niveau 3 s'ouvre sans rien de coché, métadonnées comprises
+   (`metadataPreselected` au seul niveau 2 ; la page l'impose elle-même par `initialSelection`, quelle que soit la
+   présélection du plan). Aux niveaux 1 et 2, tout groupe qui porte une case cochée s'ouvre au départ (comme tout
+   groupe d'un plan d'au plus 50 candidats), et chaque en-tête de groupe indique « Sélectionnés : x sur y »
+   (`groupSelected`). Manette : RB atteint l'action de la page (Supprimer, Annuler pendant l'exécution, « Analyser à
+   nouveau » sur le résultat, désormais dans la barre du bas) et LB revient en haut, sans parcourir chaque élément.
+2. **Performances.** L'aperçu est une `CustomScrollView` avec une `SliverList.builder` par groupe ; clés de
+   métadonnées et refus sont construits à la demande ; cocher une case ne reconstruit que la case, le compteur de son
+   groupe et la barre des totaux (test : 3 000 candidats, moins de 40 cases construites, une seule reconstruite par
+   coche).
+3. **Imports en cours.** Le scanner relève aussi `FileStat.changed` (`StorageNode.changed`) et chaque âge
+   d'inactivité du planificateur prend la plus récente des dates de modification et de changement d'état, sur l'entrée
+   et tout son contenu (la copie de `file_picker` garde la date de modification de l'original) ; les copies du
+   sélecteur demandent une heure d'inactivité (`pickerCopyAge`), celles du lecteur Musique gardent 10 minutes. Nouveau
+   `lib/services/storage/storage_import_activity.dart` : compteur commun à tout le processus, libéré dans un `finally`.
+   Chaque import qui suit un choix de fichiers y est exécuté, du choix à la fin du traitement : libretro (jeux, données
+   RetroArch), skins, Dolphin (jeux, IPL et fichiers système), import intelligent Dolphin, KartPad, Dusklight, ARMSX2
+   (jeux, BIOS), RPCS3 (micrologiciel, jeux, dossier extrait, licences RAP, échange de sauvegardes), import de
+   contenus RPCS3, fichier de pairing, musique, livres locaux, données système 3DS, déplacement d'une bibliothèque dans
+   NeoStation, fond d'écran du thème, image de jeu et images des systèmes. Restent hors du compteur, figés par
+   `NOT_IMPORTS` dans `test/storage_contract_test.py` : les choix de dossiers (`scanning.dart`, fichier verrouillé ;
+   Réglages › Dossiers ; assistant de démarrage) et les chemins d'exécutables du bureau, qui ne copient rien sous
+   `tmp/`, ainsi que le choix du catalogue de la Bibliothèque, lu aussitôt (sa copie attend la règle d'une heure).
+   `StorageSessionState.importActive` et `wholeCleanupRefused` ; `anyActive` comprend les imports ; la garde lit le
+   compteur en dernier (une erreur vaut « actif ») : pendant un import, le plan entier est refusé (`sessionActive`,
+   dont le texte « un jeu ou un import est en cours » devient exact) et la revérification périodique du gestionnaire
+   s'arrête comme pour un jeu ; la ligne `begin` du journal porte `importActive`.
+4. **Métadonnées prévisualisées.** La case des métadonnées orphelines a une ligne « Afficher le détail » qui liste les
+   clés brutes `appSystemId / filename` (construites à la demande) ; cochée, elle ajoute la ligne `orphanMetadata
+   {count}` au dialogue de confirmation.
+5. **Analyse tronquée.** Le résumé indique chaque parcours coupé (`truncatedEntries` ou `truncatedDepth` {count}, puis
+   la ligne brute `rootId · <dossier>`) et les racines et nœuds concernés portent « Analysé en partie »
+   (`truncatedNode`) ; `StorageScanResult.truncations` (`StorageScanTruncation`, `StorageScanLimit`).
+6. **Analyses non faites.** Un compteur dont l'analyse n'a pas eu lieu n'affiche plus « 0 » : cinq lignes « … non
+   analysés » (`orphanMediaNotAnalyzed`, `orphanMetadataNotAnalyzed`, `orphanCoversNotAnalyzed`,
+   `orphanSavesNotAnalyzed`, `duplicatesNotAnalyzed`), la raison brute en dessous ; échecs du plan et de la détection
+   sous leurs propres clés (`planFailed`, `orphansFailed`) suivies du code technique brut ; journal non enregistré :
+   `journalNotSaved`, puis l'erreur brute.
+7. **Cycle de vie et export.** Seul un retour depuis « masqué » ou « en pause » relance l'analyse (plus le Centre de
+   contrôle, une notification ou Face ID). Mesure sur 300 000 nœuds (conteneur Linux, VM de débogage, médiane de cinq) :
+   rapport détaillé construit sur le fil de l'interface 325–351 ms, copie vers `Isolate.run` 182–214 ms (543–589 ms au
+   total) ; agrégats 0 ms en direct, 227 ms par un isolat. Le rapport détaillé passe donc par `Isolate.run`
+   (`storageReportJson`) avec la ligne « Préparation du rapport… » (`exportPreparing`) ; les agrégats restent
+   synchrones.
+8. **Tests.** Câblage réel de la garde (seul `registry` injecté : un import en cours refuse tout le plan, une session
+   libretro simulée grise INV-14, une copie du sélecteur écrite à l'instant n'est pas proposée) ; `_execute(` présent
+   exactement deux fois (définition et un seul appel, après le dialogue) ; assertions du niveau 3 remplacées
+   (commentées) ; le test sur conteneur réel vérifie les candidats enregistrés par le planificateur plutôt que les
+   groupes ouverts.
+
+Treize clés dans les douze langues : `groupSelected {count}{total}`, `truncatedEntries {count}`, `truncatedDepth
+{count}`, `truncatedNode`, `orphanMediaNotAnalyzed`, `orphanMetadataNotAnalyzed`, `orphanCoversNotAnalyzed`,
+`orphanSavesNotAnalyzed`, `duplicatesNotAnalyzed`, `planFailed`, `orphansFailed`, `journalNotSaved`, `exportPreparing`.
+Restent tels quels : l'erreur de l'analyse elle-même (`scanFailed {error}`, texte brut dans la phrase) ; l'arbre de la
+page d'analyse, non paresseux mais borné à 50 enfants par dossier ; la phase active de `GameLaunchManager`, couverte
+par les tests du planificateur et du gestionnaire, pas par un test de page.
+
+Vérifications sur une copie isolée de la révision : porte de réutilisation, pipeline, périmètre 419, contrat stockage
+(25), douze langues, gardes d'identité des cœurs (toutes identiques), les 27 contrats Python du job `checks` ;
+`flutter analyze` : 52 remarques « info » identiques à la source 446 ; suite Dart complète : 2 757 réussis, 5 ignorés,
+6 échecs, les mêmes que sur la source 446 (`dolphin_import_ui_test` ×2, `dolphin_isolation_contract_test` ×2,
+`rpcs3_import_spu_build230_contract_test` ×2, hors livraison) ; suite Python complète : mêmes échecs que sur la source
+446, sauf `dolphin_external_display_ui_test.py`, désormais vert. Rien n'est vérifié sur iPhone.

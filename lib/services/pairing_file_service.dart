@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
+import 'storage/storage_import_activity.dart';
 
 class PairingFileService {
   PairingFileService._();
@@ -43,7 +44,7 @@ class PairingFileService {
   /// basic validation and has been written successfully to a temporary file.
   static Future<PairingFileImportResult?> importFromPicker({
     String? dialogTitle,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     final picked = await FilePicker.pickFiles(
       dialogTitle: dialogTitle,
       allowMultiple: false,
@@ -114,7 +115,7 @@ class PairingFileService {
       }
       rethrow;
     }
-  }
+  });
 
   static Future<List<int>> _readSelectedBytes(PlatformFile selected) async {
     final sourcePath = selected.path;

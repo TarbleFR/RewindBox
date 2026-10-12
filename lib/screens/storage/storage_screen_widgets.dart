@@ -1,8 +1,8 @@
 /// Shared pieces of the storage pages (docs/storage-audit-cleanup.md § 3.10):
-/// section cards, focusable read-only blocks, warning badges and the
-/// expandable rows of the folder tree. Every label is a [StorageLocale] text;
-/// sizes, paths, root ids and codes are raw values shown apart, never
-/// translated.
+/// section cards (and their lazily built form), focusable read-only blocks,
+/// warning badges and the expandable rows of the folder tree. Every label is
+/// a [StorageLocale] text; sizes, paths, root ids and codes are raw values
+/// shown apart, never translated.
 library;
 
 import 'package:flutter/material.dart';
@@ -34,7 +34,6 @@ class StorageSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -42,16 +41,7 @@ class StorageSectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(icon, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(title, style: theme.textTheme.titleMedium),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
+            StorageSectionTitle(icon: icon, title: title),
             ...children,
           ],
         ),
@@ -64,16 +54,84 @@ class StorageSectionCard extends StatelessWidget {
 /// the page scrolls to it and its outline shows where the user is (texts
 /// at the end of a page would otherwise stay out of reach).
 class StorageFocusable extends StatelessWidget {
-  const StorageFocusable({super.key, required this.child, this.radius = 12});
+  const StorageFocusable({
+    super.key,
+    required this.child,
+    this.radius = 12,
+    this.focusNode,
+  });
 
   final Widget child;
   final double radius;
 
+  /// Lets the page move the focus here itself (LB, back to the top).
+  final FocusNode? focusNode;
+
   @override
   Widget build(BuildContext context) => LibretroFocusRing(
     radius: radius,
-    child: Focus(child: child),
+    child: Focus(focusNode: focusNode, child: child),
   );
+}
+
+/// A card around a lazily built [sliver] (review of phase 5d): painted like
+/// [Card], so a long list of rows keeps the look of the other sections
+/// while only its visible rows are built.
+class StorageSliverCard extends StatelessWidget {
+  const StorageSliverCard({super.key, required this.sliver, this.spacing = 12});
+
+  final Widget sliver;
+
+  /// Space below the card.
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final card = theme.cardTheme;
+    return SliverPadding(
+      padding: EdgeInsets.only(bottom: spacing),
+      sliver: DecoratedSliver(
+        decoration: ShapeDecoration(
+          color: card.color ?? theme.colorScheme.surfaceContainerLow,
+          shape:
+              card.shape ??
+              const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+          shadows: kElevationToShadow[1],
+        ),
+        sliver: sliver,
+      ),
+    );
+  }
+}
+
+/// Title row of a section, as [StorageSectionCard] draws it.
+class StorageSectionTitle extends StatelessWidget {
+  const StorageSectionTitle({
+    super.key,
+    required this.icon,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+        ],
+      ),
+    );
+  }
 }
 
 /// A warning shown on a candidate and repeated in the confirmation.

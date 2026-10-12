@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 
 import 'dolphin_internal_v2_service.dart';
 import 'logger_service.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 class DolphinSmartImportResult {
@@ -63,7 +64,7 @@ class DolphinSmartImportService {
 
   static Future<DolphinSmartImportResult> importGames({
     required String requestedSystem,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     final requested = requestedSystem.trim().toLowerCase();
     if (!DolphinInternalV2Service.isDolphinSystem(requested)) {
       throw ArgumentError.value(requestedSystem, 'requestedSystem');
@@ -161,7 +162,7 @@ class DolphinSmartImportService {
       changedSystems: changedSystems,
       errors: errors,
     );
-  }
+  });
 
   /// Silently repairs files imported by older builds into the opposite private
   /// playlist. A valid image is moved only when DiscIO positively identifies

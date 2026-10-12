@@ -12,6 +12,7 @@ import 'config_service.dart';
 import 'logger_service.dart';
 import 'music_player_service.dart';
 import 'sfx_service.dart';
+import 'storage/storage_import_activity.dart';
 
 /// Plays user-selected ambience only while the primary Systems menu is visible.
 ///
@@ -244,7 +245,7 @@ class HomeMusicService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<bool> _pickAndStoreMusic() async {
+  Future<bool> _pickAndStoreMusic() => StorageImportActivity.run(() async {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -269,7 +270,7 @@ class HomeMusicService extends ChangeNotifier with WidgetsBindingObserver {
       _log.w('[HomeMusic] Could not import selected music: $e');
       return false;
     }
-  }
+  });
 
   /// Copies [source] transactionally so a failed replacement never destroys
   /// the currently selected track.
