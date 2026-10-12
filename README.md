@@ -2,7 +2,7 @@
 
 # NeoStation iOS
 
-#### Emulation frontend for iPhone and iPad
+#### Sideloaded emulation frontend for iPhone and iPad
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.md)
 [![Platform](https://img.shields.io/badge/Platform-iOS%2018%2B-blue)](https://github.com/TarbleFR/neostation-ios)
@@ -19,10 +19,11 @@ bridges and mobile-friendly game/session management.
 
 The current iOS fork includes embedded **Libretro cores, Dolphin/DolphiniOS,
 ARMSX2, RPCS3, Dusklight and KartPad** runtimes, alongside optional external
-**RetroArch** and **MeloNX** integrations. **NeoStation iOS 0.0.3 (Build 427)**
-embeds 14 Libretro cores, also used by RetroArch, so supported games can launch
-directly inside NeoStation. Metadata and account-facing features use services and
-datasets such as **ScreenScraper, RetroAchievements and GameDB-PS3**.
+**RetroArch** and **MeloNX** integrations. **NeoStation iOS 0.0.6 (Build 447)**
+includes 14 embedded Libretro cores, expanded community skin catalogs, improved
+AirPlay/external-display support, storage management tools and **NeoSwap** for
+embedded RPCS3. Metadata and account-facing features use **ScreenScraper,
+RetroAchievements and GameDB-PS3**.
 
 > **Modified version notice — August 2026 onward**  
 > This repository contains a modified version of NeoStation. The upstream
@@ -35,6 +36,22 @@ datasets such as **ScreenScraper, RetroAchievements and GameDB-PS3**.
 NeoStation iOS does **not** provide games, console firmware, encryption keys,
 BIOS files, copyrighted game assets or paid content. Users are responsible for
 providing legally obtained content required by the software they choose to use.
+
+## Latest release — 0.0.6 (Build 447)
+
+[**Download the latest IPA and verify its SHA-256 checksum**](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.6).
+
+This release adds or improves:
+- **AirPlay / Apple TV:** fullscreen presentation and external-display scaling.
+- **Nintendo 3DS:** language settings and compressed/uncompressed NAND imports.
+- **Books and manga:** 3D covers, opening effects and page-turning animations.
+- **Controller skins:** more community skin catalogs and customization choices.
+- **Storage tools:** inspection of caches, temporary files and potentially unused
+  imports, with review before deleting user data.
+- **General:** UI, compatibility and stability refinements.
+
+NeoSwap is documented below as an **experimental RPCS3-specific memory system**,
+not a device RAM upgrade.
 
 ## Current iOS scope
 
@@ -82,13 +99,15 @@ and add your own BIOS files, just as you would in RetroArch's `system` folder.
 Preserve the filenames and subfolders required by each core. No BIOS files
 are included.
 
-### Controller skins — Provenance Skin Catalog
+### Controller skins — expanded community catalogs
 
-NeoStation iOS **0.0.4 / Build 435** uses the
-**[Provenance Skin Catalog](https://github.com/Provenance-Emu/skins)**
-to browse and install community skins for its embedded Libretro consoles.
-**Thank you to the Provenance team, the catalog contributors and every skin
-creator for making this collection available.**
+NeoStation supports community controller-skin catalogs for its embedded
+Libretro consoles. **Version 0.0.6 expands the available catalogs and skin
+selection.** One established source is the
+**[Provenance Skin Catalog](https://github.com/Provenance-Emu/skins)**.
+**Thanks to the Provenance team, catalog maintainers and individual skin
+creators.** Adding a catalog does not transfer ownership of its artwork or
+grant rights beyond the original creator's terms.
 
 - **Catalog source:** [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins).
 - **Browse online:** [provenance-emu.com/skins](https://provenance-emu.com/skins/).
@@ -97,13 +116,14 @@ creator for making this collection available.**
 - **Artwork and layouts:** credited to each skin's original creator. Community
   skins are optional downloads and remain subject to their creators' terms.
 
-Open **Settings → Folders → Embedded consoles**, select a console, then
-**Skins → Browse the Provenance catalog**. Install a skin and choose portrait,
-landscape or both orientations. Each console also has a NeoStation default skin.
+Open **Settings → Folders → Embedded consoles**, choose a console, then
+**Skins** to browse available catalog entries and select a compatible skin.
+Portrait and landscape layouts can be assigned independently where provided;
+each console retains a default NeoStation skin.
 
-See the [skin guide](https://github.com/TarbleFR/neostation-ios/blob/08145438cc907b22b7b860bf190d1b520040fef1/docs/SKINS.md)
-and the [0.0.4 release](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.4)
-for instructions and downloads.
+See the [latest release](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.6)
+for the current update. Catalogs, artwork and layouts remain credited to their
+respective creators.
 
 ### External app integrations
 
@@ -128,6 +148,44 @@ for instructions and downloads.
   provide a usable title.
 - Gamepad-focused landscape navigation and 12-locale coverage for iOS-specific
   settings and menus.
+
+### NeoSwap — experimental memory management for RPCS3
+
+**NeoSwap is integrated into NeoStation and operates automatically with the
+embedded RPCS3 runtime when its supported paths are available.** It does not
+manage Dolphin, ARMSX2, Libretro, external MeloNX or other emulators.
+
+NeoSwap combines several distinct memory-management techniques:
+
+- **Guest memory relay:** an auxiliary `NeoSwapPageRelay` extension provides
+  mapped guest-memory backing and shared-memory loans for eligible host buffers.
+- **Memory donors:** `NeoSwapDonor` helper processes can hold verified shared
+  pages for eligible RPCS3 CPU/RSX and host-visible Vulkan buffers. Growth is
+  gradual, dependent on measured iOS headroom and memory pressure.
+- **File-backed allocations:** selected eligible CPU-side allocations can use
+  private storage-backed mappings rather than a regular anonymous allocation.
+  NeoSwap keeps a storage reserve (typically **2 GiB free**) and can refuse or
+  fall back when space or memory is insufficient.
+- **Cold-data storage:** experimental caching/archiving can write supported,
+  owned shader and decoded-video data to storage and restore it on demand.
+  The shader/video toggle is currently scoped to **God of War III** and takes
+  effect on the next launch; it is not general guest-RAM eviction.
+- **Budgeting and diagnostics:** the memory budget controller reacts to pressure,
+  reports process footprint, guest relay and host loans, donor usage, file
+  mappings, archived data and refusal/fallback reasons.
+
+Open **Settings → Tools → NeoSwap** for diagnostic information and available
+tests. The reported *capacity*, *prepared* or *mapped* bytes are not equivalent
+to additional physical RAM. Donor processes share the **same device RAM**;
+memory and compression remain subject to iOS accounting and jetsam rules.
+
+**Important:** NeoSwap is **not** Apple's kernel virtual-memory swap, does
+**not** bypass iOS memory limits and cannot guarantee extra usable RAM,
+a specific frame rate or stability for every PS3 title. The actual benefit
+depends on the device, game workload and successful allocation or reclamation.
+Some paths are experimental; read the [NeoSwap memory study](docs/neoswap-build419-memory.md)
+and [storage design notes](docs/neoswap-framework-direction.md) for scope,
+measurements and outstanding device-validation work.
 
 ## Requirements
 
@@ -176,8 +234,12 @@ process. `.env` must never be committed.
 
 ## Releases and historical build references
 
-The latest published version is **[NeoStation iOS 0.0.4 — Build 435](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.4)**.
-The release includes the IPA, its checksum and exact source/build references.
+The latest published version is **[NeoStation iOS 0.0.6 — Build 447](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.6)**.
+The release includes the IPA and its SHA-256 checksum. Build 447 was produced
+from commit `af3cec8af0a373641abbf0b11a286bf2c7d5cb03` by
+[GitHub Actions run 38286881882](https://github.com/TarbleFR/neostation-ios/actions/runs/38286881882).
+The [0.0.6 license/distribution review](docs/RELEASE_0.0.6_LICENSE_REVIEW.md)
+records remaining attribution and source-provenance checks.
 The earlier 0.0.3 packaging remains documented in
 [the 0.0.3 source manifest](docs/RELEASE_0.0.3_SOURCE_MANIFEST.md).
 
@@ -304,10 +366,15 @@ third-party components. See [LICENSE.md](LICENSE.md), [NOTICE.md](NOTICE.md) and
 ### Embedded Libretro cores
 
 Each embedded core retains its own copyright notices and license; NeoStation's
-GPL license does not replace those terms. The full texts, author credits and
-license-reference revisions are available in
-[`assets/legal/libretro/`](assets/legal/libretro/) and are included in the
-release's license archive and the IPA's `Legal/Libretro/` directory.
+GPL license does not replace those terms. Reference license texts, author
+credits and license-reference revisions are maintained in
+[`assets/legal/libretro/`](assets/legal/libretro/).
+
+**Build 447 packaging caveat:** a check of the published 0.0.6 IPA confirmed
+general notices in `Legal/` and some records in `Libretro-Licenses/`, but
+not the complete per-core license collection in `Legal/Libretro/` described
+by the earlier README. This needs correction in a future binary; see the
+[0.0.6 distribution review](docs/RELEASE_0.0.6_LICENSE_REVIEW.md).
 
 Snes9x, Genesis Plus GX/Wide, PicoDrive and FinalBurn Neo have non-commercial
 conditions. FinalBurn Neo also restricts monetary profit and donation
@@ -393,16 +460,17 @@ and iiSU Network for the original inspiration. No standalone RiiSU license file
 was visible when the integration was added, so NeoStation does not assert
 general redistribution rights over that artwork.
 
-### Future binary packaging
+### Binary packaging and ongoing license verification
 
-Future NeoStation iOS builds are required by CI to include a `Legal/` directory
-inside the application bundle with the NeoStation license/notice, third-party
-credits, exact build/source identity and pinned license texts for the principal
-embedded components. The build fails when those legal files are missing or
-stale relative to the source pins.
+The project maintains a `Legal/` bundle and build/source identity records.
+For release **0.0.6 / Build 447**, the principal project notices were found,
+but per-core Libretro licensing, exact prebuilt-core source correspondence and
+compatibility between several embedded licenses still need follow-up. CI
+success alone must not be treated as a legal-compliance certificate.
+See [the release-specific audit](docs/RELEASE_0.0.6_LICENSE_REVIEW.md)
+for verified facts, exceptions and recommended next steps.
 
-This policy does **not** modify the already-published `NeoStation.ipa` asset in
-GitHub release 0.0.1.
+These documentation changes do **not** modify any previously published IPA.
 
 All other third-party packages, artwork, trademarks and emulator projects retain
 their own copyrights, licenses and terms. See [NOTICE.md](NOTICE.md) and

@@ -26,7 +26,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ---
 
-CURRENT STABLE IOS BASELINE — BUILD 350 / GITHUB RELEASE 0.0.1
+CURRENT PUBLIC IOS RELEASE — 0.0.6 / BUILD 447
+
+Latest published release:
+https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.6
+
+Release build source:
+af3cec8af0a373641abbf0b11a286bf2c7d5cb03
+
+Successful Actions build:
+https://github.com/TarbleFR/neostation-ios/actions/runs/38286881882
+
+IPA asset: NeoStation-0.0.6.ipa
+IPA SHA-256: b4e9d6a75caf1c4bc7b75f4965a5377a9c163bb6f1af6a211ca41b3133adcdb3
+
+The source and license observations for this release are recorded in
+docs/RELEASE_0.0.6_LICENSE_REVIEW.md. Updating this notice does not change
+the previously published signed/distributed IPA.
+
+---
+
+HISTORICAL VERIFIED IOS BASELINE — BUILD 350 / GITHUB RELEASE 0.0.1
 
 Published release:
 https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.1
@@ -383,17 +403,20 @@ interoperability and compatibility purposes.
 
 ---
 
-FUTURE BINARY PACKAGING POLICY
+BINARY PACKAGING POLICY AND BUILD 447 REVIEW
 
-Future NeoStation iOS builds are required by CI to include an application-bundle
-Legal/ directory containing the NeoStation license and notice, comprehensive
-third-party credits, exact build/source identity, and the pinned license texts
-for Dolphin/DolphiniOS, RPCS3, ARMSX2, Dusklight, KartPad/WiiCompiled and
-StikJIT. The build fails if required legal files are absent or stale relative to
-the pinned source revisions.
+The project maintains an application-bundle Legal/ directory containing the
+NeoStation license and notice, third-party credits, build/source identity
+and pinned license documents for its principal embedded components.
 
-This policy applies to future builds. It does not modify the already-published
-NeoStation.ipa asset in GitHub release 0.0.1.
+The published 0.0.6 / Build 447 IPA contains that primary record, but the
+inspection did not find the complete individual Libretro-core license archive
+inside Legal/Libretro/. Review the exact binary and its source provenance,
+not only the success of an automated build:
+docs/RELEASE_0.0.6_LICENSE_REVIEW.md
+
+This documentation update does not alter any already-published IPA, including
+releases 0.0.1 and 0.0.6.
 
 ## Guest Page Relay / NeoSwap guest-memory relay
 

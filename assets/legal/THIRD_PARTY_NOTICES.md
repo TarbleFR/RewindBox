@@ -1,7 +1,10 @@
 # NeoStation iOS — Third-Party Notices
 
-This directory is intended to be bundled into **future** NeoStation iOS builds.
-It does not modify the already-published release 0.0.1 IPA.
+This source directory preserves third-party notice references. Published
+binaries contain a separate selection of packaged notices, which should be
+verified against each release. The 0.0.6 / Build 447 review is documented in
+[docs/RELEASE_0.0.6_LICENSE_REVIEW.md](../../docs/RELEASE_0.0.6_LICENSE_REVIEW.md).
+Documentation changes do not modify previously published IPAs.
 
 The full maintained attribution record is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md
@@ -79,7 +82,9 @@ Mupen64Plus-Next, Beetle PSX, Beetle PSX HW, PPSSPP and Azahar.
 
 Full core credits, original license texts, support-library notices, reference
 revisions and distribution restrictions are in `assets/legal/libretro/`.
-The IPA includes this collection in `Legal/Libretro/` and `Libretro-Licenses/`.
+The Build 447 IPA contains only some of these notices in `Libretro-Licenses/`;
+the full individual per-core set was not found at `Legal/Libretro/`.
+This is an outstanding packaging item, not a completed compliance claim.
 See the [core license record](https://github.com/TarbleFR/neostation-ios/blob/main/assets/legal/libretro/LIBRETRO_CORES.md)
 and [0.0.3 provenance](https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.3_SOURCE_MANIFEST.md).
 

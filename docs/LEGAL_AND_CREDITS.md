@@ -7,6 +7,24 @@ headers and the license files shipped by each upstream project.
 Attribution does **not** imply endorsement by any upstream project, creator,
 console manufacturer or trademark holder.
 
+## Current release and license review
+
+The current published GitHub release is
+[NeoStation iOS 0.0.6 / Build 447](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.6).
+See the [Build 447 distribution and license review](RELEASE_0.0.6_LICENSE_REVIEW.md)
+for the checked IPA contents, exact release identity, known packaging gaps and
+license-compatibility questions. Credits and license-text presence do not alone
+certify full compliance or provide exact Corresponding Source for every bundled
+binary.
+
+**NeoSwap** is NeoStation's experimental memory-management integration for
+the embedded RPCS3 workflow. Its guest-memory relay adapts a MIT-licensed
+Guest Page Relay prototype (see [the preserved notice](../assets/legal/Guest-Page-Relay-MIT.txt)). Its relay, donor, file-backed and cold-data
+mechanisms are described in the [README](../README.md#neoswap--experimental-memory-management-for-rpcs3).
+That description is not a claim to relicense RPCS3, borrowed libraries,
+platform APIs or other contributors' code. NeoSwap does not create additional
+physical memory or circumvent Apple's resource enforcement.
+
 ## NeoStation and the iOS fork
 
 - **NeoStation** — original frontend/project by Miguel Soto / @misobadev, with
@@ -160,9 +178,9 @@ NeoStation does not provide ROMs, ISOs, BIOS files, console firmware,
 encryption keys, commercial game assets or paid content. Users must provide
 legally obtained content required by the software they use.
 
-## Future binary packaging policy
+## Binary packaging policy and verified limitations
 
-Future NeoStation iOS builds should include a `Legal/` directory inside the
+NeoStation iOS builds should include a `Legal/` directory inside the
 application bundle containing:
 
 - the NeoStation GPL text and project notice;
@@ -175,8 +193,12 @@ application bundle containing:
 - Dusklight's CC0-1.0 text;
 - additional dependency notices collected by embedded projects.
 
-The already-published `NeoStation.ipa` asset for release 0.0.1 is intentionally
-not modified by this documentation policy.
+The already-published `NeoStation.ipa` asset for release 0.0.1, and the
+0.0.6 IPA, are intentionally not modified by this documentation update.
+The 0.0.6 IPA includes the main `Legal/` notice collection but does not
+currently package all 14 individual Libretro core license texts in the
+documented `Legal/Libretro/` location. This is recorded as a follow-up item
+rather than described as resolved.
 
 ## Optional cheat catalogue source
 
@@ -196,7 +218,9 @@ Mupen64Plus-Next, Beetle PSX, Beetle PSX HW, PPSSPP and Azahar.
 
 Full core credits, original license texts, support-library notices, reference
 revisions and distribution restrictions are in `assets/legal/libretro/`.
-The IPA includes this collection in `Legal/Libretro/` and `Libretro-Licenses/`.
+The inspected 0.0.6 IPA contains a subset in `Libretro-Licenses/`, but the
+complete core license collection was not present in `Legal/Libretro/`.
+See the [Build 447 review](RELEASE_0.0.6_LICENSE_REVIEW.md) before redistributing.
 See the [core license record](https://github.com/TarbleFR/neostation-ios/blob/main/assets/legal/libretro/LIBRETRO_CORES.md)
 and [0.0.3 provenance](https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.3_SOURCE_MANIFEST.md).
 
