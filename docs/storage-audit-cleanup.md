@@ -117,7 +117,7 @@ Dossier `lib/services/storage/` (nouveau). Aucune écriture hors : suppression p
 ### 3.1 `storage_roots.dart` — registre déclaratif sans effet de bord
 
 ```dart
-enum StorageCategory { games, saves, systemFiles, caches, media, temporary, logs, userContent, neoSwap, index, unknown } // A…I + index/DB/config + non identifié
+enum StorageCategory { games, saves, systemFiles, caches, media, temporary, logs, userContent, neoSwap, indexFiles, unknown } // A…I + index/DB/config + non identifié ; `index` est réservé par Enum.index en Dart
 enum StorageDeletionClass { never, regenerableAtCost, temporaryWhenIdle, confirmation }
 enum StorageEngine { frontend, libretro, rpcs3, dolphin, kartpad, dusklight, armsx2, library, neoSwap, system }
 enum StorageContainer { documents, applicationSupport, caches, temporary }

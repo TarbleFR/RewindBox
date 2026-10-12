@@ -1112,6 +1112,7 @@ DELTA |= BUILD447_BOOKS_DELTA
 BUILD447_STORAGE_DELTA = {
     'build-utils/verify_delivery_reuse.py',
     'lib/l10n/storage_locale.dart',
+    'lib/repositories/storage_maintenance_repository.dart',
     'lib/services/armsx2_internal_service.dart',
     'lib/services/dolphin_internal_v2_service.dart',
     'lib/services/dolphin_smart_import_service.dart',
@@ -1120,12 +1121,23 @@ BUILD447_STORAGE_DELTA = {
     'lib/services/libretro_internal_service.dart',
     'lib/services/rpcs3_internal_service.dart',
     'lib/services/rpcs3_save_exchange_service.dart',
+    'lib/services/storage/storage_categorizer.dart',
+    'lib/services/storage/storage_orphan_detector.dart',
     'lib/services/storage/storage_picker_copies.dart',
+    'lib/services/storage/storage_roots.dart',
+    'lib/services/storage/storage_scanner.dart',
+    'lib/services/storage/storage_stat_ffi.dart',
     'test/localization_12_locale_coverage_test.py',
+    'test/storage_categorizer_test.dart',
     'test/storage_contract_test.py',
     'test/storage_locale_test.dart',
     'test/storage_log_rotation_test.dart',
+    'test/storage_maintenance_repository_test.dart',
+    'test/storage_orphan_detector_test.dart',
     'test/storage_picker_copies_test.dart',
+    'test/storage_roots_test.dart',
+    'test/storage_scanner_test.dart',
+    'test/storage_stat_ffi_test.dart',
 }
 DELTA |= BUILD447_STORAGE_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.

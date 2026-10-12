@@ -1749,7 +1749,8 @@ abstract final class StorageLocale {
     'logs': catLogs,
     'userContent': catUserContent,
     'neoSwap': catNeoSwap,
-    'index': catIndex,
+    // `index` cannot name an enum value in Dart (Enum.index).
+    'indexFiles': catIndex,
     'unknown': catUnknown,
   };
 
