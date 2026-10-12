@@ -66,7 +66,37 @@ cœur, helper JIT, réglage d'émulation ni fichier verrouillé sur la Build 419
 
 ## Vérifications
 
-Voir la section « Résultats » ci-dessous (complétée après la livraison).
+Exécuté dans ce conteneur (Linux x86_64, Flutter 3.47.2), sur l'arbre livré :
+
+| Contrôle | Résultat |
+| --- | --- |
+| `verify_delivery_reuse.py --offline` (arbre fermé, bloc `BUILD448_DELTA`, 60 chemins) | réussi (1 434 entrées inchangées) |
+| `flutter analyze` | 52 remarques « info », le même nombre qu'à la Build 447, aucune erreur ni avertissement |
+| Étape Dart du job `checks` (toutes ses lignes, dans l'ordre) | 2 285 tests réussis, 3 ignorés (239 + 1 104 + 21 + 244 + 70 + 607) |
+| `test/ambient_music_loop_test.py` (SoLoud réel, 21 boucles en flux et en mémoire, blocs impairs, reprises après seek) | réussi : chaque échantillon égal à la piste décodée, aucun silence ni répétition au raccord |
+| `test/game_audio_handoff_test.py` | 4 réussis |
+| Contrats Python des jobs `checks` et `libretro-checks` (dont `delivery_pipeline_test.py`, `external_display_host_plist_test.py`, `libretro_frontend_ui_contract_test.py`, `embedded_engine_route_contract_test.py`, `localization_12_locale_coverage_test.py`) | tous réussis |
+| `test/libretro_host/frontend/input_latch_test.m` compilé en C (clang 18) | 24 contrôles réussis ; les 4 nouveaux cas échouent sur l'ancienne version |
+
+CI GitHub sur la branche `Claude` :
+
+- « Libretro engine checks » : rouge sur `bdae27e9`, `88b892b1` et `24deb26e` (contrat Build 440 de l'onglet
+  Consoles, puis `Text()` littéral du badge de filtres) ; corrigé et **réussi** sur `f25b8f2a` (`38314857948`) :
+  job `native` (macOS 15, Xcode 26.3 : tests du pont libretro dont les 15 nouveaux contrôles tactiles, compilation
+  iPhone de chaque source du pont) et job `dart`.
+- Livraison `38315400256` sur `aab282e7` (périmètre `full`) : `checks`, `native` et « Release device build • cold »
+  **réussis** (identités des cœurs RPCS3, Dolphin, ARMSX2, Dusklight, libretro et KartPad vérifiées par le run,
+  IPA validée puis scellée pour SideStore). Artefact `NeoStation-Build-448-aab282e7…-cold` (`11777716184`,
+  210 114 461 octets, SHA-256 de l'archive `3fa7aad9e561b10e8e18843451cdd9c860f5de39d58f9bea3643048c6f2fefb9`),
+  **chiffré pour la clé de session 448 et non remis** : le conteneur de la session ne peut pas télécharger les
+  artefacts (hôte de stockage refusé par la politique de sortie), et la clé privée 448 n'existe que dans ce
+  conteneur. Une tentative de lire l'enveloppe par un workflow a été refusée et retirée (`84714b6d`, `36567551`) :
+  elle aurait contourné cette politique.
+- Livraison remise : run `38317793450` sur `36567551`, dont l'arbre Git (`fb4f2eaf`) est identique octet pour
+  octet à celui de `aab282e7`, chiffrée pour `build-utils/delivery-424-recipient.pem` (clé du mainteneur, comme la
+  447). Identité : section « Livraison ».
+
+Non exécuté : XCTest, essai sur iPhone, écoute du raccord de la boucle.
 
 ## Ce qui n'est pas vérifié
 
