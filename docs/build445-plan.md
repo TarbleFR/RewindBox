@@ -128,6 +128,28 @@ Artefact chiffré `NeoStation-Build-445-c0e33717…-cold` :
 Les diagnostics sont dans `NeoStation-Build-445-c0e33717…-cold-diagnostics`
 (`11720386403`), chiffrés pour la même clé.
 
-Le nom, la taille et le SHA-256 de l'IPA seront consignés après
-déchiffrement. Le téléchargement depuis la session est encore refusé par la
-politique réseau (`productionresultssa11.blob.core.windows.net`, 00:16 UTC).
+### IPA remise
+
+L'artefact a été téléchargé et déchiffré sur le poste du mainteneur, avec son
+autorisation explicite, dans `C:\Users\Coren\nsw\b445`. La politique réseau
+de la session refusait toujours `productionresultssa11.blob.core.windows.net`
+(00:16 UTC).
+
+- **Contrôle du zip** : 207 757 213 octets, SHA-256 égal à l'empreinte GitHub
+  `f586c468…b835`.
+- **Enveloppe du mot de passe** : `password.rsa` (384 octets) a été ouvert dans
+  la session avec la clé 445, puis rechiffré pour la clé `delivery-424` déjà
+  présente sur ce poste (OAEP SHA-256). Le mot de passe en clair n'est jamais
+  sorti de la session, et la clé privée 445 n'a pas quitté le conteneur.
+  Déchiffrement par `decrypt-445.ps1`, sur le modèle de `decrypt-435.ps1`.
+
+| Élément | Valeur |
+|---|---|
+| IPA | `NeoStation-Build445-c0e33717a64f6b66280d6bef3aae6c4a8bcacd55-cold.ipa`, 207 536 562 octets |
+| SHA-256 | `c7ab05534373af4e27ec63f01341705b24f6bc793b9fbddfb16e3c4bf57db598` (égal à `SHA256SUMS` et à `signed-payload-identity.json`) |
+| Copie remise | `C:\Users\Coren\Downloads\NeoStation-Build445-c0e3371.ipa` (même empreinte) |
+| Identité signée | `sideStoreAppleReSigningRequired: true`, code et données inchangés par la signature |
+| `libRPCS3Core.dylib` | `416924d5da2895e888667578d773117f219ade8cfecb858e0db08790fd1d94a4`, identique à la 444 |
+
+Il reste à installer l'IPA par SideStore et à l'essayer sur iPhone. Aucune
+validation sur l'appareil n'est revendiquée.

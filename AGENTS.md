@@ -78,7 +78,7 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Ajouts sans effet sur le produit :
   - l'artefact est chiffré pour `build-utils/delivery-445-recipient.pem`, clé détenue par la session tactile/skins et passée par l'entrée `recipient` ;
   - `test/libretro_skin_catalogs_test.dart` est exécuté par le contrôle de livraison.
-- Plan, vérifications et identité de l'IPA : `docs/build445-plan.md`. Ne pas réutiliser le numéro 445.
+- Livraison 445 vérifiée : source `c0e33717a64f6b66280d6bef3aae6c4a8bcacd55`, run `38186199603`, IPA SHA-256 `c7ab05534373af4e27ec63f01341705b24f6bc793b9fbddfb16e3c4bf57db598` (207 536 562 octets), aucune validation iPhone. Plan, vérifications et remise : `docs/build445-plan.md`. Ne pas réutiliser le numéro 445.
 
 ## Précision du mainteneur — 9 octobre 2026, 13 h
 
