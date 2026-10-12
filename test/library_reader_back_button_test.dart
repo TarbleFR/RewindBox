@@ -349,21 +349,30 @@ LibraryPdfReaderScreen pdfReader(
   );
 }
 
+/// The EPUB/TXT reader in its continuous scroll: the 440 reader, the path
+/// these tests cover (set explicitly since the pages layout became the
+/// default; the pages layout has its own Back tests in
+/// library_reader_book_pages_test.dart).
 LibraryBookReaderScreen bookReader(
   LibraryReadingStore store, {
   String progressKey = 'local:book',
   LibraryReaderOrientation? orientation,
   LibraryReflowSourceOpener? open,
-}) => LibraryBookReaderScreen(
-  open:
-      open ??
-      () async =>
-          LibraryTextReflowSource(LibraryTextDocument.fromText(sampleText())),
-  progressKey: progressKey,
-  title: 'Sample',
-  store: store,
-  orientation: orientation,
-);
+}) {
+  store.updateSettings(
+    store.settings.copyWith(textLayout: LibraryTextLayout.scroll),
+  );
+  return LibraryBookReaderScreen(
+    open:
+        open ??
+        () async =>
+            LibraryTextReflowSource(LibraryTextDocument.fromText(sampleText())),
+    progressKey: progressKey,
+    title: 'Sample',
+    store: store,
+    orientation: orientation,
+  );
+}
 
 void main() {
   setUpReaderEnvironment();

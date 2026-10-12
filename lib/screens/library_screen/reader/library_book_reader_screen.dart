@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart'
@@ -9,15 +10,22 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:neostation/l10n/library_reader_locale.dart';
+import 'package:neostation/services/library_http.dart' show LibraryCancelToken;
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
 
+import 'library_book_pages_view.dart';
+import 'library_page_curl.dart';
+import 'library_page_spreads.dart';
+import 'library_page_textures.dart';
 import 'library_reader_chrome.dart';
+import 'library_reader_effective_settings.dart';
 import 'library_reader_errors.dart';
 import 'library_reader_gamepad.dart';
 import 'library_reader_palette.dart';
 import 'library_reader_sheets.dart';
 import 'library_reader_system.dart';
+import 'library_reflow_paginator.dart';
 import 'library_reflow_source.dart';
 import 'library_reflow_view.dart';
 
@@ -33,14 +41,55 @@ class _ChapterData {
   final List<LibraryReflowUnit> units;
 }
 
+/// Where the pages layout draws its pages, for one body size and settings.
+@immutable
+class _BookPagesGeometry {
+  const _BookPagesGeometry({
+    required this.area,
+    required this.pageSize,
+    required this.padding,
+    required this.style,
+    required this.rule,
+    required this.devicePixelRatio,
+  });
+
+  /// The pager (and the page curl above it) in the reader's body.
+  final Rect area;
+
+  /// One page: the whole [area], or half of it in a spread.
+  final Size pageSize;
+  final EdgeInsets padding;
+  final LibraryReflowStyle style;
+  final LibraryBookSpreadRule rule;
+  final double devicePixelRatio;
+
+  /// Whether a window laid out for this geometry can be shown in [other]
+  /// (the same pages at the same place; the typography may differ while
+  /// the pages are laid out again).
+  bool fits(_BookPagesGeometry other) =>
+      area == other.area && pageSize == other.pageSize && rule == other.rule;
+}
+
 /// Reflowable reader for EPUB and plain text.
 ///
-/// One chapter (EPUB document, TXT section) is laid out lazily at a time:
-/// the scroll view is centred on the block being read, earlier blocks grow
-/// upwards in a reverse sliver, so the reader opens anywhere without laying
-/// out what comes before. Neighbouring chapters are appended as the reader
-/// scrolls. The position (first visible block + character offset) survives
-/// font, theme and orientation changes and is stored as an EPUB CFI or a
+/// Two layouts (Build 447, docs/library-books-3d-plan.md § 3.5), chosen by
+/// [LibraryTextLayout] (session, then the book's setting, then the global
+/// one; pages by default):
+///
+/// * Pages: [LibraryReflowPaginator] lays the chapters out as pages of
+///   whole lines; a `PageView` of spreads (the shown one and its
+///   neighbours) turns them with the page curl
+///   ([LibraryPageCurlLayer], [LibraryPageTurnStyle]), a slide or a jump,
+///   two pages side by side in landscape ([LibraryPageSpreads] rules), in
+///   [rightToLeft] order when the book asks for it.
+/// * Continuous scroll (the 440 reader): one chapter (EPUB document, TXT
+///   section) is laid out lazily at a time: the scroll view is centred on
+///   the block being read, earlier blocks grow upwards in a reverse sliver,
+///   so the reader opens anywhere without laying out what comes before.
+///   Neighbouring chapters are appended as the reader scrolls.
+///
+/// The position (first visible block + character offset) survives font,
+/// theme, layout and orientation changes and is stored as an EPUB CFI or a
 /// `txt:b:o` location.
 class LibraryBookReaderScreen extends StatefulWidget {
   const LibraryBookReaderScreen({
@@ -85,12 +134,101 @@ class LibraryBookReaderScreen extends StatefulWidget {
 }
 
 class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   late final LibraryReadingStore _store;
   late final LibraryReaderChromeController _chrome;
   late final LibraryReaderSystemSession _system;
   late LibraryReaderSettings _settings;
   late final LibraryReflowImageCache _images;
+
+  /// This book's navigation settings (`LibraryReadingStore.bookSettingsFor`).
+  LibraryReaderBookSettings? _bookSettings;
+
+  /// Layout chosen for this session by [setTextLayout] (before the book's
+  /// setting, which it also writes).
+  LibraryTextLayout? _sessionTextLayout;
+
+  /// Layout shown.
+  LibraryTextLayout _activeLayout = LibraryTextLayout.pages;
+  bool _enteringScroll = false;
+
+  /// The page start shown when the scroll layout was entered: back in the
+  /// pages layout without having moved, the same page is shown again (the
+  /// scroll layout reads the line holding it, which can start earlier).
+  LibraryReflowPosition? _switchAnchor;
+  bool _movedSinceSwitch = false;
+
+  // ------------------------------------------------- pages layout state --
+
+  LibraryReflowPaginator? _paginator;
+
+  /// Layout generation of [_paginator] (typography, page size, margins).
+  int _pagesLayout = 0;
+
+  /// The geometry last given to [_paginator].
+  _BookPagesGeometry? _pagesGeometry;
+
+  /// Reading position of the pages layout: the start of the page last
+  /// turned to, or the position opened (saved location) or jumped to
+  /// (contents, link, slider). The page shown always holds it; a relayout
+  /// (typography, rotation, two pages) keeps it, so the same first words
+  /// stay on the page whatever the number of relayouts, and it is the
+  /// location saved.
+  LibraryReflowPosition _pageAnchor = LibraryReflowPosition.start;
+
+  /// The window of spreads of the pager: the one shown and, when known, its
+  /// neighbours. Its pages come from layout [_windowLayout], laid out for
+  /// [_windowGeometry].
+  LibraryBookSpread? _spread;
+  LibraryBookSpread? _previous;
+  LibraryBookSpread? _next;
+  Object? _previousError;
+  Object? _nextError;
+  bool _hasPrevious = false;
+  bool _hasNext = false;
+  LibraryBookSpread? _previousRequestedFor;
+  LibraryBookSpread? _nextRequestedFor;
+  _BookPagesGeometry? _windowGeometry;
+  int _windowLayout = -1;
+
+  /// Identity of the pager (a new `PageView` per window laid out).
+  int _windowGeneration = 0;
+
+  /// A window was shown since the book opened: until then the body keeps
+  /// saying the book is loading (no second message for a frame).
+  bool _windowShownOnce = false;
+
+  /// Error of the last attempt to lay out the page shown.
+  Object? _pagesError;
+  bool _relocateScheduled = false;
+  bool _relocating = false;
+  int _relocateRequest = 0;
+
+  /// The pager rests on a neighbour still being laid out (1 next, -1
+  /// previous): it becomes the spread shown once known.
+  int _arrivalPending = 0;
+
+  /// A turn asked while its neighbour was being laid out (1, -1).
+  int _queuedTurn = 0;
+
+  /// Item index of the page curl = [_virtualOrigin] + pager index: it moves
+  /// with every turn (the curl renders the new neighbours ahead).
+  int _virtualOrigin = 1 << 28;
+  static const int _virtualItems = 1 << 30;
+  bool _curlRefreshPending = false;
+  PageController? _pager;
+  LibraryPageCurlController? _curl;
+  LibraryPageTextureCache? _textures;
+
+  /// Chapter whose page count is awaited (the "Page N of M" label).
+  int? _watchedChapter;
+  LibraryReflowPaginator? _watchedPaginator;
+
+  /// Space below the last line of a page, above the safe area.
+  static const double _pageBottomGap = 16;
+
+  /// Added to the margins of each half of a spread (the spine).
+  static const double _spineGutter = 8;
 
   LibraryReflowSource? _source;
   Object? _openError;
@@ -155,9 +293,14 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   @visibleForTesting
   LibraryReflowSource? get source => _source;
 
-  /// Reading position (first visible block of the current layout).
+  /// Reading position: in the scroll layout the first visible block, in
+  /// the pages layout the position the page shown holds (the start of the
+  /// page last turned to, or the position opened or jumped to).
   @visibleForTesting
-  LibraryReflowPosition? get currentPosition => _readingPosition();
+  LibraryReflowPosition? get currentPosition =>
+      _activeLayout == LibraryTextLayout.pages
+      ? _lastPosition
+      : _readingPosition();
 
   @visibleForTesting
   bool get chromeVisible => _chrome.visible;
@@ -170,23 +313,66 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   @visibleForTesting
   (int, int) get window => (_windowStart, _windowEnd);
 
+  /// The layout shown: pages, or the continuous scroll.
+  LibraryTextLayout get textLayout => _activeLayout;
+
+  /// Pages layout: the spread shown, once laid out (tests).
   @visibleForTesting
-  LibraryReaderGamepadBindings get gamepadBindings =>
-      LibraryReaderGamepadBindings(
-        up: () => _scrollBy(-0.3),
-        down: () => _scrollBy(0.3),
-        left: () => _scrollBy(-0.9),
-        right: () => _scrollBy(0.9),
+  LibraryBookSpread? get shownSpread => _spread;
+
+  /// Pages layout: the neighbours of the spread shown, once laid out.
+  @visibleForTesting
+  (LibraryBookSpread?, LibraryBookSpread?) get neighbourSpreads =>
+      (_previous, _next);
+
+  @visibleForTesting
+  LibraryReflowPaginator? get paginator => _paginator;
+
+  @visibleForTesting
+  LibraryPageCurlController? get curl => _curl;
+
+  @visibleForTesting
+  LibraryPageTextureCache? get pageTextures => _textures;
+
+  @visibleForTesting
+  LibraryReaderGamepadBindings get gamepadBindings {
+    if (_activeLayout == LibraryTextLayout.pages) {
+      return LibraryReaderGamepadBindings(
+        // Up / down: previous / next page in reading order; left / right:
+        // the page on that side (right to left, the next page is on the
+        // left). Y stays free for the bookmarks.
+        up: () => _turnPage(forward: false),
+        down: () => _turnPage(forward: true),
+        left: () => _turnVisual(left: true),
+        right: () => _turnVisual(left: false),
         leftBumper: () => _goToChapter(-1),
         rightBumper: () => _goToChapter(1),
-        // A retries a book that failed to open (the button is touch only).
         select: _openError != null && !_opening
             ? () => unawaited(_open())
+            : _pagesError != null
+            ? _retryPages
             : _chrome.toggle,
         back: _close,
         x: _openToc,
         start: _openSettings,
       );
+    }
+    return LibraryReaderGamepadBindings(
+      up: () => _scrollBy(-0.3),
+      down: () => _scrollBy(0.3),
+      left: () => _scrollBy(-0.9),
+      right: () => _scrollBy(0.9),
+      leftBumper: () => _goToChapter(-1),
+      rightBumper: () => _goToChapter(1),
+      // A retries a book that failed to open (the button is touch only).
+      select: _openError != null && !_opening
+          ? () => unawaited(_open())
+          : _chrome.toggle,
+      back: _close,
+      x: _openToc,
+      start: _openSettings,
+    );
+  }
 
   /// Where the line being read is placed (opening, jumps, new typography)
   /// and read back from: just below the back control, which stays on
@@ -200,6 +386,8 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     super.initState();
     _store = widget.store ?? LibraryReadingStore.instance;
     _settings = _store.settings;
+    _bookSettings = _store.bookSettingsFor(widget.progressKey);
+    _activeLayout = _desiredLayout();
     _chrome = LibraryReaderChromeController();
     _system = LibraryReaderSystemSession(orientation: widget.orientation);
     _images = LibraryReflowImageCache(_loadResource);
@@ -226,6 +414,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _shownPosition.dispose();
     _sliderValue.dispose();
     _scroll?.dispose();
+    _pager?.dispose();
+    _curl?.removeListener(_onCurlChanged);
+    _curl?.dispose();
+    _textures?.dispose();
+    _paginator?.dispose();
     _images.clear();
     unawaited(_system.stop());
     unawaited(_store.flush().catchError((Object _) {}));
@@ -253,25 +446,205 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   }
 
   void _onStore() {
+    if (!mounted) return;
     final settings = _store.settings;
-    if (settings == _settings || !mounted) return;
-    final previous = _settings;
-    final relayout =
-        previous.fontSize != settings.fontSize ||
-        previous.lineHeight != settings.lineHeight ||
-        previous.fontFamily != settings.fontFamily ||
-        previous.margin != settings.margin ||
-        previous.justify != settings.justify;
-    if (relayout && _source != null) {
-      // Keep reading the same words with the new typography.
-      final position = _readingPosition();
-      if (position != null) {
-        _lastPosition = position;
-        _setAnchor(position);
+    final book = _store.bookSettingsFor(widget.progressKey);
+    final bookChanged = book != _bookSettings;
+    if (settings == _settings && !bookChanged) return;
+    if (bookChanged) {
+      // The book's layout chosen elsewhere (settings, "revert to general
+      // settings") replaces the one chosen in this session.
+      if (book?.textLayout != _bookSettings?.textLayout) {
+        _sessionTextLayout = null;
       }
+      _bookSettings = book;
     }
-    setState(() => _settings = settings);
-    _system.update(settings);
+    if (settings != _settings) {
+      final previous = _settings;
+      final relayout =
+          previous.fontSize != settings.fontSize ||
+          previous.lineHeight != settings.lineHeight ||
+          previous.fontFamily != settings.fontFamily ||
+          previous.margin != settings.margin ||
+          previous.justify != settings.justify;
+      // The pages layout keeps its own anchor: the paginator is updated
+      // when the pages are built again.
+      if (relayout &&
+          _source != null &&
+          _activeLayout == LibraryTextLayout.scroll) {
+        // Keep reading the same words with the new typography.
+        final position = _readingPosition();
+        if (position != null) {
+          _lastPosition = position;
+          _setAnchor(position);
+        }
+      }
+      setState(() => _settings = settings);
+      _system.update(settings);
+    } else {
+      setState(() {});
+    }
+    _applyLayout(_desiredLayout());
+  }
+
+  // ------------------------------------------------------- text layout --
+
+  LibraryReaderEffectiveSettings _effective({bool reduceMotion = false}) =>
+      LibraryReaderEffectiveSettings.resolve(
+        global: _settings,
+        book: _bookSettings,
+        // Reduce Motion: pages are turned without animation.
+        session: reduceMotion
+            ? const LibraryReaderSessionOverrides(
+                turnStyle: LibraryPageTurnStyle.none,
+              )
+            : null,
+      );
+
+  /// Session choice, then the book's setting, then the global one.
+  LibraryTextLayout _desiredLayout() =>
+      _sessionTextLayout ?? _effective().textLayout;
+
+  /// The book's `page-progression-direction` ([LibraryBookReaderScreen.
+  /// rightToLeft]) unless a direction was chosen for this book.
+  bool get _rightToLeft {
+    final direction = _bookSettings?.pageDirection;
+    return direction == null
+        ? widget.rightToLeft
+        : direction == LibraryPageDirection.rtl;
+  }
+
+  /// Shows the book in [layout] from now on, at the same words (the scroll
+  /// view starts at the first line of the page shown; the pages layout
+  /// shows the page holding the first line read), and keeps this choice
+  /// for the book (`LibraryReaderBookSettings.textLayout`).
+  void setTextLayout(LibraryTextLayout layout) {
+    if (!mounted) return;
+    _sessionTextLayout = layout;
+    final key = widget.progressKey;
+    if (key.isNotEmpty) {
+      final next =
+          (_store.bookSettingsFor(key) ??
+                  _bookSettings ??
+                  const LibraryReaderBookSettings())
+              .copyWith(textLayout: layout);
+      // Known before the store notifies: not taken for a change made
+      // elsewhere.
+      _bookSettings = next;
+      _store.updateBookSettings(key, next);
+    }
+    _applyLayout(layout);
+  }
+
+  void _applyLayout(LibraryTextLayout layout) {
+    if (!mounted || layout == _activeLayout) return;
+    final source = _source;
+    if (_opening ||
+        _openError != null ||
+        source == null ||
+        source.chapterCount == 0) {
+      // Applied when the book opens.
+      setState(() => _activeLayout = layout);
+      return;
+    }
+    if (layout == LibraryTextLayout.pages) {
+      _enterPages();
+    } else {
+      unawaited(_enterScroll());
+    }
+  }
+
+  /// Scroll -> pages: the page holding the first line read.
+  void _enterPages() {
+    final position = _readingPosition() ?? _lastPosition ?? _anchor;
+    final remembered = _switchAnchor;
+    final anchor = remembered != null && !_movedSinceSwitch
+        ? remembered
+        : position;
+    _switchAnchor = null;
+    if (anchor != _lastPosition) {
+      _dirty = true;
+      _scheduleSave();
+    }
+    setState(() {
+      _leaveScrollView();
+      _activeLayout = LibraryTextLayout.pages;
+      _pageAnchor = anchor;
+      _clearWindow();
+    });
+    _lastPosition = anchor;
+    _shownPosition.value = anchor;
+  }
+
+  /// Pages -> scroll: the scroll view starts at the first line of the page
+  /// shown.
+  Future<void> _enterScroll() async {
+    final source = _source;
+    if (source == null || _enteringScroll) return;
+    final start = _spread?.first.start ?? _pageAnchor;
+    _enteringScroll = true;
+    try {
+      await source.loadChapter(start.chapter);
+    } catch (error) {
+      _enteringScroll = false;
+      if (!mounted) return;
+      final info = LibraryReaderErrorInfo.from(error);
+      _message(info.messageKey, detail: info.detail);
+      return;
+    }
+    _enteringScroll = false;
+    if (!mounted ||
+        _activeLayout == LibraryTextLayout.scroll ||
+        _desiredLayout() != LibraryTextLayout.scroll) {
+      return;
+    }
+    _switchAnchor = _pageAnchor;
+    _movedSinceSwitch = false;
+    if (start != _lastPosition) {
+      _dirty = true;
+      _scheduleSave();
+    }
+    setState(() {
+      _leavePages();
+      _activeLayout = LibraryTextLayout.scroll;
+      _ensureChapterData(start.chapter);
+      _chapterErrors.remove(start.chapter);
+      _windowStart = start.chapter;
+      _windowEnd = start.chapter;
+      _releaseFarChapters();
+      _setAnchor(start);
+    });
+    _lastPosition = start;
+    _shownPosition.value = start;
+  }
+
+  /// Releases the scroll view's state (its controller after the frame that
+  /// removes it); pending re-anchoring callbacks do nothing.
+  void _leaveScrollView() {
+    _generation++;
+    _anchorPending = false;
+    _nextScrollOffset = null;
+    _trimTimer?.cancel();
+    _pointers = 0;
+    final scroll = _scroll;
+    _scroll = null;
+    if (scroll != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => scroll.dispose());
+    }
+    _chapters.clear();
+    _chapterErrors.clear();
+  }
+
+  /// Stops the pagination (complete chapters stay memoized), the turn and
+  /// the page textures.
+  void _leavePages() {
+    final paginator = _paginator;
+    if (paginator != null) unawaited(paginator.cancel());
+    _relocateRequest++;
+    _relocating = false;
+    _curl?.reset();
+    _textures?.purge();
+    _clearWindow();
   }
 
   void _close() {
@@ -311,6 +684,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     }
     if (!mounted) return;
     _settings = _store.settings;
+    _bookSettings = _store.bookSettingsFor(widget.progressKey);
     unawaited(_system.start(_settings));
     setState(() {
       _opening = true;
@@ -330,12 +704,20 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       final (start, restoreError) = await _startPosition(source);
       await source.loadChapter(start.chapter);
       if (!mounted) return;
-      final data = _ensureChapterData(start.chapter);
-      if (data == null) throw StateError('chapter not loaded');
-      _windowStart = start.chapter;
-      _windowEnd = start.chapter;
-      _releaseFarChapters();
-      _setAnchor(start);
+      _activeLayout = _desiredLayout();
+      if (_activeLayout == LibraryTextLayout.pages) {
+        // Laid out by the paginator once the pages are built (a chapter it
+        // cannot read is shown as an error with Retry).
+        _pageAnchor = start;
+        _clearWindow();
+      } else {
+        final data = _ensureChapterData(start.chapter);
+        if (data == null) throw StateError('chapter not loaded');
+        _windowStart = start.chapter;
+        _windowEnd = start.chapter;
+        _releaseFarChapters();
+        _setAnchor(start);
+      }
       _lastPosition = start;
       _shownPosition.value = start;
       // Opening counts as reading (the book moves to "continue reading"),
@@ -399,6 +781,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   /// The user moved (scroll, page turn, jump): the position shown is now
   /// the one to save, also after a saved location failed to load.
   void _userMoved() {
+    _movedSinceSwitch = true;
     if (!_keepSavedLocation) return;
     _keepSavedLocation = false;
     _dirty = true;
@@ -578,6 +961,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// Goes to [position], loading its chapter first.
   Future<void> _goTo(LibraryReflowPosition position) async {
+    if (_activeLayout == LibraryTextLayout.pages) return _goToPage(position);
     final source = _source;
     if (source == null) return;
     if (position.chapter < 0 || position.chapter >= source.chapterCount) return;
@@ -621,6 +1005,784 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     final target = current + delta;
     if (target < 0 || target >= source.chapterCount) return;
     unawaited(_goTo(LibraryReflowPosition(target, 0, 0)));
+  }
+
+  // ------------------------------------------------------ pages layout --
+
+  /// The window shows the pages of the current layout and can turn.
+  bool get _pagesReady =>
+      _spread != null &&
+      _windowLayout == _pagesLayout &&
+      !_relocating &&
+      _pagesError == null;
+
+  /// Pager index of the spread shown.
+  int get _centerIndex => _hasPrevious ? 1 : 0;
+
+  int get _slotCount => (_hasPrevious ? 1 : 0) + 1 + (_hasNext ? 1 : 0);
+
+  /// Spread of pager item [index] (null: a neighbour not laid out yet).
+  LibraryBookSpread? _slotSpread(int index) {
+    final relative = index - _centerIndex;
+    if (relative == 0) return _spread;
+    if (relative == -1 && _hasPrevious) return _previous;
+    if (relative == 1 && _hasNext) return _next;
+    return null;
+  }
+
+  /// Name of a page for the page curl and its textures (unique in a
+  /// layout; the layout is in the curl's content key).
+  static int _pageIdOf(LibraryReflowPageSpec page) =>
+      (page.chapter << 20) | page.indexInChapter;
+
+  LibraryReflowPageSpec? _pageForId(int id) {
+    for (final spread in <LibraryBookSpread?>[_spread, _next, _previous]) {
+      if (spread == null) continue;
+      for (final page in spread.pages) {
+        if (_pageIdOf(page) == id) return page;
+      }
+    }
+    return null;
+  }
+
+  LibraryPageCurlFace? _curlFaceOf(int item) {
+    final index = item - _virtualOrigin;
+    if (index < 0 || index >= _slotCount) return null;
+    return _slotSpread(index)?.faceWith(_pageIdOf);
+  }
+
+  /// Pages layout: shows the page holding [position] (contents, link,
+  /// slider, chapter), its chapter loaded first. The page shown stays until
+  /// the new one is laid out.
+  Future<void> _goToPage(LibraryReflowPosition position) async {
+    final source = _source;
+    if (source == null) return;
+    if (position.chapter < 0 || position.chapter >= source.chapterCount) {
+      return;
+    }
+    try {
+      await source.loadChapter(position.chapter);
+    } catch (error) {
+      if (!mounted) return;
+      // The jump failed: say so now (never a silent tap).
+      final info = LibraryReaderErrorInfo.from(error);
+      _message(info.messageKey, detail: info.detail);
+      return;
+    }
+    if (!mounted || _activeLayout != LibraryTextLayout.pages) return;
+    _pageAnchor = position;
+    _lastPosition = position;
+    _shownPosition.value = position;
+    _userMoved();
+    _dirty = true;
+    _scheduleSave();
+    _curl?.reset();
+    unawaited(_relocate());
+  }
+
+  /// Forgets the window: a new one is laid out around [_pageAnchor].
+  void _clearWindow() {
+    _spread = null;
+    _previous = null;
+    _next = null;
+    _previousError = null;
+    _nextError = null;
+    _pagesError = null;
+    _hasPrevious = false;
+    _hasNext = false;
+    _previousRequestedFor = null;
+    _nextRequestedFor = null;
+    _arrivalPending = 0;
+    _queuedTurn = 0;
+    _windowGeometry = null;
+    _windowLayout = -1;
+    _windowGeneration++;
+    final pager = _pager;
+    _pager = null;
+    if (pager != null) {
+      // Its PageView leaves the tree in the coming frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) => pager.dispose());
+    }
+  }
+
+  /// Lays the window out again after the frame being built (never during
+  /// a build: the paginator works for up to a frame budget at once).
+  void _scheduleRelocate() {
+    _relocating = true;
+    if (_relocateScheduled) return;
+    _relocateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _relocateScheduled = false;
+      if (mounted) unawaited(_relocate());
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  bool _relocateCurrent(int request, LibraryReflowPaginator paginator) =>
+      mounted &&
+      request == _relocateRequest &&
+      identical(paginator, _paginator) &&
+      _activeLayout == LibraryTextLayout.pages;
+
+  /// Shows the spread holding [_pageAnchor] in the current layout.
+  Future<void> _relocate() async {
+    final paginator = _paginator;
+    final geometry = _pagesGeometry;
+    if (!mounted ||
+        paginator == null ||
+        geometry == null ||
+        _activeLayout != LibraryTextLayout.pages) {
+      _relocating = false;
+      return;
+    }
+    final request = ++_relocateRequest;
+    final layout = _pagesLayout;
+    _relocating = true;
+    try {
+      final page = await paginator.locate(_pageAnchor);
+      final spread = await geometry.rule.holding(paginator, page);
+      if (!_relocateCurrent(request, paginator)) return;
+      _relocating = false;
+      _showWindow(spread, geometry, layout);
+    } on LibraryReflowPaginationCancelled {
+      // Superseded by a relayout, which lays the window out again.
+      if (_relocateCurrent(request, paginator)) _scheduleRelocate();
+    } catch (error) {
+      if (!_relocateCurrent(request, paginator)) return;
+      _relocating = false;
+      setState(() => _pagesError = error);
+    }
+  }
+
+  void _showWindow(
+    LibraryBookSpread spread,
+    _BookPagesGeometry geometry,
+    int layout,
+  ) {
+    setState(() {
+      _clearWindow();
+      _spread = spread;
+      _windowGeometry = geometry;
+      _windowLayout = layout;
+      _updateEdges();
+      // A new item for the page curl: nothing of an earlier window turns.
+      _virtualOrigin += 16;
+      _pager = PageController(initialPage: _centerIndex);
+      _curl ??= LibraryPageCurlController(vsync: this)
+        ..addListener(_onCurlChanged);
+      _textures ??= LibraryPageTextureCache();
+      _windowShownOnce = true;
+    });
+    _spreadShown(moved: false);
+  }
+
+  /// Whether spreads come before and after the one shown (known from its
+  /// pages: the first page of the book, the last page of the last chapter).
+  void _updateEdges() {
+    final spread = _spread;
+    final source = _source;
+    final rule = _windowGeometry?.rule;
+    if (spread == null || source == null || rule == null) {
+      _hasPrevious = false;
+      _hasNext = false;
+      return;
+    }
+    _hasPrevious = rule.hasBefore(spread);
+    _hasNext = rule.hasAfter(spread, source.chapterCount);
+    if (!_hasPrevious) {
+      _previous = null;
+      _previousError = null;
+    }
+    if (!_hasNext) {
+      _next = null;
+      _nextError = null;
+    }
+  }
+
+  /// The spread shown changed: after a turn ([moved]) its first page is
+  /// the reading position, saved like the scroll position. Its neighbours
+  /// and its chapter's page count are laid out next.
+  void _spreadShown({required bool moved}) {
+    final spread = _spread;
+    final paginator = _paginator;
+    if (spread == null || paginator == null) return;
+    if (moved) {
+      final position = spread.first.start;
+      _pageAnchor = position;
+      _lastPosition = position;
+      _shownPosition.value = position;
+      _userMoved();
+      _dirty = true;
+      _scheduleSave();
+    }
+    _fetchNeighbours();
+    _watchChapter(paginator, spread.chapter);
+  }
+
+  /// Lays out the neighbours of the spread shown (at once when their pages
+  /// are laid out already).
+  void _fetchNeighbours() {
+    final paginator = _paginator;
+    final spread = _spread;
+    final rule = _windowGeometry?.rule;
+    if (paginator == null ||
+        spread == null ||
+        rule == null ||
+        _windowLayout != _pagesLayout) {
+      return;
+    }
+    var changed = false;
+    if (_hasNext &&
+        _next == null &&
+        _nextError == null &&
+        !identical(_nextRequestedFor, spread)) {
+      final now = rule.afterNow(paginator, spread);
+      if (now != null) {
+        _next = now;
+        changed = true;
+      } else {
+        _nextRequestedFor = spread;
+        rule
+            .after(paginator, spread)
+            .then(
+              (found) => _neighbourReady(
+                spread,
+                paginator,
+                forward: true,
+                found: found,
+              ),
+              onError: (Object error) => _neighbourReady(
+                spread,
+                paginator,
+                forward: true,
+                error: error,
+              ),
+            );
+      }
+    }
+    if (_hasPrevious &&
+        _previous == null &&
+        _previousError == null &&
+        !identical(_previousRequestedFor, spread)) {
+      final now = rule.beforeNow(paginator, spread);
+      if (now != null) {
+        _previous = now;
+        changed = true;
+      } else {
+        _previousRequestedFor = spread;
+        rule
+            .before(paginator, spread)
+            .then(
+              (found) => _neighbourReady(
+                spread,
+                paginator,
+                forward: false,
+                found: found,
+              ),
+              onError: (Object error) => _neighbourReady(
+                spread,
+                paginator,
+                forward: false,
+                error: error,
+              ),
+            );
+      }
+    }
+    if (changed && mounted) setState(() {});
+  }
+
+  void _neighbourReady(
+    LibraryBookSpread from,
+    LibraryReflowPaginator paginator, {
+    required bool forward,
+    LibraryBookSpread? found,
+    Object? error,
+  }) {
+    if (!mounted ||
+        !identical(from, _spread) ||
+        !identical(paginator, _paginator)) {
+      return;
+    }
+    if (forward) {
+      _nextRequestedFor = null;
+    } else {
+      _previousRequestedFor = null;
+    }
+    // Superseded by a relayout: the new window lays its neighbours out.
+    if (error is LibraryReflowPaginationCancelled) return;
+    final direction = forward ? 1 : -1;
+    if (error == null && found == null) {
+      // Nothing there after all: the pager loses that item.
+      final center = _centerIndex;
+      setState(() {
+        if (forward) {
+          _hasNext = false;
+        } else {
+          _hasPrevious = false;
+          _virtualOrigin += center - _centerIndex;
+        }
+      });
+      final pager = _pager;
+      if (pager != null && pager.hasClients && center != _centerIndex) {
+        pager.jumpToPage(_centerIndex);
+      }
+      if (_arrivalPending == direction) _arrivalPending = 0;
+      if (_queuedTurn == direction) _queuedTurn = 0;
+      return;
+    }
+    setState(() {
+      if (forward) {
+        _next = found;
+        _nextError = error;
+      } else {
+        _previous = found;
+        _previousError = error;
+      }
+    });
+    if (error != null) {
+      if (_queuedTurn == direction) {
+        _queuedTurn = 0;
+        final info = LibraryReaderErrorInfo.from(error);
+        _message(info.messageKey, detail: info.detail);
+      }
+      return;
+    }
+    if (_arrivalPending == direction) {
+      _arriveAt(_centerIndex + direction);
+      return;
+    }
+    _refreshCurl();
+    if (_queuedTurn == direction) {
+      _queuedTurn = 0;
+      _turnPage(forward: forward);
+    }
+  }
+
+  /// The page curl renders a neighbour laid out late ahead of a turn (it
+  /// renders the neighbours when its item changes); never during a turn.
+  void _refreshCurl() {
+    final curl = _curl;
+    if (curl != null && curl.isActive) {
+      _curlRefreshPending = true;
+      return;
+    }
+    _curlRefreshPending = false;
+    if (mounted) setState(() => _virtualOrigin += 4);
+  }
+
+  void _onCurlChanged() {
+    if (!_curlRefreshPending || (_curl?.isActive ?? true)) return;
+    // Notified while the curl layer builds (a reset) or ends a frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _curlRefreshPending && !(_curl?.isActive ?? false)) {
+        _refreshCurl();
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// Rebuilds once [chapter] is paginated ("Page N of M"), then paginates
+  /// the next chapter ahead (the current chapter and the next one only).
+  void _watchChapter(LibraryReflowPaginator paginator, int chapter) {
+    if (paginator.pageCountOf(chapter) != null) {
+      paginator.prefetch(chapter + 1);
+      return;
+    }
+    if (identical(_watchedPaginator, paginator) && _watchedChapter == chapter) {
+      return;
+    }
+    _watchedPaginator = paginator;
+    _watchedChapter = chapter;
+    void done() {
+      if (identical(_watchedPaginator, paginator) &&
+          _watchedChapter == chapter) {
+        _watchedPaginator = null;
+        _watchedChapter = null;
+      }
+    }
+
+    paginator.paginate(chapter).then((_) {
+      done();
+      if (!mounted || !identical(paginator, _paginator)) return;
+      setState(() {});
+      paginator.prefetch(chapter + 1);
+    }, onError: (Object _) => done());
+  }
+
+  /// Turns to the next (or previous) spread in reading order: with the
+  /// page curl, a slide or at once ([LibraryPageTurnStyle]; Reduce Motion:
+  /// at once). Never a second turn while one runs; a turn toward a
+  /// neighbour still being laid out happens once it is.
+  void _turnPage({required bool forward}) {
+    if (!mounted || _activeLayout != LibraryTextLayout.pages || !_pagesReady) {
+      return;
+    }
+    final curl = _curl;
+    if (curl != null && curl.isActive) return;
+    final pager = _pager;
+    if (pager == null || !pager.hasClients) return;
+    if (pager.position.isScrollingNotifier.value || _arrivalPending != 0) {
+      return;
+    }
+    if (forward ? !_hasNext : !_hasPrevious) return;
+    final target = forward ? _next : _previous;
+    if (target == null) {
+      final error = forward ? _nextError : _previousError;
+      if (error != null) {
+        final info = LibraryReaderErrorInfo.from(error);
+        _message(info.messageKey, detail: info.detail);
+        return;
+      }
+      _queuedTurn = forward ? 1 : -1;
+      return;
+    }
+    _queuedTurn = 0;
+    final index = _centerIndex + (forward ? 1 : -1);
+    final direction = forward
+        ? LibraryPageTurnDirection.forward
+        : LibraryPageTurnDirection.backward;
+    final style = _effective(
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+    ).turnStyle;
+    if (style == LibraryPageTurnStyle.none) {
+      _arriveAt(index);
+      return;
+    }
+    if (style == LibraryPageTurnStyle.curl &&
+        curl != null &&
+        curl.canTurn(direction)) {
+      // 380 ms, then onTurned jumps the pager under the turned page.
+      unawaited(curl.turn(direction));
+      return;
+    }
+    unawaited(
+      pager.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      ),
+    );
+  }
+
+  /// Turns toward the page on that side of the screen (right to left, the
+  /// next page is on the left).
+  void _turnVisual({required bool left}) => _turnPage(
+    forward: left == (_windowGeometry?.rule.rightToLeft ?? _rightToLeft),
+  );
+
+  /// The pager rests on item [index] (a slide, a jump, or the page curl
+  /// has turned): that spread becomes the one shown and the pager jumps
+  /// back to the middle of a new window around it, without animation.
+  void _arriveAt(int index) {
+    if (!mounted || _activeLayout != LibraryTextLayout.pages) return;
+    final spread = _spread;
+    if (spread == null) return;
+    final center = _centerIndex;
+    if (index == center) {
+      _arrivalPending = 0;
+      return;
+    }
+    final forward = index > center;
+    final target = forward ? _next : _previous;
+    if (target == null) {
+      // Still being laid out (or failed: its placeholder offers Retry).
+      _arrivalPending = forward ? 1 : -1;
+      return;
+    }
+    _arrivalPending = 0;
+    final item = _virtualOrigin + index;
+    setState(() {
+      if (forward) {
+        _previous = spread;
+        _previousError = null;
+        _previousRequestedFor = null;
+        _spread = target;
+        _next = null;
+        _nextError = null;
+        _nextRequestedFor = null;
+      } else {
+        _next = spread;
+        _nextError = null;
+        _nextRequestedFor = null;
+        _spread = target;
+        _previous = null;
+        _previousError = null;
+        _previousRequestedFor = null;
+      }
+      _updateEdges();
+      // The curl's item of the spread shown stays the one it turned to.
+      _virtualOrigin = item - _centerIndex;
+    });
+    final pager = _pager;
+    if (pager != null && pager.hasClients) pager.jumpToPage(_centerIndex);
+    _spreadShown(moved: true);
+  }
+
+  bool _onPagerNotification(ScrollNotification notification) {
+    if (notification.depth != 0 || notification is! ScrollEndNotification) {
+      return false;
+    }
+    final generation = _windowGeneration;
+    // After the notification: the pager then jumps to a new window.
+    scheduleMicrotask(() {
+      if (!mounted || generation != _windowGeneration) return;
+      final pager = _pager;
+      if (pager == null || !pager.hasClients) return;
+      final page = pager.page;
+      if (page == null) return;
+      final index = page.round();
+      if ((page - index).abs() > 0.001) return;
+      _arriveAt(index);
+    });
+    return false;
+  }
+
+  /// Texture of page [id] for the curl: its picture at [pixels], with its
+  /// images decoded first.
+  Future<ui.Image?> _renderPageTexture(
+    int id,
+    Size pixels,
+    LibraryCancelToken cancel,
+  ) async {
+    final paginator = _paginator;
+    final page = _pageForId(id);
+    if (paginator == null || page == null || cancel.isCancelled) return null;
+    final size = page.size;
+    if (size.isEmpty || pixels.isEmpty) return null;
+    await paginator.prepare(page);
+    if (!mounted || cancel.isCancelled || !identical(paginator, _paginator)) {
+      return null;
+    }
+    final picture = paginator.paint(
+      page,
+      pixelRatio: pixels.width / size.width,
+    );
+    try {
+      return picture.toImageSync(pixels.width.round(), pixels.height.round());
+    } finally {
+      picture.dispose();
+    }
+  }
+
+  /// Where pages are drawn for a body of [body]: the whole body for one
+  /// page, the safe area between the sides for a spread (two halves).
+  _BookPagesGeometry _geometryFor(
+    BuildContext context,
+    Size body,
+    LibraryReaderPalette palette,
+    LibraryReaderEffectiveSettings effective,
+  ) {
+    final safe = MediaQuery.paddingOf(context);
+    final style = LibraryReflowStyle.of(_settings, palette);
+    final twoPages = LibraryPageSpreads.usesDoublePages(
+      mode: effective.doublePage,
+      landscape: MediaQuery.orientationOf(context) == Orientation.landscape,
+      vertical: false,
+    );
+    // The first line below the back control, as in the scroll view.
+    final top = _topInset;
+    final bottom = safe.bottom + _pageBottomGap;
+    final Rect area;
+    final Size pageSize;
+    final EdgeInsets padding;
+    if (twoPages) {
+      final width = math.max(0.0, body.width - safe.left - safe.right);
+      area = Rect.fromLTWH(safe.left, 0, width, body.height);
+      pageSize = Size(width / 2, body.height);
+      // Both halves alike: one paginator lays out every page.
+      final side = style.margin + _spineGutter;
+      padding = EdgeInsets.fromLTRB(side, top, side, bottom);
+    } else {
+      area = Offset.zero & body;
+      pageSize = body;
+      // The scroll view's horizontal padding: the same words on each line.
+      padding = EdgeInsets.fromLTRB(
+        safe.left + style.margin,
+        top,
+        safe.right + style.margin,
+        bottom,
+      );
+    }
+    return _BookPagesGeometry(
+      area: area,
+      pageSize: pageSize,
+      padding: padding,
+      style: style,
+      rule: LibraryBookSpreadRule(
+        doublePage: twoPages,
+        firstPageAlone: effective.firstPageAlone,
+        rightToLeft: _rightToLeft,
+        firstPageAloneInEveryChapter: _source?.separatesChapters ?? true,
+      ),
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+    );
+  }
+
+  /// Gives the paginator the geometry of this build (typography, page
+  /// size, margins, colours) and asks for a new window when its pages no
+  /// longer match.
+  _BookPagesGeometry _syncPages(
+    BuildContext context,
+    Size body,
+    LibraryReaderPalette palette,
+    LibraryReaderEffectiveSettings effective,
+  ) {
+    final geometry = _geometryFor(context, body, palette, effective);
+    final source = _source!;
+    var paginator = _paginator;
+    // A route that leaves is not laid out again (rotated back to
+    // landscape while it slides out).
+    if (_leaving && paginator != null) return geometry;
+    final direction = Directionality.of(context);
+    final locale = Localizations.maybeLocaleOf(context);
+    if (paginator != null &&
+        (paginator.textDirection != direction ||
+            paginator.locale != locale ||
+            !identical(paginator.source, source))) {
+      paginator.dispose();
+      paginator = _paginator = null;
+    }
+    if (paginator == null) {
+      _paginator = LibraryReflowPaginator(
+        source: source,
+        style: geometry.style,
+        pageSize: geometry.pageSize,
+        padding: geometry.padding,
+        // As LibraryReflowUnitView: the font size setting is the text size.
+        textScaler: TextScaler.noScaling,
+        textDirection: direction,
+        locale: locale,
+        images: _images,
+        devicePixelRatio: geometry.devicePixelRatio,
+      );
+      _pagesLayout++;
+      _pagesGeometry = geometry;
+      _scheduleRelocate();
+      return geometry;
+    }
+    final changed = paginator.update(
+      style: geometry.style,
+      pageSize: geometry.pageSize,
+      padding: geometry.padding,
+      devicePixelRatio: geometry.devicePixelRatio,
+    );
+    _pagesGeometry = geometry;
+    if (changed) {
+      // New typography, margins or page size: the page holding the same
+      // anchor in the new layout.
+      _pagesLayout++;
+      _scheduleRelocate();
+    } else {
+      final window = _windowGeometry;
+      final stale =
+          _spread == null ||
+          window == null ||
+          _windowLayout != _pagesLayout ||
+          !window.fits(geometry);
+      if (stale && !_relocating && _pagesError == null) _scheduleRelocate();
+    }
+    return geometry;
+  }
+
+  String? _linkAt(Offset position, _BookPagesGeometry geometry) {
+    final paginator = _paginator;
+    final spread = _spread;
+    final pager = _pager;
+    if (paginator == null || spread == null) return null;
+    if (pager != null &&
+        pager.hasClients &&
+        pager.position.isScrollingNotifier.value) {
+      return null;
+    }
+    final area = geometry.area;
+    if (!area.contains(position)) return null;
+    var local = position - area.topLeft;
+    LibraryReflowPageSpec? page;
+    if (spread.doublePage) {
+      final half = area.width / 2;
+      final right = local.dx >= half;
+      page = right ? spread.right : spread.left;
+      if (right) local = local - Offset(half, 0);
+    } else {
+      page = spread.first;
+    }
+    if (page == null) return null;
+    return paginator.linkAt(page, local);
+  }
+
+  void _onPagesTapUp(
+    TapUpDetails details,
+    Size size,
+    _BookPagesGeometry geometry,
+  ) {
+    final href = _linkAt(details.localPosition, geometry);
+    if (href != null) {
+      unawaited(_onLink(href));
+      return;
+    }
+    final x = details.localPosition.dx;
+    final third = size.width / 3;
+    if (_settings.tapZones && _source != null && !_opening) {
+      if (x < third) {
+        _chrome.hide();
+        _turnVisual(left: true);
+        return;
+      }
+      if (x > size.width - third) {
+        _chrome.hide();
+        _turnVisual(left: false);
+        return;
+      }
+    }
+    _chrome.toggle();
+  }
+
+  void _retryPages() {
+    if (!mounted) return;
+    setState(() => _pagesError = null);
+  }
+
+  void _retryNeighbour({required bool forward}) {
+    if (!mounted) return;
+    setState(() {
+      if (forward) {
+        _nextError = null;
+        _nextRequestedFor = null;
+      } else {
+        _previousError = null;
+        _previousRequestedFor = null;
+      }
+    });
+    _fetchNeighbours();
+  }
+
+  /// "Page N of M" (or "Pages N and N+1 of M") in the chapter shown, once
+  /// it is paginated; "Laying out pages…" until then.
+  String _pagesLabel(BuildContext context) {
+    final spread = _spread;
+    final paginator = _paginator;
+    final total = spread == null || paginator == null || !_pagesReady
+        ? null
+        : paginator.pageCountOf(spread.chapter);
+    if (spread == null || total == null) {
+      return LibraryReaderLocale.text(context, 'paginating');
+    }
+    final pages = spread.pages;
+    if (pages.length > 1) {
+      return LibraryReaderLocale.format(
+        context,
+        'pagesOfTotal',
+        <String, Object?>{
+          'first': pages.first.indexInChapter + 1,
+          'second': pages.last.indexInChapter + 1,
+          'total': total,
+        },
+      );
+    }
+    return LibraryReaderLocale.format(context, 'pageOfTotal', <String, Object?>{
+      'page': pages.first.indexInChapter + 1,
+      'total': total,
+    });
   }
 
   // ------------------------------------------------------------ loading --
@@ -1121,8 +2283,12 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     final source = _source;
     final ready = source != null && !_opening && _openError == null;
     final width = MediaQuery.sizeOf(context).width;
-    if (ready && _lastWidth != null && _lastWidth != width) {
-      // Rotation: same words at the top in the new layout.
+    if (ready &&
+        _activeLayout == LibraryTextLayout.scroll &&
+        _lastWidth != null &&
+        _lastWidth != width) {
+      // Rotation: same words at the top in the new layout (the pages
+      // layout keeps its anchor: _syncPages).
       _setAnchor(_anchorPending ? _anchor : (_lastPosition ?? _anchor));
     }
     _lastWidth = width;
@@ -1215,6 +2381,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     );
     final chapters = source.chapterCount;
     final multiple = chapters > 1 && source.separatesChapters;
+    // Pages layout: the page in its chapter (the percentage stays for the
+    // whole book).
+    final pagesLabel = _activeLayout == LibraryTextLayout.pages
+        ? _pagesLabel(context)
+        : null;
     return LibraryReaderBottomBar(
       palette: palette,
       child: Row(
@@ -1248,6 +2419,26 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
               ),
             ),
           ),
+          if (pagesLabel != null) ...<Widget>[
+            ConstrainedBox(
+              // The slider keeps most of the bar in portrait.
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Text(
+                pagesLabel,
+                key: const ValueKey<String>('library-book-pages-label'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.secondaryText,
+                  fontSize: 13,
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           Text(
             percentLabel,
             style: TextStyle(
@@ -1271,29 +2462,37 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     );
   }
 
+  /// A spinner and [messageKey]: the book opening ('loadingBook'), its
+  /// pages being laid out ('paginating').
+  Widget _waiting(
+    BuildContext context,
+    LibraryReaderPalette palette,
+    String messageKey,
+  ) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: palette.secondaryText,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            LibraryReaderLocale.text(context, messageKey),
+            style: TextStyle(color: palette.secondaryText, fontSize: 15),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBody(BuildContext context, LibraryReaderPalette palette) {
-    if (_opening) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: palette.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              LibraryReaderLocale.text(context, 'loadingBook'),
-              style: TextStyle(color: palette.secondaryText, fontSize: 15),
-            ),
-          ],
-        ),
-      );
-    }
+    if (_opening) return _waiting(context, palette, 'loadingBook');
     final error = _openError;
     if (error != null) {
       return SafeArea(
@@ -1317,6 +2516,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
           ),
         ),
       );
+    }
+    if (_activeLayout == LibraryTextLayout.pages) {
+      return _buildPages(context, palette);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1357,6 +2559,156 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         );
       },
     );
+  }
+
+  /// Pages layout: the window of spreads once laid out, 'paginating'
+  /// meanwhile.
+  Widget _buildPages(BuildContext context, LibraryReaderPalette palette) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final body = constraints.biggest;
+        final effective = _effective(
+          reduceMotion: MediaQuery.disableAnimationsOf(context),
+        );
+        final geometry = _syncPages(context, body, palette, effective);
+        final error = _pagesError;
+        if (error != null) {
+          return SafeArea(
+            child: LibraryReaderErrorView(
+              error: LibraryReaderErrorInfo.from(error),
+              palette: palette,
+              onRetry: _retryPages,
+              onClose: _close,
+            ),
+          );
+        }
+        final window = _windowGeometry;
+        // The pages shown before a typography change stay until the new
+        // ones are laid out; pages of another size or pairing do not (a
+        // closing route keeps them, scaled).
+        if (_spread == null ||
+            window == null ||
+            (!window.fits(geometry) && !_leaving)) {
+          return _waiting(
+            context,
+            palette,
+            _windowShownOnce ? 'paginating' : 'loadingBook',
+          );
+        }
+        return _buildPager(context, palette, geometry, effective, body);
+      },
+    );
+  }
+
+  Widget _buildPager(
+    BuildContext context,
+    LibraryReaderPalette palette,
+    _BookPagesGeometry geometry,
+    LibraryReaderEffectiveSettings effective,
+    Size body,
+  ) {
+    final paginator = _paginator!;
+    final window = _windowGeometry!;
+    final rightToLeft = window.rule.rightToLeft;
+    final current = _pagesReady && window.fits(geometry);
+    // Both made with the first window (_showWindow).
+    final curl = _curl!;
+    final textures = _textures!;
+    final pager = PageView.builder(
+      key: ValueKey<int>(_windowGeneration),
+      controller: _pager,
+      // Right to left: the next spread comes from the left.
+      reverse: rightToLeft,
+      allowImplicitScrolling: true,
+      physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+      itemCount: _slotCount,
+      findChildIndexCallback: _slotIndexOfKey,
+      itemBuilder: (context, index) => _buildSlot(palette, paginator, index),
+    );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (details) => _onPagesTapUp(details, body, geometry),
+      child: Stack(
+        children: <Widget>[
+          Positioned.fromRect(
+            rect: geometry.area,
+            // Pages are placed on the left and right of the screen whatever
+            // the direction of the interface.
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  NotificationListener<ScrollNotification>(
+                    onNotification: _onPagerNotification,
+                    child: pager,
+                  ),
+                  // Above the pager: it takes the horizontal drags it can
+                  // curl; disabled (another style, Reduce Motion, pages
+                  // being laid out again) every drag reaches the pager.
+                  LibraryPageCurlLayer(
+                    enabled:
+                        effective.turnStyle == LibraryPageTurnStyle.curl &&
+                        current,
+                    controller: curl,
+                    currentIndex: _virtualOrigin + _centerIndex,
+                    itemCount: _virtualItems,
+                    faceOf: _curlFaceOf,
+                    render: _renderPageTexture,
+                    onTurned: (item) => _arriveAt(item - _virtualOrigin),
+                    // Textures are keyed by layout and colours.
+                    contentKey: (_windowLayout, palette),
+                    rightToLeft: rightToLeft,
+                    paperColor: palette.background,
+                    cache: textures,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSlot(
+    LibraryReaderPalette palette,
+    LibraryReflowPaginator paginator,
+    int index,
+  ) {
+    final spread = _slotSpread(index);
+    if (spread != null) {
+      return LibraryBookSpreadView(
+        key: _spreadKey(spread),
+        spread: spread,
+        paginator: paginator,
+        palette: palette,
+      );
+    }
+    final forward = index > _centerIndex;
+    final error = forward ? _nextError : _previousError;
+    return LibraryBookPagePlaceholder(
+      key: ValueKey<String>(forward ? 'next-spread' : 'previous-spread'),
+      palette: palette,
+      error: error,
+      onRetry: error == null ? null : () => _retryNeighbour(forward: forward),
+    );
+  }
+
+  static Key _spreadKey(LibraryBookSpread spread) =>
+      ValueKey<(int, int)>((spread.first.chapter, spread.first.indexInChapter));
+
+  /// A spread keeps its element when the window moves around it.
+  int? _slotIndexOfKey(Key key) {
+    if (key is! ValueKey<(int, int)>) return null;
+    for (var index = 0; index < _slotCount; index++) {
+      final spread = _slotSpread(index);
+      if (spread != null &&
+          (spread.first.chapter, spread.first.indexInChapter) == key.value) {
+        return index;
+      }
+    }
+    return null;
   }
 
   Widget _buildScrollView(

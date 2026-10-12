@@ -1086,6 +1086,11 @@ void _localLibraryJourney() {
       expect(library.books, hasLength(5));
 
       // EPUB: read with the app's reader, a few pages down, then closed.
+      // The 440 continuous scroll (the default text layout is pages): the
+      // setting is saved, so the relaunched store below keeps it.
+      store.updateSettings(
+        store.settings.copyWith(textLayout: LibraryTextLayout.scroll),
+      );
       LibraryReadingStore.instance = store;
       await reader.pumpReader(
         tester,

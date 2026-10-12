@@ -415,6 +415,10 @@ void main() {
     testWidgets('text opens the reflowable reader', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      // The 440 continuous scroll (the default text layout is pages).
+      store.updateSettings(
+        store.settings.copyWith(textLayout: LibraryTextLayout.scroll),
+      );
       await pumpReader(
         tester,
         LibraryReaderScreen(
@@ -444,6 +448,10 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      // The 440 continuous scroll (the default text layout is pages).
+      store.updateSettings(
+        store.settings.copyWith(textLayout: LibraryTextLayout.scroll),
+      );
       final text = List<String>.generate(
         3000,
         (i) => 'Paragraph $i ${List<String>.filled(12, 'lorem').join(' ')}',

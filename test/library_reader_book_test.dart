@@ -30,6 +30,12 @@ String sampleText() => List<String>.generate(
 LibraryBookReaderScreenState bookState(WidgetTester tester) => tester
     .state<LibraryBookReaderScreenState>(find.byType(LibraryBookReaderScreen));
 
+/// These tests exercise the 440 continuous scroll: since Build 447 the
+/// default text layout is pages (test/library_reader_book_pages_test.dart).
+void useScroll(LibraryReadingStore store) => store.updateSettings(
+  store.settings.copyWith(textLayout: LibraryTextLayout.scroll),
+);
+
 Future<LibraryEpubDocument> openEpub(
   WidgetTester tester, {
   String? chapter1,
@@ -59,6 +65,7 @@ void main() {
     testWidgets('opens at the saved location', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:txt',
@@ -95,6 +102,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:kept',
@@ -151,6 +159,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:moved',
@@ -188,6 +197,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:unknown',
@@ -220,6 +230,7 @@ void main() {
       (tester) async {
         useSurface(tester);
         final (store, _) = await createStore(tester);
+        useScroll(store);
         store.saveProgress(
           LibraryReadingProgress(
             key: 'local:txt',
@@ -273,6 +284,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:txt',
@@ -312,6 +324,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:txt',
@@ -349,6 +362,7 @@ void main() {
     testWidgets('a rotation keeps the reading position', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       store.saveProgress(
         LibraryReadingProgress(
           key: 'local:txt',
@@ -381,6 +395,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -420,6 +435,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -464,6 +480,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -502,6 +519,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -547,6 +565,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       var attempts = 0;
       await pumpReader(
         tester,
@@ -583,6 +602,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final platform = RecordingOrientationPlatform();
       final orientation = LibraryReaderOrientation(
         platform: platform,
@@ -619,6 +639,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final navigator = await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -672,6 +693,7 @@ void main() {
       );
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -709,6 +731,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -744,6 +767,7 @@ void main() {
     testWidgets('opens at a saved CFI', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final document = await openEpub(tester);
       final cfi = (await tester.runAsync(() => document.cfiFor(1, 1, 3)))!;
       store.saveProgress(
@@ -771,6 +795,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final document = await openEpub(
         tester,
         chapter1: xhtml(
@@ -825,6 +850,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final document = await openEpub(tester);
       await pumpReader(
         tester,
@@ -862,6 +888,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final document = await openEpub(
         tester,
         chapter2: xhtml(
@@ -926,6 +953,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final paragraphs = List<String>.generate(
         80,
         (i) =>
@@ -983,6 +1011,7 @@ void main() {
     testWidgets('a missing image is announced as unavailable', (tester) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       final document = await openEpub(
         tester,
         chapter1: xhtml(
@@ -1014,6 +1043,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       await pumpReader(
         tester,
         LibraryBookReaderScreen(
@@ -1083,6 +1113,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useScroll(store);
       // 20 sections of 200 short paragraphs.
       final text = List<String>.generate(4000, (i) => 'Line $i').join('\n\n');
       await pumpReader(

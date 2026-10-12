@@ -638,7 +638,7 @@ class LibraryReflowPaginator {
         stats.units++;
         if (i < units.length - 1 && watch.elapsed >= frameBudget) {
           endTurn();
-          await job.guard(Future<void>.delayed(Duration.zero));
+          await job.yieldTurn();
           if (job.cancelled) return;
         }
       }
@@ -1715,6 +1715,22 @@ class _ChapterJob {
       },
     );
     _onStop = () {
+      if (!completer.isCompleted) completer.completeError(const _Stopped());
+    };
+    return completer.future;
+  }
+
+  /// One event-loop turn between two layout slices. The timer is cancelled
+  /// with the job, so a cancelled, superseded or disposed pagination leaves
+  /// no timer behind.
+  Future<void> yieldTurn() {
+    if (cancelled) return Future<void>.error(const _Stopped());
+    final completer = Completer<void>();
+    final timer = Timer(Duration.zero, () {
+      if (!completer.isCompleted) completer.complete();
+    });
+    _onStop = () {
+      timer.cancel();
       if (!completer.isCompleted) completer.completeError(const _Stopped());
     };
     return completer.future;
