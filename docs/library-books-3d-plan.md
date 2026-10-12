@@ -727,7 +727,7 @@ Revue en lecture seule de `72b96dd2` ; sept constats corrigés, chacun avec des 
 7. **Un seul « Retour »** vérifié aussi sur les modes pages par défaut du PDF et d'EPUB/TXT (barres affichées,
    masquées, après un pli, bouton flottant).
 
-Limites ajoutées au § 6 : les textures retenues pour la planche affichée et ses voisines sont à la résolution de
+Limites qui complètent le § 6 : les textures retenues pour la planche affichée et ses voisines sont à la résolution de
 l'écran et échappent aux plafonds de 5 textures et 48 Mio, soit environ 68 Mo par lecteur EPUB ou PDF ouvert sur un
 iPad 13 pouces (estimation, non mesurée ; environ 43 Mo sur un iPhone Pro Max en portrait) ; pour un CBZ, ces textures
 partagent la mémoire du cache d'images de Flutter et la trace les compte deux fois. Retour à la 446 : un livre local
