@@ -11,7 +11,9 @@ import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
 
 import 'reader/library_page_curl.dart' show LibraryPageTurnDirection;
+import 'reader/library_page_spreads.dart';
 import 'reader/library_pdf_pages_view.dart';
+import 'reader/library_reader_bookmarks.dart';
 import 'reader/library_reader_chrome.dart';
 import 'reader/library_reader_effective_settings.dart';
 import 'reader/library_reader_errors.dart';
@@ -19,6 +21,7 @@ import 'reader/library_reader_gamepad.dart';
 import 'reader/library_reader_palette.dart';
 import 'reader/library_reader_sheets.dart';
 import 'reader/library_reader_system.dart';
+import 'reader/library_reader_toolbar.dart';
 
 /// Full-screen PDF reader (local library books and Library downloads), in
 /// two modes (docs/library-books-3d-plan.md § 3.6):
@@ -37,6 +40,11 @@ import 'reader/library_reader_system.dart';
 /// the safe area. With a [progressKey] the page is restored and saved
 /// (`page:N`, in both modes; debounced, and when the app goes to the
 /// background or the reader closes).
+///
+/// Toolbar (§ 3.8): settings in three sections, bookmarks (Y adds or
+/// removes the bookmark of the page or spread shown, `page:N`; a ribbon
+/// shows it), the table of contents, the progress with the time left, the
+/// mode switch and Library (the reader's close path).
 class LibraryPdfReaderScreen extends StatefulWidget {
   const LibraryPdfReaderScreen({
     super.key,
@@ -107,6 +115,14 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   /// Navigation settings of this book (null: the global settings).
   LibraryReaderBookSettings? _book;
 
+  /// Bookmarks of this book when last seen.
+  List<LibraryBookmark> _bookmarks = const <LibraryBookmark>[];
+
+  /// Reading pace (time left in the toolbar).
+  final LibraryReadingPace _pace = LibraryReadingPace();
+  int _pacePage = -1;
+  int _paceLastShown = -1;
+
   /// Mode chosen by [toggleMode] for this session; dropped when the stored
   /// choice changes (the settings sheet, another reader).
   LibraryPdfMode? _sessionMode;
@@ -144,9 +160,9 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   /// Controller actions (docs/library-books-3d-plan.md § 3.10): the d-pad
   /// turns the page (in the pages mode through the page curl when it is on;
   /// left and right follow the screen, right to left books turn forward to
-  /// the left), LB/RB move ten pages and X opens the table of contents in
-  /// both modes; the right stick click fits the page, in the scroll mode
-  /// only. Y is not bound (the bookmarks come later).
+  /// the left), LB/RB move ten pages, X opens the table of contents and Y
+  /// adds or removes the bookmark of the page (or spread) shown, in both
+  /// modes; the right stick click fits the page, in the scroll mode only.
   @visibleForTesting
   LibraryReaderGamepadBindings get gamepadBindings =>
       LibraryReaderGamepadBindings(
@@ -159,9 +175,15 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
         select: _chrome.toggle,
         back: _close,
         x: _openOutline,
+        // Without a progress key no bookmark can be kept.
+        y: _ready && widget.progressKey != null ? _toggleBookmark : null,
         start: _openSettings,
         rightStickClick: _mode == LibraryPdfMode.scroll ? _fitPage : null,
       );
+
+  /// The toolbar stays shown (global setting).
+  bool get _toolbarAlways =>
+      _settings.toolbarMode == LibraryReaderToolbarMode.always;
 
   /// Mode on screen (null before the reading store is read).
   @visibleForTesting
@@ -183,7 +205,9 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     super.initState();
     _store = widget.store ?? LibraryReadingStore.instance;
     _settings = _store.settings;
-    _chrome = LibraryReaderChromeController();
+    final key = widget.progressKey;
+    if (key != null) _bookmarks = _store.bookmarksFor(key);
+    _chrome = LibraryReaderChromeController()..alwaysVisible = _toolbarAlways;
     _system = LibraryReaderSystemSession(orientation: widget.orientation);
     _store.addListener(_onStore);
     WidgetsBinding.instance.addObserver(this);
@@ -199,12 +223,14 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     setState(() {
       _settings = _store.settings;
       _book = key == null ? null : _store.bookSettingsFor(key);
+      if (key != null) _bookmarks = _store.bookmarksFor(key);
       _initialPage = key == null
           ? 1
           : libraryPdfInitialPage(_store.progressFor(key));
       _page.value = _initialPage;
       _storeLoaded = true;
     });
+    _chrome.alwaysVisible = _toolbarAlways;
     _syncMode();
     unawaited(_system.start(_settings));
   }
@@ -249,16 +275,27 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     final settings = _store.settings;
     final key = widget.progressKey;
     final book = key == null ? null : _store.bookSettingsFor(key);
-    if (settings == _settings && book == _book) return;
+    final bookmarks = key == null
+        ? const <LibraryBookmark>[]
+        : _store.bookmarksFor(key);
+    if (settings == _settings &&
+        book == _book &&
+        identical(bookmarks, _bookmarks)) {
+      return;
+    }
     final previous = _settings;
     final stored = _storedMode;
     setState(() {
       _settings = settings;
       _book = book;
+      _bookmarks = bookmarks;
     });
     if (_storedMode != stored) _sessionMode = null;
     _syncMode();
-    if (settings != previous) _system.update(settings);
+    if (settings != previous) {
+      _system.update(settings);
+      _chrome.alwaysVisible = _toolbarAlways;
+    }
   }
 
   // ---------------------------------------------------------------- mode --
@@ -284,16 +321,25 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   void toggleMode() {
     final current = _mode;
     if (current == null || !mounted) return;
+    _setMode(
+      current == LibraryPdfMode.pages
+          ? LibraryPdfMode.scroll
+          : LibraryPdfMode.pages,
+    );
+  }
+
+  /// Shows [mode] at the page being read and keeps it for this book (the
+  /// mode switch of the toolbar, the "PDF display" row of the settings);
+  /// without a progress key it lasts for this session.
+  void _setMode(LibraryPdfMode mode) {
+    if (!mounted || _mode == null) return;
     _commitTurnInFlight();
-    final next = current == LibraryPdfMode.pages
-        ? LibraryPdfMode.scroll
-        : LibraryPdfMode.pages;
-    _sessionMode = next;
+    _sessionMode = mode;
     final key = widget.progressKey;
     if (key != null) {
       final book =
           _store.bookSettingsFor(key) ?? const LibraryReaderBookSettings();
-      _store.updateBookSettings(key, book.copyWith(pdfMode: next));
+      _store.updateBookSettings(key, book.copyWith(pdfMode: mode));
     }
     _syncMode();
   }
@@ -310,6 +356,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
       _reportedPage = null;
       _initialPage = _page.value;
       if (mode == LibraryPdfMode.scroll) _viewer = PdfViewerController();
+      // The pace starts again once the new mode shows its page.
+      _pacePage = -1;
     });
     if (mode == LibraryPdfMode.pages) {
       unawaited(_openDocument());
@@ -354,6 +402,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
       _ready = true;
       _page.value = _page.value.clamp(1, count);
     });
+    _followPace();
   }
 
   /// Closes the document of the pages mode and forgets an open in progress.
@@ -430,6 +479,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
 
   void _pageReached(int pageNumber, {required bool turned}) {
     _page.value = pageNumber;
+    _followPace();
     if (turned && !_sliderDragging) _chrome.hideAfterTurn();
     if (widget.progressKey == null) return;
     _dirty = true;
@@ -588,6 +638,125 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     }
   }
 
+  // ------------------------------------------------- bookmarks, pace --
+
+  /// Pages on screen (zero-based): in the pages mode the spread holding the
+  /// page the reader is at, in the scroll mode the page the viewer reports.
+  /// Built for an orientation ([landscape]: the bars, before the pages view
+  /// lays its spreads out again), the spreads are those
+  /// [LibraryPdfPagesView] lays out for it; otherwise those it shows.
+  List<int> _shownPages({bool? landscape}) {
+    if (!_ready || _pageCount == 0) return const <int>[];
+    final page = (_page.value - 1).clamp(0, _pageCount - 1);
+    if (_mode != LibraryPdfMode.pages) return <int>[page];
+    var spreads = landscape == null ? _pagesView?.spreads : null;
+    if (spreads == null || spreads.pageCount != _pageCount) {
+      final effective = _effective;
+      spreads = LibraryPageSpreads(
+        pageCount: _pageCount,
+        doublePage: effective.doublePage,
+        firstPageAlone: effective.firstPageAlone,
+        landscape:
+            landscape ??
+            MediaQuery.orientationOf(context) == Orientation.landscape,
+        rightToLeft: effective.rightToLeft,
+      );
+    }
+    return spreads.pagesOf(spreads.spreadOf(page));
+  }
+
+  /// The book's bookmarks on [pages].
+  List<LibraryBookmark> _bookmarksOn(
+    List<int> pages, [
+    List<LibraryBookmark>? bookmarks,
+  ]) => <LibraryBookmark>[
+    for (final bookmark in bookmarks ?? _bookmarks)
+      if (pages.contains(libraryBookmarkPage(bookmark))) bookmark,
+  ];
+
+  /// Y: adds a bookmark at the page (or spread) shown, `page:N`, or removes
+  /// the ones it carries; the result is said at the bottom of the screen
+  /// unless [feedback] is false (the bookmarks sheet shows it itself).
+  /// Without a progress key nothing is kept.
+  LibraryBookmarkToggleResult _toggleBookmark({bool feedback = true}) {
+    final key = widget.progressKey;
+    final pages = _shownPages();
+    if (key == null || pages.isEmpty) {
+      return LibraryBookmarkToggleResult.unchanged;
+    }
+    final page = pages.first;
+    final result = toggleLibraryBookmark(
+      _store,
+      key: key,
+      shown: _bookmarksOn(pages, _store.bookmarksFor(key)),
+      location: libraryPageBookmarkLocation(page),
+      fraction: (page + 1) / _pageCount,
+      pageIndex: page,
+    );
+    final message = libraryBookmarkMessageKey(result);
+    if (feedback && message != null && mounted) {
+      showLibraryReaderMessage(context, message);
+    }
+    return result;
+  }
+
+  Future<void> _openBookmarks() async {
+    final key = widget.progressKey;
+    if (key == null) return;
+    _chrome.hold();
+    try {
+      await showLibraryReaderBookmarksSheet(
+        context,
+        store: _store,
+        progressKey: key,
+        palette: _palette(context),
+        isShown: (bookmark) =>
+            _shownPages().contains(libraryBookmarkPage(bookmark)),
+        onOpen: _openBookmark,
+        onToggle: _ready ? () => _toggleBookmark(feedback: false) : null,
+      );
+    } finally {
+      if (mounted) _chrome.release();
+    }
+  }
+
+  void _openBookmark(LibraryBookmark bookmark) {
+    final page = libraryBookmarkPage(bookmark);
+    if (page == null || !mounted) return;
+    _goToPage(page + 1);
+  }
+
+  /// Feeds the reading pace: a turn to the page after the ones shown counts
+  /// (with the pages it leaves); any other move starts its clock again.
+  void _followPace() {
+    final shown = _shownPages();
+    if (shown.isEmpty) return;
+    final page = (_page.value - 1).clamp(0, _pageCount - 1);
+    if (page != _pacePage) {
+      if (_pacePage >= 0 && page == _paceLastShown + 1 && page > _pacePage) {
+        _pace.pageShown(pages: page - _pacePage);
+      } else {
+        _pace.restart();
+      }
+    }
+    _pacePage = page;
+    _paceLastShown = shown.last;
+  }
+
+  LibraryReaderToolbarProgress _toolbarProgress(List<int> shown) {
+    final count = _pageCount;
+    final last = shown.isEmpty ? _page.value - 1 : shown.last;
+    return LibraryReaderToolbarProgress(
+      // The slider prints the page ("n / N").
+      fraction: count == 0 ? 0 : ((last + 1) / count).clamp(0.0, 1.0),
+      remainingInBook: _pace.remaining(count - 1 - last),
+    );
+  }
+
+  /// The settings in three sections (docs/library-books-3d-plan.md § 3.8):
+  /// Appearance (global), Navigation (the PDF display, page turn, two-page
+  /// and direction choices kept for this book; toolbar, tap zones, screen
+  /// and rotation global), "Revert to general settings".
   Future<void> _openSettings() async {
     _chrome.hold();
     try {
@@ -595,21 +764,69 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
         context,
         store: _store,
         palette: _palette(context),
-        builder: (context, settings, update) => <LibraryReaderSettingItem>[
-          LibraryReaderCommonSettings.theme(
-            context,
-            settings,
-            update,
-            labelKey: 'background',
-          ),
-          ...LibraryReaderCommonSettings.toggles(
-            context,
-            settings,
-            update,
-            // The side thirds turn the pages of the pages mode only.
-            tapZones: _mode == LibraryPdfMode.pages,
-          ),
-        ],
+        builder: (context, settings, update) {
+          String t(String key) => LibraryReaderLocale.text(context, key);
+          final editor = LibraryReaderBookSettingsEditor(
+            store: _store,
+            key: widget.progressKey ?? '',
+          );
+          final mode = _mode ?? _storedMode;
+          final pages = mode == LibraryPdfMode.pages;
+          return <LibraryReaderSettingItem>[
+            ...LibraryReaderCommonSettings.appearance(
+              context,
+              settings,
+              update,
+              themeLabelKey: 'background',
+            ),
+            ...LibraryReaderCommonSettings.navigationHeader(context, editor),
+            LibraryReaderChoiceSetting<LibraryPdfMode>(
+              label: t('pdfMode'),
+              value: mode,
+              options: <LibraryReaderChoice<LibraryPdfMode>>[
+                LibraryReaderChoice(LibraryPdfMode.pages, t('pdfModePages')),
+                LibraryReaderChoice(LibraryPdfMode.scroll, t('pdfModeScroll')),
+              ],
+              onChanged: _setMode,
+            ),
+            if (pages) LibraryReaderSettingNote(t('pdfPagesLimits')),
+            // The scroll mode has no page turn.
+            if (pages)
+              LibraryReaderCommonSettings.turnStyle(
+                context,
+                settings,
+                update,
+                editor,
+              ),
+            LibraryReaderCommonSettings.doublePage(
+              context,
+              settings,
+              update,
+              editor,
+            ),
+            LibraryReaderCommonSettings.firstPageAlone(
+              context,
+              settings,
+              update,
+              editor,
+            ),
+            LibraryReaderCommonSettings.pageDirection(
+              context,
+              settings,
+              update,
+              editor,
+              value: _effective.pageDirection,
+            ),
+            ...LibraryReaderCommonSettings.navigationTail(
+              context,
+              settings,
+              update,
+              // The side thirds turn the pages of the pages mode only.
+              tapZones: pages,
+            ),
+            ...LibraryReaderCommonSettings.bookReset(context, editor),
+          ];
+        },
       );
     } finally {
       if (mounted) _chrome.release();
@@ -695,6 +912,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
               if (controller.pageNumber != null) {
                 _page.value = controller.pageNumber!;
               }
+              _followPace();
             },
             onPageChanged: _onPageChanged,
             onGeneralTap: _onGeneralTap,
@@ -755,66 +973,108 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
             body: ListenableBuilder(
               listenable: Listenable.merge(<Listenable>[_chrome, _page]),
               child: content,
-              builder: (context, content) => LibraryReaderChromeOverlay(
-                visible: _chrome.visible || !_ready,
-                content: content!,
-                palette: palette,
-                // The floating back button closes like the top bar and B.
-                onBack: _close,
-                topBar: LibraryReaderTopBar(
-                  palette: palette,
-                  title: widget.title,
-                  subtitle: widget.subtitle,
-                  onBack: _close,
-                  actions: <Widget>[
-                    if (_ready)
-                      LibraryReaderIconButton(
-                        icon: Icons.toc_rounded,
-                        tooltip: t('tableOfContents'),
-                        onPressed: _openOutline,
-                        color: palette.chromeForeground,
-                      ),
-                    // The pages mode has no zoom: nothing to fit.
-                    if (_ready && mode == LibraryPdfMode.scroll)
-                      LibraryReaderIconButton(
-                        icon: Icons.fit_screen_rounded,
-                        tooltip: t('fitPage'),
-                        onPressed: _fitPage,
-                        color: palette.chromeForeground,
-                      ),
-                    LibraryReaderIconButton(
-                      icon: Icons.tune_rounded,
-                      tooltip: t('settings'),
-                      onPressed: _openSettings,
-                      color: palette.chromeForeground,
-                    ),
-                  ],
-                ),
-                bottomBar: _ready && _pageCount > 0
-                    ? LibraryReaderBottomBar(
-                        palette: palette,
-                        child: LibraryReaderPageSlider(
+              builder: (context, content) {
+                // The page shown changes without rebuilding the pages; its
+                // spread follows the orientation (built again on rotation).
+                final shown = _shownPages(
+                  landscape:
+                      MediaQuery.orientationOf(context) ==
+                      Orientation.landscape,
+                );
+                final bookmarked = _bookmarksOn(shown).isNotEmpty;
+                return LibraryReaderChromeOverlay(
+                  visible: _chrome.visible || !_ready,
+                  // Always shown, the bars never cover the pages: these are
+                  // laid out between them. The ribbon hangs from the top of
+                  // the pages.
+                  content: LibraryReaderBarsInset(
+                    enabled: _toolbarAlways,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        content!,
+                        LibraryBookmarkRibbon(
+                          visible: bookmarked && _settings.bookmarkRibbon,
                           palette: palette,
-                          page: _page.value - 1,
-                          pageCount: _pageCount,
-                          // Like the pages of a right-to-left book.
-                          rightToLeft:
-                              mode == LibraryPdfMode.pages &&
-                              effective.rightToLeft,
-                          onChangeStart: (_) {
-                            _sliderDragging = true;
-                            _chrome.hold();
-                          },
-                          onChangeEnd: (page) {
-                            _sliderDragging = false;
-                            _chrome.release();
-                            _goToPage(page + 1);
-                          },
-                          onChanged: (page) => _page.value = page + 1,
                         ),
-                      )
-                    : null,
-              ),
+                      ],
+                    ),
+                  ),
+                  palette: palette,
+                  // The floating back button closes like the top bar and B.
+                  onBack: _close,
+                  // Contents and Settings are in the toolbar (one of each).
+                  topBar: LibraryReaderTopBar(
+                    palette: palette,
+                    title: widget.title,
+                    subtitle: widget.subtitle,
+                    onBack: _close,
+                    actions: <Widget>[
+                      // The pages mode has no zoom: nothing to fit.
+                      if (_ready && mode == LibraryPdfMode.scroll)
+                        LibraryReaderIconButton(
+                          icon: Icons.fit_screen_rounded,
+                          tooltip: t('fitPage'),
+                          onPressed: _fitPage,
+                          color: palette.chromeForeground,
+                        ),
+                    ],
+                  ),
+                  bottomBar: _ready && _pageCount > 0
+                      ? LibraryReaderBottomBar(
+                          palette: palette,
+                          child: LibraryReaderToolbar(
+                            palette: palette,
+                            progress: _toolbarProgress(shown),
+                            onSettings: _openSettings,
+                            // Nothing is kept without a progress key.
+                            onBookmarks: widget.progressKey == null
+                                ? null
+                                : _openBookmarks,
+                            onContents: _openOutline,
+                            onLibrary: _close,
+                            bookmarked: bookmarked,
+                            slider: LibraryReaderPageSlider(
+                              palette: palette,
+                              page: _page.value - 1,
+                              pageCount: _pageCount,
+                              // Like the pages of a right-to-left book.
+                              rightToLeft:
+                                  mode == LibraryPdfMode.pages &&
+                                  effective.rightToLeft,
+                              onChangeStart: (_) {
+                                _sliderDragging = true;
+                                _chrome.hold();
+                              },
+                              onChangeEnd: (page) {
+                                _sliderDragging = false;
+                                _chrome.release();
+                                _goToPage(page + 1);
+                              },
+                              onChanged: (page) => _page.value = page + 1,
+                            ),
+                            extra: <Widget>[
+                              LibraryReaderIconButton(
+                                icon: mode == LibraryPdfMode.pages
+                                    ? Icons.view_day_rounded
+                                    : Icons.auto_stories_rounded,
+                                tooltip: t(
+                                  mode == LibraryPdfMode.pages
+                                      ? 'switchToVertical'
+                                      : 'switchToPaged',
+                                ),
+                                onPressed: () {
+                                  _chrome.touch();
+                                  toggleMode();
+                                },
+                                color: palette.chromeForeground,
+                              ),
+                            ],
+                          ),
+                        )
+                      : null,
+                );
+              },
             ),
           ),
         ),

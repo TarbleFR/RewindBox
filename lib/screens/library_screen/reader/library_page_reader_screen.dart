@@ -20,12 +20,14 @@ import 'library_page_reader_controller.dart';
 import 'library_page_source.dart';
 import 'library_page_spreads.dart';
 import 'library_page_textures.dart';
+import 'library_reader_bookmarks.dart';
 import 'library_reader_chrome.dart';
 import 'library_reader_errors.dart';
 import 'library_reader_gamepad.dart';
 import 'library_reader_palette.dart';
 import 'library_reader_sheets.dart';
 import 'library_reader_system.dart';
+import 'library_reader_toolbar.dart';
 
 /// Comic / manga reader for online chapters and CBZ books.
 ///
@@ -46,6 +48,13 @@ import 'library_reader_system.dart';
 /// item is then a spread, while the progress, the chapter marks, the slider
 /// and its labels stay page based (the first page of the spread is saved,
 /// the spread holding the saved page is opened).
+///
+/// Toolbar (§ 3.8): settings in three sections (the navigation choices kept
+/// for the title), bookmarks (Y adds or removes the bookmark of the page or
+/// spread shown; a ribbon shows it), the chapters of an online title (X),
+/// the progress with the time left, and Library (the reader's close path).
+/// Hidden after 4 s, or always shown ([LibraryReaderToolbarMode.always]:
+/// the pages are then laid out between the bars).
 class LibraryPageReaderScreen extends StatefulWidget {
   const LibraryPageReaderScreen({
     super.key,
@@ -87,6 +96,15 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   /// Settings of this title when last seen (store changes are compared to
   /// them).
   LibraryReaderBookSettings? _book;
+
+  /// Bookmarks of this title when last seen.
+  List<LibraryBookmark> _bookmarks = const <LibraryBookmark>[];
+
+  /// Reading pace (time left in the toolbar), fed by [_followPace].
+  final LibraryReadingPace _pace = LibraryReadingPace();
+  int _paceGeneration = -1;
+  int _pacePage = -1;
+  int _paceLastShown = -1;
 
   // Paged mode.
   PageController? _pageController;
@@ -182,7 +200,9 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
   @visibleForTesting
   bool get atStartCard => _atStartCard;
 
-  /// Controller actions of the reader (d-pad, A, B, bumpers, Start).
+  /// Controller actions of the reader (docs/library-books-3d-plan.md
+  /// § 3.10): d-pad, A, B, bumpers, X the chapters of an online title, Y
+  /// the bookmark of the page or spread shown, Start.
   @visibleForTesting
   LibraryReaderGamepadBindings get gamepadBindings =>
       LibraryReaderGamepadBindings(
@@ -202,10 +222,22 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
             ? () => unawaited(_controller.retry())
             : _chrome.toggle,
         back: _close,
+        x: _chaptersAvailable ? _openChapters : null,
+        y: _controller.status == LibraryPageReaderStatus.ready
+            ? _toggleBookmark
+            : null,
         start: _openSettings,
       );
 
   bool get _vertical => _controller.mode == LibraryPageReaderMode.vertical;
+
+  /// An online title with several chapters: the Chapters action and X.
+  bool get _chaptersAvailable =>
+      widget.content.tracksChapters && widget.content.chapters.length > 1;
+
+  /// The toolbar stays shown (global setting).
+  bool get _toolbarAlways =>
+      _settings.toolbarMode == LibraryReaderToolbarMode.always;
 
   @override
   void initState() {
@@ -213,12 +245,13 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     _store = widget.store ?? LibraryReadingStore.instance;
     _settings = _store.settings;
     _book = _store.bookSettingsFor(widget.content.progressKey);
+    _bookmarks = _store.bookmarksFor(widget.content.progressKey);
     _controller = LibraryPageReaderController(
       content: widget.content,
       store: _store,
     );
     _curl = LibraryPageCurlController(vsync: this);
-    _chrome = LibraryReaderChromeController();
+    _chrome = LibraryReaderChromeController()..alwaysVisible = _toolbarAlways;
     _system = LibraryReaderSystemSession(orientation: widget.orientation);
     _controller.addListener(_onController);
     _store.addListener(_onStore);
@@ -239,6 +272,8 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     // only once the first chapter has downloaded.
     _settings = _store.settings;
     _book = _store.bookSettingsFor(widget.content.progressKey);
+    _bookmarks = _store.bookmarksFor(widget.content.progressKey);
+    _chrome.alwaysVisible = _toolbarAlways;
     unawaited(_system.start(_settings));
     await _controller.start();
   }
@@ -295,8 +330,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     if (!mounted) return;
     final settings = _store.settings;
     final book = _store.bookSettingsFor(widget.content.progressKey);
+    final bookmarks = _store.bookmarksFor(widget.content.progressKey);
     final settingsChanged = settings != _settings;
-    if (!settingsChanged && book == _book) return;
+    final bookmarksChanged = !identical(bookmarks, _bookmarks);
+    if (!settingsChanged && book == _book && !bookmarksChanged) return;
     // The mode the session override replaced: the title's, else the global
     // one. Only a change of it lets the stored mode decide again (a global
     // change under a title's own mode changes nothing on screen).
@@ -304,15 +341,20 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     setState(() {
       _settings = settings;
       _book = book;
+      _bookmarks = bookmarks;
     });
     if ((book?.mangaMode ?? settings.mangaMode) != previousMode) {
       _controller.clearModeOverride();
     }
-    if (settingsChanged) _system.update(settings);
+    if (settingsChanged) {
+      _system.update(settings);
+      _chrome.alwaysVisible = _toolbarAlways;
+    }
   }
 
   void _onController() {
     if (!mounted) return;
+    _followPace();
     setState(() {});
     if (_controller.status == LibraryPageReaderStatus.ready) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _prefetchAround());
@@ -1023,8 +1065,206 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     _resetVerticalZoom();
   }
 
+  // ------------------------------------------------- bookmarks, pace --
+
+  /// Chapter a bookmark of this title names: the online chapter shown,
+  /// none for a book.
+  String? get _bookmarkChapterId =>
+      widget.content.tracksChapters ? _controller.chapter.id : null;
+
+  /// Pages on screen (zero-based): the spread of the current page, or the
+  /// page in the middle of the vertical strip; none on a chapter card or
+  /// before the chapter is ready.
+  List<int> _shownPages() {
+    if (_controller.status != LibraryPageReaderStatus.ready ||
+        _controller.pageCount == 0 ||
+        _atStartCard ||
+        _atEndCard) {
+      return const <int>[];
+    }
+    final page = _controller.page;
+    final last = _lastPageShownWith(page);
+    return <int>[for (var shown = page; shown <= last; shown++) shown];
+  }
+
+  bool _onPagesShown(LibraryBookmark bookmark, List<int> pages) =>
+      bookmark.chapterId == _bookmarkChapterId &&
+      pages.contains(libraryBookmarkPage(bookmark));
+
+  /// The title's bookmarks on the pages shown.
+  List<LibraryBookmark> _shownBookmarks([List<LibraryBookmark>? bookmarks]) {
+    final pages = _shownPages();
+    if (pages.isEmpty) return const <LibraryBookmark>[];
+    return <LibraryBookmark>[
+      for (final bookmark in bookmarks ?? _bookmarks)
+        if (_onPagesShown(bookmark, pages)) bookmark,
+    ];
+  }
+
+  /// Overall progress at [page] of the chapter shown (as
+  /// [LibraryPageReaderController.fraction]).
+  double _fractionAt(int page) {
+    final count = _controller.pageCount;
+    if (count == 0) return 0;
+    final inChapter = (page + 1) / count;
+    final chapters = widget.content.chapters.length;
+    if (!widget.content.tracksChapters || chapters <= 1) return inChapter;
+    return (_controller.chapterIndex + inChapter) / chapters;
+  }
+
+  /// Y: adds a bookmark at the page (or spread) shown, or removes the ones
+  /// it carries; the result is said at the bottom of the screen unless
+  /// [feedback] is false (the bookmarks sheet shows it itself).
+  LibraryBookmarkToggleResult _toggleBookmark({bool feedback = true}) {
+    final pages = _shownPages();
+    if (pages.isEmpty) return LibraryBookmarkToggleResult.unchanged;
+    final key = widget.content.progressKey;
+    final chapterId = _bookmarkChapterId;
+    final chapter = _controller.chapter;
+    final page = pages.first;
+    final result = toggleLibraryBookmark(
+      _store,
+      key: key,
+      shown: _shownBookmarks(_store.bookmarksFor(key)),
+      location: libraryPageBookmarkLocation(page, chapterId: chapterId),
+      fraction: _fractionAt(page),
+      chapterId: chapterId,
+      chapterTitle: chapterId != null && chapter.title.isNotEmpty
+          ? chapter.title
+          : null,
+      pageIndex: page,
+    );
+    final message = libraryBookmarkMessageKey(result);
+    if (feedback && message != null && mounted) {
+      showLibraryReaderMessage(context, message);
+    }
+    return result;
+  }
+
+  Future<void> _openBookmarks() async {
+    _chrome.hold();
+    try {
+      await showLibraryReaderBookmarksSheet(
+        context,
+        store: _store,
+        progressKey: widget.content.progressKey,
+        palette: _palette(context),
+        isShown: (bookmark) => _onPagesShown(bookmark, _shownPages()),
+        onOpen: _openBookmark,
+        onToggle: _shownPages().isEmpty
+            ? null
+            : () => _toggleBookmark(feedback: false),
+        chapterLabel: widget.content.tracksChapters
+            ? (bookmark) => _chapterLabelOf(bookmark.chapterId)
+            : null,
+      );
+    } finally {
+      if (mounted) _chrome.release();
+    }
+  }
+
+  /// Label of the online chapter [id], if it is one of this title's.
+  String? _chapterLabelOf(String? id) {
+    if (id == null) return null;
+    for (final chapter in widget.content.chapters) {
+      if (chapter.id == id) return _chapterLabel(context, chapter);
+    }
+    return null;
+  }
+
+  /// Shows the page of [bookmark], in its chapter for an online title.
+  void _openBookmark(LibraryBookmark bookmark) {
+    if (!mounted) return;
+    final page = libraryBookmarkPage(bookmark);
+    if (page == null) return;
+    if (widget.content.tracksChapters) {
+      final index = widget.content.chapters.indexWhere(
+        (chapter) => chapter.id == bookmark.chapterId,
+      );
+      if (index < 0) return;
+      if (index != _controller.chapterIndex ||
+          _controller.status != LibraryPageReaderStatus.ready) {
+        unawaited(_controller.openChapter(index, page: page));
+        return;
+      }
+    }
+    if (_controller.status != LibraryPageReaderStatus.ready) return;
+    // The page chosen is the position, also inside a spread (as the
+    // slider).
+    _jumpToPage(page);
+    _controller.setPage(page, through: _lastPageShownWith(page));
+  }
+
+  /// The chapters of an online title (X); the one chosen opens at its
+  /// first page.
+  Future<void> _openChapters() async {
+    final chapters = widget.content.chapters;
+    _chrome.hold();
+    try {
+      final index = await showLibraryReaderListSheet(
+        context,
+        palette: _palette(context),
+        title: LibraryReaderLocale.text(context, 'chapters'),
+        entries: <LibraryReaderListEntry>[
+          for (final chapter in chapters)
+            LibraryReaderListEntry(title: _chapterLabel(context, chapter)),
+        ],
+        currentIndex: _controller.chapterIndex,
+      );
+      if (index == null || !mounted || index == _controller.chapterIndex) {
+        return;
+      }
+      unawaited(_controller.openChapter(index));
+    } finally {
+      if (mounted) _chrome.release();
+    }
+  }
+
+  /// Feeds the reading pace: a turn to the page after the ones shown counts
+  /// (with the pages it leaves); a jump, a turn back or another chapter
+  /// starts its clock again.
+  void _followPace() {
+    if (_controller.status != LibraryPageReaderStatus.ready ||
+        _controller.finished) {
+      return;
+    }
+    final page = _controller.page;
+    if (_controller.generation != _paceGeneration) {
+      _paceGeneration = _controller.generation;
+      _pace.restart();
+    } else if (page != _pacePage) {
+      if (page == _paceLastShown + 1 && page > _pacePage) {
+        _pace.pageShown(pages: page - _pacePage);
+      } else {
+        _pace.restart();
+      }
+    }
+    _pacePage = page;
+    _paceLastShown = _controller.lastShownPage;
+  }
+
+  LibraryReaderToolbarProgress _toolbarProgress(BuildContext context) {
+    final tracks = widget.content.tracksChapters;
+    final left = math.max(
+      0,
+      _controller.pageCount - 1 - _controller.lastShownPage,
+    );
+    final time = _pace.remaining(left);
+    return LibraryReaderToolbarProgress(
+      // The slider prints the page ("n / N").
+      fraction: _controller.fraction,
+      remainingInChapter: tracks ? time : null,
+      remainingInBook: tracks ? null : time,
+      chapterTitle: tracks ? _chapterLabel(context, _controller.chapter) : null,
+    );
+  }
+
   // ---------------------------------------------------------- settings --
 
+  /// The settings in three sections (docs/library-books-3d-plan.md § 3.8):
+  /// Appearance (global), Navigation (the reading mode, direction, page
+  /// turn and two-page choices kept for this title; toolbar, tap zones,
+  /// screen and rotation global), "Revert to general settings".
   Future<void> _openSettings() async {
     _chrome.hold();
     final palette = _palette(context);
@@ -1035,10 +1275,23 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
         palette: palette,
         builder: (context, settings, update) {
           String t(String key) => LibraryReaderLocale.text(context, key);
+          final editor = LibraryReaderBookSettingsEditor(
+            store: _store,
+            key: widget.content.progressKey,
+          );
+          final book = editor.settings;
+          final turnStyle = book?.turnStyle ?? settings.turnStyle;
           return <LibraryReaderSettingItem>[
+            ...LibraryReaderCommonSettings.appearance(
+              context,
+              settings,
+              update,
+              themeLabelKey: 'background',
+            ),
+            ...LibraryReaderCommonSettings.navigationHeader(context, editor),
             LibraryReaderChoiceSetting<LibraryMangaMode>(
               label: t('readingMode'),
-              value: settings.mangaMode,
+              value: book?.mangaMode ?? settings.mangaMode,
               options: <LibraryReaderChoice<LibraryMangaMode>>[
                 LibraryReaderChoice(LibraryMangaMode.auto, t('modeAuto')),
                 LibraryReaderChoice(LibraryMangaMode.paged, t('modePaged')),
@@ -1047,38 +1300,53 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
                   t('modeVertical'),
                 ),
               ],
-              onChanged: (value) => update(settings.copyWith(mangaMode: value)),
+              onChanged: (value) => LibraryReaderCommonSettings.write(
+                editor,
+                settings,
+                update,
+                book: (book) => book.copyWith(mangaMode: value),
+                global: (global) => global.copyWith(mangaMode: value),
+              ),
             ),
             // The direction in use (the content's hint may decide it in
-            // automatic mode); a choice applies at once and is stored for
-            // books without a hint.
-            LibraryReaderChoiceSetting<LibraryPageDirection>(
-              label: t('pageDirection'),
-              value: _controller.rightToLeft
-                  ? LibraryPageDirection.rtl
-                  : LibraryPageDirection.ltr,
-              options: <LibraryReaderChoice<LibraryPageDirection>>[
-                LibraryReaderChoice(
-                  LibraryPageDirection.ltr,
-                  t('directionLtr'),
-                ),
-                LibraryReaderChoice(
-                  LibraryPageDirection.rtl,
-                  t('directionRtl'),
-                ),
-              ],
-              onChanged: (value) {
-                _controller.overrideDirection(value);
-                update(settings.copyWith(pageDirection: value));
-              },
-            ),
-            LibraryReaderCommonSettings.theme(
+            // automatic mode); a choice applies at once and is kept for
+            // this title.
+            LibraryReaderCommonSettings.pageDirection(
               context,
               settings,
               update,
-              labelKey: 'background',
+              editor,
+              value: _controller.rightToLeft
+                  ? LibraryPageDirection.rtl
+                  : LibraryPageDirection.ltr,
             ),
-            ...LibraryReaderCommonSettings.toggles(context, settings, update),
+            LibraryReaderCommonSettings.turnStyle(
+              context,
+              settings,
+              update,
+              editor,
+            ),
+            if (turnStyle == LibraryPageTurnStyle.curl)
+              LibraryReaderSettingNote(t('curlDisabledZoom')),
+            LibraryReaderCommonSettings.doublePage(
+              context,
+              settings,
+              update,
+              editor,
+            ),
+            LibraryReaderSettingNote(t('doublePageNotVertical')),
+            LibraryReaderCommonSettings.firstPageAlone(
+              context,
+              settings,
+              update,
+              editor,
+            ),
+            ...LibraryReaderCommonSettings.navigationTail(
+              context,
+              settings,
+              update,
+            ),
+            ...LibraryReaderCommonSettings.bookReset(context, editor),
           ];
         },
       );
@@ -1121,6 +1389,24 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     final palette = _palette(context);
     final ready = _controller.status == LibraryPageReaderStatus.ready;
     final tracks = widget.content.tracksChapters;
+    final pages = _buildContent(context, palette);
+    // After the pages: the spread of the current page as just laid out.
+    final bookmarked = _shownBookmarks().isNotEmpty;
+    // Always shown, the bars never cover the pages: these are laid out
+    // between them. The ribbon hangs from the top of the pages.
+    final content = LibraryReaderBarsInset(
+      enabled: _toolbarAlways,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          pages,
+          LibraryBookmarkRibbon(
+            visible: bookmarked && _settings.bookmarkRibbon,
+            palette: palette,
+          ),
+        ],
+      ),
+    );
     return PopScope<Object?>(
       onPopInvokedWithResult: _onPopped,
       child: LibraryReaderGamepadScope(
@@ -1135,13 +1421,14 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
             // Showing or hiding the chrome does not rebuild the pages (child).
             body: ListenableBuilder(
               listenable: Listenable.merge(<Listenable>[_chrome, _sliderPage]),
-              child: _buildContent(context, palette),
+              child: content,
               builder: (context, content) => LibraryReaderChromeOverlay(
                 visible: _chrome.visible || !ready,
                 content: content!,
                 palette: palette,
                 // The floating back button closes like the top bar and B.
                 onBack: _close,
+                // Settings moved to the toolbar (one Settings, one Back).
                 topBar: LibraryReaderTopBar(
                   palette: palette,
                   title: widget.content.title,
@@ -1149,16 +1436,10 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
                       ? _chapterLabel(context, _controller.chapter)
                       : widget.content.subtitle,
                   onBack: _close,
-                  actions: <Widget>[
-                    LibraryReaderIconButton(
-                      icon: Icons.tune_rounded,
-                      tooltip: LibraryReaderLocale.text(context, 'settings'),
-                      onPressed: _openSettings,
-                      color: palette.chromeForeground,
-                    ),
-                  ],
                 ),
-                bottomBar: ready ? _buildBottomBar(context, palette) : null,
+                bottomBar: ready
+                    ? _buildBottomBar(context, palette, bookmarked: bookmarked)
+                    : null,
               ),
             ),
           ),
@@ -1167,57 +1448,75 @@ class LibraryPageReaderScreenState extends State<LibraryPageReaderScreen>
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, LibraryReaderPalette palette) {
+  /// The toolbar (§ 3.8) below the page slider and the chapter buttons.
+  Widget _buildBottomBar(
+    BuildContext context,
+    LibraryReaderPalette palette, {
+    required bool bookmarked,
+  }) {
     final tracks = widget.content.tracksChapters;
     final vertical = _vertical;
     String t(String key) => LibraryReaderLocale.text(context, key);
+    final slider = Row(
+      children: <Widget>[
+        if (tracks)
+          LibraryReaderIconButton(
+            icon: Icons.skip_previous_rounded,
+            tooltip: t('previousChapter'),
+            onPressed: _controller.hasPreviousChapter
+                ? () => unawaited(_controller.previousChapter())
+                : null,
+            color: palette.chromeForeground,
+          ),
+        Expanded(
+          child: LibraryReaderPageSlider(
+            palette: palette,
+            page: _sliderPage.value ?? _controller.page,
+            pageCount: _controller.pageCount,
+            rightToLeft: !vertical && _controller.rightToLeft,
+            onChangeStart: (page) {
+              _sliderDragging = true;
+              _sliderPage.value = page;
+              _chrome.hold();
+            },
+            // Dragging only updates the label: jumping at every page
+            // crossed downloaded each of them, ahead of the page the
+            // drag stops on.
+            onChanged: (page) => _sliderPage.value = page,
+            onChangeEnd: (page) {
+              // The page chosen is the position, also inside a spread.
+              _jumpToPage(page);
+              _controller.setPage(page, through: _lastPageShownWith(page));
+              _sliderDragging = false;
+              _sliderPage.value = null;
+              _chrome.release();
+            },
+          ),
+        ),
+        if (tracks)
+          LibraryReaderIconButton(
+            icon: Icons.skip_next_rounded,
+            tooltip: t('nextChapter'),
+            onPressed: _controller.hasNextChapter
+                ? () => unawaited(_controller.nextChapter())
+                : null,
+            color: palette.chromeForeground,
+          ),
+      ],
+    );
     return LibraryReaderBottomBar(
       palette: palette,
-      child: Row(
-        children: <Widget>[
-          if (tracks)
-            LibraryReaderIconButton(
-              icon: Icons.skip_previous_rounded,
-              tooltip: t('previousChapter'),
-              onPressed: _controller.hasPreviousChapter
-                  ? () => unawaited(_controller.previousChapter())
-                  : null,
-              color: palette.chromeForeground,
-            ),
-          Expanded(
-            child: LibraryReaderPageSlider(
-              palette: palette,
-              page: _sliderPage.value ?? _controller.page,
-              pageCount: _controller.pageCount,
-              rightToLeft: !vertical && _controller.rightToLeft,
-              onChangeStart: (page) {
-                _sliderDragging = true;
-                _sliderPage.value = page;
-                _chrome.hold();
-              },
-              // Dragging only updates the label: jumping at every page
-              // crossed downloaded each of them, ahead of the page the
-              // drag stops on.
-              onChanged: (page) => _sliderPage.value = page,
-              onChangeEnd: (page) {
-                // The page chosen is the position, also inside a spread.
-                _jumpToPage(page);
-                _controller.setPage(page, through: _lastPageShownWith(page));
-                _sliderDragging = false;
-                _sliderPage.value = null;
-                _chrome.release();
-              },
-            ),
-          ),
-          if (tracks)
-            LibraryReaderIconButton(
-              icon: Icons.skip_next_rounded,
-              tooltip: t('nextChapter'),
-              onPressed: _controller.hasNextChapter
-                  ? () => unawaited(_controller.nextChapter())
-                  : null,
-              color: palette.chromeForeground,
-            ),
+      child: LibraryReaderToolbar(
+        palette: palette,
+        progress: _toolbarProgress(context),
+        onSettings: _openSettings,
+        onBookmarks: _openBookmarks,
+        onContents: _chaptersAvailable ? _openChapters : null,
+        contents: LibraryReaderContents.chapters,
+        onLibrary: _close,
+        bookmarked: bookmarked,
+        slider: slider,
+        extra: <Widget>[
           LibraryReaderIconButton(
             icon: vertical
                 ? Icons.view_carousel_rounded

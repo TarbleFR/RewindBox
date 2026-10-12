@@ -5,8 +5,8 @@
 // renders cancelled outside the spreads kept, curl / slide / none and
 // Reduce Motion, spreads in landscape, right to left, tap zones, Back and
 // resume), the scroll mode in two columns where the double page applies,
-// and the controller (right stick = Fit in the scroll mode only, Y free,
-// X / LB / RB in both modes).
+// and the controller (right stick = Fit in the scroll mode only, Y the
+// bookmark, X / LB / RB in both modes).
 //
 // PDFium is not loaded by `flutter test`: the pages mode opens fake
 // documents through LibraryPdfReaderScreen.openDocument, whose pages return
@@ -1040,16 +1040,22 @@ void main() {
   });
 
   group('controller', () {
+    // Phase 7 (docs/library-books-3d-plan.md § 3.10) gives Y its role: it
+    // was left free ("Y is free", `y` null in both modes) until the
+    // bookmarks came; it now adds or removes the bookmark of the page shown
+    // in both modes, which replaces those two `isNull` expectations.
     testWidgets('the right stick click fits the page in the scroll mode only; '
-        'Y is free', (tester) async {
+        'Y is the bookmark in both modes', (tester) async {
       useSurface(tester, size: portrait);
       final (store, _) = await createStore(tester);
       await openReader(tester, store, FakeOpener());
       final reader = readerOf(tester);
       expect(reader.mode, LibraryPdfMode.pages);
       expect(reader.gamepadBindings.rightStickClick, isNull);
-      expect(reader.gamepadBindings.y, isNull);
       expect(barButton(en('fitPage')), findsNothing);
+      reader.gamepadBindings.y!();
+      await tester.pump();
+      expect(store.bookmarkAt(bookKey, 'page:0')?.pageIndex, 0);
 
       reader.toggleMode();
       await tester.pump();
@@ -1060,7 +1066,10 @@ void main() {
       expect(reader.gamepadBindings.rightStickClick, isNotNull);
       // The binding is the Fit button's action (formerly on Y).
       expect(reader.gamepadBindings.rightStickClick, fit.onPressed);
-      expect(reader.gamepadBindings.y, isNull);
+      // The same page in the scroll mode: Y removes its bookmark.
+      reader.gamepadBindings.y!();
+      await tester.pump();
+      expect(store.bookmarksFor(bookKey), isEmpty);
       await closeReader(tester, store);
     });
 

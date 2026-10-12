@@ -18,6 +18,7 @@ import 'library_book_pages_view.dart';
 import 'library_page_curl.dart';
 import 'library_page_spreads.dart';
 import 'library_page_textures.dart';
+import 'library_reader_bookmarks.dart';
 import 'library_reader_chrome.dart';
 import 'library_reader_effective_settings.dart';
 import 'library_reader_errors.dart';
@@ -25,6 +26,7 @@ import 'library_reader_gamepad.dart';
 import 'library_reader_palette.dart';
 import 'library_reader_sheets.dart';
 import 'library_reader_system.dart';
+import 'library_reader_toolbar.dart';
 import 'library_reflow_paginator.dart';
 import 'library_reflow_source.dart';
 import 'library_reflow_view.dart';
@@ -91,6 +93,14 @@ class _BookPagesGeometry {
 /// The position (first visible block + character offset) survives font,
 /// theme, layout and orientation changes and is stored as an EPUB CFI or a
 /// `txt:b:o` location.
+///
+/// Toolbar (§ 3.8): settings in three sections (Appearance, Text,
+/// Navigation, whose choices are kept for the book), bookmarks (Y adds or
+/// removes the bookmark of the spread, or of the line being read in the
+/// continuous scroll, at its CFI or `txt:b:o` location; a ribbon shows
+/// it), the contents, the progress with the time left (pages layout), the
+/// layout switch and Library (the reader's close path). Always shown, the
+/// toolbar keeps the last lines of the text free above it.
 class LibraryBookReaderScreen extends StatefulWidget {
   const LibraryBookReaderScreen({
     super.key,
@@ -143,6 +153,16 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// This book's navigation settings (`LibraryReadingStore.bookSettingsFor`).
   LibraryReaderBookSettings? _bookSettings;
+
+  /// This book's bookmarks when last seen.
+  List<LibraryBookmark> _bookmarks = const <LibraryBookmark>[];
+
+  /// Whether the spread or line shown carries a bookmark (the ribbon, the
+  /// toolbar's icon); updated from the layout ([_updateBookmarkShown]).
+  final ValueNotifier<bool> _bookmarkShown = ValueNotifier<bool>(false);
+
+  /// Reading pace of the pages layout (time left in the toolbar).
+  final LibraryReadingPace _pace = LibraryReadingPace();
 
   /// Layout chosen for this session by [setTextLayout] (before the book's
   /// setting, which it also writes).
@@ -334,13 +354,21 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   @visibleForTesting
   LibraryPageTextureCache? get pageTextures => _textures;
 
+  /// Whether the spread or line shown carries a bookmark (the ribbon).
+  @visibleForTesting
+  bool get bookmarkShown => _bookmarkShown.value;
+
+  /// Controller actions (docs/library-books-3d-plan.md § 3.10); in both
+  /// layouts LB/RB move by chapter, X opens the contents and Y adds or
+  /// removes the bookmark of the spread or line shown.
   @visibleForTesting
   LibraryReaderGamepadBindings get gamepadBindings {
+    final reading = _source != null && !_opening && _openError == null;
     if (_activeLayout == LibraryTextLayout.pages) {
       return LibraryReaderGamepadBindings(
         // Up / down: previous / next page in reading order; left / right:
         // the page on that side (right to left, the next page is on the
-        // left). Y stays free for the bookmarks.
+        // left).
         up: () => _turnPage(forward: false),
         down: () => _turnPage(forward: true),
         left: () => _turnVisual(left: true),
@@ -354,6 +382,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
             : _chrome.toggle,
         back: _close,
         x: _openToc,
+        y: reading ? _toggleBookmark : null,
         start: _openSettings,
       );
     }
@@ -370,9 +399,14 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
           : _chrome.toggle,
       back: _close,
       x: _openToc,
+      y: reading ? _toggleBookmark : null,
       start: _openSettings,
     );
   }
+
+  /// The toolbar stays shown (global setting).
+  bool get _toolbarAlways =>
+      _settings.toolbarMode == LibraryReaderToolbarMode.always;
 
   /// Where the line being read is placed (opening, jumps, new typography)
   /// and read back from: just below the back control, which stays on
@@ -387,8 +421,9 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _store = widget.store ?? LibraryReadingStore.instance;
     _settings = _store.settings;
     _bookSettings = _store.bookSettingsFor(widget.progressKey);
+    _bookmarks = _store.bookmarksFor(widget.progressKey);
     _activeLayout = _desiredLayout();
-    _chrome = LibraryReaderChromeController();
+    _chrome = LibraryReaderChromeController()..alwaysVisible = _toolbarAlways;
     _system = LibraryReaderSystemSession(orientation: widget.orientation);
     _images = LibraryReflowImageCache(_loadResource);
     _store.addListener(_onStore);
@@ -413,6 +448,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _chrome.dispose();
     _shownPosition.dispose();
     _sliderValue.dispose();
+    _bookmarkShown.dispose();
     _scroll?.dispose();
     _pager?.dispose();
     _curl?.removeListener(_onCurlChanged);
@@ -449,6 +485,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     if (!mounted) return;
     final settings = _store.settings;
     final book = _store.bookSettingsFor(widget.progressKey);
+    final bookmarks = _store.bookmarksFor(widget.progressKey);
+    if (!identical(bookmarks, _bookmarks)) {
+      _bookmarks = bookmarks;
+      _updateBookmarkShown();
+    }
     final bookChanged = book != _bookSettings;
     if (settings == _settings && !bookChanged) return;
     if (bookChanged) {
@@ -481,6 +522,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       }
       setState(() => _settings = settings);
       _system.update(settings);
+      _chrome.alwaysVisible = _toolbarAlways;
     } else {
       setState(() {});
     }
@@ -685,6 +727,8 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     if (!mounted) return;
     _settings = _store.settings;
     _bookSettings = _store.bookSettingsFor(widget.progressKey);
+    _bookmarks = _store.bookmarksFor(widget.progressKey);
+    _chrome.alwaysVisible = _toolbarAlways;
     unawaited(_system.start(_settings));
     setState(() {
       _opening = true;
@@ -1159,6 +1203,8 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _BookPagesGeometry geometry,
     int layout,
   ) {
+    // Opened, jumped to or laid out again: not a page turned while reading.
+    _pace.restart();
     setState(() {
       _clearWindow();
       _spread = spread;
@@ -1215,6 +1261,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       _dirty = true;
       _scheduleSave();
     }
+    _updateBookmarkShown();
     _fetchNeighbours();
     _watchChapter(paginator, spread.chapter);
   }
@@ -1490,6 +1537,12 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
       return;
     }
     _arrivalPending = 0;
+    // A turn to the next spread counts the pages left behind.
+    if (forward) {
+      _pace.pageShown(pages: spread.pages.length);
+    } else {
+      _pace.restart();
+    }
     final item = _virtualOrigin + index;
     setState(() {
       if (forward) {
@@ -1756,35 +1809,6 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _fetchNeighbours();
   }
 
-  /// "Page N of M" (or "Pages N and N+1 of M") in the chapter shown, once
-  /// it is paginated; "Laying out pages…" until then.
-  String _pagesLabel(BuildContext context) {
-    final spread = _spread;
-    final paginator = _paginator;
-    final total = spread == null || paginator == null || !_pagesReady
-        ? null
-        : paginator.pageCountOf(spread.chapter);
-    if (spread == null || total == null) {
-      return LibraryReaderLocale.text(context, 'paginating');
-    }
-    final pages = spread.pages;
-    if (pages.length > 1) {
-      return LibraryReaderLocale.format(
-        context,
-        'pagesOfTotal',
-        <String, Object?>{
-          'first': pages.first.indexInChapter + 1,
-          'second': pages.last.indexInChapter + 1,
-          'total': total,
-        },
-      );
-    }
-    return LibraryReaderLocale.format(context, 'pageOfTotal', <String, Object?>{
-      'page': pages.first.indexInChapter + 1,
-      'total': total,
-    });
-  }
-
   // ------------------------------------------------------------ loading --
 
   bool get _laying =>
@@ -1943,6 +1967,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     }
     _lastTrack = now;
     final position = _computePosition();
+    _updateBookmarkShown();
     if (position == null || position == _lastPosition) return;
     _lastPosition = position;
     _shownPosition.value = position;
@@ -2020,6 +2045,227 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     if (index == null) return null;
     final title = _source!.toc[index].title;
     return title.isEmpty ? null : title;
+  }
+
+  // ---------------------------------------------------------- bookmarks --
+
+  /// What the reader shows, from its first position to the first one after
+  /// it: the spread (pages layout) or the line at the reading line (scroll
+  /// layout, read from the layout). Null while nothing is shown.
+  (LibraryReflowPosition, LibraryReflowPosition)? _shownRange() {
+    if (_source == null || _opening || _openError != null) return null;
+    if (_activeLayout == LibraryTextLayout.pages) {
+      final spread = _spread;
+      if (spread == null || !_pagesReady) return null;
+      return (spread.first.start, spread.last.end);
+    }
+    if (_anchorPending) return null;
+    return _readingLineRange();
+  }
+
+  /// The line at the reading line: its first position and the first
+  /// position of the line below it in the same unit (the unit's end for its
+  /// last line). Null before layout.
+  (LibraryReflowPosition, LibraryReflowPosition)? _readingLineRange() {
+    final reading = _readingUnit();
+    if (reading == null) return null;
+    final (view, top) = reading;
+    final unit = view.unit;
+    final length = unit.length;
+    final start = top > _readingLine
+        ? 0
+        : view.offsetAt(_readingLine - top).clamp(0, length);
+    var end = length;
+    // The caret of an offset is on its line (carets never move up): the
+    // line ends at the first offset whose caret is lower.
+    final lineTop = view.caretTop(math.min(math.max(start, 1), length));
+    if (lineTop != null && start < length) {
+      bool below(int offset) =>
+          (view.caretTop(offset) ?? lineTop) > lineTop + 0.5;
+      if (below(length)) {
+        var low = start + 1;
+        var high = length;
+        while (low < high) {
+          final middle = (low + high) >> 1;
+          if (below(middle)) {
+            high = middle;
+          } else {
+            low = middle + 1;
+          }
+        }
+        end = low;
+      }
+    }
+    return (
+      LibraryReflowPosition(unit.chapter, unit.block, unit.start + start),
+      LibraryReflowPosition(unit.chapter, unit.block, unit.start + end),
+    );
+  }
+
+  /// The book's bookmarks inside [range]: their reading fractions (stored
+  /// with them, the same function of the position as the source's) lie
+  /// between those of its ends. A bookmark made before a new typography
+  /// still shows on the page or line now holding its words.
+  List<LibraryBookmark> _bookmarksIn(
+    (LibraryReflowPosition, LibraryReflowPosition)? range, [
+    List<LibraryBookmark>? bookmarks,
+  ]) {
+    final source = _source;
+    if (range == null || source == null) return const <LibraryBookmark>[];
+    final double from;
+    final double to;
+    try {
+      from = source.fractionFor(range.$1);
+      to = source.fractionFor(range.$2);
+    } catch (_) {
+      return const <LibraryBookmark>[];
+    }
+    return <LibraryBookmark>[
+      for (final bookmark in bookmarks ?? _bookmarks)
+        if (bookmark.fraction >= from &&
+            (bookmark.fraction < to ||
+                (to <= from && bookmark.fraction == from)))
+          bookmark,
+    ];
+  }
+
+  /// Shows (or hides) the ribbon for the spread or line shown now.
+  void _updateBookmarkShown() {
+    if (!mounted) return;
+    _bookmarkShown.value = _bookmarksIn(_shownRange()).isNotEmpty;
+  }
+
+  /// Y: adds a bookmark at the start of the spread or line shown (its CFI or
+  /// `txt:b:o` location), or removes the ones it carries; the result is
+  /// said at the bottom of the screen unless [feedback] is false (the
+  /// bookmarks sheet shows it itself).
+  LibraryBookmarkToggleResult _toggleBookmark({bool feedback = true}) {
+    final source = _source;
+    final range = _shownRange();
+    if (source == null || range == null) {
+      return LibraryBookmarkToggleResult.unchanged;
+    }
+    final key = widget.progressKey;
+    final String location;
+    final double fraction;
+    try {
+      location = source.locationFor(range.$1);
+      fraction = source.fractionFor(range.$1);
+    } catch (_) {
+      return LibraryBookmarkToggleResult.unchanged;
+    }
+    final result = toggleLibraryBookmark(
+      _store,
+      key: key,
+      shown: _bookmarksIn(range, _store.bookmarksFor(key)),
+      location: location,
+      fraction: fraction,
+      chapterTitle: _tocTitleFor(range.$1.chapter),
+    );
+    _bookmarks = _store.bookmarksFor(key);
+    _updateBookmarkShown();
+    final message = libraryBookmarkMessageKey(result);
+    if (feedback && message != null) _message(message);
+    return result;
+  }
+
+  Future<void> _openBookmarks() async {
+    _chrome.hold();
+    try {
+      final range = _shownRange();
+      final shown = <String>{
+        for (final bookmark in _bookmarksIn(range)) bookmark.id,
+      };
+      await showLibraryReaderBookmarksSheet(
+        context,
+        store: _store,
+        progressKey: widget.progressKey,
+        palette: _palette(context),
+        // The position shown does not move while the sheet is open.
+        isShown: (bookmark) =>
+            shown.contains(bookmark.id) ||
+            _bookmarksIn(range, <LibraryBookmark>[bookmark]).isNotEmpty,
+        onOpen: (bookmark) => unawaited(_openBookmark(bookmark)),
+        onToggle: range == null ? null : () => _toggleBookmark(feedback: false),
+      );
+    } finally {
+      if (mounted) _chrome.release();
+    }
+  }
+
+  /// Goes to [bookmark]: its location, else its reading fraction (a
+  /// location this book no longer resolves).
+  Future<void> _openBookmark(LibraryBookmark bookmark) async {
+    final source = _source;
+    if (source == null || !mounted) return;
+    LibraryReflowPosition? position;
+    try {
+      position = await source.resolveLocation(bookmark.location);
+    } catch (_) {
+      position = null;
+    }
+    if (!mounted) return;
+    if (position == null ||
+        position.chapter < 0 ||
+        position.chapter >= source.chapterCount) {
+      await _jumpToFraction(bookmark.fraction);
+      return;
+    }
+    await _goTo(position);
+  }
+
+  /// Pages of the chapters after [chapter], estimated from its own
+  /// [pages] and the share of the book those chapters hold.
+  int _pagesAfterChapter(LibraryReflowSource source, int chapter, int pages) {
+    try {
+      final start = source.fractionFor(LibraryReflowPosition(chapter, 0, 0));
+      final end = chapter + 1 < source.chapterCount
+          ? source.fractionFor(LibraryReflowPosition(chapter + 1, 0, 0))
+          : 1.0;
+      final span = end - start;
+      if (!(span > 0) || end >= 1) return 0;
+      return ((1 - end) / span * pages).round();
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Progress of the toolbar: in the pages layout the page in its chapter
+  /// ("Laying out pages…" until it is paginated) and the time left, in the
+  /// chapter (EPUB) and in the book (estimated); the percentage in both
+  /// layouts.
+  LibraryReaderToolbarProgress _toolbarProgress(
+    LibraryReflowSource source,
+    double fraction,
+  ) {
+    if (_activeLayout != LibraryTextLayout.pages) {
+      return LibraryReaderToolbarProgress(fraction: fraction);
+    }
+    final spread = _spread;
+    final paginator = _paginator;
+    final total = spread == null || paginator == null || !_pagesReady
+        ? null
+        : paginator.pageCountOf(spread.chapter);
+    if (spread == null || total == null) {
+      return LibraryReaderToolbarProgress(fraction: fraction, paginating: true);
+    }
+    final first = spread.pages.first.indexInChapter + 1;
+    final last = spread.pages.last.indexInChapter + 1;
+    final leftInChapter = math.max(0, total - last);
+    return LibraryReaderToolbarProgress(
+      page: first,
+      lastPage: spread.pages.length > 1 ? last : null,
+      pageCount: total,
+      fraction: fraction,
+      // TXT sections are not chapters.
+      remainingInChapter: source.separatesChapters
+          ? _pace.remaining(leftInChapter)
+          : null,
+      remainingInBook: _pace.remaining(
+        leftInChapter + _pagesAfterChapter(source, spread.chapter, total),
+      ),
+      chapterTitle: _tocTitleFor(spread.chapter),
+    );
   }
 
   // ------------------------------------------------------------ actions --
@@ -2122,28 +2368,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   void _message(String key, {String? detail}) {
     if (!mounted) return;
-    final text = LibraryReaderLocale.text(context, key);
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(text),
-              if (detail != null)
-                Text(
-                  detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12),
-                ),
-            ],
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+    showLibraryReaderMessage(context, key, detail: detail);
   }
 
   Future<void> _openToc() async {
@@ -2185,6 +2410,11 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     }
   }
 
+  /// The settings in three sections (docs/library-books-3d-plan.md § 3.8):
+  /// Appearance and Text (global), Navigation (the text layout and, in
+  /// pages, the page turn, two-page and direction choices kept for this
+  /// book; toolbar, tap zones, screen and rotation global), "Revert to
+  /// general settings".
   Future<void> _openSettings() async {
     _chrome.hold();
     try {
@@ -2194,7 +2424,19 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         palette: _palette(context),
         builder: (context, settings, update) {
           String t(String key) => LibraryReaderLocale.text(context, key);
+          final editor = LibraryReaderBookSettingsEditor(
+            store: _store,
+            key: widget.progressKey,
+          );
+          final layout = _desiredLayout();
+          final pages = layout == LibraryTextLayout.pages;
           return <LibraryReaderSettingItem>[
+            ...LibraryReaderCommonSettings.appearance(
+              context,
+              settings,
+              update,
+            ),
+            LibraryReaderSectionHeader(t('sectionText')),
             LibraryReaderSliderSetting(
               label: t('fontSize'),
               value: settings.fontSize,
@@ -2232,7 +2474,6 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
               onChanged: (value) =>
                   update(settings.copyWith(fontFamily: value)),
             ),
-            LibraryReaderCommonSettings.theme(context, settings, update),
             LibraryReaderSliderSetting(
               label: t('margins'),
               value: settings.margin,
@@ -2248,7 +2489,61 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
               value: settings.justify,
               onChanged: (value) => update(settings.copyWith(justify: value)),
             ),
-            ...LibraryReaderCommonSettings.toggles(context, settings, update),
+            ...LibraryReaderCommonSettings.navigationHeader(context, editor),
+            LibraryReaderChoiceSetting<LibraryTextLayout>(
+              label: t('textLayout'),
+              value: layout,
+              options: <LibraryReaderChoice<LibraryTextLayout>>[
+                LibraryReaderChoice(
+                  LibraryTextLayout.pages,
+                  t('textLayoutPages'),
+                ),
+                LibraryReaderChoice(
+                  LibraryTextLayout.scroll,
+                  t('textLayoutScroll'),
+                ),
+              ],
+              onChanged: setTextLayout,
+            ),
+            // The continuous scroll has no pages to turn or pair.
+            if (pages) ...<LibraryReaderSettingItem>[
+              LibraryReaderSettingNote(t('textPagesLimits')),
+              LibraryReaderCommonSettings.turnStyle(
+                context,
+                settings,
+                update,
+                editor,
+              ),
+              LibraryReaderCommonSettings.doublePage(
+                context,
+                settings,
+                update,
+                editor,
+              ),
+              LibraryReaderCommonSettings.firstPageAlone(
+                context,
+                settings,
+                update,
+                editor,
+              ),
+              // The book's own direction (EPUB page-progression-direction)
+              // unless one was chosen for it.
+              LibraryReaderCommonSettings.pageDirection(
+                context,
+                settings,
+                update,
+                editor,
+                value: _rightToLeft
+                    ? LibraryPageDirection.rtl
+                    : LibraryPageDirection.ltr,
+              ),
+            ],
+            ...LibraryReaderCommonSettings.navigationTail(
+              context,
+              settings,
+              update,
+            ),
+            ...LibraryReaderCommonSettings.bookReset(context, editor),
           ];
         },
       );
@@ -2310,6 +2605,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
                 _chrome,
                 _shownPosition,
                 _sliderValue,
+                _bookmarkShown,
               ]),
               child: _buildBody(context, palette),
               builder: (context, body) {
@@ -2317,38 +2613,44 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
                 final chapterTitle = ready
                     ? _tocTitleFor(position.chapter)
                     : null;
+                final bookmarked = ready && _bookmarkShown.value;
                 return LibraryReaderChromeOverlay(
                   visible: _chrome.visible || !ready,
-                  content: body!,
+                  // Always shown, the toolbar keeps the last lines free
+                  // (the first line is already below the back control).
+                  // The ribbon hangs from the top edge.
+                  content: LibraryReaderBarsInset(
+                    enabled: _toolbarAlways,
+                    top: false,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        body!,
+                        LibraryBookmarkRibbon(
+                          visible: bookmarked && _settings.bookmarkRibbon,
+                          palette: palette,
+                        ),
+                      ],
+                    ),
+                  ),
                   palette: palette,
                   // The floating back button closes like the top bar and B.
                   onBack: _close,
+                  // Contents and Settings are in the toolbar (one of each).
                   topBar: LibraryReaderTopBar(
                     palette: palette,
                     title: widget.title,
                     subtitle: chapterTitle ?? widget.subtitle,
                     onBack: _close,
-                    actions: <Widget>[
-                      if (ready && source.toc.isNotEmpty)
-                        LibraryReaderIconButton(
-                          icon: Icons.toc_rounded,
-                          tooltip: LibraryReaderLocale.text(
-                            context,
-                            'tableOfContents',
-                          ),
-                          onPressed: _openToc,
-                          color: palette.chromeForeground,
-                        ),
-                      LibraryReaderIconButton(
-                        icon: Icons.text_format_rounded,
-                        tooltip: LibraryReaderLocale.text(context, 'settings'),
-                        onPressed: _openSettings,
-                        color: palette.chromeForeground,
-                      ),
-                    ],
                   ),
                   bottomBar: ready && source.chapterCount > 0
-                      ? _buildBottomBar(context, palette, source, position)
+                      ? _buildBottomBar(
+                          context,
+                          palette,
+                          source,
+                          position,
+                          bookmarked: bookmarked,
+                        )
                       : null,
                 );
               },
@@ -2359,12 +2661,15 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     );
   }
 
+  /// The toolbar (§ 3.8) below the reading position slider and the chapter
+  /// buttons.
   Widget _buildBottomBar(
     BuildContext context,
     LibraryReaderPalette palette,
     LibraryReflowSource source,
-    LibraryReflowPosition position,
-  ) {
+    LibraryReflowPosition position, {
+    required bool bookmarked,
+  }) {
     String t(String key) => LibraryReaderLocale.text(context, key);
     double fraction;
     try {
@@ -2381,82 +2686,78 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     );
     final chapters = source.chapterCount;
     final multiple = chapters > 1 && source.separatesChapters;
-    // Pages layout: the page in its chapter (the percentage stays for the
-    // whole book).
-    final pagesLabel = _activeLayout == LibraryTextLayout.pages
-        ? _pagesLabel(context)
-        : null;
+    final pagesLayout = _activeLayout == LibraryTextLayout.pages;
+    final slider = Row(
+      children: <Widget>[
+        if (multiple)
+          LibraryReaderIconButton(
+            icon: Icons.skip_previous_rounded,
+            tooltip: t('previousChapter'),
+            onPressed: position.chapter > 0 ? () => _goToChapter(-1) : null,
+            color: palette.chromeForeground,
+          ),
+        Expanded(
+          child: SizedBox(
+            height: kLibraryReaderTouchTarget,
+            child: Slider(
+              value: shown.clamp(0.0, 1.0),
+              activeColor: palette.accent,
+              inactiveColor: palette.divider,
+              semanticFormatterCallback: (_) =>
+                  '${t('readingPosition')}: $percentLabel',
+              onChangeStart: (value) {
+                _chrome.hold();
+                _sliderValue.value = value;
+              },
+              onChanged: (value) => _sliderValue.value = value,
+              onChangeEnd: (value) {
+                _sliderValue.value = null;
+                _chrome.release();
+                unawaited(_jumpToFraction(value));
+              },
+            ),
+          ),
+        ),
+        if (multiple)
+          LibraryReaderIconButton(
+            icon: Icons.skip_next_rounded,
+            tooltip: t('nextChapter'),
+            onPressed: position.chapter < chapters - 1
+                ? () => _goToChapter(1)
+                : null,
+            color: palette.chromeForeground,
+          ),
+      ],
+    );
     return LibraryReaderBottomBar(
       palette: palette,
-      child: Row(
-        children: <Widget>[
-          if (multiple)
-            LibraryReaderIconButton(
-              icon: Icons.skip_previous_rounded,
-              tooltip: t('previousChapter'),
-              onPressed: position.chapter > 0 ? () => _goToChapter(-1) : null,
-              color: palette.chromeForeground,
-            ),
-          Expanded(
-            child: SizedBox(
-              height: kLibraryReaderTouchTarget,
-              child: Slider(
-                value: shown.clamp(0.0, 1.0),
-                activeColor: palette.accent,
-                inactiveColor: palette.divider,
-                semanticFormatterCallback: (_) =>
-                    '${t('readingPosition')}: $percentLabel',
-                onChangeStart: (value) {
-                  _chrome.hold();
-                  _sliderValue.value = value;
-                },
-                onChanged: (value) => _sliderValue.value = value,
-                onChangeEnd: (value) {
-                  _sliderValue.value = null;
-                  _chrome.release();
-                  unawaited(_jumpToFraction(value));
-                },
-              ),
-            ),
+      child: LibraryReaderToolbar(
+        palette: palette,
+        // The percentage follows the slider while it is dragged.
+        progress: _toolbarProgress(source, shown),
+        settingsIcon: Icons.text_format_rounded,
+        onSettings: _openSettings,
+        onBookmarks: _openBookmarks,
+        onContents: source.toc.isNotEmpty ? _openToc : null,
+        onLibrary: _close,
+        bookmarked: bookmarked,
+        slider: slider,
+        extra: <Widget>[
+          LibraryReaderIconButton(
+            icon: pagesLayout
+                ? Icons.view_day_rounded
+                : Icons.auto_stories_rounded,
+            tooltip: t(pagesLayout ? 'switchToVertical' : 'switchToPaged'),
+            onPressed: () {
+              _chrome.touch();
+              setTextLayout(
+                pagesLayout
+                    ? LibraryTextLayout.scroll
+                    : LibraryTextLayout.pages,
+              );
+            },
+            color: palette.chromeForeground,
           ),
-          if (pagesLabel != null) ...<Widget>[
-            ConstrainedBox(
-              // The slider keeps most of the bar in portrait.
-              constraints: const BoxConstraints(maxWidth: 150),
-              child: Text(
-                pagesLabel,
-                key: const ValueKey<String>('library-book-pages-label'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: palette.secondaryText,
-                  fontSize: 13,
-                  fontFeatures: const <FontFeature>[
-                    FontFeature.tabularFigures(),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Text(
-            percentLabel,
-            style: TextStyle(
-              color: palette.chromeForeground,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-          if (multiple)
-            LibraryReaderIconButton(
-              icon: Icons.skip_next_rounded,
-              tooltip: t('nextChapter'),
-              onPressed: position.chapter < chapters - 1
-                  ? () => _goToChapter(1)
-                  : null,
-              color: palette.chromeForeground,
-            ),
         ],
       ),
     );

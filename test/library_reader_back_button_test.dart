@@ -1271,4 +1271,117 @@ void main() {
       semantics.dispose();
     });
   });
+
+  // Build 447 (docs/library-books-3d-plan.md § 3.8, phase 7): with the
+  // "Always visible" toolbar the bars never hide. The one Back is then
+  // always the top bar's arrow: the floating button is never offered, and
+  // Library, in the toolbar, is the reader's close path, not a second Back.
+  group('always visible toolbar', () {
+    void useAlways(LibraryReadingStore store) => store.updateSettings(
+      store.settings.copyWith(toolbarMode: LibraryReaderToolbarMode.always),
+    );
+
+    testWidgets('page reader: one Back while reading, turning and tapping; '
+        'Library leaves once, like Back', (tester) async {
+      final semantics = tester.ensureSemantics();
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      useAlways(store);
+      final pops = PopRecorder();
+      final navigator = await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(progressKey: 'local:always'),
+          store: store,
+        ),
+        opener: StoreWatcher(store: store, progressKey: 'local:always'),
+        navigatorObservers: <NavigatorObserver>[pops],
+      );
+      final state = pageState(tester);
+      expectOneBack(tester, barsVisible: true);
+      await waitForBarsToHide(tester);
+      expect(state.chromeVisible, isTrue);
+      expectOneBack(tester, barsVisible: true);
+      for (var i = 0; i < 2; i++) {
+        state.gamepadBindings.right!();
+        await frames(tester);
+      }
+      expect(state.controller.page, 2);
+      // A tap in the middle would hide automatic bars.
+      await tester.tapAt(const Offset(196, 426));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(state.chromeVisible, isTrue);
+      expectOneBack(tester, barsVisible: true);
+      expect(floatingBack().hitTestable(), findsNothing);
+      // The keyboard never reaches the floating button either.
+      final stops = await tabStops(tester);
+      expect(stops, containsAll(<String>['top', 'bottom']));
+      expect(stops, isNot(contains('floating')));
+      expect(find.byTooltip(en('library')), findsOneWidget);
+      expect(find.byTooltip(en('library')).hitTestable(), findsOneWidget);
+
+      await tester.tap(find.byTooltip(en('library')));
+      expect(store.progressFor('local:always')!.pageIndex, 2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      expect(pops.popped, hasLength(1));
+      expect(find.text('home page:2'), findsOneWidget);
+      expect(navigator.currentState!.canPop(), isTrue, reason: 'opener');
+      await flushStore(tester, store);
+      semantics.dispose();
+    });
+
+    testWidgets('EPUB/TXT reader: one Back; the text stops above the '
+        'toolbar', (tester) async {
+      final semantics = tester.ensureSemantics();
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      useAlways(store);
+      await pumpReader(tester, bookReader(store, progressKey: 'local:alw'));
+      await settle(tester, rounds: 2);
+      final state = bookState(tester);
+      await waitForBarsToHide(tester);
+      expect(state.chromeVisible, isTrue);
+      expectOneBack(tester, barsVisible: true);
+      state.gamepadBindings.right!();
+      await frames(tester);
+      await settle(tester, rounds: 1);
+      expect(state.chromeVisible, isTrue);
+      expectOneBack(tester, barsVisible: true);
+      expect(floatingBack().hitTestable(), findsNothing);
+      // No line is left under the toolbar, which cannot be hidden.
+      expect(
+        tester.getRect(find.byType(CustomScrollView)).bottom,
+        lessThanOrEqualTo(
+          tester.getRect(find.byType(LibraryReaderBottomBar)).top,
+        ),
+      );
+      await closeAll(tester, store);
+      semantics.dispose();
+    });
+
+    testWidgets('PDF reader: one Back while opening and while reading', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      mockPathProvider();
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      useAlways(store);
+      await pumpReader(tester, pdfReader(store));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 6));
+      expectOneBack(tester, barsVisible: true);
+      // Ready: automatic bars, already timed out, would hide now.
+      await makePdfReady(tester);
+      await tester.pump(const Duration(milliseconds: 300));
+      expectOneBack(tester, barsVisible: true);
+      await waitForBarsToHide(tester);
+      expectOneBack(tester, barsVisible: true);
+      expect(floatingBack().hitTestable(), findsNothing);
+      await closeAll(tester, store);
+      semantics.dispose();
+    });
+  });
 }

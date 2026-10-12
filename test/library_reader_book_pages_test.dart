@@ -715,8 +715,12 @@ void main() {
   });
 
   group('controller, links and VoiceOver', () {
+    // Phase 7 (docs/library-books-3d-plan.md § 3.10) gives Y its role: it
+    // was left free (`y` null) until the bookmarks came; it now adds or
+    // removes the bookmark of the spread shown, which replaces that
+    // `isNull` expectation.
     testWidgets('the controller: left/right by side, up/down in reading order, '
-        'bumpers by chapter, X the contents, Y free', (tester) async {
+        'bumpers by chapter, X the contents, Y the bookmark', (tester) async {
       useSurface(tester, size: portrait);
       final (store, _) = await createStore(tester);
       setLayout(store, turnStyle: LibraryPageTurnStyle.none);
@@ -732,8 +736,19 @@ void main() {
       );
       final state = bookState(tester);
       final bindings = state.gamepadBindings;
-      expect(bindings.y, isNull);
       expect(bindings.x, isNotNull);
+      // Y marks the page shown at its CFI; Y again removes the mark.
+      bindings.y!();
+      await tester.pump();
+      expect(
+        store.bookmarksFor('local:pad').single.location,
+        startsWith('epubcfi('),
+      );
+      expect(state.bookmarkShown, isTrue);
+      bindings.y!();
+      await tester.pump();
+      expect(store.bookmarksFor('local:pad'), isEmpty);
+      expect(state.bookmarkShown, isFalse);
       bindings.right!();
       expect(state.shownSpread!.first.indexInChapter, 1);
       state.gamepadBindings.down!();

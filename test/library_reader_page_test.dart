@@ -446,6 +446,23 @@ void main() {
       state.gamepadBindings.start!();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
+      // Build 447 (docs/library-books-3d-plan.md § 3.8): the sheet opens on
+      // its Appearance section; the direction is in the Navigation section
+      // below it, scrolled to first. The assertions are those of 440.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(ChoiceChip, en('directionLtr')),
+        120,
+        scrollable: find
+            .descendant(
+              of: find.byType(BottomSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.ensureVisible(
+        find.widgetWithText(ChoiceChip, en('directionRtl')),
+      );
+      await tester.pump();
       ChoiceChip chip(String key) =>
           tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, en(key)));
       expect(chip('directionRtl').selected, isTrue);

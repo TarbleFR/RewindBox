@@ -26,6 +26,12 @@ double libraryReaderBackControlBottom(BuildContext context) =>
     _kBackTopGap +
     kLibraryReaderTouchTarget;
 
+/// Height of a reader's [LibraryReaderTopBar] (its title and subtitle fit
+/// beside the 44 px back control): what a reader whose bars stay shown
+/// keeps free above its pages.
+double libraryReaderTopBarExtent(BuildContext context) =>
+    libraryReaderBackControlBottom(context) + 2;
+
 /// Icon button with a 44 x 44 touch target and a translated tooltip /
 /// accessibility label. Sized in logical pixels: readers rotate to portrait,
 /// where ScreenUtil `.r` sizes would shrink to about half.
@@ -450,6 +456,10 @@ class _LibraryReaderChromeOverlayState
 /// With assistive navigation (VoiceOver: [accessibleNavigation]) the chrome
 /// never hides by itself: its controls would leave the accessibility tree
 /// while the user moves towards them. Only an explicit toggle hides it.
+///
+/// With [alwaysVisible] (the "Always visible" toolbar,
+/// `LibraryReaderToolbarMode.always`) nothing hides it: no delay, no page
+/// turn, no toggle, as while a sheet holds it.
 class LibraryReaderChromeController extends ChangeNotifier {
   LibraryReaderChromeController({
     bool visible = true,
@@ -463,8 +473,27 @@ class LibraryReaderChromeController extends ChangeNotifier {
   Timer? _timer;
   int _holds = 0;
   bool _accessibleNavigation = false;
+  bool _alwaysVisible = false;
 
   bool get visible => _visible;
+
+  /// Whether the chrome stays shown whatever happens (readers pass
+  /// `LibraryReaderSettings.toolbarMode == LibraryReaderToolbarMode.always`).
+  /// Turned on, it shows the chrome; turned off, the auto-hide delay starts
+  /// again.
+  bool get alwaysVisible => _alwaysVisible;
+
+  set alwaysVisible(bool value) {
+    if (_alwaysVisible == value) return;
+    _alwaysVisible = value;
+    if (value) {
+      _timer?.cancel();
+      _timer = null;
+      _set(true);
+    } else if (_visible) {
+      _schedule();
+    }
+  }
 
   /// Whether assistive navigation is on (readers pass
   /// `MediaQuery.accessibleNavigationOf`).
@@ -481,9 +510,10 @@ class LibraryReaderChromeController extends ChangeNotifier {
     }
   }
 
-  /// Hides the chrome after a page turn, unless assistive navigation is on.
+  /// Hides the chrome after a page turn, unless assistive navigation is on
+  /// or it is [alwaysVisible].
   void hideAfterTurn() {
-    if (_accessibleNavigation) return;
+    if (_accessibleNavigation || _alwaysVisible) return;
     hide();
   }
 
@@ -493,9 +523,9 @@ class LibraryReaderChromeController extends ChangeNotifier {
   }
 
   /// Hides the chrome unless something holds it (an open sheet, a slider
-  /// being dragged).
+  /// being dragged) or it is [alwaysVisible].
   void hide() {
-    if (_holds > 0) return;
+    if (_holds > 0 || _alwaysVisible) return;
     _set(false);
   }
 
@@ -521,7 +551,10 @@ class LibraryReaderChromeController extends ChangeNotifier {
   void _schedule() {
     _timer?.cancel();
     _timer = null;
-    if (_holds > 0 || _accessibleNavigation || autoHideAfter <= Duration.zero) {
+    if (_holds > 0 ||
+        _alwaysVisible ||
+        _accessibleNavigation ||
+        autoHideAfter <= Duration.zero) {
       return;
     }
     _timer = Timer(autoHideAfter, hide);

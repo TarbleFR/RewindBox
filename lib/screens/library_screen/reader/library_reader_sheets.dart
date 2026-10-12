@@ -16,6 +16,44 @@ sealed class LibraryReaderSettingItem {
   const LibraryReaderSettingItem(this.label);
 
   final String label;
+
+  /// Whether the controller's focus stops on this row (headers and notes
+  /// are skipped).
+  bool get focusable => true;
+}
+
+/// Title of a group of rows (docs/library-books-3d-plan.md § 3.8:
+/// Appearance, Text, Navigation).
+class LibraryReaderSectionHeader extends LibraryReaderSettingItem {
+  const LibraryReaderSectionHeader(super.title);
+
+  String get title => label;
+
+  @override
+  bool get focusable => false;
+}
+
+/// A sentence about the rows around it (what a choice implies, where it is
+/// kept).
+class LibraryReaderSettingNote extends LibraryReaderSettingItem {
+  const LibraryReaderSettingNote(super.text);
+
+  String get text => label;
+
+  @override
+  bool get focusable => false;
+}
+
+/// A row that does something at once ("Revert to general settings").
+class LibraryReaderActionSetting extends LibraryReaderSettingItem {
+  const LibraryReaderActionSetting({
+    required String label,
+    required this.onPressed,
+    this.icon,
+  }) : super(label);
+
+  final VoidCallback onPressed;
+  final IconData? icon;
 }
 
 class LibraryReaderSliderSetting extends LibraryReaderSettingItem {
@@ -87,8 +125,10 @@ class LibraryReaderToggleSetting extends LibraryReaderSettingItem {
   final ValueChanged<bool> onChanged;
 }
 
-/// Builds the rows for the current settings; changes go through
-/// [LibraryReadingStore.updateSettings].
+/// Builds the rows for the current settings; global changes go through
+/// [update] ([LibraryReadingStore.updateSettings]), the navigation choices
+/// of the open title through a [LibraryReaderBookSettingsEditor]. The rows
+/// are built again whenever the store changes.
 typedef LibraryReaderSettingsBuilder =
     List<LibraryReaderSettingItem> Function(
       BuildContext context,
@@ -165,10 +205,10 @@ class _LibraryReaderSettingsSheetState
   }
 
   void _onStore() {
-    final settings = widget.store.settings;
-    if (settings != _settings && mounted) {
-      setState(() => _settings = settings);
-    }
+    // Also the title's navigation settings, which the rows show: built
+    // again whatever changed.
+    if (!mounted) return;
+    setState(() => _settings = widget.store.settings);
   }
 
   void _update(LibraryReaderSettings settings) {
@@ -177,11 +217,31 @@ class _LibraryReaderSettingsSheetState
     setState(() => _settings = widget.store.settings);
   }
 
-  void _moveFocus(int delta, int count) {
-    if (count == 0) return;
+  /// Indices of the rows the focus stops on.
+  static List<int> _stops(List<LibraryReaderSettingItem> items) => <int>[
+    for (var index = 0; index < items.length; index++)
+      if (items[index].focusable) index,
+  ];
+
+  /// The focused row: the one at [_focus] when the focus can stop there,
+  /// else the next row it can stop on.
+  int? _focused(List<LibraryReaderSettingItem> items) {
+    final stops = _stops(items);
+    if (stops.isEmpty) return null;
+    for (final stop in stops) {
+      if (stop >= _focus) return stop;
+    }
+    return stops.last;
+  }
+
+  void _moveFocus(int delta, List<LibraryReaderSettingItem> items) {
+    final stops = _stops(items);
+    if (stops.isEmpty) return;
+    final at = stops.indexOf(_focused(items)!);
+    final target = stops[(at + delta).clamp(0, stops.length - 1)];
     setState(() {
       _gamepadUsed = true;
-      _focus = (_focus + delta).clamp(0, count - 1);
+      _focus = target;
     });
     final key = _focus < _rowKeys.length ? _rowKeys[_focus] : null;
     final rowContext = key?.currentContext;
@@ -197,28 +257,45 @@ class _LibraryReaderSettingsSheetState
   }
 
   void _adjust(List<LibraryReaderSettingItem> items, int direction) {
-    if (items.isEmpty) return;
-    setState(() => _gamepadUsed = true);
-    switch (items[_focus.clamp(0, items.length - 1)]) {
+    final focused = _focused(items);
+    if (focused == null) return;
+    setState(() {
+      _gamepadUsed = true;
+      _focus = focused;
+    });
+    switch (items[focused]) {
       case final LibraryReaderSliderSetting slider:
         slider.adjust(direction);
       case final LibraryReaderChoiceSetting<Object?> choice:
         choice.adjust(direction);
       case final LibraryReaderToggleSetting toggle:
         toggle.onChanged(direction > 0);
+      case LibraryReaderActionSetting():
+      case LibraryReaderSectionHeader():
+      case LibraryReaderSettingNote():
+        break;
     }
   }
 
   void _activate(List<LibraryReaderSettingItem> items) {
-    if (items.isEmpty) return;
-    setState(() => _gamepadUsed = true);
-    switch (items[_focus.clamp(0, items.length - 1)]) {
+    final focused = _focused(items);
+    if (focused == null) return;
+    setState(() {
+      _gamepadUsed = true;
+      _focus = focused;
+    });
+    switch (items[focused]) {
       case final LibraryReaderSliderSetting slider:
         slider.adjust(1);
       case final LibraryReaderChoiceSetting<Object?> choice:
         choice.adjust(1);
       case final LibraryReaderToggleSetting toggle:
         toggle.onChanged(!toggle.value);
+      case final LibraryReaderActionSetting action:
+        action.onPressed();
+      case LibraryReaderSectionHeader():
+      case LibraryReaderSettingNote():
+        break;
     }
   }
 
@@ -229,12 +306,13 @@ class _LibraryReaderSettingsSheetState
     while (_rowKeys.length < items.length) {
       _rowKeys.add(GlobalKey());
     }
+    final focused = _gamepadUsed ? _focused(items) : null;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
     return LibraryReaderGamepadScope(
       name: 'library_reader_settings',
       bindings: LibraryReaderGamepadBindings(
-        up: () => _moveFocus(-1, items.length),
-        down: () => _moveFocus(1, items.length),
+        up: () => _moveFocus(-1, items),
+        down: () => _moveFocus(1, items),
         left: () => _adjust(items, -1),
         right: () => _adjust(items, 1),
         select: () => _activate(items),
@@ -246,7 +324,7 @@ class _LibraryReaderSettingsSheetState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _SheetHeader(
+            LibraryReaderSheetHeader(
               palette: palette,
               title: LibraryReaderLocale.text(context, 'settingsTitle'),
             ),
@@ -262,7 +340,7 @@ class _LibraryReaderSettingsSheetState
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _gamepadUsed && index == _focus
+                      color: index == focused
                           ? palette.accent
                           : Colors.transparent,
                       width: 2,
@@ -358,12 +436,54 @@ class _SettingRow extends StatelessWidget {
           value: toggle.value,
           onChanged: toggle.onChanged,
         );
+      case final LibraryReaderSectionHeader header:
+        return Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 2),
+          child: Semantics(
+            header: true,
+            child: Text(
+              header.title,
+              style: TextStyle(
+                color: palette.accent,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        );
+      case final LibraryReaderSettingNote note:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            note.text,
+            style: TextStyle(color: palette.secondaryText, fontSize: 13),
+          ),
+        );
+      case final LibraryReaderActionSetting action:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: LibraryReaderTextButton(
+              label: action.label,
+              icon: action.icon,
+              palette: palette,
+              onPressed: action.onPressed,
+            ),
+          ),
+        );
     }
   }
 }
 
-class _SheetHeader extends StatelessWidget {
-  const _SheetHeader({required this.palette, required this.title});
+/// Title row of a reader sheet: a grabber, the title and Close.
+class LibraryReaderSheetHeader extends StatelessWidget {
+  const LibraryReaderSheetHeader({
+    super.key,
+    required this.palette,
+    required this.title,
+  });
 
   final LibraryReaderPalette palette;
   final String title;
@@ -553,7 +673,7 @@ class _LibraryReaderListSheetState extends State<_LibraryReaderListSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _SheetHeader(palette: palette, title: widget.title),
+            LibraryReaderSheetHeader(palette: palette, title: widget.title),
             if (widget.entries.isEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
@@ -693,11 +813,98 @@ Future<bool> showLibraryReaderLinkDialog(
 }
 
 // ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
+
+/// Shows the translated message [key] at the bottom of a reader for a few
+/// seconds (a bookmark added, a jump that failed), with an untranslated
+/// technical [detail] under it when there is one.
+void showLibraryReaderMessage(
+  BuildContext context,
+  String key, {
+  String? detail,
+}) {
+  final text = LibraryReaderLocale.text(context, key);
+  ScaffoldMessenger.maybeOf(context)
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(text),
+            if (detail != null)
+              Text(
+                detail,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Settings rows shared by the readers
 // ---------------------------------------------------------------------------
 
-/// Rows common to every reader: theme/background, tap zones, screen and
-/// rotation.
+/// Where a reader's navigation choices are kept (docs/library-books-3d-plan.md
+/// § 3.8): changed from a reader, the rows of the Navigation section whose
+/// setting exists in [LibraryReaderBookSettings] (page turn, double page,
+/// first page alone, direction, reading mode, PDF display, text layout) are
+/// written for the open title only, under `bookSettings[key]`; the readers
+/// apply them with `LibraryReaderEffectiveSettings` (session > title >
+/// content hint > global). A reader without a title [key] writes them
+/// globally.
+@immutable
+class LibraryReaderBookSettingsEditor {
+  const LibraryReaderBookSettingsEditor({
+    required this.store,
+    required this.key,
+  });
+
+  final LibraryReadingStore store;
+
+  /// Reading key of the title; empty when the reader saves nothing.
+  final String key;
+
+  /// Whether the choices are kept for the title (it has a key).
+  bool get perBook => key.isNotEmpty;
+
+  /// The title's own choices (null: it follows the global settings).
+  LibraryReaderBookSettings? get settings =>
+      perBook ? store.bookSettingsFor(key) : null;
+
+  /// Whether the title has choices of its own ("Revert to general
+  /// settings" is offered).
+  bool get hasOwnSettings => settings != null;
+
+  /// Writes [change] of the title's choices.
+  void update(
+    LibraryReaderBookSettings Function(LibraryReaderBookSettings settings)
+    change,
+  ) {
+    if (!perBook) return;
+    store.updateBookSettings(
+      key,
+      change(settings ?? const LibraryReaderBookSettings()),
+    );
+  }
+
+  /// The title follows the global settings again.
+  void reset() {
+    if (perBook) store.clearBookSettings(key);
+  }
+}
+
+/// Rows common to the readers: the Appearance section, the navigation
+/// choices kept per title, the global rows of the Navigation section
+/// (toolbar, tap zones, screen and rotation) and "Revert to general
+/// settings".
 abstract final class LibraryReaderCommonSettings {
   static LibraryReaderChoiceSetting<LibraryReaderTheme> theme(
     BuildContext context,
@@ -718,6 +925,208 @@ abstract final class LibraryReaderCommonSettings {
       ],
       onChanged: (value) => update(settings.copyWith(theme: value)),
     );
+  }
+
+  /// The Appearance section (global): theme or background, bookmark
+  /// ribbon.
+  static List<LibraryReaderSettingItem> appearance(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update, {
+    String themeLabelKey = 'theme',
+  }) {
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return <LibraryReaderSettingItem>[
+      LibraryReaderSectionHeader(t('sectionAppearance')),
+      theme(context, settings, update, labelKey: themeLabelKey),
+      LibraryReaderToggleSetting(
+        label: t('bookmarkRibbon'),
+        value: settings.bookmarkRibbon,
+        onChanged: (value) => update(settings.copyWith(bookmarkRibbon: value)),
+      ),
+    ];
+  }
+
+  /// Title of the Navigation section, and that its choices are kept for
+  /// this title.
+  static List<LibraryReaderSettingItem> navigationHeader(
+    BuildContext context,
+    LibraryReaderBookSettingsEditor editor,
+  ) {
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return <LibraryReaderSettingItem>[
+      LibraryReaderSectionHeader(t('sectionNavigation')),
+      if (editor.perBook) LibraryReaderSettingNote(t('navigationPerBookNote')),
+    ];
+  }
+
+  /// Writes a navigation choice for the title ([book]), or globally
+  /// ([global]) for a reader without a title key.
+  static void write(
+    LibraryReaderBookSettingsEditor editor,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update, {
+    required LibraryReaderBookSettings Function(LibraryReaderBookSettings) book,
+    required LibraryReaderSettings Function(LibraryReaderSettings) global,
+  }) {
+    if (editor.perBook) {
+      editor.update(book);
+    } else {
+      update(global(settings));
+    }
+  }
+
+  /// Page turn of the paged layouts (kept per title).
+  static LibraryReaderChoiceSetting<LibraryPageTurnStyle> turnStyle(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update,
+    LibraryReaderBookSettingsEditor editor,
+  ) {
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return LibraryReaderChoiceSetting<LibraryPageTurnStyle>(
+      label: t('turnStyle'),
+      value: editor.settings?.turnStyle ?? settings.turnStyle,
+      options: <LibraryReaderChoice<LibraryPageTurnStyle>>[
+        LibraryReaderChoice(LibraryPageTurnStyle.curl, t('turnCurl')),
+        LibraryReaderChoice(LibraryPageTurnStyle.slide, t('turnSlide')),
+        LibraryReaderChoice(LibraryPageTurnStyle.none, t('turnNone')),
+      ],
+      onChanged: (value) => write(
+        editor,
+        settings,
+        update,
+        book: (book) => book.copyWith(turnStyle: value),
+        global: (global) => global.copyWith(turnStyle: value),
+      ),
+    );
+  }
+
+  /// Two pages side by side (kept per title).
+  static LibraryReaderChoiceSetting<LibraryDoublePageMode> doublePage(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update,
+    LibraryReaderBookSettingsEditor editor,
+  ) {
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return LibraryReaderChoiceSetting<LibraryDoublePageMode>(
+      label: t('doublePage'),
+      value: editor.settings?.doublePage ?? settings.doublePage,
+      options: <LibraryReaderChoice<LibraryDoublePageMode>>[
+        LibraryReaderChoice(LibraryDoublePageMode.auto, t('doublePageAuto')),
+        LibraryReaderChoice(
+          LibraryDoublePageMode.always,
+          t('doublePageAlways'),
+        ),
+        LibraryReaderChoice(LibraryDoublePageMode.never, t('doublePageNever')),
+      ],
+      onChanged: (value) => write(
+        editor,
+        settings,
+        update,
+        book: (book) => book.copyWith(doublePage: value),
+        global: (global) => global.copyWith(doublePage: value),
+      ),
+    );
+  }
+
+  /// The cover alone in a two-page layout (kept per title).
+  static LibraryReaderToggleSetting firstPageAlone(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update,
+    LibraryReaderBookSettingsEditor editor,
+  ) {
+    return LibraryReaderToggleSetting(
+      label: LibraryReaderLocale.text(context, 'firstPageAlone'),
+      value: editor.settings?.firstPageAlone ?? settings.firstPageAlone,
+      onChanged: (value) => write(
+        editor,
+        settings,
+        update,
+        book: (book) => book.copyWith(firstPageAlone: value),
+        global: (global) => global.copyWith(firstPageAlone: value),
+      ),
+    );
+  }
+
+  /// Page direction (kept per title); [value] is the direction in use,
+  /// which the content's hint may decide.
+  static LibraryReaderChoiceSetting<LibraryPageDirection> pageDirection(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update,
+    LibraryReaderBookSettingsEditor editor, {
+    required LibraryPageDirection value,
+  }) {
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return LibraryReaderChoiceSetting<LibraryPageDirection>(
+      label: t('pageDirection'),
+      value: value,
+      options: <LibraryReaderChoice<LibraryPageDirection>>[
+        LibraryReaderChoice(LibraryPageDirection.ltr, t('directionLtr')),
+        LibraryReaderChoice(LibraryPageDirection.rtl, t('directionRtl')),
+      ],
+      onChanged: (direction) => write(
+        editor,
+        settings,
+        update,
+        book: (book) => book.copyWith(pageDirection: direction),
+        global: (global) => global.copyWith(pageDirection: direction),
+      ),
+    );
+  }
+
+  /// Toolbar hidden after 4 s or always shown (global).
+  static LibraryReaderChoiceSetting<LibraryReaderToolbarMode> toolbarMode(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update,
+  ) {
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return LibraryReaderChoiceSetting<LibraryReaderToolbarMode>(
+      label: t('toolbarMode'),
+      value: settings.toolbarMode,
+      options: <LibraryReaderChoice<LibraryReaderToolbarMode>>[
+        LibraryReaderChoice(LibraryReaderToolbarMode.auto, t('toolbarAuto')),
+        LibraryReaderChoice(
+          LibraryReaderToolbarMode.always,
+          t('toolbarAlways'),
+        ),
+      ],
+      onChanged: (value) => update(settings.copyWith(toolbarMode: value)),
+    );
+  }
+
+  /// The global rows ending the Navigation section: toolbar, tap zones
+  /// (where the reader has them), screen kept on, rotation.
+  static List<LibraryReaderSettingItem> navigationTail(
+    BuildContext context,
+    LibraryReaderSettings settings,
+    void Function(LibraryReaderSettings) update, {
+    bool tapZones = true,
+  }) => <LibraryReaderSettingItem>[
+    toolbarMode(context, settings, update),
+    ...toggles(context, settings, update, tapZones: tapZones),
+  ];
+
+  /// "Settings specific to this book" and "Revert to general settings",
+  /// while the title has navigation choices of its own.
+  static List<LibraryReaderSettingItem> bookReset(
+    BuildContext context,
+    LibraryReaderBookSettingsEditor editor,
+  ) {
+    if (!editor.hasOwnSettings) return const <LibraryReaderSettingItem>[];
+    String t(String key) => LibraryReaderLocale.text(context, key);
+    return <LibraryReaderSettingItem>[
+      LibraryReaderSettingNote(t('bookSettingsActive')),
+      LibraryReaderActionSetting(
+        label: t('resetBookSettings'),
+        icon: Icons.settings_backup_restore_rounded,
+        onPressed: editor.reset,
+      ),
+    ];
   }
 
   static List<LibraryReaderSettingItem> toggles(

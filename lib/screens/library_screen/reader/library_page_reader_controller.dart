@@ -195,12 +195,17 @@ class LibraryPageReaderController extends ChangeNotifier {
     );
   }
 
-  /// Opens chapter [index] at its first page, or its last with [fromEnd].
-  Future<void> openChapter(int index, {bool fromEnd = false}) {
+  /// Opens chapter [index] at its first page, its last with [fromEnd], or
+  /// at [page] (zero-based, clamped: a bookmark).
+  Future<void> openChapter(int index, {bool fromEnd = false, int? page}) {
     if (index < 0 || index >= content.chapters.length) {
       return Future<void>.value();
     }
-    return _load(index, requestedPage: fromEnd ? -1 : 0, resume: false);
+    return _load(
+      index,
+      requestedPage: page ?? (fromEnd ? -1 : 0),
+      resume: false,
+    );
   }
 
   Future<void> nextChapter() =>
