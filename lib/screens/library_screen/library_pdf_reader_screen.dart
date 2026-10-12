@@ -5,21 +5,38 @@ import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'package:neostation/l10n/library_reader_locale.dart';
+import 'package:neostation/services/library_local_models.dart'
+    show LibraryBookException, LibraryBookIssue;
 import 'package:neostation/services/library_reader_orientation.dart';
 import 'package:neostation/services/library_reading_store.dart';
 
+import 'reader/library_page_curl.dart' show LibraryPageTurnDirection;
+import 'reader/library_pdf_pages_view.dart';
 import 'reader/library_reader_chrome.dart';
+import 'reader/library_reader_effective_settings.dart';
 import 'reader/library_reader_errors.dart';
 import 'reader/library_reader_gamepad.dart';
 import 'reader/library_reader_palette.dart';
 import 'reader/library_reader_sheets.dart';
 import 'reader/library_reader_system.dart';
 
-/// Full-screen PDF reader (local library books and Library downloads).
+/// Full-screen PDF reader (local library books and Library downloads), in
+/// two modes (docs/library-books-3d-plan.md § 3.6):
 ///
-/// Pages are drawn edge to edge by pdfrx; the chrome stays inside the safe
-/// area. With a [progressKey] the page is restored and saved (debounced,
-/// and when the app goes to the background or the reader closes).
+/// * [LibraryPdfMode.pages]: one page, or a two-page spread where the
+///   double page applies (landscape in automatic mode), turned like a book
+///   ([LibraryPdfPagesView]: page curl, slide or no animation). No zoom,
+///   text selection or links in this mode.
+/// * [LibraryPdfMode.scroll]: the continuous, zoomable pdfrx viewer of
+///   Build 440, in two columns where the double page applies.
+///
+/// The mode is the one chosen for this session
+/// ([LibraryPdfReaderScreenState.toggleMode]), else the book's
+/// (`LibraryReaderBookSettings.pdfMode`), else the global reader setting
+/// (pages by default). Pages are drawn edge to edge; the chrome stays inside
+/// the safe area. With a [progressKey] the page is restored and saved
+/// (`page:N`, in both modes; debounced, and when the app goes to the
+/// background or the reader closes).
 class LibraryPdfReaderScreen extends StatefulWidget {
   const LibraryPdfReaderScreen({
     super.key,
@@ -29,6 +46,7 @@ class LibraryPdfReaderScreen extends StatefulWidget {
     this.subtitle,
     this.store,
     this.orientation,
+    this.openDocument,
   });
 
   final String filePath;
@@ -39,6 +57,11 @@ class LibraryPdfReaderScreen extends StatefulWidget {
   final String? subtitle;
   final LibraryReadingStore? store;
   final LibraryReaderOrientation? orientation;
+
+  /// Opens the document of the pages mode; null uses [libraryPdfOpenFile]
+  /// (test seam: `flutter test` has no PDFium). The scroll mode keeps the
+  /// viewer's own loading.
+  final LibraryPdfDocumentOpener? openDocument;
 
   @override
   State<LibraryPdfReaderScreen> createState() => LibraryPdfReaderScreenState();
@@ -80,7 +103,30 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   late final LibraryReaderChromeController _chrome;
   late final LibraryReaderSystemSession _system;
   late LibraryReaderSettings _settings;
-  final PdfViewerController _viewer = PdfViewerController();
+
+  /// Navigation settings of this book (null: the global settings).
+  LibraryReaderBookSettings? _book;
+
+  /// Mode chosen by [toggleMode] for this session; dropped when the stored
+  /// choice changes (the settings sheet, another reader).
+  LibraryPdfMode? _sessionMode;
+
+  /// Mode on screen; null until the store is read.
+  LibraryPdfMode? _mode;
+  bool _reduceMotion = false;
+
+  // Scroll mode: one controller per viewer (a closing viewer detaches its
+  // controller).
+  PdfViewerController _viewer = PdfViewerController();
+
+  // Pages mode.
+  final GlobalKey<LibraryPdfPagesViewState> _pagesKey =
+      GlobalKey<LibraryPdfPagesViewState>();
+  PdfDocument? _document;
+  Object? _openError;
+  int _openGeneration = 0;
+
+  /// One-based page the reader is at (both modes).
   final ValueNotifier<int> _page = ValueNotifier<int>(1);
   int _pageCount = 0;
   bool _ready = false;
@@ -95,21 +141,42 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   bool _sliderDragging = false;
   int? _reportedPage;
 
+  /// Controller actions (docs/library-books-3d-plan.md § 3.10): the d-pad
+  /// turns the page (in the pages mode through the page curl when it is on;
+  /// left and right follow the screen, right to left books turn forward to
+  /// the left), LB/RB move ten pages and X opens the table of contents in
+  /// both modes; the right stick click fits the page, in the scroll mode
+  /// only. Y is not bound (the bookmarks come later).
   @visibleForTesting
   LibraryReaderGamepadBindings get gamepadBindings =>
       LibraryReaderGamepadBindings(
-        left: () => _goRelative(-1),
-        right: () => _goRelative(1),
-        up: () => _goRelative(-1),
-        down: () => _goRelative(1),
+        left: () => _turnSide(-1),
+        right: () => _turnSide(1),
+        up: () => _turnBy(-1),
+        down: () => _turnBy(1),
         leftBumper: () => _goRelative(-10),
         rightBumper: () => _goRelative(10),
         select: _chrome.toggle,
         back: _close,
         x: _openOutline,
-        y: _fitPage,
         start: _openSettings,
+        rightStickClick: _mode == LibraryPdfMode.scroll ? _fitPage : null,
       );
+
+  /// Mode on screen (null before the reading store is read).
+  @visibleForTesting
+  LibraryPdfMode? get mode => _mode;
+
+  /// One-based page the reader is at.
+  @visibleForTesting
+  int get pageNumber => _page.value;
+
+  /// The document (pages mode) or the viewer (scroll mode) is ready.
+  @visibleForTesting
+  bool get ready => _ready;
+
+  @visibleForTesting
+  bool get chromeVisible => _chrome.visible;
 
   @override
   void initState() {
@@ -131,12 +198,14 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     final key = widget.progressKey;
     setState(() {
       _settings = _store.settings;
+      _book = key == null ? null : _store.bookSettingsFor(key);
       _initialPage = key == null
           ? 1
           : libraryPdfInitialPage(_store.progressFor(key));
       _page.value = _initialPage;
       _storeLoaded = true;
     });
+    _syncMode();
     unawaited(_system.start(_settings));
   }
 
@@ -145,6 +214,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     super.didChangeDependencies();
     // VoiceOver: the bars stay until the user hides them.
     _chrome.accessibleNavigation = MediaQuery.accessibleNavigationOf(context);
+    // Reduce Motion: the pages mode turns without animation.
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
   }
 
   @override
@@ -155,6 +226,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     _store.removeListener(_onStore);
     _chrome.dispose();
     _page.dispose();
+    _closeDocument();
     unawaited(_system.stop());
     unawaited(_store.flush().catchError((Object _) {}));
     super.dispose();
@@ -166,21 +238,148 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
+      _commitTurnInFlight();
       _saveNow();
       unawaited(_store.flush().catchError((Object _) {}));
     }
   }
 
   void _onStore() {
+    if (!mounted) return;
     final settings = _store.settings;
-    if (settings == _settings || !mounted) return;
-    setState(() => _settings = settings);
-    _system.update(settings);
+    final key = widget.progressKey;
+    final book = key == null ? null : _store.bookSettingsFor(key);
+    if (settings == _settings && book == _book) return;
+    final previous = _settings;
+    final stored = _storedMode;
+    setState(() {
+      _settings = settings;
+      _book = book;
+    });
+    if (_storedMode != stored) _sessionMode = null;
+    _syncMode();
+    if (settings != previous) _system.update(settings);
   }
+
+  // ---------------------------------------------------------------- mode --
+
+  /// The book's choice, else the global one.
+  LibraryPdfMode get _storedMode => _book?.pdfMode ?? _settings.pdfMode;
+
+  LibraryReaderEffectiveSettings get _effective =>
+      LibraryReaderEffectiveSettings.resolve(
+        global: _settings,
+        book: _book,
+        session: _reduceMotion
+            ? const LibraryReaderSessionOverrides(
+                turnStyle: LibraryPageTurnStyle.none,
+              )
+            : null,
+      );
+
+  /// Switches between the pages and the scroll mode at the page being read
+  /// (the mode button of the toolbar). The choice is kept for this book
+  /// (`bookSettings[progressKey].pdfMode`); without a progress key it lasts
+  /// for this session.
+  void toggleMode() {
+    final current = _mode;
+    if (current == null || !mounted) return;
+    _commitTurnInFlight();
+    final next = current == LibraryPdfMode.pages
+        ? LibraryPdfMode.scroll
+        : LibraryPdfMode.pages;
+    _sessionMode = next;
+    final key = widget.progressKey;
+    if (key != null) {
+      final book =
+          _store.bookSettingsFor(key) ?? const LibraryReaderBookSettings();
+      _store.updateBookSettings(key, book.copyWith(pdfMode: next));
+    }
+    _syncMode();
+  }
+
+  /// Shows the mode resolved from the session, the book and the global
+  /// settings; a new mode opens at the page being read.
+  void _syncMode() {
+    if (!mounted || !_storeLoaded) return;
+    final mode = _sessionMode ?? _storedMode;
+    if (mode == _mode) return;
+    setState(() {
+      _mode = mode;
+      _ready = false;
+      _reportedPage = null;
+      _initialPage = _page.value;
+      if (mode == LibraryPdfMode.scroll) _viewer = PdfViewerController();
+    });
+    if (mode == LibraryPdfMode.pages) {
+      unawaited(_openDocument());
+    } else {
+      _closeDocument();
+    }
+  }
+
+  /// Opens the document of the pages mode (the scroll viewer opens its own).
+  Future<void> _openDocument() async {
+    final generation = ++_openGeneration;
+    if (_openError != null) setState(() => _openError = null);
+    final PdfDocument document;
+    try {
+      document = await (widget.openDocument ?? libraryPdfOpenFile)(
+        widget.filePath,
+      );
+    } catch (error) {
+      if (!mounted || generation != _openGeneration) return;
+      setState(() => _openError = error);
+      return;
+    }
+    if (!mounted ||
+        generation != _openGeneration ||
+        _mode != LibraryPdfMode.pages) {
+      // The reader left the pages mode (or closed) meanwhile.
+      unawaited(_disposeDocument(document));
+      return;
+    }
+    final count = document.pages.length;
+    if (count == 0) {
+      unawaited(_disposeDocument(document));
+      setState(
+        () =>
+            _openError = const LibraryBookException(LibraryBookIssue.noContent),
+      );
+      return;
+    }
+    setState(() {
+      _document = document;
+      _pageCount = count;
+      _ready = true;
+      _page.value = _page.value.clamp(1, count);
+    });
+  }
+
+  /// Closes the document of the pages mode and forgets an open in progress.
+  void _closeDocument() {
+    _openGeneration++;
+    _openError = null;
+    final document = _document;
+    _document = null;
+    if (document != null) unawaited(_disposeDocument(document));
+  }
+
+  static Future<void> _disposeDocument(PdfDocument document) async {
+    try {
+      await document.dispose();
+    } catch (_) {}
+  }
+
+  LibraryPdfPagesViewState? get _pagesView =>
+      _mode == LibraryPdfMode.pages && _ready ? _pagesKey.currentState : null;
+
+  // ------------------------------------------------------------ progress --
 
   void _close() {
     if (_closing || !mounted) return;
     _closing = true;
+    _commitTurnInFlight();
     // Saved before the pop, while the screens below can rebuild for it.
     _saveNow();
     Navigator.of(context).maybePop().then((popped) {
@@ -197,17 +396,40 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   /// (the session stops once).
   void _onPopped(bool didPop, Object? _) {
     if (!didPop) return;
+    _commitTurnInFlight();
     _saveNow();
     _leaving = true;
     unawaited(_system.stop());
   }
 
+  /// A page turning when the reader closes, goes to the background or
+  /// switches modes counts as turned: its page is saved, not the one being
+  /// left.
+  void _commitTurnInFlight() {
+    if (_leaving) return;
+    final target = _pagesView?.turningToPage;
+    if (target == null || target + 1 == _page.value) return;
+    _page.value = target + 1;
+    _dirty = true;
+  }
+
+  /// Page reported by the pdfrx viewer (scroll mode).
   void _onPageChanged(int? pageNumber) {
     if (pageNumber == null || _leaving) return;
     final turned = _reportedPage != null && _reportedPage != pageNumber;
     _reportedPage = pageNumber;
-    _page.value = pageNumber;
     // The first report is the initial page: the chrome stays for a moment.
+    _pageReached(pageNumber, turned: turned);
+  }
+
+  /// Zero-based page reported by the pages mode (a turn or a jump).
+  void _onPagesPageChanged(int page) {
+    if (_leaving) return;
+    _pageReached(page + 1, turned: true);
+  }
+
+  void _pageReached(int pageNumber, {required bool turned}) {
+    _page.value = pageNumber;
     if (turned && !_sliderDragging) _chrome.hideAfterTurn();
     if (widget.progressKey == null) return;
     _dirty = true;
@@ -232,14 +454,49 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     );
   }
 
+  // ---------------------------------------------------------- navigation --
+
+  /// D-pad left/right: the page on that side (pages mode), the previous or
+  /// next page (scroll mode).
+  void _turnSide(int side) {
+    if (_mode == LibraryPdfMode.pages) {
+      _pagesView?.turnVisual(side);
+      return;
+    }
+    _goRelative(side);
+  }
+
+  /// D-pad up/down: the previous or next page.
+  void _turnBy(int delta) {
+    if (_mode == LibraryPdfMode.pages) {
+      _pagesView?.turn(
+        delta > 0
+            ? LibraryPageTurnDirection.forward
+            : LibraryPageTurnDirection.backward,
+      );
+      return;
+    }
+    _goRelative(delta);
+  }
+
   void _goRelative(int delta) {
-    if (!_ready || !_viewer.isReady) return;
+    if (!_ready) return;
+    if (_mode == LibraryPdfMode.pages) {
+      _pagesView?.jumpToPage(_page.value - 1 + delta);
+      return;
+    }
+    if (!_viewer.isReady) return;
     final target = (_page.value + delta).clamp(1, _viewer.pageCount);
     unawaited(_viewer.goToPage(pageNumber: target));
   }
 
   void _goToPage(int pageNumber) {
-    if (!_ready || !_viewer.isReady) return;
+    if (!_ready) return;
+    if (_mode == LibraryPdfMode.pages) {
+      _pagesView?.jumpToPage(pageNumber - 1);
+      return;
+    }
+    if (!_viewer.isReady) return;
     unawaited(
       _viewer.goToPage(
         pageNumber: pageNumber.clamp(1, _viewer.pageCount),
@@ -248,19 +505,40 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     );
   }
 
+  /// "Fit": the scroll mode only (the pages mode always shows whole pages).
   void _fitPage() {
-    if (!_ready || !_viewer.isReady) return;
+    if (_mode != LibraryPdfMode.scroll || !_ready || !_viewer.isReady) return;
     final matrix = _viewer.calcMatrixForFit(pageNumber: _page.value);
     if (matrix != null) unawaited(_viewer.goTo(matrix));
   }
 
+  /// A tap on the pages: a side third turns toward it (tap zones), the
+  /// middle (or any tap without tap zones) shows or hides the chrome.
+  void _onPagesTap(int zone) {
+    if (zone == 0 || !_settings.tapZones) {
+      _chrome.toggle();
+      return;
+    }
+    if (_chrome.visible) _chrome.hide();
+    _turnSide(zone);
+  }
+
   Future<void> _openOutline() async {
-    if (!_ready || !_viewer.isReady) return;
+    if (!_ready) return;
+    final PdfDocument document;
+    if (_mode == LibraryPdfMode.pages) {
+      final open = _document;
+      if (open == null) return;
+      document = open;
+    } else {
+      if (!_viewer.isReady) return;
+      document = _viewer.document;
+    }
     _chrome.hold();
     try {
       List<PdfOutlineNode> outline;
       try {
-        outline = await _viewer.document.loadOutline();
+        outline = await document.loadOutline();
       } catch (_) {
         outline = const <PdfOutlineNode>[];
       }
@@ -299,7 +577,12 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
       );
       if (index == null || !mounted) return;
       final dest = destinations[index];
-      if (dest != null) unawaited(_viewer.goToDest(dest));
+      if (dest == null) return;
+      if (_mode == LibraryPdfMode.pages) {
+        _goToPage(dest.pageNumber);
+      } else if (_viewer.isReady) {
+        unawaited(_viewer.goToDest(dest));
+      }
     } finally {
       if (mounted) _chrome.release();
     }
@@ -323,7 +606,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
             context,
             settings,
             update,
-            tapZones: false,
+            // The side thirds turn the pages of the pages mode only.
+            tapZones: _mode == LibraryPdfMode.pages,
           ),
         ],
       );
@@ -338,6 +622,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
         MediaQuery.platformBrightnessOf(context),
       );
 
+  // --------------------------------------------------------------- build --
+
   bool _onGeneralTap(
     BuildContext context,
     PdfViewerController controller,
@@ -348,66 +634,112 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     return true;
   }
 
-  Widget _errorBanner(
-    BuildContext context,
-    Object error,
-    StackTrace? stackTrace,
-    PdfDocumentRef documentRef,
-  ) {
+  Widget _errorView(LibraryReaderPalette palette, Object error) {
     return ColoredBox(
-      color: _palette(context).background,
+      color: palette.background,
       child: SafeArea(
         child: LibraryReaderErrorView(
           error: LibraryReaderErrorInfo.from(error),
-          palette: _palette(context),
+          palette: palette,
           onClose: _close,
         ),
       ),
     );
   }
 
+  Widget _errorBanner(
+    BuildContext context,
+    Object error,
+    StackTrace? stackTrace,
+    PdfDocumentRef documentRef,
+  ) => _errorView(_palette(context), error);
+
+  /// The pdfrx viewer of Build 440, in two columns where the double page
+  /// applies.
+  Widget _buildScroll(
+    LibraryReaderPalette palette,
+    LibraryReaderEffectiveSettings effective,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns = effective.doublePageApplies(
+          landscape: constraints.maxWidth > constraints.maxHeight,
+          vertical: false,
+        );
+        return PdfViewer.file(
+          widget.filePath,
+          controller: _viewer,
+          initialPageNumber: _initialPage,
+          params: PdfViewerParams(
+            backgroundColor: palette.background,
+            margin: 4,
+            layoutPages: twoColumns
+                ? (pages, params) => libraryPdfSpreadLayout(
+                    pages,
+                    params,
+                    firstPageAlone: effective.firstPageAlone,
+                    rightToLeft: effective.rightToLeft,
+                  )
+                : null,
+            enableKeyboardNavigation: false,
+            maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
+            sizeDelegateProvider: const PdfViewerSizeDelegateProviderLegacy(
+              maxScale: 6,
+            ),
+            onViewerReady: (document, controller) {
+              if (!mounted || _mode != LibraryPdfMode.scroll) return;
+              setState(() {
+                _ready = true;
+                _pageCount = document.pages.length;
+              });
+              if (controller.pageNumber != null) {
+                _page.value = controller.pageNumber!;
+              }
+            },
+            onPageChanged: _onPageChanged,
+            onGeneralTap: _onGeneralTap,
+            errorBannerBuilder: _errorBanner,
+            loadingBannerBuilder: (context, _, _) =>
+                _LibraryPdfLoading(palette: palette),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPages(
+    LibraryReaderPalette palette,
+    LibraryReaderEffectiveSettings effective,
+  ) {
+    final error = _openError;
+    if (error != null) return _errorView(palette, error);
+    final document = _document;
+    if (document == null) return _LibraryPdfLoading(palette: palette);
+    return LibraryPdfPagesView(
+      key: _pagesKey,
+      document: document,
+      contentKey: widget.filePath,
+      initialPage: _page.value - 1,
+      palette: palette,
+      turnStyle: effective.turnStyle,
+      doublePage: effective.doublePage,
+      firstPageAlone: effective.firstPageAlone,
+      rightToLeft: effective.rightToLeft,
+      onPageChanged: _onPagesPageChanged,
+      onTap: _onPagesTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = _palette(context);
-    final viewer = !_storeLoaded
-        ? const SizedBox.expand()
-        : PdfViewer.file(
-            widget.filePath,
-            controller: _viewer,
-            initialPageNumber: _initialPage,
-            params: PdfViewerParams(
-              backgroundColor: palette.background,
-              margin: 4,
-              enableKeyboardNavigation: false,
-              maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
-              sizeDelegateProvider: const PdfViewerSizeDelegateProviderLegacy(
-                maxScale: 6,
-              ),
-              onViewerReady: (document, controller) {
-                if (!mounted) return;
-                setState(() {
-                  _ready = true;
-                  _pageCount = document.pages.length;
-                });
-                if (controller.pageNumber != null) {
-                  _page.value = controller.pageNumber!;
-                }
-              },
-              onPageChanged: _onPageChanged,
-              onGeneralTap: _onGeneralTap,
-              errorBannerBuilder: _errorBanner,
-              loadingBannerBuilder: (context, _, _) => Center(
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    color: palette.secondaryText,
-                  ),
-                ),
-              ),
-            ),
-          );
+    final effective = _effective;
+    final mode = _mode;
+    final content = switch (mode) {
+      null => const SizedBox.expand(),
+      LibraryPdfMode.scroll => _buildScroll(palette, effective),
+      LibraryPdfMode.pages => _buildPages(palette, effective),
+    };
     String t(String key) => LibraryReaderLocale.text(context, key);
     return PopScope<Object?>(
       onPopInvokedWithResult: _onPopped,
@@ -422,7 +754,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
             backgroundColor: palette.background,
             body: ListenableBuilder(
               listenable: Listenable.merge(<Listenable>[_chrome, _page]),
-              child: viewer,
+              child: content,
               builder: (context, content) => LibraryReaderChromeOverlay(
                 visible: _chrome.visible || !_ready,
                 content: content!,
@@ -442,7 +774,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
                         onPressed: _openOutline,
                         color: palette.chromeForeground,
                       ),
-                    if (_ready)
+                    // The pages mode has no zoom: nothing to fit.
+                    if (_ready && mode == LibraryPdfMode.scroll)
                       LibraryReaderIconButton(
                         icon: Icons.fit_screen_rounded,
                         tooltip: t('fitPage'),
@@ -464,6 +797,10 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
                           palette: palette,
                           page: _page.value - 1,
                           pageCount: _pageCount,
+                          // Like the pages of a right-to-left book.
+                          rightToLeft:
+                              mode == LibraryPdfMode.pages &&
+                              effective.rightToLeft,
                           onChangeStart: (_) {
                             _sliderDragging = true;
                             _chrome.hold();
@@ -480,6 +817,27 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The spinner shown while a document opens (both modes).
+class _LibraryPdfLoading extends StatelessWidget {
+  const _LibraryPdfLoading({required this.palette});
+
+  final LibraryReaderPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: 32,
+        height: 32,
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          color: palette.secondaryText,
         ),
       ),
     );

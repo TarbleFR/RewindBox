@@ -330,17 +330,24 @@ Future<PdfViewerParams> makePdfReady(
   return params;
 }
 
+/// The PDF reader in its scroll mode: the pdfrx viewer of Build 440, the
+/// path these tests cover (set explicitly since the pages mode became the
+/// default; the pages mode has its own Back tests in
+/// library_reader_pdf_modes_test.dart).
 LibraryPdfReaderScreen pdfReader(
   LibraryReadingStore store, {
   LibraryReaderOrientation? orientation,
   String progressKey = 'local:pdf',
-}) => LibraryPdfReaderScreen(
-  filePath: '${Directory.systemTemp.path}/missing-back-button.pdf',
-  title: 'Manual',
-  progressKey: progressKey,
-  store: store,
-  orientation: orientation,
-);
+}) {
+  store.updateSettings(store.settings.copyWith(pdfMode: LibraryPdfMode.scroll));
+  return LibraryPdfReaderScreen(
+    filePath: '${Directory.systemTemp.path}/missing-back-button.pdf',
+    title: 'Manual',
+    progressKey: progressKey,
+    store: store,
+    orientation: orientation,
+  );
+}
 
 LibraryBookReaderScreen bookReader(
   LibraryReadingStore store, {
