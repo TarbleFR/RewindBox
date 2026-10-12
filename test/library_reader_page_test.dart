@@ -50,6 +50,22 @@ Future<void> drive(WidgetTester tester, Future<void> work) async {
   expect(done, isTrue);
 }
 
+// Build 447 defaults (docs/library-books-3d-plan.md § 3.9, Q16): pages turn
+// with a curl, and two pages are shown side by side in landscape, which the
+// 900 x 600 test surface is. The tests of the 440 page path that depend on
+// it set it explicitly; the new behaviour has its own tests
+// (test/library_reader_page_*_test.dart).
+
+/// One page per screen (the 440 layout), also on the landscape surface.
+void useSinglePages(LibraryReadingStore store) => store.updateSettings(
+  store.settings.copyWith(doublePage: LibraryDoublePageMode.never),
+);
+
+/// The 440 page turn: the PageView slide.
+void useSlideTurns(LibraryReadingStore store) => store.updateSettings(
+  store.settings.copyWith(turnStyle: LibraryPageTurnStyle.slide),
+);
+
 void main() {
   setUpReaderEnvironment();
 
@@ -218,6 +234,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useSinglePages(store);
       final content = FakePageContent(progressKey: 'local:taps');
       await pumpReader(
         tester,
@@ -380,6 +397,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useSinglePages(store);
       final content = FakePageContent(
         layoutHint: LibraryPageLayoutHint.rightToLeft,
       );
@@ -474,6 +492,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, directory) = await createStore(tester);
+      useSinglePages(store);
       final navigator = await pumpReader(
         tester,
         LibraryPageReaderScreen(
@@ -852,6 +871,9 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      // The 440 slide reaches page 1 within 150 ms (a curl lands at 380 ms:
+      // test/library_reader_page_turns_test.dart closes during one).
+      useSlideTurns(store);
       await pumpReader(
         tester,
         LibraryPageReaderScreen(
@@ -1166,6 +1188,7 @@ void main() {
     ) async {
       useSurface(tester);
       final (store, _) = await createStore(tester);
+      useSinglePages(store);
       final source = _SlowPageSource(60);
       await pumpReader(
         tester,

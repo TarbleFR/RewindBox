@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -8,6 +9,7 @@ import 'package:neostation/services/library_reading_store.dart';
 
 import 'library_page_reader_content.dart';
 import 'library_page_source.dart';
+import 'library_reader_effective_settings.dart';
 import 'library_reader_errors.dart';
 
 enum LibraryPageReaderStatus { loading, ready, error }
@@ -19,7 +21,12 @@ enum LibraryPageReaderMode { paged, vertical }
 ///
 /// Progress is written to [store] debounced (and at once by [saveNow], on
 /// chapter changes and on [dispose]); reaching the last page of an online
-/// chapter marks it read.
+/// chapter marks it read (in a two-page spread, showing it beside the page
+/// before does).
+///
+/// The reading layout follows [effective]: session override > settings of
+/// the title (`LibraryReadingStore.bookSettingsFor`) > content hint >
+/// global settings (docs/library-books-3d-plan.md § 3.9).
 class LibraryPageReaderController extends ChangeNotifier {
   LibraryPageReaderController({
     required this.content,
@@ -43,6 +50,11 @@ class LibraryPageReaderController extends ChangeNotifier {
   LibraryCancelToken? _token;
   LibraryPageReaderMode? _modeOverride;
   bool? _directionOverride;
+  bool _reduceMotion = false;
+
+  /// Last page on screen, at least [_page] (a two-page spread shows the
+  /// next one beside it).
+  int _lastShown = 0;
   Timer? _saveTimer;
   bool _dirty = false;
   bool _disposed = false;
@@ -79,41 +91,67 @@ class LibraryPageReaderController extends ChangeNotifier {
 
   bool get isLastPage => pageCount > 0 && _page >= pageCount - 1;
 
+  /// Last page on screen: [page], or the page shown beside it in a two-page
+  /// spread (paged layout only).
+  int get lastShownPage =>
+      mode == LibraryPageReaderMode.vertical ? _page : _lastShown;
+
+  /// Whether the last page of the chapter is on screen (alone or in a
+  /// spread).
+  bool get lastPageShown => pageCount > 0 && lastShownPage >= pageCount - 1;
+
+  /// Global reader settings.
   LibraryReaderSettings get settings => store.settings;
 
-  /// Paged or vertical, from the session override, the settings, then the
-  /// content's hint.
-  LibraryPageReaderMode get mode {
-    final override = _modeOverride;
-    if (override != null) return override;
-    return switch (settings.mangaMode) {
-      LibraryMangaMode.paged => LibraryPageReaderMode.paged,
-      LibraryMangaMode.vertical => LibraryPageReaderMode.vertical,
-      LibraryMangaMode.auto =>
-        content.layoutHint == LibraryPageLayoutHint.vertical
-            ? LibraryPageReaderMode.vertical
-            : LibraryPageReaderMode.paged,
-    };
-  }
+  /// Settings chosen for this title (null: the global ones apply).
+  LibraryReaderBookSettings? get bookSettings =>
+      store.bookSettingsFor(content.progressKey);
+
+  /// What this session imposes: [toggleMode], [overrideDirection] and, with
+  /// [reduceMotion], pages turned without animation.
+  LibraryReaderSessionOverrides get sessionOverrides =>
+      LibraryReaderSessionOverrides(
+        mode: _modeOverride,
+        pageDirection: switch (_directionOverride) {
+          null => null,
+          true => LibraryPageDirection.rtl,
+          false => LibraryPageDirection.ltr,
+        },
+        turnStyle: _reduceMotion ? LibraryPageTurnStyle.none : null,
+      );
+
+  /// The settings in effect: session override > settings of the title >
+  /// content hint (automatic mode) > global settings.
+  LibraryReaderEffectiveSettings get effective =>
+      LibraryReaderEffectiveSettings.resolve(
+        global: settings,
+        book: bookSettings,
+        hint: content.layoutHint,
+        session: sessionOverrides,
+      );
+
+  /// Paged or vertical: the session override, the title's mode, the
+  /// content's hint in automatic mode, then the global mode ([effective]).
+  LibraryPageReaderMode get mode => effective.mode;
 
   /// Right-to-left page turning (manga) in paged mode: the direction chosen
-  /// in this session, else the content's hint in automatic mode, else the
-  /// stored setting.
-  bool get rightToLeft {
-    final override = _directionOverride;
-    if (override != null) return override;
-    if (settings.mangaMode == LibraryMangaMode.auto) {
-      switch (content.layoutHint) {
-        case LibraryPageLayoutHint.rightToLeft:
-          return true;
-        case LibraryPageLayoutHint.leftToRight:
-        case LibraryPageLayoutHint.vertical:
-          return false;
-        case LibraryPageLayoutHint.unknown:
-          break;
-      }
-    }
-    return settings.pageDirection == LibraryPageDirection.rtl;
+  /// in this session, else the title's direction, else the content's hint
+  /// in automatic mode, else the global setting ([effective]).
+  bool get rightToLeft => effective.rightToLeft;
+
+  /// Page turn of the paged layout ([LibraryPageTurnStyle.none] with
+  /// [reduceMotion]).
+  LibraryPageTurnStyle get turnStyle => effective.turnStyle;
+
+  /// The system asks for reduced motion (the reader passes
+  /// `MediaQuery.disableAnimationsOf`): pages turn without animation,
+  /// whatever the settings say (a session override, never saved).
+  bool get reduceMotion => _reduceMotion;
+
+  set reduceMotion(bool value) {
+    if (_reduceMotion == value) return;
+    _reduceMotion = value;
+    _notify();
   }
 
   /// Switches between paged and vertical for this session only.
@@ -176,13 +214,20 @@ class LibraryPageReaderController extends ChangeNotifier {
   Future<void> retry() =>
       _load(_chapterIndex, requestedPage: _retryPage, resume: _retryResume);
 
-  /// The view shows page [page] (zero-based) of the chapter.
-  void setPage(int page) {
+  /// The view shows page [page] (zero-based) of the chapter and, in a
+  /// two-page spread, the pages up to [through] beside it. [page] is the
+  /// position saved; [through] counts for [lastPageShown] and [fraction].
+  void setPage(int page, {int? through}) {
     if (_finished) return;
     if (_status != LibraryPageReaderStatus.ready || pageCount == 0) return;
     final clamped = page.clamp(0, pageCount - 1);
-    if (clamped == _page) return;
+    final last = math.max(
+      clamped,
+      (through ?? clamped).clamp(0, pageCount - 1),
+    );
+    if (clamped == _page && last == _lastShown) return;
     _page = clamped;
+    _lastShown = last;
     _notify();
     _pageShown();
   }
@@ -224,6 +269,7 @@ class LibraryPageReaderController extends ChangeNotifier {
         requested: requestedPage,
         resume: resume,
       );
+      _lastShown = _page;
       _status = LibraryPageReaderStatus.ready;
       _generation++;
       _notify();
@@ -263,7 +309,9 @@ class LibraryPageReaderController extends ChangeNotifier {
   void _pageShown() {
     if (_finished) return;
     _dirty = true;
-    if (content.tracksChapters && isLastPage && _markedRead.add(chapter.id)) {
+    if (content.tracksChapters &&
+        lastPageShown &&
+        _markedRead.add(chapter.id)) {
       store.markChapter(
         content.progressKey,
         chapter.id,
@@ -276,12 +324,13 @@ class LibraryPageReaderController extends ChangeNotifier {
     _saveTimer = Timer(saveDelay, saveNow);
   }
 
-  /// Overall reading fraction: the page inside the chapter, and for online
-  /// titles the chapter inside the title.
+  /// Overall reading fraction: the last page shown inside the chapter (a
+  /// spread counts both its pages), and for online titles the chapter
+  /// inside the title.
   double get fraction {
     final count = pageCount;
     if (count == 0) return 0;
-    final inChapter = (_page + 1) / count;
+    final inChapter = (lastShownPage + 1) / count;
     if (!content.tracksChapters || content.chapters.length <= 1) {
       return inChapter;
     }
