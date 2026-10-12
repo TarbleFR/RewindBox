@@ -13,6 +13,7 @@ import '../../services/libretro_3ds_system_data_service.dart';
 import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_core_option_store.dart';
 import '../../services/logger_service.dart';
+import '../../services/rpcs3_save_exchange_service.dart' show Rpcs3SaveExchangeService;
 import '../../widgets/confirm_action_dialog.dart';
 import 'libretro_library_actions.dart' show libretroLibraryLocation;
 import 'libretro_skin_manager_screen.dart';
@@ -28,26 +29,32 @@ typedef Libretro3dsFolderPicker = Future<String?> Function();
 typedef Libretro3dsAnalyzer =
     Future<Libretro3dsImportPlan> Function(List<String> sources);
 
+/// Forgets the folder picked for an import once its pass is over.
+typedef Libretro3dsFolderRelease = Future<void> Function();
+
 /// Emulators tab of the Nintendo 3DS › "System settings" (Build 447,
-/// docs/libretro-3ds-system-settings.md § 3.4).
+/// docs/libretro-3ds-system-settings.md § 3.4 and § 6.4).
 ///
 /// System: the language, region and model of the emulated console, read
 /// from and written to `Config/Azahar.json` through [LibretroCoreOptionStore]
 /// (one file per core, no per-game scope). The language entry "Automatic"
 /// is the absence of a stored value: the launch then hands the core the
-/// language matching NeoStation's ([Libretro3dsLanguage]). The core applies
-/// the language only while the region is Auto, hence the warning and the
-/// "back to Auto" button when a fixed region is chosen.
+/// language matching NeoStation's ([Libretro3dsLanguage]). An absent region
+/// or model is the core's own default, which the page does not name. The
+/// core applies the language only while the region is Auto, hence the
+/// warning and the "back to Auto" button when a fixed region is chosen.
 ///
 /// System data: a read-only inventory of the core's user directory
-/// (`Saves/Azahar/Azahar`: keys, seed database, CFG save, NAND titles,
-/// region fonts, console-unique files), an import assistant (ZIP, folder
+/// (`Saves/Azahar/Azahar`: keys, seed database, NAND titles, region fonts,
+/// console data — the CFG save included), an import assistant (ZIP, folder
 /// or individual files, analyzed into a plan the user confirms, installed
-/// with per-file backups) and the restore of the last backup, all through
-/// [Libretro3dsSystemDataService]. Every write is refused while a game runs.
+/// as a crash-safe pass) and the restore of the last complete backup, all
+/// through [Libretro3dsSystemDataService]. What an interrupted pass left is
+/// dealt with when the page opens and before each analysis. Every write is
+/// refused while a game runs.
 ///
-/// Raw values (core option values, file paths, title ids, technical codes)
-/// are shown as they are, under translated labels.
+/// Raw values (core option values, file paths, title ids, technical codes,
+/// sizes, dates) are shown as they are, under translated labels.
 class Libretro3dsSystemScreen extends StatefulWidget {
   const Libretro3dsSystemScreen({
     super.key,
@@ -57,6 +64,7 @@ class Libretro3dsSystemScreen extends StatefulWidget {
     this.pickFiles,
     this.pickFolder,
     this.analyze,
+    this.releaseFolder,
   });
 
   /// Option store (tests); the app's own by default.
@@ -81,6 +89,19 @@ class Libretro3dsSystemScreen extends StatefulWidget {
   /// separate isolate by default.
   final Libretro3dsAnalyzer? analyze;
 
+  /// Forgets the picked folder (tests); clears its bookmark by default.
+  final Libretro3dsFolderRelease? releaseFolder;
+
+  /// When a backup was made, in the phone's time zone, as an unambiguous
+  /// date and time (`2026-10-12 10:00`, never translated).
+  @visibleForTesting
+  static String backupDate(DateTime createdAt) {
+    final local = createdAt.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)} '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+
   @override
   State<Libretro3dsSystemScreen> createState() =>
       _Libretro3dsSystemScreenState();
@@ -94,11 +115,23 @@ class _Choice {
   final String? value;
 }
 
+/// A failure shown on the page: a translated sentence and, apart, the raw
+/// technical detail.
+class _Failure {
+  const _Failure(this.textKey, this.detail);
+
+  _Failure.of(Object error) : textKey = 'system3dsFailed', detail = error;
+
+  final String textKey;
+  final Object? detail;
+}
+
 class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     with LibretroPageNavigation<Libretro3dsSystemScreen>, WidgetsBindingObserver {
   static final _log = LoggerService.instance;
 
-  /// Bookmark key of the folder picked for an import.
+  /// Bookmark key of the folder picked for an import (cleared once the
+  /// import is over).
   static const String _folderAccessKey = 'libretro-3ds-import';
 
   static const String _languageKey = 'citra_language_value';
@@ -114,7 +147,10 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
 
   Map<String, String>? _options;
   Libretro3dsInventory? _inventory;
-  bool _hasBackup = false;
+
+  /// The newest complete backup, the one "Restore the last backup" puts
+  /// back.
+  Libretro3dsBackup? _latestBackup;
   Object? _loadError;
   bool _loading = false;
   bool _loadAgain = false;
@@ -125,12 +161,22 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
   /// to the route underneath, out of the controller's reach.
   bool _busy = false;
 
-  /// The last write was refused because a game runs (or the session state
-  /// is unknown).
+  /// The last write was refused because a game runs.
   bool _sessionActive = false;
 
-  /// Raw detail of the last failed write, import or restore.
-  Object? _actionError;
+  /// Raw detail of a session probe that failed: nobody knows whether a
+  /// game runs, so nothing was written.
+  String? _sessionUnknown;
+
+  /// The last failed write, import or restore.
+  _Failure? _actionError;
+
+  /// Paths a failed pass could not put back.
+  List<String> _missing = const <String>[];
+
+  /// What the last recovery of an interrupted pass did.
+  Libretro3dsRecoveryReport? _recovery;
+  Object? _recoveryError;
 
   String _t(String key) => LibretroLocale.text(context, key);
   String _f(String key, Map<String, Object?> values) =>
@@ -143,7 +189,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_reload());
+    unawaited(_open());
   }
 
   @override
@@ -157,6 +203,38 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     // Files may have been added in the Files app, or a game may have ended
     // and stored its own choices meanwhile.
     if (state == AppLifecycleState.resumed && !_busy) unawaited(_reload());
+  }
+
+  /// Deals with what an interrupted import or restore left, then reads the
+  /// page.
+  Future<void> _open() async {
+    await _recover(quiet: true);
+    await _reload();
+  }
+
+  /// Runs the recovery of interrupted passes; false when something blocks
+  /// a new pass. On opening ([quiet]) a running game or an unknown session
+  /// state only defers it: install and restore run it again first.
+  Future<bool> _recover({required bool quiet}) async {
+    try {
+      final report = await _data.recoverUnfinished();
+      if (!mounted) return false;
+      if (!report.isEmpty) {
+        setState(() {
+          _recovery = report;
+          _recoveryError = null;
+        });
+      }
+      return !report.failed;
+    } on Libretro3dsSystemDataException catch (error) {
+      _log.w('Nintendo 3DS recovery deferred: $error');
+      if (mounted && !quiet) _showRefusal(error);
+      return false;
+    } catch (error, stackTrace) {
+      _log.e('Nintendo 3DS recovery failed', error: error, stackTrace: stackTrace);
+      if (mounted) setState(() => _recoveryError = error);
+      return false;
+    }
   }
 
   /// Reads the stored options, the inventory and the backups; a request
@@ -180,7 +258,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
           setState(() {
             _options = options;
             _inventory = inventory;
-            _hasBackup = backups.isNotEmpty;
+            _latestBackup = backups.isEmpty ? null : backups.first;
             _loadError = null;
           });
         } catch (error, stackTrace) {
@@ -203,6 +281,38 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Clears the notes of the previous action.
+  void _clearNotes() {
+    _sessionActive = false;
+    _sessionUnknown = null;
+    _actionError = null;
+    _missing = const <String>[];
+  }
+
+  /// Shows why the service refused before touching any file.
+  void _showRefusal(Libretro3dsSystemDataException error) {
+    if (error.error == Libretro3dsSystemDataError.noBackup) {
+      _notice(_t('system3dsNoBackup'));
+      return;
+    }
+    setState(() {
+      switch (error.error) {
+        case Libretro3dsSystemDataError.sessionActive:
+          if (error.sessionUnknown) {
+            _sessionUnknown = error.technicalDetail ?? '';
+          } else {
+            _sessionActive = true;
+          }
+        case Libretro3dsSystemDataError.backupDamaged:
+          _actionError = _Failure('system3dsBackupDamaged', error.technicalDetail);
+        case Libretro3dsSystemDataError.unfinishedPass:
+          _actionError = _Failure('system3dsRecoveryFailed', error.technicalDetail);
+        case Libretro3dsSystemDataError.noBackup:
+          break;
+      }
+    });
+  }
+
   // ------------------------------------------------------------ system
 
   /// Writes [changes] to `Config/Azahar.json`, then shows what the file
@@ -211,8 +321,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     if (_busy) return;
     setState(() {
       _busy = true;
-      _sessionActive = false;
-      _actionError = null;
+      _clearNotes();
     });
     try {
       await _store.write(LibretroCoreOptionStore.azaharLibraryName, changes);
@@ -225,7 +334,14 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     } on LibretroCoreOptionStoreException catch (error) {
       _log.w('Nintendo 3DS option write refused: $error');
       if (!mounted) return;
-      setState(() => _sessionActive = true);
+      // The store only attaches a detail when its session probe failed.
+      setState(() {
+        if (error.technicalDetail != null) {
+          _sessionUnknown = error.technicalDetail;
+        } else {
+          _sessionActive = true;
+        }
+      });
     } catch (error, stackTrace) {
       _log.e(
         'Nintendo 3DS option write failed',
@@ -233,7 +349,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
         stackTrace: stackTrace,
       );
       if (!mounted) return;
-      setState(() => _actionError = error);
+      setState(() => _actionError = _Failure.of(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -262,31 +378,38 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     return key == null ? value : _t(key);
   }
 
-  /// What a selector shows for its stored value (absent = the core's own
-  /// default, the first value; absent language = "Automatic").
+  /// What a selector shows for its stored value: an absent language is
+  /// "Automatic" (NeoStation's own launch default); any other absent value
+  /// is the core's own default, which the page does not claim to know.
   String _currentLabel(LibretroCuratedSetting setting) {
     final stored = _options?[setting.key];
     if (setting.key == _languageKey && stored == null) {
       final locale = Localizations.maybeLocaleOf(context) ?? const Locale('en');
       return _f('lang3dsAutomatic', {'language': _appLanguageName(locale)});
     }
-    return _valueLabel(setting, stored ?? setting.values.first);
+    if (stored == null) return _t('setting3dsCoreDefault');
+    return _valueLabel(setting, stored);
   }
 
   Future<void> _choose(LibretroCuratedSetting setting) async {
     if (_busy) return;
     final automatic = setting.key == _languageKey;
-    final stored = _options?[setting.key];
-    final current = automatic ? stored : (stored ?? setting.values.first);
+    final current = _options?[setting.key];
+    final options = <(String?, String)>[
+      if (automatic) (null, _currentLabelFor(setting, null)),
+      for (final value in setting.values) (value, _valueLabel(setting, value)),
+    ];
+    // Texts resolved now: the dialog may outlive this page's context.
+    final title = _t(setting.labelKey);
     final choice = await showDialog<_Choice>(
       context: context,
       builder: (_) => _ChoiceDialog(
-        title: _t(setting.labelKey),
-        options: <(String?, String)>[
-          if (automatic) (null, _currentLabelFor(setting, null)),
-          for (final value in setting.values) (value, _valueLabel(setting, value)),
-        ],
+        title: title,
+        options: options,
         current: current,
+        // Nothing stored and no "Automatic" entry: no value is marked, the
+        // D-pad starts on the first one.
+        focus: options.any((option) => option.$1 == current) ? current : options.first.$1,
       ),
     );
     if (choice == null || !mounted) return;
@@ -326,6 +449,20 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     return ExternalFolderAccess.pickAndActivateFolder(key: _folderAccessKey);
   }
 
+  /// Forgets the folder of an import that is over (its bookmark is not
+  /// kept across launches).
+  Future<void> _releaseFolder() async {
+    try {
+      if (widget.releaseFolder != null) {
+        await widget.releaseFolder!();
+      } else {
+        await ExternalFolderAccess.clearBookmark(key: _folderAccessKey);
+      }
+    } catch (error) {
+      _log.w('Nintendo 3DS import folder not released: $error');
+    }
+  }
+
   /// Analyzes off the UI isolate: a GodMode9 dump holds thousands of files.
   Future<Libretro3dsImportPlan> _analyze(List<String> sources) async {
     if (widget.analyze != null) return widget.analyze!(sources);
@@ -340,24 +477,24 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     );
   }
 
-  /// Import assistant: source, analysis, plan and confirmation,
-  /// installation, result.
+  /// Import assistant: source, recovery and analysis, plan and
+  /// confirmation, installation, result.
   Future<void> _import() async {
     if (_busy) return;
+    final title = _t('system3dsImport');
+    final labels = {
+      _ImportSource.zip: _t('system3dsImportZip'),
+      _ImportSource.folder: _t('system3dsImportFolder'),
+      _ImportSource.files: _t('system3dsImportFiles'),
+    };
     final source = await showDialog<_ImportSource>(
       context: context,
-      builder: (_) => _SourceDialog(
-        title: _t('system3dsImport'),
-        labels: {
-          _ImportSource.zip: _t('system3dsImportZip'),
-          _ImportSource.folder: _t('system3dsImportFolder'),
-          _ImportSource.files: _t('system3dsImportFiles'),
-        },
-      ),
+      builder: (_) => _SourceDialog(title: title, labels: labels),
     );
     if (source == null || !mounted) return;
 
     List<String>? sources;
+    var folderPicked = false;
     pausePageNavigation();
     try {
       switch (source) {
@@ -366,29 +503,46 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
           sources = await _pickFiles();
         case _ImportSource.folder:
           final folder = await _pickFolder();
+          folderPicked = folder != null;
           sources = folder == null ? null : <String>[folder];
       }
     } catch (error, stackTrace) {
       _log.e('Nintendo 3DS import picker failed', error: error, stackTrace: stackTrace);
-      if (mounted) setState(() => _actionError = error);
+      if (mounted) setState(() => _actionError = _Failure.of(error));
       return;
     } finally {
       resumePageNavigation();
     }
-    if (sources == null || sources.isEmpty || !mounted) return;
+    if (sources == null || sources.isEmpty || !mounted) {
+      if (folderPicked) await _releaseFolder();
+      return;
+    }
     final chosen = sources;
+    // The folder's bookmark is not kept once its pass is over (installed,
+    // refused, failed or cancelled).
+    var released = !folderPicked;
+    Future<void> releaseOnce() async {
+      if (released) return;
+      released = true;
+      await _releaseFolder();
+    }
 
     setState(() {
       _busy = true;
-      _sessionActive = false;
-      _actionError = null;
+      _clearNotes();
     });
     try {
-      final plan = await _withProgress(
-        _t('system3dsAnalyzing'),
-        () => _analyze(chosen),
-      );
+      final (recovery, plan) = await _withProgress(_t('system3dsAnalyzing'), () async {
+        // An interrupted pass is dealt with before the plan is made, so the
+        // plan compares the sources with what the user directory really
+        // holds.
+        final recovery = await _data.recoverUnfinished();
+        if (recovery.failed) return (recovery, null);
+        return (recovery, await _analyze(chosen));
+      });
       if (!mounted) return;
+      if (!recovery.isEmpty) setState(() => _recovery = recovery);
+      if (plan == null) return;
       final decision = await showDialog<_PlanDecision>(
         context: context,
         builder: (_) => _PlanDialog(plan: plan, page: this),
@@ -402,7 +556,9 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
           includeKeys: decision.includeKeys,
         ),
       );
+      await releaseOnce();
       if (!mounted) return;
+      if (report.recovery != null) setState(() => _recovery = report.recovery);
       await showDialog<void>(
         context: context,
         builder: (_) => _ResultDialog(report: report, page: this),
@@ -410,12 +566,13 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     } on Libretro3dsSystemDataException catch (error) {
       _log.w('Nintendo 3DS import refused: $error');
       if (!mounted) return;
-      setState(() => _sessionActive = true);
+      _showRefusal(error);
     } catch (error, stackTrace) {
       _log.e('Nintendo 3DS import failed', error: error, stackTrace: stackTrace);
       if (!mounted) return;
-      setState(() => _actionError = error);
+      setState(() => _actionError = _Failure.of(error));
     } finally {
+      await releaseOnce();
       if (mounted) {
         setState(() => _busy = false);
         await _reload();
@@ -443,10 +600,15 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
 
   Future<void> _restore() async {
     if (_busy) return;
+    final latest = _latestBackup;
+    if (latest == null) {
+      _notice(_t('system3dsNoBackup'));
+      return;
+    }
     final confirmed = await ConfirmActionDialog.show(
       context,
       title: _t('system3dsRestoreBackup'),
-      body: _t('system3dsPlanReplace'),
+      body: _f('system3dsRestoreConfirm', {'date': Libretro3dsSystemScreen.backupDate(latest.createdAt)}),
       confirmLabel: _t('system3dsRestoreBackup'),
       cancelLabel: _t('cancel'),
       icon: Icons.settings_backup_restore_rounded,
@@ -455,32 +617,33 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     if (!confirmed || !mounted) return;
     setState(() {
       _busy = true;
-      _sessionActive = false;
-      _actionError = null;
+      _clearNotes();
     });
     try {
       final report = await _data.restoreLastBackup();
       if (!mounted) return;
-      if (report.failedCount == 0) {
+      if (report.recovery != null) setState(() => _recovery = report.recovery);
+      if (report.succeeded) {
         _notice(_t('system3dsRestored'));
       } else {
-        setState(() => _actionError = report.results
-            .firstWhere((result) => !result.restored)
-            .technicalDetail);
+        // Never "restored" without a file back: the raw reason instead.
+        final failed = report.results.where((result) => !result.restored);
+        setState(() {
+          _missing = report.missing;
+          _actionError = _Failure(
+            'system3dsFailed',
+            report.failure ?? (failed.isEmpty ? null : failed.first.technicalDetail),
+          );
+        });
       }
     } on Libretro3dsSystemDataException catch (error) {
       _log.w('Nintendo 3DS restore refused: $error');
       if (!mounted) return;
-      switch (error.error) {
-        case Libretro3dsSystemDataError.sessionActive:
-          setState(() => _sessionActive = true);
-        case Libretro3dsSystemDataError.noBackup:
-          _notice(_t('system3dsNoBackup'));
-      }
+      _showRefusal(error);
     } catch (error, stackTrace) {
       _log.e('Nintendo 3DS restore failed', error: error, stackTrace: stackTrace);
       if (!mounted) return;
-      setState(() => _actionError = error);
+      setState(() => _actionError = _Failure.of(error));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -501,29 +664,61 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
         Libretro3dsRejection.unsafeEntry ||
         Libretro3dsRejection.symbolicLink =>
           _t('system3dsRejectedUnsafe'),
+        Libretro3dsRejection.incompleteTitle => _t('system3dsRejectedIncompleteTitle'),
+        Libretro3dsRejection.sdTitle => _t('system3dsRejectedSdTitle'),
+        Libretro3dsRejection.unsupportedCompression => _t('system3dsRejectedCompression'),
+        Libretro3dsRejection.keysFormat => _t('system3dsRejectedKeysFormat'),
         Libretro3dsRejection.invalid || null => _t('system3dsRejectedInvalid'),
       };
 
   String _technical(Object? code) =>
       _f('system3dsTechnicalCode', {'code': code});
 
-  /// Decimal units as the other catalogs print them ("MB").
-  static String _formatBytes(int bytes) {
-    if (bytes < 1000) return '$bytes B';
-    const units = <String>['KB', 'MB', 'GB', 'TB'];
-    var value = bytes.toDouble();
-    var unit = -1;
-    while (value >= 1000 && unit < units.length - 1) {
-      value /= 1000;
-      unit++;
-    }
-    final digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
-    return '${value.toStringAsFixed(digits)} ${units[unit]}';
-  }
+  /// Sizes as the other NeoStation pages print them (decimal units, as the
+  /// Files app does; never translated).
+  static String _formatBytes(int bytes) => Rpcs3SaveExchangeService.formatBytes(bytes);
 
   String _presence(bool present, [int size = 0]) => present
-      ? '${_t('system3dsPresent')} · ${_formatBytes(size)}'
+      ? _f('system3dsPresentSize', {'size': _formatBytes(size)})
       : _t('system3dsAbsent');
+
+  /// The note of the last recovery: what was undone or finished, and the
+  /// raw paths and code of what could not be.
+  Widget _recoveryNote(BuildContext context, Libretro3dsRecoveryReport report, {Key? key}) {
+    final scheme = Theme.of(context).colorScheme;
+    final String text;
+    final Color color;
+    if (report.failed) {
+      text = _t('system3dsRecoveryFailed');
+      color = scheme.error;
+    } else if (report.partial) {
+      text = _t('system3dsRecoveredPartial');
+      color = scheme.error;
+    } else if (report.rolledBack) {
+      text = _t('system3dsRecoveredUndone');
+      color = scheme.onSurfaceVariant;
+    } else {
+      text = _t('system3dsRecoveredFinished');
+      color = scheme.onSurfaceVariant;
+    }
+    final paths = <String>[...report.missing, ...report.kept];
+    final codes = <String>[
+      for (final pass in report.passes)
+        if (pass.technicalDetail != null) '${pass.name}: ${pass.technicalDetail}',
+    ];
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _NoteLine(icon: Icons.history_rounded, color: color, text: text),
+          for (final path in paths) _MonoLine(text: path),
+          for (final code in codes) _MonoLine(text: _technical(code)),
+        ],
+      ),
+    );
+  }
 
   // ------------------------------------------------------------- build
 
@@ -531,6 +726,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final failure = _actionError;
     return libretroPage(Scaffold(
       appBar: libretroPageAppBar(context, _t('system3dsTitle')),
       body: SafeArea(
@@ -544,6 +740,15 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (_recovery != null) _recoveryNote(context, _recovery!, key: const ValueKey('3ds-recovery')),
+                  if (_recoveryError != null)
+                    _NoteLine(
+                      key: const ValueKey('3ds-recovery-error'),
+                      icon: Icons.error_outline_rounded,
+                      color: scheme.error,
+                      text: _technical(_recoveryError),
+                      padding: const EdgeInsets.only(bottom: 12),
+                    ),
                   if (_sessionActive)
                     _NoteLine(
                       key: const ValueKey('3ds-session-error'),
@@ -552,13 +757,33 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
                       text: _t('system3dsSessionActive'),
                       padding: const EdgeInsets.only(bottom: 12),
                     ),
-                  if (_actionError != null)
-                    _NoteLine(
-                      key: const ValueKey('3ds-action-error'),
-                      icon: Icons.error_outline_rounded,
-                      color: scheme.error,
-                      text: '${_t('system3dsFailed')} — ${_technical(_actionError)}',
+                  if (_sessionUnknown != null)
+                    Padding(
+                      key: const ValueKey('3ds-session-unknown'),
                       padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _NoteLine(icon: Icons.error_outline_rounded, color: scheme.error, text: _t('system3dsSessionUnknown')),
+                          _MonoLine(text: _technical(_sessionUnknown)),
+                        ],
+                      ),
+                    ),
+                  if (failure != null)
+                    Padding(
+                      key: const ValueKey('3ds-action-error'),
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _NoteLine(icon: Icons.error_outline_rounded, color: scheme.error, text: _t(failure.textKey)),
+                          if (failure.detail != null) _MonoLine(text: _technical(failure.detail)),
+                          if (_missing.isNotEmpty) ...[
+                            _NoteLine(icon: Icons.report_outlined, color: scheme.error, text: _t('system3dsMissingFiles')),
+                            for (final path in _missing) _MonoLine(text: path),
+                          ],
+                        ],
+                      ),
                     ),
                   if (_loadError != null)
                     _NoteLine(
@@ -716,6 +941,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final inventory = _inventory;
+    final latest = _latestBackup;
     return Card(
       key: const ValueKey('3ds-data-card'),
       margin: const EdgeInsets.only(bottom: 16),
@@ -758,13 +984,6 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
                 present: inventory.seeddb.exists,
               ),
               _InventoryRow(
-                id: 'config',
-                title: _t('system3dsConfig'),
-                paths: const [Libretro3dsSystemDataService.configTarget],
-                status: _presence(inventory.config.exists, inventory.config.size),
-                present: inventory.config.exists,
-              ),
-              _InventoryRow(
                 id: 'titles',
                 title: _f('system3dsTitles', {
                   'count': inventory.titleCount,
@@ -772,7 +991,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
                 }),
                 paths: const [Libretro3dsSystemDataService.titleRoot],
                 status: inventory.titleCount > 0
-                    ? '${_t('system3dsPresent')} · ${inventory.titleFileCount}'
+                    ? _f('system3dsPresentFiles', {'count': inventory.titleFileCount})
                     : _t('system3dsAbsent'),
                 present: inventory.titleCount > 0,
               ),
@@ -789,15 +1008,17 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
                 optional: true,
                 note: inventory.allFontsPresent ? null : _t('system3dsFontsMissing'),
               ),
+              // The CFG save identifies the console: it is console data,
+              // with the five console-unique files.
               _InventoryRow(
                 id: 'console',
                 title: _t('system3dsConsoleData'),
                 paths: [
-                  for (final file in inventory.consoleUnique)
+                  for (final file in inventory.consoleData)
                     '${file.relativePath} — ${_presence(file.exists, file.size)}',
                 ],
-                status: inventory.anyConsoleUnique ? _t('system3dsPresent') : _t('system3dsAbsent'),
-                present: inventory.anyConsoleUnique,
+                status: inventory.anyConsoleData ? _t('system3dsPresent') : _t('system3dsAbsent'),
+                present: inventory.anyConsoleData,
                 optional: true,
               ),
             ],
@@ -817,14 +1038,22 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
                 LibretroFocusRing(
                   child: OutlinedButton.icon(
                     key: const ValueKey('3ds-restore-backup'),
-                    onPressed: inventory == null || !_hasBackup ? null : () => unawaited(_restore()),
+                    onPressed: inventory == null || latest == null ? null : () => unawaited(_restore()),
                     icon: const Icon(Icons.settings_backup_restore_rounded),
                     label: Text(_t('system3dsRestoreBackup')),
                   ),
                 ),
               ],
             ),
-            if (inventory != null && !_hasBackup) ...[
+            if (inventory != null && latest != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _f('system3dsLastBackup', {'date': Libretro3dsSystemScreen.backupDate(latest.createdAt)}),
+                key: const ValueKey('3ds-last-backup'),
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+            if (inventory != null && latest == null) ...[
               const SizedBox(height: 6),
               Text(
                 _t('system3dsNoBackup'),
@@ -859,16 +1088,20 @@ Widget _dialogShell(Widget child) => Shortcuts(
       ),
     );
 
-/// One choice per option, the current one focused first so the D-pad
-/// starts there; A (or a tap) returns the choice, B returns nothing.
+/// One choice per option, the current one marked and the [focus] one
+/// focused first so the D-pad starts there; A (or a tap) returns the
+/// choice, B returns nothing.
 class _ChoiceDialog extends StatelessWidget {
-  const _ChoiceDialog({required this.title, required this.options, required this.current});
+  const _ChoiceDialog({required this.title, required this.options, required this.current, required this.focus});
 
   final String title;
 
   /// (core value or null for "Automatic", label).
   final List<(String?, String)> options;
+
+  /// The stored value (null: nothing stored).
   final String? current;
+  final String? focus;
 
   @override
   Widget build(BuildContext context) => _dialogShell(AlertDialog(
@@ -885,7 +1118,7 @@ class _ChoiceDialog extends StatelessWidget {
                     radius: 8,
                     child: ListTile(
                       key: ValueKey('3ds-choice-${value ?? 'auto'}'),
-                      autofocus: value == current,
+                      autofocus: value == focus,
                       selected: value == current,
                       leading: Icon(
                         value == current ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
@@ -973,9 +1206,9 @@ class _PlanDecision {
   final bool includeKeys;
 }
 
-/// Steps 2 and 3: the plan (added, replaced, identical, ignored, refused),
-/// the two opt-in boxes (console-unique data, keys) unchecked by default,
-/// and the confirmation.
+/// Steps 2 and 3: the plan (added, replaced, left out by the boxes,
+/// identical, ignored, refused), the two opt-in boxes (console data, keys)
+/// unchecked by default, and the confirmation.
 class _PlanDialog extends StatefulWidget {
   const _PlanDialog({required this.plan, required this.page});
 
@@ -993,27 +1226,31 @@ class _PlanDialogState extends State<_PlanDialog> {
   Libretro3dsImportPlan get _plan => widget.plan;
   _Libretro3dsSystemScreenState get _page => widget.page;
 
-  bool get _hasConsoleUnique =>
-      _plan.installable.any((item) => item.kind == Libretro3dsItemKind.consoleUnique);
+  bool get _hasConsoleUnique => _plan.installable.any((item) => item.isConsoleData);
   bool get _hasKeys => _plan.installable.any((item) => item.kind == Libretro3dsItemKind.keys);
 
-  /// Elements an install would write with the boxes as they are.
-  int get _selected => _plan.installable.where((item) => switch (item.kind) {
-        Libretro3dsItemKind.consoleUnique => _includeConsole,
+  /// Whether the boxes, as they are, let [item] be installed.
+  bool _optedIn(Libretro3dsImportItem item) => switch (item.kind) {
+        Libretro3dsItemKind.consoleUnique || Libretro3dsItemKind.config => _includeConsole,
         Libretro3dsItemKind.keys => _includeKeys,
         _ => true,
-      }).length;
+      };
+
+  /// Elements an install would write with the boxes as they are.
+  int get _selected => _plan.installable.where(_optedIn).length;
 
   /// Raw destination (or source entry) and size of one element.
   static String _line(Libretro3dsImportItem item) {
     final name = item.relativeTarget ?? item.sourceEntry;
-    if (item.kind == Libretro3dsItemKind.rejected) return name;
+    if (item.kind == Libretro3dsItemKind.rejected || item.ignoreReason == Libretro3dsIgnoreReason.tooDeep) {
+      return name;
+    }
     return '$name · ${_Libretro3dsSystemScreenState._formatBytes(item.size)}';
   }
 
   Widget _group(BuildContext context, String key, String label, Iterable<Libretro3dsImportItem> items,
-      {bool rejected = false}) {
-    if (items.isEmpty) return const SizedBox.shrink();
+      {bool rejected = false, List<String> retired = const <String>[]}) {
+    if (items.isEmpty && retired.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
@@ -1026,15 +1263,26 @@ class _PlanDialogState extends State<_PlanDialog> {
           Text(label, style: theme.textTheme.labelLarge?.copyWith(color: rejected ? scheme.error : null)),
           for (final item in items) ...[
             Text(_line(item), style: mono),
-            if (item.kind == Libretro3dsItemKind.consoleUnique)
+            if (item.isConsoleData)
               Text(_page._t('system3dsConsoleData'), style: theme.textTheme.bodySmall),
             if (item.kind == Libretro3dsItemKind.keys)
               Text(_page._t('system3dsKeys'), style: theme.textTheme.bodySmall),
+            if (item.ignoreReason == Libretro3dsIgnoreReason.tooDeep)
+              Text(
+                _page._f('system3dsIgnoredTooDeep', {'depth': _page._data.limits.maxFolderDepth}),
+                style: theme.textTheme.bodySmall,
+              ),
             if (rejected) ...[
               Text(_page._rejection(item.rejection), style: theme.textTheme.bodySmall),
               if (item.technicalDetail != null)
                 Text(_page._technical(item.technicalDetail), style: mono),
             ],
+          ],
+          // Installed files of a replaced title that the import does not
+          // bring again: they leave with the old title, into the backup.
+          for (final path in retired) ...[
+            Text(path, style: mono),
+            Text(_page._t('system3dsRetired'), style: theme.textTheme.bodySmall),
           ],
         ],
       ),
@@ -1047,8 +1295,8 @@ class _PlanDialogState extends State<_PlanDialog> {
     final scheme = theme.colorScheme;
     final plan = _plan;
     final nothing = !plan.hasRecognized;
-    // "Install these files (3)": how many the boxes currently select.
-    final confirmLabel = '${_page._t('system3dsConfirm')} ($_selected)';
+    final confirmLabel = _page._f('system3dsConfirm', {'count': _selected});
+    final optedIn = plan.recognized.where(_optedIn);
     return _dialogShell(AlertDialog(
       title: Text(_page._t('system3dsImport')),
       content: SizedBox(
@@ -1068,9 +1316,13 @@ class _PlanDialogState extends State<_PlanDialog> {
                   ),
                 ),
               _group(context, 'create', _page._t('system3dsPlanCreate'),
-                  plan.recognized.where((item) => item.action == Libretro3dsPlanAction.create)),
+                  optedIn.where((item) => item.action == Libretro3dsPlanAction.create)),
               _group(context, 'replace', _page._t('system3dsPlanReplace'),
-                  plan.recognized.where((item) => item.action == Libretro3dsPlanAction.replace)),
+                  optedIn.where((item) => item.action == Libretro3dsPlanAction.replace),
+                  retired: plan.retiredTargets),
+              // Keys and console data stay out until their box is checked.
+              _group(context, 'excluded', _page._t('system3dsPlanExcluded'),
+                  plan.installable.where((item) => !_optedIn(item))),
               _group(context, 'identical', _page._t('system3dsPlanIdentical'),
                   plan.recognized.where((item) => item.action == Libretro3dsPlanAction.skipIdentical)),
               _group(context, 'ignored', _page._t('system3dsPlanIgnored'), plan.ignored),
@@ -1133,7 +1385,8 @@ class _PlanDialogState extends State<_PlanDialog> {
 }
 
 /// Step 5: what happened to each element, the backup folder of the
-/// replaced files and the raw code of any failure.
+/// replaced files, the files of replaced titles moved out with them, what
+/// a failure could not put back, and the raw code of any failure.
 class _ResultDialog extends StatelessWidget {
   const _ResultDialog({required this.report, required this.page});
 
@@ -1154,17 +1407,11 @@ class _ResultDialog extends StatelessWidget {
       Libretro3dsInstallStatus.ignored =>
         page._t('system3dsSkipped'),
       Libretro3dsInstallStatus.rejected => page._rejection(result.item.rejection),
-      Libretro3dsInstallStatus.failed ||
-      Libretro3dsInstallStatus.rolledBack ||
-      Libretro3dsInstallStatus.notAttempted =>
-        page._t('system3dsFailed'),
+      Libretro3dsInstallStatus.rolledBack => page._t('system3dsRolledBack'),
+      Libretro3dsInstallStatus.notAttempted => page._t('system3dsNotAttempted'),
+      Libretro3dsInstallStatus.failed => page._t('system3dsFailed'),
     };
   }
-
-  bool _failed(Libretro3dsInstallStatus status) =>
-      status == Libretro3dsInstallStatus.failed ||
-      status == Libretro3dsInstallStatus.rolledBack ||
-      status == Libretro3dsInstallStatus.notAttempted;
 
   @override
   Widget build(BuildContext context) {
@@ -1181,6 +1428,7 @@ class _ResultDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (report.recovery != null) page._recoveryNote(context, report.recovery!),
               if (report.failure != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -1188,6 +1436,18 @@ class _ResultDialog extends StatelessWidget {
                     page._technical(report.failure),
                     key: const ValueKey('3ds-result-failure'),
                     style: mono?.copyWith(color: scheme.error),
+                  ),
+                ),
+              if (report.missing.isNotEmpty)
+                Padding(
+                  key: const ValueKey('3ds-result-missing'),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _NoteLine(icon: Icons.report_outlined, color: scheme.error, text: page._t('system3dsMissingFiles')),
+                      for (final path in report.missing) _MonoLine(text: path),
+                    ],
                   ),
                 ),
               if (report.backupDirectory != null)
@@ -1208,14 +1468,19 @@ class _ResultDialog extends StatelessWidget {
                 Text(
                   _status(result),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: _failed(result.status) ? scheme.error : null,
+                    color: result.status == Libretro3dsInstallStatus.failed ? scheme.error : null,
                   ),
                 ),
-                if (_failed(result.status))
+                if (result.status == Libretro3dsInstallStatus.failed)
                   Text(
-                    page._technical('${result.status.name}: ${result.technicalDetail ?? ''}'),
+                    page._technical(result.technicalDetail ?? result.status.name),
                     style: mono?.copyWith(color: scheme.error),
                   ),
+                const SizedBox(height: 6),
+              ],
+              for (final path in report.retired) ...[
+                Text(path, key: ValueKey('3ds-result-retired-$path'), style: mono),
+                Text(page._t('system3dsRetired'), style: theme.textTheme.bodySmall),
                 const SizedBox(height: 6),
               ],
             ],
@@ -1350,4 +1615,23 @@ class _NoteLine extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// A raw value (path, technical code) under a note, indented to its text.
+class _MonoLine extends StatelessWidget {
+  const _MonoLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 22, top: 2),
+      child: SelectableText(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
 }

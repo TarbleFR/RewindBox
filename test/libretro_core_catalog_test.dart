@@ -279,6 +279,9 @@ void main() {
     expect(model.labelKey, 'setting3dsModel');
     expect(model.values, <String>['New 3DS', 'Old 3DS']);
     expect(model.valueLabelKeys, <String, String>{'New 3DS': 'model3dsNew', 'Old 3DS': 'model3dsOld'});
+    expect(region.inGameMenu, isTrue);
+    expect(language.inGameMenu, isTrue);
+    expect(model.inGameMenu, isFalse, reason: 'needs a new session');
     // Every word value has a label; no stray label for a value the core
     // does not offer.
     for (final setting in azahar.settings) {
@@ -301,11 +304,17 @@ void main() {
       // The in-game menu shows the translation of each value's label key,
       // never the raw-value fallback of coreSettings (in English the two
       // can coincide, "Japan", so the key's text is what is compared).
+      // Contract change (docs/libretro-3ds-system-settings.md § 6.4, item
+      // 9): the model needs a new session, which "Restart game" does not
+      // start, so the in-game menu (footer: "after a restart") no longer
+      // offers it; the Nintendo 3DS page still does.
       final translated = LibretroLocale.coreSettings(Locale(entry.key), azahar);
       expect(translated.map((setting) => setting['key']).toList(),
-          <String>['citra_region_value', 'citra_language_value', 'citra_is_new_3ds']);
-      for (var index = 0; index < azahar.settings.length; index++) {
-        final setting = azahar.settings[index];
+          <String>['citra_region_value', 'citra_language_value']);
+      final inGame = azahar.settings.where((setting) => setting.inGameMenu).toList();
+      expect(inGame.length, translated.length);
+      for (var index = 0; index < inGame.length; index++) {
+        final setting = inGame[index];
         expect(translated[index]['label'], entry.value[setting.labelKey], reason: '${entry.key}:${setting.key}');
         for (final value in translated[index]['values'] as List<Map<String, String>>) {
           final labelKey = setting.valueLabelKeys[value['value']]!;

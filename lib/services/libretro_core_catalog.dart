@@ -18,12 +18,17 @@ abstract final class LibretroHardwareContext {
 /// resolutions are shown as they are.
 class LibretroCuratedSetting {
   const LibretroCuratedSetting(this.key, this.labelKey, this.values,
-      {this.valueLabelKeys = const <String, String>{}});
+      {this.valueLabelKeys = const <String, String>{}, this.inGameMenu = true});
 
   final String key;
   final String labelKey;
   final List<String> values;
   final Map<String, String> valueLabelKeys;
+
+  /// Offered by the in-game menu, whose footer says the settings apply
+  /// after "Restart game". False for a setting that needs a new session
+  /// (the 3DS model): it stays on its console page, with its own hint.
+  final bool inGameMenu;
 }
 
 class LibretroCore {
@@ -276,7 +281,9 @@ abstract final class LibretroCoreCatalog {
       // System region, language and model, also offered by the Nintendo 3DS
       // page. The core applies the language only while the region is Auto,
       // at the next launch or after "Restart game"; the model needs a new
-      // session. Raw values are the core's own.
+      // session (the reset runs before the options are read again), so the
+      // in-game menu, whose footer promises "after Restart game", leaves it
+      // to the Nintendo 3DS page. Raw values are the core's own.
       settings: [
         LibretroCuratedSetting(
           'citra_region_value',
@@ -321,6 +328,7 @@ abstract final class LibretroCoreCatalog {
           'setting3dsModel',
           ['New 3DS', 'Old 3DS'],
           valueLabelKeys: {'New 3DS': 'model3dsNew', 'Old 3DS': 'model3dsOld'},
+          inGameMenu: false,
         ),
       ],
     ),

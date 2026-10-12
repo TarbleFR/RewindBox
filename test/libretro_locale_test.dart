@@ -222,7 +222,30 @@ void main() {
         }
       }
       final settings = LibretroLocale.coreSettings(const Locale('ja'), core);
-      expect(settings.length, core.settings.length, reason: core.id);
+      // Contract change (docs/libretro-3ds-system-settings.md § 6.4, item
+      // 9): the in-game menu offers every curated setting except those that
+      // need a new session (inGameMenu false), since its footer says the
+      // settings apply after "Restart game".
+      expect(
+        settings.map((setting) => setting['key']).toList(),
+        [for (final setting in core.settings) if (setting.inGameMenu) setting.key],
+        reason: core.id,
+      );
+    }
+  });
+
+  test('the in-game menu leaves out the 3DS model, which needs a new session', () {
+    final azahar = LibretroCoreCatalog.cores['azahar']!;
+    final model = azahar.settings.singleWhere((setting) => setting.key == 'citra_is_new_3ds');
+    expect(model.inGameMenu, isFalse);
+    for (final locale in LibretroLocale.values.keys) {
+      final keys = LibretroLocale.coreSettings(Locale(locale), azahar).map((setting) => setting['key']);
+      expect(keys, isNot(contains('citra_is_new_3ds')), reason: locale);
+      expect(keys, containsAll(<String>['citra_region_value', 'citra_language_value']), reason: locale);
+    }
+    // Every other core keeps all of its curated settings in the menu.
+    for (final core in LibretroCoreCatalog.cores.values.where((core) => core.id != 'azahar')) {
+      expect(core.settings.every((setting) => setting.inGameMenu), isTrue, reason: core.id);
     }
   });
 

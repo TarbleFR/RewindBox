@@ -118,18 +118,22 @@ void main() {
     expect(await launch3ds(const Locale('pt')), <String, String>{'citra_language_value': 'Portuguese'});
   });
 
-  test('the 3DS launch request also carries the lock and the three in-game settings', () async {
+  test('the 3DS launch request also carries the lock and the in-game settings', () async {
     await launch3ds(const Locale('en'));
     final request = launches.single;
     expect(request['coreId'], 'azahar');
     expect(Map<Object?, Object?>.from(request['lockedOptions'] as Map)['citra_use_libretro_save_path'],
         'LibRetro Default');
     final settings = (request['coreSettings'] as List).cast<Map<Object?, Object?>>();
+    // Contract change (docs/libretro-3ds-system-settings.md § 6.4, item 9):
+    // the model needs a new session, which "Restart game" does not start,
+    // so the in-game menu (footer: "after a restart") no longer receives
+    // it; the Nintendo 3DS page of the Emulators tab still offers it.
     expect(settings.map((setting) => setting['key']).toList(),
-        <String>['citra_region_value', 'citra_language_value', 'citra_is_new_3ds']);
+        <String>['citra_region_value', 'citra_language_value']);
+    expect(settings.map((setting) => setting['key']), isNot(contains('citra_is_new_3ds')));
     expect(settings[0]['label'], 'System region');
     expect(settings[1]['label'], 'System language');
-    expect(settings[2]['label'], 'Console model');
     final languageValues = (settings[1]['values'] as List).cast<Map<Object?, Object?>>();
     expect(languageValues.map((value) => value['value']).toList(), contains('Traditional Chinese'));
     expect(languageValues.firstWhere((value) => value['value'] == 'Traditional Chinese')['label'],

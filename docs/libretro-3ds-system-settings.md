@@ -278,14 +278,17 @@ refusées ; réglages par console, pas par jeu ; aucune validation iPhone revend
   état de session inconnu.
 - `Libretro3dsInstallStatus` ajoute `rolledBack` et `notAttempted` : après un échec de
   commit, les éléments déjà déplacés dans le passage sont remis en place, le reste n'est
-  pas tenté ; la page affiche ces deux états comme `system3dsFailed` + code technique.
+  pas tenté ; la page affiche ces deux états comme `system3dsFailed` + code technique
+  (remplacé, § 6.4 : textes distincts `system3dsRolledBack`, `system3dsNotAttempted`).
 - Reconnaissance des titres et de `config` par suffixe de chemin (`title/<8 hex>/<8 hex>/content/<hex>.app|.tmd|.cmd`,
   `content/cmd/<hex>.cmd`, `data/<32 hex>/sysdata/00010017/00000000/config`), tout
   préfixe toléré et id0 facultatif pour les titres (CTRNAND réel, dumps GodMode9) : un
   sur-ensemble de la règle « préfixes `citra/`, `azahar/`, `user/`, `nand/` tolérés » ;
   clés, seeddb et données de console reconnues par nom de base n'importe où et validées
   par contenu. Les entrées contenant un segment `sdmc` ou `Nintendo 3DS` sont listées
-  comme ignorées ; un `config` nu n'est accepté que choisi seul.
+  comme ignorées ; un `config` nu n'est accepté que choisi seul (§ 6.4 : élaguées avant
+  les limites, plus listées ; le `config` nu exige désormais un fichier choisi seul dans
+  le code aussi).
 - Le parcours de dossier élague les dossiers connus sans données système d'un dossier
   utilisateur Citra/Azahar (`sdmc`, `cache`, `states`, `shaders`, `log`, `logs`, `dump`,
   `screenshots`, `load`, `cheats`, `__MACOSX`, `.git`) en plus des bornes profondeur 8 /
@@ -314,7 +317,8 @@ refusées ; réglages par console, pas par jeu ; aucune validation iPhone revend
 - `restoreLastBackup()` recopie seulement les fichiers (ceux créés par le passage
   restauré ne sont pas supprimés), via un staging `.neostation-3ds-restore-<stamp>` à
   côté du dossier utilisateur ; les fichiers courants écrasés vont dans un nouveau dossier
-  de sauvegarde, qui devient la plus récente.
+  de sauvegarde, qui devient la plus récente (§ 6.4 : seule une sauvegarde complète est
+  restaurée, vérifiée d'abord ; les courants y vont par `rename`).
 - Le magasin trie les clés à l'écriture (l'ordre natif de NSJSONSerialization n'est pas
   spécifié) ; un élément `skipIdentical` du plan n'est pas revérifié à l'installation.
 
@@ -341,7 +345,8 @@ refusées ; réglages par console, pas par jeu ; aucune validation iPhone revend
 - Clés réutilisées faute de clé dédiée dans le catalogue : `controlsEditDone` (« Done »)
   ferme le dialogue de résultat ; `cancel` annule le plan ; la confirmation de
   restauration (`ConfirmActionDialog`) reprend `system3dsRestoreBackup` et
-  `system3dsPlanReplace` (« À remplacer (une sauvegarde est conservée) »).
+  `system3dsPlanReplace` (« À remplacer (une sauvegarde est conservée) ») (remplacé, § 6.4 :
+  texte dédié `system3dsRestoreConfirm` avec la date).
 - Le bouton `system3dsRestoreBackup` est désactivé sans sauvegarde, avec la note
   `system3dsNoBackup` ; l'erreur `noBackup` du service reste traitée.
 - Chemins réels : le dossier utilisateur est montré comme dans Fichiers
@@ -361,3 +366,180 @@ refusées ; réglages par console, pas par jeu ; aucune validation iPhone revend
   `engine3dsSystemSubtitle` (renforcement) ; les attentes psx/md/gba/null sont inchangées.
 - `BUILD447_3DS_DELTA` liste aussi `build-utils/verify_delivery_reuse.py` ; les fichiers
   non suivis ne sont jugés par `verify_delivery_reuse.py` qu'une fois commités.
+
+### 6.4 Corrections après revue contradictoire (12 octobre 2026, révision de `379e5906`)
+
+Rien n'est validé sur iPhone. Ce paragraphe remplace, là où ils diffèrent, les points des
+§ 3.4, 3.5, 6.2 et 6.3. **Sources vérifiées** (lecture seule, `azahar-emu/azahar a5c3d4f8`,
+fichiers bruts) : `hw/unique_data.{h,cpp}`, `file_sys/otp.{h,cpp}`, `hle/service/am/am.cpp`,
+`hw/aes/key.{h,cpp}`, `hw/rsa/rsa.cpp`, `hw/ecc.cpp`, `file_sys/title_metadata.{h,cpp}`,
+`file_sys/signature.h`, `file_sys/seed_db.cpp`, `file_sys/ncch_container.cpp`,
+`common/file_derived.h`, `common/common_paths.h`. Non vérifié : `mcu.dat` (aucun chargeur
+trouvé dans ces sources, borne inchangée : non vide, ≤ 1 Mio).
+
+**Passages sûrs (M1, M2, M3, m1b, m2, m9, m10).** Un import ou une restauration est un
+passage : dossier `Backups/Azahar/<stamp>[-n]` créé d'emblée, journal préalable
+`.neostation-pass.jsonl` (une ligne JSON par étape, écrite et `flush` **avant** l'étape :
+`begin` avec les unités, `backup`, `install` avec chemin, taille et SHA-256 des copies
+installées, `manifest`, `committed`, `end`), staging
+`Saves/Azahar/.neostation-3ds-{import,restore}-<nom du passage>`. Ordre : (1) staging complet
+dans un isolate d'arrière-plan (`Isolate.run`, blocs de 64 Kio écrits par `writeFromSync`,
+arrêt dès que le nombre d'octets écrits dépasse la taille déclarée, contrôle de la méthode
+de compression dans les deux en-têtes), puis vérification de chaque copie : SHA-256 de
+l'analyse (tous les fichiers reconnus sont hachés à l'analyse, sauf un fichier de titre
+de plus de 64 Mio, comparé par taille et date avant et après le staging puis revalidé) ;
+(2) **toutes** les sauvegardes par `rename` (cible → `Backups/Azahar/<stamp>/<chemin>`) avant
+toute installation, puis le manifeste `.neostation-manifest.json` (chemin, taille,
+SHA-256 de chaque fichier sauvegardé) ; (3) les installations par `rename` (staging →
+cible), `committed`, puis le marqueur `.neostation-complete.json` (SHA-256 du manifeste),
+écrit en dernier ; (4) suppression du staging, `end`. Aucune copie sur un fichier vivant,
+aucun espace libre nécessaire (`Backups` et `Saves` sont dans le même conteneur
+`Documents/Libretro`) ; une copie (vérifiée par SHA-256, source intacte en cas d'échec)
+n'intervient que sur `EXDEV` (volumes différents, jamais sur iOS ; testé entre `/tmp` et
+`/dev/shm`). Les noms des métadonnées commencent par un point (masquées dans Fichiers).
+
+Retour arrière (échec en cours de passage ou reprise) : renames inverses, du dernier
+élément au premier ; un élément installé n'est retiré que s'il est encore **octet pour
+octet** ce que le passage a installé (chemins, tailles, SHA-256 du journal) ; rien n'est
+écrasé : si l'emplacement d'un original est occupé, les deux sont gardés et signalés
+(`kept`) ; un original introuvable est nommé (`missing`, aussi dans le rapport d'installation
+et le journal Diagnostics). Un passage annulé ne laisse aucune sauvegarde : ses originaux
+sont revenus par `rename` et son dossier vidé est supprimé (contrat remplacé du test
+« a commit failure… », qui gardait une copie dans `Backups/Azahar/20261012-100001`).
+
+Reprise (`recoverUnfinished()`, à l'ouverture de la page, avant chaque analyse et en tête
+de `install`/`restoreLastBackup`, jamais pendant une session libretro : même sonde
+fail-closed) : un passage sans `committed` est annulé depuis son journal, un passage
+`committed` est terminé (marqueur, staging), puis les dossiers de staging orphelins sont
+supprimés. Issues : `rolledBack`, `completed`, `partial` (original perdu ou emplacement
+occupé : clos et signalé, ne bloque rien), `failed` (une étape en erreur d'E/S ou un
+journal invalide : le passage reste ouvert, est réessayé, et install/restore sont refusés
+avec `unfinishedPass` d'ici là). Les opérations d'un même service sont sérialisées (verrou
+par instance, sans futur partagé entre zones).
+
+Sauvegardes : seules les sauvegardes **complètes** sont listées et restaurables (marqueur,
+manifeste dont le SHA-256 concorde, chaque fichier présent à sa taille) ; un dossier vide,
+partiel, d'un passage interrompu ou d'une révision antérieure n'est ni listé ni supprimé.
+`backups()` rend des `Libretro3dsBackup` (`path`, `name`, `kind` import/restore,
+`createdAt`, `files`, `units`). La restauration vérifie d'abord le SHA-256 de chaque fichier
+(`backupDamaged` sinon, rien d'écrit), copie dans le staging (la sauvegarde reste
+intacte), déplace les fichiers ou dossiers `content` courants dans un nouveau passage
+complet, puis installe ; une restauration de 0 fichier est une erreur
+(`Libretro3dsRestoreReport.succeeded`). Les fichiers ajoutés depuis (clés, données de
+console, nouveaux titres) ne sont pas supprimés.
+
+Titres (m1b) : groupés par `<high>/<low>`, installés ou refusés en unité : tout le
+dossier `content` existant part dans la sauvegarde et le dossier `content` préparé prend
+sa place (`rename` de dossiers). Refus `incompleteTitle` sans `.tmd` valide et `.app`, ou
+quand un fichier du titre est refusé (un doublon entre sources ne refuse pas le titre :
+la première source gagne). Le plan expose `retiredTargets`, le rapport `retired` (anciens
+fichiers du titre absents de l'import, partis avec lui dans la sauvegarde). Le crochet de
+test `beforeCommit` est appelé pour chaque fichier d'une unité juste avant son `rename` ;
+`beforeBackup` et `beforeFinish` s'y ajoutent (tests).
+
+**Analyse.**
+- m1a : la recherche de signature d'archive ne s'applique plus qu'aux fichiers non
+  reconnus ; `NCSD` à 0x100 reste refusé partout. `.app` : `NCCH` à 0x100 **ou** les
+  conteneurs que le cœur ouvre lui-même pour le contenu installé, `Z3DS` (compressé) et
+  `AZCR` (chiffrement propre à la console) à 0 (`NCCHContainer::AutoOpenNCCHNCSD`), ou un
+  titre DS (drapeau TWL `0x8000` de l'identifiant haut) — écart motivé : « NCCH seul »
+  refuserait le contenu installé par Azahar. `.tmd` : vérifié comme `TitleMetadata::Load`
+  (type de signature, corps de 0x9C4 octets après la signature alignée, blocs de contenu
+  dans le fichier) et l'identifiant de titre du corps doit être celui du dossier.
+- m3 : limites ZIP appliquées après élagage : `sdmc`, `Nintendo 3DS`, `__MACOSX`, `.git`
+  à toute profondeur ; `cache`, `states`, `shaders`, `log`, `logs`, `dump`, `screenshots`,
+  `load`, `cheats` aussi, sauf comme premier dossier commun du ZIP (le dossier zippé
+  lui-même, comme le dossier choisi d'un parcours) ; les entrées élaguées ne sont plus
+  listées (comme dans un parcours de dossier) ; les limites de taille ne comptent que les
+  fichiers reconnus ; plafond brut de 100 000 entrées. `nintendo 3ds` élagué aussi dans les
+  parcours (insensible à la casse).
+- m4 : un dossier au-delà de la profondeur 8 (inchangée) est listé comme ignoré
+  (`Libretro3dsIgnoreReason.tooDeep`, `system3dsIgnoredTooDeep`) ; le nom du dossier
+  choisi entre dans les règles de chemin (choisir `title` est reconnu).
+- m8 : noms ZIP normalisés (`\` → `/`, `./` en tête retiré) avant les contrôles de
+  traversée, toujours refusés pour `..`, chemin absolu, lettre de lecteur, NUL ; méthode
+  de compression lue dans le répertoire central **et** l'en-tête local (archive 4.0.9
+  décode une méthode inconnue comme « stockée ») : autre que 0/8 → `unsupportedCompression`
+  ; tailles exactes vérifiées des données de console : `SecureInfo_A` 0x111,
+  `LocalFriendCodeSeed_B` 0x110, `otp.bin` 0x100 (sa signature 0xDEADB00F n'existe qu'une
+  fois déchiffré : non exigée), `movable.sed` 0x120 ou 0x140 avec `SEED` à 0 ; titres NAND
+  limités par la règle du cœur `GetTitleMediaType` (plateforme ≠ 0x0004, ou catégorie avec
+  le bit système 0x0010 ou téléchargement 0x0001, ou variation avec le bit système 0x02) :
+  applications 00040000, démos 00040002, mises à jour 0004000e, DLC 0004008c → `sdTitle` ;
+  une image NAND brute dans un ZIP est signalée comme telle (hors limites de taille) ; un
+  `config` nu n'est reconnu que choisi comme fichier isolé.
+- **Clés (constat supplémentaire, hors liste de la revue)** : le cœur lit
+  `sysdata/keys.txt` (`KEYS_FILE`), et un fichier présent **remplace** le blob intégré
+  (`GetKeysStream`) ; `LoadPresetKeys` ne lit les clés AES que sous une ligne `:AES`
+  (découpage sur `\n` seul, `#` en tête = commentaire). Un `aes_keys.txt` de Citra, sans
+  section, n'apporterait aucune clé tout en masquant les intégrées : refus `keysFormat`
+  (`system3dsRejectedKeysFormat`) quand le cœur n'y lirait aucune clé `slot0x<hex>Key<X|Y|N>`
+  (emplacement < 0x40, 32 chiffres hex) ; une marque d'ordre d'octets est acceptée tant
+  qu'elle ne précède pas l'en-tête (m8), des fins de ligne CRLF sont refusées (`:AES\r` n'est
+  pas une en-tête pour le cœur). Le fichier installé n'est jamais modifié.
+- m9 : tous les fichiers reconnus sont hachés à l'analyse (voir plus haut) ; l'élément
+  identique (`skipIdentical`) n'est toujours pas revérifié à l'installation.
+- m11 (décision du lead) : la sauvegarde CFG `config` (identifiant de console, nom,
+  anniversaire) est une donnée de console : exclue par défaut, installée seulement avec
+  la case « données de console » ; listée avec elles dans l'inventaire (la ligne `config`
+  disparaît, contrat remplacé dans les tests de la page) et dans le plan.
+
+**Page (m5, m6, m12, m13, point 10).** Confirmation de restauration dédiée
+`system3dsRestoreConfirm` ({date} de la sauvegarde, fichiers ajoutés non supprimés) et
+date sous les boutons (`system3dsLastBackup`) ; dates brutes `aaaa-mm-jj hh:mm` à l'heure
+du téléphone (`Libretro3dsSystemScreen.backupDate`, non traduites). Échec de la sonde de
+session : texte `system3dsSessionUnknown` + code technique brut à part (le service garde
+`sessionActive` avec `sessionUnknown: true`, le magasin son `technicalDetail`) ; statuts
+`system3dsRolledBack` et `system3dsNotAttempted` ; clés et données de console listées dans
+un groupe « laissés de côté » (`system3dsPlanExcluded`) tant que leur case n'est pas cochée.
+Note de reprise en tête de page (`system3dsRecoveredUndone`, `…Finished`, `…Partial`,
+`system3dsRecoveryFailed`, chemins et codes bruts) et dans le résultat ; fichiers manquants
+après un échec (`system3dsMissingFiles`) ; anciens fichiers d'un titre remplacé
+(`system3dsRetired`). Le signet du dossier choisi (`libretro-3ds-import`) est effacé dès
+que le passage se termine ou est annulé (`releaseFolder` injectable). Tailles par
+`Rpcs3SaveExchangeService.formatBytes` ; phrases à paramètres par le catalogue
+(`system3dsConfirm` reçoit `{count}`, `system3dsPresentSize`, `system3dsPresentFiles`) ;
+l'échec d'action est une phrase traduite puis le code technique sur sa propre ligne.
+Point 10 : une région ou un modèle absents s'affichent « valeur propre au cœur »
+(`setting3dsCoreDefault`) et aucune valeur n'est cochée dans le choix : **la page n'affirme
+plus de défaut**. Les textes des dialogues de choix et de source sont résolus avant
+l'ouverture (le dialogue peut survivre au contexte de la page).
+
+**Menu en jeu (point 9).** `LibretroCuratedSetting.inGameMenu` (vrai par défaut) ;
+`citra_is_new_3ds` à `false` : `LibretroLocale.coreSettings` ne l'envoie plus au menu en jeu,
+dont le pied de page promet « après redémarrage » alors que le modèle exige une nouvelle
+session ; la page Émulateurs le garde avec `system3dsRestartHint`. Contrats remplacés
+(commentés) : `test/libretro_locale_test.dart`, `test/libretro_core_catalog_test.dart` et
+`test/libretro_3ds_launch_default_test.dart` (requête de lancement : région et langue
+seulement) — ce dernier fichier est hors de la liste de fichiers confiée, modifié parce que
+le point 9 change exactement ce qu'il vérifie.
+
+**Preuve des options (point 10).** `test/libretro_core_options_test.py --cores` prouve que
+chaque chaîne de clé et de valeur existe dans le binaire épinglé, **ni** qu'une valeur
+appartient à une clé donnée, **ni** quelle valeur est le défaut. Le § 1 (« défaut effectif »
+d'une option, blob de clés intégré « ON par défaut ») n'est donc pas prouvé pour le binaire
+livré ; les textes `system3dsKeysOptional` et `system3dsIncludeKeysHelp` (m7) sont reformulés
+sans affirmer de clés intégrées.
+
+**Traductions (douze langues, mêmes paramètres).** Nouvelles clés : `setting3dsCoreDefault`,
+`system3dsSessionUnknown`, `system3dsRolledBack`, `system3dsNotAttempted`,
+`system3dsPlanExcluded`, `system3dsRestoreConfirm` ({date}), `system3dsLastBackup` ({date}),
+`system3dsPresentSize` ({size}), `system3dsPresentFiles` ({count}),
+`system3dsRejectedSdTitle`, `system3dsRejectedIncompleteTitle`,
+`system3dsRejectedCompression`, `system3dsRejectedKeysFormat`, `system3dsIgnoredTooDeep`
+({depth}), `system3dsRetired`, `system3dsBackupDamaged`, `system3dsRecoveredUndone`,
+`system3dsRecoveredFinished`, `system3dsRecoveredPartial`, `system3dsRecoveryFailed`,
+`system3dsMissingFiles`. Modifiées : `system3dsConfirm` (+ `{count}`),
+`system3dsKeysOptional`, `system3dsIncludeKeysHelp` (m7), `system3dsIncludeConsoleDataHelp`
+(m11).
+
+**Tests.** `test/libretro_3ds_system_data_service_test.dart` : fixtures au format réel
+(`:AES`, NCCH, TMD, `SEED`), titres entiers ; nouveaux cas pour chaque point, dont une
+installation **tuée** dans un isolate séparé (`Isolate.kill`, ni `catch` ni `finally`)
+pendant les sauvegardes, pendant les installations et après `committed`, suivie de la
+reprise ; preuve du `rename` par la date de modification conservée des originaux ; repli
+`EXDEV` entre deux volumes (Linux). `test/libretro_3ds_system_screen_test.dart` : sauvegardes
+créées par le service (une sauvegarde à la main n'est plus complète), statuts distincts,
+sonde en échec, signet libéré, sauvegarde abîmée, reprise à l'ouverture. Ajustements de
+contrats commentés dans les tests (comptes changés par les titres entiers, le CFG en données
+de console, l'élagage `sdmc`) ; aucune assertion supprimée sans son remplacement.
