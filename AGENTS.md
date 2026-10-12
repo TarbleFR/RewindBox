@@ -85,6 +85,7 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Constat du mainteneur sur la Build 445 installée (vidéo) : aucun catalogue de skins ne se charge, recherche grisée, message « The catalog could not be loaded ». Demande : « apporte un correctif et produit le build 446 ».
 - Cause démontrée : `LibretroSkinCatalogs.normalizeDownloadURL` décodait deux fois les segments d'URL ; deux liens DeltaStyles réels du catalogue Provenance (« pokÃ©mon pinball GBA », « DK control + real dpad Â ») levaient une exception hors de tout `try` dans `load()`, ce qui faisait échouer tous les catalogues de toutes les consoles (régression de `6639e7a3`, 444/445). Correctif : plus de second décodage, aucune exception possible, une entrée Provenance ou une carte Delta Skins inutilisable est ignorée sans bloquer les autres. Tests de non-régression avec ces liens réels. Aucun libellé, natif ni écran modifié. Voir `docs/build446-plan.md`.
 - Règle : une entrée de catalogue externe, quelle qu'elle soit, ne doit jamais empêcher le chargement des autres entrées ni des autres sources.
+- Livraison 446 vérifiée : source `8ceeb055c67688442b637a5a0f48dfbcd4f8ae9a`, run `38189277921`, IPA SHA-256 `60e55240bd8ec85bf2efdeca3b960dcdbafbf0547bedec8a7719f095223ad905` (207 536 632 octets), aucune validation iPhone. Ne pas réutiliser le numéro 446.
 
 ## Précision du mainteneur — 9 octobre 2026, 13 h
 

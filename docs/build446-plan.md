@@ -58,7 +58,18 @@ Base : Build 445 (`165c0201`), produit identique à la Build 444.
   source indisponible ; GBA 372, PlayStation 71, DS 358, SNES 188, NES 147,
   N64 64, Mega Drive 89 ; la recherche répond.
 
-## Livraison
+## Livraison vérifiée
 
-Les identités de la livraison sont consignées dans ce document après le run.
-Aucune validation sur iPhone n'est revendiquée avant l'essai du mainteneur.
+| Élément | Valeur |
+|---|---|
+| Source | `8ceeb055c67688442b637a5a0f48dfbcd4f8ae9a` (branche `Claude`) |
+| Run | `retroarch-delivery.yml` `38189277921`, périmètre `full`, 12 min 33 s ; `checks`, `native`, `cold` réussis |
+| Contrôles CI | Dart validé à `8ceeb055` (dont `libretro_skin_catalogs_test.dart` et ses deux nouveaux tests), validation Swift réutilisée du run `37844950677`, Core RPCS3 `dcf0df67` inchangé et vérifié ; « Libretro engine checks » `38189278108` réussi sur le même commit |
+| Artefact | `NeoStation-Build-446-8ceeb055…-cold` (`11721391998`), chiffré pour `build-utils/delivery-424-recipient.pem` |
+| IPA | `NeoStation-Build446-8ceeb055c67688442b637a5a0f48dfbcd4f8ae9a-cold.ipa`, 207 536 632 octets, SHA-256 `60e55240bd8ec85bf2efdeca3b960dcdbafbf0547bedec8a7719f095223ad905` (égal à `SHA256SUMS` et à `signed-payload-identity.json`) |
+| Copie locale | `C:\Users\Coren\Downloads\NeoStation-Build446-8ceeb05.ipa` ; déchiffrement dans `C:\Users\Coren\nsw\b446` |
+
+L'IPA est scellée pour la re-signature Apple par SideStore. Aucune validation
+sur iPhone n'est revendiquée avant l'essai du mainteneur : ouvrir Skins ›
+« Browse the skin catalog » sur plusieurs consoles, chercher un nom, installer
+un skin.
