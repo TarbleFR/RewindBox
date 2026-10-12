@@ -598,3 +598,47 @@ conservées sauf mention ci-dessous.
   écrits dans les textes et changeraient dans les douze langues avec leurs constantes. Égalités légitimes ajoutées à
   la liste `identical` : `fr:sectionNavigation`, `fr:textLayoutPages`, `de:sectionText`, `de:sectionNavigation`.
   Aucune relecture par des locuteurs natifs.
+
+### 7.9 Phase 7 — barre d'outils, marque-pages, sections, Y
+
+- Chapitres en ligne : emplacement `page:N@<chapterId>`, avec `chapterId` et `pageIndex` enregistrés ; le magasin
+  n'admet qu'un marque-page par emplacement, et `page:N` seul confondrait deux chapitres.
+- Réglages et Sommaire passent dans la barre d'outils (les tests existants exigent un seul contrôle de chaque) ; la
+  barre haute garde Retour, le titre et Ajuster (PDF en défilement).
+- Progression : CBZ/en ligne et PDF gardent « n / N » sur le curseur, la cellule de progression montre le
+  pourcentage et le temps restant ; en EPUB/TXT pages, la cellule montre aussi la page dans le chapitre (clé de
+  test `library-book-pages-label`, désormais `LibraryReaderToolbar.pageLabelKey`) ; champs ajoutés `lastPage`
+  (planches) et `paginating` (« Mise en pages… ») ; VoiceOver lit un seul nœud « Progression », titre du chapitre
+  compris.
+- Temps restant : un seul à l'écran, celui du chapitre s'il est connu, sinon celui du livre ; VoiceOver lit les
+  deux. Chapitre : chapitres en ligne et EPUB (les sections TXT ne comptent pas comme chapitres). Livre : CBZ, PDF et
+  EPUB/TXT en pages (pages des chapitres suivants estimées d'après la part du livre couverte par le chapitre
+  courant). Titres en ligne : pas de temps du livre (pages des autres chapitres inconnues) ; défilement continu :
+  aucun temps.
+- `LibraryReadingPace` : `pageShown({pages})` (une planche compte ses pages), `restart()` (saut, tour en arrière,
+  nouveau chapitre, ouverture), fenêtre de 10 tours, tours de moins de 0,5 s par page ou de plus de 10 min écartés ;
+  horloge de test `LibraryReadingPace.defaultClock`.
+- Barre d'outils : `contents` (sommaire ou chapitres), `bookmarked` (icône pleine, l'état reste visible quand le
+  ruban est masqué), `settingsIcon` ; `onBookmarks` nul pour un PDF sans `progressKey` (bouton inactif, `y` nul).
+- Mode « Toujours visible » : `LibraryReaderBarsInset` pose les pages des lecteurs d'images entre les barres et
+  réserve la hauteur de la barre sous le texte EPUB/TXT, sinon des barres impossibles à masquer couvriraient des
+  pages PDF (sans zoom en mode pages) et les dernières lignes EPUB ; l'overlay ne change pas.
+- Feuille des marque-pages : première ligne « Ajouter / Retirer le marque-page » (équivalent tactile de Y), bouton de
+  suppression par ligne, pied `bookmarksLocalOnly`, message en place à la limite de 500 ; manette : A ouvre, X
+  retire, Y bascule, B ferme ; paramètres `isShown`, `onToggle`, `chapterLabel` ; le libellé par défaut
+  « Marque-page {index} » suit le rang, rien de traduit n'est enregistré.
+- « Affiché » : en pages et PDF, toute la planche (Y retire les marque-pages qu'elle porte, sinon en ajoute un à sa
+  première page) ; en EPUB/TXT, la planche en pages ou la ligne de lecture en défilement ; un marque-page correspond
+  quand sa fraction tombe dans l'intervalle (un marque-page pris avant un changement de typographie apparaît sur la
+  page qui porte désormais ses mots) ; ouvrir un marque-page résout son emplacement, sinon sa fraction.
+- Réglages : notes issues des clés de la phase 1 (`navigationPerBookNote`, `bookSettingsActive`, `pdfPagesLimits`,
+  `textPagesLimits`, `curlDisabledZoom`, `doublePageNotVertical`) ; « Ruban de marque-page » rangé sous Apparence ;
+  lignes de page masquées là où elles ne s'appliquent pas (EPUB/TXT en défilement continu, PDF en défilement) ; la
+  ligne de sens du lecteur de pages ne pose plus la surcharge de session `overrideDirection` (la valeur du livre
+  l'emporte déjà sur l'indice, et « Revenir aux réglages généraux » l'annule) ; les écritures globales 440 du sens
+  et du mode de lecture deviennent des écritures par livre ; un PDF sans `progressKey` écrit la navigation en
+  global, sans note ni retour.
+- Les messages passent par `showLibraryReaderMessage` ; comme avant la phase 7 pour EPUB/TXT, le `ScaffoldMessenger`
+  pose aussi la barre de message dans la route en dessous, masquée par le lecteur.
+- Tests : les nouveaux fichiers importent les aides d'autres tests avec `show` (`expectOneBack`, `usePhone`,
+  `PopRecorder`, `FakeOpener`, `rendered`, `mockPathProvider`) plutôt que de les dupliquer.
