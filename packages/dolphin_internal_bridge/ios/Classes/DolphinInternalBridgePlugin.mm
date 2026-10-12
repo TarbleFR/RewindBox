@@ -1197,7 +1197,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       [controller.framePacing startWithView:controller.view];
       controller.touchOverlay.sessionInputActive = YES;
       // Build 442: with AirPlay or an adapter, the Metal view moves to the
-      // external screen (Fit/Fill) while the controls stay on the iPhone.
+      // external screen while the controls stay on the iPhone. Build 447:
+      // the move is done by the external_display coordinator, to which the
+      // adapter attaches the Metal view (fixed drawable) and the container
+      // after every launch gate passed; the global mode (Automatic, Fit,
+      // Fill, Original) and a later connection are the coordinator's.
       DolphinExternalDisplay* external = [[DolphinExternalDisplay alloc]
           initWithRenderView:controller.metalView placeholder:controller.view];
       __weak DOLDolphinViewController* weakController = controller;
@@ -1790,7 +1794,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     self.menuOpening = YES;
     [self stopFrameSampler];
     // The Metal view returns to the iPhone before the core shuts down and the
-    // controller is dismissed; the external window is released here.
+    // controller is dismissed; the host detaches from the external-display
+    // coordinator here (the window stays for the menu or the next game).
     [self.dolphinController.externalDisplay stop];
     self.dolphinController.externalDisplay = nil;
     [self.dolphinController.framePacing stop];

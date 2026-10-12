@@ -331,10 +331,22 @@ jobs:
           EOF
           mkdir -p "$STUB/neo_swap"
           cp packages/neo_swap/ios/Classes/*.h "$STUB/neo_swap/"
+          # Build 447: the RPCS3, Dusklight and KartPad bridges import
+          # <external_display/NeoExternalDisplayCoordinator.h>. Stage the headers
+          # the external_display pod publishes (public_header_files), and only
+          # those, as the framework exposes them: the same staging as the
+          # libretro iPhone check, so an unpublished import fails here too.
+          python3 - "$STUB" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0,'test')
+          from libretro_ios_syntax_test import stage_external_display
+          stage_external_display(Path(sys.argv[1]))
+          PY
           COMMON=(
             -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++
             -isysroot "$SDK" -miphoneos-version-min=17.4
-            -I"$STUB"
+            -I"$STUB" -I"$STUB/include"
             -Ipackages/rpcs3_internal_bridge/ios/Classes
           )
           xcrun --sdk iphoneos clang++ "${COMMON[@]}" \

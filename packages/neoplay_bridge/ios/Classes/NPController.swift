@@ -144,7 +144,8 @@ final class NPController {
         isStopping = capture != nil; capture?.stop(); publish()
     }
     private func showOverlay(label: String) {
-        guard overlay == nil, let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive }) else { return }
+        // Only the iPhone's own scene: the external display scene (external_display plugin) must never host the overlay.
+        guard overlay == nil, let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive && $0.session.role == .windowApplication }) else { return }
         let window = NPOverlayWindow(windowScene: scene); window.windowLevel = .alert - 1
         let controller = UIViewController(); controller.view.backgroundColor = .clear; window.rootViewController = controller
         controller.view.addSubview(localOutput.view)

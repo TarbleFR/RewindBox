@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,26 +31,40 @@ import 'widgets/app_dock.dart';
 import 'widgets/now_playing_panel.dart';
 
 class SecondaryScreen extends StatefulWidget {
-  const SecondaryScreen({super.key, this.initialThemeName});
+  const SecondaryScreen({super.key, this.initialThemeName, this.stateSource});
 
   /// Theme name read from the database by this engine's entrypoint, used until
   /// the main engine pushes its state. Without it the display would open on
   /// the platform-brightness fallback — black on a light theme.
   final String? initialThemeName;
 
+  /// Where the display states come from when they are not the Android
+  /// `sub_screen` shared state: the iOS external display's second engine
+  /// (Build 447) injects the states the main engine pushes through
+  /// `ExternalDisplayStateChannel`. Null keeps the Android path:
+  /// [SecondaryDisplayState.instance] is listened to and written back
+  /// (mute, screenshots, dock edits); with a source nothing is written back.
+  final ValueListenable<SecondaryDisplayStateData?>? stateSource;
+
   @override
   State<SecondaryScreen> createState() => _SecondaryScreenState();
 }
 
 class _SecondaryScreenState extends State<SecondaryScreen> {
+  /// The Android shared state, read and written (null with an injected
+  /// [SecondaryScreen.stateSource] and outside Android).
   SecondaryDisplayState? _secondaryDisplayState;
+
+  /// What this screen reads and listens to: [_secondaryDisplayState] on
+  /// Android, the injected source otherwise.
+  ValueListenable<SecondaryDisplayStateData?>? _stateSource;
   VideoPlayerController? _videoController;
   Future<void> _videoWork = Future<void>.value();
   Future<void> _videoDisposal = Future<void>.value();
   bool get _videoBlocked => FrontendMediaGate.instance.blocked ||
-      (_secondaryDisplayState?.value?.isGameLaunching ?? false) ||
-      (_secondaryDisplayState?.value?.nowPlayingActive ?? false) ||
-      !(_secondaryDisplayState?.value?.deviceScreenOn ?? true);
+      (_stateSource?.value?.isGameLaunching ?? false) ||
+      (_stateSource?.value?.nowPlayingActive ?? false) ||
+      !(_stateSource?.value?.deviceScreenOn ?? true);
 
   /// Latches true the first time the main engine reports `appReady`; drives the
   /// app dock's one-shot slide-up. Local so the oscillating shared-state flag
@@ -97,6 +112,10 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
   /// just as a game launched (which calls [_stopVideo]) throws away the
   /// controller it created instead of leaving it playing audio over the game.
   int _videoGeneration = 0;
+
+  /// Set at the start of [dispose]: `mounted` is still true there, so the
+  /// [_stopVideo] teardown must not call setState on the defunct element.
+  bool _disposing = false;
   int _lastMediaRevision = 0;
 
   /// Auto-clearing timer for the "newly earned this session" celebration.
@@ -160,8 +179,23 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
   void initState() {
     super.initState();
     FrontendMediaGate.instance.register(this, _suspendVideo);
-    if (Platform.isAndroid) {
+    final injected = widget.stateSource;
+    if (injected != null) {
+      // iOS external display: the main engine pushes the states; the shared
+      // state, the "secondary active" signal and the dock fallback belong to
+      // the Android bottom display and are not used.
+      _stateSource = injected;
+      injected.addListener(_onStateChanged);
+      if (injected.value != null) {
+        // A state pushed before this screen existed is handled like a change
+        // (video preview, panel timers), once the first frame is laid out.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _onStateChanged();
+        });
+      }
+    } else if (Platform.isAndroid) {
       _secondaryDisplayState = SecondaryDisplayState.instance;
+      _stateSource = _secondaryDisplayState;
       _secondaryDisplayState!.addListener(_onStateChanged);
       // Signal that the secondary screen is active — but only after the initial
       // state sync. Pushing it while the synced value is still null makes
@@ -177,6 +211,18 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
           setState(() => _dockRevealed = true);
         }
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant SecondaryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.stateSource;
+    // Only an injected source can change; the Android path never re-binds.
+    if (next != null && !identical(next, oldWidget.stateSource)) {
+      oldWidget.stateSource?.removeListener(_onStateChanged);
+      _stateSource = next;
+      next.addListener(_onStateChanged);
     }
   }
 
@@ -224,7 +270,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
   }
 
   void _onStateChanged() {
-    final state = _secondaryDisplayState?.value;
+    final state = _stateSource?.value;
     if (state == null) return;
 
     // Warm the app list + dock icons exactly once, only after the dock has
@@ -540,7 +586,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
       setState(() => _inGameDimmed = false);
     }
     // User setting: 0 seconds means "never dim", so leave the panel lit.
-    final delaySeconds = _secondaryDisplayState?.value?.nowPlayingDimDelay ?? 5;
+    final delaySeconds = _stateSource?.value?.nowPlayingDimDelay ?? 5;
     if (delaySeconds <= 0) return;
     _dimTimer = Timer(Duration(seconds: delaySeconds), () {
       if (mounted) setState(() => _inGameDimmed = true);
@@ -594,7 +640,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
       }
 
       // IMPORTANT: Set volume BEFORE playing to ensure sync and avoid audio burst
-      final isMuted = _secondaryDisplayState?.value?.isVideoMuted ?? true;
+      final isMuted = _stateSource?.value?.isVideoMuted ?? true;
       await controller.setVolume(0.0);
 
       await controller.setLooping(true);
@@ -648,7 +694,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
         }
       }();
     }
-    if (mounted) {
+    if (mounted && !_disposing) {
       setState(() {
         _showVideo = false;
       });
@@ -657,9 +703,11 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
 
   @override
   void dispose() {
+    _disposing = true;
     FrontendMediaGate.instance.unregister(this);
-    // Shared singleton — detach our listener, never dispose the instance.
-    _secondaryDisplayState?.removeListener(_onStateChanged);
+    // Shared singleton (or the injected source) — detach our listener, never
+    // dispose the instance.
+    _stateSource?.removeListener(_onStateChanged);
     _celebrationTimer?.cancel();
     _playTimeTicker?.cancel();
     _dimTimer?.cancel();
@@ -670,7 +718,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
   }
 
   void _toggleMute() {
-    final state = _secondaryDisplayState?.value;
+    final state = _stateSource?.value;
     if (state != null) {
       _secondaryDisplayState?.updateState(
         isVideoMuted: !state.isVideoMuted,
@@ -682,7 +730,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
   /// Asks the main engine to take a system screenshot of the main screen by
   /// bumping the shared trigger; the main engine watches for the increment.
   void _requestScreenshot() {
-    final state = _secondaryDisplayState?.value;
+    final state = _stateSource?.value;
     if (state != null) {
       _wakeInGamePanel();
       _secondaryDisplayState?.updateState(
@@ -693,14 +741,14 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
 
   /// Current dock slot assignments, always [ConfigModel.dockMaxSlots] long.
   List<String> get _dockApps {
-    final apps = _secondaryDisplayState?.value?.dockApps;
+    final apps = _stateSource?.value?.dockApps;
     return ConfigModel.normalizeDock(apps);
   }
 
   /// Writes a new dock layout to shared state and bumps the edit trigger so the
   /// main engine persists it.
   void _commitDock(List<String> next) {
-    final state = _secondaryDisplayState?.value;
+    final state = _stateSource?.value;
     if (state == null) return;
     _secondaryDisplayState?.updateState(
       dockApps: next,
@@ -788,7 +836,7 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (_, child) => ValueListenableBuilder<SecondaryDisplayStateData?>(
-        valueListenable: _secondaryDisplayState ?? ValueNotifier(null),
+        valueListenable: _stateSource ?? ValueNotifier(null),
         builder: (context, value, child) {
           final theme = resolveTheme(
             value?.themeName ?? widget.initialThemeName,

@@ -1,0 +1,19 @@
+name: external_display
+resolution: workspace
+description: NeoStation iOS external display (AirPlay, adapters) host. Owns the window of the external scene and places either the TV menu or the running engine's render view on it; emulator cores are not touched.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.9.2'
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: ExternalDisplayPlugin

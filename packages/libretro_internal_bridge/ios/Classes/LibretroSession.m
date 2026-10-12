@@ -27,6 +27,8 @@
 #import "LibretroTouchOverlay.h"
 #import "LibretroVulkanRenderer.h"
 
+#import <external_display/NeoExternalDisplayCoordinator.h>
+
 #include <mach/mach_time.h>
 #include <math.h>
 #include <stdatomic.h>
@@ -223,6 +225,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller = [[LibretroGameViewController alloc] initWithInput:_input cacheDirectory:cacheDirectory];
   _controller.title = _configuration.gameTitle;
   _controller.menuAccessibilityLabel = [self text:@"menu"];
+  _controller.uiLocale = [self uiLocale];
   _controller.touchControlsEnabled = _touchControls;
   _controller.touchDiagnosticsEnabled = _touchDiagnostics;
   _controller.allowedOrientations = UIInterfaceOrientationMaskAllButUpsideDown;
@@ -263,6 +266,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                           LibretroSession *session = weakSelf;
                           if (session == nil) return;
                           [session->_journal note:@"launch: game view presented, emulation thread starting"];
+                          // The game view appeared: a connected TV takes the
+                          // picture now, before the first frame is drawn.
+                          [session attachExternalDisplay];
                           session->_thread = [[NSThread alloc] initWithTarget:session
                                                                      selector:@selector(threadMain)
                                                                        object:nil];
@@ -292,6 +298,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (void)stopWithCompletion:(dispatch_block_t)completion {
   if (completion != nil) [_stopCompletions addObject:[completion copy]];
+  // The picture comes back to the iPhone before the core is asked to stop.
+  [self detachExternalDisplayFrom:_controller];
   if (_thread == nil) {
     [self finishStop];
     return;
@@ -312,6 +320,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _frontendMenu = nil;
   _editingControls = NO;
   _input.actionHandler = nil;
+  // A core that stopped by itself skipped stopWithCompletion: the Metal
+  // view still returns to the game view before it is dismissed.
+  [self detachExternalDisplayFrom:controller];
   [controller stopInputPolling];
   NSArray<dispatch_block_t> *completions = [_stopCompletions copy];
   [_stopCompletions removeAllObjects];
@@ -345,6 +356,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _frontendMenu = nil;
   _editingControls = NO;
   _input.actionHandler = nil;
+  [self detachExternalDisplayFrom:controller];
   [controller stopInputPolling];
   // A stop asked while the launch was failing is answered too.
   NSArray<dispatch_block_t> *completions = [_stopCompletions copy];
@@ -366,6 +378,26 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   } else {
     done();
   }
+}
+
+#pragma mark - External display (main thread)
+
+/// The Metal view goes to NeoStation's window on the TV when one is
+/// connected (NeoExternalRenderHost); without a TV the coordinator only
+/// remembers the host and moves the view when a screen comes.
+- (void)attachExternalDisplay {
+  LibretroGameViewController *controller = _controller;
+  if (controller == nil) return;
+  [NeoExternalDisplayCoordinator.shared attachRenderHost:controller];
+}
+
+/// The Metal view returns to index 0 of the game view with its iPhone frame
+/// and scale, before the core or the presenter stops and before the game
+/// view is dismissed. Harmless when the view never left or already came
+/// back.
+- (void)detachExternalDisplayFrom:(LibretroGameViewController *)controller {
+  if (controller == nil) return;
+  [NeoExternalDisplayCoordinator.shared detachRenderHost:controller];
 }
 
 #pragma mark - Emulation thread
@@ -1345,6 +1377,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (void)gameViewDidLayout:(LibretroSkinLayoutResult *)layout
            representation:(LibretroSkinRepresentation *)representation
+                  screens:(NSArray<LibretroLaidOutScreen *> *)pictureScreens
              drawableSize:(CGSize)drawableSize
                    points:(CGSize)pointSize {
   LibretroScreenFormat format =
@@ -1353,7 +1386,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   double width = pointSize.width > 0 ? pointSize.width : 1;
   double height = pointSize.height > 0 ? pointSize.height : 1;
   NSMutableArray<LibretroPresenterScreen *> *screens = [NSMutableArray array];
-  for (LibretroLaidOutScreen *screen in layout.screens) {
+  // The picture's screens (the layout's own on the phone, placed in the
+  // TV's surface on the external display) in the space of `pointSize`; the
+  // overlay below keeps the iPhone layout.
+  for (LibretroLaidOutScreen *screen in pictureScreens) {
     LibretroRect points = screen.container;
     LibretroRect container = LibretroRectMake(points.x / width, points.y / height, points.w / width, points.h / height);
     LibretroPresenterScreen *entry = [LibretroPresenterScreen screenWithSource:screen.source

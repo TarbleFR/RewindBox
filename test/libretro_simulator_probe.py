@@ -7,7 +7,10 @@ pspautotests GPU test program `simple.prx` and the ftpd 3DS homebrew
 `ftpd.3dsx`. Every file is checked against its pinned identity.
 
 `run` builds test/libretro_simulator/probe.m with the libretro bridge
-sources into a small UIKit app and embeds:
+sources (and the Flutter-free sources of the external_display pod the bridge
+links against since Build 447, its public headers staged as
+<external_display/...> by test/libretro_ios_syntax_test.py) into a small
+UIKit app and embeds:
 - PPSSPP and Azahar from the cores artifact the delivery pins, with their
   Mach-O platform switched from iOS (2) to iOS Simulator (7) - no other
   byte changes - and signed ad hoc;
@@ -59,11 +62,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
 CATALOG = ROOT / 'lib/services/libretro_core_catalog.dart'
+# Build 447: the bridge imports <external_display/Name.h> and calls the pod's
+# coordinator. The pod sources without Flutter (coordinator, preferences,
+# scene delegate) are compiled and linked with the bridge; the plugin and the
+# menu engine import Flutter and stay out, like the bridge's own plugin.
+EXTERNAL_DISPLAY = ROOT / 'packages/external_display/ios/Classes'
+EXTERNAL_DISPLAY_SOURCES = ('NeoExternalDisplayCoordinator.m', 'NeoExternalDisplayPreferences.m',
+                            'NeoExternalDisplaySceneDelegate.m')
+sys.path.insert(0, str(ROOT / 'test'))
+from libretro_ios_syntax_test import stage_external_display  # noqa: E402
 TARGET = 'arm64-apple-ios17.4-simulator'
 BUNDLE_ID = 'com.neostation.libretro.probe'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
            'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1')
-FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
+# The bridge's frameworks, plus MetalKit for the external_display coordinator
+# (its podspec's frameworks: it preserves an MTKView's drawable on the move).
+FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'MetalKit', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
               'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics')
 REAL_CORES = ('ppsspp', 'azahar')
 # Built here from test/libretro_host for the simulator.
@@ -271,8 +285,11 @@ def sdk_path():
 
 
 def compile_probe(sources, sdk, work, app):
+    # <external_display/Name.h> resolves as the bridge sees the pod: its
+    # public headers and nothing else (test/libretro_ios_syntax_test.py).
+    include = stage_external_display(work)
     includes = [sources / 'Classes', sources / 'ThirdParty/include', sources / 'ThirdParty/include/libretro',
-                sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src']
+                sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include]
     base = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-O1',
             '-Wno-deprecated-declarations']
     for include in includes:
@@ -280,6 +297,7 @@ def compile_probe(sources, sdk, work, app):
     for define in DEFINES:
         base += ['-D', define]
     units = [path for path in sorted((sources / 'Classes').glob('*.m')) if path.name != 'LibretroInternalBridgePlugin.m']
+    units += [EXTERNAL_DISPLAY / name for name in EXTERNAL_DISPLAY_SOURCES]
     units += sorted((sources / 'ThirdParty/rcheevos/src').rglob('*.c'))
     units.append(ROOT / 'test/libretro_simulator/probe.m')
     objects = []

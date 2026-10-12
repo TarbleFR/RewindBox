@@ -10,6 +10,9 @@ import 'package:neostation/services/update_service.dart';
 import 'package:neostation/services/systems_update_service.dart';
 import 'package:neostation/widgets/update_dialog.dart';
 import 'package:neostation/widgets/systems_update_dialog.dart';
+import 'package:neostation/services/external_display_service.dart';
+import 'package:neostation/models/secondary_display_state.dart';
+import 'package:neostation/services/secondary_display_bridge.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/ui_refresh_rate_service.dart';
 
@@ -64,6 +67,111 @@ abstract final class AppTabs {
   static const int count = 7;
 }
 
+/// Tab and theme producer of the secondary display.
+///
+/// The Android bottom screen (the shared state the host passes as `shared`,
+/// only when it exists) and the iOS TV menu ([SecondaryDisplayBridge],
+/// Build 447) receive the same arguments from one place, so neither can
+/// drift from the other. The platform gates stay where they were: the host
+/// passes a shared state on Android only, and the bridge forwards on iOS
+/// only. Exposed so tests can drive it with a bridge of their own.
+class AppScreenSecondaryDisplay {
+  AppScreenSecondaryDisplay({SecondaryDisplayBridge? bridge})
+    : _bridge = bridge ?? SecondaryDisplayBridge.instance;
+
+  final SecondaryDisplayBridge _bridge;
+
+  /// Whether the TV menu receives the state here (iOS).
+  bool get forwardsToTV => _bridge.isSupportedPlatform;
+
+  /// The name the secondary display shows for a tab other than Systems
+  /// (which pushes its own state); empty for a tab without one.
+  static String tabName(int index) {
+    switch (index) {
+      case AppTabs.search:
+        return 'Search';
+      case AppTabs.achievements:
+        return 'Achievements';
+      case AppTabs.scraper:
+        return 'Scraper';
+      case AppTabs.settings:
+        return 'Settings';
+      case AppTabs.library:
+        return 'Library';
+    }
+    return '';
+  }
+
+  /// Pushes the state of the tab at [index] (nothing for the Systems tab).
+  /// Returns whether the TV menu accepted it; false elsewhere.
+  Future<bool> tabChanged({
+    required int index,
+    required bool isOled,
+    required int backgroundColor,
+    required String themeName,
+    SecondaryDisplayState? shared,
+  }) {
+    if (index == AppTabs.systems) {
+      return Future<bool>.value(false); // System tab manages its own state.
+    }
+    final tabName = AppScreenSecondaryDisplay.tabName(index);
+    shared?.updateState(
+      systemName: tabName,
+      useFluidShader: true,
+      isOled: isOled,
+      backgroundColor: backgroundColor,
+      themeName: themeName,
+      isGameSelected: false,
+      clearSystemLogo: true,
+      clearSystemBackground: true,
+      clearFanart: true,
+      clearScreenshot: true,
+      clearWheel: true,
+      clearVideo: true,
+      clearImageBytes: true,
+    );
+    return _bridge.forward(
+      (current) => current.copyWith(
+        systemName: tabName,
+        useFluidShader: true,
+        isOled: isOled,
+        backgroundColor: backgroundColor,
+        themeName: themeName,
+        isGameSelected: false,
+        clearSystemLogo: true,
+        clearSystemBackground: true,
+        clearFanart: true,
+        clearScreenshot: true,
+        clearWheel: true,
+        clearVideo: true,
+        clearImageBytes: true,
+      ),
+    );
+  }
+
+  /// Pushes the theme (OLED, background colour, name) and nothing else.
+  /// Returns whether the TV menu accepted it; false elsewhere.
+  Future<bool> themeChanged({
+    required bool isOled,
+    required int backgroundColor,
+    required String themeName,
+    SecondaryDisplayState? shared,
+  }) {
+    shared?.updateState(
+      isOled: isOled,
+      backgroundColor: backgroundColor,
+      themeName: themeName,
+    );
+    return _bridge.forward(
+      (current) => current.copyWith(
+        isOled: isOled,
+        backgroundColor: backgroundColor,
+        themeName: themeName,
+      ),
+    );
+  }
+}
+
 /// Bridge class providing static access to the main application navigation state.
 ///
 /// Facilitates tab switching and navigation lifecycle control from deep within
@@ -107,6 +215,11 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
 
   ThemeProvider? _themeProvider;
 
+  /// Pushes the active tab and the theme to the secondary display (Android
+  /// bottom screen, iOS TV menu).
+  final AppScreenSecondaryDisplay _secondaryDisplay =
+      AppScreenSecondaryDisplay();
+
   /// Keeps the consoles added from the consoles tab in the main menu (iOS).
   SqliteConfigProvider? _mainMenuProvider;
 
@@ -148,6 +261,12 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     // comes back from a game (Build 440).
     if (UiRefreshRateService.isSupportedPlatform) {
       UiRefreshRateService.instance.startProbe();
+    }
+
+    // External display (Build 447): names the TV menu entrypoint to the
+    // native host and follows its state; idempotent, never throws.
+    if (ExternalDisplayService.isSupportedPlatform) {
+      unawaited(ExternalDisplayService.instance.init());
     }
 
     // Initialize the navigation bridge with core application callbacks.
@@ -355,22 +474,30 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Synchronizes visual state with secondary display hardware (Android OEM targets).
+  /// The Android bottom-screen shared state; null elsewhere or when absent.
+  SecondaryDisplayState? get _androidSecondaryState => Platform.isAndroid
+      ? Provider.of<SqliteConfigProvider>(
+          context,
+          listen: false,
+        ).secondaryDisplayState
+      : null;
+
+  /// Synchronizes visual state with the secondary display: the Android
+  /// hardware screen and, on iOS, the TV menu of the external display.
   void _onThemeChanged() {
-    if (!mounted || !Platform.isAndroid || _themeProvider == null) return;
+    if (!mounted || _themeProvider == null) return;
+    final shared = _androidSecondaryState;
+    if (shared == null && !_secondaryDisplay.forwardsToTV) return;
 
     final themeProvider = _themeProvider!;
-    final secondaryState = Provider.of<SqliteConfigProvider>(
-      context,
-      listen: false,
-    ).secondaryDisplayState;
-    if (secondaryState == null) return;
-
-    secondaryState.updateState(
-      isOled: themeProvider.isOled,
-      backgroundColor: themeProvider.currentTheme.scaffoldBackgroundColor
-          .toARGB32(),
-      themeName: themeProvider.currentThemeName,
+    unawaited(
+      _secondaryDisplay.themeChanged(
+        shared: shared,
+        isOled: themeProvider.isOled,
+        backgroundColor: themeProvider.currentTheme.scaffoldBackgroundColor
+            .toARGB32(),
+        themeName: themeProvider.currentThemeName,
+      ),
     );
 
     _log.i(
@@ -545,58 +672,23 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
     });
   }
 
-  /// Updates secondary display metadata based on the current active tab.
+  /// Updates secondary display metadata based on the current active tab
+  /// (Android bottom screen and, on iOS, the TV menu).
   void _updateSecondaryScreenTab(int index) {
-    if (Platform.isAndroid) {
-      final secondaryState = Provider.of<SqliteConfigProvider>(
-        context,
-        listen: false,
-      ).secondaryDisplayState;
-      if (secondaryState == null) return;
+    final shared = _androidSecondaryState;
+    if (shared == null && !_secondaryDisplay.forwardsToTV) return;
 
-      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-      final isOled = themeProvider.isOled;
-
-      if (index == AppTabs.systems) {
-        return; // System tab manages its own secondary display state.
-      }
-
-      String tabName = '';
-      switch (index) {
-        case AppTabs.search:
-          tabName = 'Search';
-          break;
-        case AppTabs.achievements:
-          tabName = 'Achievements';
-          break;
-        case AppTabs.scraper:
-          tabName = 'Scraper';
-          break;
-        case AppTabs.settings:
-          tabName = 'Settings';
-          break;
-        case AppTabs.library:
-          tabName = 'Library';
-          break;
-      }
-
-      secondaryState.updateState(
-        systemName: tabName,
-        useFluidShader: true,
-        isOled: isOled,
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    unawaited(
+      _secondaryDisplay.tabChanged(
+        shared: shared,
+        index: index,
+        isOled: themeProvider.isOled,
         backgroundColor: themeProvider.currentTheme.scaffoldBackgroundColor
             .toARGB32(),
         themeName: themeProvider.currentThemeName,
-        isGameSelected: false,
-        clearSystemLogo: true,
-        clearSystemBackground: true,
-        clearFanart: true,
-        clearScreenshot: true,
-        clearWheel: true,
-        clearVideo: true,
-        clearImageBytes: true,
-      );
-    }
+      ),
+    );
   }
 
   /// Tabs the user hasn't hidden, in display order. Never empty — Systems and

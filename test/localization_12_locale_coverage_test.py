@@ -40,6 +40,7 @@ def main():
         "rpcs3_rap_locale.dart",
         "rpcs3_saves_locale.dart","dolphin_display_locale.dart",
         "ui_refresh_rate_locale.dart",
+        "external_display_locale.dart",
         "ios_setup_locale.dart","embedded_emulator_locale.dart"
     ):
         require_locales(L10N / name)

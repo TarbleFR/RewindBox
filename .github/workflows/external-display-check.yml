@@ -1,0 +1,101 @@
+name: External display (AirPlay universal) native checks
+# Build 447 chantier 1 (docs/external-display-universal.md § 7). Runs when its
+# inputs change on the Claude branch, or manually once the workflow exists on
+# the default branch:
+#   gh workflow run external-display-check.yml --ref Claude
+# (GitHub only dispatches workflows known to the default branch, hence the
+# push trigger for this new check.)
+on:
+  push:
+    branches:
+    - Claude
+    paths:
+    - .github/workflows/external-display-check.yml
+    - build-utils/configure_external_display_ios.py
+    - packages/external_display/**
+    - test/external_display_*
+    - test/armsx2_external_display_test.py
+    - test/rpcs3_external_display_test.py
+    - test/ports_external_display_test.py
+    - test/libretro_external_surface_test.py
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: external-display-${{ github.sha }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Fetch the iOS engine of the pinned Flutter
+        run: |
+          set -euo pipefail
+          flutter --version
+          flutter precache --ios
+      - name: Placement policy, source contracts, scope, native labels, host plist and bridge adoption
+        run: |
+          set -euo pipefail
+          python3 test/external_display_test.py
+          python3 test/external_display_scope_test.py
+          python3 test/external_display_labels_test.py
+          python3 test/external_display_host_plist_test.py
+          python3 test/armsx2_external_display_test.py
+          python3 test/rpcs3_external_display_test.py
+          python3 test/ports_external_display_test.py
+          python3 test/libretro_external_surface_test.py
+      - name: iPhone arm64 syntax of every plugin source against the real Flutter.xcframework
+        run: |
+          set -euo pipefail
+          mkdir -p build/external-display
+          root="${FLUTTER_ROOT:-$(cd "$(dirname "$(command -v flutter)")/.." && pwd)}"
+          xcframework="$root/bin/cache/artifacts/engine/ios/Flutter.xcframework"
+          slice="$xcframework/ios-arm64"
+          if [ ! -f "$slice/Flutter.framework/Flutter" ]; then
+            slice="$(find "$xcframework" -maxdepth 1 -type d -name 'ios-arm64*' ! -name '*simulator*' | head -n 1)"
+          fi
+          test -f "$slice/Flutter.framework/Flutter" || { echo "Flutter device slice missing under $xcframework (flutter precache --ios)"; exit 1; }
+          sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+          sources=(packages/external_display/ios/Classes/*.m)
+          test -f "${sources[0]}" || { echo 'No Objective-C source in packages/external_display/ios/Classes'; exit 1; }
+          status=0
+          for source in "${sources[@]}"; do
+            if xcrun clang -fsyntax-only -x objective-c -fobjc-arc -fmodules -Wall -arch arm64 -isysroot "$sdk" -miphoneos-version-min=17.4 \
+                -F "$slice" -I packages/external_display/ios/Classes "$source" 2>>build/external-display/iphone-arm64-syntax.txt; then
+              echo "ok     $source"
+            else
+              echo "FAILED $source"
+              status=1
+            fi
+          done
+          cat build/external-display/iphone-arm64-syntax.txt
+          exit "$status"
+      - name: Simulator XCTest with an injected scene and window (connection, modes, disconnection, return order, hidden menu engine)
+        run: |
+          set -euo pipefail
+          command -v xcodegen >/dev/null || brew install xcodegen
+          python3 test/external_display_ui_test.py > /tmp/external-display.log 2>&1 || { tail -n 150 /tmp/external-display.log; exit 1; }
+          tail -n 40 /tmp/external-display.log
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: External-Display-Diagnostics-${{ github.run_id }}
+          path: |
+            /tmp/external-display.log
+            build/external-display/
+          retention-days: 3

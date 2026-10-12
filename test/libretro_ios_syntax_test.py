@@ -5,6 +5,14 @@ Uses the iPhoneOS SDK with the podspec's flags, so a broken API use is caught
 before the full delivery build. The Flutter plugin header is replaced by a
 declaration stub; everything else is the real SDK.
 
+The bridge depends on the external_display pod (NeoExternalRenderHost, Build
+447) and imports its headers as <external_display/Name.h>. The generated host
+links every pod as a framework (use_frameworks!), where only the headers the
+pod publishes (its podspec's public_header_files) resolve that way: the same
+headers, and only those, are staged under a folder named after the pod and
+added to the search path, so a bridge import of an unpublished header fails
+here rather than in the cold Xcode build.
+
 The objects are then linked into one dynamic library with the same SDK and
 `nm -u` lists what it still needs from elsewhere. A symbol of the bridge
 itself (a name containing "Libretro": its C functions and constants, and its
@@ -14,6 +22,8 @@ only fail the cold Xcode link of the delivery. Flutter symbols (declared by
 the stub) and system symbols stay undefined on purpose: they are resolved by
 the real application.
 """
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -21,6 +31,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
+EXTERNAL_DISPLAY = ROOT / 'packages/external_display/ios'
+EXTERNAL_DISPLAY_POD = 'external_display'
 TARGET = 'arm64-apple-ios17.4'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
            'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1')
@@ -36,11 +48,41 @@ def object_name(source):
     return '_'.join(source.relative_to(BRIDGE).with_suffix('.o').parts)
 
 
-def compile_sources(sdk, sources, directory):
+def external_display_public_headers():
+    """The headers the external_display pod publishes (public_header_files of
+    its podspec): the only ones another pod can import as
+    <external_display/Name.h> from the framework CocoaPods builds."""
+    podspec = (EXTERNAL_DISPLAY / f'{EXTERNAL_DISPLAY_POD}.podspec').read_text(encoding='utf-8')
+    match = re.search(r"public_header_files\s*=\s*((?:'[^']*'\s*,?\s*)+)", podspec)
+    if match is None:
+        raise SystemExit(f'{EXTERNAL_DISPLAY_POD}.podspec declares no public_header_files')
+    headers = [EXTERNAL_DISPLAY / name for name in re.findall(r"'([^']*)'", match.group(1))]
+    missing = [str(header.relative_to(ROOT)) for header in headers if not header.is_file()]
+    if missing:
+        raise SystemExit(f'{EXTERNAL_DISPLAY_POD}.podspec publishes missing headers: ' + ', '.join(missing))
+    return headers
+
+
+def stage_external_display(directory):
+    """A search path where <external_display/Name.h> resolves exactly as the
+    bridge sees the pod it depends on: a folder named after the pod holding
+    copies of its public headers and nothing else."""
+    include = directory / 'include'
+    staged = include / EXTERNAL_DISPLAY_POD
+    staged.mkdir(parents=True)
+    headers = external_display_public_headers()
+    for header in headers:
+        shutil.copyfile(header, staged / header.name)
+    print(f'Staged {len(headers)} public {EXTERNAL_DISPLAY_POD} header(s) as <{EXTERNAL_DISPLAY_POD}/...>: '
+          + ', '.join(header.name for header in headers), flush=True)
+    return include
+
+
+def compile_sources(sdk, sources, directory, include):
     includes = [
         BRIDGE / 'Classes', BRIDGE / 'ThirdParty/include', BRIDGE / 'ThirdParty/include/libretro',
         BRIDGE / 'ThirdParty/rcheevos/include', BRIDGE / 'ThirdParty/rcheevos/src',
-        ROOT / 'test/libretro_host/stubs',
+        ROOT / 'test/libretro_host/stubs', include,
     ]
     base = ['xcrun', '--sdk', 'iphoneos', 'clang', '-target', TARGET, '-isysroot', sdk,
             '-Wall', '-Wno-unused-function']
@@ -105,7 +147,8 @@ def main():
     sources = sorted((BRIDGE / 'Classes').glob('*.m')) + sorted((BRIDGE / 'ThirdParty/rcheevos/src').rglob('*.c'))
     with tempfile.TemporaryDirectory(prefix='libretro-ios-') as temporary:
         directory = Path(temporary)
-        objects, failed = compile_sources(sdk, sources, directory)
+        include = stage_external_display(directory)
+        objects, failed = compile_sources(sdk, sources, directory, include)
         if failed:
             raise SystemExit('iPhone compilation failed: ' + ', '.join(failed))
         print(f'All {len(sources)} libretro bridge sources compile for iPhone', flush=True)

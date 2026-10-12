@@ -9,6 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:fullscreen_window/fullscreen_window.dart';
+import 'package:neostation/services/external_display_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/ui_refresh_rate_service.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
@@ -18,6 +19,7 @@ import '../../../widgets/custom_toggle_switch.dart';
 import 'settings_title.dart';
 import 'widgets/setting_row.dart';
 import 'widgets/setting_value_chip.dart';
+import 'widgets/external_display_setting_rows.dart';
 import 'widgets/language_picker_overlay.dart';
 import 'widgets/ui_refresh_rate_setting_row.dart';
 import '../../../services/permission_service.dart';
@@ -179,6 +181,9 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     if (UiRefreshRateService.isSupportedPlatform) {
       count++; // 120 Hz interface (iOS)
     }
+    if (ExternalDisplayService.isSupportedPlatform) {
+      count += 3; // AirPlay and external screen: switch, format, menu (iOS)
+    }
     count += hidableNavTabs().length; // Navigation tab visibility
     count++; // Language
     if (!kIsWeb &&
@@ -238,6 +243,28 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     if (UiRefreshRateService.isSupportedPlatform) {
       if (index == currentItemIndex) {
         UiRefreshRateService.instance.toggle();
+        return;
+      }
+      currentItemIndex++;
+    }
+
+    // Protocol: AirPlay and external screen (iOS): own window switch,
+    // picture format cycle, menu on the TV switch.
+    if (ExternalDisplayService.isSupportedPlatform) {
+      if (index == currentItemIndex) {
+        ExternalDisplayService.instance.toggleEnabled();
+        return;
+      }
+      currentItemIndex++;
+
+      if (index == currentItemIndex) {
+        ExternalDisplayService.instance.cycleMode();
+        return;
+      }
+      currentItemIndex++;
+
+      if (index == currentItemIndex) {
+        ExternalDisplayService.instance.toggleMenuOnTV();
         return;
       }
       currentItemIndex++;
@@ -444,6 +471,41 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                   () {
                     final index = currentItemIdx++;
                     return UiRefreshRateSettingRow(
+                      key: _itemKeys[index],
+                      focused:
+                          widget.isContentFocused &&
+                          widget.selectedContentIndex == index,
+                    );
+                  }(),
+                ],
+
+                // Setting: AirPlay and external screen (iOS, Build 447) —
+                // own window switch, picture format, menu on the TV.
+                if (ExternalDisplayService.isSupportedPlatform) ...[
+                  SizedBox(height: 12.r),
+                  () {
+                    final index = currentItemIdx++;
+                    return ExternalDisplayEnabledRow(
+                      key: _itemKeys[index],
+                      focused:
+                          widget.isContentFocused &&
+                          widget.selectedContentIndex == index,
+                    );
+                  }(),
+                  SizedBox(height: 12.r),
+                  () {
+                    final index = currentItemIdx++;
+                    return ExternalDisplayModeRow(
+                      key: _itemKeys[index],
+                      focused:
+                          widget.isContentFocused &&
+                          widget.selectedContentIndex == index,
+                    );
+                  }(),
+                  SizedBox(height: 12.r),
+                  () {
+                    final index = currentItemIdx++;
+                    return ExternalDisplayMenuRow(
                       key: _itemKeys[index],
                       focused:
                           widget.isContentFocused &&

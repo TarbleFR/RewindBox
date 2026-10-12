@@ -15,12 +15,23 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/dolphin_internal_bridge/ios/Classes'
 TOUCH = CLASSES / 'TouchController'
 HOST = 'DolphinTouchShakeHost'
+# Build 447: DolphinExternalDisplay.mm and DolphinFramePacing.mm import the
+# external_display pod as <external_display/...> and call its coordinator and
+# preferences. The host compiles the pod's Flutter-free sources and searches
+# its public headers, staged by test/libretro_ios_syntax_test.py exactly as
+# the pod publishes them (as dolphin_account_267_test.py does).
+EXTERNAL_CLASSES = ROOT / 'packages/external_display/ios/Classes'
+EXTERNAL_SOURCES = [EXTERNAL_CLASSES / 'NeoExternalDisplayCoordinator.m',
+                    EXTERNAL_CLASSES / 'NeoExternalDisplayPreferences.m']
+sys.path.insert(0, str(ROOT / 'test'))
+from libretro_ios_syntax_test import stage_external_display  # noqa: E402
 
 APP = r'''
 #import <UIKit/UIKit.h>
@@ -616,9 +627,11 @@ def native():
         sdk_dependencies = [{'sdk': name + '.framework'} for name in
                             ('UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation', 'Security',
                              'UniformTypeIdentifiers', 'CoreMotion', 'GameController', 'MetalKit', 'Metal')]
+        include = stage_external_display(directory)
         host_sources = [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
                         str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'),
                         str(CLASSES / 'DolphinExternalDisplay.mm')]
+        host_sources += [str(source) for source in EXTERNAL_SOURCES]
         host_sources += [str(path) for path in sorted(TOUCH.glob('*.swift'))]
         project = {
             'name': 'DolphinTouchShake',
@@ -626,7 +639,8 @@ def native():
             'settings': {'base': {'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_ENABLE_MODULES': 'YES',
                                   'CLANG_CXX_LANGUAGE_STANDARD': 'c++20', 'SWIFT_VERSION': '5.0',
                                   'CODE_SIGNING_ALLOWED': 'YES', 'CODE_SIGN_IDENTITY': '-',
-                                  'GENERATE_INFOPLIST_FILE': 'YES', 'HEADER_SEARCH_PATHS': str(CLASSES)}},
+                                  'GENERATE_INFOPLIST_FILE': 'YES',
+                                  'HEADER_SEARCH_PATHS': str(CLASSES) + ' ' + str(include)}},
             'targets': {
                 HOST: {'type': 'application', 'platform': 'iOS', 'sources': host_sources,
                        'dependencies': sdk_dependencies,

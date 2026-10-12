@@ -129,10 +129,15 @@ extension _ThemeBackground on _SystemCardGridViewState {
     }
   }
 
-  /// Synchronizes the current selection with the secondary hardware display.
+  /// Synchronizes the current selection with the secondary hardware display
+  /// (Android shared state) and, on iOS, with the TV menu of the external
+  /// display through [SecondaryDisplayBridge] (Build 447): the one producer
+  /// forwarding call site, with the same arguments as the Android push.
   void _updateSecondaryScreenName() {
-    if (!Platform.isAndroid) return;
-    if (_secondaryDisplayState == null) return;
+    final bridge = SecondaryDisplayBridge.instance;
+    if (!Platform.isAndroid && !bridge.isSupportedPlatform) return;
+    if (Platform.isAndroid && _secondaryDisplayState == null) return;
+    if (!mounted) return;
     if (widget.selectedIndex < 0 ||
         widget.selectedIndex >= widget.systems.length) {
       return;
@@ -173,11 +178,15 @@ extension _ThemeBackground on _SystemCardGridViewState {
       final wheelPath = game.getImagePath(gameFolder, 'wheels', fileProvider);
       final hasFanart = fanartPath.isNotEmpty && File(fanartPath).existsSync();
       final hasWheel = wheelPath.isNotEmpty && File(wheelPath).existsSync();
+      final backgroundColor = Theme.of(
+        context,
+      ).scaffoldBackgroundColor.toARGB32();
+      final systemName = (info.shortName ?? info.title ?? 'NEOSTATION')
+          .toUpperCase();
 
       _secondaryDisplayState?.updateState(
-        systemName: (info.shortName ?? info.title ?? 'NEOSTATION')
-            .toUpperCase(),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor.toARGB32(),
+        systemName: systemName,
+        backgroundColor: backgroundColor,
         isGameSelected: true,
         gameFanart: hasFanart ? fanartPath : null,
         clearFanart: !hasFanart,
@@ -194,12 +203,38 @@ extension _ThemeBackground on _SystemCardGridViewState {
         useFluidShader: false,
         isOled: isOled,
       );
+      unawaited(
+        bridge.forward(
+          (current) => current.copyWith(
+            systemName: systemName,
+            backgroundColor: backgroundColor,
+            isGameSelected: true,
+            gameFanart: hasFanart ? fanartPath : null,
+            clearFanart: !hasFanart,
+            gameWheel: hasWheel ? wheelPath : null,
+            clearWheel: !hasWheel,
+            gameScreenshot: null,
+            clearScreenshot: true,
+            gameVideo: null,
+            clearVideo: true,
+            gameImageBytes: null,
+            clearImageBytes: true,
+            gameId: game.romPath,
+            useShader: false,
+            useFluidShader: false,
+            isOled: isOled,
+          ),
+        ),
+      );
       return;
     }
 
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor.toARGB32();
+    final systemName = (info.shortName ?? info.title ?? "NEOSTATION")
+        .toUpperCase();
     _secondaryDisplayState?.updateState(
-      systemName: (info.shortName ?? info.title ?? "NEOSTATION").toUpperCase(),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor.toARGB32(),
+      systemName: systemName,
+      backgroundColor: backgroundColor,
       systemLogo: systemLogo,
       isLogoAsset: isLogoAsset,
       systemBackground: systemBackground,
@@ -217,6 +252,31 @@ extension _ThemeBackground on _SystemCardGridViewState {
       clearGameId: true,
       useFluidShader: false,
       isOled: isOled,
+    );
+    unawaited(
+      bridge.forward(
+        (current) => current.copyWith(
+          systemName: systemName,
+          backgroundColor: backgroundColor,
+          systemLogo: systemLogo,
+          isLogoAsset: isLogoAsset,
+          systemBackground: systemBackground,
+          clearSystemBackground: systemBackground == null,
+          isBackgroundAsset: false,
+          useShader: systemBackground == null,
+          shaderColor1: info.color1AsColor?.toARGB32(),
+          shaderColor2: info.color2AsColor?.toARGB32(),
+          isGameSelected: false,
+          clearFanart: true,
+          clearScreenshot: true,
+          clearWheel: true,
+          clearVideo: true,
+          clearImageBytes: true,
+          clearGameId: true,
+          useFluidShader: false,
+          isOled: isOled,
+        ),
+      ),
     );
   }
 }

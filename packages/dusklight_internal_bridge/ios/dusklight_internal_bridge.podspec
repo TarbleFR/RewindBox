@@ -15,6 +15,10 @@ linked into NeoStation at process startup.
   s.public_header_files = 'Classes/DusklightInternalBridgePlugin.h'
   s.preserve_paths   = 'Frameworks/DusklightCore.framework'
   s.dependency 'Flutter'
+  # Build 447: Dusklight draws in an SDL window created inside the locked
+  # core, so the bridge only hides the external-display window for the
+  # session (suspendForUnsupportedEngine) and shows it again afterwards.
+  s.dependency 'external_display'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UIKit', 'Foundation'

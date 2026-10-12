@@ -2,6 +2,14 @@
 // screen (AirPlay / adapter). Executes the production header with Foundation
 // and CoreGraphics only; the window lifecycle runs in the iOS Simulator
 // (dolphin_external_display_ui_test.py). No device claim.
+//
+// Build 447: the DOL functions delegate to NeoExternalDisplayLayout.h of the
+// external_display pod (compiled here as <external_display/…>, staged by
+// dolphin_external_display_test.py as the pod publishes it). Every 442
+// number below is unchanged; the "preference parsing" block of 442
+// (DOLExternalDisplayModeFromValue) is retired because the Build 442 key is
+// now parsed by NeoExternalDisplayPreferences' read-only fallback (tested in
+// external_display_ui_test.py) and replaced by the global ↔ Dolphin mapping.
 #include "DolphinExternalDisplayLayout.h"
 #include <cassert>
 #include <cstdio>
@@ -16,13 +24,35 @@ int main() { @autoreleasepool {
   int cases = 0;
 #define CHECK(expr, label) do { assert((expr) && label); ++cases; } while (0)
 
-  // Preference parsing: Fit by default, anything else only when valid.
-  CHECK(DOLExternalDisplayModeFromValue(nil) == DOLExternalDisplayModeFit, "default fit");
-  CHECK(DOLExternalDisplayModeFromValue(@"2") == DOLExternalDisplayModeFit, "string ignored");
-  CHECK(DOLExternalDisplayModeFromValue(@0) == DOLExternalDisplayModeOff, "off");
-  CHECK(DOLExternalDisplayModeFromValue(@1) == DOLExternalDisplayModeFit, "fit");
-  CHECK(DOLExternalDisplayModeFromValue(@2) == DOLExternalDisplayModeFill, "fill");
-  CHECK(DOLExternalDisplayModeFromValue(@3) == DOLExternalDisplayModeFit && DOLExternalDisplayModeFromValue(@-1) == DOLExternalDisplayModeFit, "out of range");
+  // Global preference → Dolphin placement: Automatic is Fit for a game, as the
+  // coordinator resolves it; Off is the Enabled switch (DOLExternalDisplayPreference).
+  CHECK(DOLExternalDisplayModeFromGlobal(NeoExternalDisplayModeAutomatic) == DOLExternalDisplayModeFit, "automatic = fit in game");
+  CHECK(DOLExternalDisplayModeFromGlobal(NeoExternalDisplayModeFit) == DOLExternalDisplayModeFit, "fit");
+  CHECK(DOLExternalDisplayModeFromGlobal(NeoExternalDisplayModeFill) == DOLExternalDisplayModeFill, "fill");
+  CHECK(DOLExternalDisplayModeFromGlobal(NeoExternalDisplayModeOriginal) == DOLExternalDisplayModeOriginal, "original");
+  // Dolphin placement → the global mode the coordinator applies; Off has none.
+  CHECK(DOLExternalDisplayGlobalMode(DOLExternalDisplayModeFit) == NeoExternalDisplayModeFit, "fit global");
+  CHECK(DOLExternalDisplayGlobalMode(DOLExternalDisplayModeFill) == NeoExternalDisplayModeFill, "fill global");
+  CHECK(DOLExternalDisplayGlobalMode(DOLExternalDisplayModeOriginal) == NeoExternalDisplayModeOriginal, "original global");
+  CHECK(DOLExternalDisplayGlobalMode(DOLExternalDisplayModeOff) == NeoExternalDisplayModeFit, "off has no global mode: the 442 default");
+  CHECK(DOLExternalDisplayModeFromGlobal(DOLExternalDisplayGlobalMode(DOLExternalDisplayModeFill)) == DOLExternalDisplayModeFill
+        && DOLExternalDisplayModeFromGlobal(DOLExternalDisplayGlobalMode(DOLExternalDisplayModeOriginal)) == DOLExternalDisplayModeOriginal,
+        "round trip");
+
+  // Delegation: every DOL result is the external_display result, mode by
+  // mode, screen by screen and source by source.
+  const CGSize screens[] = {tv, square, CGSizeMake(2560, 1080), CGSizeMake(3840, 2160), CGSizeMake(1280, 720)};
+  const CGSize sources[] = {phone, wide, CGSizeMake(1024, 768), CGSizeMake(667, 375)};
+  const DOLExternalDisplayMode modes[] = {DOLExternalDisplayModeFit, DOLExternalDisplayModeFill, DOLExternalDisplayModeOriginal};
+  for (CGSize screen : screens) {
+    for (CGSize source : sources) {
+      for (DOLExternalDisplayMode mode : modes) {
+        const NeoExternalDisplayMode global = DOLExternalDisplayGlobalMode(mode);
+        CHECK(DOLExternalDisplayScale(screen, source, mode) == NeoExternalDisplayScale(screen, source, global), "scale delegated");
+        CHECK(CGRectEqualToRect(DOLExternalDisplayFrame(screen, source, mode), NeoExternalDisplayFrame(screen, source, global)), "frame delegated");
+      }
+    }
+  }
 
   // Fit on a 16:9 TV: the phone height fills the TV height; the game's 16:9
   // region (393 × 16/9 = 698.7 pt) then spans the whole TV width.
@@ -42,6 +72,13 @@ int main() { @autoreleasepool {
   frame = DOLExternalDisplayFrame(tv, phone, DOLExternalDisplayModeFill);
   CHECK(Near(frame.size.height, 1440) && Near(frame.origin.y, -180), "25 % of the height is cut, centred");
 
+  // Original (Build 447): the phone's own format, bounded by the TV width.
+  const CGFloat original = DOLExternalDisplayScale(tv, phone, DOLExternalDisplayModeOriginal);
+  CHECK(Near(original, 1920.0 / 852.0), "original = TV width / phone width on a 16:9 TV");
+  frame = DOLExternalDisplayFrame(tv, phone, DOLExternalDisplayModeOriginal);
+  CHECK(Near(frame.size.width, 1920) && Near(frame.size.height, 393.0 * 1920.0 / 852.0) && Near(CGRectGetMidY(frame), 540),
+        "whole phone picture, letterboxed, centred");
+
   // Off keeps the view as it is (mirroring handles the TV).
   CHECK(DOLExternalDisplayScale(tv, phone, DOLExternalDisplayModeOff) == 1, "off scale");
   CHECK(CGRectEqualToRect(DOLExternalDisplayFrame(tv, phone, DOLExternalDisplayModeOff),
@@ -57,11 +94,14 @@ int main() { @autoreleasepool {
   const CGFloat squareFill = DOLExternalDisplayScale(square, phone, DOLExternalDisplayModeFill);
   CHECK(squareFill >= squareFit && squareFill <= squareFit * 4.0 / 3.0 + 1e-9, "fill never exceeds 4/3 of fit");
 
-  // Degenerate sizes are harmless.
+  // Degenerate sizes are harmless, in every mode.
   CHECK(DOLExternalDisplayScale(CGSizeZero, phone, DOLExternalDisplayModeFit) == 1, "zero screen");
   CHECK(DOLExternalDisplayScale(tv, CGSizeMake(NAN, 10), DOLExternalDisplayModeFit) == 1, "nan source");
+  CHECK(DOLExternalDisplayScale(tv, CGSizeZero, DOLExternalDisplayModeOriginal) == 1, "zero source original");
   CHECK(CGRectEqualToRect(DOLExternalDisplayFrame(tv, CGSizeZero, DOLExternalDisplayModeFit), CGRectZero), "zero frame");
+  CHECK(CGRectEqualToRect(DOLExternalDisplayFrame(tv, CGSizeZero, DOLExternalDisplayModeOff), CGRectZero), "zero frame off");
 
-  printf("PASS: %d external display placement assertions (Fit crops only the phone's side bars; Fill announced 4:3 zoom)\n", cases);
+  printf("PASS: %d external display placement assertions (Fit crops only the phone's side bars; Fill announced 4:3 zoom; "
+         "Original letterboxed; every mode delegated to external_display)\n", cases);
   return 0;
 } }

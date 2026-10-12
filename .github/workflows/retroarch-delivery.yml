@@ -111,7 +111,7 @@ jobs:
         # Build 440: Wii Shake catalog, RAP licences, consoles tab, 120 Hz
         # interface, BIOS checker and Embedded RetroArch settings (the reader
         # Back button and Library source files are in test/library_*).
-        flutter test test/dolphin_shake_locale_test.dart test/dolphin_wii_motion_panel_test.dart test/rpcs3_save_exchange_service_test.dart test/rpcs3_saves_locale_test.dart test/rpcs3_rap_licence_service_test.dart test/rpcs3_rap_locale_test.dart test/rpcs3_rap_import_menu_test.dart test/rpcs3_firmware_library_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/frame_cadence_estimator_test.dart test/ui_refresh_rate_service_test.dart test/ui_refresh_rate_locale_test.dart test/general_settings_ui_refresh_rate_test.dart test/notification_bell_idle_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart
+        flutter test test/dolphin_shake_locale_test.dart test/dolphin_wii_motion_panel_test.dart test/rpcs3_save_exchange_service_test.dart test/rpcs3_saves_locale_test.dart test/rpcs3_rap_licence_service_test.dart test/rpcs3_rap_locale_test.dart test/rpcs3_rap_import_menu_test.dart test/rpcs3_firmware_library_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/frame_cadence_estimator_test.dart test/ui_refresh_rate_service_test.dart test/ui_refresh_rate_locale_test.dart test/general_settings_ui_refresh_rate_test.dart test/notification_bell_idle_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/external_display_locale_test.dart test/external_display_service_test.dart test/general_settings_external_display_test.dart test/external_menu_screen_test.dart
         python3 - <<'PY'
         import json,os
         from pathlib import Path
@@ -148,6 +148,14 @@ jobs:
         python3 test/rpcs3_rap_core_contract_test.py
         python3 test/rpcs3_ui_status_cleanup_test.py
         python3 test/ui_refresh_rate_scope_test.py
+        python3 test/external_display_test.py
+        python3 test/external_display_scope_test.py
+        python3 test/external_display_labels_test.py
+        python3 test/external_display_host_plist_test.py
+        python3 test/armsx2_external_display_test.py
+        python3 test/rpcs3_external_display_test.py
+        python3 test/ports_external_display_test.py
+        python3 test/libretro_external_surface_test.py
         python3 test/libretro_bios_requirements_test.py
     - name: Validate only changed RPCS3 and NeoSwap contracts
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
@@ -348,9 +356,20 @@ jobs:
         EOF
         mkdir -p "$STUB/neo_swap"
         cp packages/neo_swap/ios/Classes/*.h "$STUB/neo_swap/"
+        # Build 447: the bridge imports <external_display/NeoExternalDisplayCoordinator.h>.
+        # Stage the headers the external_display pod publishes (public_header_files),
+        # and only those, as the framework exposes them: the same staging as the
+        # libretro iPhone check, so an unpublished import fails here too.
+        python3 - "$STUB" <<'PY'
+        import sys
+        from pathlib import Path
+        sys.path.insert(0,'test')
+        from libretro_ios_syntax_test import stage_external_display
+        stage_external_display(Path(sys.argv[1]))
+        PY
         xcrun --sdk iphoneos clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ \
           -arch arm64 -isysroot "$SDK" -miphoneos-version-min=17.4 \
-          -I"$STUB" -Ipackages/rpcs3_internal_bridge/ios/Classes \
+          -I"$STUB" -I"$STUB/include" -Ipackages/rpcs3_internal_bridge/ios/Classes \
           packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm \
           2>&1 | tee build/delivery/neoswap/rpcs3-bridge-arm64-syntax.txt
         python3 - <<'PY'
@@ -363,6 +382,10 @@ jobs:
         # graph sources and headers. Keep them in the native evidence too.
         graph=Path('packages/rpcs3_internal_bridge/ios/Classes')
         paths.update(p for p in graph.iterdir() if p.is_file() and p.suffix in ('.h','.m','.mm'))
+        # Build 447: the bridge syntax check reads the external_display headers
+        # staged above and the podspec that names them.
+        paths.update(p for p in Path('packages/external_display/ios/Classes').glob('*.h'))
+        paths.add(Path('packages/external_display/ios/external_display.podspec'))
         paths.update(Path(p) for p in (
             'test/neoswap_pool_fragmentation_test.cpp','test/neoswap_preparation_test.cpp',
             'test/neoswap_demand_test.cpp','test/relay_backend_test.cpp','test/neoswap_relay_loans_test.cpp',
@@ -427,6 +450,45 @@ jobs:
     - name: Compile and link every libretro bridge source for iPhone
       if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: python3 test/libretro_ios_syntax_test.py
+    - name: Fetch the pinned Flutter for the external display plugin headers
+      # Build 447: the plugin uses engine groups, event and message channels that
+      # the libretro declaration stub does not cover, so the real Flutter.xcframework
+      # of the pinned SDK is used (external-display-check.yml does the same).
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.47.2
+        channel: stable
+        cache: true
+    - name: Compile every external display plugin source for iPhone
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p build/delivery/external-display
+        flutter precache --ios
+        root="${FLUTTER_ROOT:-$(cd "$(dirname "$(command -v flutter)")/.." && pwd)}"
+        xcframework="$root/bin/cache/artifacts/engine/ios/Flutter.xcframework"
+        slice="$xcframework/ios-arm64"
+        if [ ! -f "$slice/Flutter.framework/Flutter" ]; then
+          slice="$(find "$xcframework" -maxdepth 1 -type d -name 'ios-arm64*' ! -name '*simulator*' | head -n 1)"
+        fi
+        test -f "$slice/Flutter.framework/Flutter" || { echo "Flutter device slice missing under $xcframework (flutter precache --ios)"; exit 1; }
+        sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+        sources=(packages/external_display/ios/Classes/*.m)
+        test -f "${sources[0]}" || { echo 'No Objective-C source in packages/external_display/ios/Classes'; exit 1; }
+        status=0
+        for source in "${sources[@]}"; do
+          if xcrun clang -fsyntax-only -x objective-c -fobjc-arc -fmodules -Wall -arch arm64 -isysroot "$sdk" -miphoneos-version-min=17.4 \
+              -F "$slice" -I packages/external_display/ios/Classes "$source" 2>>build/delivery/external-display/iphone-arm64-syntax.txt; then
+            echo "ok     $source"
+          else
+            echo "FAILED $source"
+            status=1
+          fi
+        done
+        cat build/delivery/external-display/iphone-arm64-syntax.txt
+        exit "$status"
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -1058,6 +1120,7 @@ jobs:
         python3 build-utils/configure_armsx2_ios.py
         python3 build-utils/configure_neoswap_donor.py
         python3 build-utils/configure_neoplay_ios.py
+        python3 build-utils/configure_external_display_ios.py
         dart run flutter_launcher_icons
         bash build-utils/force_ios_fork_icon.sh
         # Fallback PNGs are generated in ios/Runner and referenced from the same Xcode group.
@@ -1232,6 +1295,17 @@ jobs:
             for marker in (b'NeoStation.UI.HighRefreshRate.Enabled',b'UiRefreshRatePlugin',b'neostation/ui_refresh_rate'):
                 assert marker in runner,marker
             assert not any(n.startswith(root+'Frameworks/ui_refresh_rate.framework/') for n in z.namelist()),'ui_refresh_rate must be linked into Runner'
+            # Build 447 AirPlay/external display: the external scene role names the plugin's delegate and the dynamic framework is embedded.
+            external_roles=((info.get('UIApplicationSceneManifest') or {}).get('UISceneConfigurations') or {}).get('UIWindowSceneSessionRoleExternalDisplayNonInteractive') or []
+            assert any(isinstance(r,dict) and r.get('UISceneDelegateClassName')=='NeoExternalDisplaySceneDelegate' and r.get('UISceneConfigurationName')=='neostation-external-display' for r in external_roles),'external display scene role missing from Info.plist'
+            external_path=root+'Frameworks/external_display.framework/external_display'
+            assert external_path in z.namelist(),'external_display must be embedded as a dynamic framework'
+            external=z.read(external_path)
+            for marker in (b'NeoExternalDisplaySceneDelegate',b'neostation/external_display',b'NeoStation.ExternalDisplay.Mode'):
+                assert marker in external,marker
+            # Build 447: every bridge that adopts NeoExternalRenderHost (docs/external-display-universal.md § 5) still carries the protocol.
+            for pod in ('dolphin_internal_bridge','libretro_internal_bridge','rpcs3_internal_bridge','armsx2_internal_bridge'):
+                assert b'NeoExternalRenderHost' in z.read(root+'Frameworks/'+pod+'.framework/'+pod),pod+' must adopt NeoExternalRenderHost'
         PY
         ARMSX2_SOURCE_REVISION="$(python3 -c 'import json; print(json.load(open("build-utils/armsx2/source.json"))["revision"])')"
         python3 build-utils/validate_armsx2_ipa.py "dist/$IPA_NAME.ipa" \
@@ -1539,6 +1613,17 @@ jobs:
             for marker in (b'NeoStation.UI.HighRefreshRate.Enabled',b'UiRefreshRatePlugin',b'neostation/ui_refresh_rate'):
                 assert marker in runner,marker
             assert not any(n.startswith(root+'Frameworks/ui_refresh_rate.framework/') for n in z.namelist()),'ui_refresh_rate must be linked into Runner'
+            # Build 447 AirPlay/external display: the external scene role names the plugin's delegate and the dynamic framework is embedded.
+            external_roles=((info.get('UIApplicationSceneManifest') or {}).get('UISceneConfigurations') or {}).get('UIWindowSceneSessionRoleExternalDisplayNonInteractive') or []
+            assert any(isinstance(r,dict) and r.get('UISceneDelegateClassName')=='NeoExternalDisplaySceneDelegate' and r.get('UISceneConfigurationName')=='neostation-external-display' for r in external_roles),'external display scene role missing from Info.plist'
+            external_path=root+'Frameworks/external_display.framework/external_display'
+            assert external_path in z.namelist(),'external_display must be embedded as a dynamic framework'
+            external=z.read(external_path)
+            for marker in (b'NeoExternalDisplaySceneDelegate',b'neostation/external_display',b'NeoStation.ExternalDisplay.Mode'):
+                assert marker in external,marker
+            # Build 447: every bridge that adopts NeoExternalRenderHost (docs/external-display-universal.md § 5) still carries the protocol.
+            for pod in ('dolphin_internal_bridge','libretro_internal_bridge','rpcs3_internal_bridge','armsx2_internal_bridge'):
+                assert b'NeoExternalRenderHost' in z.read(root+'Frameworks/'+pod+'.framework/'+pod),pod+' must adopt NeoExternalRenderHost'
         PY
         ARMSX2_SOURCE_REVISION="$(python3 -c 'import json; print(json.load(open("build-utils/armsx2/source.json"))["revision"])')"
         python3 build-utils/validate_armsx2_ipa.py "dist/$IPA_NAME.ipa" \

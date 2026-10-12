@@ -2,6 +2,13 @@
 #import "DolphinFramePacing.h"
 #import "DolphinExternalDisplay.h"
 #include "DolphinPacingLabels.h"
+// Build 447: the external-display row reads and writes the global
+// preference of the external_display pod (shared with Settings › General).
+#if __has_include(<external_display/NeoExternalDisplayPreferences.h>)
+#import <external_display/NeoExternalDisplayPreferences.h>
+#else
+#import "NeoExternalDisplayPreferences.h"
+#endif
 #include <mach/mach.h>
 #include <sys/utsname.h>
 #include <cmath>
@@ -157,6 +164,7 @@ static double DOLMemoryFootprintMB(void) {
     @"lowPower":@(NSProcessInfo.processInfo.lowPowerModeEnabled),@"thermalState":@(NSProcessInfo.processInfo.thermalState),
     @"traceEnabled":@(self.traceEnabled),@"gameId":self.gameId?:@"",
     @"externalDisplayMode":@(DOLExternalDisplayPreference()),@"externalDisplayActive":@(self.externalDisplayActive),
+    @"externalDisplayEnabled":@(NeoExternalDisplayPreferences.enabled),@"externalDisplayGlobalMode":@((NSInteger)NeoExternalDisplayPreferences.mode),
     @"memoryFootprintMB":@(DOLMemoryFootprintMB()),
     @"measurementNote":@"CADisplayLink timing is not panel scanout or emulator FPS. Performance samples are 2Hz aggregates with 10Hz frame-time sub-samples, not a per-frame trace."} mutableCopy];
   [summary addEntriesFromDictionary:[self frameTimeSummary]];
@@ -193,7 +201,18 @@ static double DOLMemoryFootprintMB(void) {
 @implementation DOLDisplaySettings
 - (NSString*)text:(NSString*)key{return DOLPacingText(key,self.pacing.locale);}
 - (NSString*)profileName:(NSInteger)value{return [self text:@[@"legacy",@"metal",@"hybrid"][MAX(0,MIN(2,value))]];}
-- (NSString*)externalModeName:(DOLExternalDisplayMode)mode{return [self text:@[@"externalOff",@"externalFit",@"externalFill"][MAX(0,MIN(2,(NSInteger)mode))]];}
+// Build 447: the global setting as shown to the player. Off is the Enabled
+// switch; Automatic is a global mode of its own (Fit for a game).
+- (NSString*)externalModeName {
+  if(!NeoExternalDisplayPreferences.enabled)return [self text:@"externalOff"];
+  switch(NeoExternalDisplayPreferences.mode) {
+    case NeoExternalDisplayModeFit:return [self text:@"externalFit"];
+    case NeoExternalDisplayModeFill:return [self text:@"externalFill"];
+    case NeoExternalDisplayModeOriginal:return [self text:@"externalOriginal"];
+    case NeoExternalDisplayModeAutomatic:break;
+  }
+  return [self text:@"externalAutomatic"];
+}
 - (void)viewDidLoad {
   [super viewDidLoad];self.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
   self.view.backgroundColor=UIColor.systemGroupedBackgroundColor;self.title=[self text:@"title"];
@@ -217,7 +236,7 @@ static double DOLMemoryFootprintMB(void) {
       cell.detailTextLabel.text=[NSString stringWithFormat:@"%@: %ld Hz · %@: %.1f Hz\n%@",[self text:@"request"],(long)self.pacing.requestedHz,[self text:@"callbacks"],self.pacing.observedHz,[self text:@"statusHelp"]];
       cell.accessoryType=UITableViewCellAccessoryNone;break;
     case 3:cell.textLabel.text=[self text:@"external"];
-      cell.detailTextLabel.text=[NSString stringWithFormat:@"%@\n%@",[self externalModeName:DOLExternalDisplayPreference()],
+      cell.detailTextLabel.text=[NSString stringWithFormat:@"%@\n%@",[self externalModeName],
         [self text:self.pacing.externalDisplayActive?@"externalActive":@"externalNone"]];
       cell.accessibilityIdentifier=@"dolphinExternalDisplay";break;
     case 4:cell.textLabel.text=[self text:@"trace"];
@@ -235,8 +254,8 @@ static double DOLMemoryFootprintMB(void) {
   }
 }
 - (void)choose:(NSArray<NSNumber*>*)values names:(NSArray<NSString*>*)names key:(NSString*)key cell:(UIView*)cell {
-  NSString* titleKey=[key isEqual:DOLRefreshKey]?@"refresh":[key isEqual:DOLExternalDisplayModeKey]?@"external":@"profile";
-  NSString* messageKey=[key isEqual:DOLRefreshKey]?@"hzHelp":[key isEqual:DOLExternalDisplayModeKey]?@"externalHelp":@"restartHelp";
+  NSString* titleKey=[key isEqual:DOLRefreshKey]?@"refresh":@"profile";
+  NSString* messageKey=[key isEqual:DOLRefreshKey]?@"hzHelp":@"restartHelp";
   UIAlertController* alert=[UIAlertController alertControllerWithTitle:[self text:titleKey]
     message:[self text:messageKey] preferredStyle:UIAlertControllerStyleActionSheet];
   for(NSUInteger i=0;i<values.count;i++) {
@@ -244,9 +263,6 @@ static double DOLMemoryFootprintMB(void) {
     UIAlertAction* action=[UIAlertAction actionWithTitle:names[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction* a){
       [NSUserDefaults.standardUserDefaults setObject:value forKey:key];
       [self.pacing refreshPreference];
-      // The session's external-display controller applies the new mode at once.
-      if([key isEqual:DOLExternalDisplayModeKey])
-        [NSNotificationCenter.defaultCenter postNotificationName:DOLExternalDisplayChangedNotification object:nil];
       [self.tableView reloadData];
       if([key isEqual:DOLProfileKey])self.navigationItem.prompt=[self text:@"restartHelp"];
     }];
@@ -258,13 +274,38 @@ static double DOLMemoryFootprintMB(void) {
   alert.popoverPresentationController.sourceView=cell;alert.popoverPresentationController.sourceRect=cell.bounds;
   [self presentViewController:alert animated:YES completion:nil];
 }
+// Build 447: Off, Automatic, Fit, Fill, Original written to the global keys
+// through NeoExternalDisplayPreferences, which reads each write back and
+// tells the live coordinator; the Build 442 Dolphin key is never written.
+- (void)chooseExternalDisplay:(UIView*)cell {
+  UIAlertController* alert=[UIAlertController alertControllerWithTitle:[self text:@"external"]
+    message:[self text:@"externalHelp"] preferredStyle:UIAlertControllerStyleActionSheet];
+  NSArray<NSString*>* keys=@[@"externalOff",@"externalAutomatic",@"externalFit",@"externalFill",@"externalOriginal"];
+  NSArray<NSNumber*>* modes=@[@(-1),@(NeoExternalDisplayModeAutomatic),@(NeoExternalDisplayModeFit),@(NeoExternalDisplayModeFill),@(NeoExternalDisplayModeOriginal)];
+  for(NSUInteger i=0;i<keys.count;i++) {
+    const NSInteger mode=modes[i].integerValue;
+    [alert addAction:[UIAlertAction actionWithTitle:[self text:keys[i]] style:UIAlertActionStyleDefault handler:^(UIAlertAction* a){
+      BOOL saved;
+      if(mode<0)saved=[NeoExternalDisplayPreferences storeEnabled:NO];
+      else saved=[NeoExternalDisplayPreferences storeMode:(NeoExternalDisplayMode)mode]
+        && (NeoExternalDisplayPreferences.enabled || [NeoExternalDisplayPreferences storeEnabled:YES]);
+      // A write iOS did not keep is said; the row shows the value really stored.
+      if(!saved)self.navigationItem.prompt=[self text:@"externalSaveFailed"];
+      [self.pacing refreshPreference];
+      [self.tableView reloadData];
+    }]];
+  }
+  [alert addAction:[UIAlertAction actionWithTitle:[self text:@"cancel"] style:UIAlertActionStyleCancel handler:nil]];
+  alert.popoverPresentationController.sourceView=cell;alert.popoverPresentationController.sourceRect=cell.bounds;
+  [self presentViewController:alert animated:YES completion:nil];
+}
 - (void)tableView:(UITableView*)table didSelectRowAtIndexPath:(NSIndexPath*)path {
   [table deselectRowAtIndexPath:path animated:YES];UIView* cell=[table cellForRowAtIndexPath:path];
   if(self.presentedViewController)return;
   if(path.row==0)[self choose:@[@0,@60,@120] names:@[[self text:@"automatic"],@"60 Hz",@"120 Hz"] key:DOLRefreshKey cell:cell];
   else if(path.row==1)[self choose:@[@0,@1,@2] names:@[[self text:@"legacy"],[self text:@"metal"],[self text:@"hybrid"]] key:DOLProfileKey cell:cell];
   else if(path.row==2){[self.pacing refreshPreference];[table reloadData];}
-  else if(path.row==3)[self choose:@[@0,@1,@2] names:@[[self text:@"externalOff"],[self text:@"externalFit"],[self text:@"externalFill"]] key:DOLExternalDisplayModeKey cell:cell];
+  else if(path.row==3)[self chooseExternalDisplay:cell];
   else if(path.row==4){[NSUserDefaults.standardUserDefaults setBool:!self.pacing.traceEnabled forKey:DOLTraceKey];[table reloadData];}
   else if(path.row==5) {
     struct utsname machine;uname(&machine);

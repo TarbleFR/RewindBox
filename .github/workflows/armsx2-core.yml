@@ -138,6 +138,18 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           FLUTTER_FRAMEWORK=$(find "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios" -path '*/Flutter.framework' -type d | head -1)
           test -n "$FLUTTER_FRAMEWORK"
-          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" -I packages/armsx2_jit_helper/ios/Classes packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm
+          # Build 447: the bridge imports <external_display/NeoExternalDisplayCoordinator.h>.
+          # Stage the headers the external_display pod publishes (public_header_files),
+          # and only those, as the framework exposes them: the same staging as the
+          # libretro iPhone check, so an unpublished import fails here too.
+          STAGE="$RUNNER_TEMP/external-display-stage"
+          python3 - "$STAGE" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0,'test')
+          from libretro_ios_syntax_test import stage_external_display
+          stage_external_display(Path(sys.argv[1]))
+          PY
+          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" -I packages/armsx2_jit_helper/ios/Classes -I "$STAGE/include" packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm
       - name: Verify existing isolated roots, routing and localization
         run: flutter test test/armsx2_in_game_localization_test.dart test/armsx2_isolated_root_test.dart test/armsx2_bios_selection_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/stikjit_armsx2_isolation_test.dart test/armsx2_embedded_library_contract_test.dart test/armsx2_launch_url_encoding_test.dart

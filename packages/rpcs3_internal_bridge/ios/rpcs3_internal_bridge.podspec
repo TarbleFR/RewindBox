@@ -29,6 +29,11 @@ The standalone RPCS3 SwiftUI application is not embedded.
   s.preserve_paths   = 'Frameworks/libRPCS3Core.dylib'
   s.dependency 'Flutter'
   s.dependency 'neo_swap'
+  # Build 447: the game's Metal view is a NeoExternalRenderHost of the
+  # external_display pod (docs/external-display-universal.md § 5, row RPCS3):
+  # NeoExternalDisplayCoordinator shows it on the TV and returns it to the
+  # iPhone before the Core stops. The Core, its ABI and NeoSwap are untouched.
+  s.dependency 'external_display'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UIKit', 'GameController', 'Metal', 'QuartzCore', 'Security', 'CoreFoundation', 'AudioToolbox', 'AVFAudio', 'CoreGraphics', 'IOSurface', 'CoreServices', 'CoreAudio', 'CoreMIDI', 'Foundation', 'MetalFX'

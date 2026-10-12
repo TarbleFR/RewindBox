@@ -13,6 +13,11 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.source_files     = 'Classes/**/*'
   s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/*ManualCheatEditor.h'
   s.dependency 'Flutter'
+  # Build 447: the Core's render view is a NeoExternalRenderHost of the
+  # external_display pod (docs/external-display-universal.md § 5, row ARMSX2):
+  # NeoExternalDisplayCoordinator shows it on the TV with a transform only and
+  # returns it to the iPhone before the Core stops. The Core is untouched.
+  s.dependency 'external_display'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security'

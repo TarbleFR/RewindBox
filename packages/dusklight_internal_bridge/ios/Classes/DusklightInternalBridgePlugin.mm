@@ -6,6 +6,15 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 
+// Build 447: the external-display host (docs/external-display-universal.md
+// § 5). Dusklight is an unsupported engine for it: only the suspend/resume
+// pair is used, never a render host.
+#if __has_include(<external_display/NeoExternalDisplayCoordinator.h>)
+#import <external_display/NeoExternalDisplayCoordinator.h>
+#else
+#import "NeoExternalDisplayCoordinator.h"
+#endif
+
 namespace {
 NSString* const kChannel = @"neostation/dusklight_internal";
 
@@ -52,6 +61,8 @@ NSDictionary* Failure(NSString* code, NSString* stage, NSString* message) {
 
 @interface DusklightInternalBridgePlugin ()
 - (void)coreState:(int)state message:(NSString*)message;
+- (void)suspendExternalDisplay;
+- (void)resumeExternalDisplay;
 @end
 
 static void OnCoreEvent(void* context, int state, const char* message) {
@@ -68,6 +79,7 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   BOOL _sessionActive;
   NSDictionary* _loadError;
   NSInteger _transaction;
+  BOOL _externalDisplaySuspended;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -144,6 +156,30 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   if (pending) pending(response);
 }
 
+// Dusklight draws in an SDL window created inside the locked core, so the
+// external-display window cannot host it: it is hidden for the session (iOS
+// resumes mirroring the iPhone) and shown again on every end path. The flag
+// pairs the two calls; the SDL window itself is never touched.
+- (void)suspendExternalDisplay {
+  if (_externalDisplaySuspended) return;
+  _externalDisplaySuspended = YES;
+  [NeoExternalDisplayCoordinator.shared suspendForUnsupportedEngine];
+}
+
+- (void)resumeExternalDisplay {
+  if (!_externalDisplaySuspended) return;
+  _externalDisplaySuspended = NO;
+  // The coordinator belongs to the main thread; a core event may not. The
+  // hop captures nothing, so it is also safe from dealloc.
+  if (NSThread.isMainThread) {
+    [NeoExternalDisplayCoordinator.shared resumeAfterUnsupportedEngine];
+    return;
+  }
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [NeoExternalDisplayCoordinator.shared resumeAfterUnsupportedEngine];
+  });
+}
+
 - (void)coreState:(int)state message:(NSString*)message {
   NSLog(@"[NeoStation/Dusklight] state=%d %@", state, message);
   if (state == NEO_DUSKLIGHT_RUNNING) {
@@ -152,6 +188,9 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   } else if (state == NEO_DUSKLIGHT_ENDED || state == NEO_DUSKLIGHT_IDLE) {
     BOOL hadSession = _sessionActive;
     _sessionActive = NO;
+    // The SDL window is gone (or never came): give the TV back to NeoStation
+    // before Flutter learns the session ended.
+    [self resumeExternalDisplay];
     [self resolveLaunch:Failure(@"DUSKLIGHT_ENDED_BEFORE_FIRST_FRAME", @"startup", message)];
     if (hadSession) {
       [_channel invokeMethod:@"sessionEnded" arguments:@{
@@ -250,6 +289,9 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   _transaction = [arguments[@"transaction"] isKindOfClass:NSNumber.class]
       ? [arguments[@"transaction"] integerValue] : _transaction + 1;
   _sessionActive = YES;
+  // Native handoff: the external-display window stays hidden from here until
+  // the core reports the end of the session (or refuses the start below).
+  [self suspendExternalDisplay];
   const int started = _api->start(gamePath.fileSystemRepresentation,
                    (__bridge void*)controller.view,
                    error, sizeof(error));
@@ -258,6 +300,7 @@ static void OnCoreEvent(void* context, int state, const char* message) {
         ? [NSString stringWithUTF8String:error]
         : @"DusklightCore could not start the selected disc.";
     _sessionActive = NO;
+    [self resumeExternalDisplay];
     [self resolveLaunch:Failure(started == NEO_DUSKLIGHT_DIFFERENT_DISC
         ? @"DUSKLIGHT_DIFFERENT_DISC" : @"DUSKLIGHT_START_FAILED", @"start", message)];
     return;
@@ -276,6 +319,8 @@ static void OnCoreEvent(void* context, int state, const char* message) {
 
 - (void)dealloc {
   [_startupTimer invalidate];
+  // The callback is cleared below, so no core event will resume for us.
+  [self resumeExternalDisplay];
   if (_api != nullptr) {
     _api->set_event_callback(nullptr, nullptr);
     if (_api->is_running()) _api->stop();

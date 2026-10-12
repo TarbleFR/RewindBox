@@ -17,6 +17,9 @@ starts; no external RetroArch application is involved.
   s.public_header_files = 'Classes/LibretroInternalBridgePlugin.h'
   s.preserve_paths   = 'ThirdParty/**/*'
   s.dependency 'Flutter'
+  # The game view adopts NeoExternalRenderHost: the external-display
+  # coordinator shows the Metal view on an AirPlay / adapter screen.
+  s.dependency 'external_display'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController',

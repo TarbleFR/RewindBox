@@ -34,8 +34,11 @@ static NSString *const kUiRefreshRateChannel = @"neostation/ui_refresh_rate";
   UIViewController *controller = self.registrar.viewController;
   UIWindowScene *scene = controller.viewIfLoaded.window.windowScene;
   if (scene != nil) return scene.screen;
+  // Only the iPhone's own scene: an external display scene (external_display
+  // plugin) reports the TV's rate, not the interface's.
   for (UIScene *connected in UIApplication.sharedApplication.connectedScenes) {
-    if ([connected isKindOfClass:UIWindowScene.class]) {
+    if ([connected isKindOfClass:UIWindowScene.class] &&
+        [connected.session.role isEqualToString:UIWindowSceneSessionRoleApplication]) {
       return ((UIWindowScene *)connected).screen;
     }
   }

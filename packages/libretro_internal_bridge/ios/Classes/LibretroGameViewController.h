@@ -1,5 +1,6 @@
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
+#import <external_display/NeoExternalRenderHost.h>
 
 #import "LibretroSkin.h"
 #import "LibretroSkinLayout.h"
@@ -24,11 +25,22 @@ NS_ASSUME_NONNULL_BEGIN
 /// User layout overrides for the shown representation.
 - (nullable NSDictionary<NSString *, NSDictionary *> *)layoutOverridesForRepresentation:
     (LibretroSkinRepresentation *)representation;
-/// Applies the layout to the presenter (screens) and the overlay (remaps).
+/// Applies the layout to the overlay (remaps) and the picture to the
+/// presenter. `layout` is the iPhone view's, where the skin, the overlay and
+/// the game areas were laid out. `screens` are the game areas of the
+/// picture, in a space of `pointSize` points; `drawableSize` is the surface
+/// the picture is drawn into, in pixels. On the phone they are the layout's
+/// own screens in the view's bounds and the view's drawable; while the
+/// external display shows the game (NeoExternalRenderHost) they are the
+/// same areas placed in the TV's surface (LibretroRenderSurfacePlacement:
+/// scaled uniformly and centred, the black around them left out) and the
+/// TV's drawable. The presenter places each screen in the drawable at its
+/// proportional place in `pointSize`.
 - (void)gameViewDidLayout:(LibretroSkinLayoutResult *)layout
            representation:(LibretroSkinRepresentation *)representation
-              drawableSize:(CGSize)drawableSize
-                    points:(CGSize)pointSize;
+                  screens:(NSArray<LibretroLaidOutScreen *> *)screens
+             drawableSize:(CGSize)drawableSize
+                   points:(CGSize)pointSize;
 @end
 
 /// Overrides the controls editor starts from ({item identifier: override}).
@@ -38,11 +50,22 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
 /// the picture, the skin renderer, the touch overlay, a menu button and
 /// short status messages. Supports portrait and landscape (see
 /// LibretroOrientation).
-@interface LibretroGameViewController : UIViewController
+///
+/// External display (NeoExternalRenderHost, fixedDrawable == NO): the
+/// coordinator moves the Metal view into NeoStation's window on the TV and
+/// reports the surface it gave it; the picture is then rendered at the TV's
+/// resolution while the skin, the touch overlay, the menu button and the
+/// status line stay on the iPhone. The session attaches the controller once
+/// its view appeared and detaches it before stopping the core.
+@interface LibretroGameViewController : UIViewController <NeoExternalRenderHost>
 
 - (instancetype)initWithInput:(LibretroInputState *)input cacheDirectory:(NSString *)cacheDirectory;
 
 @property(nonatomic, readonly) CAMetalLayer *metalLayer;
+/// NeoStation language of the session (LibretroSessionConfiguration
+/// .uiLocale): selects the native external-display status line
+/// (NeoExternalDisplayLabels). Set by the session before the view appears.
+@property(nonatomic, copy) NSString *uiLocale;
 @property(nonatomic, readonly) LibretroSkinRenderer *skinRenderer;
 @property(nonatomic, readonly) LibretroTouchOverlay *overlay;
 @property(nonatomic, weak, nullable) id<LibretroGameViewLayoutSource> layoutSource;

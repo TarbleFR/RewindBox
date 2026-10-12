@@ -309,6 +309,59 @@ Chaque podspec de pont concerné ajoute `s.dependency 'external_display'`.
 | `test/dolphin_external_display_test.py` (adapté) | mêmes garanties 442 via l'adaptateur |
 | `test/neoplay_locale_test.dart` (étendu) | clé `appleTVOwnWindow` ×12 |
 
+## 8 bis. Déviations consignées pendant l'implémentation (12 octobre 2026)
+
+Relevées par les agents d'implémentation et la revue contradictoire ; le code fait foi.
+
+- § 3 : six headers publics, `NeoExternalDisplayLabels.h` compris (le pont libretro
+  l'importe sous `<external_display/…>` ; avec `use_frameworks!` seuls les headers publiés
+  résolvent). `NeoExternalDisplayText()` y est une fonction `static` (une copie par unité).
+- § 3.3 / § 3.4 : la fenêtre externe est créée par le coordinateur dans `sceneDidConnect:`
+  (même `windowFactory`), le délégué de scène ne fait que relayer ; le coordinateur ne
+  dépend pas de Flutter : il parle au moteur de menu par le protocole
+  `NeoExternalMenuProvider` adopté par `NeoExternalDisplayMenuEngine` ; le second moteur
+  n'est créé qu'à la première connexion où le menu est réellement montré, jamais pendant
+  qu'un jeu occupe le téléviseur ; `mirroringActive` est dérivé (connecté et fenêtre
+  masquée), non lu sur `UIScreen`.
+- § 3.3 iOS 27 : sélecteur documenté par Apple
+  `+externalNonInteractiveSceneAccessoryWithConfiguration:` essayé d'abord, puis la
+  graphie du contrat ; une inscription par contrôleur encore présenté (racine Flutter
+  toujours, contrôleur de jeu tant qu'il est présenté) au lieu d'une inscription déplacée.
+- § 3.6 : registre figé `kNeoExternalMenuPlugins` = `SqflitePlugin` (absent : l'app utilise
+  sqlite3 par FFI, ignoré), `FLTPathProviderPlugin`, `FVPVideoPlayerPlugin`,
+  `SharedPreferencesPlugin` et leurs noms Swift qualifiés (`path_provider_foundation.PathProviderPlugin`,
+  `shared_preferences_foundation.SharedPreferencesPlugin`).
+- § 5 libretro : `performSkinLayoutIfNeeded` passe `points:surface.points` ; les zones de
+  jeu du skin iPhone sont placées dans la surface TV par `LibretroRenderSurface.h`
+  (union des zones mise à l'échelle et centrée) ; skin, overlay et chrome gardent les
+  bounds iPhone ; l'attache a lieu à la fin de la présentation (après `viewDidAppear`,
+  avant le fil d'émulation), le détachement avant la demande d'arrêt. En portrait sur
+  le téléviseur, l'image reste un pilier au format du téléphone (politique du
+  coordinateur). Les écrans tactiles DS/3DS sont alors opérés à l'aveugle sur le
+  téléphone.
+- § 5 RPCS3 : à l'attache, le pont demande la destruction du moteur de menu ; pendant
+  l'arrêt du Core, il tient le menu masqué par `suspendForUnsupportedEngine` /
+  `resumeAfterUnsupportedEngine` (seule paire disponible) pour éviter la recréation du
+  second moteur pendant `stop_emulation` (≈ 0,6 Go libres).
+- § 4 : chaîne d'import AOT réelle : `lib/main.dart` → `lib/screens/main_screen.dart` →
+  `lib/screens/app_screen.dart` → `external_display_service.dart` →
+  `external_display_entrypoint.dart`. Producteurs qui alimentent le téléviseur sur iOS :
+  grille des consoles (`theme_background.dart`), onglets et thème (`app_screen.dart`) ; la
+  liste des jeux (`my_games_list/secondary_display.dart`) et les succès ne sont pas encore
+  relayés (le téléviseur garde le dernier visuel de console) — suite possible.
+- § 6 : le texte Apple TV (`appleTVOwnWindow`) renvoie au libellé réel de l'onglet,
+  « Paramètres › Général » en français (`AppLocale.settings`), pas « Réglages ».
+- § 7 : assertion IPA étendue aux quatre ponts (`NeoExternalRenderHost` dans leurs
+  binaires) et aux deux blocs (jobs `cold` et `warm`) ; preuve native RPCS3 réutilisable
+  hachant aussi les headers du pod ; contrôle Dolphin `test/dolphin_external_display_test.py`
+  réécrit vers la délégation (le header DOL ne contient plus l'arithmétique 442 ;
+  `test/external_display_layout_test.mm` compare à une copie figée de la 442) ; quatre
+  contrats de ponts (`libretro_external_surface`, `rpcs3_external_display`,
+  `armsx2_external_display`, `ports_external_display`) ajoutés aux deux workflows.
+- Tests déjà rouges avant ce chantier, non exécutés par la livraison, non affaiblis :
+  `test/import_memory_candidate_scope_test.py`, `test/neoplay_build397_integration_test.py`
+  (épinglages historiques), `test/library_cover_delivery_test.py` (voie 443 fermée).
+
 ## 9. Ce qui reste à vérifier sur l'iPhone + Apple TV (jamais annoncé avant)
 
 Livraison de la scène externe (iOS 26 / 27, `UIApplicationSupportsMultipleScenes`),

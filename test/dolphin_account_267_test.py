@@ -5,10 +5,22 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/dolphin_internal_bridge/ios/Classes'
+# Build 447: DolphinExternalDisplay.mm and DolphinFramePacing.mm import the
+# external_display pod as <external_display/...> and call its coordinator and
+# preferences. The host compiles the pod's Flutter-free sources and searches
+# its public headers, staged by test/libretro_ios_syntax_test.py exactly as
+# the pod publishes them. A harness derived from this one (exec/replace)
+# empties EXTERNAL_SOURCES when it lists the pod sources itself.
+EXTERNAL_CLASSES = ROOT / 'packages/external_display/ios/Classes'
+EXTERNAL_SOURCES = [EXTERNAL_CLASSES / 'NeoExternalDisplayCoordinator.m',
+                    EXTERNAL_CLASSES / 'NeoExternalDisplayPreferences.m']
+sys.path.insert(0, str(ROOT / 'test'))
+from libretro_ios_syntax_test import stage_external_display  # noqa: E402
 
 TESTS = r'''
 #import <XCTest/XCTest.h>
@@ -192,6 +204,7 @@ def native():
         directory = Path(folder)
         (directory / 'main.m').write_text(APP)
         (directory / 'DolphinAccountTests.mm').write_text(TESTS)
+        include = stage_external_display(directory)
         sdk_dependencies = [{'sdk': 'UIKit.framework'}, {'sdk': 'QuartzCore.framework'}, {'sdk': 'Foundation.framework'}, {'sdk': 'Security.framework'},
                             {'sdk': 'MetalKit.framework'}, {'sdk': 'Metal.framework'}]
         project = {
@@ -199,11 +212,13 @@ def native():
             'options': {'deploymentTarget': {'iOS': '17.4'}},
             'settings': {'base': {'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_ENABLE_MODULES': 'YES',
                                   'CODE_SIGNING_ALLOWED': 'YES', 'CODE_SIGN_IDENTITY': '-',
-                                  'GENERATE_INFOPLIST_FILE': 'YES', 'HEADER_SEARCH_PATHS': str(CLASSES)}},
+                                  'GENERATE_INFOPLIST_FILE': 'YES',
+                                  'HEADER_SEARCH_PATHS': str(CLASSES) + ' ' + str(include)}},
             'targets': {
                 'DolphinAccountHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
-                                str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm')],
+                                str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm')]
+                               + [str(source) for source in EXTERNAL_SOURCES],
                     'dependencies': sdk_dependencies,
                     'settings': {'base': {'PRODUCT_BUNDLE_IDENTIFIER': 'org.neostation.accounttests.host',
                         'INFOPLIST_KEY_UILaunchScreen_Generation': 'YES'}}},

@@ -17,6 +17,10 @@ legacy gate. It does not replace or modify other emulator integrations.
   s.vendored_frameworks = 'Frameworks/DolphinCore.framework'
   s.dependency 'Flutter'
   s.dependency 'stikjit_bridge'
+  # Build 447: the session's Metal view is a NeoExternalRenderHost of the
+  # external-display coordinator (AirPlay / adapter window), and the in-game
+  # Display row reads the global external-display preference.
+  s.dependency 'external_display'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.swift_version = '5.0'

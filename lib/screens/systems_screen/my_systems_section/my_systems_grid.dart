@@ -33,6 +33,7 @@ import 'package:neostation/widgets/systems_grid_footer.dart';
 
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/models/secondary_display_state.dart';
+import 'package:neostation/services/secondary_display_bridge.dart';
 import 'package:neostation/providers/neo_assets_provider.dart';
 import 'package:neostation/providers/system_background_provider.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';

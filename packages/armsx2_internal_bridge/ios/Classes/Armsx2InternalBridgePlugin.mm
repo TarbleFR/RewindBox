@@ -6,6 +6,9 @@
 #import "Armsx2SessionMenu.h"
 #include "NeoCheatStore.h"
 #import "ARMSX2InGameLocalization.h"
+// Build 447: the Core's render view is a NeoExternalRenderHost of the
+// external_display pod (docs/external-display-universal.md § 5, row ARMSX2).
+#import <external_display/NeoExternalDisplayCoordinator.h>
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -82,9 +85,55 @@ static UIViewController* ARMSX2RootViewController(void) {
 }
 @end
 
+// NEOSTATION_ARMSX2_EXTERNAL_DISPLAY_V1: the bridge's NeoExternalRenderHost.
+// The render view is the view the Core created (`coreView`), the placeholder
+// the game controller's root view, where the coordinator puts it back at
+// index 0 (below the touch controls, which stay on the iPhone). The Core
+// sized its surface for the iPhone and the bridge never resizes that view:
+// the coordinator keeps its bounds and scale and maps it to the TV with a
+// transform only. The adapter owns no window, screen, transform or observer.
+@interface Armsx2ExternalRenderHost : NSObject <NeoExternalRenderHost>
+/// YES while the core view is in the external window (set on the main
+/// thread by the coordinator through externalDisplayDidChange:). The
+/// controller's layout pass leaves the view alone while this is set.
+@property(nonatomic, readonly) BOOL attached;
+- (instancetype)initWithRenderView:(UIView*)render placeholder:(UIView*)placeholder;
+@end
+
+@implementation Armsx2ExternalRenderHost {
+  // The Core owns its render view (`coreView` is assign, released by
+  // release_render_view after the dismissal): the adapter never retains it.
+  __weak UIView* _renderView;
+  __weak UIView* _placeholderView;
+}
+
+- (instancetype)initWithRenderView:(UIView*)render placeholder:(UIView*)placeholder {
+  self = [super init];
+  if (self) {
+    _renderView = render;
+    _placeholderView = placeholder;
+  }
+  return self;
+}
+
+- (UIView*)renderView { return _renderView; }
+- (UIView*)placeholderView { return _placeholderView; }
+- (BOOL)fixedDrawable { return YES; }
+
+// Main thread, after the coordinator moved the view to the TV (YES) or
+// returned it to index 0 of the placeholder with its iPhone frame (NO).
+- (void)externalDisplayDidChange:(BOOL)active {
+  _attached = active;
+  NSLog(@"[ARMSX2] External display active=%d (render view transform only, drawable fixed).", active);
+}
+@end
+
 @interface Armsx2GameViewController : UIViewController
 @property(nonatomic, assign) const NeoARMSX2API* api;
 @property(nonatomic, assign) UIView* coreView;
+/// The external-display adapter while the session is attached to the
+/// coordinator, nil otherwise; its `attached` flag guards the layout pass.
+@property(nonatomic, strong) Armsx2ExternalRenderHost* externalRenderHost;
 @property(nonatomic, copy) dispatch_block_t closeHandler;
 @property(nonatomic, copy) dispatch_block_t menuHandler;
 @property(nonatomic, strong) UIView* controlsView;
@@ -268,7 +317,11 @@ static UIViewController* ARMSX2RootViewController(void) {
 
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
-  self.coreView.frame = self.view.bounds;
+  // While the coordinator shows the core view on the TV, that view is not a
+  // subview of this controller and keeps the bounds, scale and transform the
+  // coordinator gave it: only the iPhone layout sizes it. The touch controls
+  // always follow the iPhone.
+  if (!self.externalRenderHost.attached) self.coreView.frame = self.view.bounds;
   self.controlsView.frame = self.view.bounds;
   const UIEdgeInsets safe = self.view.safeAreaInsets;
   const CGFloat w = self.view.bounds.size.width;
@@ -473,12 +526,45 @@ static UIViewController* ARMSX2RootViewController(void) {
   return YES;
 }
 
+// NEOSTATION_ARMSX2_EXTERNAL_DISPLAY_V1
+// Attaches the Core's render view to the external display coordinator once
+// the game controller is presented and the Core booted: the Core sized its
+// surface for the iPhone before the view may move, and a launch that fails
+// never had a host to detach. Without a TV the coordinator only remembers
+// the host and moves the view when a screen comes. Main thread (the
+// coordinator asserts it); a caller on another queue is hopped there.
+- (void)attachExternalDisplayForController:(Armsx2GameViewController*)controller {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self attachExternalDisplayForController:controller]; });
+    return;
+  }
+  if (!controller || !controller.coreView || controller != self.gameController || self.stopInProgress) return;
+  [self detachExternalDisplayFromController:controller];
+  Armsx2ExternalRenderHost* host =
+      [[Armsx2ExternalRenderHost alloc] initWithRenderView:controller.coreView placeholder:controller.view];
+  controller.externalRenderHost = host;
+  [NeoExternalDisplayCoordinator.shared attachRenderHost:host];
+}
+
+// Returns the Core's render view to index 0 of the game view on the iPhone,
+// with its iPhone frame and scale, before the Core stops and before the game
+// view is dismissed. Harmless when nothing is attached. Main thread only.
+- (void)detachExternalDisplayFromController:(Armsx2GameViewController*)controller {
+  Armsx2ExternalRenderHost* host = controller.externalRenderHost;
+  if (!host) return;
+  controller.externalRenderHost = nil;
+  [NeoExternalDisplayCoordinator.shared detachRenderHost:host];
+}
+
 - (void)dismissGameControllerWithCompletion:(dispatch_block_t)completion {
   NSAssert(NSThread.isMainThread, @"ARMSX2 UIKit teardown must run on main");
   Armsx2GameViewController* controller = self.gameController;
   self.gameController = nil;
   self.sessionMenu = nil;
   self.menuOpening = NO;
+  // Every teardown path ends here: the render view is back on the iPhone
+  // before the presentation is dismissed and before the Core releases it.
+  [self detachExternalDisplayFromController:controller];
   if (controller) {
     controller.menuHandler = nil;
     [controller resetInput];
@@ -511,6 +597,15 @@ static UIViewController* ARMSX2RootViewController(void) {
 }
 
 - (void)stopActiveSessionWithCompletion:(void (^)(BOOL success, NSString* message))completion {
+  // NEOSTATION_ARMSX2_EXTERNAL_DISPLAY_V1: the Core's render view returns to
+  // index 0 of the game view on the iPhone BEFORE the Core stops (the
+  // external display contract); the detach belongs to the main thread, so
+  // the stop hops there first and queues the Core stop from there.
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self stopActiveSessionWithCompletion:completion]; });
+    return;
+  }
+  [self detachExternalDisplayFromController:self.gameController];
   dispatch_async(_runtimeQueue, ^{
     if (self.stopInProgress) {
       dispatch_async(dispatch_get_main_queue(), ^{
@@ -540,6 +635,9 @@ static UIViewController* ARMSX2RootViewController(void) {
         self.gameController.closing = NO;
         [self.gameController showStatus:message.length ? message :
             @"ARMSX2 shutdown did not complete."];
+        // The Core still runs and the session goes on: the game returns to
+        // the TV as well.
+        [self attachExternalDisplayForController:self.gameController];
         if (completion) completion(NO, message);
         return;
       }
@@ -1208,6 +1306,9 @@ static UIViewController* ARMSX2RootViewController(void) {
     NSString* revision = self.api->source_revision
         ? [NSString stringWithUTF8String:self.api->source_revision] : @"";
     dispatch_async(dispatch_get_main_queue(), ^{
+      // Presented earlier and booted with the surface the Core sized for the
+      // iPhone: from here the render view may be shown on the TV.
+      [self attachExternalDisplayForController:controller];
       result(@{
         @"success": @YES,
         @"transaction": transactionNumber,

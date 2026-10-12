@@ -1,7 +1,10 @@
 #import "LibretroGameViewController.h"
 
+#import <external_display/NeoExternalDisplayLabels.h>
+
 #import "LibretroChromeLayout.h"
 #import "LibretroInputState.h"
+#import "LibretroRenderSurface.h"
 #import "LibretroSkinRenderer.h"
 #import "LibretroTouchDiagnosticsView.h"
 #import "LibretroTouchOverlay.h"
@@ -20,6 +23,16 @@ static const CGFloat kEditButtonHeight = 36;
 
 /// Logical input of a skin item that opens the session menu (LibretroInputMap).
 static NSString *const kMenuInput = @"menu";
+
+/// The portable layout rectangles (LibretroGeometry) and CoreGraphics ones
+/// of the render surface rule (LibretroRenderSurface).
+static CGRect LibretroCGRectFromRect(LibretroRect rect) {
+  return CGRectMake(rect.x, rect.y, rect.w, rect.h);
+}
+
+static LibretroRect LibretroRectFromCGRect(CGRect rect) {
+  return LibretroRectMake(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+}
 
 @implementation LibretroGameViewController {
   LibretroInputState *_input;
@@ -45,6 +58,14 @@ static NSString *const kMenuInput = @"menu";
   NSArray<NSValue *> *_lastNormalizedMappings;
   CGSize _lastMappingSize;
 
+  // Surface of the Metal view while it is in the external window (points at
+  // the TV's scale, NeoExternalRenderHost); zero on the iPhone. The
+  // placement maps the game areas of the iPhone layout into that surface
+  // (identity on the phone).
+  CGSize _externalSurface;
+  CGFloat _externalScale;
+  LibretroRenderSurfacePlacement _externalPlacement;
+
   // "Commandes › Modifier la disposition".
   BOOL _editing;
   NSMutableDictionary<NSString *, NSDictionary *> *_editOverrides;
@@ -67,9 +88,12 @@ static NSString *const kMenuInput = @"menu";
     _controlsOpacity = 0.75;
     // Replaced by the translated label before the view loads (LibretroSession).
     _menuAccessibilityLabel = @"";
+    // Replaced by the session's language before the view appears (LibretroSession).
+    _uiLocale = @"en";
     _allowedOrientations = UIInterfaceOrientationMaskAllButUpsideDown;
     _currentOrientation = LibretroSkinOrientationLandscape;
     _skinLayoutDirty = YES;
+    _externalPlacement = LibretroRenderSurfacePlacementIdentity();
     self.modalPresentationStyle = UIModalPresentationFullScreen;
     self.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
   }
@@ -181,7 +205,10 @@ static NSString *const kMenuInput = @"menu";
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
   CGRect bounds = self.view.bounds;
-  _metalView.frame = bounds;
+  // On the TV the Metal view belongs to the external window and keeps the
+  // surface the coordinator gave it; the coordinator sizes it again on its
+  // return to the iPhone.
+  if (![self onExternalDisplay]) _metalView.frame = bounds;
   _skinRenderer.frame = bounds;
   _overlay.frame = bounds;
   _diagnosticsView.frame = bounds;
@@ -270,7 +297,9 @@ static NSString *const kMenuInput = @"menu";
 /// orientation from the bounds (iPad and resizable windows included),
 /// representation from the session, LibretroSkinLayout with the user's
 /// overrides, then the session (presenter screens, overlay remaps), then
-/// the skin renderer.
+/// the skin renderer. The skin and the overlay always use the iPhone
+/// bounds; the drawable follows the external surface while the Metal view
+/// is on the TV (LibretroRenderSurface).
 - (void)performSkinLayoutIfNeeded {
   if (!self.isViewLoaded || self.view.window == nil || _inLayoutPass) return;
   CGRect bounds = self.view.bounds;
@@ -285,8 +314,9 @@ static NSString *const kMenuInput = @"menu";
   _laidOutInsets = insets;
   _inLayoutPass = YES;
 
-  CGFloat scale = [self layoutScale];
-  if (_metalView.contentScaleFactor != scale) _metalView.contentScaleFactor = scale;
+  LibretroRenderSurface surface =
+      LibretroRenderSurfaceResolve(bounds.size, [self layoutScale], _externalSurface, _externalScale);
+  if (_metalView.contentScaleFactor != surface.scale) _metalView.contentScaleFactor = surface.scale;
   _currentOrientation =
       bounds.size.width > bounds.size.height ? LibretroSkinOrientationLandscape : LibretroSkinOrientationPortrait;
   BOOL iPad = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
@@ -319,10 +349,28 @@ static NSString *const kMenuInput = @"menu";
   }
   _hasMenuItem = hasMenuItem;
 
-  CGSize drawableSize =
-      CGSizeMake(MAX(1, round(bounds.size.width * scale)), MAX(1, round(bounds.size.height * scale)));
+  // The picture is drawn into the surface: on the phone (the surface is the
+  // view's bounds) the game areas where the skin laid them out; on the TV
+  // the same areas placed in the external surface, scaled uniformly and
+  // centred so the picture fills it, the black around them (the skin's and
+  // the controls' room on the phone) left out. The session normalizes the
+  // screens by the surface's points (LibretroGameViewLayoutSource); the
+  // skin, the overlay and the chrome keep the iPhone layout.
+  CGSize drawableSize = LibretroRenderSurfaceDrawableSize(surface);
+  NSArray<LibretroLaidOutScreen *> *pictureScreens = layout.screens ?: @[];
+  _externalPlacement = LibretroRenderSurfacePlacementIdentity();
+  if (surface.external && layout != nil) {
+    _externalPlacement = LibretroRenderSurfacePlacementMake([self unionOfScreens:layout.screens], surface.points);
+    pictureScreens = [self screens:layout.screens placedBy:_externalPlacement];
+  }
+  // The touch screens are converted again with this placement (tick).
+  _lastMappingSize = CGSizeZero;
   if (representation != nil && layout != nil) {
-    [source gameViewDidLayout:layout representation:representation drawableSize:drawableSize points:bounds.size];
+    [source gameViewDidLayout:layout
+               representation:representation
+                      screens:pictureScreens
+                 drawableSize:drawableSize
+                       points:surface.points];
   }
   if (self.layoutHandler != nil) self.layoutHandler(drawableSize);
   _inLayoutPass = NO;
@@ -338,6 +386,33 @@ static NSString *const kMenuInput = @"menu";
 - (BOOL)controlsShouldHide {
   if (_editing) return NO;
   return !self.touchControlsEnabled || _input.hasPhysicalController;
+}
+
+/// Bounding box of the game areas of the iPhone layout (CGRectZero without
+/// any), in iPhone points.
+- (CGRect)unionOfScreens:(NSArray<LibretroLaidOutScreen *> *)screens {
+  CGRect areas = CGRectNull;
+  for (LibretroLaidOutScreen *screen in screens) {
+    areas = CGRectUnion(areas, LibretroCGRectFromRect(screen.container));
+  }
+  return CGRectIsNull(areas) ? CGRectZero : areas;
+}
+
+/// The same screens (source, role, touch screen) with their containers
+/// placed in the external surface.
+- (NSArray<LibretroLaidOutScreen *> *)screens:(NSArray<LibretroLaidOutScreen *> *)screens
+                                     placedBy:(LibretroRenderSurfacePlacement)placement {
+  NSMutableArray<LibretroLaidOutScreen *> *placed = [NSMutableArray arrayWithCapacity:screens.count];
+  for (LibretroLaidOutScreen *screen in screens) {
+    LibretroLaidOutScreen *entry = [LibretroLaidOutScreen new];
+    entry.container =
+        LibretroRectFromCGRect(LibretroRenderSurfacePlace(placement, LibretroCGRectFromRect(screen.container)));
+    entry.source = screen.source;
+    entry.role = screen.role;
+    entry.touchScreen = screen.touchScreen;
+    [placed addObject:entry];
+  }
+  return placed;
 }
 
 - (void)showSkin {
@@ -459,7 +534,10 @@ static NSString *const kMenuInput = @"menu";
 }
 
 /// Touch-screen mappings of the last presented frame, normalized to the
-/// drawable (the whole view), converted to overlay points.
+/// drawable, converted to overlay points. On the phone the drawable is the
+/// whole view; on the TV it is the external surface, where the picture was
+/// placed by the layout's placement: the same placement brings each touch
+/// screen back to the iPhone layout, where the overlay maps the touches.
 - (void)refreshTouchScreenMappings:(NSArray<NSValue *> *)normalized {
   CGSize size = _overlay.bounds.size;
   if (CGSizeEqualToSize(size, _lastMappingSize) && [normalized isEqualToArray:_lastNormalizedMappings ?: @[]]) {
@@ -467,12 +545,16 @@ static NSString *const kMenuInput = @"menu";
   }
   _lastMappingSize = size;
   _lastNormalizedMappings = [normalized copy];
+  const BOOL external = [self onExternalDisplay];
+  const CGSize picture = external ? _externalSurface : size;
   NSMutableArray<NSValue *> *converted = [NSMutableArray arrayWithCapacity:normalized.count];
   for (NSValue *value in normalized) {
     LibretroScreenMapping mapping;
     [value getValue:&mapping size:sizeof(mapping)];
-    mapping.output = LibretroRectMake(mapping.output.x * size.width, mapping.output.y * size.height,
-                                      mapping.output.w * size.width, mapping.output.h * size.height);
+    CGRect output = CGRectMake(mapping.output.x * picture.width, mapping.output.y * picture.height,
+                               mapping.output.w * picture.width, mapping.output.h * picture.height);
+    if (external) output = LibretroRenderSurfaceUnplace(_externalPlacement, output);
+    mapping.output = LibretroRectFromCGRect(output);
     [converted addObject:[NSValue valueWithBytes:&mapping objCType:@encode(LibretroScreenMapping)]];
   }
   _overlay.touchScreenMappings = converted;
@@ -688,6 +770,47 @@ static NSString *const kMenuInput = @"menu";
   _editBar.hidden = YES;
   [self setNeedsUpdateOfSupportedInterfaceOrientations];
   [self setNeedsSkinLayout];
+}
+
+#pragma mark - NeoExternalRenderHost (main thread, coordinator)
+
+- (UIView *)renderView {
+  [self loadViewIfNeeded];
+  return _metalView;
+}
+
+- (UIView *)placeholderView {
+  [self loadViewIfNeeded];
+  return self.view;
+}
+
+- (BOOL)fixedDrawable {
+  // The surface follows the TV: the coordinator sizes the Metal view to the
+  // TV's surface and the drawable is rebuilt from it, so the core's picture
+  // is rendered at the TV's resolution instead of being scaled up.
+  return NO;
+}
+
+- (BOOL)onExternalDisplay {
+  return LibretroRenderSurfaceUsable(_externalSurface, _externalScale);
+}
+
+- (void)externalSurfaceDidChange:(CGSize)pointSize scale:(CGFloat)scale {
+  // CGSizeZero at scale 0: the view is back at index 0 of this view with its
+  // iPhone frame and scale restored by the coordinator.
+  _externalSurface = pointSize;
+  _externalScale = scale;
+  // The placement follows at the next layout; until then the touch screens
+  // are converted again from the surface they are drawn in.
+  _lastMappingSize = CGSizeZero;
+  [self setNeedsSkinLayout];
+}
+
+- (void)externalDisplayDidChange:(BOOL)active {
+  if (!active) return;
+  // The picture left the iPhone: say where it went, in the session's
+  // language, from the plugin's own catalog.
+  [self showStatus:NeoExternalDisplayText(@"externalOnPhone", self.uiLocale)];
 }
 
 #pragma mark - Status

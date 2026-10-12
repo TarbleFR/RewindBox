@@ -18,6 +18,9 @@
 #include "NeoSwapUsagePolicy.h"
 #import "RPCS3InGameLocalization.h"
 #import "Rpcs3SessionMenu.h"
+// NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the game's Metal view can be shown on
+// NeoStation's window on the TV (docs/external-display-universal.md § 5).
+#import <external_display/NeoExternalDisplayCoordinator.h>
 
 #import <AVFAudio/AVAudioSession.h>
 #import <Metal/Metal.h>
@@ -190,6 +193,10 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, copy) dispatch_block_t closeHandler;
 @property(nonatomic, copy) dispatch_block_t menuHandler;
 @property(nonatomic, copy) void (^performanceToggleHandler)(BOOL visible);
+// The Core draws into this subview's layer. The external display coordinator
+// may move the view to the TV and brings it back to index 0 of `self.view`
+// (the black container holding the touch controls) before the Core stops.
+@property(nonatomic, strong) RPCS3MetalView* metalView;
 @property(nonatomic, readonly) CAMetalLayer* metalLayer;
 @property(nonatomic, strong) RPCS3GameInputController* inputController;
 @property(nonatomic, strong) RPCS3PerformanceOverlay* performanceOverlay;
@@ -210,14 +217,24 @@ static UIViewController* RPCS3RootViewController(void) {
 }
 
 - (void)loadView {
-  RPCS3MetalView* view = [[RPCS3MetalView alloc] initWithFrame:UIScreen.mainScreen.bounds];
+  // NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: a black container is the root view
+  // and the Metal view is its subview at index 0, below the controls. The
+  // container never leaves the iPhone (host of the virtual pad, action rail
+  // and performance overlay); only the Metal view may move to the TV, with a
+  // transform and no change of its drawable (fixedDrawable).
+  UIView* view = [[UIView alloc] initWithFrame:UIScreen.mainScreen.bounds];
   view.backgroundColor = UIColor.blackColor;
   view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-  CAMetalLayer* layer = (CAMetalLayer*)view.layer;
+  RPCS3MetalView* metal = [[RPCS3MetalView alloc] initWithFrame:view.bounds];
+  metal.backgroundColor = UIColor.blackColor;
+  metal.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  CAMetalLayer* layer = (CAMetalLayer*)metal.layer;
   layer.device = MTLCreateSystemDefaultDevice();
   layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
   layer.framebufferOnly = NO;
   layer.contentsScale = UIScreen.mainScreen.scale;
+  [view insertSubview:metal atIndex:0];
+  self.metalView = metal;
   self.view = view;
   self.uiLocale = RPCS3CanonicalLocale(self.uiLocale ?: NSLocale.preferredLanguages.firstObject);
 
@@ -283,7 +300,7 @@ static UIViewController* RPCS3RootViewController(void) {
   [self.inputController stop];
   [super viewDidDisappear:animated];
 }
-- (CAMetalLayer*)metalLayer { return (CAMetalLayer*)self.view.layer; }
+- (CAMetalLayer*)metalLayer { return (CAMetalLayer*)self.metalView.layer; }
 - (void)menuPressed { if (self.menuHandler) self.menuHandler(); }
 - (void)performancePressed {
   self.showingPerformance = !self.showingPerformance;
@@ -299,9 +316,49 @@ static UIViewController* RPCS3RootViewController(void) {
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIInterfaceOrientationMaskLandscape; }
 @end
 
+// NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the bridge's NeoExternalRenderHost.
+// The render view is the game's Metal view, the placeholder its container on
+// the iPhone (index 0, below the controls). RPCS3 sized the drawable for the
+// iPhone when the surface was set and never re-reads it: the coordinator
+// keeps the view's bounds and scale and maps it to the TV with a transform
+// only. The adapter owns no window, screen, transform or observer.
+@interface RPCS3ExternalRenderHost : NSObject <NeoExternalRenderHost>
+- (instancetype)initWithRenderView:(UIView*)render placeholder:(UIView*)placeholder;
+@end
+
+@interface RPCS3ExternalRenderHost ()
+@property(nonatomic, strong) UIView* renderView;
+@property(nonatomic, strong) UIView* placeholderView;
+@end
+
+@implementation RPCS3ExternalRenderHost
+
+- (instancetype)initWithRenderView:(UIView*)render placeholder:(UIView*)placeholder {
+  self = [super init];
+  if (self) {
+    _renderView = render;
+    _placeholderView = placeholder;
+  }
+  return self;
+}
+
+- (BOOL)fixedDrawable { return YES; }
+
+// Main thread, after the coordinator moved the view (YES) or returned it (NO).
+- (void)externalDisplayDidChange:(BOOL)active {
+  RPCS3Diagnostic(@"external_display", [NSString stringWithFormat:
+      @"active=%d render=transform_only drawable=fixed", active]);
+}
+
+@end
+
 @interface Rpcs3InternalBridgePlugin ()
 @property(nonatomic, strong) FlutterMethodChannel* channel;
 @property(nonatomic, strong) RPCS3GameViewController* gameController;
+// Main thread only: set while the game's Metal view is attached to the
+// external display coordinator (nil without a session, before the surface
+// is proven and after the detach that precedes every session stop).
+@property(nonatomic, strong) RPCS3ExternalRenderHost* externalRenderHost;
 @property(nonatomic, assign) BOOL initialized;
 @property(nonatomic, assign) BOOL initializedWithExpandedJit;
 @property(nonatomic, assign) BOOL coreLoadedWithExpandedJit;
@@ -1233,6 +1290,59 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   });
 }
 
+// NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1
+// Attaches the game's Metal view to the external display coordinator once
+// the game view is presented and its Metal surface exists. The second
+// Flutter engine of the TV menu is destroyed first (RPCS3 and NeoSwap need
+// the memory; the coordinator recreates it after the detach). Without a TV
+// the coordinator only remembers the host and moves the view when a screen
+// comes. Main thread (the coordinator asserts it); the launch handler runs
+// there, and the dispatch_sync mirrors the presentation block.
+- (void)attachExternalDisplayForController:(RPCS3GameViewController*)controller {
+  if (!NSThread.isMainThread) {
+    dispatch_sync(dispatch_get_main_queue(), ^{ [self attachExternalDisplayForController:controller]; });
+    return;
+  }
+  if (!controller || !controller.metalView || controller != self.gameController) return;
+  [self detachExternalDisplay];
+  RPCS3ExternalRenderHost* host =
+      [[RPCS3ExternalRenderHost alloc] initWithRenderView:controller.metalView placeholder:controller.view];
+  self.externalRenderHost = host;
+  NeoExternalDisplayCoordinator* coordinator = NeoExternalDisplayCoordinator.shared;
+  [coordinator destroyMenuEngineForMemory];
+  [coordinator attachRenderHost:host];
+}
+
+// Returns the Metal view to index 0 of the game view on the iPhone, with its
+// iPhone frame and scale, before the Core stops and before the game view is
+// dismissed. Harmless when nothing is attached. Main thread only.
+- (void)detachExternalDisplay {
+  RPCS3ExternalRenderHost* host = self.externalRenderHost;
+  if (!host) return;
+  self.externalRenderHost = nil;
+  [NeoExternalDisplayCoordinator.shared detachRenderHost:host];
+}
+
+// NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the TV menu's second Flutter engine
+// is destroyed at the attach (memory for RPCS3 and NeoSwap) and the
+// coordinator recreates it the moment the host detaches. The detach comes
+// BEFORE the Core stops (external display contract), so without a hold a
+// whole Flutter engine would boot while the Core still owns its memory
+// (about 0.6 GB free during a PS3 game). The coordinator's suspension is
+// that hold: nothing of NeoStation's on the TV (iOS mirrors the iPhone, as
+// for an engine that cannot use the external display) until the Core has
+// stopped and the game view is gone, or the game is back on the TV after a
+// refused stop. Main thread only; every hold is released on every path.
+- (void)holdExternalMenuWhileCoreStops {
+  [NeoExternalDisplayCoordinator.shared suspendForUnsupportedEngine];
+  RPCS3Diagnostic(@"external_display", @"menu=held reason=core_stop");
+}
+
+- (void)releaseExternalMenuAfterCoreStopped {
+  [NeoExternalDisplayCoordinator.shared resumeAfterUnsupportedEngine];
+  RPCS3Diagnostic(@"external_display", @"menu=released reason=core_stopped");
+}
+
 - (void)showGameMenu {
   RPCS3GameViewController* controller = self.gameController;
   if (!controller || controller.presentedViewController) return;
@@ -1499,6 +1609,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     UIScreen* screen = controller.view.window.screen ?: UIScreen.mainScreen;
     CGFloat scale = screen.scale;
     float refreshRate = (float)screen.maximumFramesPerSecond;
+    // The surface keeps the iPhone size, scale and refresh rate read above
+    // (the container stays on the phone); from here the Metal view may be
+    // shown on the TV while the Core boots into the same layer.
+    [self attachExternalDisplayForController:controller];
     dispatch_async(_runtimeQueue, ^{
       // Sample readiness without waiting: helpers already received the
       // session-start wake before display setup. Ordinary RPCS3 mapping is
@@ -1609,12 +1723,33 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
 }
 
 - (void)stopAndDismiss:(FlutterResult)result {
+  // NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the Metal view returns to index 0
+  // of the game view on the iPhone BEFORE the Core stops (the external
+  // display contract); the detach belongs to the main thread, so a stop
+  // requested from the runtime queue hops there first and queues the Core
+  // stop from there. Internal restarts (settings, savestates) keep the same
+  // surface and do not detach.
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self stopAndDismiss:result]; });
+    return;
+  }
+  // The TV menu stays away until the Core has released its memory: held
+  // before the detach, which would otherwise recreate it at once.
+  [self holdExternalMenuWhileCoreStops];
+  [self detachExternalDisplay];
   dispatch_async(_runtimeQueue, ^{
     BOOL ok = YES;
     if (self.initialized && self->_api.stop_emulation) ok = self->_api.stop_emulation() == 0;
     if (!ok) {
       [self showMessage:[self localized:@"state"] message:[self lastError]];
-      dispatch_async(dispatch_get_main_queue(), ^{ if (result) result(@NO); });
+      dispatch_async(dispatch_get_main_queue(), ^{
+        // The save still owns Emu and the session goes on: the game returns
+        // to the TV as well, attached before the hold is released so the
+        // menu engine is not recreated in between.
+        [self attachExternalDisplayForController:self.gameController];
+        [self releaseExternalMenuAfterCoreStopped];
+        if (result) result(@NO);
+      });
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
     if (self.activeTitleId.length) {
@@ -1641,6 +1776,9 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       controller.performanceToggleHandler = nil;
       self.gameController = nil;
       [controller dismissViewControllerAnimated:NO completion:nil];
+      // The Core has stopped and the game view is gone: the TV menu's
+      // engine may be recreated now.
+      [self releaseExternalMenuAfterCoreStopped];
       if (result) result(@(ok));
     });
   });

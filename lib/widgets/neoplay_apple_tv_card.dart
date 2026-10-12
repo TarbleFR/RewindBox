@@ -20,7 +20,11 @@ class NeoPlayAppleTVCard extends StatelessWidget {
         content: SingleChildScrollView(child: Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
           Text(text('appleTVSystem')), const SizedBox(height:12),
           if (streamBusy) Padding(padding:const EdgeInsets.only(bottom:12),child:Text(text('busyAppleTV'))),
-          Text(text('appleTVBody')), const SizedBox(height:12), Text(text(status)),
+          Text(text('appleTVBody')), const SizedBox(height:12),
+          // Build 447: NeoStation owns a window on the external screen; the
+          // picture format is a General setting, not a NeoPlay one.
+          Text(text('appleTVOwnWindow')), const SizedBox(height:12),
+          Text(text(status)),
         ])),
         actions:[TextButton(onPressed:() => Navigator.pop(context),child:Text(text('close')))],
       )),
