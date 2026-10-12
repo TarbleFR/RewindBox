@@ -506,3 +506,127 @@ purge de `tmp/` par iOS ; version du SQLite système et `VACUUM INTO` ; comporte
 sur un conteneur de 40 Go. Protocole iPhone : première analyse exportée en agrégats (sans nettoyage), comparaison avec
 les Réglages iOS, puis niveau 1 seul et nouvelle analyse, et seulement ensuite niveau 2 avec capture du JITPROF RPCS3
 avant/après.
+
+## 8. Déviations de la phase 5c (12 octobre 2026)
+
+Planificateur, gestionnaire de suppression et rapport : `lib/services/storage/storage_cleanup_planner.dart`,
+`storage_deletion_manager.dart`, `storage_report.dart` ; tests `test/storage_cleanup_planner_test.dart`,
+`test/storage_deletion_manager_test.dart`, `test/storage_report_test.dart` (lignes B–G du § 6, arbres temporaires
+réels). Les signatures des §§ 3.7–3.9 sont conservées sauf mention ci-dessous ; chaque ajout est facultatif pour
+l'appelant.
+
+### 8.1 Décisions du lead
+
+- `user-data/app.log.old` : niveau 3 (classe « confirmation » du § 2), jamais présélectionné, bien que le § 3.7 le
+  cite au niveau 2.
+- Chemins 3DS d'INV-14 : `Libretro/Backups/Azahar/<horodatage>/` au niveau 3 (contenu utilisateur, jamais
+  présélectionné) ; `Saves/Azahar/.neostation-3ds-{import,restore}-*` au niveau 1, hors session libretro.
+- `Caches/KartPad` (INV-12.cache) et `Caches/Dusklight` (INV-13.cache), `cachePath` des moteurs (caches d'exécution
+  et de shaders) : niveau 2 « Régénérable », motif `catCaches` ; jamais pendant une session (refus global
+  `GameLaunchManager().isActive`).
+- Copies de métadonnées du lecteur Musique (INV-28.musicCopy, sous `Library/Caches`) : niveau 1 « Sûr » au-delà de
+  10 minutes, motif `catTemporary`.
+- Dossiers de `tmp/` autres que `*-Inbox` (fichiers d'aide JIT, caches système) : jamais proposés, à aucun niveau
+  (contenu inconnu) ; seuls les fichiers réguliers de `tmp/` et de `tmp/*-Inbox/` le sont.
+
+### 8.2 Signatures
+
+- `StorageRefusalReason` est déclaré dans `storage_deletion_manager.dart` (§ 3.8) et réexporté par le planificateur
+  pour `StoragePlanRefusal` (import réciproque).
+- `execute(clearLibraryCaches:)` est de type `Future<void> Function(StorageCacheApi cache)?` : les deux caches de la
+  Bibliothèque sont deux candidats distincts, vidés un par un ; par défaut `LibraryHttp.instance.clearCache()` et
+  `LibraryImageCache.instance.clear()`.
+- Lignes de métadonnées orphelines : supprimées seulement si `selectedPaths` contient le jeton
+  `StorageCleanupPlan.metadataSelectionKey` (présélectionné aux niveaux 2 et 3) ; `maintenance` nul →
+  `StorageMaintenanceRepository()`.
+- `StorageCleanupPlan` n'a pas de constructeur `const` (tables de recherche mises en cache).
+- Ajouts. Candidat : `level`, `source` (`rule`, `orphanMedia`, `orphanCover`, `duplicate`, `cacheApi`), `rootId`,
+  `ruleId`, `container`, `relativePath`, `fileCount`, `cacheApi`, `entries` (aperçu exact : fichiers, puis dossiers
+  du plus profond au candidat lui-même), `pairedDisplayPath`, `displayPath`, `isDuplicate`. Plan : `containers`,
+  `session`, `rpcs3Redirected`, `preselectedPaths`, `preselectedBytes`, `blocked`, `hasMetadata`,
+  `metadataPreselected`, `candidateFor`, `bytesOf`, `countOf`, `warningKeysOf`, `candidatesByRoot`. Refus :
+  `displayPath`, `rootId`, `detail` (texte technique brut), `errorCode` (errno), `localeKey`, `wholePlan` (`''`,
+  refus du plan entier). Résultat : `deletedDirectories`, `clearedCaches`, `stoppedBySession`, `journalDisplayPath`,
+  `journalError`, `refusalCounts`. État des gardes : `probeErrors`, `libretroBusy`, `anyActive`. Garde : paramètre
+  `containers` (chemins du marqueur et du journal sans `path_provider`), `markerPresent`, `journalUnfinished`,
+  `journalTailHasEnd`. Gestionnaire : `rpcs3Guard` (défaut `Rpcs3InternalService.runSaveExchange`),
+  `rpcs3Redirected` (défaut : relecture de `Data/vfs.yml`, refus en cas d'erreur), `StorageDeletionProgress`
+  (`done`, `total`, `deletedFiles`, `deletedBytes`, `phase`, `currentPath`). Rapport : `encode`, `fileNameFor`.
+  Partage : paramètre `origin` (iPad).
+
+### 8.3 Planification
+
+- Granularité : une règle de dossier propose les entrées situées directement dans ce dossier, qui reste
+  (`RPCS3/Cache/*`, `ShaderCache/*`, `Caches/{KartPad,Dusklight}/*`…) ; une règle de nom propose les entrées qu'elle
+  désigne ; `tmp/*-Inbox` et `Caches/<bundle-id>` proposent ce qu'ils contiennent. Un candidat de niveau inférieur
+  situé dans un dossier candidat reste distinct et sort des entrées du dossier ; une entrée de même niveau ou de
+  niveau supérieur appartient au dossier.
+- Les entrées d'un dossier candidat ne comprennent jamais d'entrée de classe « jamais », de lien, d'entrée illisible
+  ni d'emplacement iCloud : un dossier qui en contient reste (`notEmpty`).
+- Âges : tout candidat « temporaire si inactif » sans âge plus long doit être inactif depuis 10 minutes ; l'âge d'un
+  dossier est la modification la plus récente de son sous-arbre ; tout `*.part` (par son nom) exige une heure, même
+  dans un dossier temporaire dont la règle garde sa classe.
+- `tmp/armsx2-shaders-*.zip` (fichier régulier de `tmp/`) est proposé avec les copies du sélecteur ;
+  `diagnosticsWarning` accompagne aussi les journaux natifs à la racine de `Documents` (INV-07).
+- Motifs (`reasonKey`) : clé de catégorie (`cat*`) pour les candidats de règle, sauf décision du lead (§ 8.1) ;
+  `orphanMedia`, `orphanCovers` ou `duplicates` pour les candidats d'analyse, dont les `{count}`/`{size}` sont les
+  totaux des candidats de même motif. Une copie en double est rapportée avec la classe `confirmation`.
+- Gardes : un jeu ou un import en cours → plan vide et un seul refus `sessionActive` de chemin `''`. Les racines
+  libretro (INV-14, INV-25) sont exclues si `isSessionActive()` est vrai **ou** si `Logs/session.log` déclare une
+  session (fichier non vide) sans `\nEND ` dans ses 4 096 derniers octets (miroir de `JournalHasEnd`) ; fichier
+  absent ou vide : terminé ; illisible : en cours. Le marqueur Dolphin compte sous toute forme d'entrée (erreur →
+  présent). Toute sonde en échec vaut « en cours » (`probeErrors`). Les candidats exclus figurent dans `refusals`
+  (`sessionActive`).
+- Redirection RPCS3 : un refus `redirected` par racine INV-16 … INV-19 ; INV-10 n'est pas concerné.
+- 3DS : un dossier `Backups/Azahar/<horodatage>` qui contient le journal `.neostation-pass.jsonl` sans le marqueur
+  `.neostation-complete.json` appartient à une passe interrompue (passes sûres du service 3DS, en cours
+  d'intégration) : ni ce dossier ni aucun dossier `.neostation-3ds-*` ne sont proposés, à aucun niveau. Les deux noms
+  sont recopiés (`StorageCleanupPlanner.threeDsPassLogName`, `threeDsCompleteMarkerName`) et seront remplacés par les
+  constantes du service une fois celui-ci livré.
+
+### 8.4 Exécution
+
+- Les candidats d'INV-10 (espace Fichiers de RPCS3, où l'échange de sauvegardes écrit) s'exécutent aussi dans
+  `runSaveExchange`, avec INV-16 … INV-19 ; la redirection est relue juste avant et ne refuse que INV-16 … INV-19 ;
+  un refus de la garde (`gameRunning`, `libraryBusy`) donne `rpcs3Busy`, le code brut en `detail`.
+- Liens : le parent résolu de chaque chemin doit être exactement l'emplacement analysé (conteneur résolu + chemin
+  relatif) ; tout lien sous le conteneur est refusé (`isLink` s'il mène encore dans une racine, `outsideWhitelist`
+  sinon).
+- Toujours refusés, même pour une copie en double : le dossier caché de la Bibliothèque, `Libretro/System`,
+  `ARMSX2/BIOS`, `StikJIT`, `Caches/NeoSwap*`, `Data/dev_flash*`, `dev_hdd0/home/<utilisateur>/{exdata,savedata}`
+  pour tout utilisateur ; les dossiers de bibliothèque et le dossier lié eux-mêmes (`isRoot`) et leur contenu
+  (`isProtected`), sauf la copie en double sélectionnable.
+- Copie en double : seule exception aux règles « jamais », pour le seul fichier d'un candidat `duplicate` d'INV-01,
+  11, 12, 13 ou 20 ; la copie référencée doit être encore un fichier régulier de même nom et de même taille, sinon
+  `changedSincePreview` avec le `detail` `referencedCopyMissing`, `referencedCopyChanged`, `referencedCopyInvalid` ou
+  `noReferencedCopy`.
+- Un fichier modifié depuis l'aperçu est compté dans `skippedChanged` (ligne `skip` du journal), pas dans les refus.
+- La garde est revérifiée tous les 50 fichiers traités (supprimés, ignorés ou refusés) ; une session libretro ou le
+  marqueur Dolphin apparus en cours de route ne refusent que leurs candidats ; un jeu lancé arrête tout
+  (`stoppedBySession`, le reste refusé `sessionActive`). L'annulation est vue après chaque fichier et avant chaque
+  candidat ; ce qui reste n'est alors pas refusé.
+- `notEmpty` : un seul refus par dossier resté non vide, sans nouveau refus pour ses parents.
+- Caches de la Bibliothèque : seule l'API supprime ; les octets libérés sont mesurés avant et après ; un échec donne
+  `cacheApiFailed` avec le texte brut.
+- Journal : `begin` porte aussi l'état des gardes ; les lignes `delete` d'un dossier portent `kind: directory`, celles
+  d'une API `api` et `files` ; `end` porte `prunedJournals` ; chemins `<Conteneur>/…` ou `<outside>`, textes bruts
+  expurgés des chemins de conteneur ; suffixe `-<n>` quand deux exécutions partagent une seconde ; plafond de 20 sur
+  les seuls fichiers réguliers `storage-cleanup-*.jsonl`.
+- Une exception de l'écouteur de progression n'interrompt jamais la suppression.
+
+### 8.5 Rapport
+
+- Les dossiers de bibliothèque supplémentaires d'INV-01 sont notés `<library folder>` ; les analyses d'orphelins non
+  faites ne sont exportées que par leur nom (leurs raisons brutes peuvent citer le contenu d'un fichier) ; tout UUID
+  devient `<uuid>` dans chaque texte ; les libellés viennent de `StorageReport.libraryRootIds` (`rootLibrary`) et de
+  `StorageLocale.containerKeys` (le rapport ne reçoit pas le registre).
+- Mode détaillé : les entrées (fichiers et dossiers) les plus grosses en octets logiques, puis par chemin, hors
+  dossier caché ; les chemins illisibles n'y figurent qu'en mode détaillé.
+- `StorageReportSharer` n'accepte qu'un nom de fichier nu et supprime le fichier temporaire de `tmp/` une fois la
+  feuille de partage fermée, ou en cas d'échec (l'erreur remonte à l'écran).
+
+### 8.6 Vérifications
+
+`flutter test test/storage_cleanup_planner_test.dart test/storage_deletion_manager_test.dart
+test/storage_report_test.dart` : 39 tests (14 + 20 + 5), avec `Rpcs3InternalService.runSaveExchange` réel pour
+`gameRunning` et `libraryBusy`. Les limites du § 7 restent : aucun de ces comportements n'est vérifié sur iPhone.
