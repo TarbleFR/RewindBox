@@ -531,3 +531,79 @@ Journal : `display.external_scene_connected`, `display.external_attached:<pont>`
 `display.external_scene_lost`, `display.external_scene_found`, `display.external_legacy_scene`,
 `display.legacy_unavailable`, `display.external_apply_passes:`, `display.external_menu_engine:`,
 `display.external_menu_plugin:`, `display.external_menu_lifecycle:`, `display.external_menu_language:`.
+
+## 10. Build 449 — l'Apple TV recopie l'interface de NeoStation hors jeu (12 octobre 2026)
+
+**Constat du mainteneur (Build 447/448 installée, iPhone recopié sur une Apple TV).** Pendant
+la navigation dans NeoStation, le téléviseur n'affichait que le logo de la console sélectionnée
+(par exemple PS2), jamais le menu, la bibliothèque ni les jaquettes ; les jeux s'affichaient
+correctement. Exigence : l'Apple TV doit montrer exactement l'interface visible sur l'iPhone,
+sans écran de logo fixe, en conservant l'affichage des jeux sur le téléviseur.
+
+**Cause établie dans les sources (pas une hypothèse sur les vidéos).**
+
+1. Le manifeste de l'hôte déclare le rôle `UIWindowSceneSessionRoleExternalDisplayNonInteractive`
+   (`build-utils/configure_external_display_ios.py`) ; à la connexion AirPlay, iOS livre la scène à
+   `NeoExternalDisplaySceneDelegate`, et le coordinateur y crée une fenêtre. Une fenêtre de l'app
+   dans cette scène met fin à la recopie système (documentation `UIScreen.mirrored`, Apple
+   Developer Forums 766398 et 815376) : le téléviseur ne montre plus que cette fenêtre.
+2. Hors jeu, le coordinateur plaçait dans cette fenêtre le second moteur Flutter
+   (`externalDisplayMain` → `ExternalMenuApp` → `SecondaryScreen`), réglage « Afficher le menu sur
+   le téléviseur » activé par défaut. `SecondaryScreen` est l'écran secondaire des consoles
+   portables Android (logo et fond de la console sélectionnée, illustrations du jeu), alimenté par
+   les relais de sélection (§ 8 bis) : ce n'est pas l'interface de NeoStation. D'où « seulement le
+   logo de la console » pendant la navigation. Pendant un jeu, la vue de rendu du pont prenait la
+   fenêtre : les jeux s'affichaient bien.
+3. Les cas « recopie » (sortie désactivée, moteur non pris en charge, menu coupé) masquaient
+   seulement la fenêtre (`hidden = YES`) en la laissant dans la scène. Apple indique que la recopie
+   revient quand la fenêtre est **retirée** de la scène (`windowScene = nil`) ; le simple masquage
+   ne figure pas dans cette consigne et son effet n'est pas documenté (rapport SDL 16161 : une
+   fenêtre posée sur la scène AirPlay laisse le téléviseur noir au lieu de la recopie).
+
+Les lecteurs vidéo ne sont pas en cause : `video_player_avfoundation` 2.11.0 laisse
+`usesExternalPlaybackWhileExternalScreenIsActive` à sa valeur par défaut (NO), la vidéo reste dans
+l'interface recopiée ; aucun autre code natif ne crée de fenêtre sur l'écran externe, et
+`sub_screen` 0.1.9 n'a pas d'implémentation iOS.
+
+**Correctif ciblé (aucune refonte, aucun pont modifié).**
+
+- `NeoExternalDisplayCoordinator.m` : hors jeu, rien de propre à NeoStation sur le téléviseur — la
+  fenêtre est masquée puis **sort de sa scène** (`placeWindowInScene:NO`), iOS recopie l'iPhone.
+  Quand un jeu prend le téléviseur, la fenêtre revient dans la même scène, reprend la taille de la
+  scène, puis la vue de rendu y est déplacée (comportement des Builds 442/447 inchangé : Adapter,
+  Remplir, Format d'origine, rendu libretro à la résolution du téléviseur, commandes sur l'iPhone).
+  Même retour à la recopie pour la sortie désactivée et Dusklight/KartPad. Une fenêtre qui n'a
+  jamais été dans une scène (repli legacy, harnais de test) n'est pas touchée.
+- Le coordinateur ne crée plus jamais le moteur de menu du téléviseur ; un contrôleur ou un moteur
+  laissé par un état antérieur est libéré. `menuOnTV` vaut toujours NO ; la préférence
+  `NeoStation.ExternalDisplay.MenuOnTV` n'est plus lue (ni effacée). Régime iOS 27 : l'inscription
+  de la racine n'est activée que pendant un jeu.
+- Réglages › Général : la rangée « Afficher le menu sur le téléviseur » est retirée (deux rangées au
+  lieu de trois). Hors jeu, la ligne d'état affiche l'écran connecté puis « Hors jeu, iOS recopie
+  l'interface NeoStation de l'iPhone. » ; textes `description` et `modeAutomaticHelp` corrigés ;
+  clés `menuOnTv`, `menuOnTvHelp`, `menuOffMirroring` retirées, `mirroringOutsideGames` ajoutée, en
+  douze langues. La phrase Apple TV de NeoPlay (`appleTVOwnWindow`) dit désormais « pendant un jeu,
+  plein écran ; hors jeu, iOS recopie l'iPhone ».
+- Code dormant laissé en place pour limiter le correctif : `NeoExternalDisplayMenuEngine`, le point
+  d'entrée `externalDisplayMain`, `ExternalMenuApp` et les relais de `SecondaryDisplayBridge`
+  (inactifs : `forwardsSelections` exige `menuOnTV`). Leur retrait relève d'un nettoyage séparé.
+
+**Limite connue.** La recopie système conserve le format de l'iPhone (≈ 19,5:9) : des bandes
+apparaissent autour de l'interface sur un téléviseur 16:9. C'est la contrepartie d'une copie
+exacte de l'interface ; les jeux, eux, restent en plein écran sur le téléviseur.
+
+**Tests remplacés et ajoutés (contrats retirés commentés dans chaque fichier).** XCTest simulateur
+(`test/external_display_ui_test.py`) : connexion en recopie, fenêtre construite dans sa scène qui la
+quitte hors jeu et y revient avant la vue de rendu (suspension, sortie coupée, fin de jeu,
+déconnexion), contrôleur de menu jamais montré, régime accessoire sans inscription hors jeu.
+Contrats de source (`test/external_display_test.py`, contrôle négatif : le coordinateur de la
+Build 448 échoue). Dart : rangées et ligne d'état (`test/general_settings_external_display_test.dart`),
+catalogue douze langues (`test/external_display_locale_test.dart`), NeoPlay
+(`test/neoplay_locale_test.dart`), compte des rangées (`test/general_settings_ui_refresh_rate_test.dart`).
+
+**À vérifier sur iPhone + Apple TV (rien n'est annoncé avant).** Menu, bibliothèque, jaquettes,
+réglages et animations recopiés à l'identique ; aucun écran de logo ; un jeu libretro, Dolphin,
+RPCS3 et ARMSX2 en plein écran sur le téléviseur, puis retour à la recopie en quittant le jeu ;
+Dusklight/KartPad recopiés ; connexion et déconnexion AirPlay en jeu et hors jeu. Journal :
+`display.external_mirroring`, `display.external_window_back_in_scene`,
+`display.external_attached:` / `display.external_detached:`.

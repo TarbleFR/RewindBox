@@ -187,7 +187,9 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
       count++; // 120 Hz interface (iOS)
     }
     if (ExternalDisplayService.isSupportedPlatform) {
-      count += 3; // AirPlay and external screen: switch, format, menu (iOS)
+      // AirPlay and external screen (iOS): switch, format. The "menu on the
+      // TV" row left with Build 449 (outside a game the TV mirrors the iPhone).
+      count += 2;
     }
     if (EmbeddedEnginePolicy.isSupportedPlatform) {
       count++; // Use built-in emulators (iOS, Build 448)
@@ -273,7 +275,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
     }
 
     // Protocol: AirPlay and external screen (iOS): own window switch,
-    // picture format cycle, menu on the TV switch.
+    // picture format cycle.
     if (ExternalDisplayService.isSupportedPlatform) {
       if (index == currentItemIndex) {
         ExternalDisplayService.instance.toggleEnabled();
@@ -283,12 +285,6 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
 
       if (index == currentItemIndex) {
         ExternalDisplayService.instance.cycleMode();
-        return;
-      }
-      currentItemIndex++;
-
-      if (index == currentItemIndex) {
-        ExternalDisplayService.instance.toggleMenuOnTV();
         return;
       }
       currentItemIndex++;
@@ -536,7 +532,8 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 ],
 
                 // Setting: AirPlay and external screen (iOS, Build 447) —
-                // own window switch, picture format, menu on the TV.
+                // own window switch, picture format (Build 449: no menu row,
+                // outside a game the TV mirrors the iPhone).
                 if (ExternalDisplayService.isSupportedPlatform) ...[
                   SizedBox(height: 12.r),
                   () {
@@ -552,16 +549,6 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                   () {
                     final index = currentItemIdx++;
                     return ExternalDisplayModeRow(
-                      key: _itemKeys[index],
-                      focused:
-                          widget.isContentFocused &&
-                          widget.selectedContentIndex == index,
-                    );
-                  }(),
-                  SizedBox(height: 12.r),
-                  () {
-                    final index = currentItemIdx++;
-                    return ExternalDisplayMenuRow(
                       key: _itemKeys[index],
                       focused:
                           widget.isContentFocused &&

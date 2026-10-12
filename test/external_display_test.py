@@ -12,9 +12,12 @@ rescanned at every refresh), legacy fallback isolated in
 activateLegacyIfNeeded and refused when its window is in no scene of the
 screen, iOS 27 scene accessory by selectors only for a binary built with
 SDK 27 or later and never beside an automatic scene (root and render-host
-owner registrations, isEnabled, released once dismissed), menu engine
-never created while a game holds the TV and started with the language and
-theme as entrypoint arguments, passes re-run for calls made during one,
+owner registrations, isEnabled, released once dismissed), the TV showing
+nothing of NeoStation's own outside a game (Build 449: no menu engine is
+created by the coordinator, the window leaves its scene so that iOS mirrors
+the iPhone, and comes back to it before a game's render view moves in), the
+menu engine still started with the language and theme as entrypoint
+arguments by its own path, passes re-run for calls made during one,
 journal prefixes, channel and preference names, dynamic podspec publishing
 every header a bridge imports. On macOS the production NeoExternalDisplayLayout.h is then
 compiled with Foundation and CoreGraphics only and
@@ -189,22 +192,55 @@ def coordinator_contracts() -> None:
     check(detach.index('[self returnRenderViewToPlaceholder];') < detach.index('self.renderHost = nil;'), 'detach returns the view first')
     attach = method_body(source, '- (void)attachRenderHost:(id<NeoExternalRenderHost>)host {')
     check('[self detachRenderHost:self.renderHost]' in attach, 'a second host detaches the first (no double placement)')
-    # The menu engine is created only when it is about to be shown: never
-    # while a game holds the TV (an engine that exists is hidden, not
-    # released, and told so: m4); released when the menu or the whole
-    # output is turned off.
+    # Build 449: outside a game the TV shows nothing of NeoStation's own and
+    # iOS mirrors the iPhone, so the TV shows the NeoStation interface
+    # itself. Retired contracts (Build 447/448): "the menu engine is
+    # created only when it is about to be shown", "an existing menu stays
+    # hidden behind the game", "the provider is told at every pass whether
+    # the menu shows": the coordinator put the second engine's TV view (the
+    # SecondaryScreen of Android handhelds, the selected console's logo) on
+    # the TV instead of the interface.
     apply_pass = method_body(code(source), '- (void)applyStatePass {')
-    check('if (usable && menuOnTV && !gameShown && !self.menuSuppressed && self.menuViewController == nil && provider != nil) {' in apply_pass,
-          'the menu engine is not created while the game is on the TV')
-    check(apply_pass.index('const BOOL gameShown = self.renderHost != nil && self.renderPlaced;') < apply_pass.index('externalMenuViewControllerCreatingIfNeeded'),
-          'gameShown is known before the creation')
-    check('const BOOL menuShown = usable && self.menuViewController != nil && !gameShown;' in apply_pass, 'an existing menu stays hidden behind the game')
-    check('if (!menuOnTV || !enabled) {' in apply_pass
-          and '[provider destroyExternalMenuEngineForReason:enabled ? @"menu_off" : @"disabled"];' in apply_pass,
-          'the engine is released when the menu or the whole output is off')
-    check('if ([provider respondsToSelector:@selector(externalMenuSetVisible:)]) [provider externalMenuSetVisible:menuShown];' in apply_pass
-          and apply_pass.index('const BOOL menuShown') < apply_pass.index('externalMenuSetVisible:menuShown'),
-          'the provider is told at every pass whether the menu shows (lifecycle hidden while a game holds the TV)')
+    implementation = code(source)[code(source).index('@implementation NeoExternalDisplayCoordinator\n'):]
+    check('externalMenuViewControllerCreatingIfNeeded' not in implementation,
+          'the coordinator never creates the menu engine')
+    check('placeMenuViewControllerShown' not in stripped and 'externalMenuSetVisible:' not in apply_pass,
+          'no menu is ever placed in the external window')
+    menu_on_tv = method_body(code(source), '- (BOOL)menuOnTV {')
+    check('return NO;' in menu_on_tv and 'NeoExternalDisplayPreferences' not in menu_on_tv,
+          'menuOnTV is NO: the stored preference of Build 447 is no longer read')
+    check('self.content = gameShown ? NeoExternalContentGame : NeoExternalContentNone;' in apply_pass,
+          'the content is the game or nothing')
+    check('[provider destroyExternalMenuEngineForReason:enabled ? @"menu_off" : @"disabled"];' in apply_pass
+          and apply_pass.index('[self detachMenuViewControllerInternal];') < apply_pass.index('destroyExternalMenuEngineForReason:'),
+          'a menu controller or engine an earlier state left is released, controller first')
+    check('const BOOL shown = usable && gameShown;' in apply_pass and 'if (window != nil) window.hidden = !shown;' in apply_pass
+          and 'if (!shown) [self placeWindowInScene:NO];' in apply_pass
+          and apply_pass.index('window.hidden = !shown;') < apply_pass.index('[self placeWindowInScene:NO];'),
+          'nothing to show: the window is hidden, then leaves its scene (iOS mirrors the iPhone)')
+    check('if (usable && self.renderHost != nil) [self placeWindowInScene:YES];' in apply_pass
+          and apply_pass.index('[self placeWindowInScene:YES];') < apply_pass.index('[self moveRenderViewToWindow];'),
+          'a game going to the TV brings the window back into its scene before its render view moves in')
+    # Apple: a window of the app in the external scene ends the mirroring,
+    # taking it out of the scene (windowScene = nil) brings the mirroring
+    # back; hiding it does not (Apple Developer Forums thread 766398).
+    place_scene = method_body(code(source), '- (void)placeWindowInScene:(BOOL)inScene {')
+    check("if (window == nil || scene == nil || ![self.sceneRole isEqualToString:kNeoExternalRoleScene]) return;" in place_scene,
+          'only a window of the scene role moves in and out of its scene (legacy windows and test seams untouched)')
+    leave = place_scene[place_scene.index('if (self.windowLeftScene || window.windowScene != scene) return;'):]
+    check('window.windowScene = nil;' in leave and 'self.windowLeftScene = YES;' in leave
+          and leave.index('[self giveWindow:nil toDelegateOfScene:scene];') < leave.index('window.windowScene = nil;'),
+          'outside a game the window leaves its scene, its delegate no longer holds it')
+    back = place_scene[place_scene.index('if (inScene) {'):place_scene.index('if (self.windowLeftScene || window.windowScene != scene) return;')]
+    check('if (NeoExternalDisplayUsableSize(bounds.size)) window.frame = bounds;' in back
+          and back.index('window.windowScene = scene;') < back.index('window.frame = bounds;'),
+          'back in its scene, the window takes the size the scene has now (a mode change of the TV while mirrored)')
+    check('if (!self.windowLeftScene) return;' in back and 'window.windowScene = scene;' in back
+          and '[self giveWindow:window toDelegateOfScene:scene];' in back and 'self.windowLeftScene = NO;' in back,
+          'only a window this coordinator took out goes back, to the same scene, and its delegate holds it again')
+    check('NSLog(@"display.external_mirroring' in place_scene and 'NSLog(@"display.external_window_back_in_scene"' in place_scene,
+          'journal lines of the mirroring and of the return')
+    check('self.windowLeftScene = NO;' in release, 'a released window forgets that it left its scene')
     check(apply_pass[len('- (void)applyStatePass {'):].lstrip().startswith('self.screenScale = [self currentScreenScale];'),
           "every pass starts by re-reading the external screen's scale")
     check(apply_pass.index('[self registerAccessory];') > apply_pass.index('self.content ='), 'the accessory follows the content of the pass')
@@ -347,7 +383,8 @@ def coordinator_contracts() -> None:
     # The regime (M1, m10): only for a binary built with SDK 27 or later and
     # never while a scene the system offered by itself is connected; then a
     # registration on the application root (enabled while there is
-    # something to show) and one on the presented controller that owns the
+    # something to show: since Build 449 a game on the TV only, retired
+    # "or the menu on the TV") and one on the presented controller that owns the
     # attached render host (found from its placeholder view), never the
     # topmost controller as such, which can be a menu presented over the
     # game. Retired contract: "the presented controller (chain.lastObject)
@@ -368,7 +405,7 @@ def coordinator_contracts() -> None:
     check(register.index('[NeoExternalDisplaySceneAccessory disableRegistrationsExcept:kept];') < register.index('registerOnViewController:root'),
           'a controller that no longer owns the host shows nothing')
     check('const BOOL usable = self.enabled && !self.suspended;' in register
-          and 'enabled:usable && (self.menuOnTV || self.renderHost != nil)]' in register
+          and 'enabled:usable && self.renderHost != nil]' in register
           and 'registerOnViewController:owner enabled:usable]' in register,
           'enabled only while the output is on, not suspended and has something to show')
     owner = method_body(code(source), '- (UIViewController *_Nullable)presentedOwnerOfRenderHostInChain:(NSArray<UIViewController *> *)chain {')

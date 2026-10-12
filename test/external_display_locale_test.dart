@@ -9,9 +9,11 @@ void main() {
   final placeholders = RegExp(r'\{\w+\}');
   final english = ExternalDisplayLocale.values['en']!;
 
-  // docs/external-display-universal.md § 6. `menuOffMirroring` was added by
-  // the review of 12 October 2026 (m2): "Menu on the TV" off outside a game
-  // has its own status line instead of the unsupported-engine one.
+  // docs/external-display-universal.md § 6 and § 10. Retired with Build 449:
+  // `menuOnTv`, `menuOnTvHelp` (the "Show the menu on the TV" row) and
+  // `menuOffMirroring` (its status line, review m2 of 12 October 2026):
+  // outside a game the TV now always mirrors the iPhone, which
+  // `mirroringOutsideGames` says.
   const contractKeys = <String>{
     'title',
     'description',
@@ -25,14 +27,12 @@ void main() {
     'modeFillHelp',
     'modeOriginalHelp',
     'fillCrops',
-    'menuOnTv',
-    'menuOnTvHelp',
     'noExternalScreen',
     'externalScreen',
     'gameOnExternal',
     'mirroringOff',
     'unsupportedEngine',
-    'menuOffMirroring',
+    'mirroringOutsideGames',
     'unavailable',
     'saveFailed',
     'technicalCode',
@@ -85,6 +85,35 @@ void main() {
     expect(french[ExternalDisplayLocale.modeOriginal], 'Format d’origine');
   });
 
+  test('the texts say that the TV mirrors the iPhone outside a game', () {
+    // Build 449: no text may promise NeoStation's own picture outside a
+    // game any more (the TV view of the second engine is gone).
+    final french = ExternalDisplayLocale.values['fr']!;
+    expect(
+      french[ExternalDisplayLocale.description],
+      'Pendant un jeu, NeoStation affiche le jeu en plein écran sur le '
+      'téléviseur ou l’adaptateur, les commandes restant sur l’iPhone. '
+      'Hors jeu, iOS recopie l’iPhone.',
+    );
+    expect(
+      french[ExternalDisplayLocale.mirroringOutsideGames],
+      'Hors jeu, iOS recopie l’interface NeoStation de l’iPhone.',
+    );
+    for (final entry in ExternalDisplayLocale.values.entries) {
+      for (final key in <String>[
+        ExternalDisplayLocale.description,
+        ExternalDisplayLocale.mirroringOutsideGames,
+      ]) {
+        expect(entry.value[key], contains('iPhone'), reason: '${entry.key}:$key');
+      }
+      expect(
+        entry.value[ExternalDisplayLocale.mirroringOutsideGames],
+        contains('NeoStation'),
+        reason: '${entry.key}: the interface that is mirrored is named',
+      );
+    }
+  });
+
   test('the four format names are distinct in every language', () {
     for (final entry in ExternalDisplayLocale.values.entries) {
       final names = <String>{
@@ -118,12 +147,12 @@ void main() {
     expect(ExternalDisplayLocale.forLocale(const Locale('zh'), key), simplified);
     expect(
       ExternalDisplayLocale.values['zh_Hant']![ExternalDisplayLocale
-          .menuOffMirroring],
+          .mirroringOutsideGames],
       isNot(
         ExternalDisplayLocale.values['zh']![ExternalDisplayLocale
-            .menuOffMirroring],
+            .mirroringOutsideGames],
       ),
-      reason: 'the status line added by the review has its own Traditional text',
+      reason: 'the mirroring line of Build 449 has its own Traditional text',
     );
     expect(
       ExternalDisplayLocale.forLocale(const Locale('zh', 'CN'), key),

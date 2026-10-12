@@ -12,14 +12,18 @@ import 'setting_row.dart';
 import 'setting_value_chip.dart';
 
 /// Settings › General › "AirPlay and external screen" (iOS, Build 447):
-/// three rows after "120 Hz interface", all reading the same
+/// two rows after "120 Hz interface", both reading the same
 /// [ExternalDisplayService].
 ///
-/// 1. [ExternalDisplayEnabledRow] — the own-window switch and the state of
-///    the external screen;
-/// 2. [ExternalDisplayModeRow] — the picture format, cycled by a chip, with
-///    the crop warning of "Fill the screen";
-/// 3. [ExternalDisplayMenuRow] — the "menu on the TV" switch.
+/// 1. [ExternalDisplayEnabledRow] — the switch of the game's own picture on
+///    the external screen and the state of that screen;
+/// 2. [ExternalDisplayModeRow] — the picture format of games, cycled by a
+///    chip, with the crop warning of "Fill the screen".
+///
+/// Build 449: the third row, "Show the menu on the TV", is gone. Outside a
+/// game the TV mirrors the iPhone and shows the NeoStation interface itself;
+/// the TV view of the second engine (the selected console's logo) is never
+/// shown any more (docs/external-display-universal.md § 10).
 ///
 /// Every value shown is the one re-read from iOS; a refused save shows its
 /// error under the row that asked for it and the native value stays.
@@ -157,23 +161,22 @@ class _ExternalDisplayEnabledRowState
       // window is hidden and iOS mirrors the iPhone.
       return Text(text(ExternalDisplayLocale.unsupportedEngine), style: warning);
     }
-    if (!state.menuOnTV) {
-      // Outside a game the TV shows a copy of the iPhone, by choice.
-      return Text(text(ExternalDisplayLocale.menuOffMirroring), style: muted);
-    }
-    // The menu is on the TV, or about to be (iOS mirrors the iPhone until
-    // the menu engine exists): the neutral line.
-    return Text(
-      ExternalDisplayLocale.format(
-        context,
-        ExternalDisplayLocale.externalScreen,
-        <String, Object?>{
-          'width': state.screenWidth.round(),
-          'height': state.screenHeight.round(),
-        },
+    // Outside a game iOS mirrors the iPhone (Build 449): the screen that is
+    // connected, then what it shows.
+    return subtitle(<Widget>[
+      Text(
+        ExternalDisplayLocale.format(
+          context,
+          ExternalDisplayLocale.externalScreen,
+          <String, Object?>{
+            'width': state.screenWidth.round(),
+            'height': state.screenHeight.round(),
+          },
+        ),
+        style: muted,
       ),
-      style: muted,
-    );
+      Text(text(ExternalDisplayLocale.mirroringOutsideGames), style: muted),
+    ]);
   }
 
   @override
@@ -276,47 +279,6 @@ class _ExternalDisplayModeRowState
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Row 3: the TV shows the NeoStation menu outside a game (`MenuOnTV`).
-class ExternalDisplayMenuRow extends _ExternalDisplayRow {
-  const ExternalDisplayMenuRow({
-    super.key,
-    required super.focused,
-    super.service,
-  });
-
-  static const Key toggleKey = Key('externalDisplay.menu');
-
-  @override
-  State<ExternalDisplayMenuRow> createState() => _ExternalDisplayMenuRowState();
-}
-
-class _ExternalDisplayMenuRowState
-    extends _ExternalDisplayRowState<ExternalDisplayMenuRow> {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final state = service.state;
-    final supported = state?.supported ?? false;
-    final lines = <Widget>[
-      Text(text(ExternalDisplayLocale.menuOnTvHelp), style: muted),
-      if (supported) ...errorLines(ExternalDisplayField.menuOnTV),
-    ];
-    return SettingRow(
-      focused: widget.focused,
-      title: text(ExternalDisplayLocale.menuOnTv),
-      subtitle: '',
-      subtitleWidget: subtitle(lines),
-      trailing: CustomToggleSwitch(
-        key: ExternalDisplayMenuRow.toggleKey,
-        value: supported && state!.menuOnTV,
-        onChanged: (value) => unawaited(service.setMenuOnTV(value)),
-        disabled: !supported || service.saving,
-        activeColor: theme.colorScheme.primary,
       ),
     );
   }

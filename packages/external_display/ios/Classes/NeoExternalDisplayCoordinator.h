@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Owner of NeoStation's window on the external screen (AirPlay to an Apple
 // TV, Lightning/USB-C adapter): docs/external-display-universal.md § 3.3.
-// One infrastructure places either the menu's second Flutter engine or the
-// render view of the running emulator in that window; system mirroring stays
-// the fallback (disabled, unsupported engines, no content). Main thread only.
+// During a game the render view of the running emulator is placed in that
+// window. Outside a game (and when the output is disabled or the engine is
+// unsupported) the window is hidden and leaves its scene, and iOS mirrors
+// the iPhone: the TV shows the NeoStation interface itself (Build 449, § 10).
+// Main thread only.
 #pragma once
 #import <UIKit/UIKit.h>
 #import "NeoExternalDisplayLayout.h"
@@ -16,9 +18,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// it to Dart).
 FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 
-/// Source of the menu shown on the TV (NeoExternalDisplayMenuEngine wraps the
-/// second Flutter engine). The coordinator never imports Flutter itself, so
-/// the simulator tests run it with a plain UIViewController provider.
+/// Source of the menu view of the second Flutter engine
+/// (NeoExternalDisplayMenuEngine). Since Build 449 the coordinator never
+/// shows it on the TV and releases a controller or an engine an earlier
+/// state left. The coordinator never imports Flutter itself, so the
+/// simulator tests run it with a plain UIViewController provider.
 @protocol NeoExternalMenuProvider <NSObject>
 /// Creates the engine lazily; nil until `configureMenuEngine` named the
 /// Dart entrypoint.
@@ -51,8 +55,11 @@ FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 /// Stored preferences (NeoExternalDisplayPreferences), re-read on refresh.
 @property(nonatomic, readonly) NeoExternalDisplayMode mode;
 @property(nonatomic, readonly) BOOL enabled;
+/// Always NO since Build 449: outside a game the TV mirrors the iPhone (the
+/// stored preference of Build 447 is no longer read).
 @property(nonatomic, readonly) BOOL menuOnTV;
-/// Dusklight/KartPad run: the window is hidden and iOS mirrors the iPhone.
+/// Dusklight/KartPad run: the window is hidden, out of its scene, and iOS
+/// mirrors the iPhone.
 @property(nonatomic, readonly) BOOL suspended;
 /// iOS shows the mirrored iPhone (connected, but NeoStation shows nothing of
 /// its own there).
@@ -63,9 +70,10 @@ FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 /// (a scene the system offered by itself is connected) | registered (an
 /// enabled registration exists) | disabled (registrations exist, all turned
 /// off: output off, suspended, nothing to show) | failed:<reason>. When
-/// active: one registration on the application root (the menu) and one on
-/// the presented controller that owns the attached render host, never on a
-/// menu presented over the game; the system presents the topmost one.
+/// active: one registration on the application root (enabled while a game
+/// is on the TV) and one on the presented controller that owns the attached
+/// render host, never on a menu presented over the game; the system
+/// presents the topmost one.
 @property(nonatomic, readonly, copy) NSString *accessoryStatus;
 /// scene | legacy | none.
 @property(nonatomic, readonly, copy) NSString *sceneRole;
@@ -81,9 +89,9 @@ FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 /// Set by ExternalDisplayPlugin (NeoExternalDisplayMenuEngine).
 @property(nonatomic, weak, nullable) id<NeoExternalMenuProvider> menuProvider;
 
-/// The game takes the screen: its render view moves to the external window
-/// (the menu view is hidden, never released here). Before the window exists
-/// the host is only remembered. Called once the game controller is
+/// The game takes the screen: the window goes back into its scene and the
+/// render view moves to it. Before the window exists the host is only
+/// remembered. Called once the game controller is
 /// presented; in the iOS 27 accessory regime the presented controller that
 /// owns the host's placeholder view holds a registration while the host is
 /// attached (calling it again with the same host is harmless).
@@ -91,10 +99,13 @@ FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 /// Returns the render view to index 0 of the placeholder. Bridges call it
 /// BEFORE stopping their core.
 - (void)detachRenderHost:(id<NeoExternalRenderHost>)host;
-/// Dusklight/KartPad: hide the window so iOS resumes mirroring.
+/// Dusklight/KartPad: the window is hidden and leaves its scene so iOS
+/// resumes mirroring.
 - (void)suspendForUnsupportedEngine;
 - (void)resumeAfterUnsupportedEngine;
 /// The Flutter controller of the second engine (or any controller in tests).
+/// Since Build 449 it is released at the next pass: the TV never shows a
+/// menu of its own.
 - (void)attachMenuViewController:(UIViewController *)controller;
 - (void)detachMenuViewController;
 /// RPCS3: the menu engine is destroyed and not recreated until the game's

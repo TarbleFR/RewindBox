@@ -14,9 +14,11 @@
     return;
   }
   // The coordinator builds the window (windowFactory seam or
-  // -[UIWindow initWithWindowScene:]), gives it the black root controller
-  // and shows it without making it key. A second external scene stands by
-  // without a window of its own until the shown one disconnects.
+  // -[UIWindow initWithWindowScene:]) and gives it the black root
+  // controller, never making it key. Outside a game the window leaves the
+  // scene at once and iOS mirrors the iPhone (Build 449); it comes back for
+  // a game. A second external scene stands by without a window of its own
+  // until the shown one disconnects.
   NeoExternalDisplayCoordinator *coordinator = NeoExternalDisplayCoordinator.shared;
   [coordinator sceneDidConnect:(UIWindowScene *)scene];
   self.window = coordinator.window.windowScene == scene ? coordinator.window : nil;

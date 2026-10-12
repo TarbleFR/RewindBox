@@ -10,13 +10,15 @@ is injected through the windowFactory seam (scene-less, 1920×1080), the
 application's own scene stands in for the external one, a second external
 scene is an object answering what the coordinator reads of a scene, and the
 legacy fallback runs against the legacyScreens seam. Executed: connection
-and the menu, the game in Automatic/Fit/Fill/Original, disconnection (view
-returned before the window goes) and reconnection, the set of connected
-external scenes (a second scene stands by, is adopted with the same menu
-engine, a scene UIKit no longer lists is dropped by a refresh),
-disabled/suspended/menu-off mirroring and the menu engine released when
-the output is disabled, the menu engine hidden (and told so) during a game,
-never created while a game holds the TV and destroyed for RPCS3, the 1.5 s
+mirroring the iPhone outside a game (Build 449: no menu engine is created,
+a window built in its scene leaves it outside a game and comes back before
+the game's render view, Apple's documented way back to mirroring), the game
+in Automatic/Fit/Fill/Original, disconnection (view returned before the
+window goes) and reconnection, the set of connected external scenes (a
+second scene stands by, is adopted, a scene UIKit no longer lists is
+dropped by a refresh), disabled/suspended/outside-a-game mirroring, a menu
+controller never shown on the TV and released with its engine, RPCS3's
+memory request harmless, the 1.5 s
 legacy fallback and its refusal of a window in no scene, MTKView drawable
 preservation, TV-resolution surfaces for a non-fixed host (the whole TV in
 every format and orientation, a scale change alone announced), a call made
@@ -316,23 +318,27 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   return NeoExternalDisplaySDKMajorVersion(info[@"DTPlatformVersion"], info[@"DTSDKName"]);
 }
 
-- (void)testConnectShowsTheMenuThenTheGameTakesTheScreenInEachMode {
+
+/// Build 449: outside a game the TV shows nothing of NeoStation's own and
+/// iOS mirrors the iPhone, so the TV shows the NeoStation interface itself.
+/// Retired contract (Build 447/448, "connect shows the menu"): the second
+/// engine's TV view filled the TV at connection; it was the SecondaryScreen
+/// of Android handhelds (the selected console's logo), not the interface.
+- (void)testConnectMirrorsTheIPhoneThenTheGameTakesTheScreenInEachMode {
   [self connect];
   XCTAssertTrue(_coordinator.connected);
   XCTAssertEqualObjects(_coordinator.sceneRole, @"scene");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone, @"nothing of NeoStation's own outside a game");
   XCTAssertEqual(_coordinator.window, _external, @"the window comes from the factory seam");
-  XCTAssertFalse(_external.hidden);
+  XCTAssertTrue(_external.hidden, @"iOS mirrors the iPhone");
+  XCTAssertTrue(_coordinator.mirroringActive);
   XCTAssertFalse(_external.isKeyWindow, @"never key: the iPhone keeps the keys");
   XCTAssertTrue([(id)UIApplication.sharedApplication.delegate window].isKeyWindow);
-  XCTAssertEqual(_menu.created, 1U, @"the menu engine is created at the first connection");
-  XCTAssertEqual(_coordinator.menuViewController, _menu.controller);
-  XCTAssertEqual(_menu.controller.view.superview, [self externalRoot], @"menu controller placed in the external window");
-  XCTAssertEqual(_menu.controller.parentViewController, _external.rootViewController);
-  XCTAssertTrue(CGRectEqualToRect(_menu.controller.view.frame, CGRectMake(0, 0, 1920, 1080)), @"menu fills the TV: no bars");
-  XCTAssertFalse(_menu.controller.view.hidden);
-  XCTAssertEqualObjects(_menu.visibility, @[@YES], @"the engine is told the menu is shown");
-  XCTAssertEqualObjects(_coordinator.menuEngineStatus, @"attached");
+  XCTAssertFalse(_coordinator.menuOnTV, @"the TV never shows a menu of its own");
+  XCTAssertEqual(_menu.created, 0U, @"no menu engine is created for the TV");
+  XCTAssertNil(_coordinator.menuViewController);
+  XCTAssertEqual(_menu.visibility.count, 0U);
+  XCTAssertEqualObjects(_coordinator.menuEngineStatus, @"none");
   XCTAssertTrue(CGSizeEqualToSize(_coordinator.screenPointSize, CGSizeMake(1920, 1080)));
   XCTAssertEqual(_coordinator.mode, NeoExternalDisplayModeAutomatic, @"Automatic by default");
 
@@ -340,12 +346,11 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   UIView* render = host.renderView;
   [_coordinator attachRenderHost:host];
   XCTAssertEqual(_coordinator.content, NeoExternalContentGame);
+  XCTAssertFalse(_external.hidden, @"the game takes the TV");
+  XCTAssertFalse(_coordinator.mirroringActive);
   XCTAssertEqual(render.superview, [self externalRoot], @"render view on the external window");
   XCTAssertEqual(host.overlay.superview, host.placeholderView, @"controls stay on the phone");
-  XCTAssertTrue(_menu.controller.view.hidden, @"menu hidden during the game, not released");
-  XCTAssertEqualObjects(_menu.visibility, (@[@YES, @NO]), @"the hidden engine is told so (it stops drawing)");
-  XCTAssertEqual(_coordinator.menuViewController, _menu.controller);
-  XCTAssertEqual(_menu.destroyed.count, 0U);
+  XCTAssertEqual(_menu.created, 0U, @"still no menu engine");
   const CGSize tv = CGSizeMake(1920, 1080), phone = CGSizeMake(852, 393);
   const CGFloat fit = NeoExternalDisplayScale(tv, phone, NeoExternalDisplayModeFit);
   XCTAssertEqualWithAccuracy(render.transform.a, fit, 0.001, @"Automatic places a game as Fit");
@@ -362,7 +367,6 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqualWithAccuracy(render.transform.a, 1920.0 / 852.0, 0.001, @"Original: the phone format bounded by the TV width");
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFit]);
   XCTAssertEqualWithAccuracy(render.transform.a, fit, 0.001);
-  XCTAssertEqualObjects(_menu.visibility, (@[@YES, @NO]), @"still hidden while the game holds the TV");
 
   [_coordinator detachRenderHost:host];
   XCTAssertNil(_coordinator.renderHost);
@@ -372,20 +376,83 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertTrue(CGRectEqualToRect(render.frame, host.placeholderView.bounds));
   XCTAssertEqual(render.autoresizingMask, UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO]));
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu, @"the menu is back");
-  XCTAssertFalse(_menu.controller.view.hidden);
-  XCTAssertEqualObjects(_menu.visibility, (@[@YES, @NO, @YES]), @"shown again: the engine resumes");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone, @"the game left: iOS mirrors the iPhone again");
+  XCTAssertTrue(_external.hidden);
+  XCTAssertTrue(_coordinator.mirroringActive);
+  XCTAssertEqual(_menu.created, 0U);
 
   [_coordinator sceneDidDisconnect:[self mainScene]];
   XCTAssertFalse(_coordinator.connected);
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   XCTAssertEqualObjects(_coordinator.sceneRole, @"none");
   XCTAssertNil(_coordinator.menuViewController);
-  XCTAssertEqualObjects(_menu.destroyed, @[@"disconnect"], @"the menu engine is destroyed at disconnection");
+  XCTAssertEqual(_menu.destroyed.count, 0U, @"no menu engine ever existed");
   XCTAssertTrue(_external.hidden);
   XCTAssertNil(_external.rootViewController);
   XCTAssertTrue(CGSizeEqualToSize(_coordinator.screenPointSize, CGSizeZero));
   XCTAssertEqual(_coordinator.externalScenes.count, 0U);
+}
+
+/// Build 449, Apple's documented way back to mirroring: a window of the app
+/// in the external scene ends the mirroring of the iPhone, taking it out of
+/// the scene (windowScene = nil) brings the mirroring back, and hiding it
+/// alone does not (Apple Developer Forums thread 766398). A window built in
+/// its scene, as -[UIWindow initWithWindowScene:] does on the device, leaves
+/// it outside a game, comes back for the game before the render view
+/// reaches it, and leaves it again for an unsupported engine, a disabled
+/// output and the end of the game.
+- (void)testOutsideAGameTheWindowLeavesItsSceneAndComesBackForTheGame {
+  UIWindowScene* scene = [self mainScene];
+  UIWindow* inScene = [[UIWindow alloc] initWithWindowScene:scene];
+  inScene.frame = CGRectMake(0, 0, 1920, 1080);
+  XCTAssertEqual(inScene.windowScene, scene, @"precondition: the window is built in its scene");
+  __weak UIWindow* weakWindow = inScene;
+  _coordinator.windowFactory = ^UIWindow*(UIWindowScene* s, UIScreen* screen) { return weakWindow; };
+  [self connect];
+  XCTAssertEqual(_coordinator.window, inScene);
+  XCTAssertNil(inScene.windowScene, @"outside a game the window left its scene: iOS mirrors the iPhone");
+  XCTAssertTrue(inScene.hidden);
+  XCTAssertTrue(_coordinator.mirroringActive);
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
+  XCTAssertTrue(_coordinator.connected, @"the external scene stays known");
+
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
+  __block UIWindowScene* sceneWhenOnTV = nil;
+  host.onActive = ^{ sceneWhenOnTV = weakWindow.windowScene; };
+  [_coordinator attachRenderHost:host];
+  XCTAssertEqual(sceneWhenOnTV, scene, @"the window was back in its scene before the render view reached it");
+  XCTAssertEqual(inScene.windowScene, scene, @"the game brings the window back into its scene");
+  XCTAssertFalse(inScene.hidden);
+  XCTAssertEqual(host.renderView.superview, inScene.rootViewController.view);
+  XCTAssertEqual(_coordinator.content, NeoExternalContentGame);
+  XCTAssertFalse(_coordinator.mirroringActive);
+
+  [_coordinator suspendForUnsupportedEngine];
+  XCTAssertNil(inScene.windowScene, @"Dusklight/KartPad: out of the scene, iOS mirrors the iPhone");
+  XCTAssertEqual(host.renderView.superview, host.placeholderView, @"the game is drawn on the iPhone");
+  [_coordinator resumeAfterUnsupportedEngine];
+  XCTAssertEqual(inScene.windowScene, scene);
+  XCTAssertEqual(host.renderView.superview, inScene.rootViewController.view);
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:NO]);
+  XCTAssertNil(inScene.windowScene, @"output off: out of the scene");
+  XCTAssertTrue(inScene.hidden);
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
+  XCTAssertEqual(inScene.windowScene, scene, @"output on again during the game: back in the scene");
+  XCTAssertFalse(inScene.hidden);
+
+  [_coordinator detachRenderHost:host];
+  XCTAssertNil(inScene.windowScene, @"the game left: the window leaves its scene again");
+  XCTAssertTrue(inScene.hidden);
+  XCTAssertEqual(host.renderView.superview, host.placeholderView);
+  XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES, @NO, @YES, @NO]));
+  [_coordinator refresh];
+  XCTAssertNil(inScene.windowScene, @"a refresh outside a game changes nothing");
+
+  [_coordinator sceneDidDisconnect:scene];
+  XCTAssertNil(_coordinator.window);
+  XCTAssertNil(inScene.windowScene, @"a released window is never put back");
+  XCTAssertTrue(inScene.hidden);
+  XCTAssertNil(inScene.rootViewController);
 }
 
 - (void)testDisconnectReturnsTheRenderViewBeforeTheWindowGoesAndReconnectMovesItAgain {
@@ -415,18 +482,21 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqual(_menu.created, 0U, @"still no menu engine: the game is back on the TV");
   [_coordinator detachRenderHost:host];
   XCTAssertEqual(host.renderView.superview, host.placeholderView);
-  XCTAssertEqual(_menu.created, 1U, @"the menu engine is created once the menu is about to be shown");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
-  XCTAssertFalse(_menu.controller.view.hidden);
+  // Retired (Build 447/448): "the menu engine is created once the menu is
+  // about to be shown". Build 449: the game gone, iOS mirrors the iPhone.
+  XCTAssertEqual(_menu.created, 0U, @"no menu engine once the game left either");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
+  XCTAssertTrue(_external.hidden);
   [_coordinator sceneDidDisconnect:[self mainScene]];
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES, @NO]));
 }
 
 /// The set of connected external scenes (review M1): a second scene stands
-/// by while the first one keeps the window, its menu engine and the game;
-/// when the shown scene goes, the remaining one is adopted with the same
-/// engine; a refresh rescans UIApplication.connectedScenes and drops a
-/// tracked scene UIKit no longer lists.
+/// by while the first one keeps the window and the game; when the shown
+/// scene goes, the remaining one is adopted; a refresh rescans
+/// UIApplication.connectedScenes and drops a tracked scene UIKit no longer
+/// lists. Since Build 449 no menu engine is involved (outside a game the
+/// TV mirrors the iPhone).
 - (void)testASecondSceneStandsByAndIsAdoptedWhenTheShownOneDisconnects {
   UIWindow* second = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 1280, 720)];
   __weak UIWindow* weakFirst = _external;
@@ -441,7 +511,7 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   UIWindowScene* other = (UIWindowScene*)(id)standby;
 
   [self connect];
-  XCTAssertEqual(_menu.created, 1U);
+  XCTAssertEqual(_menu.created, 0U, @"no menu engine for the TV (Build 449)");
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [_coordinator attachRenderHost:host];
   XCTAssertEqual(host.renderView.superview, [self externalRoot]);
@@ -451,7 +521,6 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqual(_coordinator.window, _external, @"the shown scene keeps the window");
   XCTAssertEqual(host.renderView.superview, [self externalRoot], @"the game stays where it is");
   XCTAssertEqualObjects(host.activeChanges, @[@YES], @"no move for a scene standing by");
-  XCTAssertEqual(_menu.destroyed.count, 0U, @"the menu engine is not destroyed by a second connection");
   XCTAssertNil(second.rootViewController, @"no window was built for the scene standing by");
 
   [_coordinator sceneDidDisconnect:primary];
@@ -462,27 +531,28 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqual(host.renderView.superview, second.rootViewController.view, @"the game follows the adopted scene");
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES]), @"returned to the phone, then moved again");
   XCTAssertTrue(_external.hidden, @"the old window is released");
-  XCTAssertEqual(_menu.destroyed.count, 0U, @"the menu engine is kept across the adoption");
-  XCTAssertNotNil(_menu.controller, @"its controller too, placed again once the menu shows");
   XCTAssertTrue(CGSizeEqualToSize(_coordinator.screenPointSize, CGSizeMake(1280, 720)));
 
+  // Retired (Build 447/448): "the same engine shows the menu in the adopted
+  // window". Build 449: the game gone, the adopted scene mirrors the iPhone.
   [_coordinator detachRenderHost:host];
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
-  XCTAssertEqual(_menu.created, 1U, @"the same engine shows the menu in the adopted window");
-  XCTAssertEqual(_coordinator.menuViewController, _menu.controller);
-  XCTAssertEqual(_menu.controller.view.superview, second.rootViewController.view, @"the menu is shown in the adopted window");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
+  XCTAssertTrue(second.hidden, @"nothing of NeoStation's own outside a game");
+  XCTAssertEqual(_menu.created, 0U);
+  XCTAssertNil(_coordinator.menuViewController);
 
   // The stand-in is not in UIApplication.connectedScenes: a refresh treats
   // it as disconnected.
   [_coordinator refresh];
   XCTAssertFalse(_coordinator.connected, @"a scene UIKit no longer lists is dropped by the rescan");
   XCTAssertEqual(_coordinator.externalScenes.count, 0U);
-  XCTAssertEqualObjects(_menu.destroyed, @[@"disconnect"]);
+  XCTAssertEqual(_menu.destroyed.count, 0U, @"no menu engine ever existed");
   XCTAssertTrue(second.hidden);
 }
 
-- (void)testDisabledSuspendedAndMenuOffFallBackToMirroring {
+- (void)testDisabledSuspendedAndOutsideAGameFallBackToMirroring {
   [self connect];
+  XCTAssertTrue(_external.hidden, @"outside a game: iOS mirrors the iPhone (Build 449)");
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [_coordinator attachRenderHost:host];
   XCTAssertFalse(_coordinator.mirroringActive);
@@ -493,15 +563,11 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqual(host.renderView.superview, host.placeholderView, @"the game is drawn on the iPhone again");
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   XCTAssertTrue(_coordinator.connected, @"still connected: the preference only hides the window");
-  // Review m4: the output disabled releases the menu's second engine (not
-  // only hidden), as the menu turned off does.
-  XCTAssertEqualObjects(_menu.destroyed, @[@"disabled"], @"disabled: the menu engine is released");
   XCTAssertNil(_coordinator.menuViewController);
   XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
   XCTAssertFalse(_external.hidden);
   XCTAssertEqual(host.renderView.superview, [self externalRoot]);
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES]));
-  XCTAssertEqual(_menu.created, 1U, @"not recreated while the game holds the TV");
 
   [_coordinator suspendForUnsupportedEngine];
   XCTAssertTrue(_coordinator.suspended);
@@ -514,41 +580,60 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertFalse(_external.hidden);
   XCTAssertEqual(host.renderView.superview, [self externalRoot]);
 
+  // Retired (Build 447/448): the menu came back on the TV once the game left
+  // and only the "menu on the TV" switch turned it off. Build 449: the game
+  // gone, iOS mirrors the iPhone, and the stored switch changes nothing.
   [_coordinator detachRenderHost:host];
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
-  XCTAssertEqual(_menu.created, 2U, @"the menu is back once the game left the TV");
-  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
-  XCTAssertNil(_coordinator.menuViewController, @"menu off: the controller leaves the window");
-  XCTAssertEqualObjects(_menu.destroyed.lastObject, @"menu_off");
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   XCTAssertTrue(_external.hidden, @"nothing to show: iOS mirrors the iPhone");
   XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:YES]);
-  // Retired count 2 (Build 447 first version): the disabled output above
-  // released the engine too (review m4), so this is its third creation.
-  XCTAssertEqual(_menu.created, 3U, @"menu on again: recreated");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
-  XCTAssertFalse(_external.hidden);
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone, @"the stored switch of Build 447 is not read");
+  XCTAssertTrue(_external.hidden);
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
+  XCTAssertTrue(_external.hidden);
+  XCTAssertEqual(_menu.created, 0U, @"no menu engine at any point");
+  XCTAssertEqual(_menu.destroyed.count, 0U);
   [_coordinator sceneDidDisconnect:[self mainScene]];
 }
 
-- (void)testDestroyMenuEngineForMemoryKeepsItAwayUntilTheGameDetaches {
+/// RPCS3 still asks for the menu engine's destruction when it attaches
+/// (memory). Since Build 449 there is none for the TV: the call is harmless
+/// and nothing is created once the game detaches. Retired contract:
+/// "recreated once the game detached".
+- (void)testDestroyMenuEngineForMemoryIsHarmlessAndNoEngineComesBack {
   [self connect];
-  XCTAssertEqual(_menu.created, 1U);
+  XCTAssertEqual(_menu.created, 0U);
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [_coordinator attachRenderHost:host];
   [_coordinator destroyMenuEngineForMemory];
-  XCTAssertEqualObjects(_menu.destroyed, @[@"memory"]);
+  XCTAssertEqual(_menu.destroyed.count, 0U, @"nothing to destroy");
   XCTAssertNil(_coordinator.menuViewController);
-  XCTAssertEqualObjects(_coordinator.menuEngineStatus, @"destroyed");
   XCTAssertEqual(_coordinator.content, NeoExternalContentGame, @"the game keeps the TV");
+  XCTAssertEqual(host.renderView.superview, [self externalRoot]);
   [_coordinator refresh];
   [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidBecomeActiveNotification object:nil];
-  XCTAssertNil(_coordinator.menuViewController, @"not recreated while the RPCS3 host is attached");
-  XCTAssertEqual(_menu.created, 1U);
+  XCTAssertNil(_coordinator.menuViewController);
   [_coordinator detachRenderHost:host];
-  XCTAssertEqual(_menu.created, 2U, @"recreated once the game detached");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
-  XCTAssertEqualObjects(_coordinator.menuEngineStatus, @"attached");
+  XCTAssertEqual(_menu.created, 0U, @"no engine once the game detached");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
+  XCTAssertEqualObjects(_coordinator.menuEngineStatus, @"none");
+  XCTAssertTrue(_external.hidden);
+  [_coordinator sceneDidDisconnect:[self mainScene]];
+}
+
+/// A controller attached as a menu (the second engine's, or any) is never
+/// shown on the TV and is released at the next pass, with its engine.
+- (void)testAMenuControllerIsNeverShownOnTheTV {
+  [self connect];
+  UIViewController* menu = [UIViewController new];
+  _menu.controller = menu;
+  _menu.status = @"created";
+  [_coordinator attachMenuViewController:menu];
+  XCTAssertNil(_coordinator.menuViewController, @"released at once");
+  XCTAssertNil(menu.view.superview, @"never placed in the external window");
+  XCTAssertEqualObjects(_menu.destroyed, @[@"menu_off"], @"its engine is released");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
+  XCTAssertTrue(_external.hidden, @"iOS keeps mirroring the iPhone");
   [_coordinator sceneDidDisconnect:[self mainScene]];
 }
 
@@ -579,7 +664,9 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertTrue(_coordinator.connected, @"legacy window after the delay");
   XCTAssertEqualObjects(_coordinator.sceneRole, @"legacy");
   XCTAssertEqual(_coordinator.window, legacy, @"built through the factory seam");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone, @"outside a game nothing of NeoStation's own (Build 449)");
+  XCTAssertTrue(legacy.hidden);
+  XCTAssertEqual(legacy.windowScene.screen, UIScreen.mainScreen, @"a legacy window is never taken out of its scene");
   XCTAssertFalse(legacy.isKeyWindow);
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [_coordinator attachRenderHost:host];
@@ -794,8 +881,17 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFit]);
   XCTAssertEqual(notified, 2U, @"the next mode writes the mode only");
   XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
-  XCTAssertFalse(_external.hidden, @"the switch turns it on");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
+  XCTAssertTrue(_coordinator.enabled, @"the switch turns it on");
+  // Retired (Build 447/448): the switch showed the menu on the TV at once.
+  // Build 449: outside a game iOS keeps mirroring the iPhone; a game takes
+  // the TV.
+  XCTAssertTrue(_external.hidden, @"outside a game: mirroring");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
+  [_coordinator attachRenderHost:host];
+  XCTAssertFalse(_external.hidden, @"the game takes the TV now that the output is on");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentGame);
+  [_coordinator detachRenderHost:host];
   [NSNotificationCenter.defaultCenter removeObserver:token];
   [_coordinator sceneDidDisconnect:[self mainScene]];
 }
@@ -812,20 +908,21 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqualObjects(initial[@"menuEngine"], @"none");
   XCTAssertEqualObjects(initial[@"mode"], @0);
   XCTAssertEqualObjects(initial[@"enabled"], @YES);
-  XCTAssertEqualObjects(initial[@"menuOnTV"], @YES);
+  XCTAssertEqualObjects(initial[@"menuOnTV"], @NO, @"Build 449: the TV never shows a menu of its own");
   XCTAssertEqualObjects(initial[@"suspended"], @NO);
   if (NSClassFromString(@"UISceneAccessory") == Nil) XCTAssertEqualObjects(initial[@"accessoryStatus"], @"unavailable", @"iOS ≤ 26: no accessory API");
   else if ([self hostSDKMajor] < 27) XCTAssertEqualObjects(initial[@"accessoryStatus"], @"inactive:sdk", @"a binary of an SDK before 27 keeps the automatic scene");
-  else XCTAssertTrue([initial[@"accessoryStatus"] isEqualToString:@"registered"] || [initial[@"accessoryStatus"] hasPrefix:@"failed:"]);
+  else XCTAssertTrue([initial[@"accessoryStatus"] isEqualToString:@"disabled"] || [initial[@"accessoryStatus"] hasPrefix:@"failed:"],
+                     @"SDK 27: nothing to show outside a game, no enabled registration");
   [self connect];
   NSDictionary* connected = posted.lastObject;
   XCTAssertEqualObjects(connected[@"connected"], @YES);
-  XCTAssertEqualObjects(connected[@"content"], @"menu");
+  XCTAssertEqualObjects(connected[@"content"], @"none", @"outside a game the TV mirrors the iPhone");
   XCTAssertEqualObjects(connected[@"sceneRole"], @"scene");
   XCTAssertEqualObjects(connected[@"screenWidth"], @1920);
   XCTAssertEqualObjects(connected[@"screenHeight"], @1080);
-  XCTAssertEqualObjects(connected[@"menuEngine"], @"attached");
-  XCTAssertEqualObjects(connected[@"mirroringActive"], @NO);
+  XCTAssertEqualObjects(connected[@"menuEngine"], @"none");
+  XCTAssertEqualObjects(connected[@"mirroringActive"], @YES);
   XCTAssertTrue([connected[@"screenScale"] doubleValue] >= 1);
   XCTAssertEqualObjects(_states.lastObject, connected, @"the stateChanged block sees the same state");
   const NSUInteger count = posted.count;
@@ -836,7 +933,7 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   [_coordinator sceneDidDisconnect:[self mainScene]];
   XCTAssertEqualObjects(posted.lastObject[@"connected"], @NO);
   XCTAssertEqualObjects(posted.lastObject[@"content"], @"none");
-  XCTAssertEqualObjects(posted.lastObject[@"menuEngine"], @"destroyed");
+  XCTAssertEqualObjects(posted.lastObject[@"menuEngine"], @"none", @"no menu engine ever existed");
   [NSNotificationCenter.defaultCenter removeObserver:token];
 }
 
@@ -863,19 +960,30 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   if (!InstallFakeSceneAccessoryIfNeeded()) {
     // Real iOS 27 SDK: the production API is used and only its status is observable here.
     [_coordinator refresh];
-    XCTAssertTrue([_coordinator.accessoryStatus isEqualToString:@"registered"] || [_coordinator.accessoryStatus hasPrefix:@"failed:"]);
+    XCTAssertTrue([_coordinator.accessoryStatus isEqualToString:@"registered"] || [_coordinator.accessoryStatus isEqualToString:@"disabled"] ||
+                  [_coordinator.accessoryStatus hasPrefix:@"failed:"]);
     return;
   }
   UIViewController* root = [(id)UIApplication.sharedApplication.delegate window].rootViewController;
   __block NSInteger sdk = 26;
   _coordinator.buildSDKMajorVersion = ^NSInteger { return sdk; };
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [_coordinator refresh];
   XCTAssertEqualObjects(_coordinator.accessoryStatus, @"inactive:sdk");
   XCTAssertFalse(FakeAccessoryHolds(root), @"an SDK 26 binary registers nothing (iOS connects its scene by itself)");
   sdk = 27;
   [_coordinator refresh];
+  // Retired (Build 447/448): "an SDK 27 binary registers the application
+  // root" at once, to show the menu on the TV. Build 449: outside a game
+  // nothing of NeoStation's own is shown, so no registration is made and
+  // the system mirrors the iPhone.
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
+  XCTAssertFalse(FakeAccessoryHolds(root), @"no registration only to be turned off");
+  [_coordinator attachRenderHost:host];
   XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
-  XCTAssertTrue(FakeAccessoryEnabled(root), @"an SDK 27 binary registers the application root");
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"an SDK 27 binary registers the application root for a game");
+  [_coordinator detachRenderHost:host];
+  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root), @"the game left: turned off, the system mirrors the iPhone");
   // Back to no registration, then a scene arrives without one of ours: the
   // system offered it by itself, so the regime stays off while it is there.
   sdk = 26;
@@ -885,10 +993,13 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   [self connect];
   XCTAssertEqualObjects(_coordinator.accessoryStatus, @"inactive:automatic_scene");
   XCTAssertFalse(FakeAccessoryHolds(root), @"no registration next to an automatic scene");
-  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu, @"the automatic scene shows the menu as on iOS 26");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentNone, @"the automatic scene mirrors the iPhone outside a game, as on iOS 26");
   [_coordinator sceneDidDisconnect:[self mainScene]];
-  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered", @"the automatic scene gone, the SDK 27 path resumes");
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled", @"the automatic scene gone, the SDK 27 path resumes (nothing to show yet)");
+  [_coordinator attachRenderHost:host];
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
   XCTAssertTrue(FakeAccessoryEnabled(root));
+  [_coordinator detachRenderHost:host];
 }
 
 /// iOS 27 regime (SDK 27 binary): the application root and the presented
@@ -904,51 +1015,57 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
     // Real iOS 27 SDK: the production API is used and only its status is observable here.
     [_coordinator refresh];
     XCTAssertTrue([_coordinator.accessoryStatus isEqualToString:@"registered"] || [_coordinator.accessoryStatus hasPrefix:@"failed:"] ||
-                  [_coordinator.accessoryStatus hasPrefix:@"inactive:"]);
+                  [_coordinator.accessoryStatus isEqualToString:@"disabled"] || [_coordinator.accessoryStatus hasPrefix:@"inactive:"]);
     return;
   }
   _coordinator.buildSDKMajorVersion = ^NSInteger { return 27; };
   UIViewController* root = [(id)UIApplication.sharedApplication.delegate window].rootViewController;
   [_coordinator refresh];
-  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
-  XCTAssertTrue(FakeAccessoryEnabled(root), @"the application root holds an enabled registration");
+  // Retired (Build 447/448): "the application root holds an enabled
+  // registration" outside a game, for the menu on the TV. Build 449:
+  // nothing of NeoStation's own is shown outside a game, so nothing is
+  // registered and the system mirrors the iPhone.
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
+  XCTAssertFalse(FakeAccessoryHolds(root), @"outside a game no registration is made");
   const NSUInteger registrations = gFakeRegisterCalls;
   const NSUInteger unregistrations = gFakeUnregisterCalls;
-  [_coordinator refresh];
-  [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidBecomeActiveNotification object:nil];
-  XCTAssertEqual(gFakeRegisterCalls, registrations, @"a presented controller is registered once");
-
-  // Nothing to show: the registration is turned off (isEnabled), not removed.
-  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:NO]);
-  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root), @"output off: the root's registration is disabled");
-  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
-  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
-  XCTAssertTrue(FakeAccessoryEnabled(root));
-  [_coordinator suspendForUnsupportedEngine];
-  XCTAssertFalse(FakeAccessoryEnabled(root), @"suspended (Dusklight, KartPad): off");
-  [_coordinator resumeAfterUnsupportedEngine];
-  XCTAssertTrue(FakeAccessoryEnabled(root));
-  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
-  XCTAssertFalse(FakeAccessoryEnabled(root), @"menu off and no game: nothing to show");
-  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:YES]);
-  XCTAssertTrue(FakeAccessoryEnabled(root));
-  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
-  XCTAssertEqual(gFakeRegisterCalls, registrations, @"turned off and on again, never registered twice");
-  XCTAssertEqual(gFakeUnregisterCalls, unregistrations);
 
   // A game controller is presented and its bridge attaches a host whose
   // placeholder lives in that controller's view: the controller gets its own
   // registration (the topmost, the one the system presents) and the root
-  // keeps its own.
+  // one too.
   UIViewController* game = [UIViewController new];
   game.modalPresentationStyle = UIModalPresentationFullScreen;
   [self present:game on:root];
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [game.view addSubview:host.placeholderView];
   [_coordinator attachRenderHost:host];
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
   XCTAssertTrue(FakeAccessoryEnabled(game), @"the controller owning the host holds an enabled registration");
-  XCTAssertTrue(FakeAccessoryEnabled(root), @"the root keeps its registration while the game is up");
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"the root holds one while the game is up");
+  XCTAssertEqual(gFakeRegisterCalls, registrations + 2);
+  [_coordinator refresh];
+  [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidBecomeActiveNotification object:nil];
+  XCTAssertEqual(gFakeRegisterCalls, registrations + 2, @"a presented controller is registered once");
+
+  // Nothing to show: the registrations are turned off (isEnabled), not removed.
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:NO]);
+  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root), @"output off: the root's registration is disabled");
+  XCTAssertTrue(FakeAccessoryHolds(game) && !FakeAccessoryEnabled(game), @"and the game's");
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
+  XCTAssertTrue(FakeAccessoryEnabled(root) && FakeAccessoryEnabled(game));
+  [_coordinator suspendForUnsupportedEngine];
+  XCTAssertFalse(FakeAccessoryEnabled(root), @"suspended (Dusklight, KartPad): off");
+  [_coordinator resumeAfterUnsupportedEngine];
+  XCTAssertTrue(FakeAccessoryEnabled(root));
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"the stored menu switch of Build 447 is not read");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:YES]);
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
+  XCTAssertEqual(gFakeRegisterCalls, registrations + 2, @"turned off and on again, never registered twice");
   XCTAssertEqual(gFakeUnregisterCalls, unregistrations);
+
   // A menu presented over the game is never registered, by a refresh or a
   // setting changed from it.
   UIViewController* menu = [UIViewController new];
@@ -962,8 +1079,10 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   // the topmost controller, holds the registration.
   [_coordinator detachRenderHost:host];
   XCTAssertTrue(FakeAccessoryHolds(game) && !FakeAccessoryEnabled(game), @"detached: the game's registration shows nothing, turned off");
+  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root), @"and the root's: outside a game the system mirrors the iPhone");
   [_coordinator attachRenderHost:host];
   XCTAssertTrue(FakeAccessoryEnabled(game), @"attached again from the menu: the game controller's registration, enabled again");
+  XCTAssertTrue(FakeAccessoryEnabled(root));
   XCTAssertFalse(FakeAccessoryHolds(menu), @"never the menu presented over the game");
   [self dismiss:menu completion:nil];
 
@@ -976,7 +1095,9 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertFalse(FakeAccessoryHolds(game), @"dismissed: its registration is released");
   XCTAssertEqual(gFakeUnregisterCalls, unregistrations + 1);
   XCTAssertTrue(gFakeUnregisterMatched, @"unregisterSceneAccessory: receives the registration returned by registerSceneAccessory:");
-  XCTAssertTrue(FakeAccessoryEnabled(root), @"the root's registration survives: the system falls back to it by itself");
+  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root),
+                @"the root keeps its registration, turned off: outside a game the system mirrors the iPhone");
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
 
   // Safety net: a dismissal nobody reported is caught by the window notifications.
   UIViewController* other = [UIViewController new];
@@ -985,6 +1106,7 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   [other.view addSubview:host.placeholderView];
   [_coordinator attachRenderHost:host];
   XCTAssertTrue(FakeAccessoryEnabled(other));
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"the root's registration is enabled again for the game");
   [_coordinator detachRenderHost:host];
   [self dismiss:other completion:nil];
   // No refresh from the bridge: only a window notification can release it.
@@ -993,8 +1115,8 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertEqual(gFakeUnregisterCalls, unregistrations + 2, @"released once, with its registration");
   XCTAssertTrue(gFakeUnregisterMatched);
   [NSNotificationCenter.defaultCenter postNotificationName:UIWindowDidBecomeKeyNotification object:nil];
-  XCTAssertTrue(FakeAccessoryEnabled(root));
-  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
+  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root));
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
 }
 @end
 '''
@@ -1002,7 +1124,8 @@ if platform.system() != 'Darwin':
     print('SKIP: the external display simulator harness needs macOS/Xcode; sources composed, no test executed')
     raise SystemExit(0)
 ns['native']()
-print('PASS: external display connection, menu/game placement in every mode, disconnection order, reconnection, scene set and '
-      'adoption, mirroring fallbacks, menu engine lifecycle and visibility, legacy fallback and its refusal without a scene, '
+print('PASS: external display connection mirroring the iPhone outside a game (window out of its scene, back for the game), '
+      'game placement in every mode, disconnection order, reconnection, scene set and adoption, mirroring fallbacks, no menu '
+      'on the TV, legacy fallback and its refusal without a scene, '
       'MTKView preservation, TV-resolution surfaces (whole TV, scale changes), reapplied passes, preferences, state events and '
       'iOS 27 accessory regime and registrations executed on the iOS Simulator')

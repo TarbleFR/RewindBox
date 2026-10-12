@@ -309,6 +309,9 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
 @property(nonatomic, strong, nullable) UIWindow *window;
 /// The scene holding the window (scene role).
 @property(nonatomic, strong, nullable) UIWindowScene *scene;
+/// The window was taken out of `scene` so that iOS mirrors the iPhone
+/// (placeWindowInScene:); it goes back there when a game takes the TV.
+@property(nonatomic, assign) BOOL windowLeftScene;
 /// Every external scene UIKit connected and has not disconnected, in
 /// connection order.
 @property(nonatomic, strong) NSMutableArray<UIWindowScene *> *connectedExternalScenes;
@@ -407,7 +410,12 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
 
 - (BOOL)enabled { return NeoExternalDisplayPreferences.enabled; }
 
-- (BOOL)menuOnTV { return NeoExternalDisplayPreferences.menuOnTV; }
+/// Never (Build 449): outside a game the TV mirrors the iPhone, so it shows
+/// the NeoStation interface itself. The second engine's TV view (the
+/// SecondaryScreen of Android handhelds: the selected console's logo) is
+/// not shown any more, and the stored "menu on the TV" preference of Build
+/// 447 is no longer read.
+- (BOOL)menuOnTV { return NO; }
 
 - (BOOL)mirroringActive { return self.window != nil && self.window.hidden; }
 
@@ -717,6 +725,37 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
   [self applyState];
 }
 
+/// A window of the app in the external scene ends the mirroring of the
+/// iPhone; the documented way back is taking it out of the scene, not
+/// hiding it ("To make it go back to mirroring, simply remove your UIWindow
+/// from the scene through use of the windowScene property (just set it to
+/// nil)", Apple Frameworks Engineer, Apple Developer Forums thread 766398,
+/// read on 12 October 2026). Outside a game the window leaves its
+/// scene, and goes back to the same scene, before the render view moves in,
+/// when a game takes the TV. A window that was never in a scene (legacy
+/// screen, test seam) is left as it is.
+- (void)placeWindowInScene:(BOOL)inScene {
+  UIWindow *window = self.window;
+  UIWindowScene *scene = self.scene;
+  if (window == nil || scene == nil || ![self.sceneRole isEqualToString:kNeoExternalRoleScene]) return;
+  if (inScene) {
+    if (!self.windowLeftScene) return;
+    self.windowLeftScene = NO;
+    window.windowScene = scene;
+    // The TV's mode may have changed while the iPhone was mirrored.
+    const CGRect bounds = scene.coordinateSpace.bounds;
+    if (NeoExternalDisplayUsableSize(bounds.size)) window.frame = bounds;
+    [self giveWindow:window toDelegateOfScene:scene];
+    NSLog(@"display.external_window_back_in_scene");
+    return;
+  }
+  if (self.windowLeftScene || window.windowScene != scene) return;
+  self.windowLeftScene = YES;
+  [self giveWindow:nil toDelegateOfScene:scene];
+  window.windowScene = nil;
+  NSLog(@"display.external_mirroring (the window left its scene: iOS mirrors the iPhone)");
+}
+
 /// The render view goes back to the iPhone first, then the window is
 /// released; the menu engine is destroyed (recreated at the next
 /// connection) unless another external scene takes the window over at once.
@@ -731,6 +770,7 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
   window.hidden = YES;
   self.window = nil;
   self.scene = nil;
+  self.windowLeftScene = NO;
   self.legacyScreen = nil;
   self.screenScale = 0;
   self.sceneRole = kNeoExternalRoleNone;
@@ -907,27 +947,6 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
   [self applyState];
 }
 
-/// The menu view fills the window below the render view; hidden while the
-/// game is on the TV, never released here.
-- (void)placeMenuViewControllerShown:(BOOL)shown {
-  UIViewController *menu = self.menuViewController;
-  UIWindow *window = self.window;
-  if (menu == nil || window == nil) return;
-  UIViewController *root = window.rootViewController;
-  root.view.frame = window.bounds;
-  if (menu.parentViewController != root) {
-    [root addChildViewController:menu];
-    menu.view.frame = root.view.bounds;
-    menu.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    menu.view.backgroundColor = UIColor.blackColor;
-    [root.view insertSubview:menu.view atIndex:0];
-    [menu didMoveToParentViewController:root];
-  } else {
-    menu.view.frame = root.view.bounds;
-  }
-  menu.view.hidden = !shown;
-}
-
 #pragma mark Apply
 
 - (void)refresh {
@@ -944,9 +963,11 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
 }
 
 /// Every pass: the registrations of dismissed controllers are released, the
-/// application root holds one while there is something to show, and the
-/// presented controller that owns the attached render host holds its own
-/// (enabled while the output is usable). A menu presented over the game is
+/// application root holds one while there is something to show (a game on
+/// the TV: outside a game nothing of NeoStation's own is shown and the
+/// system mirrors the iPhone), and the presented controller that owns the
+/// attached render host holds its own (enabled while the output is
+/// usable). A menu presented over the game is
 /// never registered: the owner is found from the host's placeholder view,
 /// not from the top of the presentation chain, so a bridge that attaches
 /// again from a still-presented menu (RPCS3, ARMSX2 after a failed stop)
@@ -976,7 +997,7 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
     const BOOL usable = self.enabled && !self.suspended;
     NSString *rootStatus =
         [NeoExternalDisplaySceneAccessory registerOnViewController:root
-                                                           enabled:usable && (self.menuOnTV || self.renderHost != nil)];
+                                                           enabled:usable && self.renderHost != nil];
     NSString *ownerStatus =
         owner != nil ? [NeoExternalDisplaySceneAccessory registerOnViewController:owner enabled:usable] : nil;
     status = NeoExternalCombinedAccessoryStatus(rootStatus, ownerStatus);
@@ -1026,40 +1047,36 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
   [self notifyIfChanged];
 }
 
-/// The game when a host is attached, else the menu when wanted, else
-/// nothing (window hidden so iOS mirrors the iPhone). The menu engine is
-/// only created when it is about to be shown: never while a game holds the
-/// TV (an engine that already exists is hidden, not released, and told so:
-/// it stops drawing), and released when the menu is turned off or the
-/// whole output is disabled.
+/// The game when a host is attached and the output is usable, else nothing
+/// of NeoStation's own: the window is hidden and leaves its scene, and iOS
+/// mirrors the iPhone, so the TV shows the NeoStation interface itself
+/// (menus, library, covers, settings, animations). Build 449: the menu of
+/// the second Flutter engine is never placed on the TV any more (it showed
+/// the SecondaryScreen of Android handhelds, the selected console's logo,
+/// instead of the interface); a controller or an engine an earlier state
+/// left is released. A game going to the TV first brings the window back
+/// into its scene, so the render view moves into a window that is shown.
 - (void)applyStatePass {
   self.screenScale = [self currentScreenScale];
   UIWindow *window = self.window;
   const BOOL enabled = self.enabled;
   const BOOL usable = window != nil && enabled && !self.suspended;
+  if (usable && self.renderHost != nil) [self placeWindowInScene:YES];
   if (self.renderHost != nil) {
     if (usable && !self.renderPlaced) [self moveRenderViewToWindow];
     else if (!usable && self.renderPlaced) [self returnRenderViewToPlaceholder];
     else if (usable) [self placeRenderView];
   }
   const BOOL gameShown = self.renderHost != nil && self.renderPlaced;
-  const BOOL menuOnTV = self.menuOnTV;
   id<NeoExternalMenuProvider> provider = self.menuProvider;
-  if (usable && menuOnTV && !gameShown && !self.menuSuppressed && self.menuViewController == nil && provider != nil) {
-    UIViewController *controller = [provider externalMenuViewControllerCreatingIfNeeded];
-    if (controller != nil) self.menuViewController = controller;
-  }
-  if (!menuOnTV || !enabled) {
-    const BOOL engineAlive =
-        self.menuViewController != nil || [[provider externalMenuEngineStatus] isEqualToString:@"created"];
-    if (self.menuViewController != nil) [self detachMenuViewControllerInternal];
-    if (engineAlive) [provider destroyExternalMenuEngineForReason:enabled ? @"menu_off" : @"disabled"];
-  }
-  const BOOL menuShown = usable && self.menuViewController != nil && !gameShown;
-  [self placeMenuViewControllerShown:menuShown];
-  if ([provider respondsToSelector:@selector(externalMenuSetVisible:)]) [provider externalMenuSetVisible:menuShown];
-  self.content = gameShown ? NeoExternalContentGame : menuShown ? NeoExternalContentMenu : NeoExternalContentNone;
-  if (window != nil) window.hidden = !(usable && self.content != NeoExternalContentNone);
+  const BOOL engineAlive =
+      self.menuViewController != nil || [[provider externalMenuEngineStatus] isEqualToString:@"created"];
+  if (self.menuViewController != nil) [self detachMenuViewControllerInternal];
+  if (engineAlive) [provider destroyExternalMenuEngineForReason:enabled ? @"menu_off" : @"disabled"];
+  self.content = gameShown ? NeoExternalContentGame : NeoExternalContentNone;
+  const BOOL shown = usable && gameShown;
+  if (window != nil) window.hidden = !shown;
+  if (!shown) [self placeWindowInScene:NO];
   [self registerAccessory];
 }
 

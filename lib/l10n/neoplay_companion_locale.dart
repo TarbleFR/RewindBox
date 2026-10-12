@@ -23,7 +23,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "No video mirroring confirmed by iOS.",
     "close": "Close",
     "busyAppleTV": "Stop the Windows/Chromecast NeoPlay stream before starting system mirroring to avoid two simultaneous streams.",
-    "appleTVOwnWindow": "NeoStation draws its own picture on the external screen; the format is set in Settings › General › AirPlay and external screen."
+    "appleTVOwnWindow": "During a game, NeoStation shows the game full screen on the external screen; outside a game, iOS mirrors the iPhone. The format is set in Settings › General › AirPlay and external screen."
   },
   "fr": {
     "battery": "Batterie de la manette",
@@ -41,7 +41,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "Aucune recopie vidéo confirmée par iOS.",
     "close": "Fermer",
     "busyAppleTV": "Arrêtez la diffusion NeoPlay vers Windows ou Chromecast avant de lancer la recopie système pour éviter deux diffusions simultanées.",
-    "appleTVOwnWindow": "NeoStation affiche sa propre image sur l’écran externe ; le format se règle dans Paramètres › Général › AirPlay et écran externe."
+    "appleTVOwnWindow": "Pendant un jeu, NeoStation affiche le jeu en plein écran sur l’écran externe ; hors jeu, iOS recopie l’iPhone. Le format se règle dans Paramètres › Général › AirPlay et écran externe."
   },
   "es": {
     "battery": "Batería del mando",
@@ -59,7 +59,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS no ha confirmado la duplicación de vídeo.",
     "close": "Cerrar",
     "busyAppleTV": "Detén la transmisión NeoPlay hacia Windows o Chromecast antes de iniciar la duplicación del sistema para evitar dos transmisiones simultáneas.",
-    "appleTVOwnWindow": "NeoStation muestra su propia imagen en la pantalla externa; el formato se ajusta en Ajustes › General › AirPlay y pantalla externa."
+    "appleTVOwnWindow": "Durante una partida, NeoStation muestra el juego a pantalla completa en la pantalla externa; fuera del juego, iOS duplica el iPhone. El formato se ajusta en Ajustes › General › AirPlay y pantalla externa."
   },
   "de": {
     "battery": "Controller-Akku",
@@ -77,7 +77,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS bestätigt keine Videospiegelung.",
     "close": "Schließen",
     "busyAppleTV": "Beende den NeoPlay-Stream zu Windows oder Chromecast vor der Systemspiegelung, um zwei gleichzeitige Streams zu vermeiden.",
-    "appleTVOwnWindow": "NeoStation zeigt sein eigenes Bild auf dem externen Bildschirm; das Format wird unter Einstellungen › Allgemein › AirPlay und externer Bildschirm festgelegt."
+    "appleTVOwnWindow": "Während eines Spiels zeigt NeoStation das Spiel im Vollbild auf dem externen Bildschirm; außerhalb eines Spiels spiegelt iOS das iPhone. Das Format wird unter Einstellungen › Allgemein › AirPlay und externer Bildschirm festgelegt."
   },
   "it": {
     "battery": "Batteria del controller",
@@ -95,7 +95,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "Nessuna duplicazione video confermata da iOS.",
     "close": "Chiudi",
     "busyAppleTV": "Interrompi la trasmissione NeoPlay verso Windows o Chromecast prima di avviare la duplicazione di sistema per evitare due flussi simultanei.",
-    "appleTVOwnWindow": "NeoStation mostra la propria immagine sullo schermo esterno; il formato si imposta in Impostazioni › Generale › AirPlay e schermo esterno."
+    "appleTVOwnWindow": "Durante una partita, NeoStation mostra il gioco a schermo intero sullo schermo esterno; fuori dal gioco, iOS duplica l’iPhone. Il formato si imposta in Impostazioni › Generale › AirPlay e schermo esterno."
   },
   "pt": {
     "battery": "Bateria do comando",
@@ -113,7 +113,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "Nenhuma projeção de vídeo confirmada pelo iOS.",
     "close": "Fechar",
     "busyAppleTV": "Pare a transmissão NeoPlay para Windows ou Chromecast antes de iniciar a projeção do sistema para evitar duas transmissões simultâneas.",
-    "appleTVOwnWindow": "O NeoStation mostra a sua própria imagem no ecrã externo; o formato ajusta-se em Configurações › Geral › AirPlay e tela externa."
+    "appleTVOwnWindow": "Durante um jogo, o NeoStation mostra o jogo em tela cheia na tela externa; fora do jogo, o iOS espelha o iPhone. O formato é ajustado em Configurações › Geral › AirPlay e tela externa."
   },
   "ru": {
     "battery": "Батарея контроллера",
@@ -131,7 +131,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS не подтвердил повтор видеоэкрана.",
     "close": "Закрыть",
     "busyAppleTV": "Остановите поток NeoPlay на Windows или Chromecast перед системным повтором экрана, чтобы избежать двух одновременных потоков.",
-    "appleTVOwnWindow": "NeoStation выводит собственное изображение на внешний экран; формат настраивается в разделе Настройки › Общие › AirPlay и внешний экран."
+    "appleTVOwnWindow": "Во время игры NeoStation выводит игру на весь внешний экран; вне игры iOS повторяет экран iPhone. Формат настраивается в разделе Настройки › Общие › AirPlay и внешний экран."
   },
   "zh": {
     "battery": "手柄电量",
@@ -149,7 +149,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS 尚未确认视频镜像。",
     "close": "关闭",
     "busyAppleTV": "开启系统镜像前，请停止到 Windows 或 Chromecast 的 NeoPlay 推流，避免同时发送两个流。",
-    "appleTVOwnWindow": "NeoStation 在外接屏幕上显示自己的画面；格式可在“设置 › 常规 › AirPlay 与外接屏幕”中调整。"
+    "appleTVOwnWindow": "游戏期间，NeoStation 在外接屏幕上全屏显示游戏；未进行游戏时，iOS 镜像 iPhone。格式可在“设置 › 常规 › AirPlay 与外接屏幕”中调整。"
   },
   "zh_Hant": {
     "battery": "控制器電量",
@@ -167,7 +167,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS 尚未確認影片鏡像輸出。",
     "close": "關閉",
     "busyAppleTV": "開啟系統鏡像輸出前，請停止至 Windows 或 Chromecast 的 NeoPlay 串流，避免同時傳送兩個串流。",
-    "appleTVOwnWindow": "NeoStation 在外接螢幕上顯示自己的畫面；格式可在「設定 › 一般 › AirPlay 與外接螢幕」中調整。"
+    "appleTVOwnWindow": "遊戲期間，NeoStation 在外接螢幕上全螢幕顯示遊戲；未進行遊戲時，iOS 鏡像輸出 iPhone。格式可在「設定 › 一般 › AirPlay 與外接螢幕」中調整。"
   },
   "id": {
     "battery": "Baterai pengontrol",
@@ -185,7 +185,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "Belum ada pencerminan video yang dikonfirmasi iOS.",
     "close": "Tutup",
     "busyAppleTV": "Hentikan siaran NeoPlay ke Windows atau Chromecast sebelum memulai pencerminan sistem agar tidak ada dua siaran bersamaan.",
-    "appleTVOwnWindow": "NeoStation menampilkan gambarnya sendiri di layar eksternal; formatnya diatur di Pengaturan › Umum › AirPlay dan layar eksternal."
+    "appleTVOwnWindow": "Selama bermain, NeoStation menampilkan game dalam layar penuh di layar eksternal; di luar game, iOS mencerminkan iPhone. Formatnya diatur di Pengaturan › Umum › AirPlay dan layar eksternal."
   },
   "ja": {
     "battery": "コントローラーのバッテリー",
@@ -203,7 +203,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS から映像ミラーリングの確認はありません。",
     "close": "閉じる",
     "busyAppleTV": "二重配信を避けるため、システムのミラーリングを開始する前に Windows または Chromecast への NeoPlay 配信を停止してください。",
-    "appleTVOwnWindow": "NeoStation は外部ディスプレイに独自の画面を表示します。フォーマットは「設定 › 全般 › AirPlay と外部ディスプレイ」で設定します。"
+    "appleTVOwnWindow": "ゲーム中は NeoStation が外部ディスプレイにゲームを全画面で表示し、ゲーム中以外は iOS が iPhone をミラーリングします。フォーマットは「設定 › 全般 › AirPlay と外部ディスプレイ」で設定します。"
   },
   "ko": {
     "battery": "컨트롤러 배터리",
@@ -221,7 +221,7 @@ class NeoPlayCompanionLocale {
     "notDetected": "iOS에서 영상 미러링이 확인되지 않았습니다.",
     "close": "닫기",
     "busyAppleTV": "동시 이중 전송을 피하려면 시스템 미러링을 시작하기 전에 Windows 또는 Chromecast로 보내는 NeoPlay 스트림을 중지하세요.",
-    "appleTVOwnWindow": "NeoStation은 외부 화면에 자체 화면을 표시합니다. 형식은 설정 › 일반 › AirPlay 및 외부 화면에서 조정합니다."
+    "appleTVOwnWindow": "게임 중에는 NeoStation이 외부 화면에 게임을 전체 화면으로 표시하고, 게임 중이 아닐 때는 iOS가 iPhone을 미러링합니다. 형식은 설정 › 일반 › AirPlay 및 외부 화면에서 조정합니다."
   }
 };
 }

@@ -6,7 +6,7 @@ import 'package:neostation/l10n/neoplay_discovery_locale.dart';
 import 'package:neostation/widgets/neoplay_apple_tv_card.dart';
 
 void main() {
-  test('the Apple TV card names NeoStation\'s own external window in all twelve languages', () {
+  test('the Apple TV card says the game is full screen and the menu mirrored, in all twelve languages', () {
     final all = NeoPlayCompanionLocale.values;
     expect(all.keys.toSet(), {'en','es','ru','zh','zh_Hant','pt','fr','de','it','id','ja','ko'});
     final english = all['en']!['appleTVOwnWindow'];
@@ -18,8 +18,14 @@ void main() {
       expect(text, contains('AirPlay'), reason: locale.key);
       if (locale.key != 'en') expect(text, isNot(english), reason: '${locale.key} is English');
     }
+    // Build 449: outside a game the TV mirrors the iPhone; NeoStation's own
+    // picture is the game only (retired sentence: "NeoStation affiche sa
+    // propre image sur l’écran externe…", true of the console-logo TV view).
     expect(all['fr']!['appleTVOwnWindow'],
-        'NeoStation affiche sa propre image sur l’écran externe ; le format se règle dans Paramètres › Général › AirPlay et écran externe.');
+        'Pendant un jeu, NeoStation affiche le jeu en plein écran sur l’écran externe ; hors jeu, iOS recopie l’iPhone. Le format se règle dans Paramètres › Général › AirPlay et écran externe.');
+    for (final locale in all.entries) {
+      expect(locale.value['appleTVOwnWindow'], contains('iPhone'), reason: locale.key);
+    }
     expect(all['zh_Hant']!['appleTVOwnWindow'], isNot(all['zh']!['appleTVOwnWindow']));
   });
   testWidgets('the Apple TV card shows the own-window sentence under the body', (tester) async {
