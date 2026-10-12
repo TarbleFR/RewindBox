@@ -1,0 +1,44 @@
+name: Delivery envelope
+run-name: Delivery envelope • run ${{ inputs.run_id }} • ${{ inputs.artifact }}
+# Reads the RSA envelope of an encrypted delivery artifact without decrypting
+# anything: the runner has no private key. A session that cannot download
+# artifacts itself (egress policy) decrypts the envelope with its own key and
+# wraps the same AES password for another recipient (the maintainer's key),
+# so the IPA built and validated by the delivery run is the one delivered,
+# never rebuilt. The printed envelope is readable only with the recipient's
+# private key.
+'on':
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run of retroarch-delivery.yml that produced the encrypted artifact
+        required: true
+        type: string
+      artifact:
+        description: Name of the encrypted artifact (NeoStation-Build-<n>-<sha>-cold)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  envelope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - name: Download the encrypted artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact }}
+        run-id: ${{ inputs.run_id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: encrypted
+    - name: Print the identity of every encrypted file and the RSA envelope
+      shell: bash
+      run: |
+        set -euo pipefail
+        ls -l encrypted
+        sha256sum encrypted/*
+        cat encrypted/format.json
+        echo
+        echo "ENVELOPE-BEGIN $(base64 -w0 encrypted/password.rsa) ENVELOPE-END"
