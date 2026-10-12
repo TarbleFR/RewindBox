@@ -74,9 +74,10 @@ ARMSX2 tag. The attribution file identifies each bundled shader's author and
 license. Optional downloaded RetroArch presets keep their upstream source files
 and notices as supplied by the pack; each file remains under its own license.
 
-## Embedded Libretro cores — release 0.0.3
+## Embedded Libretro cores — current release 0.0.6 / Build 447
 
-NeoStation now embeds 14 libretro cores: Nestopia, Snes9x, Gambatte, mGBA,
+Introduced in release 0.0.3, NeoStation's Embedded RetroArch integration uses
+14 bundled Libretro cores: Nestopia, Snes9x, Gambatte, mGBA,
 Genesis Plus GX, Genesis Plus GX Wide, PicoDrive, FinalBurn Neo, DeSmuME,
 Mupen64Plus-Next, Beetle PSX, Beetle PSX HW, PPSSPP and Azahar.
 
@@ -94,5 +95,7 @@ The exact source revisions for the prebuilt core binaries were not attested
 by their buildbot delivery. License-document snapshots are not a substitute
 for complete Corresponding Source and do not establish full license compliance.
 
-RetroArch itself remains an optional external application for routes using it;
-the newly embedded core implementations are credited separately above.
+The current engine runs these cores inside NeoStation without a separate
+RetroArch installation. Earlier external-app game settings and compatible
+exported-library routes remain available for compatibility; the external
+RetroArch app is no longer offered as a new per-game choice since Build 440.

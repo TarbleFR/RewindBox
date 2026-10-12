@@ -264,16 +264,22 @@ redistributing MeloNX itself.
 
 ---
 
-RETROARCH / LIBRETRO — EMBEDDED CORES AND OPTIONAL EXTERNAL INTEGRATION
+RETROARCH / LIBRETRO — EMBEDDED MULTI-SYSTEM ENGINE
 
 RetroArch:
 https://github.com/libretro/RetroArch
 
-NeoStation can link/synchronize a RetroArch library and use supported direct
-launch flows. RetroArch remains a separately maintained project with its own
-licenses, cores and third-party notices.
+In the current 0.0.6 / Build 447 release, Embedded RetroArch (Libretro) runs
+supported games directly inside NeoStation through its native host and 14
+bundled cores. A separate RetroArch installation is not required. RetroArch,
+Libretro and the individual cores remain independently maintained upstream
+projects with their own authors, licenses and notices.
 
-Release 0.0.3 embeds 14 libretro cores in NeoStation. Their authors, complete
+Compatibility routes remain for earlier external RetroArch game settings and
+library entries that NeoStation cannot launch from an accessible local ROM.
+Since Build 440, the external app is no longer offered as a new per-game choice.
+
+The 14-core integration was introduced in release 0.0.3. Its authors, complete
 license reference texts, non-commercial restrictions and source-provenance
 limitations are recorded in assets/legal/libretro/LIBRETRO_CORES.md. The host
 license does not relicense these components.
@@ -294,8 +300,9 @@ This component is the embedded StikJIT XCFramework, licensed under MPL-2.0.
 It is distinct from the separate StikDebug application. Bundled idevice,
 universal.js and legacy.js components retain their own licenses/notices.
 
-NeoStation does not embed or redistribute LocalDevVPN. Users who choose that
-route install, configure and control the separate application independently.
+LocalDevVPN is a separately installed and user-controlled application required
+by the current embedded Dolphin, ARMSX2 and RPCS3 JIT workflows. NeoStation does
+not bundle or activate it.
 
 For executable distribution of the embedded StikJIT component, recipients must
 also be informed how to obtain the MPL-covered Source Code Form. NeoStation's

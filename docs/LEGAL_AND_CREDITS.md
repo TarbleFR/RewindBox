@@ -40,6 +40,7 @@ physical memory or circumvent Apple's resource enforcement.
 
 | Component | Authors / upstream | License / redistribution note |
 | --- | --- | --- |
+| **Embedded RetroArch / Libretro cores** | RetroArch and Libretro contributors, plus the individual emulator authors listed in the README and core notices | The 14 bundled cores run inside NeoStation's native host. Each core and dependency retains its own license; the project-level GPL notice does not replace those terms. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by NeoStation is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
@@ -60,11 +61,12 @@ and pinned upstream revisions used for the published Build 350 IPA.
 The following applications/services are **not claimed as NeoStation-owned
 software** merely because NeoStation interoperates with them:
 
-- **RetroArch / libretro** — https://github.com/libretro/RetroArch
 - **MeloNX** — https://github.com/nurtrino/MeloNX
 - **ScreenScraper** — https://www.screenscraper.fr/
 - **RetroAchievements** — https://retroachievements.org/
-- **LocalDevVPN** — user-installed external application when that route is used.
+- **LocalDevVPN** — separately installed and user-controlled application
+  required by the current embedded Dolphin, ARMSX2 and RPCS3 JIT workflows.
+  NeoStation does not bundle or activate it.
 
 Their own terms, licenses, privacy policies and service rules apply.
 
@@ -174,9 +176,9 @@ names, logos and trademarks remain the property of their respective owners.
 NeoStation iOS is an independent project and is not affiliated with, sponsored
 by or endorsed by those rights holders unless explicitly stated.
 
-NeoStation does not provide ROMs, ISOs, BIOS files, console firmware,
-encryption keys, commercial game assets or paid content. Users must provide
-legally obtained content required by the software they use.
+NeoStation does not bundle commercial games, proprietary console BIOS or
+firmware, encryption keys, or paid book/manga content. Users must provide
+the legally obtained content required by their games and readers.
 
 ## Binary packaging policy and verified limitations
 
@@ -210,9 +212,10 @@ The catalogue is not bundled in NeoStation. Imported entries retain the author
 and source URL; attribution is not an endorsement or a claim to relicense the
 creator's work. The source does not specify a disc revision.
 
-## Embedded Libretro cores — release 0.0.3
+## Embedded Libretro cores — current release 0.0.6 / Build 447
 
-NeoStation now embeds 14 libretro cores: Nestopia, Snes9x, Gambatte, mGBA,
+Introduced in release 0.0.3, NeoStation's Embedded RetroArch integration uses
+14 bundled Libretro cores: Nestopia, Snes9x, Gambatte, mGBA,
 Genesis Plus GX, Genesis Plus GX Wide, PicoDrive, FinalBurn Neo, DeSmuME,
 Mupen64Plus-Next, Beetle PSX, Beetle PSX HW, PPSSPP and Azahar.
 
@@ -230,5 +233,8 @@ The exact source revisions for the prebuilt core binaries were not attested
 by their buildbot delivery. License-document snapshots are not a substitute
 for complete Corresponding Source and do not establish full license compliance.
 
-RetroArch itself remains an optional external application for routes using it;
-the newly embedded core implementations are credited separately above.
+The current engine runs these cores inside NeoStation without a separate
+RetroArch installation. Older external-app game settings and compatible
+exported-library routes can still be retained; they are historical
+compatibility paths, not the identity of the embedded engine. The external
+RetroArch app has not been offered as a new per-game choice since Build 440.
