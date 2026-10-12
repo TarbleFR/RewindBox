@@ -1151,6 +1151,7 @@ BUILD447_BOOKS_DELTA = {
     'test/library_reader_toolbar_test.dart',
     'test/library_reading_store_bookmarks_test.dart',
     'test/library_reflow_paginator_test.dart',
+    'test/library_ui_details_refresh_test.dart',
     'test/library_ui_hub_favorites_test.dart',
     'test/library_ui_hub_test.dart',
     'test/library_ui_local_view_test.dart',

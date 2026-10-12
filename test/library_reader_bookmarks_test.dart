@@ -665,6 +665,76 @@ void main() {
       await closeAll(tester, store);
     });
 
+    // Review of the books chantier (probe A): without the add / remove row
+    // (the end card of a CBZ or an online chapter, EPUB/TXT while it lays
+    // out), deleting the last bookmark threw: the focus was clamped to an
+    // empty range (0..-1).
+    testWidgets('without the add / remove row, the last bookmark deleted '
+        'leaves the empty state', (tester) async {
+      useSurface(tester, size: const Size(400, 800));
+      final (store, _) = await createStore(tester);
+      plainTurns(store);
+      const key = 'local:sheet-end';
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(progressKey: key, pagesPerChapter: 3),
+          store: store,
+        ),
+      );
+      final state = pageState(tester);
+      // Pages 1 and 2 marked, then past the last page: the end card.
+      state.gamepadBindings.y!();
+      await tester.pump();
+      state.gamepadBindings.down!();
+      await frames(tester);
+      state.gamepadBindings.y!();
+      await tester.pump();
+      expect(
+        store.bookmarksFor(key).map((bookmark) => bookmark.location),
+        <String>['page:0', 'page:1'],
+      );
+      for (var i = 0; i < 2; i++) {
+        state.gamepadBindings.down!();
+        await frames(tester);
+      }
+      expect(state.atEndCard, isTrue);
+
+      await openBookmarks(tester);
+      expect(find.text(en('addBookmark')), findsNothing);
+      expect(find.text(en('removeBookmark')), findsNothing);
+      // X on the second row, then the last one deleted with its button.
+      sheetBindings(tester).down!();
+      await tester.pump();
+      sheetBindings(tester).x!();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      final first = store.bookmarksFor(key).single;
+      expect(first.location, 'page:0');
+      await tester.tap(
+        find.descendant(
+          of: bookmarkRow(first),
+          matching: find.byTooltip(en('removeBookmark')),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(store.bookmarksFor(key), isEmpty);
+      expect(find.text(en('noBookmarks')), findsOneWidget);
+      // Nothing left to move to or delete; B still closes the sheet.
+      sheetBindings(tester).down!();
+      sheetBindings(tester).up!();
+      sheetBindings(tester).x!();
+      sheetBindings(tester).select!();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LibraryReaderBookmarksSheet), findsOneWidget);
+      sheetBindings(tester).back!();
+      await sheetClosed(tester);
+      expect(find.byType(LibraryReaderBookmarksSheet), findsNothing);
+      await closeAll(tester, store);
+    });
+
     testWidgets('controller: Y toggles, A opens, X deletes, B closes', (
       tester,
     ) async {

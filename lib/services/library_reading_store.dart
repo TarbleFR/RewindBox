@@ -806,23 +806,38 @@ class LibraryReaderBookSettings {
 }
 
 /// Reading progress, favourites, chapter marks, bookmarks, per-title
-/// navigation settings and reader settings of the Library, persisted in
-/// `Application Support/Library/reading-state.json` (format version 1; keys
-/// added later are optional, and keys this version does not know are
-/// ignored when reading).
+/// navigation settings and reader settings of the Library, persisted in two
+/// files of `Application Support/Library` (format version 1 each):
+///
+/// * [fileName] (`reading-state.json`): progress, chapter marks,
+///   favourites, the reader settings and eviction counts of Build 446,
+///   exactly in its layout;
+/// * [extraFileName] (`reading-state-extra.json`): what Build 447 added
+///   (bookmarks, per-title navigation settings, the reader settings added
+///   then and their eviction count). Builds before 447 rewrite [fileName]
+///   with the keys they know and never open this file: going back to one
+///   of them loses none of it, and it is all there again on the next 447
+///   load (downgrade safety).
+///
+/// Keys and entry fields this version does not know (written by a later
+/// build) are kept as read and written back unchanged with the entries
+/// they belong to; they leave the file with their entry.
 ///
 /// Changes apply in memory immediately (listeners are notified) and are
 /// written after [saveDelay] of inactivity (at most [maxSaveDelay] after the
-/// first pending change) with an atomic replace. Call [flush] when the app
-/// goes to the background. A missing file starts empty; an unreadable or
-/// corrupt file is kept as `reading-state.json.corrupt` and the store starts
-/// empty.
+/// first pending change) with an atomic replace of each file. Call [flush]
+/// when the app goes to the background. A missing file starts empty; a
+/// file with invalid content is kept as `<file>.corrupt` and its part of
+/// the state starts empty; a file that cannot be read is never replaced
+/// (the store works in memory and reads both files again before each
+/// write).
 ///
 /// Changes made before [load] completes are applied on top of the loaded
-/// data. Nothing is written before the file has been read, so an early
+/// data. Nothing is written before the files have been read, so an early
 /// change can never replace the user's saved state; a reading position
 /// saved meanwhile only replaces an older saved one that is not as far
-/// along ([saveProgress]).
+/// along ([saveProgress]), and a settings change replaces only the values
+/// it changed ([updateSettings], [updateBookSettings]).
 ///
 /// Entries are keyed by [localKey] / [onlineKey]; the source's add-on id is
 /// not part of the key, so deactivating or removing a source never touches
@@ -842,11 +857,17 @@ class LibraryReadingStore extends ChangeNotifier {
        _coverPinner = coverPinner;
 
   static const String fileName = 'reading-state.json';
+
+  /// The state added by Build 447, next to [fileName] (see the class
+  /// documentation).
+  static const String extraFileName = 'reading-state-extra.json';
   static const String corruptSuffix = '.corrupt';
 
-  /// Written in the file, never raised for additive keys (`bookmarks` and
-  /// `bookSettings` came in Build 447 under version 1).
+  /// Written in [fileName], never raised for additive keys.
   static const int _formatVersion = 1;
+
+  /// Written in [extraFileName], never raised for additive keys.
+  static const int _extraFormatVersion = 1;
 
   /// [addBookmark] refuses a title's bookmark beyond this count.
   static const int maxBookmarksPerTitle = 500;
@@ -923,11 +944,19 @@ class LibraryReadingStore extends ChangeNotifier {
   int _evictedMarkTitles = 0;
   int _evictedBookSettingsTitles = 0;
 
+  /// What the files hold that this version does not know, written back
+  /// with the entries it belongs to.
+  _UnknownFields _unknown = _UnknownFields();
+
   bool _loaded = false;
 
-  /// The state file exists but could not be read (I/O error, not bad
-  /// content). It is left untouched and read again before each write.
+  /// A state file exists but could not be read (I/O error, not bad
+  /// content). Both files are left untouched and read again before each
+  /// write.
   bool _readFailed = false;
+
+  /// The state file that could not be read last (diagnostics).
+  File? _unreadableFile;
   Future<void>? _loading;
 
   /// Changes recorded until the state file has been read, replayed on the
@@ -943,6 +972,7 @@ class LibraryReadingStore extends ChangeNotifier {
   bool _dirty = false;
   Future<void>? _writing;
   File? _file;
+  File? _extraFile;
   bool _disposed = false;
 
   /// A notification waits for the end of the current frame ([_notify]).
@@ -952,7 +982,7 @@ class LibraryReadingStore extends ChangeNotifier {
   /// with the next change or [flush]).
   Object? lastSaveError;
 
-  /// Size in bytes of the state file when last read or written.
+  /// Size in bytes of the two state files when last read or written.
   int _stateBytes = 0;
   bool _lastWriteEncodedInBackground = false;
 
@@ -975,8 +1005,8 @@ class LibraryReadingStore extends ChangeNotifier {
   /// it, for diagnostics).
   int get evictedBookSettingsTitles => _evictedBookSettingsTitles;
 
-  /// True when the state file exists but could not be read. The store then
-  /// works in memory, never replaces the file, and reads it again before
+  /// True when a state file exists but could not be read. The store then
+  /// works in memory, replaces neither file, and reads them again before
   /// each write; once that succeeds, the changes made meanwhile are applied
   /// on top of the saved data.
   bool get loadFailed => _readFailed;
@@ -1023,6 +1053,7 @@ class LibraryReadingStore extends ChangeNotifier {
     if (_complete && !_progress.containsKey(key)) return;
     _change(() {
       _progress.remove(key);
+      _unknown.progress.remove(key);
       // An explicit removal: later replayed saves start from nothing.
       _savedProgress?.remove(key);
     });
@@ -1045,14 +1076,17 @@ class LibraryReadingStore extends ChangeNotifier {
       return;
     }
     _change(() {
+      final unknown = _unknown;
       final entry = _progress[from];
       if (entry != null && !_progress.containsKey(to)) {
         _progress.remove(from);
         _progress[to] = _rekeyed(entry, to);
+        _UnknownFields.move(unknown.progress, from, to);
       }
       final marks = _marks[from];
       if (marks != null && !_marks.containsKey(to)) {
         _marks[to] = _marks.remove(from)!;
+        _UnknownFields.move(unknown.marks, from, to);
       }
       final bookmarks = _bookmarks[from];
       if (bookmarks != null && !_bookmarks.containsKey(to)) {
@@ -1060,10 +1094,12 @@ class LibraryReadingStore extends ChangeNotifier {
         _bookmarks[to] = List<LibraryBookmark>.unmodifiable(
           bookmarks.map((bookmark) => _rekeyedBookmark(bookmark, to)),
         );
+        _UnknownFields.move(unknown.bookmarks, from, to);
       }
       final book = _bookSettings[from];
       if (book != null && !_bookSettings.containsKey(to)) {
         _bookSettings[to] = _bookSettings.remove(from)!;
+        _UnknownFields.move(unknown.bookSettings, from, to);
       }
       // While replaying: the saved entry now lives under [to], so a blind
       // save of [to] is compared with it.
@@ -1212,6 +1248,7 @@ class LibraryReadingStore extends ChangeNotifier {
     if (_complete && !_marks.containsKey(mangaKey)) return;
     _change(() {
       _marks.remove(mangaKey);
+      _unknown.marks.remove(mangaKey);
       _savedMarks?.remove(mangaKey);
     });
   }
@@ -1259,7 +1296,10 @@ class LibraryReadingStore extends ChangeNotifier {
   Future<void> removeFavorite(String key) async {
     final removed = _favorites[key];
     if (removed == null && _complete) return;
-    _change(() => _favorites.remove(key));
+    _change(() {
+      _favorites.remove(key);
+      _unknown.favorites.remove(key);
+    });
     // Before load the cover is unknown; restoring pins after load only pins
     // covers of remaining favourites.
     final cover = removed?.coverUrl;
@@ -1336,6 +1376,9 @@ class LibraryReadingStore extends ChangeNotifier {
       } else {
         _bookmarks[key] = List<LibraryBookmark>.unmodifiable(kept);
       }
+      final unknown = _unknown.bookmarks[key];
+      unknown?.remove(id);
+      if (unknown != null && unknown.isEmpty) _unknown.bookmarks.remove(key);
     });
   }
 
@@ -1370,11 +1413,24 @@ class LibraryReadingStore extends ChangeNotifier {
   LibraryReaderSettings get settings => _settings;
 
   /// Stores [settings] with numbers clamped to their ranges (the const
-  /// constructor cannot clamp).
+  /// constructor cannot clamp). Made before the files are read (before
+  /// [load], or while they cannot be read), the change is applied to the
+  /// saved settings once they are: only the values it changed replace
+  /// theirs.
   void updateSettings(LibraryReaderSettings settings) {
     final normalized = settings.copyWith();
     if (normalized == _settings) return;
-    _change(() => _settings = normalized);
+    final before = _settings.toJson();
+    final changed = <String, Object?>{
+      for (final entry in normalized.toJson().entries)
+        if (before[entry.key] != entry.value) entry.key: entry.value,
+    };
+    _change(
+      () => _settings = LibraryReaderSettings.fromJson(<String, Object?>{
+        ..._settings.toJson(),
+        ...changed,
+      }),
+    );
   }
 
   /// Navigation settings chosen for the title [key]; null when it follows
@@ -1386,25 +1442,61 @@ class LibraryReadingStore extends ChangeNotifier {
   /// remove the entry, like [clearBookSettings]; the same values as stored
   /// change nothing. Beyond [maxBookSettingsTitles] titles, the online
   /// titles changed the longest ago lose theirs.
+  ///
+  /// Made before the files are read (before [load], or while they cannot
+  /// be read), the change is applied to the title's saved settings once
+  /// they are: only the fields it set or cleared (compared with the
+  /// title's settings known then) replace theirs, the others stay.
   void updateBookSettings(String key, LibraryReaderBookSettings settings) {
     if (key.isEmpty) return;
     if (settings.isEmpty) {
       clearBookSettings(key);
       return;
     }
-    if (_bookSettings[key] == settings) return;
-    final stamped = settings.copyWith(updatedAt: _clock());
+    final current = _bookSettings[key];
+    if (current == settings) return;
+    final before = _bookSettingsFields(current);
+    final after = _bookSettingsFields(settings);
+    final changed = <String, Object?>{
+      for (final name in <String>{...before.keys, ...after.keys})
+        if (before[name] != after[name]) name: after[name],
+    };
+    final stamp = _clock();
     _change(() {
-      _bookSettings[key] = stamped;
+      final fields = _bookSettingsFields(_bookSettings[key]);
+      for (final entry in changed.entries) {
+        if (entry.value == null) {
+          fields.remove(entry.key);
+        } else {
+          fields[entry.key] = entry.value;
+        }
+      }
+      final merged = LibraryReaderBookSettings.fromJson(fields);
+      if (merged == null || merged.isEmpty) {
+        _bookSettings.remove(key);
+        _unknown.bookSettings.remove(key);
+        return;
+      }
+      _bookSettings[key] = merged.copyWith(updatedAt: stamp);
       _enforceBookSettingsLimit(keep: key);
     });
   }
+
+  /// The chosen fields of [settings] as JSON, without the date.
+  static Map<String, Object?> _bookSettingsFields(
+    LibraryReaderBookSettings? settings,
+  ) =>
+      (settings ?? const LibraryReaderBookSettings()).toJson()
+        ..remove('updatedAt');
 
   /// The title [key] follows the global settings again. Before [load] the
   /// removal is recorded and applied to the saved data.
   void clearBookSettings(String key) {
     if (_complete && !_bookSettings.containsKey(key)) return;
-    _change(() => _bookSettings.remove(key));
+    _change(() {
+      _bookSettings.remove(key);
+      _unknown.bookSettings.remove(key);
+    });
   }
 
   // ---------------------------------------------------------- persistence --
@@ -1508,13 +1600,12 @@ class LibraryReadingStore extends ChangeNotifier {
       _dirty = false;
       _firstPendingChange = null;
       try {
-        final bytes = await _encodeState();
+        final (main, extra) = await _encodeState();
         final file = await _stateFile();
         await file.parent.create(recursive: true);
-        final tmp = File('${file.path}.tmp');
-        await tmp.writeAsBytes(bytes, flush: true);
-        await tmp.rename(file.path);
-        _stateBytes = bytes.length;
+        await _replace(file, main);
+        await _replace(await _extraStateFile(), extra);
+        _stateBytes = main.length + extra.length;
         lastSaveError = null;
       } catch (error) {
         lastSaveError = error;
@@ -1524,13 +1615,22 @@ class LibraryReadingStore extends ChangeNotifier {
     }
   }
 
-  /// UTF-8 JSON of the current state. A state as large as
-  /// [_isolateEncodeThreshold] (when last read or written) is encoded in a
-  /// worker isolate: the store's collections are copied to it when it
-  /// starts, so later changes are not part of this write (they keep the
-  /// store dirty for the next one), and the bytes come back without a copy.
-  /// When the worker cannot run, the state is encoded here.
-  Future<Uint8List> _encodeState() async {
+  /// Replaces [file] with [bytes] atomically (a temporary file renamed over
+  /// it).
+  static Future<void> _replace(File file, Uint8List bytes) async {
+    final tmp = File('${file.path}.tmp');
+    await tmp.writeAsBytes(bytes, flush: true);
+    await tmp.rename(file.path);
+  }
+
+  /// UTF-8 JSON of the current state: [fileName], then [extraFileName]. A
+  /// state as large as [_isolateEncodeThreshold] (when last read or
+  /// written) is encoded in a worker isolate: the store's collections are
+  /// copied to it when it starts, so later changes are not part of this
+  /// write (they keep the store dirty for the next one), and the bytes come
+  /// back without a copy. When the worker cannot run, the state is encoded
+  /// here.
+  Future<(Uint8List, Uint8List)> _encodeState() async {
     _StateSnapshot snapshot() => _StateSnapshot(
       progress: _progress,
       marks: _marks,
@@ -1541,10 +1641,11 @@ class LibraryReadingStore extends ChangeNotifier {
       evictedProgress: _evictedProgress,
       evictedMarkTitles: _evictedMarkTitles,
       evictedBookSettingsTitles: _evictedBookSettingsTitles,
+      unknown: _unknown,
     );
     _lastWriteEncodedInBackground = false;
     if (_stateBytes < _isolateEncodeThreshold) return snapshot().encode();
-    final Uint8List bytes;
+    final (Uint8List, Uint8List) bytes;
     try {
       bytes = await _StateSnapshot.encodeInWorker(snapshot());
     } catch (_) {
@@ -1555,16 +1656,18 @@ class LibraryReadingStore extends ChangeNotifier {
     return bytes;
   }
 
-  Future<File> _stateFile() async {
-    final existing = _file;
-    if (existing != null) return existing;
-    final directory =
-        _directory ??
-        Directory(
-          p.join((await getApplicationSupportDirectory()).path, 'Library'),
-        );
-    return _file = File(p.join(directory.path, fileName));
-  }
+  Future<Directory> _stateDirectory() async =>
+      _directory ??
+      Directory(
+        p.join((await getApplicationSupportDirectory()).path, 'Library'),
+      );
+
+  Future<File> _stateFile() async =>
+      _file ??= File(p.join((await _stateDirectory()).path, fileName));
+
+  Future<File> _extraStateFile() async => _extraFile ??= File(
+    p.join((await _stateDirectory()).path, extraFileName),
+  );
 
   Future<void> _load() async {
     final data = await _readState();
@@ -1580,14 +1683,14 @@ class LibraryReadingStore extends ChangeNotifier {
     unawaited(_restorePins());
   }
 
-  /// Reads the state file again after an I/O failure. Returns false (and
-  /// leaves the file alone) while it still cannot be read.
+  /// Reads the state files again after an I/O failure. Returns false (and
+  /// leaves the files alone) while one still cannot be read.
   Future<bool> _retryRead() async {
     final data = await _readState();
     if (data == null) {
       lastSaveError = FileSystemException(
         'state file unreadable, not replaced',
-        _file?.path ?? fileName,
+        _unreadableFile?.path ?? fileName,
       );
       return false;
     }
@@ -1611,6 +1714,7 @@ class LibraryReadingStore extends ChangeNotifier {
     _evictedProgress = data.evictedProgress;
     _evictedMarkTitles = data.evictedMarkTitles;
     _evictedBookSettingsTitles = data.evictedBookSettingsTitles;
+    _unknown = data.unknown;
     final pending = List<void Function()>.of(_preLoadChanges);
     if (!keepChanges) _preLoadChanges.clear();
     // The replayed changes were made without knowing the saved entries:
@@ -1643,33 +1747,69 @@ class LibraryReadingStore extends ChangeNotifier {
       !saved.updatedAt.isAfter(blind.updatedAt) &&
       blind.fraction > saved.fraction;
 
-  /// Reads the state file. A missing file gives empty data. A file with
-  /// invalid content is moved aside ([corruptSuffix]) and gives empty data.
-  /// Null means the file exists but could not be read, or could not be
-  /// moved aside: it must then not be replaced.
+  /// Reads both state files. A missing file gives empty data for its part.
+  /// A file with invalid content is moved aside ([corruptSuffix]) and gives
+  /// empty data for its part. Null means a file exists but could not be
+  /// read, or could not be moved aside: neither file must then be
+  /// replaced.
   Future<_StoreData?> _readState() async {
-    final File file;
+    final File main;
+    final File extra;
     try {
-      file = await _stateFile();
+      main = await _stateFile();
+      extra = await _extraStateFile();
     } catch (_) {
       // No storage location (no platform directory): nothing to protect.
       return _StoreData();
     }
+    _StoreData? mainData;
+    _StoreData? extraData;
+    final mainRead = await _readDocument(
+      main,
+      (json) => mainData = _StoreData.fromMain(json),
+    );
+    if (mainRead == null) {
+      _unreadableFile = main;
+      return null;
+    }
+    final extraRead = await _readDocument(
+      extra,
+      (json) => extraData = _StoreData.fromExtra(json),
+    );
+    if (extraRead == null) {
+      _unreadableFile = extra;
+      return null;
+    }
+    _stateBytes = mainRead + extraRead;
+    return _StoreData.combine(mainData, extraData);
+  }
+
+  /// Reads [file] into [read] and returns its size (0 when it is missing or
+  /// was moved aside as corrupt). Null when it exists but cannot be read,
+  /// or holds invalid content that could not be moved aside.
+  static Future<int?> _readDocument(
+    File file,
+    void Function(Map<Object?, Object?> json) read,
+  ) async {
     final List<int> bytes;
     try {
       if (await FileSystemEntity.type(file.path) ==
           FileSystemEntityType.notFound) {
-        return _StoreData();
+        return 0;
       }
       bytes = await file.readAsBytes();
     } catch (_) {
       return null;
     }
-    _stateBytes = bytes.length;
     try {
-      return _StoreData.fromJson(await _decodeState(bytes));
+      final json = await _decodeState(bytes);
+      if (json is! Map) {
+        throw const FormatException('reading state is not a JSON object');
+      }
+      read(json);
+      return bytes.length;
     } catch (_) {
-      return await _keepCorruptCopy(file) ? _StoreData() : null;
+      return await _keepCorruptCopy(file) ? 0 : null;
     }
   }
 
@@ -1780,6 +1920,7 @@ class LibraryReadingStore extends ChangeNotifier {
     if (dropped.isEmpty) return;
     for (final entry in dropped) {
       _progress.remove(entry.key);
+      _unknown.progress.remove(entry.key);
     }
     _evictedProgress += dropped.length;
     // Counts only: the keys name what the user reads.
@@ -1811,6 +1952,7 @@ class LibraryReadingStore extends ChangeNotifier {
     if (dropped.isEmpty) return;
     for (final key in dropped) {
       _marks.remove(key);
+      _unknown.marks.remove(key);
     }
     _evictedMarkTitles += dropped.length;
     _log.w(
@@ -1844,6 +1986,7 @@ class LibraryReadingStore extends ChangeNotifier {
     if (dropped.isEmpty) return;
     for (final key in dropped) {
       _bookSettings.remove(key);
+      _unknown.bookSettings.remove(key);
     }
     _evictedBookSettingsTitles += dropped.length;
     // Counts only: the keys name what the user reads.
@@ -1852,6 +1995,154 @@ class LibraryReadingStore extends ChangeNotifier {
       'titles dropped over the limit of $maxBookSettingsTitles; '
       '$_evictedBookSettingsTitles in total',
     );
+  }
+}
+
+/// Fields of the reader settings that Build 446 reads and writes: kept in
+/// [LibraryReadingStore.fileName]. The others ([LibraryReaderSettings]
+/// gained them in Build 447) live in [LibraryReadingStore.extraFileName].
+const Set<String> _mainSettingsFields = <String>{
+  'fontSize',
+  'lineHeight',
+  'fontFamily',
+  'theme',
+  'margin',
+  'justify',
+  'pageDirection',
+  'mangaMode',
+  'tapZones',
+  'keepScreenOn',
+  'allowRotation',
+};
+
+/// Top-level keys of each file this version reads.
+const Set<String> _mainKeys = <String>{
+  'version',
+  'progress',
+  'chapterMarks',
+  'favorites',
+  'settings',
+  'evictions',
+};
+const Set<String> _extraKeys = <String>{
+  'version',
+  'settings',
+  'bookmarks',
+  'bookSettings',
+  'evictions',
+};
+
+/// Fields of each entry this version writes: computed from complete
+/// entries, so that they always match `toJson`. The other fields of an
+/// entry read from a file are a later build's ([_UnknownFields]).
+final Set<String> _progressFields = LibraryReadingProgress(
+  key: 'k',
+  location: 'l',
+  fraction: 0,
+  pageIndex: 0,
+  pageCount: 1,
+  chapterId: 'c',
+  chapterTitle: 't',
+  title: 't',
+  subtitle: 's',
+  coverUrl: 'u',
+  coverHeaders: const <String, String>{'h': 'v'},
+).toJson().keys.toSet();
+final Set<String> _markFields = LibraryChapterMark(
+  read: true,
+  page: 0,
+  pageCount: 1,
+).toJson().keys.toSet();
+final Set<String> _favoriteFields = LibraryFavorite(
+  key: 'k',
+  sourceId: 's',
+  mangaId: 'm',
+  title: 't',
+  addonId: 'a',
+  coverUrl: 'u',
+  coverHeaders: const <String, String>{'h': 'v'},
+  mangaUrl: 'u',
+  language: 'l',
+  snapshot: const <String, Object?>{'s': 1},
+).toJson().keys.toSet();
+final Set<String> _bookmarkFields = LibraryBookmark(
+  id: 'i',
+  key: 'k',
+  location: 'l',
+  fraction: 0,
+  chapterId: 'c',
+  chapterTitle: 't',
+  pageIndex: 0,
+  label: 'l',
+  createdAt: DateTime.utc(2026),
+).toJson().keys.toSet();
+final Set<String> _bookSettingsFields = const LibraryReaderBookSettings(
+  turnStyle: LibraryPageTurnStyle.curl,
+  doublePage: LibraryDoublePageMode.auto,
+  firstPageAlone: true,
+  pageDirection: LibraryPageDirection.ltr,
+  mangaMode: LibraryMangaMode.auto,
+  pdfMode: LibraryPdfMode.pages,
+  textLayout: LibraryTextLayout.pages,
+).toJson().keys.toSet();
+final Set<String> _settingsFields = const LibraryReaderSettings()
+    .toJson()
+    .keys
+    .toSet();
+final Set<String> _extraSettingsFields = _settingsFields.difference(
+  _mainSettingsFields,
+);
+
+/// The keys of [json] (a JSON object) that are not in [known], with their
+/// values as read.
+Map<String, Object?> _unknownOf(
+  Map<Object?, Object?> json,
+  Set<String> known,
+) => <String, Object?>{
+  for (final entry in json.entries)
+    if (entry.key is String && !known.contains(entry.key))
+      entry.key as String: entry.value,
+};
+
+/// [fields] (written by this version), then the [unknown] ones read with
+/// them (they never share a name).
+Map<String, Object?> _withUnknown(
+  Map<String, Object?> fields,
+  Map<String, Object?>? unknown,
+) => unknown == null || unknown.isEmpty
+    ? fields
+    : <String, Object?>{...fields, ...unknown};
+
+/// What the state files hold that this version does not know: top-level
+/// keys, and fields of the settings, of the eviction counts and of each
+/// entry (by title key, chapter id and bookmark id), as read. They are
+/// written back unchanged, an entry's with that entry, and leave the files
+/// with their entry (removed, evicted) or move with it ([move]).
+class _UnknownFields {
+  _UnknownFields();
+
+  Map<String, Object?> main = <String, Object?>{};
+  Map<String, Object?> extra = <String, Object?>{};
+  Map<String, Object?> mainSettings = <String, Object?>{};
+  Map<String, Object?> extraSettings = <String, Object?>{};
+  Map<String, Object?> mainEvictions = <String, Object?>{};
+  Map<String, Object?> extraEvictions = <String, Object?>{};
+  final Map<String, Map<String, Object?>> progress =
+      <String, Map<String, Object?>>{};
+  final Map<String, Map<String, Map<String, Object?>>> marks =
+      <String, Map<String, Map<String, Object?>>>{};
+  final Map<String, Map<String, Object?>> favorites =
+      <String, Map<String, Object?>>{};
+  Map<String, Map<String, Map<String, Object?>>> bookmarks =
+      <String, Map<String, Map<String, Object?>>>{};
+  Map<String, Map<String, Object?>> bookSettings =
+      <String, Map<String, Object?>>{};
+
+  /// Moves the fields of the title [from] to [to] (`moveProgress`), unless
+  /// [to] has its own.
+  static void move<V>(Map<String, V> fields, String from, String to) {
+    final moved = fields.remove(from);
+    if (moved != null) fields.putIfAbsent(to, () => moved);
   }
 }
 
@@ -1869,6 +2160,7 @@ class _StateSnapshot {
     required this.evictedProgress,
     required this.evictedMarkTitles,
     required this.evictedBookSettingsTitles,
+    required this.unknown,
   });
 
   final Map<String, LibraryReadingProgress> progress;
@@ -1880,71 +2172,125 @@ class _StateSnapshot {
   final int evictedProgress;
   final int evictedMarkTitles;
   final int evictedBookSettingsTitles;
+  final _UnknownFields unknown;
 
   /// Encodes [snapshot] in a worker isolate. Static, so that the closure
   /// sent to the worker captures nothing but [snapshot]; the collections
   /// are copied when the worker starts.
-  static Future<Uint8List> encodeInWorker(_StateSnapshot snapshot) =>
-      Isolate.run(snapshot.encode, debugName: 'library-reading-state-encode');
+  static Future<(Uint8List, Uint8List)> encodeInWorker(
+    _StateSnapshot snapshot,
+  ) => Isolate.run(snapshot.encode, debugName: 'library-reading-state-encode');
 
-  Uint8List encode() => utf8.encode(jsonEncode(toJson()));
+  /// The main file, then the extra file.
+  (Uint8List, Uint8List) encode() => (
+    utf8.encode(jsonEncode(mainJson())),
+    utf8.encode(jsonEncode(extraJson())),
+  );
 
-  Map<String, Object?> toJson() => <String, Object?>{
-    'version': LibraryReadingStore._formatVersion,
-    'progress': <String, Object?>{
-      for (final entry in progress.entries) entry.key: entry.value.toJson(),
-    },
-    'chapterMarks': <String, Object?>{
-      for (final title in marks.entries)
-        if (title.value.isNotEmpty)
-          title.key: <String, Object?>{
-            for (final mark in title.value.entries)
-              mark.key: mark.value.toJson(),
-          },
-    },
-    'favorites': <String, Object?>{
-      for (final entry in favorites.entries) entry.key: entry.value.toJson(),
-    },
-    'bookmarks': <String, Object?>{
-      for (final title in bookmarks.entries)
-        if (title.value.isNotEmpty)
-          title.key: <Object?>[
-            for (final bookmark in title.value) bookmark.toJson(),
-          ],
-    },
-    'bookSettings': <String, Object?>{
-      for (final entry in bookSettings.entries)
-        if (!entry.value.isEmpty) entry.key: entry.value.toJson(),
-    },
-    'settings': settings.toJson(),
-    if (evictedProgress > 0 ||
-        evictedMarkTitles > 0 ||
-        evictedBookSettingsTitles > 0)
-      'evictions': <String, Object?>{
-        'progress': evictedProgress,
-        'chapterMarkTitles': evictedMarkTitles,
-        if (evictedBookSettingsTitles > 0)
-          'bookSettingsTitles': evictedBookSettingsTitles,
+  /// [LibraryReadingStore.fileName]: exactly the layout of Build 446 (and
+  /// what a later build added there).
+  Map<String, Object?> mainJson() {
+    final settingsJson = settings.toJson();
+    return <String, Object?>{
+      'version': LibraryReadingStore._formatVersion,
+      'progress': <String, Object?>{
+        for (final entry in progress.entries)
+          entry.key: _withUnknown(
+            entry.value.toJson(),
+            unknown.progress[entry.key],
+          ),
       },
-  };
+      'chapterMarks': <String, Object?>{
+        for (final title in marks.entries)
+          if (title.value.isNotEmpty)
+            title.key: <String, Object?>{
+              for (final mark in title.value.entries)
+                mark.key: _withUnknown(
+                  mark.value.toJson(),
+                  unknown.marks[title.key]?[mark.key],
+                ),
+            },
+      },
+      'favorites': <String, Object?>{
+        for (final entry in favorites.entries)
+          entry.key: _withUnknown(
+            entry.value.toJson(),
+            unknown.favorites[entry.key],
+          ),
+      },
+      'settings': _withUnknown(<String, Object?>{
+        for (final entry in settingsJson.entries)
+          if (_mainSettingsFields.contains(entry.key)) entry.key: entry.value,
+      }, unknown.mainSettings),
+      if (evictedProgress > 0 ||
+          evictedMarkTitles > 0 ||
+          unknown.mainEvictions.isNotEmpty)
+        'evictions': _withUnknown(<String, Object?>{
+          'progress': evictedProgress,
+          'chapterMarkTitles': evictedMarkTitles,
+        }, unknown.mainEvictions),
+      ...unknown.main,
+    };
+  }
+
+  /// [LibraryReadingStore.extraFileName]: what Build 447 added.
+  Map<String, Object?> extraJson() {
+    final settingsJson = settings.toJson();
+    return <String, Object?>{
+      'version': LibraryReadingStore._extraFormatVersion,
+      'settings': _withUnknown(<String, Object?>{
+        for (final entry in settingsJson.entries)
+          if (!_mainSettingsFields.contains(entry.key)) entry.key: entry.value,
+      }, unknown.extraSettings),
+      'bookmarks': <String, Object?>{
+        for (final title in bookmarks.entries)
+          if (title.value.isNotEmpty)
+            title.key: <Object?>[
+              for (final bookmark in title.value)
+                _withUnknown(
+                  bookmark.toJson(),
+                  unknown.bookmarks[title.key]?[bookmark.id],
+                ),
+            ],
+      },
+      'bookSettings': <String, Object?>{
+        for (final entry in bookSettings.entries)
+          if (!entry.value.isEmpty)
+            entry.key: _withUnknown(
+              entry.value.toJson(),
+              unknown.bookSettings[entry.key],
+            ),
+      },
+      if (evictedBookSettingsTitles > 0 || unknown.extraEvictions.isNotEmpty)
+        'evictions': _withUnknown(<String, Object?>{
+          if (evictedBookSettingsTitles > 0)
+            'bookSettingsTitles': evictedBookSettingsTitles,
+        }, unknown.extraEvictions),
+      ...unknown.extra,
+    };
+  }
 }
 
+/// The state read from the files. Invalid individual entries are skipped;
+/// keys and fields this version does not know are kept in [unknown]
+/// (`version` is written, never checked).
 class _StoreData {
   _StoreData();
 
-  /// Throws [FormatException] when [json] is not a state document. Invalid
-  /// individual entries are skipped, and top-level keys this version does
-  /// not know are ignored (`version` is written, never checked).
-  factory _StoreData.fromJson(Object? json) {
-    if (json is! Map) {
-      throw const FormatException('reading state is not a JSON object');
-    }
+  /// [LibraryReadingStore.fileName]: the Build 446 layout. Anything else
+  /// there (a later build's) is kept in [unknown] as read.
+  factory _StoreData.fromMain(Map<Object?, Object?> json) {
     final data = _StoreData();
+    final unknown = data.unknown;
+    unknown.main = _unknownOf(json, _mainKeys);
     final progress = json['progress'];
     if (progress is Map) {
       for (final value in progress.values) {
         final entry = LibraryReadingProgress.fromJson(value);
-        if (entry != null) data.progress[entry.key] = entry;
+        if (entry == null) continue;
+        data.progress[entry.key] = entry;
+        final fields = _unknownOf(value as Map, _progressFields);
+        if (fields.isNotEmpty) unknown.progress[entry.key] = fields;
       }
     }
     final marks = json['chapterMarks'];
@@ -1954,49 +2300,101 @@ class _StoreData {
         final chapters = title.value;
         if (key is! String || chapters is! Map) continue;
         final parsed = <String, LibraryChapterMark>{};
+        final unknownMarks = <String, Map<String, Object?>>{};
         for (final chapter in chapters.entries) {
+          final id = chapter.key;
           final mark = LibraryChapterMark.fromJson(chapter.value);
-          if (chapter.key is String && mark != null) {
-            parsed[chapter.key as String] = mark;
-          }
+          if (id is! String || mark == null) continue;
+          parsed[id] = mark;
+          final fields = _unknownOf(chapter.value as Map, _markFields);
+          if (fields.isNotEmpty) unknownMarks[id] = fields;
         }
-        if (parsed.isNotEmpty) data.marks[key] = parsed;
+        if (parsed.isEmpty) continue;
+        data.marks[key] = parsed;
+        if (unknownMarks.isNotEmpty) unknown.marks[key] = unknownMarks;
       }
     }
     final favorites = json['favorites'];
     if (favorites is Map) {
       for (final value in favorites.values) {
         final favorite = LibraryFavorite.fromJson(value);
-        if (favorite != null) data.favorites[favorite.key] = favorite;
+        if (favorite == null) continue;
+        data.favorites[favorite.key] = favorite;
+        final fields = _unknownOf(value as Map, _favoriteFields);
+        if (fields.isNotEmpty) unknown.favorites[favorite.key] = fields;
       }
     }
-    data._readBookmarks(json['bookmarks']);
-    final bookSettings = json['bookSettings'];
-    if (bookSettings is Map) {
-      for (final entry in bookSettings.entries) {
-        final key = entry.key;
-        if (key is! String || key.isEmpty) continue;
-        final settings = LibraryReaderBookSettings.fromJson(entry.value);
-        if (settings == null || settings.isEmpty) continue;
-        data.bookSettings[key] = settings;
+    final settings = json['settings'];
+    if (settings is Map) {
+      for (final entry in settings.entries) {
+        if (_mainSettingsFields.contains(entry.key)) {
+          data.settingsJson[entry.key] = entry.value;
+        }
       }
+      unknown.mainSettings = _unknownOf(settings, _mainSettingsFields);
     }
-    data.settings = LibraryReaderSettings.fromJson(json['settings']);
     final evictions = json['evictions'];
     if (evictions is Map) {
       final progressCount = evictions['progress'];
       final markCount = evictions['chapterMarkTitles'];
-      final bookSettingsCount = evictions['bookSettingsTitles'];
       if (progressCount is int && progressCount > 0) {
         data.evictedProgress = progressCount;
       }
       if (markCount is int && markCount > 0) {
         data.evictedMarkTitles = markCount;
       }
+      unknown.mainEvictions = _unknownOf(evictions, const <String>{
+        'progress',
+        'chapterMarkTitles',
+      });
+    }
+    return data;
+  }
+
+  /// [LibraryReadingStore.extraFileName].
+  factory _StoreData.fromExtra(Map<Object?, Object?> json) {
+    final data = _StoreData();
+    final unknown = data.unknown;
+    unknown.extra = _unknownOf(json, _extraKeys);
+    data._readBookmarks(json['bookmarks']);
+    data._readBookSettings(json['bookSettings']);
+    final settings = json['settings'];
+    if (settings is Map) {
+      for (final entry in settings.entries) {
+        if (_extraSettingsFields.contains(entry.key)) {
+          data.settingsJson[entry.key] = entry.value;
+        }
+      }
+      unknown.extraSettings = _unknownOf(settings, _extraSettingsFields);
+    }
+    final evictions = json['evictions'];
+    if (evictions is Map) {
+      final bookSettingsCount = evictions['bookSettingsTitles'];
       if (bookSettingsCount is int && bookSettingsCount > 0) {
         data.evictedBookSettingsTitles = bookSettingsCount;
       }
+      unknown.extraEvictions = _unknownOf(evictions, const <String>{
+        'bookSettingsTitles',
+      });
     }
+    return data;
+  }
+
+  /// The main file's data with the extra file's part. Either may be
+  /// missing (missing file, or corrupt and moved aside).
+  static _StoreData combine(_StoreData? main, _StoreData? extra) {
+    final data = main ?? _StoreData();
+    if (extra == null) return data;
+    data.bookmarks.addAll(extra.bookmarks);
+    data.bookSettings.addAll(extra.bookSettings);
+    data.settingsJson.addAll(extra.settingsJson);
+    data.evictedBookSettingsTitles = extra.evictedBookSettingsTitles;
+    final unknown = data.unknown;
+    unknown.extra = extra.unknown.extra;
+    unknown.extraSettings = extra.unknown.extraSettings;
+    unknown.extraEvictions = extra.unknown.extraEvictions;
+    unknown.bookmarks = extra.unknown.bookmarks;
+    unknown.bookSettings = extra.unknown.bookSettings;
     return data;
   }
 
@@ -2022,10 +2420,31 @@ class _StoreData {
           continue;
         }
         (read[key] ??= <LibraryBookmark>[]).add(bookmark);
+        final fields = _unknownOf(value as Map, _bookmarkFields);
+        if (fields.isNotEmpty) {
+          (unknown.bookmarks[key] ??=
+                  <String, Map<String, Object?>>{})[bookmark.id] =
+              fields;
+        }
       }
     }
     for (final entry in read.entries) {
       bookmarks[entry.key] = LibraryReadingStore._sortedBookmarks(entry.value);
+    }
+  }
+
+  /// `bookSettings: {<key>: {field: value, ...}}`; an invalid or empty
+  /// entry is skipped.
+  void _readBookSettings(Object? json) {
+    if (json is! Map) return;
+    for (final entry in json.entries) {
+      final key = entry.key;
+      if (key is! String || key.isEmpty) continue;
+      final settings = LibraryReaderBookSettings.fromJson(entry.value);
+      if (settings == null || settings.isEmpty) continue;
+      bookSettings[key] = settings;
+      final fields = _unknownOf(entry.value as Map, _bookSettingsFields);
+      if (fields.isNotEmpty) unknown.bookSettings[key] = fields;
     }
   }
 
@@ -2038,8 +2457,15 @@ class _StoreData {
       <String, List<LibraryBookmark>>{};
   final Map<String, LibraryReaderBookSettings> bookSettings =
       <String, LibraryReaderBookSettings>{};
-  LibraryReaderSettings settings = const LibraryReaderSettings();
+
+  /// Fields of the reader settings read: the main file's
+  /// [_mainSettingsFields], the extra file's others.
+  final Map<Object?, Object?> settingsJson = <Object?, Object?>{};
+
+  LibraryReaderSettings get settings =>
+      LibraryReaderSettings.fromJson(settingsJson);
   int evictedProgress = 0;
   int evictedMarkTitles = 0;
   int evictedBookSettingsTitles = 0;
+  final _UnknownFields unknown = _UnknownFields();
 }

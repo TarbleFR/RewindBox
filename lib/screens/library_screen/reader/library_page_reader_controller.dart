@@ -22,7 +22,11 @@ enum LibraryPageReaderMode { paged, vertical }
 /// Progress is written to [store] debounced (and at once by [saveNow], on
 /// chapter changes and on [dispose]); reaching the last page of an online
 /// chapter marks it read (in a two-page spread, showing it beside the page
-/// before does).
+/// before does). The page saved, for the position and the chapter mark, is
+/// [page], or the last page once it is on screen: a spread is recorded
+/// under its first page, and a chapter finished on its last spread must be
+/// saved as finished (it starts again at its beginning, and the title page
+/// continues with the next chapter), as a single last page is.
 ///
 /// The reading layout follows [effective]: session override > settings of
 /// the title (`LibraryReadingStore.bookSettingsFor`) > content hint >
@@ -312,6 +316,10 @@ class LibraryPageReaderController extends ChangeNotifier {
     return page.clamp(0, count - 1);
   }
 
+  /// The page saved for the position and the chapter mark (see the class
+  /// documentation).
+  int get _savedPage => lastPageShown ? pageCount - 1 : _page;
+
   void _pageShown() {
     if (_finished) return;
     _dirty = true;
@@ -322,7 +330,7 @@ class LibraryPageReaderController extends ChangeNotifier {
         content.progressKey,
         chapter.id,
         read: true,
-        page: _page,
+        page: _savedPage,
         pageCount: pageCount,
       );
     }
@@ -350,12 +358,13 @@ class LibraryPageReaderController extends ChangeNotifier {
     if (!_dirty || _source == null) return;
     _dirty = false;
     final tracks = content.tracksChapters;
+    final page = _savedPage;
     store.saveProgress(
       LibraryReadingProgress(
         key: content.progressKey,
-        location: LibraryReadingProgress.pageLocation(_page),
+        location: LibraryReadingProgress.pageLocation(page),
         fraction: fraction,
-        pageIndex: _page,
+        pageIndex: page,
         pageCount: pageCount,
         chapterId: tracks ? chapter.id : null,
         chapterTitle: tracks && chapter.title.isNotEmpty ? chapter.title : null,
@@ -369,7 +378,7 @@ class LibraryPageReaderController extends ChangeNotifier {
       store.markChapter(
         content.progressKey,
         chapter.id,
-        page: _page,
+        page: page,
         pageCount: pageCount,
       );
     }

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/library_reader_locale.dart';
 import 'package:neostation/screens/library_screen/library_pdf_reader_screen.dart';
 import 'package:neostation/screens/library_screen/reader/library_book_reader_screen.dart';
+import 'package:neostation/screens/library_screen/reader/library_page_curl.dart';
 import 'package:neostation/screens/library_screen/reader/library_page_reader_controller.dart';
 import 'package:neostation/screens/library_screen/reader/library_page_reader_screen.dart';
 import 'package:neostation/screens/library_screen/reader/library_page_source.dart';
@@ -26,6 +27,10 @@ import 'package:neostation/services/library_reading_store.dart';
 import 'package:neostation/services/library_text_document.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import 'library_reader_book_pages_test.dart'
+    as pages
+    show closePages, settlePages, textReader, turned;
+import 'library_reader_pdf_modes_test.dart' as pdf show FakeOpener, rendered;
 import 'library_reader_test_support.dart';
 
 String tr(String language, String key) =>
@@ -1180,6 +1185,41 @@ void main() {
       await closeAll(tester, third);
       semantics.dispose();
     });
+
+    // Review of the books chantier: the pages layout, the default since
+    // Build 447 (the tests above cover the continuous scroll of 440).
+    testWidgets('exactly one Back in the pages layout, the default, while '
+        'reading and turning; the floating Back leaves', (tester) async {
+      LibraryPageCurlProgram.loader = (_) => throw StateError('painter');
+      addTearDown(LibraryPageCurlProgram.resetForTesting);
+      final semantics = tester.ensureSemantics();
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      await pumpReader(
+        tester,
+        pages.textReader(store, progressKey: 'local:back-pages'),
+      );
+      await pages.settlePages(tester);
+      final state = bookState(tester);
+      expect(state.textLayout, LibraryTextLayout.pages);
+      expect(state.chromeVisible, isTrue);
+      expectOneBack(tester, barsVisible: true);
+      await waitForBarsToHide(tester);
+      expect(state.chromeVisible, isFalse);
+      expectOneBack(tester, barsVisible: false);
+      // A page turned (page curl) with the bars hidden.
+      state.gamepadBindings.down!();
+      await pages.turned(tester);
+      expect(state.shownSpread!.first.indexInChapter, 1);
+      expect(state.chromeVisible, isFalse);
+      expectOneBack(tester, barsVisible: false);
+      await tester.tap(floatingBack());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(LibraryBookReaderScreen), findsNothing);
+      await pages.closePages(tester, store);
+      semantics.dispose();
+    });
   });
 
   group('PDF reader', () {
@@ -1267,6 +1307,53 @@ void main() {
       expectOneBack(tester, barsVisible: true);
       await waitForBarsToHide(tester);
       expectOneBack(tester, barsVisible: false);
+      await closeAll(tester, store);
+      semantics.dispose();
+    });
+
+    // Review of the books chantier: the pages mode, the default since
+    // Build 447 (the tests above cover the scroll viewer of 440).
+    testWidgets('exactly one Back in the pages mode, the default, while '
+        'reading and turning; the floating Back leaves', (tester) async {
+      LibraryPageCurlProgram.loader = (_) => throw StateError('painter');
+      addTearDown(LibraryPageCurlProgram.resetForTesting);
+      final semantics = tester.ensureSemantics();
+      mockPathProvider();
+      usePhone(tester);
+      final (store, _) = await createStore(tester);
+      const key = 'local:pdf-pages-back';
+      await pumpReader(
+        tester,
+        LibraryPdfReaderScreen(
+          filePath: '${Directory.systemTemp.path}/missing-back-pages.pdf',
+          title: 'Manual',
+          progressKey: key,
+          store: store,
+          openDocument: pdf.FakeOpener().call,
+        ),
+      );
+      await pdf.rendered(tester);
+      final reader = tester.state<LibraryPdfReaderScreenState>(
+        find.byType(LibraryPdfReaderScreen),
+      );
+      expect(reader.mode, LibraryPdfMode.pages);
+      expect(reader.chromeVisible, isTrue);
+      expectOneBack(tester, barsVisible: true);
+      await waitForBarsToHide(tester);
+      expect(reader.chromeVisible, isFalse);
+      expectOneBack(tester, barsVisible: false);
+      // A page turned (page curl) with the bars hidden.
+      reader.gamepadBindings.right!();
+      await frames(tester);
+      await pdf.rendered(tester);
+      expect(reader.pageNumber, 2);
+      expect(reader.chromeVisible, isFalse);
+      expectOneBack(tester, barsVisible: false);
+      await tester.tap(floatingBack());
+      expect(store.progressFor(key)!.pageIndex, 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(LibraryPdfReaderScreen), findsNothing);
       await closeAll(tester, store);
       semantics.dispose();
     });

@@ -157,11 +157,16 @@ typedef LibraryReaderSettingsBuilder =
 
 /// Shows the settings sheet over a reader. Every change is stored at once
 /// (and applied live by the reader, which listens to the store).
+///
+/// The rows are built again whenever the store changes, and whenever
+/// [sessionChanges] notifies (choices a reader keeps for its session only,
+/// outside the store).
 Future<void> showLibraryReaderSettingsSheet(
   BuildContext context, {
   required LibraryReadingStore store,
   required LibraryReaderPalette palette,
   required LibraryReaderSettingsBuilder builder,
+  Listenable? sessionChanges,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -181,6 +186,7 @@ Future<void> showLibraryReaderSettingsSheet(
         store: store,
         palette: palette,
         builder: builder,
+        sessionChanges: sessionChanges,
       ),
     ),
   );
@@ -191,11 +197,13 @@ class _LibraryReaderSettingsSheet extends StatefulWidget {
     required this.store,
     required this.palette,
     required this.builder,
+    this.sessionChanges,
   });
 
   final LibraryReadingStore store;
   final LibraryReaderPalette palette;
   final LibraryReaderSettingsBuilder builder;
+  final Listenable? sessionChanges;
 
   @override
   State<_LibraryReaderSettingsSheet> createState() =>
@@ -219,11 +227,13 @@ class _LibraryReaderSettingsSheetState
     super.initState();
     _settings = widget.store.settings;
     widget.store.addListener(_onStore);
+    widget.sessionChanges?.addListener(_onStore);
   }
 
   @override
   void dispose() {
     widget.store.removeListener(_onStore);
+    widget.sessionChanges?.removeListener(_onStore);
     _scroll.dispose();
     super.dispose();
   }
@@ -975,8 +985,9 @@ class LibraryReaderBookSettingsEditor {
   /// own, where the content decides before the general settings: the
   /// layout hint of the page reader in automatic mode
   /// (`LibraryReaderEffectiveSettings.hintedDirection`), the book's own
-  /// direction for EPUB and TXT (the general direction never applies to
-  /// them). Null when the general direction applies (PDF, no hint).
+  /// direction for EPUB and TXT, left to right for PDFs (the general
+  /// direction never applies to them). Null when the general direction
+  /// applies (the page reader without a hint).
   final LibraryPageDirection? hintedDirection;
 
   /// Whether the choices are kept for the title (it has a key).
@@ -1213,13 +1224,17 @@ abstract final class LibraryReaderCommonSettings {
   }
 
   /// Page direction (kept per title); [value] is the direction in use,
-  /// which the content's hint may decide.
+  /// which the content's hint may decide. A reader whose titles never
+  /// follow the general direction (PDF) passes [withoutKey]: without a
+  /// title key the choice then lasts for its session instead of being
+  /// written globally.
   static LibraryReaderChoiceSetting<LibraryPageDirection> pageDirection(
     BuildContext context,
     LibraryReaderSettings settings,
     void Function(LibraryReaderSettings) update,
     LibraryReaderBookSettingsEditor editor, {
     required LibraryPageDirection value,
+    ValueChanged<LibraryPageDirection>? withoutKey,
   }) {
     String t(String key) => LibraryReaderLocale.text(context, key);
     return LibraryReaderChoiceSetting<LibraryPageDirection>(
@@ -1229,13 +1244,19 @@ abstract final class LibraryReaderCommonSettings {
         LibraryReaderChoice(LibraryPageDirection.ltr, t('directionLtr')),
         LibraryReaderChoice(LibraryPageDirection.rtl, t('directionRtl')),
       ],
-      onChanged: (direction) => write(
-        editor,
-        settings,
-        update,
-        book: (book) => book.copyWith(pageDirection: direction),
-        global: (global) => global.copyWith(pageDirection: direction),
-      ),
+      onChanged: (direction) {
+        if (!editor.perBook && withoutKey != null) {
+          withoutKey(direction);
+          return;
+        }
+        write(
+          editor,
+          settings,
+          update,
+          book: (book) => book.copyWith(pageDirection: direction),
+          global: (global) => global.copyWith(pageDirection: direction),
+        );
+      },
     );
   }
 

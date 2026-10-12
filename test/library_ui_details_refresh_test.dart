@@ -6,15 +6,20 @@
 // resume button never replaces a saved chapter missing from an incomplete
 // list. Also the resume target after a finished chapter.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/screens/library_screen/library_manga_details_screen.dart';
 import 'package:neostation/screens/library_screen/library_reader_launcher.dart';
+import 'package:neostation/screens/library_screen/reader/library_page_reader_content.dart';
+import 'package:neostation/screens/library_screen/reader/library_page_reader_controller.dart';
 import 'package:neostation/services/library_aidoku_native_service.dart';
 import 'package:neostation/services/library_http.dart';
 import 'package:neostation/services/library_reading_store.dart';
 
 import 'library_aidoku_test_support.dart';
+import 'library_reader_test_support.dart' show FakePageContent;
 import 'library_ui_sources_harness.dart';
 
 const String _lelscan = 'https://www.lelscanfr.com';
@@ -60,6 +65,19 @@ class _Site {
     }
     return fake.call(request, mode: mode, cancel: cancel);
   }
+}
+
+/// The 40 chapters of [testDetails] ('1' to '40', five pages each) in the
+/// page reader.
+class _TitleInReader extends FakePageContent {
+  _TitleInReader(String key, {required super.initialChapterIndex})
+    : super(progressKey: key, chapterCount: 40, tracksChapters: true);
+
+  @override
+  List<LibraryPageReaderChapter> get chapters => <LibraryPageReaderChapter>[
+    for (var number = 1; number <= 40; number++)
+      LibraryPageReaderChapter(id: '$number', number: number.toDouble()),
+  ];
 }
 
 class _Opened {
@@ -358,6 +376,40 @@ void main() {
       await tester.pump();
       expect(opened.sessions.single.chapter.id, '10');
       expect(opened.sessions.single.startPage, 5);
+    });
+
+    // Review of the books chantier (probe B3b): the page reader saved a
+    // chapter finished on its last two-page spread as that spread's first
+    // page, and "Continue" reopened the finished chapter at that spread.
+    testWidgets('a chapter finished by the reader on its last two-page '
+        'spread continues with the next chapter', (tester) async {
+      final store = MemoryReadingStore();
+      // Chapter 12 read to its last spread (pages 4 and 5 of 5).
+      final reader = LibraryPageReaderController(
+        content: _TitleInReader(key, initialChapterIndex: 11),
+        store: store,
+      );
+      unawaited(reader.start());
+      for (
+        var i = 0;
+        i < 20 && reader.status != LibraryPageReaderStatus.ready;
+        i++
+      ) {
+        await tester.pump();
+      }
+      expect(reader.status, LibraryPageReaderStatus.ready);
+      expect(reader.chapter.id, '12');
+      reader.setPage(3, through: 4);
+      reader.saveNow();
+      reader.dispose();
+      expect(store.chapterMark(key, '12')!.read, isTrue);
+
+      final opened = await show(tester, store);
+      expect(_resumeLabel(tester), 'Continue – chapter 13, page 1');
+      await tester.tap(_resumeButton);
+      await tester.pump();
+      expect(opened.sessions.single.chapter.id, '13');
+      expect(opened.sessions.single.startPage, isNull);
     });
 
     testWidgets('the newest chapter finished stays the resume target', (

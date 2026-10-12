@@ -451,5 +451,153 @@ void main() {
       expect(inSheet(find.text(en('resetBookSettings'))), findsNothing);
       await closeAll(tester, store);
     });
+
+    // Review of the books chantier (maintainer decision): a PDF never
+    // follows the general page direction (it came from the manga reader
+    // and never applied to PDFs before Build 447, see
+    // library_reader_pdf_modes_test.dart). The sheet still offers the
+    // direction, kept for the book.
+    testWidgets('the page direction is offered and kept for the book; the '
+        'general direction never applies', (tester) async {
+      mockPathProvider();
+      useSurface(tester, size: tall);
+      final (store, _) = await createStore(tester);
+      const key = 'local:pdf-direction';
+      store.updateSettings(
+        store.settings.copyWith(pageDirection: LibraryPageDirection.rtl),
+      );
+      await pumpReader(
+        tester,
+        LibraryPdfReaderScreen(
+          filePath: '/missing-direction.pdf',
+          title: 'Manual',
+          progressKey: key,
+          store: store,
+          openDocument: FakeOpener().call,
+        ),
+      );
+      await rendered(tester);
+      final reader = pdfState(tester);
+      bool reversed() => tester.widget<PageView>(find.byType(PageView)).reverse;
+      expect(reversed(), isFalse);
+      await openSettings(tester, reader.gamepadBindings.start!);
+      expect(inSheet(find.text(en('pageDirection'))), findsOneWidget);
+      expect(chipSelected(tester, 'directionLtr'), isTrue);
+
+      await tapChip(tester, 'directionRtl');
+      await rendered(tester);
+      expect(
+        store.bookSettingsFor(key)!.pageDirection,
+        LibraryPageDirection.rtl,
+      );
+      expect(chipSelected(tester, 'directionRtl'), isTrue);
+      expect(reversed(), isTrue);
+      await tapChip(tester, 'directionLtr');
+      await rendered(tester);
+      expect(
+        store.bookSettingsFor(key)!.pageDirection,
+        LibraryPageDirection.ltr,
+      );
+      expect(reversed(), isFalse);
+      // Back to the general settings: still left to right.
+      await tester.tap(inSheet(find.text(en('resetBookSettings'))));
+      await tester.pump();
+      await rendered(tester);
+      expect(store.bookSettingsFor(key), isNull);
+      expect(chipSelected(tester, 'directionLtr'), isTrue);
+      expect(reversed(), isFalse);
+      expect(store.settings.pageDirection, LibraryPageDirection.rtl);
+      await closeAll(tester, store);
+    });
+
+    testWidgets('Apply to all books from a PDF: its choices become the '
+        'general ones, a right to left direction stays with the PDF', (
+      tester,
+    ) async {
+      mockPathProvider();
+      useSurface(tester, size: tall);
+      final (store, _) = await createStore(tester);
+      const key = 'local:pdf-apply-direction';
+      store.updateBookSettings(
+        key,
+        const LibraryReaderBookSettings(
+          pageDirection: LibraryPageDirection.rtl,
+          turnStyle: LibraryPageTurnStyle.slide,
+        ),
+      );
+      await pumpReader(
+        tester,
+        LibraryPdfReaderScreen(
+          filePath: '/missing-apply-direction.pdf',
+          title: 'Manual',
+          progressKey: key,
+          store: store,
+          openDocument: FakeOpener().call,
+        ),
+      );
+      await rendered(tester);
+      final reader = pdfState(tester);
+      bool reversed() => tester.widget<PageView>(find.byType(PageView)).reverse;
+      expect(reversed(), isTrue);
+      await openSettings(tester, reader.gamepadBindings.start!);
+      await tester.tap(inSheet(find.text(en('applyNavigationToAllBooks'))));
+      await tester.pump();
+      await rendered(tester);
+      // The general direction of the other readers (CBZ, online chapters).
+      expect(store.settings.pageDirection, LibraryPageDirection.rtl);
+      expect(store.settings.turnStyle, LibraryPageTurnStyle.slide);
+      // Cleared, the PDF would read left to right: the direction stays.
+      expect(
+        store.bookSettingsFor(key),
+        const LibraryReaderBookSettings(
+          pageDirection: LibraryPageDirection.rtl,
+        ),
+      );
+      expect(reversed(), isTrue);
+      expect(
+        inSheet(find.text(en('navigationAppliedToAllBooks'))),
+        findsOneWidget,
+      );
+      expect(inSheet(find.text(en('applyNavigationToAllBooks'))), findsNothing);
+      await closeAll(tester, store);
+    });
+
+    testWidgets('without a progress key the direction lasts for the session '
+        'and the sheet shows it', (tester) async {
+      mockPathProvider();
+      useSurface(tester, size: tall);
+      final (store, _) = await createStore(tester);
+      LibraryPdfReaderScreen keyless() => LibraryPdfReaderScreen(
+        filePath: '/missing-keyless-direction.pdf',
+        title: 'Download',
+        store: store,
+        openDocument: FakeOpener().call,
+      );
+      await pumpReader(tester, keyless());
+      await rendered(tester);
+      final reader = pdfState(tester);
+      bool reversed() => tester.widget<PageView>(find.byType(PageView)).reverse;
+      expect(reversed(), isFalse);
+      await openSettings(tester, reader.gamepadBindings.start!);
+      await tapChip(tester, 'directionRtl');
+      await rendered(tester);
+      expect(reversed(), isTrue);
+      expect(chipSelected(tester, 'directionRtl'), isTrue);
+      expect(store.settings.pageDirection, LibraryPageDirection.ltr);
+      // The display mode, also kept for the session, shows at once too.
+      await tapChip(tester, 'pdfModeScroll');
+      expect(reader.mode, LibraryPdfMode.scroll);
+      expect(chipSelected(tester, 'pdfModeScroll'), isTrue);
+      expect(inSheet(find.text(en('turnStyle'))), findsNothing);
+      expect(store.settings.pdfMode, LibraryPdfMode.pages);
+      await closeAll(tester, store);
+
+      // Opened again: left to right, in pages.
+      await pumpReader(tester, keyless());
+      await rendered(tester);
+      expect(pdfState(tester).mode, LibraryPdfMode.pages);
+      expect(reversed(), isFalse);
+      await closeAll(tester, store);
+    });
   });
 }

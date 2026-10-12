@@ -139,6 +139,14 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   /// choice changes (the settings sheet, another reader).
   LibraryPdfMode? _sessionMode;
 
+  /// Direction chosen in the settings for this session, for a PDF without
+  /// a progress key (one with a key keeps it as its own).
+  LibraryPageDirection? _sessionDirection;
+
+  /// Notifies the settings sheet of the choices kept for this session only
+  /// (mode, direction), which the store does not see.
+  final ValueNotifier<int> _sessionChanges = ValueNotifier<int>(0);
+
   /// Mode on screen; null until the store is read.
   LibraryPdfMode? _mode;
   bool _reduceMotion = false;
@@ -286,6 +294,7 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
     _store.removeListener(_onStore);
     _chrome.dispose();
     _page.dispose();
+    _sessionChanges.dispose();
     _closeDocument();
     _trace.dispose();
     unawaited(_system.stop());
@@ -338,15 +347,20 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
   /// The book's choice, else the global one.
   LibraryPdfMode get _storedMode => _book?.pdfMode ?? _settings.pdfMode;
 
+  /// The settings in effect. A PDF never follows the general page
+  /// direction: in 440-446 that setting came from the manga reader and
+  /// never applied to PDFs, which now open in the pages mode (a reader who
+  /// chose right to left for manga would get every PDF mirrored). Its
+  /// direction is the one chosen for this session or this book, else left
+  /// to right, as EPUB and TXT books have their own.
   LibraryReaderEffectiveSettings get _effective =>
       LibraryReaderEffectiveSettings.resolve(
-        global: _settings,
+        global: _settings.copyWith(pageDirection: LibraryPageDirection.ltr),
         book: _book,
-        session: _reduceMotion
-            ? const LibraryReaderSessionOverrides(
-                turnStyle: LibraryPageTurnStyle.none,
-              )
-            : null,
+        session: LibraryReaderSessionOverrides(
+          pageDirection: _sessionDirection,
+          turnStyle: _reduceMotion ? LibraryPageTurnStyle.none : null,
+        ),
       );
 
   /// Switches between the pages and the scroll mode at the page being read
@@ -377,6 +391,8 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
       _store.updateBookSettings(key, book.copyWith(pdfMode: mode));
     }
     _syncMode();
+    // Without a key the store does not change: the sheet shows it anyway.
+    _sessionChanges.value++;
   }
 
   /// Shows the mode resolved from the session, the book and the global
@@ -809,11 +825,17 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
         context,
         store: _store,
         palette: _palette(context),
+        sessionChanges: _sessionChanges,
         builder: (context, settings, update) {
           String t(String key) => LibraryReaderLocale.text(context, key);
           final editor = LibraryReaderBookSettingsEditor(
             store: _store,
             key: widget.progressKey ?? '',
+            // Without a direction of its own a PDF reads left to right,
+            // never in the general direction ("Apply to all books" keeps
+            // a right to left choice for it, and still writes it as the
+            // general direction of the other readers).
+            hintedDirection: LibraryPageDirection.ltr,
           );
           final mode = _mode ?? _storedMode;
           final pages = mode == LibraryPdfMode.pages;
@@ -861,6 +883,13 @@ class LibraryPdfReaderScreenState extends State<LibraryPdfReaderScreen>
               update,
               editor,
               value: _effective.pageDirection,
+              // No title key: for this session (PDFs ignore the general
+              // direction).
+              withoutKey: (direction) {
+                if (!mounted) return;
+                setState(() => _sessionDirection = direction);
+                _sessionChanges.value++;
+              },
             ),
             ...LibraryReaderCommonSettings.navigationTail(
               context,

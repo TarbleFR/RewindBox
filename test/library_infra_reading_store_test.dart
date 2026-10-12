@@ -991,11 +991,15 @@ void main() {
     expect(store.settings.margin, LibraryReaderSettings.maxMargin);
   });
 
-  // Build 447 (docs/library-books-3d-plan.md § 3.7, § 3.9): additive keys
-  // under file version 1.
+  // Build 447 (docs/library-books-3d-plan.md § 3.7, § 3.9): what it adds is
+  // kept in reading-state-extra.json (version 1); reading-state.json keeps
+  // exactly the Build 446 layout, since Build 446 rewrites it with only its
+  // keys (downgrade safety, review of the books chantier; phase 1 added the
+  // new keys to reading-state.json).
 
   test('a state file written before Build 447 loads with the new defaults '
-      'and is written back under version 1', () async {
+      'and is written back in the Build 446 layout, the new settings going '
+      'to the extra file', () async {
     final mangaKey = LibraryReadingStore.onlineKey('fr.lelscanfr', 'maria');
     // Exactly what Build 446 wrote: no bookmarks, no title settings, none
     // of the navigation settings added since.
@@ -1064,22 +1068,55 @@ void main() {
     await store.flush();
     final written = jsonDecode(await stateFile().readAsString()) as Map;
     expect(written['version'], 1);
-    expect(written['bookmarks'], isEmpty);
-    expect(written['bookSettings'], isEmpty);
+    // Exactly the Build 446 keys, nothing added.
+    expect(written.keys.toSet(), <String>{
+      'version',
+      'progress',
+      'chapterMarks',
+      'favorites',
+      'settings',
+      'evictions',
+    });
     expect((written['progress'] as Map).keys, <String>[mangaKey, 'local:new']);
     expect(written['evictions'], <String, Object?>{
       'progress': 3,
       'chapterMarkTitles': 1,
     });
-    final savedSettings = written['settings'] as Map;
-    expect(savedSettings['turnStyle'], 'curl');
-    expect(savedSettings['doublePage'], 'auto');
-    expect(savedSettings['firstPageAlone'], isTrue);
-    expect(savedSettings['pdfMode'], 'pages');
-    expect(savedSettings['textLayout'], 'pages');
-    expect(savedSettings['toolbarMode'], 'auto');
-    expect(savedSettings['bookmarkRibbon'], isTrue);
-    expect(savedSettings['theme'], 'dark');
+    expect(written['settings'], <String, Object?>{
+      'fontSize': 20.0,
+      'lineHeight': 1.6,
+      'fontFamily': 'sans',
+      'theme': 'dark',
+      'margin': 24.0,
+      'justify': false,
+      'pageDirection': 'rtl',
+      'mangaMode': 'paged',
+      'tapZones': false,
+      'keepScreenOn': true,
+      'allowRotation': false,
+    });
+    // The defaults of the settings added by Build 447, no bookmark and no
+    // title setting: in reading-state-extra.json.
+    final extra =
+        jsonDecode(
+              await File(
+                p.join(tmp.path, LibraryReadingStore.extraFileName),
+              ).readAsString(),
+            )
+            as Map;
+    expect(extra['version'], 1);
+    expect(extra['bookmarks'], isEmpty);
+    expect(extra['bookSettings'], isEmpty);
+    expect(extra.containsKey('evictions'), isFalse);
+    expect(extra['settings'], <String, Object?>{
+      'turnStyle': 'curl',
+      'doublePage': 'auto',
+      'firstPageAlone': true,
+      'pdfMode': 'pages',
+      'textLayout': 'pages',
+      'toolbarMode': 'auto',
+      'bookmarkRibbon': true,
+    });
 
     final reopened = create();
     await reopened.load();
@@ -1142,12 +1179,32 @@ void main() {
     final reopened = create();
     await reopened.load();
     expect(reopened.settings, changed);
+    // Saved in reading-state-extra.json, never in reading-state.json (which
+    // Build 446 rewrites with only its keys).
+    final extraFile = File(p.join(tmp.path, LibraryReadingStore.extraFileName));
+    final main = jsonDecode(await stateFile().readAsString()) as Map;
+    final extra = jsonDecode(await extraFile.readAsString()) as Map;
+    expect(main['settings'] as Map, isNot(contains('turnStyle')));
+    expect(extra['settings'], <String, Object?>{
+      'turnStyle': 'none',
+      'doublePage': 'never',
+      'firstPageAlone': false,
+      'pdfMode': 'scroll',
+      'textLayout': 'scroll',
+      'toolbarMode': 'always',
+      'bookmarkRibbon': false,
+    });
 
     await stateFile().writeAsString(
       jsonEncode(<String, Object?>{
         'version': 1,
+        'settings': <String, Object?>{'fontSize': 19},
+      }),
+    );
+    await extraFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'version': 1,
         'settings': <String, Object?>{
-          'fontSize': 19,
           'turnStyle': 'warp',
           'doublePage': 2,
           'firstPageAlone': 'no',

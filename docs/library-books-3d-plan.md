@@ -693,3 +693,44 @@ ouverture lisent le drapeau d'iOS ; clic du stick droit relié (Ajuster, PDF en 
 littéral visible dans les fichiers des livres ; aucune mention du dossier `Library/Sources` ; `BUILD447_BOOKS_DELTA`
 déclare les entrées et les tests du chantier, sans entrée périmée. Les tests Dart restent pris par
 `flutter test test/library_*_test.dart`.
+
+### 7.12 Corrections de la revue contradictoire du chantier (12 octobre 2026)
+
+Revue en lecture seule de `72b96dd2` ; sept constats corrigés, chacun avec des tests qui échouent sans le correctif.
+
+1. **Chapitre fini sur une planche.** Un chapitre en ligne terminé sur une double page était enregistré à la première
+   page de la planche, donc rouvert sur sa fin et proposé par « Continuer » au lieu du chapitre suivant. Quand la
+   dernière planche est affichée, sa dernière page est désormais enregistrée (position et marque de chapitre), comme
+   pour le PDF ; trois tests de planches qui figeaient l'ancienne règle sont remplacés (commentés).
+2. **Retour à une build antérieure.** La 446 réécrit le fichier du magasin avec les seules clés qu'elle connaît : une
+   réinstallation de la 446 par-dessus la 447 (SideStore garde les données) aurait effacé marque-pages, réglages par
+   livre et les sept nouveaux réglages généraux. `reading-state.json` garde exactement la disposition de la 446 ; les
+   données de la 447 vont dans `Library/reading-state-extra.json` (`LibraryReadingStore.extraFileName`, version 1 :
+   `settings` {turnStyle, doublePage, firstPageAlone, pdfMode, textLayout, toolbarMode, bookmarkRibbon}, `bookmarks`,
+   `bookSettings`, `evictions.bookSettingsTitles`), écrit de façon atomique après le fichier principal, que les
+   builds antérieures ne touchent jamais. Les deux fichiers conservent ce qu'ils ne connaissent pas (clés de premier
+   niveau, champs des réglages, des retraits et de chaque entrée, déplacés avec l'entrée par `moveProgress`). Fichier
+   corrompu d'un côté : mis de côté en `.corrupt`, l'autre partie se charge ; illisible : aucun des deux n'est
+   remplacé. Aucune migration : la 447 n'avait jamais été livrée. Test de retour arrière : réécriture « 446 » du
+   fichier principal puis rechargement 447, sur deux cycles.
+3. **Dernier marque-page supprimé** depuis la feuille sans ligne d'ajout (carte de début ou de fin, remise en page) :
+   l'erreur `ArgumentError` du calcul du focus est corrigée.
+4. **Tour en cours en EPUB/TXT.** Fermer, quitter ou passer en arrière-plan pendant un pli ou un glissement
+   enregistre la page visée (`_turnTarget`, `_commitTurnInFlight()`), comme les lecteurs PDF et CBZ.
+5. **Sens des PDF.** Le sens global vient du lecteur de mangas (440–446) et ne s'appliquait pas aux PDF ; maintenant
+   que les PDF s'ouvrent en mode pages, il les aurait tous inversés. Les PDF n'écoutent plus que la session et leur
+   propre réglage ; sans clé de progression, le choix du sens dure le temps de la session. Depuis un PDF,
+   « Appliquer à tous les livres » rend ses choix généraux (son sens vaut alors pour les CBZ et chapitres en ligne),
+   le PDF gardant pour lui un sens droite-à-gauche, que le global ne lui appliquerait pas.
+6. **Réglages changés avant le chargement** (ou fichier illisible) : seuls les champs modifiés sont rejoués sur
+   l'entrée enregistrée, au lieu de la remplacer ; même correction pour les réglages généraux (`updateSettings`).
+7. **Un seul « Retour »** vérifié aussi sur les modes pages par défaut du PDF et d'EPUB/TXT (barres affichées,
+   masquées, après un pli, bouton flottant).
+
+Limites ajoutées au § 6 : les textures retenues pour la planche affichée et ses voisines sont à la résolution de
+l'écran et échappent aux plafonds de 5 textures et 48 Mio, soit environ 68 Mo par lecteur EPUB ou PDF ouvert sur un
+iPad 13 pouces (estimation, non mesurée ; environ 43 Mo sur un iPhone Pro Max en portrait) ; pour un CBZ, ces textures
+partagent la mémoire du cache d'images de Flutter et la trace les compte deux fois. Retour à la 446 : un livre local
+modifié sur place sous la 446 laisse ses marque-pages sous l'ancienne clé ; la 446 peut évincer la position d'un titre
+en ligne qui a des marque-pages ; un arrêt brutal entre les deux renommages peut laisser le fichier annexe en retard
+d'une écriture. Rien n'est vérifié sur iPhone ; le retour à la 446 est simulé, pas fait avec l'IPA sous SideStore.

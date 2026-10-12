@@ -12,9 +12,10 @@ import 'library_reader_sheets.dart';
 
 // Bookmarks of the Library readers (Build 447, docs/library-books-3d-plan.md
 // § 3.7). The model is plain data: LibraryReadingStore keeps the bookmarks
-// in `reading-state.json` (top-level key `bookmarks`, file version 1) and
-// may send them to a worker isolate to encode the state. The sheet, the
-// ribbon and the toggle shared by the three readers follow the model.
+// in `reading-state-extra.json` (top-level key `bookmarks`, file version 1;
+// never in `reading-state.json`, which earlier builds rewrite) and may send
+// them to a worker isolate to encode the state. The sheet, the ribbon and
+// the toggle shared by the three readers follow the model.
 
 /// A position marked by the user in a book or an online title.
 ///
@@ -387,7 +388,10 @@ class _LibraryReaderBookmarksSheetState
     if (!mounted || identical(bookmarks, _bookmarks)) return;
     setState(() {
       _bookmarks = bookmarks;
-      _focus = _focus.clamp(_hasToggle ? -1 : 0, _bookmarks.length - 1);
+      // As [_move]: without the add / remove row, the last bookmark removed
+      // leaves an empty range (0..-1).
+      final first = _hasToggle ? -1 : 0;
+      _focus = _focus.clamp(first, math.max(first, _bookmarks.length - 1));
     });
   }
 

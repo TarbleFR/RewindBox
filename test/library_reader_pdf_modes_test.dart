@@ -711,10 +711,20 @@ void main() {
       await closeReader(tester, store);
     });
 
-    testWidgets('right to left (store direction): the next page is on the '
-        'left, the left side turns forward', (tester) async {
+    // Replaces "right to left (store direction)" (maintainer decision,
+    // review of the books chantier): a PDF never follows the general page
+    // direction. In 440-446 that setting came from the CBZ/manga reader and
+    // never applied to PDFs; now that they open in the pages mode, a reader
+    // who chose right to left for manga would have had every PDF mirrored.
+    // Right to left is chosen for the PDF itself (the book's settings, or
+    // the session without a progress key), as EPUB and TXT books have their
+    // own direction.
+    testWidgets('right to left (the book\'s direction): the next page is on '
+        'the left, the left side turns forward; the general direction never '
+        'applies', (tester) async {
       useSurface(tester, size: landscape);
       final (store, _) = await createStore(tester);
+      // Right to left in general, as chosen for manga.
       updateGlobal(
         store,
         (s) => s.copyWith(
@@ -723,6 +733,26 @@ void main() {
         ),
       );
       final opener = FakeOpener();
+      await openReader(tester, store, opener);
+      expect(tester.widget<PageView>(find.byType(PageView)).reverse, isFalse);
+      expect(curlLayer(tester).rightToLeft, isFalse);
+      expect(pagesOf(tester).spreads![1].left, 1);
+      expect(pagesOf(tester).spreads![1].right, 2);
+      readerOf(tester).gamepadBindings.right!();
+      await tester.pump();
+      expect(pagesOf(tester).spreadIndex, 1);
+      readerOf(tester).gamepadBindings.left!();
+      await tester.pump();
+      expect(pagesOf(tester).spreadIndex, 0);
+      await closeReader(tester, store);
+
+      // Right to left chosen for this book.
+      store.updateBookSettings(
+        bookKey,
+        const LibraryReaderBookSettings(
+          pageDirection: LibraryPageDirection.rtl,
+        ),
+      );
       await openReader(tester, store, opener);
       final view = pagesOf(tester);
       expect(tester.widget<PageView>(find.byType(PageView)).reverse, isTrue);
@@ -745,10 +775,12 @@ void main() {
       expect(view.spreadIndex, 0);
       await closeReader(tester, store);
 
-      // Left to right (default): the right side turns forward.
-      updateGlobal(
-        store,
-        (s) => s.copyWith(pageDirection: LibraryPageDirection.ltr),
+      // Left to right for the book: the right side turns forward.
+      store.updateBookSettings(
+        bookKey,
+        const LibraryReaderBookSettings(
+          pageDirection: LibraryPageDirection.ltr,
+        ),
       );
       await openReader(tester, store, opener);
       expect(tester.widget<PageView>(find.byType(PageView)).reverse, isFalse);
@@ -756,6 +788,13 @@ void main() {
       await tester.pump();
       expect(pagesOf(tester).spreadIndex, 1);
       await closeReader(tester, store);
+
+      // Without a progress key: left to right as well.
+      await openReader(tester, store, opener, progressKey: null);
+      expect(tester.widget<PageView>(find.byType(PageView)).reverse, isFalse);
+      expect(curlLayer(tester).rightToLeft, isFalse);
+      await closeReader(tester, store);
+      expect(store.settings.pageDirection, LibraryPageDirection.rtl);
     });
 
     testWidgets('page curl: the d-pad curls the page, one turn at a time', (

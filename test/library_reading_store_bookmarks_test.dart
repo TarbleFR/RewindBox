@@ -1,6 +1,11 @@
 // Build 447 additions to LibraryReadingStore (docs/library-books-3d-plan.md
-// § 3.7 and § 3.9): bookmarks and per-title navigation settings, kept in
-// reading-state.json under version 1.
+// § 3.7 and § 3.9): bookmarks, per-title navigation settings and the reader
+// settings added then. They are kept in reading-state-extra.json (version
+// 1), next to reading-state.json, which keeps exactly the Build 446 layout:
+// Build 446 rewrites reading-state.json with only the keys it knows and
+// never opens the other file, so going back to it (SideStore keeps the
+// data) and then to 447 loses none of them (downgrade safety, review of the
+// books chantier; phase 1 kept them in reading-state.json).
 import 'dart:convert';
 import 'dart:io';
 
@@ -28,6 +33,10 @@ void main() {
   File tmpFile() => File('${stateFile().path}.tmp');
   File corruptFile() =>
       File('${stateFile().path}${LibraryReadingStore.corruptSuffix}');
+  File extraFile() => File(p.join(tmp.path, LibraryReadingStore.extraFileName));
+  File extraTmpFile() => File('${extraFile().path}.tmp');
+  File extraCorruptFile() =>
+      File('${extraFile().path}${LibraryReadingStore.corruptSuffix}');
 
   LibraryReadingStore create({
     int maxProgressEntries = 2000,
@@ -69,8 +78,55 @@ void main() {
   Future<Map<String, Object?>> written() async =>
       jsonDecode(await stateFile().readAsString()) as Map<String, Object?>;
 
+  Future<Map<String, Object?>> writtenExtra() async =>
+      jsonDecode(await extraFile().readAsString()) as Map<String, Object?>;
+
   Future<void> writeState(Map<String, Object?> state) =>
       stateFile().writeAsString(jsonEncode(state));
+
+  Future<void> writeExtra(Map<String, Object?> state) =>
+      extraFile().writeAsString(jsonEncode(state));
+
+  /// What Build 446 (8ceeb055) does to reading-state.json when it saves:
+  /// it reads the keys and entry fields it knows and writes only them back
+  /// ([build446] may change its data first). It never opens
+  /// reading-state-extra.json.
+  Future<void> rewriteAsBuild446({
+    void Function(Map<String, Object?> state)? build446,
+  }) async {
+    final json = await written();
+    Map<String, Object?> only(Object? value, Set<String> keys) =>
+        <String, Object?>{
+          for (final entry in (value as Map).entries)
+            if (keys.contains(entry.key)) entry.key as String: entry.value,
+        };
+    final state = <String, Object?>{
+      'version': 1,
+      'progress': <String, Object?>{
+        for (final entry in (json['progress'] as Map).entries)
+          entry.key as String: only(entry.value, _build446ProgressFields),
+      },
+      'chapterMarks': <String, Object?>{
+        for (final title in (json['chapterMarks'] as Map).entries)
+          title.key as String: <String, Object?>{
+            for (final mark in (title.value as Map).entries)
+              mark.key as String: only(mark.value, _build446MarkFields),
+          },
+      },
+      'favorites': <String, Object?>{
+        for (final entry in (json['favorites'] as Map).entries)
+          entry.key as String: only(entry.value, _build446FavoriteFields),
+      },
+      'settings': only(json['settings'], _build446Settings),
+      if (json['evictions'] case final Map evictions)
+        'evictions': only(evictions, const <String>{
+          'progress',
+          'chapterMarkTitles',
+        }),
+    };
+    build446?.call(state);
+    await writeState(state);
+  }
 
   /// Lets a write scheduled by a change (saveDelay 40 ms) happen.
   Future<void> pastSaveDelay() =>
@@ -129,12 +185,15 @@ void main() {
       expect(reopened.bookmarksFor('online:s:m'), <LibraryBookmark>[other]);
       expect(reopened.bookmarkAt('online:s:m', 'page:o')!.chapterId, 'c4');
 
-      // A title whose last bookmark is removed leaves the file.
+      // A title whose last bookmark is removed leaves the file. Bookmarks
+      // are in reading-state-extra.json, never in reading-state.json
+      // (downgrade safety, see the top of this file).
       reopened.removeBookmark('online:s:m', 'o');
       expect(reopened.bookmarksFor('online:s:m'), isEmpty);
       await reopened.flush();
-      final bookmarks = (await written())['bookmarks'] as Map;
+      final bookmarks = (await writtenExtra())['bookmarks'] as Map;
       expect(bookmarks.keys, <String>[key]);
+      expect((await written()).containsKey('bookmarks'), isFalse);
     });
 
     test(
@@ -154,6 +213,8 @@ void main() {
         expect(store.hasPendingChanges, isFalse);
         final saved = await stateFile().readAsString();
         final savedAt = await stateFile().lastModified();
+        final savedExtra = await extraFile().readAsString();
+        final savedExtraAt = await extraFile().lastModified();
         var notifications = 0;
         store.addListener(() => notifications++);
 
@@ -166,6 +227,9 @@ void main() {
         expect(await stateFile().readAsString(), saved);
         expect(await stateFile().lastModified(), savedAt);
         expect(await tmpFile().exists(), isFalse);
+        expect(await extraFile().readAsString(), savedExtra);
+        expect(await extraFile().lastModified(), savedExtraAt);
+        expect(await extraTmpFile().exists(), isFalse);
 
         // The limit is per title.
         expect(store.addBookmark(mark('local:other', 'x')), isTrue);
@@ -190,6 +254,7 @@ void main() {
       expect(store.addBookmark(mark(key, 'a', location: 'page:3')), isTrue);
       await store.flush();
       final saved = await stateFile().readAsString();
+      final savedExtra = await extraFile().readAsString();
       var notifications = 0;
       store.addListener(() => notifications++);
 
@@ -205,6 +270,7 @@ void main() {
       ]);
       await pastSaveDelay();
       expect(await stateFile().readAsString(), saved);
+      expect(await extraFile().readAsString(), savedExtra);
 
       // The same location on another title, or once freed, is accepted.
       expect(
@@ -263,8 +329,14 @@ void main() {
       expect(reopened.bookmarksFor(key), store.bookmarksFor(key));
     });
 
-    test('bookmarks and title settings are written under version 1 with the '
-        'documented keys, atomically', () async {
+    // Replaces the phase-1 contract (bookmarks and title settings in
+    // reading-state.json, next to the other keys): Build 446 rewrites that
+    // file with only its keys, which erased them for good after going back
+    // to 446 (downgrade safety). They now live in reading-state-extra.json
+    // and reading-state.json keeps exactly the Build 446 layout.
+    test('bookmarks, title settings and the Build 447 reader settings are '
+        'written to the extra file under version 1 with the documented keys, '
+        'the main file keeps the Build 446 layout, both atomically', () async {
       final store = create();
       await store.load();
       final full = mark(
@@ -291,22 +363,52 @@ void main() {
           pageDirection: LibraryPageDirection.rtl,
         ),
       );
+      store.saveProgress(
+        LibraryReadingProgress(
+          key: 'local:epub',
+          location: 'epubcfi(/6/4!/4/2/1:0)',
+          fraction: 0.1,
+        ),
+      );
+      store.updateSettings(
+        store.settings.copyWith(
+          fontSize: 22,
+          pdfMode: LibraryPdfMode.scroll,
+          bookmarkRibbon: false,
+        ),
+      );
       await store.flush();
       expect(await tmpFile().exists(), isFalse);
+      expect(await extraTmpFile().exists(), isFalse);
 
-      final json = await written();
-      expect(json['version'], 1);
+      final main = await written();
+      expect(main['version'], 1);
       expect(
-        json.keys,
-        containsAll(<String>[
-          'progress',
-          'chapterMarks',
-          'favorites',
-          'settings',
-          'bookmarks',
-          'bookSettings',
-        ]),
+        main.keys.toSet(),
+        _build446Keys.difference(<String>{'evictions'}),
       );
+      expect((main['settings'] as Map).keys.toSet(), _build446Settings);
+      expect((main['settings'] as Map)['fontSize'], 22);
+      expect((main['progress'] as Map).keys, <String>['local:epub']);
+
+      final json = await writtenExtra();
+      expect(json['version'], 1);
+      expect(json.keys.toSet(), <String>{
+        'version',
+        'settings',
+        'bookmarks',
+        'bookSettings',
+      });
+      expect(json['settings'], <String, Object?>{
+        'turnStyle': 'curl',
+        'doublePage': 'auto',
+        'firstPageAlone': true,
+        'pdfMode': 'scroll',
+        'textLayout': 'pages',
+        'toolbarMode': 'auto',
+        'bookmarkRibbon': false,
+      });
+      expect((json['settings'] as Map).keys.toSet(), _build447Settings);
       final bookmarks = json['bookmarks'] as Map;
       final fullEntry = (bookmarks['online:s:m'] as List).single as Map;
       expect(fullEntry, <String, Object?>{
@@ -337,25 +439,52 @@ void main() {
       });
     });
 
-    test('a version 1 file with unknown keys loads, and its data survives '
-        'the next write', () async {
+    // The phase-1 version of this test only checked the known data: the
+    // unknown keys themselves were dropped at the first write (review of
+    // the books chantier, probe C). Both files now carry what a later build
+    // added, unchanged and with the entry it belongs to, so that going back
+    // to this build loses nothing of that build either.
+    test('keys and entry fields of a later build survive the next writes in '
+        'both files and leave or move with their entry', () async {
+      LibraryReadingProgress at(String key, int page) => LibraryReadingProgress(
+        key: key,
+        location: 'page:$page',
+        fraction: page / 10,
+        updatedAt: DateTime.utc(2026),
+      );
+      final favorite = LibraryFavorite(
+        key: 'online:s:m',
+        sourceId: 's',
+        mangaId: 'm',
+        title: 'Manga',
+      );
+      final readMark = LibraryChapterMark(read: true).toJson();
       await writeState(<String, Object?>{
         'version': 1,
         'progress': <String, Object?>{
-          'local:a': LibraryReadingProgress(
-            key: 'local:a',
-            location: 'page:4',
-            fraction: 0.4,
-            updatedAt: DateTime.utc(2026),
-          ).toJson(),
+          'local:a': <String, Object?>{
+            ...at('local:a', 4).toJson(),
+            'readingSeconds': 120,
+          },
+          'local:gone': <String, Object?>{
+            ...at('local:gone', 2).toJson(),
+            'readingSeconds': 5,
+          },
+          'local:old': <String, Object?>{
+            ...at('local:old', 6).toJson(),
+            'readingSeconds': 9,
+          },
         },
-        'bookmarks': <String, Object?>{
-          'local:a': <Object?>[mark('local:a', 'm1').toJson()],
+        'chapterMarks': <String, Object?>{
+          'online:s:m': <String, Object?>{
+            'c1': <String, Object?>{...readMark, 'readAt': 77},
+          },
         },
-        'bookSettings': <String, Object?>{
-          'local:a': <String, Object?>{'textLayout': 'scroll', 'updatedAt': 5},
+        'favorites': <String, Object?>{
+          'online:s:m': <String, Object?>{...favorite.toJson(), 'shelf': 'x'},
         },
-        'settings': <String, Object?>{'fontSize': 21, 'pdfMode': 'scroll'},
+        'settings': <String, Object?>{'fontSize': 21, 'brightness': 0.4},
+        'evictions': <String, Object?>{'progress': 2, 'somethingElse': 4},
         // Keys of a later build: unknown here.
         'shelves': <Object?>[
           <String, Object?>{
@@ -364,16 +493,60 @@ void main() {
           },
         ],
         'futureFeature': <String, Object?>{'enabled': true, 'level': 3},
-        'evictions': <String, Object?>{'progress': 2, 'somethingElse': 4},
+      });
+      await writeExtra(<String, Object?>{
+        'version': 1,
+        'settings': <String, Object?>{'pdfMode': 'scroll', 'curlShadow': 0.5},
+        'bookmarks': <String, Object?>{
+          'local:a': <Object?>[
+            <String, Object?>{
+              ...mark('local:a', 'm1').toJson(),
+              'color': 'red',
+            },
+            <String, Object?>{
+              ...mark(
+                'local:a',
+                'm2',
+                location: 'page:8',
+                fraction: 0.8,
+              ).toJson(),
+              'color': 'blue',
+            },
+          ],
+          'local:old': <Object?>[
+            <String, Object?>{
+              ...mark('local:old', 'o1').toJson(),
+              'color': 'green',
+            },
+          ],
+        },
+        'bookSettings': <String, Object?>{
+          'local:a': <String, Object?>{
+            'textLayout': 'scroll',
+            'updatedAt': 5,
+            'zoom': 2,
+          },
+          'local:old': <String, Object?>{
+            'turnStyle': 'none',
+            'updatedAt': 6,
+            'zoom': 3,
+          },
+        },
+        'evictions': <String, Object?>{'bookSettingsTitles': 1, 'other': 9},
+        'annotations': <String, Object?>{
+          'local:a': <String>['note'],
+        },
       });
       final store = create();
       await store.load();
       expect(store.loadFailed, isFalse);
       expect(await corruptFile().exists(), isFalse);
+      expect(await extraCorruptFile().exists(), isFalse);
       expect(store.progressFor('local:a')!.location, 'page:4');
-      expect(store.bookmarksFor('local:a'), <LibraryBookmark>[
-        mark('local:a', 'm1'),
-      ]);
+      expect(
+        store.bookmarksFor('local:a').map((bookmark) => bookmark.id),
+        <String>['m1', 'm2'],
+      );
       expect(
         store.bookSettingsFor('local:a'),
         const LibraryReaderBookSettings(textLayout: LibraryTextLayout.scroll),
@@ -385,29 +558,143 @@ void main() {
       expect(store.settings.fontSize, 21);
       expect(store.settings.pdfMode, LibraryPdfMode.scroll);
       expect(store.evictedProgressEntries, 2);
+      expect(store.evictedBookSettingsTitles, 1);
 
-      store.saveProgress(
-        LibraryReadingProgress(
-          key: 'local:b',
-          location: 'page:1',
-          fraction: 0.1,
+      // Changes of every kind: a changed entry keeps its fields, a removed
+      // one takes them away, a moved one takes them along.
+      store.saveProgress(at('local:b', 1));
+      store.saveProgress(at('local:a', 5));
+      store.removeProgress('local:gone');
+      store.removeBookmark('local:a', 'm2');
+      store.updateBookSettings(
+        'local:a',
+        const LibraryReaderBookSettings(
+          textLayout: LibraryTextLayout.scroll,
+          turnStyle: LibraryPageTurnStyle.slide,
+        ),
+      );
+      store.moveProgress('local:old', 'local:new');
+      store.updateSettings(
+        store.settings.copyWith(
+          fontSize: 22,
+          textLayout: LibraryTextLayout.scroll,
         ),
       );
       await store.flush();
       expect(store.lastSaveError, isNull);
-      final json = await written();
-      expect(json['version'], 1);
+
+      final main = await written();
+      expect(main['version'], 1);
+      expect(main['shelves'], <Object?>[
+        <String, Object?>{
+          'name': 'x',
+          'keys': <Object?>['local:a'],
+        },
+      ]);
+      expect(main['futureFeature'], <String, Object?>{
+        'enabled': true,
+        'level': 3,
+      });
+      expect(main['evictions'], <String, Object?>{
+        'progress': 2,
+        'chapterMarkTitles': 0,
+        'somethingElse': 4,
+      });
+      final mainSettings = main['settings'] as Map;
+      expect(mainSettings['brightness'], 0.4);
+      expect(mainSettings['fontSize'], 22);
+      expect(mainSettings.keys.toSet(), <String>{
+        ..._build446Settings,
+        'brightness',
+      });
+      final progress = main['progress'] as Map;
+      expect(progress.keys.toSet(), <String>{
+        'local:a',
+        'local:b',
+        'local:new',
+      });
+      expect((progress['local:a'] as Map)['location'], 'page:5');
+      expect((progress['local:a'] as Map)['readingSeconds'], 120);
+      expect((progress['local:new'] as Map)['key'], 'local:new');
+      expect((progress['local:new'] as Map)['readingSeconds'], 9);
+      expect(
+        (progress['local:b'] as Map).containsKey('readingSeconds'),
+        isFalse,
+      );
+      expect(
+        ((main['chapterMarks'] as Map)['online:s:m'] as Map)['c1'],
+        <String, Object?>{...readMark, 'readAt': 77},
+      );
+      expect(((main['favorites'] as Map)['online:s:m'] as Map)['shelf'], 'x');
+
+      final extra = await writtenExtra();
+      expect(extra['version'], 1);
+      expect(extra['annotations'], <String, Object?>{
+        'local:a': <Object?>['note'],
+      });
+      expect(extra['evictions'], <String, Object?>{
+        'bookSettingsTitles': 1,
+        'other': 9,
+      });
+      final extraSettings = extra['settings'] as Map;
+      expect(extraSettings['curlShadow'], 0.5);
+      expect(extraSettings['textLayout'], 'scroll');
+      expect(extraSettings.keys.toSet(), <String>{
+        ..._build447Settings,
+        'curlShadow',
+      });
+      final bookmarks = extra['bookmarks'] as Map;
+      expect(bookmarks.keys.toSet(), <String>{'local:a', 'local:new'});
+      expect(bookmarks['local:a'], <Object?>[
+        <String, Object?>{...mark('local:a', 'm1').toJson(), 'color': 'red'},
+      ]);
+      expect(bookmarks['local:new'], <Object?>[
+        <String, Object?>{
+          ...mark('local:new', 'o1').toJson(),
+          'color': 'green',
+        },
+      ]);
+      final bookSettings = extra['bookSettings'] as Map;
+      expect(bookSettings.keys.toSet(), <String>{'local:a', 'local:new'});
+      expect(bookSettings['local:a'], <String, Object?>{
+        'turnStyle': 'slide',
+        'textLayout': 'scroll',
+        'updatedAt': now.millisecondsSinceEpoch,
+        'zoom': 2,
+      });
+      expect(bookSettings['local:new'], <String, Object?>{
+        'turnStyle': 'none',
+        'updatedAt': 6,
+        'zoom': 3,
+      });
+
+      // Read back by this version, and written back unchanged again.
       final reopened = create();
       await reopened.load();
       expect(reopened.loadFailed, isFalse);
-      expect(reopened.progressFor('local:a')!.location, 'page:4');
-      expect(reopened.progressFor('local:b')!.location, 'page:1');
-      expect(reopened.bookmarksFor('local:a'), hasLength(1));
+      expect(reopened.progressFor('local:a')!.location, 'page:5');
+      expect(reopened.progressFor('local:gone'), isNull);
+      expect(reopened.bookmarksFor('local:a'), <LibraryBookmark>[
+        mark('local:a', 'm1'),
+      ]);
       expect(
-        reopened.bookSettingsFor('local:a')!.textLayout,
-        LibraryTextLayout.scroll,
+        reopened.bookSettingsFor('local:new')!.turnStyle,
+        LibraryPageTurnStyle.none,
       );
+      expect(reopened.settings.fontSize, 22);
       expect(reopened.settings.pdfMode, LibraryPdfMode.scroll);
+      reopened.markChapter('online:s:m', 'c2', read: true);
+      await reopened.flush();
+      final again = await written();
+      expect(again['shelves'], main['shelves']);
+      expect(again['futureFeature'], main['futureFeature']);
+      expect(again['settings'], main['settings']);
+      expect(again['progress'], main['progress']);
+      expect(
+        ((again['chapterMarks'] as Map)['online:s:m'] as Map)['c1'],
+        <String, Object?>{...readMark, 'readAt': 77},
+      );
+      expect(await writtenExtra(), extra);
     });
 
     test('invalid bookmark and title settings entries are skipped, the valid '
@@ -422,6 +709,10 @@ void main() {
             fraction: 0.9,
           ).toJson(),
         },
+      });
+      // Bookmarks and title settings are read from the extra file only.
+      await writeExtra(<String, Object?>{
+        'version': 1,
         'bookmarks': <String, Object?>{
           'local:a': <Object?>[
             valid.toJson(),
@@ -489,6 +780,7 @@ void main() {
       await store.load();
       expect(store.loadFailed, isFalse);
       expect(await corruptFile().exists(), isFalse);
+      expect(await extraCorruptFile().exists(), isFalse);
       expect(store.progressFor('local:a')!.location, 'page:9');
 
       expect(
@@ -544,16 +836,22 @@ void main() {
             fraction: 0.2,
           ).toJson(),
         },
+      });
+      await writeExtra(<String, Object?>{
+        'version': 1,
         'bookmarks': <Object?>[valid.toJson()],
         'bookSettings': 'scroll',
+        'settings': 'pages',
       });
       final other = create();
       await other.load();
       expect(other.loadFailed, isFalse);
       expect(await corruptFile().exists(), isFalse);
+      expect(await extraCorruptFile().exists(), isFalse);
       expect(other.progressFor('local:z'), isNotNull);
       expect(other.bookmarksFor('local:a'), isEmpty);
       expect(other.bookSettingsFor('local:a'), isNull);
+      expect(other.settings, const LibraryReaderSettings());
     });
 
     test('bookmarks are never dropped by any limit', () async {
@@ -641,7 +939,7 @@ void main() {
 
       // A title already full in the file refuses a bookmark added before
       // load.
-      await writeState(<String, Object?>{
+      await writeExtra(<String, Object?>{
         'version': 1,
         'bookmarks': <String, Object?>{
           'local:full': <Object?>[
@@ -776,6 +1074,7 @@ void main() {
       expect(store.lastSaveError, isNull);
       expect(store.lastWriteEncodedInBackground, isTrue);
       expect(await tmpFile().exists(), isFalse);
+      expect(await extraTmpFile().exists(), isFalse);
 
       final reopened = create(maxProgressEntries: 5000);
       await reopened.load();
@@ -872,7 +1171,8 @@ void main() {
         expect(reopened.bookSettingsFor('local:b'), isNull);
         expect(reopenedNotifications, 2);
         await reopened.flush();
-        expect((await written())['bookSettings'], isEmpty);
+        expect((await writtenExtra())['bookSettings'], isEmpty);
+        expect((await written()).containsKey('bookSettings'), isFalse);
         final third = create();
         await third.load();
         expect(third.bookSettingsFor(key), isNull);
@@ -903,9 +1203,17 @@ void main() {
         );
         await store.load();
         expect(store.bookSettingsFor('local:a'), isNull);
+        // Changed contract (review of the books chantier): an update made
+        // before load replaces only the fields it set, so the saved
+        // pdfMode stays; it used to replace the title's saved settings as a
+        // whole ({turnStyle: none} only). The explicit removal above still
+        // removes everything.
         expect(
           store.bookSettingsFor('local:b'),
-          const LibraryReaderBookSettings(turnStyle: LibraryPageTurnStyle.none),
+          const LibraryReaderBookSettings(
+            pdfMode: LibraryPdfMode.scroll,
+            turnStyle: LibraryPageTurnStyle.none,
+          ),
         );
         await store.flush();
         final reopened = create();
@@ -915,8 +1223,154 @@ void main() {
           reopened.bookSettingsFor('local:b')!.turnStyle,
           LibraryPageTurnStyle.none,
         );
+        expect(
+          reopened.bookSettingsFor('local:b')!.pdfMode,
+          LibraryPdfMode.scroll,
+        );
       },
     );
+
+    test('settings changed before load, or while the files cannot be read, '
+        'replace only the values they changed', () async {
+      final seed = create();
+      await seed.load();
+      seed.updateBookSettings(
+        'local:a',
+        const LibraryReaderBookSettings(
+          pdfMode: LibraryPdfMode.scroll,
+          pageDirection: LibraryPageDirection.rtl,
+          turnStyle: LibraryPageTurnStyle.slide,
+        ),
+      );
+      seed.updateBookSettings(
+        'local:c',
+        const LibraryReaderBookSettings(
+          doublePage: LibraryDoublePageMode.never,
+        ),
+      );
+      seed.updateSettings(
+        seed.settings.copyWith(
+          theme: LibraryReaderTheme.dark,
+          fontSize: 20,
+          turnStyle: LibraryPageTurnStyle.none,
+          pdfMode: LibraryPdfMode.scroll,
+        ),
+      );
+      await seed.flush();
+      final savedMain = await stateFile().readAsString();
+      final savedExtra = await extraFile().readAsString();
+
+      now = now.add(const Duration(hours: 1));
+      final store = create();
+      // A reader opened before load knows nothing saved: what it changes
+      // is recorded field by field.
+      store.updateBookSettings(
+        'local:a',
+        const LibraryReaderBookSettings(turnStyle: LibraryPageTurnStyle.none),
+      );
+      store.updateBookSettings(
+        'local:a',
+        const LibraryReaderBookSettings(
+          turnStyle: LibraryPageTurnStyle.none,
+          doublePage: LibraryDoublePageMode.always,
+        ),
+      );
+      // Back to the general turn style: the field is cleared, the saved
+      // one too.
+      store.updateBookSettings(
+        'local:a',
+        const LibraryReaderBookSettings(
+          doublePage: LibraryDoublePageMode.always,
+        ),
+      );
+      store.updateBookSettings(
+        'local:c',
+        const LibraryReaderBookSettings(firstPageAlone: false),
+      );
+      store.updateSettings(
+        store.settings.copyWith(
+          fontSize: 24,
+          doublePage: LibraryDoublePageMode.never,
+        ),
+      );
+      // Nothing is written before the files are read.
+      await pastSaveDelay();
+      expect(await stateFile().readAsString(), savedMain);
+      expect(await extraFile().readAsString(), savedExtra);
+
+      await store.load();
+      expect(
+        store.bookSettingsFor('local:a'),
+        const LibraryReaderBookSettings(
+          pdfMode: LibraryPdfMode.scroll,
+          pageDirection: LibraryPageDirection.rtl,
+          doublePage: LibraryDoublePageMode.always,
+        ),
+      );
+      expect(store.bookSettingsFor('local:a')!.updatedAt, now);
+      expect(
+        store.bookSettingsFor('local:c'),
+        const LibraryReaderBookSettings(
+          doublePage: LibraryDoublePageMode.never,
+          firstPageAlone: false,
+        ),
+      );
+      final settings = store.settings;
+      expect(settings.theme, LibraryReaderTheme.dark);
+      expect(settings.turnStyle, LibraryPageTurnStyle.none);
+      expect(settings.pdfMode, LibraryPdfMode.scroll);
+      expect(settings.fontSize, 24);
+      expect(settings.doublePage, LibraryDoublePageMode.never);
+      await store.flush();
+      final reopened = create();
+      await reopened.load();
+      expect(reopened.settings, settings);
+      expect(
+        reopened.bookSettingsFor('local:a'),
+        store.bookSettingsFor('local:a'),
+      );
+      expect(
+        reopened.bookSettingsFor('local:c'),
+        store.bookSettingsFor('local:c'),
+      );
+
+      // The same while the extra file cannot be read: nothing is replaced,
+      // and the change is merged once it can be.
+      final saved = await extraFile().readAsString();
+      final mainBefore = await stateFile().readAsString();
+      await extraFile().delete();
+      final blocked = await Directory(extraFile().path).create();
+      final unreadable = create();
+      await unreadable.load();
+      expect(unreadable.loadFailed, isTrue);
+      unreadable.updateBookSettings(
+        'local:c',
+        const LibraryReaderBookSettings(mangaMode: LibraryMangaMode.vertical),
+      );
+      unreadable.updateSettings(
+        unreadable.settings.copyWith(bookmarkRibbon: false),
+      );
+      await unreadable.flush();
+      expect(unreadable.lastSaveError, isNotNull);
+      expect(unreadable.hasPendingChanges, isTrue);
+      expect(await blocked.exists(), isTrue);
+      expect(await stateFile().readAsString(), mainBefore);
+      await blocked.delete();
+      await extraFile().writeAsString(saved);
+      await unreadable.flush();
+      expect(unreadable.loadFailed, isFalse);
+      expect(unreadable.lastSaveError, isNull);
+      expect(
+        unreadable.bookSettingsFor('local:c'),
+        const LibraryReaderBookSettings(
+          doublePage: LibraryDoublePageMode.never,
+          firstPageAlone: false,
+          mangaMode: LibraryMangaMode.vertical,
+        ),
+      );
+      expect(unreadable.settings, settings.copyWith(bookmarkRibbon: false));
+      unreadable.dispose();
+    });
 
     test('over 1000 titles, the online ones changed the longest ago are '
         'dropped, never local books', () async {
@@ -957,9 +1411,14 @@ void main() {
         expect(store.bookSettingsFor('local:b$index'), isNotNull);
       }
       await store.flush();
-      final json = await written();
+      // In the extra file (downgrade safety, see the top of this file);
+      // reading-state.json keeps the Build 446 evictions only.
+      final json = await writtenExtra();
       expect((json['bookSettings'] as Map).length, 1000);
-      expect((json['evictions'] as Map)['bookSettingsTitles'], 1);
+      expect(json['evictions'], <String, Object?>{'bookSettingsTitles': 1});
+      final main = await written();
+      expect(main.containsKey('bookSettings'), isFalse);
+      expect(main.containsKey('evictions'), isFalse);
       final reopened = create();
       await reopened.load();
       expect(reopened.evictedBookSettingsTitles, 1);
@@ -990,6 +1449,206 @@ void main() {
       expect(small.evictedBookSettingsTitles, 0);
       await small.flush();
       small.dispose();
+    });
+  });
+
+  group('two files', () {
+    LibraryReadingProgress at(String key, int page) => LibraryReadingProgress(
+      key: key,
+      location: 'page:$page',
+      fraction: page / 10,
+    );
+
+    // Downgrade safety (review of the books chantier): the Build 446 IPA
+    // installed over 447 (SideStore keeps the data) rewrites
+    // reading-state.json with only its keys and never opens
+    // reading-state-extra.json. Back on 447 nothing of 447 is lost, and
+    // what 446 saved meanwhile is there too.
+    test('a Build 446 rewrite of reading-state.json loses no bookmark, title '
+        'setting or Build 447 reader setting', () async {
+      final store = create();
+      await store.load();
+      store.saveProgress(at('local:a', 4));
+      store.markChapter('online:s:m', 'c1', read: true);
+      expect(
+        store.addBookmark(
+          mark(
+            'local:a',
+            'b1',
+            location: 'page:4',
+            fraction: 0.4,
+            label: 'Ici',
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        store.addBookmark(
+          mark('online:s:m', 'b2', chapterId: 'c1', pageIndex: 2),
+        ),
+        isTrue,
+      );
+      store.updateBookSettings(
+        'local:a',
+        const LibraryReaderBookSettings(
+          pageDirection: LibraryPageDirection.rtl,
+          turnStyle: LibraryPageTurnStyle.slide,
+        ),
+      );
+      store.updateSettings(
+        store.settings.copyWith(
+          fontSize: 22,
+          turnStyle: LibraryPageTurnStyle.none,
+          doublePage: LibraryDoublePageMode.never,
+          firstPageAlone: false,
+          pdfMode: LibraryPdfMode.scroll,
+          textLayout: LibraryTextLayout.scroll,
+          toolbarMode: LibraryReaderToolbarMode.always,
+          bookmarkRibbon: false,
+        ),
+      );
+      await store.flush();
+      final settings = store.settings;
+      final bookmarks = store.bookmarksFor('local:a');
+      final onlineBookmarks = store.bookmarksFor('online:s:m');
+      final bookSettings = store.bookSettingsFor('local:a');
+      final extraBefore = await extraFile().readAsString();
+
+      // Build 446 reads further, changes a setting it knows and saves.
+      await rewriteAsBuild446(
+        build446: (state) {
+          (state['progress'] as Map)['local:446'] = at('local:446', 9).toJson();
+          (state['settings'] as Map)['fontSize'] = 24.0;
+        },
+      );
+      expect(
+        (await written()).keys.toSet(),
+        _build446Keys.difference(<String>{'evictions'}),
+      );
+      expect(await extraFile().readAsString(), extraBefore);
+
+      // Back on 447.
+      final reopened = create();
+      await reopened.load();
+      expect(reopened.loadFailed, isFalse);
+      expect(reopened.bookmarksFor('local:a'), bookmarks);
+      expect(reopened.bookmarksFor('online:s:m'), onlineBookmarks);
+      expect(reopened.bookSettingsFor('local:a'), bookSettings);
+      expect(reopened.settings, settings.copyWith(fontSize: 24));
+      expect(reopened.progressFor('local:446')!.location, 'page:9');
+      expect(reopened.progressFor('local:a')!.location, 'page:4');
+      expect(reopened.chapterMark('online:s:m', 'c1')!.read, isTrue);
+
+      // Again after the next 447 write and another 446 rewrite.
+      reopened.saveProgress(at('local:a', 5));
+      await reopened.flush();
+      await rewriteAsBuild446();
+      final third = create();
+      await third.load();
+      expect(third.bookmarksFor('local:a'), bookmarks);
+      expect(third.bookSettingsFor('local:a'), bookSettings);
+      expect(third.settings, settings.copyWith(fontSize: 24));
+      expect(third.progressFor('local:a')!.location, 'page:5');
+      expect(third.progressFor('local:446'), isNotNull);
+    });
+
+    test('a corrupt file is kept aside on its own: the other file\'s part is '
+        'loaded and both are written again', () async {
+      final seed = create();
+      await seed.load();
+      seed.saveProgress(at('local:a', 4));
+      expect(seed.addBookmark(mark('local:a', 'b1')), isTrue);
+      await seed.flush();
+      const garbage = '{"bookmarks": {"local:a": [';
+      await extraFile().writeAsString(garbage);
+
+      final store = create();
+      await store.load();
+      expect(store.loadFailed, isFalse);
+      expect(store.progressFor('local:a')!.location, 'page:4');
+      expect(store.bookmarksFor('local:a'), isEmpty);
+      expect(await extraCorruptFile().readAsString(), garbage);
+      expect(await extraFile().exists(), isFalse);
+      expect(await corruptFile().exists(), isFalse);
+      expect(
+        store.addBookmark(mark('local:a', 'b2', location: 'page:7')),
+        isTrue,
+      );
+      await store.flush();
+      final reopened = create();
+      await reopened.load();
+      expect(reopened.progressFor('local:a')!.location, 'page:4');
+      expect(reopened.bookmarksFor('local:a').single.id, 'b2');
+      expect(await extraCorruptFile().readAsString(), garbage);
+
+      // A corrupt main file: the extra file's part is still loaded.
+      await stateFile().writeAsString('[1, 2');
+      final third = create();
+      await third.load();
+      expect(third.loadFailed, isFalse);
+      expect(third.progressFor('local:a'), isNull);
+      expect(third.bookmarksFor('local:a').single.id, 'b2');
+      expect(await corruptFile().readAsString(), '[1, 2');
+    });
+
+    test('while either file cannot be read, neither is replaced, and the '
+        'changes are merged once it can be', () async {
+      final seed = create();
+      await seed.load();
+      seed.saveProgress(at('local:a', 4));
+      expect(seed.addBookmark(mark('local:a', 'b1')), isTrue);
+      await seed.flush();
+      final main = await stateFile().readAsString();
+      final extra = await extraFile().readAsString();
+
+      for (final file in <File>[stateFile(), extraFile()]) {
+        final content = await file.readAsString();
+        await file.delete();
+        // A directory at the path cannot be read as a file: an I/O failure.
+        final blocked = await Directory(file.path).create();
+        final store = create();
+        await store.load();
+        expect(store.loadFailed, isTrue, reason: file.path);
+        store.saveProgress(at('local:b', 1));
+        expect(store.addBookmark(mark('local:b', 'x')), isTrue);
+        await store.flush();
+        expect(store.lastSaveError, isA<FileSystemException>());
+        expect((store.lastSaveError! as FileSystemException).path, file.path);
+        expect(store.hasPendingChanges, isTrue);
+        if (file.path != stateFile().path) {
+          expect(await stateFile().readAsString(), main);
+        }
+        if (file.path != extraFile().path) {
+          expect(await extraFile().readAsString(), extra);
+        }
+        expect(await tmpFile().exists(), isFalse);
+        expect(await extraTmpFile().exists(), isFalse);
+        expect(
+          await FileSystemEntity.type(
+            '${file.path}${LibraryReadingStore.corruptSuffix}',
+          ),
+          FileSystemEntityType.notFound,
+        );
+
+        await blocked.delete();
+        await file.writeAsString(content);
+        await store.flush();
+        expect(store.loadFailed, isFalse, reason: file.path);
+        expect(store.lastSaveError, isNull);
+        expect(store.progressFor('local:a'), isNotNull);
+        expect(store.bookmarksFor('local:a'), hasLength(1));
+        expect(store.bookmarksFor('local:b'), hasLength(1));
+        final reopened = create();
+        await reopened.load();
+        expect(reopened.progressFor('local:b'), isNotNull);
+        expect(reopened.bookmarksFor('local:a'), hasLength(1));
+        expect(reopened.bookmarksFor('local:b'), hasLength(1));
+        store.dispose();
+        reopened.dispose();
+        // The seed again for the other file.
+        await stateFile().writeAsString(main);
+        await extraFile().writeAsString(extra);
+      }
     });
   });
 
@@ -1158,3 +1817,71 @@ void main() {
     });
   });
 }
+
+/// What Build 446 (8ceeb055) reads and writes in reading-state.json.
+const Set<String> _build446Keys = <String>{
+  'version',
+  'progress',
+  'chapterMarks',
+  'favorites',
+  'settings',
+  'evictions',
+};
+const Set<String> _build446Settings = <String>{
+  'fontSize',
+  'lineHeight',
+  'fontFamily',
+  'theme',
+  'margin',
+  'justify',
+  'pageDirection',
+  'mangaMode',
+  'tapZones',
+  'keepScreenOn',
+  'allowRotation',
+};
+const Set<String> _build446ProgressFields = <String>{
+  'key',
+  'location',
+  'fraction',
+  'pageIndex',
+  'pageCount',
+  'chapterId',
+  'chapterTitle',
+  'title',
+  'subtitle',
+  'coverUrl',
+  'coverHeaders',
+  'kind',
+  'updatedAt',
+};
+const Set<String> _build446MarkFields = <String>{
+  'read',
+  'page',
+  'pageCount',
+  'updatedAt',
+};
+const Set<String> _build446FavoriteFields = <String>{
+  'key',
+  'sourceId',
+  'addonId',
+  'mangaId',
+  'title',
+  'coverUrl',
+  'coverHeaders',
+  'mangaUrl',
+  'language',
+  'addedAt',
+  'snapshot',
+};
+
+/// The reader settings added by Build 447 (in reading-state-extra.json).
+const Set<String> _build447Settings = <String>{
+  'turnStyle',
+  'doublePage',
+  'firstPageAlone',
+  'pdfMode',
+  'textLayout',
+  'toolbarMode',
+  'bookmarkRibbon',
+};

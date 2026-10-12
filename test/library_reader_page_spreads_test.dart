@@ -2,9 +2,9 @@
 // Q16): automatic in landscape, the cover alone, the next page on the left
 // right to left, never in the vertical strip; the progress, the chapter
 // marks, the resume, the slider and its label stay page based (a spread is
-// saved as its first page, the spread holding the saved page opens); a pair
-// is announced as one image; a rotation keeps the page on screen; the curl
-// faces are the spreads'.
+// saved as its first page, the last spread as the last page, the spread
+// holding the saved page opens); a pair is announced as one image; a
+// rotation keeps the page on screen; the curl faces are the spreads'.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -339,7 +339,8 @@ void main() {
 
   group('page based progress', () {
     testWidgets('the controller keeps the first page of a spread as the '
-        'position and counts the other one as shown', (tester) async {
+        'position, the last page for the last spread, and counts the other '
+        'one as shown', (tester) async {
       final (store, _) = await createStore(tester);
       final content = FakePageContent(chapterCount: 2, tracksChapters: true);
       final controller = LibraryPageReaderController(
@@ -347,6 +348,12 @@ void main() {
         store: store,
       );
       await drive(tester, controller.start());
+      // The pair 2-3 (indices 1 and 2): saved as its first page.
+      controller.setPage(1, through: 2);
+      expect(controller.lastShownPage, 2);
+      controller.saveNow();
+      expect(store.progressFor(content.progressKey)!.pageIndex, 1);
+      expect(store.chapterMark(content.progressKey, 'c0')?.page, 1);
       controller.setPage(3);
       expect(controller.lastShownPage, 3);
       expect(controller.lastPageShown, isFalse);
@@ -361,8 +368,15 @@ void main() {
       expect(store.chapterMark(content.progressKey, 'c0')?.read, isTrue);
       expect(controller.fraction, closeTo(0.5, 1e-9));
       controller.saveNow();
-      expect(store.progressFor(content.progressKey)!.pageIndex, 3);
-      expect(store.chapterMark(content.progressKey, 'c0')?.page, 3);
+      // Changed contract (review of the books chantier): the last spread is
+      // saved as the last page, for the position and the chapter mark, so
+      // the chapter is saved as finished. Saved as page 3 (the spread's
+      // first page), the finished chapter reopened at its last spread and
+      // the title page continued with it instead of the next chapter.
+      expect(store.progressFor(content.progressKey)!.pageIndex, 4);
+      expect(store.progressFor(content.progressKey)!.location, 'page:4');
+      expect(store.chapterMark(content.progressKey, 'c0')?.page, 4);
+      expect(controller.page, 3, reason: 'the spread is still shown');
       // Never beyond the chapter, never before the page.
       controller.setPage(1, through: 9);
       expect(controller.lastShownPage, 4);
@@ -378,8 +392,8 @@ void main() {
       await flushStore(tester, store);
     });
 
-    testWidgets('a spread is saved as its first page; the spread holding the '
-        'saved page opens', (tester) async {
+    testWidgets('the spread holding the saved page opens; the last spread is '
+        'saved as the last page', (tester) async {
       useSurface(tester, size: landscape);
       final (store, directory) = await createStore(tester);
       const key = 'local:resume';
@@ -406,24 +420,28 @@ void main() {
       expect(find.text('3 / 5'), findsOneWidget);
       state.gamepadBindings.right!();
       await frames(tester);
-      // The pair 4-5: saved as page 4 (index 3), with its last page read.
+      // The pair 4-5, the last one: the reader's position is its first page
+      // (index 3).
       expect(state.controller.page, 3);
       expect(pagesOnScreen(tester), <int>[4, 5]);
       state.gamepadBindings.back!();
       await frames(tester);
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      // Changed contract (review of the books chantier): the last spread is
+      // saved as the last page (index 4), as the PDF reader does, so that a
+      // finished chapter is saved as finished; it used to be saved as its
+      // first page (index 3).
       final saved = store.progressFor(key)!;
-      expect(saved.location, 'page:3');
-      expect(saved.pageIndex, 3);
+      expect(saved.location, 'page:4');
+      expect(saved.pageIndex, 4);
       expect(saved.pageCount, 5);
       expect(saved.fraction, closeTo(1.0, 1e-9));
       expect(saved.isFinished, isTrue);
       await flushStore(tester, store);
 
-      // Reopened in portrait: page 4 alone.
+      // Reopened in landscape: the last spread again.
       final (reloaded, _) = await createStore(tester, directory: directory);
-      useSurface(tester, size: portrait);
       await pumpReader(
         tester,
         LibraryPageReaderScreen(
@@ -431,9 +449,26 @@ void main() {
           store: reloaded,
         ),
       );
-      expect(readerState(tester).controller.page, 3);
-      expect(pagesOnScreen(tester), <int>[4]);
+      expect(readerState(tester).controller.page, 4);
+      expect(pagesOnScreen(tester), <int>[4, 5]);
       await closeAll(tester, reloaded);
+
+      // Reopened in portrait: the last page alone.
+      final (portraitStore, _) = await createStore(
+        tester,
+        directory: directory,
+      );
+      useSurface(tester, size: portrait);
+      await pumpReader(
+        tester,
+        LibraryPageReaderScreen(
+          content: FakePageContent(progressKey: key),
+          store: portraitStore,
+        ),
+      );
+      expect(readerState(tester).controller.page, 4);
+      expect(pagesOnScreen(tester), <int>[5]);
+      await closeAll(tester, portraitStore);
     });
 
     testWidgets('the slider and its label stay page based', (tester) async {
@@ -486,7 +521,11 @@ void main() {
       expect(store.chapterMark(content.progressKey, 'c0')?.read, isTrue);
       state.controller.saveNow();
       final saved = store.progressFor(content.progressKey)!;
-      expect(saved.pageIndex, 3);
+      // Changed contract (review of the books chantier): the last spread is
+      // saved as the last page (it used to be index 3, the spread's first
+      // page), for the position and the chapter mark.
+      expect(saved.pageIndex, 4);
+      expect(store.chapterMark(content.progressKey, 'c0')?.page, 4);
       expect(saved.chapterId, 'c0');
       // Chapter 1 of 2 seen to its end: half the title.
       expect(saved.fraction, closeTo(0.5, 1e-9));
@@ -507,6 +546,54 @@ void main() {
       expect(pagesOnScreen(tester), <int>[4, 5]);
       expect(other.chapterMark(opened.progressKey, 'c0')?.read, isTrue);
       await closeAll(tester, other);
+    });
+
+    // Review of the books chantier (probe B): saved as the first page of
+    // its last spread, a finished chapter reopened at that spread as if it
+    // were unfinished; on a single last page it restarts (440 rule).
+    testWidgets('an online chapter finished on its last spread restarts at '
+        'its beginning when opened again', (tester) async {
+      useSurface(tester, size: landscape);
+      final (store, _) = await createStore(tester);
+      LibraryPageReaderScreen reader() => LibraryPageReaderScreen(
+        content: FakePageContent(chapterCount: 2, tracksChapters: true),
+        store: store,
+      );
+      final navigator = await pumpReader(tester, reader());
+      final state = readerState(tester);
+      expect(state.spreads?.doublePage, isTrue);
+      // Two turns: the last spread, pages 4 and 5.
+      for (var i = 0; i < 2; i++) {
+        state.gamepadBindings.right!();
+        await frames(tester);
+      }
+      expect(pagesOnScreen(tester), <int>[4, 5]);
+      expect(state.controller.lastPageShown, isTrue);
+      state.gamepadBindings.back!();
+      await frames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LibraryPageReaderScreen), findsNothing);
+      final saved = store.progressFor('online:fake:manga')!;
+      expect(saved.chapterId, 'c0');
+      expect(saved.pageIndex, 4);
+      final mark = store.chapterMark('online:fake:manga', 'c0')!;
+      expect(mark.read, isTrue);
+      expect(mark.page, 4);
+
+      // The same chapter opened again: at its beginning.
+      unawaited(
+        navigator.currentState!.push<void>(
+          MaterialPageRoute<void>(builder: (_) => reader()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await settle(tester, rounds: 3);
+      final reopened = readerState(tester).controller;
+      expect(reopened.chapterIndex, 0);
+      expect(reopened.page, 0);
+      expect(pagesOnScreen(tester), <int>[1]);
+      await closeAll(tester, store);
     });
 
     testWidgets('the pages of the previous and next spreads are prefetched', (

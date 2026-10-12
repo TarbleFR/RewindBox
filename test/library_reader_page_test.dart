@@ -126,6 +126,67 @@ void main() {
       },
     );
 
+    // Review of the books chantier: the two-page variant of the test above.
+    // A spread is recorded under its first page; the last spread is saved
+    // at the last page (position and mark), so the chapter is saved as
+    // finished and restarts, as one finished on a single last page does.
+    testWidgets('a chapter finished on its last two-page spread restarts too', (
+      tester,
+    ) async {
+      final (store, _) = await createStore(tester);
+      final content = FakePageContent(chapterCount: 3, tracksChapters: true);
+      final reader = LibraryPageReaderController(
+        content: content,
+        store: store,
+      );
+      await drive(tester, reader.start());
+      // The last spread of the first chapter: pages 4 and 5 (one-based).
+      reader.setPage(3, through: 4);
+      expect(reader.page, 3);
+      expect(reader.lastPageShown, isTrue);
+      reader.saveNow();
+      final saved = store.progressFor(content.progressKey)!;
+      expect(saved.chapterId, 'c0');
+      expect(saved.pageIndex, 4);
+      expect(saved.location, 'page:4');
+      final mark = store.chapterMark(content.progressKey, 'c0')!;
+      expect(mark.read, isTrue);
+      expect(mark.page, 4);
+      expect(mark.pageCount, 5);
+      reader.dispose();
+
+      final finished = LibraryPageReaderController(
+        content: FakePageContent(chapterCount: 3, tracksChapters: true),
+        store: store,
+      );
+      await drive(tester, finished.start());
+      expect(finished.chapterIndex, 0);
+      expect(finished.page, 0);
+      finished.dispose();
+
+      // Closed on an earlier spread, a chapter resumes there.
+      final (other, _) = await createStore(tester);
+      final partial = LibraryPageReaderController(
+        content: FakePageContent(chapterCount: 3, tracksChapters: true),
+        store: other,
+      );
+      await drive(tester, partial.start());
+      partial.setPage(1, through: 2);
+      partial.saveNow();
+      expect(other.progressFor('online:fake:manga')!.pageIndex, 1);
+      expect(other.chapterMark('online:fake:manga', 'c0')!.read, isFalse);
+      partial.dispose();
+      final resumed = LibraryPageReaderController(
+        content: FakePageContent(chapterCount: 3, tracksChapters: true),
+        store: other,
+      );
+      await drive(tester, resumed.start());
+      expect(resumed.page, 1);
+      resumed.dispose();
+      await flushStore(tester, store);
+      await flushStore(tester, other);
+    });
+
     testWidgets(
       'reaching the last page marks the chapter read and saves progress',
       (tester) async {

@@ -677,6 +677,100 @@ void main() {
       await closePages(tester, reduced);
     });
 
+    // Review of the books chantier (probe D): closed, sent to the
+    // background or popped during a curl or a slide, the reader saved the
+    // page being left (its position only moved once the turn ended), where
+    // the PDF and page readers save the page being turned to.
+    testWidgets('a turn in flight counts as done when the reader closes, goes '
+        'to the background or is popped', (tester) async {
+      useSurface(tester, size: portrait);
+      final (store, _) = await createStore(tester);
+      setLayout(
+        store,
+        turnStyle: LibraryPageTurnStyle.curl,
+        doublePage: LibraryDoublePageMode.never,
+      );
+
+      /// Opens [key], then starts a turn to the next page: the navigator,
+      /// the start of the page turned to and that of the page left.
+      Future<(GlobalKey<NavigatorState>, String, String)> midTurn(
+        String key, {
+        LibraryPageTurnStyle style = LibraryPageTurnStyle.curl,
+      }) async {
+        setLayout(store, turnStyle: style);
+        final navigator = await pumpReader(
+          tester,
+          textReader(store, progressKey: key),
+        );
+        // The neighbours and their textures.
+        await settlePages(tester, rounds: 8);
+        await tester.pump(const Duration(milliseconds: 50));
+        final state = bookState(tester);
+        final left = state.shownSpread!.first.start;
+        final next = state.neighbourSpreads.$2!.first.start;
+        expect(next, isNot(left));
+        state.gamepadBindings.down!();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        if (style == LibraryPageTurnStyle.curl) {
+          expect(state.curl!.isActive, isTrue);
+        } else {
+          final pager = tester
+              .widget<PageView>(find.byType(PageView))
+              .controller!;
+          expect(pager.page! % 1, isNot(0), reason: 'the pager is sliding');
+        }
+        expect(state.shownSpread!.first.start, left);
+        return (navigator, txt(next), txt(left));
+      }
+
+      Future<void> leaveAndCheck(String key, String next) async {
+        for (var i = 0; i < 60; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(find.byType(LibraryBookReaderScreen), findsNothing);
+        expect(tester.takeException(), isNull);
+        expect(store.progressFor(key)!.location, next);
+        await closePages(tester, store);
+      }
+
+      // B during a curl.
+      var (navigator, next, left) = await midTurn('local:mid-curl-b');
+      bookState(tester).gamepadBindings.back!();
+      expect(next, isNot(left));
+      expect(store.progressFor('local:mid-curl-b')!.location, next);
+      await leaveAndCheck('local:mid-curl-b', next);
+
+      // Popped directly (the iOS back swipe) during a curl.
+      (navigator, next, left) = await midTurn('local:mid-curl-pop');
+      navigator.currentState!.pop();
+      expect(store.progressFor('local:mid-curl-pop')!.location, next);
+      await leaveAndCheck('local:mid-curl-pop', next);
+
+      // B during a slide.
+      (navigator, next, left) = await midTurn(
+        'local:mid-slide',
+        style: LibraryPageTurnStyle.slide,
+      );
+      bookState(tester).gamepadBindings.back!();
+      expect(store.progressFor('local:mid-slide')!.location, next);
+      await leaveAndCheck('local:mid-slide', next);
+
+      // To the background during a curl: saved and written; back in the
+      // app, the turn ends on that page.
+      (navigator, next, left) = await midTurn('local:mid-curl-bg');
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      expect(store.progressFor('local:mid-curl-bg')!.location, next);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await turned(tester);
+      final state = bookState(tester);
+      expect(txt(state.shownSpread!.first.start), next);
+      expect(txt(state.currentPosition!), next);
+      await tester.pump(const Duration(seconds: 1));
+      expect(store.progressFor('local:mid-curl-bg')!.location, next);
+      await closePages(tester, store);
+    });
+
     testWidgets('next and previous cross chapters', (tester) async {
       useSurface(tester, size: portrait);
       final (store, _) = await createStore(tester);

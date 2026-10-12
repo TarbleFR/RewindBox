@@ -243,6 +243,12 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   /// A turn asked while its neighbour was being laid out (1, -1).
   int _queuedTurn = 0;
 
+  /// Spread an animated turn (page curl or slide) is heading to: a reader
+  /// closed, sent to the background or popped meanwhile saves it, as the
+  /// PDF and page readers save the page being turned to
+  /// ([_commitTurnInFlight]).
+  LibraryBookSpread? _turnTarget;
+
   /// Item index of the page curl = [_virtualOrigin] + pager index: it moves
   /// with every turn (the curl renders the new neighbours ahead).
   int _virtualOrigin = 1 << 28;
@@ -521,9 +527,29 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       _track(force: true);
+      _commitTurnInFlight();
       _saveNow();
       unawaited(_store.flush().catchError((Object _) {}));
     }
+  }
+
+  /// A page turn running when the reader closes, goes to the background or
+  /// is popped counts as done: the spread it heads to is the position
+  /// saved, not the one being left.
+  void _commitTurnInFlight() {
+    final target = _turnTarget;
+    if (target == null ||
+        _leaving ||
+        _activeLayout != LibraryTextLayout.pages) {
+      return;
+    }
+    _turnTarget = null;
+    final position = target.first.start;
+    if (position == _lastPosition) return;
+    _pageAnchor = position;
+    _lastPosition = position;
+    _shownPosition.value = position;
+    _dirty = true;
   }
 
   Future<Uint8List> _loadResource(String href) {
@@ -745,6 +771,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
     _closing = true;
     // Saved before the pop, while the screens below can rebuild for it.
     _track(force: true);
+    _commitTurnInFlight();
     _saveNow();
     Navigator.of(context).maybePop().then((popped) {
       if (!popped) _closing = false;
@@ -761,6 +788,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   void _onPopped(bool didPop, Object? _) {
     if (!didPop) return;
     _track(force: true);
+    _commitTurnInFlight();
     _saveNow();
     _leaving = true;
     _saveTimer?.cancel();
@@ -1177,6 +1205,7 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
 
   /// Forgets the window: a new one is laid out around [_pageAnchor].
   void _clearWindow() {
+    _turnTarget = null;
     _spread = null;
     _previous = null;
     _next = null;
@@ -1551,15 +1580,25 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
         curl != null &&
         curl.canTurn(direction)) {
       // 380 ms, then onTurned jumps the pager under the turned page.
-      unawaited(curl.turn(direction));
+      _turnTarget = target;
+      unawaited(
+        curl.turn(direction).then((turned) {
+          if (!turned && identical(_turnTarget, target)) _turnTarget = null;
+        }),
+      );
       return;
     }
+    _turnTarget = target;
     unawaited(
-      pager.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      ),
+      pager
+          .animateToPage(
+            index,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          )
+          .whenComplete(() {
+            if (identical(_turnTarget, target)) _turnTarget = null;
+          }),
     );
   }
 
@@ -1574,6 +1613,8 @@ class LibraryBookReaderScreenState extends State<LibraryBookReaderScreen>
   /// back to the middle of a new window around it, without animation.
   void _arriveAt(int index) {
     if (!mounted || _activeLayout != LibraryTextLayout.pages) return;
+    // The turn in flight, if any, has ended (here, or turned back).
+    _turnTarget = null;
     final spread = _spread;
     if (spread == null) return;
     final center = _centerIndex;
