@@ -1110,8 +1110,20 @@ DELTA |= BUILD447_BOOKS_DELTA
 BUILD447_STORAGE_DELTA = {
     'build-utils/verify_delivery_reuse.py',
     'lib/l10n/storage_locale.dart',
+    'lib/services/armsx2_internal_service.dart',
+    'lib/services/dolphin_internal_v2_service.dart',
+    'lib/services/dolphin_smart_import_service.dart',
+    'lib/services/dusklight_internal_service.dart',
+    'lib/services/kartpad_internal_service.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/services/rpcs3_internal_service.dart',
+    'lib/services/rpcs3_save_exchange_service.dart',
+    'lib/services/storage/storage_picker_copies.dart',
     'test/localization_12_locale_coverage_test.py',
+    'test/storage_contract_test.py',
     'test/storage_locale_test.dart',
+    'test/storage_log_rotation_test.dart',
+    'test/storage_picker_copies_test.dart',
 }
 DELTA |= BUILD447_STORAGE_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.

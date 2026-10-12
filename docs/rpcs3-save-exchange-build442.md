@@ -109,7 +109,10 @@ gestionnaire RPCS3 (`rpcs3-manager-export-saves`,
    refus avec le chemin Fichiers.
 2. **Archive ZIP** choisie avec `FilePicker.pickFiles(type: FileType.custom,
    allowedExtensions: ['zip'])` (extension vérifiée sans casse sur le nom,
-   copie du sélecteur lue puis nettoyée par `clearTemporaryFiles`). Dans
+   copie du sélecteur lue sur place ; depuis la Build 447, seule cette copie
+   et sa copie système de même nom et même taille sont retirées à la fin de
+   l'import par `StoragePickerCopies.discardAfterVerifiedImport`, à la place
+   de `clearTemporaryFiles`, qui vidait tout `tmp/`). Dans
    l'archive, chaque entrée `PARAM.SFO` désigne une sauvegarde ; son dossier
    parent est `<DIR>`, avec un nombre quelconque de dossiers en tête
    (`savedata/`, nom d'export…). `__MACOSX` est ignoré.

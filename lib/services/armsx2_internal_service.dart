@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'armsx2_folder_service.dart';
 import 'config_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 class Armsx2ImportResult {
   const Armsx2ImportResult({
@@ -119,6 +120,8 @@ class Armsx2InternalService {
     var imported = 0;
     var rejected = 0;
     final errors = <String>[];
+    // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
+    final verifiedCopies = <String, int>{};
 
     for (final picked in files) {
       final sourcePath = picked.path;
@@ -151,10 +154,19 @@ class Armsx2InternalService {
           throw FileSystemException('Copied file length mismatch');
         }
         imported++;
+        verifiedCopies[sourcePath] = outputLength;
       } catch (error) {
         rejected++;
         errors.add('${picked.name}: $error');
       }
+    }
+    // Games and BIOS alike: once every pick is handled, the picker's copies
+    // of the verified imports are not read again.
+    for (final copy in verifiedCopies.entries) {
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        copy.key,
+        expectedLength: copy.value,
+      );
     }
 
     return Armsx2ImportResult(

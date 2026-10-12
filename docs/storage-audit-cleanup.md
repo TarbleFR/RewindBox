@@ -413,6 +413,41 @@ ne copient pas dans `tmp/` : inchangés. Journaux : `DolphinInternalV2Service._s
 `KartPadInternalService.launch()` après la fin de session : `keepNewest(Logs, keep: 10)` sur `*.log`/`console.txt`
 (jamais pendant la session, le cœur écrit). Tests § 6 J.
 
+### 4.1 Déviations consignées à l'implémentation (12 octobre 2026)
+
+- **Racine des copies du sélecteur.** Sur iOS, `getTemporaryDirectory()` de
+  `path_provider_foundation` 2.6.0 renvoie `NSCachesDirectory`, c'est-à-dire
+  `Library/Caches` (`path_provider_foundation_real.dart:40-42`), alors que le
+  sélecteur copie dans `NSTemporaryDirectory()`, le vrai `tmp/`
+  (`IOSFilePickerHandler.swift:316`). La racine par défaut de
+  `StoragePickerCopies` est donc `<dirname(Documents)>/tmp` résolu ; un fichier
+  sous `Library/Caches` est refusé (test). Même correction pour INV-28 : les
+  chemins « `tmp/KartPad` », « `tmp/Dusklight` », `SoLoudLoader-Temp-Files` et la
+  copie de métadonnées du lecteur Musique sont en réalité sous `Library/Caches`.
+- **Plateforme.** Seul iOS copie chaque sélection : hors iOS, un chemin choisi est
+  le fichier de l'utilisateur et rien n'est supprimé (`pickedPathsAreCopies`).
+- **Boucles à plusieurs sélections** (libretro, Dolphin, Dusklight, ARMSX2) : la
+  longueur vérifiée est notée après le contrôle et les copies sont retirées après
+  la boucle (une feuille cue/m3u relit ses pistes dans `tmp/` ; deux sélections
+  de même nom partagent une copie du sélecteur).
+- **Import Dolphin du menu** : `DolphinSmartImportService.importGames`, le
+  chemin réellement utilisé par l'interface, applique la même règle.
+- **KartPad** : la rotation des journaux n'a lieu au lancement que si aucune
+  session lancée auparavant ne peut encore tourner (la session reste détenue par
+  le pont jusqu'à son événement de fin) ; le journal de cycle de vie du pont,
+  `neostation-kartpad-lifecycle.log` à la racine KartPad, est borné à 5 Mio
+  (`.old`) au même moment.
+- **Dolphin** : la rotation a lieu quand le nouveau journal est nommé, avant sa
+  création : dix journaux précédents plus le courant restent sur le disque.
+- **RPCS3, sauvegardes** : l'archive ZIP est lue sur place ; sa copie est retirée
+  dans le `finally` de l'import gardé (après validation, rejet, refus ou échec),
+  avec la longueur lue à l'ouverture. **RPCS3, micrologiciel** : la longueur
+  attendue est celle de la copie préparée par `_stageFirmware`.
+- **Non traités** : une sélection « déjà présente » (jamais copiée ni vérifiée)
+  garde sa copie ; `Rpcs3InternalService.importGames()` laisse les copies du
+  sélecteur (lecture de l'ISO sur place non vérifiée) ; ces deux cas restent
+  visibles dans l'analyse au niveau 1.
+
 ## 5. Phases, gate DELTA et lanes
 
 | Phase | Contenu | Gate |

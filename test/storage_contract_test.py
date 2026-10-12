@@ -1,0 +1,522 @@
+#!/usr/bin/env python3
+"""Storage source contract, test J (docs/storage-audit-cleanup.md § 4 and § 6).
+
+Light maintenance: the picker's copies under tmp/ are discarded only right
+after an import verified their length, the engine logs are bounded only at
+their documented points, and FilePicker.clearTemporaryFiles(), which empties
+the whole of tmp/, is never called again. The behaviour itself is tested by
+test/storage_picker_copies_test.dart and test/storage_log_rotation_test.dart;
+this file pins where the helpers are called, in which order, and that
+nothing runs at startup. Method bodies are found by parsing the Dart sources
+(comments and string literals blanked, braces matched), not by line numbers.
+
+The last section is reserved for the screen and locale checks of test J
+(phase 5d).
+"""
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+LIB = ROOT / 'lib'
+HELPER = 'lib/services/storage/storage_picker_copies.dart'
+DISCARD = 'StoragePickerCopies.discardAfterVerifiedImport('
+KEEP_NEWEST = 'StorageLogRotation.keepNewest('
+ROTATE = 'StorageLogRotation.rotateAtSize('
+
+
+def mask(source: str) -> str:
+    """[source] with its comments and string literals (interpolations
+    included) replaced by spaces: same length and line breaks, so an index
+    in the result is an index in the source."""
+    out = list(source)
+    n = len(source)
+
+    def blank(start: int, end: int) -> None:
+        for k in range(start, end):
+            if out[k] != '\n':
+                out[k] = ' '
+
+    def block_comment(i: int) -> int:
+        start, depth = i, 0
+        while i < n:
+            if source.startswith('/*', i):
+                depth += 1
+                i += 2
+            elif source.startswith('*/', i):
+                depth -= 1
+                i += 2
+                if depth == 0:
+                    break
+            else:
+                i += 1
+        blank(start, i)
+        return i
+
+    def string(i: int) -> int:
+        start, raw = i, False
+        if source[i] in 'rR':
+            raw = True
+            i += 1
+        quote = source[i]
+        delimiter = quote * 3 if source.startswith(quote * 3, i) else quote
+        i += len(delimiter)
+        while i < n:
+            if not raw and source[i] == '\\':
+                i += 2
+            elif source.startswith(delimiter, i):
+                i += len(delimiter)
+                break
+            elif not raw and source.startswith('${', i):
+                i = code(i + 2, inside_interpolation=True) + 1
+            elif len(delimiter) == 1 and source[i] == '\n':
+                break
+            else:
+                i += 1
+        blank(start, i)
+        return i
+
+    def code(i: int, inside_interpolation: bool = False) -> int:
+        depth = 0
+        while i < n:
+            c = source[i]
+            if source.startswith('//', i):
+                end = source.find('\n', i)
+                end = n if end < 0 else end
+                blank(i, end)
+                i = end
+            elif source.startswith('/*', i):
+                i = block_comment(i)
+            elif c in '\'"' or (
+                c in 'rR' and i + 1 < n and source[i + 1] in '\'"'
+                and (i == 0 or not (source[i - 1].isalnum() or source[i - 1] in '_$'))
+            ):
+                i = string(i)
+            elif c == '{':
+                depth += 1
+                i += 1
+            elif c == '}':
+                if inside_interpolation and depth == 0:
+                    return i
+                depth -= 1
+                i += 1
+            else:
+                i += 1
+        return i
+
+    code(0)
+    return ''.join(out)
+
+
+def matching(masked: str, at: int, opening: str, closing: str) -> int:
+    """Index just after the [closing] that matches the [opening] at [at]."""
+    assert masked[at] == opening, (at, masked[at:at + 40])
+    depth = 0
+    for k in range(at, len(masked)):
+        if masked[k] == opening:
+            depth += 1
+        elif masked[k] == closing:
+            depth -= 1
+            if depth == 0:
+                return k + 1
+    raise AssertionError('unbalanced ' + opening + closing)
+
+
+class Source:
+    def __init__(self, relative: str) -> None:
+        self.relative = relative
+        self.text = (ROOT / relative).read_text(encoding='utf-8')
+        self.masked = mask(self.text)
+
+    def line(self, index: int) -> int:
+        return self.text.count('\n', 0, index) + 1
+
+    def body(self, signature: str) -> tuple:
+        """(start, end) of the body of the only declaration starting with
+        [signature] (which ends with its opening parenthesis)."""
+        at = self.masked.find(signature)
+        assert at >= 0, self.relative + ': ' + signature
+        assert self.masked.find(signature, at + 1) < 0, self.relative + ': twice ' + signature
+        i = matching(self.masked, at + len(signature) - 1, '(', ')')
+        i += re.match(r'\s*(?:async\*?|sync\*)?\s*', self.masked[i:]).end()
+        if self.masked[i] == '{':
+            return i, matching(self.masked, i, '{', '}')
+        assert self.masked.startswith('=>', i), self.relative + ': ' + signature
+        depth = 0
+        for k in range(i + 2, len(self.masked)):
+            c = self.masked[k]
+            if c in '([{':
+                depth += 1
+            elif c in ')]}':
+                depth -= 1
+            elif c == ';' and depth == 0:
+                return i, k + 1
+        raise AssertionError('no end for ' + signature)
+
+
+class Span:
+    """A method body, searched in the masked text unless [original]."""
+
+    def __init__(self, source: Source, signature: str) -> None:
+        self.source = source
+        self.signature = signature
+        self.start, self.end = source.body(signature)
+
+    def find(self, token: str, original: bool = False, after: int = None) -> int:
+        text = self.source.text if original else self.source.masked
+        at = text.find(token, self.start if after is None else after, self.end)
+        assert at >= 0, f'{self.source.relative}: {self.signature} lacks {token!r}'
+        return at
+
+    def count(self, token: str) -> int:
+        return self.source.masked.count(token, self.start, self.end)
+
+    def block_end(self, opener: str) -> int:
+        """End of the block that [opener] (ending with '{') opens."""
+        at = self.find(opener)
+        return matching(self.source.masked, at + len(opener) - 1, '{', '}')
+
+    def call(self, at: int) -> str:
+        """Source text of the call starting at [at], up to its ')'."""
+        open_at = self.source.masked.index('(', at)
+        return self.source.text[at:matching(self.source.masked, open_at, '(', ')')]
+
+
+def dart_files():
+    return sorted(LIB.rglob('*.dart'))
+
+
+# Each verified-import call site: the verification it follows, the line that
+# records the verified length, and the loop it waits for (a pick list).
+LOOP_SITES = (
+    ('lib/services/libretro_internal_service.dart',
+     'static Future<LibretroImportResult> importGames(',
+     'if (length == 0 || length != sourceLength) {',
+     'verifiedCopies[source] = length;',
+     'for (final file in selection.files) {',
+     # A cue sheet reads its tracks from the picker's folder first.
+     ('_copyReferencedTracks(File(source), destination);',)),
+    ('lib/services/dolphin_internal_v2_service.dart',
+     'static Future<DolphinImportResult> importGames(',
+     'if (sourceLength <= 0 || sourceLength != outputLength) {',
+     'verifiedCopies[sourcePath] = outputLength;',
+     'for (final picked in selection.files) {',
+     ()),
+    ('lib/services/dusklight_internal_service.dart',
+     'static Future<DusklightImportResult> importGames(',
+     'if (await temporary.length() != await source.length()) {',
+     'verifiedCopies[sourcePath] = (await output.stat()).size;',
+     'for (final picked in selection.files) {',
+     ('await temporary.rename(output.path);',)),
+    ('lib/services/armsx2_internal_service.dart',
+     'static Future<Armsx2ImportResult> _copySelection(',
+     'if (sourceLength <= 0 || sourceLength != outputLength) {',
+     'verifiedCopies[sourcePath] = outputLength;',
+     'for (final picked in files) {',
+     ()),
+    # The Dolphin import the menu really uses (dolphin_internal_playlist_actions).
+    ('lib/services/dolphin_smart_import_service.dart',
+     'static Future<DolphinSmartImportResult> importGames(',
+     'if (sourceLength <= 0 || sourceLength != outputLength) {',
+     'verifiedCopies[sourcePath] = outputLength;',
+     'for (final picked in selection.files) {',
+     ()),
+)
+
+# Every allowed caller of the helpers outside lib/services/storage/:
+# file -> method signatures (§ 4). Extending this list is a contract change.
+ALLOWED_CALLERS = {
+    'lib/services/libretro_internal_service.dart': (
+        'static Future<LibretroImportResult> importGames(',),
+    'lib/services/dolphin_internal_v2_service.dart': (
+        'static Future<DolphinImportResult> importGames(',
+        'static Future<String> _sessionLogPath(',),
+    'lib/services/kartpad_internal_service.dart': (
+        'static Future<KartPadImportResult> importGame(',
+        'static Future<KartPadLaunchResult> launch(',),
+    'lib/services/dusklight_internal_service.dart': (
+        'static Future<DusklightImportResult> importGames(',),
+    'lib/services/armsx2_internal_service.dart': (
+        'static Future<Armsx2ImportResult> _copySelection(',),
+    'lib/services/rpcs3_internal_service.dart': (
+        'static Future<bool> importFirmware(',),
+    'lib/services/rpcs3_save_exchange_service.dart': (
+        'Future<Rpcs3SaveImportReport?> importGuarded(',),
+    'lib/services/dolphin_smart_import_service.dart': (
+        'static Future<DolphinSmartImportResult> importGames(',),
+}
+
+
+class NeverClearTheWholeTemporaryDirectory(unittest.TestCase):
+    def test_no_clear_temporary_files_call_in_lib(self) -> None:
+        checked = 0
+        for path in dart_files():
+            source = Source(str(path.relative_to(ROOT)))
+            checked += 1
+            at = source.masked.find('clearTemporaryFiles(')
+            self.assertLess(at, 0, f'{source.relative}:{source.line(at)} calls clearTemporaryFiles()')
+        self.assertGreater(checked, 100, 'lib/ is read')
+
+    def test_the_rpcs3_save_import_flag_is_gone(self) -> None:
+        exchange = Source('lib/services/rpcs3_save_exchange_service.dart')
+        self.assertNotIn('cleanPickerCopies', exchange.masked)
+
+
+class NothingAtStartup(unittest.TestCase):
+    def test_main_never_reaches_the_helpers_or_their_call_sites(self) -> None:
+        main = Source('lib/main.dart')
+        for token in ('StoragePickerCopies', 'StorageLogRotation', 'storage_picker_copies'):
+            self.assertNotIn(token, main.text, token)
+        for token in ('importGames(', 'importGame(', 'importBios(', 'importFirmware(', 'importGuarded(',
+                      'KartPadInternalService.launch(', 'DolphinInternalV2Service.launch('):
+            self.assertNotIn(token, main.masked, token)
+
+    def test_the_helpers_are_called_only_at_the_documented_points(self) -> None:
+        for path in dart_files():
+            relative = str(path.relative_to(ROOT))
+            if relative.startswith('lib/services/storage/'):
+                continue
+            source = Source(relative)
+            spans = [Span(source, signature) for signature in ALLOWED_CALLERS.get(relative, ())]
+            for token in ('StoragePickerCopies.', 'StorageLogRotation.'):
+                at = source.masked.find(token)
+                while at >= 0:
+                    self.assertTrue(
+                        any(span.start <= at < span.end for span in spans),
+                        f'{relative}:{source.line(at)} calls {token} outside the call sites of '
+                        'docs/storage-audit-cleanup.md § 4 (ALLOWED_CALLERS)')
+                    at = source.masked.find(token, at + 1)
+
+    def test_each_call_site_calls_the_helper_once(self) -> None:
+        expected = {
+            'lib/services/libretro_internal_service.dart': (1, 0, 0),
+            'lib/services/dolphin_internal_v2_service.dart': (1, 1, 1),
+            # rotateAtSize: the bridge lifecycle log, in the same session gate.
+            'lib/services/kartpad_internal_service.dart': (1, 1, 1),
+            'lib/services/dusklight_internal_service.dart': (1, 0, 0),
+            'lib/services/armsx2_internal_service.dart': (1, 0, 0),
+            'lib/services/rpcs3_internal_service.dart': (1, 0, 0),
+            'lib/services/rpcs3_save_exchange_service.dart': (1, 0, 0),
+            'lib/services/dolphin_smart_import_service.dart': (1, 0, 0),
+        }
+        for relative, counts in expected.items():
+            masked = Source(relative).masked
+            self.assertEqual((masked.count(DISCARD), masked.count(KEEP_NEWEST), masked.count(ROTATE)),
+                             counts, relative)
+
+
+class PickerCopiesAfterAVerifiedImport(unittest.TestCase):
+    def test_loops_record_the_verified_length_and_discard_after_the_loop(self) -> None:
+        for relative, signature, verification, record, loop, before_record in LOOP_SITES:
+            with self.subTest(site=relative):
+                span = Span(Source(relative), signature)
+                check = span.find(verification)
+                check_end = span.block_end(verification)
+                recorded = span.find(record)
+                loop_end = span.block_end(loop)
+                discard = span.find(DISCARD)
+                self.assertLess(check_end, recorded, 'the length is recorded once verified')
+                for token in before_record:
+                    self.assertLess(span.find(token, after=check), recorded, token)
+                self.assertLess(recorded, loop_end, 'recorded inside the pick loop')
+                self.assertGreater(discard, loop_end,
+                                   'discarded once every pick is handled (a later pick may read the folder)')
+                self.assertEqual(span.count(DISCARD), 1)
+                call = span.call(discard)
+                self.assertIn('copy.key', call)
+                self.assertIn('expectedLength: copy.value', call)
+                self.assertEqual(span.count('verifiedCopies['), 1, 'one recording line')
+
+    def test_armsx2_games_and_bios_share_the_verified_copy(self) -> None:
+        source = Source('lib/services/armsx2_internal_service.dart')
+        for signature in ('static Future<Armsx2ImportResult> importGames(',
+                          'static Future<Armsx2ImportResult> importBios('):
+            span = Span(source, signature)
+            self.assertGreater(span.count('_copySelection('), 0, signature)
+            self.assertEqual(span.count('StoragePickerCopies'), 0, signature)
+
+    def test_kartpad_discards_after_the_verified_rename(self) -> None:
+        span = Span(Source('lib/services/kartpad_internal_service.dart'),
+                    'static Future<KartPadImportResult> importGame(')
+        prepared = span.find('KartPadInternalBridge.prepareGame(')
+        check = span.find('if (await temporary.length() != await source.length()) {')
+        renamed = span.find('await temporary.rename(output.path);')
+        discard = span.find(DISCARD)
+        self.assertLess(prepared, check)
+        self.assertLess(check, renamed)
+        self.assertLess(renamed, discard)
+        call = span.call(discard)
+        self.assertIn('sourcePath', call)
+        self.assertIn('expectedLength: (await output.stat()).size', call)
+        self.assertLess(discard, span.find('importedPaths: <String>[output.path]', after=discard))
+
+    def test_rpcs3_firmware_discards_once_staged_before_the_core(self) -> None:
+        span = Span(Source('lib/services/rpcs3_internal_service.dart'), 'static Future<bool> importFirmware(')
+        staged = span.find('stagedPath = await _stageFirmware(sourcePath);')
+        discard = span.find(DISCARD)
+        core = span.find('await ensureManagementInitialized();')
+        cleanup = span.find('} finally {')
+        self.assertLess(staged, discard)
+        self.assertLess(discard, core)
+        self.assertLess(core, cleanup)
+        call = span.call(discard)
+        self.assertIn('sourcePath', call)
+        self.assertIn('expectedLength: (await File(stagedPath).stat()).size', call)
+
+    def test_rpcs3_game_import_is_unchanged(self) -> None:
+        # pkg/iso/zip are installed by the Core from the picked path itself.
+        span = Span(Source('lib/services/rpcs3_internal_service.dart'),
+                    'static Future<Rpcs3ImportResult> importGames(')
+        self.assertEqual(span.count('StoragePickerCopies'), 0)
+
+    def test_rpcs3_save_import_discards_only_the_picked_zip_in_its_finally(self) -> None:
+        source = Source('lib/services/rpcs3_save_exchange_service.dart')
+        span = Span(source, 'Future<Rpcs3SaveImportReport?> importGuarded(')
+        zip_case = span.find('case Rpcs3SaveImportSourceKind.zipFile:')
+        folder_case = span.find('case Rpcs3SaveImportSourceKind.folder:')
+        readable = span.find('if (path == null || !await File(path).exists()) {', after=zip_case)
+        readable_end = matching(source.masked, source.masked.index('{', readable), '{', '}')
+        recorded = span.find('pickerCopy = (path: path, length: (await File(path).stat()).size);')
+        self.assertEqual(span.count('pickerCopy ='), 1)
+        self.assertLess(readable_end, recorded)
+        self.assertLess(recorded, folder_case, 'only the ZIP source is a picker copy')
+        # The finally of the try that wraps the guarded import (the guard's
+        # own body has an inner try/finally for the folder scopes).
+        guard = span.find('return await guard(')
+        outer_try = source.masked.rfind('try {', span.start, guard)
+        try_end = matching(source.masked, outer_try + len('try '), '{', '}')
+        self.assertLess(guard, try_end)
+        follows = re.match(r'\s*finally\s*\{', source.masked[try_end:])
+        self.assertIsNotNone(follows, 'the guarded import is followed by a finally')
+        cleanup = try_end + follows.end() - 1
+        cleanup_end = matching(source.masked, cleanup, '{', '}')
+        discard = span.find(DISCARD)
+        self.assertLess(cleanup, discard)
+        self.assertLess(discard, cleanup_end, 'inside the finally that follows the guarded import')
+        self.assertIn('expectedLength: copy.length', span.call(discard))
+        self.assertEqual(span.count(DISCARD), 1)
+
+
+class LogsBoundedAtTheirPoints(unittest.TestCase):
+    def test_dolphin_session_logs_and_persistent_log(self) -> None:
+        source = Source('lib/services/dolphin_internal_v2_service.dart')
+        span = Span(source, 'static Future<String> _sessionLogPath(')
+        keep = span.find(KEEP_NEWEST)
+        rotate = span.find(ROTATE)
+        named = span.find('return path.join(')
+        self.assertIn('name: _sessionLogName, keep: 10', span.call(keep))
+        self.assertIn("'dolphin-persistent.jsonl'", span.call(rotate))
+        self.assertLess(keep, named)
+        self.assertLess(rotate, named)
+
+        declaration = re.search(r"static final RegExp _sessionLogName = RegExp\(\s*r'([^']*)'", source.text)
+        self.assertIsNotNone(declaration)
+        pattern = re.compile(declaration.group(1))
+        for name in ('dolphin-2026-10-12T10-14-00.123456Z.jsonl', 'dolphin-x.jsonl'):
+            self.assertTrue(pattern.search(name), name)
+        for name in ('dolphin-persistent.jsonl', 'dolphin-persistent.jsonl.old', 'notes.jsonl',
+                     'dolphin-2026.jsonl.old'):
+            self.assertFalse(pattern.search(name), name)
+
+        # Only _launch names a session log, once the native side reported no
+        # running session: never ensureLayout, the scanner or startup.
+        launch = Span(source, 'static Future<DolphinLaunchReport> _launch(')
+        at = source.masked.find('_sessionLogPath()')
+        calls = 0
+        while at >= 0:
+            if not span.start - len('static Future<String> _sessionLogPath(') <= at < span.end:
+                self.assertTrue(launch.start <= at < launch.end, f'_sessionLogPath() at line {source.line(at)}')
+                calls += 1
+            at = source.masked.find('_sessionLogPath()', at + 1)
+        self.assertGreater(calls, 0)
+        session = Span(source, 'static Future<DolphinLaunchReport> _launchSession(')
+        self.assertLess(session.find("invokeMethod<bool>('isRunning')", original=True),
+                        session.find('await _launch('))
+        self.assertEqual(source.masked.count('await _launch('), 1)
+
+    def test_kartpad_runtime_logs_before_any_native_call_and_never_during_a_session(self) -> None:
+        source = Source('lib/services/kartpad_internal_service.dart')
+        span = Span(source, 'static Future<KartPadLaunchResult> launch(')
+        layout = span.find('await ensureLayout();')
+        gate = span.find('if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {')
+        keep = span.find(KEEP_NEWEST)
+        identity = span.find('await inspectGameFile(game)')
+        native = span.find('await launchNativeSession(')
+        self.assertLess(layout, gate)
+        self.assertLess(gate, keep)
+        self.assertLess(keep, span.block_end('if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {'))
+        self.assertLess(keep, identity, 'before the first native call (DiscIO identity)')
+        self.assertLess(identity, native)
+        call = span.call(keep)
+        self.assertIn('await logsDirectory()', call)
+        self.assertIn('name: _runtimeLogName', call)
+        self.assertIn('keep: 10', call)
+        # The bridge's lifecycle log is bounded in the same gate, before the
+        # first native call too.
+        rotate = span.find(ROTATE)
+        self.assertLess(gate, rotate)
+        self.assertLess(rotate, span.block_end('if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {'))
+        self.assertLess(rotate, identity)
+        self.assertIn("'neostation-kartpad-lifecycle.log'", span.call(rotate))
+
+        started = span.find('_nativeLaunchStarted = true;')
+        self.assertEqual(source.masked.count('_nativeLaunchStarted = true;'), 1)
+        self.assertLess(span.find("trace('native_launch_begin');", original=True), started)
+        self.assertLess(started, native)
+        native_session = Span(source, 'static Future<Map<String, dynamic>> launchNativeSession(')
+        self.assertEqual(native_session.count('Storage'), 0, 'the external-display hold is untouched')
+
+        declaration = re.search(
+            r"static final RegExp _runtimeLogName\s*=\s*RegExp\(\s*r'([^']*)',\s*caseSensitive: false\)",
+            source.text)
+        self.assertIsNotNone(declaration)
+        pattern = re.compile(declaration.group(1), re.IGNORECASE)
+        for name in ('console.txt', 'CONSOLE.TXT', 'console.log', 'run-01.log', 'BOOT.LOG', '.log'):
+            self.assertTrue(pattern.search(name), name)
+        for name in ('notes.md', 'console.txt.bak', 'crash.dmp', 'run.log.old', 'my-console.txt'):
+            self.assertFalse(pattern.search(name), name)
+
+
+class HelperNeverFollowsLinks(unittest.TestCase):
+    def test_listings_do_not_follow_links_and_nothing_is_deleted_recursively(self) -> None:
+        helper = Source(HELPER)
+        lists = [m.start() for m in re.finditer(r'\.list\(', helper.masked)]
+        self.assertGreaterEqual(len(lists), 2)
+        for at in lists:
+            self.assertIn('followLinks: false', helper.masked[at:helper.masked.index(')', at)], helper.line(at))
+        for token in ('recursive: true', 'followLinks: true', 'clearTemporaryFiles', 'deleteSync'):
+            self.assertNotIn(token, helper.masked, token)
+        for token in ('resolveSymbolicLinks()', 'path.isWithin(root, resolved)', 'FileSystemEntityType.file',
+                      "endsWith('-Inbox')"):
+            self.assertIn(token, helper.text, token)
+
+    def test_the_root_is_the_container_tmp_not_path_providers_temporary_directory(self) -> None:
+        # path_provider_foundation's getTemporaryPath() is NSCachesDirectory
+        # (Library/Caches on iOS); the picker copies into NSTemporaryDirectory(),
+        # the container's tmp beside Documents.
+        helper = Source(HELPER)
+        self.assertNotIn('getTemporaryDirectory', helper.masked)
+        self.assertRegex(helper.masked,
+                         r'static Future<Directory> Function\(\) temporaryDirectory =\s*_containerTemporaryDirectory;')
+        span = Span(helper, 'static Future<Directory> _containerTemporaryDirectory(')
+        self.assertIn('await getApplicationDocumentsDirectory()', helper.masked[span.start:span.end])
+        self.assertIn("path.join(path.dirname(documents.path), 'tmp')", helper.text[span.start:span.end])
+        self.assertIn('static bool _isIOS() => Platform.isIOS;', helper.masked)
+        self.assertRegex(helper.masked, r'static bool Function\(\) pickedPathsAreCopies = _isIOS;')
+
+
+# ---------------------------------------------------------------------------
+# RESERVED FOR THE LEAD (phase 5d): screen and locale checks of test J.
+# docs/storage-audit-cleanup.md § 6, row J: no "Library/Sources" string in
+# lib/screens/storage/ nor in lib/l10n/storage_locale.dart (INV-15 stays
+# aggregated under « Bibliothèque », § 1). Add those checks here so that
+# `python3 test/storage_contract_test.py` remains the single Python gate of
+# the storage lane (§ 5).
+# ---------------------------------------------------------------------------
+class StorageScreensAndLocaleContract(unittest.TestCase):
+    def test_reserved_for_the_screen_and_locale_checks(self) -> None:
+        self.skipTest('phase 5d: screen and locale checks to be added by the lead')
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

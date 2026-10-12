@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'dusklight_game_identity.dart';
+import 'storage/storage_picker_copies.dart';
 
 class DusklightImportIssue {
   const DusklightImportIssue(this.fileName, this.messageKey, [this.details]);
@@ -117,6 +118,8 @@ class DusklightInternalService {
     var rejected = 0;
     final errors = <DusklightImportIssue>[];
     final importedPaths = <String>[];
+    // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
+    final verifiedCopies = <String, int>{};
     for (final picked in selection.files) {
       final sourcePath = picked.path;
       final extension = path
@@ -164,6 +167,7 @@ class DusklightInternalService {
         await temporary.rename(output.path);
         importedPaths.add(output.path);
         imported++;
+        verifiedCopies[sourcePath] = (await output.stat()).size;
       } catch (error) {
         if (temporary != null && await temporary.exists()) {
           await temporary.delete();
@@ -171,6 +175,14 @@ class DusklightInternalService {
         rejected++;
         errors.add(DusklightImportIssue(picked.name, 'importFailed', '$error'));
       }
+    }
+    // Once every pick is handled, the picker's copies of the verified
+    // imports are not read again.
+    for (final copy in verifiedCopies.entries) {
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        copy.key,
+        expectedLength: copy.value,
+      );
     }
     return DusklightImportResult(
       imported: imported,

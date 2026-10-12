@@ -20,6 +20,7 @@ import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
 import 'rpcs3_game_profile_service.dart';
 import 'rpcs3_library_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 enum Rpcs3RuntimePhase {
   idle,
@@ -632,6 +633,13 @@ class Rpcs3InternalService {
     String? stagedPath;
     try {
       stagedPath = await _stageFirmware(sourcePath);
+      // The Core installs the staged copy: once it holds every byte (same
+      // length), the picker's copies are not read again
+      // (docs/storage-audit-cleanup.md § 4).
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        sourcePath,
+        expectedLength: (await File(stagedPath).stat()).size,
+      );
       await ensureManagementInitialized();
       _emit(
         Rpcs3RuntimePhase.installingFirmware,

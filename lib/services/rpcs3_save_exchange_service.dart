@@ -13,6 +13,7 @@ import 'logger_service.dart';
 import 'rpcs3_internal_service.dart';
 import 'rpcs3_param_sfo.dart';
 import 'rpcs3_rap_licence_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 /// Where the saves of an import come from.
 enum Rpcs3SaveImportSourceKind {
@@ -798,7 +799,9 @@ class Rpcs3SaveExchangeService {
     required Rpcs3SaveReplaceConfirmation confirmReplace,
   }) async {
     String? pickedPath;
-    var cleanPickerCopies = false;
+    // The picked ZIP (the picker's copy under tmp/ on iOS) with the length
+    // read when it was opened for the import; null for the other sources.
+    ({String path, int length})? pickerCopy;
     switch (kind) {
       case Rpcs3SaveImportSourceKind.filesFolder:
         break;
@@ -810,7 +813,6 @@ class Rpcs3SaveExchangeService {
           withData: false,
         );
         if (picked == null || picked.files.isEmpty) return null;
-        cleanPickerCopies = true;
         final file = picked.files.first;
         if (!file.name.toLowerCase().endsWith('.zip')) {
           throw Rpcs3SaveExchangeException(
@@ -826,6 +828,7 @@ class Rpcs3SaveExchangeService {
           );
         }
         pickedPath = path;
+        pickerCopy = (path: path, length: (await File(path).stat()).size);
       case Rpcs3SaveImportSourceKind.folder:
         final folder = await Rpcs3InternalBridge.pickGameFolderOpenInPlace();
         if (folder == null || folder.isEmpty) return null;
@@ -860,12 +863,15 @@ class Rpcs3SaveExchangeService {
         }
       });
     } finally {
-      if (cleanPickerCopies) {
-        try {
-          await FilePicker.clearTemporaryFiles();
-        } catch (error) {
-          _log.w('Rpcs3SaveImport could not clear picker copies: $error');
-        }
+      // The import is over (staged and installed, rejected, refused by the
+      // guard or failed) and the archive is closed: only this ZIP's picker
+      // copies go, never the rest of tmp/ (docs/storage-audit-cleanup.md § 4).
+      final copy = pickerCopy;
+      if (copy != null) {
+        await StoragePickerCopies.discardAfterVerifiedImport(
+          copy.path,
+          expectedLength: copy.length,
+        );
       }
     }
   }

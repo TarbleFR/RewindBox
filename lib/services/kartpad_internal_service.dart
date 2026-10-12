@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'external_display_service.dart';
 import 'logger_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 class KartPadImportIssue {
   const KartPadImportIssue(this.fileName, this.messageKey, [this.details]);
@@ -71,6 +72,16 @@ class KartPadInternalService {
   static const Set<String> supportedGameExtensions = <String>{'iso', 'wbfs', 'rvz'};
   static const MethodChannel _discIdentityChannel =
       MethodChannel('neostation/dolphin_internal');
+
+  /// The logs the core writes in [logsDirectory] during a session, the files
+  /// [_latestRuntimeLogTail] reads.
+  static final RegExp _runtimeLogName =
+      RegExp(r'^(?:.*\.log|console\.txt)$', caseSensitive: false);
+
+  /// Set once [launch] reaches the native launch. From then on a session may
+  /// run (the bridge keeps a started or first-frame-timeout session owned)
+  /// until its end event, [KartPadInternalBridge.didEndSession].
+  static bool _nativeLaunchStarted = false;
 
   static Future<Directory> rootDirectory() async {
     final documents = await getApplicationDocumentsDirectory();
@@ -212,6 +223,12 @@ class KartPadInternalService {
       }
       if (await output.exists()) await output.delete();
       await temporary.rename(output.path);
+      // RVZ data was prepared from the pick before the copy: the picker's
+      // copies are not read again (docs/storage-audit-cleanup.md § 4).
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        sourcePath,
+        expectedLength: (await output.stat()).size,
+      );
       return KartPadImportResult(
         imported: 1,
         rejected: 0,
@@ -431,6 +448,26 @@ class KartPadInternalService {
     trace('layout_begin');
     await ensureLayout();
     trace('layout_ready');
+    // The core writes its logs only during a session: bound them here, before
+    // any native call, unless a session started earlier may still run
+    // (docs/storage-audit-cleanup.md § 4).
+    if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {
+      await StorageLogRotation.keepNewest(
+        await logsDirectory(),
+        name: _runtimeLogName,
+        keep: 10,
+      );
+      // The bridge's own lifecycle log (KartPad root, opened and closed at
+      // each line by the native plugin) is bounded like app.log.
+      await StorageLogRotation.rotateAtSize(
+        File(
+          path.join(
+            (await rootDirectory()).path,
+            'neostation-kartpad-lifecycle.log',
+          ),
+        ),
+      );
+    }
     final game = File(gamePath);
     if (!await game.exists() || await game.length() < 0x20) {
       return const KartPadLaunchResult(
@@ -469,6 +506,7 @@ class KartPadInternalService {
     final temporary = await getTemporaryDirectory();
     final supportRoot = await rootDirectory();
     trace('native_launch_begin');
+    _nativeLaunchStarted = true;
     final response = await launchNativeSession(
       gamePath: game.path,
       supportPath: supportRoot.path,

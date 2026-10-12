@@ -17,6 +17,7 @@ import 'config_service.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'logger_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 class LibretroLaunchOutcome {
   const LibretroLaunchOutcome({
@@ -430,6 +431,8 @@ abstract final class LibretroInternalService {
     var rejected = 0;
     var alreadyPresent = 0;
     final importedPaths = <String>[];
+    // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
+    final verifiedCopies = <String, int>{};
     for (final file in selection.files) {
       final source = file.path;
       final extension = path.extension(file.name).replaceFirst('.', '').toLowerCase();
@@ -457,10 +460,16 @@ abstract final class LibretroInternalService {
         if (extension == 'cue' || extension == 'm3u') {
           await _copyReferencedTracks(File(source), destination);
         }
+        verifiedCopies[source] = length;
       } catch (error) {
         _log.w('Libretro import rejected ${file.name}: $error');
         rejected++;
       }
+    }
+    // Once every pick is handled (a cue sheet reads its tracks from the
+    // picker's folder), the copies of the verified imports are not read again.
+    for (final copy in verifiedCopies.entries) {
+      await StoragePickerCopies.discardAfterVerifiedImport(copy.key, expectedLength: copy.value);
     }
     return LibretroImportResult(
       imported: imported,

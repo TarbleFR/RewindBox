@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 
 import 'dolphin_internal_v2_service.dart';
 import 'logger_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 class DolphinSmartImportResult {
   const DolphinSmartImportResult({
@@ -89,6 +90,8 @@ class DolphinSmartImportService {
     var rejected = 0;
     final changedSystems = <String>{};
     final errors = <String>[];
+    // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
+    final verifiedCopies = <String, int>{};
 
     for (final picked in selection.files) {
       final sourcePath = picked.path;
@@ -131,6 +134,7 @@ class DolphinSmartImportService {
         }
 
         imported++;
+        verifiedCopies[sourcePath] = outputLength;
         changedSystems.add(actualSystem);
         _log.i(
           actualSystem == requested
@@ -143,6 +147,14 @@ class DolphinSmartImportService {
       }
     }
 
+    // Once every pick is handled, the picker's copies of the verified
+    // imports are not read again (same rule as DolphinInternalV2Service).
+    for (final copy in verifiedCopies.entries) {
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        copy.key,
+        expectedLength: copy.value,
+      );
+    }
     return DolphinSmartImportResult(
       imported: imported,
       rejected: rejected,

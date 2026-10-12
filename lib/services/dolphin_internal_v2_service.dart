@@ -18,6 +18,7 @@ import 'logger_service.dart';
 import 'dolphin_system_files.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
+import 'storage/storage_picker_copies.dart';
 
 /// IPL slots exposed by the native GameCube playlist.
 enum DolphinIplRegion { usa, eur, jap }
@@ -67,6 +68,12 @@ class DolphinInternalV2Service {
   static bool _systemImportBusy = false;
   static bool _launchInProgress = false;
   static Future<void>? _layoutFuture;
+
+  /// Session logs, `dolphin-<ISO>.jsonl` (one per launch); never the
+  /// persistent log `dolphin-persistent.jsonl`.
+  static final RegExp _sessionLogName = RegExp(
+    r'^dolphin-(?!persistent\.jsonl$).*\.jsonl$',
+  );
 
   static const Set<String> _gameCubeExtensions = {
     'iso',
@@ -237,6 +244,8 @@ class DolphinInternalV2Service {
     var imported = 0;
     var rejected = 0;
     final errors = <String>[];
+    // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
+    final verifiedCopies = <String, int>{};
 
     for (final picked in selection.files) {
       final sourcePath = picked.path;
@@ -266,6 +275,7 @@ class DolphinInternalV2Service {
           throw FileSystemException('Copied image length mismatch');
         }
         imported++;
+        verifiedCopies[sourcePath] = outputLength;
         await _appendLog(
           'import.game_complete',
           'Imported ${picked.name} into the private $system library.',
@@ -280,6 +290,14 @@ class DolphinInternalV2Service {
           {'system': system, 'error': '$error'},
         );
       }
+    }
+    // Once every pick is handled, the picker's copies of the verified
+    // imports are not read again.
+    for (final copy in verifiedCopies.entries) {
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        copy.key,
+        expectedLength: copy.value,
+      );
     }
     return DolphinImportResult(
       imported: imported,
@@ -955,6 +973,14 @@ class DolphinInternalV2Service {
 
   static Future<String> _sessionLogPath() async {
     final root = await rootDirectory();
+    // One session log per launch, asked for only by _launch once the native
+    // side reported no running session: keep the ten newest and bound the
+    // persistent log like app.log (docs/storage-audit-cleanup.md § 4).
+    final logs = Directory(path.join(root.path, 'Logs'));
+    await StorageLogRotation.keepNewest(logs, name: _sessionLogName, keep: 10);
+    await StorageLogRotation.rotateAtSize(
+      File(path.join(logs.path, 'dolphin-persistent.jsonl')),
+    );
     final name = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
     return path.join(root.path, 'Logs', 'dolphin-$name.jsonl');
   }
