@@ -98,6 +98,31 @@ CI GitHub sur la branche `Claude` :
 
 Non exécuté : XCTest, essai sur iPhone, écoute du raccord de la boucle.
 
+## Livraison
+
+| Élément | Valeur |
+| --- | --- |
+| Source | `36567551838130bb34abe48f93177ac3cef15f1c` (branche `Claude`), arbre Git `fb4f2eaf`, identique octet pour octet à `aab282e7` |
+| Run | `retroarch-delivery.yml` `38317793450` (build 448, périmètre `full`), 22 h 38 → 22 h 52 UTC le 12 octobre 2026 : `checks` (tests Dart **réutilisés** de `38315400256` à `aab282e7`, clé d'entrées identique vérifiée ; contrats et gardes exécutés), `native` (tests du pont libretro et compilations iPhone exécutés) et « Release device build • cold » réussis |
+| Cœurs et moteurs | identités vérifiées par le run : RPCS3 `dcf0df67` (run `38178247609`), Dolphin `ae7d46f9`, ARMSX2 `899d3c44` (run `37641466835`), Dusklight `899d3c44` (run `37641472546`), cœurs libretro `ba3dc14d` (run `38195212647`, l'artefact expire le 26 octobre 2026), KartPad `3934ac9d` (run `36322395443`) — inchangés depuis la 447 |
+| Artefact remis | `NeoStation-Build-448-36567551838130bb34abe48f93177ac3cef15f1c-cold` (identifiant `11777099283`), 210 114 461 octets, SHA-256 de l'archive `b855919bbe8064a2a37e27f7c77b7474cf361cf4386eeadcf217a35480c45cea`, conservé jusqu'au 26 octobre 2026, 22 h 52 UTC ; chiffré pour `build-utils/delivery-424-recipient.pem` (clé du mainteneur) |
+| IPA | `NeoStation-Build448-36567551838130bb34abe48f93177ac3cef15f1c-cold.ipa` dans l'archive ; son SHA-256 se lit dans `SHA256SUMS` et `signed-payload-identity.json` après déchiffrement (la session ne peut pas télécharger l'artefact). Le hash imprimé par l'étape d'empaquetage est celui de l'IPA avant le scellement SideStore, qui la recrée : ce n'est pas l'IPA livrée |
+| Non remis | run `38315400256` (`aab282e7`, même arbre), artefact `11777716184` chiffré pour la clé de session 448, indéchiffrable hors du conteneur de la session |
+
+Déchiffrement (PC du mainteneur, avec sa clé privée 424 et l'`openssl` de Git) : télécharger l'artefact
+`NeoStation-Build-448-36567551…-cold` du run `38317793450`, vérifier le SHA-256 de l'archive (`b855919b…5cea`),
+l'extraire (`artifact.tar.enc`, `password.rsa`, `format.json`), puis :
+
+```
+openssl pkeyutl -decrypt -inkey neostation-delivery-424.key -in password.rsa -out password -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
+openssl enc -aes-256-cbc -d -pbkdf2 -iter 200000 -salt -pass file:password -in artifact.tar.enc -out artifact.tar
+tar -xf artifact.tar
+```
+
+Comparer le SHA-256 de l'IPA à `SHA256SUMS` et à `signed-payload-identity.json`, puis supprimer `password` et
+`artifact.tar`. L'IPA est scellée pour la re-signature Apple et le provisioning que SideStore applique ; la signature
+ad hoc de préparation ne les remplace pas. Ne pas réutiliser le numéro 448.
+
 ## Ce qui n'est pas vérifié
 
 Aucune fonction n'a été essayée sur un iPhone. Validation à l'oreille du raccord de la boucle : non faite
