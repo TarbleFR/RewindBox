@@ -669,6 +669,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
         Libretro3dsRejection.sdTitle => _t('system3dsRejectedSdTitle'),
         Libretro3dsRejection.unsupportedCompression => _t('system3dsRejectedCompression'),
         Libretro3dsRejection.keysFormat => _t('system3dsRejectedKeysFormat'),
+        Libretro3dsRejection.encryptedContent => _t('system3dsRejectedEncrypted'),
         Libretro3dsRejection.invalid || null => _t('system3dsRejectedInvalid'),
       };
 
@@ -1326,7 +1327,13 @@ class _PlanDialogState extends State<_PlanDialog> {
                   plan.installable.where((item) => !_optedIn(item))),
               _group(context, 'identical', _page._t('system3dsPlanIdentical'),
                   plan.recognized.where((item) => item.action == Libretro3dsPlanAction.skipIdentical)),
-              _group(context, 'ignored', _page._t('system3dsPlanIgnored'), plan.ignored),
+              // Files the core never reads (boot ROMs, key sector, the
+              // essential.exefs sections other than the console files) apart
+              // from the files nobody recognized.
+              _group(context, 'notneeded', _page._t('system3dsPlanNotNeeded'),
+                  plan.ignored.where((item) => item.ignoreReason == Libretro3dsIgnoreReason.notNeeded)),
+              _group(context, 'ignored', _page._t('system3dsPlanIgnored'),
+                  plan.ignored.where((item) => item.ignoreReason != Libretro3dsIgnoreReason.notNeeded)),
               _group(context, 'rejected', _page._t('system3dsFailed'), plan.rejected, rejected: true),
               if (!nothing) ...[
                 LibretroFocusRing(

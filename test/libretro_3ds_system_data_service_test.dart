@@ -18,8 +18,10 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/services/libretro_3ds_containers.dart';
 import 'package:neostation/services/libretro_3ds_system_data_service.dart';
 import 'package:path/path.dart' as p;
 
@@ -85,11 +87,22 @@ Uint8List _config({
 }
 
 /// NCCH title content: a random 0x100-byte signature, then `NCCH`.
+///
+/// Contract change (Build 448): the core refuses every NCCH whose flags[7]
+/// (0x18F) lacks the NoCrypto bit 0x04 (azahar `NCCHContainer::LoadHeader`,
+/// `ErrorEncrypted`), and the import now refuses such a title too. A valid
+/// title fixture therefore carries the bit (before, the random byte left it
+/// set or not by chance); encrypted contents are built with [_encryptedApp].
 Uint8List _app(int seed, int length) {
   final out = _bytes(seed, length);
   out.setAll(0x100, utf8.encode('NCCH'));
+  if (length > 0x18F) out[0x18F] |= 0x04;
   return out;
 }
+
+/// The same content still encrypted: NoCrypto bit clear.
+Uint8List _encryptedApp(int seed, int length) =>
+    _app(seed, length)..[0x18F] &= ~0x04;
 
 /// Title metadata of title `<high>/<low>` as `TitleMetadata::Load` reads it:
 /// RSA-2048 signature type, body of 0x9C4 bytes at 0x140 (title id at
@@ -115,6 +128,53 @@ Uint8List _movable(int seed) {
 Uint8List _ncsdImage([int length = 0x400]) {
   final out = _bytes(42, length);
   out.setAll(0x100, utf8.encode('NCSD'));
+  return out;
+}
+
+/// GodMode9's essential backup as `BuildEssentialBackup` writes it: an
+/// ExeFS header of 0x200 bytes (ten entries of name, offset after the
+/// header and size; the SHA-256 of entry i at 0x200 - (i + 1) * 0x20), then
+/// the eight sections at their fixed offsets, 0x2200 bytes in all. A locked
+/// console leaves the OTP and the two HWCAL sections listed but unhashed,
+/// the OTP blank. [corrupt] sections are changed after hashing.
+Uint8List _essentialExefs({
+  int seed = 60,
+  bool locked = false,
+  int movableSize = 0x140,
+  Set<String> corrupt = const {},
+}) {
+  const layout = <(String, int, int)>[
+    ('nand_hdr', 0x0000, 0x200),
+    ('secinfo', 0x0200, 0x111),
+    ('movable', 0x0400, 0x140),
+    ('frndseed', 0x0600, 0x110),
+    ('nand_cid', 0x0800, 0x010),
+    ('otp', 0x0A00, 0x100),
+    ('hwcal0', 0x0C00, 0x9D0),
+    ('hwcal1', 0x1600, 0x9D0),
+  ];
+  final out = Uint8List(0x2200);
+  final view = ByteData.sublistView(out);
+  for (var i = 0; i < layout.length; i++) {
+    final (name, offset, fullSize) = layout[i];
+    final size = name == 'movable' ? movableSize : fullSize;
+    out.setAll(i * 0x10, ascii.encode(name));
+    view
+      ..setUint32(i * 0x10 + 8, offset, Endian.little)
+      ..setUint32(i * 0x10 + 12, size, Endian.little);
+    final Uint8List content = switch (name) {
+      'nand_hdr' => _ncsdImage(0x200),
+      'movable' => Uint8List.sublistView(_movable(seed + i), 0, size),
+      'otp' when locked => Uint8List(0x100),
+      _ => _bytes(seed + i, size),
+    };
+    out.setAll(0x200 + offset, content);
+    final hashed = !locked || i < 5;
+    if (hashed) {
+      out.setAll(0x200 - (i + 1) * 0x20, sha256.convert(content).bytes);
+    }
+    if (corrupt.contains(name)) out[0x200 + offset + 0x10] ^= 0xFF;
+  }
   return out;
 }
 
@@ -707,14 +767,22 @@ void main() {
           'nand.bin',
           'ctrnand_full.bin',
           'sysnand.img',
-          'essential.exefs',
           'backup.dat',
           'citra/twln.bin',
           'citra/nand/data/$_sourceId0/sysdata/00010017/00000000/config',
           'citra/anything.bin',
         ]),
       );
-      expect(raw, hasLength(8));
+      // Contract change (Build 448): essential.exefs is GodMode9's essential
+      // backup, not a NAND image; its console files are read (see the
+      // essential backup group). A file of that name that is not one is
+      // refused as invalid, never read as console data.
+      expect(raw, hasLength(7));
+      final notEssential = plan.items.singleWhere(
+        (item) => item.sourceEntry == 'essential.exefs',
+      );
+      expect(notEssential.rejection, Libretro3dsRejection.invalid);
+      expect(notEssential.technicalDetail, contains('nand_hdr'));
       expect(plan.recognized.map((i) => i.relativeTarget), [
         'sysdata/seeddb.bin',
       ]);
@@ -1376,6 +1444,263 @@ void main() {
         expect(plan.ignored, hasLength(2));
       },
     );
+  });
+
+  group('GodMode9 essential backup and unused console files (Build 448)', () {
+    const secureInfo = 'nand/rw/sys/SecureInfo_A';
+    const friendSeed = 'nand/rw/sys/LocalFriendCodeSeed_B';
+    const movable = 'nand/private/movable.sed';
+    const otp = 'sysdata/otp.bin';
+
+    Map<String, int> recognizedSizes(Libretro3dsImportPlan plan) => {
+      for (final item in plan.recognized) item.relativeTarget!: item.size,
+    };
+
+    List<String> notNeeded(Libretro3dsImportPlan plan) => [
+      for (final item in plan.ignored)
+        if (item.ignoreReason == Libretro3dsIgnoreReason.notNeeded)
+          item.sourceEntry,
+    ];
+
+    test('the parser reads the eight sections and checks each SHA-256', () {
+      final content = Libretro3dsEssentialExefs.parse(_essentialExefs());
+      expect(content.problem, isNull);
+      expect(
+        [for (final section in content.sections) section.name],
+        [
+          'nand_hdr',
+          'secinfo',
+          'movable',
+          'frndseed',
+          'nand_cid',
+          'otp',
+          'hwcal0',
+          'hwcal1',
+        ],
+      );
+      expect(content.sections.every((section) => section.hashed), isTrue);
+      final locked = Libretro3dsEssentialExefs.parse(
+        _essentialExefs(locked: true),
+      );
+      final unhashed = [
+        for (final section in locked.sections)
+          if (!section.hashed) section.name,
+      ];
+      expect(unhashed, ['otp', 'hwcal0', 'hwcal1']);
+      expect(locked.sections.singleWhere((s) => s.name == 'otp').blank, isTrue);
+      final damaged = Libretro3dsEssentialExefs.parse(
+        _essentialExefs(corrupt: {'secinfo'}),
+      );
+      expect(
+        damaged.sections.singleWhere((s) => s.name == 'secinfo').problem,
+        contains('SHA-256'),
+      );
+    });
+
+    test('its four console files are planned from the file, at their '
+        'usual destinations, and installed byte for byte', () async {
+      final essential = _essentialExefs();
+      final file = await writeFile('gm9/out/essential.exefs', essential);
+      final plan = await service().analyze([file]);
+      expect(recognizedSizes(plan), {
+        secureInfo: 0x111,
+        friendSeed: 0x110,
+        movable: 0x140,
+        otp: 0x100,
+      });
+      expect(
+        plan.recognized.every(
+          (item) =>
+              item.kind == Libretro3dsItemKind.consoleUnique &&
+              item.isConsoleData &&
+              item.sourceName == 'essential.exefs',
+        ),
+        isTrue,
+      );
+      expect(itemFor(plan, movable).sourceEntry, 'essential.exefs/movable');
+      // The NAND header, the NAND CID and the HWCAL files: listed, never
+      // copied.
+      expect(
+        notNeeded(plan),
+        unorderedEquals([
+          'essential.exefs/nand_hdr',
+          'essential.exefs/nand_cid',
+          'essential.exefs/hwcal0',
+          'essential.exefs/hwcal1',
+        ]),
+      );
+      expect(plan.rejected, isEmpty);
+
+      // Console data: left out unless the box is checked.
+      final excluded = await service().install(plan);
+      expect(excluded.count(Libretro3dsInstallStatus.excluded), 4);
+      for (final target in [secureInfo, friendSeed, movable, otp]) {
+        expect(await userFile(target).exists(), isFalse, reason: target);
+      }
+
+      tick();
+      final report = await service().install(
+        await service().analyze([file]),
+        includeConsoleUnique: true,
+      );
+      expect(report.succeeded, isTrue, reason: report.failure);
+      expect(report.count(Libretro3dsInstallStatus.installed), 4);
+      expect(
+        await userFile(secureInfo).readAsBytes(),
+        essential.sublist(0x400, 0x511),
+      );
+      expect(
+        await userFile(movable).readAsBytes(),
+        essential.sublist(0x600, 0x740),
+      );
+      expect(
+        await userFile(friendSeed).readAsBytes(),
+        essential.sublist(0x800, 0x910),
+      );
+      expect(
+        await userFile(otp).readAsBytes(),
+        essential.sublist(0xC00, 0xD00),
+      );
+      expect(await userTree(), [movable, secureInfo, friendSeed, otp]..sort());
+      expectOnlyRoots(await tree());
+    });
+
+    test('inside a ZIP the sections are cut out of the inflated entry, and '
+        'the boot ROMs and key sector are listed as not needed', () async {
+      final essential = _essentialExefs(seed: 90, movableSize: 0x120);
+      final zip = await writeZip({
+        'backup/gm9/out/essential.exefs': essential,
+        'backup/boot9.bin': _bytes(1, 0x10000),
+        'backup/boot11.bin': _bytes(2, 0x10000),
+        'backup/gm9/out/sector0x96.bin': _bytes(3, 0x200),
+        'backup/secret_sector.bin': _bytes(4, 0x200),
+      });
+      final plan = await service().analyze([zip]);
+      expect(recognizedSizes(plan), {
+        secureInfo: 0x111,
+        friendSeed: 0x110,
+        movable: 0x120,
+        otp: 0x100,
+      });
+      expect(
+        notNeeded(plan),
+        containsAll([
+          'backup/boot9.bin',
+          'backup/boot11.bin',
+          'backup/gm9/out/sector0x96.bin',
+          'backup/secret_sector.bin',
+          'backup/gm9/out/essential.exefs/nand_hdr',
+        ]),
+      );
+      expect(notNeeded(plan), hasLength(8));
+      expect(plan.rejected, isEmpty);
+      final report = await service().install(plan, includeConsoleUnique: true);
+      expect(report.succeeded, isTrue, reason: report.failure);
+      expect(
+        await userFile(movable).readAsBytes(),
+        essential.sublist(0x600, 0x720),
+      );
+      expect(
+        await userFile(otp).readAsBytes(),
+        essential.sublist(0xC00, 0xD00),
+      );
+      expect(await userTree(), [movable, secureInfo, friendSeed, otp]..sort());
+    });
+
+    test('a locked console leaves a blank, unhashed OTP: nothing to install '
+        'for it, the three other files are kept', () async {
+      final file = await writeFile(
+        'essential.exefs',
+        _essentialExefs(locked: true),
+      );
+      final plan = await service().analyze([file]);
+      expect(
+        recognizedSizes(plan).keys,
+        unorderedEquals([secureInfo, friendSeed, movable]),
+      );
+      expect(plan.rejected, isEmpty);
+      expect(notNeeded(plan), hasLength(4));
+    });
+
+    test('a section whose SHA-256 does not match is refused, the verified '
+        'ones are kept', () async {
+      final file = await writeFile(
+        'essential.exefs',
+        _essentialExefs(corrupt: {'movable', 'hwcal0'}),
+      );
+      final plan = await service().analyze([file]);
+      final damaged = itemFor(plan, movable);
+      expect(damaged.rejection, Libretro3dsRejection.invalid);
+      expect(damaged.technicalDetail, contains('SHA-256'));
+      final hwcal = plan.rejected.singleWhere(
+        (item) => item.sourceEntry == 'essential.exefs/hwcal0',
+      );
+      expect(hwcal.rejection, Libretro3dsRejection.invalid);
+      expect(
+        recognizedSizes(plan).keys,
+        unorderedEquals([secureInfo, friendSeed, otp]),
+      );
+    });
+
+    test(
+      'a header pointing past the end of the file refuses it whole',
+      () async {
+        final truncated = Uint8List.sublistView(_essentialExefs(), 0, 0x1000);
+        final file = await writeFile('essential.exefs', truncated);
+        final plan = await service().analyze([file]);
+        final refused = plan.items.single;
+        expect(refused.kind, Libretro3dsItemKind.rejected);
+        expect(refused.rejection, Libretro3dsRejection.invalid);
+        expect(refused.technicalDetail, contains('past the end'));
+      },
+    );
+
+    test('a backup changed after the analysis is not installed', () async {
+      final essential = _essentialExefs();
+      final path = await writeFile('essential.exefs', essential);
+      final plan = await service().analyze([path]);
+      // Same size, one byte of SecureInfo changed.
+      final changed = Uint8List.fromList(essential)..[0x420] ^= 0xFF;
+      await File(path).writeAsBytes(changed);
+      final report = await service().install(plan, includeConsoleUnique: true);
+      expect(report.succeeded, isFalse);
+      expect(report.failure, contains('source changed since analysis'));
+      expect(await userFile(secureInfo).exists(), isFalse);
+      expectOnlyRoots(await tree());
+    });
+
+    test('an encrypted system title is refused whole: the core only reads '
+        'decrypted NCCH', () async {
+      final folder = await writeFolder('citra', {
+        'nand/$_sourceId0/title/0004009b/00014002/content/00000000.app':
+            _encryptedApp(1, 3000),
+        'nand/$_sourceId0/title/0004009b/00014002/content/00000000.tmd': _tmd(
+          '0004009b',
+          '00014002',
+        ),
+        'nand/$_sourceId0/title/0004009b/00014102/content/00000000.app': _app(
+          2,
+          3000,
+        ),
+        'nand/$_sourceId0/title/0004009b/00014102/content/00000000.tmd': _tmd(
+          '0004009b',
+          '00014102',
+        ),
+      });
+      final plan = await service().analyze([folder]);
+      expect(
+        itemFor(plan, _fontTarget).rejection,
+        Libretro3dsRejection.encryptedContent,
+      );
+      expect(itemFor(plan, _fontTarget).technicalDetail, contains('NoCrypto'));
+      expect(
+        itemFor(plan, _fontTmdTarget).rejection,
+        Libretro3dsRejection.incompleteTitle,
+      );
+      expect(itemFor(plan, _chnFontTarget).kind, Libretro3dsItemKind.title);
+      expect(Libretro3dsNcch.isEncrypted(_encryptedApp(1, 0x200)), isTrue);
+      expect(Libretro3dsNcch.isEncrypted(_app(1, 0x200)), isFalse);
+    });
   });
 
   group('install', () {

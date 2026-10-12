@@ -14,6 +14,7 @@ import '../models/game_model.dart';
 import '../models/system_model.dart';
 import '../repositories/system_repository.dart';
 import 'config_service.dart';
+import 'libretro_3ds_containers.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'logger_service.dart';
@@ -249,6 +250,19 @@ abstract final class LibretroInternalService {
           success: false,
           errorCode: 'LIBRETRO_BIOS_MISSING',
           technicalDetails: core.biosAnyOf.join(', '),
+        );
+      }
+    }
+    // The 3DS core refuses every encrypted NCCH whatever keys are
+    // installed: say so before the session starts, with the header read.
+    if (coreId == 'azahar') {
+      final encrypted = await Libretro3dsNcch.encryptedGameDetail(romPath);
+      if (encrypted != null) {
+        _log.w('Embedded libretro launch refused: encrypted 3DS game ($encrypted) $romPath');
+        return LibretroLaunchOutcome(
+          success: false,
+          errorCode: 'LIBRETRO_3DS_ENCRYPTED',
+          technicalDetails: encrypted,
         );
       }
     }

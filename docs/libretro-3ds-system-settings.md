@@ -155,7 +155,8 @@ avec chemin de sauvegarde, ignorés, échecs avec code technique brut).
     titres `nand/<32 hex>/title/<8 hex>/<8 hex>/content/*.app|*.tmd|*.cmd` et
     `.../content/cmd/*` (noms hexadécimaux, installés sous l'id0 de destination) ;
     données de console (liste § 1) : classées `consoleUnique`, exclues sauf case cochée ;
-    `nand.bin`, `*.img`, `ctrnand*`, `twln*`, `essential.exefs` : refus `rawNandImage` ;
+    `nand.bin`, `*.img`, `ctrnand*`, `twln*` : refus `rawNandImage` (Build 448 :
+    `essential.exefs` n'en fait plus partie, voir § 7) ;
     tout le reste : `ignored` (listé, jamais copié).
   - plan : pour chaque élément, chemin de destination, `exists`, `identical` (taille + SHA-256
     si taille égale), action `create` / `replace` / `skipIdentical`.
@@ -302,8 +303,8 @@ refusées ; réglages par console, pas par jeu ; aucune validation iPhone revend
 - `Libretro3dsRejection.invalid` couvre aussi : destination en double entre sources (la
   première gagne), source manquante ou illisible, entrée ZIP chiffrée ou compression non
   prise en charge, source modifiée entre l'analyse et l'installation.
-- Images NAND brutes : par nom (`nand.bin`, `*.img`, `ctrnand*`, `twln*`,
-  `essential.exefs`) et par contenu (`NCSD` à 0x100) sur fichiers isolés, fichiers de
+- Images NAND brutes : par nom (`nand.bin`, `*.img`, `ctrnand*`, `twln*` ; `essential.exefs`
+  jusqu'à la Build 447, lu depuis la Build 448 — § 7) et par contenu (`NCSD` à 0x100) sur fichiers isolés, fichiers de
   dossier et entrées ZIP (préfixe diffusé en flux, au plus 0x200 octets décompressés) ;
   une entrée ZIP au-dessus de 512 Mio est rapportée `fileTooLarge` pour toute l'archive
   avant tout contrôle de contenu.
@@ -543,3 +544,63 @@ créées par le service (une sauvegarde à la main n'est plus complète), statut
 sonde en échec, signet libéré, sauvegarde abîmée, reprise à l'ouverture. Ajustements de
 contrats commentés dans les tests (comptes changés par les titres entiers, le CFG en données
 de console, l'élagage `sdmc`) ; aucune assertion supprimée sans son remplacement.
+
+## 7. Build 448 — sauvegarde essentielle GodMode9, fichiers inutiles, contenus chiffrés
+
+Demande du mainteneur (12 octobre 2026) : importer le ZIP « BIOS 3DS » pour qu'il soit
+réellement lu par le moteur intégré, ou rendre compatibles les fichiers du dossier NAND.
+Faits vérifiés dans les sources (Azahar au commit épinglé a5c3d4f8 et sur `master` le
+12 octobre 2026 ; GodMode9 `master`) — le binaire nightly livré peut être plus récent que
+a5c3d4f8 :
+
+- `NCCHContainer::LoadHeader`/`Load` renvoient `ErrorEncrypted` pour **tout** NCCH sans le
+  bit `NoCrypto` (flags[7] 0x04, octet 0x18F), quelles que soient les clés : un jeu ou un
+  titre système chiffré n'est jamais lu, un fichier de clés n'y change rien.
+- `hw/aes/key.cpp` lit les clés dans `sysdata/keys.txt` (ou un blob intégré à la
+  compilation) ; aucune lecture de `boot9.bin`, `boot11.bin`, `sector0x96.bin`.
+- `FileSys::OTP::Load` accepte `otp.bin` déchiffré (magie `0xDEADB00F`) ou chiffré (déchiffré
+  avec `otpKey`/`otpIV`), puis vérifie son SHA-256 ; un échec n'est pas bloquant.
+- `essential.exefs` (`BuildEssentialBackup`, `arm9/source/utils/nandutil.c`) : en-tête ExeFS
+  de 0x200 octets, dix entrées (nom, décalage après l'en-tête, taille), SHA-256 de l'entrée
+  `i` à `0x200 − (i + 1) × 0x20` ; sections `nand_hdr` (0x200), `secinfo` (0x111),
+  `movable` (0x140 ou 0x120), `frndseed` (0x110), `nand_cid` (0x10), `otp` (0x100),
+  `hwcal0`/`hwcal1` (0x9D0) ; console verrouillée : `otp`, `hwcal0`, `hwcal1` listés mais
+  non hachés, `otp` vide.
+
+Changements (`lib/services/libretro_3ds_containers.dart`, service et page 3DS) :
+
+- `essential.exefs` (fichier isolé, fichier de dossier ou entrée ZIP) est lu section par
+  section : `secinfo` → `nand/rw/sys/SecureInfo_A`, `frndseed` →
+  `nand/rw/sys/LocalFriendCodeSeed_B`, `movable` → `nand/private/movable.sed`, `otp` →
+  `sysdata/otp.bin`, chacune vérifiée par le SHA-256 de l'en-tête puis par les contrôles des
+  fichiers isolés (tailles, magie `SEED`), classée données de console (case à cocher), et
+  copiée depuis sa place dans le fichier (tranche `sliceStart` + taille, staging vérifié par
+  SHA-256 comme les autres éléments). Section au SHA-256 faux : refusée (`invalid`), les
+  autres conservées. Section de console vide et non hachée (OTP d'une console verrouillée) :
+  rien à installer. Fichier sans l'entrée `nand_hdr` de GodMode9 ou dont une section sort du
+  fichier : refusé entier (`invalid`).
+- Nouveau motif `Libretro3dsIgnoreReason.notNeeded` (groupe « Inutile pour le cœur 3DS, non
+  copié ») : `boot9.bin`, `boot11.bin`, `sector0x96.bin`, `secret_sector.bin`, et les sections
+  `nand_hdr`, `nand_cid`, `hwcal0`, `hwcal1`.
+- Nouveau refus `Libretro3dsRejection.encryptedContent` : un `.app` de titre NAND dont le NCCH
+  n'a pas le bit `NoCrypto` est refusé, et son titre entier avec lui (contrat des tests
+  modifié et commenté : les fixtures NCCH portent désormais ce bit).
+- Lancement d'un jeu 3DS (`LibretroInternalService.launch`, cœur `azahar`) : un `.3ds`/`.cci`
+  (NCSD, partition 0) ou `.cxi`/`.app` (NCCH) sans `NoCrypto` est refusé avant la session avec
+  `LIBRETRO_3DS_ENCRYPTED` → `error3dsEncrypted` (douze langues), l'en-tête lu en détail
+  technique ; les autres formats (3DSX, ELF, Z3DS…) et les fichiers illisibles restent
+  confiés au cœur.
+- Textes corrigés (douze langues) : `system3dsKeysOptional` et `system3dsIncludeKeysHelp`
+  ne disent plus d'importer des clés « si un jeu chiffré ne démarre pas » (faux : le cœur
+  refuse tout NCCH chiffré) et n'affirment toujours pas de clés intégrées (m7) ;
+  `system3dsRejectedRawNand` oriente vers `essential.exefs` ou les dossiers `nand`/`sysdata`
+  d'un dossier utilisateur Citra, Lime3DS ou Azahar.
+
+Limites : une image NAND brute (`*_sysnand_*.bin`, `nand.bin`) reste illisible — la
+déchiffrer demanderait les clés propres à la console (OTP + boot9) et un lecteur FAT ; non
+implémenté. Les titres système copiés du CTRNAND sans déchiffrement sont chiffrés, donc
+refusés ; `shared_font.bin` reste non reconnu (le cœur ne le lit qu'en dernier recours,
+après ses polices de remplacement). Aucune validation sur iPhone : tests Dart sur fixtures
+synthétiques au format réel (`test/libretro_3ds_system_data_service_test.dart`, groupe
+« GodMode9 essential backup… », `test/libretro_3ds_encrypted_launch_test.dart`,
+`test/libretro_3ds_system_screen_test.dart`).

@@ -13,6 +13,7 @@ import 'package:libretro_internal_bridge/libretro_internal_bridge.dart';
 import 'package:path/path.dart' as p;
 
 import 'diagnostics_directory.dart';
+import 'libretro_3ds_containers.dart';
 import 'libretro_core_option_store.dart' show LibretroSessionProbe;
 import 'libretro_internal_service.dart';
 import 'logger_service.dart';
@@ -42,7 +43,9 @@ enum Libretro3dsItemKind {
 
   /// Console-unique data (`SecureInfo_A`, `LocalFriendCodeSeed_B`,
   /// `movable.sed`, `otp.bin`, `mcu.dat`): identifies the console, excluded
-  /// unless `includeConsoleUnique`.
+  /// unless `includeConsoleUnique`. The first four are also read from the
+  /// sections of a GodMode9 `essential.exefs`, each checked against the
+  /// SHA-256 its header records.
   consoleUnique,
 
   /// Listed, never copied.
@@ -54,9 +57,10 @@ enum Libretro3dsItemKind {
 
 /// Why an element (or a whole container) is refused.
 enum Libretro3dsRejection {
-  /// Raw NAND image (`nand.bin`, `*.img`, `ctrnand*`, `twln*`,
-  /// `essential.exefs`, or an `NCSD` header): encrypted per console, never
-  /// read by the core.
+  /// Raw NAND image (`nand.bin`, `*.img`, `ctrnand*`, `twln*`, or an `NCSD`
+  /// header): encrypted per console, never read by the core. GodMode9's
+  /// `essential.exefs` is not one: its console files are read
+  /// ([Libretro3dsEssentialExefs]).
   rawNandImage,
 
   /// 7z, rar, gzip, xz, bzip2, zstd, tar or a nested archive: only ZIP is
@@ -100,6 +104,11 @@ enum Libretro3dsRejection {
   /// the section header. Installed, it would replace the built-in keys with
   /// nothing.
   keysFormat,
+
+  /// Title content in an encrypted NCCH (no `NoCrypto` flag): the core
+  /// refuses every encrypted NCCH whatever keys are installed
+  /// ([Libretro3dsNcch]), so the title is not installed.
+  encryptedContent,
 }
 
 /// Why an element is listed but never copied.
@@ -110,6 +119,12 @@ enum Libretro3dsIgnoreReason {
   /// A folder deeper than [Libretro3dsImportLimits.maxFolderDepth] levels:
   /// not read.
   tooDeep,
+
+  /// A console file the core never reads: the boot ROMs (`boot9.bin`,
+  /// `boot11.bin`), the New 3DS key sector (`sector0x96.bin`,
+  /// `secret_sector.bin`) and the `essential.exefs` sections other than the
+  /// four console files (NAND header, NAND CID, HWCAL).
+  notNeeded,
 }
 
 /// What an install does with a recognized element.
@@ -1433,6 +1448,15 @@ class Libretro3dsSystemDataService {
       rejected(problem.rejection, problem.detail, target: target);
       return;
     }
+    if (recognition.essentialExefs) {
+      await _classifyEssentialExefs(
+        source,
+        containerName: containerName,
+        sourceKind: sourceKind,
+        context: context,
+      );
+      return;
+    }
 
     // A raw NAND image is refused whatever it is called.
     final Uint8List head;
@@ -1463,7 +1487,8 @@ class Libretro3dsSystemDataService {
       context.add(
         item(
           kind: Libretro3dsItemKind.ignored,
-          ignoreReason: Libretro3dsIgnoreReason.notRecognized,
+          ignoreReason:
+              recognition.ignoreReason ?? Libretro3dsIgnoreReason.notRecognized,
         ),
       );
       return;
@@ -1572,6 +1597,123 @@ class Libretro3dsSystemDataService {
         hash: hash,
       ),
     );
+  }
+
+  /// Reads GodMode9's `essential.exefs` ([Libretro3dsEssentialExefs]): each
+  /// section holding a console file the core reads is classified like the
+  /// loose file (size, SEED magic, destination, duplicates, console-data
+  /// box) and staged from its place in the file; a section whose recorded
+  /// SHA-256 does not match is refused; a console section left blank and
+  /// unhashed (the OTP of a locked console) has nothing to install; the
+  /// other sections are listed as not needed. A file that is not an
+  /// essential backup is refused whole.
+  static Future<void> _classifyEssentialExefs(
+    _SourceFile source, {
+    required String containerName,
+    required Libretro3dsSourceKind sourceKind,
+    required _AnalysisContext context,
+  }) async {
+    final entry = source.entryName;
+    void add(
+      String sourceEntry,
+      int size, {
+      required Libretro3dsItemKind kind,
+      Libretro3dsRejection? rejection,
+      Libretro3dsIgnoreReason? ignoreReason,
+      String? target,
+      String? detail,
+    }) => context.add(
+      Libretro3dsImportItem._(
+        sourceName: containerName,
+        sourceEntry: sourceEntry,
+        sourceKind: sourceKind,
+        kind: kind,
+        relativeTarget: target,
+        rejection: rejection,
+        ignoreReason: ignoreReason,
+        size: size,
+        technicalDetail: detail,
+      ),
+    );
+
+    Libretro3dsEssentialExefsContent content;
+    if (source.size > Libretro3dsEssentialExefs.maxBytes) {
+      content = Libretro3dsEssentialExefsContent.refused(
+        '${source.size} bytes, more than an essential backup',
+      );
+    } else {
+      try {
+        final bytes = await source.prefix(source.size);
+        content = bytes.length == source.size
+            ? Libretro3dsEssentialExefs.parse(bytes)
+            : Libretro3dsEssentialExefsContent.refused(
+                '${bytes.length} bytes read, ${source.size} declared',
+              );
+      } catch (error) {
+        content = Libretro3dsEssentialExefsContent.refused(_detail(error));
+      }
+    }
+    final refusal = content.problem;
+    if (refusal != null) {
+      add(
+        entry,
+        source.size,
+        kind: Libretro3dsItemKind.rejected,
+        rejection: Libretro3dsRejection.invalid,
+        detail: '$entry: $refusal',
+      );
+      return;
+    }
+    for (final section in content.sections) {
+      if (section.size == 0) continue;
+      final sectionEntry = '$entry/${section.name}';
+      final consoleFile = Libretro3dsEssentialExefs.consoleFiles[section.name];
+      final target = consoleFile == null
+          ? null
+          : consoleUniqueTargets[consoleFile];
+      if (section.problem != null) {
+        add(
+          sectionEntry,
+          section.size,
+          kind: Libretro3dsItemKind.rejected,
+          rejection: Libretro3dsRejection.invalid,
+          target: target,
+          detail: section.problem,
+        );
+        continue;
+      }
+      if (consoleFile == null) {
+        add(
+          sectionEntry,
+          section.size,
+          kind: Libretro3dsItemKind.ignored,
+          ignoreReason:
+              Libretro3dsEssentialExefs.unusedSections.contains(section.name)
+              ? Libretro3dsIgnoreReason.notNeeded
+              : Libretro3dsIgnoreReason.notRecognized,
+        );
+        continue;
+      }
+      if (!section.hashed) {
+        if (section.blank) continue;
+        add(
+          sectionEntry,
+          section.size,
+          kind: Libretro3dsItemKind.rejected,
+          rejection: Libretro3dsRejection.invalid,
+          target: target,
+          detail: '${section.name}: no SHA-256 recorded in the header',
+        );
+        continue;
+      }
+      await _classify(
+        _SliceSourceFile(source, section, sectionEntry),
+        recognitionPath: consoleFile,
+        containerName: containerName,
+        sourceKind: sourceKind,
+        context: context,
+      );
+    }
   }
 
   /// Installs or refuses each NAND title as a unit: at least one valid
@@ -1714,6 +1856,12 @@ class Libretro3dsSystemDataService {
     if (segments.any(_alwaysPruned.contains)) {
       return const _Recognition.ignored();
     }
+    if (name == Libretro3dsEssentialExefs.fileName) {
+      return const _Recognition.essentialExefs();
+    }
+    if (_notNeededNames.contains(name)) {
+      return const _Recognition.ignored(Libretro3dsIgnoreReason.notNeeded);
+    }
     if (name == 'keys.txt' || name == 'aes_keys.txt') {
       return const _Recognition(Libretro3dsItemKind.keys, keysTarget);
     }
@@ -1788,8 +1936,18 @@ class Libretro3dsSystemDataService {
       lowerName == 'nand.bin' ||
       lowerName.endsWith('.img') ||
       lowerName.startsWith('ctrnand') ||
-      lowerName.startsWith('twln') ||
-      lowerName == 'essential.exefs';
+      lowerName.startsWith('twln');
+
+  /// Console files the core never reads (azahar a5c3d4f8 `hw/aes/key.cpp`
+  /// reads its keys from `sysdata/keys.txt`, or from a blob built into the
+  /// core when it was built with one, never from a boot ROM or the New 3DS
+  /// key sector): listed, never copied.
+  static const Set<String> _notNeededNames = {
+    'boot9.bin',
+    'boot11.bin',
+    'sector0x96.bin',
+    'secret_sector.bin',
+  };
 
   /// Entries never listed: `__MACOSX`, Finder/Explorer metadata.
   static bool _isNoise(String relativePath) {
@@ -1890,6 +2048,12 @@ class Libretro3dsSystemDataService {
         if (size == 0) return invalid('empty title file');
         final name = (target ?? source.entryName).toLowerCase();
         if (name.endsWith('.app')) {
+          if (_isEncryptedContent(head, titleKey)) {
+            return const _Refusal(
+              Libretro3dsRejection.encryptedContent,
+              'NCCH without the NoCrypto flag (encrypted content)',
+            );
+          }
           final problem = _contentProblem(head, titleKey);
           return problem == null ? null : invalid(problem);
         }
@@ -1939,6 +2103,16 @@ class Libretro3dsSystemDataService {
     if (_startsWith(head, 0, const [0x5A, 0x33, 0x44, 0x53])) return null;
     if (_startsWith(head, 0, const [0x41, 0x5A, 0x43, 0x52])) return null;
     return 'no NCCH header at 0x100 (nor a Z3DS or AZCR container)';
+  }
+
+  /// An NCCH title content the core refuses as encrypted (azahar
+  /// `NCCHContainer::LoadHeader`: no `NoCrypto` flag); a DS title holds no
+  /// NCCH.
+  static bool _isEncryptedContent(Uint8List head, String? titleKey) {
+    final high = titleKey == null
+        ? 0
+        : int.parse(titleKey.split('/').first, radix: 16);
+    return (high & 0x8000) == 0 && Libretro3dsNcch.isEncrypted(head);
   }
 
   /// Null when [prefix] (at least the first 0xC04 bytes of a [size]-byte
@@ -2435,6 +2609,7 @@ class Libretro3dsSystemDataService {
                 : null,
             entry: locator.entryName,
             file: locator.filePath,
+            sliceStart: locator.sliceStart,
           ),
         );
         files.add(file);
@@ -3845,18 +4020,37 @@ class Libretro3dsSystemDataService {
     final sink = _DigestSink();
     final digest = sha256.startChunkedConversion(sink);
     var written = 0;
+    void accept(Uint8List chunk) {
+      written += chunk.length;
+      if (written > job.size) {
+        throw FormatException(
+          'more than the ${job.size} bytes declared',
+          job.staged,
+        );
+      }
+      digest.add(chunk);
+      handle.writeFromSync(chunk);
+    }
+
+    // A slice (an essential.exefs section) keeps only its own bytes of the
+    // source stream.
+    final sliceStart = job.sliceStart;
+    var position = 0;
+    void acceptSlice(Uint8List chunk) {
+      final start = sliceStart!;
+      final chunkStart = position;
+      position += chunk.length;
+      final from = math.max(start, chunkStart);
+      final to = math.min(start + job.size, position);
+      if (from < to) {
+        accept(
+          Uint8List.sublistView(chunk, from - chunkStart, to - chunkStart),
+        );
+      }
+    }
+
     try {
-      produce((chunk) {
-        written += chunk.length;
-        if (written > job.size) {
-          throw FormatException(
-            'more than the ${job.size} bytes declared',
-            job.staged,
-          );
-        }
-        digest.add(chunk);
-        handle.writeFromSync(chunk);
-      });
+      produce(sliceStart == null ? accept : acceptSlice);
       if (written != job.size) {
         throw FormatException(
           '$written bytes, ${job.size} declared',
@@ -4046,25 +4240,49 @@ class _Recognition {
   const _Recognition(this.kind, this.target)
     : rejection = null,
       titleKey = null,
-      sdTitle = false;
+      sdTitle = false,
+      ignoreReason = null,
+      essentialExefs = false;
   const _Recognition.title(this.target, this.titleKey, {required this.sdTitle})
     : kind = Libretro3dsItemKind.title,
-      rejection = null;
-  const _Recognition.ignored()
-    : kind = Libretro3dsItemKind.ignored,
-      target = null,
       rejection = null,
-      titleKey = null,
-      sdTitle = false;
+      ignoreReason = null,
+      essentialExefs = false;
+  const _Recognition.ignored([
+    this.ignoreReason = Libretro3dsIgnoreReason.notRecognized,
+  ]) : kind = Libretro3dsItemKind.ignored,
+       target = null,
+       rejection = null,
+       titleKey = null,
+       sdTitle = false,
+       essentialExefs = false;
   const _Recognition.rejected(this.rejection)
     : kind = Libretro3dsItemKind.rejected,
       target = null,
       titleKey = null,
-      sdTitle = false;
+      sdTitle = false,
+      ignoreReason = null,
+      essentialExefs = false;
+
+  /// GodMode9's `essential.exefs`: a container of console files, read
+  /// section by section (its size counts toward the limits like a
+  /// console file).
+  const _Recognition.essentialExefs()
+    : kind = Libretro3dsItemKind.consoleUnique,
+      target = null,
+      rejection = null,
+      titleKey = null,
+      sdTitle = false,
+      ignoreReason = null,
+      essentialExefs = true;
 
   final Libretro3dsItemKind kind;
   final String? target;
   final Libretro3dsRejection? rejection;
+
+  /// Why an ignored file is not copied.
+  final Libretro3dsIgnoreReason? ignoreReason;
+  final bool essentialExefs;
 
   /// `<high>/<low>` of a title file.
   final String? titleKey;
@@ -4085,10 +4303,26 @@ class _Refusal {
 class _ItemLocator {
   const _ItemLocator.zip(this.containerPath, this.entryName, {this.stamp})
     : kind = Libretro3dsSourceKind.zip,
-      filePath = null;
+      filePath = null,
+      sliceStart = null;
   const _ItemLocator.file(this.filePath, {required this.kind, this.stamp})
     : containerPath = '',
-      entryName = null;
+      entryName = null,
+      sliceStart = null;
+  _ItemLocator._slice(_ItemLocator of, int start)
+    : kind = of.kind,
+      containerPath = of.containerPath,
+      entryName = of.entryName,
+      filePath = of.filePath,
+      stamp = of.stamp,
+      sliceStart = (of.sliceStart ?? 0) + start;
+
+  /// The element's bytes from [start] on (as many as the element's size).
+  _ItemLocator slice(int start) => _ItemLocator._slice(this, start);
+
+  /// Offset of the element's first byte in the file or entry; null when
+  /// the element is the whole file.
+  final int? sliceStart;
 
   final Libretro3dsSourceKind kind;
   final String containerPath;
@@ -4164,6 +4398,33 @@ class _PlainSourceFile implements _SourceFile {
     }
     return sink.value!.toString();
   }
+}
+
+/// One section of a container file (an `essential.exefs` section): read
+/// from memory at analysis, staged from its place in the file.
+class _SliceSourceFile implements _SourceFile {
+  _SliceSourceFile(this.parent, this.section, this.entryName);
+
+  final _SourceFile parent;
+  final Libretro3dsExefsSection section;
+  @override
+  final String entryName;
+
+  @override
+  int get size => section.size;
+  @override
+  _ItemLocator get locator => parent.locator.slice(section.start);
+  @override
+  _Refusal? get problem => null;
+
+  @override
+  Future<Uint8List> prefix(int count) async => count >= section.size
+      ? section.bytes
+      : Uint8List.sublistView(section.bytes, 0, count);
+
+  @override
+  Future<String> contentSha256() async =>
+      sha256.convert(section.bytes).toString();
 }
 
 class _ZipSourceFile implements _SourceFile {
@@ -4346,6 +4607,7 @@ class _StageJob {
     this.container,
     this.entry,
     this.file,
+    this.sliceStart,
   });
 
   final String staged;
@@ -4353,6 +4615,9 @@ class _StageJob {
   final String? container;
   final String? entry;
   final String? file;
+
+  /// Offset of the [size] bytes to keep in the source; null for all of it.
+  final int? sliceStart;
 }
 
 enum _UnitState { notAttempted, failed, rolledBack, rollbackFailed }
