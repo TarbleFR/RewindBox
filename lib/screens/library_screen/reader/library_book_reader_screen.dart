@@ -54,6 +54,7 @@ class LibraryBookReaderScreen extends StatefulWidget {
     this.store,
     this.orientation,
     this.launchExternal,
+    this.rightToLeft = false,
   });
 
   final LibraryReflowSourceOpener open;
@@ -72,6 +73,11 @@ class LibraryBookReaderScreen extends StatefulWidget {
 
   /// Opens external links (defaults to the system browser).
   final LibraryExternalLinkLauncher? launchExternal;
+
+  /// The book's EPUB `page-progression-direction` (Build 447,
+  /// docs/library-books-3d-plan.md § 3.5): in the pages layout, page order
+  /// and hinge are mirrored; no effect on the continuous scroll.
+  final bool rightToLeft;
 
   @override
   State<LibraryBookReaderScreen> createState() =>

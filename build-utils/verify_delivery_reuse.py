@@ -1094,7 +1094,14 @@ DELTA |= BUILD447_3DS_DELTA
 BUILD447_BOOKS_DELTA = {
     'build-utils/verify_delivery_reuse.py',
     'lib/l10n/library_reader_locale.dart',
+    'lib/screens/library_screen/reader/library_book_reader_screen.dart',
+    'lib/screens/library_screen/reader/library_reader_bookmarks.dart',
+    'lib/screens/library_screen/reader/library_reader_effective_settings.dart',
+    'lib/services/library_reading_store.dart',
+    'test/library_infra_reading_store_test.dart',
+    'test/library_reader_effective_settings_test.dart',
     'test/library_reader_locale_test.dart',
+    'test/library_reading_store_bookmarks_test.dart',
 }
 DELTA |= BUILD447_BOOKS_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.

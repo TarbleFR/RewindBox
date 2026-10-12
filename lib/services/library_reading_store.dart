@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:neostation/screens/library_screen/reader/library_reader_bookmarks.dart';
 import 'package:neostation/services/library_image_cache.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:path/path.dart' as p;
@@ -22,11 +23,37 @@ enum LibraryPageDirection { ltr, rtl }
 
 enum LibraryMangaMode { paged, vertical, auto }
 
+// Build 447 reader modes (docs/library-books-3d-plan.md § 3.4-3.9), kept
+// with the other reader settings enums so the store, the readers and the
+// page turn share one definition.
+
+/// How a paged reader turns its pages: a page that curls (default), a
+/// slide (the 440 `PageView`), or no animation.
+enum LibraryPageTurnStyle { curl, slide, none }
+
+/// Two pages side by side: automatic = landscape only.
+enum LibraryDoublePageMode { auto, always, never }
+
+/// PDF display: pages with a page turn, or the continuous scroll and zoom.
+enum LibraryPdfMode { pages, scroll }
+
+/// EPUB/TXT layout: pages, or the continuous scroll of the 440 reader.
+enum LibraryTextLayout { pages, scroll }
+
+/// Reader toolbar: hidden after 4 s like the 440 chrome, or always shown.
+enum LibraryReaderToolbarMode { auto, always }
+
 final DateTime _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
 int _millis(DateTime value) => value.toUtc().millisecondsSinceEpoch;
 
-DateTime? _readDate(Object? value) => value is int
+/// Largest distance to the epoch a [DateTime] accepts, in milliseconds.
+const int _maxDateMillis = 8640000000000000;
+
+/// Null for anything but a date [DateTime] can hold: one out-of-range
+/// value must not make the whole state file unreadable.
+DateTime? _readDate(Object? value) =>
+    value is int && value >= -_maxDateMillis && value <= _maxDateMillis
     ? DateTime.fromMillisecondsSinceEpoch(value, isUtc: true)
     : null;
 
@@ -46,12 +73,16 @@ Map<String, String> _readHeaders(Object? value) {
   return Map<String, String>.unmodifiable(headers);
 }
 
-T _readEnum<T extends Enum>(List<T> values, Object? name, T fallback) {
-  if (name is! String) return fallback;
+T _readEnum<T extends Enum>(List<T> values, Object? name, T fallback) =>
+    _readEnumOrNull(values, name) ?? fallback;
+
+/// Null when [name] is not the name of one of [values].
+T? _readEnumOrNull<T extends Enum>(List<T> values, Object? name) {
+  if (name is! String) return null;
   for (final value in values) {
     if (value.name == name) return value;
   }
-  return fallback;
+  return null;
 }
 
 double _readDouble(Object? value, double fallback, double min, double max) {
@@ -342,6 +373,12 @@ class LibraryFavorite {
 }
 
 /// Reader preferences shared by the page, EPUB, text and PDF readers.
+///
+/// The navigation choices ([turnStyle], [doublePage], [firstPageAlone],
+/// [pageDirection], [mangaMode], [pdfMode], [textLayout]) can be replaced
+/// for one title by [LibraryReaderBookSettings];
+/// `LibraryReaderEffectiveSettings.resolve`
+/// (reader/library_reader_effective_settings.dart) combines both.
 @immutable
 class LibraryReaderSettings {
   const LibraryReaderSettings({
@@ -356,6 +393,13 @@ class LibraryReaderSettings {
     this.tapZones = true,
     this.keepScreenOn = true,
     this.allowRotation = true,
+    this.turnStyle = LibraryPageTurnStyle.curl,
+    this.doublePage = LibraryDoublePageMode.auto,
+    this.firstPageAlone = true,
+    this.pdfMode = LibraryPdfMode.pages,
+    this.textLayout = LibraryTextLayout.pages,
+    this.toolbarMode = LibraryReaderToolbarMode.auto,
+    this.bookmarkRibbon = true,
   });
 
   static const double minFontSize = 12;
@@ -379,6 +423,22 @@ class LibraryReaderSettings {
   final bool keepScreenOn;
   final bool allowRotation;
 
+  /// How paged layouts turn their pages (never used in vertical scroll).
+  final LibraryPageTurnStyle turnStyle;
+
+  /// Two pages side by side ([doublePage] `auto`: landscape only).
+  final LibraryDoublePageMode doublePage;
+
+  /// In double page, the first page (the cover) is shown alone, then the
+  /// spreads 2-3, 4-5...
+  final bool firstPageAlone;
+  final LibraryPdfMode pdfMode;
+  final LibraryTextLayout textLayout;
+  final LibraryReaderToolbarMode toolbarMode;
+
+  /// A ribbon shows that the page or line shown carries a bookmark.
+  final bool bookmarkRibbon;
+
   LibraryReaderSettings copyWith({
     double? fontSize,
     double? lineHeight,
@@ -391,6 +451,13 @@ class LibraryReaderSettings {
     bool? tapZones,
     bool? keepScreenOn,
     bool? allowRotation,
+    LibraryPageTurnStyle? turnStyle,
+    LibraryDoublePageMode? doublePage,
+    bool? firstPageAlone,
+    LibraryPdfMode? pdfMode,
+    LibraryTextLayout? textLayout,
+    LibraryReaderToolbarMode? toolbarMode,
+    bool? bookmarkRibbon,
   }) {
     return LibraryReaderSettings(
       fontSize: (fontSize ?? this.fontSize)
@@ -408,6 +475,13 @@ class LibraryReaderSettings {
       tapZones: tapZones ?? this.tapZones,
       keepScreenOn: keepScreenOn ?? this.keepScreenOn,
       allowRotation: allowRotation ?? this.allowRotation,
+      turnStyle: turnStyle ?? this.turnStyle,
+      doublePage: doublePage ?? this.doublePage,
+      firstPageAlone: firstPageAlone ?? this.firstPageAlone,
+      pdfMode: pdfMode ?? this.pdfMode,
+      textLayout: textLayout ?? this.textLayout,
+      toolbarMode: toolbarMode ?? this.toolbarMode,
+      bookmarkRibbon: bookmarkRibbon ?? this.bookmarkRibbon,
     );
   }
 
@@ -423,10 +497,18 @@ class LibraryReaderSettings {
     'tapZones': tapZones,
     'keepScreenOn': keepScreenOn,
     'allowRotation': allowRotation,
+    'turnStyle': turnStyle.name,
+    'doublePage': doublePage.name,
+    'firstPageAlone': firstPageAlone,
+    'pdfMode': pdfMode.name,
+    'textLayout': textLayout.name,
+    'toolbarMode': toolbarMode.name,
+    'bookmarkRibbon': bookmarkRibbon,
   };
 
-  /// Missing or invalid values fall back to the defaults; numbers are
-  /// clamped to their ranges.
+  /// Missing or invalid values fall back to the defaults (a file written
+  /// before Build 447 has none of the navigation keys added then); numbers
+  /// are clamped to their ranges.
   static LibraryReaderSettings fromJson(Object? json) {
     const defaults = LibraryReaderSettings();
     if (json is! Map) return defaults;
@@ -478,6 +560,33 @@ class LibraryReaderSettings {
       tapZones: readBool('tapZones', defaults.tapZones),
       keepScreenOn: readBool('keepScreenOn', defaults.keepScreenOn),
       allowRotation: readBool('allowRotation', defaults.allowRotation),
+      turnStyle: _readEnum(
+        LibraryPageTurnStyle.values,
+        json['turnStyle'],
+        defaults.turnStyle,
+      ),
+      doublePage: _readEnum(
+        LibraryDoublePageMode.values,
+        json['doublePage'],
+        defaults.doublePage,
+      ),
+      firstPageAlone: readBool('firstPageAlone', defaults.firstPageAlone),
+      pdfMode: _readEnum(
+        LibraryPdfMode.values,
+        json['pdfMode'],
+        defaults.pdfMode,
+      ),
+      textLayout: _readEnum(
+        LibraryTextLayout.values,
+        json['textLayout'],
+        defaults.textLayout,
+      ),
+      toolbarMode: _readEnum(
+        LibraryReaderToolbarMode.values,
+        json['toolbarMode'],
+        defaults.toolbarMode,
+      ),
+      bookmarkRibbon: readBool('bookmarkRibbon', defaults.bookmarkRibbon),
     );
   }
 
@@ -494,7 +603,14 @@ class LibraryReaderSettings {
       other.mangaMode == mangaMode &&
       other.tapZones == tapZones &&
       other.keepScreenOn == keepScreenOn &&
-      other.allowRotation == allowRotation;
+      other.allowRotation == allowRotation &&
+      other.turnStyle == turnStyle &&
+      other.doublePage == doublePage &&
+      other.firstPageAlone == firstPageAlone &&
+      other.pdfMode == pdfMode &&
+      other.textLayout == textLayout &&
+      other.toolbarMode == toolbarMode &&
+      other.bookmarkRibbon == bookmarkRibbon;
 
   @override
   int get hashCode => Object.hash(
@@ -509,11 +625,191 @@ class LibraryReaderSettings {
     tapZones,
     keepScreenOn,
     allowRotation,
+    turnStyle,
+    doublePage,
+    firstPageAlone,
+    pdfMode,
+    textLayout,
+    toolbarMode,
+    bookmarkRibbon,
   );
 }
 
-/// Reading progress, favourites, chapter marks and reader settings of the
-/// Library, persisted in `Application Support/Library/reading-state.json`.
+/// One of the fields of [LibraryReaderBookSettings], named by
+/// [LibraryReaderBookSettings.copyWith] to clear it (inherit the global
+/// value again).
+enum LibraryReaderBookField {
+  turnStyle,
+  doublePage,
+  firstPageAlone,
+  pageDirection,
+  mangaMode,
+  pdfMode,
+  textLayout,
+}
+
+/// Navigation settings chosen for one title, kept by [LibraryReadingStore]
+/// under `bookSettings[key]`. A null field inherits the global
+/// [LibraryReaderSettings] value; the order in which a reader applies them
+/// is `LibraryReaderEffectiveSettings.resolve`.
+///
+/// `==` compares the chosen values, not [updatedAt] (bookkeeping of the
+/// store's title limit).
+@immutable
+class LibraryReaderBookSettings {
+  const LibraryReaderBookSettings({
+    this.turnStyle,
+    this.doublePage,
+    this.firstPageAlone,
+    this.pageDirection,
+    this.mangaMode,
+    this.pdfMode,
+    this.textLayout,
+    DateTime? updatedAt,
+  }) : _updatedAt = updatedAt;
+
+  final LibraryPageTurnStyle? turnStyle;
+  final LibraryDoublePageMode? doublePage;
+  final bool? firstPageAlone;
+  final LibraryPageDirection? pageDirection;
+  final LibraryMangaMode? mangaMode;
+  final LibraryPdfMode? pdfMode;
+  final LibraryTextLayout? textLayout;
+  final DateTime? _updatedAt;
+
+  /// Last change, in UTC (stamped by
+  /// [LibraryReadingStore.updateBookSettings]); the epoch when unknown.
+  DateTime get updatedAt => _updatedAt?.toUtc() ?? _epoch;
+
+  /// True when every field inherits the global settings.
+  bool get isEmpty =>
+      turnStyle == null &&
+      doublePage == null &&
+      firstPageAlone == null &&
+      pageDirection == null &&
+      mangaMode == null &&
+      pdfMode == null &&
+      textLayout == null;
+
+  /// Copy with the given fields replaced, then the fields named in [clear]
+  /// set back to null (inherited). A field both given and cleared is
+  /// cleared.
+  LibraryReaderBookSettings copyWith({
+    LibraryPageTurnStyle? turnStyle,
+    LibraryDoublePageMode? doublePage,
+    bool? firstPageAlone,
+    LibraryPageDirection? pageDirection,
+    LibraryMangaMode? mangaMode,
+    LibraryPdfMode? pdfMode,
+    LibraryTextLayout? textLayout,
+    DateTime? updatedAt,
+    Set<LibraryReaderBookField> clear = const <LibraryReaderBookField>{},
+  }) {
+    T? pick<T>(LibraryReaderBookField field, T? value, T? current) =>
+        clear.contains(field) ? null : value ?? current;
+    return LibraryReaderBookSettings(
+      turnStyle: pick(
+        LibraryReaderBookField.turnStyle,
+        turnStyle,
+        this.turnStyle,
+      ),
+      doublePage: pick(
+        LibraryReaderBookField.doublePage,
+        doublePage,
+        this.doublePage,
+      ),
+      firstPageAlone: pick(
+        LibraryReaderBookField.firstPageAlone,
+        firstPageAlone,
+        this.firstPageAlone,
+      ),
+      pageDirection: pick(
+        LibraryReaderBookField.pageDirection,
+        pageDirection,
+        this.pageDirection,
+      ),
+      mangaMode: pick(
+        LibraryReaderBookField.mangaMode,
+        mangaMode,
+        this.mangaMode,
+      ),
+      pdfMode: pick(LibraryReaderBookField.pdfMode, pdfMode, this.pdfMode),
+      textLayout: pick(
+        LibraryReaderBookField.textLayout,
+        textLayout,
+        this.textLayout,
+      ),
+      updatedAt: updatedAt ?? _updatedAt,
+    );
+  }
+
+  /// Only the chosen fields are written, under the keys of the global
+  /// settings.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'turnStyle': ?turnStyle?.name,
+    'doublePage': ?doublePage?.name,
+    'firstPageAlone': ?firstPageAlone,
+    'pageDirection': ?pageDirection?.name,
+    'mangaMode': ?mangaMode?.name,
+    'pdfMode': ?pdfMode?.name,
+    'textLayout': ?textLayout?.name,
+    'updatedAt': _millis(updatedAt),
+  };
+
+  /// Null when [json] is not an object. A missing or invalid field
+  /// inherits (null); the result may be [isEmpty]. Never throws.
+  static LibraryReaderBookSettings? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final firstPageAlone = json['firstPageAlone'];
+    return LibraryReaderBookSettings(
+      turnStyle: _readEnumOrNull(
+        LibraryPageTurnStyle.values,
+        json['turnStyle'],
+      ),
+      doublePage: _readEnumOrNull(
+        LibraryDoublePageMode.values,
+        json['doublePage'],
+      ),
+      firstPageAlone: firstPageAlone is bool ? firstPageAlone : null,
+      pageDirection: _readEnumOrNull(
+        LibraryPageDirection.values,
+        json['pageDirection'],
+      ),
+      mangaMode: _readEnumOrNull(LibraryMangaMode.values, json['mangaMode']),
+      pdfMode: _readEnumOrNull(LibraryPdfMode.values, json['pdfMode']),
+      textLayout: _readEnumOrNull(LibraryTextLayout.values, json['textLayout']),
+      updatedAt: _readDate(json['updatedAt']),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is LibraryReaderBookSettings &&
+      other.turnStyle == turnStyle &&
+      other.doublePage == doublePage &&
+      other.firstPageAlone == firstPageAlone &&
+      other.pageDirection == pageDirection &&
+      other.mangaMode == mangaMode &&
+      other.pdfMode == pdfMode &&
+      other.textLayout == textLayout;
+
+  @override
+  int get hashCode => Object.hash(
+    turnStyle,
+    doublePage,
+    firstPageAlone,
+    pageDirection,
+    mangaMode,
+    pdfMode,
+    textLayout,
+  );
+}
+
+/// Reading progress, favourites, chapter marks, bookmarks, per-title
+/// navigation settings and reader settings of the Library, persisted in
+/// `Application Support/Library/reading-state.json` (format version 1; keys
+/// added later are optional, and keys this version does not know are
+/// ignored when reading).
 ///
 /// Changes apply in memory immediately (listeners are notified) and are
 /// written after [saveDelay] of inactivity (at most [maxSaveDelay] after the
@@ -540,13 +836,20 @@ class LibraryReadingStore extends ChangeNotifier {
     LibraryCoverPinner? coverPinner,
     this.maxProgressEntries = 10000,
     this.maxChapterMarkTitles = 1000,
+    this.maxBookSettingsTitles = 1000,
   }) : _directory = directory,
        _clock = clock ?? DateTime.now,
        _coverPinner = coverPinner;
 
   static const String fileName = 'reading-state.json';
   static const String corruptSuffix = '.corrupt';
+
+  /// Written in the file, never raised for additive keys (`bookmarks` and
+  /// `bookSettings` came in Build 447 under version 1).
   static const int _formatVersion = 1;
+
+  /// [addBookmark] refuses a title's bookmark beyond this count.
+  static const int maxBookmarksPerTitle = 500;
 
   /// Bodies larger than this are decoded off the UI isolate.
   static const int _isolateDecodeThreshold = 256 * 1024;
@@ -578,16 +881,23 @@ class LibraryReadingStore extends ChangeNotifier {
   final Duration maxSaveDelay;
 
   /// Beyond this count, the oldest progress entries of online titles that
-  /// are neither favourites nor have chapter marks are dropped. Local books
-  /// (`local:` keys) are never dropped: they cannot be favourites, and
-  /// their position is the only record of the reading. Each drop is
-  /// counted in [evictedProgressEntries] and logged.
+  /// are neither favourites nor have chapter marks or bookmarks are
+  /// dropped. Local books (`local:` keys) are never dropped: they cannot be
+  /// favourites, and their position is the only record of the reading.
+  /// Each drop is counted in [evictedProgressEntries] and logged.
   final int maxProgressEntries;
 
   /// Chapter marks are kept for at most this many titles (most recently
   /// marked first; favourites are kept). Each drop is counted in
   /// [evictedChapterMarkTitles] and logged.
   final int maxChapterMarkTitles;
+
+  /// Per-title navigation settings ([updateBookSettings]) are kept for at
+  /// most this many titles: beyond it, those of the online titles changed
+  /// the longest ago are dropped. Local books (`local:` keys) are never
+  /// dropped. Each drop is counted in [evictedBookSettingsTitles] and
+  /// logged. Bookmarks have no title limit and are never dropped.
+  final int maxBookSettingsTitles;
 
   static final LoggerService _log = LoggerService.instance;
 
@@ -600,9 +910,18 @@ class LibraryReadingStore extends ChangeNotifier {
   Map<String, Map<String, LibraryChapterMark>> _marks =
       <String, Map<String, LibraryChapterMark>>{};
   Map<String, LibraryFavorite> _favorites = <String, LibraryFavorite>{};
+
+  /// Per title: unmodifiable, sorted ([_byReadingOrder]), never empty.
+  Map<String, List<LibraryBookmark>> _bookmarks =
+      <String, List<LibraryBookmark>>{};
+
+  /// Per title, never [LibraryReaderBookSettings.isEmpty].
+  Map<String, LibraryReaderBookSettings> _bookSettings =
+      <String, LibraryReaderBookSettings>{};
   LibraryReaderSettings _settings = const LibraryReaderSettings();
   int _evictedProgress = 0;
   int _evictedMarkTitles = 0;
+  int _evictedBookSettingsTitles = 0;
 
   bool _loaded = false;
 
@@ -650,6 +969,11 @@ class LibraryReadingStore extends ChangeNotifier {
   /// Titles whose chapter marks were dropped by [maxChapterMarkTitles]
   /// since the state file was created (saved with it, for diagnostics).
   int get evictedChapterMarkTitles => _evictedMarkTitles;
+
+  /// Titles whose navigation settings were dropped by
+  /// [maxBookSettingsTitles] since the state file was created (saved with
+  /// it, for diagnostics).
+  int get evictedBookSettingsTitles => _evictedBookSettingsTitles;
 
   /// True when the state file exists but could not be read. The store then
   /// works in memory, never replaces the file, and reads it again before
@@ -704,17 +1028,20 @@ class LibraryReadingStore extends ChangeNotifier {
     });
   }
 
-  /// Moves the reading position and chapter marks saved under [from] to
-  /// [to], keeping their dates: a local book whose file was edited in place
-  /// gets a new id (it derives from the content). Where [to] already has an
-  /// entry, that entry is kept and the one under [from] is left as it is,
-  /// so nothing is ever overwritten. Before [load] the move is recorded and
-  /// applied to the saved data.
+  /// Moves the reading position, chapter marks, bookmarks and navigation
+  /// settings saved under [from] to [to], keeping their dates: a local book
+  /// whose file was edited in place gets a new id (it derives from the
+  /// content). Where [to] already has an entry of a kind, that entry is
+  /// kept and the one under [from] is left as it is, so nothing is ever
+  /// overwritten. Before [load] the move is recorded and applied to the
+  /// saved data.
   void moveProgress(String from, String to) {
     if (from == to) return;
     if (_complete &&
         !_progress.containsKey(from) &&
-        !_marks.containsKey(from)) {
+        !_marks.containsKey(from) &&
+        !_bookmarks.containsKey(from) &&
+        !_bookSettings.containsKey(from)) {
       return;
     }
     _change(() {
@@ -726,6 +1053,17 @@ class LibraryReadingStore extends ChangeNotifier {
       final marks = _marks[from];
       if (marks != null && !_marks.containsKey(to)) {
         _marks[to] = _marks.remove(from)!;
+      }
+      final bookmarks = _bookmarks[from];
+      if (bookmarks != null && !_bookmarks.containsKey(to)) {
+        _bookmarks.remove(from);
+        _bookmarks[to] = List<LibraryBookmark>.unmodifiable(
+          bookmarks.map((bookmark) => _rekeyedBookmark(bookmark, to)),
+        );
+      }
+      final book = _bookSettings[from];
+      if (book != null && !_bookSettings.containsKey(to)) {
+        _bookSettings[to] = _bookSettings.remove(from)!;
       }
       // While replaying: the saved entry now lives under [to], so a blind
       // save of [to] is compared with it.
@@ -762,6 +1100,21 @@ class LibraryReadingStore extends ChangeNotifier {
     coverUrl: entry.coverUrl,
     coverHeaders: entry.coverHeaders,
     updatedAt: entry.updatedAt,
+  );
+
+  static LibraryBookmark _rekeyedBookmark(
+    LibraryBookmark bookmark,
+    String key,
+  ) => LibraryBookmark(
+    id: bookmark.id,
+    key: key,
+    location: bookmark.location,
+    fraction: bookmark.fraction,
+    chapterId: bookmark.chapterId,
+    chapterTitle: bookmark.chapterTitle,
+    pageIndex: bookmark.pageIndex,
+    label: bookmark.label,
+    createdAt: bookmark.createdAt,
   );
 
   /// Most recently updated entries first.
@@ -923,6 +1276,95 @@ class LibraryReadingStore extends ChangeNotifier {
     return next;
   }
 
+  // ------------------------------------------------------------ bookmarks --
+
+  /// Bookmarks of the title [key] in reading order: by fraction, then
+  /// creation date (unmodifiable).
+  List<LibraryBookmark> bookmarksFor(String key) =>
+      _bookmarks[key] ?? const <LibraryBookmark>[];
+
+  /// The bookmark of the title [key] at exactly [location], if any.
+  LibraryBookmark? bookmarkAt(String key, String location) {
+    final bookmarks = _bookmarks[key];
+    if (bookmarks == null) return null;
+    for (final bookmark in bookmarks) {
+      if (bookmark.location == location) return bookmark;
+    }
+    return null;
+  }
+
+  /// Adds [bookmark] to its title ([LibraryBookmark.key]) and returns true.
+  ///
+  /// Returns false, and changes and writes nothing, when the title already
+  /// has [maxBookmarksPerTitle] bookmarks, one at the same location or one
+  /// with the same id, or when the id, key or location is empty. The
+  /// bookmark is stored as the file will read it back (fraction clamped to
+  /// 0..1, creation date in UTC milliseconds, empty optional fields
+  /// dropped). Added before [load], it is checked again against the saved
+  /// bookmarks and dropped if one of these conditions then applies.
+  bool addBookmark(LibraryBookmark bookmark) {
+    final stored = LibraryBookmark.fromJson(bookmark.toJson());
+    if (stored == null) return false;
+    if (!_acceptsBookmark(_bookmarks[stored.key], stored)) return false;
+    _change(() {
+      final current = _bookmarks[stored.key];
+      if (!_acceptsBookmark(current, stored)) return;
+      _bookmarks[stored.key] = _sortedBookmarks(<LibraryBookmark>[
+        ...?current,
+        stored,
+      ]);
+    });
+    return true;
+  }
+
+  /// Removes the bookmark [id] of the title [key]. Before [load] the
+  /// removal is recorded and applied to the saved bookmarks.
+  void removeBookmark(String key, String id) {
+    if (_complete &&
+        !(_bookmarks[key]?.any((bookmark) => bookmark.id == id) ?? false)) {
+      return;
+    }
+    _change(() {
+      final current = _bookmarks[key];
+      if (current == null) return;
+      final kept = current
+          .where((bookmark) => bookmark.id != id)
+          .toList(growable: false);
+      if (kept.length == current.length) return;
+      if (kept.isEmpty) {
+        _bookmarks.remove(key);
+      } else {
+        _bookmarks[key] = List<LibraryBookmark>.unmodifiable(kept);
+      }
+    });
+  }
+
+  static bool _acceptsBookmark(
+    List<LibraryBookmark>? current,
+    LibraryBookmark bookmark,
+  ) {
+    if (current == null) return true;
+    if (current.length >= maxBookmarksPerTitle) return false;
+    for (final existing in current) {
+      if (existing.id == bookmark.id ||
+          existing.location == bookmark.location) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static List<LibraryBookmark> _sortedBookmarks(
+    List<LibraryBookmark> bookmarks,
+  ) => List<LibraryBookmark>.unmodifiable(bookmarks..sort(_byReadingOrder));
+
+  static int _byReadingOrder(LibraryBookmark a, LibraryBookmark b) {
+    final byFraction = a.fraction.compareTo(b.fraction);
+    if (byFraction != 0) return byFraction;
+    final byDate = a.createdAt.compareTo(b.createdAt);
+    return byDate != 0 ? byDate : a.id.compareTo(b.id);
+  }
+
   // ------------------------------------------------------------- settings --
 
   LibraryReaderSettings get settings => _settings;
@@ -933,6 +1375,36 @@ class LibraryReadingStore extends ChangeNotifier {
     final normalized = settings.copyWith();
     if (normalized == _settings) return;
     _change(() => _settings = normalized);
+  }
+
+  /// Navigation settings chosen for the title [key]; null when it follows
+  /// the global [settings] entirely.
+  LibraryReaderBookSettings? bookSettingsFor(String key) => _bookSettings[key];
+
+  /// Stores [settings] for the title [key], stamped with the current time.
+  /// Settings that inherit everything ([LibraryReaderBookSettings.isEmpty])
+  /// remove the entry, like [clearBookSettings]; the same values as stored
+  /// change nothing. Beyond [maxBookSettingsTitles] titles, the online
+  /// titles changed the longest ago lose theirs.
+  void updateBookSettings(String key, LibraryReaderBookSettings settings) {
+    if (key.isEmpty) return;
+    if (settings.isEmpty) {
+      clearBookSettings(key);
+      return;
+    }
+    if (_bookSettings[key] == settings) return;
+    final stamped = settings.copyWith(updatedAt: _clock());
+    _change(() {
+      _bookSettings[key] = stamped;
+      _enforceBookSettingsLimit(keep: key);
+    });
+  }
+
+  /// The title [key] follows the global settings again. Before [load] the
+  /// removal is recorded and applied to the saved data.
+  void clearBookSettings(String key) {
+    if (_complete && !_bookSettings.containsKey(key)) return;
+    _change(() => _bookSettings.remove(key));
   }
 
   // ---------------------------------------------------------- persistence --
@@ -1063,9 +1535,12 @@ class LibraryReadingStore extends ChangeNotifier {
       progress: _progress,
       marks: _marks,
       favorites: _favorites,
+      bookmarks: _bookmarks,
+      bookSettings: _bookSettings,
       settings: _settings,
       evictedProgress: _evictedProgress,
       evictedMarkTitles: _evictedMarkTitles,
+      evictedBookSettingsTitles: _evictedBookSettingsTitles,
     );
     _lastWriteEncodedInBackground = false;
     if (_stateBytes < _isolateEncodeThreshold) return snapshot().encode();
@@ -1130,9 +1605,12 @@ class LibraryReadingStore extends ChangeNotifier {
     _progress = data.progress;
     _marks = data.marks;
     _favorites = data.favorites;
+    _bookmarks = data.bookmarks;
+    _bookSettings = data.bookSettings;
     _settings = data.settings;
     _evictedProgress = data.evictedProgress;
     _evictedMarkTitles = data.evictedMarkTitles;
+    _evictedBookSettingsTitles = data.evictedBookSettingsTitles;
     final pending = List<void Function()>.of(_preLoadChanges);
     if (!keepChanges) _preLoadChanges.clear();
     // The replayed changes were made without knowing the saved entries:
@@ -1277,11 +1755,13 @@ class LibraryReadingStore extends ChangeNotifier {
   }
 
   /// Whether the progress of [key] may be dropped by [maxProgressEntries]:
-  /// never for a local book, a favourite or a title with chapter marks.
+  /// never for a local book, a favourite, a title with chapter marks or a
+  /// title with bookmarks.
   bool _progressEvictable(String key) =>
       !key.startsWith('local:') &&
       !_favorites.containsKey(key) &&
-      !_marks.containsKey(key);
+      !_marks.containsKey(key) &&
+      !_bookmarks.containsKey(key);
 
   /// Drops the oldest evictable entries over [maxProgressEntries], never
   /// [keep] (the entry being saved). When every other entry must be kept,
@@ -1339,6 +1819,40 @@ class LibraryReadingStore extends ChangeNotifier {
       '$_evictedMarkTitles in total',
     );
   }
+
+  /// Drops the navigation settings of the online titles changed the longest
+  /// ago over [maxBookSettingsTitles], never those of a local book nor
+  /// [keep] (the title being changed). When every other entry must be
+  /// kept, the store grows past the limit instead.
+  void _enforceBookSettingsLimit({required String keep}) {
+    final excess = _bookSettings.length - maxBookSettingsTitles;
+    if (excess <= 0) return;
+    final removable =
+        _bookSettings.entries
+            .where(
+              (entry) => entry.key != keep && !entry.key.startsWith('local:'),
+            )
+            .toList()
+          ..sort((a, b) {
+            final byDate = a.value.updatedAt.compareTo(b.value.updatedAt);
+            return byDate != 0 ? byDate : a.key.compareTo(b.key);
+          });
+    final dropped = removable
+        .take(excess)
+        .map((entry) => entry.key)
+        .toList(growable: false);
+    if (dropped.isEmpty) return;
+    for (final key in dropped) {
+      _bookSettings.remove(key);
+    }
+    _evictedBookSettingsTitles += dropped.length;
+    // Counts only: the keys name what the user reads.
+    _log.w(
+      'Library reading store: navigation settings of ${dropped.length} '
+      'titles dropped over the limit of $maxBookSettingsTitles; '
+      '$_evictedBookSettingsTitles in total',
+    );
+  }
 }
 
 /// The data of one write. Built from plain, sendable values only (never the
@@ -1349,17 +1863,23 @@ class _StateSnapshot {
     required this.progress,
     required this.marks,
     required this.favorites,
+    required this.bookmarks,
+    required this.bookSettings,
     required this.settings,
     required this.evictedProgress,
     required this.evictedMarkTitles,
+    required this.evictedBookSettingsTitles,
   });
 
   final Map<String, LibraryReadingProgress> progress;
   final Map<String, Map<String, LibraryChapterMark>> marks;
   final Map<String, LibraryFavorite> favorites;
+  final Map<String, List<LibraryBookmark>> bookmarks;
+  final Map<String, LibraryReaderBookSettings> bookSettings;
   final LibraryReaderSettings settings;
   final int evictedProgress;
   final int evictedMarkTitles;
+  final int evictedBookSettingsTitles;
 
   /// Encodes [snapshot] in a worker isolate. Static, so that the closure
   /// sent to the worker captures nothing but [snapshot]; the collections
@@ -1385,11 +1905,26 @@ class _StateSnapshot {
     'favorites': <String, Object?>{
       for (final entry in favorites.entries) entry.key: entry.value.toJson(),
     },
+    'bookmarks': <String, Object?>{
+      for (final title in bookmarks.entries)
+        if (title.value.isNotEmpty)
+          title.key: <Object?>[
+            for (final bookmark in title.value) bookmark.toJson(),
+          ],
+    },
+    'bookSettings': <String, Object?>{
+      for (final entry in bookSettings.entries)
+        if (!entry.value.isEmpty) entry.key: entry.value.toJson(),
+    },
     'settings': settings.toJson(),
-    if (evictedProgress > 0 || evictedMarkTitles > 0)
+    if (evictedProgress > 0 ||
+        evictedMarkTitles > 0 ||
+        evictedBookSettingsTitles > 0)
       'evictions': <String, Object?>{
         'progress': evictedProgress,
         'chapterMarkTitles': evictedMarkTitles,
+        if (evictedBookSettingsTitles > 0)
+          'bookSettingsTitles': evictedBookSettingsTitles,
       },
   };
 }
@@ -1398,7 +1933,8 @@ class _StoreData {
   _StoreData();
 
   /// Throws [FormatException] when [json] is not a state document. Invalid
-  /// individual entries are skipped.
+  /// individual entries are skipped, and top-level keys this version does
+  /// not know are ignored (`version` is written, never checked).
   factory _StoreData.fromJson(Object? json) {
     if (json is! Map) {
       throw const FormatException('reading state is not a JSON object');
@@ -1434,19 +1970,63 @@ class _StoreData {
         if (favorite != null) data.favorites[favorite.key] = favorite;
       }
     }
+    data._readBookmarks(json['bookmarks']);
+    final bookSettings = json['bookSettings'];
+    if (bookSettings is Map) {
+      for (final entry in bookSettings.entries) {
+        final key = entry.key;
+        if (key is! String || key.isEmpty) continue;
+        final settings = LibraryReaderBookSettings.fromJson(entry.value);
+        if (settings == null || settings.isEmpty) continue;
+        data.bookSettings[key] = settings;
+      }
+    }
     data.settings = LibraryReaderSettings.fromJson(json['settings']);
     final evictions = json['evictions'];
     if (evictions is Map) {
       final progressCount = evictions['progress'];
       final markCount = evictions['chapterMarkTitles'];
+      final bookSettingsCount = evictions['bookSettingsTitles'];
       if (progressCount is int && progressCount > 0) {
         data.evictedProgress = progressCount;
       }
       if (markCount is int && markCount > 0) {
         data.evictedMarkTitles = markCount;
       }
+      if (bookSettingsCount is int && bookSettingsCount > 0) {
+        data.evictedBookSettingsTitles = bookSettingsCount;
+      }
     }
     return data;
+  }
+
+  /// `bookmarks: {<key>: [entry, ...]}`. Each valid entry joins the title
+  /// it names (its own `key`, like progress entries); an invalid entry, or
+  /// one repeating the id or location of an earlier one of its title, is
+  /// skipped. Nothing beyond [LibraryReadingStore.maxBookmarksPerTitle] is
+  /// dropped here: only [LibraryReadingStore.addBookmark] refuses.
+  void _readBookmarks(Object? json) {
+    if (json is! Map) return;
+    final ids = <String, Set<String>>{};
+    final locations = <String, Set<String>>{};
+    final read = <String, List<LibraryBookmark>>{};
+    for (final title in json.values) {
+      if (title is! List) continue;
+      for (final value in title) {
+        final bookmark = LibraryBookmark.fromJson(value);
+        if (bookmark == null) continue;
+        final key = bookmark.key;
+        if (!(ids[key] ??= <String>{}).add(bookmark.id)) continue;
+        if (!(locations[key] ??= <String>{}).add(bookmark.location)) {
+          ids[key]!.remove(bookmark.id);
+          continue;
+        }
+        (read[key] ??= <LibraryBookmark>[]).add(bookmark);
+      }
+    }
+    for (final entry in read.entries) {
+      bookmarks[entry.key] = LibraryReadingStore._sortedBookmarks(entry.value);
+    }
   }
 
   final Map<String, LibraryReadingProgress> progress =
@@ -1454,7 +2034,12 @@ class _StoreData {
   final Map<String, Map<String, LibraryChapterMark>> marks =
       <String, Map<String, LibraryChapterMark>>{};
   final Map<String, LibraryFavorite> favorites = <String, LibraryFavorite>{};
+  final Map<String, List<LibraryBookmark>> bookmarks =
+      <String, List<LibraryBookmark>>{};
+  final Map<String, LibraryReaderBookSettings> bookSettings =
+      <String, LibraryReaderBookSettings>{};
   LibraryReaderSettings settings = const LibraryReaderSettings();
   int evictedProgress = 0;
   int evictedMarkTitles = 0;
+  int evictedBookSettingsTitles = 0;
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/screens/library_screen/reader/library_reader_bookmarks.dart';
 import 'package:neostation/services/library_image_cache.dart';
 import 'package:neostation/services/library_reading_store.dart';
 import 'package:path/path.dart' as p;
@@ -988,5 +989,263 @@ void main() {
     expect(store.settings.fontSize, LibraryReaderSettings.maxFontSize);
     expect(store.settings.lineHeight, LibraryReaderSettings.minLineHeight);
     expect(store.settings.margin, LibraryReaderSettings.maxMargin);
+  });
+
+  // Build 447 (docs/library-books-3d-plan.md § 3.7, § 3.9): additive keys
+  // under file version 1.
+
+  test('a state file written before Build 447 loads with the new defaults '
+      'and is written back under version 1', () async {
+    final mangaKey = LibraryReadingStore.onlineKey('fr.lelscanfr', 'maria');
+    // Exactly what Build 446 wrote: no bookmarks, no title settings, none
+    // of the navigation settings added since.
+    await stateFile().writeAsString(
+      jsonEncode(<String, Object?>{
+        'version': 1,
+        'progress': <String, Object?>{
+          mangaKey: LibraryReadingProgress(
+            key: mangaKey,
+            location: 'page:7',
+            fraction: 0.35,
+            chapterId: 'ch-32',
+            updatedAt: DateTime.utc(2026, 9),
+          ).toJson(),
+        },
+        'chapterMarks': <String, Object?>{
+          mangaKey: <String, Object?>{
+            'ch-31': LibraryChapterMark(read: true).toJson(),
+          },
+        },
+        'favorites': <String, Object?>{
+          mangaKey: favorite('fr.lelscanfr', 'maria').toJson(),
+        },
+        'settings': <String, Object?>{
+          'fontSize': 20.0,
+          'lineHeight': 1.6,
+          'fontFamily': 'sans',
+          'theme': 'dark',
+          'margin': 24.0,
+          'justify': false,
+          'pageDirection': 'rtl',
+          'mangaMode': 'paged',
+          'tapZones': false,
+          'keepScreenOn': true,
+          'allowRotation': false,
+        },
+        'evictions': <String, Object?>{'progress': 3, 'chapterMarkTitles': 1},
+      }),
+    );
+    final store = create();
+    await store.load();
+    expect(store.loadFailed, isFalse);
+    final settings = store.settings;
+    expect(settings.fontSize, 20);
+    expect(settings.theme, LibraryReaderTheme.dark);
+    expect(settings.pageDirection, LibraryPageDirection.rtl);
+    expect(settings.mangaMode, LibraryMangaMode.paged);
+    expect(settings.tapZones, isFalse);
+    expect(settings.allowRotation, isFalse);
+    expect(settings.turnStyle, LibraryPageTurnStyle.curl);
+    expect(settings.doublePage, LibraryDoublePageMode.auto);
+    expect(settings.firstPageAlone, isTrue);
+    expect(settings.pdfMode, LibraryPdfMode.pages);
+    expect(settings.textLayout, LibraryTextLayout.pages);
+    expect(settings.toolbarMode, LibraryReaderToolbarMode.auto);
+    expect(settings.bookmarkRibbon, isTrue);
+    expect(store.bookmarksFor(mangaKey), isEmpty);
+    expect(store.bookSettingsFor(mangaKey), isNull);
+    expect(store.evictedProgressEntries, 3);
+    expect(store.evictedChapterMarkTitles, 1);
+    expect(store.evictedBookSettingsTitles, 0);
+
+    store.saveProgress(
+      LibraryReadingProgress(key: 'local:new', location: 'page:1', fraction: 0),
+    );
+    await store.flush();
+    final written = jsonDecode(await stateFile().readAsString()) as Map;
+    expect(written['version'], 1);
+    expect(written['bookmarks'], isEmpty);
+    expect(written['bookSettings'], isEmpty);
+    expect((written['progress'] as Map).keys, <String>[mangaKey, 'local:new']);
+    expect(written['evictions'], <String, Object?>{
+      'progress': 3,
+      'chapterMarkTitles': 1,
+    });
+    final savedSettings = written['settings'] as Map;
+    expect(savedSettings['turnStyle'], 'curl');
+    expect(savedSettings['doublePage'], 'auto');
+    expect(savedSettings['firstPageAlone'], isTrue);
+    expect(savedSettings['pdfMode'], 'pages');
+    expect(savedSettings['textLayout'], 'pages');
+    expect(savedSettings['toolbarMode'], 'auto');
+    expect(savedSettings['bookmarkRibbon'], isTrue);
+    expect(savedSettings['theme'], 'dark');
+
+    final reopened = create();
+    await reopened.load();
+    expect(reopened.settings, settings);
+    expect(reopened.progressFor(mangaKey)!.chapterId, 'ch-32');
+    expect(reopened.chapterMark(mangaKey, 'ch-31')!.read, isTrue);
+    expect(reopened.isFavorite(mangaKey), isTrue);
+  });
+
+  test('the Build 447 reader settings are stored, saved and read back, '
+      'invalid values falling back to their defaults', () async {
+    const defaults = LibraryReaderSettings();
+    expect(defaults.turnStyle, LibraryPageTurnStyle.curl);
+    expect(defaults.doublePage, LibraryDoublePageMode.auto);
+    expect(defaults.firstPageAlone, isTrue);
+    expect(defaults.pdfMode, LibraryPdfMode.pages);
+    expect(defaults.textLayout, LibraryTextLayout.pages);
+    expect(defaults.toolbarMode, LibraryReaderToolbarMode.auto);
+    expect(defaults.bookmarkRibbon, isTrue);
+
+    final store = create();
+    await store.load();
+    var notifications = 0;
+    store.addListener(() => notifications++);
+    // Each field on its own is a change (equality covers every field).
+    final changes = <LibraryReaderSettings Function(LibraryReaderSettings)>[
+      (s) => s.copyWith(turnStyle: LibraryPageTurnStyle.none),
+      (s) => s.copyWith(doublePage: LibraryDoublePageMode.never),
+      (s) => s.copyWith(firstPageAlone: false),
+      (s) => s.copyWith(pdfMode: LibraryPdfMode.scroll),
+      (s) => s.copyWith(textLayout: LibraryTextLayout.scroll),
+      (s) => s.copyWith(toolbarMode: LibraryReaderToolbarMode.always),
+      (s) => s.copyWith(bookmarkRibbon: false),
+    ];
+    for (final change in changes) {
+      final before = store.settings;
+      final after = change(before);
+      expect(after, isNot(before));
+      store.updateSettings(after);
+      expect(store.settings, after);
+    }
+    expect(notifications, changes.length);
+    final changed = store.settings;
+    expect(changed.turnStyle, LibraryPageTurnStyle.none);
+    expect(changed.doublePage, LibraryDoublePageMode.never);
+    expect(changed.firstPageAlone, isFalse);
+    expect(changed.pdfMode, LibraryPdfMode.scroll);
+    expect(changed.textLayout, LibraryTextLayout.scroll);
+    expect(changed.toolbarMode, LibraryReaderToolbarMode.always);
+    expect(changed.bookmarkRibbon, isFalse);
+    // The other fields are kept by copyWith.
+    expect(changed.copyWith(fontSize: 20).turnStyle, LibraryPageTurnStyle.none);
+    expect(LibraryReaderSettings.fromJson(changed.toJson()), changed);
+    expect(
+      LibraryReaderSettings.fromJson(changed.toJson()).hashCode,
+      changed.hashCode,
+    );
+
+    await store.flush();
+    final reopened = create();
+    await reopened.load();
+    expect(reopened.settings, changed);
+
+    await stateFile().writeAsString(
+      jsonEncode(<String, Object?>{
+        'version': 1,
+        'settings': <String, Object?>{
+          'fontSize': 19,
+          'turnStyle': 'warp',
+          'doublePage': 2,
+          'firstPageAlone': 'no',
+          'pdfMode': null,
+          'textLayout': 'columns',
+          'toolbarMode': true,
+          'bookmarkRibbon': 0,
+        },
+      }),
+    );
+    final invalid = create();
+    await invalid.load();
+    expect(invalid.settings, defaults.copyWith(fontSize: 19));
+  });
+
+  test('the progress limit keeps the reading position of titles with '
+      'bookmarks', () async {
+    final store = create(maxProgressEntries: 2);
+    await store.load();
+    LibraryReadingProgress at(String key) =>
+        LibraryReadingProgress(key: key, location: 'page:0', fraction: 0);
+    void later() => now = now.add(const Duration(minutes: 1));
+    const marked = 'online:s:marked';
+    expect(
+      store.addBookmark(
+        LibraryBookmark(
+          id: 'b',
+          key: marked,
+          location: 'page:0',
+          fraction: 0,
+          createdAt: now,
+        ),
+      ),
+      isTrue,
+    );
+    store.saveProgress(at(marked));
+    later();
+    store.saveProgress(at('online:s:a'));
+    later();
+    store.saveProgress(at('online:s:b'));
+    // The oldest entry has a bookmark: the next oldest goes.
+    expect(store.progressFor(marked), isNotNull);
+    expect(store.progressFor('online:s:a'), isNull);
+    expect(store.progressFor('online:s:b'), isNotNull);
+    expect(store.evictedProgressEntries, 1);
+
+    // Without its bookmark, the title is an ordinary online title again.
+    store.removeBookmark(marked, 'b');
+    later();
+    store.saveProgress(at('online:s:c'));
+    expect(store.progressFor(marked), isNull);
+    expect(store.progressFor('online:s:b'), isNotNull);
+    expect(store.evictedProgressEntries, 2);
+    await store.flush();
+  });
+
+  test('an out-of-range date reads as unknown and never makes the state file '
+      'corrupt', () async {
+    await stateFile().writeAsString(
+      jsonEncode(<String, Object?>{
+        'version': 1,
+        'progress': <String, Object?>{
+          'local:a': <String, Object?>{
+            'key': 'local:a',
+            'location': 'page:3',
+            'fraction': 0.3,
+            'updatedAt': 8640000000000001,
+          },
+          'local:b': <String, Object?>{
+            'key': 'local:b',
+            'location': 'page:4',
+            'fraction': 0.4,
+            'updatedAt': -8640000000000001,
+          },
+        },
+        'chapterMarks': <String, Object?>{
+          'online:s:m': <String, Object?>{
+            'c1': <String, Object?>{
+              'read': true,
+              'updatedAt': 9007199254740991,
+            },
+          },
+        },
+      }),
+    );
+    final store = create();
+    await store.load();
+    expect(store.loadFailed, isFalse);
+    expect(
+      await File(
+        '${stateFile().path}${LibraryReadingStore.corruptSuffix}',
+      ).exists(),
+      isFalse,
+    );
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    expect(store.progressFor('local:a')!.location, 'page:3');
+    expect(store.progressFor('local:a')!.updatedAt, epoch);
+    expect(store.progressFor('local:b')!.updatedAt, epoch);
+    expect(store.chapterMark('online:s:m', 'c1')!.read, isTrue);
   });
 }
