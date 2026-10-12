@@ -9,16 +9,17 @@
 // (the view is back on the phone), a size under one point, a scale of 0 or
 // a non-finite value are ignored. The second half runs the coordinator's
 // own policy (NeoExternalDisplaySurfaceSize of packages/external_display)
-// end to end: an iPhone 15 in landscape on a 1080p Apple TV renders
-// 1920 × 1080 in Fit and Automatic, 1920 × 1440 in Fill (the window cuts the
-// top and the bottom), the phone's own format in Original, 3840 × 2160 on a
-// 4K screen and 1920 × 1080 on a 960 × 540 @2x window; the same phone held
-// in portrait gives a 498 × 1080 pillar. The last part places the picture
-// in that surface (LibretroRenderSurfacePlacement): the game areas of the
-// iPhone layout scaled uniformly and centred, the black around them left
-// out (a 4:3 screen takes the TV's full height in Fit, fills 1920 × 1440 in
-// Fill, the pillar's width in portrait; two 3DS screens keep their
-// arrangement), and brings a touch screen back to the phone's layout.
+// end to end: the surface is the whole TV in every mode and from any
+// iPhone layout (review of 12 October 2026, M3), so an iPhone 15 on a 1080p
+// Apple TV renders 1920 × 1080 in Automatic, Fit, Fill and Original,
+// landscape or portrait, 3840 × 2160 on a 4K screen and 1920 × 1080 on a
+// 960 × 540 @2x window. The last part places the picture in that surface
+// (LibretroRenderSurfacePlacement): the game areas of the iPhone layout
+// scaled uniformly and centred, the black around them left out (a 4:3
+// screen takes the TV's full height, 1440 × 1080, from a landscape or a
+// portrait phone; a 3:2 GBA screen fills 1620 × 1080; two 3DS screens keep
+// their arrangement), and brings a touch screen back to the phone's layout.
+// The placement rule itself is also checked on surfaces of other aspects.
 // LINK: -framework CoreGraphics
 #import <Foundation/Foundation.h>
 
@@ -75,11 +76,14 @@ static CGSize Drawable(CGSize bounds, CGFloat scale, CGSize external, CGFloat ex
 /// The drawable while the coordinator shows the picture of a phone of
 /// `phone` points on a TV window of `screen` points at `screenScale`, in
 /// `mode` (NeoExternalDisplaySurfaceSize applied like placeRenderView does).
+static CGSize SurfaceOnTV(CGSize phone, CGSize screen, NeoExternalDisplayMode stored) {
+  NeoExternalDisplayMode mode = NeoExternalDisplayEffectiveMode(stored, NeoExternalContentGame);
+  return NeoExternalDisplaySurfaceSize(screen, phone, mode);
+}
+
 static CGSize DrawableOnTV(CGSize phone, CGFloat phoneScale, CGSize screen, CGFloat screenScale,
                            NeoExternalDisplayMode stored) {
-  NeoExternalDisplayMode mode = NeoExternalDisplayEffectiveMode(stored, NeoExternalContentGame);
-  CGSize surface = NeoExternalDisplaySurfaceSize(screen, phone, mode);
-  return Drawable(phone, phoneScale, surface, screenScale);
+  return Drawable(phone, phoneScale, SurfaceOnTV(phone, screen, stored), screenScale);
 }
 
 int main(int argc, const char *argv[]) {
@@ -112,7 +116,7 @@ int main(int argc, const char *argv[]) {
     CHECK(SameSize(Drawable(landscape, 3, CGSizeMake(1279.5, 719.5), 1), CGSizeMake(1280, 720)),
           @"half points round to whole pixels");
     CHECK(SameSize(Drawable(landscape, 3, CGSizeMake(1920, 1440), 1), CGSizeMake(1920, 1440)),
-          @"a Fill surface taller than the screen keeps its height (the window crops it)");
+          @"a reported surface taller than a 1080p screen keeps its height (the drawable is the surface reported)");
 
     // Degenerate reports fall back to the phone.
     CHECK(!LibretroRenderSurfaceResolve(landscape, 3, none, 0).external, @"CGSizeZero at scale 0: back on the phone");
@@ -141,18 +145,29 @@ int main(int argc, const char *argv[]) {
           Describe(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeFit)));
     CHECK(SameSize(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeAutomatic), fullHD),
           @"Automatic is Fit for a game: 1920×1080");
-    CHECK(SameSize(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeFill), CGSizeMake(1920, 1440)),
-          @"Fill: 1920×1440, the window cuts 180 pixels top and bottom (%@)",
+    // Retired assertions (review of 12 October 2026, M3): Fill gave a
+    // 1920×1440 surface cut by the window, Original the phone's format
+    // (1920×886) and a portrait phone a 498×1080 pillar. The surface is now
+    // the whole TV in every mode; each game keeps its own aspect through the
+    // placement below, and the formats apply to the fixed drawables only.
+    CHECK(SameSize(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeFill), fullHD),
+          @"Fill: the whole TV, 1920×1080, nothing drawn off the screen (%@)",
           Describe(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeFill)));
-    CHECK(SameSize(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeOriginal), CGSizeMake(1920, 886)),
-          @"Original: the phone's format at the TV's width, 1920×886 (%@)",
+    CHECK(SameSize(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeOriginal), fullHD),
+          @"Original: the whole TV, 1920×1080 (%@)",
           Describe(DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeOriginal)));
     CHECK(SameSize(DrawableOnTV(landscape, 3, CGSizeMake(3840, 2160), 1, NeoExternalDisplayModeFit), CGSizeMake(3840, 2160)),
           @"4K screen, Fit: 3840×2160");
     CHECK(SameSize(DrawableOnTV(landscape, 3, CGSizeMake(960, 540), 2, NeoExternalDisplayModeFit), fullHD),
           @"960×540 @2x window, Fit: 1920×1080");
-    CHECK(SameSize(DrawableOnTV(portrait, 3, fullHD, 1, NeoExternalDisplayModeFit), CGSizeMake(498, 1080)),
-          @"portrait phone, Fit: a 498×1080 pillar (%@)", Describe(DrawableOnTV(portrait, 3, fullHD, 1, NeoExternalDisplayModeFit)));
+    CHECK(SameSize(DrawableOnTV(portrait, 3, fullHD, 1, NeoExternalDisplayModeFit), fullHD),
+          @"portrait phone, Fit: the whole TV, no pillar (%@)", Describe(DrawableOnTV(portrait, 3, fullHD, 1, NeoExternalDisplayModeFit)));
+    const NeoExternalDisplayMode modes[] = {NeoExternalDisplayModeAutomatic, NeoExternalDisplayModeFit, NeoExternalDisplayModeFill,
+                                            NeoExternalDisplayModeOriginal};
+    for (size_t index = 0; index < sizeof(modes) / sizeof(modes[0]); ++index) {
+      CHECK(SameSize(SurfaceOnTV(landscape, fullHD, modes[index]), fullHD) && SameSize(SurfaceOnTV(portrait, fullHD, modes[index]), fullHD),
+            @"mode %ld: the surface is the TV, landscape and portrait", (long)modes[index]);
+    }
     CHECK(SameSize(DrawableOnTV(landscape, 3, CGSizeZero, 0, NeoExternalDisplayModeFit), CGSizeMake(2556, 1179)),
           @"no screen: the coordinator's zero surface leaves the phone drawable");
 
@@ -163,18 +178,38 @@ int main(int argc, const char *argv[]) {
     const CGRect landscapeArea = CGRectMake(164, 0, 524, 393);
     CHECK(SameRect(Placed(landscapeArea, fullHD), CGRectMake(240, 0, 1440, 1080)),
           @"landscape 4:3 screen, Fit: 1440×1080 at the TV's full height (%@)", DescribeRect(Placed(landscapeArea, fullHD)));
+    // A portrait phone keeps its screen in the upper part, the controls
+    // below; on the TV the screen alone is placed, at the TV's full height.
+    const CGRect portraitArea = CGRectMake(0, 60, 393, 294.75);
+    CHECK(SameRect(Placed(portraitArea, SurfaceOnTV(portrait, fullHD, NeoExternalDisplayModeFit)), CGRectMake(240, 0, 1440, 1080)),
+          @"portrait 4:3 screen: 1440×1080 at the TV's full height, like landscape (%@)",
+          DescribeRect(Placed(portraitArea, SurfaceOnTV(portrait, fullHD, NeoExternalDisplayModeFit))));
+    // A 3:2 GBA screen fills 1620×1080 of a 1080p TV from either orientation.
+    const CGRect gbaPortrait = CGRectMake(0, 80, 393, 262);
+    const CGRect gbaLandscape = CGRectMake(131.25, 0, 589.5, 393);
+    CHECK(SameRect(Placed(gbaPortrait, SurfaceOnTV(portrait, fullHD, NeoExternalDisplayModeFit)), CGRectMake(150, 0, 1620, 1080)),
+          @"portrait GBA screen: 1620×1080, centred (%@)",
+          DescribeRect(Placed(gbaPortrait, SurfaceOnTV(portrait, fullHD, NeoExternalDisplayModeFit))));
+    CHECK(SameRect(Placed(gbaLandscape, SurfaceOnTV(landscape, fullHD, NeoExternalDisplayModeFit)), CGRectMake(150, 0, 1620, 1080)),
+          @"landscape GBA screen: 1620×1080, centred (%@)",
+          DescribeRect(Placed(gbaLandscape, SurfaceOnTV(landscape, fullHD, NeoExternalDisplayModeFit))));
+    for (size_t index = 0; index < sizeof(modes) / sizeof(modes[0]); ++index) {
+      CHECK(SameRect(Placed(landscapeArea, SurfaceOnTV(landscape, fullHD, modes[index])), CGRectMake(240, 0, 1440, 1080)),
+            @"mode %ld: the 4:3 screen keeps its aspect at the TV's full height", (long)modes[index]);
+    }
+    // The placement rule on surfaces of other aspects (a host can report
+    // any): a surface of the picture's own 4:3 aspect is filled exactly, a
+    // wider one keeps 4:3 at its height, a narrow one puts the screen at
+    // its width, centred.
     CHECK(SameRect(Placed(landscapeArea, CGSizeMake(1920, 1440)), CGRectMake(0, 0, 1920, 1440)),
-          @"Fill: the 4:3 picture fills the 1920×1440 surface, the window cuts 180 pixels top and bottom (%@)",
+          @"a 1920×1440 surface of the picture's own aspect is filled exactly (%@)",
           DescribeRect(Placed(landscapeArea, CGSizeMake(1920, 1440))));
     CHECK(SameRect(Placed(landscapeArea, CGSizeMake(1920, 886)),
                    CGRectMake((1920 - 886 * 4.0 / 3.0) / 2, 0, 886 * 4.0 / 3.0, 886)),
-          @"Original: 4:3 at the phone-format frame's height, centred (%@)",
+          @"a wider surface: 4:3 at its height, centred (%@)",
           DescribeRect(Placed(landscapeArea, CGSizeMake(1920, 886))));
-    // A portrait phone keeps its screen in the upper part, the controls
-    // below; in the 498×1080 pillar the screen fills the width, centred.
-    const CGRect portraitArea = CGRectMake(0, 60, 393, 294.75);
     CHECK(SameRect(Placed(portraitArea, CGSizeMake(498, 1080)), CGRectMake(0, 353.25, 498, 373.5)),
-          @"portrait phone, pillar: the screen fills the pillar's width, centred (%@)",
+          @"a narrow 498×1080 surface: the screen fills its width, centred (%@)",
           DescribeRect(Placed(portraitArea, CGSizeMake(498, 1080))));
     // Two 3DS screens stacked on the phone keep their arrangement and gap.
     const CGRect top = CGRectMake(0, 50, 400, 240);

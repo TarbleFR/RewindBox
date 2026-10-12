@@ -28,6 +28,7 @@ Map<String, Object?> externalState({
   int mode = 0,
   bool enabled = true,
   bool menuOnTV = true,
+  bool suspended = false,
   bool mirroringActive = false,
   String accessoryStatus = 'unavailable',
 }) => <String, Object?>{
@@ -40,6 +41,7 @@ Map<String, Object?> externalState({
   'mode': mode,
   'enabled': enabled,
   'menuOnTV': menuOnTV,
+  'suspended': suspended,
   'mirroringActive': mirroringActive,
   'accessoryStatus': accessoryStatus,
   'sceneRole': connected ? 'scene' : 'none',
@@ -330,9 +332,14 @@ void main() {
     expect(find.text(en(ExternalDisplayLocale.gameOnExternal)), findsOneWidget);
     expect(find.text('External screen: 1920×1080'), findsNothing);
 
+    // Retired contract (review of 12 October 2026, m2): "nothing shown and
+    // iOS mirroring" was read as an unsupported engine. That line now needs
+    // the native suspension (Dusklight, KartPad); mirroring before the menu
+    // engine exists is the neutral line, and the menu turned off has its own.
     native = externalState(
       connected: true,
       content: 'none',
+      suspended: true,
       mirroringActive: true,
       screenWidth: 1920,
       screenHeight: 1080,
@@ -343,6 +350,51 @@ void main() {
       find.text(en(ExternalDisplayLocale.unsupportedEngine)),
       findsOneWidget,
     );
+    expect(find.text('External screen: 1920×1080'), findsNothing);
+
+    native = externalState(
+      connected: true,
+      content: 'none',
+      mirroringActive: true,
+      screenWidth: 1920,
+      screenHeight: 1080,
+    );
+    await ExternalDisplayService.instance.refresh();
+    await tester.pumpAndSettle();
+    expect(find.text('External screen: 1920×1080'), findsOneWidget,
+        reason: 'the menu is about to be shown: neutral line');
+    expect(find.text(en(ExternalDisplayLocale.unsupportedEngine)), findsNothing);
+    expect(find.text(en(ExternalDisplayLocale.menuOffMirroring)), findsNothing);
+
+    native = externalState(
+      connected: true,
+      content: 'none',
+      menuOnTV: false,
+      mirroringActive: true,
+      screenWidth: 1920,
+      screenHeight: 1080,
+    );
+    await ExternalDisplayService.instance.refresh();
+    await tester.pumpAndSettle();
+    expect(
+      find.text(en(ExternalDisplayLocale.menuOffMirroring)),
+      findsOneWidget,
+    );
+    expect(find.text(en(ExternalDisplayLocale.unsupportedEngine)), findsNothing);
+    expect(find.text('External screen: 1920×1080'), findsNothing);
+
+    // A game on the TV wins over the menu switch.
+    native = externalState(
+      connected: true,
+      content: 'game',
+      menuOnTV: false,
+      screenWidth: 1920,
+      screenHeight: 1080,
+    );
+    await ExternalDisplayService.instance.refresh();
+    await tester.pumpAndSettle();
+    expect(find.text(en(ExternalDisplayLocale.gameOnExternal)), findsOneWidget);
+    expect(find.text(en(ExternalDisplayLocale.menuOffMirroring)), findsNothing);
 
     native = externalState(enabled: false, connected: true, content: 'none');
     await ExternalDisplayService.instance.refresh();

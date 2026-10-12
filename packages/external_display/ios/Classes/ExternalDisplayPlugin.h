@@ -5,7 +5,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Flutter side of the external display (docs/external-display-universal.md
 /// § 3.6): method channel `neostation/external_display` (getState,
-/// setEnabled, setMode, setMenuOnTV, configureMenuEngine, pushMenuState)
+/// setEnabled, setMode, setMenuOnTV, configureMenuEngine, updateMenuEngine,
+/// pushMenuState, suspendForUnsupportedEngine, resumeAfterUnsupportedEngine)
 /// and event channel `neostation/external_display/events`, which emits the
 /// coordinator's state at every NeoStation.ExternalDisplayStateChanged.
 @interface ExternalDisplayPlugin : NSObject <FlutterPlugin>

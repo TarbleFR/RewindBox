@@ -133,9 +133,23 @@ extension _ThemeBackground on _SystemCardGridViewState {
   /// (Android shared state) and, on iOS, with the TV menu of the external
   /// display through [SecondaryDisplayBridge] (Build 447): the one producer
   /// forwarding call site, with the same arguments as the Android push.
+  ///
+  /// iOS: only while a TV shows the menu
+  /// ([SecondaryDisplayBridge.forwardsSelections]), so an iPhone without a
+  /// TV pays neither the file checks below nor a channel message per
+  /// selection; the grid follows the bridge (held weakly, the callback
+  /// checks `mounted`) and pushes its selection again when a TV starts
+  /// showing the menu.
   void _updateSecondaryScreenName() {
     final bridge = SecondaryDisplayBridge.instance;
-    if (!Platform.isAndroid && !bridge.isSupportedPlatform) return;
+    if (bridge.isSupportedPlatform && mounted) {
+      bridge.followSelections<_SystemCardGridViewState>(
+        this,
+        _reforwardGridSelectionToTV,
+      );
+    }
+    final toTV = bridge.forwardsSelections;
+    if (!Platform.isAndroid && !toTV) return;
     if (Platform.isAndroid && _secondaryDisplayState == null) return;
     if (!mounted) return;
     if (widget.selectedIndex < 0 ||
@@ -204,7 +218,7 @@ extension _ThemeBackground on _SystemCardGridViewState {
         isOled: isOled,
       );
       unawaited(
-        bridge.forward(
+        bridge.forwardSelection(
           (current) => current.copyWith(
             systemName: systemName,
             backgroundColor: backgroundColor,
@@ -254,29 +268,25 @@ extension _ThemeBackground on _SystemCardGridViewState {
       isOled: isOled,
     );
     unawaited(
-      bridge.forward(
-        (current) => current.copyWith(
+      bridge.forwardSelection(
+        (current) => SecondaryDisplayBridge.systemSelected(
+          current,
           systemName: systemName,
           backgroundColor: backgroundColor,
           systemLogo: systemLogo,
           isLogoAsset: isLogoAsset,
           systemBackground: systemBackground,
-          clearSystemBackground: systemBackground == null,
-          isBackgroundAsset: false,
-          useShader: systemBackground == null,
           shaderColor1: info.color1AsColor?.toARGB32(),
           shaderColor2: info.color2AsColor?.toARGB32(),
-          isGameSelected: false,
-          clearFanart: true,
-          clearScreenshot: true,
-          clearWheel: true,
-          clearVideo: true,
-          clearImageBytes: true,
-          clearGameId: true,
-          useFluidShader: false,
           isOled: isOled,
         ),
       ),
     );
   }
+}
+
+/// The grid's selection again, once a TV starts showing the menu (iOS); a
+/// grid that is gone does nothing.
+void _reforwardGridSelectionToTV(_SystemCardGridViewState state) {
+  if (state.mounted) state._updateSecondaryScreenName();
 }

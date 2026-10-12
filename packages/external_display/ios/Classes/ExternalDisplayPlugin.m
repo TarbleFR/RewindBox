@@ -83,6 +83,18 @@ static FlutterError *NeoExternalBadArguments(NSString *message) {
   return [FlutterError errorWithCode:@"BAD_ARGS" message:message details:nil];
 }
 
+/// An optional string argument: absent or null is nil; any other type is
+/// refused (`*refused` set).
+static NSString *_Nullable NeoExternalOptionalString(NSDictionary *arguments, NSString *key, BOOL *refused) {
+  id value = arguments[key];
+  if (value == nil || value == NSNull.null) return nil;
+  if (![value isKindOfClass:NSString.class]) {
+    *refused = YES;
+    return nil;
+  }
+  return value;
+}
+
 static FlutterError *NeoExternalSaveFailed(NSString *key) {
   return [FlutterError errorWithCode:@"SAVE_FAILED"
                              message:@"NSUserDefaults did not keep the external display preference"
@@ -140,15 +152,38 @@ static FlutterError *NeoExternalSaveFailed(NSString *key) {
   if ([call.method isEqualToString:@"configureMenuEngine"]) {
     id entrypoint = arguments[@"entrypoint"];
     id libraryUri = arguments[@"libraryUri"];
+    BOOL refused = NO;
+    // The language and the theme the TV menu starts with: its engine never
+    // reads the database (entrypoint arguments, NeoExternalDisplayMenuEngine).
+    NSString *languageCode = NeoExternalOptionalString(arguments, @"languageCode", &refused);
+    NSString *themeName = NeoExternalOptionalString(arguments, @"themeName", &refused);
     if (![entrypoint isKindOfClass:NSString.class] || [entrypoint length] == 0 ||
-        ![libraryUri isKindOfClass:NSString.class] || [libraryUri length] == 0) {
-      result(NeoExternalBadArguments(@"configureMenuEngine expects {entrypoint: String, libraryUri: String}"));
+        ![libraryUri isKindOfClass:NSString.class] || [libraryUri length] == 0 || refused) {
+      result(NeoExternalBadArguments(
+          @"configureMenuEngine expects {entrypoint: String, libraryUri: String, languageCode: String?, themeName: String?}"));
       return;
     }
-    [NeoExternalDisplayMenuEngine.shared configureWithEntrypoint:entrypoint libraryURI:libraryUri];
+    [NeoExternalDisplayMenuEngine.shared configureWithEntrypoint:entrypoint
+                                                      libraryURI:libraryUri
+                                                    languageCode:languageCode
+                                                       themeName:themeName];
     // A TV already connected gets its menu now.
     [coordinator refresh];
     result([self currentState]);
+    return;
+  }
+  if ([call.method isEqualToString:@"updateMenuEngine"]) {
+    BOOL refused = NO;
+    NSString *languageCode = NeoExternalOptionalString(arguments, @"languageCode", &refused);
+    NSString *themeName = NeoExternalOptionalString(arguments, @"themeName", &refused);
+    if (refused) {
+      result(NeoExternalBadArguments(@"updateMenuEngine expects {languageCode: String?, themeName: String?}"));
+      return;
+    }
+    // The app language or theme changed: the copy given to the next TV
+    // engine follows, and a running one translates at once.
+    [NeoExternalDisplayMenuEngine.shared updateLanguageCode:languageCode themeName:themeName];
+    result(@YES);
     return;
   }
   if ([call.method isEqualToString:@"pushMenuState"]) {

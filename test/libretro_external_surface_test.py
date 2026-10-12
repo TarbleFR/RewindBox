@@ -13,7 +13,11 @@
   LibretroRenderSurfacePlacement) and the session normalizes them by the
   surface's points; a touch screen comes back through the same placement
   to the phone's layout, where the overlay maps the touches. The Metal
-  view's frame is left alone while it is in the external window.
+  view's frame is left alone while it is in the external window. The
+  surface is the whole TV in every format (NeoExternalDisplaySurfaceSize,
+  review of 12 October 2026, M3); a change of the iPhone bounds while the
+  picture is on the TV (rotation) asks the coordinator to place it again,
+  on the main thread and once per turn of the run loop.
 - The status line "game shown on the external display" comes from the
   plugin's own twelve-language catalog (NeoExternalDisplayLabels) in the
   session's language, never from a Dart key (LibretroLocale.nativeKeys and
@@ -155,6 +159,31 @@ class ControllerAdoptionTests(unittest.TestCase):
         change = method_body(self.source, '- (void)externalSurfaceDidChange:(CGSize)pointSize scale:(CGFloat)scale {')
         self.assertIn('_lastMappingSize = CGSizeZero;', change)
 
+    def test_a_rotation_on_the_tv_asks_the_coordinator_to_place_the_picture_again(self) -> None:
+        """The coordinator recomputes the surface from the placeholder's
+        current bounds at every pass; the controller asks for that pass when
+        its iPhone bounds change while the Metal view is on the TV, on the
+        main thread, coalesced, and records the bounds each placement was
+        made from."""
+        self.assertIn('NeoExternalDisplayCoordinator.h', framework_imports(self.source))
+        subviews = method_body(self.source, '- (void)viewDidLayoutSubviews {')
+        self.assertIn('if ([self onExternalDisplay] && !CGSizeEqualToSize(bounds.size, _externalRefreshSize)) {', subviews)
+        self.assertLess(subviews.index('_externalRefreshSize = bounds.size;'), subviews.index('[self scheduleExternalDisplayRefresh];'))
+        self.assertLess(subviews.index('[self performSkinLayoutIfNeeded];'), subviews.index('[self scheduleExternalDisplayRefresh];'))
+        schedule = method_body(self.source, '- (void)scheduleExternalDisplayRefresh {')
+        self.assertIn('if (_externalRefreshScheduled) return;', schedule)
+        self.assertLess(schedule.index('_externalRefreshScheduled = YES;'), schedule.index('dispatch_async(dispatch_get_main_queue(), ^{'))
+        self.assertIn('__weak LibretroGameViewController *weakSelf = self;', schedule)
+        block = schedule[schedule.index('dispatch_async(dispatch_get_main_queue(), ^{'):]
+        self.assertLess(block.index("controller->_externalRefreshScheduled = NO;"), block.index('[NeoExternalDisplayCoordinator.shared refresh];'))
+        self.assertLess(block.index('if (![controller onExternalDisplay]) return;'), block.index('[NeoExternalDisplayCoordinator.shared refresh];'))
+        self.assertEqual(self.source.count('[NeoExternalDisplayCoordinator.shared refresh];'), 1)
+        change = method_body(self.source, '- (void)externalSurfaceDidChange:(CGSize)pointSize scale:(CGFloat)scale {')
+        self.assertIn('_externalRefreshSize = [self onExternalDisplay] && self.isViewLoaded ? self.view.bounds.size : CGSizeZero;', change)
+        self.assertLess(change.index('_externalScale = scale;'), change.index('_externalRefreshSize ='))
+        for ivar in ('CGSize _externalRefreshSize;', 'BOOL _externalRefreshScheduled;'):
+            self.assertIn(ivar, self.source)
+
     def test_metal_view_frame_is_left_alone_on_the_tv(self) -> None:
         subviews = method_body(self.source, '- (void)viewDidLayoutSubviews {')
         self.assertIn('if (![self onExternalDisplay]) _metalView.frame = bounds;', subviews)
@@ -265,13 +294,28 @@ class PureRuleTests(unittest.TestCase):
         self.assertIn('#import "LibretroRenderSurface.h"', test)
         self.assertIn('NeoExternalDisplaySurfaceSize(', test)
         self.assertIn('NeoExternalDisplayEffectiveMode(stored, NeoExternalContentGame)', test)
-        # The placement is executed too: Fit at the TV's full height, Fill,
-        # the portrait pillar, stacked 3DS screens, the way back for a
-        # touch screen, degenerate inputs.
+        # The placement is executed too: a 4:3 screen at the TV's full
+        # height from a landscape or a portrait phone and in every mode, a
+        # GBA screen at 1620 x 1080, the rule on surfaces of other aspects
+        # (4:3 filled exactly, wider, narrow), stacked 3DS screens, the way
+        # back for a touch screen, degenerate inputs.
         for executed in ('LibretroRenderSurfacePlacementMake(', 'LibretroRenderSurfacePlace(', 'LibretroRenderSurfaceUnplace(',
                          'LibretroRenderSurfacePlacementIdentity()', 'CGRectMake(240, 0, 1440, 1080)', 'CGRectMake(0, 0, 1920, 1440)',
-                         'CGRectMake(0, 353.25, 498, 373.5)', 'CGRectUnion(top, bottom)', 'CGRectMake(80, 500, 640, 480)'):
+                         'CGRectMake(0, 353.25, 498, 373.5)', 'CGRectUnion(top, bottom)', 'CGRectMake(80, 500, 640, 480)',
+                         'CGRectMake(150, 0, 1620, 1080)',
+                         'Placed(portraitArea, SurfaceOnTV(portrait, fullHD, NeoExternalDisplayModeFit)), CGRectMake(240, 0, 1440, 1080)'):
             self.assertIn(executed, test)
+        # The coordinator's surface is the whole TV in every mode (M3).
+        # Retired pins: Fill 1920 x 1440, Original 1920 x 886 and the
+        # 498 x 1080 portrait pillar as drawables on the TV.
+        for executed in ('DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeFill), fullHD)',
+                         'DrawableOnTV(landscape, 3, fullHD, 1, NeoExternalDisplayModeOriginal), fullHD)',
+                         'DrawableOnTV(portrait, 3, fullHD, 1, NeoExternalDisplayModeFit), fullHD)',
+                         'SameSize(SurfaceOnTV(landscape, fullHD, modes[index]), fullHD) && SameSize(SurfaceOnTV(portrait, fullHD, modes[index]), fullHD)'):
+            self.assertIn(executed, test)
+        for retired in ('NeoExternalDisplayModeFill), CGSizeMake(1920, 1440))', 'NeoExternalDisplayModeOriginal), CGSizeMake(1920, 886))',
+                        'NeoExternalDisplayModeFit), CGSizeMake(498, 1080))'):
+            self.assertNotIn(retired, test)
 
     def test_iphone_syntax_check_stages_the_published_headers(self) -> None:
         syntax = read(SYNTAX_TEST)

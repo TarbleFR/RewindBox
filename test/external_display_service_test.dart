@@ -20,6 +20,7 @@ Map<String, Object?> nativeState({
   int mode = 0,
   bool enabled = true,
   bool menuOnTV = true,
+  bool suspended = false,
   bool mirroringActive = false,
   String accessoryStatus = 'unavailable',
   String sceneRole = 'none',
@@ -34,6 +35,7 @@ Map<String, Object?> nativeState({
   'mode': mode,
   'enabled': enabled,
   'menuOnTV': menuOnTV,
+  'suspended': suspended,
   'mirroringActive': mirroringActive,
   'accessoryStatus': accessoryStatus,
   'sceneRole': sceneRole,
@@ -53,6 +55,10 @@ class FakeNative {
   PlatformException? failSetMode;
   PlatformException? failSetMenuOnTV;
   PlatformException? failConfigure;
+  PlatformException? failUpdate;
+
+  /// What `updateMenuEngine` answers (the native host answers true).
+  Object? updateAnswer = true;
 
   /// When false the mode write "succeeds" without keeping the value.
   bool keepMode = true;
@@ -84,6 +90,9 @@ class FakeNative {
         if (failConfigure != null) throw failConfigure!;
         state = <String, Object?>{...state, 'menuEngine': 'none'};
         return state;
+      case 'updateMenuEngine':
+        if (failUpdate != null) throw failUpdate!;
+        return updateAnswer;
       case 'pushMenuState':
         pushed.add(arguments['json'] as String);
         return true;
@@ -149,7 +158,21 @@ void main() {
       expect(state.accessoryStatus, 'registered');
       expect(state.sceneRole, 'scene');
       expect(state.menuEngine, 'attached');
+      expect(state.suspended, isFalse);
       expect(native.count('getState'), 1);
+    });
+
+    test('the suspension of an unsupported engine is read, absent is false', () async {
+      native.state = nativeState(
+        connected: true,
+        suspended: true,
+        mirroringActive: true,
+      );
+      expect((await service().refresh()).suspended, isTrue);
+      // A native host before the review of 12 October 2026 sends no key.
+      native.state = Map<String, Object?>.of(nativeState(connected: true))
+        ..remove('suspended');
+      expect((await service().refresh()).suspended, isFalse);
     });
 
     test('Automatic applies as Fit to a game', () async {
@@ -322,15 +345,21 @@ void main() {
   });
 
   group('init', () {
+    // Retired contract: the arguments were the entrypoint pair only. The TV
+    // engine never opens the database (review of 12 October 2026, m11), so
+    // configureMenuEngine also carries the language and theme it starts
+    // with (null when unknown).
     test('configureMenuEngine is sent once with the entrypoint pair', () async {
       final subject = service();
       await subject.init();
-      await subject.init();
+      await subject.init(languageCode: 'fr', themeName: 'oled');
       final configured = native.of('configureMenuEngine').toList();
       expect(configured, hasLength(1));
       expect(configured.single.arguments, <String, Object?>{
         'entrypoint': kExternalDisplayEntrypoint,
         'libraryUri': kExternalDisplayLibraryUri,
+        'languageCode': null,
+        'themeName': null,
       });
       expect(kExternalDisplayEntrypoint, 'externalDisplayMain');
       expect(
@@ -363,6 +392,84 @@ void main() {
       await subject.init();
       expect(subject.state!.supported, isFalse);
       expect(subject.state!.accessoryStatus, 'BAD_ARGS');
+    });
+
+    test('the TV engine is given the app language and theme', () async {
+      final subject = service();
+      await subject.init(languageCode: ' zh_Hant ', themeName: 'tokyo_night');
+      expect(native.of('configureMenuEngine').single.arguments, <String, Object?>{
+        'entrypoint': kExternalDisplayEntrypoint,
+        'libraryUri': kExternalDisplayLibraryUri,
+        'languageCode': 'zh_Hant',
+        'themeName': 'tokyo_night',
+      });
+      expect(subject.menuLanguageCode, 'zh_Hant');
+      expect(subject.menuThemeName, 'tokyo_night');
+      // Blank values are no value.
+      final blank = service();
+      await blank.init(languageCode: '', themeName: '  ');
+      final arguments = native.of('configureMenuEngine').last.arguments as Map;
+      expect(arguments['languageCode'], isNull);
+      expect(arguments['themeName'], isNull);
+    });
+  });
+
+  group('updateMenuEngine', () {
+    test('a new language or theme reaches the native copy once', () async {
+      final subject = service();
+      await subject.init(languageCode: 'fr', themeName: 'dark');
+
+      expect(await subject.updateMenuEngine(languageCode: 'fr'), isFalse);
+      expect(await subject.updateMenuEngine(themeName: 'dark'), isFalse);
+      expect(native.count('updateMenuEngine'), 0, reason: 'nothing changed');
+
+      expect(await subject.updateMenuEngine(languageCode: 'de'), isTrue);
+      expect(native.of('updateMenuEngine').single.arguments, <String, Object?>{
+        'languageCode': 'de',
+        'themeName': null,
+      });
+      expect(subject.menuLanguageCode, 'de');
+
+      expect(
+        await subject.updateMenuEngine(languageCode: 'de', themeName: 'nord'),
+        isTrue,
+      );
+      expect(native.of('updateMenuEngine').last.arguments, <String, Object?>{
+        'languageCode': null,
+        'themeName': 'nord',
+      });
+      expect(subject.menuThemeName, 'nord');
+      expect(subject.menuEngineUpdates, 2);
+    });
+
+    test('nothing is sent before init: init carries the values', () async {
+      final subject = service();
+      expect(await subject.updateMenuEngine(languageCode: 'ja'), isFalse);
+      expect(native.count('updateMenuEngine'), 0);
+      expect(subject.menuLanguageCode, isNull);
+      await subject.init(languageCode: 'ko');
+      expect(
+        (native.of('configureMenuEngine').single.arguments as Map)['languageCode'],
+        'ko',
+      );
+    });
+
+    test('a refusal or a missing plugin never throws', () async {
+      final subject = service();
+      await subject.init(languageCode: 'en');
+      native.failUpdate = PlatformException(code: 'BAD_ARGS');
+      expect(await subject.updateMenuEngine(languageCode: 'it'), isFalse);
+      expect(subject.menuEngineUpdates, 0);
+      native.failUpdate = null;
+      native.updateAnswer = null;
+      expect(await subject.updateMenuEngine(languageCode: 'pt'), isFalse);
+
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        ExternalDisplayChannel.channel,
+        null,
+      );
+      expect(await subject.updateMenuEngine(languageCode: 'es'), isFalse);
+      expect(subject.menuLanguageCode, 'es', reason: 'kept for a later engine');
     });
   });
 

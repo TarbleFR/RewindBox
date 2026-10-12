@@ -56,7 +56,11 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
 /// reports the surface it gave it; the picture is then rendered at the TV's
 /// resolution while the skin, the touch overlay, the menu button and the
 /// status line stay on the iPhone. The session attaches the controller once
-/// its view appeared and detaches it before stopping the core.
+/// its view appeared and detaches it before stopping the core. The surface
+/// is the whole TV in every format (each game keeps its own aspect through
+/// LibretroRenderSurfacePlacement); a rotation of the iPhone while the
+/// picture is on the TV asks the coordinator to place it again (main
+/// thread, coalesced).
 @interface LibretroGameViewController : UIViewController <NeoExternalRenderHost>
 
 - (instancetype)initWithInput:(LibretroInputState *)input cacheDirectory:(NSString *)cacheDirectory;

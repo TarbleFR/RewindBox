@@ -40,12 +40,17 @@ NSString *const NeoExternalDisplayChangedNotification = @"NeoStation.ExternalDis
   return [stored isKindOfClass:NSNumber.class] ? [(NSNumber *)stored boolValue] : YES;
 }
 
-/// Writes, reads back, and only then tells the live session.
-+ (BOOL)storeNumber:(NSNumber *)value forKey:(NSString *)key {
+/// Writes and reads back; NO when NSUserDefaults did not keep the value.
++ (BOOL)writeNumber:(NSNumber *)value forKey:(NSString *)key {
   NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
   [defaults setObject:value forKey:key];
   id stored = [defaults objectForKey:key];
-  if (![stored isKindOfClass:NSNumber.class] || ![(NSNumber *)stored isEqualToNumber:value]) return NO;
+  return [stored isKindOfClass:NSNumber.class] && [(NSNumber *)stored isEqualToNumber:value];
+}
+
+/// Writes, reads back, and only then tells the live session.
++ (BOOL)storeNumber:(NSNumber *)value forKey:(NSString *)key {
+  if (![self writeNumber:value forKey:key]) return NO;
   [NSNotificationCenter.defaultCenter postNotificationName:NeoExternalDisplayChangedNotification object:nil];
   return YES;
 }
@@ -56,6 +61,16 @@ NSString *const NeoExternalDisplayChangedNotification = @"NeoStation.ExternalDis
 
 + (BOOL)storeMode:(NeoExternalDisplayMode)mode {
   if (mode < NeoExternalDisplayModeAutomatic || mode > NeoExternalDisplayModeOriginal) return NO;
+  NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+  // The Enabled value of a user who never used the global switch is derived
+  // from the absence of the Mode key (442 Dolphin Off → disabled). Storing
+  // the mode ends that fallback, so the derived value is persisted first
+  // (no notification: it does not change): choosing a format never turns
+  // the external display on by itself.
+  if ([defaults objectForKey:NeoExternalDisplayEnabledKey] == nil && [defaults objectForKey:NeoExternalDisplayModeKey] == nil &&
+      ![self writeNumber:@([self enabled]) forKey:NeoExternalDisplayEnabledKey]) {
+    return NO;
+  }
   return [self storeNumber:@((NSInteger)mode) forKey:NeoExternalDisplayModeKey];
 }
 

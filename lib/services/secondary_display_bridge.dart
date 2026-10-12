@@ -16,6 +16,11 @@ import 'package:neostation/services/logger_service.dart';
 /// shared state does) and pushes its JSON through
 /// `ExternalDisplayService.pushMenuState`. The `Platform.isIOS` gate lives
 /// here, never in the producers nor in the locked files.
+///
+/// The producers that change on every selection (systems grid, carousel,
+/// games lists) forward only while a TV shows the menu
+/// ([forwardsSelections], [forwardSelection]) and push their current
+/// selection again when one starts showing it ([followSelections]).
 class SecondaryDisplayBridge {
   SecondaryDisplayBridge._({ExternalDisplayService? service, bool? supported})
     : _serviceOverride = service,
@@ -37,6 +42,11 @@ class SecondaryDisplayBridge {
 
   SecondaryDisplayStateData? _latest;
   int _forwarded = 0;
+
+  final List<SecondaryDisplaySelectionFollower> _followers =
+      <SecondaryDisplaySelectionFollower>[];
+  ExternalDisplayService? _followedService;
+  bool _forwardingSelections = false;
 
   ExternalDisplayService get _service =>
       _serviceOverride ?? ExternalDisplayService.instance;
@@ -77,10 +87,102 @@ class SecondaryDisplayBridge {
   Future<bool> forwardState(SecondaryDisplayStateData state) =>
       forward((_) => state);
 
+  /// [forward], only while [forwardsSelections]: the producers that change
+  /// on every selection (systems grid and carousel, games lists) use it, so
+  /// an iPhone without a TV pays no channel message per selection; they
+  /// check [forwardsSelections] before their own file checks too. Returns
+  /// false without a TV showing the menu.
+  Future<bool> forwardSelection(
+    SecondaryDisplayStateData Function(SecondaryDisplayStateData current) merge,
+  ) {
+    if (!forwardsSelections) return Future<bool>.value(false);
+    return forward(merge);
+  }
+
+  /// Calls [reforward] with [owner] each time [forwardsSelections] becomes
+  /// true (a TV starts showing the menu: connection, own window enabled,
+  /// menu turned on), so the producer pushes its current selection then;
+  /// nothing is pushed while no TV shows the menu. [owner] is held weakly:
+  /// a producer whose state is gone is dropped, and a producer
+  /// [SecondaryDisplaySelectionFollower.cancel]s in its `dispose`.
+  /// [reforward] must not capture [owner] (a static function or a top-level
+  /// one). Registering the same owner again returns its follower. Outside
+  /// iOS nothing is followed.
+  SecondaryDisplaySelectionFollower followSelections<T extends Object>(
+    T owner,
+    void Function(T owner) reforward,
+  ) {
+    for (final follower in _followers) {
+      if (identical(follower._owner.target, owner) && follower.active) {
+        return follower;
+      }
+    }
+    final follower = SecondaryDisplaySelectionFollower._(
+      this,
+      owner,
+      (Object target) => reforward(target as T),
+    );
+    if (!isSupportedPlatform) {
+      follower._cancelled = true;
+      return follower;
+    }
+    _followers.add(follower);
+    _listen();
+    return follower;
+  }
+
+  /// Producers following the TV menu right now (tests).
+  @visibleForTesting
+  int get followerCount =>
+      _followers.where((follower) => follower.active).length;
+
+  void _listen() {
+    if (_followedService != null) return;
+    final service = _service;
+    _followedService = service;
+    _forwardingSelections = forwardsSelections;
+    service.addListener(_serviceChanged);
+  }
+
+  void _unlistenIfIdle() {
+    _followers.removeWhere((follower) => !follower.active);
+    if (_followers.isNotEmpty) return;
+    _followedService?.removeListener(_serviceChanged);
+    _followedService = null;
+  }
+
+  void _serviceChanged() {
+    final now = forwardsSelections;
+    final started = now && !_forwardingSelections;
+    _forwardingSelections = now;
+    if (!started) {
+      _unlistenIfIdle();
+      return;
+    }
+    // In registration order: the producer opened last (a games list over
+    // the systems grid) pushes last, so its selection is the one shown.
+    for (final follower in List<SecondaryDisplaySelectionFollower>.of(
+      _followers,
+    )) {
+      try {
+        follower._notify();
+      } catch (error) {
+        _log.w('External display: a selection was not forwarded ($error)');
+      }
+    }
+    _unlistenIfIdle();
+  }
+
+  void _remove(SecondaryDisplaySelectionFollower follower) {
+    _followers.remove(follower);
+    _unlistenIfIdle();
+  }
+
   /// True while a TV shows NeoStation's menu (iOS, connected, own window
   /// enabled, menu on the TV). Producers that change on every selection (the
-  /// games lists) forward only then, so an iPhone without a TV pays no file
-  /// checks or channel messages per selection.
+  /// systems grid and carousel, the games lists) forward only then, so an
+  /// iPhone without a TV pays no file checks or channel messages per
+  /// selection.
   bool get forwardsSelections {
     if (!isSupportedPlatform) return false;
     final state = _service.state;
@@ -126,6 +228,42 @@ class SecondaryDisplayBridge {
     showAchievementPanel: false,
   );
 
+  /// The TV menu state of a console highlighted by the systems grid or the
+  /// carousel, merged into [current] with the arguments of their Android
+  /// push: the console's logo and background (or its shader colours), no
+  /// game.
+  static SecondaryDisplayStateData systemSelected(
+    SecondaryDisplayStateData current, {
+    required String systemName,
+    required int backgroundColor,
+    required String? systemLogo,
+    required bool isLogoAsset,
+    required String? systemBackground,
+    int? shaderColor1,
+    int? shaderColor2,
+    required bool isOled,
+  }) => current.copyWith(
+    systemName: systemName,
+    backgroundColor: backgroundColor,
+    systemLogo: systemLogo,
+    isLogoAsset: isLogoAsset,
+    systemBackground: systemBackground,
+    clearSystemBackground: systemBackground == null,
+    isBackgroundAsset: false,
+    useShader: systemBackground == null,
+    shaderColor1: shaderColor1,
+    shaderColor2: shaderColor2,
+    isGameSelected: false,
+    clearFanart: true,
+    clearScreenshot: true,
+    clearWheel: true,
+    clearVideo: true,
+    clearImageBytes: true,
+    clearGameId: true,
+    useFluidShader: false,
+    isOled: isOled,
+  );
+
   /// Whether [latest] already shows that selection (the games list skips the
   /// push then, like the Android dedup of `_updateSecondaryDisplay`).
   static bool showsSelection(
@@ -146,4 +284,35 @@ class SecondaryDisplayBridge {
       latest.gameWheel == wheel &&
       latest.gameVideo == null &&
       latest.isGameLaunching == isGameLaunching;
+}
+
+/// A producer that re-forwards its selection when a TV starts showing the
+/// menu ([SecondaryDisplayBridge.followSelections]).
+class SecondaryDisplaySelectionFollower {
+  SecondaryDisplaySelectionFollower._(
+    this._bridge,
+    Object owner,
+    this._reforward,
+  ) : _owner = WeakReference<Object>(owner);
+
+  final SecondaryDisplayBridge _bridge;
+  final WeakReference<Object> _owner;
+  final void Function(Object owner) _reforward;
+  bool _cancelled = false;
+
+  /// Still followed: not cancelled and its owner still alive.
+  bool get active => !_cancelled && _owner.target != null;
+
+  /// Stops following (the producer's `dispose`). Idempotent.
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    _bridge._remove(this);
+  }
+
+  void _notify() {
+    final owner = _owner.target;
+    if (_cancelled || owner == null) return;
+    _reforward(owner);
+  }
 }

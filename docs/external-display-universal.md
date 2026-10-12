@@ -69,12 +69,20 @@ NeoExternalDisplayMode NeoExternalDisplayEffectiveMode(NeoExternalDisplayMode st
 BOOL NeoExternalDisplayUsableSize(CGSize size);
 CGFloat NeoExternalDisplayScale(CGSize screen, CGSize source, NeoExternalDisplayMode mode); // Fit/Fill = DOLExternalDisplayScale (442) ; Original = screen.height / source.height borné par la largeur
 CGRect NeoExternalDisplayFrame(CGSize screen, CGSize source, NeoExternalDisplayMode mode);  // cadre centré
-CGSize NeoExternalDisplaySurfaceSize(CGSize screen, CGSize source, NeoExternalDisplayMode mode); // taille en points de la surface quand le rendu suit le téléviseur (libretro) : Fit → cadre de l'image au format de `source` ; Fill → cadre 4:3 étendu ; Original → source × échelle ; Automatic(jeu) → Fit
+CGSize NeoExternalDisplaySurfaceSize(CGSize screen, CGSize source, NeoExternalDisplayMode mode); // taille en points de la surface quand le rendu suit le téléviseur (libretro) : l'écran entier dans tous les modes (revue du 12 octobre, M3) ; CGSizeZero si une taille est inutilisable
 BOOL NeoExternalDisplayModeCrops(NeoExternalDisplayMode mode);                           // YES seulement pour Fill
+static const NSInteger NeoExternalDisplayAccessorySDKMajor = 27;                          // régime accessoire iOS 27 (note Apple 177015874)
+NSInteger NeoExternalDisplayVersionMajor(NSString *_Nullable text);                       // « 26.2 » → 26 ; vide, lettre, « 26. », « .26 », > 10000 → 0
+NSInteger NeoExternalDisplaySDKMajorVersion(NSString *_Nullable platformVersion, NSString *_Nullable sdkName); // DTPlatformVersion d'abord, puis la version de DTSDKName (« iphoneos26.2 ») ; 0 = inconnu
 ```
 
 Les fonctions `Scale`/`Frame` reproduisent **à l'identique** `DOLExternalDisplayScale`/
-`DOLExternalDisplayFrame` pour Fit et Fill (les tests 442 doivent rester vrais).
+`DOLExternalDisplayFrame` pour Fit et Fill (les tests 442 doivent rester vrais). Les
+formats (Adapter, Remplir, Format d'origine) s'appliquent aux vues à `fixedDrawable` (Dolphin,
+RPCS3, ARMSX2), seulement mises à l'échelle ; un hôte qui dessine à la résolution du
+téléviseur (libretro) reçoit l'écran entier et y place chaque jeu à son propre format
+(`LibretroRenderSurfacePlacement`) : un écran GBA d'un iPhone en portrait occupe
+1620 × 1080 d'un téléviseur 1080p, un écran 4:3 1440 × 1080, en paysage comme en portrait.
 
 ### 3.2 `NeoExternalRenderHost.h` — protocole adopté par les ponts
 
@@ -99,17 +107,21 @@ Les fonctions `Scale`/`Frame` reproduisent **à l'identique** `DOLExternalDispla
 @property(nonatomic, readonly) CGFloat screenScale;
 @property(nonatomic, readonly) NeoExternalDisplayMode mode;    // préférence stockée
 @property(nonatomic, readonly) BOOL enabled, menuOnTV;
+@property(nonatomic, readonly) BOOL suspended;                 // Dusklight/KartPad en cours : fenêtre masquée, recopie système
+@property(nonatomic, readonly, copy) NSArray<UIWindowScene *> *externalScenes; // scènes externes connectées, dans l'ordre
 - (void)attachRenderHost:(id<NeoExternalRenderHost>)host;     // le jeu prend l'écran (la vue Flutter externe est masquée, jamais libérée ici)
 - (void)detachRenderHost:(id<NeoExternalRenderHost>)host;     // retour de la vue à l'index 0 du placeholder AVANT tout arrêt de cœur
 - (void)suspendForUnsupportedEngine;                           // Dusklight/KartPad : fenêtre masquée, iOS reprend la recopie
 - (void)resumeAfterUnsupportedEngine;
 - (void)attachMenuViewController:(UIViewController *)controller; // contrôleur Flutter du second moteur
 - (void)detachMenuViewController;
-- (void)refresh;                                               // relit préférences + scènes (réglage changé)
+- (void)refresh;                                               // relit préférences, reparcourt UIApplication.connectedScenes, réapplique (appelé pendant une passe : exécuté à sa fin)
 @property(nonatomic, copy, nullable) void (^stateChanged)(void);
 // seams de test
 @property(nonatomic, copy, nullable) UIWindow *_Nullable (^windowFactory)(UIWindowScene *_Nullable scene, UIScreen *_Nullable screen);
 @property(nonatomic, copy, nullable) NSArray<UIScreen *> *(^legacyScreens)(void);
+@property(nonatomic, copy, nullable) NSInteger (^buildSDKMajorVersion)(void); // remplace la lecture de l'Info.plist principal
+@property(nonatomic, copy, nullable) CGFloat (^screenScaleReader)(void);     // remplace l'échelle de l'écran externe
 - (void)sceneDidConnect:(UIWindowScene *)scene;                // appelé par le délégué de scène
 - (void)sceneDidDisconnect:(UIWindowScene *)scene;
 ```
@@ -123,7 +135,30 @@ notification `NeoStation.ExternalDisplayStateChanged` (NSNotificationCenter) à 
 changement d'état. Repli « legacy » (`UIScreen.screens` + `UIWindow.screen`, chemin 442)
 isolé dans une méthode `activateLegacyIfNeeded`, utilisé **seulement** si aucune scène
 externe n'a été livrée 1,5 s après `UIScreenDidConnectNotification` et si le délégué de
-scène n'a jamais été connecté ; journalisé (`display.external_legacy`).
+scène n'a jamais été connecté ; journalisé (`display.external_legacy`). Dans une app à
+scènes, une fenêtre sans scène n'est jamais affichée : si une scène externe de cet écran est
+déjà connectée, elle est adoptée (`display.external_legacy_scene`) ; sinon la fenêtre n'est
+utilisée que si elle se retrouve dans une scène de cet écran, et à défaut rien ne bouge,
+iOS continue la recopie (`display.legacy_unavailable`, revue du 12 octobre, M2).
+
+Scènes (revue du 12 octobre, M1) : le coordinateur tient l'**ensemble** des scènes externes
+connectées. Une seconde scène ne remplace jamais la fenêtre affichée (elle attend,
+`display.external_scene_standby`) ; la déconnexion de la scène affichée adopte la plus
+récente encore attachée (`display.external_scene_adopted` : vue de rendu rendue au téléphone
+et menu détaché d'abord, moteur de menu conservé) ; `refresh` reparcourt
+`UIApplication.connectedScenes` (scène disparue = déconnexion, `display.external_scene_lost` ;
+scène externe dont personne n'a parlé = connexion, `display.external_scene_found`). Le
+délégué de scène ne garde que la fenêtre de sa propre scène.
+
+Passes : un appel reçu pendant une passe (rappel d'un hôte ou du fournisseur de menu)
+demande une passe de plus à la fin (au plus quatre de suite, `display.external_apply_passes`
+sinon) au lieu d'être perdu (m5). Chaque passe relit l'échelle de l'écran externe et compare
+taille **et** échelle de la surface annoncée à un hôte non fixe (m6) ; pour un tel hôte la
+surface est recalculée à chaque passe depuis les bounds actuels du placeholder (rotation),
+et `LibretroGameViewController` demande un `refresh` (fil principal, regroupé) quand ses
+bounds changent pendant que l'image est sur le téléviseur. Le moteur de menu est prévenu à
+chaque passe (`externalMenuSetVisible:`, optionnel) ; il est détruit quand le menu sur le
+téléviseur ou toute la sortie est désactivé (`menu_off`, `disabled`).
 
 Régime iOS 27 : `NeoExternalDisplaySceneAccessory` (dans le coordinateur) enregistre, par
 sélecteurs (`NSClassFromString(@"UISceneAccessory")`, `externalNonInteractiveWithSceneConfiguration:`,
@@ -131,6 +166,19 @@ sélecteurs (`NSClassFromString(@"UISceneAccessory")`, `externalNonInteractiveWi
 scène application à chaque changement (menu Flutter, contrôleur de jeu présenté) ; no-op si
 les classes/sélecteurs n'existent pas (iOS ≤ 26) ; état `accessoryStatus` ∈
 {`unavailable`, `registered`, `failed:<raison>`} exposé dans `getState`.
+*Remplacé par la revue du 12 octobre (M1, m10)* : ce chemin n'est pris que par un binaire
+construit avec le SDK 27 ou plus (`DTPlatformVersion`/`DTSDKName` de l'Info.plist principal,
+`display.external_build_sdk` ; absent ou illisible = inactif : la livraison Xcode 26.3 reste
+sur la connexion automatique, y compris sur iOS 27) et jamais pendant qu'une scène offerte
+par le système seul est connectée (connectée sans inscription active de NeoStation). Il
+inscrit alors la racine de la scène application (activée tant qu'il y a quelque chose à
+montrer : sortie activée, non suspendue, menu ou jeu) et le contrôleur présenté qui possède
+l'hôte de rendu attaché (trouvé depuis son placeholder, jamais le plus haut de la chaîne,
+qui peut être un menu présenté par-dessus le jeu) ; `isEnabled` (`setEnabled:`) coupe une
+inscription sans rien à montrer, une inscription sans ce setter est désinscrite ; les
+contrôleurs sortis de la chaîne sont désinscrits à la passe suivante. `accessoryStatus` ∈
+{`unavailable`, `inactive:sdk`, `inactive:automatic_scene`, `registered`, `disabled`,
+`failed:<raison>`}.
 
 ### 3.4 `NeoExternalDisplaySceneDelegate`
 
@@ -153,6 +201,9 @@ Repli de lecture : si `NeoStation.ExternalDisplay.Mode` est absent et que la cl�
 `NeoStation.Dolphin.ExternalDisplay.Mode` existe, 0 → `Enabled = NO`, 1 → Fit, 2 → Fill
 (lecture seule, jamais réécrite). Notification posée après chaque écriture :
 `NeoStation.ExternalDisplayChanged`. Écriture refusée → `SAVE_FAILED` (comme 120 Hz).
+Choisir un format alors que ni `Enabled` ni `Mode` n'est stocké met fin à ce repli : la
+valeur `Enabled` dérivée (NO pour un 442 Désactivé) est d'abord écrite, sans notification,
+pour que le choix d'un format n'active jamais la sortie à lui seul (revue du 12 octobre, m1).
 
 ### 3.6 Canal Flutter
 
@@ -164,19 +215,24 @@ Repli de lecture : si `NeoStation.ExternalDisplay.Mode` est absent et que la cl�
 | `setEnabled` | `{enabled: bool}` | état ; `SAVE_FAILED` |
 | `setMode` | `{mode: int}` | état ; `BAD_ARGS` hors 0..3 ; `SAVE_FAILED` |
 | `setMenuOnTV` | `{enabled: bool}` | état |
-| `configureMenuEngine` | `{entrypoint: String, libraryUri: String}` | état (mémorise la paire pour la création paresseuse ; sans cet appel, aucun moteur externe n'est créé) |
+| `configureMenuEngine` | `{entrypoint: String, libraryUri: String, languageCode: String?, themeName: String?}` | état (mémorise la paire pour la création paresseuse, avec la langue et le thème de départ du second moteur ; sans cet appel, aucun moteur externe n'est créé ; autre type → `BAD_ARGS`) |
+| `updateMenuEngine` | `{languageCode: String?, themeName: String?}` | `true` ; la copie donnée au prochain moteur suit, une nouvelle langue est envoyée au moteur en cours (`neostation/external_display/menu_locale`) ; `null` = inchangé |
 | `pushMenuState` | `{json: String}` | `true` ; relayé au second moteur par `BasicMessageChannel neostation/external_display/menu` (`StringCodec`) |
 | `suspendForUnsupportedEngine` | — | `true` ; masque la fenêtre externe pendant une session KartPad (iOS recopie l'iPhone) |
 | `resumeAfterUnsupportedEngine` | — | `true` ; la réaffiche |
 
 État (`getState` et chaque réponse) :
-`{supported: bool, connected: bool, content: 'none'|'menu'|'game', screenWidth: double, screenHeight: double, screenScale: double, mode: int, enabled: bool, menuOnTV: bool, mirroringActive: bool, accessoryStatus: String, sceneRole: 'scene'|'legacy'|'none', menuEngine: 'none'|'created'|'attached'|'destroyed'}`.
+`{supported: bool, connected: bool, content: 'none'|'menu'|'game', screenWidth: double, screenHeight: double, screenScale: double, mode: int, enabled: bool, menuOnTV: bool, suspended: bool, mirroringActive: bool, accessoryStatus: String, sceneRole: 'scene'|'legacy'|'none', menuEngine: 'none'|'created'|'attached'|'destroyed'}`
+(`suspended` ajouté par la revue du 12 octobre, m2 ; absent = `false`).
 
 `EventChannel neostation/external_display/events` : émet l'état complet à chaque
 `NeoStation.ExternalDisplayStateChanged`.
 
 `BasicMessageChannel neostation/external_display/menu` (`StringCodec`) : du natif vers le
 second moteur ; message = JSON de `SecondaryDisplayStateData.toJson()`.
+`BasicMessageChannel neostation/external_display/menu_locale` (`StringCodec`) : du natif vers
+le second moteur en cours ; message = code d'une des douze langues (tout autre texte est
+compté comme refusé et ignoré).
 
 ### 3.7 Libellés natifs (`NeoExternalDisplayLabels.h`)
 
@@ -190,6 +246,17 @@ les douze codes et l'égalité des jeux de clés.
   Future<void> externalDisplayMain()` : `WidgetsFlutterBinding.ensureInitialized()`, lecture
   de la langue et du thème comme `subDisplay` (`ConfigRepository.getUserConfig()`), init de
   `FlutterLocalization` sur les douze `MapLocale`, `runApp(ExternalMenuApp(...))`.
+  *Remplacé par la revue du 12 octobre (m11, sécurité des données)* : le second moteur
+  n'ouvre jamais la base (une seconde connexion SQLite y jouerait ses PRAGMA, ses écritures
+  correctives et, sur erreur d'E/S, supprimerait les -wal/-shm de la connexion du moteur
+  principal). `externalDisplayMain(List<String> args)` reçoit la langue et le thème du moteur
+  principal (`language=<code>`, `theme=<nom>`, `ExternalDisplayMenuArgs`), passés par
+  `FlutterEngineGroupOptions.entrypointArgs` (`makeEngineWithOptions:`, API vérifiée dans les
+  headers Flutter épinglés) ; une langue suivante arrive par `menu_locale`, le thème avec
+  chaque état. `FlutterLocalization` est initialisé sur les douze langues sans écrire ses
+  préférences (la langue du moteur principal l'emporte sur celle stockée) ; tout échec y est
+  intercepté, `runApp` est toujours atteint et le téléviseur reste noir plutôt que d'afficher
+  un menu sans langue.
   Constantes exportées : `kExternalDisplayEntrypoint = 'externalDisplayMain'`,
   `kExternalDisplayLibraryUri = 'package:neostation/external_display/external_display_entrypoint.dart'`.
   **Inclusion AOT** : `ExternalDisplayService` importe ce fichier et passe les constantes à
@@ -213,11 +280,23 @@ les douze codes et l'égalité des jeux de clés.
   `FLTPathProviderPlugin`, `FVPVideoPlayerPlugin`, `SharedPreferencesPlugin` — chaque classe
   résolue par nom et ignorée si absente ; liste figée dans
   `kNeoExternalMenuPlugins` et testée (test de scope : aucun pont d'émulation, aucun
-  `GeneratedPluginRegistrant`).
+  `GeneratedPluginRegistrant`). *Remplacé par la revue du 12 octobre (m3)*, vérifié contre
+  `pubspec.lock` : seul `shared_preferences_foundation.SharedPreferencesPlugin` (2.5.6, classe
+  Swift sans nom `@objc` ; `flutter_localization` 0.4.1 y lit la langue stockée).
+  `path_provider_foundation` 2.6.0 n'a pas de classe native (FFI), `sqflite` n'est pas une
+  dépendance, et le menu du téléviseur n'a **pas de lecteur vidéo** : les relais n'envoient
+  que des images (§ 8 bis), la classe de `video_player_avfoundation` 2.11.0 (Swift
+  `VideoPlayerPlugin`) n'est pas enregistrée et aucun aperçu n'y démarre. Le test de scope
+  épingle ces versions.
 - Cycle : création paresseuse à la première connexion avec `menuOnTV`, `FlutterEngineGroup`
   dédié `neostation-external`, `FlutterViewController` placé dans la fenêtre externe ;
   masquée (pas détruite) pendant un jeu ; **détruite** quand le pont RPCS3 s'attache
-  (`destroyMenuEngineForMemory`) et recréée après ; détruite à la déconnexion.
+  (`destroyMenuEngineForMemory`) et recréée après ; détruite à la déconnexion. Depuis la
+  revue (m4) : un moteur masqué passe à `AppLifecycleState.hidden` (canal de cycle de vie :
+  aucune image dessinée, fonds animés compris), réaffirmé 0,1 s après une activation de
+  l'app (le `FlutterViewController` renvoie alors `resumed`), et revient à `resumed`
+  (`inactive` si l'app n'est pas active) quand le menu se montre ; il est aussi détruit
+  quand le menu sur le téléviseur ou toute la sortie est désactivé.
 
 ## 5. Ponts (adoption vue par vue)
 
@@ -239,11 +318,20 @@ Chaque podspec de pont concerné ajoute `s.dependency 'external_display'` (pas c
   `setEnabled`, `setMode(ExternalDisplayMode)`, `setMenuOnTV`, `cycleMode()`, `pushMenuState`,
   abonnement à l'`EventChannel` ; erreurs `saveFailed` + `errorCode` brut ; `init()` appelle
   `configureMenuEngine(kExternalDisplayEntrypoint, kExternalDisplayLibraryUri)` ; jamais
-  « enregistré » sans relecture.
+  « enregistré » sans relecture. Depuis la revue (m11) : `init({languageCode, themeName})`,
+  appelé par `app_screen.dart` dans `didChangeDependencies` (premier endroit où le
+  `ThemeProvider` est lisible ; la dépendance à `Localizations` y fait revenir le
+  changement de langue), et `updateMenuEngine({languageCode, themeName})` pour une langue
+  (même endroit) ou un thème (`_onThemeChanged`) qui change ; rien n'est envoyé avant
+  `init` ni pour une valeur inchangée.
 - Réglages › Général (iOS), trois rangées après « Interface 120 Hz » :
   1. « AirPlay et écran externe » — `CustomToggleSwitch` (Enabled) + sous-titre d'état
      (`noExternalScreen` / `externalScreen {width}×{height}` / `gameOnExternal` /
-     `mirroringOff`) ;
+     `mirroringOff`) ; depuis la revue (m2), dans l'ordre : `mirroringOff`,
+     `noExternalScreen`, `gameOnExternal`, `unsupportedEngine` **seulement** quand l'état
+     natif est `suspended`, `menuOffMirroring` quand le menu sur le téléviseur est coupé hors
+     jeu, sinon la ligne neutre `externalScreen` (y compris pendant la recopie qui précède
+     la création du moteur de menu) ;
   2. « Format sur l'écran externe » — `SettingValueChip` cyclant Automatique / Adapter /
      Remplir / Format d'origine, sous-titre d'explication du mode et **avertissement de
      recadrage** quand Remplir est choisi (`fillCrops`) ;
@@ -256,7 +344,9 @@ Chaque podspec de pont concerné ajoute `s.dependency 'external_display'` (pas c
   `modeFit`, `modeFill`, `modeOriginal`, `modeAutomaticHelp`, `modeFitHelp`, `modeFillHelp`,
   `modeOriginalHelp`, `fillCrops`, `menuOnTv`, `menuOnTvHelp`, `noExternalScreen`,
   `externalScreen` (`{width}`, `{height}`), `gameOnExternal`, `mirroringOff`,
-  `unsupportedEngine`, `unavailable`, `saveFailed`, `technicalCode` (`{code}`).
+  `unsupportedEngine`, `unavailable`, `saveFailed`, `technicalCode` (`{code}`), et
+  `menuOffMirroring` ×12 (revue du 12 octobre, m2 : « Menu sur le téléviseur désactivé :
+  hors jeu, iOS recopie l'iPhone. »).
   Français du mainteneur : `title` = « AirPlay et écran externe », modes = « Automatique »,
   « Adapter à l'écran », « Remplir l'écran », « Format d'origine ».
 - `lib/l10n/neoplay_companion_locale.dart` : nouvelle clé `appleTVOwnWindow` ×12
@@ -301,14 +391,15 @@ Chaque podspec de pont concerné ajoute `s.dependency 'external_display'` (pas c
 
 | Fichier | Vérifie |
 | --- | --- |
-| `test/external_display_layout_test.mm` + `test/external_display_test.py` | Scale/Frame = 442 pour Fit/Fill ; Original ; SurfaceSize ; Crops ; contrats de source (pas de `makeKeyAndVisible` sur la fenêtre externe, retour avant arrêt, repli legacy isolé, accessoire par sélecteurs) |
-| `test/external_display_scope_test.py` | plugin : aucun pont importé, aucune API dépréciée hors `activateLegacyIfNeeded`, registre de plugins du menu = liste figée ; ponts : `s.dependency 'external_display'` ; `NPController`/`UiRefreshRatePlugin` filtrent `UIWindowSceneSessionRoleApplication` |
+| `test/external_display_layout_test.mm` + `test/external_display_test.py` | Scale/Frame = 442 pour Fit/Fill ; Original ; SurfaceSize (écran entier) ; Crops ; lecture du SDK de construction ; contrats de source (pas de `makeKeyAndVisible` sur la fenêtre externe, retour avant arrêt, ensemble de scènes et adoption, repli legacy isolé et refusé hors scène, accessoire par sélecteurs conditionné au SDK 27 et à l'absence de scène automatique, passes réentrantes, arguments du moteur de menu, cycle de vie masqué) |
+| `test/external_display_scope_test.py` | plugin : aucun pont importé, aucune API dépréciée hors `activateLegacyIfNeeded`, registre de plugins du menu = liste figée vérifiée contre `pubspec.lock` ; fermeture d'imports Dart du point d'entrée du téléviseur sans fichier de la couche base hors des quatre imports partagés épinglés, aucun membre de base atteint ; ponts : `s.dependency 'external_display'` ; `NPController`/`UiRefreshRatePlugin` filtrent `UIWindowSceneSessionRoleApplication` |
 | `test/external_display_host_plist_test.py` | configurateur sur une fixture : rôle ajouté, rôle application intact, idempotence, variante `--multiple-scenes` |
-| `test/external_display_ui_test.py` | XCTest simulateur (harnais de `dolphin_external_display_ui_test.py`) |
+| `test/external_display_ui_test.py` | XCTest simulateur (harnais de `dolphin_external_display_ui_test.py`) : connexion, modes, déconnexion, seconde scène en attente puis adoptée, repli legacy refusé hors scène, surface libretro à l'écran entier, échelle seule, appel pendant une passe, choix de format sans activation, régime accessoire (SDK, scène automatique, propriétaire de l'hôte, `isEnabled`) |
 | `test/external_display_locale_test.dart` | 12 langues, parité, placeholders, non-anglais, zh_Hant, français du mainteneur |
-| `test/external_display_service_test.dart` | canal simulé : état, setMode/Enabled/MenuOnTV, SAVE_FAILED jamais « enregistré », événements, configureMenuEngine à l'init |
-| `test/general_settings_external_display_test.dart` | trois rangées iOS, comptage/sélection manette, chip cyclique, avertissement Remplir |
-| `test/external_menu_screen_test.dart` | rendu 1920×1080 sans bande, état reçu par le canal, thème/langue initiaux |
+| `test/external_display_service_test.dart` | canal simulé : état (`suspended` compris), setMode/Enabled/MenuOnTV, SAVE_FAILED jamais « enregistré », événements, configureMenuEngine à l'init avec langue et thème, updateMenuEngine |
+| `test/general_settings_external_display_test.dart` | trois rangées iOS, comptage/sélection manette, chip cyclique, avertissement Remplir, lignes d'état (suspension, menu coupé, ligne neutre) |
+| `test/external_menu_screen_test.dart` | rendu 1920×1080 sans bande, état reçu par le canal, thème/langue initiaux, arguments du point d'entrée, langue du moteur principal sans écriture des préférences, langue reçue par `menu_locale`, écran noir et `runApp` atteint si la localisation échoue |
+| `test/external_display_games_list_test.dart` | relais de la liste des jeux ; `forwardSelection`, renvoi de la sélection quand un téléviseur commence à montrer le menu, ordre, annulation, `systemSelected`, câblage des trois producteurs |
 | `test/dolphin_external_display_test.py` (adapté) | mêmes garanties 442 via l'adaptateur |
 | `test/neoplay_locale_test.dart` (étendu) | clé `appleTVOwnWindow` ×12 |
 
@@ -333,15 +424,16 @@ Relevées par les agents d'implémentation et la revue contradictoire ; le code 
 - § 3.6 : registre figé `kNeoExternalMenuPlugins` = `SqflitePlugin` (absent : l'app utilise
   sqlite3 par FFI, ignoré), `FLTPathProviderPlugin`, `FVPVideoPlayerPlugin`,
   `SharedPreferencesPlugin` et leurs noms Swift qualifiés (`path_provider_foundation.PathProviderPlugin`,
-  `shared_preferences_foundation.SharedPreferencesPlugin`).
+  `shared_preferences_foundation.SharedPreferencesPlugin`) — *remplacé par la revue (m3)*,
+  voir § 4.
 - § 5 libretro : `performSkinLayoutIfNeeded` passe `points:surface.points` ; les zones de
   jeu du skin iPhone sont placées dans la surface TV par `LibretroRenderSurface.h`
   (union des zones mise à l'échelle et centrée) ; skin, overlay et chrome gardent les
   bounds iPhone ; l'attache a lieu à la fin de la présentation (après `viewDidAppear`,
   avant le fil d'émulation), le détachement avant la demande d'arrêt. En portrait sur
   le téléviseur, l'image reste un pilier au format du téléphone (politique du
-  coordinateur). Les écrans tactiles DS/3DS sont alors opérés à l'aveugle sur le
-  téléphone.
+  coordinateur) — *remplacé par la revue (M3)* : la surface est l'écran entier. Les
+  écrans tactiles DS/3DS sont alors opérés à l'aveugle sur le téléphone.
 - § 5 RPCS3 : à l'attache, le pont demande la destruction du moteur de menu ; pendant
   l'arrêt du Core, il tient le menu masqué par `suspendForUnsupportedEngine` /
   `resumeAfterUnsupportedEngine` (seule paire disponible) pour éviter la recréation du
@@ -388,11 +480,54 @@ Relevées par les agents d'implémentation et la revue contradictoire ; le code 
   `test/external_display_unsupported_engine_test.dart` (comportement, vrai pont Dart KartPad
   sur canal simulé) et `test/ports_external_display_test.py` (épinglage et câblage).
 
+- Revue contradictoire du 12 octobre 2026 (correctifs avant l'IPA, rien d'exécuté sur
+  l'appareil) :
+  - m11 : le second moteur ne touche plus la base (§ 4). Limite consignée : la fermeture
+    d'imports Dart de son point d'entrée contient encore quatre imports de la couche base
+    venus de fichiers partagés hors du périmètre du chantier —
+    `screens/secondary_screen/secondary_screen.dart` → `repositories/retro_achievements_repository.dart`,
+    `providers/theme_provider.dart` → `repositories/config_repository.dart` et
+    `services/config_service.dart`, `services/logger_service.dart` → `services/config_service.dart`.
+    Un import Dart n'exécute rien ; les seuls membres appelés sont
+    `RetroAchievementsRepository.getRAApiKey` (stockage sécurisé, pas SQLite, après une
+    sélection tactile de succès, impossible sur la scène non interactive), les méthodes
+    d'instance de `ThemeProvider` (jamais construit dans le second moteur, qui lit le
+    `availableThemes` statique) et `LoggerService.init` (appelé par `main.dart` seulement).
+    `test/external_display_scope_test.py` calcule la fermeture, refuse tout nouvel import ou
+    membre et vérifie ces trois conditions. Pour une fermeture sans aucun fichier de la
+    couche base, il faudrait modifier ces fichiers partagés (injecter le lecteur de clé dans
+    `SecondaryScreen`, faire lire `AppThemes` directement par `now_playing_helpers.dart`,
+    passer le chemin du journal à `LoggerService`), hors périmètre.
+  - M3 / m12 : libretro reçoit l'écran entier dans tous les formats ; Adapter, Remplir et
+    Format d'origine ne changent plus rien pour libretro (chaque jeu garde son format). Les
+    vues fixes gardent la politique 442 : ARMSX2 tenu en portrait reste un pilier au format
+    du téléphone, et Adapter peut couper RPCS3/ARMSX2 quand leur propre réglage de format
+    étire l'image au-delà de 16:9 (consigné, non corrigé).
+  - M1 / m10 / M2 / m1 / m2 / m4 / m5 / m6 : § 3.3, § 3.5, § 4, § 6.
+  - m7–m9 : la grille et le carrousel ne relaient une sélection que tant qu'un téléviseur
+    montre le menu (`forwardSelection`) ; grille, carrousel et liste des jeux renvoient leur
+    sélection courante quand un téléviseur commence à le montrer
+    (`SecondaryDisplayBridge.followSelections`, producteur tenu faiblement, rappel statique
+    qui vérifie `mounted` ; carrousel et liste l'annulent dans `dispose`, la grille dont
+    l'état vit dans `my_systems_grid.dart`, hors périmètre, est retirée quand son état
+    disparaît).
+
 ## 9. Ce qui reste à vérifier sur l'iPhone + Apple TV (jamais annoncé avant)
 
 Livraison de la scène externe (iOS 26 / 27, `UIApplicationSupportsMultipleScenes`),
 disparition des bandes dans le menu, rendu libretro 1080p et charge GPU, Dolphin/RPCS3/
 ARMSX2 agrandis, connexion/déconnexion en jeu, retour au premier plan, mémoire du second
 moteur et sa destruction pendant RPCS3, Dusklight/KartPad en recopie, NeoPlay inchangé.
+Ajouts de la revue du 12 octobre : SDK lu dans l'Info.plist de l'IPA livrée
+(`display.external_build_sdk`, attendu 26 avec Xcode 26.3) et connexion automatique sur
+iOS 27 avec ce binaire ; régime accessoire seulement avec un binaire SDK 27 ; seconde scène
+en attente puis adoptée ; repli legacy réellement affiché ou refusé ; moteur de menu
+`hidden` sans image dessinée pendant un jeu, puis `resumed` ; changement de langue sur le
+téléviseur ; rotation de l'iPhone pendant un jeu libretro sur le téléviseur ; sélection
+renvoyée à la connexion du téléviseur.
 Journal : `display.external_scene_connected`, `display.external_attached:<pont>`,
-`display.external_detached:<pont>`, `display.external_legacy`, `display.external_accessory:<statut>`.
+`display.external_detached:<pont>`, `display.external_legacy`, `display.external_accessory:<statut>`,
+`display.external_build_sdk`, `display.external_scene_standby`, `display.external_scene_adopted`,
+`display.external_scene_lost`, `display.external_scene_found`, `display.external_legacy_scene`,
+`display.legacy_unavailable`, `display.external_apply_passes:`, `display.external_menu_engine:`,
+`display.external_menu_plugin:`, `display.external_menu_lifecycle:`, `display.external_menu_language:`.

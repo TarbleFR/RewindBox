@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/external_display/external_display_entrypoint.dart';
 import 'package:neostation/external_display/external_display_state_channel.dart';
 import 'package:neostation/external_display/external_menu_screen.dart';
 import 'package:neostation/l10n/app_locale.dart';
@@ -35,15 +36,60 @@ void main() {
     WidgetTester tester, {
     required ValueListenable<SecondaryDisplayStateData?> source,
     String? theme,
+    ValueListenable<String?>? language,
   }) async {
     tester.view.physicalSize = tv;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      ExternalMenuApp(stateSource: source, initialThemeName: theme),
+      ExternalMenuApp(
+        stateSource: source,
+        initialThemeName: theme,
+        languageSource: language,
+      ),
     );
     await tester.pumpAndSettle();
   }
+
+  Future<void> sendLanguage(String code) => binding.defaultBinaryMessenger
+      .handlePlatformMessage(
+        ExternalDisplayStateChannel.languageChannelName,
+        const StringCodec().encodeMessage(code),
+        (_) {},
+      );
+
+  /// The localization the other tests of this file use (en, fr), restored
+  /// after a test that initialised the TV engine's twelve languages.
+  Future<void> restoreLocalization() async {
+    SharedPreferences.setMockInitialValues({});
+    await FlutterLocalization.instance.ensureInitialized();
+    FlutterLocalization.instance.init(
+      mapLocales: [
+        MapLocale('en', AppLocale.en),
+        MapLocale('fr', AppLocale.fr),
+      ],
+      initLanguageCode: 'en',
+    );
+  }
+
+  /// The state of an engine whose localization never initialised: no
+  /// language at all (init clears them before refusing an empty list).
+  void clearLanguages() {
+    try {
+      FlutterLocalization.instance.init(
+        mapLocales: const <MapLocale>[],
+        initLanguageCode: 'en',
+      );
+    } on ArgumentError {
+      // Expected: the supported languages are cleared first.
+    }
+  }
+
+  String storedLocale(String code) => jsonEncode(<String, Object?>{
+    'translator_language_code': code,
+    'translator_country_code': null,
+    'translator_script_code': null,
+  });
 
   Future<void> send(String message) => binding.defaultBinaryMessenger
       .handlePlatformMessage(
@@ -151,6 +197,203 @@ void main() {
     expect(find.text('PS1'), findsOneWidget);
     expect(find.text('WELCOME'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  group('entrypoint arguments (no database in the TV engine)', () {
+    test('language and theme are parsed; anything else is ignored', () {
+      expect(
+        ExternalDisplayMenuArgs.parse(const ['language=fr', 'theme=oled']),
+        const ExternalDisplayMenuArgs(languageCode: 'fr', themeName: 'oled'),
+      );
+      expect(
+        ExternalDisplayMenuArgs.parse(const [
+          'theme=nord',
+          '--verbose',
+          'language=zh_Hant',
+        ]),
+        const ExternalDisplayMenuArgs(languageCode: 'zh_Hant', themeName: 'nord'),
+      );
+      expect(
+        ExternalDisplayMenuArgs.parse(const []),
+        const ExternalDisplayMenuArgs(),
+      );
+      expect(const ExternalDisplayMenuArgs().languageCode, 'en');
+      expect(
+        ExternalDisplayMenuArgs.parse(const ['language=nl', 'theme=']),
+        const ExternalDisplayMenuArgs(languageCode: 'en'),
+        reason: 'an unsupported language is English, an empty theme none',
+      );
+      expect(
+        ExternalDisplayMenuArgs.parse(const ['language= ja ', 'theme= retro ']),
+        const ExternalDisplayMenuArgs(languageCode: 'ja', themeName: 'retro'),
+      );
+      for (final code in kExternalDisplayLanguageCodes) {
+        expect(
+          ExternalDisplayMenuArgs.parse(['language=$code']).languageCode,
+          code,
+        );
+      }
+      expect(ExternalDisplayMenuArgs.supportedLanguage('zh-Hant'), isNull);
+      expect(ExternalDisplayMenuArgs.supportedLanguage(null), isNull);
+      // The arguments NeoExternalDisplayMenuEngine.m builds round-trip.
+      const args = ExternalDisplayMenuArgs(languageCode: 'ko', themeName: 'aqua');
+      expect(args.toEntrypointArgs(), const ['language=ko', 'theme=aqua']);
+      expect(ExternalDisplayMenuArgs.parse(args.toEntrypointArgs()), args);
+      expect(
+        const ExternalDisplayMenuArgs(languageCode: 'de').toEntrypointArgs(),
+        const ['language=de'],
+      );
+      expect(ExternalDisplayMenuArgs.languagePrefix, 'language=');
+      expect(ExternalDisplayMenuArgs.themePrefix, 'theme=');
+    });
+
+    test('the twelve languages of the app, as the entrypoint declares them', () {
+      expect(
+        kExternalDisplayLanguageCodes.toSet(),
+        AppLocale.supportedLanguages.keys.toSet(),
+      );
+      expect(kExternalDisplayLanguageCodes, hasLength(12));
+      expect(
+        externalDisplayMapLocales().map((locale) => locale.languageCode).toList(),
+        kExternalDisplayLanguageCodes,
+      );
+      expect(kExternalDisplayEntrypoint, 'externalDisplayMain');
+    });
+  });
+
+  group('the TV engine localization', () {
+    tearDown(restoreLocalization);
+
+    test('the main engine language wins and nothing is written', () async {
+      final stored = storedLocale('fr');
+      SharedPreferences.setMockInitialValues({'translator_locale_key': stored});
+      expect(await initializeExternalDisplayLocalization('de'), isTrue);
+      final localization = FlutterLocalization.instance;
+      expect(localization.currentLocale?.languageCode, 'de');
+      expect(localization.supportedLanguageCodes, kExternalDisplayLanguageCodes);
+      final preferences = await SharedPreferences.getInstance();
+      expect(
+        preferences.getString('translator_locale_key'),
+        stored,
+        reason: 'the main engine owns the stored language',
+      );
+    });
+
+    test('Traditional Chinese is kept, an unknown language is English', () async {
+      SharedPreferences.setMockInitialValues({});
+      expect(await initializeExternalDisplayLocalization('zh_Hant'), isTrue);
+      expect(FlutterLocalization.instance.currentLocale?.languageCode, 'zh_Hant');
+      SharedPreferences.setMockInitialValues({});
+      expect(await initializeExternalDisplayLocalization('xx'), isTrue);
+      expect(FlutterLocalization.instance.currentLocale?.languageCode, 'en');
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString('translator_locale_key'), isNull);
+    });
+
+    test('a failure is reported, never thrown', () async {
+      SharedPreferences.setMockInitialValues({
+        'translator_locale_key': 'not json',
+      });
+      expect(await initializeExternalDisplayLocalization('fr'), isFalse);
+    });
+
+    test('applying a language the engine does not have changes nothing', () async {
+      SharedPreferences.setMockInitialValues({});
+      expect(await initializeExternalDisplayLocalization('en'), isTrue);
+      expect(applyExternalDisplayLanguage('nl'), isFalse);
+      expect(applyExternalDisplayLanguage('en'), isFalse, reason: 'current');
+      expect(applyExternalDisplayLanguage('it'), isTrue);
+      expect(FlutterLocalization.instance.currentLocale?.languageCode, 'it');
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString('translator_locale_key'), isNull);
+    });
+
+    testWidgets('a language sent by the main engine rebuilds both apps in it', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      expect(await initializeExternalDisplayLocalization('en'), isTrue);
+      final channel = ExternalDisplayStateChannel.forTesting();
+      await pumpTv(
+        tester,
+        source: channel.state,
+        theme: 'dark',
+        language: channel.language,
+      );
+      BuildContext inner() => tester.element(find.text('WELCOME'));
+      expect(
+        AppLocale.raRateLimited.getString(inner()),
+        AppLocale.en[AppLocale.raRateLimited],
+      );
+
+      await sendLanguage('fr');
+      await tester.pumpAndSettle();
+      expect(channel.language.value, 'fr');
+      expect(FlutterLocalization.instance.currentLocale?.languageCode, 'fr');
+      final delegate = FlutterLocalization.instance.localizationsDelegates.first;
+      final apps = tester.widgetList<MaterialApp>(find.byType(MaterialApp));
+      expect(apps, hasLength(2));
+      for (final app in apps) {
+        expect(identical(app.localizationsDelegates!.first, delegate), isTrue);
+      }
+      expect(
+        AppLocale.raRateLimited.getString(inner()),
+        AppLocale.fr[AppLocale.raRateLimited],
+      );
+      expect(
+        AppLocale.fr[AppLocale.raRateLimited],
+        isNot(AppLocale.en[AppLocale.raRateLimited]),
+      );
+
+      // Only the twelve codes are accepted; the screen stays in French.
+      await sendLanguage('nl');
+      await sendLanguage('');
+      await tester.pumpAndSettle();
+      expect(channel.rejectedLanguages, 2);
+      expect(FlutterLocalization.instance.currentLocale?.languageCode, 'fr');
+      expect(tester.takeException(), isNull);
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString('translator_locale_key'), isNull);
+    });
+
+    testWidgets('without any language the TV stays black, without exception', (
+      tester,
+    ) async {
+      clearLanguages();
+      expect(FlutterLocalization.instance.supportedLocales, isEmpty);
+      final source = ValueNotifier<SecondaryDisplayStateData?>(
+        SecondaryDisplayStateData(systemName: 'snes'),
+      );
+      addTearDown(source.dispose);
+      await pumpTv(tester, source: source, theme: 'dark');
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MaterialApp), findsNothing);
+      expect(find.byType(SecondaryScreen), findsNothing);
+      final background = find.byKey(ExternalMenuApp.backgroundKey);
+      expect(tester.widget<ColoredBox>(background).color, Colors.black);
+      expect(tester.getSize(background), tv);
+    });
+
+    testWidgets('the entrypoint reaches runApp when its localization fails', (
+      tester,
+    ) async {
+      tester.view.physicalSize = tv;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      clearLanguages();
+      SharedPreferences.setMockInitialValues({
+        'translator_locale_key': 'not json',
+      });
+      await externalDisplayMain(const ['language=fr', 'theme=dark']);
+      await tester.pump();
+      expect(find.byType(ExternalMenuApp), findsOneWidget);
+      expect(find.byKey(ExternalMenuApp.backgroundKey), findsOneWidget);
+      expect(find.byType(MaterialApp), findsNothing);
+      final app = tester.widget<ExternalMenuApp>(find.byType(ExternalMenuApp));
+      expect(app.initialThemeName, 'dark');
+      expect(app.stateSource, same(ExternalDisplayStateChannel.instance.state));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   test('the JSON the main engine sends decodes into the same state', () {

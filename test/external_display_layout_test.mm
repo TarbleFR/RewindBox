@@ -6,8 +6,10 @@
 // DolphinExternalDisplayLayout.h at revision a221ae0c, the Build 444
 // delivery). The Dolphin header of Build 447 delegates to the production
 // policy, so it is compared with the same frozen copy, never with the
-// policy it delegates to. The window lifecycle runs in the iOS Simulator
-// (external_display_ui_test.py). No device claim.
+// policy it delegates to. The surface of a host that draws at the TV's
+// resolution (libretro) is the whole screen in every mode, and the build
+// SDK parsing gates the iOS 27 scene accessory. The window lifecycle runs
+// in the iOS Simulator (external_display_ui_test.py). No device claim.
 #include "NeoExternalDisplayLayout.h"
 #include "DolphinExternalDisplayLayout.h"
 #include <cassert>
@@ -147,17 +149,59 @@ int main() { @autoreleasepool {
   const CGFloat squareFill = NeoExternalDisplayScale(square, phone, NeoExternalDisplayModeFill);
   CHECK(squareFill >= squareFit && squareFill <= squareFit * 4.0 / 3.0 + 1e-9, "fill never exceeds 4/3 of fit");
 
-  // Surface size when the engine draws at the TV's resolution (libretro).
+  // Surface size when the engine draws at the TV's resolution (libretro,
+  // fixedDrawable == NO): the whole screen in every mode, from any iPhone
+  // layout (review of 12 October 2026, M3); the host places each game's
+  // picture in it at the game's own aspect
+  // (test/libretro_host/frontend/render_surface_test.m: a GBA screen of a
+  // portrait phone fills 1620 × 1080 of a 1080p TV). Retired assertions:
+  // the surface followed the frame of the phone's format (Fit letterboxed
+  // 1024 × 576 on a 4:3 screen, a 4:3 source pillarboxed 1440 × 1080, Fill
+  // 1920 × 1440 cut by the window, also on 21:9, Original 1920 × 885.6) and a
+  // portrait phone got a 498 × 1080 pillar of its own format; the formats
+  // now apply to the fixed drawables only (the Fit/Fill/Original checks
+  // above are unchanged).
+  const CGSize portrait = CGSizeMake(393, 852);      // iPhone 15 portrait
+  const CGSize surfaceSources[] = {phone, wide, pad, portrait, CGSizeMake(667, 375)};
+  const NeoExternalDisplayMode modes[] = {NeoExternalDisplayModeAutomatic, NeoExternalDisplayModeFit, NeoExternalDisplayModeFill,
+                                          NeoExternalDisplayModeOriginal};
+  for (NeoExternalDisplayMode mode : modes) {
+    for (CGSize screen : screens) {
+      for (CGSize source : surfaceSources) {
+        CHECK(CGSizeEqualToSize(NeoExternalDisplaySurfaceSize(screen, source, mode), screen), "surface = the whole screen, every mode, every layout");
+      }
+    }
+  }
   CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, phone, NeoExternalDisplayModeFit), 1920, 1080), "fit surface = the TV");
   CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, phone, NeoExternalDisplayModeAutomatic), 1920, 1080), "automatic surface = fit");
-  CHECK(NearSize(NeoExternalDisplaySurfaceSize(square, phone, NeoExternalDisplayModeFit), 1024, 576), "fit surface letterboxed on 4:3");
-  CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, pad, NeoExternalDisplayModeFit), 1440, 1080), "fit surface of a 4:3 source is pillarboxed");
-  CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, phone, NeoExternalDisplayModeFill), 1920, 1440), "fill surface: 4:3 frame extended, top and bottom cut");
+  CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, portrait, NeoExternalDisplayModeFit), 1920, 1080), "a portrait phone gets the whole TV, no pillar");
+  CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, phone, NeoExternalDisplayModeFill), 1920, 1080), "fill surface: no part drawn off the screen");
   CHECK(NearSize(NeoExternalDisplaySurfaceSize(square, phone, NeoExternalDisplayModeFill), 1024, 768), "fill surface fills a 4:3 screen");
-  CHECK(NearSize(NeoExternalDisplaySurfaceSize(ultra, phone, NeoExternalDisplayModeFill), 1920, 1440), "fill surface capped at 4/3 of fit on 21:9");
-  CHECK(NearSize(NeoExternalDisplaySurfaceSize(tv, phone, NeoExternalDisplayModeOriginal), 1920, 393.0 * 1920.0 / 852.0), "original surface = source × scale");
+  CHECK(NearSize(NeoExternalDisplaySurfaceSize(ultra, phone, NeoExternalDisplayModeOriginal), 2560, 1080), "original surface = the 21:9 screen");
   const CGSize surfaceFit = NeoExternalDisplaySurfaceSize(tv, phone, NeoExternalDisplayModeFit);
   CHECK(surfaceFit.width <= 1920 && surfaceFit.height <= 1080, "fit never exceeds the screen");
+
+  // iOS 27 regime: the major of the SDK the app was built with, from the
+  // main bundle (DTPlatformVersion first, else DTSDKName); missing or
+  // unparsable is 0, so the accessory regime stays off.
+  CHECK(NeoExternalDisplayAccessorySDKMajor == 27, "the accessory regime starts with SDK 27");
+  CHECK(NeoExternalDisplayVersionMajor(@"26.2") == 26 && NeoExternalDisplayVersionMajor(@"27") == 27 &&
+        NeoExternalDisplayVersionMajor(@"27.0.1") == 27, "dotted versions");
+  CHECK(NeoExternalDisplayVersionMajor(nil) == 0 && NeoExternalDisplayVersionMajor(@"") == 0, "missing version");
+  CHECK(NeoExternalDisplayVersionMajor(@"26.") == 0 && NeoExternalDisplayVersionMajor(@".26") == 0 &&
+        NeoExternalDisplayVersionMajor(@"26a") == 0 && NeoExternalDisplayVersionMajor(@"26..1") == 0 &&
+        NeoExternalDisplayVersionMajor(@" 26") == 0, "unparsable versions");
+  CHECK(NeoExternalDisplayVersionMajor(@"99999") == 0, "a value too large is no version");
+  CHECK(NeoExternalDisplaySDKMajorVersion(@"26.2", @"iphoneos26.2") == 26, "Xcode 26.3 delivery: SDK 26");
+  CHECK(NeoExternalDisplaySDKMajorVersion(@"26.2", @"iphoneos26.2") < NeoExternalDisplayAccessorySDKMajor, "the SDK 26 delivery keeps the automatic scene");
+  CHECK(NeoExternalDisplaySDKMajorVersion(@"27.0", nil) == 27, "DTPlatformVersion alone");
+  CHECK(NeoExternalDisplaySDKMajorVersion(nil, @"iphoneos27.0") == 27, "DTSDKName alone");
+  CHECK(NeoExternalDisplaySDKMajorVersion(nil, @"iphonesimulator26.2") == 26, "simulator SDK name");
+  CHECK(NeoExternalDisplaySDKMajorVersion(@"garbage", @"iphoneos27.1") == 27, "an unparsable platform version falls back to the SDK name");
+  CHECK(NeoExternalDisplaySDKMajorVersion(@"27.0", @"iphoneos26.2") == 27, "DTPlatformVersion wins");
+  CHECK(NeoExternalDisplaySDKMajorVersion(nil, nil) == 0 && NeoExternalDisplaySDKMajorVersion(@"", @"iphoneos") == 0 &&
+        NeoExternalDisplaySDKMajorVersion(nil, @"26.2") == 0 && NeoExternalDisplaySDKMajorVersion(nil, @"iphoneos27b") == 0,
+        "missing or unparsable: not active");
 
   // Only Fill crops.
   CHECK(NeoExternalDisplayModeCrops(NeoExternalDisplayModeFill), "fill crops");
@@ -170,6 +214,6 @@ int main() { @autoreleasepool {
   CHECK(CGSizeEqualToSize(NeoExternalDisplaySurfaceSize(CGSizeZero, phone, NeoExternalDisplayModeFill), CGSizeZero), "zero surface");
   CHECK(CGSizeEqualToSize(NeoExternalDisplaySurfaceSize(tv, CGSizeMake(10, INFINITY), NeoExternalDisplayModeFit), CGSizeZero), "infinite surface");
 
-  printf("PASS: %d external display placement assertions (Fit/Fill = frozen Build 442 copy, Dolphin delegation = the same copy; Original = phone format; TV-resolution surfaces)\n", cases);
+  printf("PASS: %d external display placement assertions (Fit/Fill = frozen Build 442 copy, Dolphin delegation = the same copy; Original = phone format; TV-resolution surfaces = the whole screen; build SDK parsing)\n", cases);
   return 0;
 } }

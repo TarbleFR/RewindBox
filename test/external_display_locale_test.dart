@@ -9,7 +9,9 @@ void main() {
   final placeholders = RegExp(r'\{\w+\}');
   final english = ExternalDisplayLocale.values['en']!;
 
-  // docs/external-display-universal.md § 6.
+  // docs/external-display-universal.md § 6. `menuOffMirroring` was added by
+  // the review of 12 October 2026 (m2): "Menu on the TV" off outside a game
+  // has its own status line instead of the unsupported-engine one.
   const contractKeys = <String>{
     'title',
     'description',
@@ -30,6 +32,7 @@ void main() {
     'gameOnExternal',
     'mirroringOff',
     'unsupportedEngine',
+    'menuOffMirroring',
     'unavailable',
     'saveFailed',
     'technicalCode',
@@ -113,6 +116,15 @@ void main() {
       );
     }
     expect(ExternalDisplayLocale.forLocale(const Locale('zh'), key), simplified);
+    expect(
+      ExternalDisplayLocale.values['zh_Hant']![ExternalDisplayLocale
+          .menuOffMirroring],
+      isNot(
+        ExternalDisplayLocale.values['zh']![ExternalDisplayLocale
+            .menuOffMirroring],
+      ),
+      reason: 'the status line added by the review has its own Traditional text',
+    );
     expect(
       ExternalDisplayLocale.forLocale(const Locale('zh', 'CN'), key),
       simplified,

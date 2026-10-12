@@ -149,6 +149,10 @@ class _SystemGamesListState extends State<SystemGamesList> {
   // Secondary display hardware management (OEM support).
   SecondaryDisplayState? _secondaryDisplayState;
 
+  /// iOS TV menu (Build 447): follows the bridge from [initState] to
+  /// [dispose] to push the selection again when a TV starts showing the menu.
+  SecondaryDisplaySelectionFollower? _tvSelectionFollower;
+
   /// Drives the live RetroAchievements panel on the secondary display for the
   /// duration of a launched game (push at launch, poll during play, stop on
   /// return). Shared with the systems carousel/grid "Recent Games" launches.
@@ -263,6 +267,19 @@ class _SystemGamesListState extends State<SystemGamesList> {
       _secondaryDisplayState = SecondaryDisplayState.instance;
       _secondaryDisplayState!.addListener(_onSecondaryDisplayChanged);
     }
+    // iOS TV menu (Build 447): the selected game is pushed again when a TV
+    // starts showing the menu (nothing is pushed while none does).
+    _tvSelectionFollower = SecondaryDisplayBridge.instance.followSelections(
+      this,
+      _reforwardToTV,
+    );
+  }
+
+  /// The selected game again, once a TV starts showing the menu (iOS).
+  static void _reforwardToTV(_SystemGamesListState state) {
+    final game = state._selectedGame;
+    if (!state.mounted || game == null || state._isNavigatingBack) return;
+    unawaited(state._updateSecondaryDisplay(game));
   }
 
   @override
@@ -290,6 +307,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
 
     // Shared singleton — detach our listener, never dispose the instance.
     _secondaryDisplayState?.removeListener(_onSecondaryDisplayChanged);
+    _tvSelectionFollower?.cancel();
     _achievementsController.dispose();
 
     _cleanupResources();

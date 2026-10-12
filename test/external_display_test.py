@@ -5,12 +5,18 @@ executed on macOS.
 The contracts (docs/external-display-universal.md § 3 and § 8) are checked on
 any OS: pure placement header holding the Build 442 arithmetic, Dolphin
 header delegating to it, no makeKeyAndVisible on the external window,
-render view returned before any stop or window release, legacy fallback
-isolated in activateLegacyIfNeeded, iOS 27 scene accessory by selectors
-(one registration per presented controller, released once dismissed),
-menu engine never created while a game holds the TV, journal prefixes,
-channel and preference names, dynamic podspec publishing every header a
-bridge imports. On macOS the production NeoExternalDisplayLayout.h is then
+render view returned before any stop or window release, the set of
+connected external scenes (a second scene stands by, the shown one's
+disconnection adopts a remaining one, UIApplication.connectedScenes
+rescanned at every refresh), legacy fallback isolated in
+activateLegacyIfNeeded and refused when its window is in no scene of the
+screen, iOS 27 scene accessory by selectors only for a binary built with
+SDK 27 or later and never beside an automatic scene (root and render-host
+owner registrations, isEnabled, released once dismissed), menu engine
+never created while a game holds the TV and started with the language and
+theme as entrypoint arguments, passes re-run for calls made during one,
+journal prefixes, channel and preference names, dynamic podspec publishing
+every header a bridge imports. On macOS the production NeoExternalDisplayLayout.h is then
 compiled with Foundation and CoreGraphics only and
 test/external_display_layout_test.mm compares it, number for number, with a
 frozen copy of the Build 442 arithmetic (revision a221ae0c), as it compares
@@ -66,8 +72,28 @@ def layout_contracts() -> None:
         check(token in header, token)
     for function in ('NeoExternalDisplayModeFromValue', 'NeoExternalDisplayEffectiveMode', 'NeoExternalDisplayUsableSize',
                      'NeoExternalDisplayScale', 'NeoExternalDisplayFrame', 'NeoExternalDisplaySurfaceSize',
-                     'NeoExternalDisplayModeCrops'):
+                     'NeoExternalDisplayModeCrops', 'NeoExternalDisplayVersionMajor', 'NeoExternalDisplaySDKMajorVersion'):
         check(re.search(r'static inline \w+ ' + function + r'\(', header) is not None, f'{function} is a static inline function')
+    # A host that draws at the TV's resolution (libretro, fixedDrawable NO)
+    # gets the whole screen in every mode and places each game at its own
+    # aspect (review of 12 October 2026, M3). Retired contract: the surface
+    # no longer follows the Fit/Fill/Original frame of the phone's format
+    # (a portrait phone gave a 498 x 1080 pillar); the formats apply to the
+    # fixed drawables, whose view is only scaled.
+    surface = code(header)[code(header).index('static inline CGSize NeoExternalDisplaySurfaceSize('):]
+    surface = surface[:surface.index('\n}\n')]
+    check('return screen;' in surface and 'NeoExternalDisplayScale(' not in surface and 'NeoExternalDisplayFrame(' not in surface,
+          'the surface of a non-fixed host is the whole screen in every mode')
+    check('if (!NeoExternalDisplayUsableSize(screen) || !NeoExternalDisplayUsableSize(source)) return CGSizeZero;' in surface,
+          'an unusable screen or iPhone layout gives no surface')
+    # iOS 27 regime: only a binary built with SDK 27 or later (Info.plist of
+    # the main bundle); missing or unparsable is not active.
+    check('static const NSInteger NeoExternalDisplayAccessorySDKMajor = 27;' in header, 'the accessory regime starts with SDK 27')
+    sdk = code(header)[code(header).index('static inline NSInteger NeoExternalDisplaySDKMajorVersion('):]
+    sdk = sdk[sdk.index('{'):sdk.index('\n}\n')]
+    check(sdk.index('NeoExternalDisplayVersionMajor(platformVersion)') < sdk.index('substringFromIndex:letters'),
+          'DTPlatformVersion first, then the version of DTSDKName')
+    check('if (letters == 0 || letters == sdkName.length) return 0;' in sdk, 'an SDK name without letters or without version is unparsable')
     # Fit/Fill are the Build 442 math, kept number for number in this header
     # only. Retired assertion: the Dolphin header no longer holds a second
     # copy (it would drift from what the coordinator applies); it delegates
@@ -127,25 +153,77 @@ def coordinator_contracts() -> None:
                   'autoResizeDrawable = self.savedAutoResizeDrawable'):
         check(token in source, token)
     check('drawableSize' not in stripped, 'the coordinator never resizes a drawable itself; a non-fixed host does it from externalSurfaceDidChange')
-    # Return before stop / before the window is released.
-    disconnect = method_body(source, '- (void)disconnectWindow {')
-    check(disconnect.index('[self returnRenderViewToPlaceholder];') < disconnect.index('self.window = nil;')
-          and disconnect.index('[self returnRenderViewToPlaceholder];') < disconnect.index('window.hidden = YES;'),
+    # A non-fixed host (libretro): the surface is recomputed at every pass
+    # from the iPhone layout its placeholder has now (a rotation), and size
+    # and scale are compared together (a mode change of the TV can change
+    # the scale alone: m6).
+    place = method_body(code(source), '- (void)placeRenderView {')
+    check('CGSize source = host.placeholderView.bounds.size;' in place
+          and 'if (!NeoExternalDisplayUsableSize(source)) source = self.savedBounds.size;' in place,
+          'the surface follows the current iPhone layout, the bounds of the move only as a fallback')
+    check('CGSize surface = NeoExternalDisplaySurfaceSize(screen, source, mode);' in place, 'the policy of the layout header')
+    check('if (CGSizeEqualToSize(surface, self.lastSurface) && scale == self.lastSurfaceScale) return;' in place
+          and 'self.lastSurfaceScale = scale;' in place, 'size and scale compared together')
+    check(place.index('if (host.fixedDrawable) {') < place.index('NeoExternalDisplaySurfaceSize('), 'the fixed drawables keep the 442 scaling')
+    scale = method_body(code(source), '- (CGFloat)currentScreenScale {')
+    check('scale = self.screenScaleReader();' in scale and 'UIScreen *screen = self.scene != nil ? self.scene.screen : self.legacyScreen;' in scale
+          and 'scale = screen.scale;' in scale and 'return isfinite(scale) && scale > 0 ? scale : self.screenScale;' in scale,
+          "the external screen's scale is re-read (seam first), the last one kept when the screen does not tell")
+    # Return before stop / before the window is released (every release
+    # goes through releaseWindowKeepingMenuEngine:, the disconnection and
+    # the adoption of another scene alike).
+    release = method_body(source, '- (void)releaseWindowKeepingMenuEngine:(BOOL)keepMenuEngine {')
+    check(release.index('[self returnRenderViewToPlaceholder];') < release.index('self.window = nil;')
+          and release.index('[self returnRenderViewToPlaceholder];') < release.index('window.hidden = YES;'),
           'the render view returns to the iPhone before the window is released')
-    check(disconnect.index('[self detachMenuViewControllerInternal];') < disconnect.index('destroyExternalMenuEngineForReason:@"disconnect"'),
+    check(release.index('[self detachMenuViewControllerInternal];') < release.index('destroyExternalMenuEngineForReason:@"disconnect"'),
           'the menu controller leaves the window before its engine is destroyed')
+    check('if (!keepMenuEngine) [self.menuProvider destroyExternalMenuEngineForReason:@"disconnect"];' in release,
+          'the menu engine survives only an adoption')
+    check(release.index('window.hidden = YES;') < release.index('self.window = nil;'),
+          "the window is hidden while still the coordinator's (its own UIWindowDidBecomeHidden is filtered)")
+    disconnect = method_body(source, '- (void)disconnectWindow {')
+    check(disconnect.index('[self releaseWindowKeepingMenuEngine:NO];') < disconnect.index('[self applyState];'),
+          'a disconnection releases the window and its menu engine, then re-applies')
     detach = method_body(source, '- (void)detachRenderHost:(id<NeoExternalRenderHost>)host {')
     check(detach.index('[self returnRenderViewToPlaceholder];') < detach.index('self.renderHost = nil;'), 'detach returns the view first')
     attach = method_body(source, '- (void)attachRenderHost:(id<NeoExternalRenderHost>)host {')
     check('[self detachRenderHost:self.renderHost]' in attach, 'a second host detaches the first (no double placement)')
     # The menu engine is created only when it is about to be shown: never
-    # while a game holds the TV (an engine that exists is hidden, not released).
-    apply = method_body(code(source), '- (void)applyState {')
-    check('if (usable && menuOnTV && !gameShown && !self.menuSuppressed && self.menuViewController == nil && provider != nil) {' in apply,
+    # while a game holds the TV (an engine that exists is hidden, not
+    # released, and told so: m4); released when the menu or the whole
+    # output is turned off.
+    apply_pass = method_body(code(source), '- (void)applyStatePass {')
+    check('if (usable && menuOnTV && !gameShown && !self.menuSuppressed && self.menuViewController == nil && provider != nil) {' in apply_pass,
           'the menu engine is not created while the game is on the TV')
-    check(apply.index('const BOOL gameShown = self.renderHost != nil && self.renderPlaced;') < apply.index('externalMenuViewControllerCreatingIfNeeded'),
+    check(apply_pass.index('const BOOL gameShown = self.renderHost != nil && self.renderPlaced;') < apply_pass.index('externalMenuViewControllerCreatingIfNeeded'),
           'gameShown is known before the creation')
-    check('const BOOL menuShown = usable && self.menuViewController != nil && !gameShown;' in apply, 'an existing menu stays hidden behind the game')
+    check('const BOOL menuShown = usable && self.menuViewController != nil && !gameShown;' in apply_pass, 'an existing menu stays hidden behind the game')
+    check('if (!menuOnTV || !enabled) {' in apply_pass
+          and '[provider destroyExternalMenuEngineForReason:enabled ? @"menu_off" : @"disabled"];' in apply_pass,
+          'the engine is released when the menu or the whole output is off')
+    check('if ([provider respondsToSelector:@selector(externalMenuSetVisible:)]) [provider externalMenuSetVisible:menuShown];' in apply_pass
+          and apply_pass.index('const BOOL menuShown') < apply_pass.index('externalMenuSetVisible:menuShown'),
+          'the provider is told at every pass whether the menu shows (lifecycle hidden while a game holds the TV)')
+    check(apply_pass[len('- (void)applyStatePass {'):].lstrip().startswith('self.screenScale = [self currentScreenScale];'),
+          "every pass starts by re-reading the external screen's scale")
+    check(apply_pass.index('[self registerAccessory];') > apply_pass.index('self.content ='), 'the accessory follows the content of the pass')
+    # A call made during a pass (a host's or the provider's callback) asks
+    # for one more pass instead of being lost (m5); bounded.
+    apply = method_body(code(source), '- (void)applyState {')
+    check(re.search(r'\{\s*if \(self\.applying\) \{\s*self\.needsReapply = YES;\s*return;\s*\}', apply) is not None,
+          'a re-entrant applyState marks the pass to be run again')
+    check('do {' in apply and '[self applyStatePass];' in apply
+          and '} while (self.needsReapply && passes < kNeoExternalMaxApplyPasses);' in apply, 'passes re-run while asked, bounded')
+    check(apply.index('self.needsReapply = NO;') < apply.index('[self applyStatePass];'), 'the flag is cleared before each pass')
+    check(apply.index('} while (') < apply.index('self.applying = NO;') < apply.index('[self notifyIfChanged];'),
+          'the state is reported once, after the last pass')
+    check('kNeoExternalMaxApplyPasses = 4;' in source, 'at most four passes in a row')
+    refresh = method_body(code(source), '- (void)refresh {')
+    check('self.needsRescan = YES;' in refresh and 'self.needsReapply = YES;' in refresh, 'a refresh during a pass is kept for its end')
+    check(refresh.index('[self rescanExternalScenes];') < refresh.index('[self applyState];'), 'a refresh rescans the connected scenes first')
+    check('if (self.needsRescan) {' in apply and apply.index('[self rescanExternalScenes];') < apply.index('[self applyStatePass];'),
+          'the rescan asked during a pass runs between passes')
     # Observation set of the contract, plus the window notifications that
     # re-read the presentation chain for the iOS 27 accessory.
     for name in ('UIScreenModeDidChangeNotification', 'UIApplicationDidBecomeActiveNotification', 'NeoExternalDisplayChangedNotification',
@@ -156,7 +234,11 @@ def coordinator_contracts() -> None:
     check('if (notification.object != nil && notification.object == self.window) return;' in window_changed,
           "the external window's own hidden/visible changes are not a presentation change")
     check('[self refresh];' in window_changed and 'if (!NSThread.isMainThread)' in window_changed, 'window notifications re-apply on the main thread')
-    # Legacy fallback: one method, deprecated API nowhere else, 1.5 s timer, journaled.
+    # Legacy fallback: one method, deprecated API nowhere else, 1.5 s timer,
+    # journaled; a window that is in no scene of the screen is never used
+    # (M2: in a scene-based app it would not be displayed and the iPhone
+    # would lose its picture), a connected external scene of the screen is
+    # adopted instead.
     legacy = method_body(code(source), '- (void)activateLegacyIfNeeded {')
     outside = code(source).replace(legacy, '')
     for api in ('UIScreen.screens', 'UIScreen.mainScreen', 'window.screen ='):
@@ -165,21 +247,73 @@ def coordinator_contracts() -> None:
     check('#pragma clang diagnostic ignored "-Wdeprecated-declarations"' in legacy, 'legacy path silences its deprecations')
     check('if (self.window != nil || self.sceneEverConnected) return;' in legacy, 'legacy only without any scene ever delivered')
     check('NSLog(@"display.external_legacy' in legacy, 'legacy journal line')
+    check('if (screen != nil) existing = NeoExternalConnectedSceneOnScreen(screen);' in legacy and '[self sceneDidConnect:existing];' in legacy,
+          'a connected external scene of the screen is adopted rather than a window without scene')
+    refusal = legacy[legacy.index('if (windowScene == nil || windowScene.screen != screen) {'):]
+    refusal = refusal[:refusal.index('return;') + len('return;')]
+    check('UIWindowScene *windowScene = window.windowScene;' in legacy and 'NSLog(@"display.legacy_unavailable' in refusal
+          and 'window.hidden = YES;' in refusal and 'connectWindow' not in refusal and 'self.legacyScreen' not in refusal,
+          'a window in no scene of the screen is refused: logged, hidden, nothing moves, iOS keeps mirroring')
+    check(legacy.index('if (windowScene == nil || windowScene.screen != screen) {') < legacy.index('self.legacyScreen = screen;')
+          < legacy.index('[self connectWindow:window role:kNeoExternalRoleLegacy];'), 'only a window in a scene of that screen is connected')
     check('kNeoExternalLegacyDelaySeconds = 1.5;' in source, '1.5 s delay')
     connect = method_body(source, '- (void)screenDidConnect:(NSNotification *)notification {')
     check('scheduledTimerWithTimeInterval:kNeoExternalLegacyDelaySeconds' in connect and 'repeats:NO' in connect, 'NSTimer on the main run loop')
     check('if (self.window != nil || self.sceneEverConnected) return;' in connect, 'no timer once a scene was delivered')
     check('if (!NSThread.isMainThread)' in connect, 'notification hopped to the main thread')
-    scene_connect = method_body(source, '- (void)sceneDidConnect:(UIWindowScene *)scene {')
+    # The connected external scenes are a set (M1): a second scene never
+    # replaces the shown one's window (it stands by), the shown one's
+    # disconnection adopts a remaining scene, and a scene the system offered
+    # while no registration of ours was enabled is an automatic one.
+    scene_connect = method_body(code(source), '- (void)sceneDidConnect:(UIWindowScene *)scene {')
     check('[self.legacyTimer invalidate];' in scene_connect and 'self.sceneEverConnected = YES;' in scene_connect, 'a scene cancels the fallback')
-    check('self.windowFactory(scene, scene.screen)' in scene_connect and '[[UIWindow alloc] initWithWindowScene:scene]' in scene_connect, 'scene window')
-    check('NSLog(@"display.external_scene_connected' in scene_connect, 'scene journal line')
+    check('if (![self.connectedExternalScenes containsObject:scene]) {' in scene_connect
+          and '[self.connectedExternalScenes addObject:scene];' in scene_connect, 'every connected scene is tracked once')
+    check('if (![NeoExternalDisplaySceneAccessory hasEnabledRegistration]) [self.automaticScenes addObject:scene];' in scene_connect,
+          'a scene nobody registered for is an automatic one')
+    check('NSLog(@"display.external_scene_standby' in scene_connect, 'standby journal line')
+    check('disconnectWindow' not in scene_connect and 'releaseWindowKeepingMenuEngine:NO' not in scene_connect,
+          "a connecting scene never drops the shown scene's window, menu engine or game")
+    check('if (self.window != nil && [self.sceneRole isEqualToString:kNeoExternalRoleLegacy]) {' in scene_connect
+          and '[self releaseWindowKeepingMenuEngine:YES];' in scene_connect, 'a legacy window gives way to a scene')
+    check(scene_connect.rstrip().endswith('[self showWindowInScene:scene];\n}') or scene_connect.rstrip().endswith('[self showWindowInScene:scene];'),
+          'the window is created last, only when no other scene shows it')
+    show = method_body(source, '- (void)showWindowInScene:(UIWindowScene *)scene {')
+    check('self.windowFactory(scene, scene.screen)' in show and '[[UIWindow alloc] initWithWindowScene:scene]' in show, 'scene window')
+    check('NSLog(@"display.external_scene_connected' in show, 'scene journal line')
+    check(show.index('self.connectingScene = scene;') < show.index('[self connectWindow:window role:kNeoExternalRoleScene];')
+          < show.index('self.connectingScene = nil;'), 'the scene being connected is never dropped by a rescan')
+    check('[self giveWindow:window toDelegateOfScene:scene];' in show, "the scene's delegate keeps the window of its own scene")
+    give = method_body(code(source), '- (void)giveWindow:(UIWindow *_Nullable)window toDelegateOfScene:(UIWindowScene *_Nullable)scene {')
+    check('if (delegate == nil || ours == Nil || ![delegate isKindOfClass:ours]) return;' in give, "only NeoStation's own scene delegate")
+    scene_disconnect = method_body(code(source), '- (void)sceneDidDisconnect:(UIWindowScene *)scene {')
+    check('[self.connectedExternalScenes removeObject:scene];' in scene_disconnect and '[self.automaticScenes removeObject:scene];' in scene_disconnect,
+          'a disconnected scene leaves the set')
+    check(scene_disconnect.index('if (self.window == nil || self.scene != scene || ![self.sceneRole isEqualToString:kNeoExternalRoleScene]) {')
+          < scene_disconnect.index('UIWindowScene *next = [self adoptableExternalScene];'),
+          "a standing-by scene's disconnection keeps the shown window")
+    check(scene_disconnect.index('if (next == nil) {') < scene_disconnect.index('[self disconnectWindow];'), 'the last scene disconnects the window')
+    check(scene_disconnect.index('[self releaseWindowKeepingMenuEngine:YES];') < scene_disconnect.index('[self showWindowInScene:next];')
+          and 'NSLog(@"display.external_scene_adopted' in scene_disconnect, 'a remaining scene is adopted, the menu engine kept')
+    adoptable = method_body(code(source), '- (UIWindowScene *_Nullable)adoptableExternalScene {')
+    check('self.connectedExternalScenes.reverseObjectEnumerator' in adoptable and 'UISceneActivationStateUnattached' in adoptable,
+          'the most recent scene still attached')
+    rescan = method_body(code(source), '- (void)rescanExternalScenes {')
+    check('UIApplication.sharedApplication.connectedScenes' in rescan and 'UIWindowSceneSessionRoleExternalDisplayNonInteractive' in rescan,
+          "UIKit's own list of external scenes is the reference")
+    check('if (tracked == self.connectingScene || [connected containsObject:tracked]) continue;' in rescan
+          and '[self sceneDidDisconnect:tracked];' in rescan, 'a tracked scene UIKit no longer lists is a disconnection')
+    check('[self sceneDidConnect:(UIWindowScene *)candidate];' in rescan
+          and 'if (delegate != nil && (ours == Nil || ![delegate isKindOfClass:ours])) continue;' in rescan,
+          "an external scene nobody reported is adopted, never another delegate's")
     # iOS 27 accessory, selectors only: the documented Objective-C factory
     # (+externalNonInteractiveSceneAccessoryWithConfiguration:) first, the
     # contract's spelling kept as a fallback; the UISceneAccessoryRegistration
     # returned by registerSceneAccessory: kept and handed back to
-    # unregisterSceneAccessory:; one registration per presented controller,
-    # released only once the controller left the presentation chain.
+    # unregisterSceneAccessory:; one registration per controller, enabled
+    # only while it has something to show (isEnabled through setEnabled:, an
+    # unregistration when the registration has no setter), released once the
+    # controller left the presentation chain.
     accessory = source[source.index('@implementation NeoExternalDisplaySceneAccessory'):source.index('@end', source.index('@implementation NeoExternalDisplaySceneAccessory'))]
     for token in ('NSClassFromString(@"UISceneAccessory")',
                   '@"externalNonInteractiveSceneAccessoryWithConfiguration:"', '@"externalNonInteractiveWithSceneConfiguration:"',
@@ -188,26 +322,66 @@ def coordinator_contracts() -> None:
                   'UIWindowSceneSessionRoleExternalDisplayNonInteractive', 'return @"unavailable";', 'return @"registered";',
                   'return @"failed:', 'id registration = ((id (*)(id, SEL, id))objc_msgSend)(controller, registerSelector, accessory);',
                   'objc_msgSend)(controller, unregisterSelector, entry.registration);',
-                  'if ([self entryForViewController:controller] != nil) return @"registered";',
-                  'NeoExternalControllerIsLive(controller, chain)', '[kept addObject:entry];'):
+                  'NeoExternalControllerIsLive(controller, chain)', '[kept addObject:entry];',
+                  'NSSelectorFromString(@"setEnabled:")', '((void (*)(id, SEL, BOOL))objc_msgSend)(registration, setter, enabled);'):
         check(token in accessory, f'accessory: {token}')
     check(accessory.index('externalNonInteractiveSceneAccessoryWithConfiguration:') < accessory.index('externalNonInteractiveWithSceneConfiguration:'),
           'the documented factory selector is tried first')
+    # Retired contract: "an existing registration answers registered"; it is
+    # now enabled or disabled in place (isEnabled), still never registered a
+    # second time.
+    register_on = method_body(code(source), '+ (NSString *)registerOnViewController:(UIViewController *_Nullable)controller enabled:(BOOL)enabled {')
+    existing = register_on[register_on.index('if (existing != nil) {'):register_on.index('if (!enabled) return @"disabled";', register_on.index('if (existing != nil) {') + 1)]
+    check('NeoExternalAccessoryRegistration *existing = [self entryForViewController:controller];' in register_on
+          and 'return existing.enabled ? @"registered" : @"disabled";' in existing and 'registerSelector' not in existing
+          and 'objc_msgSend' not in existing, 'a controller keeps its one registration, enabled or disabled in place')
+    check(register_on.index('if (!enabled) return @"disabled";') < register_on.index('id accessory = '),
+          'no registration is made only to be turned off')
+    disable = method_body(code(source), '+ (BOOL)disableEntry:(NeoExternalAccessoryRegistration *)entry {')
+    check(disable.index('[self setRegistration:entry.registration enabled:NO]') < disable.index('[self unregisterEntry:entry];')
+          and '[gNeoExternalRegistrations removeObject:entry];' in disable, 'isEnabled first, an unregistration without the setter')
     check(re.search(r'\bUISceneAccessory(?:Registration)?\s*\*', stripped) is None and '[UISceneAccessory ' not in stripped,
           'no compile-time use of the iOS 27 types (CI SDK is iOS 26)')
     check('NSLog(@"display.external_accessory:%@"' in source, 'accessory journal line')
     check('UIWindowSceneSessionRoleApplication' in source, 'the accessory targets the application scene')
-    register = method_body(code(source), '- (void)registerAccessoryIncludingPresented:(BOOL)includePresented {')
-    check(register.index('releaseRegistrationsOutside:chain]') < register.index('registerOnViewController:chain.firstObject]'),
+    # The regime (M1, m10): only for a binary built with SDK 27 or later and
+    # never while a scene the system offered by itself is connected; then a
+    # registration on the application root (enabled while there is
+    # something to show) and one on the presented controller that owns the
+    # attached render host (found from its placeholder view), never the
+    # topmost controller as such, which can be a menu presented over the
+    # game. Retired contract: "the presented controller (chain.lastObject)
+    # is registered when a bridge attached" (registerPresentedController).
+    register = method_body(code(source), '- (void)registerAccessory {')
+    check(register.index('NSClassFromString(@"UISceneAccessory") == Nil') < register.index('[self buildSDKMajor] < NeoExternalDisplayAccessorySDKMajor')
+          < register.index('self.automaticScenes.count > 0') < register.index('NeoExternalApplicationPresentationChain()'),
+          'class, then build SDK, then automatic scene, before any registration')
+    check(register.count('[NeoExternalDisplaySceneAccessory releaseAllRegistrations];') == 2
+          and 'status = @"inactive:sdk";' in register and 'status = @"inactive:automatic_scene";' in register,
+          'an inactive regime leaves no registration behind')
+    check(register.index('releaseRegistrationsOutside:chain];') < register.index('registerOnViewController:root'),
           'dismissed controllers are released, then the root is registered')
-    check('if (includePresented && chain.count > 1' in register and 'registerOnViewController:chain.lastObject]' in register,
-          'the presented controller is registered only when a bridge attached')
-    check('self.registerPresentedController = YES;' in attach, 'attachRenderHost: asks for the presented controller')
-    check('registerPresentedController' not in method_body(code(source), '- (void)refresh {'),
-          'a refresh never registers a menu presented over the game')
+    check('UIViewController *owner = [self presentedOwnerOfRenderHostInChain:chain];' in register and 'if (owner == root) owner = nil;' in register,
+          'the second registration belongs to the controller owning the render host')
+    check('chain.lastObject' not in register and 'registerPresentedController' not in stripped,
+          'never the topmost controller as such (a menu presented over the game)')
+    check(register.index('[NeoExternalDisplaySceneAccessory disableRegistrationsExcept:kept];') < register.index('registerOnViewController:root'),
+          'a controller that no longer owns the host shows nothing')
+    check('const BOOL usable = self.enabled && !self.suspended;' in register
+          and 'enabled:usable && (self.menuOnTV || self.renderHost != nil)]' in register
+          and 'registerOnViewController:owner enabled:usable]' in register,
+          'enabled only while the output is on, not suspended and has something to show')
+    owner = method_body(code(source), '- (UIViewController *_Nullable)presentedOwnerOfRenderHostInChain:(NSArray<UIViewController *> *)chain {')
+    check('NeoExternalOwningController(host.placeholderView)' in owner and 'node = node.parentViewController;' in owner
+          and 'if ([chain containsObject:node]) return node;' in owner, "the owner is found from the host's placeholder view")
+    sdk = method_body(code(source), '- (NSInteger)buildSDKMajor {')
+    check('if (self.buildSDKMajorVersion != nil) return self.buildSDKMajorVersion();' in sdk
+          and 'NSBundle.mainBundle.infoDictionary' in sdk and '@"DTPlatformVersion"' in sdk and '@"DTSDKName"' in sdk
+          and 'NeoExternalDisplaySDKMajorVersion(' in sdk, 'the build SDK comes from the main bundle (test seam first)')
     for prefix in ('display.external_attached:', 'display.external_detached:'):
         check(f'NSLog(@"{prefix}' in source, prefix)
     check(source.count('NSAssert(NSThread.isMainThread') >= 10, 'public entry points assert the main thread')
+    check('@"suspended" : @(self.suspended),' in source, 'the state reports the suspension (m2)')
     # Public surface of the contract.
     for token in ('+ (instancetype)shared;', '- (void)attachRenderHost:(id<NeoExternalRenderHost>)host;',
                   '- (void)detachRenderHost:(id<NeoExternalRenderHost>)host;', '- (void)suspendForUnsupportedEngine;',
@@ -215,8 +389,13 @@ def coordinator_contracts() -> None:
                   '- (void)detachMenuViewController;', '- (void)destroyMenuEngineForMemory;', '- (void)refresh;',
                   'void (^stateChanged)(void);', 'windowFactory)(UIWindowScene *_Nullable scene,', 'NSArray<UIScreen *> *(^legacyScreens)(void);',
                   '- (void)sceneDidConnect:(UIWindowScene *)scene;', '- (void)sceneDidDisconnect:(UIWindowScene *)scene;',
-                  'NSString *accessoryStatus;', 'NSString *sceneRole;', 'CGSize screenPointSize;'):
+                  'NSString *accessoryStatus;', 'NSString *sceneRole;', 'CGSize screenPointSize;',
+                  'NSArray<UIWindowScene *> *externalScenes;', 'NSInteger (^buildSDKMajorVersion)(void);',
+                  'CGFloat (^screenScaleReader)(void);', 'BOOL suspended;', 'CGFloat screenScale;'):
         check(token in header, f'coordinator header: {token}')
+    protocol = header[header.index('@protocol NeoExternalMenuProvider <NSObject>'):header.index('@end')]
+    check(protocol.index('@optional') < protocol.index('- (void)externalMenuSetVisible:(BOOL)visible;'),
+          'the visibility callback is optional (the simulator providers do not implement it)')
     check('<Flutter/' not in header and '<Flutter/' not in source, 'the coordinator is UIKit-only (simulator harness without Flutter)')
 
 
@@ -228,6 +407,11 @@ def scene_delegate_contracts() -> None:
     check('[coordinator sceneDidConnect:(UIWindowScene *)scene];' in source, 'forwards connect')
     check('sceneDidDisconnect:(UIWindowScene *)scene];' in source, 'forwards disconnect')
     check('makeKeyAndVisible' not in source, 'never key')
+    # A second external scene stands by: its delegate never holds the window
+    # of the scene that shows NeoStation (retired: `self.window =
+    # coordinator.window;` whatever the scene).
+    check('self.window = coordinator.window.windowScene == scene ? coordinator.window : nil;' in source,
+          'the delegate keeps the window of its own scene only')
 
 
 def preference_contracts() -> None:
@@ -240,10 +424,28 @@ def preference_contracts() -> None:
                   'case 1: return NeoExternalDisplayModeFit;', 'case 2: return NeoExternalDisplayModeFill;',
                   '[self legacyDolphinMode] == 0) return NO;'):
         check(token in source, token)
+    # The verified write moved to writeNumber:forKey: (shared with the
+    # derived Enabled value of storeMode:); storeNumber: still notifies only
+    # after it succeeded.
+    write = method_body(source, '+ (BOOL)writeNumber:(NSNumber *)value forKey:(NSString *)key {')
+    check(write.index('setObject:value forKey:key') < write.index('objectForKey:key'), 'written, then read back')
+    check('return [stored isKindOfClass:NSNumber.class] && [(NSNumber *)stored isEqualToNumber:value];' in write,
+          'a value iOS did not keep is reported')
+    check('postNotificationName' not in write, 'a bare write tells nobody')
     store = method_body(source, '+ (BOOL)storeNumber:(NSNumber *)value forKey:(NSString *)key {')
-    check(store.index('objectForKey:key') < store.index('postNotificationName:NeoExternalDisplayChangedNotification'),
+    check(store.index('[self writeNumber:value forKey:key]') < store.index('postNotificationName:NeoExternalDisplayChangedNotification'),
           'the notification follows a verified write')
-    check('return NO;' in store, 'a write iOS did not keep is reported (SAVE_FAILED)')
+    check('if (![self writeNumber:value forKey:key]) return NO;' in store, 'a write iOS did not keep is reported (SAVE_FAILED)')
+    # m1: storing a mode while the Enabled and Mode keys are both absent ends
+    # the 442 fallback, so the derived Enabled value is persisted first,
+    # without notification: choosing a format never turns the output on.
+    store_mode = method_body(code(source), '+ (BOOL)storeMode:(NeoExternalDisplayMode)mode {')
+    check('[defaults objectForKey:NeoExternalDisplayEnabledKey] == nil && [defaults objectForKey:NeoExternalDisplayModeKey] == nil' in store_mode
+          and '![self writeNumber:@([self enabled]) forKey:NeoExternalDisplayEnabledKey]' in store_mode,
+          'the derived Enabled value is persisted before the mode')
+    check(store_mode.index('writeNumber:@([self enabled])') < store_mode.index('[self storeNumber:@((NSInteger)mode) forKey:NeoExternalDisplayModeKey]'),
+          'before the Mode key ends the fallback')
+    check(store_mode.count('return NO;') >= 2, 'a derived value iOS did not keep is a failed store')
     check(re.search(r'set\w+:[^\n]*NeoExternalDisplayLegacyDolphinModeKey', source) is None, 'the 442 key is read only, never rewritten')
 
 
@@ -262,13 +464,29 @@ def plugin_contracts() -> None:
           'a second listen never doubles the observation')
     check('removeObserver:self' in method_body(source, '- (FlutterError *)onCancelWithArguments:(id)arguments {'), 'cancel removes the observation')
     check('removeObserver:self' in method_body(source, '- (void)dealloc {'), 'dealloc removes the observation')
-    for method in ('getState', 'setEnabled', 'setMode', 'setMenuOnTV', 'configureMenuEngine', 'pushMenuState'):
+    for method in ('getState', 'setEnabled', 'setMode', 'setMenuOnTV', 'configureMenuEngine', 'updateMenuEngine', 'pushMenuState'):
         check(f'isEqualToString:@"{method}"' in source, f'method {method}')
     set_mode = source.split('isEqualToString:@"setMode"', 1)[1].split('isEqualToString:@"setMenuOnTV"', 1)[0]
     check('NeoExternalDisplayModeOriginal' in set_mode and 'NeoExternalBadArguments' in set_mode, 'setMode refuses out of 0..3')
     check('storeMode:' in set_mode and 'NeoExternalSaveFailed' in set_mode, 'setMode reports SAVE_FAILED')
-    configure = source.split('isEqualToString:@"configureMenuEngine"', 1)[1].split('isEqualToString:@"pushMenuState"', 1)[0]
-    check('configureWithEntrypoint:entrypoint libraryURI:libraryUri' in configure, 'configureMenuEngine stores the pair')
+    # The TV engine never reads the database (review of 12 October 2026,
+    # m11): configureMenuEngine also takes the language and the theme it
+    # starts with (optional strings, any other type refused), and
+    # updateMenuEngine forwards later changes. Retired contract: the call
+    # stored the entrypoint pair only.
+    configure = source.split('isEqualToString:@"configureMenuEngine"', 1)[1].split('isEqualToString:@"updateMenuEngine"', 1)[0]
+    check(re.search(r'configureWithEntrypoint:entrypoint\s+libraryURI:libraryUri\s+languageCode:languageCode\s+themeName:themeName\]',
+                    configure) is not None, 'configureMenuEngine stores the pair, the language and the theme')
+    check('NeoExternalOptionalString(arguments, @"languageCode", &refused)' in configure
+          and 'NeoExternalOptionalString(arguments, @"themeName", &refused)' in configure and '|| refused)' in configure,
+          'a language or theme of another type is refused')
+    check(configure.index('configureWithEntrypoint:') < configure.index('[coordinator refresh];'), 'a TV already connected gets its menu')
+    update = source.split('isEqualToString:@"updateMenuEngine"', 1)[1].split('isEqualToString:@"pushMenuState"', 1)[0]
+    check('[NeoExternalDisplayMenuEngine.shared updateLanguageCode:languageCode themeName:themeName];' in update
+          and 'result(@YES);' in update and 'NeoExternalBadArguments(' in update, 'updateMenuEngine relays and answers true')
+    optional = method_body(code(source), 'static NSString *_Nullable NeoExternalOptionalString(')
+    check('if (value == nil || value == NSNull.null) return nil;' in optional and '*refused = YES;' in optional,
+          'absent or null is no value; another type is refused')
     push = source.split('isEqualToString:@"pushMenuState"', 1)[1]
     check('pushMenuState:json' in push and 'result(@YES);' in push, 'pushMenuState relays and answers true')
     # KartPad (§ 8 bis): its pinned bridge cannot call the coordinator, so
@@ -285,14 +503,56 @@ def plugin_contracts() -> None:
 
 def menu_engine_contracts() -> None:
     source = read('NeoExternalDisplayMenuEngine.m')
+    # Retired token: makeEngineWithEntrypoint:libraryURI:. The engine is now
+    # made from FlutterEngineGroupOptions so that it receives the language
+    # and the theme as entrypoint arguments (m11: it never reads the
+    # database); the entrypoint and library stay those Dart named.
     for token in ('kNeoExternalMenuEngineGroupName = @"neostation-external"',
                   'kNeoExternalMenuChannelName = @"neostation/external_display/menu"',
+                  'kNeoExternalMenuLocaleChannelName = @"neostation/external_display/menu_locale"',
+                  'kNeoExternalMenuLanguageArgumentPrefix = @"language="', 'kNeoExternalMenuThemeArgumentPrefix = @"theme="',
                   '[[FlutterEngineGroup alloc] initWithName:kNeoExternalMenuEngineGroupName project:nil]',
-                  'makeEngineWithEntrypoint:self.entrypoint libraryURI:self.libraryURI',
+                  'FlutterEngineGroupOptions *options = [[FlutterEngineGroupOptions alloc] init];',
+                  'options.entrypoint = self.entrypoint;', 'options.libraryURI = self.libraryURI;',
+                  'options.entrypointArgs = [self entrypointArguments];', '[self.group makeEngineWithOptions:options]',
                   'codec:FlutterStringCodec.sharedInstance', 'NSClassFromString(name)',
                   'respondsToSelector:@selector(registerWithRegistrar:)', '[engine destroyContext];',
                   'engine.viewController = nil;', 'if (!self.configured) return nil;'):
         check(token in source, token)
+    check('makeEngineWithEntrypoint:' not in code(source), 'one way to make the engine: with its arguments')
+    # The pinned Flutter engine declares the options API this file uses
+    # (checked wherever the iOS engine artifacts are cached).
+    flutter = shutil.which('flutter')
+    group_header = (Path(flutter).resolve().parent / 'cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64'
+                    / 'Flutter.framework/Headers/FlutterEngineGroup.h') if flutter else None
+    if group_header is not None and group_header.is_file():
+        group = group_header.read_text(encoding='utf-8')
+        for declared in ('@interface FlutterEngineGroupOptions', 'NSArray<NSString*>* entrypointArgs',
+                         '- (FlutterEngine*)makeEngineWithOptions:(nullable FlutterEngineGroupOptions*)options;'):
+            check(declared in group, f'FlutterEngineGroup.h of the pinned engine declares {declared}')
+    arguments = method_body(code(source), '- (NSArray<NSString *> *)entrypointArguments {')
+    check('[kNeoExternalMenuLanguageArgumentPrefix stringByAppendingString:self.languageCode]' in arguments
+          and '[kNeoExternalMenuThemeArgumentPrefix stringByAppendingString:self.themeName]' in arguments,
+          'language=<code> and theme=<name>, as ExternalDisplayMenuArgs parses them')
+    update = method_body(code(source), '- (void)updateLanguageCode:(NSString *)languageCode themeName:(NSString *)themeName {')
+    check('if (themeName.length > 0) self.themeName = themeName;' in update
+          and update.index('self.languageCode = languageCode;') < update.index('[self.localeChannel sendMessage:languageCode];'),
+          'the next engine starts with the new values, the running one is sent the language')
+    # The TV menu stops drawing while it is hidden (a game holds the TV or
+    # iOS mirrors): lifecycle `hidden`, `resumed` when it shows again, sent
+    # again after an activation (the FlutterViewController sends `resumed`
+    # itself then).
+    for token in ('kNeoExternalLifecycleHidden = @"AppLifecycleState.hidden"', 'kNeoExternalLifecycleResumed = @"AppLifecycleState.resumed"',
+                  '[engine.lifecycleChannel sendMessage:state];', 'kNeoExternalLifecycleReassertDelay = 0.1;',
+                  'afterDelay:kNeoExternalLifecycleReassertDelay'):
+        check(token in source, f'lifecycle: {token}')
+    visible = method_body(code(source), '- (void)externalMenuSetVisible:(BOOL)visible {')
+    check('self.menuVisible = visible;' in visible and '[self sendLifecycle];' in visible, 'the coordinator drives the lifecycle')
+    destroy_lifecycle = method_body(code(source), '- (void)destroyExternalMenuEngineForReason:(NSString *)reason {')
+    check('cancelPreviousPerformRequestsWithTarget:self selector:@selector(reassertLifecycle)' in destroy_lifecycle
+          and 'removeObserver:self' in destroy_lifecycle, 'nothing of a destroyed engine stays scheduled')
+    # Frozen registry, checked against the plugins the app pins: see
+    # test/external_display_scope_test.py (EXPECTED_MENU_PLUGINS).
     for name in sorted(p.name for p in CLASSES.iterdir()):
         check('GeneratedPluginRegistrant' not in code(read(name)), f'{name}: never GeneratedPluginRegistrant')
     destroy = method_body(source, '- (void)destroyExternalMenuEngineForReason:(NSString *)reason {')

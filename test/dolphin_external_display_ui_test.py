@@ -87,9 +87,13 @@ ns['TESTS'] = r'''
   }
   [c detachMenuViewController];
   c.menuProvider = nil; c.windowFactory = nil; c.legacyScreens = nil; c.stateChanged = nil;
+  c.buildSDKMajorVersion = nil; c.screenScaleReader = nil;
   [c setValue:@NO forKey:@"sceneEverConnected"];
   [c setValue:@NO forKey:@"menuSuppressed"];
   [c setValue:nil forKey:@"lastState"];
+  // The set of connected external scenes (Build 447 review, M1) starts empty.
+  [c setValue:[NSMutableArray array] forKey:@"connectedExternalScenes"];
+  [c setValue:[NSMutableArray array] forKey:@"automaticScenes"];
 }
 - (void)setUp {
   [self clearDefaults];
@@ -269,6 +273,15 @@ ns['TESTS'] = r'''
   XCTAssertEqual(DOLExternalDisplayPreference(), DOLExternalDisplayModeFit, @"a non-number is ignored");
   [defaults setObject:@0 forKey:NeoExternalDisplayLegacyDolphinModeKey];
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeOriginal]);
+  // Retired assertion "a stored global mode ends the fallback" right after
+  // storeMode: (it turned a 442 Off user's output on). Choosing a format now
+  // persists the derived Enabled value first (review of 12 October 2026,
+  // m1): the output stays off and the stored Original applies once the
+  // global switch is used.
+  XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayEnabledKey], @NO, @"the derived Enabled value is persisted first");
+  XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayModeKey], @3, @"the mode is stored");
+  XCTAssertEqual(DOLExternalDisplayPreference(), DOLExternalDisplayModeOff, @"choosing a format never turns the output on");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
   XCTAssertEqual(DOLExternalDisplayPreference(), DOLExternalDisplayModeOriginal, @"a stored global mode ends the fallback");
   XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayLegacyDolphinModeKey], @0, @"the 442 key is never rewritten");
   [self connect];

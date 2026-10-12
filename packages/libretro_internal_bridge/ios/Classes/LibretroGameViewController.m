@@ -1,5 +1,6 @@
 #import "LibretroGameViewController.h"
 
+#import <external_display/NeoExternalDisplayCoordinator.h>
 #import <external_display/NeoExternalDisplayLabels.h>
 
 #import "LibretroChromeLayout.h"
@@ -65,6 +66,11 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   CGSize _externalSurface;
   CGFloat _externalScale;
   LibretroRenderSurfacePlacement _externalPlacement;
+  // The iPhone bounds the coordinator last placed the TV picture from; a
+  // change while on the TV (rotation) asks it to place it again, once per
+  // turn of the main run loop.
+  CGSize _externalRefreshSize;
+  BOOL _externalRefreshScheduled;
 
   // "Commandes › Modifier la disposition".
   BOOL _editing;
@@ -214,6 +220,27 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   _diagnosticsView.frame = bounds;
   [self performSkinLayoutIfNeeded];
   [self layoutChrome];
+  if ([self onExternalDisplay] && !CGSizeEqualToSize(bounds.size, _externalRefreshSize)) {
+    _externalRefreshSize = bounds.size;
+    [self scheduleExternalDisplayRefresh];
+  }
+}
+
+/// The iPhone layout the TV picture is placed from changed (rotation, a
+/// resized window) while the Metal view is on the TV: the coordinator
+/// re-reads it and places the view and the surface again. Main thread,
+/// coalesced to one refresh per turn of the run loop.
+- (void)scheduleExternalDisplayRefresh {
+  if (_externalRefreshScheduled) return;
+  _externalRefreshScheduled = YES;
+  __weak LibretroGameViewController *weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    LibretroGameViewController *controller = weakSelf;
+    if (controller == nil) return;
+    controller->_externalRefreshScheduled = NO;
+    if (![controller onExternalDisplay]) return;
+    [NeoExternalDisplayCoordinator.shared refresh];
+  });
 }
 
 - (void)viewSafeAreaInsetsDidChange {
@@ -800,6 +827,8 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   // iPhone frame and scale restored by the coordinator.
   _externalSurface = pointSize;
   _externalScale = scale;
+  // The coordinator placed this surface from the current iPhone bounds.
+  _externalRefreshSize = [self onExternalDisplay] && self.isViewLoaded ? self.view.bounds.size : CGSizeZero;
   // The placement follows at the next layout; until then the touch screens
   // are converted again from the surface they are drawn in.
   _lastMappingSize = CGSizeZero;

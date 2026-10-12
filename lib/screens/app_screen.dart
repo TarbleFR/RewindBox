@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localization/flutter_localization.dart';
 import 'package:provider/provider.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/utils/nav_tabs.dart';
@@ -249,6 +250,34 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
       _themeProvider = themeProvider;
       _themeProvider!.addListener(_onThemeChanged);
     }
+    // External display (Build 447): the TV menu engine starts in the app's
+    // language and theme, given from here (it never opens the database), and
+    // follows the language: this dependency on the app's Localizations runs
+    // didChangeDependencies again when the language changes. The theme
+    // follows _onThemeChanged and every menu state.
+    if (ExternalDisplayService.isSupportedPlatform) {
+      Localizations.maybeLocaleOf(context);
+      _configureExternalDisplay(themeProvider);
+    }
+  }
+
+  /// Names the TV menu entrypoint to the native host with the app language
+  /// and theme (once; idempotent, never throws), then keeps the language
+  /// the next TV engine starts with, and the running one, current.
+  void _configureExternalDisplay(ThemeProvider themeProvider) {
+    final service = ExternalDisplayService.instance;
+    final languageCode =
+        FlutterLocalization.instance.currentLocale?.languageCode;
+    if (!service.initialized) {
+      unawaited(
+        service.init(
+          languageCode: languageCode,
+          themeName: themeProvider.currentThemeName,
+        ),
+      );
+      return;
+    }
+    unawaited(service.updateMenuEngine(languageCode: languageCode));
   }
 
   @override
@@ -263,11 +292,9 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
       UiRefreshRateService.instance.startProbe();
     }
 
-    // External display (Build 447): names the TV menu entrypoint to the
-    // native host and follows its state; idempotent, never throws.
-    if (ExternalDisplayService.isSupportedPlatform) {
-      unawaited(ExternalDisplayService.instance.init());
-    }
+    // External display (Build 447): the TV menu entrypoint is named to the
+    // native host in didChangeDependencies, where the theme provider is
+    // first resolvable (the TV engine is given the app's language and theme).
 
     // Initialize the navigation bridge with core application callbacks.
     _gamepadNav = GamepadNavigation(
@@ -486,6 +513,15 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   /// hardware screen and, on iOS, the TV menu of the external display.
   void _onThemeChanged() {
     if (!mounted || _themeProvider == null) return;
+    // The theme the next TV menu engine starts with (a running one gets it
+    // through the menu state below).
+    if (ExternalDisplayService.isSupportedPlatform) {
+      unawaited(
+        ExternalDisplayService.instance.updateMenuEngine(
+          themeName: _themeProvider!.currentThemeName,
+        ),
+      );
+    }
     final shared = _androidSecondaryState;
     if (shared == null && !_secondaryDisplay.forwardsToTV) return;
 

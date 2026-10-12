@@ -66,6 +66,7 @@ class ExternalDisplayState {
     required this.mode,
     required this.enabled,
     required this.menuOnTV,
+    this.suspended = false,
     required this.mirroringActive,
     required this.accessoryStatus,
     required this.sceneRole,
@@ -83,6 +84,7 @@ class ExternalDisplayState {
         mode: ExternalDisplayMode.fromValue(map['mode']),
         enabled: map['enabled'] as bool? ?? true,
         menuOnTV: map['menuOnTV'] as bool? ?? true,
+        suspended: map['suspended'] as bool? ?? false,
         mirroringActive: map['mirroringActive'] as bool? ?? false,
         accessoryStatus:
             map['accessoryStatus'] as String? ?? accessoryUnavailable,
@@ -142,6 +144,10 @@ class ExternalDisplayState {
 
   /// `NeoStation.ExternalDisplay.MenuOnTV`.
   final bool menuOnTV;
+
+  /// An engine that cannot draw on the external screen runs (Dusklight,
+  /// KartPad): NeoStation's window is hidden and iOS mirrors the iPhone.
+  final bool suspended;
 
   /// iOS mirrors the iPhone on the connected screen (NeoStation shows
   /// nothing of its own there).
@@ -238,16 +244,37 @@ class ExternalDisplayChannel {
   Future<ExternalDisplayState> setMenuOnTV(bool enabled) =>
       _invoke('setMenuOnTV', <String, Object?>{'enabled': enabled});
 
-  /// Names the Dart entrypoint of the TV menu; without it the native side
-  /// never creates the second engine.
+  /// Names the Dart entrypoint of the TV menu, with the language and the
+  /// theme it starts with (the second engine never reads the database);
+  /// without it the native side never creates the second engine.
   Future<ExternalDisplayState> configureMenuEngine({
     required String entrypoint,
     required String libraryUri,
+    String? languageCode,
+    String? themeName,
   }) =>
       _invoke('configureMenuEngine', <String, Object?>{
         'entrypoint': entrypoint,
         'libraryUri': libraryUri,
+        'languageCode': languageCode,
+        'themeName': themeName,
       });
+
+  /// The app language or theme changed: the native copy given to the next
+  /// TV engine follows, and a running one applies a new language at once.
+  /// A null value is left as it was. Returns false when the plugin is
+  /// missing; other platform errors propagate.
+  Future<bool> updateMenuEngine({String? languageCode, String? themeName}) async {
+    try {
+      final accepted = await channel.invokeMethod<bool>(
+        'updateMenuEngine',
+        <String, Object?>{'languageCode': languageCode, 'themeName': themeName},
+      );
+      return accepted ?? false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
 
   /// Relays the JSON of `SecondaryDisplayStateData` to the second engine
   /// (`neostation/external_display/menu`). Returns false when the plugin is

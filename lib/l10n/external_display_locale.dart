@@ -24,6 +24,7 @@ abstract final class ExternalDisplayLocale {
   static const gameOnExternal = 'gameOnExternal';
   static const mirroringOff = 'mirroringOff';
   static const unsupportedEngine = 'unsupportedEngine';
+  static const menuOffMirroring = 'menuOffMirroring';
   static const unavailable = 'unavailable';
   static const saveFailed = 'saveFailed';
   static const technicalCode = 'technicalCode';
@@ -55,6 +56,8 @@ abstract final class ExternalDisplayLocale {
       mirroringOff: 'Off: iOS mirrors the iPhone screen, with its bars.',
       unsupportedEngine:
           'This game’s engine does not use the external screen; iOS mirrors the iPhone.',
+      menuOffMirroring:
+          'Menu on the TV off: outside a game, iOS mirrors the iPhone.',
       unavailable: 'Not available in this version of NeoStation.',
       saveFailed: 'The setting could not be saved.',
       technicalCode: 'Technical code: {code}',
@@ -87,6 +90,8 @@ abstract final class ExternalDisplayLocale {
           'Desactivado: iOS duplica la pantalla del iPhone, con sus bandas.',
       unsupportedEngine:
           'El motor de este juego no usa la pantalla externa; iOS duplica el iPhone.',
+      menuOffMirroring:
+          'Menú en el televisor desactivado: fuera del juego, iOS duplica el iPhone.',
       unavailable: 'No disponible en esta versión de NeoStation.',
       saveFailed: 'No se pudo guardar el ajuste.',
       technicalCode: 'Código técnico: {code}',
@@ -116,6 +121,8 @@ abstract final class ExternalDisplayLocale {
       mirroringOff: 'Выключено: iOS повторяет экран iPhone вместе с полосами.',
       unsupportedEngine:
           'Движок этой игры не использует внешний экран; iOS повторяет экран iPhone.',
+      menuOffMirroring:
+          'Меню на телевизоре выключено: вне игры iOS повторяет экран iPhone.',
       unavailable: 'Недоступно в этой версии NeoStation.',
       saveFailed: 'Не удалось сохранить настройку.',
       technicalCode: 'Технический код: {code}',
@@ -140,6 +147,7 @@ abstract final class ExternalDisplayLocale {
       gameOnExternal: '游戏显示在外接屏幕上。',
       mirroringOff: '已关闭：iOS 镜像 iPhone 屏幕，带有黑边。',
       unsupportedEngine: '此游戏的引擎不使用外接屏幕；iOS 镜像 iPhone。',
+      menuOffMirroring: '电视菜单已关闭：未进行游戏时，iOS 镜像 iPhone。',
       unavailable: '此版本的 NeoStation 不支持。',
       saveFailed: '无法保存该设置。',
       technicalCode: '技术代码：{code}',
@@ -164,6 +172,7 @@ abstract final class ExternalDisplayLocale {
       gameOnExternal: '遊戲顯示在外接螢幕上。',
       mirroringOff: '已關閉：iOS 鏡像輸出 iPhone 螢幕，帶有黑邊。',
       unsupportedEngine: '此遊戲的引擎不使用外接螢幕；iOS 鏡像輸出 iPhone。',
+      menuOffMirroring: '電視選單已關閉：未進行遊戲時，iOS 鏡像輸出 iPhone。',
       unavailable: '此版本的 NeoStation 不支援。',
       saveFailed: '無法儲存此設定。',
       technicalCode: '技術代碼：{code}',
@@ -195,6 +204,8 @@ abstract final class ExternalDisplayLocale {
           'Desativado: o iOS espelha a tela do iPhone, com suas faixas.',
       unsupportedEngine:
           'O motor deste jogo não usa a tela externa; o iOS espelha o iPhone.',
+      menuOffMirroring:
+          'Menu na TV desativado: fora do jogo, o iOS espelha o iPhone.',
       unavailable: 'Indisponível nesta versão do NeoStation.',
       saveFailed: 'Não foi possível salvar o ajuste.',
       technicalCode: 'Código técnico: {code}',
@@ -225,6 +236,8 @@ abstract final class ExternalDisplayLocale {
           'Désactivé : iOS recopie l’écran de l’iPhone, avec ses bandes.',
       unsupportedEngine:
           'Le moteur de ce jeu n’utilise pas l’écran externe ; iOS recopie l’iPhone.',
+      menuOffMirroring:
+          'Menu sur le téléviseur désactivé : hors jeu, iOS recopie l’iPhone.',
       unavailable: 'Non disponible dans cette version de NeoStation.',
       saveFailed: 'Le réglage n’a pas pu être enregistré.',
       technicalCode: 'Code technique : {code}',
@@ -255,6 +268,8 @@ abstract final class ExternalDisplayLocale {
       mirroringOff: 'Aus: iOS spiegelt den iPhone-Bildschirm mit seinen Balken.',
       unsupportedEngine:
           'Die Engine dieses Spiels nutzt den externen Bildschirm nicht; iOS spiegelt das iPhone.',
+      menuOffMirroring:
+          'Menü auf dem Fernseher aus: Außerhalb eines Spiels spiegelt iOS das iPhone.',
       unavailable: 'In dieser NeoStation-Version nicht verfügbar.',
       saveFailed: 'Die Einstellung konnte nicht gespeichert werden.',
       technicalCode: 'Technischer Code: {code}',
@@ -288,6 +303,8 @@ abstract final class ExternalDisplayLocale {
           'Disattivato: iOS duplica lo schermo dell’iPhone, con le sue bande.',
       unsupportedEngine:
           'Il motore di questo gioco non usa lo schermo esterno; iOS duplica l’iPhone.',
+      menuOffMirroring:
+          'Menu sul televisore disattivato: fuori dal gioco, iOS duplica l’iPhone.',
       unavailable: 'Non disponibile in questa versione di NeoStation.',
       saveFailed: 'Impossibile salvare l’impostazione.',
       technicalCode: 'Codice tecnico: {code}',
@@ -317,6 +334,8 @@ abstract final class ExternalDisplayLocale {
       mirroringOff: 'Nonaktif: iOS mencerminkan layar iPhone beserta bilahnya.',
       unsupportedEngine:
           'Mesin game ini tidak menggunakan layar eksternal; iOS mencerminkan iPhone.',
+      menuOffMirroring:
+          'Menu di TV nonaktif: di luar game, iOS mencerminkan iPhone.',
       unavailable: 'Tidak tersedia di versi NeoStation ini.',
       saveFailed: 'Pengaturan tidak dapat disimpan.',
       technicalCode: 'Kode teknis: {code}',
@@ -344,6 +363,7 @@ abstract final class ExternalDisplayLocale {
       mirroringOff: 'オフ：iOS が iPhone の画面を帯付きでミラーリングします。',
       unsupportedEngine:
           'このゲームのエンジンは外部ディスプレイを使用しません。iOS が iPhone をミラーリングします。',
+      menuOffMirroring: 'テレビのメニューはオフです。ゲーム中以外は iOS が iPhone をミラーリングします。',
       unavailable: 'このバージョンの NeoStation では利用できません。',
       saveFailed: '設定を保存できませんでした。',
       technicalCode: '技術コード：{code}',
@@ -370,6 +390,7 @@ abstract final class ExternalDisplayLocale {
       mirroringOff: '꺼짐: iOS가 iPhone 화면을 띠와 함께 미러링합니다.',
       unsupportedEngine:
           '이 게임의 엔진은 외부 화면을 사용하지 않습니다. iOS가 iPhone을 미러링합니다.',
+      menuOffMirroring: 'TV 메뉴가 꺼져 있습니다. 게임 중이 아닐 때는 iOS가 iPhone을 미러링합니다.',
       unavailable: '이 버전의 NeoStation에서는 사용할 수 없습니다.',
       saveFailed: '설정을 저장할 수 없습니다.',
       technicalCode: '기술 코드: {code}',

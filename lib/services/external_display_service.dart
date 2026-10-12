@@ -28,7 +28,11 @@ enum ExternalDisplayField { enabled, mode, menuOnTV }
 ///   come from the native coordinator through the method channel and the
 ///   event channel (`NeoStation.ExternalDisplayStateChanged`).
 /// - [init] names the Dart entrypoint of the TV menu engine to the native
-///   host; without it no second engine is ever created.
+///   host, with the app language and theme it starts with (the TV engine
+///   never opens the database: it gets them as entrypoint arguments);
+///   without it no second engine is ever created. [updateMenuEngine] keeps
+///   that copy current, and a running TV engine applies a new language at
+///   once (the theme also reaches it through every menu state).
 class ExternalDisplayService extends ChangeNotifier {
   ExternalDisplayService._({
     ExternalDisplayChannel? channel,
@@ -59,6 +63,9 @@ class ExternalDisplayService extends ChangeNotifier {
   StreamSubscription<ExternalDisplayState>? _events;
   bool _initialized = false;
   int _menuEngineConfigured = 0;
+  String? _menuLanguageCode;
+  String? _menuThemeName;
+  int _menuEngineUpdates = 0;
   bool _saving = false;
   ExternalDisplayError? _error;
   ExternalDisplayField? _errorField;
@@ -85,23 +92,38 @@ class ExternalDisplayService extends ChangeNotifier {
   /// How many times `configureMenuEngine` was sent (once per process).
   int get menuEngineConfigured => _menuEngineConfigured;
 
-  /// Names the TV menu entrypoint to the native host, follows the native
-  /// state events and reads the first state. Idempotent: a second call does
+  /// The app language and theme last given to the native host for the TV
+  /// menu engine (null before [init]).
+  String? get menuLanguageCode => _menuLanguageCode;
+  String? get menuThemeName => _menuThemeName;
+
+  /// How many `updateMenuEngine` calls reached the native host.
+  int get menuEngineUpdates => _menuEngineUpdates;
+
+  /// Names the TV menu entrypoint to the native host with the app language
+  /// ([languageCode], a code of the twelve NeoStation languages) and theme
+  /// ([themeName]) the TV engine starts with, follows the native state
+  /// events and reads the first state. Idempotent: a second call does
   /// nothing. Never throws: a missing plugin leaves an unsupported state.
-  Future<void> init() async {
+  Future<void> init({String? languageCode, String? themeName}) async {
     if (_initialized) return;
     _initialized = true;
+    _menuLanguageCode = _nonEmpty(languageCode);
+    _menuThemeName = _nonEmpty(themeName);
     _subscribe();
     ExternalDisplayState next;
     try {
       next = await _channel.configureMenuEngine(
         entrypoint: kExternalDisplayEntrypoint,
         libraryUri: kExternalDisplayLibraryUri,
+        languageCode: _menuLanguageCode,
+        themeName: _menuThemeName,
       );
       _menuEngineConfigured++;
       _log.i(
         'External display: menu engine configured '
-        '($kExternalDisplayEntrypoint, $kExternalDisplayLibraryUri)',
+        '($kExternalDisplayEntrypoint, $kExternalDisplayLibraryUri, '
+        'language=$_menuLanguageCode, theme=$_menuThemeName)',
       );
     } on MissingPluginException {
       _log.w('External display: plugin missing, menu engine not configured');
@@ -114,6 +136,44 @@ class ExternalDisplayService extends ChangeNotifier {
       next = ExternalDisplayState.unreachable('invalidState');
     }
     _apply(next);
+  }
+
+  static String? _nonEmpty(String? value) =>
+      value == null || value.trim().isEmpty ? null : value.trim();
+
+  /// The app language ([languageCode]) or theme ([themeName]) changed: the
+  /// copy the native host gives the next TV menu engine follows, and a
+  /// running engine applies a new language at once. Null or unchanged
+  /// values send nothing. Before [init] (or without the plugin) nothing is
+  /// sent: [init] carries the values. Never throws.
+  Future<bool> updateMenuEngine({String? languageCode, String? themeName}) async {
+    final language = _nonEmpty(languageCode);
+    final theme = _nonEmpty(themeName);
+    final changedLanguage = language != null && language != _menuLanguageCode;
+    final changedTheme = theme != null && theme != _menuThemeName;
+    if (!changedLanguage && !changedTheme) return false;
+    if (!_initialized) return false;
+    if (changedLanguage) _menuLanguageCode = language;
+    if (changedTheme) _menuThemeName = theme;
+    try {
+      final accepted = await _channel.updateMenuEngine(
+        languageCode: changedLanguage ? language : null,
+        themeName: changedTheme ? theme : null,
+      );
+      if (accepted) _menuEngineUpdates++;
+      _log.i(
+        'External display: menu engine updated '
+        '(language=$_menuLanguageCode, theme=$_menuThemeName, '
+        'accepted=$accepted)',
+      );
+      return accepted;
+    } on PlatformException catch (error) {
+      _log.w('External display: menu engine update refused (${error.code})');
+      return false;
+    } catch (error) {
+      _log.w('External display: menu engine update failed ($error)');
+      return false;
+    }
   }
 
   void _subscribe() {
@@ -162,6 +222,7 @@ class ExternalDisplayService extends ChangeNotifier {
         previous.mode != next.mode ||
         previous.enabled != next.enabled ||
         previous.menuOnTV != next.menuOnTV ||
+        previous.suspended != next.suspended ||
         previous.menuEngine != next.menuEngine ||
         previous.sceneRole != next.sceneRole ||
         previous.accessoryStatus != next.accessoryStatus) {
@@ -170,7 +231,8 @@ class ExternalDisplayService extends ChangeNotifier {
         'connected=${next.connected} content=${next.content.name} '
         'screen=${next.screenWidth}x${next.screenHeight}@${next.screenScale} '
         'mode=${next.mode.name} enabled=${next.enabled} '
-        'menuOnTV=${next.menuOnTV} mirroring=${next.mirroringActive} '
+        'menuOnTV=${next.menuOnTV} suspended=${next.suspended} '
+        'mirroring=${next.mirroringActive} '
         'scene=${next.sceneRole} accessory=${next.accessoryStatus} '
         'menuEngine=${next.menuEngine}',
       );

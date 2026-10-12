@@ -152,12 +152,17 @@ class _ExternalDisplayEnabledRowState
     if (state.content == ExternalDisplayContent.game) {
       return Text(text(ExternalDisplayLocale.gameOnExternal), style: muted);
     }
-    if (state.content == ExternalDisplayContent.none &&
-        state.mirroringActive) {
-      // The window exists but iOS mirrors the iPhone: the running engine
-      // (Dusklight, KartPad) does not use it.
+    if (state.suspended) {
+      // The running engine (Dusklight, KartPad) cannot draw there: the
+      // window is hidden and iOS mirrors the iPhone.
       return Text(text(ExternalDisplayLocale.unsupportedEngine), style: warning);
     }
+    if (!state.menuOnTV) {
+      // Outside a game the TV shows a copy of the iPhone, by choice.
+      return Text(text(ExternalDisplayLocale.menuOffMirroring), style: muted);
+    }
+    // The menu is on the TV, or about to be (iOS mirrors the iPhone until
+    // the menu engine exists): the neutral line.
     return Text(
       ExternalDisplayLocale.format(
         context,

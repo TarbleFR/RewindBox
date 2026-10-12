@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:neostation/l10n/app_locale.dart';
@@ -25,6 +26,7 @@ import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:neostation/services/secondary_achievements_controller.dart';
 import '../../game_screen/my_games_list.dart';
 import 'package:neostation/models/secondary_display_state.dart';
+import 'package:neostation/services/secondary_display_bridge.dart';
 import 'package:neostation/widgets/header_sort_dropdown.dart';
 import 'package:neostation/widgets/native_carousel.dart';
 import 'system_list_builder.dart';
@@ -77,6 +79,10 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
 
   SecondaryDisplayState? _secondaryDisplayState;
 
+  /// iOS TV menu (Build 447): pushes the highlighted console again when a
+  /// TV starts showing the menu; cancelled in [dispose].
+  SecondaryDisplaySelectionFollower? _tvSelectionFollower;
+
   /// Drives the live RetroAchievements panel on the secondary display for games
   /// launched directly from the "Recent Games" cards.
   final SecondaryAchievementsController _achievementsController =
@@ -111,6 +117,10 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
       _secondaryDisplayState = SecondaryDisplayState.instance;
       _secondaryDisplayState!.addListener(_onSecondaryStateChanged);
     }
+    _tvSelectionFollower = SecondaryDisplayBridge.instance.followSelections(
+      this,
+      _reforwardToTV,
+    );
 
     // Ensure state synchronization after first layout pass.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -161,10 +171,16 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
     }
   }
 
+  /// The highlighted console again, once a TV starts showing the menu (iOS).
+  static void _reforwardToTV(_MySystemsCarouselState state) {
+    if (state.mounted) unawaited(state._updateSecondaryScreenName());
+  }
+
   @override
   void dispose() {
     // Shared singleton — detach our listener, never dispose the instance.
     _secondaryDisplayState?.removeListener(_onSecondaryStateChanged);
+    _tvSelectionFollower?.cancel();
     _cleanupGamepad();
     _pageOffsetNotifier.dispose();
     _scrollController.dispose();
@@ -1004,10 +1020,17 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
     );
   }
 
-  /// Pushes carousel state updates to secondary hardware displays (OEM support).
+  /// Pushes carousel state updates to secondary hardware displays (OEM
+  /// support) and, on iOS, to the TV menu of the external display
+  /// ([SecondaryDisplayBridge], Build 447) with the same arguments, only
+  /// while a TV shows the menu (no per-selection work on an iPhone without
+  /// a TV).
   Future<void> _updateSecondaryScreenName() async {
-    if (!Platform.isAndroid) return;
-    if (_secondaryDisplayState == null) return;
+    final bridge = SecondaryDisplayBridge.instance;
+    final toTV = bridge.forwardsSelections;
+    if (!Platform.isAndroid && !toTV) return;
+    if (Platform.isAndroid && _secondaryDisplayState == null) return;
+    if (!mounted) return;
 
     final allSystems = _getSystemsList();
     if (_currentIndex >= 0 && _currentIndex < allSystems.length) {
@@ -1035,10 +1058,13 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
 
       final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
       final isOled = themeProvider.isOled;
+      final backgroundColor = Theme.of(
+        context,
+      ).scaffoldBackgroundColor.toARGB32();
 
       _secondaryDisplayState?.updateState(
         systemName: systemName,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor.toARGB32(),
+        backgroundColor: backgroundColor,
         systemLogo: systemLogo,
         isLogoAsset: isLogoAsset,
         systemBackground: systemBackground,
@@ -1057,6 +1083,23 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
         useFluidShader: false,
         isOled: isOled,
       );
+      if (toTV) {
+        unawaited(
+          bridge.forwardSelection(
+            (current) => SecondaryDisplayBridge.systemSelected(
+              current,
+              systemName: systemName,
+              backgroundColor: backgroundColor,
+              systemLogo: systemLogo,
+              isLogoAsset: isLogoAsset,
+              systemBackground: systemBackground,
+              shaderColor1: system.color1AsColor?.toARGB32(),
+              shaderColor2: system.color2AsColor?.toARGB32(),
+              isOled: isOled,
+            ),
+          ),
+        );
+      }
     }
   }
 

@@ -5,7 +5,8 @@
 //
 // Fit and Fill reproduce the Build 442 Dolphin policy
 // (DolphinExternalDisplayLayout.h: DOLExternalDisplayScale/Frame) number for
-// number; Original and the surface size are new. No UIKit here.
+// number; Original and the surface size are new, and so is the parsing of
+// the build SDK that gates the iOS 27 scene accessory. No UIKit here.
 #pragma once
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
@@ -76,24 +77,78 @@ static inline CGRect NeoExternalDisplayFrame(CGSize screen, CGSize source, NeoEx
 }
 
 /// Size in points of the render surface when the engine draws at the TV's
-/// resolution instead of being scaled (libretro). Fit: the scaled source
-/// frame limited to what the screen shows (the phone's side bars are off
-/// screen). Fill: the 4:3 frame at the Fill scale, limited to the screen
-/// width (its height extends beyond the screen: the announced crop).
-/// Original: the source at the Original scale. Automatic is Fit.
+/// resolution instead of being scaled (libretro, NeoExternalRenderHost with
+/// fixedDrawable == NO): the whole screen, in every mode. The host places
+/// each game's picture in it at the game's own aspect
+/// (LibretroRenderSurfacePlacement: the game areas of the iPhone layout
+/// scaled uniformly and centred), so a portrait phone no longer gives a
+/// pillar of the phone's format and a 3:2 GBA screen fills 1620 × 1080 of
+/// a 1080p TV (review of 12 October 2026, M3). `source` (the iPhone layout
+/// the host draws from) and `mode` are kept by the signature: the formats
+/// of Fit, Fill and Original apply to the fixed drawables (Dolphin, RPCS3,
+/// ARMSX2), whose view is only scaled. Zero when either size is unusable.
 static inline CGSize NeoExternalDisplaySurfaceSize(CGSize screen, CGSize source, NeoExternalDisplayMode mode) {
+  (void)mode;
   if (!NeoExternalDisplayUsableSize(screen) || !NeoExternalDisplayUsableSize(source)) return CGSizeZero;
-  const CGFloat scale = NeoExternalDisplayScale(screen, source, mode);
-  if (mode == NeoExternalDisplayModeOriginal) return CGSizeMake(source.width * scale, source.height * scale);
-  if (mode == NeoExternalDisplayModeFill) {
-    const CGFloat standard = source.height * 4.0 / 3.0;
-    return CGSizeMake(MIN(standard * scale, screen.width), source.height * scale);
-  }
-  const CGRect frame = NeoExternalDisplayFrame(screen, source, mode);
-  return CGSizeMake(MIN(frame.size.width, screen.width), MIN(frame.size.height, screen.height));
+  return screen;
 }
 
 /// Only Fill cuts part of the image.
 static inline BOOL NeoExternalDisplayModeCrops(NeoExternalDisplayMode mode) {
   return mode == NeoExternalDisplayModeFill;
+}
+
+/// iOS 27 regime: "In apps built with the iOS 27.0 SDK,
+/// windowExternalDisplayNonInteractive scenes are no longer offered
+/// automatically" (Apple release note 177015874). An app built with an
+/// earlier SDK keeps the automatic connection on iOS 27, so the scene
+/// accessory path is only taken by a binary built with this SDK major or
+/// later.
+static const NSInteger NeoExternalDisplayAccessorySDKMajor = 27;
+
+/// The leading number of `text` when it is made of numbers separated by
+/// dots ("26", "26.2", "26.2.1"); 0 otherwise (empty, a letter, "26.", a
+/// value too large to be a version).
+static inline NSInteger NeoExternalDisplayVersionMajor(NSString *_Nullable text) {
+  if (![text isKindOfClass:NSString.class] || text.length == 0) return 0;
+  NSInteger major = 0;
+  BOOL inMajor = YES;
+  BOOL digitSeen = NO;
+  for (NSUInteger index = 0; index < text.length; ++index) {
+    const unichar character = [text characterAtIndex:index];
+    if (character >= '0' && character <= '9') {
+      if (inMajor) {
+        major = major * 10 + (character - '0');
+        if (major > 10000) return 0;
+      }
+      digitSeen = YES;
+    } else if (character == '.' && digitSeen) {
+      inMajor = NO;
+      digitSeen = NO;
+    } else {
+      return 0;
+    }
+  }
+  return digitSeen ? major : 0;
+}
+
+/// Major version of the SDK the app binary was built with, from the main
+/// bundle's Info.plist written by Xcode: DTPlatformVersion ("26.2") first,
+/// else DTSDKName (letters, then the version: "iphoneos26.2",
+/// "iphonesimulator26.2"). 0 when both are missing or unparsable: the
+/// accessory regime then stays off (the automatic connection of the
+/// external scene is the behaviour of every SDK before 27).
+static inline NSInteger NeoExternalDisplaySDKMajorVersion(NSString *_Nullable platformVersion,
+                                                          NSString *_Nullable sdkName) {
+  const NSInteger platform = NeoExternalDisplayVersionMajor(platformVersion);
+  if (platform > 0) return platform;
+  if (![sdkName isKindOfClass:NSString.class]) return 0;
+  NSUInteger letters = 0;
+  while (letters < sdkName.length) {
+    const unichar character = [sdkName characterAtIndex:letters];
+    if (!((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z'))) break;
+    ++letters;
+  }
+  if (letters == 0 || letters == sdkName.length) return 0;
+  return NeoExternalDisplayVersionMajor([sdkName substringFromIndex:letters]);
 }

@@ -15,10 +15,11 @@
   }
   // The coordinator builds the window (windowFactory seam or
   // -[UIWindow initWithWindowScene:]), gives it the black root controller
-  // and shows it without making it key.
+  // and shows it without making it key. A second external scene stands by
+  // without a window of its own until the shown one disconnects.
   NeoExternalDisplayCoordinator *coordinator = NeoExternalDisplayCoordinator.shared;
   [coordinator sceneDidConnect:(UIWindowScene *)scene];
-  self.window = coordinator.window;
+  self.window = coordinator.window.windowScene == scene ? coordinator.window : nil;
 }
 
 - (void)sceneDidDisconnect:(UIScene *)scene {

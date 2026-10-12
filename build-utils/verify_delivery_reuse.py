@@ -983,6 +983,7 @@ BUILD447_EXTERNAL_DISPLAY_DELTA = {
     'lib/screens/secondary_screen/secondary_screen.dart',
     'lib/screens/settings_screen/new_settings_options/general_settings_content.dart',
     'lib/screens/settings_screen/new_settings_options/widgets/external_display_setting_rows.dart',
+    'lib/screens/systems_screen/my_systems_section/my_systems_carousel.dart',
     'lib/screens/systems_screen/my_systems_section/my_systems_grid.dart',
     'lib/screens/systems_screen/my_systems_section/my_systems_grid/theme_background.dart',
     'lib/services/external_display_service.dart',

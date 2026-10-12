@@ -7,15 +7,24 @@ production NeoExternalDisplayCoordinator.m, NeoExternalDisplaySceneDelegate.m
 and NeoExternalDisplayPreferences.m (UIKit only: the Flutter menu engine is
 replaced by a provider returning a plain controller). The external window
 is injected through the windowFactory seam (scene-less, 1920×1080), the
-application's own scene stands in for the external one, and the legacy
-fallback runs against the legacyScreens seam. Executed: connection and the
-menu, the game in Automatic/Fit/Fill/Original, disconnection (view returned
-before the window goes) and reconnection, disabled/suspended/menu-off
-mirroring, the menu engine hidden during a game, never created while a game
-holds the TV and destroyed for RPCS3, the 1.5 s legacy fallback, MTKView
-drawable preservation, TV-resolution surfaces for a non-fixed host, the
-Build 442 preference fallback, the state notification, and the iOS 27 scene
-accessory registrations (one per presented controller, released once
+application's own scene stands in for the external one, a second external
+scene is an object answering what the coordinator reads of a scene, and the
+legacy fallback runs against the legacyScreens seam. Executed: connection
+and the menu, the game in Automatic/Fit/Fill/Original, disconnection (view
+returned before the window goes) and reconnection, the set of connected
+external scenes (a second scene stands by, is adopted with the same menu
+engine, a scene UIKit no longer lists is dropped by a refresh),
+disabled/suspended/menu-off mirroring and the menu engine released when
+the output is disabled, the menu engine hidden (and told so) during a game,
+never created while a game holds the TV and destroyed for RPCS3, the 1.5 s
+legacy fallback and its refusal of a window in no scene, MTKView drawable
+preservation, TV-resolution surfaces for a non-fixed host (the whole TV in
+every format and orientation, a scale change alone announced), a call made
+during a pass applied at its end, the Build 442 preference fallback and a
+format choice that never turns the output on, the state notification, and
+the iOS 27 scene accessory (only for an SDK 27 binary, never next to an
+automatic scene; the root and the host's owning controller, never a menu
+over the game; isEnabled off when there is nothing to show; released once
 dismissed) against a UISceneAccessory faked at run time when the SDK lacks
 it. No emulator runs; AirPlay itself remains an iPhone + Apple TV check.
 """
@@ -86,6 +95,8 @@ ns['TESTS'] = r'''
 @property(nonatomic, strong) NSMutableArray<NSNumber*>* activeChanges;
 @property(nonatomic, strong) NSMutableArray<NSValue*>* surfaces;
 @property(nonatomic, strong) NSMutableArray<NSNumber*>* scales;
+/// Run once, inside the coordinator's pass, when the view reaches the TV.
+@property(nonatomic, copy) dispatch_block_t onActive;
 - (instancetype)initFixed:(BOOL)fixed render:(UIView*)render;
 @end
 @implementation FakeRenderHost
@@ -108,7 +119,14 @@ ns['TESTS'] = r'''
   [self.surfaces addObject:[NSValue valueWithCGSize:pointSize]];
   [self.scales addObject:@(scale)];
 }
-- (void)externalDisplayDidChange:(BOOL)active { [self.activeChanges addObject:@(active)]; }
+- (void)externalDisplayDidChange:(BOOL)active {
+  [self.activeChanges addObject:@(active)];
+  if (active && self.onActive) {
+    dispatch_block_t block = self.onActive;
+    self.onActive = nil;
+    block();
+  }
+}
 @end
 
 /// Stands in for NeoExternalDisplayMenuEngine (Flutter is not linked here).
@@ -118,10 +136,14 @@ ns['TESTS'] = r'''
 @property(nonatomic, copy) NSString* status;
 @property(nonatomic, assign) NSUInteger created;
 @property(nonatomic, strong) NSMutableArray<NSString*>* destroyed;
+/// externalMenuSetVisible: values, one entry per change.
+@property(nonatomic, strong) NSMutableArray<NSNumber*>* visibility;
 @end
 @implementation FakeMenuProvider
 - (instancetype)init {
-  if ((self = [super init])) { _status = @"none"; _destroyed = [NSMutableArray array]; _configured = YES; }
+  if ((self = [super init])) {
+    _status = @"none"; _destroyed = [NSMutableArray array]; _configured = YES; _visibility = [NSMutableArray array];
+  }
   return self;
 }
 - (UIViewController*)externalMenuViewControllerCreatingIfNeeded {
@@ -140,8 +162,33 @@ ns['TESTS'] = r'''
   self.controller = nil;
   self.status = @"destroyed";
   [self.destroyed addObject:reason];
+  [self.visibility removeAllObjects];
 }
 - (NSString*)externalMenuEngineStatus { return self.status; }
+- (void)externalMenuSetVisible:(BOOL)visible {
+  if (!self.controller) return;
+  if (self.visibility.lastObject != nil && self.visibility.lastObject.boolValue == visible) return;
+  [self.visibility addObject:@(visible)];
+}
+@end
+
+/// A second external scene: UIKit cannot connect one in the simulator, so
+/// an object answering what the coordinator reads of a UIWindowScene
+/// (screen, activationState, delegate) stands in for it. It is not in
+/// UIApplication.connectedScenes, so a refresh treats it as gone.
+@interface FakeExternalScene : NSObject
+@property(nonatomic, strong) UIScreen* screen;
+@property(nonatomic, assign) UISceneActivationState activationState;
+@property(nonatomic, strong) id delegate;
+@end
+@implementation FakeExternalScene
+@end
+
+/// A UISceneAccessoryRegistration with its isEnabled property.
+@interface FakeSceneAccessoryRegistration : NSObject
+@property(nonatomic, assign, getter=isEnabled) BOOL enabled;
+@end
+@implementation FakeSceneAccessoryRegistration
 @end
 
 /// The iOS 27 scene accessory API, faked at run time when the SDK lacks it
@@ -167,7 +214,8 @@ static BOOL InstallFakeSceneAccessoryIfNeeded(void) {
   objc_registerClassPair(accessoryClass);
   IMP registerImp = imp_implementationWithBlock(^id(UIViewController* controller, id accessory) {
     gFakeRegisterCalls += 1;
-    id registration = [NSObject new];
+    FakeSceneAccessoryRegistration* registration = [FakeSceneAccessoryRegistration new];
+    registration.enabled = YES;
     [gFakeAccessoryRegistrations setObject:registration forKey:controller];
     return registration;
   });
@@ -183,6 +231,11 @@ static BOOL InstallFakeSceneAccessoryIfNeeded(void) {
 }
 static BOOL FakeAccessoryHolds(UIViewController* controller) {
   return [gFakeAccessoryRegistrations objectForKey:controller] != nil;
+}
+/// The controller holds a registration and it is enabled.
+static BOOL FakeAccessoryEnabled(UIViewController* controller) {
+  FakeSceneAccessoryRegistration* registration = [gFakeAccessoryRegistrations objectForKey:controller];
+  return registration != nil && registration.isEnabled;
 }
 
 @interface ExternalDisplayCoordinatorTests : XCTestCase
@@ -207,18 +260,29 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   if (c.renderHost) [c detachRenderHost:c.renderHost];
   [c resumeAfterUnsupportedEngine];
   if (c.connected) {
-    if ([c.sceneRole isEqualToString:@"scene"]) [c sceneDidDisconnect:[self mainScene]];
-    else {
+    if ([c.sceneRole isEqualToString:@"scene"]) {
+      // The scenes standing by go first, the shown one last (no adoption).
+      id shown = [c valueForKey:@"scene"];
+      for (UIWindowScene* scene in c.externalScenes)
+        if (scene != shown) [c sceneDidDisconnect:scene];
+      [c sceneDidDisconnect:shown];
+    } else {
       c.legacyScreens = ^NSArray<UIScreen*>* { return @[]; };
       [NSNotificationCenter.defaultCenter postNotificationName:UIScreenDidDisconnectNotification object:nil];
     }
   }
   [c detachMenuViewController];
+  // The iOS 27 regime off for the next test: no registration stays behind.
+  c.buildSDKMajorVersion = ^NSInteger { return 0; };
+  [c refresh];
   c.menuProvider = nil; c.windowFactory = nil; c.legacyScreens = nil; c.stateChanged = nil;
+  c.buildSDKMajorVersion = nil; c.screenScaleReader = nil;
   // Private flags of the singleton, reset so each test starts from a cold app.
   [c setValue:@NO forKey:@"sceneEverConnected"];
   [c setValue:@NO forKey:@"menuSuppressed"];
   [c setValue:nil forKey:@"lastState"];
+  [c setValue:[NSMutableArray array] forKey:@"connectedExternalScenes"];
+  [c setValue:[NSMutableArray array] forKey:@"automaticScenes"];
 }
 - (void)setUp {
   [self clearDefaults];
@@ -245,6 +309,12 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertNotNil(scene, @"the application scene stands in for the external one");
   [_coordinator sceneDidConnect:scene];
 }
+/// What the coordinator reports for a binary of this SDK (the host's own
+/// Info.plist, as NeoExternalDisplaySDKMajorVersion reads it).
+- (NSInteger)hostSDKMajor {
+  NSDictionary* info = NSBundle.mainBundle.infoDictionary;
+  return NeoExternalDisplaySDKMajorVersion(info[@"DTPlatformVersion"], info[@"DTSDKName"]);
+}
 
 - (void)testConnectShowsTheMenuThenTheGameTakesTheScreenInEachMode {
   [self connect];
@@ -261,6 +331,7 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqual(_menu.controller.parentViewController, _external.rootViewController);
   XCTAssertTrue(CGRectEqualToRect(_menu.controller.view.frame, CGRectMake(0, 0, 1920, 1080)), @"menu fills the TV: no bars");
   XCTAssertFalse(_menu.controller.view.hidden);
+  XCTAssertEqualObjects(_menu.visibility, @[@YES], @"the engine is told the menu is shown");
   XCTAssertEqualObjects(_coordinator.menuEngineStatus, @"attached");
   XCTAssertTrue(CGSizeEqualToSize(_coordinator.screenPointSize, CGSizeMake(1920, 1080)));
   XCTAssertEqual(_coordinator.mode, NeoExternalDisplayModeAutomatic, @"Automatic by default");
@@ -272,6 +343,7 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqual(render.superview, [self externalRoot], @"render view on the external window");
   XCTAssertEqual(host.overlay.superview, host.placeholderView, @"controls stay on the phone");
   XCTAssertTrue(_menu.controller.view.hidden, @"menu hidden during the game, not released");
+  XCTAssertEqualObjects(_menu.visibility, (@[@YES, @NO]), @"the hidden engine is told so (it stops drawing)");
   XCTAssertEqual(_coordinator.menuViewController, _menu.controller);
   XCTAssertEqual(_menu.destroyed.count, 0U);
   const CGSize tv = CGSizeMake(1920, 1080), phone = CGSizeMake(852, 393);
@@ -290,6 +362,7 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqualWithAccuracy(render.transform.a, 1920.0 / 852.0, 0.001, @"Original: the phone format bounded by the TV width");
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFit]);
   XCTAssertEqualWithAccuracy(render.transform.a, fit, 0.001);
+  XCTAssertEqualObjects(_menu.visibility, (@[@YES, @NO]), @"still hidden while the game holds the TV");
 
   [_coordinator detachRenderHost:host];
   XCTAssertNil(_coordinator.renderHost);
@@ -301,6 +374,7 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO]));
   XCTAssertEqual(_coordinator.content, NeoExternalContentMenu, @"the menu is back");
   XCTAssertFalse(_menu.controller.view.hidden);
+  XCTAssertEqualObjects(_menu.visibility, (@[@YES, @NO, @YES]), @"shown again: the engine resumes");
 
   [_coordinator sceneDidDisconnect:[self mainScene]];
   XCTAssertFalse(_coordinator.connected);
@@ -311,6 +385,7 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertTrue(_external.hidden);
   XCTAssertNil(_external.rootViewController);
   XCTAssertTrue(CGSizeEqualToSize(_coordinator.screenPointSize, CGSizeZero));
+  XCTAssertEqual(_coordinator.externalScenes.count, 0U);
 }
 
 - (void)testDisconnectReturnsTheRenderViewBeforeTheWindowGoesAndReconnectMovesItAgain {
@@ -323,6 +398,11 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqual(_coordinator.content, NeoExternalContentGame);
   XCTAssertEqual(_menu.created, 0U, @"no menu engine is created while the game holds the TV");
   XCTAssertNil(_coordinator.menuViewController);
+  // The same scene delivered again changes nothing (no teardown, no second move).
+  [self connect];
+  XCTAssertEqual(host.renderView.superview, [self externalRoot]);
+  XCTAssertEqualObjects(host.activeChanges, @[@YES], @"a scene delivered again is not a reconnection");
+  XCTAssertEqual(_coordinator.externalScenes.count, 1U);
   [_coordinator sceneDidDisconnect:[self mainScene]];
   XCTAssertEqual(host.renderView.superview, host.placeholderView, @"returned to the phone at disconnection");
   XCTAssertEqual([host.placeholderView.subviews indexOfObject:host.renderView], 0U);
@@ -342,6 +422,65 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES, @NO]));
 }
 
+/// The set of connected external scenes (review M1): a second scene stands
+/// by while the first one keeps the window, its menu engine and the game;
+/// when the shown scene goes, the remaining one is adopted with the same
+/// engine; a refresh rescans UIApplication.connectedScenes and drops a
+/// tracked scene UIKit no longer lists.
+- (void)testASecondSceneStandsByAndIsAdoptedWhenTheShownOneDisconnects {
+  UIWindow* second = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 1280, 720)];
+  __weak UIWindow* weakFirst = _external;
+  __weak UIWindow* weakSecond = second;
+  UIWindowScene* primary = [self mainScene];
+  _coordinator.windowFactory = ^UIWindow*(UIWindowScene* scene, UIScreen* screen) {
+    return scene == primary ? weakFirst : weakSecond;
+  };
+  FakeExternalScene* standby = [FakeExternalScene new];
+  standby.screen = UIScreen.mainScreen;
+  standby.activationState = UISceneActivationStateForegroundInactive;
+  UIWindowScene* other = (UIWindowScene*)(id)standby;
+
+  [self connect];
+  XCTAssertEqual(_menu.created, 1U);
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
+  [_coordinator attachRenderHost:host];
+  XCTAssertEqual(host.renderView.superview, [self externalRoot]);
+
+  [_coordinator sceneDidConnect:other];
+  XCTAssertEqual(_coordinator.externalScenes.count, 2U, @"both scenes are tracked");
+  XCTAssertEqual(_coordinator.window, _external, @"the shown scene keeps the window");
+  XCTAssertEqual(host.renderView.superview, [self externalRoot], @"the game stays where it is");
+  XCTAssertEqualObjects(host.activeChanges, @[@YES], @"no move for a scene standing by");
+  XCTAssertEqual(_menu.destroyed.count, 0U, @"the menu engine is not destroyed by a second connection");
+  XCTAssertNil(second.rootViewController, @"no window was built for the scene standing by");
+
+  [_coordinator sceneDidDisconnect:primary];
+  XCTAssertTrue(_coordinator.connected, @"a scene remains: the window moves there");
+  XCTAssertEqual(_coordinator.window, second);
+  XCTAssertEqualObjects(_coordinator.sceneRole, @"scene");
+  XCTAssertEqual(_coordinator.externalScenes.count, 1U);
+  XCTAssertEqual(host.renderView.superview, second.rootViewController.view, @"the game follows the adopted scene");
+  XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES]), @"returned to the phone, then moved again");
+  XCTAssertTrue(_external.hidden, @"the old window is released");
+  XCTAssertEqual(_menu.destroyed.count, 0U, @"the menu engine is kept across the adoption");
+  XCTAssertNotNil(_menu.controller, @"its controller too, placed again once the menu shows");
+  XCTAssertTrue(CGSizeEqualToSize(_coordinator.screenPointSize, CGSizeMake(1280, 720)));
+
+  [_coordinator detachRenderHost:host];
+  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
+  XCTAssertEqual(_menu.created, 1U, @"the same engine shows the menu in the adopted window");
+  XCTAssertEqual(_coordinator.menuViewController, _menu.controller);
+  XCTAssertEqual(_menu.controller.view.superview, second.rootViewController.view, @"the menu is shown in the adopted window");
+
+  // The stand-in is not in UIApplication.connectedScenes: a refresh treats
+  // it as disconnected.
+  [_coordinator refresh];
+  XCTAssertFalse(_coordinator.connected, @"a scene UIKit no longer lists is dropped by the rescan");
+  XCTAssertEqual(_coordinator.externalScenes.count, 0U);
+  XCTAssertEqualObjects(_menu.destroyed, @[@"disconnect"]);
+  XCTAssertTrue(second.hidden);
+}
+
 - (void)testDisabledSuspendedAndMenuOffFallBackToMirroring {
   [self connect];
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
@@ -354,29 +493,39 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqual(host.renderView.superview, host.placeholderView, @"the game is drawn on the iPhone again");
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   XCTAssertTrue(_coordinator.connected, @"still connected: the preference only hides the window");
+  // Review m4: the output disabled releases the menu's second engine (not
+  // only hidden), as the menu turned off does.
+  XCTAssertEqualObjects(_menu.destroyed, @[@"disabled"], @"disabled: the menu engine is released");
+  XCTAssertNil(_coordinator.menuViewController);
   XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
   XCTAssertFalse(_external.hidden);
   XCTAssertEqual(host.renderView.superview, [self externalRoot]);
   XCTAssertEqualObjects(host.activeChanges, (@[@YES, @NO, @YES]));
+  XCTAssertEqual(_menu.created, 1U, @"not recreated while the game holds the TV");
 
   [_coordinator suspendForUnsupportedEngine];
   XCTAssertTrue(_coordinator.suspended);
+  XCTAssertEqualObjects([_coordinator stateDictionary][@"suspended"], @YES, @"reported to Dart");
   XCTAssertTrue(_external.hidden, @"Dusklight/KartPad: window hidden, iOS resumes mirroring");
   XCTAssertEqual(host.renderView.superview, host.placeholderView);
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   [_coordinator resumeAfterUnsupportedEngine];
+  XCTAssertEqualObjects([_coordinator stateDictionary][@"suspended"], @NO);
   XCTAssertFalse(_external.hidden);
   XCTAssertEqual(host.renderView.superview, [self externalRoot]);
 
   [_coordinator detachRenderHost:host];
   XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
+  XCTAssertEqual(_menu.created, 2U, @"the menu is back once the game left the TV");
   XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
   XCTAssertNil(_coordinator.menuViewController, @"menu off: the controller leaves the window");
   XCTAssertEqualObjects(_menu.destroyed.lastObject, @"menu_off");
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   XCTAssertTrue(_external.hidden, @"nothing to show: iOS mirrors the iPhone");
   XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:YES]);
-  XCTAssertEqual(_menu.created, 2U, @"menu on again: recreated");
+  // Retired count 2 (Build 447 first version): the disabled output above
+  // released the engine too (review m4), so this is its third creation.
+  XCTAssertEqual(_menu.created, 3U, @"menu on again: recreated");
   XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
   XCTAssertFalse(_external.hidden);
   [_coordinator sceneDidDisconnect:[self mainScene]];
@@ -403,9 +552,25 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   [_coordinator sceneDidDisconnect:[self mainScene]];
 }
 
+/// A window in a scene of the target screen: the legacy fallback uses it.
+- (UIWindow*)legacyWindowInTheMainScene {
+  UIWindow* window = [[UIWindow alloc] initWithWindowScene:[self mainScene]];
+  window.frame = CGRectMake(0, 0, 1920, 1080);
+  return window;
+}
+
 - (void)testLegacyFallbackActivatesOnlyAfterTheDelayWithoutAScene {
+  UIWindow* legacy = [self legacyWindowInTheMainScene];
+  __weak UIWindow* weakLegacy = legacy;
+  __weak UIWindow* weakExternal = _external;
+  // Scene calls get the scene window, legacy calls (no scene) a window that
+  // ended up in a scene of the target screen (review M2).
+  _coordinator.windowFactory = ^UIWindow*(UIWindowScene* scene, UIScreen* screen) {
+    return scene != nil ? weakExternal : weakLegacy;
+  };
   __block NSArray<UIScreen*>* screens = @[UIScreen.mainScreen];
   _coordinator.legacyScreens = ^NSArray<UIScreen*>* { return screens; };
+  XCTAssertEqual(legacy.windowScene.screen, UIScreen.mainScreen, @"precondition: the window is in a scene of the target screen");
   [NSNotificationCenter.defaultCenter postNotificationName:UIScreenDidConnectNotification object:nil];
   XCTAssertFalse(_coordinator.connected, @"UIKit gets 1.5 s to deliver the scene");
   [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.5]];
@@ -413,12 +578,12 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.5]];
   XCTAssertTrue(_coordinator.connected, @"legacy window after the delay");
   XCTAssertEqualObjects(_coordinator.sceneRole, @"legacy");
-  XCTAssertEqual(_coordinator.window, _external, @"built through the factory seam");
+  XCTAssertEqual(_coordinator.window, legacy, @"built through the factory seam");
   XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
-  XCTAssertFalse(_external.isKeyWindow);
+  XCTAssertFalse(legacy.isKeyWindow);
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
   [_coordinator attachRenderHost:host];
-  XCTAssertEqual(host.renderView.superview, [self externalRoot]);
+  XCTAssertEqual(host.renderView.superview, legacy.rootViewController.view);
   screens = @[];
   [NSNotificationCenter.defaultCenter postNotificationName:UIScreenDidDisconnectNotification object:nil];
   XCTAssertFalse(_coordinator.connected, @"screen gone: legacy window released");
@@ -440,6 +605,32 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:2]];
   XCTAssertEqualObjects(_coordinator.sceneRole, @"scene", @"the timer was cancelled by the scene");
   [_coordinator sceneDidDisconnect:[self mainScene]];
+  legacy.hidden = YES;
+}
+
+/// Review M2: in a scene-based app a window made with initWithFrame: and
+/// window.screen has no scene and is never displayed. The fallback then
+/// stays in mirroring and moves no render view (moving it would leave both
+/// screens black).
+- (void)testALegacyWindowWithoutASceneStaysInMirroringAndMovesNothing {
+  UIWindow* orphan = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 1920, 1080)];
+  orphan.windowScene = nil;
+  XCTAssertNil(orphan.windowScene, @"precondition: a window in no scene");
+  __weak UIWindow* weakOrphan = orphan;
+  _coordinator.windowFactory = ^UIWindow*(UIWindowScene* scene, UIScreen* screen) { return weakOrphan; };
+  _coordinator.legacyScreens = ^NSArray<UIScreen*>* { return @[UIScreen.mainScreen]; };
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
+  [_coordinator attachRenderHost:host];
+  [NSNotificationCenter.defaultCenter postNotificationName:UIScreenDidConnectNotification object:nil];
+  [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:2]];
+  XCTAssertFalse(_coordinator.connected, @"no window of ours: iOS keeps mirroring");
+  XCTAssertEqualObjects(_coordinator.sceneRole, @"none");
+  XCTAssertEqual(host.renderView.superview, host.placeholderView, @"the game stays on the iPhone");
+  XCTAssertEqual(host.activeChanges.count, 0U, @"nothing was moved");
+  XCTAssertEqual(_menu.created, 0U, @"no menu engine for a window nobody sees");
+  XCTAssertTrue(orphan.hidden);
+  XCTAssertNil(orphan.rootViewController);
+  [_coordinator detachRenderHost:host];
 }
 
 - (void)testMTKViewKeepsItsDrawableSizeAndScaleAcrossTheMove {
@@ -464,6 +655,10 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   [_coordinator sceneDidDisconnect:[self mainScene]];
 }
 
+/// Review M3: for a host whose surface follows the TV, the surface is the
+/// whole TV in every format (the host keeps each game's aspect in it),
+/// recomputed at every pass from the current iPhone layout: a portrait
+/// phone no longer gives a pillar.
 - (void)testSurfaceFollowsTheTVForANonFixedHost {
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:NO render:nil];
   UIView* render = host.renderView;
@@ -479,20 +674,69 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqual(host.surfaces.count, 1U);
   XCTAssertTrue(CGSizeEqualToSize(host.surfaces.lastObject.CGSizeValue, CGSizeMake(1920, 1080)));
   XCTAssertEqualWithAccuracy(host.scales.lastObject.doubleValue, _coordinator.screenScale, 0.001);
+  // Retired 1920 × 1440 (Fill) and 1920 × 886 (Original): the surface is
+  // the whole TV in every format, the host keeps the game's aspect in it.
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFill]);
-  XCTAssertTrue(CGSizeEqualToSize(host.surfaces.lastObject.CGSizeValue, CGSizeMake(1920, 1440)), @"Fill: 4:3 frame, top and bottom cut");
-  XCTAssertEqualWithAccuracy(render.bounds.size.height, 1440, 0.001);
-  XCTAssertEqualWithAccuracy(render.center.y, 540, 0.001);
+  XCTAssertEqualWithAccuracy(render.bounds.size.height, 1080, 0.001, @"Fill: the whole TV");
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeOriginal]);
-  XCTAssertEqualWithAccuracy(host.surfaces.lastObject.CGSizeValue.width, 1920, 0.01);
-  XCTAssertEqualWithAccuracy(host.surfaces.lastObject.CGSizeValue.height, 393.0 * 1920.0 / 852.0, 0.01, @"Original: phone format");
+  XCTAssertEqualWithAccuracy(render.bounds.size.width, 1920, 0.001, @"Original: the whole TV");
+  XCTAssertEqualWithAccuracy(render.bounds.size.height, 1080, 0.001);
+  XCTAssertEqual(host.surfaces.count, 1U, @"an unchanged surface is not announced again, whatever the format");
+  // The phone turns to portrait: the iPhone layout changes, the TV surface does not.
+  host.placeholderView.bounds = CGRectMake(0, 0, 393, 852);
   [_coordinator refresh];
-  XCTAssertEqual(host.surfaces.count, 3U, @"an unchanged surface is not announced again");
+  XCTAssertTrue(CGSizeEqualToSize(render.bounds.size, CGSizeMake(1920, 1080)), @"portrait: still the whole TV, no pillar");
+  XCTAssertEqualWithAccuracy(render.center.y, 540, 0.001);
+  XCTAssertEqual(host.surfaces.count, 1U);
   [_coordinator detachRenderHost:host];
   XCTAssertTrue(CGSizeEqualToSize(host.surfaces.lastObject.CGSizeValue, CGSizeZero), @"CGSizeZero = back on the iPhone");
   XCTAssertEqualWithAccuracy(render.contentScaleFactor, phoneScale, 0.001);
   XCTAssertTrue(CGRectEqualToRect(render.frame, host.placeholderView.bounds));
   XCTAssertEqual([host.placeholderView.subviews indexOfObject:render], 0U);
+  [_coordinator sceneDidDisconnect:[self mainScene]];
+}
+
+/// Review m6: a mode change of the TV that keeps the points and changes the
+/// scale (720p @1x to 1440p @2x) is a new drawable: the scale is re-read at
+/// every pass and compared with the size.
+- (void)testAScaleChangeAloneReachesTheHost {
+  __block CGFloat tvScale = 1;
+  _coordinator.screenScaleReader = ^CGFloat { return tvScale; };
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:NO render:nil];
+  [self connect];
+  [_coordinator attachRenderHost:host];
+  XCTAssertEqual(host.surfaces.count, 1U);
+  XCTAssertEqualWithAccuracy(host.scales.lastObject.doubleValue, 1, 0.001);
+  XCTAssertEqualWithAccuracy(_coordinator.screenScale, 1, 0.001);
+  tvScale = 2;
+  [NSNotificationCenter.defaultCenter postNotificationName:UIScreenModeDidChangeNotification object:nil];
+  XCTAssertEqual(host.surfaces.count, 2U, @"same points, new scale: announced");
+  XCTAssertTrue(CGSizeEqualToSize(host.surfaces.lastObject.CGSizeValue, CGSizeMake(1920, 1080)));
+  XCTAssertEqualWithAccuracy(host.scales.lastObject.doubleValue, 2, 0.001);
+  XCTAssertEqualWithAccuracy(host.renderView.contentScaleFactor, 2, 0.001);
+  XCTAssertEqualWithAccuracy(_coordinator.screenScale, 2, 0.001);
+  XCTAssertEqualObjects([_coordinator stateDictionary][@"screenScale"], @2, @"reported to Dart");
+  [_coordinator refresh];
+  XCTAssertEqual(host.surfaces.count, 2U, @"nothing new: not announced again");
+  [_coordinator detachRenderHost:host];
+  [_coordinator sceneDidDisconnect:[self mainScene]];
+}
+
+/// Review m5: a call made during a pass (here a preference written by a
+/// host's callback while its view moves) is applied by one more pass at
+/// the end, not lost.
+- (void)testACallMadeDuringAPassIsAppliedAtItsEnd {
+  [self connect];
+  FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
+  host.onActive = ^{ XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFill]); };
+  [_coordinator attachRenderHost:host];
+  const CGSize tv = CGSizeMake(1920, 1080), phone = CGSizeMake(852, 393);
+  XCTAssertEqualWithAccuracy(host.renderView.transform.a, NeoExternalDisplayScale(tv, phone, NeoExternalDisplayModeFill), 0.001,
+                             @"the Fill written during the pass is placed");
+  XCTAssertEqualObjects([_coordinator stateDictionary][@"mode"], @2);
+  XCTAssertEqualObjects(_states.lastObject[@"mode"], @2, @"the state reported after the pass is the final one");
+  XCTAssertEqualObjects(host.activeChanges, @[@YES], @"moved once");
+  [_coordinator detachRenderHost:host];
   [_coordinator sceneDidDisconnect:[self mainScene]];
 }
 
@@ -513,6 +757,7 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   id token = [NSNotificationCenter.defaultCenter addObserverForName:NeoExternalDisplayChangedNotification object:nil queue:nil usingBlock:^(NSNotification* n) { notified += 1; }];
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeOriginal]);
   XCTAssertEqual(NeoExternalDisplayPreferences.mode, NeoExternalDisplayModeOriginal, @"the global key wins once stored");
+  XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayEnabledKey], @YES, @"the derived switch (442 Fill: on) is persisted first");
   XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayLegacyDolphinModeKey], @2, @"the 442 key is never rewritten");
   XCTAssertFalse([NeoExternalDisplayPreferences storeMode:(NeoExternalDisplayMode)7], @"out of range refused");
   XCTAssertEqual(NeoExternalDisplayPreferences.mode, NeoExternalDisplayModeOriginal);
@@ -523,12 +768,42 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
   XCTAssertFalse(NeoExternalDisplayPreferences.menuOnTV);
   [NSNotificationCenter.defaultCenter removeObserver:token];
-  XCTAssertEqual(notified, 3U, @"one notification per verified write, none for the refused one");
+  XCTAssertEqual(notified, 3U, @"one notification per verified write, none for the refused one nor the derived switch");
+}
+
+/// Review m1: a 442 user who had the Dolphin output Off (no global key yet)
+/// keeps the output off when the format chip is used: the derived Enabled
+/// value is persisted before the mode ends the fallback.
+- (void)testChoosingAFormatNeverTurnsTheOutputOnByItself {
+  NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
+  [defaults setObject:@0 forKey:NeoExternalDisplayLegacyDolphinModeKey];
+  XCTAssertFalse(NeoExternalDisplayPreferences.enabled);
+  __block NSUInteger notified = 0;
+  id token = [NSNotificationCenter.defaultCenter addObserverForName:NeoExternalDisplayChangedNotification object:nil queue:nil usingBlock:^(NSNotification* n) { notified += 1; }];
+  [self connect];
+  XCTAssertTrue(_external.hidden, @"442 Off: mirroring");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFill]);
+  XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayEnabledKey], @NO, @"the Off of 442 became the global switch");
+  XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayModeKey], @2, @"the format is stored for later");
+  XCTAssertFalse(NeoExternalDisplayPreferences.enabled, @"still off after the format was chosen");
+  XCTAssertEqual(NeoExternalDisplayPreferences.mode, NeoExternalDisplayModeFill);
+  XCTAssertEqualObjects([defaults objectForKey:NeoExternalDisplayLegacyDolphinModeKey], @0, @"the 442 key is never rewritten");
+  XCTAssertEqual(notified, 1U, @"one notification: the mode");
+  XCTAssertTrue(_external.hidden, @"still mirroring");
+  XCTAssertEqual(_menu.created, 0U);
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFit]);
+  XCTAssertEqual(notified, 2U, @"the next mode writes the mode only");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
+  XCTAssertFalse(_external.hidden, @"the switch turns it on");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu);
+  [NSNotificationCenter.defaultCenter removeObserver:token];
+  [_coordinator sceneDidDisconnect:[self mainScene]];
 }
 
 - (void)testStateDictionaryAndNotificationFollowEveryChange {
   NSMutableArray<NSDictionary*>* posted = [NSMutableArray array];
   id token = [NSNotificationCenter.defaultCenter addObserverForName:NeoExternalDisplayStateChangedNotification object:nil queue:nil usingBlock:^(NSNotification* n) { [posted addObject:n.userInfo]; }];
+  [_coordinator refresh];
   NSDictionary* initial = [_coordinator stateDictionary];
   XCTAssertEqualObjects(initial[@"supported"], @YES);
   XCTAssertEqualObjects(initial[@"connected"], @NO);
@@ -538,7 +813,9 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   XCTAssertEqualObjects(initial[@"mode"], @0);
   XCTAssertEqualObjects(initial[@"enabled"], @YES);
   XCTAssertEqualObjects(initial[@"menuOnTV"], @YES);
+  XCTAssertEqualObjects(initial[@"suspended"], @NO);
   if (NSClassFromString(@"UISceneAccessory") == Nil) XCTAssertEqualObjects(initial[@"accessoryStatus"], @"unavailable", @"iOS ≤ 26: no accessory API");
+  else if ([self hostSDKMajor] < 27) XCTAssertEqualObjects(initial[@"accessoryStatus"], @"inactive:sdk", @"a binary of an SDK before 27 keeps the automatic scene");
   else XCTAssertTrue([initial[@"accessoryStatus"] isEqualToString:@"registered"] || [initial[@"accessoryStatus"] hasPrefix:@"failed:"]);
   [self connect];
   NSDictionary* connected = posted.lastObject;
@@ -578,13 +855,11 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
   [self waitForExpectations:@[done] timeout:5];
 }
 
-/// iOS 27 regime: one accessory registration per presented controller, the
-/// root always and the game controller once its bridge attached; the
-/// dismissed controller's registration is released at the next pass (the
-/// bridge's refresh in the dismissal completion, or a window notification)
-/// with the registration object registerSceneAccessory: returned, and the
-/// root's survives so the system falls back to it by itself.
-- (void)testSceneAccessoryRegistrationsFollowThePresentedControllers {
+/// Review M1: the accessory path is taken only by a binary built with the
+/// iOS 27 SDK (this one is built with an earlier SDK, whose external scene
+/// iOS 27 still connects by itself), and never while a scene the system
+/// offered by itself is connected.
+- (void)testTheAccessoryRegimeNeedsTheIOS27SDKAndNoAutomaticScene {
   if (!InstallFakeSceneAccessoryIfNeeded()) {
     // Real iOS 27 SDK: the production API is used and only its status is observable here.
     [_coordinator refresh];
@@ -592,61 +867,133 @@ static BOOL FakeAccessoryHolds(UIViewController* controller) {
     return;
   }
   UIViewController* root = [(id)UIApplication.sharedApplication.delegate window].rootViewController;
+  __block NSInteger sdk = 26;
+  _coordinator.buildSDKMajorVersion = ^NSInteger { return sdk; };
+  [_coordinator refresh];
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"inactive:sdk");
+  XCTAssertFalse(FakeAccessoryHolds(root), @"an SDK 26 binary registers nothing (iOS connects its scene by itself)");
+  sdk = 27;
   [_coordinator refresh];
   XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
-  XCTAssertTrue(FakeAccessoryHolds(root), @"the application root holds a registration");
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"an SDK 27 binary registers the application root");
+  // Back to no registration, then a scene arrives without one of ours: the
+  // system offered it by itself, so the regime stays off while it is there.
+  sdk = 26;
+  [_coordinator refresh];
+  XCTAssertFalse(FakeAccessoryHolds(root));
+  sdk = 27;
+  [self connect];
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"inactive:automatic_scene");
+  XCTAssertFalse(FakeAccessoryHolds(root), @"no registration next to an automatic scene");
+  XCTAssertEqual(_coordinator.content, NeoExternalContentMenu, @"the automatic scene shows the menu as on iOS 26");
+  [_coordinator sceneDidDisconnect:[self mainScene]];
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered", @"the automatic scene gone, the SDK 27 path resumes");
+  XCTAssertTrue(FakeAccessoryEnabled(root));
+}
+
+/// iOS 27 regime (SDK 27 binary): the application root and the presented
+/// controller that owns the attached render host hold the registrations,
+/// never a menu presented over the game (review m10: RPCS3 and ARMSX2
+/// attach again from a still-presented menu after a failed stop); each is
+/// enabled only while it has something to show; a dismissed controller's
+/// registration is released at the next pass (the bridge's refresh in the
+/// dismissal completion, or a window notification) with the registration
+/// object registerSceneAccessory: returned.
+- (void)testSceneAccessoryRegistrationsFollowThePresentedControllers {
+  if (!InstallFakeSceneAccessoryIfNeeded()) {
+    // Real iOS 27 SDK: the production API is used and only its status is observable here.
+    [_coordinator refresh];
+    XCTAssertTrue([_coordinator.accessoryStatus isEqualToString:@"registered"] || [_coordinator.accessoryStatus hasPrefix:@"failed:"] ||
+                  [_coordinator.accessoryStatus hasPrefix:@"inactive:"]);
+    return;
+  }
+  _coordinator.buildSDKMajorVersion = ^NSInteger { return 27; };
+  UIViewController* root = [(id)UIApplication.sharedApplication.delegate window].rootViewController;
+  [_coordinator refresh];
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"the application root holds an enabled registration");
   const NSUInteger registrations = gFakeRegisterCalls;
+  const NSUInteger unregistrations = gFakeUnregisterCalls;
   [_coordinator refresh];
   [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidBecomeActiveNotification object:nil];
   XCTAssertEqual(gFakeRegisterCalls, registrations, @"a presented controller is registered once");
 
-  // A game controller is presented and its bridge attaches: it gets its own
+  // Nothing to show: the registration is turned off (isEnabled), not removed.
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:NO]);
+  XCTAssertTrue(FakeAccessoryHolds(root) && !FakeAccessoryEnabled(root), @"output off: the root's registration is disabled");
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"disabled");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
+  XCTAssertTrue(FakeAccessoryEnabled(root));
+  [_coordinator suspendForUnsupportedEngine];
+  XCTAssertFalse(FakeAccessoryEnabled(root), @"suspended (Dusklight, KartPad): off");
+  [_coordinator resumeAfterUnsupportedEngine];
+  XCTAssertTrue(FakeAccessoryEnabled(root));
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);
+  XCTAssertFalse(FakeAccessoryEnabled(root), @"menu off and no game: nothing to show");
+  XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:YES]);
+  XCTAssertTrue(FakeAccessoryEnabled(root));
+  XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
+  XCTAssertEqual(gFakeRegisterCalls, registrations, @"turned off and on again, never registered twice");
+  XCTAssertEqual(gFakeUnregisterCalls, unregistrations);
+
+  // A game controller is presented and its bridge attaches a host whose
+  // placeholder lives in that controller's view: the controller gets its own
   // registration (the topmost, the one the system presents) and the root
   // keeps its own.
   UIViewController* game = [UIViewController new];
   game.modalPresentationStyle = UIModalPresentationFullScreen;
   [self present:game on:root];
   FakeRenderHost* host = [[FakeRenderHost alloc] initFixed:YES render:nil];
+  [game.view addSubview:host.placeholderView];
   [_coordinator attachRenderHost:host];
-  XCTAssertTrue(FakeAccessoryHolds(game), @"the presented game controller holds a registration");
-  XCTAssertTrue(FakeAccessoryHolds(root), @"the root keeps its registration while the game is up");
-  XCTAssertEqual(gFakeUnregisterCalls, 0U);
-  // A menu presented over the game is not registered by a refresh: a
-  // setting changed from an in-game menu must not move the scene.
+  XCTAssertTrue(FakeAccessoryEnabled(game), @"the controller owning the host holds an enabled registration");
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"the root keeps its registration while the game is up");
+  XCTAssertEqual(gFakeUnregisterCalls, unregistrations);
+  // A menu presented over the game is never registered, by a refresh or a
+  // setting changed from it.
   UIViewController* menu = [UIViewController new];
   [self present:menu on:game];
   [_coordinator refresh];
   XCTAssertTrue([NeoExternalDisplayPreferences storeMode:NeoExternalDisplayModeFill]);
   XCTAssertFalse(FakeAccessoryHolds(menu), @"a menu over the game is not registered by a refresh");
-  XCTAssertTrue(FakeAccessoryHolds(game) && FakeAccessoryHolds(root), @"the registrations of the presentation chain are kept");
+  XCTAssertTrue(FakeAccessoryEnabled(game) && FakeAccessoryEnabled(root), @"the registrations of the presentation chain are kept");
+  // Review m10: a failed stop detaches, then the bridge attaches again while
+  // its menu is still presented over the game: the owner of the host, not
+  // the topmost controller, holds the registration.
+  [_coordinator detachRenderHost:host];
+  XCTAssertTrue(FakeAccessoryHolds(game) && !FakeAccessoryEnabled(game), @"detached: the game's registration shows nothing, turned off");
+  [_coordinator attachRenderHost:host];
+  XCTAssertTrue(FakeAccessoryEnabled(game), @"attached again from the menu: the game controller's registration, enabled again");
+  XCTAssertFalse(FakeAccessoryHolds(menu), @"never the menu presented over the game");
   [self dismiss:menu completion:nil];
 
   // The bridge detaches, then dismisses; the completion calls refresh (the
   // explicit hook): the dismissed controller's registration is released.
   [_coordinator detachRenderHost:host];
-  XCTAssertTrue(FakeAccessoryHolds(game), @"the detach alone keeps the still-presented game controller registered");
+  XCTAssertTrue(FakeAccessoryHolds(game), @"the detach alone keeps the still-presented game controller registered (turned off)");
   NeoExternalDisplayCoordinator* coordinator = _coordinator;
   [self dismiss:game completion:^{ [coordinator refresh]; }];
   XCTAssertFalse(FakeAccessoryHolds(game), @"dismissed: its registration is released");
-  XCTAssertEqual(gFakeUnregisterCalls, 1U);
+  XCTAssertEqual(gFakeUnregisterCalls, unregistrations + 1);
   XCTAssertTrue(gFakeUnregisterMatched, @"unregisterSceneAccessory: receives the registration returned by registerSceneAccessory:");
-  XCTAssertTrue(FakeAccessoryHolds(root), @"the root's registration survives: the system falls back to it by itself");
+  XCTAssertTrue(FakeAccessoryEnabled(root), @"the root's registration survives: the system falls back to it by itself");
 
   // Safety net: a dismissal nobody reported is caught by the window notifications.
   UIViewController* other = [UIViewController new];
   other.modalPresentationStyle = UIModalPresentationFullScreen;
   [self present:other on:root];
+  [other.view addSubview:host.placeholderView];
   [_coordinator attachRenderHost:host];
-  XCTAssertTrue(FakeAccessoryHolds(other));
+  XCTAssertTrue(FakeAccessoryEnabled(other));
   [_coordinator detachRenderHost:host];
   [self dismiss:other completion:nil];
   // No refresh from the bridge: only a window notification can release it.
   [NSNotificationCenter.defaultCenter postNotificationName:UIWindowDidBecomeHiddenNotification object:nil];
   XCTAssertFalse(FakeAccessoryHolds(other), @"UIWindowDidBecomeHidden re-reads the presentation chain");
-  XCTAssertEqual(gFakeUnregisterCalls, 2U, @"released once, with its registration");
+  XCTAssertEqual(gFakeUnregisterCalls, unregistrations + 2, @"released once, with its registration");
   XCTAssertTrue(gFakeUnregisterMatched);
   [NSNotificationCenter.defaultCenter postNotificationName:UIWindowDidBecomeKeyNotification object:nil];
-  XCTAssertTrue(FakeAccessoryHolds(root));
+  XCTAssertTrue(FakeAccessoryEnabled(root));
   XCTAssertEqualObjects(_coordinator.accessoryStatus, @"registered");
 }
 @end
@@ -655,6 +1002,7 @@ if platform.system() != 'Darwin':
     print('SKIP: the external display simulator harness needs macOS/Xcode; sources composed, no test executed')
     raise SystemExit(0)
 ns['native']()
-print('PASS: external display connection, menu/game placement in every mode, disconnection order, reconnection, mirroring fallbacks, '
-      'menu engine lifecycle, legacy fallback, MTKView preservation, TV-resolution surfaces, preferences, state events and '
-      'iOS 27 accessory registrations executed on the iOS Simulator')
+print('PASS: external display connection, menu/game placement in every mode, disconnection order, reconnection, scene set and '
+      'adoption, mirroring fallbacks, menu engine lifecycle and visibility, legacy fallback and its refusal without a scene, '
+      'MTKView preservation, TV-resolution surfaces (whole TV, scale changes), reapplied passes, preferences, state events and '
+      'iOS 27 accessory regime and registrations executed on the iOS Simulator')
