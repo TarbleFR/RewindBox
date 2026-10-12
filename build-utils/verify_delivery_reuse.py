@@ -1097,11 +1097,13 @@ BUILD447_BOOKS_DELTA = {
     'lib/screens/library_screen/reader/library_book_reader_screen.dart',
     'lib/screens/library_screen/reader/library_reader_bookmarks.dart',
     'lib/screens/library_screen/reader/library_reader_effective_settings.dart',
+    'lib/screens/library_screen/reader/library_reflow_paginator.dart',
     'lib/services/library_reading_store.dart',
     'test/library_infra_reading_store_test.dart',
     'test/library_reader_effective_settings_test.dart',
     'test/library_reader_locale_test.dart',
     'test/library_reading_store_bookmarks_test.dart',
+    'test/library_reflow_paginator_test.dart',
 }
 DELTA |= BUILD447_BOOKS_DELTA
 # Build 447 chantier 5, storage analysis and cleanup (12 October 2026,
