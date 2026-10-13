@@ -58,10 +58,24 @@ void main() {
     expect(ra, contains('ARMSX2LocalizedText'));
     expect(native, contains('ARMSX2CanonicalLocale(args[@"uiLocale"])'));
     expect(bridge, contains("'uiLocale': uiLocale"));
-    expect(
-      launcher,
-      contains('uiLocale: Localizations.localeOf(context).toLanguageTag()'),
+    // Snapshot the explicit UI locale before asynchronous launch work, then
+    // forward that same value instead of reading a potentially disposed context.
+    const capture =
+        'final launchLocale = Localizations.localeOf(context).toLanguageTag();';
+    final ps2Launch = launcher.indexOf(
+      'Armsx2LibraryService.launchGameByRomPath(',
     );
+    expect(ps2Launch, greaterThanOrEqualTo(0));
+    expect(
+      launcher.lastIndexOf(capture, ps2Launch),
+      greaterThanOrEqualTo(0),
+    );
+    final arguments = launcher.substring(
+      ps2Launch,
+      launcher.indexOf(');', ps2Launch),
+    );
+    expect(arguments, contains('uiLocale: launchLocale'));
+    expect(arguments, isNot(contains('Localizations.localeOf(context)')));
 
     // Native menus must track NeoStation's explicit locale, not iOS language.
     expect(menu, isNot(contains('NSLocale.preferredLanguages')));
