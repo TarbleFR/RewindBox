@@ -68,7 +68,18 @@ CI GitHub (branche `Claude`) :
 
 ## Livraison
 
-À consigner après le run de livraison.
+- Run `retroarch-delivery.yml` `38326750311` (dispatch sur `Claude`, `build_number` 449, périmètre `full`), source
+  `ff2a491c83b9eb7477b0e38e6f4a83e4a20680d1` (arbre de `7e4aef05` + ce plan) : jobs `checks`, `native` et
+  `Release device build • cold` réussis (00:20 → 00:42 UTC, 13 octobre 2026). L'étape « Align application and
+  extension versions to the pubspec version » a posé 0.0.7 (449) dans l'application et ses extensions, et l'étape
+  « Package and validate NeoStation IPA » (portes `validate_release002_ipa.py` et `validate_cheat_bulk_ipa.py`
+  lisant la version de `pubspec.yaml`) a réussi.
+- Artefact remis : `NeoStation-Build-449-ff2a491c83b9eb7477b0e38e6f4a83e4a20680d1-cold` (ID `11781772870`,
+  210 115 997 octets, SHA-256 de l'archive `68abff9c0db715ee6f7b56116d50196ffc42ec084164450007e7538dc1675683`,
+  conservé jusqu'au 27 octobre 2026), chiffré pour `build-utils/delivery-424-recipient.pem` (clé du PC du
+  mainteneur). Le SHA-256 de l'IPA se relève après déchiffrement (`SHA256SUMS` de l'enveloppe) ; il n'est pas
+  connu dans ce conteneur, qui ne peut pas télécharger les artefacts.
+- Diagnostics chiffrés : `…-cold-diagnostics` (ID `11781942401`, 4 841 817 octets).
 
 ## Ce qui n'est pas vérifié
 
