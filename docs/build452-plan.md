@@ -57,6 +57,35 @@ Exécuté dans ce conteneur (Linux x86_64, Flutter 3.47.2) :
 | `flutter analyze` des fichiers Dart modifiés | aucun problème |
 | Porte `verify_delivery_reuse.py --offline` (bloc `BUILD452_DELTA`) | réussie |
 | `delivery_pipeline_test.py` | 13 sur 13 |
+| Les huit séries `flutter test` du job `checks` de la livraison | toutes réussies : 2 383 tests, dont 3 ignorés comme avant |
+| Tests Python du job `checks` | 31 sur 33 ; les deux échecs connus, identiques sur la source 449 (`cheats_media_source_contract_test.py`, commit absent du clone superficiel ; `library_cover_delivery_test.py`, porte du périmètre `library_covers`) |
+
+CI GitHub (branche `Claude`, source `1594e78c`) :
+
+- `libretro-checks` `38350636952` : réussi.
+- `retroarch-delivery.yml` `38350634341` : voir « Livraison ».
+
+## Livraison
+
+- **Run.** `retroarch-delivery.yml` `38350634341`, lancé sur `Claude` (`build_number` 452, périmètre `full`), depuis
+  la source `1594e78cdb2170c5e07b61af1eacc6733d61bd87`, qui contient ce plan.
+  - Jobs `checks`, `native` et `Release device build • cold` réussis.
+  - Horaires : 05:17 → 05:40 UTC, 13 octobre 2026. Compilation Release (AOT et Xcode) : 366 s.
+- **Version.** 0.0.7 (452), relevée dans l'`Info.plist` de l'IPA ; `environment.json` : commit `1594e78c`, build 452.
+- **Artefact.** `NeoStation-Build-452-1594e78cdb2170c5e07b61af1eacc6733d61bd87-cold`.
+  - ID `11791821126`, 212 106 141 octets.
+  - SHA-256 de l'archive : `85a91eb1f5b7de4c5a1c945ad5043c520de06fcb934894f719168fe6d4efa0da`.
+  - Conservé jusqu'au 27 octobre 2026, chiffré pour `build-utils/delivery-424-recipient.pem`.
+- **IPA remise.** `NeoStation-Build452-1594e78cdb2170c5e07b61af1eacc6733d61bd87-cold.ipa`.
+  - 211 852 843 octets, SHA-256 **`d76463d124d2f9faecd0215b480b41abc4b6a6afb67f6c5685ca82489473fd21`**.
+  - Ce SHA-256 est égal à `SHA256SUMS` et à `signed-payload-identity.json`.
+  - Téléchargée et déchiffrée sur le PC du mainteneur (`decrypt-452.ps1`, sur le modèle de la 451), avec sa clé 424
+    et l'`openssl` de Git, dans `C:\Users\Coren\nsw\b452`.
+  - Copie vérifiée : `C:\Users\Coren\Downloads\NeoStation-Build452-1594e78.ipa`.
+  - Mot de passe de session, archive tar et lien signé supprimés.
+- **Diagnostics chiffrés.** `…-cold-diagnostics`, ID `11791796304`, 5 170 621 octets.
+- L'IPA est scellée pour la re-signature Apple et le provisioning que SideStore applique. Ne pas réutiliser le
+  numéro 452.
 
 ## Ce qui n'est pas vérifié
 
