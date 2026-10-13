@@ -14,7 +14,10 @@
 // interrupted pass is recovered when the page opens, and the controller
 // (arrow keys, Enter, Backspace) drives the page and its choice dialog.
 // Every root is a temporary folder; the method channels of the libretro
-// bridge (isSessionActive), path_provider and gamepads are mocked.
+// bridge (isSessionActive), path_provider and gamepads are mocked, the
+// bridge with the bytes Flutter's iOS engine sends (Build 454). The whole
+// import of the maintainer's video (Azahar folder, its nand and sysdata
+// folders, the sysdata files, nand.zip) runs to the refreshed inventory.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -34,6 +37,8 @@ import 'package:neostation/services/libretro_3ds_system_data_service.dart';
 import 'package:neostation/services/libretro_core_option_store.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:path/path.dart' as p;
+
+import 'libretro_session_envelopes.dart';
 
 const _gamepads = MethodChannel('xyz.luan/gamepads');
 const _paths = MethodChannel('plugins.flutter.io/path_provider');
@@ -68,6 +73,14 @@ const _cupertinoTexts = _AnyLocaleDelegate<CupertinoLocalizations>(
 
 Uint8List _bytes(int seed, int length) => Uint8List.fromList(
   List<int>.generate(length, (i) => (seed * 31 + i * 7) & 0xff),
+);
+
+/// One answer of the bridge as bytes (test/libretro_session_envelopes.dart).
+ByteData _envelope(String hex) => ByteData.sublistView(
+  Uint8List.fromList(<int>[
+    for (var index = 0; index < hex.length; index += 2)
+      int.parse(hex.substring(index, index + 2), radix: 16),
+  ]),
 );
 
 /// keys.txt as the core reads it: keys only under the `:AES` header.
@@ -157,6 +170,13 @@ void main() {
   var sessionProbes = 0;
   var zipCounter = 0;
 
+  /// The bytes the bridge answers isSessionActive with (Build 454): those
+  /// Flutter's iOS engine sends for the fixed plugin, or [build453Envelopes].
+  /// The state is [envelopeRunning] while [sessionActive], else
+  /// [envelopeIdle], unless [answerState] names another one.
+  var answers = fixedEnvelopes;
+  String? answerState;
+
   String en(
     String key, [
     Map<String, Object?> values = const <String, Object?>{},
@@ -217,6 +237,8 @@ void main() {
     probeFails = false;
     sessionProbes = 0;
     zipCounter = 0;
+    answers = fixedEnvelopes;
+    answerState = null;
     root = Directory.systemTemp.createTempSync('libretro_3ds_screen_');
     final documents = Directory(p.join(root.path, 'Documents'));
     config = Directory(p.join(documents.path, 'Libretro', 'Config'));
@@ -228,14 +250,25 @@ void main() {
     diagnostics = Directory(p.join(documents.path, 'Diagnostics'));
     messenger.setMockMethodCallHandler(_gamepads, (call) async => <dynamic>[]);
     messenger.setMockMethodCallHandler(_paths, (_) async => root.path);
-    messenger.setMockMethodCallHandler(_bridge, (call) async {
+    // The bridge answers with the bytes Flutter's iOS engine sends
+    // (test/libretro_session_envelopes.dart, checked against the real plugin
+    // in the iOS Simulator), not with Dart values: Build 453's integers went
+    // through mocks that returned Dart booleans unseen.
+    messenger.setMockMessageHandler(_bridge.name, (message) async {
+      final call = _bridge.codec.decodeMethodCall(message);
       if (call.method == 'isSessionActive') {
         sessionProbes++;
-        if (probeFails) throw PlatformException(code: 'bridge-unavailable');
-        return sessionActive;
+        if (probeFails) {
+          return _bridge.codec.encodeErrorEnvelope(code: 'bridge-unavailable');
+        }
+        final state =
+            answerState ?? (sessionActive ? envelopeRunning : envelopeIdle);
+        return _envelope(answers[state]!);
       }
-      if (call.method == 'availableCores') return <String>[];
-      return null;
+      if (call.method == 'availableCores') {
+        return _bridge.codec.encodeSuccessEnvelope(<String>[]);
+      }
+      return _bridge.codec.encodeSuccessEnvelope(null);
     });
     // The store and the service ask the bridge, through the mocked channel,
     // whether a game runs: exactly what the app does.
@@ -249,7 +282,7 @@ void main() {
   tearDown(() {
     messenger.setMockMethodCallHandler(_gamepads, null);
     messenger.setMockMethodCallHandler(_paths, null);
-    messenger.setMockMethodCallHandler(_bridge, null);
+    messenger.setMockMessageHandler(_bridge.name, null);
     root.deleteSync(recursive: true);
   });
 
@@ -1607,6 +1640,410 @@ void main() {
           statusText(tester, 'seeddb'),
           en('system3dsPresentSize', {'size': '48 B'}),
         );
+      },
+    );
+  });
+
+  // Build 454: the maintainer's video of 13 October 2026. The Azahar folder,
+  // then the files of its sysdata folder, were refused before any analysis:
+  // the bridge answered isSessionActive with an int32, whose bool cast threw.
+  // With the bytes the fixed bridge sends, every source of the video goes to
+  // the installation and the refreshed inventory.
+  group('the import of the video, with the bridge\'s real answers (Build 454)', () {
+    const fontApp =
+        '${Libretro3dsSystemDataService.titleRoot}/0004009b/00014002/content/00000000.app';
+    const miiApp =
+        '${Libretro3dsSystemDataService.titleRoot}/0004009b/00010202/content/00000000.app';
+    const configTarget = Libretro3dsSystemDataService.configTarget;
+    const otpTarget = Libretro3dsSystemDataService.otpTarget;
+    const seeddbTarget = Libretro3dsSystemDataService.seeddbTarget;
+    final consoleBox = find.byKey(const ValueKey('3ds-include-console'));
+    final confirm = find.byKey(const ValueKey('3ds-import-confirm'));
+    final close = find.byKey(const ValueKey('3ds-import-close'));
+
+    /// movable.sed as the core loads it (`MovableSedFull`): 0x140 bytes
+    /// starting with SEED.
+    Uint8List movable() =>
+        _bytes(20, 0x140)..setAll(0, utf8.encode('SEED'));
+
+    /// The nand folder of an Azahar user folder: two system titles Azahar
+    /// encrypted for the console (Build 451), the CFG save and three console
+    /// files.
+    Map<String, List<int>> nand() => <String, List<int>>{
+      '$_sourceId0/title/0004009b/00014002/content/00000000.app':
+          _consoleEncrypted('0004009b', '00014002', 0x1400, 1),
+      '$_sourceId0/title/0004009b/00014002/content/00000000.tmd': _tmd(
+        '0004009b',
+        '00014002',
+      ),
+      '$_sourceId0/title/0004009b/00010202/content/00000000.app':
+          _consoleEncrypted('0004009b', '00010202', 0x800, 1),
+      '$_sourceId0/title/0004009b/00010202/content/00000000.tmd': _tmd(
+        '0004009b',
+        '00010202',
+      ),
+      'data/$_sourceId0/sysdata/00010017/00000000/config': _config(),
+      'private/movable.sed': movable(),
+      'rw/sys/SecureInfo_A': _bytes(21, 0x111),
+      'rw/sys/LocalFriendCodeSeed_B': _bytes(22, 0x110),
+    };
+
+    /// The five files of its sysdata folder in the video.
+    Map<String, List<int>> sysdata() => <String, List<int>>{
+      'mac': _bytes(23, 17),
+      'mcu.dat': _bytes(24, 24),
+      'otp.bin': _bytes(12, 0x100),
+      'play_time.bin': _bytes(25, 32),
+      'seeddb.bin': _seeddb(2),
+    };
+
+    /// The maintainer's Azahar folder: cheats, config, log, nand, nand.zip,
+    /// screenshots, sdmc, shaders and sysdata.
+    String azaharFolder() {
+      final folder = p.join(root.path, 'sources', 'Azahar');
+      final files = <String, List<int>>{
+        for (final entry in nand().entries) 'nand/${entry.key}': entry.value,
+        for (final entry in sysdata().entries)
+          'sysdata/${entry.key}': entry.value,
+        'config/qt-config.ini': utf8.encode('[UI]\n'),
+        'log/azahar_log.txt': utf8.encode('log'),
+        'sdmc/Nintendo 3DS/$_sourceId0/readme.txt': utf8.encode('x'),
+        'shaders/vulkan/pipeline.bin': _bytes(26, 64),
+        'nand.zip': ZipEncoder().encodeBytes(
+          Archive()
+            ..add(ArchiveFile.bytes('nand/private/movable.sed', movable())),
+        ),
+      };
+      for (final entry in files.entries) {
+        File(p.joinAll([folder, ...entry.key.split('/')]))
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(entry.value);
+      }
+      for (final empty in <String>['cheats', 'screenshots']) {
+        Directory(p.join(folder, empty)).createSync(recursive: true);
+      }
+      return folder;
+    }
+
+    Finder line(String group, String target) => find.descendant(
+      of: find.byKey(ValueKey('3ds-plan-$group')),
+      matching: find.textContaining('$target · '),
+    );
+
+    String present(int size) =>
+        en('system3dsPresentSize', {'size': '$size B'});
+
+    Future<void> install(WidgetTester tester, {required int count}) async {
+      expect(find.text(en('system3dsConfirm', {'count': count})), findsOneWidget);
+      await tester.ensureVisible(confirm);
+      await tester.tap(confirm);
+      await settle(tester, close);
+      expect(find.byKey(const ValueKey('3ds-result-failure')), findsNothing);
+      expect(find.byKey(const ValueKey('3ds-result-missing')), findsNothing);
+    }
+
+    Future<void> checkConsoleData(WidgetTester tester) async {
+      await tester.ensureVisible(consoleBox);
+      await tester.tap(consoleBox);
+      await tester.pump();
+      expect(tester.widget<CheckboxListTile>(consoleBox).value, isTrue);
+    }
+
+    for (final source in <String>['folder', 'files']) {
+      testWidgets(
+        "the video, with Build 453's answer: the ${source == 'folder' ? 'Azahar folder' : 'sysdata files'} "
+        'refused before any analysis, nothing written; with the fixed answer '
+        'the same pick reaches the plan',
+        (tester) async {
+          answers = build453Envelopes;
+          final azahar = azaharFolder();
+          await pumpPage(
+            tester,
+            pickFolder: () async => azahar,
+            pickFiles: () async => <String>[
+              for (final name in sysdata().keys) p.join(azahar, 'sysdata', name),
+            ],
+            releaseFolder: () async {},
+          );
+          final probes = sessionProbes;
+          await openImport(tester, source);
+          await settle(tester, find.byKey(const ValueKey('3ds-session-unknown')));
+          expect(sessionProbes, probes + 1);
+          expect(find.text(english['system3dsSessionUnknown']!), findsOneWidget);
+          expect(
+            find.text(
+              en('system3dsTechnicalCode', {
+                'code':
+                    'isSessionActive probe failed: LibretroSessionProbeException: '
+                    'non-boolean answer (int 0)',
+              }),
+            ),
+            findsOneWidget,
+          );
+          expect(find.byKey(const ValueKey('3ds-progress')), findsNothing);
+          expect(confirm, findsNothing, reason: 'no analysis, no plan');
+          expect(user().existsSync(), isFalse);
+          expect(backups.existsSync(), isFalse);
+
+          answers = fixedEnvelopes;
+          await openImport(tester, source);
+          await settle(tester, confirm);
+          expect(find.byKey(const ValueKey('3ds-session-unknown')), findsNothing);
+          expect(line('create', seeddbTarget), findsOneWidget);
+          await tester.tap(find.byKey(const ValueKey('3ds-import-cancel')));
+          await idle(tester);
+          expect(user().existsSync(), isFalse);
+        },
+      );
+    }
+
+    testWidgets(
+      'the Azahar folder: nand and sysdata installed with the console data, '
+      'nand.zip listed apart, the inventory follows',
+      (tester) async {
+        final azahar = azaharFolder();
+        var releases = 0;
+        await pumpPage(
+          tester,
+          pickFolder: () async => azahar,
+          releaseFolder: () async => releases++,
+        );
+        expect(statusText(tester, 'titles'), english['system3dsAbsent']);
+        expect(statusText(tester, 'console'), english['system3dsAbsent']);
+
+        await openImport(tester, 'folder');
+        await settle(tester, confirm);
+        // Before the box: the seed database only; the titles wait for the
+        // console's otp.bin, which comes with the console data.
+        expect(line('create', seeddbTarget), findsOneWidget);
+        for (final target in <String>[
+          fontApp,
+          miiApp,
+          configTarget,
+          otpTarget,
+          'sysdata/mcu.dat',
+          'nand/private/movable.sed',
+          'nand/rw/sys/SecureInfo_A',
+          'nand/rw/sys/LocalFriendCodeSeed_B',
+        ]) {
+          expect(line('excluded', target), findsOneWidget, reason: target);
+        }
+        // nand.zip is not opened and says how to import it; mac and
+        // play_time.bin are not recognized; nothing is refused.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('3ds-plan-ignored')),
+            matching: find.textContaining('nand.zip · '),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text(english['system3dsIgnoredNestedZip']!), findsOneWidget);
+        expect(english['system3dsIgnoredNestedZip'], contains(english['system3dsImportZip']!));
+        for (final name in <String>['sysdata/mac', 'sysdata/play_time.bin']) {
+          expect(line('ignored', name), findsOneWidget, reason: name);
+        }
+        expect(find.byKey(const ValueKey('3ds-plan-rejected')), findsNothing);
+        expect(find.text(english['system3dsRejectedArchive']!), findsNothing);
+        expect(find.text(en('system3dsConfirm', {'count': 1})), findsOneWidget);
+
+        await checkConsoleData(tester);
+        for (final target in <String>[fontApp, miiApp, configTarget, otpTarget]) {
+          expect(line('create', target), findsOneWidget, reason: target);
+        }
+        // Two titles (four files), the CFG save, five console files, seeddb.
+        await install(tester, count: 11);
+        expect(find.byKey(ValueKey('3ds-result-$fontApp')), findsOneWidget);
+        expect(find.byKey(ValueKey('3ds-result-$otpTarget')), findsOneWidget);
+        expect(find.byKey(const ValueKey('3ds-result-console-encrypted')), findsNothing);
+        expect(find.byKey(const ValueKey('3ds-result-nand.zip')), findsNothing);
+        expect(
+          userFile(fontApp).readAsBytesSync(),
+          _consoleEncrypted('0004009b', '00014002', 0x1400, 1),
+        );
+        expect(userFile(miiApp).existsSync(), isTrue);
+        expect(userFile(configTarget).readAsBytesSync(), _config());
+        expect(userFile(otpTarget).readAsBytesSync(), _bytes(12, 0x100));
+        expect(userFile('sysdata/mcu.dat').readAsBytesSync(), _bytes(24, 24));
+        expect(userFile('nand/private/movable.sed').readAsBytesSync(), movable());
+        expect(userFile(seeddbTarget).readAsBytesSync(), _seeddb(2));
+        expect(userFile('sysdata/mac').existsSync(), isFalse);
+        expect(userFile('sysdata/play_time.bin').existsSync(), isFalse);
+        expect(releases, 1, reason: 'the folder is released once installed');
+
+        await tester.tap(close);
+        await settle(
+          tester,
+          find.text(en('system3dsPresentFiles', {'count': 4})),
+        );
+        expect(statusText(tester, 'seeddb'), present(80));
+        expect(
+          statusText(tester, 'titles'),
+          en('system3dsPresentFiles', {'count': 4}),
+        );
+        expect(statusText(tester, 'console'), english['system3dsPresent']);
+        expect(find.text('$otpTarget — ${present(0x100)}'), findsOneWidget);
+        expect(find.text('sysdata/mcu.dat — ${present(24)}'), findsOneWidget);
+        expect(find.text('$configTarget — ${en('system3dsPresentSize', {'size': '32.8 KB'})}'), findsOneWidget);
+        expect(find.byKey(const ValueKey('3ds-session-unknown')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the nand folder, then the sysdata folder: the titles wait for the '
+      "console's otp.bin, then install from nand",
+      (tester) async {
+        final azahar = azaharFolder();
+        var picked = p.join(azahar, 'nand');
+        await pumpPage(
+          tester,
+          pickFolder: () async => picked,
+          releaseFolder: () async {},
+        );
+
+        // nand alone: no otp.bin anywhere, the titles are left out with
+        // their reason; the CFG save and console files come with the box.
+        await openImport(tester, 'folder');
+        await settle(tester, confirm);
+        expect(line('excluded', fontApp), findsOneWidget);
+        await checkConsoleData(tester);
+        expect(line('excluded', fontApp), findsOneWidget);
+        expect(line('create', configTarget), findsOneWidget);
+        await install(tester, count: 4);
+        expect(find.byKey(const ValueKey('3ds-result-console-encrypted')), findsOneWidget);
+        expect(userFile(fontApp).existsSync(), isFalse);
+        expect(userFile(configTarget).existsSync(), isTrue);
+        await tester.tap(close);
+        await settle(tester, find.text('$configTarget — ${en('system3dsPresentSize', {'size': '32.8 KB'})}'));
+        expect(statusText(tester, 'titles'), english['system3dsAbsent']);
+
+        // sysdata: the seed database, and otp.bin and mcu.dat with the box.
+        picked = p.join(azahar, 'sysdata');
+        await openImport(tester, 'folder');
+        await settle(tester, confirm);
+        expect(line('create', seeddbTarget), findsOneWidget);
+        expect(line('excluded', otpTarget), findsOneWidget);
+        // Paths inside the chosen folder: its own name is not repeated.
+        expect(line('ignored', 'mac'), findsOneWidget);
+        expect(line('ignored', 'play_time.bin'), findsOneWidget);
+        await checkConsoleData(tester);
+        await install(tester, count: 3);
+        expect(userFile(otpTarget).readAsBytesSync(), _bytes(12, 0x100));
+        await tester.tap(close);
+        await settle(tester, find.text('$otpTarget — ${present(0x100)}'));
+        expect(statusText(tester, 'seeddb'), present(80));
+
+        // nand again: the console's otp.bin is in place, the titles are
+        // installed without the box; the console files are already there.
+        picked = p.join(azahar, 'nand');
+        await openImport(tester, 'folder');
+        await settle(tester, confirm);
+        expect(line('create', fontApp), findsOneWidget);
+        expect(line('create', miiApp), findsOneWidget);
+        expect(line('identical', configTarget), findsOneWidget);
+        await install(tester, count: 4);
+        expect(find.byKey(const ValueKey('3ds-result-console-encrypted')), findsNothing);
+        await tester.tap(close);
+        await settle(
+          tester,
+          find.text(en('system3dsPresentFiles', {'count': 4})),
+        );
+        expect(
+          userFile(fontApp).readAsBytesSync(),
+          _consoleEncrypted('0004009b', '00014002', 0x1400, 1),
+        );
+      },
+    );
+
+    testWidgets(
+      'the five sysdata files of the video, picked as individual files',
+      (tester) async {
+        final azahar = azaharFolder();
+        await pumpPage(
+          tester,
+          pickFiles: () async => <String>[
+            for (final name in sysdata().keys) p.join(azahar, 'sysdata', name),
+          ],
+        );
+        await openImport(tester, 'files');
+        await settle(tester, confirm);
+        expect(line('create', seeddbTarget), findsOneWidget);
+        expect(line('excluded', otpTarget), findsOneWidget);
+        expect(line('excluded', 'sysdata/mcu.dat'), findsOneWidget);
+        expect(line('ignored', 'mac'), findsOneWidget);
+        expect(line('ignored', 'play_time.bin'), findsOneWidget);
+        expect(find.byKey(const ValueKey('3ds-plan-rejected')), findsNothing);
+        await checkConsoleData(tester);
+        await install(tester, count: 3);
+        expect(userFile(seeddbTarget).readAsBytesSync(), _seeddb(2));
+        expect(userFile(otpTarget).readAsBytesSync(), _bytes(12, 0x100));
+        expect(userFile('sysdata/mcu.dat').readAsBytesSync(), _bytes(24, 24));
+        await tester.tap(close);
+        await settle(tester, find.text('$otpTarget — ${present(0x100)}'));
+        expect(statusText(tester, 'seeddb'), present(80));
+        expect(statusText(tester, 'console'), english['system3dsPresent']);
+      },
+    );
+
+    testWidgets(
+      "nand.zip, the ZIP of the nand folder, with the console's otp.bin in place",
+      (tester) async {
+        writeUser(otpTarget, _bytes(12, 0x100));
+        final zip = writeZip('nand.zip', <String, List<int>>{
+          for (final entry in nand().entries) 'nand/${entry.key}': entry.value,
+        });
+        await pumpPage(tester, pickFiles: () async => <String>[zip]);
+        expect(statusText(tester, 'titles'), english['system3dsAbsent']);
+        await openImport(tester, 'zip');
+        await settle(tester, confirm);
+        expect(line('create', fontApp), findsOneWidget);
+        expect(line('create', miiApp), findsOneWidget);
+        expect(line('excluded', configTarget), findsOneWidget);
+        await checkConsoleData(tester);
+        // Four title files, the CFG save and three console files.
+        await install(tester, count: 8);
+        await tester.tap(close);
+        await settle(
+          tester,
+          find.text(en('system3dsPresentFiles', {'count': 4})),
+        );
+        expect(statusText(tester, 'console'), english['system3dsPresent']);
+        expect(find.text('nand/private/movable.sed — ${present(0x140)}'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'while a game launches or runs the import is refused before the plan, '
+      'nothing written; once it has stopped the import goes through',
+      (tester) async {
+        final azahar = azaharFolder();
+        await pumpPage(
+          tester,
+          pickFolder: () async => azahar,
+          releaseFolder: () async {},
+        );
+        for (final state in <String>[envelopeLaunching, envelopeRunning]) {
+          answerState = state;
+          final probes = sessionProbes;
+          await openImport(tester, 'folder');
+          await settle(tester, find.byKey(const ValueKey('3ds-session-error')));
+          expect(sessionProbes, probes + 1, reason: state);
+          expect(find.text(english['system3dsSessionActive']!), findsOneWidget);
+          expect(find.byKey(const ValueKey('3ds-session-unknown')), findsNothing);
+          expect(confirm, findsNothing, reason: state);
+          expect(user().existsSync(), isFalse, reason: state);
+          // The next pass clears the note.
+          answerState = envelopeIdle;
+          await openImport(tester, 'folder');
+          await settle(tester, confirm);
+          expect(find.byKey(const ValueKey('3ds-session-error')), findsNothing);
+          await tester.tap(find.byKey(const ValueKey('3ds-import-cancel')));
+          await idle(tester);
+        }
+        answerState = envelopeStopped;
+        await openImport(tester, 'folder');
+        await settle(tester, confirm);
+        await install(tester, count: 1);
+        expect(userFile(seeddbTarget).readAsBytesSync(), _seeddb(2));
       },
     );
   });

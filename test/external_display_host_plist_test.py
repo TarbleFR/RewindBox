@@ -346,7 +346,12 @@ class DeliveryWiringTests(unittest.TestCase):
         self.assertIn('-fsyntax-only', after)
         self.assertIn('-miphoneos-version-min=17.4', after)
         self.assertIn('Flutter.xcframework', after)
-        self.assertEqual(after.count(condition), 2, 'Flutter setup and plugin compilation share the libretro step conditions')
+        # Build 454 adds a third step after them, on the same Flutter and the
+        # same conditions: the libretro bridge's channel codec test in the
+        # iOS Simulator. The count stays exact (was 2).
+        self.assertIn('run: python3 test/libretro_channel_codec_test.py', after)
+        self.assertEqual(after.count(condition), 3,
+                         'Flutter setup, plugin compilation and the channel codec test share the libretro step conditions')
 
     def test_rpcs3_bridge_syntax_check_stages_the_published_plugin_headers(self) -> None:
         # The RPCS3 bridge imports <external_display/NeoExternalDisplayCoordinator.h>; its

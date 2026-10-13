@@ -29,6 +29,8 @@ name: Libretro engine checks
     - packages/neoplay_bridge/**
     - test/header_battery_test.dart
     - test/libretro_host/**
+    - test/libretro_channel_codec/**
+    - lib/services/embedded_ios_session_status.dart
     - build-utils/libretro/**
     - build-utils/validate_libretro_ipa.py
     - assets/data/libretro_bios_requirements.json
@@ -62,10 +64,13 @@ concurrency:
 jobs:
   native:
     runs-on: macos-15
-    timeout-minutes: 30
+    # Room for the channel codec test (Build 454): the bridge built twice for
+    # the iOS Simulator and one simulator boot.
+    timeout-minutes: 50
     steps:
     - uses: actions/checkout@v4
       with:
+        fetch-depth: 0
         persist-credentials: false
     - name: Select Xcode 26.3
       uses: maxim-lobanov/setup-xcode@v1
@@ -84,6 +89,35 @@ jobs:
     - name: Compile every bridge and rcheevos source for iPhone
       if: ${{ !cancelled() }}
       run: python3 test/libretro_ios_syntax_test.py
+    # Build 454: the plugin's isSessionActive answer encoded by the real
+    # Flutter.framework of the pinned SDK in the iOS Simulator, compared with
+    # the bytes the Dart tests feed to the MethodChannel
+    # (test/libretro_session_envelopes.dart).
+    - name: Fetch the pinned Flutter for the channel codec test
+      if: ${{ !cancelled() }}
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.47.2
+        channel: stable
+        cache: true
+    - name: Encode isSessionActive with the real Flutter codec in the iOS Simulator
+      if: ${{ !cancelled() }}
+      run: |
+        flutter precache --ios
+        python3 test/libretro_channel_codec_test.py --evidence evidence/channel-codec/this-commit --label "${GITHUB_SHA}"
+    - name: The same test on the Build 453 sources reproduces the int32 answer
+      if: ${{ !cancelled() }}
+      run: |
+        git worktree add --detach "$RUNNER_TEMP/build-453" 81efc2109e1052678bd881b8fc7c8dc1c53aa8bc
+        python3 test/libretro_channel_codec_test.py --sources "$RUNNER_TEMP/build-453/packages/libretro_internal_bridge/ios" \
+          --expect unfixed --evidence evidence/channel-codec/build-453 --label 81efc2109e1052678bd881b8fc7c8dc1c53aa8bc
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: libretro-channel-codec-${{ github.sha }}
+        path: evidence/channel-codec/
+        if-no-files-found: warn
+        retention-days: 14
   dart:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -106,7 +140,7 @@ jobs:
         flutter analyze --no-fatal-infos
     - name: Libretro, launch and library tests
       run: |
-        flutter test test/libretro_locale_test.dart test/libretro_core_catalog_test.dart test/frontend_media_gate_test.dart test/rom_folder_registration_test.dart test/library_scan_restart_test.dart test/retroarch_library_protocol_test.dart test/retroarch_library_cache_test.dart test/retroarch_launch_diagnostics_test.dart test/retroarch_sync_locale_test.dart test/ios_selective_rollback_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/game_repository_test.dart test/system_repository_test.dart test/rpcs3_embedded_identity_test.dart test/audio_policy_service_test.dart test/libretro_skin_service_test.dart test/libretro_skin_catalog_test.dart test/libretro_skin_catalogs_test.dart test/libretro_skin_manager_test.dart test/libretro_playlist_actions_test.dart test/ios_library_root_relocation_test.dart test/neostation_rom_library_test.dart test/header_battery_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/libretro_3ds_language_test.dart test/libretro_core_option_store_test.dart test/libretro_3ds_system_data_service_test.dart test/libretro_3ds_system_screen_test.dart test/libretro_3ds_launch_default_test.dart test/libretro_3ds_encrypted_launch_test.dart test/console_manager_test.dart
+        flutter test test/libretro_locale_test.dart test/libretro_core_catalog_test.dart test/frontend_media_gate_test.dart test/rom_folder_registration_test.dart test/library_scan_restart_test.dart test/retroarch_library_protocol_test.dart test/retroarch_library_cache_test.dart test/retroarch_launch_diagnostics_test.dart test/retroarch_sync_locale_test.dart test/ios_selective_rollback_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/game_repository_test.dart test/system_repository_test.dart test/rpcs3_embedded_identity_test.dart test/audio_policy_service_test.dart test/libretro_skin_service_test.dart test/libretro_skin_catalog_test.dart test/libretro_skin_catalogs_test.dart test/libretro_skin_manager_test.dart test/libretro_playlist_actions_test.dart test/ios_library_root_relocation_test.dart test/neostation_rom_library_test.dart test/header_battery_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/libretro_3ds_language_test.dart test/libretro_core_option_store_test.dart test/libretro_3ds_system_data_service_test.dart test/libretro_3ds_system_screen_test.dart test/libretro_3ds_launch_default_test.dart test/libretro_3ds_encrypted_launch_test.dart test/console_manager_test.dart test/libretro_session_probe_codec_test.dart
         # Build 447: storage analysis and cleanup, with the fifth Tools row
         # (docs/storage-audit-cleanup.md § 5).
         flutter test test/storage_*_test.dart
