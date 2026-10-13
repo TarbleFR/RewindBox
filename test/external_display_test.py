@@ -232,9 +232,17 @@ def coordinator_contracts() -> None:
           and leave.index('[self giveWindow:nil toDelegateOfScene:scene];') < leave.index('window.windowScene = nil;'),
           'outside a game the window leaves its scene, its delegate no longer holds it')
     back = place_scene[place_scene.index('if (inScene) {'):place_scene.index('if (self.windowLeftScene || window.windowScene != scene) return;')]
-    check('if (NeoExternalDisplayUsableSize(bounds.size)) window.frame = bounds;' in back
+    check('if (self.windowFollowsScene && NeoExternalDisplayUsableSize(bounds.size)) {' in back
           and back.index('window.windowScene = scene;') < back.index('window.frame = bounds;'),
-          'back in its scene, the window takes the size the scene has now (a mode change of the TV while mirrored)')
+          "back in its scene, the coordinator's own window takes the size the scene has now (a mode change of the TV while mirrored)")
+    check('window.frame = self.frameBeforeLeavingScene;' in back and 'self.frameBeforeLeavingScene = window.frame;' in leave,
+          'a window the factory seam built gets back its own frame (the test host stands the iPhone scene in for the TV)')
+    show_window = method_body(code(source), '- (void)showWindowInScene:(UIWindowScene *)scene {')
+    check('self.windowFollowsScene = window == nil;' in show_window
+          and show_window.index('self.windowFollowsScene = window == nil;') < show_window.index('[[UIWindow alloc] initWithWindowScene:scene]'),
+          'only a window built by the coordinator follows the scene bounds')
+    check('self.windowFollowsScene = NO;' in release and 'self.frameBeforeLeavingScene = CGRectZero;' in release,
+          'a released window forgets its scene geometry')
     check('if (!self.windowLeftScene) return;' in back and 'window.windowScene = scene;' in back
           and '[self giveWindow:window toDelegateOfScene:scene];' in back and 'self.windowLeftScene = NO;' in back,
           'only a window this coordinator took out goes back, to the same scene, and its delegate holds it again')

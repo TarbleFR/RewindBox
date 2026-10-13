@@ -312,6 +312,13 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
 /// The window was taken out of `scene` so that iOS mirrors the iPhone
 /// (placeWindowInScene:); it goes back there when a game takes the TV.
 @property(nonatomic, assign) BOOL windowLeftScene;
+/// The coordinator built the window itself (-[UIWindow
+/// initWithWindowScene:], not the factory seam): back in its scene it takes
+/// the scene's bounds.
+@property(nonatomic, assign) BOOL windowFollowsScene;
+/// The window's frame when it left its scene (restored on its return for a
+/// window the factory seam built).
+@property(nonatomic, assign) CGRect frameBeforeLeavingScene;
 /// Every external scene UIKit connected and has not disconnected, in
 /// connection order.
 @property(nonatomic, strong) NSMutableArray<UIWindowScene *> *connectedExternalScenes;
@@ -583,6 +590,10 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
 - (void)showWindowInScene:(UIWindowScene *)scene {
   self.connectingScene = scene;
   UIWindow *window = self.windowFactory ? self.windowFactory(scene, scene.screen) : nil;
+  // A window the factory seam built keeps its own frame (the test host's
+  // stand-in scene is the iPhone's, not the TV's); the coordinator's own
+  // window follows the scene's bounds when it comes back into the scene.
+  self.windowFollowsScene = window == nil;
   if (window == nil) window = [[UIWindow alloc] initWithWindowScene:scene];
   self.scene = scene;
   self.screenScale = scene.screen.scale;
@@ -742,15 +753,22 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
     if (!self.windowLeftScene) return;
     self.windowLeftScene = NO;
     window.windowScene = scene;
-    // The TV's mode may have changed while the iPhone was mirrored.
+    // The TV's mode may have changed while the iPhone was mirrored: the
+    // coordinator's own window takes the scene's bounds; a window the
+    // factory seam built gets back its own frame, whatever UIKit did.
     const CGRect bounds = scene.coordinateSpace.bounds;
-    if (NeoExternalDisplayUsableSize(bounds.size)) window.frame = bounds;
+    if (self.windowFollowsScene && NeoExternalDisplayUsableSize(bounds.size)) {
+      window.frame = bounds;
+    } else if (!self.windowFollowsScene && NeoExternalDisplayUsableSize(self.frameBeforeLeavingScene.size)) {
+      window.frame = self.frameBeforeLeavingScene;
+    }
     [self giveWindow:window toDelegateOfScene:scene];
     NSLog(@"display.external_window_back_in_scene");
     return;
   }
   if (self.windowLeftScene || window.windowScene != scene) return;
   self.windowLeftScene = YES;
+  self.frameBeforeLeavingScene = window.frame;
   [self giveWindow:nil toDelegateOfScene:scene];
   window.windowScene = nil;
   NSLog(@"display.external_mirroring (the window left its scene: iOS mirrors the iPhone)");
@@ -771,6 +789,8 @@ static NSString *NeoExternalCombinedAccessoryStatus(NSString *root, NSString *_N
   self.window = nil;
   self.scene = nil;
   self.windowLeftScene = NO;
+  self.windowFollowsScene = NO;
+  self.frameBeforeLeavingScene = CGRectZero;
   self.legacyScreen = nil;
   self.screenScale = 0;
   self.sceneRole = kNeoExternalRoleNone;
