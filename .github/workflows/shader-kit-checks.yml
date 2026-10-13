@@ -10,6 +10,14 @@ name: Shader kit checks
     - test/neo_shader_kit_test.py
     - test/neo_shader_kit_catalog_test.py
     - test/neo_shader_kit_ios_build.py
+    - test/neo_shader_kit_dolphin_test.py
+    - test/dolphin_shader_store_test.py
+    - test/dolphin_shader_store_test.mm
+    - test/dolphin_shader_localizations_test.py
+    - native/dolphin_shaders/**
+    - packages/dolphin_internal_bridge/ios/Classes/DOLShader*
+    - packages/dolphin_internal_bridge/ios/Classes/DolphinFramePacing.*
+    - packages/dolphin_internal_bridge/ios/Classes/DolphinDisplayTrial.h
     - test/libretro_host/stubs/**
     - tools/shaders/**
   workflow_dispatch:
@@ -30,6 +38,9 @@ jobs:
         persist-credentials: false
     - name: Portable core tests
       run: python3 test/neo_shader_kit_test.py
+    - name: Dolphin post-processing page texts in the twelve languages
+      if: ${{ !cancelled() }}
+      run: python3 test/dolphin_shader_localizations_test.py
   metal:
     runs-on: macos-15
     timeout-minutes: 90
@@ -46,6 +57,9 @@ jobs:
     - name: The pod compiles and links for iPhone (podspec sources and settings)
       if: ${{ !cancelled() }}
       run: python3 test/neo_shader_kit_ios_build.py
+    - name: Dolphin post-processing choice on real files, and its page compiled for iPhone
+      if: ${{ !cancelled() }}
+      run: python3 test/dolphin_shader_store_test.py
     - name: Fetch libretro/slang-shaders at the commit the catalog pins
       if: ${{ !cancelled() }}
       run: |
@@ -59,11 +73,37 @@ jobs:
       run: >-
         python3 test/neo_shader_kit_catalog_test.py --slang-shaders "$RUNNER_TEMP/slang-shaders"
         --build-directory build/neo-shader-kit --verdicts build/slang-metal-verdicts.json
+    - name: Fetch the Dolphin shaders the application ships, and a Mattias CRT port to check (never packaged)
+      if: ${{ !cancelled() }}
+      run: |
+        # Data/Sys/Shaders of the DolphiniOS revision the delivery pins
+        # (DOLPHIN_SHA), only those blobs.
+        dolphin=7cac54161659421ed95c2cd1c0b0746539a4cd38
+        git init -q "$RUNNER_TEMP/dolphin-ios"
+        git -C "$RUNNER_TEMP/dolphin-ios" sparse-checkout set --no-cone /Data/Sys/Shaders/
+        git -C "$RUNNER_TEMP/dolphin-ios" fetch -q --depth 1 --filter=blob:none https://github.com/OatmealDome/dolphin-ios "$dolphin"
+        git -C "$RUNNER_TEMP/dolphin-ios" checkout -q FETCH_HEAD
+        test "$(git -C "$RUNNER_TEMP/dolphin-ios" rev-parse HEAD)" = "$dolphin"
+        # pakovm-git/Mattias-CRT-Dolphin: shaders a player may import; their
+        # redistribution is not established (docs/shaders-mattias-crt.md).
+        mattias=a7b5603e5954563df9d111049c9645db7a0d860c
+        git init -q "$RUNNER_TEMP/mattias"
+        git -C "$RUNNER_TEMP/mattias" fetch -q --depth 1 https://github.com/pakovm-git/Mattias-CRT-Dolphin "$mattias"
+        git -C "$RUNNER_TEMP/mattias" checkout -q FETCH_HEAD
+        test "$(git -C "$RUNNER_TEMP/mattias" rev-parse HEAD)" = "$mattias"
+    - name: Dolphin shaders compile for iPhone and draw visibly through Dolphin's post-processing interface
+      if: ${{ !cancelled() }}
+      run: >-
+        python3 test/neo_shader_kit_dolphin_test.py --dolphin-ios "$RUNNER_TEMP/dolphin-ios"
+        --extra "mattias=$RUNNER_TEMP/mattias" --build-directory build/neo-shader-kit
+        --verdicts build/dolphin-metal-verdicts.json
     - name: Upload the verdicts
       if: ${{ always() }}
       uses: actions/upload-artifact@v4
       with:
         name: slang-metal-verdicts-${{ github.sha }}
-        path: build/slang-metal-verdicts.json
+        path: |
+          build/slang-metal-verdicts.json
+          build/dolphin-metal-verdicts.json
         if-no-files-found: ignore
         retention-days: 14

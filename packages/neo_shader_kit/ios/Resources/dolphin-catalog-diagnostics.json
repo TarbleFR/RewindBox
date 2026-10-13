@@ -1,0 +1,47 @@
+{
+ "schema": 1,
+ "engine": "dolphin",
+ "commit": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+ "excluded": [
+  [
+   "Anaglyph/dubois-LCD-Amber-Blue.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Anaglyph"
+  ],
+  [
+   "Anaglyph/dubois-LCD-Green-Magenta.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Anaglyph"
+  ],
+  [
+   "Anaglyph/dubois.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Anaglyph"
+  ],
+  [
+   "Anaglyph/fullcolor.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Anaglyph"
+  ],
+  [
+   "Anaglyph/grayscale.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Anaglyph"
+  ],
+  [
+   "Anaglyph/grayscale2.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Anaglyph"
+  ],
+  [
+   "Passive/horizontal.glsl",
+   "STEREOSCOPIC_ONLY",
+   "Passive"
+  ],
+  [
+   "default_pre_post_process.glsl",
+   "DEFAULT_SHADER",
+   ""
+  ]
+ ]
+}

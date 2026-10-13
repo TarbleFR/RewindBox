@@ -4,6 +4,7 @@
 #include "DOLCheatCatalogue.h"
 #import "DolphinFramePacing.h"
 #include "DolphinDisplayTrial.h"
+#include "DOLShaderStore.h"
 #include "DOLTextureSettings.h"
 #import "DolphinPerformanceOverlay.h"
 #import "DolphinSessionLifecycle.h"
@@ -767,6 +768,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 @property(nonatomic, copy) NSDictionary<NSString*, NSString*>* menuLabels;
 @property(nonatomic, copy) NSString* activeGameTitle;
 @property(nonatomic, copy) NSString* activeUserDirectory;
+/// Build 450: the Sys folder of the session (official post-processing shaders).
+@property(nonatomic, copy) NSString* activeSystemDirectory;
 @property(nonatomic, copy) NSString* activeDisplayGameId;
 @property(nonatomic, assign) NSInteger activeDisplayProfile;
 @property(nonatomic, assign) NSUInteger lastControllerGeneration;
@@ -961,6 +964,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   NSString* raApiToken = raCredentials[@"token"] ?: @"";
   self.activeLogPath = logPath;
   self.activeUserDirectory = userDirectory;
+  self.activeSystemDirectory = systemDirectory;
 
   void (^fail)(NSString*, NSString*) = ^(NSString* stage, NSString* message) {
     state[@"message"] = message;
@@ -1016,6 +1020,14 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     }
     DOLAppendJSONLog(logPath,@"display.trial_started",@"Reversible Metal presentation/shader trial, no emulation-speed change.",
       @{@"profile":@(self.activeDisplayProfile),@"gameId":self.activeDisplayGameId});
+    // Build 450: the post-processing effect chosen in NeoStation for this
+    // game, written before the core reads its settings (DOLShaderStore.h).
+    // A failure keeps Dolphin's previous effect and is only logged.
+    NSString* stagedShader=@"";
+    if(DOLApplyShaderSelection(userDirectory,systemDirectory,self.activeDisplayGameId,&stagedShader))
+      DOLAppendJSONLog(logPath,@"shader.staged",@"Post-processing effect written for this launch.",@{@"shader":stagedShader});
+    else
+      DOLAppendJSONLog(logPath,@"shader.stage_failed",@"The post-processing effect could not be written; Dolphin keeps its previous one.",nil);
     DOLAppendJSONLog(logPath, @"core.initialize", @"Initializing the embedded Dolphin core.", nil);
     if (neostation_dolphin_initialize(userDirectory.fileSystemRepresentation,
                                      systemDirectory.fileSystemRepresentation,
@@ -1118,6 +1130,27 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       controller.framePacing.locale = self.menuLabels[@"__locale"] ?: @"en";
       controller.framePacing.activeProfile = self.activeDisplayProfile;
       controller.framePacing.gameId = self.activeDisplayGameId;
+      // Build 450: Display › Post-processing effect. The page lives with the
+      // shader kit and is created by name, so the launch path links neither.
+      NSString* shaderUser = self.activeUserDirectory ?: @"";
+      NSString* shaderSystem = self.activeSystemDirectory ?: @"";
+      NSString* shaderGame = self.activeDisplayGameId ?: @"";
+      NSString* shaderLocale = controller.framePacing.locale;
+      if (shaderUser.length > 0 && NSClassFromString(@"DOLShaderSettings") != nil) {
+        controller.framePacing.shaderSummary = ^NSString* {
+          return DOLShaderEffective(DOLShaderReadSelection(shaderUser), shaderGame);
+        };
+        controller.framePacing.shaderPage = ^UIViewController* {
+          Class page = NSClassFromString(@"DOLShaderSettings");
+          if (page == nil || ![page isSubclassOfClass:UITableViewController.class]) return nil;
+          UITableViewController* settings = [(UITableViewController*)[page alloc] initWithStyle:UITableViewStyleInsetGrouped];
+          [settings setValue:shaderUser forKey:@"userDirectory"];
+          [settings setValue:shaderSystem forKey:@"systemDirectory"];
+          [settings setValue:shaderGame forKey:@"gameId"];
+          [settings setValue:shaderLocale forKey:@"locale"];
+          return settings;
+        };
+      }
       __weak DolphinInternalBridgePlugin* weakSelf = self;
       controller.menuHandler = ^{ [weakSelf presentSessionMenu]; };
       controller.closeHandler = ^{

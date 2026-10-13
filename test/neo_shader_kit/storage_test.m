@@ -11,6 +11,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <Foundation/Foundation.h>
 
+#import "NeoDolphinShader.h"
 #import "NeoShaderCatalog.h"
 #import "NeoShaderStorage.h"
 
@@ -457,6 +458,65 @@ static void TestBundledCatalog(NSString *resources) {
   [manager setCatalogDirectory:nil];
 }
 
+/// The Dolphin API the post-processing page uses: options as Dolphin reads
+/// them, credit lines quoted as written, translation like the core, refusals
+/// with stable codes, and the bundled catalog of Dolphin's official shaders.
+static void TestDolphinShader(NSString *resources) {
+  NSString *code = @"// CRT Emulation\n// by Mattias\n// https://www.shadertoy.com/view/lsB3DV\n"
+                   @"/*\n[configuration]\n[OptionRangeFloat]\nGUIName = Curvature\nOptionName = M_CURVATURE\n"
+                   @"MinValue = 0.0\nMaxValue = 1.0\nDefaultValue = 0.5\nStepAmount = 0.05\n\n[OptionBool]\n"
+                   @"GUIName = Glow\nOptionName = A_GLOW\nDefaultValue = true\n[/configuration]\n*/\n"
+                   @"void main()\n{\n  float4 c = Sample();\n  if (OptionEnabled(A_GLOW)) c.rgb *= 1.0 + "
+                   @"GetOption(M_CURVATURE);\n  SetOutput(c);\n}\n";
+  NSArray<NeoDolphinShaderOption *> *options = [NeoDolphinShader optionsOfCode:code];
+  CHECK(options.count == 2 && [options[0].name isEqualToString:@"A_GLOW"] && [options[1].name isEqualToString:@"M_CURVATURE"],
+        "Dolphin options in Dolphin's order (sorted by name)");
+  NeoDolphinShaderOption *curvature = options.count == 2 ? options[1] : nil;
+  CHECK(curvature.type == NeoDolphinOptionTypeFloat && [curvature.guiName isEqualToString:@"Curvature"] &&
+            [curvature.defaultValues isEqualToArray:@[ @0.5 ]] && [curvature.maximums isEqualToArray:@[ @1 ]] &&
+            [curvature.steps isEqualToArray:@[ @0.05 ]],
+        "float option parsed");
+  CHECK(options.count == 2 && options[0].type == NeoDolphinOptionTypeBool && options[0].defaultValues.firstObject.boolValue,
+        "bool option parsed");
+  NSArray<NSString *> *credits = [NeoDolphinShader creditLinesOfCode:code];
+  CHECK([credits containsObject:@"by Mattias"] && [credits containsObject:@"https://www.shadertoy.com/view/lsB3DV"],
+        "credit lines quoted as written (%s)", credits.description.UTF8String);
+  NSError *error = nil;
+  NeoDolphinShader *shader = [NeoDolphinShader shaderWithCode:code error:&error];
+  CHECK(shader != nil && shader.fragmentMSL.length > 0 && shader.vertexMSL.length > 0 && shader.options.count == 2,
+        "translated like the core (%s)", [error.userInfo[NSDebugDescriptionErrorKey] UTF8String] ?: "");
+  error = nil;
+  CHECK([NeoDolphinShader shaderWithCode:@"float4 nothing;" error:&error] == nil &&
+            [error.userInfo[NeoDolphinShaderErrorCodeKey] isEqualToString:@"DOLPHIN_NO_MAIN"],
+        "a file without main is refused with its code");
+  error = nil;
+  CHECK([NeoDolphinShader shaderWithCode:@"void main() { SetOutput(Sampel()); }" error:&error] == nil &&
+            [error.userInfo[NeoDolphinShaderErrorCodeKey] isEqualToString:@"GLSL_FRAGMENT_FAILED"] &&
+            [error.userInfo[NSDebugDescriptionErrorKey] length] > 0,
+        "a shader that does not compile is refused, the compiler log kept for the log");
+
+  if (resources == nil) return;
+  NeoShaderCatalogManager *manager = NeoShaderCatalogManager.sharedManager;
+  [manager setCatalogDirectory:resources];
+  NeoShaderCatalog *catalog = [manager catalogForEngine:@"dolphin"];
+  NSUInteger unbundled = 0, wrongFormat = 0;
+  for (NeoShaderCatalogEntry *entry in catalog.entries) {
+    if (!entry.bundled || entry.downloadBytes != 0 || entry.files.count != 1) unbundled++;
+    if (![entry.format isEqualToString:NeoShaderFormatDolphinGLSL] || ![entry.identifier hasPrefix:@"sys/"]) wrongFormat++;
+  }
+  CHECK(catalog != nil && catalog.entries.count >= 40 && unbundled == 0 && wrongFormat == 0,
+        "Dolphin catalog: official shaders shipped with the core, nothing to download (%lu entries)",
+        (unsigned long)catalog.entries.count);
+  CHECK([catalog entryWithIdentifier:@"sys/FXAA"] != nil && [catalog entryWithIdentifier:@"sys/default_pre_post_process"] == nil,
+        "Dolphin catalog: Dolphin's default pass is not offered");
+  BOOL stereo = NO;
+  for (NSDictionary<NSString *, NSString *> *item in [manager diagnosticsForEngine:@"dolphin"]) {
+    stereo = stereo || ([item[@"identifier"] hasPrefix:@"Anaglyph/"] && [item[@"code"] isEqualToString:@"STEREOSCOPIC_ONLY"]);
+  }
+  CHECK(stereo, "Dolphin catalog: stereoscopic shaders left out with their reason");
+  [manager setCatalogDirectory:nil];
+}
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     if (argc != 2 && argc != 3) {
@@ -465,6 +525,7 @@ int main(int argc, const char *argv[]) {
     }
     NSString *fixtures = [NSString stringWithUTF8String:argv[1]];
     if (argc == 3) TestBundledCatalog([NSString stringWithUTF8String:argv[2]]);
+    TestDolphinShader(argc == 3 ? [NSString stringWithUTF8String:argv[2]] : nil);
     NeoShaderCatalog *catalog = MakeCatalog(fixtures);
     TestCatalogParsing(catalog);
     if (catalog != nil) {

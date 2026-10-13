@@ -70,10 +70,11 @@ if(APPLE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/sto
     ${KIT}/Classes/NeoShaderStorage.m
     ${KIT}/Classes/NeoShaderCatalog.mm
     ${KIT}/Classes/NeoShaderEngine.m
+    ${KIT}/Classes/NeoDolphinShader.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/storage_test.m)
   target_include_directories(neoshader-kit-tests PRIVATE ${KIT}/Classes/Public)
   target_compile_options(neoshader-kit-tests PRIVATE -fobjc-arc -Wall -Wextra -Wno-unused-parameter)
-  target_link_libraries(neoshader-kit-tests PRIVATE neoshader_core "-framework Foundation")
+  target_link_libraries(neoshader-kit-tests PRIVATE neoshader_core "-framework Foundation" "-framework Metal")
 endif()
 
 # macOS: Metal validation of the catalog presets (compile, render, visible
@@ -86,4 +87,9 @@ if(APPLE)
   target_link_libraries(neoshader-metal-validate PRIVATE neoshader_core
     "-framework Foundation" "-framework Metal" "-framework CoreGraphics" "-framework ImageIO"
     "-framework QuartzCore")
+  # Dolphin post-processing shaders drawn through a reproduction of
+  # Dolphin's post-processing interface (test/neo_shader_kit_dolphin_test.py).
+  add_executable(neoshader-dolphin-validate neoshader_dolphin_validate.mm)
+  target_compile_options(neoshader-dolphin-validate PRIVATE -fobjc-arc -Wall -Wextra -Wno-unused-parameter)
+  target_link_libraries(neoshader-dolphin-validate PRIVATE neoshader_core "-framework Foundation" "-framework Metal")
 endif()

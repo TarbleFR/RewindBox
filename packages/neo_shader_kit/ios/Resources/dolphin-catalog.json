@@ -1,0 +1,1723 @@
+{
+ "schema": 1,
+ "engine": "dolphin",
+ "format": "dolphin-glsl",
+ "source": {
+  "name": "DolphiniOS Data/Sys/Shaders",
+  "repository": "https://github.com/OatmealDome/dolphin-ios",
+  "commit": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+  "raw": ""
+ },
+ "compiler": "glslang 16.3.0 + SPIRV-Cross (Khronos vulkan-sdk-1.4.350.1), MSL 2.3, Dolphin post-processing interface",
+ "validation": "SPIR-V -> MSL translation only",
+ "categories": [
+  "scanlines",
+  "upscaling",
+  "anti-aliasing",
+  "color",
+  "retro",
+  "other"
+ ],
+ "files": [
+  [
+   "Shaders/16bit.glsl",
+   943,
+   "646c2894400b854efe16a3cede4fba13528efac57108190538fd78e3e470c188"
+  ],
+  [
+   "Shaders/32bit.glsl",
+   1406,
+   "2ebd36db2f9f2eb487ca70cae75ebdc6bcf3cc21e1940e8121e2584f4e79a9e4"
+  ],
+  [
+   "Shaders/acidmetal.glsl",
+   227,
+   "e9400469ebbd1419e20c79880671e42e086d42d5c7214fb3094cb1625e9372c5"
+  ],
+  [
+   "Shaders/acidtrip.glsl",
+   91,
+   "d4f29b6a32b3c4da2ba610dd5e30a02b7a334c893626ad37dce8834c6727f6c4"
+  ],
+  [
+   "Shaders/acidtrip2.glsl",
+   131,
+   "dd97f6085ce625a97b2d6e9883f1daf38825521b8d7d8285716d3a2d31f62365"
+  ],
+  [
+   "Shaders/asciiart.glsl",
+   18047,
+   "2bc644923ce3c889ea5581c35033d4c9b2c74806f799223e9607c884b07a6aa4"
+  ],
+  [
+   "Shaders/auto_toon.glsl",
+   421,
+   "741635cf4e1334691783a5c7e62ec3ad0d346e69dbb67bb6c197031af489fa84"
+  ],
+  [
+   "Shaders/auto_toon2.glsl",
+   1658,
+   "4de5cde868960913b16f698894da431da2cf6ffe059f94cc64f06b0e62f68100"
+  ],
+  [
+   "Shaders/AutoHDR.glsl",
+   1763,
+   "3b7cffcd2e8055948aad54cf0f95ace02c081117c74232c767e3b0416e619a45"
+  ],
+  [
+   "Shaders/bad_bloom.glsl",
+   1587,
+   "9e53b43b07020677a8de17824b6b438f23e68e0a7c36113b05304b6ffe788873"
+  ],
+  [
+   "Shaders/brighten.glsl",
+   43,
+   "a96cff0566d65304a9e4763e5c338c292390f79eecfb0faea26a32f7c8b0253e"
+  ],
+  [
+   "Shaders/chrismas.glsl",
+   211,
+   "ce20d37d26ce00fb022d9078bd0ccf6557abf5fdec56429f9a282ad475a41a67"
+  ],
+  [
+   "Shaders/cool1.glsl",
+   251,
+   "9dad097360912969ca8a80ba649b9c13929c06fe12e71d6006d89861419e3eb0"
+  ],
+  [
+   "Shaders/darkerbrighter.glsl",
+   702,
+   "962d95eb68f18a9c214d9b04c6b28af3390bd69633d37a3d96d30d2d54babe99"
+  ],
+  [
+   "Shaders/emboss.glsl",
+   423,
+   "4713e09fc8fa1f930ddea2e8ac93a5a65029f2cad664bca51fb144bfd6a3b619"
+  ],
+  [
+   "Shaders/fire.glsl",
+   441,
+   "ccbbecedd7fedab142906f87d5c570136585c0a13f45a07d437324ec2c4ab4be"
+  ],
+  [
+   "Shaders/fire2.glsl",
+   246,
+   "a0adeb0e8455a4d33895daea88393cb92f8b67563747e72e1f15fa13934970c0"
+  ],
+  [
+   "Shaders/firewater.glsl",
+   304,
+   "acab341f574f484141d55e0ce905c60e1234e89ad430dec36ddf0ed2aa8146cc"
+  ],
+  [
+   "Shaders/FXAA.glsl",
+   2373,
+   "f8b8ef2eda3c3a280d3d3a495930319e990c3012d564611394814118ee2c1714"
+  ],
+  [
+   "Shaders/grayscale.glsl",
+   121,
+   "4545e8bbab8df0832d6e8e0c56668995c888f62275fc8f66182a36b0cd6db866"
+  ],
+  [
+   "Shaders/grayscale2.glsl",
+   250,
+   "6afd50da47edb8c8774267eed6652b7c37b6cfa8b693c03ca7fe8d22128f14bd"
+  ],
+  [
+   "Shaders/integer_scaling.glsl",
+   4753,
+   "4ccf1aea373fbbc60a6d3d6c12914800f8430d709f768653787de8c986f79778"
+  ],
+  [
+   "Shaders/invert.glsl",
+   67,
+   "012d0407b3d5cc05e496c471175819ef9ec4cc5f25788812f17d0621a2f639db"
+  ],
+  [
+   "Shaders/invert_blue.glsl",
+   67,
+   "c6a076a64df69ea9d733f87cd3482b3bc627b7b1bf92f856e46dbeeb6c9ea4e5"
+  ],
+  [
+   "Shaders/invertedoutline.glsl",
+   100,
+   "1c278391b580c62aed0d91e7815174ff9398c80489261482c75f9eaa0b736c2c"
+  ],
+  [
+   "Shaders/lens_distortion.glsl",
+   2105,
+   "9bf72da2ed4e8c551ac6ff485720c21cd6241b028e6719bd09e1a9835e54550c"
+  ],
+  [
+   "Shaders/mad_world.glsl",
+   563,
+   "7a54a88a0df4be627ee0a91cd4a866960df54b44c21411a42ddb52b647039a77"
+  ],
+  [
+   "Shaders/nightvision.glsl",
+   145,
+   "2f3d6bdcf2f4a72518df83b6b8558d93b12da796cebb75f84f8e84d01e0c67bf"
+  ],
+  [
+   "Shaders/nightvision2.glsl",
+   1928,
+   "db65a6494ffa6e2b7e6f8b66dc5602b47f5d70a2f1f1e9a3fefb38463852333c"
+  ],
+  [
+   "Shaders/nightvision2scanlines.glsl",
+   2342,
+   "4b9410359c3d1c3c793b35c0974ddda07c897beca78543b374e5798d982644e0"
+  ],
+  [
+   "Shaders/PerceptualHDR.glsl",
+   3540,
+   "d25d069a2da19447c7d8143e448667b445682f4e515d8bca2b5c637acfe82a1f"
+  ],
+  [
+   "Shaders/posterize.glsl",
+   242,
+   "d9b89a74f642d121f45b8b7f135459cf73d00f3cb2d7be9c19fa5e157aa940e5"
+  ],
+  [
+   "Shaders/posterize2.glsl",
+   225,
+   "96fa9a80ca971119896102a83d746d9ed21d14caaa5ac84a53bc22bd741a0712"
+  ],
+  [
+   "Shaders/primarycolors.glsl",
+   1142,
+   "9ade71ee40d0101ab22537ca1c85c5138e7e2f57dbe3e6329ff78e3a160c6535"
+  ],
+  [
+   "Shaders/sepia.glsl",
+   339,
+   "5064fa46edc2debd10fddd4407713828132de78967eceb0ece927dfd2539fbfe"
+  ],
+  [
+   "Shaders/sketchy.glsl",
+   527,
+   "447e1dd6e4bbb0cd2ed03b0cf856a7c16df7a729811aad5d770768ae4e55d090"
+  ],
+  [
+   "Shaders/spookey1.glsl",
+   236,
+   "6e13ff31be25123ba645d79e5f18239bb89f92a299d7813537fd16954ed416b8"
+  ],
+  [
+   "Shaders/spookey2.glsl",
+   281,
+   "e478b8697fa0bfe4f34c48af03669a7d6380204797874c9c648c4779b395e453"
+  ],
+  [
+   "Shaders/sunset.glsl",
+   95,
+   "f49fd8ef8332bbeb9535db990c7e148ba51e946edb490c216e7fb8ce8da75c56"
+  ],
+  [
+   "Shaders/swap_RGB_BGR.glsl",
+   43,
+   "c4c6f77971aac4f4573634dd07b478fd8b57515a277eccd8da7420bbdd9e9f77"
+  ],
+  [
+   "Shaders/swap_RGB_BRG.glsl",
+   43,
+   "54479dce43035160fee947b5981baa0e4b1b2ff39e1561073b1135a0b30ab2ca"
+  ],
+  [
+   "Shaders/swap_RGB_GBR.glsl",
+   43,
+   "69ce29a0fc02605b7db0786be9a0bdb930cc0ddbaa319411d697333da7afa938"
+  ],
+  [
+   "Shaders/swap_RGB_GRB.glsl",
+   43,
+   "167edd8351810570c125fc9c05b6f44a773b720dd99ca55e662f2814e4664126"
+  ],
+  [
+   "Shaders/swap_RGB_RBG.glsl",
+   43,
+   "56e336d24fdefa01e85014bd2f3b88bf39823da557f5a463e591f2c1b1b26521"
+  ],
+  [
+   "Shaders/toxic.glsl",
+   286,
+   "5c743ae12a6cbc963cb02857bb912eb695b7797fb9d51ae735d8efa7ce8a5664"
+  ]
+ ],
+ "entries": [
+  {
+   "id": "sys/16bit",
+   "name": "16bit",
+   "category": "retro",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    0
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/32bit",
+   "name": "32bit",
+   "category": "retro",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    1
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/acidmetal",
+   "name": "acidmetal",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    2
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/acidtrip",
+   "name": "acidtrip",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    3
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 2,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/acidtrip2",
+   "name": "acidtrip2",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    4
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 2,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/asciiart",
+   "name": "asciiart",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    5
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 2,
+   "cost": {
+    "samples": 2,
+    "loop": true,
+    "tier": "quality"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [
+    {
+     "name": "DEBUG_ONLY_ONE_CHAR",
+     "gui": "Debug: Calculate only one character per subgroup",
+     "type": "bool",
+     "dependent": "",
+     "offset": 140,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "USE_WINDOW_RES",
+     "gui": "Use target window resolution",
+     "type": "bool",
+     "dependent": "",
+     "offset": 156,
+     "values": [
+      1
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    }
+   ],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/auto_toon",
+   "name": "auto_toon",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    6
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 5,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/auto_toon2",
+   "name": "auto_toon2",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    7
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 5,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/AutoHDR",
+   "name": "AutoHDR",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    8
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 3,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [
+    {
+     "name": "AUTO_HDR_SHOULDER_POW",
+     "gui": "Shoulder Pow",
+     "type": "float",
+     "dependent": "",
+     "offset": 140,
+     "values": [
+      2.5
+     ],
+     "minimum": [
+      1
+     ],
+     "maximum": [
+      10
+     ],
+     "step": [
+      0.0500000007
+     ]
+    },
+    {
+     "name": "AUTO_HDR_SHOULDER_START_ALPHA",
+     "gui": "Shoulder Start Alpha",
+     "type": "float",
+     "dependent": "",
+     "offset": 156,
+     "values": [
+      0
+     ],
+     "minimum": [
+      0
+     ],
+     "maximum": [
+      1
+     ],
+     "step": [
+      0.00999999978
+     ]
+    },
+    {
+     "name": "HDR_DISPLAY_MAX_NITS",
+     "gui": "HDR Display Max Nits",
+     "type": "float",
+     "dependent": "",
+     "offset": 172,
+     "values": [
+      400
+     ],
+     "minimum": [
+      80
+     ],
+     "maximum": [
+      2000
+     ],
+     "step": [
+      1
+     ]
+    }
+   ],
+   "notes": [
+    "hdr-output",
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/bad_bloom",
+   "name": "bad_bloom",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    9
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 17,
+    "loop": false,
+    "tier": "balanced"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/brighten",
+   "name": "brighten",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    10
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/chrismas",
+   "name": "chrismas",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    11
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/cool1",
+   "name": "cool1",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    12
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/darkerbrighter",
+   "name": "darkerbrighter",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    13
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 5,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/emboss",
+   "name": "emboss",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    14
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 2,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/fire",
+   "name": "fire",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    15
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/fire2",
+   "name": "fire2",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    16
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/firewater",
+   "name": "firewater",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    17
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 3,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/FXAA",
+   "name": "FXAA",
+   "category": "anti-aliasing",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    18
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 9,
+    "loop": false,
+    "tier": "balanced"
+   },
+   "mentions": [
+    "Copyright (C) 2013 mudlord"
+   ],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/grayscale",
+   "name": "grayscale",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    19
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/grayscale2",
+   "name": "grayscale2",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    20
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/integer_scaling",
+   "name": "integer_scaling",
+   "category": "upscaling",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    21
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 11,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [
+    "by Themaister, Public Domain license"
+   ],
+   "license": "Public domain",
+   "validation": "translated",
+   "options": [
+    {
+     "name": "ASPECT_MSG",
+     "gui": "Please set aspect ratio to stretch",
+     "type": "bool",
+     "dependent": "",
+     "offset": 140,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "DOWNSCALE",
+     "gui": "Auto downscaling",
+     "type": "bool",
+     "dependent": "",
+     "offset": 156,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "INTEGER_SCALE",
+     "gui": "Integer scale - No higher than IR",
+     "type": "float",
+     "dependent": "MANUALSCALE",
+     "offset": 172,
+     "values": [
+      1
+     ],
+     "minimum": [
+      1
+     ],
+     "maximum": [
+      5
+     ],
+     "step": [
+      1
+     ]
+    },
+    {
+     "name": "MANUALSCALE",
+     "gui": "Manual scale - Set IR first",
+     "type": "bool",
+     "dependent": "",
+     "offset": 188,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "SHARP_BILINEAR",
+     "gui": "Apply sharp bilinear for custom widths",
+     "type": "bool",
+     "dependent": "",
+     "offset": 204,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "SHARP_PRESCALE",
+     "gui": "Sharp bilinear factor (0 = auto)",
+     "type": "float",
+     "dependent": "",
+     "offset": 220,
+     "values": [
+      0
+     ],
+     "minimum": [
+      0
+     ],
+     "maximum": [
+      16
+     ],
+     "step": [
+      1
+     ]
+    },
+    {
+     "name": "WIDTH_169",
+     "gui": "Scale width to fit 16:9",
+     "type": "bool",
+     "dependent": "WIDTH_UNLOCK",
+     "offset": 236,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "WIDTH_43",
+     "gui": "Scale width to fit 4:3",
+     "type": "bool",
+     "dependent": "WIDTH_UNLOCK",
+     "offset": 252,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "WIDTH_SCALE",
+     "gui": "Scale width",
+     "type": "float",
+     "dependent": "MANUALSCALE",
+     "offset": 268,
+     "values": [
+      0
+     ],
+     "minimum": [
+      -2
+     ],
+     "maximum": [
+      5
+     ],
+     "step": [
+      1
+     ]
+    },
+    {
+     "name": "WIDTH_SKIP",
+     "gui": "Stretch width to window",
+     "type": "bool",
+     "dependent": "WIDTH_UNLOCK",
+     "offset": 284,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    },
+    {
+     "name": "WIDTH_UNLOCK",
+     "gui": "Use non-integer width",
+     "type": "bool",
+     "dependent": "",
+     "offset": 300,
+     "values": [
+      0
+     ],
+     "minimum": [],
+     "maximum": [],
+     "step": []
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "sys/invert",
+   "name": "invert",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    22
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/invert_blue",
+   "name": "invert_blue",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    23
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/invertedoutline",
+   "name": "invertedoutline",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    24
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 2,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/lens_distortion",
+   "name": "lens_distortion",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    25
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 4,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [
+    {
+     "name": "ASPECT_ADJUST",
+     "gui": "Aspect Ratio adjustment",
+     "type": "float",
+     "dependent": "",
+     "offset": 140,
+     "values": [
+      0.5
+     ],
+     "minimum": [
+      0
+     ],
+     "maximum": [
+      1
+     ],
+     "step": [
+      0.0250000004
+     ]
+    },
+    {
+     "name": "DISTORTION_FACTOR",
+     "gui": "Distortion amount",
+     "type": "float",
+     "dependent": "",
+     "offset": 156,
+     "values": [
+      4
+     ],
+     "minimum": [
+      1
+     ],
+     "maximum": [
+      10
+     ],
+     "step": [
+      0.5
+     ]
+    },
+    {
+     "name": "EYE_OFFSET",
+     "gui": "Eye Distance Offset",
+     "type": "float",
+     "dependent": "",
+     "offset": 172,
+     "values": [
+      5
+     ],
+     "minimum": [
+      0
+     ],
+     "maximum": [
+      10
+     ],
+     "step": [
+      0.25
+     ]
+    },
+    {
+     "name": "SIZE_ADJUST",
+     "gui": "Zoom adjustment",
+     "type": "float",
+     "dependent": "",
+     "offset": 188,
+     "values": [
+      0.5
+     ],
+     "minimum": [
+      0
+     ],
+     "maximum": [
+      1
+     ],
+     "step": [
+      0.0250000004
+     ]
+    }
+   ],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/mad_world",
+   "name": "mad_world",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    26
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 5,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/nightvision",
+   "name": "nightvision",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    27
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/nightvision2",
+   "name": "nightvision2",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    28
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 9,
+    "loop": false,
+    "tier": "balanced"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/nightvision2scanlines",
+   "name": "nightvision2scanlines",
+   "category": "scanlines",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    29
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 9,
+    "loop": false,
+    "tier": "balanced"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/PerceptualHDR",
+   "name": "PerceptualHDR",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    30
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 1,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [
+    {
+     "name": "AMPLIFICATION",
+     "gui": "Amplificiation",
+     "type": "float",
+     "dependent": "",
+     "offset": 140,
+     "values": [
+      2.5
+     ],
+     "minimum": [
+      1
+     ],
+     "maximum": [
+      6
+     ],
+     "step": [
+      0.25
+     ]
+    }
+   ],
+   "notes": [
+    "hdr-output",
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/posterize",
+   "name": "posterize",
+   "category": "retro",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    31
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/posterize2",
+   "name": "posterize2",
+   "category": "retro",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    32
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/primarycolors",
+   "name": "primarycolors",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    33
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/sepia",
+   "name": "sepia",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    34
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/sketchy",
+   "name": "sketchy",
+   "category": "other",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    35
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 5,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/spookey1",
+   "name": "spookey1",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    36
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/spookey2",
+   "name": "spookey2",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    37
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/sunset",
+   "name": "sunset",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    38
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/swap_RGB_BGR",
+   "name": "swap_RGB_BGR",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    39
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/swap_RGB_BRG",
+   "name": "swap_RGB_BRG",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    40
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/swap_RGB_GBR",
+   "name": "swap_RGB_GBR",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    41
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/swap_RGB_GRB",
+   "name": "swap_RGB_GRB",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    42
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/swap_RGB_RBG",
+   "name": "swap_RGB_RBG",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    43
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/toxic",
+   "name": "toxic",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    44
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "translated",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  }
+ ]
+}

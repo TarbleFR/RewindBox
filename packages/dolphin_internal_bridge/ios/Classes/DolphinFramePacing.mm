@@ -2,6 +2,7 @@
 #import "DolphinFramePacing.h"
 #import "DolphinExternalDisplay.h"
 #include "DolphinPacingLabels.h"
+#include "DOLShaderLabels.h"
 // Build 447: the external-display row reads and writes the global
 // preference of the external_display pod (shared with Settings › General).
 #if __has_include(<external_display/NeoExternalDisplayPreferences.h>)
@@ -219,14 +220,25 @@ static double DOLMemoryFootprintMB(void) {
   self.tableView.rowHeight=UITableViewAutomaticDimension;self.tableView.estimatedRowHeight=64;
   self.navigationItem.largeTitleDisplayMode=UINavigationItemLargeTitleDisplayModeNever;
 }
+// Build 450: a second section holds the post-processing effect row when the
+// session gives the page (section 0 is unchanged).
+- (BOOL)showsShaderSection {return self.pacing.shaderPage!=nil && self.pacing.shaderSummary!=nil;}
+- (NSInteger)numberOfSectionsInTableView:(UITableView*)table {return self.showsShaderSection?2:1;}
 // Rows: refresh, profile, status, external display (Build 442), trace, export.
-- (NSInteger)tableView:(UITableView*)table numberOfRowsInSection:(NSInteger)section {return 6;}
+- (NSInteger)tableView:(UITableView*)table numberOfRowsInSection:(NSInteger)section {return section==0?6:1;}
 - (UITableViewCell*)tableView:(UITableView*)table cellForRowAtIndexPath:(NSIndexPath*)path {
   UITableViewCell* cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
   cell.backgroundColor=UIColor.secondarySystemGroupedBackgroundColor;cell.textLabel.textColor=UIColor.labelColor;
   cell.detailTextLabel.textColor=UIColor.secondaryLabelColor;cell.textLabel.numberOfLines=0;cell.detailTextLabel.numberOfLines=0;
   cell.textLabel.adjustsFontForContentSizeCategory=YES;cell.detailTextLabel.adjustsFontForContentSizeCategory=YES;
   cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+  if(path.section==1) {
+    cell.textLabel.text=DOLShaderText(@"title",self.pacing.locale);
+    NSString* effect=self.pacing.shaderSummary?self.pacing.shaderSummary():nil;
+    cell.detailTextLabel.text=effect.length?effect:DOLShaderText(@"off",self.pacing.locale);
+    cell.accessibilityIdentifier=@"dolphinPostProcessing";
+    return cell;
+  }
   switch(path.row) {
     case 0:cell.textLabel.text=[self text:@"refresh"];
       cell.detailTextLabel.text=DOLRefreshPreference()==0?[self text:@"automatic"]:[NSString stringWithFormat:@"%ld Hz",(long)DOLRefreshPreference()];break;
@@ -246,7 +258,13 @@ static double DOLMemoryFootprintMB(void) {
   return cell;
 }
 - (NSString*)tableView:(UITableView*)table titleForFooterInSection:(NSInteger)section {
+  if(section==1)return DOLShaderText(@"nextLaunch",self.pacing.locale);
   return [NSString stringWithFormat:@"%@\n\n%@\n\n%@\n\n%@",[self text:@"hzHelp"],[self text:@"hzDefaultHelp"],[self text:@"profileHelp"],[self text:@"externalHelp"]];
+}
+- (void)viewWillAppear:(BOOL)animated {
+  [super viewWillAppear:animated];
+  // The effect chosen on the post-processing page shows when coming back.
+  if(self.showsShaderSection)[self.tableView reloadData];
 }
 - (void)tableView:(UITableView*)table willDisplayFooterView:(UIView*)view forSection:(NSInteger)section {
   if([view isKindOfClass:UITableViewHeaderFooterView.class]) {
@@ -302,6 +320,11 @@ static double DOLMemoryFootprintMB(void) {
 - (void)tableView:(UITableView*)table didSelectRowAtIndexPath:(NSIndexPath*)path {
   [table deselectRowAtIndexPath:path animated:YES];UIView* cell=[table cellForRowAtIndexPath:path];
   if(self.presentedViewController)return;
+  if(path.section==1) {
+    UIViewController* page=self.pacing.shaderPage?self.pacing.shaderPage():nil;
+    if(page && self.navigationController)[self.navigationController pushViewController:page animated:YES];
+    return;
+  }
   if(path.row==0)[self choose:@[@0,@60,@120] names:@[[self text:@"automatic"],@"60 Hz",@"120 Hz"] key:DOLRefreshKey cell:cell];
   else if(path.row==1)[self choose:@[@0,@1,@2] names:@[[self text:@"legacy"],[self text:@"metal"],[self text:@"hybrid"]] key:DOLProfileKey cell:cell];
   else if(path.row==2){[self.pacing refreshPreference];[table reloadData];}

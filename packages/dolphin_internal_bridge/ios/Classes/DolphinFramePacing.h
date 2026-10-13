@@ -14,6 +14,11 @@ FOUNDATION_EXPORT NSInteger DOLRequestedRefresh(NSInteger requested,NSInteger ma
 @property(nonatomic,readonly) NSArray<NSDictionary*>* samples;
 /// Build 442: set by the session when the game is drawn on an external screen.
 @property(atomic,assign) BOOL externalDisplayActive;
+/// Build 450: the post-processing effect page and the effect chosen for the
+/// running game, given by the session; the Display page shows a second
+/// section with its row only when both are set.
+@property(nonatomic,copy,nullable) UIViewController* _Nullable (^shaderPage)(void);
+@property(nonatomic,copy,nullable) NSString* _Nullable (^shaderSummary)(void);
 - (void)startWithView:(UIView*)view;
 - (void)stop;
 - (void)refreshPreference;
