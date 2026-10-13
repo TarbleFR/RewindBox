@@ -718,6 +718,17 @@ il est nommé parce que le cœur en dérive réellement la clé de ces titres.
   déplacé dans un autre titre), empreinte, nouvelle vérification d'un gros fichier préparé ;
 - `test/libretro_3ds_system_screen_test.dart` : deux tests de l'écran, texte et cases.
 
+**Cœur de la Build 453** (Azahar 2127.0-alpha1, source `5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6`, épinglé par une
+autre session). Relu le 13 octobre 2026, mêmes mécanismes qu'à `a5c3d4f8` :
+- « Legacy mode » de `CryptoIOFile` (`file_derived.cpp`) ;
+- `IsUniqueCryptoFile` et `OpenUniqueCryptoFile` dans `AutoOpenNCCHNCSD` ;
+- `GetUniqueCryptoFileKeyIV` identique ;
+- `ENABLE_BUILTIN_KEYBLOB` à ON ;
+- refus `ErrorEncrypted` sans NoCrypto ;
+- remplacements d'`archive_ncch.cpp`.
+
+La correction de ce paragraphe vaut donc aussi pour ce cœur. Aucun essai sur iPhone.
+
 ## 10. Build 452 — l'import 3DS proposé là où on le cherche (13 octobre 2026)
 
 Vidéo du mainteneur (13 octobre 2026, 07 h 00) : page de la console Nintendo 3DS de la bibliothèque, menu
