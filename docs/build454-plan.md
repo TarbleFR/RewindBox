@@ -157,12 +157,42 @@ Réponses de `isSessionActive`, encodées par `FlutterStandardMethodCodec` :
 
 Autres runs déclenchés par le même envoi :
 - `external-display-check` `38369576889` : réussi (contrats, syntaxe iPhone, XCTest du Simulateur).
-- `libretro-simulator` `38369576801` : sonde du simulateur ; le scénario `ppsspp-crowded` y est une limitation
-  connue (décision du 13 octobre).
+- `libretro-simulator` `38369576801` : réussi (sonde, avant correctif Vulkan, avant réservation PSP).
+
+`libretro-checks` `38370661152` sur la source livrée `6dcdfd1a` : réussi, avec les mêmes octets pour les deux
+arbres.
 
 ## Livraison
 
-À compléter.
+- **Run.** `retroarch-delivery.yml` `38370668542`, lancé sur `Claude` (`build_number` 454, périmètre `full`), depuis
+  la source `6dcdfd1aa903c8efb28d5d4bc4cd04464f395255`, qui contient ce plan.
+  - Jobs `checks`, `native` et `Release device build • cold` réussis.
+  - Le job `native` comprend le test d'encodage : quatre réponses booléennes (`00 02`, `00 01`, `00 01`, `00 02`).
+  - Horaires : 08:38 → 09:00 UTC, 13 octobre 2026. Compilation Xcode : 266 s.
+- **Validation de l'IPA avant scellement.**
+  - `NeoStation.ipa`, 206 619 559 octets, SHA-256 `29c4d0a6c1612cdc0a65ab81eec0ca5eb97cd5d61f68e92a0d3ffc41eeebb973`.
+  - Version 0.0.7 (454), commit `6dcdfd1a`, validation structurelle et mentions légales réussies.
+  - « Libretro IPA validation passed » pour les 14 cœurs, dont `azahar` (2127.0-alpha1, Fast Interpreter).
+  - Signature de l'app vérifiée (« valid on disk », « satisfies its Designated Requirement »).
+- **Artefact.** `NeoStation-Build-454-6dcdfd1aa903c8efb28d5d4bc4cd04464f395255-cold`.
+  - ID `11799289148`, 211 053 981 octets.
+  - SHA-256 de l'archive : `5d0cb69bad10537383b650c47604573b6a70f5f4f64c17563021e6b409c1b2d8`.
+  - Conservé jusqu'au 27 octobre 2026, chiffré pour `build-utils/delivery-424-recipient.pem` (clé du PC du
+    mainteneur).
+- **Diagnostics chiffrés.** `…-cold-diagnostics`, ID `11799388528`, 5 171 133 octets.
+- **IPA scellée.** `NeoStation-Build454-6dcdfd1aa903c8efb28d5d4bc4cd04464f395255-cold.ipa` dans l'archive, avec
+  `SHA256SUMS` et `signed-payload-identity.json`.
+  - Son SHA-256 est à relever après déchiffrement : le scellement pour SideStore recrée l'IPA, et l'empreinte
+    `29c4d0a6…` ci-dessus n'est pas celle du fichier remis.
+  - Le PC du mainteneur était hors ligne (Desktop Commander, vu pour la dernière fois deux heures avant), et ce
+    conteneur ne peut pas télécharger les artefacts (politique de sortie) : aucune copie n'a été déposée dans
+    `Downloads`.
+- **Déchiffrement** (sur le modèle de `decrypt-452.ps1`, avec la clé privée 424) :
+  1. `openssl pkeyutl -decrypt -inkey <clé 424> -in password.rsa -out password -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256` ;
+  2. `openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass file:password -in artifact.tar.enc -out artifact.tar` ;
+  3. `tar -xf artifact.tar`, puis comparer le SHA-256 de l'IPA à `SHA256SUMS`.
+- L'IPA est scellée pour la re-signature Apple et le provisioning que SideStore applique. Ne pas réutiliser le
+  numéro 454.
 
 ## Ce qui n'est pas vérifié
 
