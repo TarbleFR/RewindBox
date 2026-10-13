@@ -30,6 +30,7 @@ or re-signed application.
 | Working-branch README still described an older release and external-only RetroArch integration | Updated the release identity, embedded systems, installation guidance and source links; moved the full attribution list into the central credits document. |
 | Per-core license references existed on `main` but were absent from the actual build branch | Restored the original notice files to `assets/legal/libretro/`, preserving their bytes and provenance. |
 | The packager did not embed or verify those notices | Added catalog coverage, pinned-release reference, nonempty-file and SHA-256 checks; embed the verified collection in `Legal/Libretro/`. |
+| Windows line-ending conversion changed hashed upstream notices during export | Disable text conversion for the reference collection in `.gitattributes`; verify archive entries against their original hashes. |
 | IPA validation had a duplicated license entry and omitted required music and guest-memory-relay notices | Share the packager's required-file list; reject missing, empty, duplicated or modified core notices in the ZIP. |
 | Legal preflight fixtures omitted the shader compiler source records | Restore the source fixtures and exercise the actual embed/ZIP-validation commands. |
 | Credits still called Libretro an external integration | Describe embedded cores in all twelve supported languages and make their notices available offline; add Azahar attribution. |
