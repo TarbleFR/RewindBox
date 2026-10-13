@@ -126,6 +126,7 @@ flutter:
     - assets/systems/
     - assets/sounds/
     - assets/legal/
+    - assets/legal/libretro/
   shaders:
     - assets/shaders/stripes.frag
     - assets/shaders/fluid.frag

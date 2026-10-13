@@ -1,11 +1,13 @@
 """Run the real notice packager before compilation and against a built bundle."""
 from pathlib import Path
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 DOLPHIN = "7cac54161659421ed95c2cd1c0b0746539a4cd38"
@@ -19,6 +21,10 @@ class LegalBundlePreflightTests(unittest.TestCase):
         shutil.copytree(ROOT / "assets/legal", self.root / "assets/legal")
         for name in (
             "build-utils/embed_legal_bundle.py",
+            "build-utils/validate_legal_bundle_ipa.py",
+            "build-utils/libretro/cores.json",
+            "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt",
+            "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt",
             "build-utils/rpcs3/canonical-source.json",
             "build-utils/armsx2/source.json",
             "build-utils/dusklight/source.json",
@@ -70,6 +76,69 @@ class LegalBundlePreflightTests(unittest.TestCase):
         self.assertEqual(identity["dusklight"]["submodules"], pins["submodules"])
         self.assertEqual((app / "Legal/Dusklight-CC0-1.0.txt").read_bytes(),
                          (self.root / "assets/legal/Dusklight-CC0-1.0.txt").read_bytes())
+        expected = self.root / "assets/legal/libretro"
+        for source in expected.iterdir():
+            self.assertEqual((app / "Legal/Libretro" / source.name).read_bytes(),
+                             source.read_bytes(), source.name)
+
+    def test_missing_and_changed_core_licenses_are_rejected(self):
+        notice = self.root / "assets/legal/libretro/snes9x-LICENSE"
+        original = notice.read_bytes()
+        for replacement in (None, b"", b"different license"):
+            with self.subTest(replacement=replacement):
+                if replacement is None:
+                    notice.unlink()
+                else:
+                    notice.write_bytes(replacement)
+                result = self.run_packager("--validate-only")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Libretro notice", result.stderr)
+                notice.write_bytes(original)
+
+    def test_new_core_without_license_is_rejected(self):
+        catalog = self.root / "build-utils/libretro/cores.json"
+        data = json.loads(catalog.read_text())
+        data["cores"].append({"id": "uncredited_core"})
+        catalog.write_text(json.dumps(data))
+        result = self.run_packager("--validate-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("coverage", result.stderr)
+
+    def test_ipa_validation_catches_lost_or_changed_notices(self):
+        app = self.root / "Payload/Runner.app"
+        app.mkdir(parents=True)
+        result = self.run_packager("--app", str(app), "--build-number", "455")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        original = {str(p.relative_to(self.root)): p.read_bytes()
+                    for p in app.rglob("*") if p.is_file()}
+        for name, replacement in (
+            (None, None),
+            ("Guest-Page-Relay-MIT.txt", None),
+            ("OnceUponATime-CC0-1.0.txt", None),
+            ("Dolphin-COPYING.txt", b""),
+            ("Libretro/snes9x-LICENSE", None),
+            ("Libretro/azahar-LICENSE.txt", b"incorrect license"),
+        ):
+            with self.subTest(name=name, replacement=replacement):
+                files = dict(original)
+                if name is not None:
+                    key = "Payload/Runner.app/Legal/" + name
+                    if replacement is None:
+                        files.pop(key)
+                    else:
+                        files[key] = replacement
+                ipa = self.root / "test.ipa"
+                with zipfile.ZipFile(ipa, "w") as archive:
+                    for path, content in files.items():
+                        archive.writestr(path, content)
+                checked = subprocess.run([
+                    sys.executable,
+                    str(self.root / "build-utils/validate_legal_bundle_ipa.py"),
+                    str(ipa), "--build-number", "455", "--commit",
+                    os.environ.get("GITHUB_SHA", ""),
+                ], capture_output=True, text=True, timeout=15)
+                self.assertEqual(checked.returncode == 0, name is None,
+                                 checked.stdout + checked.stderr)
 
 
 if __name__ == "__main__":

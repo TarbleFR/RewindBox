@@ -19,6 +19,12 @@ on:
       - 'lib/widgets/setup_wizard.dart'
       - 'build-utils/embed_legal_bundle.py'
       - 'build-utils/validate_legal_bundle_ipa.py'
+      - 'build-utils/libretro/cores.json'
+      - 'build-utils/*/source.json'
+      - 'build-utils/rpcs3/canonical-source.json'
+      - 'packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt'
+      - 'test/legal_bundle_preflight_test.py'
+      - 'test/legal_credits_dialog_test.dart'
       - 'pubspec.yaml'
       - '.github/workflows/legal-compliance-check.yml'
   workflow_dispatch:
@@ -48,11 +54,15 @@ jobs:
       - name: Analyze legal UI changes
         run: flutter analyze --no-fatal-infos
 
+      - name: Test bundled credits and all supported locales
+        run: flutter test test/legal_credits_dialog_test.dart
+
       - name: Validate legal scripts and source pins
         shell: bash
         run: |
           set -euo pipefail
           python3 -m py_compile             build-utils/embed_legal_bundle.py             build-utils/validate_legal_bundle_ipa.py
+          python3 test/legal_bundle_preflight_test.py
 
           python3 - <<'PY'
           from pathlib import Path
@@ -63,7 +73,7 @@ jobs:
               'fr', 'de', 'it', 'id', 'ja', 'ko',
           ):
               count = locale_text.count("'" + locale + "':")
-              assert count == 8, (locale, count)
+              assert count == 9, (locale, count)
 
           assets_service = Path('lib/services/neo_assets_service.dart').read_text()
           art_picker = Path(

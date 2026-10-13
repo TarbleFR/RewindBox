@@ -7,6 +7,24 @@ headers and the license files shipped by each upstream project.
 Attribution does **not** imply endorsement by any upstream project, creator,
 console manufacturer or trademark holder.
 
+## Current release and license review
+
+The current published GitHub release is
+[NeoStation iOS 0.0.7 / Build 455](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7).
+See the [Build 455 distribution and license review](RELEASE_0.0.7_LICENSE_REVIEW.md)
+for the checked IPA contents, exact release identity, known packaging gaps and
+license-compatibility questions. Credits and license-text presence do not alone
+certify full compliance or provide exact Corresponding Source for every bundled
+binary.
+
+**NeoSwap** is NeoStation's experimental memory-management integration for
+the embedded RPCS3 workflow. Its guest-memory relay adapts a MIT-licensed
+Guest Page Relay prototype (see [the preserved notice](../assets/legal/Guest-Page-Relay-MIT.txt)). Its relay, donor, file-backed and cold-data
+mechanisms are described in the [README](../README.md#neoswap).
+That description is not a claim to relicense RPCS3, borrowed libraries,
+platform APIs or other contributors' code. NeoSwap does not create additional
+physical memory or circumvent Apple's resource enforcement.
+
 ## NeoStation and the iOS fork
 
 - **NeoStation** — original frontend/project by Miguel Soto / @misobadev, with
@@ -22,6 +40,7 @@ console manufacturer or trademark holder.
 
 | Component | Authors / upstream | License / redistribution note |
 | --- | --- | --- |
+| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 14 cores keeps its own license. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by NeoStation is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
@@ -31,7 +50,7 @@ console manufacturer or trademark holder.
 | **StikJIT** | StikDebug / StikJIT contributors | MPL-2.0. Recipients of executable form must be informed how to obtain the covered source. |
 | **Dawn, SDL, Aurora, Borealis and other runtime dependencies** | Their respective projects and contributors | Their individual license files and notices apply. |
 
-### Exact source identities used by the stable 0.0.1 binary
+### Historical source identities used by the 0.0.1 binary
 
 See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
 file records the exact NeoStation packaging commit, workflow artifact identity
@@ -42,7 +61,6 @@ and pinned upstream revisions used for the published Build 350 IPA.
 The following applications/services are **not claimed as NeoStation-owned
 software** merely because NeoStation interoperates with them:
 
-- **RetroArch / libretro** — https://github.com/libretro/RetroArch
 - **MeloNX** — https://github.com/nurtrino/MeloNX
 - **ScreenScraper** — https://www.screenscraper.fr/
 - **RetroAchievements** — https://retroachievements.org/
@@ -160,9 +178,9 @@ NeoStation does not provide ROMs, ISOs, BIOS files, console firmware,
 encryption keys, commercial game assets or paid content. Users must provide
 legally obtained content required by the software they use.
 
-## Future binary packaging policy
+## Binary packaging policy
 
-Future NeoStation iOS builds should include a `Legal/` directory inside the
+NeoStation iOS builds include a `Legal/` directory inside the
 application bundle containing:
 
 - the NeoStation GPL text and project notice;
@@ -175,8 +193,11 @@ application bundle containing:
 - Dusklight's CC0-1.0 text;
 - additional dependency notices collected by embedded projects.
 
-The already-published `NeoStation.ipa` asset for release 0.0.1 is intentionally
-not modified by this documentation policy.
+The published 0.0.7 IPA contains the main notice bundle and a subset of Libretro
+notices. The post-release correction embeds and checks every file in
+`assets/legal/libretro/` under `Legal/Libretro/` in future builds. It preserves the
+shader and music notices added after the earlier main-branch implementation.
+The published IPA is unchanged; the release review records that distinction.
 
 ## Optional cheat catalogue source
 
@@ -223,10 +244,14 @@ with the Dolphin core in `Sys/Shaders` (Dolphin repository, GPL-2.0-or-later).
 Dolphin shaders a player imports (for example a Mattias CRT port) stay on the
 device; NeoStation neither bundles nor distributes them.
 
-## Controller skins and the Provenance catalog
+## Controller skins and community catalogs
 
 - **Catalog:** [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins),
   maintained by the Provenance project and its community.
+- **Other catalogs:** [DeltaStyles](https://deltastyles.com/),
+  [Delta Skins](https://delta-skins.github.io/),
+  [PocketArch](https://github.com/stunrelay/PocketArch), and
+  [Libretro overlays](https://github.com/libretro/common-overlays).
 - **Format reference:** [Delta / DeltaCore](https://github.com/rileytestut/DeltaCore),
   by Riley Testut and contributors.
 - **Artwork:** the individual creators credited by each skin or catalog entry.
@@ -293,3 +318,37 @@ formats (EPUB, CBZ) use the Dart [archive](https://pub.dev/packages/archive)
 package (MIT), and EPUB/XHTML parsing uses the Dart
 [html](https://pub.dev/packages/html) (BSD-3-Clause) and
 [xml](https://pub.dev/packages/xml) (MIT) packages.
+
+## Contributor directory
+
+| Project | NeoStation iOS use / attribution |
+| --- | --- |
+| **NeoStation** | Original frontend/project by [@misobadev](https://github.com/misobadev), with upstream co-maintainer [@androosio](https://github.com/androosio), collaborator [@ItsRetroPup](https://github.com/ItsRetroPup), and all upstream contributors. |
+| **NeoStation iOS** | iOS fork, native integrations and maintenance by [@TarbleFR](https://github.com/TarbleFR). |
+| **Dolphin / DolphiniOS** | Dolphin Emulator contributors and [DolphiniOS](https://github.com/OatmealDome/dolphin-ios) / OatmealDome contributors. |
+| **RPCS3 iOS / RPCS3** | iOS release/core work by [XITRIX](https://github.com/XITRIX/RPCS3-iOS-Releases), based on the [RPCS3](https://github.com/RPCS3/rpcs3) project. XITRIX also credits ARMSX3 and the wider iOS emulation/JIT community. |
+| **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
+| **Dusklight** | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. |
+| **KartPad / WiiCompiled** | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). |
+| **MeloNX / Ryujinx** | [MeloNX](https://github.com/nurtrino/MeloNX) contributors; MeloNX describes itself as based on Ryujinx/Ryubing. |
+| **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside NeoStation. Individual emulator authors are credited below. |
+| **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
+| **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |
+| **PocketArch / Libretro overlays** | [PocketArch](https://github.com/stunrelay/PocketArch) and [Libretro common-overlays](https://github.com/libretro/common-overlays) contributors, for compatible touch overlays converted for use inside NeoStation. |
+| **Delta / DeltaCore** | [Riley Testut and DeltaCore contributors](https://github.com/rileytestut/DeltaCore), for the controller-skin format referenced by compatible imports. |
+| **Community skin creators** | The original authors of each skin's artwork and layout. Available author and source credits are preserved; each creator's terms apply. |
+| **StikJIT** | [StikDebug/StikJIT](https://github.com/StikDebug/StikJIT) and its contributors. |
+| **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
+| **ScreenScraper** | [ScreenScraper.fr](https://www.screenscraper.fr/) metadata and media service. |
+| **RetroAchievements** | [RetroAchievements](https://retroachievements.org/) project, API and community. |
+| **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). NeoStation uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
+| **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
+| **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
+
+
+## Individual embedded-core notices
+
+See [the 14-core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
+[the hashed source references](../assets/legal/libretro/license-sources.json).
+License snapshots are not proof of the matching source for every buildbot binary.
+Azahar 2127.0-alpha1 is pinned separately to its official release.

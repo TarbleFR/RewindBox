@@ -110,8 +110,16 @@ class LegalCreditsDialog {
     _LegalEntry(
       'RetroArch / libretro',
       'libretro and RetroArch contributors',
-      'External integration; upstream licenses apply',
+      null,
       'https://github.com/libretro/RetroArch',
+      'assets/legal/libretro/LIBRETRO_CORES.md',
+    ),
+    _LegalEntry(
+      'Azahar / Citra / Lime3DS',
+      'Azahar, Citra, Lime3DS, PabloMK7; FastInterp: warmenhoven',
+      'GPL-3.0-or-later',
+      'https://github.com/azahar-emu/azahar',
+      'assets/legal/libretro/azahar-LICENSE.txt',
     ),
     _LegalEntry(
       'MeloNX',
@@ -160,7 +168,8 @@ class LegalCreditsDialog {
                           ),
                         ),
                         subtitle: Text(
-                          '${entry.credit}\n${entry.license}',
+                          '${entry.credit}\n'
+                          '${entry.license ?? LegalCreditsLocale.embeddedCoreLicenses(context)}',
                         ),
                         isThreeLine: true,
                         trailing: Row(
@@ -270,7 +279,7 @@ class LegalCreditsDialog {
 class _LegalEntry {
   final String project;
   final String credit;
-  final String license;
+  final String? license;
   final String url;
   final String? licenseAsset;
 

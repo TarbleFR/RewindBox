@@ -1,7 +1,9 @@
 # NeoStation iOS — Third-Party Notices
 
-This directory is intended to be bundled into **future** NeoStation iOS builds.
-It does not modify the already-published release 0.0.1 IPA.
+These notices are used by NeoStation’s build packager. Updates to this directory
+apply to subsequent builds and do not rewrite previously published IPAs.
+The complete 14-core reference collection is in `libretro/`; the post-0.0.7
+packager verifies its hashes and embeds it under `Legal/Libretro/`.
 
 The full maintained attribution record is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md
@@ -106,10 +108,13 @@ with the Dolphin core in `Sys/Shaders` (Dolphin repository, GPL-2.0-or-later).
 Dolphin shaders a player imports (for example a Mattias CRT port) stay on the
 device; NeoStation neither bundles nor distributes them.
 
-## Controller skins and the Provenance catalog
+## Controller skins and community catalogs
 
 - **Catalog:** [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins),
   maintained by the Provenance project and its community.
+- **Other catalogs:** DeltaStyles, Delta Skins, PocketArch and Libretro
+  common-overlays; their maintainers and each original skin/overlay creator
+  retain their own rights and terms.
 - **Format reference:** [Delta / DeltaCore](https://github.com/rileytestut/DeltaCore),
   by Riley Testut and contributors.
 - **Artwork:** the individual creators credited by each skin or catalog entry.

@@ -2,360 +2,180 @@
 
 # NeoStation iOS
 
-#### Emulation frontend for iPhone and iPad
+### Your games, consoles and library on iPhone and iPad
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.md)
-[![Platform](https://img.shields.io/badge/Platform-iOS%2018%2B-blue)](https://github.com/TarbleFR/neostation-ios)
+[![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/neostation-ios/releases/latest)
+[![Frontend license](https://img.shields.io/badge/Frontend-GPLv3-blue)](LICENSE.md)
 
-![NeoStation iOS Preview](assets/readme/neostation-ios-preview.png)
+![NeoStation iOS](assets/readme/neostation-ios-preview.png)
+
+**[Download 0.0.7 · Build 455](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
 
 </div>
 
-**NeoStation iOS** is an independently maintained iOS/iPadOS fork of
-[NeoStation](https://github.com/misobadev/neostation-frontend). It keeps the
-Flutter library/frontend experience while adding iPhone- and iPad-specific
-native cores, JIT workflows, sideloading support, external-emulator library
-bridges and mobile-friendly game/session management.
+NeoStation iOS brings a game library, embedded emulators and game ports into
+one sideloaded app. It is an independently maintained iOS/iPadOS fork of
+[NeoStation](https://github.com/misobadev/neostation-frontend), maintained by
+[@TarbleFR](https://github.com/TarbleFR).
 
-The current iOS fork can work with embedded **Dolphin/DolphiniOS, ARMSX2,
-RPCS3, Dusklight and KartPad** runtimes and embedded **Libretro cores**, alongside
-external **RetroArch** and **MeloNX** integrations. Metadata and account-facing features use services and
-datasets such as **ScreenScraper, RetroAchievements and GameDB-PS3**.
+**RetroArch's Libretro cores are embedded directly in NeoStation.** Supported
+local games run inside the app, with NeoStation's own menu and controls.
+A separate RetroArch installation is not required. **MeloNX** remains a separate
+app for the Nintendo Switch integration.
 
-> **Modified version notice — August 2026 onward**  
-> This repository contains a modified version of NeoStation. The upstream
-> project and its contributors retain credit for the original frontend and
-> shared project history. The iOS-specific port, bridges, packaging, native
-> runtime adaptations and experimental integrations in this repository are
-> developed and maintained independently by [@TarbleFR](https://github.com/TarbleFR).
-> Attribution does not imply endorsement by any upstream project.
+## What's new in 0.0.7
 
-NeoStation iOS does **not** provide games, console firmware, encryption keys,
-BIOS files, copyrighted game assets or paid content. Users are responsible for
-providing legally obtained content required by the software they choose to use.
+- **Nintendo 3DS:** Azahar **2127.0-alpha1**, Fast Interpreter mode, and improved
+  BIOS/NAND imports, including supported console-encrypted NAND titles.
+- **AirPlay / Apple TV:** corrected NeoStation menu presentation.
+- **Consoles:** hide console profiles and enable or disable embedded emulators
+  individually.
+- **Skins and shaders:** improved community catalogs, Libretro shader downloads
+  and Dolphin visual effects.
+- **Internal resolution:** adjust supported Libretro cores globally or per game.
+  Available values and whether a restart is required depend on the core.
+- **Touch controls:** refinements to on-screen buttons and virtual sticks.
+- **Menu music:** “Once Upon a Time (loop)” by **TAD**, under **CC0 1.0**.
+  Enabled by default; switch it off in Settings.
 
-## Current iOS scope
+The release contains the **Build 455 IPA** and its SHA-256 checksum.
+[Read the release notes](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7).
 
-### Embedded runtimes
+## Embedded systems and ports
 
-- **Libretro cores** — the emulation cores also used by RetroArch run supported
-  systems directly in NeoStation. Their on-screen controls support per-console
-  default skins and optional imports from the Provenance skin catalog.
-- **[DolphiniOS / Dolphin](https://github.com/OatmealDome/dolphin-ios)** —
-  embedded GameCube/Wii engine with NeoStation session, touch, menu,
-  RetroAchievements and JIT integration.
-- **[ARMSX2](https://github.com/ARMSX2/ARMSX2)** — embedded PS2 core based on
-  the ARMSX2 ARM64 JIT fork of PCSX2.
-- **RPCS3 iOS** — embedded PS3 core materialized from the pinned
-  [XITRIX RPCS3 iOS](https://github.com/XITRIX/RPCS3-iOS-Releases) release,
-  with NeoStation-specific lifecycle, JIT, diagnostics, save-state and library
-  integration.
-- **[Dusklight](https://github.com/TwilitRealm/dusklight)** — embedded
-  Twilight Princess reimplementation integration with NeoStation-owned
-  lifecycle and game-library handling.
-- **[KartPad](https://github.com/chrissotraidis/kartpad)** — embedded Mario
-  Kart Wii runtime integration built around KartPad/WiiCompiled, with
-  NeoStation-owned library, settings and lifecycle handling.
+| Integration | Systems / purpose |
+| --- | --- |
+| **Libretro — 14 cores** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
+| **Dolphin / DolphiniOS** | GameCube and Wii |
+| **ARMSX2 / PCSX2** | PlayStation 2 |
+| **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
+| **Dusklight** | Twilight Princess port; requires compatible game data |
+| **KartPad / WiiCompiled** | Mario Kart Wii port; requires supported PAL RMCP01 game data |
 
-### External app integrations
+The number of cores differs from the number of console profiles. Compatibility,
+features and performance depend on the game, core and device.
 
-- **[RetroArch](https://github.com/libretro/RetroArch)** — shared-library
-  linking, playlist/library synchronization and direct launch flows.
-- **[MeloNX](https://github.com/nurtrino/MeloNX)** — Nintendo Switch library
-  synchronization, media association, direct launch and JIT-oriented handoff.
+## Make it yours
 
-### JIT, metadata and account services
+- **Consoles tab:** choose which consoles appear, manage their folders and pick
+  a skin, including before importing games.
+- **Controller skins:** browse **Provenance, DeltaStyles, Delta Skins,
+  PocketArch and Libretro overlays**. Compatible portrait and landscape layouts
+  can be chosen independently. Default NeoStation skins remain available.
+- **In-game controls:** touch controls, controllers, saves, save states, core
+  settings and supported RetroAchievements features.
+- **AirPlay:** use **Settings → General → AirPlay and external screen**.
+  Fit preserves the full picture; Fill may crop it. Support depends on the
+  engine and display connection.
+- **Library:** game screenshots, videos, PDF manuals and console information
+  where available.
+- **Books and manga:** import your own EPUB, PDF, CBZ and TXT files, with
+  progress, favorites and supported cover/page animations.
+- **120 Hz interface:** optional on compatible displays; it does not increase
+  an emulated game's native frame rate.
+- **Twelve interface languages:** English, French, Spanish, German, Italian,
+  Portuguese, Russian, Indonesian, Japanese, Korean, Simplified Chinese and
+  Traditional Chinese.
 
-- **[StikJIT](https://github.com/StikDebug/StikJIT)** for supported iOS JIT
-  workflows.
-- A read-only JIT route check compatible with a separately installed and
-  user-controlled **LocalDevVPN**. NeoStation does not bundle LocalDevVPN.
-- **[ScreenScraper](https://www.screenscraper.fr/)** for game metadata/media.
-- **[RetroAchievements](https://retroachievements.org/)** for supported
-  achievement/account flows.
-- **[GameDB-PS3](https://github.com/niemasd/GameDB-PS3)** as a cached fallback
-  PS3 serial-to-title catalog when local metadata and ScreenScraper do not
-  provide a usable title.
-- Gamepad-focused landscape navigation and 12-locale coverage for iOS-specific
-  settings and menus.
+[Skin compatibility and import guide](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/SKINS.md)
 
-## Controller skins
+## BIOS, saves and storage
 
-The skin catalog is provided by **[Provenance](https://github.com/Provenance-Emu/skins)**.
-It is used for NeoStation's **embedded Libretro consoles**. Each console has a
-NeoStation default skin; community skins are downloaded only when you choose
-to install them.
+Add your own Libretro BIOS/system files to
+**Files → On My iPhone/iPad → NeoStation → Libretro → System**.
+Keep the expected filenames and subfolders; **System** uses a capital S.
 
-1. Tap the **console icon with +** in the main menu bar (right after the first
-   icon, or press LB/RB to reach it), choose a console, then **Skins**.
-2. Select **Browse the Provenance catalog**, or **Import from Files** for a
-   compatible `.deltaskin`, `.manicskin` or single-skin `.zip` archive.
-3. Choose **Use in portrait**, **Use in landscape** or **Use in both orientations**.
+- **Settings → Tools → BIOS checker** identifies required and optional files.
+- Use the **Nintendo 3DS system-file importer** for supported BIOS and NAND data.
+- PS2 BIOS and PS3 firmware use their respective emulator settings.
+- The PS3 library supports game-save import/export and user-supplied RAP licenses.
+  Game saves and emulator save states are different formats.
+- **Settings → Tools** also provides storage analysis and cleanup. Review the
+  proposed files before confirming deletion.
 
-The default skin remains available. When an imported skin lacks a layout for
-one orientation, NeoStation uses its default for that orientation. Compatibility
-depends on the console, device layout and functions used by each skin.
+No proprietary BIOS, firmware, encryption keys or commercial games are supplied.
 
-See the **[skin guide](docs/SKINS.md)** for import instructions, in-game settings,
-supported behavior, catalog sources and creator credits.
+## NeoSwap
 
-## Requirements
+**NeoSwap is functional but experimental**, and applies to embedded **RPCS3**.
 
-### To run
+Eligible allocations can use guest-memory relay objects, shared backing held by
+helper processes, and selected file-backed allocations. Some supported cold
+data can be stored and restored on demand. The budget reacts to available
+memory and iOS memory pressure.
 
-- iOS 18 or newer.
-- An IPA signing/sideloading method such as
-  [SideStore](https://sidestore.io/) or another compatible installer, or Apple
-  Developer signing.
-- A valid pairing/JIT setup when using a workflow that requires JIT.
-- LocalDevVPN only when the user deliberately chooses that external route.
-- RetroArch or MeloNX only when using those external integrations.
+The graph's **App RAM** is the main process footprint. **NeoSwap Donated**
+counts active guest objects and host/donor loans assigned to RPCS3; unused
+prepared capacity and file-backed allocations are excluded.
 
-The embedded Dolphin, ARMSX2, RPCS3, Dusklight and KartPad integrations do not
-require installing a second copy of those applications.
+All processes use the **same physical device RAM**. NeoSwap does not create
+extra physical memory, guarantee a fixed allocation, or guarantee higher FPS.
+Results depend on the game, device and allocation paths actually used.
 
-When upgrading from an older NeoStation build that included its own JIT tunnel,
-remove the old **NeoStation Local JIT Tunnel** profile in iOS Settings and
-reactivate or recreate LocalDevVPN if you still use it. The current project does
-not embed the retired internal VPN tunnel.
+[Allocation details](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/neoswap-build441.md)
+· [RPCS3 / NeoSwap / LLVM notes](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/rpcs3-neoswap-llvm-build444-audit.md)
 
-### To build locally
+## Requirements and installation
 
-- macOS with a compatible Xcode installation.
-- Flutter SDK compatible with the version pinned by the project.
-- ScreenScraper developer credentials when building with ScreenScraper enabled.
+- **iOS 18 or later**, and a compatible IPA signing/sideloading method such as
+  [SideStore](https://sidestore.io/).
+- Your own compatible games and any required system files.
+- For embedded Dolphin, ARMSX2 and RPCS3: a valid pairing file, Developer Mode,
+  suitable signing/provisioning and the supported StikJIT route. The current
+  bridge checks a separately installed and activated **LocalDevVPN** route;
+  NeoStation does not bundle or activate that VPN.
+- **MeloNX** only if you use the external Nintendo Switch integration.
+
+**LiveContainer is not supported for the embedded runtimes.**
+Download the IPA from the release assets and sign/install it with your chosen
+sideloading tool. The IPA's entitlement declarations alone do not authorize
+restricted capabilities on a device.
 
 ## Build from source
 
+For the published app, use the **0.0.7 tag**, whose build source is
+`a12f075906ef452885decbef78fefd6517ce0fe0`.
+The `Claude` branch contains ongoing work; `main` also carries public
+documentation and is not the release's source snapshot.
+
+The release workflow uses **Flutter 3.47.2** and **Xcode 26.3**:
+
 ```bash
-git clone https://github.com/TarbleFR/neostation-ios.git
+git clone --branch 0.0.7 --single-branch https://github.com/TarbleFR/neostation-ios.git
 cd neostation-ios
-flutter pub get
+flutter pub get --enforce-lockfile
+flutter config --no-enable-swift-package-manager
+python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
 ```
 
-The generated `ios/` Xcode scaffold is intentionally not committed. Create it
-when needed:
+These steps prepare the checkout and iOS host. Native runtimes, extensions,
+packaging and signing also require the pinned inputs and steps in the
+[release workflow](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/.github/workflows/retroarch-delivery.yml).
+Use the same source revision throughout. Keep `.env`, service credentials and
+signing material out of Git.
 
-```bash
-flutter create --platforms=ios --org com.neogamelab --project-name neostation .
-```
+[Build 455 checks and limits](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/build455-plan.md)
+· [Build run](https://github.com/TarbleFR/neostation-ios/actions/runs/38393178533)
 
-Create your local build environment file from `.env.example`, provide the
-required ScreenScraper values and build with the project's normal iOS release
-process. `.env` must never be committed.
+## Credits and licenses
 
-## Stable iOS baseline
+The original frontend is by **Miguel Soto / misobadev**, with **androosio,
+ItsRetroPup** and upstream contributors. The iOS fork is independently
+maintained by **TarbleFR**. Original authorship and notices are preserved;
+attribution does not imply endorsement.
 
-The currently documented stable iOS reference is **Build 350**:
+Thanks to the emulator, port, Libretro, StikJIT, RetroAchievements, ScreenScraper,
+GameDB, skin, shader, reading-library and memory-research contributors.
+**[Full credits and source records](docs/LEGAL_AND_CREDITS.md)** include the
+individual authors and **[all 14 core license references](assets/legal/libretro/LIBRETRO_CORES.md)**.
 
-- Packaging source: `5e6dc00b35b7bb7847c24198d9f4b08ade8ed9a0`
-- Successful workflow run:
-  [36323843067](https://github.com/TarbleFR/neostation-ios/actions/runs/36323843067)
-- Artifact: `NeoStation-iOS-Build-350-KartPad-Relaunch-Candidate`
-- IPA SHA-256:
-  `e1017b96842ec970be3ed0cd981083ee945d069cf76e689a4ca3c81339299b46`
+The frontend's GPL license does **not** replace third-party terms.
+Some cores have non-commercial restrictions; exact source correspondence and
+combined-license questions remain documented in the
+**[0.0.7 license and packaging review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
+The review distinguishes the published IPA from subsequent packaging fixes.
 
-Build 350 remains the restoration point until a later experimental build is
-explicitly device-validated and promoted. A successful Actions run by itself
-does not make a build the new stable baseline.
-
-## Books and manga
-
-NeoStation iOS also allows users to import, organize and read books and manga.
-Users must add their own files or independently configure compatible sources.
-NeoStation iOS does not provide or host copyrighted content sources.
-
-- **Local library** — import EPUB, PDF, CBZ and TXT files from Files (On My
-  iPhone, iCloud Drive or any file provider). NeoStation keeps its own copy in
-  `NeoStation iOS › Library › Books`, so books stay readable offline; deleting
-  a book removes only that copy. A `.cbr` file is accepted only when it is
-  really a ZIP archive; RAR, 7z/CB7, Kindle (MOBI/AZW) and DRM-protected books
-  are refused with an explanation.
-- **Readers** — reflowable EPUB/TXT reader (font size, line spacing, themes,
-  table of contents, position saved as an EPUB CFI), PDF reader with page
-  navigation and zoom, page reader for CBZ files and online chapters (paged
-  left-to-right or right-to-left, vertical scrolling, zoom). Readers may rotate
-  to portrait; progress is saved automatically.
-- **Aidoku source catalogues** — paste a catalogue URL (for example the
-  Aidoku French sources list), review its sources and activate only the ones
-  you choose. NeoStation reads catalogue metadata only and never runs `.aix`
-  code; supported sites use native adapters. See
-  [the Build 437 reading notes](docs/library-reading-build437.md) for the
-  verified status of each source.
-
-## Project structure
-
-```text
-assets/       bundled images, data, sounds, shaders and system resources
-lib/          Flutter application source
-native/       native iOS runtime/core integration code
-packages/     vendored/local Flutter and native bridge packages
-test/         automated Dart/Flutter/native contract tests
-build-utils/  reproducible source-materialization and build tooling
-docs/         integration, diagnostics and build notes
-```
-
-## Credits and upstream projects
-
-NeoStation iOS exists because of the work of many upstream projects. Please
-credit those projects when redistributing modified builds or extracted
-components, and preserve their license/notices.
-
-| Project | NeoStation iOS use / attribution |
-| --- | --- |
-| **NeoStation** | Original frontend/project by [@misobadev](https://github.com/misobadev), with upstream co-maintainer [@androosio](https://github.com/androosio), collaborator [@ItsRetroPup](https://github.com/ItsRetroPup), and all upstream contributors. |
-| **NeoStation iOS** | iOS fork, native integrations and maintenance by [@TarbleFR](https://github.com/TarbleFR). |
-| **Dolphin / DolphiniOS** | Dolphin Emulator contributors and [DolphiniOS](https://github.com/OatmealDome/dolphin-ios) / OatmealDome contributors. |
-| **RPCS3 iOS / RPCS3** | iOS release/core work by [XITRIX](https://github.com/XITRIX/RPCS3-iOS-Releases), based on the [RPCS3](https://github.com/RPCS3/rpcs3) project. XITRIX also credits ARMSX3 and the wider iOS emulation/JIT community. |
-| **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
-| **Dusklight** | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. |
-| **KartPad / WiiCompiled** | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). |
-| **MeloNX / Ryujinx** | [MeloNX](https://github.com/nurtrino/MeloNX) contributors; MeloNX describes itself as based on Ryujinx/Ryubing. |
-| **RetroArch / libretro** | [RetroArch](https://github.com/libretro/RetroArch) and libretro contributors. |
-| **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins) maintainers and contributors; external catalog used to discover community controller skins. |
-| **Delta / DeltaCore** | [Riley Testut and DeltaCore contributors](https://github.com/rileytestut/DeltaCore); reference controller-skin format for compatible imports. |
-| **Community skin creators** | Each skin's original author and download source are retained when available. Artwork remains subject to its creator's terms. |
-| **StikJIT** | [StikDebug/StikJIT](https://github.com/StikDebug/StikJIT) and its contributors. |
-| **ScreenScraper** | [ScreenScraper.fr](https://www.screenscraper.fr/) metadata and media service. |
-| **RetroAchievements** | [RetroAchievements](https://retroachievements.org/) project, API and community. |
-| **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). NeoStation uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
-| **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
-| **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
-| **Aidoku** | [Aidoku](https://github.com/Aidoku/Aidoku) and the [aidoku-rs](https://github.com/Aidoku/aidoku-rs) SDK define the source catalogue formats (`.aix`, `source.json`, repository index) that the reading Library can import. NeoStation reads their metadata only and never executes Aidoku source code. |
-| **Aidoku French sources** | [Moomooo95/aidoku-french-sources](https://github.com/Moomooo95/aidoku-french-sources) by Moomooo95: the French source list and site research behind the native adapters for Mangas Origines, LelscanFR, SushiScan, Sushi Scans and Manga Scantrad. Its code and packages are not bundled. |
-| **pdfrx / PDFium** | [pdfrx](https://github.com/espresso3389/pdfrx) and [PDFium](https://pdfium.googlesource.com/pdfium/) render PDF books and manuals. |
-
-For lower-level dependencies, pinned revisions and additional license details,
-see [NOTICE.md](NOTICE.md), [the complete legal/credits record](docs/LEGAL_AND_CREDITS.md),
-package-specific license files and the upstream repositories.
-
-For the first public GitHub release, the exact Build 350 binary/source identity
-is recorded in
-[RELEASE_0.0.1_SOURCE_MANIFEST.md](docs/RELEASE_0.0.1_SOURCE_MANIFEST.md).
-
-## GameDB attribution
-
-NeoStation iOS specifically thanks **Niema (@niemasd)** for creating GameDB and
-making structured game metadata available for downstream tools.
-
-The PS3 integration may download the GPL-3.0
-[`PS3.titles.json`](https://github.com/niemasd/GameDB-PS3/releases/latest/download/PS3.titles.json)
-mapping from GameDB-PS3 and cache it locally. In accordance with GameDB's
-attribution request, NeoStation also acknowledges the sources named by
-GameDB-PS3:
-
-- [MiSTer Addons](https://misteraddons.com/)
-- [Redump](http://redump.org/)
-
-NeoStation does not claim authorship of that dataset.
-
-## Licenses and third-party notices
-
-### NeoStation iOS
-
-NeoStation iOS is a modified version of the upstream NeoStation frontend. The
-upstream project is GPL-3.0-or-later and its authorship remains preserved.
-NeoStation's iOS-specific code and distribution notices do not relicense
-third-party components. See [LICENSE.md](LICENSE.md), [NOTICE.md](NOTICE.md) and
-[the complete legal/credits record](docs/LEGAL_AND_CREDITS.md).
-
-### StikJIT
-
-NeoStation iOS integrates
-**[StikJIT](https://github.com/StikDebug/StikJIT)** for supported JIT
-workflows. StikJIT is licensed under **Mozilla Public License 2.0 (MPL-2.0)**.
-Bundled or referenced third-party components inside StikJIT retain their own
-licenses. Executable redistribution must preserve the MPL notices and inform
-recipients how to obtain the covered source.
-
-### DolphiniOS / Dolphin
-
-The embedded GameCube/Wii engine uses code from
-**[DolphiniOS](https://github.com/OatmealDome/dolphin-ios)** and Dolphin
-Emulator. The pinned DolphiniOS source states that most original Dolphin source
-is licensed under **GPL-2.0-or-later** and that the repository aggregate is
-GPLv3-compatible. Individual file/component SPDX notices and upstream
-`LICENSES/` remain authoritative.
-
-### RPCS3 / XITRIX
-
-The embedded PS3 core is materialized from the exact XITRIX/rpcs3 revision
-recorded in `build-utils/rpcs3/canonical-source.json`. That source carries
-RPCS3's GNU GPL version 2 license; its README states that most files are
-**GPL-2.0-only**, with some files licensed differently. NeoStation does not
-claim to relicense RPCS3. Exact per-file notices and third-party terms must be
-preserved.
-
-### ARMSX2 / PCSX2
-
-The embedded PS2 core is based on **ARMSX2**, which distributes GPLv3 material
-and in turn builds on PCSX2. Preserve ARMSX2/PCSX2 attribution, copyright
-history and component-specific notices.
-
-### KartPad / WiiCompiled
-
-KartPad's own `RIGHTS_AND_LICENSES.md` states that KartPad-owned software and
-its WiiCompiled modifications are **GPL-3.0-only** where covered. The same
-document separately notes that the software license does not grant rights in
-Nintendo-owned game content or automatically clear rights in ahead-of-time
-translated game logic.
-
-NeoStation's pinned KartPad manifest also records that generated
-translation/profile inputs required for a full KartPadCore are excluded from
-the public source delivery. Do not describe the available public source as
-complete Corresponding Source for that translated runtime unless the exact
-required source for the distributed binary is actually available.
-
-### Dusklight
-
-Dusklight's root project is published under **CC0-1.0**. Aurora, Borealis, SDL
-and other embedded dependencies retain their own licenses and notices.
-
-### GameDB-PS3
-
-The GameDB-PS3 repository is distributed under **GPL-3.0**. NeoStation downloads
-its title mapping at runtime rather than claiming it as original NeoStation
-data. Preserve GameDB and source-dataset attribution when redistributing a
-cached or bundled copy.
-
-### NeoStation Assets / RiiSU System Art
-
-Optional System Art from **NeoStation Assets** is downloaded at runtime.
-NeoStation Assets states that its original creative backgrounds and custom icons
-are licensed under **CC BY-NC-SA 4.0**. Attribution, NonCommercial and
-ShareAlike conditions apply to that creative material; console trademarks
-remain with their owners.
-
-**RiiSU** remains hosted by its original project and is downloaded/cached only
-when selected. RiiSU credits iiSU Interpreted for ES-DE for its system art icons
-and iiSU Network for the original inspiration. No standalone RiiSU license file
-was visible when the integration was added, so NeoStation does not assert
-general redistribution rights over that artwork.
-
-### Future binary packaging
-
-Future NeoStation iOS builds are required by CI to include a `Legal/` directory
-inside the application bundle with the NeoStation license/notice, third-party
-credits, exact build/source identity and pinned license texts for the principal
-embedded components. The build fails when those legal files are missing or
-stale relative to the source pins.
-
-This policy does **not** modify the already-published `NeoStation.ipa` asset in
-GitHub release 0.0.1.
-
-All other third-party packages, artwork, trademarks and emulator projects retain
-their own copyrights, licenses and terms. See [NOTICE.md](NOTICE.md) and
-[docs/LEGAL_AND_CREDITS.md](docs/LEGAL_AND_CREDITS.md) for the expanded
-attribution record.
-
-## Trademark notice
-
-Nintendo, PlayStation, Xbox, SEGA, RetroArch, Dolphin, DolphiniOS, RPCS3,
-ARMSX2, MeloNX, Dusklight, KartPad, StikJIT and other referenced names/logos are
-the property of their respective owners where applicable. NeoStation iOS is an
-independent project and is not affiliated with or endorsed by those trademark
-holders unless explicitly stated otherwise.
-
-## License
-
-**GNU General Public License v3.0.** See [LICENSE.md](LICENSE.md).
+See **[LICENSE.md](LICENSE.md)** and **[NOTICE.md](NOTICE.md)**. All trademarks
+and third-party artwork remain the property of their respective owners.
+NeoStation is not affiliated with the console manufacturers or upstream
+projects unless explicitly stated.

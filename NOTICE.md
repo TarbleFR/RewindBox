@@ -26,7 +26,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ---
 
-CURRENT STABLE IOS BASELINE — BUILD 350 / GITHUB RELEASE 0.0.1
+CURRENT PUBLIC IOS RELEASE — 0.0.7 / BUILD 455
+
+Latest published release:
+https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7
+
+Release build source:
+a12f075906ef452885decbef78fefd6517ce0fe0
+
+Successful Actions build:
+https://github.com/TarbleFR/neostation-ios/actions/runs/38393178533
+
+IPA asset: NeoStation-0.0.7.ipa
+IPA SHA-256: 13b7bfc70404b059089f027aad402772ed558d9eb03eeb4e29a3a4bb1019dd86
+
+The source and license observations for this release are recorded in
+docs/RELEASE_0.0.7_LICENSE_REVIEW.md. Updating this notice does not change
+the previously published signed/distributed IPA.
+
+---
+
+HISTORICAL VERIFIED IOS BASELINE — BUILD 350 / GITHUB RELEASE 0.0.1
 
 Published release:
 https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.1
@@ -53,8 +73,9 @@ IPA size:
 IPA SHA-256:
 e1017b96842ec970be3ed0cd981083ee945d069cf76e689a4ca3c81339299b46
 
-Build 350 is the documented stable restoration point promoted on
-27 September 2026. The GitHub release 0.0.1 publishes that already-validated
+Build 350 was the restoration point promoted on 27 September 2026 and is
+retained as a historical native donor. Build 419 is the later source baseline
+for the library, as recorded in AGENTS.md. The GitHub release 0.0.1 publishes that already-validated
 binary under the asset name NeoStation.ipa.
 
 The corresponding source for an IPA is the exact Git commit whose source tree
@@ -153,7 +174,7 @@ ARMSX2 repository:
 https://github.com/ARMSX2/ARMSX2
 
 Pinned NeoStation source revision:
-8b5fad23dc290660aa394e75b0fd23e31099eaec
+9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe
 
 ARMSX2 identifies itself as a native ARM64 JIT fork of PCSX2 and explicitly
 credits the PCSX2 project whose long-running emulator work it builds upon.
@@ -172,7 +193,7 @@ Dusklight repository:
 https://github.com/TwilitRealm/dusklight
 
 Pinned NeoStation source revision:
-ad979d3dae092d0f5cbdaf49eabca7b4f1db4838
+40457c6adb381928e4b5fef6ed459ed291edd5e2
 
 Dusklight describes itself as a reverse-engineered reimplementation of Twilight
 Princess. Its upstream credits include the Twilight Princess decompilation
@@ -244,34 +265,25 @@ redistributing MeloNX itself.
 
 ---
 
-RETROARCH / LIBRETRO — EMBEDDED CORES AND EXTERNAL APP INTEGRATION
+RETROARCH / LIBRETRO — EMBEDDED MULTI-SYSTEM ENGINE
 
 RetroArch:
 https://github.com/libretro/RetroArch
 
-NeoStation can link/synchronize a RetroArch library and use supported direct
-launch flows. RetroArch remains a separately maintained project with its own
-licenses, cores and third-party notices.
+In the current 0.0.7 / Build 455 release, Embedded RetroArch (Libretro) runs
+supported games directly inside NeoStation through its native host and 14
+bundled cores. A separate RetroArch installation is not required. RetroArch,
+Libretro and the individual cores remain independently maintained upstream
+projects with their own authors, licenses and notices.
 
-NeoStation also runs embedded libretro cores with its own frontend. Skin
-selection applies to these embedded sessions; external RetroArch keeps its
-own controls and configuration.
+Compatibility routes remain for earlier external RetroArch game settings and
+library entries that NeoStation cannot launch from an accessible local ROM.
+Since Build 440, the external app is no longer offered as a new per-game choice.
 
----
-
-CONTROLLER SKINS — PROVENANCE CATALOG, DELTA FORMAT AND SKIN CREATORS
-
-Catalog source: https://github.com/Provenance-Emu/skins
-Format reference: https://github.com/rileytestut/DeltaCore
-
-Credit goes to the Provenance catalog contributors, Riley Testut and DeltaCore
-contributors, and the individual skin creators. NeoStation's per-console default
-skins are supplied by NeoStation; community skins are optional user downloads.
-Their authorship and source metadata are retained when provided. Each skin's
-artwork remains subject to its own creator's terms, not NeoStation's license.
-No third-party skin pack is included in the application.
-
-Usage and source references: docs/SKINS.md
+The 14-core integration was introduced in release 0.0.3. Its authors, complete
+license reference texts, non-commercial restrictions and source-provenance
+limitations are recorded in assets/legal/libretro/LIBRETRO_CORES.md. The host
+license does not relicense these components.
 
 ---
 
@@ -289,8 +301,9 @@ This component is the embedded StikJIT XCFramework, licensed under MPL-2.0.
 It is distinct from the separate StikDebug application. Bundled idevice,
 universal.js and legacy.js components retain their own licenses/notices.
 
-NeoStation does not embed or redistribute LocalDevVPN. Users who choose that
-route install, configure and control the separate application independently.
+LocalDevVPN is a separately installed and user-controlled application required
+by the current embedded Dolphin, ARMSX2 and RPCS3 JIT workflows. NeoStation does
+not bundle or activate it.
 
 For executable distribution of the embedded StikJIT component, recipients must
 also be informed how to obtain the MPL-covered Source Code Form. NeoStation's
@@ -398,17 +411,20 @@ interoperability and compatibility purposes.
 
 ---
 
-FUTURE BINARY PACKAGING POLICY
+BINARY PACKAGING POLICY AND BUILD 455 REVIEW
 
-Future NeoStation iOS builds are required by CI to include an application-bundle
-Legal/ directory containing the NeoStation license and notice, comprehensive
-third-party credits, exact build/source identity, and the pinned license texts
-for Dolphin/DolphiniOS, RPCS3, ARMSX2, Dusklight, KartPad/WiiCompiled and
-StikJIT. The build fails if required legal files are absent or stale relative to
-the pinned source revisions.
+The project maintains an application-bundle Legal/ directory containing the
+NeoStation license and notice, third-party credits, build/source identity
+and pinned license documents for its principal embedded components.
 
-This policy applies to future builds. It does not modify the already-published
-NeoStation.ipa asset in GitHub release 0.0.1.
+The published 0.0.7 / Build 455 IPA contains that primary record, but the
+inspection did not find the complete individual Libretro-core license archive
+inside Legal/Libretro/. Review the exact binary and its source provenance,
+not only the success of an automated build:
+docs/RELEASE_0.0.7_LICENSE_REVIEW.md
+
+This documentation update does not alter any already-published IPA, including
+releases 0.0.1 and 0.0.7.
 
 ## Guest Page Relay / NeoSwap guest-memory relay
 
@@ -420,6 +436,7 @@ disclaimer are retained in `assets/legal/Guest-Page-Relay-MIT.txt` and included
 in the IPA Legal directory. NeoStation adds authenticated extension transport,
 shared backing aliases, bounded cleanup and measured validation. This notice
 does not imply physical-iPhone validation or additional physical RAM.
+
 
 ## Reading Library: Aidoku source catalogues and local books
 
@@ -464,3 +481,10 @@ The release provides the complete source archive with dependencies:
 [azahar-unified-source-2127.0-alpha1.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz).
 FastInterp is credited to warmenhoven and the Azahar contributors.
 The other embedded libretro cores retain their existing versions and licenses.
+
+## Shader kit, menu music and controller catalogs
+
+See assets/legal/THIRD_PARTY_NOTICES.md and docs/LEGAL_AND_CREDITS.md for
+glslang, SPIRV-Cross, Libretro shader catalogs, Dolphin shaders,
+“Once Upon a Time (loop)” by TAD (CC0), and the community skin catalogs.
+Each upstream work retains its original license, authorship and source record.

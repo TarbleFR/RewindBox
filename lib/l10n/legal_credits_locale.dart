@@ -5,6 +5,24 @@ import 'package:flutter/widgets.dart';
 /// Project names and license identifiers intentionally remain untranslated.
 /// The surrounding UI covers every locale offered by NeoStation.
 abstract final class LegalCreditsLocale {
+  static const Map<String, String> _embeddedCoreLicenses = {
+    'de': 'Integrierte Kerne: Jeder Kern behält seine eigene Lizenz.',
+    'en': 'Embedded cores: each core retains its own license.',
+    'es': 'Núcleos integrados: cada núcleo conserva su propia licencia.',
+    'fr': 'Cœurs embarqués : chaque cœur conserve sa propre licence.',
+    'id': 'Core bawaan: setiap core tetap memiliki lisensinya sendiri.',
+    'it': 'Core integrati: ogni core mantiene la propria licenza.',
+    'ja': '内蔵コア：各コアにはそれぞれのライセンスが適用されます。',
+    'ko': '내장 코어: 각 코어는 고유한 라이선스를 유지합니다.',
+    'pt': 'Núcleos integrados: cada núcleo mantém sua própria licença.',
+    'ru': 'Встроенные ядра: каждое ядро сохраняет свою лицензию.',
+    'zh': '内置核心：每个核心均保留其自身许可。',
+    'zh_Hant': '內建核心：每個核心均保留其自身授權。',
+  };
+
+  static String embeddedCoreLicenses(BuildContext context) =>
+      _lookup(_embeddedCoreLicenses, context);
+
   static const Map<String, String> _cardTitles = {
     'de': 'Open-Source-Lizenzen & Danksagungen',
     'en': 'Open-source licenses & credits',

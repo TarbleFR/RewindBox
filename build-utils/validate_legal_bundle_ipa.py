@@ -4,30 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import zipfile
 from pathlib import Path
 
+from embed_legal_bundle import REQUIRED_LEGAL_FILES, validate_libretro_notices
+
 REQUIRED = (
-    "NeoStation-GPL-3.0.txt",
     "NeoStation-NOTICE.md",
     "LEGAL_AND_CREDITS.md",
-    "THIRD_PARTY_NOTICES.md",
-    "Dolphin-COPYING.txt",
-    "RPCS3-GPL-2.0.txt",
-    "ARMSX2-GPL-3.0.txt",
-    "Dusklight-CC0-1.0.txt",
-    "KartPad-RIGHTS_AND_LICENSES.md",
-    "KartPad-THIRD_PARTY_NOTICES.md",
-    "StikJIT-MPL-2.0.txt",
-    "NeoStation-Assets-CC-BY-NC-SA-4.0.txt",
-    "RiiSU-ATTRIBUTION.md",
-    "NeoStation-GPL-3.0.txt",
-    "GameDB-PS3-GPL-3.0.txt",
-    # Build 450: shader compilers of neo_shader_kit.
-    "glslang-LICENSE.txt",
-    "SPIRV-Cross-Apache-2.0.txt",
     "BUILD_SOURCE_IDENTITY.json",
+    *REQUIRED_LEGAL_FILES,
 )
 
 
@@ -56,6 +44,18 @@ def main() -> None:
         missing = [name for name in REQUIRED if prefix + name not in names]
         if missing:
             raise SystemExit("Missing legal files: " + ", ".join(missing))
+
+        for name in REQUIRED:
+            member = prefix + name
+            if names.count(member) != 1 or not archive.getinfo(member).file_size:
+                raise SystemExit(f"Empty or duplicate legal file: {name}")
+
+        for name, digest in validate_libretro_notices().items():
+            member = prefix + "Libretro/" + name
+            if names.count(member) != 1:
+                raise SystemExit(f"Missing or duplicate Libretro notice: {name}")
+            if hashlib.sha256(archive.read(member)).hexdigest() != digest:
+                raise SystemExit(f"Changed packaged Libretro notice: {name}")
 
         identity = json.loads(
             archive.read(prefix + "BUILD_SOURCE_IDENTITY.json").decode("utf-8")
