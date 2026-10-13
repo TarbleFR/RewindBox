@@ -96,7 +96,7 @@ abstract final class Armsx2UiLocale {
   ) {
     var value = text(context, key);
     for (final item in values.entries) {
-      value = value.replaceAll('{'+item.key+'}', item.value?.toString() ?? '');
+      value = value.replaceAll('{${item.key}}', item.value?.toString() ?? '');
     }
     return value;
   }

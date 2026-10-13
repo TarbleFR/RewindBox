@@ -66,7 +66,7 @@ class Armsx2InternalBridge {
             'dataPath': dataPath,
             'biosDirectory': biosDirectory,
             'uiLocale': uiLocale,
-            if (biosFilename != null) 'biosFilename': biosFilename,
+            'biosFilename': ?biosFilename,
           }) ??
           const <String, dynamic>{},
     );

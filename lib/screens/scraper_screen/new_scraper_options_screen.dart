@@ -534,7 +534,7 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
       child: ListView.builder(
         // Only seven categories exist; caching the whole side menu guarantees
         // the newly selected item has a context before ensureVisible runs.
-        cacheExtent: 1000.r,
+        scrollCacheExtent: ScrollCacheExtent.pixels(1000.r),
         itemCount: _menuItems.length,
         itemBuilder: (context, index) {
           final item = _menuItems[index];

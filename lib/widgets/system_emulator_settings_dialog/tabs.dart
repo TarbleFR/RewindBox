@@ -182,6 +182,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
   }
 
   Future<void> _pickAndSaveImage() => StorageImportActivity.run(() async {
+    final dialogTitle = AppLocale.backgroundImage.getString(context);
     try {
       String? pickedPath;
 
@@ -195,7 +196,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
         final result = await FilePicker.pickFiles(
           type: FileType.custom,
           allowedExtensions: ImageUtils.backgroundExtensions,
-          dialogTitle: AppLocale.backgroundImage.getString(context),
+          dialogTitle: dialogTitle,
           lockParentWindow: true,
         );
         pickedPath = result?.files.single.path;
@@ -317,6 +318,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
   }
 
   Future<void> _pickAndSaveLogoImage() => StorageImportActivity.run(() async {
+    final dialogTitle = AppLocale.logoImage.getString(context);
     try {
       String? pickedPath;
 
@@ -330,7 +332,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
         final result = await FilePicker.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-          dialogTitle: AppLocale.logoImage.getString(context),
+          dialogTitle: dialogTitle,
           lockParentWindow: true,
         );
         pickedPath = result?.files.single.path;

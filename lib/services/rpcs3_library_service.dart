@@ -1392,6 +1392,7 @@ class Rpcs3LibraryService {
         context,
         listen: false,
       ).loadGamesForSystem('ps3');
+      if (!context.mounted) return;
       await Provider.of<SqliteConfigProvider>(
         context,
         listen: false,

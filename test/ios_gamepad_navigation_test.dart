@@ -19,10 +19,10 @@ void main() {
     expect(listener, contains('firstIndex(of: gamepad)'));
 
     expect(plugin, isNot(contains('sfSymbolsName')));
-    expect(plugin, contains('(\"dpadup\",'));
-    expect(plugin, contains('(\"dpaddown\",'));
-    expect(plugin, contains('(\"leftthumbstickx\",'));
-    expect(plugin, contains('(\"a\", gamepad.buttonA.value)'));
+    expect(plugin, contains('("dpadup",'));
+    expect(plugin, contains('("dpaddown",'));
+    expect(plugin, contains('("leftthumbstickx",'));
+    expect(plugin, contains('("a", gamepad.buttonA.value)'));
 
     expect(translator, contains('Platform.isWindows || Platform.isIOS'));
     expect(translator, contains('_translateNamedGamepadKey'));

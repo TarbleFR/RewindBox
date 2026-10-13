@@ -142,11 +142,12 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
           fileProvider: fileProvider,
         );
 
-        if (mounted)
+        if (mounted) {
           setState(() {
             _deletedCount++;
             _selected.remove(titleId);
           });
+        }
       }
 
       if (!mounted) return;

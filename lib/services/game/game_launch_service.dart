@@ -358,6 +358,7 @@ class GameLaunchService {
             );
           }
 
+          final launchLocale = Localizations.localeOf(context).toLanguageTag();
           GameSessionManager.registerGameLaunch(
             system,
             game,
@@ -367,7 +368,7 @@ class GameLaunchService {
           final linkedGame = Rpcs3LibraryService.cachedGameForTitleId(titleId);
           final launched = await Rpcs3LaunchService.launchTitle(
             titleId,
-            uiLocale: Localizations.localeOf(context).toLanguageTag(),
+            uiLocale: launchLocale,
             displayTitle: game.name,
             sourcePath: linkedGame?.sourcePath,
             sourceKind: linkedGame?.sourceKind,
@@ -438,6 +439,7 @@ class GameLaunchService {
         if (!context.mounted) {
           return failExternal(GameLaunchResult.failure('', ''));
         }
+        final launchLocale = Localizations.localeOf(context).toLanguageTag();
         final retroArchStandsIn =
             !embeddedAllowed &&
             (ConsoleCatalog.entryForSystem(system)?.retroArchFallback ?? false);
@@ -492,7 +494,7 @@ class GameLaunchService {
             try {
               final launched = await Armsx2LibraryService.launchGameByRomPath(
                 game.romPath!,
-                uiLocale: Localizations.localeOf(context).toLanguageTag(),
+                uiLocale: launchLocale,
               );
               if (launched) {
                 // Override the generic iOS handoff identity before
@@ -2030,7 +2032,9 @@ class GameLaunchService {
       if (Platform.isLinux) return;
       // Embedded runtimes own their native lifetime, not iOS foreground edges.
       if (Platform.isIOS && EmbeddedIOSSessionStatus.handles(
-          GameSessionManager.launchedEmulatorExe)) return;
+          GameSessionManager.launchedEmulatorExe)) {
+        return;
+      }
 
       final isDesktop =
           Platform.isWindows || Platform.isLinux || Platform.isMacOS;

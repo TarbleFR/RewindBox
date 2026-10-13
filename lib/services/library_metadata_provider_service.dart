@@ -943,8 +943,9 @@ class LibraryMetadataProviderService {
         final name = element.name.local;
         if (!fields.contains(name)) continue;
         final text = element.innerText.trim();
-        if (text.isNotEmpty)
+        if (text.isNotEmpty) {
           values.putIfAbsent(name, () => <String>[]).add(text);
+        }
       }
       final titles = values['title'] ?? const <String>[];
       if (titles.isEmpty) continue;
@@ -1063,8 +1064,9 @@ class LibraryMetadataProviderService {
           final candidate = raw
               .replaceAll(RegExp(r'[^0-9Xx]'), '')
               .toUpperCase();
-          if (candidate.length == 10 || candidate.length == 13)
+          if (candidate.length == 10 || candidate.length == 13) {
             isbn = candidate;
+          }
         }
       } else if (compact.length == 10 || compact.length == 13) {
         isbn = compact;

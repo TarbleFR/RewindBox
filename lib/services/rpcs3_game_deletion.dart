@@ -28,11 +28,13 @@ class Rpcs3GameDeletion {
           'discimages',
           'discimgs',
         ].contains(path.basename(entry.path).toLowerCase())) {
-          if (entry is! Directory)
+          if (entry is! Directory) {
             throw FileSystemException('Invalid installation root', entry.path);
+          }
           final canonical = await entry.resolveSymbolicLinks();
-          if (canonical != entry.path)
+          if (canonical != entry.path) {
             throw FileSystemException('Linked installation root', entry.path);
+          }
           roots.add(path.relative(entry.path, from: root));
         }
       }

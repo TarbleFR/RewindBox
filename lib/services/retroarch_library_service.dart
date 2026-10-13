@@ -437,7 +437,7 @@ class RetroArchLibraryService {
 
   /// Writes diagnostic info to a plain text file under the app's Documents
   /// folder, readable via the Files app ("On My iPhone > NeoStation >
-  /// <name>") — there's no Xcode console access to check this otherwise.
+  /// `<name>`") — there's no Xcode console access to check this otherwise.
   static Future<void> _writeDebugFile(String name, String content) async {
     try {
       final file = await DiagnosticsDirectory.file(name);

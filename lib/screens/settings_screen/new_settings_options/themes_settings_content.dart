@@ -184,6 +184,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
   }
 
   Future<void> _pickCustomBackground() => StorageImportActivity.run(() async {
+    final dialogTitle = CustomBackgroundLocale.title(context);
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     try {
       String? filePath;
@@ -199,7 +200,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
         final result = await FilePicker.pickFiles(
           type: FileType.custom,
           allowedExtensions: ImageUtils.backgroundExtensions,
-          dialogTitle: CustomBackgroundLocale.title(context),
+          dialogTitle: dialogTitle,
         );
         filePath = result?.files.single.path;
       }
@@ -486,7 +487,7 @@ class _CustomBackgroundCard extends StatelessWidget {
                     Image.file(
                       File(backgroundPath),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
+                      errorBuilder: (_, _, _) => Center(
                         child: Icon(
                           Symbols.broken_image_rounded,
                           color: theme.colorScheme.onSurface.withValues(

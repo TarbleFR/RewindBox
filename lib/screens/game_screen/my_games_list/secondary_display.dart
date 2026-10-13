@@ -102,8 +102,9 @@ extension _SecondaryDisplay on _SystemGamesListState {
     for (var step = 1; step <= steps; step++) {
       if (!mounted || _previewIsSuppressed ||
           generation != _videoGeneration ||
-          _videoController != controller)
+          _videoController != controller) {
         return;
+      }
       await controller.setVolume(target * step / steps);
       if (step < steps) {
         await Future<void>.delayed(const Duration(milliseconds: 25));

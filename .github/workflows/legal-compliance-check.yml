@@ -1,4 +1,4 @@
-name: Legal compliance checks
+name: Source and legal checks
 
 on:
   push:
@@ -51,11 +51,36 @@ jobs:
       - name: Resolve packages
         run: flutter pub get --enforce-lockfile
 
-      - name: Analyze legal UI changes
-        run: flutter analyze --no-fatal-infos
+      - name: Analyze all Dart sources
+        run: flutter analyze
 
       - name: Test bundled credits and all supported locales
         run: flutter test test/legal_credits_dialog_test.dart
+
+      - name: Test source cleanup regressions
+        run: |
+          flutter test \
+            test/frontend_media_gate_test.dart \
+            test/ios_gamepad_navigation_test.dart \
+            test/neoswap_shader_storage_test.dart \
+            test/retro_achievements_layout_test.dart \
+            test/retroarch_real_export_test.dart \
+            test/rpcs3_library_service_test.dart \
+            test/game_deletion_regression_test.dart \
+            test/library_metadata_provider_service_test.dart \
+            test/dolphin_system_files_test.dart \
+            test/armsx2_bios_selection_test.dart \
+            test/armsx2_in_game_localization_test.dart \
+            test/rpcs3_bridge_memory_mode_test.dart \
+            test/armsx2_retroarch_routing_isolation_test.dart \
+            test/rpcs3_stage6_test.dart \
+            test/theme_provider_background_persistence_test.dart \
+            test/video_preview_lifecycle_test.dart \
+            test/grid_preview_audio_contract_test.dart \
+            test/external_display_games_list_test.dart \
+            test/secondary_background_fallback_test.dart \
+            test/neo_swap_locale_test.dart
+          python3 test/retroarch_baseline_scope_test.py
 
       - name: Validate legal scripts and source pins
         shell: bash

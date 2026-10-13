@@ -61,6 +61,20 @@ user behavior and is not part of this cleanup.
 
 ## Verification scope
 
+The follow-up source cleanup addresses the 52 informational diagnostics reported
+by the initial full Flutter analysis. UI updates stop when their screen has been
+disposed; launch locales and picker titles are captured before asynchronous
+work. The remaining edits preserve behavior while updating deprecated scroll
+cache syntax, null-aware collection entries, braces, interpolation and comments.
+The CI now runs strict `flutter analyze`, related regression suites and the
+existing library/native baseline checks. No lint rule or baseline is suppressed.
+
+The initial legal checks passed in
+[run 38465786728](https://github.com/TarbleFR/neostation-ios/actions/runs/38465786728),
+at `c4d2ed8137c1b16a394a32a076cb8610ffa70041`: three Flutter tests,
+six Python tests, all twelve locales and synthetic IPA validation. The subsequent
+source cleanup requires its own successful CI result.
+
 The Python regression suite exercises successful embedding and validation,
 missing/empty/changed notices, incomplete core coverage and missing music or
 guest-relay attribution. Six tests pass locally, including their negative cases.

@@ -23,7 +23,7 @@ import 'package:url_launcher/url_launcher.dart';
 ///   melonx://gameInfo?scheme=neostation
 ///
 /// MeloNX callback:
-///   neostation://melonx?games=<base64url(JSON [GameScheme])>
+///   `neostation://melonx?games=<base64url(JSON [GameScheme])>`
 ///
 /// A MeloNX GameScheme contains titleName, titleId, developer, version and
 /// iconData. NeoStation imports the human-readable metadata and uses iconData
@@ -516,6 +516,7 @@ class MelonxLibraryService {
         context,
         listen: false,
       ).loadGamesForSystem('switch');
+      if (!context.mounted) return;
       await Provider.of<SqliteConfigProvider>(
         context,
         listen: false,

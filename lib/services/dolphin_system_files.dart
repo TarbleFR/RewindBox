@@ -45,7 +45,9 @@ abstract final class DolphinSystemFiles {
       'content', 'title.tmd'];
     try {
       if (await FileSystemEntity.type(current, followLinks: false) !=
-          FileSystemEntityType.directory) return null;
+          FileSystemEntityType.directory) {
+        return null;
+      }
       for (var index = 0; index < components.length; index++) {
         current = p.join(current, components[index]);
         final expected = index == components.length - 1
@@ -61,7 +63,9 @@ abstract final class DolphinSystemFiles {
       final data = ByteData.sublistView(bytes);
       final count = data.getUint16(0x1de, Endian.big);
       if (data.getUint64(0x18c, Endian.big) != titleId || count == 0 ||
-          0x1e4 + count * 36 > length) return null;
+          0x1e4 + count * 36 > length) {
+        return null;
+      }
       final bootIndex = data.getUint16(0x1e0, Endian.big);
       for (var index = 0; index < count; index++) {
         if (data.getUint16(0x1e4 + index * 36 + 4, Endian.big) == bootIndex) return data;

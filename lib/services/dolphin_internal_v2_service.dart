@@ -479,8 +479,9 @@ class DolphinInternalV2Service {
         }
         if (images.isNotEmpty) break;
       }
-      if (images.isEmpty)
+      if (images.isEmpty) {
         throw const DolphinSystemFilesException('invalidGameCube');
+      }
       return await DolphinSystemFiles.replaceSnapshot(
         Directory(path.join(root.path, 'User', 'GC')),
         (stage) async {
@@ -773,7 +774,7 @@ class DolphinInternalV2Service {
         logPath,
         ready ? 'launch.ready' : 'launch.refused',
         message,
-        {'gates': gates, if (failedStage != null) 'failedStage': failedStage},
+        {'gates': gates, 'failedStage': ?failedStage},
       );
       return DolphinLaunchReport(
         ready: ready,
@@ -1016,7 +1017,7 @@ class DolphinInternalV2Service {
       'engine': 'dolphin_internal',
       'stage': stage,
       'message': message,
-      if (details != null) ...details,
+      ...?details,
     };
     await File(logPath).parent.create(recursive: true);
     await File(logPath).writeAsString(

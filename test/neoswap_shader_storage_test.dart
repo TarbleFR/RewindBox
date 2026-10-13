@@ -78,8 +78,9 @@ void main() {
       final calls = <MethodCall>[];
       messenger.setMockMethodCallHandler(channel, (call) async {
         calls.add(call);
-        if (call.method == 'setShaderStorage')
+        if (call.method == 'setShaderStorage') {
           enabled = (call.arguments as Map)['enabled'] == true;
+        }
         return sample(enabled);
       });
       await tester.binding.setSurfaceSize(const Size(900, 1600));

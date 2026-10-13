@@ -31,7 +31,7 @@ abstract final class SecondaryUiLocale {
   static String format(BuildContext context, String key, Map<String, Object?> values) {
     var value = text(context, key);
     for (final item in values.entries) {
-      value = value.replaceAll('{'+item.key+'}', item.value?.toString() ?? '');
+      value = value.replaceAll('{${item.key}}', item.value?.toString() ?? '');
     }
     return value;
   }

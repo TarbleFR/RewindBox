@@ -36,8 +36,9 @@ void main() {
       for (final file in archive.files) {
         if (!file.name.startsWith('playlists/') ||
             file.name.split('/').length != 2 ||
-            !file.name.endsWith('.lpl'))
+            !file.name.endsWith('.lpl')) {
           continue;
+        }
         final data = jsonDecode(utf8.decode(file.content as List<int>)) as Map;
         final name = file.name.split('/').last;
         final items = data['items'] as List;
@@ -66,8 +67,9 @@ void main() {
               .replaceAll('=', ''),
         },
       );
-      for (var i = 0; i < 2; i++)
+      for (var i = 0; i < 2; i++) {
         expect(await RetroArchLibraryService.handleIncomingUri(uri), isTrue);
+      }
       expect(
         await Future.wait([
           RetroArchLibraryService.handleIncomingUri(uri),

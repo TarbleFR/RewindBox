@@ -135,7 +135,7 @@ class Rpcs3InternalBridge {
     return Map<String, dynamic>.from(
       await _channel.invokeMapMethod<String, dynamic>('installIso', {
             'path': path,
-            if (keyPath != null) 'keyPath': keyPath,
+            'keyPath': ?keyPath,
           }) ??
           const <String, dynamic>{},
     );
@@ -245,7 +245,7 @@ class Rpcs3InternalBridge {
     await _channel.invokeMapMethod<String, dynamic>('launchGame', {
           'titleId': titleId,
           'uiLocale': uiLocale,
-          if (savestateId != null) 'savestateId': savestateId,
+          'savestateId': ?savestateId,
         }) ??
         const <String, dynamic>{},
   );

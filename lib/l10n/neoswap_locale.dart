@@ -9,8 +9,9 @@ class NeoSwapLocale {
       if (locale.scriptCode?.toLowerCase() == 'hant' ||
           country == 'TW' ||
           country == 'HK' ||
-          country == 'MO')
+          country == 'MO') {
         return 'zh_Hant';
+      }
       return 'zh';
     }
     return values.containsKey(locale.languageCode) ? locale.languageCode : 'en';

@@ -30,7 +30,9 @@ class DusklightGameIdentity {
         );
         final identity = fromDiscId(data?['gameId']?.toString());
         if (identity != null && data?['system'] == identity.sourceSystem &&
-            identity.sourceSystem == system) return identity;
+            identity.sourceSystem == system) {
+          return identity;
+        }
       } on PlatformException {
         // Try the other source platform; never infer a title from the filename.
       } on MissingPluginException {

@@ -147,7 +147,7 @@ class DirectoriesSettingsContentState
           .then((_) {
             if (!mounted || index >= _itemKeys.length) return;
             final builtContext = _itemKeys[index].currentContext;
-            if (builtContext != null) {
+            if (builtContext != null && builtContext.mounted) {
               _scroller.ensureVisible(builtContext);
             }
           });

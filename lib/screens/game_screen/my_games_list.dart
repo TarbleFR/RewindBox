@@ -551,6 +551,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
     // Immediate resource termination. Await disposal so AVFoundation
     // cannot outlive this route and leak audio into the next native surface.
     await _stopVideoAndCleanup();
+    if (!mounted) return;
 
     // Release current input layers.
     GamepadNavigationManager.popLayer('games_grid');

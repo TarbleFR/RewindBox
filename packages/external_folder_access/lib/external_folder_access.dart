@@ -201,7 +201,7 @@ class ExternalFolderAccess {
       return await _channel.invokeMethod<bool>('openJitRequest', {
         'targetBaseBundleId': targetBaseBundleId,
         'scriptName': scriptName,
-        if (scriptDataBase64Url != null) 'scriptData': scriptDataBase64Url,
+        'scriptData': ?scriptDataBase64Url,
         'debugFileName': debugFileName,
       });
     } on PlatformException {
@@ -210,7 +210,7 @@ class ExternalFolderAccess {
   }
 
   /// Registers a callback for URLs opened while the app is running — e.g.
-  /// RetroArch calling back via neostation://retroarch?games=<base64url>
+  /// RetroArch calling back via `neostation://retroarch?games=<base64url>`
   /// after a library export request. Replaces the app_links package for
   /// this single use case, since the native side already forwards
   /// `application(_:open:options:)` through this same channel (see
