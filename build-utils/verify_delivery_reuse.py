@@ -1550,6 +1550,26 @@ BUILD451_DELTA = {
     'test/libretro_3ds_system_screen_test.dart',
 }
 DELTA |= BUILD451_DELTA
+# Build 452 (13 October 2026), on top of the Build 451 source c65efd42: the
+# Nintendo 3DS import menu of the library offers the 3DS BIOS and system
+# files import (its page opens with the assistant started), and the
+# RetroArch copy recognizes an Azahar, Citra or Lime3DS folder and points
+# to that import; two texts in twelve languages; version 0.0.7+452. Every
+# created, modified or deleted input since that source, file by file.
+BUILD452_DELTA = {
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/libretro_locale.dart',
+    'lib/screens/libretro/libretro_3ds_system_screen.dart',
+    'lib/screens/libretro/libretro_bios_checker_screen.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/widgets/libretro_3ds_import_route.dart',
+    'lib/widgets/libretro_internal_playlist_actions.dart',
+    'pubspec.yaml',
+    'test/libretro_3ds_system_screen_test.dart',
+    'test/libretro_bios_checker_screen_test.dart',
+    'test/libretro_playlist_actions_test.dart',
+}
+DELTA |= BUILD452_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
