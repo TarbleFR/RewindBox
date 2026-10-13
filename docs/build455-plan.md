@@ -139,7 +139,21 @@ expected » (iPhone SE 3e génération, iOS 26.2, vrais cœurs, appel de session
 - Les autres scénarios (NeoTest, PPSSPP PRX et ISO, fenêtres encombrées, cœur Vulkan de test) se sont déroulés
   comme attendu ; les jobs informatifs `before-fix` et `before-reservation` ont réussi.
 
-À compléter : livraison.
+### Livraison
+
+**`retroarch-delivery`, run `38393178533`** — réussi (périmètre `full` ; jobs `checks`, `native` et
+`Release device build • cold`). Source `a12f075906ef452885decbef78fefd6517ce0fe0` : arbre produit identique à
+`6865f458` (seul ce plan diffère), celui des contrôles et de la sonde ci-dessus.
+
+- Artefact `NeoStation-Build-455-a12f0759…-cold`, id `11812355580`, 211 121 053 octets, archive SHA-256
+  `e35c8e13d125a0d302d840d297abe396eb6a15512d51d2bc1cdfb36d3bbc99ee`, conservé jusqu'au 27 octobre 2026, chiffré pour
+  `build-utils/delivery-424-recipient.pem`.
+- IPA validée avant scellement : `NeoStation.ipa`, 206 686 562 octets, SHA-256
+  `7926a48c863cf38f7015f84f21b68353ccf0f91ce02b7e21f9c4e9c8c5ab2745`, version 0.0.7 (455) ; validation structurelle
+  réussie ; « Libretro IPA validation passed » pour les 14 cœurs (dont desmume, mupen64plus_next, mednafen_psx_hw,
+  mednafen_psx, ppsspp et azahar) ; contrôles des options du catalogue et des BIOS contre les cœurs épinglés
+  réussis. Le scellement SideStore recrée l'IPA : SHA-256 de l'IPA scellée à relever après déchiffrement.
+- Aucune validation sur iPhone. Ne pas réutiliser le numéro 455.
 
 ## Limites
 
