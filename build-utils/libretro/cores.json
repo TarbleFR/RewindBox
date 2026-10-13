@@ -18,19 +18,88 @@
     }
   ],
   "cores": [
-    {"id": "nestopia", "license": "GPLv2", "source": "https://github.com/libretro/nestopia"},
-    {"id": "snes9x", "license": "Non-commercial", "source": "https://github.com/libretro/snes9x"},
-    {"id": "gambatte", "license": "GPLv2", "source": "https://github.com/libretro/gambatte-libretro"},
-    {"id": "mgba", "license": "MPLv2.0", "source": "https://github.com/libretro/mgba"},
-    {"id": "genesis_plus_gx", "license": "Non-commercial", "source": "https://github.com/libretro/Genesis-Plus-GX"},
-    {"id": "genesis_plus_gx_wide", "license": "Non-commercial", "source": "https://github.com/libretro/Genesis-Plus-GX-Wide"},
-    {"id": "picodrive", "license": "MAME", "source": "https://github.com/libretro/picodrive"},
-    {"id": "fbneo", "license": "Non-commercial", "source": "https://github.com/libretro/FBNeo"},
-    {"id": "desmume", "license": "GPLv2", "source": "https://github.com/libretro/desmume"},
-    {"id": "mupen64plus_next", "license": "GPLv2", "source": "https://github.com/libretro/mupen64plus-libretro-nx"},
-    {"id": "mednafen_psx_hw", "license": "GPLv2", "source": "https://github.com/libretro/beetle-psx-libretro"},
-    {"id": "mednafen_psx", "license": "GPLv2", "source": "https://github.com/libretro/beetle-psx-libretro"},
-    {"id": "ppsspp", "license": "GPLv2", "source": "https://github.com/hrydgard/ppsspp"},
-    {"id": "azahar", "license": "GPLv2+", "source": "https://github.com/azahar-emu/azahar"}
-  ]
+    {
+      "id": "nestopia",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/nestopia"
+    },
+    {
+      "id": "snes9x",
+      "license": "Non-commercial",
+      "source": "https://github.com/libretro/snes9x"
+    },
+    {
+      "id": "gambatte",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/gambatte-libretro"
+    },
+    {
+      "id": "mgba",
+      "license": "MPLv2.0",
+      "source": "https://github.com/libretro/mgba"
+    },
+    {
+      "id": "genesis_plus_gx",
+      "license": "Non-commercial",
+      "source": "https://github.com/libretro/Genesis-Plus-GX"
+    },
+    {
+      "id": "genesis_plus_gx_wide",
+      "license": "Non-commercial",
+      "source": "https://github.com/libretro/Genesis-Plus-GX-Wide"
+    },
+    {
+      "id": "picodrive",
+      "license": "MAME",
+      "source": "https://github.com/libretro/picodrive"
+    },
+    {
+      "id": "fbneo",
+      "license": "Non-commercial",
+      "source": "https://github.com/libretro/FBNeo"
+    },
+    {
+      "id": "desmume",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/desmume"
+    },
+    {
+      "id": "mupen64plus_next",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/mupen64plus-libretro-nx"
+    },
+    {
+      "id": "mednafen_psx_hw",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-psx-libretro"
+    },
+    {
+      "id": "mednafen_psx",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-psx-libretro"
+    },
+    {
+      "id": "ppsspp",
+      "license": "GPLv2",
+      "source": "https://github.com/hrydgard/ppsspp"
+    },
+    {
+      "id": "azahar",
+      "license": "GPLv3+",
+      "source": "https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+      "release": {
+        "version": "2127.0-alpha1",
+        "commit": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+        "url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-libretro-ios-arm64-2127.0-alpha1.zip",
+        "archiveSha256": "61e96e167a3ddf28c2e0fbab51ae6c952ab272c58de0b4de62cbbe60c2fc65d7",
+        "member": "azahar_libretro.dylib",
+        "sha256": "a646ee8f804327e2d33cbacf4d4f64b6725d25c7d7ece1ccc13698b16f3bf1d8"
+      }
+    }
+  ],
+  "reuse": {
+    "hostCommit": "ba3dc14d7196429b65f20cdb8573616633dfb8a2",
+    "runId": 38195212647,
+    "identitySha256": "f49155e4f5c46138663978ab1d0bd64736cabb04c4593baf8cd08d2f74ee33f4"
+  }
 }

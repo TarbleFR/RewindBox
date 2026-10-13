@@ -9,6 +9,7 @@ name: Libretro cores for NeoStation iOS
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: libretro-cores-${{ github.ref }}
   cancel-in-progress: false
@@ -20,8 +21,17 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
-    - name: Download, verify and package the official iOS cores
-      run: python3 build-utils/libretro/build_cores.py dist/libretro
+    - name: Retrieve the exact unchanged core collection
+      uses: actions/download-artifact@v4
+      with:
+        name: LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2
+        run-id: 38195212647
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/libretro-base
+    - name: Test archive validation and unchanged-core preservation
+      run: python3 test/libretro_azahar_package_test.py
+    - name: Replace Azahar with the pinned official FastInterp release
+      run: python3 build-utils/libretro/upgrade_azahar.py dist/libretro-base dist/libretro
     - name: Show the packaged identity
       run: |
         python3 - <<'PY'
