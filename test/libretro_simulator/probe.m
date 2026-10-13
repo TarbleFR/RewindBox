@@ -88,6 +88,29 @@ static void ReleaseCrowd(NSArray<NSNumber *> *taken) {
   }
 }
 
+/// Evidence only: the regions mapped where PPSSPP's scratchpad slots lie,
+/// as [address, size, user tag (VM_MEMORY_*), protection]. Compared before
+/// and after the boot, they name the mapping that left a base to PPSSPP.
+static NSArray<NSArray<NSNumber *> *> *WindowRegions(void) {
+  NSMutableArray<NSArray<NSNumber *> *> *regions = [NSMutableArray array];
+  vm_address_t address = (vm_address_t)kProbeBaseMinimum;
+  const uint64_t end = kProbeBaseLimit + kScratchpadOffset + kScratchpadSize;
+  for (unsigned guard = 0; guard < 65536 && address < end; guard++) {
+    vm_size_t size = 0;
+    natural_t depth = 0;
+    vm_region_submap_info_data_64_t info;
+    mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
+    if (vm_region_recurse_64(mach_task_self(), &address, &size, &depth, (vm_region_recurse_info_t)&info, &count) !=
+            KERN_SUCCESS ||
+        size == 0 || address >= end) {
+      break;
+    }
+    [regions addObject:@[ @((uint64_t)address), @((uint64_t)size), @(info.user_tag), @(info.protection) ]];
+    address += size;
+  }
+  return regions;
+}
+
 /// The bridge's reservation report, when these sources have one.
 static NSString *ReservationReport(void) {
   NSString *(*report)(void) = (NSString * (*)(void)) dlsym(RTLD_DEFAULT, "LibretroPPSSPPReservationReport");
@@ -207,8 +230,11 @@ static NSString *ReservationReport(void) {
   NSUInteger generation = ++_generation;
   NSMutableDictionary *result = [@{@"name" : name, @"core" : scenario[@"core"] ?: @""} mutableCopy];
   if ([scenario[@"crowdWindow"] boolValue]) {
+    result[@"regionsBeforeCrowd"] = WindowRegions();
     NSArray<NSNumber *> *crowd = CrowdWindow();
     result[@"crowd"] = crowd;
+    result[@"crowdSlots"] = crowd;
+    result[@"regionsAfterCrowd"] = WindowRegions();
     Progress(@"%@: %lu scratchpad slots of the PPSSPP window taken; %@", name, (unsigned long)crowd.count,
              ReservationReport());
   }
@@ -230,6 +256,7 @@ static NSString *ReservationReport(void) {
                           if (probe == nil || generation != probe->_generation) return;
                           BOOL success = [launch[@"success"] boolValue];
                           result[@"launchSeconds"] = @(CFAbsoluteTimeGetCurrent() - start);
+                          if (result[@"crowdSlots"] != nil) result[@"regionsAtLaunch"] = WindowRegions();
                           result[@"launch"] = @{
                             @"success" : @(success),
                             @"code" : launch[@"code"] ?: @"",

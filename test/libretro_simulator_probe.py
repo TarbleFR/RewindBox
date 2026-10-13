@@ -588,6 +588,41 @@ def evaluate(report, scenarios):
     return problems
 
 
+# VM_MEMORY_* user tags of <mach/vm_statistics.h> the crowd report names.
+VM_TAGS = {0: 'untagged', 1: 'MALLOC', 2: 'MALLOC_SMALL', 3: 'MALLOC_LARGE', 4: 'MALLOC_HUGE', 7: 'MALLOC_TINY',
+           8: 'MALLOC_LARGE_REUSABLE', 9: 'MALLOC_LARGE_REUSED', 11: 'MALLOC_NANO', 12: 'MALLOC_MEDIUM',
+           30: 'STACK', 31: 'GUARD', 33: 'DYLIB', 51: 'LAYERKIT', 60: 'DYLD', 61: 'DYLD_MALLOC', 66: 'GLSL',
+           73: 'OS_ALLOC_ONCE', 74: 'LIBDISPATCH', 88: 'IOSURFACE', 100: 'IOACCELERATOR'}
+CROWD_BASES = range(0x100000000, 0x17FFF0000, 0x800000)
+
+
+def crowd_evidence(result):
+    """Evidence only (no verdict): the bases whose scratchpad slot another
+    mapping held when the window was crowded, that mapping, and whether it
+    was still there once the game had started."""
+    after = result.get('regionsAfterCrowd') or []
+    launched = {(region[0], region[1]) for region in result.get('regionsAtLaunch') or []}
+    crowd = set(result.get('crowdSlots') or [])
+    kept = 0
+    lines = []
+    for base in CROWD_BASES:
+        slot = base + 0x10000
+        if slot in crowd:
+            continue
+        holder = next((region for region in after if region[0] <= slot < region[0] + region[1]), None)
+        if holder is None:
+            lines.append(f'base 0x{base:x}: slot free after crowding')
+            continue
+        address, size, tag, protection = holder
+        if (address, size) in launched:
+            kept += 1
+            continue
+        lines.append(f'base 0x{base:x}: slot in 0x{address:x}+0x{size:x} {VM_TAGS.get(tag, tag)} '
+                     f'prot {protection}, released before the launch ended')
+    return [f'crowd: {len(crowd)} scratchpad slots taken, {len(after)} regions mapped then; '
+            f'{kept} other slots held by mappings still there at launch'] + lines
+
+
 def summarise(report, scenarios):
     results = {result['name']: result for result in report.get('results', [])}
     for scenario in scenarios:
@@ -605,6 +640,9 @@ def summarise(report, scenarios):
         for line in result.get('journal', '').splitlines():
             if 'unavailable' in line or 'PPSSPP memory window' in line or 'PPSSPP window' in line:
                 print(f'    {line.split(" ", 2)[-1]}', flush=True)
+        if 'regionsAfterCrowd' in result:
+            for line in crowd_evidence(result):
+                print(f'    {line}', flush=True)
 
 
 def command_run(args):
