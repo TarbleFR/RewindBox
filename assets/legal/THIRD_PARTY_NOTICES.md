@@ -71,6 +71,41 @@ ARMSX2 tag. The attribution file identifies each bundled shader's author and
 license. Optional downloaded RetroArch presets keep their upstream source files
 and notices as supplied by the pack; each file remains under its own license.
 
+## Shader kit: glslang, SPIRV-Cross and the official shader catalogs
+
+Since Build 450, NeoStation's shader kit (`packages/neo_shader_kit`) compiles
+shaders on the device with two Khronos Group projects, vendored unmodified at
+the SDK tag `vulkan-sdk-1.4.350.1` (each copied file is listed with its
+SHA-256 in `ThirdParty/*/SOURCE.txt`):
+
+- **glslang** (Khronos Group and contributors), commit
+  `275822a6261ee689aadb1da5f09a0ec2f058685c`: BSD-3-Clause and the other
+  licenses listed in `assets/legal/glslang-LICENSE.txt` (BSD-2-Clause, MIT,
+  Apache-2.0, and GPL-3.0-or-later with the Bison exception for the
+  generated parser `glslang_tab.cpp`).
+  https://github.com/KhronosGroup/glslang
+- **SPIRV-Cross** (Arm Limited, The Brenwill Workshop Ltd., Hans-Kristian
+  Arntzen and contributors), commit
+  `1a6169566c73d3da552748fc372fe2bbb856e46e`: files stated
+  `Apache-2.0 OR MIT`, used under Apache-2.0; the Khronos headers copied
+  with them (`GLSL.std.450.h`, `spirv.hpp`, `NonSemanticShaderDebugInfo100.h`)
+  are MIT. Both texts: `assets/legal/SPIRV-Cross-Apache-2.0.txt`.
+  https://github.com/KhronosGroup/SPIRV-Cross
+
+The application bundles **catalogs**, not shader files: `slang-catalog.json`
+lists presets of **libretro/slang-shaders** (commit
+`e1d75632a205c70f14a4cc947c46d5abb7b3f7f1`) with the size and SHA-256 of
+every file. A preset's files are downloaded only when the player chooses
+it, from that commit, and each file remains under its own license as its
+header states; author and license lines are shown as written. Previews come
+from **libretro/shader-previews** (commit
+`2adabb17c594c0eafd58bac2d3c93a1a9d4e7631`) when the player opens a preset.
+`dolphin-catalog.json` lists Dolphin's own post-processing shaders, shipped
+with the Dolphin core in `Sys/Shaders` (Dolphin repository, GPL-2.0-or-later).
+
+Dolphin shaders a player imports (for example a Mattias CRT port) stay on the
+device; NeoStation neither bundles nor distributes them.
+
 ## Controller skins and the Provenance catalog
 
 - **Catalog:** [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins),

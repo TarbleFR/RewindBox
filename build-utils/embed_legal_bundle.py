@@ -30,7 +30,13 @@ REQUIRED_LEGAL_FILES = (
     "GameDB-PS3-GPL-3.0.txt",
     "Guest-Page-Relay-MIT.txt",
     "OnceUponATime-CC0-1.0.txt",
+    # Build 450: the shader compilers vendored by neo_shader_kit.
+    "glslang-LICENSE.txt",
+    "SPIRV-Cross-Apache-2.0.txt",
 )
+# The Khronos SDK tag both shader compilers are vendored at
+# (packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt).
+SHADER_COMPILERS_TAG = "vulkan-sdk-1.4.350.1"
 
 
 def load_json(path: Path) -> dict:
@@ -99,6 +105,11 @@ def main() -> None:
     require_pinned_header(
         LEGAL_ASSETS / "StikJIT-MPL-2.0.txt", "1.9.0"
     )
+    for name, folder in (("glslang-LICENSE.txt", "glslang"), ("SPIRV-Cross-Apache-2.0.txt", "SPIRV-Cross")):
+        require_pinned_header(LEGAL_ASSETS / name, SHADER_COMPILERS_TAG)
+        source = (ROOT / "packages/neo_shader_kit/ios/ThirdParty" / folder / "SOURCE.txt").read_text(encoding="utf-8")
+        if not source.startswith(f"{folder} {SHADER_COMPILERS_TAG}\n"):
+            raise SystemExit(f"Legal notice {name} does not match the vendored {folder}")
 
     if args.validate_only:
         print("Validated all required notices and pinned revisions before compilation")
@@ -164,6 +175,20 @@ def main() -> None:
             "repository": "https://github.com/StikDebug/StikJIT",
             "version": "1.9.0",
             "license": "MPL-2.0",
+        },
+        "shader_kit": {
+            "glslang": {
+                "repository": "https://github.com/KhronosGroup/glslang",
+                "tag": SHADER_COMPILERS_TAG,
+                "license": "BSD-3-Clause and others (glslang-LICENSE.txt)",
+            },
+            "spirv_cross": {
+                "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+                "tag": SHADER_COMPILERS_TAG,
+                "license": "Apache-2.0",
+            },
+            "catalogs": "slang-catalog.json (libretro/slang-shaders, files downloaded by the player at the pinned "
+                        "commit, each under its own license) and dolphin-catalog.json (Dolphin's Sys/Shaders)",
         },
     }
     (destination / "BUILD_SOURCE_IDENTITY.json").write_text(

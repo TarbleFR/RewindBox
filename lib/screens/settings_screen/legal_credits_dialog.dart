@@ -93,6 +93,21 @@ class LegalCreditsDialog {
       'assets/legal/OnceUponATime-CC0-1.0.txt',
     ),
     _LegalEntry(
+      'glslang',
+      'The Khronos Group Inc., Google Inc. and glslang contributors',
+      'BSD-3-Clause, BSD-2-Clause, MIT, Apache-2.0, '
+          'GPL-3.0-or-later WITH Bison-exception-2.2 · vulkan-sdk-1.4.350.1',
+      'https://github.com/KhronosGroup/glslang',
+      'assets/legal/glslang-LICENSE.txt',
+    ),
+    _LegalEntry(
+      'SPIRV-Cross',
+      'Arm Limited, The Brenwill Workshop Ltd., Hans-Kristian Arntzen, The Khronos Group Inc.',
+      'Apache-2.0 · MIT · vulkan-sdk-1.4.350.1',
+      'https://github.com/KhronosGroup/SPIRV-Cross',
+      'assets/legal/SPIRV-Cross-Apache-2.0.txt',
+    ),
+    _LegalEntry(
       'RetroArch / libretro',
       'libretro and RetroArch contributors',
       'External integration; upstream licenses apply',
