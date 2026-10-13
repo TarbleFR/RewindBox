@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
-"""Check requested version, compiled features, localization and source provenance."""
+"""Check requested version, compiled features, localization and source provenance.
+
+The expected marketing version is the one of pubspec.yaml (0.0.7 since Build
+449; 0.0.2 was pinned here until Build 448): the app and every helper
+extension carry it (build-utils/stamp_host_version.py).
+"""
 from pathlib import Path
 import argparse
 import hashlib
 import json
 import plistlib
+import re
 import sys
 import zipfile
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'packages/dolphin_internal_bridge/ci'))
 from verify_ipa import macho
+VERSION=re.search(r'^version:\s*(\d+\.\d+\.\d+)\+\d+\s*$',(ROOT/'pubspec.yaml').read_text(),re.M)
+assert VERSION,'pubspec.yaml has no semantic version plus build'
+VERSION=VERSION.group(1)
 p=argparse.ArgumentParser()
 p.add_argument('ipa',type=Path);p.add_argument('--build-number',required=True)
 p.add_argument('--report',type=Path,required=True);a=p.parse_args()
@@ -21,12 +30,12 @@ with zipfile.ZipFile(a.ipa) as z:
     assert len(apps)==1
     app='Payload/'+apps.pop()+'/'
     info=plistlib.loads(z.read(app+'Info.plist'))
-    assert info['CFBundleShortVersionString']=='0.0.2'
+    assert info['CFBundleShortVersionString']==VERSION,(info['CFBundleShortVersionString'],VERSION)
     assert info['CFBundleVersion']==a.build_number
     assert info['NSMotionUsageDescription']==strings['en']['usage']
     for name in ('RPCS3JITHelper','ARMSX2JITHelper','DolphinJITHelper'):
         helper=plistlib.loads(z.read(app+'PlugIns/'+name+'.appex/Info.plist'))
-        assert helper['CFBundleShortVersionString']=='0.0.2',name
+        assert helper['CFBundleShortVersionString']==VERSION,name
         assert helper['CFBundleVersion']==a.build_number,name
     locales={}
     for language,row in strings.items():
@@ -52,7 +61,7 @@ with zipfile.ZipFile(a.ipa) as z:
     assert provenance['verifiedCheckout']==pin['revision']
     from build_patched_stikjit import input_fingerprint
     assert provenance['sourceInputsSha256']==input_fingerprint()
-report={'appVersion':'0.0.2','build':a.build_number,'deliveryFilename':'Neostation iOS 0.0.2.ipa',
+report={'appVersion':VERSION,'build':a.build_number,'deliveryFilename':f'Neostation iOS {VERSION}.ipa',
         'shakeCompiled':True,'coreMotionLinked':True,'motionLocales':locales,
         'obsoleteRestoreActionRemoved':True,'stikjitProvenance':provenance,
         'realDeviceValidated':False,'ipaSha256':hashlib.sha256(a.ipa.read_bytes()).hexdigest()}

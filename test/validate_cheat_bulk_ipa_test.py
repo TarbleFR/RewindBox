@@ -1,11 +1,14 @@
 """Regression: Build366 passed compilation but a stale365 delivery gate rejected it."""
 from pathlib import Path
-import json,plistlib,subprocess,sys,tempfile,zipfile
+import json,plistlib,re,subprocess,sys,tempfile,zipfile
 ROOT=Path(__file__).resolve().parents[1]
+# The gate expects the marketing version of pubspec.yaml (0.0.7 since Build
+# 449; the literal 0.0.2 of the earlier fixture is retired with it).
+VERSION=re.search(r'^version:\s*(\d+\.\d+\.\d+)\+\d+\s*$',(ROOT/'pubspec.yaml').read_text(),re.M).group(1)
 TOKENS=b'cheatImportFromMenu cheatImportPreview batchImport displayDocument: importCheatFilePressed previewEntries'
 with tempfile.TemporaryDirectory() as folder:
     directory=Path(folder)
-    def run(build,expected=None,missing=False,version='0.0.2'):
+    def run(build,expected=None,missing=False,version=VERSION):
         ipa=directory/'candidate.ipa';report=directory/'report.json';report.unlink(missing_ok=True)
         with zipfile.ZipFile(ipa,'w') as z:
             root='Payload/NeoStation.app/'
@@ -22,4 +25,6 @@ with tempfile.TemporaryDirectory() as folder:
     assert run(366)[0]!=0
     assert run(366,366,missing=True)[0]!=0
     assert run(366,366,version='0.0.3')[0]!=0
+    assert run(366,366,version='0.0.2')[0]!=0, 'the version of Build 448 and earlier is refused'
+    assert run(366,366)[1]['version']==VERSION
 print('PASS IPA gate: explicit expected build, legacy365 default, wrong build/version and missing binaries rejected')

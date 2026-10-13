@@ -1290,6 +1290,32 @@ BUILD448_DELTA = {
     'test/skin_browser_locale_test.dart',
 }
 DELTA |= BUILD448_DELTA
+# Build 449 (12-13 October 2026), on top of the Build 448 source 36567551:
+# the Apple TV mirrors the NeoStation interface outside a game (the external
+# window leaves its scene; no second-engine TV menu), version 0.0.7 read from
+# pubspec.yaml by the IPA gates. Every created, modified or deleted input
+# since that source, file by file.
+BUILD449_DELTA = {
+    'build-utils/validate_cheat_bulk_ipa.py',
+    'build-utils/validate_release002_ipa.py',
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/external_display_locale.dart',
+    'lib/l10n/neoplay_companion_locale.dart',
+    'lib/screens/settings_screen/new_settings_options/general_settings_content.dart',
+    'lib/screens/settings_screen/new_settings_options/widgets/external_display_setting_rows.dart',
+    'packages/external_display/ios/Classes/NeoExternalDisplayCoordinator.h',
+    'packages/external_display/ios/Classes/NeoExternalDisplayCoordinator.m',
+    'packages/external_display/ios/Classes/NeoExternalDisplaySceneDelegate.m',
+    'pubspec.yaml',
+    'test/external_display_locale_test.dart',
+    'test/external_display_test.py',
+    'test/external_display_ui_test.py',
+    'test/general_settings_external_display_test.dart',
+    'test/general_settings_ui_refresh_rate_test.dart',
+    'test/neoplay_locale_test.dart',
+    'test/validate_cheat_bulk_ipa_test.py',
+}
+DELTA |= BUILD449_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

@@ -21,7 +21,7 @@ workspace:
   - packages/ui_refresh_rate
   - packages/external_display
 
-version: 0.0.2+399
+version: 0.0.7+449
 environment:
   sdk: '>=3.9.2'
 

@@ -1175,7 +1175,7 @@ jobs:
         print('Generated iOS host is LocalDevVPN-only.')
         PY
         git diff --exit-code -- pubspec.yaml pubspec.lock
-    - name: Align application and extension versions to 0.0.2
+    - name: Align application and extension versions to the pubspec version
       run: python3 build-utils/stamp_host_version.py
     - name: Compile Release device binary with measured AOT and Xcode phases
       shell: bash
@@ -1283,7 +1283,7 @@ jobs:
         python3 build-utils/validate_debugger_probe_ipa.py "dist/$IPA_NAME.ipa"
         python3 build-utils/validate_cheat_bulk_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report dist/cheat-bulk-validation.json
         python3 build-utils/validate_release002_ipa.py "dist/$IPA_NAME.ipa" \
-          --build-number "$BUILD_NUMBER" --report dist/0.0.2-validation.json
+          --build-number "$BUILD_NUMBER" --report dist/release-version-validation.json
         python3 build-utils/validate_stikjit_ipa.py "dist/$IPA_NAME.ipa" \
           --identity build/stikjit-current/identity.json \
           --report dist/stikjit-compatibility.json
@@ -1601,7 +1601,7 @@ jobs:
         python3 build-utils/validate_debugger_probe_ipa.py "dist/$IPA_NAME.ipa"
         python3 build-utils/validate_cheat_bulk_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report dist/cheat-bulk-validation.json
         python3 build-utils/validate_release002_ipa.py "dist/$IPA_NAME.ipa" \
-          --build-number "$BUILD_NUMBER" --report dist/0.0.2-validation.json
+          --build-number "$BUILD_NUMBER" --report dist/release-version-validation.json
         python3 build-utils/validate_stikjit_ipa.py "dist/$IPA_NAME.ipa" \
           --identity build/stikjit-current/identity.json \
           --report dist/stikjit-compatibility.json
