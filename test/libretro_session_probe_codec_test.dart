@@ -82,54 +82,48 @@ void main() {
   tearDown(() => messenger.setMockMessageHandler(_channelName, null));
 
   group('the bytes on the wire', () {
-    test(
-      'Dart booleans, which the earlier mocks returned, encode as the fixed '
-      "bridge's answers; Build 453 sent integers",
-      () {
-        expect(
-          _hex(_codec.encodeSuccessEnvelope(true)),
-          fixedEnvelopes[envelopeRunning],
+    test('Dart booleans, which the earlier mocks returned, encode as the fixed '
+        "bridge's answers; Build 453 sent integers", () {
+      expect(
+        _hex(_codec.encodeSuccessEnvelope(true)),
+        fixedEnvelopes[envelopeRunning],
+      );
+      expect(
+        _hex(_codec.encodeSuccessEnvelope(false)),
+        fixedEnvelopes[envelopeIdle],
+      );
+      for (final state in fixedEnvelopes.keys) {
+        final fixed = _codec.decodeEnvelope(_bytes(fixedEnvelopes[state]!));
+        final build453 = _codec.decodeEnvelope(
+          _bytes(build453Envelopes[state]!),
         );
-        expect(
-          _hex(_codec.encodeSuccessEnvelope(false)),
-          fixedEnvelopes[envelopeIdle],
-        );
-        for (final state in fixedEnvelopes.keys) {
-          final fixed = _codec.decodeEnvelope(_bytes(fixedEnvelopes[state]!));
-          final build453 = _codec.decodeEnvelope(
-            _bytes(build453Envelopes[state]!),
-          );
-          expect(fixed, isA<bool>(), reason: state);
-          expect(build453, isA<int>(), reason: state);
-          expect(build453, fixed == true ? 1 : 0, reason: state);
-        }
-      },
-    );
+        expect(fixed, isA<bool>(), reason: state);
+        expect(build453, isA<int>(), reason: state);
+        expect(build453, fixed == true ? 1 : 0, reason: state);
+      }
+    });
   });
 
   group('LibretroInternalBridge.isSessionActive', () {
-    test(
-      'this tree: false with no session and once stopped, true while a game '
-      'launches or runs',
-      () async {
-        const expected = <String, bool>{
-          envelopeIdle: false,
-          envelopeLaunching: true,
-          envelopeRunning: true,
-          envelopeStopped: false,
-        };
-        expect(expected.keys, fixedEnvelopes.keys);
-        for (final state in expected.keys) {
-          answerHex(fixedEnvelopes[state]!);
-          expect(
-            await LibretroInternalBridge.isSessionActive(),
-            expected[state],
-            reason: state,
-          );
-        }
-        expect(calls, List<String>.filled(4, 'isSessionActive'));
-      },
-    );
+    test('this tree: false with no session and once stopped, true while a game '
+        'launches or runs', () async {
+      const expected = <String, bool>{
+        envelopeIdle: false,
+        envelopeLaunching: true,
+        envelopeRunning: true,
+        envelopeStopped: false,
+      };
+      expect(expected.keys, fixedEnvelopes.keys);
+      for (final state in expected.keys) {
+        answerHex(fixedEnvelopes[state]!);
+        expect(
+          await LibretroInternalBridge.isSessionActive(),
+          expected[state],
+          reason: state,
+        );
+      }
+      expect(calls, List<String>.filled(4, 'isSessionActive'));
+    });
 
     test(
       "Build 453's answer: the cast of the video, now a probe failure, never "
@@ -212,34 +206,31 @@ void main() {
   });
 
   group('game launch monitoring (EmbeddedIOSSessionStatus)', () {
-    test(
-      'only an explicit false ends the embedded libretro session; Build '
-      "453's answer and unknown answers keep it running",
-      () async {
-        Future<bool> active() =>
-            EmbeddedIOSSessionStatus.isActive('ios_libretro_internal');
-        answerHex(fixedEnvelopes[envelopeIdle]!);
-        expect(await active(), isFalse);
-        answerHex(fixedEnvelopes[envelopeStopped]!);
-        expect(await active(), isFalse);
-        answerHex(fixedEnvelopes[envelopeLaunching]!);
-        expect(await active(), isTrue);
-        answerHex(fixedEnvelopes[envelopeRunning]!);
-        expect(await active(), isTrue);
-        // Build 453: the bool cast threw out of the monitor, whose poller
-        // ended the game's frontend session a few seconds after its launch.
-        for (final state in build453Envelopes.keys) {
-          answerHex(build453Envelopes[state]!);
-          expect(await active(), isTrue, reason: state);
-        }
-        answer(() => _codec.encodeSuccessEnvelope(null));
-        expect(await active(), isTrue);
-        answer(() => _codec.encodeErrorEnvelope(code: 'unavailable'));
-        expect(await active(), isTrue);
-        answer(() => null);
-        expect(await active(), isTrue);
-      },
-    );
+    test('only an explicit false ends the embedded libretro session; Build '
+        "453's answer and unknown answers keep it running", () async {
+      Future<bool> active() =>
+          EmbeddedIOSSessionStatus.isActive('ios_libretro_internal');
+      answerHex(fixedEnvelopes[envelopeIdle]!);
+      expect(await active(), isFalse);
+      answerHex(fixedEnvelopes[envelopeStopped]!);
+      expect(await active(), isFalse);
+      answerHex(fixedEnvelopes[envelopeLaunching]!);
+      expect(await active(), isTrue);
+      answerHex(fixedEnvelopes[envelopeRunning]!);
+      expect(await active(), isTrue);
+      // Build 453: the bool cast threw out of the monitor, whose poller
+      // ended the game's frontend session a few seconds after its launch.
+      for (final state in build453Envelopes.keys) {
+        answerHex(build453Envelopes[state]!);
+        expect(await active(), isTrue, reason: state);
+      }
+      answer(() => _codec.encodeSuccessEnvelope(null));
+      expect(await active(), isTrue);
+      answer(() => _codec.encodeErrorEnvelope(code: 'unavailable'));
+      expect(await active(), isTrue);
+      answer(() => null);
+      expect(await active(), isTrue);
+    });
   });
 
   group('3DS system data, options and storage with the production probe', () {
@@ -280,166 +271,153 @@ void main() {
           Directory(p.join(root.path, 'Diagnostics'))..createSync(),
     );
 
-    test(
-      'the import installs when no game runs (this tree, idle)',
-      () async {
-        answerHex(fixedEnvelopes[envelopeIdle]!);
-        final data = service();
-        expect((await data.recoverUnfinished()).isEmpty, isTrue);
-        final report = await data.install(await data.analyze(<String>[zip]));
-        expect(report.succeeded, isTrue);
-        expect(seeddb().readAsBytesSync(), _seeddb(2));
-        expect(calls, <String>['isSessionActive', 'isSessionActive']);
-      },
-    );
+    test('the import installs when no game runs (this tree, idle)', () async {
+      answerHex(fixedEnvelopes[envelopeIdle]!);
+      final data = service();
+      expect((await data.recoverUnfinished()).isEmpty, isTrue);
+      final report = await data.install(await data.analyze(<String>[zip]));
+      expect(report.succeeded, isTrue);
+      expect(seeddb().readAsBytesSync(), _seeddb(2));
+      expect(calls, <String>['isSessionActive', 'isSessionActive']);
+    });
 
-    test(
-      'refused while a game launches or runs: "a game is running", nothing '
-      'written',
-      () async {
-        for (final state in <String>[envelopeLaunching, envelopeRunning]) {
-          answerHex(fixedEnvelopes[state]!);
-          final data = service();
-          final plan = await data.analyze(<String>[zip]);
-          for (final action in <Future<Object?> Function()>[
-            () => data.install(plan),
-            data.recoverUnfinished,
-            data.restoreLastBackup,
-          ]) {
-            await expectLater(
-              action(),
-              throwsA(
-                isA<Libretro3dsSystemDataException>()
-                    .having(
-                      (error) => error.error,
-                      'error',
-                      Libretro3dsSystemDataError.sessionActive,
-                    )
-                    .having(
-                      (error) => error.sessionUnknown,
-                      'sessionUnknown',
-                      isFalse,
-                    ),
-              ),
-              reason: state,
-            );
-          }
-          expect(user().existsSync(), isFalse, reason: state);
-          expect(backups.existsSync(), isFalse, reason: state);
-        }
-      },
-    );
-
-    test(
-      "Build 453's answer: unknown session state with the probe's detail, "
-      'nothing written; the same import goes through once the answer is a '
-      'boolean',
-      () async {
-        answerHex(build453Envelopes[envelopeIdle]!);
+    test('refused while a game launches or runs: "a game is running", nothing '
+        'written', () async {
+      for (final state in <String>[envelopeLaunching, envelopeRunning]) {
+        answerHex(fixedEnvelopes[state]!);
         final data = service();
         final plan = await data.analyze(<String>[zip]);
-        await expectLater(
-          data.install(plan),
-          throwsA(
-            isA<Libretro3dsSystemDataException>()
-                .having(
-                  (error) => error.error,
-                  'error',
-                  Libretro3dsSystemDataError.sessionActive,
-                )
-                .having(
-                  (error) => error.sessionUnknown,
-                  'sessionUnknown',
-                  isTrue,
-                )
-                .having(
-                  (error) => error.technicalDetail,
-                  'technicalDetail',
-                  'isSessionActive probe failed: '
-                      'LibretroSessionProbeException: non-boolean answer '
-                      '(int 0)',
-                ),
-          ),
-        );
-        expect(user().existsSync(), isFalse);
-
-        answerHex(fixedEnvelopes[envelopeIdle]!);
-        expect((await data.install(plan)).succeeded, isTrue);
-        expect(seeddb().readAsBytesSync(), _seeddb(2));
-      },
-    );
-
-    test(
-      'the option store writes only on a boolean "no session"',
-      () async {
-        final store = LibretroCoreOptionStore(configDirectory: () async => config);
-        File azahar() => File(p.join(config.path, 'Azahar.json'));
-
-        answerHex(fixedEnvelopes[envelopeRunning]!);
-        await expectLater(
-          store.write('Azahar', <String, String?>{'citra_region_value': 'Europe'}),
-          throwsA(
-            isA<LibretroCoreOptionStoreException>().having(
-              (error) => error.technicalDetail,
-              'technicalDetail',
-              isNull,
+        for (final action in <Future<Object?> Function()>[
+          () => data.install(plan),
+          data.recoverUnfinished,
+          data.restoreLastBackup,
+        ]) {
+          await expectLater(
+            action(),
+            throwsA(
+              isA<Libretro3dsSystemDataException>()
+                  .having(
+                    (error) => error.error,
+                    'error',
+                    Libretro3dsSystemDataError.sessionActive,
+                  )
+                  .having(
+                    (error) => error.sessionUnknown,
+                    'sessionUnknown',
+                    isFalse,
+                  ),
             ),
+            reason: state,
+          );
+        }
+        expect(user().existsSync(), isFalse, reason: state);
+        expect(backups.existsSync(), isFalse, reason: state);
+      }
+    });
+
+    test("Build 453's answer: unknown session state with the probe's detail, "
+        'nothing written; the same import goes through once the answer is a '
+        'boolean', () async {
+      answerHex(build453Envelopes[envelopeIdle]!);
+      final data = service();
+      final plan = await data.analyze(<String>[zip]);
+      await expectLater(
+        data.install(plan),
+        throwsA(
+          isA<Libretro3dsSystemDataException>()
+              .having(
+                (error) => error.error,
+                'error',
+                Libretro3dsSystemDataError.sessionActive,
+              )
+              .having((error) => error.sessionUnknown, 'sessionUnknown', isTrue)
+              .having(
+                (error) => error.technicalDetail,
+                'technicalDetail',
+                'isSessionActive probe failed: '
+                    'LibretroSessionProbeException: non-boolean answer '
+                    '(int 0)',
+              ),
+        ),
+      );
+      expect(user().existsSync(), isFalse);
+
+      answerHex(fixedEnvelopes[envelopeIdle]!);
+      expect((await data.install(plan)).succeeded, isTrue);
+      expect(seeddb().readAsBytesSync(), _seeddb(2));
+    });
+
+    test('the option store writes only on a boolean "no session"', () async {
+      final store = LibretroCoreOptionStore(
+        configDirectory: () async => config,
+      );
+      File azahar() => File(p.join(config.path, 'Azahar.json'));
+
+      answerHex(fixedEnvelopes[envelopeRunning]!);
+      await expectLater(
+        store.write('Azahar', <String, String?>{
+          'citra_region_value': 'Europe',
+        }),
+        throwsA(
+          isA<LibretroCoreOptionStoreException>().having(
+            (error) => error.technicalDetail,
+            'technicalDetail',
+            isNull,
           ),
-        );
-        answerHex(build453Envelopes[envelopeIdle]!);
-        await expectLater(
-          store.write('Azahar', <String, String?>{'citra_region_value': 'Europe'}),
-          throwsA(
-            isA<LibretroCoreOptionStoreException>().having(
-              (error) => error.technicalDetail,
-              'technicalDetail',
-              'isSessionActive probe failed: '
-                  'LibretroSessionProbeException: non-boolean answer (int 0)',
-            ),
+        ),
+      );
+      answerHex(build453Envelopes[envelopeIdle]!);
+      await expectLater(
+        store.write('Azahar', <String, String?>{
+          'citra_region_value': 'Europe',
+        }),
+        throwsA(
+          isA<LibretroCoreOptionStoreException>().having(
+            (error) => error.technicalDetail,
+            'technicalDetail',
+            'isSessionActive probe failed: '
+                'LibretroSessionProbeException: non-boolean answer (int 0)',
           ),
-        );
-        expect(azahar().existsSync(), isFalse);
+        ),
+      );
+      expect(azahar().existsSync(), isFalse);
 
-        answerHex(fixedEnvelopes[envelopeIdle]!);
-        expect(
-          await store.write('Azahar', <String, String?>{
-            'citra_region_value': 'Europe',
-          }),
-          <String, String>{'citra_region_value': 'Europe'},
-        );
-        expect(azahar().existsSync(), isTrue);
-      },
-    );
+      answerHex(fixedEnvelopes[envelopeIdle]!);
+      expect(
+        await store.write('Azahar', <String, String?>{
+          'citra_region_value': 'Europe',
+        }),
+        <String, String>{'citra_region_value': 'Europe'},
+      );
+      expect(azahar().existsSync(), isTrue);
+    });
 
-    test(
-      'the storage guard frees the libretro files only on a boolean "no '
-      'session"',
-      () async {
-        StorageSessionGuard guard() => StorageSessionGuard(
-          launchActive: () => false,
-          dolphinMarkerPresent: () async => false,
-          libretroJournalUnfinished: () async => false,
-          importActive: () => false,
-          libraryScanActive: () => false,
-        );
-        answerHex(fixedEnvelopes[envelopeIdle]!);
-        var state = await guard().check();
-        expect(state.libretroActive, isFalse);
-        expect(state.probeErrors, isEmpty);
+    test('the storage guard frees the libretro files only on a boolean "no '
+        'session"', () async {
+      StorageSessionGuard guard() => StorageSessionGuard(
+        launchActive: () => false,
+        dolphinMarkerPresent: () async => false,
+        libretroJournalUnfinished: () async => false,
+        importActive: () => false,
+        libraryScanActive: () => false,
+      );
+      answerHex(fixedEnvelopes[envelopeIdle]!);
+      var state = await guard().check();
+      expect(state.libretroActive, isFalse);
+      expect(state.probeErrors, isEmpty);
 
-        answerHex(fixedEnvelopes[envelopeRunning]!);
-        state = await guard().check();
-        expect(state.libretroActive, isTrue);
-        expect(state.probeErrors, isEmpty);
+      answerHex(fixedEnvelopes[envelopeRunning]!);
+      state = await guard().check();
+      expect(state.libretroActive, isTrue);
+      expect(state.probeErrors, isEmpty);
 
-        answerHex(build453Envelopes[envelopeIdle]!);
-        state = await guard().check();
-        expect(state.libretroActive, isTrue);
-        expect(
-          state.probeErrors['libretroActive'],
-          'LibretroSessionProbeException: non-boolean answer (int 0)',
-        );
-      },
-    );
+      answerHex(build453Envelopes[envelopeIdle]!);
+      state = await guard().check();
+      expect(state.libretroActive, isTrue);
+      expect(
+        state.probeErrors['libretroActive'],
+        'LibretroSessionProbeException: non-boolean answer (int 0)',
+      );
+    });
   });
 }

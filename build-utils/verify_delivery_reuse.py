@@ -1594,6 +1594,34 @@ BUILD453_DELTA = {
     'build-utils/verify_delivery_reuse.py',
 }
 DELTA |= BUILD453_DELTA
+# Build 454 (13 October 2026), on top of the Build 453 source 81efc210: the
+# libretro bridge answers isSessionActive with @YES or @NO (an int32 before,
+# which Dart could not cast to bool: the 3DS system data import refused to
+# run), Dart takes only a boolean for a session state, a ZIP inside the
+# chosen folder or ZIP is listed apart instead of refused as an unsupported
+# archive (one text in twelve languages), the channel codec test in the iOS
+# Simulator; version 0.0.7+454. Every created, modified or deleted input
+# since that source, file by file.
+BUILD454_DELTA = {
+    '.github/workflows/libretro-checks.yml',
+    '.github/workflows/retroarch-delivery.yml',
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/libretro_locale.dart',
+    'lib/screens/libretro/libretro_3ds_system_screen.dart',
+    'lib/services/embedded_ios_session_status.dart',
+    'lib/services/libretro_3ds_system_data_service.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
+    'packages/libretro_internal_bridge/lib/libretro_internal_bridge.dart',
+    'pubspec.yaml',
+    'test/external_display_host_plist_test.py',
+    'test/libretro_3ds_system_data_service_test.dart',
+    'test/libretro_3ds_system_screen_test.dart',
+    'test/libretro_channel_codec/main.m',
+    'test/libretro_channel_codec_test.py',
+    'test/libretro_session_envelopes.dart',
+    'test/libretro_session_probe_codec_test.dart',
+}
+DELTA |= BUILD454_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

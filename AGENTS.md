@@ -198,3 +198,13 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
   clés ne sont plus déclarées : aucun override fictif ajouté au nouveau cœur.
 - Identité, contrôles et limites : docs/build453-plan.md. Aucun gain de FPS ni
   fonctionnement sur iPhone ne doit être annoncé comme mesuré sans test réel.
+
+## Build 454 — vérification de session de l'import 3DS, 13 octobre 2026
+
+- Demande du mainteneur, avec vidéo (Build 453) : choisir le dossier Azahar puis les fichiers de `sysdata` affichait « Impossible de vérifier si un jeu est en cours », code `isSessionActive probe failed: type 'int' is not a subtype of type 'bool?' in type cast`, avant toute analyse. Cause démontrée : `@(self.session.active || self.launching)` dans `LibretroInternalBridgePlugin.m` (Objective-C : `||` donne un `int`, encapsulé par `numberWithInt:`), envoyé en int32 par le codec de Flutter iOS. Les fichiers BIOS du mainteneur n'étaient pas en cause. Plan, cause, tests et limites : `docs/build454-plan.md` ; détail : `docs/libretro-3ds-system-settings.md` § 11.
+- Règles posées :
+  - une réponse de canal attendue booléenne s'envoie avec `@YES`/`@NO` ou une variable `BOOL`, jamais `@(expression logique ou de comparaison)` dans un fichier `.m` ;
+  - côté Dart, un état de session n'est connu que par un booléen : réponse absente, `null`, d'un autre type, ou erreur du canal = état inconnu, jamais « aucun jeu » ; le moniteur de lancement ne termine une session embarquée que sur un `false` explicite ;
+  - un test de canal natif utilise les octets que le moteur iOS envoie réellement (`test/libretro_session_envelopes.dart`, vérifiés par `test/libretro_channel_codec_test.py` dans le Simulateur iOS avec le vrai `Flutter.framework` du SDK épinglé), pas des valeurs Dart ;
+  - une archive ZIP rangée dans le dossier ou le ZIP choisi n'est pas ouverte et n'est jamais présentée comme une archive non prise en charge (`nestedArchive`, texte en douze langues).
+- Conséquence établie dans les sources, non observée sur iPhone : jusqu'à la 453, la session Flutter d'un jeu libretro se fermait environ 4 s après son lancement (sondeur du `GameLaunchManager` arrêté par la même `TypeError`) ; depuis la 454 elle dure jusqu'à la fin réelle du jeu.

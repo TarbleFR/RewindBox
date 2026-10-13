@@ -761,3 +761,55 @@ système ». Le menu de la page 3DS, où l'on cherche le « BIOS 3DS », ne le p
   arborescence réelle.
 - `test/libretro_bios_checker_screen_test.dart` : même redirection depuis le vérificateur.
 - `test/libretro_3ds_system_screen_test.dart` : la page ouverte pour un import lance l'assistant.
+
+## 11. Build 454 — la vérification de session qui protège l'import (13 octobre 2026)
+
+Vidéo du mainteneur (13 octobre 2026, 09 h 45, Build 453) : page « Système Nintendo 3DS » › « Importer des données
+système » › « Un dossier » › dossier `Azahar` (9 éléments : `cheats`, `config`, `log`, `nand`, `nand.zip`,
+`screenshots`, `sdmc`, `shaders`, `sysdata`), puis « Des fichiers isolés » › les cinq fichiers de `sysdata` (`mac`
+17 octets, `mcu.dat` 24, `otp.bin` 256, `play_time.bin` 32, `seeddb.bin`). Les deux fois, avant toute analyse :
+« Impossible de vérifier si un jeu est en cours : rien n'a été modifié. Réessayez. », code technique
+« isSessionActive probe failed: type 'int' is not a subtype of type 'bool?' in type cast ».
+
+**Cause (démontrée).** `install`, `restoreLastBackup` et `recoverUnfinished` (§ 6.2) demandent d'abord au pont si
+un jeu est lancé ou en cours. `LibretroInternalBridgePlugin.m` est un fichier Objective-C : `a || b` y est un `int`
+du C, et `@(self.session.active || self.launching)` passait par `numberWithInt:` (AST clang 18, cible
+`arm64-apple-ios18.0` : `BinaryOperator 'int' '||'`, `ObjCBoxedExpr selector=numberWithInt:` ; le même code dans
+un `.mm`, comme les ponts Dolphin et RPCS3, donne `bool` et `numberWithBool:`). Le codec standard de Flutter iOS
+3.47.2 (`FlutterStandardCodecHelperWriteNumber`) n'écrit `true`/`false` que pour un `CFBoolean` ; tout autre
+`NSNumber` de 4 octets part en int32 : `00 03 00 00 00 00` sans jeu, au lieu de `00 02`. Côté Dart,
+`invokeMethod<bool>` fait `as bool?` et lève la `TypeError` de la vidéo ; le service la classe en état de session
+inconnu (rien n'est écrit). Le défaut date de l'intégration du moteur (`48635465`, 9 octobre). Les tests simulaient
+le canal avec des booléens Dart, dont les octets sont ceux du pont corrigé, ou injectaient une fonction Dart.
+
+**Correctif :**
+- Natif : `(self.session.active || self.launching) ? @YES : @NO`.
+- `LibretroInternalBridge.isSessionActive()` n'accepte qu'un booléen. Une réponse `null` ou d'un autre type lève
+  `LibretroSessionProbeException` (« non-boolean answer (int 0) »), comme les erreurs du canal : jamais « aucun
+  jeu ». Le service et le magasin d'options gardent leur refus en état inconnu (§ 6.2), avec ce détail brut.
+- `EmbeddedIOSSessionStatus.isActive` : seul un `false` explicite termine une session embarquée.
+- Une archive ZIP rangée dans le dossier ou le ZIP choisi (le `nand.zip` du dossier Azahar) n'est toujours pas
+  ouverte, mais n'est plus refusée en rouge par « Archive non prise en charge : seules les archives ZIP sont
+  lues » : elle est ignorée (`Libretro3dsIgnoreReason.nestedArchive`) avec l'explication
+  `system3dsIgnoredNestedZip` (douze langues). Les autres archives restent refusées.
+- Le reste de l'import (règles des § 7 à 10, Builds 448 à 452) ne change pas.
+
+**Mêmes cause, autres effets (sources ; non observés sur iPhone) :**
+- Les réglages de la page (langue, région, modèle) étaient refusés de la même façon (`LibretroCoreOptionStore`).
+- Le moniteur de lancement sonde `isSessionActive` toutes les 2 s pendant un jeu libretro. La `TypeError` sortait
+  d'`EmbeddedIOSSessionStatus` et le sondeur fermait la session Flutter environ 4 s après le lancement : temps de
+  jeu compté environ 4 s, barrière média relâchée (aperçus et musique d'ambiance pouvaient reprendre derrière le
+  jeu), dialogue de lancement retiré. Désormais la session Flutter dure jusqu'à la fin réelle du jeu.
+- Le nettoyage du stockage comptait la sonde en échec comme « occupée » : fichiers libretro toujours exclus.
+
+**Tests :**
+- `test/libretro_channel_codec_test.py` (macOS, Simulateur iOS) : le vrai `LibretroInternalBridgePlugin.m` et
+  toutes les sources du pont, avec le vrai `Flutter.framework` du SDK épinglé ; le plugin répond dans chaque état
+  d'un lancement et `FlutterStandardMethodCodec` encode la réponse. Les octets doivent être ceux de
+  `test/libretro_session_envelopes.dart` ; avec les sources de la Build 453 (`--expect unfixed`), ceux de l'int32.
+- `test/libretro_session_probe_codec_test.dart` : ces octets passés au vrai `MethodChannel`, sonde de production.
+- `test/libretro_3ds_system_screen_test.dart` : le pont répond avec ces octets dans tous les tests de la page ;
+  groupe « the import of the video » : dossier Azahar, `nand` puis `sysdata`, fichiers isolés, `nand.zip`, refus
+  pendant le lancement et le jeu, jusqu'à l'inventaire actualisé.
+- `test/libretro_3ds_system_data_service_test.dart` : ZIP imbriqué (contrat remplacé, commenté) et dossier Azahar
+  avec `nand.zip`.
