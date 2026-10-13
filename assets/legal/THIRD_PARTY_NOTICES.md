@@ -6,7 +6,7 @@ The complete 14-core reference collection is in `libretro/`; the post-0.0.7
 packager verifies its hashes and embeds it under `Legal/Libretro/`.
 
 The full maintained attribution record is:
-https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md
 
 The exact 0.0.1 source/binary identity manifest is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.1_SOURCE_MANIFEST.md

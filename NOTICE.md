@@ -87,7 +87,7 @@ Public source repository:
 https://github.com/TarbleFR/neostation-ios
 
 Detailed attribution and source identity:
-https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.1_SOURCE_MANIFEST.md
 
 When redistributing an IPA, preserve applicable licenses and notices and give

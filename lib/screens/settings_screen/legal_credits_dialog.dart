@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class LegalCreditsDialog {
   static const _fullRecordUrl =
-      'https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md';
+      'https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md';
 
   static const List<_LegalEntry> _entries = [
     _LegalEntry(
