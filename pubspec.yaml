@@ -22,7 +22,7 @@ workspace:
   - packages/external_display
   - packages/neo_shader_kit
 
-version: 0.0.7+450
+version: 0.0.7+451
 environment:
   sdk: '>=3.9.2'
 

@@ -1534,6 +1534,22 @@ BUILD450_DELTA = {
     'test/neo_shader_kit_test.py',
 }
 DELTA |= BUILD450_DELTA
+# Build 451 (13 October 2026), on top of the Build 450 source e7f22336: the
+# 3DS system data import keeps the title contents Azahar encrypted for their
+# console in its legacy form (whole file in AES-CTR, no AZCR header) once
+# other contents confirm one console key, and installs them only with that
+# console's otp.bin; one text in twelve languages; version 0.0.7+451. Every
+# created, modified or deleted input since that source, file by file.
+BUILD451_DELTA = {
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/libretro_locale.dart',
+    'lib/screens/libretro/libretro_3ds_system_screen.dart',
+    'lib/services/libretro_3ds_system_data_service.dart',
+    'pubspec.yaml',
+    'test/libretro_3ds_system_data_service_test.dart',
+    'test/libretro_3ds_system_screen_test.dart',
+}
+DELTA |= BUILD451_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
