@@ -1573,6 +1573,7 @@ DELTA |= BUILD452_DELTA
 # Build 453: the requested official Azahar FastInterp replacement, translated
 # native option menu, pinned package and behavioral/package delivery checks.
 BUILD453_DELTA = {
+    'test/libretro_3ds_launch_default_test.dart',
     'build-utils/libretro/cores.json',
     'build-utils/libretro/Azahar-LICENSE.txt',
     'build-utils/libretro/upgrade_azahar.py',

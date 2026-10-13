@@ -74,12 +74,12 @@ void main() {
   }
 
   test('without a stored language, the launch default follows the NeoStation language', () async {
-    expect(await launch3ds(const Locale('fr')), <String, String>{'citra_language_value': 'French'});
-    expect(await launch3ds(const Locale('ja')), <String, String>{'citra_language_value': 'Japanese'});
-    expect(await launch3ds(const Locale('zh', 'TW')), <String, String>{'citra_language_value': 'Traditional Chinese'});
-    expect(await launch3ds(const Locale('zh')), <String, String>{'citra_language_value': 'Simplified Chinese'});
+    expect(await launch3ds(const Locale('fr')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'French'});
+    expect(await launch3ds(const Locale('ja')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Japanese'});
+    expect(await launch3ds(const Locale('zh', 'TW')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Traditional Chinese'});
+    expect(await launch3ds(const Locale('zh')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Simplified Chinese'});
     // Indonesian has no 3DS equivalent: the explicit English fallback.
-    expect(await launch3ds(const Locale('id')), <String, String>{'citra_language_value': 'English'});
+    expect(await launch3ds(const Locale('id')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'English'});
     // The option file is never written by the launch: the default stays a
     // launch-time layer, and the first in-game or page choice is what the
     // native session stores.
@@ -90,9 +90,9 @@ void main() {
     final file = await azaharOptions();
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(jsonEncode(<String, Object>{
-      'values': <String, String>{'citra_language_value': 'Japanese', 'citra_region_value': 'Auto'},
+      'values': <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Japanese', 'citra_region_value': 'Auto'},
     }));
-    expect(await launch3ds(const Locale('fr')), isEmpty);
+    expect(await launch3ds(const Locale('fr')), <String, String>{'citra_use_fastinterp': 'enabled'});
     expect(launches.single['optionDefaults'], isA<Map<Object?, Object?>>());
   });
 
@@ -102,7 +102,7 @@ void main() {
     file.writeAsStringSync(jsonEncode(<String, Object>{
       'values': <String, String>{'citra_region_value': 'Europe', 'citra_is_new_3ds': 'Old 3DS'},
     }));
-    expect(await launch3ds(const Locale('de')), <String, String>{'citra_language_value': 'German'});
+    expect(await launch3ds(const Locale('de')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'German'});
   });
 
   test('a non-string or malformed stored value counts as absent, like the native reader', () async {
@@ -111,11 +111,25 @@ void main() {
     file.writeAsStringSync(jsonEncode(<String, Object>{
       'values': <String, Object>{'citra_language_value': 3},
     }));
-    expect(await launch3ds(const Locale('it')), <String, String>{'citra_language_value': 'Italian'});
+    expect(await launch3ds(const Locale('it')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Italian'});
     file.writeAsStringSync('{"values": not json');
-    expect(await launch3ds(const Locale('es')), <String, String>{'citra_language_value': 'Spanish'});
+    expect(await launch3ds(const Locale('es')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Spanish'});
     file.writeAsStringSync(jsonEncode(<String, Object>{'values': <Object>[]}));
-    expect(await launch3ds(const Locale('pt')), <String, String>{'citra_language_value': 'Portuguese'});
+    expect(await launch3ds(const Locale('pt')), <String, String>{'citra_use_fastinterp': 'enabled', 'citra_language_value': 'Portuguese'});
+  });
+
+  test('a disabled FastInterp preference survives launch without being overwritten', () async {
+    final file = await azaharOptions();
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(jsonEncode(<String, Object>{
+      'values': <String, String>{'citra_use_fastinterp': 'disabled', 'unrelated': 'keep'},
+    }));
+    final before = file.readAsStringSync();
+    final defaults = await launch3ds(const Locale('fr'));
+    expect(defaults['citra_use_fastinterp'], 'enabled');
+    // Defaults are a lower layer; the native persistence test proves that
+    // the stored disabled value wins when the real option store is opened.
+    expect(file.readAsStringSync(), before);
   });
 
   test('the 3DS launch request also carries the lock and the in-game settings', () async {
@@ -130,10 +144,16 @@ void main() {
     // so the in-game menu (footer: "after a restart") no longer receives
     // it; the Nintendo 3DS page of the Emulators tab still offers it.
     expect(settings.map((setting) => setting['key']).toList(),
-        <String>['citra_region_value', 'citra_language_value']);
+        <String>['citra_region_value', 'citra_language_value', 'citra_use_fastinterp']);
     expect(settings.map((setting) => setting['key']), isNot(contains('citra_is_new_3ds')));
     expect(settings[0]['label'], 'System region');
     expect(settings[1]['label'], 'System language');
+    expect(settings[2]['label'], 'Fast Interpreter (relaunch game)');
+    expect(settings[2]['values'], <Map<String, String>>[
+      {'value': 'enabled', 'label': 'Enabled'},
+      {'value': 'disabled', 'label': 'Disabled'},
+    ]);
+    expect(request['noJitOverrides'], isEmpty);
     final languageValues = (settings[1]['values'] as List).cast<Map<Object?, Object?>>();
     expect(languageValues.map((value) => value['value']).toList(), contains('Traditional Chinese'));
     expect(languageValues.firstWhere((value) => value['value'] == 'Traditional Chinese')['label'],
