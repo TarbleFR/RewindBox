@@ -10,6 +10,7 @@ import '../../services/libretro_bios_check_service.dart';
 import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_internal_service.dart';
 import '../../services/logger_service.dart';
+import '../../widgets/libretro_3ds_import_route.dart';
 import 'libretro_skin_manager_screen.dart';
 
 /// Settings › Tools › BIOS checker (iOS): for every console of the embedded
@@ -25,7 +26,7 @@ import 'libretro_skin_manager_screen.dart';
 /// [console] (a key of `LibretroCoreCatalog.consoles`) to preselect the
 /// console filter.
 class LibretroBiosCheckerScreen extends StatefulWidget {
-  const LibretroBiosCheckerScreen({super.key, this.console, this.service, this.copyRetroArch});
+  const LibretroBiosCheckerScreen({super.key, this.console, this.service, this.copyRetroArch, this.open3dsImport});
 
   /// Console filter to preselect; null shows every console.
   final String? console;
@@ -36,6 +37,10 @@ class LibretroBiosCheckerScreen extends StatefulWidget {
   /// RetroArch import to run (tests); [LibretroInternalService.copyRetroArchData]
   /// by default.
   final Future<LibretroRetroArchCopy?> Function()? copyRetroArch;
+
+  /// Opens the Nintendo 3DS system data import (tests);
+  /// [openLibretro3dsImport] by default.
+  final Future<void> Function(BuildContext context)? open3dsImport;
 
   @override
   State<LibretroBiosCheckerScreen> createState() => _LibretroBiosCheckerScreenState();
@@ -120,9 +125,16 @@ class _LibretroBiosCheckerScreenState extends State<LibretroBiosCheckerScreen>
     }
   }
 
-  void _notice(String message) {
+  void _notice(String message, {SnackBarAction? action}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), action: action));
+  }
+
+  /// The Nintendo 3DS system data import, for an Azahar, Citra or Lime3DS
+  /// folder given to the RetroArch copy; the check runs again on return.
+  Future<void> _open3dsImport() async {
+    await (widget.open3dsImport ?? openLibretro3dsImport)(context);
+    if (mounted) await _check();
   }
 
   /// The existing RetroArch import (saves, states and System, nothing
@@ -135,6 +147,13 @@ class _LibretroBiosCheckerScreenState extends State<LibretroBiosCheckerScreen>
       final copied = await (widget.copyRetroArch ?? LibretroInternalService.copyRetroArchData)();
       resumePageNavigation();
       if (copied == null || !mounted) return;
+      if (copied.total == 0 && copied.emulator3dsFolder) {
+        _notice(
+          _t('retroArch3dsFolder'),
+          action: SnackBarAction(label: _t('system3dsImport'), onPressed: () => unawaited(_open3dsImport())),
+        );
+        return;
+      }
       _notice(
         copied.total == 0
             ? _t('retroArchNothing')

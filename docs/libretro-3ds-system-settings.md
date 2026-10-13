@@ -717,3 +717,36 @@ il est nommé parce que le cœur en dérive réellement la clé de ces titres.
   refus (contenu isolé, deux copies d'un en-tête, chiffrement par titre, deux consoles, contenu
   déplacé dans un autre titre), empreinte, nouvelle vérification d'un gros fichier préparé ;
 - `test/libretro_3ds_system_screen_test.dart` : deux tests de l'écran, texte et cases.
+
+## 10. Build 452 — l'import 3DS proposé là où on le cherche (13 octobre 2026)
+
+Vidéo du mainteneur (13 octobre 2026, 07 h 00) : page de la console Nintendo 3DS de la bibliothèque, menu
+d'import (« Importer des jeux », « Copier les sauvegardes et BIOS de RetroArch », « Skins »). Il choisit « Copier
+les sauvegardes et BIOS de RetroArch », puis son dossier `iCloud Drive › 1-Corentin › 3ds › Azahar`, ou ses
+dossiers `nand` et `sysdata` (`sysdata` contient `otp.bin` de 256 octets, `mcu.dat`, `mac` et `play_time.bin`).
+Chaque fois, le message est : « Aucune sauvegarde, aucun état ni fichier système RetroArch trouvé dans le dossier
+choisi. »
+
+**Cause.** Cette action ne cherche que les dossiers `saves`, `states` et `system` d'une installation RetroArch
+(`LibretroInternalService.copyRetroArchData`). Un dossier utilisateur Azahar, Citra ou Lime3DS n'en a aucun. L'import
+qui lit ce dossier, `Libretro3dsSystemDataService`, n'était proposé que dans Consoles › Nintendo 3DS › « Réglages
+système ». Le menu de la page 3DS, où l'on cherche le « BIOS 3DS », ne le proposait pas.
+
+**Correctif :**
+- Le menu d'import de la console 3DS propose « BIOS et fichiers système 3DS » (`import3dsSystem`). Cette entrée
+  ouvre la page Nintendo 3DS avec son assistant déjà lancé (`Libretro3dsSystemScreen.startImport`, ouverture par
+  `openLibretro3dsImport`).
+- `copyRetroArchData` signale un dossier utilisateur d'émulateur 3DS : `emulator3dsFolder`, vrai quand il y a un
+  dossier `nand` ou `sysdata` au plus deux niveaux sous le dossier choisi, ce dossier compris
+  (`holds3dsUserFolder`).
+- Quand rien n'est copié, le menu de la bibliothèque et le vérificateur de BIOS n'affichent plus « rien trouvé ».
+  Ils expliquent qu'il s'agit de données système 3DS (`retroArch3dsFolder`). Le bouton « Importer des données
+  système » ouvre l'assistant 3DS ; le vérificateur refait sa vérification au retour.
+- Textes dans les douze langues. L'import 3DS lui-même ne change pas (règles des § 7 à 9).
+
+**Tests :**
+- `test/libretro_playlist_actions_test.dart` : l'entrée du menu 3DS et son absence ailleurs ; le dossier Azahar
+  dirigé vers l'import 3DS ; un dossier vide qui dit toujours « rien trouvé » ; reconnaissance du dossier sur une
+  arborescence réelle.
+- `test/libretro_bios_checker_screen_test.dart` : même redirection depuis le vérificateur.
+- `test/libretro_3ds_system_screen_test.dart` : la page ouverte pour un import lance l'assistant.

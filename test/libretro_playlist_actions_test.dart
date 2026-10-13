@@ -61,6 +61,8 @@ void main() {
     SystemModel system, {
     bool embedded = false,
     List<String> Function()? libraryFolders,
+    Future<LibretroRetroArchCopy?> Function()? copyRetroArch,
+    Future<void> Function(BuildContext context)? open3dsImport,
   }) async {
     await tester.pumpWidget(
       ScreenUtilInit(
@@ -74,6 +76,8 @@ void main() {
                 embedded: embedded,
                 onLibraryChanged: (_) async {},
                 libraryFolders: libraryFolders,
+                copyRetroArch: copyRetroArch,
+                open3dsImport: open3dsImport,
               ),
             ),
           ),
@@ -133,6 +137,98 @@ void main() {
     expect(find.text(english['importGames']!), findsOneWidget);
     expect(find.text(english['skins']!), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  // Build 452: the 3DS BIOS and system files were looked for in this menu,
+  // where only the RetroArch copy was offered (video of 13 October 2026).
+  testWidgets('the 3DS menu opens the 3DS system data import', (tester) async {
+    var opened = 0;
+    await pumpActions(tester, _n3ds, open3dsImport: (_) async => opened++);
+    await openMenu(tester);
+    expect(find.text(english['import3dsSystem']!), findsOneWidget);
+    await tester.tap(find.text(english['import3dsSystem']!));
+    await tester.pumpAndSettle();
+    expect(opened, 1);
+    expect(find.byType(SnackBar), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  testWidgets('only the 3DS menu offers the 3DS system data import', (tester) async {
+    const snes = SystemModel(
+      id: 'snes',
+      folderName: 'snes',
+      realName: 'Super Nintendo',
+      iconImage: 'assets/images/systems/snes-icon.webp',
+      color: '#000000',
+    );
+    await pumpActions(tester, snes);
+    await openMenu(tester);
+    expect(find.text(english['importRetroArch']!), findsOneWidget);
+    expect(find.text(english['import3dsSystem']!), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  testWidgets('an Azahar folder given to the RetroArch copy points to the 3DS import', (tester) async {
+    var opened = 0;
+    var copies = 0;
+    await pumpActions(
+      tester,
+      _n3ds,
+      copyRetroArch: () async {
+        copies++;
+        return const LibretroRetroArchCopy(saves: 0, states: 0, system: 0, emulator3dsFolder: true);
+      },
+      open3dsImport: (_) async => opened++,
+    );
+    await openMenu(tester);
+    await tester.tap(find.text(english['importRetroArch']!));
+    await tester.pumpAndSettle();
+    expect(copies, 1);
+    expect(find.text(english['retroArch3dsFolder']!), findsOneWidget);
+    expect(find.text(english['retroArchNothing']!), findsNothing);
+    await tester.tap(find.text(english['system3dsImport']!));
+    await tester.pumpAndSettle();
+    expect(opened, 1);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  testWidgets('a folder with nothing to copy and no 3DS data still says so', (tester) async {
+    await pumpActions(
+      tester,
+      _n3ds,
+      copyRetroArch: () async => const LibretroRetroArchCopy(saves: 0, states: 0, system: 0),
+    );
+    await openMenu(tester);
+    await tester.tap(find.text(english['importRetroArch']!));
+    await tester.pumpAndSettle();
+    expect(find.text(english['retroArchNothing']!), findsOneWidget);
+    expect(find.text(english['system3dsImport']!), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  group('a Nintendo 3DS emulator user folder', () {
+    late Directory temporary;
+
+    setUp(() => temporary = Directory.systemTemp.createTempSync('libretro-3ds-folder-'));
+    tearDown(() => temporary.deleteSync(recursive: true));
+
+    Directory make(String relative) => Directory('${temporary.path}/$relative')..createSync(recursive: true);
+
+    test('is recognized by its nand or sysdata folder, picked or within two levels', () async {
+      // The Azahar folder of the video: nand, sysdata and the others.
+      final azahar = make('3ds/Azahar');
+      for (final name in ['nand/00000000000000000000000000000000', 'sysdata', 'sdmc', 'shaders', 'cheats']) {
+        make('3ds/Azahar/$name');
+      }
+      expect(await LibretroInternalService.holds3dsUserFolder(azahar), isTrue);
+      expect(await LibretroInternalService.holds3dsUserFolder(Directory('${azahar.path}/nand')), isTrue);
+      expect(await LibretroInternalService.holds3dsUserFolder(Directory('${azahar.path}/sysdata')), isTrue);
+      expect(await LibretroInternalService.holds3dsUserFolder(make('3ds')), isTrue, reason: 'its parent');
+      // A RetroArch folder, or one with the layout deeper down, is not one.
+      final retroArch = make('RetroArch');
+      for (final name in ['saves', 'states', 'system']) {
+        make('RetroArch/$name');
+      }
+      expect(await LibretroInternalService.holds3dsUserFolder(retroArch), isFalse);
+      make('deep/a/b/nand');
+      expect(await LibretroInternalService.holds3dsUserFolder(Directory('${temporary.path}/deep')), isFalse);
+    });
+  });
 
   testWidgets('outside iOS the playlist shows no embedded-engine action', (tester) async {
     await pumpActions(tester, _n3ds);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -8,6 +10,11 @@ import '../screens/libretro/libretro_library_actions.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
 import '../services/libretro_core_catalog.dart';
 import '../services/libretro_internal_service.dart';
+import 'libretro_3ds_import_route.dart';
+
+/// Embedded console whose system data has its own import
+/// ([openLibretro3dsImport]).
+const String _console3ds = '3ds';
 
 /// Import button of the playlists run by the embedded libretro engine: the
 /// same floating button and tab action as the other embedded engines. Its
@@ -20,6 +27,8 @@ class LibretroInternalPlaylistActions extends StatefulWidget {
     this.onInteractionChanged,
     this.libraryFolders,
     this.embedded = false,
+    this.copyRetroArch,
+    this.open3dsImport,
   });
 
   /// System of the playlist. A copy named after an alias folder during a
@@ -41,6 +50,14 @@ class LibretroInternalPlaylistActions extends StatefulWidget {
   final List<String> Function()? libraryFolders;
   final ValueChanged<bool>? onInteractionChanged;
   final bool embedded;
+
+  /// RetroArch copy to run (tests); [LibretroInternalService.copyRetroArchData]
+  /// by default.
+  final Future<LibretroRetroArchCopy?> Function()? copyRetroArch;
+
+  /// Opens the Nintendo 3DS system data import (tests);
+  /// [openLibretro3dsImport] by default.
+  final Future<void> Function(BuildContext context)? open3dsImport;
 
   @override
   State<LibretroInternalPlaylistActions> createState() =>
@@ -76,15 +93,30 @@ class _LibretroInternalPlaylistActionsState
     }
   }
 
-  void _notice(String message) {
+  void _notice(String message, {SnackBarAction? action}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), action: action));
+  }
+
+  /// The Nintendo 3DS system data import (BIOS, NAND, console files): its
+  /// page opens with the import assistant started.
+  Future<void> _open3dsImport() async {
+    _interaction(true);
+    try {
+      await (widget.open3dsImport ?? openLibretro3dsImport)(context);
+    } finally {
+      if (mounted) _interaction(false);
+    }
   }
 
   Future<void> _selected(String action) async {
     if (_busy) return;
     if (action == 'skins') {
       await _openSkins();
+      return;
+    }
+    if (action == 'system3ds') {
+      await _open3dsImport();
       return;
     }
     setState(() => _busy = true);
@@ -113,8 +145,17 @@ class _LibretroInternalPlaylistActionsState
         if (result.alreadyPresent > 0) _notice(_f('importAlreadyPresent', {'count': result.alreadyPresent}));
         if (result.rejected > 0) _notice(_t('gamesRejected'));
       } else if (action == 'retroarch') {
-        final copied = await LibretroInternalService.copyRetroArchData();
+        final copied = await (widget.copyRetroArch ?? LibretroInternalService.copyRetroArchData)();
         if (copied == null) return;
+        if (copied.total == 0 && copied.emulator3dsFolder) {
+          // An Azahar, Citra or Lime3DS folder: its system data has its own
+          // import, one touch away.
+          _notice(
+            _t('retroArch3dsFolder'),
+            action: SnackBarAction(label: _t('system3dsImport'), onPressed: () => unawaited(_open3dsImport())),
+          );
+          return;
+        }
         _notice(
           copied.total == 0
               ? _t('retroArchNothing')
@@ -165,6 +206,10 @@ class _LibretroInternalPlaylistActionsState
               ),
         itemBuilder: (context) => [
           PopupMenuItem(value: 'games', child: Text(_t('importGames'))),
+          // The 3DS reads its BIOS and system files from its own import
+          // (Azahar, Citra, Lime3DS user folder, GodMode9 dump, ZIP).
+          if (_console == _console3ds)
+            PopupMenuItem(value: 'system3ds', child: Text(_t('import3dsSystem'))),
           PopupMenuItem(value: 'retroarch', child: Text(_t('importRetroArch'))),
           if (_console != null)
             PopupMenuItem(value: 'skins', child: Text(_t('skins'))),

@@ -331,6 +331,7 @@ void main() {
     Future<void> Function()? releaseFolder,
     Libretro3dsSystemDataService? data,
     bool injectAnalyze = true,
+    bool startImport = false,
   }) async {
     tester.view.physicalSize = const Size(1200, 4000);
     tester.view.devicePixelRatio = 2;
@@ -348,6 +349,7 @@ void main() {
           pickFolder: pickFolder,
           releaseFolder: releaseFolder,
           analyze: injectAnalyze ? pageService.analyze : null,
+          startImport: startImport,
         ),
         locale: locale,
       ),
@@ -1117,6 +1119,22 @@ void main() {
         expect(user().existsSync(), isFalse);
       },
     );
+
+    // Build 452: opened from the 3DS import menu of the library (or after a
+    // RetroArch copy was given an Azahar folder), the page starts its import
+    // assistant by itself.
+    testWidgets('opened for an import, the page starts the import assistant', (tester) async {
+      await pumpPage(tester, startImport: true);
+      await settle(tester, find.byKey(const ValueKey('3ds-import-folder')));
+      expect(find.text(english['system3dsImportZip']!), findsOneWidget);
+      expect(find.text(english['system3dsImportFolder']!), findsOneWidget);
+      expect(find.text(english['system3dsImportFiles']!), findsOneWidget);
+      // Backing out leaves the page as it is, nothing written.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('3ds-import-folder')), findsNothing);
+      expect(user().existsSync(), isFalse);
+    });
 
     // Build 451: the system titles of an Azahar nand folder, encrypted for
     // their console, were all refused as invalid contents.

@@ -81,11 +81,17 @@ class LibretroRetroArchCopy {
     required this.saves,
     required this.states,
     required this.system,
+    this.emulator3dsFolder = false,
   });
 
   final int saves;
   final int states;
   final int system;
+
+  /// The chosen folder is, or holds, the user folder of a Nintendo 3DS
+  /// emulator (Azahar, Citra, Lime3DS: a `nand` or `sysdata` folder). Its
+  /// system data is read by the 3DS import, not by this copy.
+  final bool emulator3dsFolder;
   int get total => saves + states + system;
 }
 
@@ -577,8 +583,17 @@ abstract final class LibretroInternalService {
       saves: saves == null ? 0 : await _copyTree(saves, await savesDirectory()),
       states: states == null ? 0 : await _copyTree(states, await statesDirectory()),
       system: system == null ? 0 : await _copyTree(system, await systemDirectory()),
+      emulator3dsFolder: await holds3dsUserFolder(root),
     );
   });
+
+  /// Whether [root] is, or holds within two levels, the user folder of a
+  /// Nintendo 3DS emulator (Azahar, Citra, Lime3DS): a `nand` or `sysdata`
+  /// folder. That layout is read by the 3DS import
+  /// (`Libretro3dsSystemDataService`), not by [copyRetroArchData].
+  @visibleForTesting
+  static Future<bool> holds3dsUserFolder(Directory root) async =>
+      await _findFolder(root, 'nand', depth: 2) != null || await _findFolder(root, 'sysdata', depth: 2) != null;
 
   static Future<Directory?> _findFolder(Directory root, String name, {int depth = 3}) async {
     if (path.basename(root.path).toLowerCase() == name) return root;

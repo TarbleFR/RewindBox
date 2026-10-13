@@ -66,7 +66,13 @@ class Libretro3dsSystemScreen extends StatefulWidget {
     this.pickFolder,
     this.analyze,
     this.releaseFolder,
+    this.startImport = false,
   });
+
+  /// Starts the import assistant once the page is read: opened from the
+  /// Nintendo 3DS import menu of the library, or after a RetroArch copy was
+  /// given an Azahar, Citra or Lime3DS folder (`openLibretro3dsImport`).
+  final bool startImport;
 
   /// Option store (tests); the app's own by default.
   final LibretroCoreOptionStore? store;
@@ -211,6 +217,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
   Future<void> _open() async {
     await _recover(quiet: true);
     await _reload();
+    if (widget.startImport && mounted) await _import();
   }
 
   /// Runs the recovery of interrupted passes; false when something blocks

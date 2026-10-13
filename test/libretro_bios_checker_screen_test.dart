@@ -139,6 +139,7 @@ void main() {
     WidgetTester tester, {
     String? console,
     Future<LibretroRetroArchCopy?> Function()? copy,
+    Future<void> Function(BuildContext context)? open3ds,
     _Roots? roots,
   }) async {
     tester.view.physicalSize = const Size(1200, 4000);
@@ -146,7 +147,7 @@ void main() {
     addTearDown(tester.view.reset);
     final app = MaterialApp(
       locale: const Locale('en'),
-      home: LibretroBiosCheckerScreen(console: console, service: service, copyRetroArch: copy),
+      home: LibretroBiosCheckerScreen(console: console, service: service, copyRetroArch: copy, open3dsImport: open3ds),
     );
     await tester.pumpWidget(
       roots == null ? app : ChangeNotifierProvider<SqliteConfigProvider>.value(value: roots, child: app),
@@ -282,6 +283,33 @@ void main() {
     expect(copies, 1);
     expect(service.started, 2);
     expect(find.text(en('retroArchImported', {'saves': 1, 'states': 0, 'system': 2})), findsOneWidget);
+  });
+
+  // Build 452: an Azahar folder given to the RetroArch copy said only that
+  // nothing was found (video of 13 October 2026).
+  testWidgets('a 3DS emulator folder given to the RetroArch copy leads to the 3DS import', (tester) async {
+    var opened = 0;
+    await pumpChecker(
+      tester,
+      copy: () async => const LibretroRetroArchCopy(saves: 0, states: 0, system: 0, emulator3dsFolder: true),
+      open3ds: (_) async => opened++,
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('libretro-bios-copy-retroarch')));
+    await tester.tap(find.byKey(const ValueKey('libretro-bios-copy-retroarch')));
+    for (var round = 0; round < 10; round++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+      await tester.pump();
+    }
+    expect(find.text(english['retroArch3dsFolder']!), findsOneWidget);
+    expect(find.text(english['retroArchNothing']!), findsNothing);
+    expect(service.started, 1, reason: 'nothing was copied, nothing to check again yet');
+
+    // The snack bar slides in before its action can be touched.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text(english['system3dsImport']!));
+    await settle(tester, 2);
+    expect(opened, 1);
+    expect(service.started, 2, reason: 'checked again once the 3DS import is closed');
   });
 
   testWidgets('a cancelled RetroArch copy changes nothing', (tester) async {
