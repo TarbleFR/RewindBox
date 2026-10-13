@@ -34,6 +34,19 @@ enum LibretroResolutionApply {
   relaunch,
 }
 
+/// The renderer a core obtained from NeoStation once its content is loaded
+/// (`rendererName` of the native session), as profiles name it.
+abstract final class LibretroResolutionRenderer {
+  /// An OpenGL ES context.
+  static const String gles = 'gles';
+
+  /// A Vulkan device (MoltenVK).
+  static const String vulkan = 'vulkan';
+
+  /// No hardware context: the core sends its frames to NeoStation.
+  static const String software = 'software';
+}
+
 /// A resolution option known by name.
 class LibretroResolutionProfile {
   const LibretroResolutionProfile({
@@ -42,6 +55,7 @@ class LibretroResolutionProfile {
     this.nativeSize,
     this.maxFactor = 0,
     this.requires = const <String, List<String>>{},
+    this.renderers = const <String>[],
   });
 
   /// Names cores give this option (the same setting across cores or core
@@ -62,12 +76,19 @@ class LibretroResolutionProfile {
   /// key the core does not declare is no condition.
   final Map<String, List<String>> requires;
 
+  /// Renderers ([LibretroResolutionRenderer]) the core must have obtained
+  /// for this profile to apply, checked once its content is loaded; empty:
+  /// any. Before the content is loaded (the native resolution NeoStation
+  /// sets by default) they are no condition.
+  final List<String> renderers;
+
   Map<String, Object> toNative() => <String, Object>{
         'keys': keys,
         'apply': apply.name,
         'nativeSize': ?nativeSize,
         if (maxFactor > 0) 'maxFactor': maxFactor,
         if (requires.isNotEmpty) 'requires': requires,
+        if (renderers.isNotEmpty) 'renderers': renderers,
       };
 }
 
@@ -156,7 +177,11 @@ abstract final class LibretroResolution {
   /// the core's default configuration (the console settings use it), and a
   /// key named by a profile is never recognized generically (a profile whose
   /// conditions fail means no internal resolution, as with PPSSPP's
-  /// software rendering, which forces 1x).
+  /// software rendering, which forces 1x). [LibretroResolutionProfile.renderers]
+  /// name the renderers a profile was established for: PPSSPP without an
+  /// OpenGL ES context draws in software at 1x whatever the option says, and
+  /// changing it during the game then resets a hardware context PPSSPP does
+  /// not have (`check_variables`, `ContextReset` on its software context).
   static const List<LibretroResolutionProfile> profiles = <LibretroResolutionProfile>[
     // Azahar (3DS), "1" to "18": retro_run parses the options again on an
     // update, the rasterizer cache rebuilds its surfaces at the new scale and
@@ -170,6 +195,7 @@ abstract final class LibretroResolution {
       requires: <String, List<String>>{
         'citra_graphics_api': <String>['Auto', 'auto', 'Vulkan', 'OpenGL'],
       },
+      renderers: <String>[LibretroResolutionRenderer.vulkan, LibretroResolutionRenderer.gles],
     ),
     // DeSmuME, "256x192" to "2560x1920" per screen: check_variables(false)
     // in retro_run resizes the framebuffer (SET_SYSTEM_AV_INFO or
@@ -193,20 +219,25 @@ abstract final class LibretroResolution {
       requires: <String, List<String>>{
         'beetle_psx_hw_renderer': <String>['hardware', 'hardware_gl', 'software'],
       },
+      renderers: <String>[LibretroResolutionRenderer.gles, LibretroResolutionRenderer.software],
     ),
     LibretroResolutionProfile(
       keys: <String>['beetle_psx_hw_internal_resolution'],
       apply: LibretroResolutionApply.relaunch,
       maxFactor: 8,
       requires: <String, List<String>>{
-        'beetle_psx_hw_renderer': <String>['hardware_vk'],
+        'beetle_psx_hw_renderer': <String>['hardware', 'hardware_vk'],
       },
+      renderers: <String>[LibretroResolutionRenderer.vulkan],
     ),
     // PPSSPP, "480x272" to "4800x2720": with OpenGL ("auto" takes the
     // frontend's OpenGL ES context here) check_variables in retro_run
     // resizes the render and announces it (SET_SYSTEM_AV_INFO); Vulkan
-    // needs a restart (the option says so). Software rendering forces 1x.
-    // NeoStation keeps the 5x limit of the earlier builds.
+    // needs a restart (the option says so). Software rendering forces 1x,
+    // and so does PPSSPP's own software context when it gets no hardware
+    // context (its frames stay 480x272; a change during the game would call
+    // ContextReset on that software context). NeoStation keeps the 5x limit
+    // of the earlier builds.
     LibretroResolutionProfile(
       keys: <String>['ppsspp_internal_resolution'],
       apply: LibretroResolutionApply.live,
@@ -216,6 +247,7 @@ abstract final class LibretroResolution {
         'ppsspp_backend': <String>['auto', 'opengl'],
         'ppsspp_software_rendering': <String>['disabled'],
       },
+      renderers: <String>[LibretroResolutionRenderer.gles],
     ),
     LibretroResolutionProfile(
       keys: <String>['ppsspp_internal_resolution'],
@@ -223,9 +255,10 @@ abstract final class LibretroResolution {
       nativeSize: <int>[480, 272],
       maxFactor: 5,
       requires: <String, List<String>>{
-        'ppsspp_backend': <String>['vulkan'],
+        'ppsspp_backend': <String>['auto', 'vulkan'],
         'ppsspp_software_rendering': <String>['disabled'],
       },
+      renderers: <String>[LibretroResolutionRenderer.vulkan],
     ),
     // Mupen64Plus-Next with GLideN64 (its default plugin): the 4:3 viewport,
     // "320x240" to "3840x2880", read only when the game is loaded
@@ -241,14 +274,16 @@ abstract final class LibretroResolution {
         'mupen64plus-aspect': <String>['4:3'],
         'mupen64plus-EnableNativeResFactor': <String>['0'],
       },
+      renderers: <String>[LibretroResolutionRenderer.gles],
     ),
-    // ParaLLEl-RDP: "1x" to "8x", read when the RDP starts.
+    // ParaLLEl-RDP: "1x" to "8x", read when the RDP starts (Vulkan).
     LibretroResolutionProfile(
       keys: <String>['mupen64plus-parallel-rdp-upscaling', 'parallel-n64-upscaling'],
       apply: LibretroResolutionApply.relaunch,
       requires: <String, List<String>>{
         'mupen64plus-rdp-plugin': <String>['parallel'],
       },
+      renderers: <String>[LibretroResolutionRenderer.vulkan],
     ),
     // Cores NeoStation does not package (keys from their option headers):
     // known names of the same setting, applied at the next launch.
@@ -263,6 +298,7 @@ abstract final class LibretroResolution {
       requires: <String, List<String>>{
         'melonds_render_mode': <String>['opengl'],
       },
+      renderers: <String>[LibretroResolutionRenderer.gles],
     ),
     LibretroResolutionProfile(
       keys: <String>[

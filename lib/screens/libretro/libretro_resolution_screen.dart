@@ -161,7 +161,13 @@ class _LibretroResolutionScreenState extends State<LibretroResolutionScreen>
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 4),
-        Text(_f('resolutionUnsupportedFooter', {'core': name}), style: theme.textTheme.bodySmall),
+        // The core has the option, but it did not apply to the way it drew
+        // at its last launch (PPSSPP in software rendering).
+        Text(
+          _f(resolution.inapplicableKey != null ? 'resolutionInapplicableFooter' : 'resolutionUnsupportedFooter',
+              {'core': name}),
+          style: theme.textTheme.bodySmall,
+        ),
       ]);
     }
     return Card(

@@ -20,7 +20,8 @@ Architecture, sources amont et règles : `docs/libretro-resolution.md`.
 | Défaut | Natif pour tous les cœurs. Mupen64Plus-Next (défaut du cœur 640 × 480) et PPSSPP (ancien défaut NeoStation 960 × 544) démarrent désormais en natif ; un choix déjà enregistré est conservé. |
 | Remplacé | Les réglages curatés « Résolution interne » de Mupen64Plus-Next, Beetle PSX HW et PPSSPP. |
 
-Cœurs : Azahar ×1–×10, DeSmuME ×1–×10, Beetle PSX HW et Beetle PSX ×1/×2/×4/×8, PPSSPP ×1–×5 en cours de jeu ;
+Cœurs : Azahar ×1–×10, DeSmuME ×1–×10, Beetle PSX HW et Beetle PSX ×1/×2/×4/×8, PPSSPP ×1–×5 (avec OpenGL ES ;
+rien dans son contexte logiciel) en cours de jeu ;
 Mupen64Plus-Next ×1–×6 (dont ×4,5) au prochain lancement ; Nestopia, Snes9x, Gambatte, mGBA, Genesis Plus GX (+ Wide),
 PicoDrive, FinalBurn Neo : pas de résolution interne.
 
@@ -41,7 +42,8 @@ Résultats consignés ci-dessous au fil des runs ; aucune validation sur iPhone 
 
 - `flutter analyze --no-fatal-infos` : aucun avertissement ni erreur (52 infos préexistantes ailleurs).
 - `flutter test` de la liste du job Dart de `libretro-checks` (45 fichiers, dont les deux nouveaux) : 558 tests
-  réussis.
+  réussis sur `53cf9fb6`, 561 après le correctif des moteurs de rendu (profils, option inapplicable dans le service
+  et la page de la console) ; `flutter test test/storage_*_test.dart` : 244 réussis.
 - Contrats Python : `libretro_core_options_test.py` (sans `--cores`), `libretro_frontend_ui_contract_test.py`,
   `localization_12_locale_coverage_test.py`, `delivery_pipeline_test.py`, `external_display_host_plist_test.py` et
   les autres contrats du job Dart : réussis. `verify_delivery_reuse.py --offline` : réussi (`BUILD455_DELTA`,
@@ -79,7 +81,32 @@ Résultats consignés ci-dessous au fil des runs ; aucune validation sur iPhone 
   mednafen_psx_hw, mupen64plus_next, ppsspp » — clé, chaque valeur, défaut et nom de bibliothèque présents dans chaque
   binaire.
 
-À compléter : sonde simulateur (PPSSPP réel), livraison.
+**`libretro-simulator`, run `38385450271`, source `53cf9fb6`** — échec, cause trouvée et corrigée.
+
+- Les scénarios existants (NeoTest, PPSSPP PRX et ISO, fenêtre mémoire encombrée) se sont déroulés comme avant ;
+  les deux scénarios encombrés finissent sur la limitation connue de la sonde.
+- `ppsspp-resolution-live` : lancement réussi en rendu `software` (le Simulateur refuse le contexte OpenGL ES :
+  « GL texture creation failed »), puis le processus de la sonde s'est arrêté au moment du choix ×2 ; les scénarios
+  suivants n'ont pas eu de résultat.
+- Cause, lue dans les sources de PPSSPP (`libretro/libretro.cpp`, `LibretroGraphicsContext.h`) : sans contexte
+  matériel, PPSSPP dessine dans `LibretroSoftwareContext`, toujours en 480 × 272 ; quand la résolution interne
+  change en jeu, `check_variables` met `resetHWContext` pour tout contexte non Vulkan et appelle
+  `((LibretroHWRenderContext *)ctx)->ContextReset()` sur ce contexte logiciel, qui n'a pas cette méthode
+  (comportement indéfini). Le rapport de plantage n'a pas pu être lu depuis le conteneur (artefact) : la cause est
+  établie par les sources et par le moment de l'arrêt, pas par une pile d'appels.
+- Correctif : les profils nomment les moteurs de rendu pour lesquels leur source a été lue (`renderers`), vérifiés
+  une fois le contenu chargé ; PPSSPP n'a de résolution qu'avec OpenGL ES (en jeu) ou Vulkan (au relancement). Dans
+  son contexte logiciel rien n'est proposé, et la page explique qu'il a le réglage mais qu'il ne s'applique pas
+  (nouveau texte, douze langues, aussi dans les réglages de la console via `inapplicableKey`). Sur iPhone, PPSSPP
+  obtient normalement le contexte OpenGL ES de NeoStation : le changement en jeu y reste proposé (non vérifié sur
+  l'appareil).
+- Sonde revue : un vrai cœur logiciel, DeSmuME, sur une image DS minimale écrite par la sonde (aucun contenu tiers),
+  vérifie le changement effectif en jeu (×2 : 256 × 384 → 512 × 768), l'enregistrement pour le cœur, le relancement à
+  ×2 et le choix pour un seul jeu ; PPSSPP vérifie le refus dans son contexte logiciel sans plantage (ou ×2 en jeu
+  s'il obtient OpenGL ES). Les fichiers enregistrés (instantané, valeur du cœur, valeur du jeu) sont relus. En cas
+  de nouvel arrêt, le pilote imprime le fil planté du rapport de plantage dans le journal du job.
+
+À compléter : contrôles et sonde sur la source corrigée, livraison.
 
 ## Limites
 
@@ -87,4 +114,6 @@ Résultats consignés ci-dessous au fil des runs ; aucune validation sur iPhone 
   logiciel de DeSmuME et de Beetle PSX aux facteurs élevés.
 - Les binaires du buildbot embarqués peuvent différer des sources lues ; le contrat `--cores` vérifie clés, valeurs et
   noms, pas le comportement en cours de jeu. Celui-ci est prouvé par les sources (`docs/libretro-resolution.md` § 2),
-  par le cœur de test et, pour PPSSPP, par la sonde simulateur.
+  par le cœur de test et, pour DeSmuME, par la sonde simulateur. Le changement en jeu de PPSSPP avec OpenGL ES, de
+  Beetle PSX et d'Azahar n'est exécuté par aucun essai automatique (pas de contexte OpenGL ES ni de GPU suffisant dans
+  le Simulateur, pas de BIOS PS1 en CI).

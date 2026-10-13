@@ -4,8 +4,11 @@ name: Libretro simulator probe
 # directly and inside an ISO), a Vulkan test core that tears down like
 # Azahar (the simulator GPU cannot start Azahar itself) and the NeoTest
 # core, including a core that stops while starting, and a PSP game in an
-# address space as crowded as the iPhone's. See
-# test/libretro_simulator_probe.py. A simulator run is not an iPhone test.
+# address space as crowded as the iPhone's; since Build 455, the internal
+# resolution chosen during a game with the real DeSmuME core (frames, saved
+# for the core and for one game, relaunch) and refused for PPSSPP in its
+# software context. See test/libretro_simulator_probe.py. A simulator run
+# is not an iPhone test.
 'on':
   push:
     branches:

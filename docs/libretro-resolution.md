@@ -31,7 +31,7 @@ valeur par défaut et le nom de bibliothèque déclarés au catalogue.
 | DeSmuME (DS) | `desmume_internal_resolution` | `256x192` à `2560x1920`, par écran (`256x192`) | En jeu | `check_variables(false)` hors du bloc de démarrage, `SetCustomFramebufferSize`, puis `SET_SYSTEM_AV_INFO` ou `SET_GEOMETRY` ; rastériseur logiciel seul sur iOS (3D mise à l'échelle, 2D agrandie) |
 | Beetle PSX HW (PS1) | `beetle_psx_hw_internal_resolution` | `1x(native)`, `2x`, `4x`, `8x`, `16x` (`1x(native)`) | En jeu (OpenGL, logiciel) ; au relancement (Vulkan) | `check_variables` : branche d'exécution, `SET_SYSTEM_AV_INFO` ; le rendu Vulkan ne se reconstruit qu'au `context_reset` |
 | Beetle PSX (PS1, logiciel) | `beetle_psx_internal_resolution` | idem | En jeu | `retro_run` : `GPU_Rescale`, `SET_SYSTEM_AV_INFO` ; la VRAM logicielle est réellement agrandie |
-| PPSSPP (PSP) | `ppsspp_internal_resolution` | `480x272` à `4800x2720` (`480x272`) | En jeu (OpenGL) ; au relancement (Vulkan) | `check_variables` : `iInternalResolution != prev && backend != NONE` → `SET_SYSTEM_AV_INFO`, `NotifyDisplayResized`, réinitialisation GL ; l'option dit « Core restart required with Vulkan » ; rendu logiciel = 1x forcé |
+| PPSSPP (PSP) | `ppsspp_internal_resolution` | `480x272` à `4800x2720` (`480x272`) | En jeu (OpenGL) ; au relancement (Vulkan) ; jamais dans son contexte logiciel | `check_variables` : `iInternalResolution != prev && backend != NONE` → `SET_SYSTEM_AV_INFO`, `NotifyDisplayResized`, réinitialisation GL ; l'option dit « Core restart required with Vulkan » ; option de rendu logiciel = 1x forcé. Sans contexte OpenGL ES ni Vulkan, PPSSPP prend `LibretroSoftwareContext` : ses images restent 480 × 272 (`SwapBuffers` : `NATIVEWIDTH`), et un changement en jeu fait appeler `((LibretroHWRenderContext *)ctx)->ContextReset()` sur ce contexte logiciel (`resetHWContext` pour tout contexte non Vulkan) : comportement indéfini, plantage de la sonde simulateur (run `38385450271`) |
 | Mupen64Plus-Next (N64) | `mupen64plus-43screensize` (GLideN64) | `320x240` à `3840x2880` (`640x480`) | Au relancement | lu dans `update_variables(true)`, appelé seulement par `retro_load_game` ; aucun `SET_GEOMETRY` ni `SET_SYSTEM_AV_INFO` |
 | Mupen64Plus-Next (ParaLLEl-RDP) | `mupen64plus-parallel-rdp-upscaling` | `1x` à `8x` | Au relancement | consommé seulement par `RDP::init()` |
 | Nestopia, Snes9x, Gambatte, mGBA, Genesis Plus GX (+ Wide), PicoDrive, FinalBurn Neo | — | — | — | Aucune résolution interne générale. Options voisines laissées de côté : `snes9x_mode7_hires` (Mode 7 seul), `fbneo-resolution` (jeux vectoriels seuls), filtres NTSC, rendu entrelacé de Genesis Plus GX |
@@ -49,16 +49,25 @@ les envoie au lancement (`resolution` de la requête, `LibretroResolution.native
 `test/fixtures/libretro_resolution/native_rules.json`).
 
 1. **Profils** (`LibretroResolution.profiles`) : noms connus d'un même réglage selon les cœurs, avec l'application
-   (`live` seulement là où la source le prouve), la taille native des valeurs « LxH », un facteur maximal et des
-   conditions sur d'autres options (`requires`). Une clé peut avoir plusieurs profils (PPSSPP OpenGL/Vulkan, Beetle
-   OpenGL/Vulkan) ; le premier décrit la configuration par défaut. Des profils couvrent aussi des cœurs non embarqués
-   (Flycast `reicast_internal_resolution`, melonDS `melonds_opengl_resolution`, Dolphin `dolphin_efb_scale`,
-   SwanStation, Kronos, YabaSanshiro, parallel-n64, Play!, LRPS2) : au relancement, faute de preuve.
+   (`live` seulement là où la source le prouve), la taille native des valeurs « LxH », un facteur maximal, des
+   conditions sur d'autres options (`requires`) et les moteurs de rendu pour lesquels la source a été lue
+   (`renderers` : `gles`, `vulkan`, `software`, comme `rendererName` de la session). Une clé peut avoir plusieurs
+   profils (PPSSPP OpenGL/Vulkan, Beetle OpenGL ou logiciel/Vulkan) ; le premier décrit la configuration par défaut.
+   Des profils couvrent aussi des cœurs non embarqués (Flycast `reicast_internal_resolution`, melonDS
+   `melonds_opengl_resolution`, Dolphin `dolphin_efb_scale`, SwanStation, Kronos, YabaSanshiro, parallel-n64, Play!,
+   LRPS2) : au relancement, faute de preuve.
+   Les moteurs de rendu sont vérifiés une fois le contenu chargé (le cœur a alors obtenu, ou non, son contexte
+   matériel) ; avant, ils ne sont pas une condition : le natif par défaut reste toujours applicable. PPSSPP n'a de
+   résolution qu'avec OpenGL ES (en jeu) ou Vulkan (au relancement), Beetle PSX avec OpenGL ES ou son rendu
+   logiciel (en jeu) ou Vulkan (au relancement), Azahar avec Vulkan ou OpenGL ES, Mupen64Plus-Next (GLideN64) avec
+   OpenGL ES, ParaLLEl-RDP avec Vulkan ; DeSmuME n'a pas de condition (rastériseur logiciel).
 2. **Reconnaissance générique** : une option visible dont le nom (`internal_res…`, `render_scale`,
    `resolution_factor`, `upscal…`, `efb_scale`…) ou la description (« internal resolution », « rendering
    resolution »…) désigne une résolution interne, et dont les valeurs incluent le natif. Appliquée au prochain
    lancement. Une clé nommée par un profil n'est jamais reconnue génériquement (le rendu logiciel de PPSSPP force
-   1x : aucune résolution n'est alors proposée).
+   1x : aucune résolution n'est alors proposée). Un cœur qui déclare une telle clé sans qu'aucun de ses profils
+   s'applique (autre moteur de rendu, autre réglage, option masquée) a une résolution **inapplicable** : la page
+   l'explique ainsi (`resolutionInapplicableFooter`), distinctement d'un cœur sans réglage.
 3. **Lecture des valeurs** (cas partagés : `test/fixtures/libretro_resolution/value_cases.json`) : « 2x », « 2X »,
    « 1x(native) », « x2 », « ×3 », « 2 », « 1.5x » ou « 1,5x », « Native »/« original » ; « 960x544 », divisé par la
    taille native du profil ou la plus petite taille déclarée (une taille d'une autre forme est écartée).
@@ -81,7 +90,8 @@ les envoie au lancement (`resolution` de la requête, `LibretroResolution.native
   comportement : Mupen64Plus-Next (défaut du cœur 640×480) et PPSSPP (défaut NeoStation 960×544 retiré) démarrent en
   natif ; un choix déjà enregistré est conservé.
 - **Instantané** : à chaque lancement, `Config/Resolution/<cœur>.json` décrit ce que le cœur a déclaré (option, valeurs,
-  facteurs, application) ou l'absence d'option ; les réglages de console l'utilisent plutôt que le catalogue.
+  facteurs, application) ou l'absence d'option, avec le moteur de rendu obtenu (`renderer`) et, pour une option
+  inapplicable, sa clé (`inapplicableKey`) ; les réglages de console l'utilisent plutôt que le catalogue.
 
 ## 5. Surfaces
 
@@ -94,10 +104,11 @@ les envoie au lancement (`resolution` de la requête, `LibretroResolution.native
 - **Réglages de la console** : Paramètres du système › Émulateurs (ligne « Résolution et image » après Skins) et onglet
   Consoles (bouton). Chaque cœur de la console, valeurs détectées au dernier lancement ou du catalogue, choix pour
   tous les jeux du cœur au prochain lancement, nombre de jeux réglés individuellement (jamais modifiés).
-- **Journal de session** : option reconnue et valeur en effet au chargement, choix du menu, changements de taille de
-  l'image produite (24 au plus).
+- **Journal de session** : option reconnue et valeur en effet au chargement (ou « does not apply (renderer …) » pour une
+  option inapplicable), choix du menu, changements de taille de l'image produite (24 au plus).
 
-Textes : 22 libellés natifs et 9 libellés Flutter, douze langues (`LibretroLocale`, `LibretroRequiredUIText`).
+Textes : 23 libellés natifs (dont l'explication d'une option inapplicable, aussi affichée par les réglages de la
+console) et 9 libellés Flutter, douze langues (`LibretroLocale`, `LibretroRequiredUIText`).
 
 ## 6. Vérifications
 
@@ -107,9 +118,14 @@ Textes : 22 libellés natifs et 9 libellés Flutter, douze langues (`LibretroLoc
 - `test/libretro_host/host_test.m` (macOS) : cas partagés côté natif ; cœur de test à résolution réglable en direct :
   natif par défaut lu dès `retro_init`, changement pour le cœur puis pour le jeu appliqués en cours de jeu (taille des
   images et `SET_SYSTEM_AV_INFO`), persistance par cœur et par jeu, choix au prochain lancement, conditions de profil,
-  option masquée, cœur sans option.
-- `test/libretro_simulator_probe.py` : avec le vrai PPSSPP dans le Simulateur iOS, ×2 choisi en jeu double la taille
-  des images produites ; un relancement démarre à ×2 ; retour au natif.
+  moteurs de rendu (avant le chargement, nommé, autre), règles de PPSSPP envoyées par l'app (OpenGL ES en jeu, Vulkan
+  au relancement, contexte logiciel et option de rendu logiciel : rien), option masquée, cœur sans option.
+- `test/libretro_simulator_probe.py` (Simulateur iOS, vrais cœurs, appel de session du menu en jeu) : DeSmuME sur une
+  image DS minimale écrite par la sonde — ×2 pour tous les jeux du cœur double les images produites (256 × 384 →
+  512 × 768) dès la reprise et s'enregistre pour le cœur ; relancé, il démarre à ×2, et le natif choisi pour ce jeu
+  seul rend 256 × 384 aussitôt, enregistré pour le jeu, le cœur gardant ×2. PPSSPP, sans contexte OpenGL ES dans le
+  Simulateur, dessine dans son contexte logiciel : aucune résolution proposée, choix refusé, images inchangées, jeu
+  toujours en cours, instantané `inapplicableKey` (avec un contexte OpenGL ES, le même scénario attend ×2 en jeu).
 - `test/libretro_core_options_test.py --cores` : options, valeurs, défauts et noms de bibliothèque dans les binaires
   épinglés.
 

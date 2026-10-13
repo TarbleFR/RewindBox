@@ -62,6 +62,13 @@ static NSString *ReadText(NSString *path) {
   return [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil] ?: @"";
 }
 
+/// A JSON file the session wrote, NSNull when absent or unreadable.
+static id ReadJSON(NSString *path) {
+  NSData *data = [NSData dataWithContentsOfFile:path];
+  id object = data != nil ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  return object ?: NSNull.null;
+}
+
 /// PPSSPP's probe (Core/MemMap.cpp): bases from 4 GiB, below this limit, in
 /// 8 MiB steps; the scratchpad view at base + 0x10000.
 static const uint64_t kProbeBaseMinimum = 0x100000000ull;
@@ -318,9 +325,9 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                                              result[@"resolutionBefore"] = ProducedFrameSize(session);
                                              result[@"resolutionStateBefore"] = ResolutionState(session) ?: @{};
                                              NSString *value = resolution[@"select"];
-                                             BOOL selected = value.length > 0 &&
-                                                             SelectResolution(session, value,
-                                                                              [resolution[@"game"] boolValue]);
+                                             id scope = resolution[@"gameScope"];
+                                             BOOL game = [scope isKindOfClass:NSNumber.class] && [scope boolValue];
+                                             BOOL selected = value.length > 0 && SelectResolution(session, value, game);
                                              result[@"resolutionSelected"] = @(selected);
                                              Progress(@"%@: frame %@ before, %@ selected: %d", name,
                                                       result[@"resolutionBefore"], value ?: @"-", selected);
@@ -332,6 +339,17 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                                 if (resolution != nil) {
                                   result[@"resolutionAfter"] = ProducedFrameSize(session);
                                   result[@"resolutionStateAfter"] = ResolutionState(session) ?: @{};
+                                  // What the session saved: its record of the
+                                  // core's option, the value for every game of
+                                  // the core and the values of single games.
+                                  NSString *library = launch[@"libraryName"] ?: @"";
+                                  result[@"resolutionSnapshot"] = ReadJSON(DocumentsPath(
+                                      [NSString stringWithFormat:@"Libretro/Config/Resolution/%@.json", scenario[@"core"]]));
+                                  result[@"resolutionCoreFile"] = ReadJSON(
+                                      DocumentsPath([NSString stringWithFormat:@"Libretro/Config/%@.json", library]));
+                                  result[@"resolutionGameFile"] = ReadJSON(
+                                      DocumentsPath([NSString stringWithFormat:@"Libretro/Config/Games/%@.json", library]));
+                                  result[@"gameKey"] = [@"probe/" stringByAppendingString:[scenario[@"content"] lastPathComponent]];
                                   Progress(@"%@: frame %@ after", name, result[@"resolutionAfter"]);
                                 }
                                 result[@"activeBeforeStop"] = @(session.active);

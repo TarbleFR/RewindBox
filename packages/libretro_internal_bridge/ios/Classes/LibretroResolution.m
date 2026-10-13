@@ -236,6 +236,10 @@ NSArray<LibretroResolutionChoice *> *LibretroResolutionChoices(NSArray<NSString 
 
 #pragma mark - Rules
 
+NSString *const LibretroResolutionRendererGLES = @"gles";
+NSString *const LibretroResolutionRendererVulkan = @"vulkan";
+NSString *const LibretroResolutionRendererSoftware = @"software";
+
 @implementation LibretroResolutionRules {
   NSArray<NSDictionary *> *_profiles;
   NSRegularExpression *_keyPattern;
@@ -280,6 +284,7 @@ static NSArray<NSString *> *StringArray(id object) {
         }
       }
       profile[@"requires"] = requires;
+      profile[@"renderers"] = StringArray(entry[@"renderers"]);
       [profiles addObject:profile];
     }
     _profiles = profiles;
@@ -301,6 +306,18 @@ static NSArray<NSString *> *StringArray(id object) {
                                            valueForKey:(NSString * (^)(NSString *key))valueForKey
                                           consoleWidth:(double)consoleWidth
                                          consoleHeight:(double)consoleHeight {
+  return [self capabilityForOptions:options
+                        valueForKey:valueForKey
+                           renderer:nil
+                       consoleWidth:consoleWidth
+                      consoleHeight:consoleHeight];
+}
+
+- (LibretroResolutionCapability *)capabilityForOptions:(NSArray<LibretroCoreOption *> *)options
+                                           valueForKey:(NSString * (^)(NSString *key))valueForKey
+                                              renderer:(NSString *)renderer
+                                          consoleWidth:(double)consoleWidth
+                                         consoleHeight:(double)consoleHeight {
   NSMutableDictionary<NSString *, LibretroCoreOption *> *declared = [NSMutableDictionary dictionary];
   for (LibretroCoreOption *option in options) declared[option.key] = option;
   // Keys named by a profile: never recognized generically, even when no
@@ -308,6 +325,11 @@ static NSArray<NSString *> *StringArray(id object) {
   NSMutableSet<NSString *> *claimed = [NSMutableSet set];
   for (NSDictionary *profile in _profiles) [claimed addObjectsFromArray:profile[@"keys"]];
   for (NSDictionary *profile in _profiles) {
+    // A renderer the profile does not name: PPSSPP without an OpenGL ES
+    // context renders in software at 1x, and a change during the game would
+    // reset a hardware context it does not have.
+    NSArray<NSString *> *renderers = profile[@"renderers"];
+    if (renderer != nil && renderers.count > 0 && ![renderers containsObject:renderer]) continue;
     BOOL met = YES;
     NSDictionary<NSString *, NSArray<NSString *> *> *requires = profile[@"requires"];
     for (NSString *key in requires) {
@@ -352,13 +374,32 @@ static NSArray<NSString *> *StringArray(id object) {
 - (LibretroResolutionCapability *)capabilityForCoreOptions:(LibretroCoreOptions *)options
                                                consoleWidth:(double)consoleWidth
                                               consoleHeight:(double)consoleHeight {
+  return [self capabilityForCoreOptions:options renderer:nil consoleWidth:consoleWidth consoleHeight:consoleHeight];
+}
+
+- (LibretroResolutionCapability *)capabilityForCoreOptions:(LibretroCoreOptions *)options
+                                                   renderer:(NSString *)renderer
+                                               consoleWidth:(double)consoleWidth
+                                              consoleHeight:(double)consoleHeight {
   if (options == nil) return nil;
   return [self capabilityForOptions:options.options
                         valueForKey:^NSString *(NSString *key) {
                           return [options currentValueForKey:key];
                         }
+                           renderer:renderer
                        consoleWidth:consoleWidth
                       consoleHeight:consoleHeight];
+}
+
+- (NSString *)profileKeyForOptions:(NSArray<LibretroCoreOption *> *)options {
+  NSMutableSet<NSString *> *declared = [NSMutableSet set];
+  for (LibretroCoreOption *option in options) [declared addObject:option.key];
+  for (NSDictionary *profile in _profiles) {
+    for (NSString *key in profile[@"keys"]) {
+      if ([declared containsObject:key]) return key;
+    }
+  }
+  return nil;
 }
 
 @end

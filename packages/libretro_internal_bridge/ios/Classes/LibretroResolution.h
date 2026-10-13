@@ -48,33 +48,58 @@ typedef NS_ENUM(NSInteger, LibretroResolutionApply) {
 - (NSDictionary<NSString *, id> *)snapshot;
 @end
 
+/// The renderer a core obtained from the session once its content is
+/// loaded (`LibretroSession rendererName`), as profiles name it.
+FOUNDATION_EXPORT NSString *const LibretroResolutionRendererGLES;
+FOUNDATION_EXPORT NSString *const LibretroResolutionRendererVulkan;
+/// No hardware context: the core sends its frames to the frontend.
+FOUNDATION_EXPORT NSString *const LibretroResolutionRendererSoftware;
+
 /// NeoStation's rules (Dart `LibretroResolution.nativeRules()`): profiles
 /// of known option names, generic name and description patterns, largest
 /// picture side. Recognizes the resolution option among those a core
 /// declared.
 @interface LibretroResolutionRules : NSObject
 /// `rules`: {"profiles": [{"keys": [..], "apply": "live"|"relaunch",
-/// "nativeSize"?: [w, h], "maxFactor"?: n, "requires"?: {key: [values]}}],
-/// "keyPattern": regex, "descriptionPattern": regex, "maxDimension": n}.
-/// Missing or malformed entries are ignored (no profile, no pattern).
+/// "nativeSize"?: [w, h], "maxFactor"?: n, "requires"?: {key: [values]},
+/// "renderers"?: [..]}], "keyPattern": regex, "descriptionPattern": regex,
+/// "maxDimension": n}. Missing or malformed entries are ignored (no
+/// profile, no pattern).
 - (instancetype)initWithDictionary:(nullable NSDictionary *)rules NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
 /// The option of `options` that sets the internal resolution, nil when the
 /// core has none NeoStation can offer. Profiles first, in their order (a
-/// profile whose `requires` are not met by `valueForKey`, or whose option is
-/// hidden, is skipped), then the visible options matching the generic
-/// patterns whose values include the native resolution, except keys a
-/// profile names. `consoleWidth` x `consoleHeight`: the console's whole
+/// profile whose `requires` are not met by `valueForKey`, whose `renderers`
+/// do not include `renderer`, or whose option is hidden, is skipped), then
+/// the visible options matching the generic patterns whose values include
+/// the native resolution, except keys a profile names. `renderer`: the
+/// core's renderer, nil before its content is loaded (no renderer
+/// condition then). `consoleWidth` x `consoleHeight`: the console's whole
 /// picture (0 x 0 when unknown), for the largest side.
+- (nullable LibretroResolutionCapability *)capabilityForOptions:(NSArray<LibretroCoreOption *> *)options
+                                                     valueForKey:(NSString *_Nullable (^)(NSString *key))valueForKey
+                                                        renderer:(nullable NSString *)renderer
+                                                    consoleWidth:(double)consoleWidth
+                                                   consoleHeight:(double)consoleHeight;
+/// The same before the renderer is known.
 - (nullable LibretroResolutionCapability *)capabilityForOptions:(NSArray<LibretroCoreOption *> *)options
                                                      valueForKey:(NSString *_Nullable (^)(NSString *key))valueForKey
                                                     consoleWidth:(double)consoleWidth
                                                    consoleHeight:(double)consoleHeight;
 /// The same for the options of a core's store, with their current values.
 - (nullable LibretroResolutionCapability *)capabilityForCoreOptions:(LibretroCoreOptions *)options
+                                                            renderer:(nullable NSString *)renderer
                                                         consoleWidth:(double)consoleWidth
                                                        consoleHeight:(double)consoleHeight;
+- (nullable LibretroResolutionCapability *)capabilityForCoreOptions:(LibretroCoreOptions *)options
+                                                        consoleWidth:(double)consoleWidth
+                                                       consoleHeight:(double)consoleHeight;
+/// The first declared option a profile names, visible or not, whether or
+/// not the profile applies: with no capability, the core has an internal
+/// resolution that does not apply to the way it draws now (another
+/// renderer, another of its settings). Nil when no profile names one.
+- (nullable NSString *)profileKeyForOptions:(NSArray<LibretroCoreOption *> *)options;
 @end
 
 /// Once the core declared its options, before retro_init: a core whose own

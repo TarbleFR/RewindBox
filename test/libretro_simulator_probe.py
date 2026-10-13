@@ -12,9 +12,9 @@ links against since Build 447, and of the neo_shader_kit pod it links
 against since Build 450 when the bridge tree imports it, their public
 headers staged as <pod/...> by test/libretro_ios_syntax_test.py) into a
 small UIKit app and embeds:
-- PPSSPP and Azahar from the cores artifact the delivery pins, with their
-  Mach-O platform switched from iOS (2) to iOS Simulator (7) - no other
-  byte changes - and signed ad hoc;
+- PPSSPP, Azahar and DeSmuME from the cores artifact the delivery pins,
+  with their Mach-O platform switched from iOS (2) to iOS Simulator (7) -
+  no other byte changes - and signed ad hoc;
 - the MoltenVK simulator slice;
 - the NeoTest core and the Vulkan test core of test/libretro_host (the
   latter uses the frontend's Vulkan device like Azahar: it creates it,
@@ -22,11 +22,21 @@ small UIKit app and embeds:
   retro_unload_game), built for the simulator;
 - PPSSPP's system files, and the content: NeoTest's game, simple.prx, an
   ISO built here around simple.prx (PSP_GAME/SYSDIR/EBOOT.BIN, PARAM.SFO,
-  "PSP GAME" system id: the ISO path of real games) and ftpd.3dsx.
+  "PSP GAME" system id: the ISO path of real games), ftpd.3dsx and a
+  minimal homebrew Nintendo DS image written here (build_nds).
 It boots a simulator, runs the scenarios (launch like the plugin, run,
 "Quit game", relaunch) and checks each outcome, the session journal's
 teardown order and that the game view is gone. Evidence (results, progress
-log, journals, simulator log, crash reports) goes to --evidence.
+log, journals, simulator log, crash reports) goes to --evidence; when the
+process dies, the crashed thread of its crash report is printed too.
+
+The internal resolution scenarios (Build 455) choose a resolution through
+the in-game menu's session call while the game runs, then compare the
+frames the real core produces before and after, and what the session saved
+(docs/libretro-resolution.md): DeSmuME applies it during the game, keeps it
+for the core across a relaunch and for one game; PPSSPP, which gets no
+OpenGL ES context in the simulator and draws in its own software context,
+must be offered nothing and keep running.
 
 `ppsspp-crowded` and `ppsspp-crowded-prx` leave no base of PPSSPP's memory
 window free except what the bridge reserved after launch (see probe.m), the
@@ -87,7 +97,7 @@ DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', '
 # (its podspec's frameworks: it preserves an MTKView's drawable on the move).
 FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'MetalKit', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
               'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics')
-REAL_CORES = ('ppsspp', 'azahar')
+REAL_CORES = ('ppsspp', 'azahar', 'desmume')
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 LC_BUILD_VERSION = 0x32
@@ -134,26 +144,47 @@ SCENARIOS = [
     {'name': 'ppsspp-crowded-prx', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
      'expect': 'run', 'crowdWindow': True,
      'requiredLog': CROWDED_LOG + ['PPSSPP memory base 0x', ', 64 MiB of PSP RAM']},
-    # Build 455: the in-game menu's internal resolution with the real PPSSPP.
-    # The game starts at native (480 wide; PPSSPP crops to 16:9 by default,
-    # so 480x270), 2x is chosen for every game, and the core must draw frames
-    # twice as wide and high once the game runs again (a live option); a
-    # relaunch must start at 2x (saved for the core), and native is chosen
-    # back for the next scenarios.
-    {'name': 'ppsspp-resolution-live', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
-     'expect': 'run', 'runSeconds': 5.0,
-     'resolution': {'beforeSeconds': 2.0, 'select': '960x544', 'beforeWidth': 480, 'scale': 2},
-     'requiredLog': ['load: resolution ppsspp_internal_resolution (live, profile) in effect 480x272',
-                     'menu: resolution ppsspp_internal_resolution=960x544 for every game of the core']},
-    {'name': 'ppsspp-resolution-relaunch', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
-     'expect': 'run', 'runSeconds': 4.0,
-     'resolution': {'beforeSeconds': 2.0, 'select': '480x272', 'beforeWidth': 960, 'scale': 0.5},
-     'requiredLog': ['load: resolution ppsspp_internal_resolution (live, profile) in effect 960x544']},
     {'name': 'neovk-1', 'core': 'neovk', 'content': 'content/Test Game.ntc', 'console': 'gb', 'expect': 'run',
      'requiredLog': ['neovk create_device: device created by the core',
                      "neovk unload_game: resources destroyed through the frontend's device"]},
     {'name': 'neovk-2', 'core': 'neovk', 'content': 'content/Test Game.ntc', 'console': 'gb', 'expect': 'run',
      'requiredLog': ["neovk unload_game: resources destroyed through the frontend's device"]},
+    # Build 455: the in-game menu's internal resolution with real cores,
+    # through the session call of the menu (docs/libretro-resolution.md).
+    # DeSmuME (software rasterizer, a live option) on a minimal homebrew
+    # image (build_nds): native 256x192 per screen, both screens stacked
+    # (256x384); x2 chosen for every game of the core doubles the frames once
+    # the game runs again and is saved for the core; a relaunch starts at x2
+    # and native chosen for this game only gives 256x384 again at once, saved
+    # for this game while the core keeps x2.
+    {'name': 'desmume-resolution-live', 'core': 'desmume', 'content': 'content/probe.nds', 'console': 'nds',
+     'expect': 'run', 'runSeconds': 5.0,
+     'resolution': {'beforeSeconds': 2.0, 'select': '512x384', 'beforeWidth': 256, 'scale': 2,
+                    'key': 'desmume_internal_resolution', 'apply': 'live', 'core': '512x384', 'game': None},
+     'requiredLog': ['load: resolution desmume_internal_resolution (live, profile) in effect 256x192',
+                     'menu: resolution desmume_internal_resolution=512x384 for every game of the core']},
+    {'name': 'desmume-resolution-relaunch', 'core': 'desmume', 'content': 'content/probe.nds', 'console': 'nds',
+     'expect': 'run', 'runSeconds': 5.0,
+     'resolution': {'beforeSeconds': 2.0, 'select': '256x192', 'gameScope': True, 'beforeWidth': 512, 'scale': 0.5,
+                    'key': 'desmume_internal_resolution', 'apply': 'live', 'core': '512x384', 'game': '256x192'},
+     'requiredLog': ['load: resolution desmume_internal_resolution (live, profile) in effect 512x384',
+                     'menu: resolution desmume_internal_resolution=256x192 for this game']},
+    # PPSSPP draws in its own software context when it gets no OpenGL ES
+    # context (the simulator's): its frames stay 480x272 (480x270, cropped to
+    # 16:9 by default) whatever the option, and a change during the game
+    # would reset a hardware context it does not have. NeoStation must offer
+    # nothing then, refuse the menu's choice and keep the game running. With
+    # an OpenGL ES context the same scenario expects the live x2 instead.
+    {'name': 'ppsspp-resolution', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
+     'expect': 'run', 'runSeconds': 5.0,
+     'resolution': {'beforeSeconds': 2.0, 'select': '960x544', 'beforeWidth': 480, 'byRenderer': {
+         'software': {'scale': 1, 'refused': True, 'inapplicable': 'ppsspp_internal_resolution', 'core': None,
+                      'requiredLog': ['load: resolution ppsspp_internal_resolution of PPSSPP does not apply '
+                                      '(renderer software)']},
+         'gles': {'scale': 2, 'key': 'ppsspp_internal_resolution', 'apply': 'live', 'core': '960x544',
+                  'requiredLog': ['load: resolution ppsspp_internal_resolution (live, profile) in effect 480x272',
+                                  'menu: resolution ppsspp_internal_resolution=960x544 for every game of the core']},
+     }}},
     # Only with --only: the simulator GPU cannot start Azahar (see above).
     {'name': 'azahar-1', 'core': 'azahar', 'content': 'content/ftpd.3dsx', 'console': '3ds', 'expect': 'run',
      'runSeconds': 4.0, 'default': False},
@@ -279,6 +310,35 @@ def param_sfo(entries):
     key_table = 20 + len(index)
     data_table = key_table + len(keys)
     return struct.pack('<4sIIII', b'\0PSF', 0x101, key_table, data_table, len(entries)) + index + keys + data
+
+
+def crc16(data):
+    """CRC-16 of the Nintendo DS header (initial 0xFFFF, reflected 0x8005)."""
+    value = 0xFFFF
+    for byte in data:
+        value ^= byte
+        for _ in range(8):
+            value = (value >> 1) ^ 0xA001 if value & 1 else value >> 1
+    return value
+
+
+def build_nds(output_path):
+    """A minimal homebrew Nintendo DS image written by the probe itself (no
+    third-party content): both processors loop on one branch. Its ARM9
+    binary below 0x4000 makes it homebrew for DeSmuME (no secure area, no
+    logo check, no firmware needed), which boots it directly and draws both
+    screens every frame."""
+    rom = bytearray(0x8000)
+    rom[0x000:0x00C] = b'NEOPROBE'.ljust(12, b'\0')
+    rom[0x00C:0x010] = b'####'
+    # ARM9 and ARM7: ROM offset, entry, RAM address, size.
+    struct.pack_into('<IIII', rom, 0x020, 0x200, 0x02000000, 0x02000000, 4)
+    struct.pack_into('<IIII', rom, 0x030, 0x204, 0x02380000, 0x02380000, 4)
+    struct.pack_into('<II', rom, 0x080, len(rom), 0x4000)
+    struct.pack_into('<I', rom, 0x200, 0xEAFFFFFE)  # b .
+    struct.pack_into('<I', rom, 0x204, 0xEAFFFFFE)  # b .
+    struct.pack_into('<H', rom, 0x15E, crc16(rom[:0x15E]))
+    output_path.write_bytes(bytes(rom))
 
 
 def build_iso(program, output_path, work):
@@ -422,10 +482,11 @@ def assemble(args, sources, work):
     shutil.copyfile(inputs / 'simple.prx', content / 'simple.prx')
     shutil.copyfile(inputs / 'ftpd.3dsx', content / 'ftpd.3dsx')
     build_iso(inputs / 'simple.prx', content / 'probe.iso', work)
+    build_nds(content / 'probe.nds')
     catalog = CATALOG.read_text(encoding='utf-8')
     geometry = {}
     names = {}
-    for console in ('gb', 'psp', '3ds'):
+    for console in ('gb', 'psp', '3ds', 'nds'):
         names[console], geometry[console] = console_geometry(catalog, console)
     scenarios = []
     for scenario in SCENARIOS:
@@ -597,16 +658,7 @@ def evaluate(report, scenarios):
                     problems.append(f'{name}: the core log lacks "{line}"')
             resolution = scenario.get('resolution')
             if resolution:
-                before = result.get('resolutionBefore') or [0, 0]
-                after = result.get('resolutionAfter') or [0, 0]
-                if before[0] != resolution['beforeWidth'] or before[1] <= 0:
-                    problems.append(f"{name}: frames {before} before the choice, expected {resolution['beforeWidth']} wide")
-                if not result.get('resolutionSelected'):
-                    problems.append(f"{name}: the session refused {resolution['select']}")
-                expected = [round(side * resolution['scale']) for side in before]
-                if after != expected:
-                    problems.append(f'{name}: frames {after} after the choice, expected {expected} '
-                                    f"(x{resolution['scale']} of {before})")
+                problems += resolution_problems(name, resolution, result, launch)
         elif scenario['expect'] == 'core-stopped':
             if launch.get('success') or launch.get('code') != 'LIBRETRO_CORE_STOPPED':
                 problems.append(f"{name}: expected a LIBRETRO_CORE_STOPPED launch failure, got "
@@ -617,6 +669,68 @@ def evaluate(report, scenarios):
                 problems.append(f'{name}: the game view or session stayed after the failure')
             if 'END launch failed LIBRETRO_CORE_STOPPED' not in result.get('journal', ''):
                 problems.append(f'{name}: the journal does not end with the launch failure')
+    return problems
+
+
+def stored_value(document, key, game=None):
+    """The value a session saved: Config/<library>.json ({"values": ...}) or,
+    with `game`, Config/Games/<library>.json ({"games": {game: ...}})."""
+    if not isinstance(document, dict):
+        return None
+    values = document.get('values') if game is None else (document.get('games') or {}).get(game)
+    return values.get(key) if isinstance(values, dict) else None
+
+
+def resolution_problems(name, resolution, result, launch):
+    """The in-game menu's internal resolution: frames before the choice,
+    accepted or refused, frames once the game ran again (the core's real
+    output), and what the session saved (its record of the core's option,
+    the value for every game of the core, the value of this game)."""
+    problems = []
+    expected = resolution
+    renderer = launch.get('hardwareRendering', '')
+    if 'byRenderer' in resolution:
+        expected = dict(resolution, **resolution['byRenderer'].get(renderer, {}))
+        if renderer not in resolution['byRenderer']:
+            return [f'{name}: renderer {renderer!r} has no expectation']
+    journal = result.get('journal', '')
+    for line in expected.get('requiredLog', []):
+        if line not in journal:
+            problems.append(f'{name}: the core log lacks "{line}"')
+    before = result.get('resolutionBefore') or [0, 0]
+    after = result.get('resolutionAfter') or [0, 0]
+    if before[0] != expected['beforeWidth'] or before[1] <= 0:
+        problems.append(f"{name}: frames {before} before the choice, expected {expected['beforeWidth']} wide")
+    selected = bool(result.get('resolutionSelected'))
+    if expected.get('refused'):
+        if selected:
+            problems.append(f"{name}: the session accepted {expected['select']} with the {renderer} renderer")
+    elif not selected:
+        problems.append(f"{name}: the session refused {expected['select']}")
+    scaled = [round(side * expected['scale']) for side in before]
+    if after != scaled:
+        problems.append(f'{name}: frames {after} after the choice, expected {scaled} (x{expected["scale"]} of {before})')
+    snapshot = result.get('resolutionSnapshot')
+    if not isinstance(snapshot, dict) or snapshot.get('renderer') != renderer:
+        problems.append(f'{name}: Config/Resolution record {snapshot!r} does not name the {renderer} renderer')
+    else:
+        internal = snapshot.get('internalResolution')
+        if 'inapplicable' in expected:
+            if internal is not None or snapshot.get('inapplicableKey') != expected['inapplicable']:
+                problems.append(f'{name}: Config/Resolution record {snapshot!r} does not report '
+                                f"{expected['inapplicable']} as not applicable")
+        elif not isinstance(internal, dict) or internal.get('key') != expected.get('key') or \
+                internal.get('apply') != expected.get('apply'):
+            problems.append(f'{name}: Config/Resolution record {internal!r} does not describe '
+                            f"{expected.get('key')} ({expected.get('apply')})")
+    key = expected.get('key') or expected.get('inapplicable')
+    if 'core' in expected and stored_value(result.get('resolutionCoreFile'), key) != expected['core']:
+        problems.append(f"{name}: {key} saved for the core is "
+                        f"{stored_value(result.get('resolutionCoreFile'), key)!r}, expected {expected['core']!r}")
+    if 'game' in expected:
+        game = stored_value(result.get('resolutionGameFile'), key, result.get('gameKey'))
+        if game != expected['game']:
+            problems.append(f"{name}: {key} saved for {result.get('gameKey')} is {game!r}, expected {expected['game']!r}")
     return problems
 
 
@@ -694,11 +808,47 @@ def summarise(report, scenarios):
             print(f"    resolution: frames {result.get('resolutionBefore')} -> {result.get('resolutionAfter')}, "
                   f"choice accepted {result.get('resolutionSelected')}", flush=True)
         for line in result.get('journal', '').splitlines():
-            if 'unavailable' in line or 'PPSSPP memory window' in line or 'PPSSPP window' in line:
+            if 'unavailable' in line or 'PPSSPP memory window' in line or 'PPSSPP window' in line or \
+                    (scenario.get('resolution') and ('resolution' in line or 'run: frame' in line)):
                 print(f'    {line.split(" ", 2)[-1]}', flush=True)
         if 'regionsAfterCrowd' in result:
             for line in crowd_evidence(result):
                 print(f'    {line}', flush=True)
+
+
+def crash_summary(evidence, limit=24):
+    """The crashed thread of the newest Probe crash report copied to the
+    evidence (.ips: a JSON header line, then the JSON report), printed in
+    the job log next to the progress lines."""
+    reports = sorted(evidence.glob('Probe*.ips'), key=lambda path: path.stat().st_mtime)
+    if not reports:
+        return ['no crash report of the probe was found']
+    _, _, body = reports[-1].read_text(errors='replace').partition('\n')
+    try:
+        report = json.loads(body)
+    except ValueError:
+        return [f'{reports[-1].name}: unreadable']
+    exception = report.get('exception') or {}
+    lines = [f"{reports[-1].name}: {exception.get('type', '?')} {exception.get('signal', '')} "
+             f"{exception.get('subtype', '')}".rstrip()]
+    termination = report.get('termination') or {}
+    if termination.get('indicator'):
+        lines.append(f"termination: {termination['indicator']}")
+    for owner, texts in (report.get('asi') or {}).items():
+        for text in (texts if isinstance(texts, list) else [texts])[:3]:
+            lines.append(f'{owner}: {text}')
+    images = report.get('usedImages') or []
+    for thread in report.get('threads') or []:
+        if not thread.get('triggered'):
+            continue
+        lines.append(f"crashed thread: {thread.get('name') or thread.get('queue') or '-'}")
+        for frame in (thread.get('frames') or [])[:limit]:
+            index = frame.get('imageIndex')
+            image = images[index].get('name', '?') if isinstance(index, int) and 0 <= index < len(images) else '?'
+            symbol = frame.get('symbol')
+            where = f"{symbol} + {frame.get('symbolLocation', 0)}" if symbol else f"+0x{frame.get('imageOffset', 0):x}"
+            lines.append(f'  {image} {where}')
+    return lines
 
 
 def command_run(args):
@@ -717,6 +867,9 @@ def command_run(args):
     (evidence / 'outcome.json').write_text(json.dumps(outcome, indent=2) + '\n')
     print(f"\nProbe on {outcome['simulator']} ({args.label}): finished={outcome['finished']} "
           f"exitedEarly={outcome['exitedEarly']} in {outcome['seconds']} s", flush=True)
+    if outcome['exitedEarly']:
+        for line in crash_summary(evidence):
+            print(f'  crash: {line}', flush=True)
     summarise(report, scenarios)
     if args.expect == 'unfixed':
         # Informational: does this tree's process die while closing a game,

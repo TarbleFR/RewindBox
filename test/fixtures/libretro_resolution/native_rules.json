@@ -13,7 +13,11 @@
           "Vulkan",
           "OpenGL"
         ]
-      }
+      },
+      "renderers": [
+        "vulkan",
+        "gles"
+      ]
     },
     {
       "keys": [
@@ -38,7 +42,11 @@
           "hardware_gl",
           "software"
         ]
-      }
+      },
+      "renderers": [
+        "gles",
+        "software"
+      ]
     },
     {
       "keys": [
@@ -48,9 +56,13 @@
       "maxFactor": 8.0,
       "requires": {
         "beetle_psx_hw_renderer": [
+          "hardware",
           "hardware_vk"
         ]
-      }
+      },
+      "renderers": [
+        "vulkan"
+      ]
     },
     {
       "keys": [
@@ -70,7 +82,10 @@
         "ppsspp_software_rendering": [
           "disabled"
         ]
-      }
+      },
+      "renderers": [
+        "gles"
+      ]
     },
     {
       "keys": [
@@ -84,12 +99,16 @@
       "maxFactor": 5.0,
       "requires": {
         "ppsspp_backend": [
+          "auto",
           "vulkan"
         ],
         "ppsspp_software_rendering": [
           "disabled"
         ]
-      }
+      },
+      "renderers": [
+        "vulkan"
+      ]
     },
     {
       "keys": [
@@ -111,7 +130,10 @@
         "mupen64plus-EnableNativeResFactor": [
           "0"
         ]
-      }
+      },
+      "renderers": [
+        "gles"
+      ]
     },
     {
       "keys": [
@@ -123,7 +145,10 @@
         "mupen64plus-rdp-plugin": [
           "parallel"
         ]
-      }
+      },
+      "renderers": [
+        "vulkan"
+      ]
     },
     {
       "keys": [
@@ -144,7 +169,10 @@
         "melonds_render_mode": [
           "opengl"
         ]
-      }
+      },
+      "renderers": [
+        "gles"
+      ]
     },
     {
       "keys": [

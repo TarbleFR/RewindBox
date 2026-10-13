@@ -144,6 +144,27 @@ void main() {
     expect(find.byKey(const ValueKey('libretro-resolution-unsupported-snes9x')), findsOneWidget);
     expect(find.text(t('en', 'resolutionUnsupported', {'core': 'Snes9x'})), findsOneWidget);
     expect(find.text(t('en', 'resolutionUnsupportedFooter', {'core': 'Snes9x'})), findsOneWidget);
+    expect(find.text(t('en', 'resolutionInapplicableFooter', {'core': 'Snes9x'})), findsNothing);
+    expect(find.byType(ChoiceChip), findsNothing);
+  });
+
+  testWidgets('an option that did not apply at the last launch is explained, not offered', (tester) async {
+    // PPSSPP in its software context (no OpenGL ES context): the session
+    // recorded the option it found without offering it.
+    final snapshot = File(p.join(config.path, 'Resolution', 'ppsspp.json'));
+    snapshot.parent.createSync(recursive: true);
+    snapshot.writeAsStringSync(jsonEncode(<String, Object?>{
+      'version': 1,
+      'coreId': 'ppsspp',
+      'libraryName': 'PPSSPP',
+      'renderer': 'software',
+      'internalResolution': null,
+      'inapplicableKey': 'ppsspp_internal_resolution',
+    }));
+    await pumpPage(tester, 'psp');
+    expect(find.byKey(const ValueKey('libretro-resolution-unsupported-ppsspp')), findsOneWidget);
+    expect(find.text(t('en', 'resolutionInapplicableFooter', {'core': 'PPSSPP'})), findsOneWidget);
+    expect(find.text(t('en', 'resolutionUnsupportedFooter', {'core': 'PPSSPP'})), findsNothing);
     expect(find.byType(ChoiceChip), findsNothing);
   });
 

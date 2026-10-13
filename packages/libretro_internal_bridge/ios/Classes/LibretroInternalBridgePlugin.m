@@ -74,8 +74,9 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"resolutionScopeFooter", @"resolutionFromCore", @"resolutionDefaultNative", @"resolutionGameKeepsOwn",
     @"resolutionAppliesNow", @"resolutionAppliesRelaunch", @"resolutionLoadWarning", @"resolutionCurrentImage",
     @"resolutionNextLaunch", @"resolutionUseCore", @"resolutionRestoreNative", @"resolutionUnsupported",
-    @"resolutionUnsupportedFooter", @"resolutionEnlargement", @"resolutionEnlargementFooter",
-    @"resolutionUpscalingShaders", @"resolutionFiltering", @"resolutionFilteringFooter",
+    @"resolutionUnsupportedFooter", @"resolutionInapplicableFooter", @"resolutionEnlargement",
+    @"resolutionEnlargementFooter", @"resolutionUpscalingShaders", @"resolutionFiltering",
+    @"resolutionFilteringFooter",
   ];
 }
 

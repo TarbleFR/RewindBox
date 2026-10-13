@@ -184,6 +184,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   // Internal resolution (Build 455). The frame size is written by the
   // emulation thread and read by the menu.
   LibretroResolutionRules *_resolutionRules;
+  // The renderer the core obtained ("gles", "vulkan", "software"), set by
+  // the loading thread once the content is loaded, before the menu exists;
+  // nil before (no renderer condition for the native default).
+  NSString *_loadedRenderer;
   _Atomic uint32_t _frameWidth;
   _Atomic uint32_t _frameHeight;
   NSUInteger _frameSizeNotes;
@@ -688,6 +692,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   if (![_host loadContentAtPath:configuration.contentPath error:&error]) return [self failureFromError:error];
   [_journal note:[NSString stringWithFormat:@"load: content accepted (%@)",
                                             _host.usesHardwareRendering ? @"hardware rendering" : @"software"]];
+  _loadedRenderer = [self rendererName];
   [self noteInternalResolution];
   struct retro_system_av_info av = _host.avInfo;
   [self applyGeometry:av.geometry];
@@ -2113,7 +2118,16 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 /// nil when it has none. Any thread.
 - (LibretroResolutionCapability *)resolutionCapabilityWithOptions:(LibretroCoreOptions *)options {
   LibretroSize size = [self consoleNominalSize];
-  return [_resolutionRules capabilityForCoreOptions:options consoleWidth:size.w consoleHeight:size.h];
+  return [_resolutionRules capabilityForCoreOptions:options
+                                           renderer:_loadedRenderer
+                                       consoleWidth:size.w
+                                      consoleHeight:size.h];
+}
+
+/// With no capability: the option a profile names that the core declared,
+/// which does not apply to the way the core draws now (nil: it has none).
+- (NSString *)inapplicableResolutionKeyWithOptions:(LibretroCoreOptions *)options {
+  return options != nil ? [_resolutionRules profileKeyForOptions:options.options] : nil;
 }
 
 - (LibretroResolutionCapability *)resolutionCapability {
@@ -2126,7 +2140,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 - (void)noteInternalResolution {
   LibretroCoreOptions *options = _host.options;
   LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
-  if (capability == nil) {
+  NSString *inapplicable = capability == nil ? [self inapplicableResolutionKeyWithOptions:options] : nil;
+  if (inapplicable != nil) {
+    [_journal note:[NSString stringWithFormat:@"load: resolution %@ of %@ does not apply (renderer %@)", inapplicable,
+                                              _host.libraryName ?: @"", _loadedRenderer ?: @"unknown"]];
+  } else if (capability == nil) {
     [_journal note:[NSString stringWithFormat:@"load: %@ declares no internal resolution NeoStation offers",
                                               _host.libraryName ?: @""]];
   } else {
@@ -2138,23 +2156,26 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                               capability.source, [options currentValueForKey:capability.key] ?: @"",
                                               [values componentsJoinedByString:@"|"]]];
   }
-  [self writeResolutionSnapshot:capability];
+  [self writeResolutionSnapshot:capability inapplicableKey:inapplicable];
 }
 
-- (void)writeResolutionSnapshot:(LibretroResolutionCapability *)capability {
+- (void)writeResolutionSnapshot:(LibretroResolutionCapability *)capability inapplicableKey:(NSString *)inapplicable {
   NSString *coreId = _configuration.coreId;
   NSString *directory = _configuration.optionsDirectory;
   if (coreId.length == 0 || coreId.length > 64 || directory.length == 0) return;
   NSCharacterSet *allowed =
       [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz0123456789_"];
   if ([coreId rangeOfCharacterFromSet:allowed.invertedSet].location != NSNotFound) return;
-  NSDictionary *document = @{
+  NSMutableDictionary *document = [@{
     @"version" : @1,
     @"coreId" : coreId,
     @"libraryName" : _host.libraryName ?: @"",
     @"libraryVersion" : _host.libraryVersion ?: @"",
+    @"renderer" : _loadedRenderer ?: @"",
     @"internalResolution" : capability != nil ? [capability snapshot] : (id)NSNull.null,
-  };
+  } mutableCopy];
+  // The core has the option, but it does not apply to the way it draws.
+  if (capability == nil && inapplicable != nil) document[@"inapplicableKey"] = inapplicable;
   NSData *data = [NSJSONSerialization dataWithJSONObject:document
                                                  options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys
                                                    error:nil];
@@ -2377,7 +2398,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     unsupported.identifier = @"libretro-resolution-unsupported";
     LibretroMenuSection *internal = [LibretroMenuSection sectionWithTitle:[self text:@"settingResolution"]
                                                                      rows:@[ unsupported, image ]];
-    internal.footer = [self text:@"resolutionUnsupportedFooter" replacing:@"{core}" with:coreName];
+    // A core with the option that does not apply to the way it draws now
+    // (PPSSPP in software rendering) is told apart from one without it.
+    BOOL inapplicable = [self inapplicableResolutionKeyWithOptions:options] != nil;
+    internal.footer = [self text:inapplicable ? @"resolutionInapplicableFooter" : @"resolutionUnsupportedFooter"
+                       replacing:@"{core}"
+                            with:coreName];
     [sections addObject:internal];
   }
 

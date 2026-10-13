@@ -94,8 +94,26 @@ void main() {
           if (first == null) {
             seen[key] = profile;
           } else {
-            expect(profile.requires, isNotEmpty, reason: '$key: a second profile needs its own conditions');
-            expect(profile.requires, isNot(equals(first.requires)), reason: key);
+            // Its own conditions: other option values, or other renderers.
+            expect(profile.requires.isNotEmpty || profile.renderers.isNotEmpty, isTrue,
+                reason: '$key: a second profile needs its own conditions');
+            expect(
+              jsonEncode(profile.requires) != jsonEncode(first.requires) ||
+                  jsonEncode(profile.renderers) != jsonEncode(first.renderers),
+              isTrue,
+              reason: key,
+            );
+          }
+          for (final renderer in profile.renderers) {
+            expect(
+              <String>[
+                LibretroResolutionRenderer.gles,
+                LibretroResolutionRenderer.vulkan,
+                LibretroResolutionRenderer.software,
+              ],
+              contains(renderer),
+              reason: key,
+            );
           }
           expect(LibretroResolution.profileFor(key), same(seen[key]));
         }
@@ -131,6 +149,40 @@ void main() {
       for (final key in <String>['reicast_internal_resolution', 'dolphin_efb_scale', 'play_res_multi']) {
         expect(apply(key), LibretroResolutionApply.relaunch, reason: key);
       }
+    });
+
+    test('renderers: each live profile names the renderers its source was read for', () {
+      List<LibretroResolutionProfile> named(String key) =>
+          LibretroResolution.profiles.where((profile) => profile.keys.contains(key)).toList();
+      // PPSSPP: live only with an OpenGL ES context. In its own software
+      // context (no hardware context from the frontend) the frames stay
+      // 480x272, and a change during the game makes check_variables call
+      // ContextReset on that software context: nothing is offered then.
+      final ppsspp = named('ppsspp_internal_resolution');
+      expect(ppsspp.map((profile) => profile.renderers), <List<String>>[
+        <String>[LibretroResolutionRenderer.gles],
+        <String>[LibretroResolutionRenderer.vulkan],
+      ]);
+      expect(ppsspp.map((profile) => profile.apply),
+          <LibretroResolutionApply>[LibretroResolutionApply.live, LibretroResolutionApply.relaunch]);
+      for (final profile in ppsspp) {
+        expect(profile.renderers, isNot(contains(LibretroResolutionRenderer.software)));
+      }
+      // Beetle PSX: live with OpenGL ES or its software renderer, next
+      // launch with Vulkan.
+      final beetle = named('beetle_psx_hw_internal_resolution');
+      expect(beetle.first.renderers,
+          <String>[LibretroResolutionRenderer.gles, LibretroResolutionRenderer.software]);
+      expect(beetle.last.renderers, <String>[LibretroResolutionRenderer.vulkan]);
+      expect(beetle.last.apply, LibretroResolutionApply.relaunch);
+      // Azahar draws with a GPU renderer only; DeSmuME's rasterizer is
+      // software: no renderer condition.
+      expect(named('citra_resolution_factor').single.renderers, isNot(contains(LibretroResolutionRenderer.software)));
+      expect(named('desmume_internal_resolution').single.renderers, isEmpty);
+      expect(named('mupen64plus-43screensize').single.renderers, <String>[LibretroResolutionRenderer.gles]);
+      // Sent to the native session only when set.
+      expect(named('desmume_internal_resolution').single.toNative().containsKey('renderers'), isFalse);
+      expect(ppsspp.first.toNative()['renderers'], <String>[LibretroResolutionRenderer.gles]);
     });
 
     test('generic patterns recognize resolution options of cores without a profile', () {
@@ -300,6 +352,27 @@ void main() {
       final resolution = await service().forCore(ppsspp, console: 'psp');
       expect(resolution.detected, isTrue);
       expect(resolution.supported, isFalse);
+      expect(resolution.inapplicableKey, isNull);
+    });
+
+    test('an option that did not apply to the way the core drew is told apart', () async {
+      // PPSSPP in its software context: the session found the option but
+      // offered nothing (Config/Resolution/ppsspp.json, Build 455).
+      final ppsspp = LibretroCoreCatalog.cores['ppsspp']!;
+      await writeJson('Resolution/ppsspp.json', <String, Object?>{
+        'version': 1,
+        'coreId': 'ppsspp',
+        'libraryName': 'PPSSPP',
+        'renderer': 'software',
+        'internalResolution': null,
+        'inapplicableKey': 'ppsspp_internal_resolution',
+      });
+      final resolution = await service().forCore(ppsspp, console: 'psp');
+      expect(resolution.detected, isTrue);
+      expect(resolution.supported, isFalse);
+      expect(resolution.inapplicableKey, 'ppsspp_internal_resolution');
+      await expectLater(service().setValue(resolution, '960x544'), throwsArgumentError);
+      expect(File(p.join(config.path, 'PPSSPP.json')).existsSync(), isFalse);
     });
 
     test('a snapshot of another core or without a library name is ignored', () async {

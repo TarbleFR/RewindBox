@@ -22,6 +22,7 @@ class LibretroCoreResolution {
     this.detected = false,
     this.stored,
     this.gamesWithOwnValue = 0,
+    this.inapplicableKey,
   });
 
   final LibretroCore core;
@@ -49,6 +50,11 @@ class LibretroCoreResolution {
 
   /// Games with a resolution of their own (`Config/Games/<library>.json`).
   final int gamesWithOwnValue;
+
+  /// With no internal resolution offered: the option the core declared at
+  /// its last launch that did not apply to the way it drew (PPSSPP in
+  /// software rendering); null when the core has none.
+  final String? inapplicableKey;
 
   bool get supported => key != null && choices.length >= 2 && libraryName.isNotEmpty;
 
@@ -183,7 +189,15 @@ class LibretroResolutionService {
   LibretroCoreResolution _fromSnapshot(LibretroCore core, Map<String, Object?> snapshot) {
     final libraryName = snapshot['libraryName'] as String;
     final internal = snapshot['internalResolution'];
-    if (internal is! Map) return LibretroCoreResolution(core: core, libraryName: libraryName, detected: true);
+    if (internal is! Map) {
+      final inapplicable = snapshot['inapplicableKey'];
+      return LibretroCoreResolution(
+        core: core,
+        libraryName: libraryName,
+        detected: true,
+        inapplicableKey: inapplicable is String && inapplicable.isNotEmpty ? inapplicable : null,
+      );
+    }
     final key = internal['key'];
     final list = internal['choices'];
     if (key is! String || key.isEmpty || list is! List) {

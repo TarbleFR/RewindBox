@@ -636,6 +636,81 @@ int main(int argc, const char *argv[]) {
     [standalone setValue:@"gamma" forKey:@"neotest_mode" persist:NO];
     CHECK([[conditional capabilityForCoreOptions:standalone consoleWidth:160 consoleHeight:144].key isEqualToString:key],
           "the same profile applies once its condition holds");
+
+    // Renderers: a profile established for one renderer is not used once
+    // the core runs with another, and its key is not recognized by name
+    // either; before the content is loaded (renderer unknown) they are no
+    // condition, so the native default still applies.
+    LibretroResolutionRules *rendered = [[LibretroResolutionRules alloc] initWithDictionary:@{
+      @"profiles" : @[ @{@"keys" : @[ key ], @"apply" : @"live", @"renderers" : @[ LibretroResolutionRendererGLES ]} ],
+      @"keyPattern" : nativeRules[@"keyPattern"],
+      @"descriptionPattern" : nativeRules[@"descriptionPattern"],
+    }];
+    CHECK([[rendered capabilityForCoreOptions:standalone renderer:nil consoleWidth:160 consoleHeight:144].key
+              isEqualToString:key],
+          "before the content is loaded the renderer is no condition");
+    LibretroResolutionCapability *renderedGL = [rendered capabilityForCoreOptions:standalone
+                                                                          renderer:LibretroResolutionRendererGLES
+                                                                      consoleWidth:160
+                                                                     consoleHeight:144];
+    CHECK([renderedGL.key isEqualToString:key] && renderedGL.apply == LibretroResolutionApplyLive,
+          "a profile applies with a renderer it names");
+    CHECK([rendered capabilityForCoreOptions:standalone
+                                    renderer:LibretroResolutionRendererSoftware
+                                consoleWidth:160
+                               consoleHeight:144] == nil,
+          "with another renderer nothing is offered, not even by the option's name");
+    CHECK([[rendered profileKeyForOptions:standalone.options] isEqualToString:key],
+          "the option is reported as present but not applicable");
+    CHECK([generic profileKeyForOptions:standalone.options] == nil,
+          "an option no profile names is never reported as not applicable");
+
+    // PPSSPP with the rules the app sends: live with an OpenGL ES context,
+    // next launch with Vulkan, nothing in its software context (frames stay
+    // 480x272 there, and a change during the game resets a hardware context
+    // it does not have).
+    LibretroCoreOptions *psp = [[LibretroCoreOptions alloc]
+        initWithStorePath:[resolutionWork stringByAppendingPathComponent:@"Config/PPSSPP.json"]];
+    struct retro_core_option_v2_definition pspDefinitions[] = {
+      {.key = "ppsspp_backend", .desc = "Backend",
+       .values = {{"auto", NULL}, {"opengl", NULL}, {"vulkan", NULL}, {"none", NULL}, {NULL, NULL}},
+       .default_value = "auto"},
+      {.key = "ppsspp_software_rendering", .desc = "Software Rendering",
+       .values = {{"disabled", NULL}, {"enabled", NULL}, {NULL, NULL}}, .default_value = "disabled"},
+      {.key = "ppsspp_internal_resolution", .desc = "Rendering Resolution",
+       .values = {{"480x272", NULL}, {"960x544", NULL}, {"1440x816", NULL}, {"1920x1088", NULL}, {"2400x1360", NULL},
+                  {"2880x1632", NULL}, {NULL, NULL}},
+       .default_value = "480x272"},
+      {0}
+    };
+    struct retro_core_options_v2 pspDeclarations = {NULL, pspDefinitions};
+    [psp declareV2:&pspDeclarations local:NULL];
+    LibretroResolutionCapability *pspGL = [generic capabilityForCoreOptions:psp
+                                                                   renderer:LibretroResolutionRendererGLES
+                                                               consoleWidth:480
+                                                              consoleHeight:272];
+    CHECK([pspGL.key isEqualToString:@"ppsspp_internal_resolution"] && pspGL.apply == LibretroResolutionApplyLive &&
+              pspGL.choices.count == 5 && [pspGL.nativeChoice.value isEqualToString:@"480x272"],
+          "PPSSPP with OpenGL ES: live, native to 5x");
+    LibretroResolutionCapability *pspVulkan = [generic capabilityForCoreOptions:psp
+                                                                       renderer:LibretroResolutionRendererVulkan
+                                                                   consoleWidth:480
+                                                                  consoleHeight:272];
+    CHECK([pspVulkan.key isEqualToString:@"ppsspp_internal_resolution"] &&
+              pspVulkan.apply == LibretroResolutionApplyRelaunch,
+          "PPSSPP with Vulkan: next launch");
+    CHECK([generic capabilityForCoreOptions:psp
+                                   renderer:LibretroResolutionRendererSoftware
+                               consoleWidth:480
+                              consoleHeight:272] == nil &&
+              [[generic profileKeyForOptions:psp.options] isEqualToString:@"ppsspp_internal_resolution"],
+          "PPSSPP in its software context: nothing offered, the option reported as not applicable");
+    [psp setValue:@"enabled" forKey:@"ppsspp_software_rendering" persist:NO];
+    CHECK([generic capabilityForCoreOptions:psp
+                                   renderer:LibretroResolutionRendererGLES
+                               consoleWidth:480
+                              consoleHeight:272] == nil,
+          "PPSSPP's software rendering option: nothing offered");
     struct retro_core_option_display hidden = {"neotest_internal_resolution", false};
     [standalone setDisplay:&hidden];
     LibretroResolutionCapability *hiddenCapability = [generic capabilityForCoreOptions:standalone
