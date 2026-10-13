@@ -7,8 +7,10 @@
 
 #import "LibretroCoreHost.h"
 #import "LibretroCoreOptions.h"
+#import "LibretroResolution.h"
 #import "LibretroStateCodec.h"
 
+#include <math.h>
 #include <zlib.h>
 
 static int failures = 0;
@@ -27,6 +29,11 @@ static int failures = 0;
 @property(nonatomic) unsigned frames;
 @property(nonatomic) uint32_t pixel0;
 @property(nonatomic) uint32_t pixel1;
+// Size of the last frame and the geometry of the last SET_SYSTEM_AV_INFO.
+@property(nonatomic) unsigned lastWidth;
+@property(nonatomic) unsigned lastHeight;
+@property(nonatomic) unsigned timingChanges;
+@property(nonatomic) unsigned announcedWidth;
 @property(nonatomic) size_t audioFrames;
 @property(nonatomic) uint16_t buttons;
 @property(nonatomic) unsigned fills;
@@ -43,6 +50,12 @@ static int failures = 0;
   self.frames++;
   self.pixel0 = ((const uint32_t *)data)[0];
   self.pixel1 = ((const uint32_t *)data)[1];
+  self.lastWidth = width;
+  self.lastHeight = height;
+}
+- (void)coreHost:(LibretroCoreHost *)host timingChanged:(struct retro_system_av_info)avInfo {
+  self.timingChanges++;
+  self.announcedWidth = avInfo.geometry.base_width;
 }
 - (void)coreHost:(LibretroCoreHost *)host audioFrames:(const int16_t *)frames count:(size_t)count {
   self.audioFrames += count;
@@ -88,6 +101,68 @@ static LibretroCoreHost *MakeHost(NSString *core, NSString *work) {
                                          jitCapable:NO];
 }
 
+static id JSONAtPath(NSString *path) {
+  NSData *data = [NSData dataWithContentsOfFile:path];
+  return data != nil ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+}
+
+static NSArray<NSNumber *> *NumberPair(id value) {
+  return [value isKindOfClass:[NSArray class]] && [value count] == 2 ? value : nil;
+}
+
+/// The shared value cases (test/fixtures/libretro_resolution/value_cases.json),
+/// which Dart's LibretroResolution passes too: both readers agree.
+static void CheckResolutionCases(NSString *fixtures) {
+  NSDictionary *cases = JSONAtPath([fixtures stringByAppendingPathComponent:@"value_cases.json"]);
+  CHECK([cases[@"tokens"] count] > 0 && [cases[@"choices"] count] > 0, "resolution value cases read");
+  int mismatches = 0;
+  for (NSDictionary *entry in cases[@"tokens"]) {
+    NSString *value = entry[@"value"];
+    id expected = entry[@"expected"];
+    double factor = 0;
+    NSUInteger width = 0, height = 0;
+    BOOL parsed = LibretroResolutionParseValue(value, &factor, &width, &height);
+    BOOL same;
+    if (expected == NSNull.null) {
+      same = !parsed;
+    } else if (expected[@"factor"] != nil) {
+      same = parsed && fabs(factor - [expected[@"factor"] doubleValue]) < 1e-9 && width == 0 && height == 0;
+    } else {
+      same = parsed && factor == 0 && width == [expected[@"width"] unsignedIntegerValue] &&
+             height == [expected[@"height"] unsignedIntegerValue];
+    }
+    if (!same) {
+      mismatches++;
+      printf("  token \"%s\": parsed %d, factor %g, %lux%lu\n", value.UTF8String, parsed, factor,
+             (unsigned long)width, (unsigned long)height);
+    }
+  }
+  CHECK(mismatches == 0, "every value of the shared cases reads as in Dart");
+  mismatches = 0;
+  for (NSDictionary *entry in cases[@"choices"]) {
+    NSArray<NSNumber *> *console = NumberPair(entry[@"consoleSize"]);
+    id maxDimension = entry[@"maxDimension"];
+    NSArray<LibretroResolutionChoice *> *choices = LibretroResolutionChoices(
+        entry[@"values"], entry[@"labels"], NumberPair(entry[@"nativeSize"]), console ? console[0].doubleValue : 0,
+        console ? console[1].doubleValue : 0, [entry[@"maxFactor"] doubleValue],
+        maxDimension != nil ? [maxDimension integerValue] : 8192);
+    NSMutableArray *got = [NSMutableArray array];
+    for (LibretroResolutionChoice *choice in choices) {
+      [got addObject:@[ choice.value, @(choice.factor), @(choice.width), @(choice.height) ]];
+    }
+    NSMutableArray *want = [NSMutableArray array];
+    for (NSDictionary *choice in entry[@"expected"]) {
+      [want addObject:@[ choice[@"value"], @([choice[@"factor"] doubleValue]), @([choice[@"width"] unsignedIntegerValue]),
+                         @([choice[@"height"] unsignedIntegerValue]) ]];
+    }
+    if (![got isEqualToArray:want]) {
+      mismatches++;
+      printf("  choices \"%s\": %s\n", [entry[@"name"] UTF8String], got.description.UTF8String);
+    }
+  }
+  CHECK(mismatches == 0, "every choice list of the shared cases is as in Dart");
+}
+
 static NSData *RzipWrap(NSData *payload) {
   // One deflate (zlib-framed) chunk, as RetroArch's rzip writer produces.
   uLongf bound = compressBound((uLong)payload.length);
@@ -109,8 +184,8 @@ static NSData *RzipWrap(NSData *payload) {
 
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
-    if (argc < 4) {
-      printf("usage: host_test CORE WORKDIR CONTENT_ZIP\n");
+    if (argc < 5) {
+      printf("usage: host_test CORE WORKDIR CONTENT_ZIP RESOLUTION_FIXTURES\n");
       return 2;
     }
     NSString *core = @(argv[1]);
@@ -384,6 +459,189 @@ int main(int argc, const char *argv[]) {
           "a core polling twice per frame refreshes twice with one frame number");
     CHECK(eagerRAM != NULL && eagerSize > 11 && eagerRAM[11] == 0x04, "a polling core still reads its pad");
     [eager unloadWithContextDestroy:nil contextRelease:nil];
+
+    // Session 7 (Build 455): internal resolution. The rules are those the
+    // Dart catalog sends (native_rules.json); `live` adds a profile for the
+    // test core's option, as the catalog has for the cores it knows.
+    NSString *fixtures = @(argv[4]);
+    CheckResolutionCases(fixtures);
+    NSDictionary *nativeRules = JSONAtPath([fixtures stringByAppendingPathComponent:@"native_rules.json"]);
+    CHECK([nativeRules[@"keyPattern"] length] > 0 && [nativeRules[@"profiles"] count] > 0, "native rules read");
+    NSMutableDictionary *liveRules = [nativeRules mutableCopy];
+    liveRules[@"profiles"] = [@[ @{@"keys" : @[ @"neotest_internal_resolution" ], @"apply" : @"live"} ]
+        arrayByAddingObjectsFromArray:nativeRules[@"profiles"]];
+    LibretroResolutionRules *live = [[LibretroResolutionRules alloc] initWithDictionary:liveRules];
+    LibretroResolutionRules *generic = [[LibretroResolutionRules alloc] initWithDictionary:nativeRules];
+    NSString *resolutionWork = [work stringByAppendingPathComponent:@"Resolution"];
+    NSString *gamesPath = [resolutionWork stringByAppendingPathComponent:@"Config/Games/NeoTest.json"];
+    NSString *corePath = [resolutionWork stringByAppendingPathComponent:@"Config/NeoTest.json"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:gamesPath.stringByDeletingLastPathComponent
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:nil];
+    // Another game's value and an unknown key the per-game file must keep.
+    NSDictionary *seeded = @{
+      @"version" : @1,
+      @"games" : @{@"gb/Other.ntc" : @{@"neotest_internal_resolution" : @"4x"}},
+      @"kept" : @"yes",
+    };
+    [[NSJSONSerialization dataWithJSONObject:seeded options:0 error:nil] writeToFile:gamesPath atomically:YES];
+    NSString *key = @"neotest_internal_resolution";
+    NSString *thisGame = @"gb/Test Game.ntc";
+
+    // A core whose own default (2x) is not native starts at native.
+    TestDelegate *firstRun = [TestDelegate new];
+    LibretroCoreHost *sized = MakeHost(core, resolutionWork);
+    sized.delegate = firstRun;
+    sized.optionsGameKey = thisGame;
+    __block LibretroResolutionCapability *declared = nil;
+    __block NSString *nativeApplied = nil;
+    sized.optionsDeclared = ^(LibretroCoreOptions *options) {
+      declared = [live capabilityForCoreOptions:options consoleWidth:160 consoleHeight:144];
+      nativeApplied = LibretroResolutionApplyNativeDefault(declared, options);
+    };
+    CHECK([sized loadCore:&error] && [sized loadContentAtPath:content error:&error], "core loads for the resolution session");
+    CHECK([declared.key isEqualToString:key] && declared.apply == LibretroResolutionApplyLive &&
+              [declared.source isEqualToString:@"profile"],
+          "the profile names the core's option once declared, before retro_init");
+    CHECK(declared.choices.count == 4 && [declared.nativeChoice.value isEqualToString:@"1x (native)"] &&
+              [declared.coreDefault isEqualToString:@"2x"],
+          "four factors offered, native first, core default 2x");
+    CHECK([nativeApplied isEqualToString:@"1x (native)"], "native applied as NeoStation's default");
+    CHECK(!sized.options.updatePending, "the native default given before retro_init is not an update");
+    [sized runFrame];
+    CHECK(firstRun.lastWidth == 320 && firstRun.lastHeight == 240,
+          "the core read native in retro_init and draws 320x240 from its first frame");
+
+    // Live change for every game of the core: the effective picture changes.
+    LibretroResolutionCapability *capability = [live capabilityForCoreOptions:sized.options
+                                                                  consoleWidth:160
+                                                                 consoleHeight:144];
+    CHECK(LibretroResolutionSelect(capability, sized.options, @"3x", NO), "3x chosen for every game of the core");
+    CHECK(sized.options.updatePending, "a live option is flagged for the running core");
+    [sized runFrame];
+    CHECK(firstRun.lastWidth == 960 && firstRun.lastHeight == 720, "the running core draws at 3x once the game resumes");
+    CHECK(firstRun.timingChanges == 1 && firstRun.announcedWidth == 960,
+          "the core announced its new size (SET_SYSTEM_AV_INFO) to the host");
+    NSDictionary *coreFile = JSONAtPath(corePath);
+    CHECK([coreFile[@"values"][key] isEqual:@"3x"], "the choice for every game is saved in the core's file at once");
+
+    // Live change for this game only.
+    CHECK(LibretroResolutionSelect(capability, sized.options, @"2x", YES), "2x chosen for this game only");
+    [sized runFrame];
+    CHECK(firstRun.lastWidth == 640 && firstRun.lastHeight == 480, "the game's own value is in effect at once");
+    NSDictionary *gamesFile = JSONAtPath(gamesPath);
+    CHECK([gamesFile[@"games"][thisGame][key] isEqual:@"2x"], "the game's value is saved in the per-game file");
+    CHECK([gamesFile[@"games"][@"gb/Other.ntc"][key] isEqual:@"4x"] && [gamesFile[@"kept"] isEqual:@"yes"],
+          "other games and unknown keys of the per-game file are kept");
+    CHECK([JSONAtPath(corePath)[@"values"][key] isEqual:@"3x"], "the core's value is untouched by a game's value");
+    CHECK(!LibretroResolutionSelect(capability, sized.options, @"5x", YES) &&
+              !LibretroResolutionSelect(capability, sized.options, @"8x", NO),
+          "a value the core does not offer is refused");
+    CHECK([[sized.options valueForEveryGameForKey:key] isEqualToString:@"3x"] &&
+              [[sized.options gameValueForKey:key] isEqualToString:@"2x"],
+          "the page reads every game's value and this game's apart");
+    [sized unloadWithContextDestroy:nil contextRelease:nil];
+
+    // Relaunch of the same game: its own value, never replaced by native.
+    TestDelegate *secondRun = [TestDelegate new];
+    LibretroCoreHost *again2 = MakeHost(core, resolutionWork);
+    again2.delegate = secondRun;
+    again2.optionsGameKey = thisGame;
+    __block NSString *secondNative = @"unset";
+    again2.optionsDeclared = ^(LibretroCoreOptions *options) {
+      secondNative = LibretroResolutionApplyNativeDefault([live capabilityForCoreOptions:options
+                                                                            consoleWidth:160
+                                                                           consoleHeight:144],
+                                                         options);
+    };
+    CHECK([again2 loadCore:&error] && [again2 loadContentAtPath:content error:&error], "core loads again for the game");
+    [again2 runFrame];
+    CHECK(secondNative == nil && secondRun.lastWidth == 640, "the game's saved 2x survives the relaunch");
+    LibretroResolutionCapability *againCapability = [live capabilityForCoreOptions:again2.options
+                                                                       consoleWidth:160
+                                                                      consoleHeight:144];
+    CHECK(LibretroResolutionClear(againCapability, again2.options, YES), "the game's own value removed");
+    [again2 runFrame];
+    CHECK(secondRun.lastWidth == 960, "the game follows the core's 3x again, live");
+    gamesFile = JSONAtPath(gamesPath);
+    CHECK(gamesFile[@"games"][thisGame] == nil && [gamesFile[@"games"][@"gb/Other.ntc"][key] isEqual:@"4x"],
+          "the game's entry is gone, the other game's kept");
+    [again2 unloadWithContextDestroy:nil contextRelease:nil];
+
+    // Other games: one with its own 4x, one following the core's 3x.
+    for (NSArray *expectation in @[ @[ @"gb/Other.ntc", @1280 ], @[ @"gb/Third.ntc", @960 ] ]) {
+      TestDelegate *otherRun = [TestDelegate new];
+      LibretroCoreHost *other = MakeHost(core, resolutionWork);
+      other.delegate = otherRun;
+      other.optionsGameKey = expectation[0];
+      CHECK([other loadCore:&error] && [other loadContentAtPath:content error:&error], "core loads for another game");
+      [other runFrame];
+      CHECK(otherRun.lastWidth == [expectation[1] unsignedIntValue], "each game gets its own value, else the core's");
+      [other unloadWithContextDestroy:nil contextRelease:nil];
+    }
+
+    // An option recognized by its name only applies at the next launch: the
+    // running core keeps its resolution and sees no update.
+    TestDelegate *namedRun = [TestDelegate new];
+    LibretroCoreHost *named = MakeHost(core, resolutionWork);
+    named.delegate = namedRun;
+    named.optionsGameKey = @"gb/Third.ntc";
+    CHECK([named loadCore:&error] && [named loadContentAtPath:content error:&error], "core loads for the generic rule");
+    [named runFrame];
+    LibretroResolutionCapability *recognized = [generic capabilityForCoreOptions:named.options
+                                                                    consoleWidth:160
+                                                                   consoleHeight:144];
+    CHECK([recognized.key isEqualToString:key] && [recognized.source isEqualToString:@"generic"] &&
+              recognized.apply == LibretroResolutionApplyRelaunch,
+          "without a profile the option is recognized by its name, for the next launch");
+    CHECK(LibretroResolutionSelect(recognized, named.options, @"1x (native)", NO), "native chosen for every game");
+    CHECK(!named.options.updatePending, "a next-launch choice is not flagged for the running core");
+    [named runFrame];
+    CHECK(namedRun.lastWidth == 960, "the running core keeps 3x until the game is launched again");
+    CHECK([[named.options currentValueForKey:key] isEqualToString:@"3x"] &&
+              [[named.options nextLaunchValueForKey:key] isEqualToString:@"1x (native)"],
+          "the page tells the value in effect from the next launch's");
+    [named unloadWithContextDestroy:nil contextRelease:nil];
+    TestDelegate *relaunchedRun = [TestDelegate new];
+    LibretroCoreHost *relaunched = MakeHost(core, resolutionWork);
+    relaunched.delegate = relaunchedRun;
+    relaunched.optionsGameKey = @"gb/Third.ntc";
+    CHECK([relaunched loadCore:&error] && [relaunched loadContentAtPath:content error:&error], "core loads relaunched");
+    [relaunched runFrame];
+    CHECK(relaunchedRun.lastWidth == 320, "the next launch draws at the chosen native resolution");
+    [relaunched unloadWithContextDestroy:nil contextRelease:nil];
+
+    // Cores NeoStation offers no internal resolution for.
+    CHECK([live capabilityForCoreOptions:nextFast consoleWidth:400 consoleHeight:480] == nil,
+          "a core without a resolution option has none");
+    LibretroResolutionRules *conditional = [[LibretroResolutionRules alloc] initWithDictionary:@{
+      @"profiles" : @[ @{@"keys" : @[ key ], @"apply" : @"live", @"requires" : @{@"neotest_mode" : @[ @"gamma" ]}} ]
+    }];
+    LibretroCoreOptions *standalone = [[LibretroCoreOptions alloc]
+        initWithStorePath:[resolutionWork stringByAppendingPathComponent:@"Config/Standalone.json"]];
+    struct retro_core_option_v2_definition sizedDefinitions[] = {
+      {.key = "neotest_mode", .desc = "Mode", .values = {{"alpha", NULL}, {"gamma", NULL}, {NULL, NULL}},
+       .default_value = "alpha"},
+      {.key = "neotest_internal_resolution", .desc = "Internal resolution",
+       .values = {{"1x (native)", NULL}, {"2x", NULL}, {NULL, NULL}}, .default_value = "1x (native)"},
+      {.key = "neotest2_render_scale", .desc = "Render scale", .values = {{"2x", NULL}, {"4x", NULL}, {NULL, NULL}},
+       .default_value = "2x"},
+      {0}
+    };
+    struct retro_core_options_v2 sizedDeclarations = {NULL, sizedDefinitions};
+    [standalone declareV2:&sizedDeclarations local:NULL];
+    CHECK([conditional capabilityForCoreOptions:standalone consoleWidth:160 consoleHeight:144] == nil,
+          "a profile whose other option has another value is not used");
+    [standalone setValue:@"gamma" forKey:@"neotest_mode" persist:NO];
+    CHECK([[conditional capabilityForCoreOptions:standalone consoleWidth:160 consoleHeight:144].key isEqualToString:key],
+          "the same profile applies once its condition holds");
+    struct retro_core_option_display hidden = {"neotest_internal_resolution", false};
+    [standalone setDisplay:&hidden];
+    LibretroResolutionCapability *hiddenCapability = [generic capabilityForCoreOptions:standalone
+                                                                           consoleWidth:160
+                                                                          consoleHeight:144];
+    CHECK(hiddenCapability == nil, "a hidden option, and a named option without native resolution, are not offered");
   }
   if (failures > 0) {
     printf("%d libretro host check(s) failed\n", failures);

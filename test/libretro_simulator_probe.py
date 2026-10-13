@@ -63,6 +63,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
 CATALOG = ROOT / 'lib/services/libretro_core_catalog.dart'
+# Build 455: the internal resolution rules Dart sends to the session
+# (LibretroResolution.nativeRules(), checked by test/libretro_resolution_test.dart).
+RESOLUTION_RULES = ROOT / 'test/fixtures/libretro_resolution/native_rules.json'
 # Build 447: the bridge imports <external_display/Name.h> and calls the pod's
 # coordinator. The pod sources without Flutter (coordinator, preferences,
 # scene delegate) are compiled and linked with the bridge; the plugin and the
@@ -131,6 +134,21 @@ SCENARIOS = [
     {'name': 'ppsspp-crowded-prx', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
      'expect': 'run', 'crowdWindow': True,
      'requiredLog': CROWDED_LOG + ['PPSSPP memory base 0x', ', 64 MiB of PSP RAM']},
+    # Build 455: the in-game menu's internal resolution with the real PPSSPP.
+    # The game starts at native (480 wide; PPSSPP crops to 16:9 by default,
+    # so 480x270), 2x is chosen for every game, and the core must draw frames
+    # twice as wide and high once the game runs again (a live option); a
+    # relaunch must start at 2x (saved for the core), and native is chosen
+    # back for the next scenarios.
+    {'name': 'ppsspp-resolution-live', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
+     'expect': 'run', 'runSeconds': 5.0,
+     'resolution': {'beforeSeconds': 2.0, 'select': '960x544', 'beforeWidth': 480, 'scale': 2},
+     'requiredLog': ['load: resolution ppsspp_internal_resolution (live, profile) in effect 480x272',
+                     'menu: resolution ppsspp_internal_resolution=960x544 for every game of the core']},
+    {'name': 'ppsspp-resolution-relaunch', 'core': 'ppsspp', 'content': 'content/simple.prx', 'console': 'psp',
+     'expect': 'run', 'runSeconds': 4.0,
+     'resolution': {'beforeSeconds': 2.0, 'select': '480x272', 'beforeWidth': 960, 'scale': 0.5},
+     'requiredLog': ['load: resolution ppsspp_internal_resolution (live, profile) in effect 960x544']},
     {'name': 'neovk-1', 'core': 'neovk', 'content': 'content/Test Game.ntc', 'console': 'gb', 'expect': 'run',
      'requiredLog': ['neovk create_device: device created by the core',
                      "neovk unload_game: resources destroyed through the frontend's device"]},
@@ -421,6 +439,8 @@ def assemble(args, sources, work):
         entry['consoleName'] = names[scenario['console']]
         scenarios.append(entry)
     config = {'source': args.label, 'consoleGeometry': geometry, 'scenarios': scenarios}
+    if RESOLUTION_RULES.is_file():
+        config['resolution'] = json.loads(RESOLUTION_RULES.read_text(encoding='utf-8'))
     (app / 'probe-config.json').write_text(json.dumps(config, indent=2) + '\n')
     with open(app / 'Info.plist', 'wb') as handle:
         plistlib.dump({'CFBundleIdentifier': BUNDLE_ID, 'CFBundleExecutable': 'Probe',
@@ -575,6 +595,18 @@ def evaluate(report, scenarios):
             for line in scenario.get('requiredLog', []):
                 if line not in result.get('journal', ''):
                     problems.append(f'{name}: the core log lacks "{line}"')
+            resolution = scenario.get('resolution')
+            if resolution:
+                before = result.get('resolutionBefore') or [0, 0]
+                after = result.get('resolutionAfter') or [0, 0]
+                if before[0] != resolution['beforeWidth'] or before[1] <= 0:
+                    problems.append(f"{name}: frames {before} before the choice, expected {resolution['beforeWidth']} wide")
+                if not result.get('resolutionSelected'):
+                    problems.append(f"{name}: the session refused {resolution['select']}")
+                expected = [round(side * resolution['scale']) for side in before]
+                if after != expected:
+                    problems.append(f'{name}: frames {after} after the choice, expected {expected} '
+                                    f"(x{resolution['scale']} of {before})")
         elif scenario['expect'] == 'core-stopped':
             if launch.get('success') or launch.get('code') != 'LIBRETRO_CORE_STOPPED':
                 problems.append(f"{name}: expected a LIBRETRO_CORE_STOPPED launch failure, got "
@@ -658,6 +690,9 @@ def summarise(report, scenarios):
               f"ended={result.get('ended', False)}", flush=True)
         if not launch.get('success'):
             print(f"    message: {launch.get('message')}", flush=True)
+        if 'resolutionBefore' in result or 'resolutionAfter' in result:
+            print(f"    resolution: frames {result.get('resolutionBefore')} -> {result.get('resolutionAfter')}, "
+                  f"choice accepted {result.get('resolutionSelected')}", flush=True)
         for line in result.get('journal', '').splitlines():
             if 'unavailable' in line or 'PPSSPP memory window' in line or 'PPSSPP window' in line:
                 print(f'    {line.split(" ", 2)[-1]}', flush=True)

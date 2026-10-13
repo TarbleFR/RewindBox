@@ -9,7 +9,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/libretro_internal_bridge/ios/Classes'
 LIBRETRO = ROOT / 'packages/libretro_internal_bridge/ios/ThirdParty/include/libretro'
-PORTABLE = ('LibretroCoreHost.m', 'LibretroCoreOptions.m', 'LibretroStateCodec.m', 'LibretroZipReader.m')
+PORTABLE = ('LibretroCoreHost.m', 'LibretroCoreOptions.m', 'LibretroResolution.m', 'LibretroStateCodec.m',
+            'LibretroZipReader.m')
+# Value cases and rules shared with Dart's LibretroResolution (Build 455).
+RESOLUTION_FIXTURES = ROOT / 'test/fixtures/libretro_resolution'
 
 
 def run(*arguments):
@@ -35,7 +38,7 @@ def main():
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
             bundle.writestr('readme.txt', 'not the game')
             bundle.writestr('Test Game.ntc', bytes(range(1, 101)))
-        run(harness, core, work, archive)
+        run(harness, core, work, archive, RESOLUTION_FIXTURES)
 
 
 if __name__ == '__main__':

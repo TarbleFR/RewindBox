@@ -46,14 +46,27 @@ CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?
 # settings (system region, language and model, docs/libretro-3ds-system-
 # settings.md § 3.1) are proven key by key and value by value in the pinned
 # binary by binary_findings below, with --cores.
+# Contract change (Build 455, docs/libretro-resolution.md): the three curated
+# "Internal resolution" settings (Mupen64Plus-Next, Beetle PSX HW, PPSSPP)
+# became the "Resolution and picture" page, fed by the RESOLUTION
+# declarations below, which the binaries must hold in the same way.
 CURATED = {
-    ('mupen64plus_next', 'mupen64plus-43screensize'),
-    ('mednafen_psx_hw', 'beetle_psx_hw_internal_resolution'),
-    ('ppsspp', 'ppsspp_internal_resolution'),
     ('azahar', 'citra_region_value'),
     ('azahar', 'citra_language_value'),
     ('azahar', 'citra_is_new_3ds'),
     ('azahar', 'citra_use_fastinterp'),
+}
+# Internal resolution option of each pinned core that has one, exactly
+# (LibretroCore.resolution): its key, every value, the core's default and the
+# core's library_name (which names Config/<library>.json) must be in the
+# binary. The 2D cores have none.
+RESOLUTION = {
+    'desmume': ('DeSmuME', 'desmume_internal_resolution'),
+    'mupen64plus_next': ('Mupen64Plus-Next', 'mupen64plus-43screensize'),
+    'mednafen_psx_hw': ('Beetle PSX HW', 'beetle_psx_hw_internal_resolution'),
+    'mednafen_psx': ('Beetle PSX', 'beetle_psx_internal_resolution'),
+    'ppsspp': ('PPSSPP', 'ppsspp_internal_resolution'),
+    'azahar': ('Azahar', 'citra_resolution_factor'),
 }
 # Options NeoStation locks for the session, exactly (screen crop, touch
 # screen and sticks of the dual-screen consoles; the Azahar user folder
@@ -114,8 +127,24 @@ def catalog():
             'noJit': literal_map(block, 'noJitOverrides'),
             'locked': literal_map(block, 'lockedOptions'),
             'settings': settings,
+            'resolution': resolution_declaration(block),
         }
     return cores
+
+
+def resolution_declaration(block):
+    """`resolution: LibretroResolutionDeclaration(...)` of a core block, None without."""
+    match = re.search(r'resolution:\s*LibretroResolutionDeclaration\((.*?)\),\n', block, re.S)
+    if match is None:
+        return None
+    declaration = match.group(1)
+    values = re.search(r'values:\s*\[(.*?)\]', declaration, re.S)
+    return {
+        'library': re.search(r"libraryName:\s*'([^']+)'", declaration).group(1),
+        'key': re.search(r"key:\s*'([^']+)'", declaration).group(1),
+        'values': re.findall(r"'([^']*)'", values.group(1)) if values else [],
+        'default': re.search(r"coreDefault:\s*'([^']*)'", declaration).group(1),
+    }
 
 
 def binary_findings(core_id, entry, data):
@@ -134,6 +163,14 @@ def binary_findings(core_id, entry, data):
             findings.append(f'{core_id}: setting {key} is not declared by the core')
         findings += [f'{core_id}: choice {value!r} of {key} is not offered by the core'
                      for value in values if not present(value)]
+    resolution = entry['resolution']
+    if resolution is not None:
+        if not present(resolution['library']):
+            findings.append(f"{core_id}: library name {resolution['library']!r} is not in the core")
+        if not present(resolution['key']):
+            findings.append(f"{core_id}: resolution option {resolution['key']} is not declared by the core")
+        findings += [f"{core_id}: resolution value {value!r} of {resolution['key']} is not offered by the core"
+                     for value in resolution['values'] + [resolution['default']] if not present(value)]
     declared = set()
     for prefix in PREFIXES[core_id]:
         pattern = re.escape(prefix.encode()) + rb'[A-Za-z0-9_\-]+(?=\0)'
@@ -164,9 +201,21 @@ def main():
         require(choices.get(setting) == expected, f'choices of {setting} {choices.get(setting)} differ from {expected}')
     locked = {core_id: entry['locked'] for core_id, entry in cores.items() if entry['locked']}
     require(locked == LOCKED, f'locked options {locked} differ from {LOCKED}')
+    resolution = {core_id: (entry['resolution']['library'], entry['resolution']['key'])
+                  for core_id, entry in cores.items() if entry['resolution'] is not None}
+    require(resolution == RESOLUTION, f'resolution declarations {resolution} differ from {RESOLUTION}')
     for core_id, entry in cores.items():
+        declared = entry['resolution']
+        if declared is not None:
+            require(len(declared['values']) >= 2 and declared['default'] in declared['values'],
+                    f'{core_id}: resolution values {declared["values"]} or default {declared["default"]!r} unparsed')
+            # Build 455: native resolution by default, never a NeoStation
+            # default above it (PPSSPP's former 960x544 is gone).
+            require(declared['key'] not in entry['defaults'],
+                    f"{core_id}: {declared['key']} has a NeoStation default; native is the default")
         overlap = set(entry['locked']) & (set(entry['defaults']) | set(entry['noJit']) |
-                                          {key for key, _ in entry['settings']})
+                                          {key for key, _ in entry['settings']} |
+                                          ({declared['key']} if declared else set()))
         require(not overlap, f'{core_id}: locked options {sorted(overlap)} are also defaults or settings')
     require(all(entry['noJit'] for core_id, entry in cores.items()
                 if core_id in ('mupen64plus_next', 'ppsspp', 'desmume')),
@@ -187,7 +236,7 @@ def main():
     require(not findings, '\n  ' + '\n  '.join(findings))
     print('Libretro core options match', len(cores), 'pinned binaries; code generation is overridden for',
           ', '.join(core_id for core_id, entry in cores.items() if entry['noJit']) + '; locked options checked for',
-          ', '.join(sorted(locked)))
+          ', '.join(sorted(locked)) + '; internal resolution checked for', ', '.join(sorted(resolution)))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,164 @@
+{
+  "profiles": [
+    {
+      "keys": [
+        "citra_resolution_factor"
+      ],
+      "apply": "live",
+      "maxFactor": 10.0,
+      "requires": {
+        "citra_graphics_api": [
+          "Auto",
+          "auto",
+          "Vulkan",
+          "OpenGL"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "desmume_internal_resolution"
+      ],
+      "apply": "live",
+      "nativeSize": [
+        256,
+        192
+      ]
+    },
+    {
+      "keys": [
+        "beetle_psx_hw_internal_resolution",
+        "beetle_psx_internal_resolution"
+      ],
+      "apply": "live",
+      "maxFactor": 8.0,
+      "requires": {
+        "beetle_psx_hw_renderer": [
+          "hardware",
+          "hardware_gl",
+          "software"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "beetle_psx_hw_internal_resolution"
+      ],
+      "apply": "relaunch",
+      "maxFactor": 8.0,
+      "requires": {
+        "beetle_psx_hw_renderer": [
+          "hardware_vk"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "ppsspp_internal_resolution"
+      ],
+      "apply": "live",
+      "nativeSize": [
+        480,
+        272
+      ],
+      "maxFactor": 5.0,
+      "requires": {
+        "ppsspp_backend": [
+          "auto",
+          "opengl"
+        ],
+        "ppsspp_software_rendering": [
+          "disabled"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "ppsspp_internal_resolution"
+      ],
+      "apply": "relaunch",
+      "nativeSize": [
+        480,
+        272
+      ],
+      "maxFactor": 5.0,
+      "requires": {
+        "ppsspp_backend": [
+          "vulkan"
+        ],
+        "ppsspp_software_rendering": [
+          "disabled"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "mupen64plus-43screensize"
+      ],
+      "apply": "relaunch",
+      "nativeSize": [
+        320,
+        240
+      ],
+      "maxFactor": 6.0,
+      "requires": {
+        "mupen64plus-rdp-plugin": [
+          "gliden64"
+        ],
+        "mupen64plus-aspect": [
+          "4:3"
+        ],
+        "mupen64plus-EnableNativeResFactor": [
+          "0"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "mupen64plus-parallel-rdp-upscaling",
+        "parallel-n64-upscaling"
+      ],
+      "apply": "relaunch",
+      "requires": {
+        "mupen64plus-rdp-plugin": [
+          "parallel"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "reicast_internal_resolution"
+      ],
+      "apply": "relaunch",
+      "nativeSize": [
+        640,
+        480
+      ]
+    },
+    {
+      "keys": [
+        "melonds_opengl_resolution"
+      ],
+      "apply": "relaunch",
+      "requires": {
+        "melonds_render_mode": [
+          "opengl"
+        ]
+      }
+    },
+    {
+      "keys": [
+        "dolphin_efb_scale",
+        "swanstation_GPU_ResolutionScale",
+        "kronos_resolution_mode",
+        "yabasanshiro_resolution_mode",
+        "play_res_multi",
+        "pcsx2_upscale_multiplier"
+      ],
+      "apply": "relaunch"
+    }
+  ],
+  "keyPattern": "(internal|render(ing)?)[_\\-.]?(res(olution)?|scale)|resolution[_\\-.]?(factor|scale|multiplier|mode)|upscal|res(olution)?[_\\-.]?multi|efb[_\\-.]?scale",
+  "descriptionPattern": "internal (gpu )?resolution|render(ing)? resolution|resolution (factor|scale|multiplier)|upscal",
+  "maxDimension": 8192
+}

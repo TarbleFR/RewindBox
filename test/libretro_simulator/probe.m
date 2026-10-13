@@ -216,7 +216,40 @@ static NSString *ReservationReport(void) {
     ((void (*)(id, SEL, NSString *))[configuration methodForSelector:logs])(configuration, logs,
                                                                             DocumentsPath(@"Libretro/Logs"));
   }
+  // Internal resolution (Build 455): the rules Dart sends and the core id
+  // naming Config/Resolution/<core>.json; absent from older sources.
+  SEL coreId = NSSelectorFromString(@"setCoreId:");
+  if ([configuration respondsToSelector:coreId]) {
+    ((void (*)(id, SEL, NSString *))[configuration methodForSelector:coreId])(configuration, coreId, core ?: @"");
+  }
+  SEL rules = NSSelectorFromString(@"setResolutionRules:");
+  if ([configuration respondsToSelector:rules] && [_config[@"resolution"] isKindOfClass:NSDictionary.class]) {
+    ((void (*)(id, SEL, NSDictionary *))[configuration methodForSelector:rules])(configuration, rules,
+                                                                                  _config[@"resolution"]);
+  }
   return configuration;
+}
+
+/// Size of the frames the core produces now, [width, height]; [0, 0] for a
+/// tree without the measure.
+static NSArray<NSNumber *> *ProducedFrameSize(LibretroSession *session) {
+  SEL selector = NSSelectorFromString(@"producedFrameSize");
+  if (![session respondsToSelector:selector]) return @[ @0, @0 ];
+  CGSize size = ((CGSize(*)(id, SEL))[session methodForSelector:selector])(session, selector);
+  return @[ @((NSInteger)size.width), @((NSInteger)size.height) ];
+}
+
+/// The in-game menu's resolution choice, through the same session call.
+static BOOL SelectResolution(LibretroSession *session, NSString *value, BOOL game) {
+  SEL selector = NSSelectorFromString(@"selectInternalResolution:forGame:");
+  if (![session respondsToSelector:selector]) return NO;
+  return ((BOOL(*)(id, SEL, NSString *, BOOL))[session methodForSelector:selector])(session, selector, value, game);
+}
+
+static NSDictionary *ResolutionState(LibretroSession *session) {
+  SEL selector = NSSelectorFromString(@"internalResolutionState");
+  if (![session respondsToSelector:selector]) return nil;
+  return ((NSDictionary * (*)(id, SEL))[session methodForSelector:selector])(session, selector);
 }
 
 - (void)runNext {
@@ -273,9 +306,34 @@ static NSString *ReservationReport(void) {
                             [probe finishScenario:result session:session];
                             return;
                           }
+                          // Resolution scenarios: the frame size, then the menu's
+                          // choice, then the frame size once the game ran again.
+                          NSDictionary *resolution = [scenario[@"resolution"] isKindOfClass:NSDictionary.class]
+                                                         ? scenario[@"resolution"]
+                                                         : nil;
+                          if (resolution != nil) {
+                            double before = [resolution[@"beforeSeconds"] doubleValue];
+                            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(before * NSEC_PER_SEC)),
+                                           dispatch_get_main_queue(), ^{
+                                             result[@"resolutionBefore"] = ProducedFrameSize(session);
+                                             result[@"resolutionStateBefore"] = ResolutionState(session) ?: @{};
+                                             NSString *value = resolution[@"select"];
+                                             BOOL selected = value.length > 0 &&
+                                                             SelectResolution(session, value,
+                                                                              [resolution[@"game"] boolValue]);
+                                             result[@"resolutionSelected"] = @(selected);
+                                             Progress(@"%@: frame %@ before, %@ selected: %d", name,
+                                                      result[@"resolutionBefore"], value ?: @"-", selected);
+                                           });
+                          }
                           dispatch_after(
                               dispatch_time(DISPATCH_TIME_NOW, (int64_t)(runSeconds * NSEC_PER_SEC)),
                               dispatch_get_main_queue(), ^{
+                                if (resolution != nil) {
+                                  result[@"resolutionAfter"] = ProducedFrameSize(session);
+                                  result[@"resolutionStateAfter"] = ResolutionState(session) ?: @{};
+                                  Progress(@"%@: frame %@ after", name, result[@"resolutionAfter"]);
+                                }
                                 result[@"activeBeforeStop"] = @(session.active);
                                 result[@"presentedBeforeStop"] = @(root.presentedViewController != nil);
                                 Progress(@"%@: stop requested", name);

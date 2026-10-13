@@ -1,0 +1,123 @@
+{
+  "comment": "Values of resolution options and what NeoStation reads in them. Dart (LibretroResolution, test/libretro_resolution_test.dart) and Objective-C (LibretroResolution.m, test/libretro_host/host_test.m) must both give exactly these results. A token is {factor} for a multiplier, {width, height} for a size, null when the value names no scale.",
+  "tokens": [
+    {"value": "1x(native)", "expected": {"factor": 1}},
+    {"value": "1x (Native)", "expected": {"factor": 1}},
+    {"value": "2x", "expected": {"factor": 2}},
+    {"value": "10x", "expected": {"factor": 10}},
+    {"value": "2X", "expected": {"factor": 2}},
+    {"value": " 3x ", "expected": {"factor": 3}},
+    {"value": "x2", "expected": {"factor": 2}},
+    {"value": "X4", "expected": {"factor": 4}},
+    {"value": "×3", "expected": {"factor": 3}},
+    {"value": "x1 (640 x 528)", "expected": {"factor": 1}},
+    {"value": "2x (1280x960)", "expected": {"factor": 2}},
+    {"value": "1.5x", "expected": {"factor": 1.5}},
+    {"value": "1,5x", "expected": {"factor": 1.5}},
+    {"value": "2", "expected": {"factor": 2}},
+    {"value": "Native", "expected": {"factor": 1}},
+    {"value": "native (2x)", "expected": {"factor": 2}},
+    {"value": "960x544", "expected": {"width": 960, "height": 544}},
+    {"value": "640 x 480", "expected": {"width": 640, "height": 480}},
+    {"value": "960x544 (2x)", "expected": {"width": 960, "height": 544}},
+    {"value": "256X192", "expected": {"width": 256, "height": 192}},
+    {"value": "1x2", "expected": null},
+    {"value": "0x", "expected": null},
+    {"value": "0", "expected": null},
+    {"value": "Auto", "expected": null},
+    {"value": "disabled", "expected": null},
+    {"value": "", "expected": null}
+  ],
+  "choices": [
+    {
+      "name": "multipliers up to a maximum factor",
+      "values": ["1x(native)", "2x", "4x", "8x", "16x"],
+      "consoleSize": [320, 240],
+      "maxFactor": 8,
+      "expected": [
+        {"value": "1x(native)", "factor": 1},
+        {"value": "2x", "factor": 2},
+        {"value": "4x", "factor": 4},
+        {"value": "8x", "factor": 8}
+      ]
+    },
+    {
+      "name": "sizes divided by the smallest one",
+      "values": ["480x272", "960x544", "1440x816", "1920x1088", "2400x1360", "2880x1632"],
+      "consoleSize": [480, 272],
+      "maxFactor": 5,
+      "expected": [
+        {"value": "480x272", "factor": 1, "width": 480, "height": 272},
+        {"value": "960x544", "factor": 2, "width": 960, "height": 544},
+        {"value": "1440x816", "factor": 3, "width": 1440, "height": 816},
+        {"value": "1920x1088", "factor": 4, "width": 1920, "height": 1088},
+        {"value": "2400x1360", "factor": 5, "width": 2400, "height": 1360}
+      ]
+    },
+    {
+      "name": "sizes divided by a given native size, fractional factors kept",
+      "values": ["640x480", "960x720", "1440x1080", "320x240"],
+      "nativeSize": [320, 240],
+      "consoleSize": [320, 240],
+      "expected": [
+        {"value": "320x240", "factor": 1, "width": 320, "height": 240},
+        {"value": "640x480", "factor": 2, "width": 640, "height": 480},
+        {"value": "960x720", "factor": 3, "width": 960, "height": 720},
+        {"value": "1440x1080", "factor": 4.5, "width": 1440, "height": 1080}
+      ]
+    },
+    {
+      "name": "a size of another shape is left out",
+      "values": ["640x480", "854x480", "1280x960"],
+      "nativeSize": [640, 480],
+      "expected": [
+        {"value": "640x480", "factor": 1, "width": 640, "height": 480},
+        {"value": "1280x960", "factor": 2, "width": 1280, "height": 960}
+      ]
+    },
+    {
+      "name": "one value per factor, the first declared",
+      "values": ["1x", "1x (native)", "2x", "2x (1280x960)"],
+      "expected": [
+        {"value": "1x", "factor": 1},
+        {"value": "2x", "factor": 2}
+      ]
+    },
+    {
+      "name": "labels name the scale of unreadable values",
+      "values": ["auto", "0", "x2"],
+      "labels": ["Auto", "Native", "Twice"],
+      "expected": [
+        {"value": "0", "factor": 1},
+        {"value": "x2", "factor": 2}
+      ]
+    },
+    {
+      "name": "largest picture side limited",
+      "values": ["1x (Native)", "2x", "3x", "4x", "5x", "6x", "7x", "8x", "9x", "10x"],
+      "consoleSize": [400, 480],
+      "maxDimension": 2000,
+      "expected": [
+        {"value": "1x (Native)", "factor": 1},
+        {"value": "2x", "factor": 2},
+        {"value": "3x", "factor": 3},
+        {"value": "4x", "factor": 4}
+      ]
+    },
+    {
+      "name": "below native left out, unsorted sizes sorted",
+      "values": ["0.5x", "512x384", "256x192", "768x576"],
+      "consoleSize": [256, 384],
+      "expected": [
+        {"value": "256x192", "factor": 1, "width": 256, "height": 192},
+        {"value": "512x384", "factor": 2, "width": 512, "height": 384},
+        {"value": "768x576", "factor": 3, "width": 768, "height": 576}
+      ]
+    },
+    {
+      "name": "nothing readable",
+      "values": ["disabled", "enabled"],
+      "expected": []
+    }
+  ]
+}

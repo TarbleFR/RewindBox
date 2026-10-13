@@ -18,7 +18,17 @@ static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
 static retro_log_printf_t log_cb;
 
-static uint32_t framebuffer[320 * 240];
+/*
+ * neotest_internal_resolution (Build 455): "1x (native)" to "4x", core
+ * default 2x like a core whose default is not its native resolution. Read
+ * in retro_init (as DeSmuME reads its options) and again after
+ * GET_VARIABLE_UPDATE, when a new scale is announced with
+ * SET_SYSTEM_AV_INFO before frames of the new size: the frames are
+ * 320x240 times the scale.
+ */
+#define MAX_SCALE 4
+static uint32_t framebuffer[320 * MAX_SCALE * 240 * MAX_SCALE];
+static unsigned scale = 1;
 static int16_t audio[800 * 2];
 static uint8_t save_ram[2048];
 static uint32_t frame_counter;
@@ -74,6 +84,14 @@ static void context_destroy(void) {
   if (log_cb) log_cb(RETRO_LOG_INFO, "neotest context_destroy interface=%d\n", interface_available());
 }
 
+/* Scale named by neotest_internal_resolution, 1 when unset. */
+static unsigned read_scale(void) {
+  struct retro_variable variable = {"neotest_internal_resolution", NULL};
+  if (!environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) || variable.value == NULL) return 1;
+  unsigned value = (unsigned)(variable.value[0] - '0');
+  return value >= 1 && value <= MAX_SCALE ? value : 1;
+}
+
 static bool option_is(const char *key, const char *value) {
   struct retro_variable variable = {key, NULL};
   return environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value != NULL &&
@@ -123,6 +141,8 @@ RETRO_API void retro_set_environment(retro_environment_t cb) {
        {{"off", "Off"}, {"on", "On"}, {NULL, NULL}}, "off"},
       {"neotest_shutdown_frame", "Shutdown frame", NULL, "Request shutdown at this frame", NULL, NULL,
        {{"0", "Never"}, {"3", "Frame 3"}, {NULL, NULL}}, "0"},
+      {"neotest_internal_resolution", "Internal resolution", NULL, "Scale of the picture", NULL, NULL,
+       {{"1x (native)", "1x (native)"}, {"2x", "2x"}, {"3x", "3x"}, {"4x", "4x"}, {NULL, NULL}}, "2x"},
       {NULL, NULL, NULL, NULL, NULL, NULL, {{NULL, NULL}}, NULL},
   };
   static struct retro_core_options_v2 options = {NULL, definitions};
@@ -153,6 +173,7 @@ RETRO_API void retro_init(void) {
   read_option("neotest_locked", init_report + 16);
   read_option("neotest_default", init_report + 32);
   read_option("neotest_mode", init_report + 48);
+  scale = read_scale();
 }
 
 RETRO_API void retro_deinit(void) {
@@ -171,10 +192,10 @@ RETRO_API void retro_get_system_info(struct retro_system_info *info) {
 
 RETRO_API void retro_get_system_av_info(struct retro_system_av_info *info) {
   memset(info, 0, sizeof(*info));
-  info->geometry.base_width = 320;
-  info->geometry.base_height = 240;
-  info->geometry.max_width = 320;
-  info->geometry.max_height = 240;
+  info->geometry.base_width = 320 * scale;
+  info->geometry.base_height = 240 * scale;
+  info->geometry.max_width = 320 * MAX_SCALE;
+  info->geometry.max_height = 240 * MAX_SCALE;
   info->geometry.aspect_ratio = 4.0f / 3.0f;
   info->timing.fps = 60.0;
   info->timing.sample_rate = 48000.0;
@@ -193,6 +214,13 @@ RETRO_API void retro_run(void) {
   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) {
     read_option("neotest_init", init_report + 64);
     init_report[80]++;
+    unsigned requested = read_scale();
+    if (requested != scale) {
+      scale = requested;
+      struct retro_system_av_info info;
+      retro_get_system_av_info(&info);
+      environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &info);
+    }
   }
   if (poll_mode != 1) input_poll_cb();
   if (poll_mode == 2) input_poll_cb();
@@ -202,7 +230,8 @@ RETRO_API void retro_run(void) {
     if (log_cb) log_cb(RETRO_LOG_ERROR, "neotest boot failed: simulated\n");
     environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
   }
-  for (unsigned index = 0; index < 320 * 240; index++) framebuffer[index] = frame_counter;
+  const unsigned width = 320 * scale, height = 240 * scale;
+  for (unsigned index = 0; index < width * height; index++) framebuffer[index] = frame_counter;
   framebuffer[1] = restored_marker;
   save_ram[0] = (uint8_t)frame_counter;
   save_ram[1] = 0x5A;
@@ -213,7 +242,7 @@ RETRO_API void retro_run(void) {
   memcpy(save_ram + 6, &content_checksum, sizeof(content_checksum));
   save_ram[10] = (uint8_t)(buttons & 0xFF);
   save_ram[11] = (uint8_t)(buttons & 0xFF);
-  video_cb(framebuffer, 320, 240, 320 * sizeof(uint32_t));
+  video_cb(framebuffer, width, height, width * sizeof(uint32_t));
   audio_batch_cb(audio, 800);
 }
 
