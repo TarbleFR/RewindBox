@@ -106,7 +106,40 @@ Résultats consignés ci-dessous au fil des runs ; aucune validation sur iPhone 
   s'il obtient OpenGL ES). Les fichiers enregistrés (instantané, valeur du cœur, valeur du jeu) sont relus. En cas
   de nouvel arrêt, le pilote imprime le fil planté du rapport de plantage dans le journal du job.
 
-À compléter : contrôles et sonde sur la source corrigée, livraison.
+**Source `c60bc4f8`** (correctif des moteurs de rendu) : `libretro-checks` `38390318590` échoue à la compilation du
+test hôte (`rendered` déjà déclaré dans la même portée) ; la sonde `38390318971` échoue avant tout lancement : le
+binaire DeSmuME du buildbot porte `LC_VERSION_MIN_IPHONEOS` et non `LC_BUILD_VERSION`. Corrigés dans `6865f458`
+(variable renommée ; `vtool` d'Apple remplace cette commande par un `LC_BUILD_VERSION` du Simulateur, code et
+données de DeSmuME inchangés). Le job Dart, la compilation iPhone et le test du codec de ce run avaient réussi.
+
+**`libretro-checks`, run `38391711796`, source `6865f458`** — réussi.
+
+- Test hôte macOS : « All libretro host checks passed » ; session 7 : 52 vérifications de résolution, les 43
+  précédentes et 9 sur les moteurs de rendu : avant le chargement aucune condition de moteur ; un profil s'applique
+  avec un moteur qu'il nomme, rien avec un autre (pas même par le nom de l'option) ; l'option est alors signalée
+  inapplicable, jamais pour une option qu'aucun profil ne nomme ; règles de PPSSPP envoyées par l'app : OpenGL ES en
+  jeu (natif à ×5), Vulkan au relancement, contexte logiciel et option de rendu logiciel : rien.
+- Modules frontend, préréglages de shaders Metal, compilation et édition de liens des 68 sources du pont pour
+  iPhone, test du codec dans le Simulateur : réussis.
+- Job Dart : `flutter analyze`, liste de tests libretro (561), contrats dont les binaires épinglés (`--cores`).
+
+**`libretro-simulator`, run `38391711861`, source `6865f458`** — réussi : « All 13 simulator scenarios behaved as
+expected » (iPhone SE 3e génération, iOS 26.2, vrais cœurs, appel de session du menu en jeu).
+
+- `desmume-resolution-live` : « load: resolution desmume_internal_resolution (live, profile) in effect 256x192 »,
+  images 256 × 384 ; ×2 pour tous les jeux du cœur accepté ; « run: frame 512x768 (was 256x384) » dès la reprise ;
+  `Config/DeSmuME.json` contient `512x384`, aucune valeur de jeu.
+- `desmume-resolution-relaunch` : le relancement démarre « in effect 512x384 », images 512 × 768 ; le natif pour ce
+  jeu seul est accepté, « run: frame 256x384 (was 512x768) » ; `Config/Games/DeSmuME.json` donne `256x192` à
+  `probe/probe.nds`, le cœur garde `512x384`.
+- `ppsspp-resolution` : rendu `software` (pas de contexte OpenGL ES dans le Simulateur) ; « load: resolution
+  ppsspp_internal_resolution of PPSSPP does not apply (renderer software) » ; le choix ×2 est refusé, images
+  480 × 270 avant et après, le jeu continue et se ferme normalement ; instantané `renderer` `software` et
+  `inapplicableKey` ; rien d'enregistré pour le cœur.
+- Les autres scénarios (NeoTest, PPSSPP PRX et ISO, fenêtres encombrées, cœur Vulkan de test) se sont déroulés
+  comme attendu ; les jobs informatifs `before-fix` et `before-reservation` ont réussi.
+
+À compléter : livraison.
 
 ## Limites
 
