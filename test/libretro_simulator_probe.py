@@ -619,6 +619,27 @@ def crowd_evidence(result):
             continue
         lines.append(f'base 0x{base:x}: slot in 0x{address:x}+0x{size:x} {VM_TAGS.get(tag, tag)} '
                      f'prot {protection}, released before the launch ended')
+    # A crowd slot is still the probe's at launch when that very 16 KiB
+    # region, without access, is still mapped there.
+    held = {(region[0], region[1], region[3]) for region in result.get('regionsAtLaunch') or []}
+    gone = [slot for slot in sorted(crowd) if (slot, 0x4000, 0) not in held]
+    if gone:
+        occupants = []
+        for slot in gone[:6]:
+            occupant = next((region for region in result.get('regionsAtLaunch') or []
+                             if region[0] <= slot < region[0] + region[1]), None)
+            occupants.append(f'0x{slot:x}' + (f' (now 0x{occupant[0]:x}+0x{occupant[1]:x} '
+                                                f'{VM_TAGS.get(occupant[2], occupant[2])} prot {occupant[3]})'
+                                                if occupant else ' (now unmapped)'))
+        lines.append(f'{len(gone)} crowd slots no longer held at launch: ' + ', '.join(occupants))
+    bases = re.findall(r'PPSSPP memory base 0x([0-9a-f]+)', result.get('journal', ''))
+    if bases:
+        used = int(bases[-1], 16)
+        slot = used + 0x10000
+        state = ('a crowd slot' if slot in crowd else
+                 'free after crowding' if not any(region[0] <= slot < region[0] + region[1] for region in after)
+                 else 'held by another mapping after crowding')
+        lines.append(f'base PPSSPP used 0x{used:x}: its scratchpad slot was {state}')
     return [f'crowd: {len(crowd)} scratchpad slots taken, {len(after)} regions mapped then; '
             f'{kept} other slots held by mappings still there at launch'] + lines
 
