@@ -101,9 +101,25 @@ Aucune correction n'est appliquée, conformément à la décision du 12 octobre.
 
 ## Livraison
 
-Run `retroarch-delivery.yml` lancé sur `Claude` (`build_number` 450, périmètre `full`, artefact chiffré pour
-`build-utils/delivery-424-recipient.pem`) depuis la source qui contient ce plan. Identité (run, artefact, taille,
-SHA-256 de l'archive) consignée après le run.
+- **Run.** `retroarch-delivery.yml` `38339349667`, lancé sur `Claude` (`build_number` 450, périmètre `full`),
+  depuis la source `e7f223365a12327c62bfc154b0bddd789d2a0131`, qui contient ce plan.
+  - Jobs `checks` (tests Dart et gardes de livraison), `native` et `Release device build • cold` réussis.
+  - Horaires : 02:57 → 03:18 UTC, 13 octobre 2026. Compilation Release (AOT et Xcode) : 314 s.
+- **Version.** L'étape d'alignement a posé 0.0.7 (450) dans l'application et ses extensions.
+- **Contenu vérifié par le job.**
+  - `neo_shader_kit.framework` est embarqué avec `slang-catalog.json`, `dolphin-catalog.json` et leurs
+    diagnostics.
+  - Paquet légal de l'IPA validé, dont `glslang-LICENSE.txt` et `SPIRV-Cross-Apache-2.0.txt`.
+  - Portes d'IPA réussies.
+  - IPA validée avant scellement : SHA-256 `418444d95bb54fef381fc15e34b8cc0ce8f25fd7c2d1cdd676022a2fe3d8e309`.
+  - Binaire principal : SHA-256 `5b86085c6cb5dd5cf67069322171e62182872d67715622d1a1d25dea7bdd5a08`.
+- **Artefact remis.** `NeoStation-Build-450-e7f223365a12327c62bfc154b0bddd789d2a0131-cold`.
+  - ID `11786148903`, 212 085 661 octets.
+  - SHA-256 de l'archive : `ba07914261d9ba8066939c3f8cf406147f6274e6ac61d8020387edbca00d061a`.
+  - Conservé jusqu'au 27 octobre 2026, chiffré pour `build-utils/delivery-424-recipient.pem`.
+  - Le SHA-256 de l'IPA scellée pour SideStore se lit après déchiffrement (`SHA256SUMS` de l'enveloppe). Il
+    n'est pas connu dans ce conteneur, qui ne peut pas télécharger les artefacts.
+- **Diagnostics chiffrés.** `…-cold-diagnostics`, ID `11785899316`, 5 170 621 octets.
 
 ## Ce qui n'est pas vérifié
 
