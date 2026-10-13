@@ -17,6 +17,7 @@
 // bridge (isSessionActive), path_provider and gamepads are mocked.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
@@ -118,6 +119,24 @@ Uint8List _tmd(String high, String low) {
 Uint8List _ncsdImage() {
   final out = _bytes(42, 0x400);
   out.setAll(0x100, utf8.encode('NCSD'));
+  return out;
+}
+
+/// A content of title `<high>/<low>` as Azahar stores it once encrypted for
+/// [console] in the legacy form: a decrypted NCCH (its size at 0x104, the
+/// title id at 0x118, zeros at 0x120) XORed with that console's keystream,
+/// the same for every file (Build 451, see the service test).
+Uint8List _consoleEncrypted(String high, String low, int length, int console) {
+  final out = _app(length & 0xff, length);
+  ByteData.sublistView(out)
+    ..setUint32(0x104, length ~/ 0x200, Endian.little)
+    ..setUint32(0x118, int.parse(low, radix: 16), Endian.little)
+    ..setUint32(0x11C, int.parse(high, radix: 16), Endian.little);
+  out.fillRange(0x120, 0x130, 0);
+  final keystream = math.Random(console);
+  for (var index = 0; index < out.length; index++) {
+    out[index] ^= keystream.nextInt(256);
+  }
   return out;
 }
 
@@ -1096,6 +1115,137 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('3ds-import-cancel')));
         await tester.pumpAndSettle();
         expect(user().existsSync(), isFalse);
+      },
+    );
+
+    // Build 451: the system titles of an Azahar nand folder, encrypted for
+    // their console, were all refused as invalid contents.
+    const fontApp =
+        '${Libretro3dsSystemDataService.titleRoot}/0004009b/00014002/content/00000000.app';
+    const miiApp =
+        '${Libretro3dsSystemDataService.titleRoot}/0004009b/00010202/content/00000000.app';
+    Map<String, List<int>> consoleTitles() => <String, List<int>>{
+      'nand/$_sourceId0/title/0004009b/00014002/content/00000000.app':
+          _consoleEncrypted('0004009b', '00014002', 0x1400, 1),
+      'nand/$_sourceId0/title/0004009b/00014002/content/00000000.tmd': _tmd(
+        '0004009b',
+        '00014002',
+      ),
+      'nand/$_sourceId0/title/0004009b/00010202/content/00000000.app':
+          _consoleEncrypted('0004009b', '00010202', 0x800, 1),
+      'nand/$_sourceId0/title/0004009b/00010202/content/00000000.tmd': _tmd(
+        '0004009b',
+        '00010202',
+      ),
+    };
+    Finder line(String group, String target) => find.descendant(
+      of: find.byKey(ValueKey('3ds-plan-$group')),
+      matching: find.textContaining('$target · '),
+    );
+
+    testWidgets(
+      'titles encrypted for their console are left out with their reason '
+      'without that console otp.bin (Build 451)',
+      (tester) async {
+        final zip = writeZip('azahar.zip', <String, List<int>>{
+          ...consoleTitles(),
+          'sysdata/seeddb.bin': _seeddb(2),
+        });
+        await pumpPage(tester, pickFiles: () async => <String>[zip]);
+        await openImport(tester, 'zip');
+        await settle(tester, find.byKey(const ValueKey('3ds-import-confirm')));
+
+        final reason = english['system3dsConsoleEncrypted']!;
+        expect(
+          tester
+              .widget<Text>(
+                find.byKey(
+                  const ValueKey('3ds-plan-excluded-console-encrypted'),
+                ),
+              )
+              .data,
+          reason,
+        );
+        expect(find.text(reason), findsOneWidget, reason: 'once per group');
+        expect(line('excluded', fontApp), findsOneWidget);
+        expect(line('excluded', miiApp), findsOneWidget);
+        expect(line('create', fontApp), findsNothing);
+        expect(find.byKey(const ValueKey('3ds-plan-rejected')), findsNothing);
+        // No console data in this import: the box cannot bring an otp.bin.
+        expect(
+          tester
+              .widget<CheckboxListTile>(
+                find.byKey(const ValueKey('3ds-include-console')),
+              )
+              .onChanged,
+          isNull,
+        );
+        expect(find.text(en('system3dsConfirm', {'count': 1})), findsOneWidget);
+
+        await tester.tap(find.byKey(const ValueKey('3ds-import-confirm')));
+        await settle(tester, find.byKey(const ValueKey('3ds-import-close')));
+        expect(
+          find.byKey(const ValueKey('3ds-result-console-encrypted')),
+          findsOneWidget,
+        );
+        expect(userFile(fontApp).existsSync(), isFalse);
+        expect(
+          userFile(Libretro3dsSystemDataService.seeddbTarget).existsSync(),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      'with that console otp.bin and the console data box, they are installed '
+      '(Build 451)',
+      (tester) async {
+        final zip = writeZip('azahar.zip', <String, List<int>>{
+          ...consoleTitles(),
+          'sysdata/otp.bin': _bytes(12, 0x100),
+        });
+        await pumpPage(tester, pickFiles: () async => <String>[zip]);
+        await openImport(tester, 'zip');
+        await settle(tester, find.byKey(const ValueKey('3ds-import-confirm')));
+        expect(line('excluded', fontApp), findsOneWidget);
+        expect(find.text(en('system3dsConfirm', {'count': 0})), findsOneWidget);
+
+        final consoleBox = find.byKey(const ValueKey('3ds-include-console'));
+        await tester.ensureVisible(consoleBox);
+        await tester.tap(consoleBox);
+        await tester.pump();
+        expect(line('create', fontApp), findsOneWidget);
+        expect(line('create', miiApp), findsOneWidget);
+        expect(line('excluded', fontApp), findsNothing);
+        expect(
+          find.byKey(const ValueKey('3ds-plan-create-console-encrypted')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('3ds-plan-excluded-console-encrypted')),
+          findsNothing,
+        );
+        // The two titles (four files) and the otp.bin.
+        expect(find.text(en('system3dsConfirm', {'count': 5})), findsOneWidget);
+
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('3ds-import-confirm')),
+        );
+        await tester.tap(find.byKey(const ValueKey('3ds-import-confirm')));
+        await settle(tester, find.byKey(const ValueKey('3ds-import-close')));
+        expect(
+          find.byKey(const ValueKey('3ds-result-console-encrypted')),
+          findsNothing,
+        );
+        expect(
+          userFile(fontApp).readAsBytesSync(),
+          _consoleEncrypted('0004009b', '00014002', 0x1400, 1),
+        );
+        expect(userFile(miiApp).existsSync(), isTrue);
+        expect(
+          userFile(Libretro3dsSystemDataService.otpTarget).existsSync(),
+          isTrue,
+        );
       },
     );
 

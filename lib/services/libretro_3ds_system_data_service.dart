@@ -340,7 +340,9 @@ class Libretro3dsImportItem {
     this.sourceHash,
     this.titleKey,
     _ItemLocator? locator,
-  }) : _locator = locator;
+    String? consoleCrypto,
+  }) : _locator = locator,
+       _consoleCrypto = consoleCrypto;
 
   /// Base name of the container (ZIP, folder or file), raw.
   final String sourceName;
@@ -382,6 +384,18 @@ class Libretro3dsImportItem {
 
   final _ItemLocator? _locator;
 
+  /// Console key fingerprint of a title whose contents Azahar encrypted for
+  /// their console ([Libretro3dsSystemDataService.consoleCryptoFingerprint]);
+  /// kept in memory only, never written to the journal.
+  final String? _consoleCrypto;
+
+  /// A file of a NAND title whose contents Azahar encrypted for the console
+  /// they come from: the core reads them only with that console's
+  /// `otp.bin`, so the title is installed only when that file is installed
+  /// or comes with the import and the console data
+  /// ([Libretro3dsImportPlan.consoleOtpReady]).
+  bool get consoleEncrypted => _consoleCrypto != null;
+
   bool get installable =>
       action != null && action != Libretro3dsPlanAction.skipIdentical;
 
@@ -399,10 +413,14 @@ class Libretro3dsImportPlan {
     required this.sources,
     required this.items,
     this.retiredTargets = const <String>[],
+    this.consoleOtpInstalled = false,
   });
 
   /// Absolute path of the destination user directory at analysis time.
   final String userDirectory;
+
+  /// `sysdata/otp.bin` (0x100 bytes) was installed at analysis time.
+  final bool consoleOtpInstalled;
 
   /// Source paths as given.
   final List<String> sources;
@@ -430,6 +448,19 @@ class Libretro3dsImportPlan {
 
   int get installableBytes =>
       installable.fold(0, (total, item) => total + item.size);
+
+  /// Whether the core will have an `otp.bin` to read the console-encrypted
+  /// titles with: already installed, or installed by this import with the
+  /// console data. The install checks the installed file again.
+  bool consoleOtpReady({required bool includeConsoleUnique}) =>
+      consoleOtpInstalled || (includeConsoleUnique && installsConsoleOtp);
+
+  /// This import brings an `otp.bin` to install with the console data.
+  bool get installsConsoleOtp => installable.any(
+    (item) =>
+        item.kind == Libretro3dsItemKind.consoleUnique &&
+        item.relativeTarget == Libretro3dsSystemDataService.otpTarget,
+  );
 }
 
 /// Per-element outcome of an install.
@@ -743,9 +774,14 @@ class Libretro3dsSystemDataService {
     'secureinfo_a': 'nand/rw/sys/SecureInfo_A',
     'localfriendcodeseed_b': 'nand/rw/sys/LocalFriendCodeSeed_B',
     'movable.sed': 'nand/private/movable.sed',
-    'otp.bin': 'sysdata/otp.bin',
+    'otp.bin': otpTarget,
     'mcu.dat': 'sysdata/mcu.dat',
   };
+
+  /// The console's OTP: the core derives from it the key of the title
+  /// contents Azahar encrypted for that console
+  /// ([consoleCryptoFingerprint]).
+  static const String otpTarget = 'sysdata/otp.bin';
 
   /// Sizes the core accepts for the console-unique files it loads (azahar
   /// a5c3d4f8, `hw/unique_data.cpp`: `sizeof(SecureInfoA)` 0x111,
@@ -1065,7 +1101,23 @@ class Libretro3dsSystemDataService {
       sources: List.unmodifiable(sources),
       items: List.unmodifiable(context.items),
       retiredTargets: List.unmodifiable(context.retired),
+      consoleOtpInstalled: await _hasConsoleOtp(userDirectory),
     );
+  }
+
+  /// `sysdata/otp.bin` of [userDirectory] is a file of the size the core
+  /// loads (`sizeof(OTPBin)`).
+  static Future<bool> _hasConsoleOtp(String userDirectory) async {
+    try {
+      final file = File(p.joinAll([userDirectory, ...otpTarget.split('/')]));
+      if (await FileSystemEntity.type(file.path, followLinks: false) !=
+          FileSystemEntityType.file) {
+        return false;
+      }
+      return consoleUniqueSizes[otpTarget]!.contains(await file.length());
+    } catch (_) {
+      return false;
+    }
   }
 
   static int _planOrder(Libretro3dsImportItem a, Libretro3dsImportItem b) {
@@ -1437,6 +1489,7 @@ class Libretro3dsSystemDataService {
       bool identical = false,
       String? detail,
       String? hash,
+      String? consoleCrypto,
     }) => Libretro3dsImportItem._(
       sourceName: containerName,
       sourceEntry: entry,
@@ -1453,6 +1506,7 @@ class Libretro3dsSystemDataService {
       sourceHash: hash,
       titleKey: recognition.titleKey,
       locator: source.locator,
+      consoleCrypto: consoleCrypto,
     );
 
     void rejected(
@@ -1549,6 +1603,7 @@ class Libretro3dsSystemDataService {
       return;
     }
     final _Refusal? refusal;
+    String? consoleCrypto;
     try {
       refusal = await _validateContent(
         kind,
@@ -1557,6 +1612,7 @@ class Libretro3dsSystemDataService {
         limits,
         titleKey: recognition.titleKey,
         target: target,
+        onConsoleCrypto: (fingerprint) => consoleCrypto = fingerprint,
       );
     } catch (error) {
       rejected(Libretro3dsRejection.invalid, _detail(error), target: target);
@@ -1603,7 +1659,7 @@ class Libretro3dsSystemDataService {
     if (kind == Libretro3dsItemKind.title) {
       context.titles
           .putIfAbsent(recognition.titleKey!, () => [])
-          .add(_TitleFile(source, item, target, hash));
+          .add(_TitleFile(source, item, target, hash, consoleCrypto));
       return;
     }
 
@@ -1759,9 +1815,22 @@ class Libretro3dsSystemDataService {
   /// title compares its whole destination `content` folder.
   static Future<void> _settleTitles(_AnalysisContext context) async {
     final keys = context.titles.keys.toList()..sort();
+    // Contents without a readable header are kept only when the other
+    // contents confirm one console key (Azahar's console encryption).
+    final consoleKey = _consoleCryptoConsensus(
+      context.titles.values.expand((files) => files),
+    );
     for (final key in keys) {
       final files = context.titles[key]!;
       String? refusal = context.refusedTitles[key];
+      final unconfirmed = {
+        for (final file in files)
+          if (file.consoleCrypto != null && file.consoleCrypto != consoleKey)
+            file.target,
+      };
+      if (refusal == null && unconfirmed.isNotEmpty) {
+        refusal = '${unconfirmed.first}: $_consoleCryptoUnconfirmed';
+      }
       if (refusal == null &&
           !files.any((file) => file.target.endsWith('.tmd'))) {
         refusal = 'title $key has no .tmd';
@@ -1772,17 +1841,27 @@ class Libretro3dsSystemDataService {
       }
       if (refusal != null) {
         for (final file in files) {
+          final unreadable = unconfirmed.contains(file.target);
           context.add(
             file.item(
               kind: Libretro3dsItemKind.rejected,
               target: file.target,
-              rejection: Libretro3dsRejection.incompleteTitle,
-              detail: refusal,
+              rejection: unreadable
+                  ? Libretro3dsRejection.invalid
+                  : Libretro3dsRejection.incompleteTitle,
+              detail: unreadable
+                  ? 'no NCCH header at 0x100 (nor a Z3DS or AZCR container): '
+                        '$_consoleCryptoUnconfirmed'
+                  : refusal,
             ),
           );
         }
         continue;
       }
+      // One encrypted content makes the whole title depend on the OTP.
+      final titleConsoleCrypto = files.any((file) => file.consoleCrypto != null)
+          ? consoleKey
+          : null;
 
       final contentTarget = '$titleRoot/$key/content';
       final content = p.joinAll([
@@ -1868,11 +1947,17 @@ class Libretro3dsSystemDataService {
             exists: existing.containsKey(file.target),
             identical: identicalFiles.contains(file.target),
             hash: file.hash,
+            consoleCrypto: titleConsoleCrypto,
           ),
         );
       }
     }
   }
+
+  /// Why a content without a readable header is not kept.
+  static const String _consoleCryptoUnconfirmed =
+      'not confirmed as encrypted by Azahar for one console (no content of '
+      'another title or size shares its keystream, or the contents disagree)';
 
   /// Kind and destination of a relative path (case-insensitive, any
   /// container prefix tolerated, `sdmc` trees ignored).
@@ -2048,7 +2133,11 @@ class Libretro3dsSystemDataService {
     return false;
   }
 
-  /// Null when the content matches [kind]; else the refusal.
+  /// Null when the content matches [kind]; else the refusal. A title `.app`
+  /// without a readable header that may be a content Azahar encrypted for
+  /// its console is handed to [onConsoleCrypto] with its fingerprint
+  /// instead of being refused: only the other contents can confirm it
+  /// ([_settleTitles]).
   static Future<_Refusal?> _validateContent(
     Libretro3dsItemKind kind,
     _SourceFile source,
@@ -2056,6 +2145,7 @@ class Libretro3dsSystemDataService {
     Libretro3dsImportLimits limits, {
     String? titleKey,
     String? target,
+    void Function(String fingerprint)? onConsoleCrypto,
   }) async {
     final size = source.size;
     _Refusal invalid(String detail) =>
@@ -2109,7 +2199,13 @@ class Libretro3dsSystemDataService {
             );
           }
           final problem = _contentProblem(head, titleKey);
-          return problem == null ? null : invalid(problem);
+          if (problem == null) return null;
+          final fingerprint = onConsoleCrypto == null
+              ? null
+              : consoleCryptoFingerprint(head, size, titleKey);
+          if (fingerprint == null) return invalid(problem);
+          onConsoleCrypto!(fingerprint);
+          return null;
         }
         if (name.endsWith('.tmd')) {
           final problem = tmdProblem(
@@ -2147,7 +2243,9 @@ class Libretro3dsSystemDataService {
   /// at 0x100, or the core's own containers for installed content, `Z3DS`
   /// (compressed) or `AZCR` (console-unique encryption) at 0 (azahar
   /// a5c3d4f8 `NCCHContainer::AutoOpenNCCHNCSD`). A DS title (TWL flag of
-  /// the high id) holds no NCCH and is only required non-empty.
+  /// the high id) holds no NCCH and is only required non-empty. The legacy
+  /// console encryption, without a header, is recognized apart
+  /// ([consoleCryptoFingerprint]).
   static String? _contentProblem(Uint8List head, String? titleKey) {
     final high = titleKey == null
         ? 0
@@ -2157,6 +2255,70 @@ class Libretro3dsSystemDataService {
     if (_startsWith(head, 0, const [0x5A, 0x33, 0x44, 0x53])) return null;
     if (_startsWith(head, 0, const [0x41, 0x5A, 0x43, 0x52])) return null;
     return 'no NCCH header at 0x100 (nor a Z3DS or AZCR container)';
+  }
+
+  /// Key-free fingerprint of a title content Azahar may have encrypted for
+  /// its console in the legacy form the core still opens (azahar a5c3d4f8
+  /// `CryptoIOFile::IsCryptoIOFile`, "Legacy mode": the whole file in
+  /// AES-CTR, no `AZCR` header, with one key and one counter derived from
+  /// the console's OTP for every file, `UniqueData::OpenUniqueCryptoFile`).
+  /// Every NCCH holds in clear `NCCH` at 0x100, its size in 0x200-byte units
+  /// at 0x104, its program id — the title id — at 0x118 and zeros at
+  /// 0x120–0x12F: XORed with them, the stored bytes give the keystream at
+  /// those offsets, the same for every content of one console whatever its
+  /// title and size. The SHA-256 of those 32 keystream bytes is returned (no
+  /// key material is kept). Null when [head] cannot be such a content: a
+  /// DS title, a size that is not a whole number of 0x200-byte units, a
+  /// head shorter than 0x130 bytes.
+  @visibleForTesting
+  static String? consoleCryptoFingerprint(
+    Uint8List head,
+    int size,
+    String? titleKey,
+  ) {
+    if (titleKey == null || head.length < 0x130) return null;
+    if (size < 0x200 || size % 0x200 != 0 || size ~/ 0x200 > 0xFFFFFFFF) {
+      return null;
+    }
+    final parts = titleKey.split('/');
+    final high = int.parse(parts.first, radix: 16);
+    final low = int.parse(parts.last, radix: 16);
+    if ((high & 0x8000) != 0) return null;
+    final plain = Uint8List(0x30);
+    plain.setAll(0, const [0x4E, 0x43, 0x43, 0x48]);
+    ByteData.sublistView(plain)
+      ..setUint32(0x04, size ~/ 0x200, Endian.little)
+      ..setUint32(0x18, low, Endian.little)
+      ..setUint32(0x1C, high, Endian.little);
+    final keystream = <int>[
+      for (var offset = 0x00; offset < 0x08; offset++)
+        head[0x100 + offset] ^ plain[offset],
+      for (var offset = 0x18; offset < 0x30; offset++)
+        head[0x100 + offset] ^ plain[offset],
+    ];
+    return sha256.convert(keystream).toString();
+  }
+
+  /// The console key the contents Azahar encrypted for their console share,
+  /// or null. Only agreement between contents of different titles or sizes
+  /// confirms it (one content alone, or two copies of one header, checks
+  /// nothing), and there must be one such key: contents of two consoles
+  /// cannot both be read with one `otp.bin`.
+  static String? _consoleCryptoConsensus(Iterable<_TitleFile> files) {
+    final support = <String, Set<String>>{};
+    for (final file in files) {
+      final fingerprint = file.consoleCrypto;
+      if (fingerprint == null) continue;
+      final segments = file.target.split('/');
+      support
+          .putIfAbsent(fingerprint, () => <String>{})
+          .add('${segments[3]}/${segments[4]}:${file.source.size}');
+    }
+    final confirmed = [
+      for (final entry in support.entries)
+        if (entry.value.length >= 2) entry.key,
+    ];
+    return confirmed.length == 1 ? confirmed.single : null;
   }
 
   /// An NCCH title content the core refuses as encrypted (azahar
@@ -2422,6 +2584,11 @@ class Libretro3dsSystemDataService {
       plan.items.length,
       null,
     );
+    // Titles Azahar encrypted for their console are read by the core with
+    // that console's otp.bin only: installed now, or by this pass.
+    final consoleOtpReady =
+        (includeConsoleUnique && plan.installsConsoleOtp) ||
+        await _hasConsoleOtp(user.path);
     final pendingFiles = <int>[];
     for (var index = 0; index < plan.items.length; index++) {
       final item = plan.items[index];
@@ -2436,8 +2603,11 @@ class Libretro3dsSystemDataService {
         case Libretro3dsItemKind.consoleUnique:
         case Libretro3dsItemKind.config:
           if (!includeConsoleUnique) status = Libretro3dsInstallStatus.excluded;
-        case Libretro3dsItemKind.seeddb:
         case Libretro3dsItemKind.title:
+          if (item.consoleEncrypted && !consoleOtpReady) {
+            status = Libretro3dsInstallStatus.excluded;
+          }
+        case Libretro3dsItemKind.seeddb:
           break;
       }
       if (status == null &&
@@ -2470,6 +2640,7 @@ class Libretro3dsSystemDataService {
         expectedHash: item.sourceHash,
         locator: item._locator,
         itemIndex: index,
+        consoleCrypto: item._consoleCrypto,
       );
       if (item.kind == Libretro3dsItemKind.title) {
         final unit = titleUnits.putIfAbsent(item.titleKey!, () {
@@ -2733,6 +2904,7 @@ class Libretro3dsSystemDataService {
         : null;
     try {
       final head = await source.prefix(0x200);
+      String? consoleCrypto;
       final refusal = await _validateContent(
         Libretro3dsItemKind.title,
         source,
@@ -2740,8 +2912,14 @@ class Libretro3dsSystemDataService {
         const Libretro3dsImportLimits(),
         titleKey: titleKey,
         target: file.target,
+        onConsoleCrypto: (fingerprint) => consoleCrypto = fingerprint,
       );
-      return refusal?.detail;
+      if (refusal != null) return refusal.detail;
+      if (consoleCrypto != null && consoleCrypto != file.consoleCrypto) {
+        return 'no NCCH header at 0x100 (nor a Z3DS or AZCR container): '
+            '$_consoleCryptoUnconfirmed';
+      }
+      return null;
     } catch (error) {
       return _detail(error);
     }
@@ -4549,7 +4727,13 @@ class _ZipSourceFile implements _SourceFile {
 
 /// A title file waiting for its title to be settled.
 class _TitleFile {
-  _TitleFile(this.source, this.item, this.target, this.hash);
+  _TitleFile(
+    this.source,
+    this.item,
+    this.target,
+    this.hash,
+    this.consoleCrypto,
+  );
 
   final _SourceFile source;
   final Libretro3dsImportItem Function({
@@ -4562,10 +4746,16 @@ class _TitleFile {
     bool identical,
     String? detail,
     String? hash,
+    String? consoleCrypto,
   })
   item;
   final String target;
   final String? hash;
+
+  /// Console key fingerprint of an `.app` without a readable NCCH header
+  /// ([Libretro3dsSystemDataService.consoleCryptoFingerprint]); settled
+  /// against the other contents of the import.
+  final String? consoleCrypto;
 }
 
 class _AnalysisContext {
@@ -4611,12 +4801,17 @@ class _UnitFile {
     required this.expectedHash,
     required this.locator,
     required this.itemIndex,
+    this.consoleCrypto,
   });
 
   final String target;
   final int size;
   final String? expectedHash;
   final _ItemLocator? locator;
+
+  /// Console key fingerprint of the title, for a content Azahar encrypted
+  /// for its console: the staged copy must still give it.
+  final String? consoleCrypto;
 
   /// Index in the plan (-1 for a restore).
   final int itemIndex;

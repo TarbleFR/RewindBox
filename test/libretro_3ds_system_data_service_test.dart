@@ -15,6 +15,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
@@ -103,6 +104,37 @@ Uint8List _app(int seed, int length) {
 /// The same content still encrypted: NoCrypto bit clear.
 Uint8List _encryptedApp(int seed, int length) =>
     _app(seed, length)..[0x18F] &= ~0x04;
+
+/// A decrypted NCCH content of title `<high>/<low>` with the header fields
+/// every NCCH holds: `NCCH` at 0x100, its size in 0x200-byte units at 0x104,
+/// the title id as program id at 0x118, zeros at 0x120–0x12F, NoCrypto.
+Uint8List _ncch(String high, String low, int length, {int seed = 1}) {
+  final out = _app(seed, length);
+  ByteData.sublistView(out)
+    ..setUint32(0x104, length ~/ 0x200, Endian.little)
+    ..setUint32(0x118, int.parse(low, radix: 16), Endian.little)
+    ..setUint32(0x11C, int.parse(high, radix: 16), Endian.little);
+  out.fillRange(0x120, 0x130, 0);
+  return out;
+}
+
+/// Stands for the AES-CTR stream of one console's key (Build 451).
+Uint8List _keystream(int seed) {
+  final random = math.Random(seed);
+  return Uint8List.fromList(
+    List<int>.generate(0x4000, (_) => random.nextInt(256)),
+  );
+}
+
+/// A content as Azahar stores it once encrypted for its console in the
+/// legacy form the core still opens (azahar a5c3d4f8 `CryptoIOFile`,
+/// "Legacy mode": the whole file in AES-CTR, no `AZCR` header, one key and
+/// one counter for every file of the console).
+Uint8List _consoleEncrypted(Uint8List plain, Uint8List keystream) =>
+    Uint8List.fromList([
+      for (var index = 0; index < plain.length; index++)
+        plain[index] ^ keystream[index],
+    ]);
 
 /// Title metadata of title `<high>/<low>` as `TitleMetadata::Load` reads it:
 /// RSA-2048 signature type, body of 0x9C4 bytes at 0x140 (title id at
@@ -935,8 +967,8 @@ void main() {
       'iCloud Drive placeholders of system files are said, never read',
       () async {
         final folder = await writeFolder('Nand', {
-          'nand/data/$_sourceId0/sysdata/00010017/00000000/.config.icloud':
-              utf8.encode('bplist00 placeholder'),
+          'nand/data/$_sourceId0/sysdata/00010017/00000000/.config.icloud': utf8
+              .encode('bplist00 placeholder'),
           'nand/$_sourceId0/title/0004009b/00014002/content/.00000000.app.icloud':
               utf8.encode('bplist00 placeholder'),
           'sysdata/.aes_keys.txt.icloud': utf8.encode('bplist00 placeholder'),
@@ -970,7 +1002,9 @@ void main() {
           isTrue,
         );
         expect(
-          plan.items.where((i) => i.sourceEntry.toLowerCase().contains('readme')),
+          plan.items.where(
+            (i) => i.sourceEntry.toLowerCase().contains('readme'),
+          ),
           isEmpty,
           reason: 'a placeholder of an unread file is not listed',
         );
@@ -989,7 +1023,9 @@ void main() {
         );
         expect(
           report.results
-              .where((r) => r.item.rejection == Libretro3dsRejection.notDownloaded)
+              .where(
+                (r) => r.item.rejection == Libretro3dsRejection.notDownloaded,
+              )
               .map((r) => r.status)
               .toSet(),
           {Libretro3dsInstallStatus.rejected},
@@ -3318,6 +3354,308 @@ void main() {
         ).succeeded,
         isFalse,
       );
+    });
+  });
+
+  // The ZIP of the report (12 October 2026): an Azahar nand folder whose 129
+  // system titles hold contents without a readable header, their 140 .app
+  // sharing one keystream (azahar a5c3d4f8 `CryptoIOFile`, "Legacy mode").
+  // Before Build 451 every such title was refused as an invalid content
+  // although the core reads them with the console's otp.bin.
+  group('titles Azahar encrypted for their console (Build 451)', () {
+    const titles = [
+      ('0004009b', '00014002', 0x1400),
+      ('0004009b', '00010202', 0x800),
+      ('00040130', '00001b02', 0xA00),
+    ];
+    String content(String high, String low, String name) =>
+        '${Libretro3dsSystemDataService.titleRoot}/$high/$low/content/$name';
+    Uint8List encrypted(String high, String low, int size, Uint8List stream) =>
+        _consoleEncrypted(_ncch(high, low, size, seed: size), stream);
+
+    /// An Azahar nand folder whose system titles were installed encrypted
+    /// for one console: TMDs in clear, macOS metadata beside.
+    Map<String, List<int>> nand(Uint8List keystream) => {
+      for (final (high, low, size) in titles) ...{
+        'nand/$_destinationId0/title/$high/$low/content/00000000.app':
+            encrypted(high, low, size, keystream),
+        'nand/$_destinationId0/title/$high/$low/content/00000000.tmd': _tmd(
+          high,
+          low,
+        ),
+      },
+      '__MACOSX/nand/._00000000.app': _bytes(8, 120),
+    };
+
+    test('they are recognized by the keystream their contents share, and '
+        'wait for that console otp.bin', () async {
+      final keystream = _keystream(1);
+      final zip = await writeZip(nand(keystream));
+      final plan = await service().analyze([zip]);
+      for (final (high, low, _) in titles) {
+        for (final name in ['00000000.app', '00000000.tmd']) {
+          final item = itemFor(plan, content(high, low, name));
+          expect(item.kind, Libretro3dsItemKind.title, reason: '$low/$name');
+          expect(item.consoleEncrypted, isTrue, reason: '$low/$name');
+          expect(item.action, Libretro3dsPlanAction.create);
+        }
+      }
+      expect(plan.rejected, isEmpty);
+      expect(plan.consoleOtpInstalled, isFalse);
+      expect(plan.installsConsoleOtp, isFalse);
+      expect(plan.consoleOtpReady(includeConsoleUnique: true), isFalse);
+
+      // Without that console's otp.bin the core cannot read them: left out.
+      final report = await service().install(plan, includeConsoleUnique: true);
+      for (final (high, low, _) in titles) {
+        expect(
+          resultFor(report, content(high, low, '00000000.app')).status,
+          Libretro3dsInstallStatus.excluded,
+        );
+      }
+      expect(await userTree(), isEmpty);
+
+      // Once it is installed, the same import installs them unchanged (the
+      // core decrypts them as it reads them).
+      await writeUser(
+        Libretro3dsSystemDataService.otpTarget,
+        _bytes(11, 0x100),
+      );
+      tick();
+      final again = await service().analyze([zip]);
+      expect(again.consoleOtpInstalled, isTrue);
+      final installed = await service().install(again);
+      expect(installed.succeeded, isTrue);
+      for (final (high, low, size) in titles) {
+        final target = content(high, low, '00000000.app');
+        expect(
+          resultFor(installed, target).status,
+          Libretro3dsInstallStatus.installed,
+        );
+        expect(
+          await userFile(target).readAsBytes(),
+          encrypted(high, low, size, keystream),
+        );
+      }
+      expectOnlyRoots(await tree());
+    });
+
+    test(
+      'an otp.bin in the same import installs them with the console data',
+      () async {
+        final zip = await writeZip({
+          ...nand(_keystream(2)),
+          'sysdata/otp.bin': _bytes(12, 0x100),
+        });
+        final plan = await service().analyze([zip]);
+        expect(plan.installsConsoleOtp, isTrue);
+        expect(plan.consoleOtpReady(includeConsoleUnique: false), isFalse);
+        expect(plan.consoleOtpReady(includeConsoleUnique: true), isTrue);
+
+        final without = await service().install(plan);
+        expect(
+          resultFor(without, _fontTarget).status,
+          Libretro3dsInstallStatus.excluded,
+        );
+        expect(
+          resultFor(without, Libretro3dsSystemDataService.otpTarget).status,
+          Libretro3dsInstallStatus.excluded,
+        );
+        expect(await userTree(), isEmpty);
+
+        tick();
+        final withConsole = await service().install(
+          plan,
+          includeConsoleUnique: true,
+        );
+        expect(withConsole.succeeded, isTrue);
+        expect(
+          await userTree(),
+          [
+            for (final (high, low, _) in titles) ...[
+              content(high, low, '00000000.app'),
+              content(high, low, '00000000.tmd'),
+            ],
+            Libretro3dsSystemDataService.otpTarget,
+          ]..sort(),
+        );
+        expectOnlyRoots(await tree());
+      },
+    );
+
+    test('contents are kept only when other contents confirm one console '
+        'key', () async {
+      Future<Libretro3dsImportPlan> analyze(
+        Map<String, List<int>> files,
+      ) async => service().analyze([await writeZip(files)]);
+      void expectRefused(Libretro3dsImportPlan plan, String high, String low) {
+        final app = itemFor(plan, content(high, low, '00000000.app'));
+        expect(app.rejection, Libretro3dsRejection.invalid, reason: low);
+        expect(app.technicalDetail, contains('not confirmed'), reason: low);
+        expect(
+          itemFor(plan, content(high, low, '00000000.tmd')).rejection,
+          Libretro3dsRejection.incompleteTitle,
+          reason: low,
+        );
+      }
+
+      // One content alone: nothing confirms its key.
+      final (fontHigh, fontLow, fontSize) = titles.first;
+      final single = await analyze({
+        _fontTarget: encrypted(fontHigh, fontLow, fontSize, _keystream(3)),
+        _fontTmdTarget: _tmd(fontHigh, fontLow),
+      });
+      expectRefused(single, fontHigh, fontLow);
+
+      // Two copies of one header (same title, same size) check nothing.
+      final copy = encrypted(fontHigh, fontLow, fontSize, _keystream(3));
+      final copies = await analyze({
+        _fontTarget: copy,
+        '$_fontContent/00000001.app': copy,
+        _fontTmdTarget: _tmd(fontHigh, fontLow, contents: 2),
+      });
+      expect(
+        itemFor(copies, _fontTarget).rejection,
+        Libretro3dsRejection.invalid,
+      );
+
+      // Each title with its own key (contents encrypted per title, as a
+      // download that was never decrypted): no shared keystream.
+      var seed = 10;
+      final perTitle = await analyze({
+        for (final (high, low, size) in titles) ...{
+          content(high, low, '00000000.app'): encrypted(
+            high,
+            low,
+            size,
+            _keystream(seed++),
+          ),
+          content(high, low, '00000000.tmd'): _tmd(high, low),
+        },
+      });
+      for (final (high, low, _) in titles) {
+        expectRefused(perTitle, high, low);
+      }
+
+      // Two consoles in one import: one otp.bin reads only one of them.
+      final twoConsoles = await analyze({
+        ...nand(_keystream(4)),
+        for (final low in ['00014102', '00014202']) ...{
+          content('0004009b', low, '00000000.app'): encrypted(
+            '0004009b',
+            low,
+            0x600,
+            _keystream(5),
+          ),
+          content('0004009b', low, '00000000.tmd'): _tmd('0004009b', low),
+        },
+      });
+      for (final (high, low, _) in titles) {
+        expectRefused(twoConsoles, high, low);
+      }
+      expectRefused(twoConsoles, '0004009b', '00014102');
+
+      // A content moved into another title's folder: its program id is
+      // no longer the folder's title, so only that title is refused.
+      final keystream = _keystream(6);
+      final moved = await analyze({
+        ...nand(keystream),
+        content('0004009b', '00014302', '00000000.app'): encrypted(
+          fontHigh,
+          fontLow,
+          fontSize,
+          keystream,
+        ),
+        content('0004009b', '00014302', '00000000.tmd'): _tmd(
+          '0004009b',
+          '00014302',
+        ),
+      });
+      expectRefused(moved, '0004009b', '00014302');
+      for (final (high, low, _) in titles) {
+        expect(
+          itemFor(moved, content(high, low, '00000000.app')).consoleEncrypted,
+          isTrue,
+          reason: low,
+        );
+      }
+    });
+
+    test('the fingerprint is the keystream of the header fields only', () {
+      String? fingerprint(Uint8List file, String titleKey) =>
+          Libretro3dsSystemDataService.consoleCryptoFingerprint(
+            Uint8List.sublistView(file, 0, 0x200),
+            file.length,
+            titleKey,
+          );
+      final keystream = _keystream(7);
+      final font = fingerprint(
+        encrypted('0004009b', '00014002', 0x1400, keystream),
+        '0004009b/00014002',
+      );
+      expect(font, matches(RegExp(r'^[0-9a-f]{64}$')));
+      expect(
+        fingerprint(
+          encrypted('00040130', '00001b02', 0xA00, keystream),
+          '00040130/00001b02',
+        ),
+        font,
+        reason: 'one console key whatever the title and size',
+      );
+      expect(
+        fingerprint(
+          encrypted('0004009b', '00014002', 0x1400, _keystream(8)),
+          '0004009b/00014002',
+        ),
+        isNot(font),
+      );
+      // A DS title holds no NCCH; an NCCH is a whole number of 0x200 units;
+      // the header fields end at 0x130.
+      const raw = Libretro3dsSystemDataService.consoleCryptoFingerprint;
+      expect(raw(_bytes(1, 0x200), 0x200, '00048005/42383841'), isNull);
+      expect(raw(_bytes(1, 0x200), 0x2001, '0004009b/00014002'), isNull);
+      expect(raw(_bytes(1, 0x12F), 0x200, '0004009b/00014002'), isNull);
+      expect(raw(_bytes(1, 0x200), 0x200, null), isNull);
+    });
+
+    test('a large content is checked again once staged', () async {
+      final keystream = _keystream(9);
+      final folder = await writeFolder('azahar', nand(keystream));
+      final font = File(
+        p.joinAll([
+          folder,
+          ...'nand/$_destinationId0/title/0004009b/00014002/content/00000000.app'
+              .split('/'),
+        ]),
+      );
+      await writeUser(
+        Libretro3dsSystemDataService.otpTarget,
+        _bytes(11, 0x100),
+      );
+      const limits = Libretro3dsImportLimits(maxAnalysisHashBytes: 0x100);
+      final plan = await service(limits: limits).analyze([folder]);
+      expect(itemFor(plan, _fontTarget).sourceHash, isNull);
+      expect(itemFor(plan, _fontTarget).consoleEncrypted, isTrue);
+
+      // Changed after the analysis but with the same size and time: the
+      // staged copy no longer gives the console key, nothing is installed.
+      final original = await font.readAsBytes();
+      final stamp = await font.lastModified();
+      await font.writeAsBytes(Uint8List.fromList(original)..[0x118] ^= 0x01);
+      await font.setLastModified(stamp);
+      final refused = await service(limits: limits).install(plan);
+      expect(refused.succeeded, isFalse);
+      expect(refused.failure, contains('not confirmed'));
+      expect(await userFile(_fontTarget).exists(), isFalse);
+
+      // Put back: the staged copies are checked again and installed.
+      await font.writeAsBytes(original);
+      await font.setLastModified(stamp);
+      tick();
+      final installed = await service(limits: limits).install(plan);
+      expect(installed.succeeded, isTrue);
+      expect(await userFile(_fontTarget).readAsBytes(), original);
+      expectOnlyRoots(await tree());
     });
   });
 }

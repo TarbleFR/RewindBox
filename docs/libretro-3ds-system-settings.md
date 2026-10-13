@@ -631,3 +631,89 @@ sur ses fichiers) : un ZIP de plus de 2 000 entrées hors dossiers élagués est
 complet peut s'en approcher) ; une image NAND brute (`nand.bin`, `*_sysnand_*.bin`) reste
 refusée (§ 7) ; les titres système d'une console réelle sont des NCCH chiffrés, refusés par le
 cœur (§ 7). Aucune validation sur iPhone.
+
+## 9. Build 451 — titres chiffrés par Azahar pour leur console (13 octobre 2026)
+
+Le mainteneur a fourni le ZIP qui échoue (`nand.zip`, 203 201 036 octets, 1 246 entrées dont
+459 `__MACOSX`), examiné en lecture seule sur son PC (rien copié ni versionné). C'est le dossier
+`nand` d'un dossier utilisateur Azahar : 133 titres NAND, TMD lisibles. Les 4 titres DS passent.
+Les 140 `.app` des 129 autres titres n'ont ni `NCCH` à 0x100 ni `Z3DS`/`AZCR` à 0 : chacun est
+refusé (`no NCCH header at 0x100 (nor a Z3DS or AZCR container)`), et son titre avec lui. Le
+fichier `otp.bin` n'y est pas : Azahar le range dans `sysdata`, à côté de `nand`.
+
+**Démontré sur le fichier.** Tout NCCH porte en clair quatre champs connus :
+- `NCCH` à 0x100 ;
+- sa taille en unités de 0x200 à 0x104 ;
+- l'identifiant de programme, qui est celui du titre, à 0x118 ;
+- des zéros de 0x120 à 0x12F.
+
+Combinés par XOR avec les octets stockés, ces champs donnent un **seul** flux de clé pour les
+140 contenus, dont deux champs varient d'un fichier à l'autre (taille, titre). L'entropie mesurée
+est de 7,998 bits par octet.
+
+**Sources amont** (azahar `a5c3d4f8`) :
+- `NCCHContainer::AutoOpenNCCHNCSD` appelle d'abord `HW::UniqueData::IsUniqueCryptoFile`, puis
+  `FileUtil::CryptoIOFile::IsCryptoIOFile` (`src/common/file_derived.cpp`). Deux formes sont
+  acceptées : l'en-tête `AZCR` (version 0, SHA-256 de la clé et du nonce), ou le « Legacy mode »
+  (« To be removed in a few years »). Dans ce dernier, tout le fichier est en AES-CTR, sans
+  en-tête ; il est lu si le déchiffrement donne `NCCH`/`NCSD` à 0x100 ou `Z3DS` à 0.
+- La clé et le compteur viennent de `GetUniqueCryptoFileKeyIV` (`src/core/hw/unique_data.cpp`).
+  C'est le SHA-256 de la clé publique ECC du certificat CT (construit depuis l'OTP), de
+  l'identifiant d'appareil et de l'identifiant 0 : 16 octets de clé, 12 de nonce, identiques
+  pour tous les fichiers d'une console.
+- `LoadOTP` exige `sysdata/otp.bin` et les clés OTP (`GetOTPKeyIV`). Le blob intégré
+  `ENABLE_BUILTIN_KEYBLOB` est ON par défaut et n'est pas désactivé par la recette iOS d'Azahar
+  (`.github/workflows/libretro.yml`) ; la recette du buildbot n'a pas été lue.
+- Ensuite `LoadHeader` exige NoCrypto, comme pour tout NCCH.
+- `archive_ncch.cpp` remplace un titre qu'il ne peut pas ouvrir par ses polices, données Mii,
+  liste de pays et mots interdits de substitution : un titre illisible équivaut à un titre
+  absent.
+
+**Défaut NeoStation.** L'import ne reconnaissait que la forme `AZCR`. Il refusait la forme
+« Legacy », que le cœur lit pourtant avec l'OTP de la console.
+
+**Correctif** (`lib/services/libretro_3ds_system_data_service.dart`) :
+- `consoleCryptoFingerprint` calcule le SHA-256 des 32 octets de flux trouvés sur ces champs.
+  Aucune clé n'est nécessaire ; aucun octet de flux n'est conservé ni journalisé.
+- Un `.app` sans en-tête lisible, d'un titre non DS, d'une taille multiple de 0x200, n'est
+  conservé que si un contenu d'un autre titre ou d'une autre taille confirme son empreinte, et si
+  l'import ne contient qu'une seule empreinte confirmée. Sinon il est refusé `invalid` (détail
+  `not confirmed as encrypted by Azahar for one console…`) et son titre est `incompleteTitle`.
+  Des contenus chiffrés titre par titre (un téléchargement jamais déchiffré) ne partagent aucun
+  flux : ils restent refusés.
+- Tous les fichiers d'un tel titre portent `consoleEncrypted`. Le titre n'est installé que si
+  `sysdata/otp.bin` (0x100 octets) est déjà en place, ou s'il est importé dans le même passage
+  avec la case des données de console (`Libretro3dsImportPlan.consoleOtpReady`, vérifié de nouveau
+  à l'installation). Sinon il est laissé de côté (`excluded`). Le texte `system3dsConsoleEncrypted`
+  (douze langues) s'affiche une fois par groupe du plan et une fois dans le résultat.
+- Un gros fichier n'a pas d'empreinte SHA-256 à l'analyse : sa copie préparée doit alors redonner
+  la même empreinte de clé.
+- Les octets installés sont ceux du ZIP : le cœur déchiffre en lisant.
+
+**Règle de la Build 448 maintenue.** Un NCCH chiffré (sans NoCrypto) reste refusé, et aucun texte
+ne présente un fichier de clés comme remède. `otp.bin` est une donnée de console (case existante) ;
+il est nommé parce que le cœur en dérive réellement la clé de ces titres.
+
+**Ce que donnera le ZIP du mainteneur :**
+- seul : les 4 titres DS, et les données de console si la case est cochée ; les 129 titres sont
+  laissés de côté, avec l'explication ;
+- avec `sysdata/otp.bin` du même dossier Azahar et la case cochée : les 133 titres.
+
+**Limites, non vérifié :**
+- L'import ne peut pas vérifier que `otp.bin` vient de la console qui a chiffré les titres : la
+  dérivation demande les clés OTP du cœur. Un autre `otp.bin` rend ces titres illisibles, ce qui
+  revient à des titres absents.
+- La présence du blob de clés dans le binaire du buildbot n'est pas prouvée.
+- Un contenu isolé (un seul titre importé de nouveau) n'est pas confirmable : il est refusé.
+- Azahar annonce le retrait du « Legacy mode » : une mise à jour future du cœur pourrait ne plus
+  lire ces fichiers.
+- Les tickets (`dbs/ticket.db/*.tik`), les extdata partagées et les sauvegardes système autres que
+  `config` restent non reconnus ; ils ne servent pas à charger les titres.
+- Aucune validation sur iPhone.
+
+**Tests :**
+- `test/libretro_3ds_system_data_service_test.dart`, groupe « titles Azahar encrypted for their
+  console (Build 451) » : reconnaissance et attente d'`otp.bin`, `otp.bin` dans le même import,
+  refus (contenu isolé, deux copies d'un en-tête, chiffrement par titre, deux consoles, contenu
+  déplacé dans un autre titre), empreinte, nouvelle vérification d'un gros fichier préparé ;
+- `test/libretro_3ds_system_screen_test.dart` : deux tests de l'écran, texte et cases.

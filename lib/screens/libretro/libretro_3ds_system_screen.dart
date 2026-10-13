@@ -1236,6 +1236,9 @@ class _PlanDialogState extends State<_PlanDialog> {
   bool _optedIn(Libretro3dsImportItem item) => switch (item.kind) {
         Libretro3dsItemKind.consoleUnique || Libretro3dsItemKind.config => _includeConsole,
         Libretro3dsItemKind.keys => _includeKeys,
+        // Encrypted by Azahar for their console: read with its otp.bin only.
+        Libretro3dsItemKind.title when item.consoleEncrypted =>
+          _plan.consoleOtpReady(includeConsoleUnique: _includeConsole),
         _ => true,
       };
 
@@ -1264,6 +1267,13 @@ class _PlanDialogState extends State<_PlanDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: theme.textTheme.labelLarge?.copyWith(color: rejected ? scheme.error : null)),
+          // Once for the titles Azahar encrypted for their console.
+          if (items.any((item) => item.consoleEncrypted))
+            Text(
+              _page._t('system3dsConsoleEncrypted'),
+              key: ValueKey('3ds-plan-$key-console-encrypted'),
+              style: theme.textTheme.bodySmall,
+            ),
           for (final item in items) ...[
             Text(_line(item), style: mono),
             if (item.isConsoleData)
@@ -1458,6 +1468,15 @@ class _ResultDialog extends StatelessWidget {
                       for (final path in report.missing) _MonoLine(text: path),
                     ],
                   ),
+                ),
+              if (shown.any((result) =>
+                  result.status == Libretro3dsInstallStatus.excluded && result.item.consoleEncrypted))
+                _NoteLine(
+                  key: const ValueKey('3ds-result-console-encrypted'),
+                  icon: Icons.info_outline,
+                  color: scheme.onSurfaceVariant,
+                  text: page._t('system3dsConsoleEncrypted'),
+                  padding: const EdgeInsets.only(bottom: 8),
                 ),
               if (report.backupDirectory != null)
                 Padding(
