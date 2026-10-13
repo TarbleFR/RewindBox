@@ -259,12 +259,10 @@ abstract final class LibretroCoreCatalog {
         'app',
       },
       preferredHardwareContext: LibretroHardwareContext.vulkan,
-      // The libretro build keeps Citra's option keys. Both the ARM11 JIT and
-      // the PICA shader JIT emit machine code.
-      noJitOverrides: {
-        'citra_use_cpu_jit': 'disabled',
-        'citra_use_shader_jit': 'disabled',
-      },
+      // Official 2127.0-alpha1 iOS builds compile CPU and shader JIT off;
+      // they no longer declare either JIT option. FastInterp uses no JIT.
+      // A stored disabled choice wins over this default on the next launch.
+      optionDefaults: {'citra_use_fastinterp': 'enabled'},
       // Top screen above the centred bottom screen, never swapped by the
       // core; the C-stick stays a stick instead of also driving a touch
       // cursor; stereoscopic modes would change the picture NeoStation crops.
@@ -329,6 +327,17 @@ abstract final class LibretroCoreCatalog {
           ['New 3DS', 'Old 3DS'],
           valueLabelKeys: {'New 3DS': 'model3dsNew', 'Old 3DS': 'model3dsOld'},
           inGameMenu: false,
+        ),
+        // The label explicitly requires closing and relaunching the game:
+        // retro_reset does not re-read a paused menu choice before CPU init.
+        LibretroCuratedSetting(
+          'citra_use_fastinterp',
+          'settingFastInterpreter',
+          ['enabled', 'disabled'],
+          valueLabelKeys: {
+            'enabled': 'fastInterpreterEnabled',
+            'disabled': 'fastInterpreterDisabled',
+          },
         ),
       ],
     ),

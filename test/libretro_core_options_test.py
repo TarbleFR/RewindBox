@@ -53,6 +53,7 @@ CURATED = {
     ('azahar', 'citra_region_value'),
     ('azahar', 'citra_language_value'),
     ('azahar', 'citra_is_new_3ds'),
+    ('azahar', 'citra_use_fastinterp'),
 }
 # Options NeoStation locks for the session, exactly (screen crop, touch
 # screen and sticks of the dual-screen consoles; the Azahar user folder
@@ -82,6 +83,7 @@ CURATED_CHOICES = {
                                          'Portuguese', 'Russian', 'Korean', 'Traditional Chinese',
                                          'Simplified Chinese'],
     ('azahar', 'citra_is_new_3ds'): ['New 3DS', 'Old 3DS'],
+    ('azahar', 'citra_use_fastinterp'): ['enabled', 'disabled'],
 }
 
 
@@ -167,8 +169,12 @@ def main():
                                           {key for key, _ in entry['settings']})
         require(not overlap, f'{core_id}: locked options {sorted(overlap)} are also defaults or settings')
     require(all(entry['noJit'] for core_id, entry in cores.items()
-                if core_id in ('mupen64plus_next', 'ppsspp', 'azahar', 'desmume')),
+                if core_id in ('mupen64plus_next', 'ppsspp', 'desmume')),
             'no-JIT overrides were not parsed')
+    require(cores['azahar']['defaults'].get('citra_use_fastinterp') == 'enabled',
+            'FastInterp must default on without locking the user choice')
+    require(not cores['azahar']['noJit'],
+            'official iOS alpha compiles both JITs off and removes those options')
     if args.cores is None:
         print('Catalog parsed:', len(cores), 'cores; binary contract needs --cores')
         return

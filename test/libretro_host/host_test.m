@@ -121,6 +121,37 @@ int main(int argc, const char *argv[]) {
     for (int index = 0; index < 100; index++) ((uint8_t *)rom.mutableBytes)[index] = (uint8_t)(index + 1);
     [rom writeToFile:content atomically:YES];
 
+    // Build 453: the real option store preserves the FastInterp user choice
+    // across fresh sessions and refuses values the core does not declare.
+    struct retro_core_option_v2_definition fastDefinitions[] = {
+      {.key = "citra_use_fastinterp", .desc = "Fast Interpreter",
+       .values = {{"enabled", "Enabled"}, {"disabled", "Disabled"}, {NULL, NULL}},
+       .default_value = "enabled"},
+      {0}
+    };
+    struct retro_core_options_v2 fastDeclarations = {NULL, fastDefinitions};
+    NSString *fastPath = [work stringByAppendingPathComponent:@"Config/FastInterpTest.json"];
+    LibretroCoreOptions *fast = [[LibretroCoreOptions alloc] initWithStorePath:fastPath];
+    [fast declareV2:&fastDeclarations local:NULL];
+    [fast applyDefaults:@{@"citra_use_fastinterp": @"enabled"}];
+    CHECK(strcmp([fast valueForKey:"citra_use_fastinterp"], "enabled") == 0,
+          "FastInterp enabled for a new user");
+    CHECK([fast setValue:@"disabled" forKey:@"citra_use_fastinterp" persist:YES],
+          "FastInterp can be disabled through the same store as the in-game menu");
+    LibretroCoreOptions *nextFast = [[LibretroCoreOptions alloc] initWithStorePath:fastPath];
+    [nextFast declareV2:&fastDeclarations local:NULL];
+    [nextFast applyDefaults:@{@"citra_use_fastinterp": @"enabled"}];
+    CHECK(strcmp([nextFast valueForKey:"citra_use_fastinterp"], "disabled") == 0,
+          "disabled choice survives relaunch and beats the enabled default");
+    CHECK(![nextFast setValue:@"invalid" forKey:@"citra_use_fastinterp" persist:YES],
+          "invalid FastInterp choice refused");
+    CHECK([nextFast setValue:@"enabled" forKey:@"citra_use_fastinterp" persist:YES],
+          "FastInterp can be enabled again");
+    LibretroCoreOptions *lastFast = [[LibretroCoreOptions alloc] initWithStorePath:fastPath];
+    [lastFast declareV2:&fastDeclarations local:NULL];
+    CHECK(strcmp([lastFast valueForKey:"citra_use_fastinterp"], "enabled") == 0,
+          "enabled choice also survives relaunch");
+
     // Session 1: plain content.
     TestDelegate *delegate = [TestDelegate new];
     delegate.buttons = 0x0103;

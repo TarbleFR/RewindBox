@@ -1570,6 +1570,29 @@ BUILD452_DELTA = {
     'test/libretro_playlist_actions_test.dart',
 }
 DELTA |= BUILD452_DELTA
+# Build 453: the requested official Azahar FastInterp replacement, translated
+# native option menu, pinned package and behavioral/package delivery checks.
+BUILD453_DELTA = {
+    'build-utils/libretro/cores.json',
+    'build-utils/libretro/Azahar-LICENSE.txt',
+    'build-utils/libretro/upgrade_azahar.py',
+    '.github/workflows/libretro-cores.yml',
+    'test/libretro_azahar_package_test.py',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/l10n/libretro_locale.dart',
+    'test/libretro_core_catalog_test.dart',
+    'test/libretro_core_options_test.py',
+    'test/libretro_host/host_test.m',
+    '.github/workflows/retroarch-delivery.yml',
+    '.github/workflows/libretro-checks.yml',
+    '.github/workflows/libretro-simulator.yml',
+    'build-utils/validate_libretro_ipa.py',
+    'pubspec.yaml',
+    'NOTICE.md',
+    'assets/legal/THIRD_PARTY_NOTICES.md',
+    'build-utils/verify_delivery_reuse.py',
+}
+DELTA |= BUILD453_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

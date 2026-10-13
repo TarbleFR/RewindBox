@@ -175,3 +175,20 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Utiliser les catalogues de traduction du projet. Ne pas ajouter de branche français/anglais ni afficher directement un message natif en anglais comme message utilisateur. Les noms de produits, identifiants, chemins et diagnostics techniques bruts restent inchangés, séparés de l’explication traduite.
 - Pour chaque surface modifiée, vérifier automatiquement la présence de toutes les clés dans les douze langues, la conservation des paramètres de substitution et la sélection du chinois traditionnel. Un repli anglais ne remplace pas une traduction manquante dans une langue officiellement prise en charge.
 - Inclure ces vérifications dans les tests obligatoires avant toute nouvelle IPA. Cette règle reste applicable aux interventions suivantes, sans nouveau rappel du mainteneur.
+
+## Build 453 — Azahar FastInterp, 13 octobre 2026
+
+- Demande du mainteneur : remplacer le cœur 3DS dans le moteur libretro embarqué,
+  exposer Fast Interpreter activé/désactivé et produire une IPA valide.
+- Candidate 0.0.7+453 par-dessus la 452 (1594e78c), sur Claude.
+- Azahar officiel 2127.0-alpha1 iOS ARM64, sources 5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6,
+  GPLv3+. Paquet de cœurs 8b9e87ba, run 38352378859. Les 13 autres cœurs,
+  MoltenVK et ressources système sont conservés octet par octet.
+- Option native citra_use_fastinterp, enabled/disabled, défaut activé et choix
+  utilisateur persistant ; menu en jeu › Réglages d’émulation. Le libellé traduit
+  demande de fermer et relancer le jeu : un simple reset ne garantit pas la
+  reconstruction des processeurs avec la nouvelle valeur.
+- Les JIT CPU et shader sont compilés désactivés sous IOS et leurs anciennes
+  clés ne sont plus déclarées : aucun override fictif ajouté au nouveau cœur.
+- Identité, contrôles et limites : docs/build453-plan.md. Aucun gain de FPS ni
+  fonctionnement sur iPhone ne doit être annoncé comme mesuré sans test réel.

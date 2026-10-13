@@ -254,7 +254,7 @@ void main() {
   test('the 3DS core offers system region, language and model, translated twelve times', () {
     final azahar = LibretroCoreCatalog.cores['azahar']!;
     expect(azahar.settings.map((setting) => setting.key).toList(),
-        <String>['citra_region_value', 'citra_language_value', 'citra_is_new_3ds']);
+        <String>['citra_region_value', 'citra_language_value', 'citra_is_new_3ds', 'citra_use_fastinterp']);
     final region = azahar.settings[0];
     final language = azahar.settings[1];
     final model = azahar.settings[2];
@@ -310,7 +310,7 @@ void main() {
       // offers it; the Nintendo 3DS page still does.
       final translated = LibretroLocale.coreSettings(Locale(entry.key), azahar);
       expect(translated.map((setting) => setting['key']).toList(),
-          <String>['citra_region_value', 'citra_language_value']);
+          <String>['citra_region_value', 'citra_language_value', 'citra_use_fastinterp']);
       final inGame = azahar.settings.where((setting) => setting.inGameMenu).toList();
       expect(inGame.length, translated.length);
       for (var index = 0; index < inGame.length; index++) {
@@ -334,10 +334,16 @@ void main() {
 
   test('cores that generate machine code fall back to interpreters without JIT', () {
     final cores = LibretroCoreCatalog.cores;
-    expect(cores['azahar']!.noJitOverrides, <String, String>{
-      'citra_use_cpu_jit': 'disabled',
-      'citra_use_shader_jit': 'disabled',
-    });
+    // Both JITs are compiled off in the official iOS alpha. The packaging
+    // check pins that binary and rejects the removed JIT option keys.
+    expect(cores['azahar']!.noJitOverrides, isEmpty);
+    expect(cores['azahar']!.optionDefaults['citra_use_fastinterp'], 'enabled');
+    final fast = cores['azahar']!.settings.singleWhere(
+      (setting) => setting.key == 'citra_use_fastinterp',
+    );
+    expect(fast.inGameMenu, isTrue);
+    expect(fast.values, <String>['enabled', 'disabled']);
+    expect(cores['azahar']!.lockedOptions.containsKey(fast.key), isFalse);
     expect(cores['mupen64plus_next']!.noJitOverrides,
         <String, String>{'mupen64plus-cpucore': 'cached_interpreter'});
     expect(cores['ppsspp']!.noJitOverrides, <String, String>{'ppsspp_cpu_core': 'IR JIT'});

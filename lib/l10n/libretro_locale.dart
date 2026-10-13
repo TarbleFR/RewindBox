@@ -144,6 +144,9 @@ abstract final class LibretroLocale {
   static const Map<String, Map<String, String>> values =
       <String, Map<String, String>>{
     'en': {
+      'settingFastInterpreter': 'Fast Interpreter (relaunch game)',
+      'fastInterpreterEnabled': 'Enabled',
+      'fastInterpreterDisabled': 'Disabled',
       'menu': 'Menu',
       'resume': 'Resume',
       'reset': 'Restart game',
@@ -764,6 +767,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Missing after the failure (their originals are in the backup folder):',
     },
     'fr': {
+      'settingFastInterpreter': 'Interpréteur rapide (relancer le jeu)',
+      'fastInterpreterEnabled': 'Activé',
+      'fastInterpreterDisabled': 'Désactivé',
       'menu': 'Menu',
       'resume': 'Reprendre',
       'reset': 'Redémarrer le jeu',
@@ -1384,6 +1390,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Manquants après l’échec (leurs originaux sont dans le dossier de sauvegarde) :',
     },
     'de': {
+      'settingFastInterpreter': 'Schneller Interpreter (Spiel neu starten)',
+      'fastInterpreterEnabled': 'Aktiviert',
+      'fastInterpreterDisabled': 'Deaktiviert',
       'menu': 'Menü',
       'resume': 'Fortsetzen',
       'reset': 'Spiel neu starten',
@@ -2004,6 +2013,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Nach dem Fehler fehlend (die Originale liegen im Sicherungsordner):',
     },
     'es': {
+      'settingFastInterpreter': 'Intérprete rápido (volver a abrir el juego)',
+      'fastInterpreterEnabled': 'Activado',
+      'fastInterpreterDisabled': 'Desactivado',
       'menu': 'Menú',
       'resume': 'Reanudar',
       'reset': 'Reiniciar juego',
@@ -2624,6 +2636,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Faltan tras el error (sus originales están en la carpeta de copia de seguridad):',
     },
     'it': {
+      'settingFastInterpreter': 'Interprete veloce (riaprire il gioco)',
+      'fastInterpreterEnabled': 'Attivato',
+      'fastInterpreterDisabled': 'Disattivato',
       'menu': 'Menu',
       'resume': 'Riprendi',
       'reset': 'Riavvia gioco',
@@ -3244,6 +3259,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Mancanti dopo l’errore (gli originali sono nella cartella della copia di sicurezza):',
     },
     'pt': {
+      'settingFastInterpreter': 'Interpretador rápido (reabrir o jogo)',
+      'fastInterpreterEnabled': 'Ativado',
+      'fastInterpreterDisabled': 'Desativado',
       'menu': 'Menu',
       'resume': 'Retomar',
       'reset': 'Reiniciar jogo',
@@ -3864,6 +3882,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Em falta após a falha (os originais estão na pasta da cópia de segurança):',
     },
     'ru': {
+      'settingFastInterpreter': 'Быстрый интерпретатор (заново открыть игру)',
+      'fastInterpreterEnabled': 'Включён',
+      'fastInterpreterDisabled': 'Выключен',
       'menu': 'Меню',
       'resume': 'Продолжить',
       'reset': 'Перезапустить игру',
@@ -4484,6 +4505,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Отсутствуют после сбоя (оригиналы находятся в папке резервной копии):',
     },
     'id': {
+      'settingFastInterpreter': 'Interpreter cepat (buka ulang game)',
+      'fastInterpreterEnabled': 'Diaktifkan',
+      'fastInterpreterDisabled': 'Dinonaktifkan',
       'menu': 'Menu',
       'resume': 'Lanjutkan',
       'reset': 'Mulai ulang game',
@@ -5104,6 +5128,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Hilang setelah kegagalan (file aslinya ada di folder cadangan):',
     },
     'ja': {
+      'settingFastInterpreter': '高速インタープリター（ゲームを開き直す）',
+      'fastInterpreterEnabled': '有効',
+      'fastInterpreterDisabled': '無効',
       'menu': 'メニュー',
       'resume': '再開',
       'reset': 'ゲームを再起動',
@@ -5724,6 +5751,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '失敗後に見つからないもの（元のファイルはバックアップフォルダにあります）:',
     },
     'ko': {
+      'settingFastInterpreter': '고속 인터프리터 (게임을 닫고 다시 실행)',
+      'fastInterpreterEnabled': '활성화',
+      'fastInterpreterDisabled': '비활성화',
       'menu': '메뉴',
       'resume': '계속',
       'reset': '게임 다시 시작',
@@ -6344,6 +6374,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '실패 후 없는 항목 (원본은 백업 폴더에 있음):',
     },
     'zh': {
+      'settingFastInterpreter': '快速解释器（关闭后重新打开游戏）',
+      'fastInterpreterEnabled': '已启用',
+      'fastInterpreterDisabled': '已禁用',
       'menu': '菜单',
       'resume': '继续',
       'reset': '重新开始游戏',
@@ -6964,6 +6997,9 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '失败后缺失（原文件在备份文件夹中）：',
     },
     'zh_Hant': {
+      'settingFastInterpreter': '快速直譯器（關閉後重新開啟遊戲）',
+      'fastInterpreterEnabled': '已啟用',
+      'fastInterpreterDisabled': '已停用',
       'menu': '選單',
       'resume': '繼續',
       'reset': '重新開始遊戲',

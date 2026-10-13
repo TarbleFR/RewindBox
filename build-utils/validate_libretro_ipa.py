@@ -15,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / 'libretro'))
-from build_cores import macho, thin_arm64  # noqa: E402
+from build_cores import MANIFEST, ROOT, macho, thin_arm64  # noqa: E402
 
 
 def demand(condition, message):
@@ -56,6 +56,20 @@ def main():
             demand(image['platform'] == 2, f'{core["id"]} is not an iOS image')
             checked.append(core['id'])
 
+        release = next(core['release'] for core in MANIFEST['cores'] if core['id'] == 'azahar')
+        azahar = next(core for core in identity['cores'] if core['id'] == 'azahar')
+        demand(azahar.get('version') == release['version'], 'Azahar release differs')
+        demand(azahar['sha256'] == release['sha256'], 'Azahar differs from the official release pin')
+        azahar_data = archive.read(f'{app}Frameworks/azahar_libretro.framework/azahar_libretro')
+        for marker in (b'citra_use_fastinterp\0', b'enabled\0', b'disabled\0', b'FastInterp'):
+            demand(marker in azahar_data, f'Azahar FastInterp marker {marker!r} missing')
+        for key in (b'citra_use_cpu_jit\0', b'citra_use_shader_jit\0'):
+            demand(key not in azahar_data, 'Unexpected JIT option in the no-JIT iOS release')
+        license_name = f'{app}Libretro-Licenses/Azahar-LICENSE.txt'
+        demand(license_name in names, 'Azahar GPLv3+ license missing')
+        demand(archive.read(license_name) == (ROOT / 'build-utils/libretro/Azahar-LICENSE.txt').read_bytes(),
+               'Azahar license differs')
+
         molten = f'{app}Frameworks/MoltenVK.framework/MoltenVK'
         demand(molten in names, 'MoltenVK.framework missing')
         demand(hashlib.sha256(archive.read(molten)).hexdigest() == identity['moltenVK']['files']['MoltenVK'],
@@ -85,7 +99,9 @@ def main():
                     linked.append(f'{name} -> {dependency}')
         demand(not linked, 'cores must stay passive (dlopen only): ' + '; '.join(linked))
 
-    report = {'cores': checked, 'moltenVK': True, 'systemAssets': ['PPSSPP'], 'passiveCores': True}
+    report = {'cores': checked, 'moltenVK': True, 'systemAssets': ['PPSSPP'], 'passiveCores': True,
+              'azaharVersion': release['version'], 'fastInterpreter': True,
+              'deviceGameplayValidated': False}
     if args.report:
         Path(args.report).write_text(json.dumps(report, indent=2) + '\n')
     print('Libretro IPA validation passed:', ', '.join(checked))

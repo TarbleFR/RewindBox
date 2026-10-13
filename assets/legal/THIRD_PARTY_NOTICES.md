@@ -176,3 +176,15 @@ formats (EPUB, CBZ) use the Dart [archive](https://pub.dev/packages/archive)
 package (MIT), and EPUB/XHTML parsing uses the Dart
 [html](https://pub.dev/packages/html) (BSD-3-Clause) and
 [xml](https://pub.dev/packages/xml) (MIT) packages.
+
+## Azahar 2127.0-alpha1 — embedded Nintendo 3DS core
+
+NeoStation Build 453 replaces its 3DS libretro core with the unmodified official
+iOS ARM64 release of [Azahar](https://github.com/azahar-emu/azahar/releases/tag/2127.0-alpha1).
+This version is licensed under **GPLv3 or later**, with the license included in
+the application under `Libretro-Licenses/Azahar-LICENSE.txt`.
+Source revision: `5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6`.
+The release provides the complete source archive with dependencies:
+[azahar-unified-source-2127.0-alpha1.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz).
+FastInterp is credited to warmenhoven and the Azahar contributors.
+The other embedded libretro cores retain their existing versions and licenses.
