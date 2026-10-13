@@ -69,6 +69,13 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"shaderCategoryAntiAliasing", @"shaderCategoryNtscPal", @"shaderCategoryColor", @"shaderCategoryRetro",
     @"shaderCategoryVhs", @"shaderCategoryOther", @"shaderCostPerformance", @"shaderCostBalanced",
     @"shaderCostQuality", @"shaderCostUnknown",
+    // "Resolution and picture" page of Emulation settings (Build 455).
+    @"resolutionPage", @"settingResolution", @"resolutionNative", @"resolutionScopeCore",
+    @"resolutionScopeFooter", @"resolutionFromCore", @"resolutionDefaultNative", @"resolutionGameKeepsOwn",
+    @"resolutionAppliesNow", @"resolutionAppliesRelaunch", @"resolutionLoadWarning", @"resolutionCurrentImage",
+    @"resolutionNextLaunch", @"resolutionUseCore", @"resolutionRestoreNative", @"resolutionUnsupported",
+    @"resolutionUnsupportedFooter", @"resolutionEnlargement", @"resolutionEnlargementFooter",
+    @"resolutionUpscalingShaders", @"resolutionFiltering", @"resolutionFilteringFooter",
   ];
 }
 
@@ -637,6 +644,9 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   configuration.preferredHardwareContext = [arguments[@"preferredHardwareContext"] isKindOfClass:NSNumber.class]
                                                ? [arguments[@"preferredHardwareContext"] unsignedIntValue]
                                                : 0;
+  configuration.coreId = coreId;
+  configuration.resolutionRules =
+      [arguments[@"resolution"] isKindOfClass:NSDictionary.class] ? arguments[@"resolution"] : @{};
 
   LibretroSession *session = [[LibretroSession alloc] initWithConfiguration:configuration];
   __weak LibretroInternalBridgePlugin *weakSelf = self;

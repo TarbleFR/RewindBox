@@ -1683,6 +1683,19 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
   return sections;
 }
 
+- (LibretroMenuPage *)shaderCategoryPage:(NSString *)category {
+  NeoShaderCatalog *catalog = LibretroSlangCatalog();
+  if (catalog == nil || category.length == 0 || [catalog entriesInCategory:category].count == 0) return nil;
+  LibretroFrontendPageState *state = [self stateForPrefixes:@[
+    LibretroSettingShaderEnabled, LibretroSettingShaderPreset, LibretroSettingShaderParameters
+  ]];
+  return [self shaderListPageWithTitle:[self textForCategory:category]
+                               entries:^NSArray<NeoShaderCatalogEntry *> * {
+                                 return [LibretroSlangCatalog() entriesInCategory:category];
+                               }
+                                 state:state];
+}
+
 /// List of catalog entries (category, search results, favourites), rebuilt
 /// each time it appears.
 - (LibretroMenuPage *)shaderListPageWithTitle:(NSString *)title

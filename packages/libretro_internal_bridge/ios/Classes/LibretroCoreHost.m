@@ -713,7 +713,11 @@ static bool HostEnvironment(unsigned command, void *data) {
   _systemDirectoryC = strdup(_systemDirectory.fileSystemRepresentation);
   _saveDirectoryC = strdup(_saveDirectory.fileSystemRepresentation);
   NSString *optionsPath = [_optionsDirectory stringByAppendingPathComponent:[folder stringByAppendingPathExtension:@"json"]];
-  _options = [[LibretroCoreOptions alloc] initWithStorePath:optionsPath];
+  NSString *gameOptionsPath = [[_optionsDirectory stringByAppendingPathComponent:@"Games"]
+      stringByAppendingPathComponent:[folder stringByAppendingPathExtension:@"json"]];
+  _options = [[LibretroCoreOptions alloc] initWithStorePath:optionsPath
+                                              gameStorePath:gameOptionsPath
+                                                    gameKey:self.optionsGameKey];
   // Before retro_set_environment and retro_init: DeSmuME reads its options
   // only in retro_init. Locked values come last so they win.
   NSDictionary<NSString *, NSString *> *initialDefaults = self.initialOptionDefaults;
@@ -730,6 +734,8 @@ static bool HostEnvironment(unsigned command, void *data) {
   _symbols.retro_set_audio_sample_batch(HostAudioSampleBatch);
   _symbols.retro_set_input_poll(HostInputPoll);
   _symbols.retro_set_input_state(HostInputState);
+  void (^optionsDeclared)(LibretroCoreOptions *) = self.optionsDeclared;
+  if (optionsDeclared != nil) optionsDeclared(_options);
   _symbols.retro_init();
   _coreInitialized = YES;
   [self appendLog:[NSString stringWithFormat:@"[HOST] loaded %@ %@", _libraryName, _libraryVersion]];

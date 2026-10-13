@@ -17,10 +17,39 @@ static NSString *StringOrEmpty(const char *value) {
   return string ?: @"";
 }
 
+/// Top-level JSON object of a file, nil when absent or unreadable.
+static NSDictionary *JSONDictionaryAtPath(NSString *path) {
+  if (path.length == 0) return nil;
+  NSData *data = [NSData dataWithContentsOfFile:path];
+  if (data == nil) return nil;
+  id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+  return [json isKindOfClass:[NSDictionary class]] ? json : nil;
+}
+
+/// {String: String} entries of a JSON object; others are ignored, as Dart's
+/// LibretroCoreOptionStore does.
+static NSMutableDictionary<NSString *, NSString *> *StringValues(id object) {
+  NSMutableDictionary<NSString *, NSString *> *values = [NSMutableDictionary dictionary];
+  if (![object isKindOfClass:[NSDictionary class]]) return values;
+  NSDictionary *source = object;
+  for (id key in source) {
+    id value = source[key];
+    if ([key isKindOfClass:[NSString class]] && [value isKindOfClass:[NSString class]]) values[key] = value;
+  }
+  return values;
+}
+
+static NSString *const kGamesKey = @"games";
+
 @implementation LibretroCoreOptions {
   NSString *_storePath;
+  NSString *_gameStorePath;
   NSMutableArray<LibretroCoreOption *> *_options;
   NSMutableDictionary<NSString *, NSString *> *_stored;
+  // Values of the running game (Config/Games/<core>.json).
+  NSMutableDictionary<NSString *, NSString *> *_game;
+  // Values in effect when a change was made for the next launch only.
+  NSMutableDictionary<NSString *, NSString *> *_pinned;
   NSMutableDictionary<NSString *, NSString *> *_overrides;
   NSMutableDictionary<NSString *, NSString *> *_defaults;
   NSMutableSet<NSString *> *_locked;
@@ -29,27 +58,29 @@ static NSString *StringOrEmpty(const char *value) {
 }
 
 - (instancetype)initWithStorePath:(NSString *)storePath {
+  return [self initWithStorePath:storePath gameStorePath:nil gameKey:nil];
+}
+
+- (instancetype)initWithStorePath:(NSString *)storePath
+                    gameStorePath:(NSString *)gameStorePath
+                          gameKey:(NSString *)gameKey {
   self = [super init];
   if (self) {
     _storePath = [storePath copy];
+    BOOL perGame = gameStorePath.length > 0 && gameKey.length > 0;
+    _gameStorePath = perGame ? [gameStorePath copy] : nil;
+    _gameKey = perGame ? [gameKey copy] : nil;
     _options = [NSMutableArray array];
     _overrides = [NSMutableDictionary dictionary];
     _defaults = [NSMutableDictionary dictionary];
+    _pinned = [NSMutableDictionary dictionary];
     _locked = [NSMutableSet set];
     _cStrings = [NSMutableDictionary dictionary];
-    _stored = [NSMutableDictionary dictionary];
-    NSData *data = [NSData dataWithContentsOfFile:storePath];
-    if (data != nil) {
-      id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-      NSDictionary *values = [json isKindOfClass:[NSDictionary class]] ? json[@"values"] : nil;
-      if ([values isKindOfClass:[NSDictionary class]]) {
-        for (id key in values) {
-          id value = values[key];
-          if ([key isKindOfClass:[NSString class]] && [value isKindOfClass:[NSString class]]) {
-            _stored[key] = value;
-          }
-        }
-      }
+    _stored = StringValues(JSONDictionaryAtPath(storePath)[@"values"]);
+    _game = [NSMutableDictionary dictionary];
+    if (perGame) {
+      id games = JSONDictionaryAtPath(_gameStorePath)[kGamesKey];
+      if ([games isKindOfClass:[NSDictionary class]]) _game = StringValues(((NSDictionary *)games)[_gameKey]);
     }
   }
   return self;
@@ -73,18 +104,31 @@ static NSString *StringOrEmpty(const char *value) {
 /// C string, and a change of a declared option is flagged for the core.
 - (void)mergeValuesLocked:(NSDictionary<NSString *, NSString *> *)values
                      into:(NSMutableDictionary<NSString *, NSString *> *)target
-                   locked:(BOOL)locked {
+                   locked:(BOOL)locked
+               flagUpdate:(BOOL)flagUpdate {
   for (id key in values) {
     id value = values[key];
     if (![key isKindOfClass:[NSString class]] || ![value isKindOfClass:[NSString class]]) continue;
-    NSString *previous = [self effectiveValueLocked:key];
+    NSString *previous = [self effectiveValueLocked:key pinned:YES];
     target[key] = value;
     if (locked) [_locked addObject:key];
-    NSString *current = [self effectiveValueLocked:key];
-    if (current == previous || [current isEqualToString:previous]) continue;
-    [_cStrings removeObjectForKey:key];
-    if ([self optionForKeyLocked:key] != nil) _updatePending = YES;
+    [self noteChangeLocked:key from:previous flagUpdate:flagUpdate];
   }
+}
+
+- (void)mergeValuesLocked:(NSDictionary<NSString *, NSString *> *)values
+                     into:(NSMutableDictionary<NSString *, NSString *> *)target
+                   locked:(BOOL)locked {
+  [self mergeValuesLocked:values into:target locked:locked flagUpdate:YES];
+}
+
+/// After a layer changed: a new value in effect loses its cached C string
+/// and, for a declared option, is flagged for the core.
+- (void)noteChangeLocked:(NSString *)key from:(NSString *)previous flagUpdate:(BOOL)flagUpdate {
+  NSString *current = [self effectiveValueLocked:key pinned:YES];
+  if (current == previous || [current isEqualToString:previous]) return;
+  [_cStrings removeObjectForKey:key];
+  if (flagUpdate && [self optionForKeyLocked:key] != nil) _updatePending = YES;
 }
 
 - (void)applySessionOverrides:(NSDictionary<NSString *, NSString *> *)overrides {
@@ -102,6 +146,12 @@ static NSString *StringOrEmpty(const char *value) {
 - (void)applyDefaults:(NSDictionary<NSString *, NSString *> *)defaults {
   @synchronized(self) {
     [self mergeValuesLocked:defaults into:_defaults locked:NO];
+  }
+}
+
+- (void)applyDefaultsBeforeInit:(NSDictionary<NSString *, NSString *> *)defaults {
+  @synchronized(self) {
+    [self mergeValuesLocked:defaults into:_defaults locked:NO flagUpdate:NO];
   }
 }
 
@@ -236,16 +286,63 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
   }
 }
 
-- (NSString *)effectiveValueLocked:(NSString *)key {
+/// First layer value the core offers (any value while the option is not
+/// declared yet), nil when only the core's default is left. `pinned` NO
+/// leaves out the values kept for this session (next launch).
+- (NSString *)assignedValueLocked:(NSString *)key pinned:(BOOL)pinned {
   LibretroCoreOption *option = [self optionForKeyLocked:key];
-  NSString *override = _overrides[key];
-  NSString *stored = _stored[key];
-  NSString *fallback = _defaults[key];
-  if (option == nil) return override ?: (stored ?: fallback);
-  if (override != nil && [option.values containsObject:override]) return override;
-  if (stored != nil && [option.values containsObject:stored]) return stored;
-  if (fallback != nil && [option.values containsObject:fallback]) return fallback;
-  return option.defaultValue;
+  NSString *layers[5] = {pinned ? _pinned[key] : nil, _overrides[key], _game[key], _stored[key], _defaults[key]};
+  for (int index = 0; index < 5; index++) {
+    NSString *value = layers[index];
+    if (value != nil && (option == nil || [option.values containsObject:value])) return value;
+  }
+  return nil;
+}
+
+- (NSString *)effectiveValueLocked:(NSString *)key pinned:(BOOL)pinned {
+  NSString *assigned = [self assignedValueLocked:key pinned:pinned];
+  if (assigned != nil) return assigned;
+  return [self optionForKeyLocked:key].defaultValue;
+}
+
+- (NSString *)assignedValueForKey:(NSString *)key {
+  @synchronized(self) {
+    return [self assignedValueLocked:key pinned:YES];
+  }
+}
+
+- (NSString *)storedValueForKey:(NSString *)key {
+  @synchronized(self) {
+    return _stored[key];
+  }
+}
+
+- (NSString *)gameValueForKey:(NSString *)key {
+  @synchronized(self) {
+    return _game[key];
+  }
+}
+
+- (NSString *)valueForEveryGameForKey:(NSString *)key {
+  @synchronized(self) {
+    LibretroCoreOption *option = [self optionForKeyLocked:key];
+    for (NSString *value in @[ _stored[key] ?: @"", _defaults[key] ?: @"" ]) {
+      if (value.length > 0 && (option == nil || [option.values containsObject:value])) return value;
+    }
+    return option.defaultValue;
+  }
+}
+
+- (NSString *)currentValueForKey:(NSString *)key {
+  @synchronized(self) {
+    return [self effectiveValueLocked:key pinned:YES];
+  }
+}
+
+- (NSString *)nextLaunchValueForKey:(NSString *)key {
+  @synchronized(self) {
+    return [self effectiveValueLocked:key pinned:NO];
+  }
 }
 
 - (const char *)valueForKey:(const char *)key {
@@ -254,7 +351,7 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
     NSString *name = StringOrEmpty(key);
     NSData *cached = _cStrings[name];
     if (cached != nil) return cached.bytes;
-    NSString *value = [self effectiveValueLocked:name];
+    NSString *value = [self effectiveValueLocked:name pinned:YES];
     if (value == nil) return NULL;
     const char *utf8 = value.UTF8String;
     NSData *storage = [NSData dataWithBytes:utf8 length:strlen(utf8) + 1];
@@ -269,14 +366,60 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
     if ([_locked containsObject:key]) return NO;
     LibretroCoreOption *option = [self optionForKeyLocked:key];
     if (option != nil && ![option.values containsObject:value]) return NO;
-    NSString *previous = [self effectiveValueLocked:key];
+    NSString *previous = [self effectiveValueLocked:key pinned:YES];
     [_overrides removeObjectForKey:key];
+    [_pinned removeObjectForKey:key];
     _stored[key] = value;
     [_cStrings removeObjectForKey:key];
-    if (![previous isEqualToString:value]) _updatePending = YES;
+    NSString *current = [self effectiveValueLocked:key pinned:YES];
+    if (![previous isEqualToString:current]) _updatePending = YES;
   }
   if (persist) [self save];
   return YES;
+}
+
+/// Shared by setValue:forKey:game:applyNow: (value) and
+/// removeValueForKey:game:applyNow: (nil).
+- (BOOL)changeValue:(NSString *)value forKey:(NSString *)key game:(BOOL)game applyNow:(BOOL)applyNow {
+  NSDictionary *gameValues = nil;
+  @synchronized(self) {
+    if (key.length == 0 || [_locked containsObject:key]) return NO;
+    if (game && _gameKey == nil) return NO;
+    LibretroCoreOption *option = [self optionForKeyLocked:key];
+    if (value != nil && option != nil && ![option.values containsObject:value]) return NO;
+    NSString *previous = [self effectiveValueLocked:key pinned:YES];
+    if (applyNow) {
+      [_pinned removeObjectForKey:key];
+    } else if (_pinned[key] == nil && previous != nil) {
+      // The running core keeps what it has; the next launch reads the choice.
+      _pinned[key] = previous;
+    }
+    // A user choice wins over a session override, as setValue:forKey:persist:.
+    [_overrides removeObjectForKey:key];
+    NSMutableDictionary<NSString *, NSString *> *layer = game ? _game : _stored;
+    if (value != nil) {
+      layer[key] = value;
+    } else {
+      [layer removeObjectForKey:key];
+    }
+    [self noteChangeLocked:key from:previous flagUpdate:YES];
+    if (game) gameValues = [_game copy];
+  }
+  if (game) {
+    [self saveGameValues:gameValues];
+  } else {
+    [self save];
+  }
+  return YES;
+}
+
+- (BOOL)setValue:(NSString *)value forKey:(NSString *)key game:(BOOL)game applyNow:(BOOL)applyNow {
+  if (![value isKindOfClass:[NSString class]]) return NO;
+  return [self changeValue:value forKey:key game:game applyNow:applyNow];
+}
+
+- (BOOL)removeValueForKey:(NSString *)key game:(BOOL)game applyNow:(BOOL)applyNow {
+  return [self changeValue:nil forKey:key game:game applyNow:applyNow];
 }
 
 - (BOOL)consumeUpdate {
@@ -299,6 +442,35 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
                                              attributes:nil
                                                   error:nil];
   [data writeToFile:_storePath atomically:YES];
+}
+
+/// Rewrites the running game's entry of the per-game file, read again
+/// first: other games and unknown keys stay as they are; a game left with
+/// no value loses its entry.
+- (void)saveGameValues:(NSDictionary<NSString *, NSString *> *)values {
+  if (_gameStorePath == nil || _gameKey == nil) return;
+  @synchronized([LibretroCoreOptions class]) {
+    NSMutableDictionary *document = [JSONDictionaryAtPath(_gameStorePath) mutableCopy] ?: [NSMutableDictionary dictionary];
+    id existing = document[kGamesKey];
+    NSMutableDictionary *games =
+        [existing isKindOfClass:[NSDictionary class]] ? [existing mutableCopy] : [NSMutableDictionary dictionary];
+    if (values.count > 0) {
+      games[_gameKey] = values;
+    } else {
+      [games removeObjectForKey:_gameKey];
+    }
+    document[kGamesKey] = games;
+    document[@"version"] = @1;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:document
+                                                   options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys
+                                                     error:nil];
+    if (data == nil) return;
+    [[NSFileManager defaultManager] createDirectoryAtPath:[_gameStorePath stringByDeletingLastPathComponent]
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:nil];
+    [data writeToFile:_gameStorePath atomically:YES];
+  }
 }
 
 @end

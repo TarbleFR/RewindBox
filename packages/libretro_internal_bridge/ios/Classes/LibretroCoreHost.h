@@ -104,6 +104,15 @@ typedef struct {
 @property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *initialOptionDefaults;
 @property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *initialSessionOverrides;
 @property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *lockedSessionOverrides;
+/// The running game ("<system>/<rom file name>"): the option store reads
+/// and writes its values in `<options>/Games/<core>.json` (values kept for
+/// this game only). Nil: no per-game layer. Set it before `loadCore:`.
+@property(nonatomic, copy, nullable) NSString *optionsGameKey;
+/// Called by `loadCore:` once retro_set_environment has returned (the core
+/// declared its options) and before retro_init, on the loading thread:
+/// defaults given then with `applyDefaultsBeforeInit:` reach a core that
+/// reads its options only in retro_init.
+@property(nonatomic, copy, nullable) void (^optionsDeclared)(LibretroCoreOptions *options);
 
 /// dlopen, symbol resolution, API version check, callbacks, retro_init.
 - (BOOL)loadCore:(NSError *_Nullable *_Nullable)error;

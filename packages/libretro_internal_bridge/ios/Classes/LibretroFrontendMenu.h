@@ -94,6 +94,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// pushes its page.
 - (NSArray<LibretroMenuRow *> *)rootRows;
 
+/// The presets of one category of the shader catalogue ("upscaling",
+/// "pixel-art"): the page Shaders › Catalogue › that category shows, saved
+/// for the console unless the game has its own shader. Nil when the
+/// catalogue is unavailable or the category empty.
+- (nullable LibretroMenuPage *)shaderCategoryPage:(NSString *)category;
+/// Translated name of a shader catalogue category.
+- (NSString *)textForCategory:(NSString *)category;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -53,6 +53,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Documents/Libretro/Logs: the session journal (LibretroSessionJournal);
 /// empty for none.
 @property(nonatomic, copy) NSString *logsDirectory;
+/// NeoStation core id ("ppsspp", "azahar"): names the core's resolution
+/// snapshot, Config/Resolution/<coreId>.json. Empty: none written.
+@property(nonatomic, copy) NSString *coreId;
+/// Internal resolution rules (Dart `LibretroResolution.nativeRules()`, see
+/// LibretroResolutionRules); empty: the core's resolution is not offered.
+@property(nonatomic, copy) NSDictionary *resolutionRules;
 @end
 
 /// One embedded game: core host on its own emulation thread, presentation,
@@ -78,6 +84,21 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) BOOL active;
 @property(nonatomic, copy, nullable) dispatch_block_t endedHandler;
 @property(nonatomic, readonly) NSArray<NSString *> *recentLog;
+
+/// Size of the last frame the core produced (software pixels, or the
+/// rendered part of its hardware frame), {0, 0} before the first one: the
+/// internal resolution really in effect. Any thread.
+@property(nonatomic, readonly) CGSize producedFrameSize;
+/// Main thread. The internal resolution of the running core as the in-game
+/// "Resolution and picture" page shows it, nil when the core offers none:
+/// {key, apply ("live" | "relaunch"), source, current, nextLaunch, game?,
+/// core?, choices: [value]}.
+- (nullable NSDictionary<NSString *, id> *)internalResolutionState;
+/// Main thread. The choice of that page: `value` (one of the choices) for
+/// this game only (`game` YES) or every game of the core. Applies when the
+/// game resumes for a core that reads the option during the game, else at
+/// the next launch. NO when the core offers no such value.
+- (BOOL)selectInternalResolution:(NSString *)value forGame:(BOOL)game;
 
 @end
 

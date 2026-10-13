@@ -17,6 +17,7 @@
 #import "LibretroJit.h"
 #import "LibretroMetalPresenter.h"
 #import "LibretroOrientation.h"
+#import "LibretroResolution.h"
 #import "LibretroSessionJournal.h"
 #import "LibretroSessionMenu.h"
 #import "LibretroShaderLibrary.h"
@@ -55,6 +56,8 @@ static const double kStartupSeconds = 5.0;
 static const double kStartupFrameCap = 0.25;
 /// Error lines of the core quoted in a LIBRETRO_CORE_STOPPED failure.
 static const NSUInteger kStartupErrorLines = 4;
+/// Changes of the produced frame size written to the session journal.
+static const NSUInteger kFrameSizeNotes = 24;
 
 static NSString *SettingString(id value) {
   return [value isKindOfClass:NSString.class] && ((NSString *)value).length > 0 ? value : nil;
@@ -74,6 +77,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 @implementation LibretroSessionConfiguration
+@end
+
+/// "Resolution and picture" page: YES while its changes are saved for this
+/// game only.
+@interface LibretroResolutionPageState : NSObject
+@property(nonatomic, assign) BOOL gameScope;
+@end
+
+@implementation LibretroResolutionPageState
 @end
 
 @interface LibretroSession () <LibretroCoreHostDelegate, LibretroGameViewLayoutSource, LibretroFrontendMenuHost>
@@ -169,6 +181,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSUInteger _shaderRequest;
   NeoSlangProgram *_activeSlangProgram;
   NSString *_lastShaderFailureCode;
+  // Internal resolution (Build 455). The frame size is written by the
+  // emulation thread and read by the menu.
+  LibretroResolutionRules *_resolutionRules;
+  _Atomic uint32_t _frameWidth;
+  _Atomic uint32_t _frameHeight;
+  NSUInteger _frameSizeNotes;
 }
 
 - (instancetype)initWithConfiguration:(LibretroSessionConfiguration *)configuration {
@@ -198,6 +216,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _touchControls =
         [defaults objectForKey:@"libretro.touchControls"] != nil ? [defaults boolForKey:@"libretro.touchControls"] : YES;
     _touchDiagnostics = [defaults boolForKey:@"libretro.touchDiagnostics"];
+    _resolutionRules = [[LibretroResolutionRules alloc] initWithDictionary:configuration.resolutionRules];
   }
   return self;
 }
@@ -640,6 +659,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _host.initialSessionOverrides =
       !LibretroJitUsableByCores() && configuration.noJitOverrides.count > 0 ? configuration.noJitOverrides : nil;
   _host.lockedSessionOverrides = configuration.lockedOptions.count > 0 ? configuration.lockedOptions : nil;
+  // Values kept for this game only (internal resolution), and the native
+  // resolution by default once the core has declared its options.
+  _host.optionsGameKey = configuration.gameKey.length > 0 ? configuration.gameKey : nil;
+  __weak LibretroSession *weakSession = self;
+  _host.optionsDeclared = ^(LibretroCoreOptions *options) {
+    [weakSession applyNativeResolutionDefault:options];
+  };
   NSError *error = nil;
   if (![_host loadCore:&error]) return [self failureFromError:error];
   [_journal note:[NSString stringWithFormat:@"load: core %@ %@ initialised", _host.libraryName ?: @"",
@@ -662,6 +688,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   if (![_host loadContentAtPath:configuration.contentPath error:&error]) return [self failureFromError:error];
   [_journal note:[NSString stringWithFormat:@"load: content accepted (%@)",
                                             _host.usesHardwareRendering ? @"hardware rendering" : @"software"]];
+  [self noteInternalResolution];
   struct retro_system_av_info av = _host.avInfo;
   [self applyGeometry:av.geometry];
   _presenter.rotation = _host.rotation;
@@ -896,9 +923,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _hwFrameValid = YES;
     _hwWidth = width;
     _hwHeight = height;
+    [self noteFrameWidth:width height:height];
     return;
   }
   if (data == NULL || _gl != nil || _vulkan != nil) return;
+  [self noteFrameWidth:width height:height];
   [_presenter presentSoftwareFrame:data width:width height:height pitch:pitch format:host.pixelFormat];
 }
 
@@ -2067,6 +2096,348 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }];
 }
 
+#pragma mark - Internal resolution
+
+/// Loading thread, after retro_set_environment and before retro_init: a
+/// core whose own default is not its native resolution starts at native
+/// unless a value was chosen (this game, every game, NeoStation's default).
+- (void)applyNativeResolutionDefault:(LibretroCoreOptions *)options {
+  LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
+  NSString *native = LibretroResolutionApplyNativeDefault(capability, options);
+  if (native == nil) return;
+  [_journal note:[NSString stringWithFormat:@"load: resolution %@ starts at native %@ (core default %@)",
+                                            capability.key, native, capability.coreDefault]];
+}
+
+/// The resolution option of the running core (see LibretroResolutionRules),
+/// nil when it has none. Any thread.
+- (LibretroResolutionCapability *)resolutionCapabilityWithOptions:(LibretroCoreOptions *)options {
+  LibretroSize size = [self consoleNominalSize];
+  return [_resolutionRules capabilityForCoreOptions:options consoleWidth:size.w consoleHeight:size.h];
+}
+
+- (LibretroResolutionCapability *)resolutionCapability {
+  return [self resolutionCapabilityWithOptions:_host.options];
+}
+
+/// Loading thread, once the content is loaded (every option declared):
+/// journals the core's resolution option and writes what NeoStation found
+/// to Config/Resolution/<coreId>.json for the console settings.
+- (void)noteInternalResolution {
+  LibretroCoreOptions *options = _host.options;
+  LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
+  if (capability == nil) {
+    [_journal note:[NSString stringWithFormat:@"load: %@ declares no internal resolution NeoStation offers",
+                                              _host.libraryName ?: @""]];
+  } else {
+    NSMutableArray<NSString *> *values = [NSMutableArray array];
+    for (LibretroResolutionChoice *choice in capability.choices) [values addObject:choice.value];
+    [_journal note:[NSString stringWithFormat:@"load: resolution %@ (%@, %@) in effect %@, offered %@",
+                                              capability.key,
+                                              capability.apply == LibretroResolutionApplyLive ? @"live" : @"relaunch",
+                                              capability.source, [options currentValueForKey:capability.key] ?: @"",
+                                              [values componentsJoinedByString:@"|"]]];
+  }
+  [self writeResolutionSnapshot:capability];
+}
+
+- (void)writeResolutionSnapshot:(LibretroResolutionCapability *)capability {
+  NSString *coreId = _configuration.coreId;
+  NSString *directory = _configuration.optionsDirectory;
+  if (coreId.length == 0 || coreId.length > 64 || directory.length == 0) return;
+  NSCharacterSet *allowed =
+      [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz0123456789_"];
+  if ([coreId rangeOfCharacterFromSet:allowed.invertedSet].location != NSNotFound) return;
+  NSDictionary *document = @{
+    @"version" : @1,
+    @"coreId" : coreId,
+    @"libraryName" : _host.libraryName ?: @"",
+    @"libraryVersion" : _host.libraryVersion ?: @"",
+    @"internalResolution" : capability != nil ? [capability snapshot] : (id)NSNull.null,
+  };
+  NSData *data = [NSJSONSerialization dataWithJSONObject:document
+                                                 options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys
+                                                   error:nil];
+  if (data == nil) return;
+  NSString *folder = [directory stringByAppendingPathComponent:@"Resolution"];
+  [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
+  [data writeToFile:[folder stringByAppendingPathComponent:[coreId stringByAppendingPathExtension:@"json"]]
+         atomically:YES];
+}
+
+/// Emulation thread: the size of each frame the core produced. Changes are
+/// journaled, at most kFrameSizeNotes per session.
+- (void)noteFrameWidth:(unsigned)width height:(unsigned)height {
+  if (width == 0 || height == 0) return;
+  uint32_t previousWidth = atomic_load(&_frameWidth);
+  uint32_t previousHeight = atomic_load(&_frameHeight);
+  if (previousWidth == width && previousHeight == height) return;
+  atomic_store(&_frameWidth, width);
+  atomic_store(&_frameHeight, height);
+  if (_frameSizeNotes >= kFrameSizeNotes) return;
+  _frameSizeNotes++;
+  NSString *was = previousWidth > 0 ? [NSString stringWithFormat:@" (was %ux%u)", previousWidth, previousHeight] : @"";
+  [_journal note:[NSString stringWithFormat:@"run: frame %ux%u%@", width, height, was]];
+}
+
+- (CGSize)producedFrameSize {
+  return CGSizeMake(atomic_load(&_frameWidth), atomic_load(&_frameHeight));
+}
+
+- (NSDictionary<NSString *, id> *)internalResolutionState {
+  LibretroCoreOptions *options = _host.options;
+  LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
+  if (capability == nil) return nil;
+  NSMutableArray<NSString *> *values = [NSMutableArray array];
+  for (LibretroResolutionChoice *choice in capability.choices) [values addObject:choice.value];
+  NSString *key = capability.key;
+  return @{
+    @"key" : key,
+    @"apply" : capability.apply == LibretroResolutionApplyLive ? @"live" : @"relaunch",
+    @"source" : capability.source,
+    @"current" : [options currentValueForKey:key] ?: @"",
+    @"nextLaunch" : [options nextLaunchValueForKey:key] ?: @"",
+    @"game" : [options gameValueForKey:key] ?: (id)NSNull.null,
+    @"core" : [options storedValueForKey:key] ?: (id)NSNull.null,
+    @"choices" : values,
+  };
+}
+
+- (BOOL)selectInternalResolution:(NSString *)value forGame:(BOOL)game {
+  LibretroCoreOptions *options = _host.options;
+  LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
+  if (!LibretroResolutionSelect(capability, options, value, game)) return NO;
+  BOOL live = capability.apply == LibretroResolutionApplyLive;
+  [_journal note:[NSString stringWithFormat:@"menu: resolution %@=%@ for %@, %@", capability.key, value,
+                                            game ? @"this game" : @"every game of the core",
+                                            live ? @"applied when the game resumes" : @"applied at the next launch"]];
+  return YES;
+}
+
+/// Removes this game's resolution (it follows the core again) or the core's
+/// stored one (back to the default).
+- (BOOL)clearInternalResolutionForGame:(BOOL)game {
+  LibretroCoreOptions *options = _host.options;
+  LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
+  if (!LibretroResolutionClear(capability, options, game)) return NO;
+  [_journal note:[NSString stringWithFormat:@"menu: resolution %@ cleared for %@", capability.key,
+                                            game ? @"this game" : @"every game of the core"]];
+  return YES;
+}
+
+- (NSString *)factorText:(double)factor {
+  NSNumberFormatter *formatter = [NSNumberFormatter new];
+  formatter.locale = [NSLocale localeWithLocaleIdentifier:[self uiLocale]];
+  formatter.numberStyle = NSNumberFormatterDecimalStyle;
+  formatter.minimumFractionDigits = 0;
+  formatter.maximumFractionDigits = 2;
+  return [formatter stringFromNumber:@(factor)] ?: [NSString stringWithFormat:@"%g", factor];
+}
+
+/// "Native", "×2", "×4,5"; the raw value when it is not offered.
+- (NSString *)resolutionLabelForValue:(NSString *)value capability:(LibretroResolutionCapability *)capability {
+  LibretroResolutionChoice *choice = [capability choiceForValue:value];
+  if (choice == nil) return value ?: @"";
+  if (choice.isNative) return [self text:@"resolutionNative"];
+  return [@"×" stringByAppendingString:[self factorText:choice.factor]];
+}
+
+- (NSString *)sizeTextWidth:(double)width height:(double)height {
+  return [NSString stringWithFormat:@"%.0f × %.0f", width, height];
+}
+
+- (NSString *)resolutionCoreName {
+  NSString *name = _host.libraryName;
+  return name.length > 0 ? name : (_configuration.coreId ?: @"");
+}
+
+- (LibretroMenuPage *)resolutionPage {
+  __weak LibretroSession *weakSelf = self;
+  LibretroResolutionPageState *state = [LibretroResolutionPageState new];
+  LibretroResolutionCapability *capability = [self resolutionCapability];
+  // Opens on this game when it has its own resolution.
+  state.gameScope = capability != nil && [_host.options gameValueForKey:capability.key] != nil;
+  return [[LibretroMenuPage alloc] initWithTitle:[self text:@"resolutionPage"]
+                                         builder:^NSArray<LibretroMenuSection *> * {
+                                           LibretroSession *session = weakSelf;
+                                           return session != nil ? [session resolutionSectionsWithState:state] : @[];
+                                         }];
+}
+
+- (NSArray<LibretroMenuSection *> *)resolutionSectionsWithState:(LibretroResolutionPageState *)state {
+  __weak LibretroSession *weakSelf = self;
+  NSMutableArray<LibretroMenuSection *> *sections = [NSMutableArray array];
+  LibretroCoreOptions *options = _host.options;
+  LibretroResolutionCapability *capability = [self resolutionCapabilityWithOptions:options];
+  NSString *coreName = [self resolutionCoreName];
+  CGSize produced = self.producedFrameSize;
+  LibretroMenuRow *image = [LibretroMenuRow rowWithTitle:[self text:@"resolutionCurrentImage"] action:nil];
+  image.detail = produced.width > 0 ? [self sizeTextWidth:produced.width height:produced.height] : @"—";
+  image.enabled = NO;
+  image.identifier = @"libretro-resolution-current-image";
+
+  if (capability != nil) {
+    NSString *key = capability.key;
+    BOOL hasGame = options.gameKey != nil;
+    if (!hasGame) state.gameScope = NO;
+    if (hasGame) {
+      LibretroMenuRow *everyGame =
+          [LibretroMenuRow rowWithTitle:[self text:@"resolutionScopeCore" replacing:@"{core}" with:coreName]
+                                 action:^(LibretroMenuPage *page) {
+                                   state.gameScope = NO;
+                                   [page rebuild];
+                                 }];
+      everyGame.checked = !state.gameScope;
+      everyGame.identifier = @"libretro-resolution-scope-core";
+      LibretroMenuRow *thisGame = [LibretroMenuRow rowWithTitle:[self text:@"scopeGame"]
+                                                         action:^(LibretroMenuPage *page) {
+                                                           state.gameScope = YES;
+                                                           [page rebuild];
+                                                         }];
+      thisGame.checked = state.gameScope;
+      thisGame.identifier = @"libretro-resolution-scope-game";
+      LibretroMenuSection *scope = [LibretroMenuSection sectionWithTitle:[self text:@"scopeSection"]
+                                                                    rows:@[ everyGame, thisGame ]];
+      scope.footer = [self text:@"resolutionScopeFooter"];
+      [sections addObject:scope];
+    }
+    NSString *gameValue = [options gameValueForKey:key];
+    NSString *coreValue = [options storedValueForKey:key];
+    NSString *current = [options currentValueForKey:key];
+    NSString *nextLaunch = [options nextLaunchValueForKey:key];
+    NSString *selected = state.gameScope ? nextLaunch : [options valueForEveryGameForKey:key];
+    BOOL gameScope = state.gameScope;
+    NSMutableArray<LibretroMenuRow *> *rows = [NSMutableArray array];
+    for (LibretroResolutionChoice *choice in capability.choices) {
+      NSString *value = choice.value;
+      LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:[self resolutionLabelForValue:value capability:capability]
+                                                    action:^(LibretroMenuPage *page) {
+                                                      [weakSelf selectInternalResolution:value forGame:gameScope];
+                                                      [page rebuild];
+                                                    }];
+      if (choice.width > 0 && choice.height > 0) row.detail = [self sizeTextWidth:choice.width height:choice.height];
+      row.checked = [value isEqualToString:selected];
+      row.identifier = [@"libretro-resolution-choice-" stringByAppendingString:value];
+      [rows addObject:row];
+    }
+    NSMutableArray<NSString *> *footer = [NSMutableArray array];
+    if (gameScope && gameValue != nil) {
+      [footer addObject:[self text:@"valueFromGame"]];
+    } else if (coreValue != nil) {
+      [footer addObject:[self text:@"resolutionFromCore" replacing:@"{core}" with:coreName]];
+    } else {
+      [footer addObject:[self text:@"resolutionDefaultNative"]];
+    }
+    if (!gameScope && gameValue != nil) {
+      [footer addObject:[self text:@"resolutionGameKeepsOwn"
+                         replacing:@"{value}"
+                              with:[self resolutionLabelForValue:gameValue capability:capability]]];
+    }
+    [footer addObject:[self text:capability.apply == LibretroResolutionApplyLive ? @"resolutionAppliesNow"
+                                                                                  : @"resolutionAppliesRelaunch"]];
+    [footer addObject:[self text:@"resolutionLoadWarning"]];
+    LibretroMenuSection *choices = [LibretroMenuSection sectionWithTitle:[self text:@"settingResolution"] rows:rows];
+    choices.footer = [footer componentsJoinedByString:@" "];
+    [sections addObject:choices];
+
+    NSMutableArray<LibretroMenuRow *> *status = [NSMutableArray arrayWithObject:image];
+    if (nextLaunch != nil && current != nil && ![nextLaunch isEqualToString:current]) {
+      LibretroMenuRow *pending = [LibretroMenuRow rowWithTitle:[self text:@"resolutionNextLaunch"] action:nil];
+      pending.detail = [self resolutionLabelForValue:nextLaunch capability:capability];
+      pending.enabled = NO;
+      pending.identifier = @"libretro-resolution-next-launch";
+      [status addObject:pending];
+    }
+    if (gameScope && gameValue != nil) {
+      LibretroMenuRow *follow = [LibretroMenuRow rowWithTitle:[self text:@"resolutionUseCore"
+                                                             replacing:@"{core}"
+                                                                  with:coreName]
+                                                       action:^(LibretroMenuPage *page) {
+                                                         [weakSelf clearInternalResolutionForGame:YES];
+                                                         [page rebuild];
+                                                       }];
+      follow.identifier = @"libretro-resolution-use-core";
+      [status addObject:follow];
+    } else if (!gameScope && coreValue != nil && capability.nativeChoice != nil &&
+               ![coreValue isEqualToString:capability.nativeChoice.value]) {
+      LibretroMenuRow *native = [LibretroMenuRow rowWithTitle:[self text:@"resolutionRestoreNative"]
+                                                       action:^(LibretroMenuPage *page) {
+                                                         [weakSelf clearInternalResolutionForGame:NO];
+                                                         [page rebuild];
+                                                       }];
+      native.identifier = @"libretro-resolution-restore-native";
+      [status addObject:native];
+    }
+    [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:status]];
+  } else {
+    LibretroMenuRow *unsupported =
+        [LibretroMenuRow rowWithTitle:[self text:@"resolutionUnsupported" replacing:@"{core}" with:coreName]
+                               action:nil];
+    unsupported.enabled = NO;
+    unsupported.identifier = @"libretro-resolution-unsupported";
+    LibretroMenuSection *internal = [LibretroMenuSection sectionWithTitle:[self text:@"settingResolution"]
+                                                                     rows:@[ unsupported, image ]];
+    internal.footer = [self text:@"resolutionUnsupportedFooter" replacing:@"{core}" with:coreName];
+    [sections addObject:internal];
+  }
+
+  // Image enlargement: the existing Screen format, Screen layout (DS / 3DS)
+  // and Shaders pages, and the catalogue's upscaling shaders.
+  NSMutableArray<LibretroMenuRow *> *enlargement = [NSMutableArray array];
+  NSSet<NSString *> *kept = [NSSet setWithArray:@[
+    @"libretro-menu-screen-format", @"libretro-menu-screen-layout", @"libretro-menu-shaders"
+  ]];
+  for (LibretroMenuRow *row in [_frontendMenu rootRows] ?: @[]) {
+    if (![kept containsObject:row.identifier]) continue;
+    if (!_screensAndShadersAvailable) row.enabled = NO;
+    [enlargement addObject:row];
+  }
+  LibretroMenuRow *upscaling = [LibretroMenuRow
+      rowWithTitle:[self text:@"resolutionUpscalingShaders"]
+            action:^(LibretroMenuPage *page) {
+              LibretroSession *session = weakSelf;
+              if (session == nil) return;
+              LibretroMenuPage *next = [session->_frontendMenu shaderCategoryPage:@"upscaling"];
+              if (next != nil) {
+                [page push:next];
+              } else {
+                [session showStatus:[session text:@"shaderCatalogUnavailable"]];
+              }
+            }];
+  upscaling.disclosure = YES;
+  upscaling.enabled = _screensAndShadersAvailable;
+  upscaling.identifier = @"libretro-resolution-upscaling-shaders";
+  [enlargement addObject:upscaling];
+  LibretroMenuSection *enlarge = [LibretroMenuSection sectionWithTitle:[self text:@"resolutionEnlargement"]
+                                                                  rows:enlargement];
+  enlarge.footer = _screensAndShadersAvailable ? [self text:@"resolutionEnlargementFooter"]
+                                               : [self text:@"shaderUnavailable"];
+  [sections addObject:enlarge];
+
+  // Filtering: the same switch as "Smooth picture" of the main menu.
+  LibretroMenuRow *smooth = [LibretroMenuRow toggleWithTitle:[self text:@"smoothing"]
+                                                          on:_smooth
+                                                      toggle:^(__unused LibretroMenuPage *page, BOOL on) {
+                                                        [weakSelf setSmoothing:on];
+                                                      }];
+  smooth.identifier = @"libretro-resolution-smoothing";
+  LibretroMenuSection *filtering = [LibretroMenuSection sectionWithTitle:[self text:@"resolutionFiltering"]
+                                                                    rows:@[ smooth ]];
+  filtering.footer = [self text:@"resolutionFilteringFooter"];
+  [sections addObject:filtering];
+  return sections;
+}
+
+/// "Smooth picture": linear or nearest sampling of the enlarged picture,
+/// for every game.
+- (void)setSmoothing:(BOOL)on {
+  _smooth = on;
+  _presenter.smooth = on;
+  _vulkan.smooth = on;
+  [NSUserDefaults.standardUserDefaults setBool:on forKey:@"libretro.smooth"];
+  [self requestRedraw];
+}
+
 #pragma mark - Menu (main thread)
 
 - (void)openMenu {
@@ -2180,14 +2551,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   LibretroMenuRow *smooth = [LibretroMenuRow toggleWithTitle:[self text:@"smoothing"]
                                                           on:_smooth
                                                       toggle:^(__unused LibretroMenuPage *page, BOOL on) {
-                                                        LibretroSession *session = weakSelf;
-                                                        if (session == nil) return;
-                                                        session->_smooth = on;
-                                                        session->_presenter.smooth = on;
-                                                        session->_vulkan.smooth = on;
-                                                        [NSUserDefaults.standardUserDefaults setBool:on
-                                                                                              forKey:@"libretro.smooth"];
-                                                        [session requestRedraw];
+                                                        [weakSelf setSmoothing:on];
                                                       }];
   LibretroMenuRow *fast = [LibretroMenuRow toggleWithTitle:[self text:@"fastForward"]
                                                         on:atomic_load(&_fastForward)
@@ -2206,14 +2570,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [sections addObject:display];
 
   NSMutableArray<LibretroMenuRow *> *extras = [NSMutableArray array];
-  if ([self availableSettings].count > 0) {
-    LibretroMenuRow *settings = [LibretroMenuRow rowWithTitle:[self text:@"coreSettings"]
-                                                       action:^(LibretroMenuPage *page) {
-                                                         [page push:[weakSelf settingsPage]];
-                                                       }];
-    settings.disclosure = YES;
-    [extras addObject:settings];
-  }
+  // Every core has the "Resolution and picture" page (Build 455), even one
+  // without curated settings.
+  LibretroMenuRow *settings = [LibretroMenuRow rowWithTitle:[self text:@"coreSettings"]
+                                                     action:^(LibretroMenuPage *page) {
+                                                       [page push:[weakSelf settingsPage]];
+                                                     }];
+  settings.disclosure = YES;
+  settings.identifier = @"libretro-menu-core-settings";
+  [extras addObject:settings];
   LibretroMenuRow *cheats = [LibretroMenuRow rowWithTitle:[self text:@"cheats"]
                                                    action:^(LibretroMenuPage *page) {
                                                      [page push:[weakSelf cheatsPage]];
@@ -2389,6 +2754,20 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
             builder:^NSArray<LibretroMenuSection *> * {
               LibretroSession *session = weakSelf;
               if (session == nil) return @[];
+              LibretroMenuRow *resolution = [LibretroMenuRow rowWithTitle:[session text:@"resolutionPage"]
+                                                                   action:^(LibretroMenuPage *page) {
+                                                                     [page push:[session resolutionPage]];
+                                                                   }];
+              LibretroResolutionCapability *capability = [session resolutionCapability];
+              resolution.detail =
+                  capability != nil
+                      ? [session resolutionLabelForValue:[session->_host.options currentValueForKey:capability.key]
+                                              capability:capability]
+                      : [session text:@"resolutionNative"];
+              resolution.disclosure = YES;
+              resolution.identifier = @"libretro-menu-resolution";
+              NSMutableArray<LibretroMenuSection *> *sections =
+                  [NSMutableArray arrayWithObject:[LibretroMenuSection sectionWithTitle:nil rows:@[ resolution ]]];
               NSMutableArray<LibretroMenuRow *> *rows = [NSMutableArray array];
               for (NSDictionary *setting in [session availableSettings]) {
                 NSString *key = setting[@"key"];
@@ -2409,9 +2788,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                 row.disclosure = YES;
                 [rows addObject:row];
               }
-              LibretroMenuSection *section = [LibretroMenuSection sectionWithTitle:nil rows:rows];
-              section.footer = [session text:@"settingsRestartHint"];
-              return @[ section ];
+              if (rows.count > 0) {
+                LibretroMenuSection *section = [LibretroMenuSection sectionWithTitle:nil rows:rows];
+                section.footer = [session text:@"settingsRestartHint"];
+                [sections addObject:section];
+              }
+              return sections;
             }];
   return page;
 }
