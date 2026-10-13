@@ -54,6 +54,10 @@ static NSString *const kGamesKey = @"games";
   NSMutableDictionary<NSString *, NSString *> *_defaults;
   NSMutableSet<NSString *> *_locked;
   NSMutableDictionary<NSString *, NSData *> *_cStrings;
+  // C strings already handed to the core and replaced since: kept until the
+  // store is released, so a pointer the core read on its own thread while a
+  // value changed from the menu never dangles.
+  NSMutableArray<NSData *> *_retiredCStrings;
   BOOL _updatePending;
 }
 
@@ -76,6 +80,7 @@ static NSString *const kGamesKey = @"games";
     _pinned = [NSMutableDictionary dictionary];
     _locked = [NSMutableSet set];
     _cStrings = [NSMutableDictionary dictionary];
+    _retiredCStrings = [NSMutableArray array];
     _stored = StringValues(JSONDictionaryAtPath(storePath)[@"values"]);
     _game = [NSMutableDictionary dictionary];
     if (perGame) {
@@ -122,12 +127,20 @@ static NSString *const kGamesKey = @"games";
   [self mergeValuesLocked:values into:target locked:locked flagUpdate:YES];
 }
 
+/// Drops the cached C string of `key`; the core may still hold its pointer.
+- (void)retireCStringLocked:(NSString *)key {
+  NSData *cached = _cStrings[key];
+  if (cached == nil) return;
+  [_retiredCStrings addObject:cached];
+  [_cStrings removeObjectForKey:key];
+}
+
 /// After a layer changed: a new value in effect loses its cached C string
 /// and, for a declared option, is flagged for the core.
 - (void)noteChangeLocked:(NSString *)key from:(NSString *)previous flagUpdate:(BOOL)flagUpdate {
   NSString *current = [self effectiveValueLocked:key pinned:YES];
   if (current == previous || [current isEqualToString:previous]) return;
-  [_cStrings removeObjectForKey:key];
+  [self retireCStringLocked:key];
   if (flagUpdate && [self optionForKeyLocked:key] != nil) _updatePending = YES;
 }
 
@@ -172,7 +185,7 @@ static NSString *const kGamesKey = @"games";
   LibretroCoreOption *existing = [self optionForKeyLocked:option.key];
   if (existing != nil) [_options removeObject:existing];
   [_options addObject:option];
-  [_cStrings removeObjectForKey:option.key];
+  [self retireCStringLocked:option.key];
 }
 
 - (BOOL)declareVariables:(const struct retro_variable *)variables {
@@ -370,7 +383,7 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
     [_overrides removeObjectForKey:key];
     [_pinned removeObjectForKey:key];
     _stored[key] = value;
-    [_cStrings removeObjectForKey:key];
+    [self retireCStringLocked:key];
     NSString *current = [self effectiveValueLocked:key pinned:YES];
     if (![previous isEqualToString:current]) _updatePending = YES;
   }

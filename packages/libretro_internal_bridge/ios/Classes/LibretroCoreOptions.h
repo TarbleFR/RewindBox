@@ -101,8 +101,9 @@ NS_ASSUME_NONNULL_BEGIN
             local:(const struct retro_core_options_v2 *_Nullable)local;
 - (void)setDisplay:(const struct retro_core_option_display *)display;
 
-/// GET_VARIABLE: the returned pointer stays valid until the value of that
-/// key changes or the store is released.
+/// GET_VARIABLE: the returned pointer stays valid until the store is
+/// released, even after the value changes (a menu change while the core
+/// runs never frees a string it is reading).
 - (nullable const char *)valueForKey:(const char *)key;
 /// SET_VARIABLE (from the core) and user changes from the session menu:
 /// the value for every game of the core, in effect at once.

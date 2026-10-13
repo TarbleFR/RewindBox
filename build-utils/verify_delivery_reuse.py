@@ -1622,6 +1622,54 @@ BUILD454_DELTA = {
     'test/libretro_session_probe_codec_test.dart',
 }
 DELTA |= BUILD454_DELTA
+# Build 455 (13 October 2026), on top of the Build 454 source 6dcdfd1a: the
+# internal resolution of the embedded libretro cores (docs/libretro-
+# resolution.md) - LibretroResolution recognizes a core's resolution option
+# (profiles of known names sent by Dart, else its name or description),
+# values kept for one game (Config/Games/<core>.json), native by default,
+# the in-game "Resolution and picture" page and the console settings page,
+# 31 texts in twelve languages, the host, simulator and binary checks;
+# version 0.0.7+455. Every created, modified or deleted input since that
+# source, file by file.
+BUILD455_DELTA = {
+    '.github/workflows/libretro-checks.yml',
+    '.github/workflows/retroarch-delivery.yml',
+    'build-utils/verify_delivery_reuse.py',
+    'lib/l10n/libretro_locale.dart',
+    'lib/screens/libretro/libretro_consoles_screen.dart',
+    'lib/screens/libretro/libretro_resolution_screen.dart',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/services/libretro_resolution.dart',
+    'lib/services/libretro_resolution_service.dart',
+    'lib/widgets/libretro_engine_panel.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreOptions.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreOptions.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroFrontendMenu.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroFrontendMenu.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroResolution.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroResolution.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'pubspec.yaml',
+    'test/fixtures/libretro_resolution/native_rules.json',
+    'test/fixtures/libretro_resolution/value_cases.json',
+    'test/libretro_3ds_launch_default_test.dart',
+    'test/libretro_consoles_tab_test.dart',
+    'test/libretro_core_options_test.py',
+    'test/libretro_engine_settings_test.dart',
+    'test/libretro_host/host_test.m',
+    'test/libretro_host/test_core.c',
+    'test/libretro_host_test.py',
+    'test/libretro_resolution_screen_test.dart',
+    'test/libretro_resolution_test.dart',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator_probe.py',
+}
+DELTA |= BUILD455_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
