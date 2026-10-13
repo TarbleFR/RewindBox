@@ -12,6 +12,7 @@ import 'package:neostation/l10n/ios_setup_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/screens/libretro/libretro_3ds_system_screen.dart';
 import 'package:neostation/screens/libretro/libretro_bios_checker_screen.dart';
+import 'package:neostation/screens/libretro/libretro_resolution_screen.dart';
 import 'package:neostation/screens/libretro/libretro_skin_manager_screen.dart';
 import 'package:neostation/services/libretro_core_catalog.dart';
 import 'package:neostation/services/libretro_engine_choices.dart';
@@ -284,12 +285,18 @@ void main() {
         find.text('See which BIOS files Super Nintendo games need and whether they are present'),
         findsOneWidget,
       );
+      // Build 455: the internal resolution of the console's cores.
+      expect(find.text('Resolution and picture'), findsOneWidget);
+      expect(find.text('Internal resolution of the Super Nintendo cores'), findsOneWidget);
       expect(find.text(_t('en', 'engineInGameSettings')), findsOneWidget);
       // The retired "Embedded consoles" entry and the RetroArch app row are gone.
       expect(find.text(_t('en', 'embeddedConsoles')), findsNothing);
       expect(find.text('RetroArch'), findsNothing);
+      // Contract change (Build 455, docs/libretro-resolution.md § 5): the
+      // resolution row comes after Skins, for every system with a console.
       expect(panelState(tester).pages, <LibretroEnginePage>[
         LibretroEnginePage.skins,
+        LibretroEnginePage.resolution,
         LibretroEnginePage.biosChecker,
       ]);
     });
@@ -298,13 +305,16 @@ void main() {
       final opened = await pumpPanel(tester, 'ps1');
       await tester.tap(find.text('Skins'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Resolution and picture'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('BIOS checker'));
       await tester.pumpAndSettle();
       expect(opened, <(LibretroEnginePage, String?)>[
         (LibretroEnginePage.skins, 'psx'),
+        (LibretroEnginePage.resolution, 'psx'),
         (LibretroEnginePage.biosChecker, 'psx'),
       ]);
-      expect(panelState(tester).selectedIndex, 1);
+      expect(panelState(tester).selectedIndex, 2);
     });
 
     testWidgets('the controller moves through the rows, wraps and opens the highlighted one',
@@ -319,15 +329,23 @@ void main() {
       await tester.pumpAndSettle();
       panel.moveDown();
       await tester.pump();
+      expect(panel.selectedIndex, 2);
+      await panel.trigger();
+      await tester.pumpAndSettle();
+      panel.moveDown();
+      await tester.pump();
       expect(panel.selectedIndex, 0, reason: 'wraps like the other rows of the dialog');
       panel.moveUp();
       await tester.pump();
-      expect(panel.selectedIndex, 1);
+      expect(panel.selectedIndex, 2);
+      panel.moveUp();
+      await tester.pump();
       panel.moveUp();
       await tester.pump();
       await panel.trigger();
       await tester.pumpAndSettle();
       expect(opened, <(LibretroEnginePage, String?)>[
+        (LibretroEnginePage.resolution, 'md'),
         (LibretroEnginePage.biosChecker, 'md'),
         (LibretroEnginePage.skins, 'md'),
       ]);
@@ -369,12 +387,15 @@ void main() {
       expect(find.text('RetroArch embarqué'), findsOneWidget);
       expect(find.text('Vérificateur de BIOS'), findsOneWidget);
       expect(find.text('Choisir, importer ou supprimer les skins Super Nintendo'), findsOneWidget);
+      expect(find.text('Résolution et image'), findsOneWidget);
+      expect(find.text('Résolution interne des cœurs Super Nintendo'), findsOneWidget);
       expect(find.text(_t('fr', 'engineInGameSettings')), findsOneWidget);
 
       await pumpPanel(tester, 'snes', locale: const Locale('zh', 'TW'));
       expect(find.text('內建 RetroArch'), findsOneWidget);
       expect(find.text('BIOS 檢查器'), findsOneWidget);
       expect(find.text('外觀'), findsOneWidget);
+      expect(find.text('解析度與畫面'), findsOneWidget);
       expect(find.text(_t('zh_Hant', 'engineInGameSettings')), findsOneWidget);
     });
 
@@ -387,6 +408,9 @@ void main() {
       expect((bios as LibretroBiosCheckerScreen).console, 'psx');
       final all = LibretroEngineSettingsPanel.pageFor(LibretroEnginePage.biosChecker, null);
       expect((all as LibretroBiosCheckerScreen).console, isNull);
+      final resolution = LibretroEngineSettingsPanel.pageFor(LibretroEnginePage.resolution, 'psx');
+      expect(resolution, isA<LibretroResolutionScreen>());
+      expect((resolution as LibretroResolutionScreen).console, 'psx');
     });
 
     // Build 447 (docs/libretro-3ds-system-settings.md § 3.6): the Nintendo
@@ -397,6 +421,7 @@ void main() {
       final opened = await pumpPanel(tester, '3ds');
       expect(panelState(tester).pages, <LibretroEnginePage>[
         LibretroEnginePage.skins,
+        LibretroEnginePage.resolution,
         LibretroEnginePage.systemData3ds,
         LibretroEnginePage.biosChecker,
       ]);
@@ -413,7 +438,7 @@ void main() {
       await tester.tap(find.text('System settings'));
       await tester.pumpAndSettle();
       final panel = panelState(tester);
-      expect(panel.selectedIndex, 1);
+      expect(panel.selectedIndex, 2);
       panel.moveDown();
       await tester.pump();
       panel.moveUp();

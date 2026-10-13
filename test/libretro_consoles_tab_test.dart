@@ -196,6 +196,9 @@ void main() {
       final console = entry.libretro;
       expect(find.byKey(ValueKey('libretro-console-import-${console?.id}')), console == null ? findsNothing : findsOneWidget);
       expect(find.byKey(ValueKey('libretro-console-skins-${console?.id}')), console == null ? findsNothing : findsOneWidget);
+      // Build 455: the internal resolution of the console's cores.
+      expect(find.byKey(ValueKey('libretro-console-resolution-${console?.id}')),
+          console == null ? findsNothing : findsOneWidget);
     }
     // Dolphin, ARMSX2, RPCS3, the Ports and every libretro core: switchable.
     for (final id in ['gc', 'wii', 'ps2', 'ps3', 'ports', 'nes', 'psx', 'pico']) {

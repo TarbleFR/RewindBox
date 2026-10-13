@@ -517,6 +517,12 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         '3ds',
       );
 
+  Future<void> _openResolution(LibretroConsole console) => LibretroEngineSettingsPanel.pushPage(
+        context,
+        LibretroEnginePage.resolution,
+        console.id,
+      );
+
   bool _matches(LibretroMainMenuState state) => switch (_filter) {
         ConsoleListFilter.all => true,
         ConsoleListFilter.shown => state.isPresent,
@@ -855,6 +861,14 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
             onPressed: () => _openSkins(console),
             icon: const Icon(Icons.palette_outlined),
             label: Text(_t('skins')),
+          ),
+        ),
+        LibretroFocusRing(
+          child: OutlinedButton.icon(
+            key: ValueKey('libretro-console-resolution-${console.id}'),
+            onPressed: busy ? null : () => _openResolution(console),
+            icon: const Icon(Icons.high_quality_outlined),
+            label: Text(_t('resolutionPage')),
           ),
         ),
         if (console.id == '3ds')

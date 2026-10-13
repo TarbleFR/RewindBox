@@ -6,6 +6,10 @@
 /// `<id>_libretro.framework` by `build-utils/libretro/build_cores.py`.
 library;
 
+import 'libretro_resolution.dart';
+
+export 'libretro_resolution.dart' show LibretroResolutionDeclaration;
+
 /// RETRO_HW_CONTEXT_* values understood by the native host.
 abstract final class LibretroHardwareContext {
   static const int none = 0;
@@ -42,6 +46,7 @@ class LibretroCore {
     this.noJitOverrides = const <String, String>{},
     this.lockedOptions = const <String, String>{},
     this.settings = const <LibretroCuratedSetting>[],
+    this.resolution,
   });
 
   /// Framework name without the `_libretro` suffix.
@@ -64,6 +69,11 @@ class LibretroCore {
   /// the controls of dual-screen consoles depend on them.
   final Map<String, String> lockedOptions;
   final List<LibretroCuratedSetting> settings;
+
+  /// Internal resolution option of the pinned build (Build 455), null for a
+  /// core that draws at the console's own resolution (2D cores). The
+  /// in-game menu reads the option the running core declares instead.
+  final LibretroResolutionDeclaration? resolution;
 }
 
 class LibretroSystemBinding {
@@ -186,6 +196,15 @@ abstract final class LibretroCoreCatalog {
       displayName: 'DeSmuME',
       extensions: {'nds', 'ids', 'bin'},
       noJitOverrides: {'desmume_cpu_mode': 'interpreter'},
+      resolution: LibretroResolutionDeclaration(
+        libraryName: 'DeSmuME',
+        key: 'desmume_internal_resolution',
+        values: [
+          '256x192', '512x384', '768x576', '1024x768', '1280x960', '1536x1152',
+          '1792x1344', '2048x1536', '2304x1728', '2560x1920',
+        ],
+        coreDefault: '256x192',
+      ),
       // The core always renders both screens stacked with no gap and reads
       // RETRO_DEVICE_POINTER as a touch screen (its default "mouse" pointer
       // type ignores it); NeoStation crops and places the two screens
@@ -203,13 +222,18 @@ abstract final class LibretroCoreCatalog {
       extensions: {'n64', 'v64', 'z64', 'ndd', 'bin', 'u1'},
       preferredHardwareContext: LibretroHardwareContext.openGLES3,
       noJitOverrides: {'mupen64plus-cpucore': 'cached_interpreter'},
-      settings: [
-        LibretroCuratedSetting(
-          'mupen64plus-43screensize',
-          'settingResolution',
-          ['640x480', '960x720', '1280x960', '1440x1080', '1600x1200', '1920x1440'],
-        ),
-      ],
+      // GLideN64's 4:3 viewport, read when the game starts. Build 455: the
+      // "Resolution and picture" page replaces the curated setting.
+      resolution: LibretroResolutionDeclaration(
+        libraryName: 'Mupen64Plus-Next',
+        key: 'mupen64plus-43screensize',
+        values: [
+          '320x240', '640x480', '960x720', '1280x960', '1440x1080', '1600x1200',
+          '1920x1440', '2240x1680', '2560x1920', '2880x2160', '3200x2400',
+          '3520x2640', '3840x2880',
+        ],
+        coreDefault: '640x480',
+      ),
     ),
     'mednafen_psx_hw': LibretroCore(
       id: 'mednafen_psx_hw',
@@ -220,36 +244,46 @@ abstract final class LibretroCoreCatalog {
       preferredHardwareContext: LibretroHardwareContext.openGLES3,
       // No no-JIT override: the pinned iOS builds of both Beetle PSX cores
       // have no Lightrec dynarec option, and test/libretro_core_options_test.py
-      // flags one if a future core build adds it.
-      settings: [
-        LibretroCuratedSetting(
-          'beetle_psx_hw_internal_resolution',
-          'settingResolution',
-          ['1x(native)', '2x', '4x', '8x'],
-          valueLabelKeys: {'1x(native)': 'resolutionNative'},
-        ),
-      ],
+      // flags one if a future core build adds it. Build 455: the "Resolution
+      // and picture" page replaces the curated resolution setting.
+      resolution: LibretroResolutionDeclaration(
+        libraryName: 'Beetle PSX HW',
+        key: 'beetle_psx_hw_internal_resolution',
+        values: ['1x(native)', '2x', '4x', '8x', '16x'],
+        coreDefault: '1x(native)',
+      ),
     ),
     'mednafen_psx': LibretroCore(
       id: 'mednafen_psx',
       displayName: 'Beetle PSX',
       extensions: {'cue', 'toc', 'm3u', 'ccd', 'exe', 'pbp', 'chd', 'bin'},
       biosAnyOf: ['scph5500.bin', 'scph5501.bin', 'scph5502.bin'],
+      // The software renderer scales the picture too.
+      resolution: LibretroResolutionDeclaration(
+        libraryName: 'Beetle PSX',
+        key: 'beetle_psx_internal_resolution',
+        values: ['1x(native)', '2x', '4x', '8x', '16x'],
+        coreDefault: '1x(native)',
+      ),
     ),
     'ppsspp': LibretroCore(
       id: 'ppsspp',
       displayName: 'PPSSPP',
       extensions: {'elf', 'iso', 'cso', 'prx', 'pbp', 'chd'},
       preferredHardwareContext: LibretroHardwareContext.openGLES3,
-      optionDefaults: {'ppsspp_internal_resolution': '960x544'},
       noJitOverrides: {'ppsspp_cpu_core': 'IR JIT'},
-      settings: [
-        LibretroCuratedSetting(
-          'ppsspp_internal_resolution',
-          'settingResolution',
-          ['480x272', '960x544', '1440x816', '1920x1088', '2400x1360'],
-        ),
-      ],
+      // Build 455: native by default (the 960x544 NeoStation default is
+      // gone; a value the user chose stays), set on the "Resolution and
+      // picture" page instead of a curated setting.
+      resolution: LibretroResolutionDeclaration(
+        libraryName: 'PPSSPP',
+        key: 'ppsspp_internal_resolution',
+        values: [
+          '480x272', '960x544', '1440x816', '1920x1088', '2400x1360', '2880x1632',
+          '3360x1904', '3840x2176', '4320x2448', '4800x2720',
+        ],
+        coreDefault: '480x272',
+      ),
     ),
     'azahar': LibretroCore(
       id: 'azahar',
@@ -263,6 +297,15 @@ abstract final class LibretroCoreCatalog {
       // they no longer declare either JIT option. FastInterp uses no JIT.
       // A stored disabled choice wins over this default on the next launch.
       optionDefaults: {'citra_use_fastinterp': 'enabled'},
+      resolution: LibretroResolutionDeclaration(
+        libraryName: 'Azahar',
+        key: 'citra_resolution_factor',
+        values: [
+          '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14',
+          '15', '16', '17', '18',
+        ],
+        coreDefault: '1',
+      ),
       // Top screen above the centred bottom screen, never swapped by the
       // core; the C-stick stays a stick instead of also driving a touch
       // cursor; stereoscopic modes would change the picture NeoStation crops.

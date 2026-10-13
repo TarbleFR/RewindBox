@@ -17,6 +17,7 @@ import 'config_service.dart';
 import 'libretro_3ds_containers.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
+import 'libretro_resolution.dart';
 import 'logger_service.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
@@ -296,6 +297,9 @@ abstract final class LibretroInternalService {
       'noJitOverrides': core.noJitOverrides,
       'lockedOptions': core.lockedOptions,
       'coreSettings': LibretroLocale.coreSettings(locale, core),
+      // Internal resolution (Build 455): how the session recognizes the
+      // core's resolution option among those it declares.
+      'resolution': LibretroResolution.nativeRules(),
       'achievementsAllowed': binding.achievementsConsoleId > 0,
       'achievementsConsoleId': binding.achievementsConsoleId,
       'preferredHardwareContext': core.preferredHardwareContext,

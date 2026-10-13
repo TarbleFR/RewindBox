@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/models/game_model.dart';
 import 'package:neostation/models/system_model.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
+import 'package:neostation/services/libretro_resolution.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -174,7 +175,12 @@ void main() {
       locale: const Locale('ja'),
     );
     expect(outcome.success, isTrue);
-    expect(launches.last['optionDefaults'], <String, String>{'ppsspp_internal_resolution': '960x544'});
+    // Contract change (Build 455, docs/libretro-resolution.md § 4): every
+    // core starts at its native resolution unless the user chose another,
+    // so PPSSPP no longer gets the 960x544 NeoStation default.
+    expect(launches.last['optionDefaults'], isEmpty);
+    // The session gets the rules recognizing the core's resolution option.
+    expect(jsonDecode(jsonEncode(launches.last['resolution'])), jsonDecode(jsonEncode(LibretroResolution.nativeRules())));
     // Nothing of the 3DS layer leaks into another core.
     for (final launch in launches) {
       expect(Map<Object?, Object?>.from(launch['optionDefaults'] as Map).containsKey('citra_language_value'), isFalse);
