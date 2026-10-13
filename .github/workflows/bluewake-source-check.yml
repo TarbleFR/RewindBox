@@ -1,6 +1,13 @@
 name: BlueWake source preparation
 run-name: BlueWake source preparation · ${{ github.sha }}
 on:
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/bluewake-source-check.yml'
+      - 'build-utils/bluewake/**'
+      - 'native/bluewake/**'
+      - 'test/bluewake_preparation_test.py'
   workflow_dispatch:
     inputs:
       build_ios_shell:
@@ -27,7 +34,7 @@ jobs:
           git diff --check
           python3 test/bluewake_preparation_test.py
   ios-shell:
-    if: ${{ inputs.build_ios_shell }}
+    if: ${{ github.event_name == 'push' || inputs.build_ios_shell }}
     needs: portable
     runs-on: macos-15
     timeout-minutes: 90

@@ -18,7 +18,8 @@ preserved as the commit parent. `Cloud` is left intact.
 - Added a read-only personal-disc preflight: ISO/GCM content, game ID, disc
   number, revision, bounded file spans and the expected DOL hash. This does not
   certify every disc byte or produce a native game module.
-- Added a standalone iOS host build command and a manual macOS CI workflow.
+- Added a standalone iOS host build command and a macOS CI workflow, limited
+  to changes in the new BlueWake sources on Claude, with manual dispatch too.
   SDL is passed by commit, Dawn by archive hash, and no game content is supplied
   or uploaded. A build receipt distinguishes the standalone executable from a
   future NeoStation framework.

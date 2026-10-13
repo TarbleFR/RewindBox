@@ -38,9 +38,10 @@ builder verifies Dawn's archive digest and passes SDL's full commit to CMake.
 It builds the standalone upstream `BlueWake.app`, with no disc, game module,
 signing credentials, IPA distribution or automatic installation. A successful
 build writes `build-receipt.json` next to the app and explicitly records that
-neither a NeoStation core nor gameplay has been tested. The manual GitHub
-workflow **BlueWake source preparation** runs the same gate without uploading
-the application or other build artifacts.
+neither a NeoStation core nor gameplay has been tested. The GitHub workflow
+**BlueWake source preparation** runs on changes to these BlueWake sources on
+`Claude`, or by manual dispatch once GitHub registers it. It runs the same gate
+without uploading the application or other build artifacts.
 
 For a personal disc kept on the build machine:
 
