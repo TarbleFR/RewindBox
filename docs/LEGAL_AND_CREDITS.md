@@ -352,3 +352,21 @@ See [the 14-core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
 [the hashed source references](../assets/legal/libretro/license-sources.json).
 License snapshots are not proof of the matching source for every buildbot binary.
 Azahar 2127.0-alpha1 is pinned separately to its official release.
+
+## BlueWake source integration (in progress)
+
+The native source preparation under `native/bluewake/` imports the C disc
+preparation component from [BlueWake](https://github.com/chrissotraidis/bluewake)
+at `6248171f3ef6094d179d45385b522d6bc8f49248`, by Chris Sotraidis, Elliott Tate
+and the BlueWake contributors. Its [GPLv3 license](../native/bluewake/upstream/LICENSE)
+and [rights notice](../native/bluewake/upstream/RIGHTS_AND_LICENSES.md) are retained.
+The [source lock](../build-utils/bluewake/source.json) records each imported file
+and the prospective runtime dependencies. RecompCore, DolRecomp, Dolphin,
+Aurora, Dawn, SDL and SunPad retain their respective credits and licenses;
+this preparation does not replace NeoStation's existing engines.
+
+BlueWake is not yet an enabled NeoStation port. The standalone reference build
+is not a callable NeoStation framework. No disc image, extracted game file or
+translated game module is included in this integration. Apple builds containing
+a module translated from a player's disc remain personal and must not be
+published. See the [integration status](bluewake-integration-status.md).

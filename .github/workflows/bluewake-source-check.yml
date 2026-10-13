@@ -1,0 +1,68 @@
+name: BlueWake source preparation
+run-name: BlueWake source preparation · ${{ github.sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      build_ios_shell:
+        description: Compile the standalone upstream iOS host without game code
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: bluewake-source-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify sources and preparation behavior
+        run: |
+          set -euo pipefail
+          git diff --check
+          python3 test/bluewake_preparation_test.py
+  ios-shell:
+    if: ${{ inputs.build_ios_shell }}
+    needs: portable
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Prepare compiler tools
+        run: |
+          set -euo pipefail
+          command -v cmake >/dev/null || brew install cmake
+          command -v ninja >/dev/null || brew install ninja
+          python3 build-utils/bluewake/prepare.py check-tools
+      - name: Compile vendored importer for iPhone ARM64
+        run: |
+          set -euo pipefail
+          python3 build-utils/bluewake/prepare.py verify-vendored
+          xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.0 \
+            -Wall -Wextra -c native/bluewake/upstream/disc_import.c \
+            -o "$RUNNER_TEMP/bluewake-disc-import.o"
+      - name: Fetch the pinned upstream source
+        run: python3 build-utils/bluewake/prepare.py prepare-source "$RUNNER_TEMP/bluewake-source"
+      - name: Compile standalone BlueWake without game code
+        run: |
+          python3 build-utils/bluewake/prepare.py build-shell \
+            --source "$RUNNER_TEMP/bluewake-source" \
+            --output "$RUNNER_TEMP/bluewake-reference" --jobs 3
+      - name: Record result and limitations
+        run: |
+          echo 'Standalone iOS host compiled. No NeoStation session or gameplay was tested.' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/bluewake-reference/build-receipt.json"
+      # No binary, disc, module, saves or generated code is uploaded by this workflow.
