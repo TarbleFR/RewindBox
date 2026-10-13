@@ -112,7 +112,7 @@ bash -n scripts/builder/build.sh scripts/builder/profiles/bluewake.sh
 
 ## Remaining gate and acceptance
 
-The next required inputs are an accessible Apple Silicon Mac with Xcode, the player's supported disc kept on that machine, and adoption of the personal packaging workflow above. A public ISO-only experience would require a materially different upstream execution/distribution architecture; silently switching to Dolphin would not satisfy the native-port request.
+At the time of the initial audit, the next required inputs were an accessible Apple Silicon Mac with Xcode, the player's supported disc kept on that machine, and adoption of the personal packaging workflow above. **Follow-up:** the disc-free standalone iOS host has since compiled successfully on macOS CI (run `38465426084`); the personal module and NeoStation session adapter remain unbuilt. A public ISO-only experience would require a materially different upstream execution/distribution architecture; silently switching to Dolphin would not satisfy the native-port request.
 
 First compile the pinned standalone host and personal module locally, then make and validate a callable NeoStation framework and its signatures. Only after that gate should the import/library UI be enabled.
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "source_preparation_in_progress_not_playable",
+  "status": "upstream_ios_shell_compiled_neostation_embedding_pending",
   "review_date": "2026-10-13",
   "neostation": {
     "branch": "Claude",
@@ -12,8 +12,20 @@
     "repository": "https://github.com/chrissotraidis/bluewake",
     "commit": "6248171f3ef6094d179d45385b522d6bc8f49248",
     "upstream_branch": "main",
-    "ios_build_verified": false,
-    "neostation_session_verified": false
+    "ios_build_verified": true,
+    "neostation_session_verified": false,
+    "ios_build_scope": "Standalone upstream ARM64 app without translated game code; not a NeoStation framework",
+    "verification": {
+      "neostation_source": "5535e304b429e461cc1387650ca70c64694150b4",
+      "run": "https://github.com/TarbleFR/neostation-ios/actions/runs/38465426084",
+      "xcode": "26.3 (17C529)",
+      "cmake": "4.4.3",
+      "runner_architecture": "arm64",
+      "binary_kind": "MH_EXECUTE",
+      "binary_sha256": "64409bd3419c80fe120613fbef06c46a152d2b93137399cadab3bce56336c497",
+      "game_module_built": false,
+      "gameplay_tested": false
+    }
   },
   "retired_fork": {
     "repository": "https://github.com/elliotttate/Wind-Waker-Recomp",
@@ -37,7 +49,7 @@
     "dawn": {
       "url": "https://github.com/encounter/dawn/releases/download/v20260618.032059/dawn-ios-arm64.tar.gz",
       "expected_sha256": "ada0bafc173152d80eba7c3b2f9609a71185d5809cbd5dd3251b91a0803a7ae2",
-      "archive_downloaded_and_verified": false
+      "archive_downloaded_and_verified": true
     }
   },
   "game_contract": {

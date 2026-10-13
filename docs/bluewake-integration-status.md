@@ -43,7 +43,8 @@ they are not claimed as new executions in this phase.
 
 ## Remaining work
 
-1. Finish the iOS standalone reference build gate and record its exact inputs.
+1. **Completed:** the iOS standalone reference build gate, without game code.
+   Exact inputs and executable identity are recorded in the source lock.
 2. Adapt the host to a callable private framework: UIKit/SDL ownership, audio,
    renderer shutdown, global-state reset and repeated sessions.
 3. Build the player's game module locally from the supported personal disc;
@@ -61,9 +62,18 @@ they are not claimed as new executions in this phase.
 - Follow-up preparation checks on Linux: **17/17 passed**, including output
   preservation and refusal of a symlink into a source repository. Git attributes
   preserve the four vendored source/notice files byte-for-byte on Windows.
-- iOS reference compilation: running at source `5535e304b429e461cc1387650ca70c64694150b4`,
+- iOS reference compilation: **passed** at source `5535e304b429e461cc1387650ca70c64694150b4`,
   [run 38465426084](https://github.com/TarbleFR/neostation-ios/actions/runs/38465426084).
-  The portable CI job has passed. The subsequent output-path protection does
-  not change the upstream source pins or CMake compilation arguments.
+  macOS ARM64, Xcode **26.3 (17C529)**, CMake **4.4.3**, iPhoneOS ARM64,
+  Release, iOS deployment target 17.0. The vendored importer compiled for iPhone;
+  the full standalone host linked successfully. The executable is `MH_EXECUTE`,
+  SHA-256 `64409bd3419c80fe120613fbef06c46a152d2b93137399cadab3bce56336c497`.
+  The build verified the Dawn archive and produced no translated game module.
+- Follow-up CI: **17/17 preparation tests passed** at source
+  `f7fd3784e482f7d41edc1f6e416b33a03bfeafd3`,
+  [run 38465835435](https://github.com/TarbleFR/neostation-ios/actions/runs/38465835435).
+  The unchanged upstream engine was not rebuilt: only output-path protection,
+  source byte preservation, test scheduling and documentation changed. Native
+  source pins and CMake compilation arguments remain identical.
 - No supported personal disc was provided; no valid-disc import, native module
   compilation, signing, launch, save or relaunch in NeoStation was tested.
