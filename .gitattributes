@@ -4,6 +4,3 @@ build-utils/armsx2/neostation-core.patch -whitespace
 
 # Upstream notices are hashed byte-for-byte; do not convert line endings.
 /assets/legal/libretro/* -text
-
-# BlueWake source snapshots and notices must keep their audited Git blob bytes.
-/native/bluewake/upstream/** -text
