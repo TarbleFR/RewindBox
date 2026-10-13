@@ -42,6 +42,8 @@ IOS_STANDARDS = ('ios-metal2.4', 'metal2.4')
 # costs the preset being validated, recorded as such.
 CHUNK = 60
 CHUNK_TIMEOUT = 900
+# neoshader-metal-validate stops after a GPU error (timeout, hang).
+GPU_ERROR_EXIT = 4
 
 
 def run(*arguments, **options):
@@ -128,24 +130,31 @@ def validate_metal(validator, checkout, presets, temporary):
         listing = temporary / 'metal-chunk.txt'
         listing.write_text('\n'.join(chunk) + '\n', encoding='utf-8')
         before = len(results)
+        restart = False
         try:
             process = run(validator, checkout, listing, output, timeout=CHUNK_TIMEOUT)
             outcome = f'exit {process.returncode}'
             if process.returncode in (2, 3):
                 raise SystemExit('neoshader-metal-validate cannot run (no Metal device or bad arguments)')
+            # After a GPU error the preset that caused it has its result and
+            # macOS would ignore this process's later GPU work: a new process
+            # takes the presets left.
+            restart = process.returncode == GPU_ERROR_EXIT
         except subprocess.TimeoutExpired:
             outcome = 'timeout'
         for line in output.read_text(encoding='utf-8').splitlines():
             record = json.loads(line)
             results[record['preset']] = record
         done = [preset for preset in chunk if preset in results]
-        if len(results) == before or len(done) < len(chunk):
+        if len(results) == before or (len(done) < len(chunk) and not restart):
             # The process stopped on the first preset without a result.
             stuck = next(preset for preset in chunk if preset not in results)
-            if outcome.startswith('exit') and outcome != 'exit 0' and outcome != 'exit 1':
-                code = 'VALIDATOR_CRASH'
+            if outcome == 'timeout':
+                code = 'VALIDATOR_TIMEOUT'
+            elif outcome in ('exit 0', 'exit 1'):
+                code = 'VALIDATOR_STOPPED'
             else:
-                code = 'VALIDATOR_TIMEOUT' if outcome == 'timeout' else 'VALIDATOR_STOPPED'
+                code = 'VALIDATOR_CRASH'
             results[stuck] = {'preset': stuck, 'ok': False, 'stage': 'render', 'code': code, 'detail': outcome}
             with output.open('a', encoding='utf-8') as stream:
                 stream.write(json.dumps(results[stuck]) + '\n')

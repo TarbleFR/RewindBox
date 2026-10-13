@@ -506,6 +506,7 @@ void bindResources(spirv_cross::CompilerMSL& compiler, spv::ExecutionModel model
 bool translate(spirv_cross::CompilerMSL& compiler, spv::ExecutionModel model, const SlangCompileOptions& options,
                std::string* msl, std::string* entry, ShaderError* error) {
   try {
+    renameReservedMSLNames(compiler);
     spirv_cross::CompilerMSL::Options mslOptions;
     mslOptions.platform = options.iosPlatform ? spirv_cross::CompilerMSL::Options::iOS
                                               : spirv_cross::CompilerMSL::Options::macOS;
@@ -524,6 +525,25 @@ bool translate(spirv_cross::CompilerMSL& compiler, spv::ExecutionModel model, co
 }
 
 }  // namespace
+
+void renameReservedMSLNames(spirv_cross::Compiler& compiler) {
+  static const char* const kAlternativeTokens[] = {"and",    "and_eq", "bitand", "bitor", "compl", "not",
+                                                   "not_eq", "or",     "or_eq",  "xor",   "xor_eq"};
+  const uint32_t bound = compiler.get_current_id_bound();
+  for (uint32_t id = 1; id < bound; id++) {
+    const std::string name = compiler.get_name(id);
+    if (name.empty()) continue;
+    // glslang names functions with their mangled parameters ("and(vb4;vb4;"):
+    // SPIRV-Cross keeps what precedes the parenthesis.
+    const std::string base = name.substr(0, name.find('('));
+    for (const char* token : kAlternativeTokens) {
+      if (base == token) {
+        compiler.set_name(id, base + "_neo");
+        break;
+      }
+    }
+  }
+}
 
 const char* slangSemanticName(SlangSemantic semantic) {
   for (const SemanticName& entry : kSemanticNames) {

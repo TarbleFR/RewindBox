@@ -13,7 +13,9 @@
 // {"preset", "ok", "stage", "code", "detail", "passes", "compileSeconds",
 //  "gpuMilliseconds", "changedFraction", "meanDifference", "litFraction",
 //  "colors", "finite"}. Exit status: 0 when every preset passed, 1 when one
-// failed, 2 on usage errors, 3 without a Metal device.
+// failed, 2 on usage errors, 3 without a Metal device, 4 after a GPU error
+// (timeout, hang): macOS then ignores the process's later GPU work, so the
+// caller starts a new process for the presets left.
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
@@ -42,9 +44,12 @@ constexpr int kFrames = 3;
 /// counts as changed; a preset must change this fraction of the pixels.
 constexpr int kChangedThreshold = 3;
 constexpr double kMinimumChangedFraction = 0.001;
-/// Pixels brighter than black, and distinct colours, a real picture keeps.
+/// Pixels brighter than black, and distinct colours, a real picture keeps
+/// (two: palette and dithering shaders legitimately use very few).
 constexpr double kMinimumLitFraction = 0.02;
-constexpr size_t kMinimumColors = 8;
+constexpr size_t kMinimumColors = 2;
+/// Exit status after a GPU error.
+constexpr int kGPUErrorExit = 4;
 
 std::string Quote(const std::string &text) {
   std::string result = "\"";
@@ -114,6 +119,7 @@ std::vector<uint8_t> TestPicture(int frame) {
 }
 
 struct Result {
+  bool gpuError = false;
   bool ok = false;
   std::string stage = "compile";
   std::string code;
@@ -155,7 +161,6 @@ class Validator {
       uploads_.push_back([device newBufferWithBytes:bgra.data() length:bgra.size() options:MTLResourceStorageModeShared]);
       if (frame == kFrames - 1) last_ = rgba;
     }
-    readback_ = [device newBufferWithLength:kOutputWidth * kOutputHeight * 16 options:MTLResourceStorageModeShared];
   }
 
   Result validate(NSString *preset) {
@@ -227,6 +232,7 @@ class Validator {
       if (buffer.status != MTLCommandBufferStatusCompleted) {
         result.code = "GPU_ERROR";
         result.detail = buffer.error.localizedDescription.UTF8String ?: "";
+        result.gpuError = true;
         return result;
       }
       if (frame == kFrames - 1) {
@@ -256,6 +262,11 @@ class Validator {
  private:
   void copyToReadback(id<MTLCommandBuffer> buffer, id<MTLTexture> output) {
     const NSUInteger bytesPerPixel = BytesPerPixel(output.pixelFormat);
+    // The last pass can be larger than the output (a scaled last pass).
+    const NSUInteger needed = output.width * output.height * bytesPerPixel;
+    if (readback_ == nil || readback_.length < needed) {
+      readback_ = [device_ newBufferWithLength:needed options:MTLResourceStorageModeShared];
+    }
     id<MTLBlitCommandEncoder> blit = [buffer blitCommandEncoder];
     [blit copyFromTexture:output
                      sourceSlice:0
@@ -410,6 +421,10 @@ int main(int argc, const char *argv[]) {
         output.flush();
         std::printf("%s %s %s\n", result.ok ? "ok  " : "FAIL", line.c_str(), result.ok ? "" : result.code.c_str());
         std::fflush(stdout);
+        if (result.gpuError) {
+          std::printf("GPU error: stopping so that a new process validates the rest\n");
+          return kGPUErrorExit;
+        }
       }
     }
     std::printf("%d presets, %d failed (Metal device: %s)\n", total, failures, device.name.UTF8String);

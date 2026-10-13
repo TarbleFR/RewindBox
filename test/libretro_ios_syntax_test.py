@@ -6,12 +6,13 @@ before the full delivery build. The Flutter plugin header is replaced by a
 declaration stub; everything else is the real SDK.
 
 The bridge depends on the external_display pod (NeoExternalRenderHost, Build
-447) and imports its headers as <external_display/Name.h>. The generated host
-links every pod as a framework (use_frameworks!), where only the headers the
-pod publishes (its podspec's public_header_files) resolve that way: the same
-headers, and only those, are staged under a folder named after the pod and
-added to the search path, so a bridge import of an unpublished header fails
-here rather than in the cold Xcode build.
+447) and on the neo_shader_kit pod (slang shaders, Build 450), and imports
+their headers as <pod/Name.h>. The generated host links every pod as a
+framework (use_frameworks!), where only the headers a pod publishes (its
+podspec's public_header_files) resolve that way: the same headers, and only
+those, are staged under a folder named after each pod and added to the
+search path, so a bridge import of an unpublished header fails here rather
+than in the cold Xcode build.
 
 The objects are then linked into one dynamic library with the same SDK and
 `nm -u` lists what it still needs from elsewhere. A symbol of the bridge
@@ -31,8 +32,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
-EXTERNAL_DISPLAY = ROOT / 'packages/external_display/ios'
-EXTERNAL_DISPLAY_POD = 'external_display'
+# Pods the bridge depends on: name -> folder of its podspec.
+DEPENDENCY_PODS = {
+    'external_display': ROOT / 'packages/external_display/ios',
+    'neo_shader_kit': ROOT / 'packages/neo_shader_kit/ios',
+}
 TARGET = 'arm64-apple-ios17.4'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
            'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1')
@@ -48,33 +52,56 @@ def object_name(source):
     return '_'.join(source.relative_to(BRIDGE).with_suffix('.o').parts)
 
 
-def external_display_public_headers():
-    """The headers the external_display pod publishes (public_header_files of
-    its podspec): the only ones another pod can import as
-    <external_display/Name.h> from the framework CocoaPods builds."""
-    podspec = (EXTERNAL_DISPLAY / f'{EXTERNAL_DISPLAY_POD}.podspec').read_text(encoding='utf-8')
+def public_headers(pod, folder):
+    """The headers a pod publishes (public_header_files of its podspec,
+    globs expanded): the only ones another pod can import as <pod/Name.h>
+    from the framework CocoaPods builds."""
+    podspec = (folder / f'{pod}.podspec').read_text(encoding='utf-8')
     match = re.search(r"public_header_files\s*=\s*((?:'[^']*'\s*,?\s*)+)", podspec)
     if match is None:
-        raise SystemExit(f'{EXTERNAL_DISPLAY_POD}.podspec declares no public_header_files')
-    headers = [EXTERNAL_DISPLAY / name for name in re.findall(r"'([^']*)'", match.group(1))]
-    missing = [str(header.relative_to(ROOT)) for header in headers if not header.is_file()]
-    if missing:
-        raise SystemExit(f'{EXTERNAL_DISPLAY_POD}.podspec publishes missing headers: ' + ', '.join(missing))
+        raise SystemExit(f'{pod}.podspec declares no public_header_files')
+    headers = []
+    for pattern in re.findall(r"'([^']*)'", match.group(1)):
+        found = sorted(folder.glob(pattern)) if any(character in pattern for character in '*?[') else [folder / pattern]
+        if not found or not all(header.is_file() for header in found):
+            raise SystemExit(f'{pod}.podspec publishes missing headers: {pattern}')
+        headers += found
     return headers
 
 
+def external_display_public_headers():
+    """The headers the external_display pod publishes (kept for the Dolphin
+    harnesses that import this module)."""
+    return public_headers('external_display', DEPENDENCY_PODS['external_display'])
+
+
 def stage_external_display(directory):
-    """A search path where <external_display/Name.h> resolves exactly as the
-    bridge sees the pod it depends on: a folder named after the pod holding
-    copies of its public headers and nothing else."""
+    """A search path where <external_display/Name.h> resolves as a pod that
+    depends on external_display sees it (used by the Dolphin harnesses)."""
     include = directory / 'include'
-    staged = include / EXTERNAL_DISPLAY_POD
+    staged = include / 'external_display'
     staged.mkdir(parents=True)
     headers = external_display_public_headers()
     for header in headers:
         shutil.copyfile(header, staged / header.name)
-    print(f'Staged {len(headers)} public {EXTERNAL_DISPLAY_POD} header(s) as <{EXTERNAL_DISPLAY_POD}/...>: '
+    print(f'Staged {len(headers)} public external_display header(s) as <external_display/...>: '
           + ', '.join(header.name for header in headers), flush=True)
+    return include
+
+
+def stage_dependency_headers(directory):
+    """A search path where <pod/Name.h> resolves exactly as the bridge sees
+    the pods it depends on: a folder named after each pod holding copies of
+    its public headers and nothing else."""
+    include = directory / 'include'
+    for pod, folder in DEPENDENCY_PODS.items():
+        staged = include / pod
+        staged.mkdir(parents=True)
+        headers = public_headers(pod, folder)
+        for header in headers:
+            shutil.copyfile(header, staged / header.name)
+        print(f'Staged {len(headers)} public {pod} header(s) as <{pod}/...>: '
+              + ', '.join(header.name for header in headers), flush=True)
     return include
 
 
@@ -147,7 +174,7 @@ def main():
     sources = sorted((BRIDGE / 'Classes').glob('*.m')) + sorted((BRIDGE / 'ThirdParty/rcheevos/src').rglob('*.c'))
     with tempfile.TemporaryDirectory(prefix='libretro-ios-') as temporary:
         directory = Path(temporary)
-        include = stage_external_display(directory)
+        include = stage_dependency_headers(directory)
         objects, failed = compile_sources(sdk, sources, directory, include)
         if failed:
             raise SystemExit('iPhone compilation failed: ' + ', '.join(failed))

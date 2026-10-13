@@ -8,6 +8,9 @@ render fixtures below (presets, slang sources, PNG lookup textures) into a
 temporary directory and runs:
 
   * neoshader-core-tests: preset/source rules, reflection, MSL bindings;
+  * neoshader-kit-tests FIXTURES (macOS): verified downloads through a fake
+    network, shared files and removal, refusals, previews, favourites,
+    profiles, storage report, catalog parsing;
   * neoshader-render-tests FIXTURES (macOS): every check renders through the
     application's program and chain code on the Metal device and reads the
     pixels back (orientation, nearest/linear and the smooth setting,
@@ -189,6 +192,16 @@ filter_linear0 = false
 shader1 = mipdown.slang
 mipmap_input1 = true
 filter_linear1 = true
+wrap_mode1 = clamp_to_edge
+''',
+    'mipmap-border.slangp': '''shaders = 2
+shader0 = stock.slang
+scale_type0 = source
+scale0 = 1.0
+filter_linear0 = false
+shader1 = mipdown.slang
+mipmap_input1 = true
+filter_linear1 = true
 ''',
     'wrap.slang': slang('FragColor = texture(Source, vTexCoord * 2.0 - 0.49);'),
     'wrap-border.slangp': 'shaders = 1\nshader0 = wrap.slang\nfilter_linear0 = false\n',
@@ -221,6 +234,8 @@ filter_linear1 = false
     'textures/corrupt.png': b'\x89PNG\r\n\x1a\n' + bytes(range(64)),
     'huge.slang': slang('FragColor = vec4(1.0);', pragmas=('#pragma format R32G32B32A32_SFLOAT',)),
     'huge.slangp': 'shaders = 1\nshader0 = huge.slang\nscale_type0 = absolute\nscale0 = 16384\n',
+    # Catalog preview served by the storage tests' fake network.
+    'previews/stock.png': png(2, 1, [[(10, 20, 30, 255), (40, 50, 60, 255)]]),
 }
 
 
@@ -257,7 +272,7 @@ def main():
         run('cmake', '-S', TOOLS, '-B', build, '-DCMAKE_BUILD_TYPE=Release', check=True)
         targets = ['neoshader-core-tests']
         if sys.platform == 'darwin':
-            targets.append('neoshader-render-tests')
+            targets += ['neoshader-kit-tests', 'neoshader-render-tests']
         run('cmake', '--build', build, '--parallel', jobs, '--target', *targets, check=True)
         run(build / 'neoshader-core-tests', check=True)
         if sys.platform != 'darwin':
@@ -266,6 +281,7 @@ def main():
         fixtures = temporary / 'fixtures'
         fixtures.mkdir()
         write_fixtures(fixtures)
+        run(build / 'neoshader-kit-tests', fixtures, check=True)
         result = run(build / 'neoshader-render-tests', fixtures)
         if result.returncode == NO_DEVICE:
             if arguments.require_metal:

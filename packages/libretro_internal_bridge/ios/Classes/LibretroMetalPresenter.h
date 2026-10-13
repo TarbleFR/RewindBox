@@ -7,6 +7,7 @@
 #include "libretro.h"
 
 @class LibretroShaderPreset;
+@class NeoSlangProgram;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -75,9 +76,32 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)setShaderPreset:(nullable LibretroShaderPreset *)preset
              parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters
                   error:(NSError *_Nullable *_Nullable)error;
-/// Thread-safe; takes effect at the next draw.
+/// Thread-safe; takes effect at the next draw (built-in preset or slang
+/// program, whichever is active).
 - (void)setShaderParameter:(NSString *)identifier value:(float)value;
+/// Built-in preset identifier, or the identifier given with the slang
+/// program in effect; nil for the standard picture.
 @property(atomic, copy, readonly, nullable) NSString *activePresetIdentifier;
+
+/// Emulation thread. Activates a RetroArch slang preset compiled by the
+/// shader kit (NeoSlangProgram, built off this thread) instead of any
+/// built-in preset: each screen gets its own filter chain (history and
+/// feedback per screen), fed with the screen's part of the frame at its
+/// own texel size, and the last pass is drawn in the screen's place
+/// (rotation and format as for the standard picture). nil returns to the
+/// standard picture. `parameters` {identifier: value}: missing ones keep
+/// the preset's values.
+- (void)setSlangProgram:(nullable NeoSlangProgram *)program
+             identifier:(nullable NSString *)identifier
+             parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters;
+/// Frames per second of the core (OriginalFPS of slang presets).
+@property(atomic, assign) float coreFPS;
+/// Reason code of the last slang frame drawn as the standard picture
+/// (NeoSlangChain.lastFailureCode, e.g. CHAIN_MEMORY), nil when the chain
+/// drew. Log and status only.
+@property(atomic, copy, readonly, nullable) NSString *slangFailureCode;
+/// GPU memory held by the slang chains (diagnostics), bytes.
+@property(atomic, readonly) NSUInteger slangTextureBytes;
 
 /// Median GPU time of the presenter's command buffers over the last 120
 /// frames, in milliseconds; 0 until measured.

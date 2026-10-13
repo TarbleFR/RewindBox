@@ -256,6 +256,7 @@ bool translateStage(std::vector<uint32_t> words, bool fragment, const DolphinTra
                     std::string* msl, std::string* entry, ShaderError* error) {
   try {
     spirv_cross::CompilerMSL compiler(std::move(words));
+    renameReservedMSLNames(compiler);
     spirv_cross::CompilerMSL::Options mslOptions;
     mslOptions.platform = options.iosPlatform ? spirv_cross::CompilerMSL::Options::iOS
                                               : spirv_cross::CompilerMSL::Options::macOS;

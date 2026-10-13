@@ -18,7 +18,17 @@
 #include "NeoSlangPreset.hpp"
 #include "NeoSlangSource.hpp"
 
+namespace spirv_cross {
+class Compiler;
+}
+
 namespace neoshader {
+
+/// Renames every SPIR-V name that is a C++ alternative token ("and",
+/// "or", "not", "xor"...): valid GLSL identifiers (xbr-hybrid defines
+/// functions "and" and "or"), rejected by the Metal compiler as MSL is C++.
+/// Called before every MSL translation.
+void renameReservedMSLNames(spirv_cross::Compiler& compiler);
 
 /// Uniforms NeoStation fills (RetroArch semantic names).
 enum class SlangSemantic {

@@ -61,6 +61,21 @@ if(APPLE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/sla
     "-framework QuartzCore")
 endif()
 
+# macOS: storage (verified downloads, removal, favourites, profiles) and
+# catalog parsing, with a fake network; no Metal.
+if(APPLE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/storage_test.m)
+  enable_language(OBJC)
+  enable_language(OBJCXX)
+  add_executable(neoshader-kit-tests
+    ${KIT}/Classes/NeoShaderStorage.m
+    ${KIT}/Classes/NeoShaderCatalog.mm
+    ${KIT}/Classes/NeoShaderEngine.m
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/storage_test.m)
+  target_include_directories(neoshader-kit-tests PRIVATE ${KIT}/Classes/Public)
+  target_compile_options(neoshader-kit-tests PRIVATE -fobjc-arc -Wall -Wextra -Wno-unused-parameter)
+  target_link_libraries(neoshader-kit-tests PRIVATE neoshader_core "-framework Foundation")
+endif()
+
 # macOS: Metal validation of the catalog presets (compile, render, visible
 # effect), run by test/neo_shader_kit_catalog_test.py in CI.
 if(APPLE)

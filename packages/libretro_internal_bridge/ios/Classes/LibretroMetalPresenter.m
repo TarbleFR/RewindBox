@@ -2,6 +2,8 @@
 
 #import "LibretroShaderLibrary.h"
 
+#import <neo_shader_kit/NeoSlangRenderer.h>
+
 #include <math.h>
 #include <os/lock.h>
 #include <simd/simd.h>
@@ -126,6 +128,64 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
 
 @end
 
+/// Texture coordinates of a screen's part inside the frame texture, for the
+/// shared MSL prelude (NEO_SAMPLE): origin, extent and clamp limits half a
+/// texel inside, `flipped` for bottom-left origin frames.
+static void SetPartUniforms(LibretroShaderUniforms *uniforms, LibretroRect source, double frameWidth,
+                            double frameHeight, double textureWidth, double textureHeight, BOOL flipped) {
+  const double partU = source.x * frameWidth / textureWidth;
+  const double partWidth = source.w * frameWidth / textureWidth;
+  const double partHeight = source.h * frameHeight / textureHeight;
+  const double partV = (flipped ? (1.0 - source.y - source.h) : source.y) * frameHeight / textureHeight;
+  const double halfTexelU = 0.5 / textureWidth;
+  const double halfTexelV = 0.5 / textureHeight;
+  double minU = partU + halfTexelU;
+  double maxU = partU + partWidth - halfTexelU;
+  if (maxU < minU) minU = maxU = partU + partWidth / 2.0;
+  double minV = partV + halfTexelV;
+  double maxV = partV + partHeight - halfTexelV;
+  if (maxV < minV) minV = maxV = partV + partHeight / 2.0;
+  uniforms->uvOrigin = simd_make_float2((float)partU, (float)partV);
+  uniforms->uvExtent = simd_make_float2((float)partWidth, (float)partHeight);
+  uniforms->uvMin = simd_make_float2((float)minU, (float)minV);
+  uniforms->uvMax = simd_make_float2((float)maxU, (float)maxV);
+  uniforms->flipped = flipped ? 1u : 0u;
+}
+
+/// Triangle strip of a destination rectangle (pixels of a width x height
+/// target), its corners showing picture corners turned by `rotation`
+/// quarter turns counter-clockwise (as encodeScreens draws them).
+static void RotatedQuad(simd_float4 quad[4], LibretroRect output, double width, double height, unsigned rotation) {
+  const simd_float2 corners[4] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
+  const simd_float2 topLeft = corners[(0 + rotation) % 4];
+  const simd_float2 topRight = corners[(1 + rotation) % 4];
+  const simd_float2 bottomRight = corners[(2 + rotation) % 4];
+  const simd_float2 bottomLeft = corners[(3 + rotation) % 4];
+  const float left = (float)(output.x / width * 2.0 - 1.0);
+  const float right = (float)((output.x + output.w) / width * 2.0 - 1.0);
+  const float top = (float)(1.0 - output.y / height * 2.0);
+  const float bottom = (float)(1.0 - (output.y + output.h) / height * 2.0);
+  quad[0] = simd_make_float4(left, top, topLeft.x, topLeft.y);
+  quad[1] = simd_make_float4(left, bottom, bottomLeft.x, bottomLeft.y);
+  quad[2] = simd_make_float4(right, top, topRight.x, topRight.y);
+  quad[3] = simd_make_float4(right, bottom, bottomRight.x, bottomRight.y);
+}
+
+/// Parameter values of `program` in its order from {identifier: value};
+/// NSNull keeps the preset's value.
+static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, NSNumber *> *parameters) {
+  NSMutableArray *values = [NSMutableArray arrayWithCapacity:program.parameters.count];
+  for (NeoSlangParameterInfo *parameter in program.parameters) {
+    id value = parameters[parameter.identifier];
+    [values addObject:[value isKindOfClass:NSNumber.class] ? value : NSNull.null];
+  }
+  return values;
+}
+
+@interface LibretroMetalPresenter ()
+@property(atomic, copy, readwrite, nullable) NSString *slangFailureCode;
+@end
+
 @implementation LibretroMetalPresenter {
   CAMetalLayer *_layer;
   id<MTLCommandQueue> _queue;
@@ -160,6 +220,10 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
   NSMutableDictionary<NSString *, id<MTLRenderPipelineState>> *_pipelines;
   id<MTLRenderPipelineState> _presetPipeline;
   LibretroShaderFilter _presetFilter;
+  // Active slang program (emulation thread) and the time of its last frame
+  // (FrameTimeDelta).
+  NeoSlangProgram *_slangProgram;
+  CFTimeInterval _slangLastEncode;
 
   // Under _lock.
   NSArray<LibretroPresenterScreen *> *_screens;
@@ -175,6 +239,10 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
   float _parameterMinimum[LIBRETRO_SHADER_SLOTS];
   float _parameterMaximum[LIBRETRO_SHADER_SLOTS];
   uint32_t _distortMask;
+  // One chain per screen of the slang program in effect, and the parameter
+  // values new chains start with (nil without a slang program).
+  NSMutableArray<NeoSlangChain *> *_slangChains;
+  NSDictionary<NSString *, NSNumber *> *_slangParameters;
   double _gpuSamples[LIBRETRO_GPU_SAMPLES];
   NSUInteger _gpuSampleCount;
   NSUInteger _gpuSampleNext;
@@ -328,7 +396,10 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
   NSDictionary<NSString *, NSNumber *> *frozenSlots = [slots copy];
   _presetPipeline = pipeline;
   _presetFilter = preset.filter;
+  _slangProgram = nil;
   os_unfair_lock_lock(&_lock);
+  _slangChains = nil;
+  _slangParameters = nil;
   const BOOL changed = ![_presetIdentifier isEqualToString:identifier];
   _presetIdentifier = identifier;
   _parameterSlots = frozenSlots;
@@ -350,7 +421,11 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
 - (void)deactivatePreset {
   _presetPipeline = nil;
   _presetFilter = LibretroShaderFilterFollowSmoothing;
+  _slangProgram = nil;
+  self.slangFailureCode = nil;
   os_unfair_lock_lock(&_lock);
+  _slangChains = nil;
+  _slangParameters = nil;
   const BOOL changed = _presetIdentifier != nil;
   _presetIdentifier = nil;
   _parameterSlots = @{};
@@ -369,6 +444,15 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
 - (void)setShaderParameter:(NSString *)identifier value:(float)value {
   if (![identifier isKindOfClass:[NSString class]] || !isfinite(value)) return;
   os_unfair_lock_lock(&_lock);
+  if (_slangChains != nil) {
+    // Slang: every screen's chain, and the value new chains start with.
+    NSMutableDictionary<NSString *, NSNumber *> *values = [_slangParameters mutableCopy] ?: [NSMutableDictionary dictionary];
+    values[identifier] = @(value);
+    _slangParameters = [values copy];
+    for (NeoSlangChain *chain in _slangChains) [chain setParameter:identifier value:value];
+    os_unfair_lock_unlock(&_lock);
+    return;
+  }
   NSNumber *slot = _parameterSlots[identifier];
   if (slot != nil) {
     const NSUInteger index = slot.unsignedIntegerValue;
@@ -377,6 +461,69 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
     }
   }
   os_unfair_lock_unlock(&_lock);
+}
+
+- (void)setSlangProgram:(nullable NeoSlangProgram *)program
+             identifier:(nullable NSString *)identifier
+             parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters {
+  if (program == nil) {
+    [self deactivatePreset];
+    return;
+  }
+  _presetPipeline = nil;
+  _presetFilter = LibretroShaderFilterFollowSmoothing;
+  _slangProgram = program;
+  _slangLastEncode = 0;
+  self.slangFailureCode = nil;
+  NSString *name = [identifier copy] ?: program.presetPath;
+  os_unfair_lock_lock(&_lock);
+  const BOOL changed = ![_presetIdentifier isEqualToString:name];
+  _presetIdentifier = name;
+  _parameterSlots = @{};
+  memset(_parameterValues, 0, sizeof(_parameterValues));
+  memset(_parameterMinimum, 0, sizeof(_parameterMinimum));
+  memset(_parameterMaximum, 0, sizeof(_parameterMaximum));
+  _distortMask = 0;
+  // Chains are created for the screens at the next draw.
+  _slangChains = [NSMutableArray array];
+  _slangParameters = [parameters isKindOfClass:NSDictionary.class] ? [parameters copy] : @{};
+  if (changed) {
+    _gpuGeneration++;
+    _gpuSampleCount = 0;
+    _gpuSampleNext = 0;
+  }
+  os_unfair_lock_unlock(&_lock);
+}
+
+- (NSUInteger)slangTextureBytes {
+  os_unfair_lock_lock(&_lock);
+  NSArray<NeoSlangChain *> *chains = [_slangChains copy];
+  os_unfair_lock_unlock(&_lock);
+  NSUInteger bytes = 0;
+  for (NeoSlangChain *chain in chains) bytes += chain.textureBytes;
+  return bytes;
+}
+
+/// Emulation thread: exactly one chain per screen (new ones start with the
+/// parameter values in effect); nil without a slang program.
+- (nullable NSArray<NeoSlangChain *> *)slangChainsForCount:(NSUInteger)count {
+  NeoSlangProgram *program = _slangProgram;
+  if (program == nil) return nil;
+  os_unfair_lock_lock(&_lock);
+  NSMutableArray<NeoSlangChain *> *chains = _slangChains;
+  if (chains == nil) {
+    os_unfair_lock_unlock(&_lock);
+    return nil;
+  }
+  while (chains.count > count) [chains removeLastObject];
+  while (chains.count < count) {
+    NeoSlangChain *chain = [[NeoSlangChain alloc] initWithProgram:program];
+    [chain setParameterValues:SlangValues(program, _slangParameters)];
+    [chains addObject:chain];
+  }
+  NSArray<NeoSlangChain *> *result = [chains copy];
+  os_unfair_lock_unlock(&_lock);
+  return result;
 }
 
 - (nullable NSString *)activePresetIdentifier {
@@ -668,16 +815,13 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
   NSArray<LibretroPresenterScreen *> *screens = [self screensForWidth:targetWidth
                                                                height:targetHeight
                                                            generation:&generation];
-  id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:ClearingPass(target)];
-  NSArray<NSValue *> *mappings = [self encodeScreens:screens
-                                             encoder:encoder
-                                             texture:texture
-                                               width:width
-                                              height:height
-                                             flipped:flipped
-                                         outputWidth:(double)targetWidth
-                                        outputHeight:(double)targetHeight];
-  [encoder endEncoding];
+  NSArray<NSValue *> *mappings = [self encodeFrameOnBuffer:buffer
+                                                    target:target
+                                                   screens:screens
+                                                   texture:texture
+                                                     width:width
+                                                    height:height
+                                                   flipped:flipped];
   [buffer presentDrawable:drawable];
   _lastDrawableWidth = targetWidth;
   _lastDrawableHeight = targetHeight;
@@ -698,6 +842,189 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
     if (completion != nil) completion();
   }];
   [buffer commit];
+}
+
+/// The whole frame into `target` (cleared to black): the slang chains of
+/// the screens then their results when a slang program is active, else one
+/// draw per screen (built-in preset or standard picture). Returns where
+/// each screen was drawn.
+- (NSArray<NSValue *> *)encodeFrameOnBuffer:(id<MTLCommandBuffer>)buffer
+                                     target:(id<MTLTexture>)target
+                                    screens:(NSArray<LibretroPresenterScreen *> *)screens
+                                    texture:(id<MTLTexture>)texture
+                                      width:(unsigned)width
+                                     height:(unsigned)height
+                                    flipped:(BOOL)flipped {
+  if (_slangProgram != nil) {
+    return [self encodeSlangScreens:screens
+                             buffer:buffer
+                             target:target
+                            texture:texture
+                              width:width
+                             height:height
+                            flipped:flipped];
+  }
+  id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:ClearingPass(target)];
+  NSArray<NSValue *> *mappings = [self encodeScreens:screens
+                                             encoder:encoder
+                                             texture:texture
+                                               width:width
+                                              height:height
+                                             flipped:flipped
+                                         outputWidth:(double)target.width
+                                        outputHeight:(double)target.height];
+  [encoder endEncoding];
+  return mappings;
+}
+
+/// Slang program: for each screen, its part of the frame is copied at its
+/// own texel size into the chain's Original (nearest, upright), the chain
+/// encodes its passes for the screen's place in whole pixels, and the last
+/// pass is drawn there with the rotation (1:1 nearest when it already has
+/// that size, else filtered by the smooth setting, as RetroArch's final
+/// copy). A screen whose chain fails (e.g. too much memory at this size)
+/// shows the standard picture; the reason is kept in slangFailureCode.
+- (NSArray<NSValue *> *)encodeSlangScreens:(NSArray<LibretroPresenterScreen *> *)screens
+                                    buffer:(id<MTLCommandBuffer>)buffer
+                                    target:(id<MTLTexture>)target
+                                   texture:(id<MTLTexture>)texture
+                                     width:(unsigned)width
+                                    height:(unsigned)height
+                                   flipped:(BOOL)flipped {
+  const double outputWidth = (double)target.width;
+  const double outputHeight = (double)target.height;
+  NSArray<NeoSlangChain *> *chains = [self slangChainsForCount:screens.count];
+  const unsigned rotation = self.rotation % 4;
+  const BOOL quarterTurn = (rotation % 2) == 1;
+  const double textureWidth = (double)MAX(texture.width, (NSUInteger)1);
+  const double textureHeight = (double)MAX(texture.height, (NSUInteger)1);
+  const double frameWidth = fmin((double)width, textureWidth);
+  const double frameHeight = fmin((double)height, textureHeight);
+  double coreAspect = (double)self.aspectRatio;
+  if (!(coreAspect > 0.0) || isinf(coreAspect)) coreAspect = frameWidth / frameHeight;
+  const BOOL smooth = self.smooth;
+
+  const CFTimeInterval now = CACurrentMediaTime();
+  NeoSlangFrameState state;
+  memset(&state, 0, sizeof(state));
+  state.frameCount = _frameCount;
+  state.frameDirection = 1;
+  state.rotation = rotation;
+  state.coreAspect = (float)coreAspect;
+  state.coreFPS = self.coreFPS > 0.0f ? self.coreFPS : 60.0f;
+  state.frameTimeDelta = _slangLastEncode > 0 ? (uint32_t)fmin(fmax((now - _slangLastEncode) * 1e6, 0.0), 1e7) : 0;
+  state.swapCount = 1;
+  _slangLastEncode = now;
+
+  const NSUInteger count = screens.count;
+  NSMutableArray<NSValue *> *mappings = [NSMutableArray arrayWithCapacity:count];
+  NSMutableArray *results = [NSMutableArray arrayWithCapacity:count];  // id<MTLTexture> or NSNull
+  NSMutableArray<NSValue *> *outputs = [NSMutableArray arrayWithCapacity:count];
+  NSMutableArray<NSNumber *> *nearest = [NSMutableArray arrayWithCapacity:count];
+  NSString *failure = nil;
+  for (NSUInteger index = 0; index < count; index++) {
+    LibretroPresenterScreen *screen = screens[index];
+    LibretroScreenMapping mapping;
+    memset(&mapping, 0, sizeof(mapping));
+    mapping.rotation = rotation;
+    const LibretroRect source = LibretroRectIntersection(screen.source, LibretroRectUnit);
+    mapping.source = source;
+    const LibretroRect container = screen.container;
+    LibretroRect output = LibretroRectMake(0.0, 0.0, 0.0, 0.0);
+    if (RectIsUsable(source) && RectIsUsable(container)) {
+      const LibretroRect containerPixels = LibretroRectMake(container.x * outputWidth, container.y * outputHeight,
+                                                            container.w * outputWidth, container.h * outputHeight);
+      output = LibretroFitScreen(containerPixels, LibretroSourceAspect(coreAspect, source, rotation), screen.format);
+      // Whole pixels: the last pass is drawn 1:1 when it has this size.
+      const double left = round(output.x);
+      const double top = round(output.y);
+      output = LibretroRectMake(left, top, round(output.x + output.w) - left, round(output.y + output.h) - top);
+    }
+    id result = NSNull.null;
+    BOOL oneToOne = NO;
+    if (RectIsUsable(output) && output.w >= 1.0 && output.h >= 1.0) {
+      mapping.output = LibretroRectMake(output.x / outputWidth, output.y / outputHeight, output.w / outputWidth,
+                                        output.h / outputHeight);
+      NeoSlangChain *chain = index < chains.count ? chains[index] : nil;
+      const NSUInteger partWidth = (NSUInteger)MAX(1L, lround(source.w * frameWidth));
+      const NSUInteger partHeight = (NSUInteger)MAX(1L, lround(source.h * frameHeight));
+      id<MTLTexture> original = [chain originalTextureWithWidth:partWidth height:partHeight];
+      if (original != nil) {
+        MTLRenderPassDescriptor *copy = [MTLRenderPassDescriptor renderPassDescriptor];
+        copy.colorAttachments[0].texture = original;
+        copy.colorAttachments[0].loadAction = MTLLoadActionDontCare;
+        copy.colorAttachments[0].storeAction = MTLStoreActionStore;
+        id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:copy];
+        [encoder setRenderPipelineState:_passthroughPipeline];
+        [encoder setFragmentTexture:texture atIndex:0];
+        [encoder setFragmentSamplerState:_nearest atIndex:0];
+        const simd_float4 quad[4] = {
+            {-1.0f, 1.0f, 0.0f, 0.0f}, {-1.0f, -1.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 0.0f}, {1.0f, -1.0f, 1.0f, 1.0f}};
+        LibretroShaderUniforms uniforms;
+        memset(&uniforms, 0, sizeof(uniforms));
+        SetPartUniforms(&uniforms, source, frameWidth, frameHeight, textureWidth, textureHeight, flipped);
+        [encoder setVertexBytes:quad length:sizeof(quad) atIndex:0];
+        [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+        [encoder endEncoding];
+        // Along the picture's own axes: a quarter turn swaps the drawn sides.
+        const CGSize along = quarterTurn ? CGSizeMake(output.h, output.w) : CGSizeMake(output.w, output.h);
+        id<MTLTexture> last = [chain encodeOnCommandBuffer:buffer
+                                                outputSize:along
+                                              viewportSize:CGSizeMake(output.w, output.h)
+                                                     frame:state
+                                                    smooth:smooth];
+        if (last != nil) {
+          result = last;
+          oneToOne = chain.lastPassMatchesOutput;
+        } else if (failure == nil) {
+          failure = chain.lastFailureCode ?: @"CHAIN_FAILED";
+          NSLog(@"[Libretro] slang chain of screen %lu: %@ (%@), standard picture", (unsigned long)index, failure,
+                chain.lastFailureDetail ?: @"");
+        }
+      } else if (failure == nil) {
+        failure = @"CHAIN_ALLOCATION";
+      }
+    }
+    [mappings addObject:MappingValue(mapping)];
+    [results addObject:result];
+    [outputs addObject:[NSValue valueWithBytes:&output objCType:@encode(LibretroRect)]];
+    [nearest addObject:@(oneToOne)];
+  }
+  if (![self.slangFailureCode isEqualToString:failure] && (failure != nil || self.slangFailureCode != nil)) {
+    self.slangFailureCode = failure;
+  }
+
+  id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:ClearingPass(target)];
+  [encoder setRenderPipelineState:_passthroughPipeline];
+  for (NSUInteger index = 0; index < count; index++) {
+    LibretroRect output;
+    [outputs[index] getValue:&output size:sizeof(output)];
+    if (!RectIsUsable(output) || output.w < 1.0 || output.h < 1.0) continue;
+    simd_float4 quad[4];
+    RotatedQuad(quad, output, outputWidth, outputHeight, rotation);
+    LibretroShaderUniforms uniforms;
+    memset(&uniforms, 0, sizeof(uniforms));
+    id result = results[index];
+    if (result != NSNull.null) {
+      id<MTLTexture> last = result;
+      const LibretroRect whole = LibretroRectUnit;
+      SetPartUniforms(&uniforms, whole, (double)last.width, (double)last.height, (double)last.width,
+                      (double)last.height, NO);
+      [encoder setFragmentTexture:last atIndex:0];
+      [encoder setFragmentSamplerState:(nearest[index].boolValue || !smooth) ? _nearest : _linear atIndex:0];
+    } else {
+      const LibretroRect source = LibretroRectIntersection(screens[index].source, LibretroRectUnit);
+      SetPartUniforms(&uniforms, source, frameWidth, frameHeight, textureWidth, textureHeight, flipped);
+      [encoder setFragmentTexture:texture atIndex:0];
+      [encoder setFragmentSamplerState:smooth ? _linear : _nearest atIndex:0];
+    }
+    [encoder setVertexBytes:quad length:sizeof(quad) atIndex:0];
+    [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+  }
+  [encoder endEncoding];
+  return [mappings copy];
 }
 
 /// One draw per screen into the current render pass of a target of
@@ -894,16 +1221,13 @@ static NSArray<LibretroPresenterScreen *> *CopyScreens(NSArray *screens) {
     @autoreleasepool {
       id<MTLCommandBuffer> buffer = [_queue commandBuffer];
       if (buffer == nil) break;
-      id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:ClearingPass(target)];
-      [self encodeScreens:screens
-                  encoder:encoder
-                  texture:texture
-                    width:_lastWidth
-                   height:_lastHeight
-                  flipped:_lastFlipped
-              outputWidth:(double)targetWidth
-             outputHeight:(double)targetHeight];
-      [encoder endEncoding];
+      [self encodeFrameOnBuffer:buffer
+                         target:target
+                        screens:screens
+                        texture:texture
+                          width:_lastWidth
+                         height:_lastHeight
+                        flipped:_lastFlipped];
       [buffer commit];
       [buffer waitUntilCompleted];
       if (buffer.status != MTLCommandBufferStatusCompleted) continue;

@@ -272,15 +272,21 @@ void TestPassthrough(Harness &harness) {
 
   // Without filter_linear0, the "smooth" setting chooses: linear blends the
   // first two columns at x = 1 (texel 0.75: 5 * 0.75 + 35 * 0.25 = 12.5).
+  // Row 5 is inside the picture: at the edges RetroArch's default
+  // clamp_to_border also blends in its transparent black border.
   NeoSlangProgram *smoothProgram = harness.program(@"stock-smooth.slangp");
   CHECK(smoothProgram != nil, "stock-smooth.slangp compiles");
   if (smoothProgram == nil) return;
   NeoSlangChain *smoothChain = [[NeoSlangChain alloc] initWithProgram:smoothProgram];
   out = harness.frame(smoothChain, input, CGSizeMake(16, 12), CGSizeMake(16, 12), DefaultState(), YES, &ok);
-  CHECK(ok && std::abs(out.byte(1, 0, 0) - 12) <= 1 && out.byte(0, 0, 0) == 5,
-        "smooth: unspecified filter follows the smooth setting (red %d at x=1)", ok ? out.byte(1, 0, 0) : -1);
+  CHECK(ok && std::abs(out.byte(1, 5, 0) - 12.5) <= 1.0 && std::abs(out.byte(3, 5, 0) - 42.5) <= 1.0,
+        "smooth: unspecified filter follows the smooth setting (red %d at x=1, %d at x=3)",
+        ok ? out.byte(1, 5, 0) : -1, ok ? out.byte(3, 5, 0) : -1);
+  CHECK(ok && out.byte(0, 0, 0) < 5, "smooth: clamp_to_border blends transparent black at the corner (red %d)",
+        ok ? out.byte(0, 0, 0) : -1);
   out = harness.frame(smoothChain, input, CGSizeMake(16, 12), CGSizeMake(16, 12), DefaultState(), NO, &ok);
-  CHECK(ok && out.byte(1, 0, 0) == 5, "smooth off: nearest (red %d at x=1)", ok ? out.byte(1, 0, 0) : -1);
+  CHECK(ok && out.byte(1, 5, 0) == 5 && out.byte(0, 0, 0) == 5, "smooth off: nearest (red %d at x=1)",
+        ok ? out.byte(1, 5, 0) : -1);
 }
 
 void TestSemantics(Harness &harness) {
@@ -457,6 +463,15 @@ void TestMipmaps(Harness &harness) {
   if (!ok) return;
   CHECK(std::abs(out.byte(1, 1, 0) - 128) <= 3,
         "mipmap_input1: the 1x1 level of pass 0's output averages the checkerboard (%d)", out.byte(1, 1, 0));
+  // Same chain with the default clamp_to_border: the 1x1 level is blended
+  // with the transparent black border at (0.0625, 0.0625): 0.5625^2 * 0.5.
+  NeoSlangProgram *bordered = harness.program(@"mipmap-border.slangp");
+  CHECK(bordered != nil, "mipmap-border.slangp compiles");
+  if (bordered == nil) return;
+  NeoSlangChain *borderChain = [[NeoSlangChain alloc] initWithProgram:bordered];
+  out = harness.frame(borderChain, Checkerboard(8), CGSizeMake(4, 4), CGSizeMake(4, 4), DefaultState(), NO, &ok);
+  CHECK(ok && std::abs(out.byte(1, 1, 0) - 40) <= 3,
+        "mipmap_input1 + clamp_to_border: border blended into the last level (%d)", ok ? out.byte(1, 1, 0) : -1);
 }
 
 void TestWrap(Harness &harness) {

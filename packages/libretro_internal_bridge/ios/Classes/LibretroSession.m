@@ -20,6 +20,7 @@
 #import "LibretroSessionJournal.h"
 #import "LibretroSessionMenu.h"
 #import "LibretroShaderLibrary.h"
+#import "LibretroSlangShaders.h"
 #import "LibretroSkin.h"
 #import "LibretroSkinCompatibility.h"
 #import "LibretroSkinLayout.h"
@@ -28,6 +29,7 @@
 #import "LibretroVulkanRenderer.h"
 
 #import <external_display/NeoExternalDisplayCoordinator.h>
+#import <neo_shader_kit/NeoSlangRenderer.h>
 
 #include <mach/mach_time.h>
 #include <math.h>
@@ -159,6 +161,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   // Picture aspect the current layout was made for (pictureLayoutAspect).
   double _laidOutPictureAspect;
   _Atomic bool _pictureCheckPending;
+  // Slang presets (Build 450): compiled on _shaderQueue, never on the main
+  // or emulation thread; the newest request wins (_shaderRequest, under
+  // @synchronized(self)). The program in effect and the reason of the last
+  // failure are kept for the menu (main thread).
+  dispatch_queue_t _shaderQueue;
+  NSUInteger _shaderRequest;
+  NeoSlangProgram *_activeSlangProgram;
+  NSString *_lastShaderFailureCode;
 }
 
 - (instancetype)initWithConfiguration:(LibretroSessionConfiguration *)configuration {
@@ -180,6 +190,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _unplayableAnnounced = [NSMutableSet set];
     _lastTouchMappings = @[];
     _presenterScreens = @[];
+    _shaderQueue = dispatch_queue_create(
+        "neostation.libretro.slang",
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     _smooth = [defaults objectForKey:@"libretro.smooth"] != nil ? [defaults boolForKey:@"libretro.smooth"] : NO;
     _touchControls =
@@ -652,6 +665,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   struct retro_system_av_info av = _host.avInfo;
   [self applyGeometry:av.geometry];
   _presenter.rotation = _host.rotation;
+  _presenter.coreFPS = (float)(av.timing.fps > 1.0 ? av.timing.fps : 60.0);
   BOOL shadersAvailable = YES;
   if (_host.usesHardwareRendering) {
     BOOL prepared = NO;
@@ -945,6 +959,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (void)coreHost:(LibretroCoreHost *)host timingChanged:(struct retro_system_av_info)avInfo {
   [self applyGeometry:avInfo.geometry];
+  _presenter.coreFPS = (float)(avInfo.timing.fps > 1.0 ? avInfo.timing.fps : 60.0);
   [_audio setInputRate:avInfo.timing.sample_rate];
   if (_gl != nil) _glNeedsResize = YES;
 }
@@ -1573,6 +1588,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }
   NSString *identifier = [presetIdentifier copy];
   NSDictionary<NSString *, NSNumber *> *values = [parameters copy];
+  if (LibretroIsSlangShader(identifier)) {
+    [self applySlangShader:identifier parameters:values completion:done];
+    return;
+  }
+  // A slang compilation still running must not replace this choice.
+  @synchronized(self) {
+    _shaderRequest++;
+  }
   __weak LibretroSession *weakSelf = self;
   [self enqueue:^{
     LibretroSession *session = weakSelf;
@@ -1582,9 +1605,90 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       [session redrawLastFrameIfPaused];
     }
     dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroSession *owner = weakSelf;
+      if (owner != nil) {
+        owner->_activeSlangProgram = nil;
+        owner->_lastShaderFailureCode = success ? nil : @"SHADER_COMPILE_FAILED";
+      }
       done(success);
     });
   }];
+}
+
+/// Main thread. Compiles an installed slang preset on _shaderQueue, then
+/// activates it on the emulation thread unless a newer shader request came
+/// in meanwhile; `completion` (main queue) gets NO when it could not be
+/// compiled (the picture in effect is unchanged) or was superseded.
+- (void)applySlangShader:(NSString *)identifier
+              parameters:(NSDictionary<NSString *, NSNumber *> *)parameters
+              completion:(void (^)(BOOL success))completion {
+  void (^done)(BOOL) = [completion copy];
+  NSUInteger request = 0;
+  @synchronized(self) {
+    request = ++_shaderRequest;
+  }
+  id<MTLDevice> device = _presenter.device;
+  __weak LibretroSession *weakSelf = self;
+  dispatch_async(_shaderQueue, ^{
+    NSString *code = nil;
+    NSString *detail = nil;
+    NeoSlangProgram *program = device != nil ? LibretroCompileSlangShader(identifier, device, &code, &detail) : nil;
+    if (program == nil) {
+      NSLog(@"[Libretro] slang preset %@ unavailable: %@ %@", identifier, code ?: @"no device", detail ?: @"");
+      dispatch_async(dispatch_get_main_queue(), ^{
+        LibretroSession *session = weakSelf;
+        if (session != nil) session->_lastShaderFailureCode = code ?: @"SHADER_COMPILE_FAILED";
+        done(NO);
+      });
+      return;
+    }
+    LibretroSession *session = weakSelf;
+    if (session == nil) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        done(NO);
+      });
+      return;
+    }
+    [session enqueue:^{
+      LibretroSession *owner = weakSelf;
+      BOOL applied = NO;
+      NSString *failure = nil;
+      if (owner != nil && owner->_loaded) {
+        BOOL current = NO;
+        @synchronized(owner) {
+          current = owner->_shaderRequest == request;
+        }
+        if (current) {
+          [owner->_presenter setSlangProgram:program identifier:identifier parameters:parameters];
+          [owner redrawLastFrameIfPaused];
+          // A chain that cannot run at this size (CHAIN_MEMORY...) shows
+          // the standard picture: the reason is reported with the success.
+          failure = owner->_presenter.slangFailureCode;
+          applied = YES;
+        }
+      }
+      dispatch_async(dispatch_get_main_queue(), ^{
+        LibretroSession *target = weakSelf;
+        if (target != nil && applied) {
+          target->_activeSlangProgram = program;
+          target->_lastShaderFailureCode = failure;
+        }
+        done(applied);
+      });
+    }];
+  });
+}
+
+- (nullable NeoSlangProgram *)activeSlangProgram {
+  return _activeSlangProgram;
+}
+
+- (nullable NSString *)lastShaderFailureCode {
+  return _lastShaderFailureCode;
+}
+
+- (NSUInteger)slangTextureBytes {
+  return _presenter.slangTextureBytes;
 }
 
 - (void)previewShaderParameter:(NSString *)identifier value:(float)value {
@@ -1723,6 +1827,30 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   id enabled = [self settingValue:LibretroSettingShaderEnabled];
   NSString *identifier = SettingString([self settingValue:LibretroSettingShaderPreset]);
   if (![enabled isKindOfClass:NSNumber.class] || ![enabled boolValue] || identifier == nil) return;
+  if (LibretroIsSlangShader(identifier)) {
+    // Compiled off this thread: the game starts with the standard picture
+    // and the preset appears once ready.
+    NSDictionary<NSString *, NSNumber *> *parameters = [self storedShaderParameters];
+    __weak LibretroSession *weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroSession *session = weakSelf;
+      [session applySlangShader:identifier
+                     parameters:parameters
+                     completion:^(BOOL success) {
+                       LibretroSession *owner = weakSelf;
+                       if (owner == nil) return;
+                       NSString *code = owner->_lastShaderFailureCode;
+                       if (!success && code != nil) {
+                         [owner showStatus:[owner text:[code isEqualToString:LibretroSlangNotInstalled]
+                                                           ? @"shaderNotInstalled"
+                                                           : @"shaderFailed"]];
+                       } else if (success && code != nil) {
+                         [owner showStatus:[owner text:@"shaderTooHeavy"]];
+                       }
+                     }];
+    });
+    return;
+  }
   if (![self activateShaderPreset:identifier parameters:[self storedShaderParameters]]) {
     [self showStatus:[self text:@"shaderFailed"]];
   }

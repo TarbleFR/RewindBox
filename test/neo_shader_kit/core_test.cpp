@@ -486,6 +486,43 @@ static void testDolphinOptions() {
   CHECK(parseDolphinOptions("void main() {}").empty());
 }
 
+/// GLSL accepts identifiers that are C++ alternative tokens (xbr-hybrid
+/// defines functions "and" and "or"); MSL is C++, so the iPhone Metal
+/// compiler refuses them: they are renamed before translation.
+static void testReservedNames() {
+  MemoryFileProvider files;
+  files.add("names.slangp", "shaders = 1\nshader0 = names.slang\n");
+  files.add("names.slang",
+            "#version 450\n"
+            "layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; } global;\n"
+            "#pragma stage vertex\n"
+            "layout(location = 0) in vec4 Position;\n"
+            "layout(location = 1) in vec2 TexCoord;\n"
+            "layout(location = 0) out vec2 vTexCoord;\n"
+            "void main() { gl_Position = global.MVP * Position; vTexCoord = TexCoord; }\n"
+            "#pragma stage fragment\n"
+            "layout(location = 0) in vec2 vTexCoord;\n"
+            "layout(location = 0) out vec4 FragColor;\n"
+            "layout(set = 0, binding = 2) uniform sampler2D Source;\n"
+            "bvec4 and(bvec4 A, bvec4 B) { return bvec4(A.x && B.x, A.y && B.y, A.z && B.z, A.w && B.w); }\n"
+            "bvec4 or(bvec4 A, bvec4 B) { return bvec4(A.x || B.x, A.y || B.y, A.z || B.z, A.w || B.w); }\n"
+            "void main() {\n"
+            "  vec4 c = texture(Source, vTexCoord);\n"
+            "  bvec4 xor = or(and(greaterThan(c, vec4(0.5)), lessThan(c, vec4(0.9))), equal(c, vec4(0.0)));\n"
+            "  FragColor = vec4(xor);\n"
+            "}\n");
+  CompiledSlangPreset compiled;
+  ShaderError error;
+  SlangCompileOptions options;
+  const bool ok = compileSlangPreset(files, "names.slangp", options, &compiled, &error);
+  if (!ok) std::fprintf(stderr, "names: %s %s\n", error.code.c_str(), error.detail.c_str());
+  CHECK(ok);
+  if (!ok) return;
+  const std::string& msl = compiled.passes[0].fragmentMSL;
+  CHECK(!contains(msl, " and(") && !contains(msl, " or(") && !contains(msl, "bool4 xor "));
+  CHECK(contains(msl, "bool4 and_neo(") && contains(msl, "bool4 or_neo(") && contains(msl, "xor_neo"));
+}
+
 int main() {
   testPaths();
   testConfig();
@@ -495,6 +532,7 @@ int main() {
   testCompile();
   testRefusals();
   testDolphinOptions();
+  testReservedNames();
   std::printf("%d checks, %d failures\n", g_checks, g_failures);
   return g_failures == 0 ? 0 : 1;
 }
