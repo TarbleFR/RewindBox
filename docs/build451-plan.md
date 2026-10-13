@@ -59,6 +59,37 @@ Exécuté dans ce conteneur (Linux x86_64, Flutter 3.47.2) :
 | `flutter analyze` des fichiers Dart modifiés | aucun problème |
 | Porte `verify_delivery_reuse.py --offline` (bloc `BUILD451_DELTA`) | réussie |
 | `delivery_pipeline_test.py` | 13 sur 13 (`zstd` installé dans le conteneur) |
+| Les huit séries `flutter test` du job `checks` de la livraison | toutes réussies : 2 376 tests, dont 3 ignorés, comme avant ce changement |
+| Tests Python du job `checks` | 31 sur 33. `cheats_media_source_contract_test.py` échoue parce qu'un commit manque dans le clone superficiel, et `library_cover_delivery_test.py` à cause de la porte du périmètre `library_covers` : ce sont les deux échecs connus, identiques sur la source 449 |
+
+CI GitHub (branche `Claude`, source `c65efd42`) :
+
+- `libretro-checks` `38346884052` : réussi. Job `dart` : analyse, tests libretro et 3DS, contrats de sources dont la
+  couverture des douze langues. Job `native` : hôte, modules, shaders Metal, ponts compilés pour iPhone.
+- `retroarch-delivery.yml` `38346881629` : voir « Livraison ».
+
+## Livraison
+
+- **Run.** `retroarch-delivery.yml` `38346881629`, lancé sur `Claude` (`build_number` 451, périmètre `full`), depuis
+  la source `c65efd42e09da3d1a1f27e59644a4ad2c7875902`, qui contient ce plan.
+  - Jobs `checks`, `native` et `Release device build • cold` réussis.
+  - Horaires : 04:31 → 04:50 UTC, 13 octobre 2026. Compilation Release (AOT et Xcode) : 272 s.
+- **Environnement.** Xcode 26.3 (17C529), Flutter 3.47.2, Dart 3.13.2.
+- **Version.** 0.0.7 (451), relevée dans l'`Info.plist` de l'IPA.
+- **Artefact.** `NeoStation-Build-451-c65efd42e09da3d1a1f27e59644a4ad2c7875902-cold`.
+  - ID `11789424542`, 212 092 317 octets.
+  - SHA-256 de l'archive : `2599f3df9d722e51c9668cea504ff13f27d1085483e948afef75a13da676b1fb`.
+  - Conservé jusqu'au 27 octobre 2026, chiffré pour `build-utils/delivery-424-recipient.pem`.
+- **IPA remise.** `NeoStation-Build451-c65efd42e09da3d1a1f27e59644a4ad2c7875902-cold.ipa`.
+  - 211 839 266 octets, SHA-256 **`56599cc412cc6f13e766997eec8fa5b1b359942b64b2ee8606a617a1091722b2`**.
+  - Ce SHA-256 est égal à `SHA256SUMS` et à `signed-payload-identity.json`.
+  - Téléchargée et déchiffrée sur le PC du mainteneur, à sa demande (« délivre moi une ipa »), avec sa clé 424 et
+    l'`openssl` de Git (`decrypt-451.ps1`, sur le modèle de la 447), dans `C:\Users\Coren\nsw\b451`.
+  - Copie vérifiée : `C:\Users\Coren\Downloads\NeoStation-Build451-c65efd4.ipa`.
+  - Mot de passe de session, archive tar et lien signé supprimés.
+- **Diagnostics chiffrés.** `…-cold-diagnostics`, ID `11789539320`, 5 170 621 octets.
+- L'IPA est scellée pour la re-signature Apple et le provisioning que SideStore applique. Ne pas réutiliser le
+  numéro 451.
 
 ## Ce qui n'est pas vérifié
 
