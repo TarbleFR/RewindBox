@@ -2,6 +2,55 @@
 
 2026-10-13. **Started; not available for gameplay.**
 
+## Delivery requested by the maintainer
+
+The October 13 follow-up explicitly extends the task through a personal test
+IPA on `Claude`, including native in-game menus and selection of the game's
+language, consistent with the other ports. Passing the standalone host build
+is only an intermediate gate, not the requested delivery.
+
+The candidate must support import, launch, controls, saves, return to
+NeoStation, relaunch, and switching between ports without terminating the
+app. Native menus must use the existing twelve-language UI catalog contract.
+Game dialogue languages are a separate capability: only languages backed by
+compatible game data may be offered. Re-signing for the maintainer's existing
+SideStore installation remains part of the personal delivery workflow.
+
+### Confirmed prerequisites and current blockers
+
+- The pinned engine supports **GZLE01 USA, disc 0, revision 0** only. The
+  [upstream European-disc request](https://github.com/chrissotraidis/bluewake/issues/60)
+  remains open. The maintainer confirms in
+  [the language discussion](https://github.com/chrissotraidis/bluewake/issues/92)
+  that the USA disc contains English only. Changing the emulated SRAM language
+  does not supply missing game text. European support or a validated personal
+  language-data import must be implemented and tested before offering other
+  dialogue languages; reports of manually replacing an archive are not a
+  validated integration.
+- The personal module `gGZLE01_recomp.dylib` must be compiled for iPhoneOS ARM64
+  from the player's supported disc and included before signing. Importing an
+  ISO in the iPhone app cannot create this native module.
+- No supported disc or matching personal iOS module has been supplied. A
+  scoped search of the connected Windows PC's Downloads, Desktop and Documents
+  did not locate one. This is not a claim that it is absent from every device
+  or drive; the maintainer needs to identify its location.
+- The available connected device is Windows; no local macOS/Xcode build host
+  has been identified. The successful macOS CI compiled only source-owned
+  engine code. Personal disc data, translated sources and modules must stay
+  out of public CI, logs and artifacts. The player's local Apple build host,
+  or an already prepared compatible personal module, is needed for the
+  game-bearing package.
+- Native embedding is still unfinished: the standalone entry owns SDL/UIKit
+  and calls `_exit` after the host returns. The callable adapter must implement
+  cooperative stop, complete cleanup and session reset. A settings overlay
+  alone does not satisfy this gate.
+
+No playable IPA, native NeoStation menu, language switch or iPhone stability
+result is claimed by this checkpoint. No new app build number is allocated.
+The concurrent Dart cleanup `e4f6c73597a2063e69f56b60b067a4802f71c2b1` is
+preserved. This checkpoint changes documentation only; the previously recorded
+compilation and preparation results are reused, not rerun or relabeled.
+
 The maintainer's latest instruction moves this work to `Claude`. The starting
 revision is `43aa985ad01fc6cae00afe35d008e35124ee52b0`, including the latest
 legal-bundle and release-documentation corrections. The concurrent follow-up
