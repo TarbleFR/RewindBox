@@ -293,25 +293,3 @@ formats (EPUB, CBZ) use the Dart [archive](https://pub.dev/packages/archive)
 package (MIT), and EPUB/XHTML parsing uses the Dart
 [html](https://pub.dev/packages/html) (BSD-3-Clause) and
 [xml](https://pub.dev/packages/xml) (MIT) packages.
-
-## BlueWake — evaluated, not embedded
-
-The Wind Waker native-port integration is at the feasibility-audit stage. No
-BlueWake runtime, translated game module or game data is shipped by this
-documentation change. See [the audit](bluewake-integration-audit.md) and
-[the exact source pins](bluewake-source-lock.json).
-
-The maintained project is [BlueWake](https://github.com/chrissotraidis/bluewake),
-by Chris Sotraidis, Elliott Tate and contributors. Its software is
-GPL-3.0-or-later; the RecompCore/Dolphin runtime, DolRecomp translator,
-SunPad-derived touch overlay, Aurora, Dawn, SDL and applicable mod/research
-sources retain their respective notices. Exact per-file and dependency notices
-must be preserved if these components are later embedded.
-
-BlueWake's software license does not grant rights to Nintendo's game-derived
-code or assets. The audited Apple workflow compiles a personal native module
-from the player's disc and adds it before app signing; such personal outputs
-must remain outside public NeoStation releases, source archives, CI artifacts
-and shared caches. The [upstream rights notice](https://github.com/chrissotraidis/bluewake/blob/6248171f3ef6094d179d45385b522d6bc8f49248/RIGHTS_AND_LICENSES.md)
-is the source for this distinction. This evaluation is not a claim of
-functional integration or completed redistribution clearance.
