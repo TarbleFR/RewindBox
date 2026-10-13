@@ -223,3 +223,9 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Changement de comportement assumé : Mupen64Plus-Next et PPSSPP démarrent en natif quand aucun choix n'est enregistré (auparavant 640 × 480 et 960 × 544).
 - Vérifié en CI (source produit `6865f458`) : test hôte macOS (52 vérifications de résolution), compilation iPhone, tests Dart et contrats ; sonde simulateur avec le vrai DeSmuME (×2 en jeu : 256 × 384 → 512 × 768, enregistré pour le cœur, relancement à ×2, natif pour un seul jeu) et PPSSPP en rendu logiciel (choix refusé, pas de plantage). Le changement en jeu de PPSSPP avec OpenGL ES, de Beetle PSX et d'Azahar n'est exécuté par aucun essai automatique.
 - Livraison 455 : source `a12f075906ef452885decbef78fefd6517ce0fe0` (arbre produit de `6865f458`), run `38393178533` (périmètre `full`, `checks`, `native` et `cold` réussis), artefact `11812355580` (211 121 053 octets, archive SHA-256 `e35c8e13d125a0d302d840d297abe396eb6a15512d51d2bc1cdfb36d3bbc99ee`, conservé jusqu'au 27 octobre 2026), chiffré pour `build-utils/delivery-424-recipient.pem`. IPA validée avant scellement `7926a48c863cf38f7015f84f21b68353ccf0f91ce02b7e21f9c4e9c8c5ab2745` (206 686 562 octets), version 0.0.7 (455) ; SHA-256 de l'IPA scellée à relever après déchiffrement. Aucune validation sur iPhone. Ne pas réutiliser le numéro 455.
+
+## GitHub publication language — maintainer preference, 13 October 2026
+
+- Write and publish NeoStation GitHub release notes and announcements in English only. Do not append a French translation or a bilingual version unless the maintainer explicitly requests an exception.
+- Use concise, natural wording with a modern, appealing presentation. Avoid generic promotional filler and excessive emojis.
+- This is a permanent preference for future GitHub publications. It does not change the app's twelve-language localization requirements.
