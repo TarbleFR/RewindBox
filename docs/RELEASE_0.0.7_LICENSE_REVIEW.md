@@ -72,16 +72,32 @@ existing library/native baseline checks. No lint rule or baseline is suppressed.
 The initial legal checks passed in
 [run 38465786728](https://github.com/TarbleFR/neostation-ios/actions/runs/38465786728),
 at `c4d2ed8137c1b16a394a32a076cb8610ffa70041`: three Flutter tests,
-six Python tests, all twelve locales and synthetic IPA validation. The subsequent
-source cleanup requires its own successful CI result.
+six Python tests, all twelve locales and synthetic IPA validation.
+
+The complete cleanup passed in
+[run 38467823643](https://github.com/TarbleFR/neostation-ios/actions/runs/38467823643),
+at `d9fcaae5068b9aa4613cb69ddfe547c34b5e194a`:
+
+- Strict `flutter analyze`: **no issues found**, with no disabled lint rules.
+- **89 Dart tests passed**, including credits on a phone-sized viewport, all
+  twelve locales and the affected regression suites.
+- **9 Python tests passed**: three library/native baseline checks and six
+  legal-packaging tests, followed by successful synthetic IPA validation.
+- Two existing tests were skipped: the personal RetroArch export requires
+  private `data.sqlite`/`playlists.zip` fixtures, and the permission-denied
+  deletion scenario requires macOS. They are not counted as passed.
+
+The 21 upstream notice hashes also survive a Windows Git export with automatic
+line-ending conversion enabled. The supplemental release archive retains the
+original notice bytes; its SHA-256 is
+`1490d29d9c4fd915847d7ef0d0f41826b2c8a82d30e90c7df06c78162635cbdb`.
 
 The Python regression suite exercises successful embedding and validation,
 missing/empty/changed notices, incomplete core coverage and missing music or
 guest-relay attribution. Six tests pass locally, including their negative cases.
 The legal CI workflow also runs Flutter analysis, bundled-asset and credit-dialog
 tests, twelve-language checks, and an end-to-end synthetic IPA packaging check.
-Its run result must be checked for the exact correction commit before treating
-those CI checks as passed.
+The successful run and exact tested revision are recorded above.
 
 No emulator core, game data, saved library or published IPA is changed by this
 review. No new device compatibility, performance or stability result is claimed.
