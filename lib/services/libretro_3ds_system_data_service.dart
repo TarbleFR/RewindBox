@@ -63,8 +63,9 @@ enum Libretro3dsRejection {
   /// ([Libretro3dsEssentialExefs]).
   rawNandImage,
 
-  /// 7z, rar, gzip, xz, bzip2, zstd, tar or a nested archive: only ZIP is
-  /// decoded (surface kept small on purpose).
+  /// 7z, rar, gzip, xz, bzip2, zstd or tar, chosen or inside the chosen
+  /// folder or ZIP: only ZIP is decoded (surface kept small on purpose). A
+  /// ZIP inside them is listed apart ([Libretro3dsIgnoreReason.nestedArchive]).
   unsupportedArchive,
 
   /// More entries than the limit (ZIP or folder walk).
@@ -131,6 +132,12 @@ enum Libretro3dsIgnoreReason {
   /// `secret_sector.bin`) and the `essential.exefs` sections other than the
   /// four console files (NAND header, NAND CID, HWCAL).
   notNeeded,
+
+  /// A ZIP archive inside the chosen folder or ZIP (an Azahar user folder
+  /// can hold a `nand.zip` of its own `nand` folder): not opened, never
+  /// refused as an unsupported archive (Build 454). It can be chosen on its
+  /// own as a ZIP source.
+  nestedArchive,
 }
 
 /// What an install does with a recognized element.
@@ -1568,10 +1575,20 @@ class Libretro3dsSystemDataService {
     }
 
     if (kind == Libretro3dsItemKind.ignored || target == null) {
-      // Only an unrecognized file is sniffed for an archive signature.
-      final archive = _isZipSignature(head)
-          ? 'zip'
-          : _otherArchiveSignature(head, entry);
+      // Only an unrecognized file is sniffed for an archive signature. A ZIP
+      // inside the chosen folder or ZIP is not opened, but it is no
+      // unsupported archive either: listed apart, with the way to import it
+      // (Build 454; before, "only ZIP archives are read" refused a nand.zip).
+      if (_isZipSignature(head)) {
+        context.add(
+          item(
+            kind: Libretro3dsItemKind.ignored,
+            ignoreReason: Libretro3dsIgnoreReason.nestedArchive,
+          ),
+        );
+        return;
+      }
+      final archive = _otherArchiveSignature(head, entry);
       if (archive != null) {
         rejected(Libretro3dsRejection.unsupportedArchive, '$archive: $entry');
         return;

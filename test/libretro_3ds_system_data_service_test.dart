@@ -719,7 +719,14 @@ void main() {
       expect(tooLarge.items.single.rejection, Libretro3dsRejection.tooLarge);
     });
 
-    test('7z and other archives are refused, nested ones too', () async {
+    // Build 454 replaces part of this contract: a ZIP inside the chosen ZIP
+    // (or folder) was refused as an unsupported archive, "only ZIP archives
+    // are read", which an Azahar folder holding a nand.zip of its own nand
+    // folder showed in red. It is still not opened, now listed apart
+    // (nestedArchive) with the way to import it; other nested archives stay
+    // refused.
+    test('7z and other archives are refused, nested ones too; a nested ZIP is '
+        'listed apart, not opened', () async {
       final sevenZip = await writeFile('dump.7z', _sevenZip());
       final rar = await writeFile('dump.rar', [
         0x52,
@@ -748,7 +755,6 @@ void main() {
         'dump.rar',
         'notazip.zip',
         'citra/more.7z',
-        'citra/inner.zip',
       ]) {
         expect(
           bySource(entry).kind,
@@ -761,11 +767,68 @@ void main() {
           reason: entry,
         );
       }
+      final inner = bySource('citra/inner.zip');
+      expect(inner.kind, Libretro3dsItemKind.ignored);
+      expect(inner.ignoreReason, Libretro3dsIgnoreReason.nestedArchive);
+      expect(inner.rejection, isNull);
+      expect(inner.installable, isFalse);
       expect(
         itemFor(plan, 'sysdata/seeddb.bin').kind,
         Libretro3dsItemKind.seeddb,
       );
     });
+
+    test(
+      'an Azahar folder holding a nand.zip: the ZIP is listed apart, not '
+      'opened, and the folder is read (Build 454)',
+      () async {
+        final folder = p.join(inputs.path, 'Azahar');
+        Future<void> put(String relative, List<int> bytes) async {
+          final file = File(p.joinAll([folder, ...relative.split('/')]));
+          await file.parent.create(recursive: true);
+          await file.writeAsBytes(bytes);
+        }
+
+        await put('sysdata/seeddb.bin', _seeddb(1));
+        await put(
+          'nand.zip',
+          ZipEncoder().encodeBytes(
+            Archive()
+              ..add(ArchiveFile.bytes('nand/rw/sys/SecureInfo_A', _bytes(4, 0x111))),
+          ),
+        );
+        await put('shaders/cache.bin', _bytes(5, 64));
+        await put('backup/more.7z', _sevenZip());
+        final plan = await service().analyze([folder]);
+        Libretro3dsImportItem bySource(String entry) =>
+            plan.items.singleWhere((item) => item.sourceEntry == entry);
+
+        final zip = bySource('nand.zip');
+        expect(zip.kind, Libretro3dsItemKind.ignored);
+        expect(zip.ignoreReason, Libretro3dsIgnoreReason.nestedArchive);
+        expect(zip.sourceKind, Libretro3dsSourceKind.folder);
+        expect(
+          plan.items.where(
+            (item) => item.relativeTarget == 'nand/rw/sys/SecureInfo_A',
+          ),
+          isEmpty,
+          reason: 'never opened',
+        );
+        expect(
+          bySource('backup/more.7z').rejection,
+          Libretro3dsRejection.unsupportedArchive,
+        );
+        expect(
+          plan.items.where((item) => item.sourceEntry.startsWith('shaders/')),
+          isEmpty,
+          reason: 'an Azahar shader cache is never read',
+        );
+        expect(
+          itemFor(plan, 'sysdata/seeddb.bin').kind,
+          Libretro3dsItemKind.seeddb,
+        );
+      },
+    );
 
     test('raw NAND images are refused by name and by content', () async {
       final nandBin = await writeFile('nand.bin', _bytes(2, 4096));

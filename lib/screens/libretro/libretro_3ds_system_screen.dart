@@ -1292,6 +1292,10 @@ class _PlanDialogState extends State<_PlanDialog> {
                 _page._f('system3dsIgnoredTooDeep', {'depth': _page._data.limits.maxFolderDepth}),
                 style: theme.textTheme.bodySmall,
               ),
+            // Build 454: a ZIP inside the chosen folder or archive (an
+            // Azahar folder's nand.zip) is not opened; how to import it.
+            if (item.ignoreReason == Libretro3dsIgnoreReason.nestedArchive)
+              Text(_page._t('system3dsIgnoredNestedZip'), style: theme.textTheme.bodySmall),
             if (rejected) ...[
               Text(_page._rejection(item.rejection), style: theme.textTheme.bodySmall),
               if (item.technicalDetail != null)
