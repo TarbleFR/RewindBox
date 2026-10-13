@@ -5,6 +5,8 @@
 #import "LibretroSessionMenu.h"
 #import "LibretroSkin.h"
 
+@class NeoSlangProgram;
+
 NS_ASSUME_NONNULL_BEGIN
 
 /// What the frontend pages of the in-game menu need from the running
@@ -44,14 +46,26 @@ NS_ASSUME_NONNULL_BEGIN
 /// opacity; then redraws the last frame (coalesced). Shader settings are
 /// applied by applyShaderPreset... below.
 - (void)frontendSettingsDidChange;
-/// Compiles and activates a preset on the emulation thread (nil = none).
-/// `completion` (main queue) gets NO when compilation failed: the standard
-/// picture is then active and the caller must not save the preset.
+/// Compiles and activates a preset (nil = none): a built-in preset on the
+/// emulation thread, a slang preset ("slang:<catalog id>", Build 450) off
+/// the main and emulation threads first. `completion` (main queue) gets NO
+/// when it could not be applied: the caller must not save the preset (the
+/// picture in effect is unchanged for a slang preset, standard for a
+/// built-in one).
 - (void)applyShaderPreset:(nullable NSString *)presetIdentifier
                parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters
                completion:(void (^)(BOOL success))completion;
 /// Live parameter change while a slider moves (not saved, redraw coalesced).
 - (void)previewShaderParameter:(NSString *)identifier value:(float)value;
+/// Compiled program of the slang preset in effect (its parameters, passes,
+/// compile times), nil when the preset in effect is built-in or none.
+@property(nonatomic, readonly, nullable) NeoSlangProgram *activeSlangProgram;
+/// Why the last shader was not applied (SHADER_NOT_INSTALLED, a shader kit
+/// code) or is drawn as the standard picture (CHAIN_MEMORY...); nil after
+/// a success.
+@property(nonatomic, readonly, copy, nullable) NSString *lastShaderFailureCode;
+/// GPU memory of the slang chains in effect, bytes.
+@property(nonatomic, readonly) NSUInteger slangTextureBytes;
 /// Median GPU time of the active preset measured on the last frame
 /// (completion on the main queue, milliseconds, 0 when unknown).
 - (void)measureShaderWithCompletion:(void (^)(double milliseconds))completion;

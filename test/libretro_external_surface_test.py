@@ -27,13 +27,18 @@
   core is asked to stop, and again before any dismissal.
 - The bridge imports the plugin as a framework (<external_display/Name.h>):
   only headers the plugin podspec publishes, and the podspec depends on it;
-  the iPhone syntax check stages those public headers the same way.
+  the iPhone syntax check stages those public headers the same way (with
+  those of neo_shader_kit, the bridge's other dependency since Build 450).
 - The drawable rule is pure (no UIKit) and executed by the frontend harness
   (test/libretro_host/frontend/render_surface_test.m, macOS CI).
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import re
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -318,12 +323,35 @@ class PureRuleTests(unittest.TestCase):
             self.assertNotIn(retired, test)
 
     def test_iphone_syntax_check_stages_the_published_headers(self) -> None:
+        # Contract change (Build 450): the bridge also depends on the
+        # neo_shader_kit pod, so the syntax check no longer stages the one
+        # external_display pod (EXTERNAL_DISPLAY_POD, include =
+        # stage_external_display(directory)) but every pod of DEPENDENCY_PODS
+        # through stage_dependency_headers. Instead of pinning that source
+        # text, the staging itself is run: each pod's folder holds exactly
+        # the headers its podspec publishes, and every <pod/Name.h> the
+        # bridge imports is among them. stage_external_display stays for
+        # the Dolphin harnesses that import it.
         syntax = read(SYNTAX_TEST)
         self.assertIn('def stage_external_display(directory):', syntax)
-        self.assertIn('public_header_files', syntax)
-        self.assertIn("EXTERNAL_DISPLAY_POD = 'external_display'", syntax)
-        self.assertIn('include = stage_external_display(directory)', syntax)
+        self.assertIn('include = stage_dependency_headers(directory)', syntax)
         self.assertIn('compile_sources(sdk, sources, directory, include)', syntax)
+        sys.path.insert(0, str(SYNTAX_TEST.parent))
+        import libretro_ios_syntax_test as staging
+        self.assertEqual(staging.DEPENDENCY_PODS['external_display'], PLUGIN)
+        imports = set(re.findall(r'#import <(\w+)/(\w+\.h)>', ''.join(read(path) for path in sorted(CLASSES.glob('*.[hm]')))))
+        bridge_pods = {pod for pod, _ in imports if pod in staging.DEPENDENCY_PODS or (BRIDGE.parent.parent / pod).is_dir()}
+        self.assertEqual(bridge_pods, set(staging.DEPENDENCY_PODS))
+        with tempfile.TemporaryDirectory() as folder, contextlib.redirect_stdout(io.StringIO()):
+            include = staging.stage_dependency_headers(Path(folder))
+            staged = {pod: sorted(header.name for header in (include / pod).iterdir())
+                      for pod in staging.DEPENDENCY_PODS}
+        for pod, folder in staging.DEPENDENCY_PODS.items():
+            published = sorted(header.name for header in staging.public_headers(pod, folder))
+            self.assertEqual(staged[pod], published, pod)
+        for pod, header in sorted(imports):
+            if pod in staging.DEPENDENCY_PODS:
+                self.assertIn(header, staged[pod], f'<{pod}/{header}> is not published by {pod}.podspec')
 
 
 if __name__ == '__main__':

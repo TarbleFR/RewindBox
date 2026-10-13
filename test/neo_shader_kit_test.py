@@ -8,9 +8,10 @@ render fixtures below (presets, slang sources, PNG lookup textures) into a
 temporary directory and runs:
 
   * neoshader-core-tests: preset/source rules, reflection, MSL bindings;
-  * neoshader-kit-tests FIXTURES (macOS): verified downloads through a fake
-    network, shared files and removal, refusals, previews, favourites,
-    profiles, storage report, catalog parsing;
+  * neoshader-kit-tests FIXTURES RESOURCES (macOS): verified downloads
+    through a fake network, shared files and removal, refusals, previews,
+    favourites, profiles, storage report, catalog parsing, and the catalog
+    the application bundles read through the menu's catalog manager;
   * neoshader-render-tests FIXTURES (macOS): every check renders through the
     application's program and chain code on the Metal device and reads the
     pixels back (orientation, nearest/linear and the smooth setting,
@@ -281,7 +282,7 @@ def main():
         fixtures = temporary / 'fixtures'
         fixtures.mkdir()
         write_fixtures(fixtures)
-        run(build / 'neoshader-kit-tests', fixtures, check=True)
+        run(build / 'neoshader-kit-tests', fixtures, ROOT / 'packages/neo_shader_kit/ios/Resources', check=True)
         result = run(build / 'neoshader-render-tests', fixtures)
         if result.returncode == NO_DEVICE:
             if arguments.require_metal:

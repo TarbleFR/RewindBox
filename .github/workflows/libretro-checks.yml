@@ -6,6 +6,8 @@ name: Libretro engine checks
     paths:
     - .github/workflows/libretro-checks.yml
     - packages/libretro_internal_bridge/**
+    - packages/neo_shader_kit/ios/Classes/Public/**
+    - packages/neo_shader_kit/ios/neo_shader_kit.podspec
     - lib/services/libretro_*.dart
     - lib/l10n/libretro_locale.dart
     - lib/widgets/libretro_internal_playlist_actions.dart

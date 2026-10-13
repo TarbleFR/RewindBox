@@ -8,9 +8,10 @@ pspautotests GPU test program `simple.prx` and the ftpd 3DS homebrew
 
 `run` builds test/libretro_simulator/probe.m with the libretro bridge
 sources (and the Flutter-free sources of the external_display pod the bridge
-links against since Build 447, its public headers staged as
-<external_display/...> by test/libretro_ios_syntax_test.py) into a small
-UIKit app and embeds:
+links against since Build 447, and of the neo_shader_kit pod it links
+against since Build 450 when the bridge tree imports it, their public
+headers staged as <pod/...> by test/libretro_ios_syntax_test.py) into a
+small UIKit app and embeds:
 - PPSSPP and Azahar from the cores artifact the delivery pins, with their
   Mach-O platform switched from iOS (2) to iOS Simulator (7) - no other
   byte changes - and signed ad hoc;
@@ -70,7 +71,11 @@ EXTERNAL_DISPLAY = ROOT / 'packages/external_display/ios/Classes'
 EXTERNAL_DISPLAY_SOURCES = ('NeoExternalDisplayCoordinator.m', 'NeoExternalDisplayPreferences.m',
                             'NeoExternalDisplaySceneDelegate.m')
 sys.path.insert(0, str(ROOT / 'test'))
-from libretro_ios_syntax_test import stage_external_display  # noqa: E402
+from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
+# Build 450: the bridge imports <neo_shader_kit/Name.h> (slang shaders). The
+# kit without its Flutter plugin class is compiled for the simulator and
+# linked with the bridge, as the delivery links the pod.
+from neo_shader_kit_ios_build import compile_kit, podspec_frameworks  # noqa: E402
 TARGET = 'arm64-apple-ios17.4-simulator'
 BUNDLE_ID = 'com.neostation.libretro.probe'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
@@ -284,10 +289,16 @@ def sdk_path():
     return output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-path']).strip()
 
 
+def imports_shader_kit(sources):
+    """Bridge trees from Build 450 on import the neo_shader_kit pod."""
+    return any('<neo_shader_kit/' in path.read_text(encoding='utf-8', errors='replace')
+               for path in (sources / 'Classes').glob('*.m'))
+
+
 def compile_probe(sources, sdk, work, app):
-    # <external_display/Name.h> resolves as the bridge sees the pod: its
-    # public headers and nothing else (test/libretro_ios_syntax_test.py).
-    include = stage_external_display(work)
+    # <pod/Name.h> resolves as the bridge sees its pods: their public
+    # headers and nothing else (test/libretro_ios_syntax_test.py).
+    include = stage_dependency_headers(work)
     includes = [sources / 'Classes', sources / 'ThirdParty/include', sources / 'ThirdParty/include/libretro',
                 sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include]
     base = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-O1',
@@ -312,11 +323,18 @@ def compile_probe(sources, sdk, work, app):
             raise SystemExit(f'simulator compilation failed: {unit}')
         objects.append(target)
     print(f'compiled {len(units)} sources for the simulator', flush=True)
+    frameworks = list(FRAMEWORKS)
+    libraries = ['-lz']
+    if imports_shader_kit(sources):
+        objects += compile_kit('iphonesimulator', TARGET, sdk, work / 'neo_shader_kit', plugin=False,
+                               optimization='-O1')
+        frameworks += [name for name in podspec_frameworks() if name not in frameworks]
+        libraries.append('-lc++')
     link = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-fobjc-arc',
             *(str(item) for item in objects)]
-    for framework in FRAMEWORKS:
+    for framework in frameworks:
         link += ['-framework', framework]
-    link += ['-lz', '-Wl,-rpath,@executable_path/Frameworks', '-o', str(app / 'Probe')]
+    link += [*libraries, '-Wl,-rpath,@executable_path/Frameworks', '-o', str(app / 'Probe')]
     run(link)
 
 

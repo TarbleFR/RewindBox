@@ -9,6 +9,8 @@ name: Shader kit checks
     - test/neo_shader_kit/**
     - test/neo_shader_kit_test.py
     - test/neo_shader_kit_catalog_test.py
+    - test/neo_shader_kit_ios_build.py
+    - test/libretro_host/stubs/**
     - tools/shaders/**
   workflow_dispatch:
 permissions:
@@ -41,6 +43,9 @@ jobs:
         xcode-version: '26.3'
     - name: Metal runtime render tests (pixels read back from the GPU)
       run: python3 test/neo_shader_kit_test.py --require-metal --build-directory build/neo-shader-kit
+    - name: The pod compiles and links for iPhone (podspec sources and settings)
+      if: ${{ !cancelled() }}
+      run: python3 test/neo_shader_kit_ios_build.py
     - name: Fetch libretro/slang-shaders at the commit the catalog pins
       if: ${{ !cancelled() }}
       run: |

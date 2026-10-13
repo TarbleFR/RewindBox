@@ -3,9 +3,11 @@
 // catalog parsing on macOS: verified downloads served by a fake network,
 // shared files, removal, refusals (hash, size, HTTP, network, busy,
 // cancelled, too large), previews, favourites, profiles and the storage
-// report. No Metal involved.
+// report. With RESOURCES_DIRECTORY, the catalog the application bundles
+// (slang-catalog.json and its diagnostics) is read through the catalog
+// manager the in-game menu uses. No Metal involved.
 //
-//   neoshader-kit-tests FIXTURES_DIRECTORY
+//   neoshader-kit-tests FIXTURES_DIRECTORY [RESOURCES_DIRECTORY]
 #import <CommonCrypto/CommonDigest.h>
 #import <Foundation/Foundation.h>
 
@@ -382,13 +384,87 @@ static void TestStorageReport(NSString *root, NSString *fixtures, NeoShaderCatal
   CHECK([[storage storageReport][@"orphanFiles"] integerValue] == 0, "report after cleaning: no orphan");
 }
 
+/// The bundled libretro catalog as the in-game menu reads it: every entry
+/// parsed with its files, rendered by the CI's Metal gate (Build 450:
+/// tools/shaders/slang-metal-results.json), reachable by category, search
+/// and identifier, downloadable from the pinned commit; the presets left
+/// out keep their reason.
+static void TestBundledCatalog(NSString *resources) {
+  NSData *data = [NSData dataWithContentsOfFile:[resources stringByAppendingPathComponent:@"slang-catalog.json"]];
+  NSDictionary *json = data != nil ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  CHECK([json isKindOfClass:NSDictionary.class], "bundled catalog: slang-catalog.json is JSON");
+  if (![json isKindOfClass:NSDictionary.class]) return;
+  NeoShaderCatalogManager *manager = NeoShaderCatalogManager.sharedManager;
+  [manager setCatalogDirectory:resources];
+  NeoShaderCatalog *catalog = [manager catalogForEngine:@"libretro"];
+  CHECK(catalog != nil, "bundled catalog: the manager reads it");
+  if (catalog == nil) return;
+  NSArray *rawEntries = json[@"entries"];
+  NSString *commit = json[@"source"][@"commit"];
+  CHECK(catalog.entries.count == rawEntries.count && rawEntries.count > 900,
+        "bundled catalog: %lu entries parsed of %lu", (unsigned long)catalog.entries.count,
+        (unsigned long)rawEntries.count);
+  CHECK([catalog.sourceRevision isEqualToString:commit] && commit.length == 40,
+        "bundled catalog: pinned at its commit (%s)", catalog.sourceRevision.UTF8String);
+  CHECK([catalog.engine isEqualToString:@"libretro"] && [catalog.format isEqualToString:NeoShaderFormatSlang],
+        "bundled catalog: libretro slang presets");
+  NSUInteger notRendered = 0, emptyFiles = 0, wrongBytes = 0, unknownCategory = 0, unknownTier = 0, lost = 0;
+  NSSet<NSString *> *categories = [NSSet setWithArray:catalog.categories];
+  for (NeoShaderCatalogEntry *entry in catalog.entries) {
+    if (![entry.validation isEqualToString:@"rendered"]) notRendered++;
+    if (entry.files.count == 0 || entry.passCount == 0) emptyFiles++;
+    unsigned long long bytes = 0;
+    for (NeoShaderCatalogFile *file in entry.files) bytes += file.size;
+    if (bytes != entry.downloadBytes || bytes == 0) wrongBytes++;
+    if (![categories containsObject:entry.category]) unknownCategory++;
+    if (entry.costTier == NeoShaderCostTierUnknown) unknownTier++;
+    if ([catalog entryWithIdentifier:entry.identifier] != entry) lost++;
+  }
+  CHECK(notRendered == 0, "bundled catalog: %lu entries not rendered by the Metal gate", (unsigned long)notRendered);
+  CHECK(emptyFiles == 0 && wrongBytes == 0, "bundled catalog: %lu entries without files, %lu with a wrong size",
+        (unsigned long)emptyFiles, (unsigned long)wrongBytes);
+  CHECK(unknownCategory == 0 && unknownTier == 0 && lost == 0,
+        "bundled catalog: %lu unknown categories, %lu unknown cost tiers, %lu not found by identifier",
+        (unsigned long)unknownCategory, (unsigned long)unknownTier, (unsigned long)lost);
+  NSUInteger listed = 0;
+  for (NSString *category in catalog.categories) listed += [catalog entriesInCategory:category].count;
+  CHECK(listed == catalog.entries.count, "bundled catalog: the categories list every entry once (%lu)",
+        (unsigned long)listed);
+  BOOL royale = NO;
+  for (NeoShaderCatalogEntry *entry in [catalog entriesMatching:@"  CRT-ROYALE "]) {
+    royale = royale || [entry.identifier isEqualToString:@"crt/crt-royale.slangp"];
+  }
+  CHECK(royale, "bundled catalog: a search ignores case and spaces (crt-royale)");
+  NeoShaderCatalogFile *spaced = nil;
+  for (NeoShaderCatalogEntry *entry in catalog.entries) {
+    for (NeoShaderCatalogFile *file in entry.files) {
+      if ([file.path containsString:@" "]) spaced = file;
+    }
+  }
+  NSString *expected = [NSString stringWithFormat:@"https://raw.githubusercontent.com/libretro/slang-shaders/%@/", commit];
+  NSURL *url = spaced != nil ? [catalog downloadURLForFile:spaced] : nil;
+  CHECK(url != nil && [url.absoluteString hasPrefix:expected] && ![url.absoluteString containsString:@" "] &&
+            [url.path hasSuffix:spaced.path],
+        "bundled catalog: a file whose path has spaces downloads from the pinned commit (%s)",
+        url.absoluteString.UTF8String);
+  BOOL excludedWithReason = NO;
+  for (NSDictionary<NSString *, NSString *> *item in [manager diagnosticsForEngine:@"libretro"]) {
+    if ([item[@"identifier"] isEqualToString:@"deinterlacing/nnedi3-nns256-deinterlacing.slangp"]) {
+      excludedWithReason = [item[@"code"] isEqualToString:@"GPU_ERROR"] && [catalog entryWithIdentifier:item[@"identifier"]] == nil;
+    }
+  }
+  CHECK(excludedWithReason, "bundled catalog: the preset the Metal gate could not render is left out with its reason");
+  [manager setCatalogDirectory:nil];
+}
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
-    if (argc != 2) {
-      fprintf(stderr, "usage: neoshader-kit-tests FIXTURES_DIRECTORY\n");
+    if (argc != 2 && argc != 3) {
+      fprintf(stderr, "usage: neoshader-kit-tests FIXTURES_DIRECTORY [RESOURCES_DIRECTORY]\n");
       return 2;
     }
     NSString *fixtures = [NSString stringWithUTF8String:argv[1]];
+    if (argc == 3) TestBundledCatalog([NSString stringWithUTF8String:argv[2]]);
     NeoShaderCatalog *catalog = MakeCatalog(fixtures);
     TestCatalogParsing(catalog);
     if (catalog != nil) {

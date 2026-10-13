@@ -16,6 +16,9 @@ name: Libretro simulator probe
     - lib/services/libretro_core_catalog.dart
     - test/libretro_simulator/**
     - test/libretro_simulator_probe.py
+    - packages/neo_shader_kit/ios/**
+    - test/neo_shader_kit_ios_build.py
+    - test/libretro_ios_syntax_test.py
     - test/libretro_host/test_core.c
     - test/libretro_host/vulkan_test_core.c
   workflow_dispatch:
