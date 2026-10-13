@@ -43,14 +43,26 @@ class DeliveryPipeline(unittest.TestCase):
         # backing. Their sources and the settings catalogue are tested anew;
         # IPC, extensions, storage and other engines keep their identities.
         native_changed={p for p in changed if p.startswith('native/')}
+        # Contract change (Build 450): the texts of the Dolphin post-processing
+        # page join the inventory, like native/dolphin_textures/labels.json
+        # before them. Data only (twelve languages, source of
+        # DOLShaderLabels.h), checked anew by
+        # test/dolphin_shader_localizations_test.py; no native runtime changes.
+        shader_labels='native/dolphin_shaders/labels.json'
         self.assertEqual(native_changed,{
             'native/import-memory-candidate.json',
             'native/neoswap-donation/Pool.cpp',
             'native/neoswap-relay/Backend.cpp',
             'native/neoswap-relay/Backend.h',
             'native/neoswap/localizations.json',
+            shader_labels,
         })
-        self.assertTrue(native_changed<=reuse.NEOSWAP_434_DELTA|reuse.NEOSWAP_435_DELTA|reuse.NEOSWAP_MELONX_DELTA|reuse.NEOSWAP_DONATED_DELTA)
+        self.assertTrue(native_changed-{shader_labels}<=reuse.NEOSWAP_434_DELTA|reuse.NEOSWAP_435_DELTA|reuse.NEOSWAP_MELONX_DELTA|reuse.NEOSWAP_DONATED_DELTA)
+        self.assertIn(shader_labels,reuse.BUILD450_DELTA)
+        rows=json.loads((ROOT/shader_labels).read_text(encoding='utf-8'))
+        self.assertTrue(rows and all(isinstance(text,str) for row in rows.values() for text in row.values()))
+        self.assertIn('python3 test/dolphin_shader_localizations_test.py',
+                      (ROOT/'.github/workflows/shader-kit-checks.yml').read_text())
 
     def test_changed_neoswap_sources_have_fresh_native_checks(self):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
