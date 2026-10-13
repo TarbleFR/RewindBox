@@ -51,6 +51,8 @@ void main() {
   });
 
   testWidgets('Libretro credit opens the bundled core notices', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(MaterialApp(
       home: Builder(builder: (context) => Scaffold(
         body: TextButton(
@@ -67,7 +69,11 @@ void main() {
     );
     expect(find.textContaining('External integration; upstream licenses apply'), findsNothing);
     expect(find.textContaining('Embedded cores:'), findsOneWidget);
-    await tester.tap(find.text('RetroArch / libretro'));
+    await tester.runAsync(() async {
+      await tester.tap(find.text('RetroArch / libretro'));
+      // Wait for the real bundle I/O outside the widget test's fake clock.
+      await rootBundle.loadString('assets/legal/libretro/LIBRETRO_CORES.md');
+    });
     await tester.pumpAndSettle();
     expect(find.byType(SelectableText), findsOneWidget);
     expect(tester.widget<SelectableText>(find.byType(SelectableText)).data,
