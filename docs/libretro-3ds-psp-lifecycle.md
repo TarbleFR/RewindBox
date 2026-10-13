@@ -199,9 +199,12 @@ Journal de session : `Fichiers › NeoStation › Libretro › Logs`.
   - PPSSPP : programme de test PSP, puis image ISO deux fois, chacun quitté
     et relancé ;
   - PPSSPP dans une fenêtre encombrée comme celle de l’iPhone : la case
-    scratchpad de chaque base sondée est occupée avant le lancement, si
-    bien qu’aucune base n’est libre sans la réservation et qu’il ne reste
-    au-dessous que des trous de moins de 8 Mio. Scénarios
+    scratchpad de chaque base sondée est occupée avant le lancement quand
+    la sonde peut la prendre, et il ne reste au-dessous que des trous de
+    moins de 8 Mio. Cette préparation ne garantit pas qu’aucune autre base
+    ne soit utilisable : un échec de l’assertion de base réservée, quand le
+    jeu démarre et se ferme correctement, est la limitation connue de la
+    sonde simulateur, pas une régression de lancement (`AGENTS.md`). Scénarios
     `ppsspp-crowded` (ISO, 32 Mio de RAM, arène de 40 Mio) et
     `ppsspp-crowded-prx` (programme PRX, 64 Mio, arène de 72 Mio) ; le
     journal doit montrer la mémoire de PPSSPP à la base réservée. Le job

@@ -381,29 +381,28 @@ cycle : la 444 contient donc tout le travail tactile/skins. L'autre session y
 a aussi ré-épinglé le garde-fou NeoSwap. La Build 445 (`docs/build445-plan.md`)
 reprend ce produit à l'identique.
 
-Sonde simulateur (`libretro-simulator.yml`), non signalée au moment de ces
-runs. Il s'agit d'un constat ouvert, sans correction (décision du mainteneur
-du 12 octobre 2026) :
+Sonde simulateur (`libretro-simulator.yml`) : **limitation connue de la sonde
+simulateur — aucune régression de lancement démontrée**. C'est une limitation
+de la sonde connue et hors périmètre du chantier actuel ; elle ne se rouvre
+que sur un élément nouveau et vérifiable (règle permanente dans `AGENTS.md`).
 
-- **Échecs.** `38178625368` (`4da3154`) et `38180063457` (`194d427`) ont
-  échoué uniquement sur l'assertion « PPSSPP's memory at the reserved base »
-  des scénarios encombrés. `ppsspp-crowded-prx` a échoué dans les deux runs,
+- **Lancement PSP corrigé.** Les correctifs `d4de3c76` (réservation de la
+  fenêtre mémoire de PPSSPP au lancement) et `54147b97` (arène placée sous la
+  plage des vues de RAM) restent présents.
+- **Échecs relevés.** `38178625368` (`4da3154`) et `38180063457` (`194d427`)
+  ont échoué uniquement sur l'assertion « PPSSPP's memory at the reserved
+  base » des scénarios encombrés : `ppsspp-crowded-prx` dans les deux runs,
   `ppsspp-crowded` dans le second. Tous les lancements PSP ont réussi, se sont
   fermés dans l'ordre et ont repris la réservation.
-- **Mécanisme probable.** La sonde n'encombre la fenêtre qu'une fois, avant le
-  lancement. De la mémoire libérée pendant le démarrage de PPSSPP a laissé
-  libre une base plus basse (0x109800000, 0x10c000000, 0x105000000), que
-  PPSSPP a prise.
-- **Attribution indéterminée.**
-  - Les commits tactile/skins n'appellent directement ni `vm_allocate` ni
-    `mmap`. Leurs allocations ordinaires peuvent toutefois être placées puis
-    libérées dans cette fenêtre.
-  - Le second run avait un exécuteur dégradé : « no progress in 120 s », sonde
-    de 354,8 s contre 99,3 s, 117,2 s et 145,3 s pour `38116309132`,
-    `38178625368` et `38046114507`.
-  - Les sources immédiatement antérieures (`54147b97`, `0ff20bbd`) ont réussi
-    les 4 contrôles encombrés de leurs deux runs (`38046114507`,
-    `38116309132`). L'échantillon reste petit.
+- **Limite de la sonde.** Le scénario exige que PPSSPP utilise précisément la
+  base réservée, alors que sa préparation ne garantit pas que les autres bases
+  soient inutilisables. PPSSPP a pris une base plus basse (0x109800000,
+  0x10c000000, 0x105000000). L'échec de cette assertion, quand le contenu PSP
+  démarre et se ferme correctement, ne démontre pas une régression du
+  lancement PSP. Relevé détaillé : `docs/build450-plan.md`.
+- **Tests conservés.** Les scénarios et leurs vérifications restent tels
+  quels ; un rapport de CI signale cet échec comme l'échec connu de la sonde,
+  pas comme une panne de l'application.
 
 `docs/LEGAL_AND_CREDITS.md` est épinglé octet pour octet par
 `test/import_memory_candidate_scope_test.py`. Les crédits des nouvelles

@@ -56,48 +56,36 @@ CI GitHub (branche `Claude`) :
   régénéré).
 - `libretro-checks` `38334940229` (`71b8815e`), `external-display-check` `38332666189` (`2a076d80`),
   `dolphin-motion-check` `38334944250` (`71b8815e`), `legal-compliance-check` `38336464575` (`bcf666b3`) : réussis.
-- `libretro-simulator` : voir ci-dessous.
+- `libretro-simulator` : échec connu de la sonde sur `ppsspp-crowded`, sans panne de l'application ; voir
+  ci-dessous.
 
-### Sonde simulateur : constat ouvert repris
+### Sonde simulateur : limitation connue de la sonde simulateur — aucune régression de lancement démontrée
 
-`ppsspp-crowded` échoue sur `71b8815e` (`38334940216`), `bcf666b3` (`38336456293`), `8472350` (`38337609542`,
-avec `ppsspp-crowded-prx`) et `b5b57a0f` (`38338491666`). Il avait réussi sur `2a076d80` (`38332666123`). Tous les
-autres scénarios réussissent, et le jeu PSP démarre puis se ferme dans l'ordre. Ce défaut de sonde est déjà consigné
-dans `docs/libretro-touch-skins-audit.md` (échecs sur `4da3154` et `194d427`). Il est resté ouvert sans correction
-par décision du mainteneur du 12 octobre 2026.
+Le lancement PSP est corrigé. Les correctifs `d4de3c76` (réservation de la fenêtre mémoire de PPSSPP au lancement)
+et `54147b97` (arène placée sous la plage des vues de RAM) sont présents dans cette source.
 
-- L'estimation faite juste avant le démarrage ne voit libre que la base réservée (1 base sur 256).
-- PPSSPP prend pourtant ensuite une autre base, plus basse.
-- Depuis que la sonde lie le kit (binaire plus gros, disposition mémoire différente), le cas est plus fréquent :
-  avant, il était rare (2 runs sur l'historique connu).
+Le scénario automatisé `ppsspp-crowded` exige que PPSSPP utilise précisément la base réservée. Or sa préparation ne
+garantit pas que les autres bases soient inutilisables. Son échec, quand le contenu PSP démarre et se ferme
+correctement, ne démontre donc pas une régression du lancement PSP.
 
-Relevé ajouté à la sonde, sans changer ses vérifications (`8472350`, `b5b57a0f`). Il note les régions de la
-fenêtre avant et après le remplissage, puis au lancement. Runs `38337609542` et `38338491666` :
+Statut : limitation de la sonde connue et hors périmètre du chantier actuel. Les tests et leurs vérifications sont
+conservés tels quels. Un rapport de CI signale cet échec comme l'échec connu de la sonde, pas comme une panne de
+l'application. Le sujet ne se rouvre que sur un élément nouveau et vérifiable (règle permanente dans `AGENTS.md`).
 
-- **Zone basse.** Les emplacements des 5 à 9 bases les plus basses (à partir de `0x100000000`) sont vides pour
-  `vm_region`, mais `vm_allocate` fixe les refuse : le remplissage ne peut pas les prendre. PPSSPP, qui place ses
-  vues par `vm_remap`, a pourtant utilisé des bases de cette zone : `0x101000000`, `0x103000000` et `0x104000000`
-  sur `bcf666b3`, `0x103000000` pour `ppsspp-prx` sur `b5b57a0f`.
+Relevé de ce cycle, pour mémoire :
+
+- **Runs.** Seule l'assertion « PPSSPP's memory at the reserved base » échoue, sur `71b8815e` (`38334940216`),
+  `bcf666b3` (`38336456293`), `8472350` (`38337609542`, avec `ppsspp-crowded-prx`) et `b5b57a0f` (`38338491666`).
+  Le jeu PSP démarre puis se ferme dans l'ordre, et tous les autres scénarios réussissent.
+- **Diagnostic seulement.** Un relevé a été ajouté à la sonde sans changer ses vérifications (`8472350`,
+  `b5b57a0f`). Il note les régions de la fenêtre avant et après le remplissage, puis au lancement.
+- **Zone basse.** Les emplacements des 5 à 9 bases les plus basses (à partir de `0x100000000`) sont refusés à
+  `vm_allocate` fixe : le remplissage ne peut pas les prendre. PPSSPP place ses vues par `vm_remap` et peut donc
+  utiliser des bases de cette zone (`0x101000000`, `0x103000000`, `0x104000000` sur `bcf666b3`).
 - **Remplissage intact.** Aucun emplacement pris par le remplissage ne disparaît pendant le démarrage
   (`b5b57a0f`).
-- **Base retenue.** Sur `b5b57a0f`, la base prise dans le scénario encombré (`0x106800000`) avait, au remplissage,
-  son emplacement occupé par une autre région, de mêmes adresse et taille au lancement. Sur `8472350`, les bases
-  prises (`0x10e800000`, `0x107000000`) n'étaient ni libres ni libérées selon le relevé. Hypothèse non démontrée :
-  une vue de 16 Kio laissée par PPSSPP lui-même lors d'un essai de base antérieur, puis remplacée pendant ce
-  démarrage.
-- **Réservation toujours utile.** Avec les sources d'avant la réservation, le même scénario échoue toujours avec
-  « Failed finding a memory base » : la réservation reste ce qui fait démarrer le jeu quand la fenêtre est pleine.
-
-En résumé, la sonde ne peut pas garantir sa condition de départ, « aucune base libre hors réservation ». Des
-emplacements tenus par des régions qu'elle ne peut pas prendre redeviennent utilisables par PPSSPP pendant le
-démarrage. Le jeu démarre dans tous les cas.
-
-Aucune correction n'est appliquée, conformément à la décision du 12 octobre. Pistes proposées au mainteneur :
-
-1. Faire prendre les emplacements par le remplissage avec l'appel qu'utilise PPSSPP (`vm_remap` fixe), afin
-   d'occuper aussi la zone basse.
-2. Vérifier si PPSSPP laisse des vues aux bases qu'il essaie sans les retenir. Une telle fuite encombrerait
-   peu à peu la fenêtre au fil des lancements PSP, sur iPhone aussi. Ce n'est pas établi.
+- **Réservation utile.** Avec les sources d'avant la réservation, le même scénario échoue toujours avec « Failed
+  finding a memory base ». La réservation reste ce qui fait démarrer le jeu quand la fenêtre est pleine.
 
 ## Livraison
 
