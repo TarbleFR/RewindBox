@@ -1,7 +1,11 @@
 import 'package:flutter/services.dart';
 
 /// Read the presented native session, including pause/menu/teardown. A failed
-/// probe is not proof of exit and must never re-enable frontend audio.
+/// probe is not proof of exit and must never re-enable frontend audio. Only
+/// an explicit `false` ends a session: a missing or non-boolean answer is
+/// unknown (Build 453's libretro bridge sent the integer 0 or 1, whose
+/// `bool` cast threw, and the game's frontend session ended a few seconds
+/// after its launch).
 abstract final class EmbeddedIOSSessionStatus {
   static const _channels = {
     'ios_dolphin_internal': MethodChannel('neostation/dolphin_internal'),
@@ -13,7 +17,7 @@ abstract final class EmbeddedIOSSessionStatus {
     final channel = _channels[name];
     if (channel == null) throw ArgumentError.value(name, 'name');
     try {
-      return await channel.invokeMethod<bool>('isSessionActive') != false;
+      return await channel.invokeMethod<Object?>('isSessionActive') != false;
     } on PlatformException {
       return true;
     } on MissingPluginException {

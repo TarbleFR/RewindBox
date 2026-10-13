@@ -2,6 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+/// [LibretroInternalBridge.isSessionActive] received no boolean: whether a
+/// game runs is unknown. [answer] is what arrived (raw diagnostic).
+class LibretroSessionProbeException implements Exception {
+  const LibretroSessionProbeException(this.answer);
+
+  final Object? answer;
+
+  @override
+  String toString() =>
+      'LibretroSessionProbeException: non-boolean answer '
+      '(${answer == null ? 'null' : '${answer.runtimeType} $answer'})';
+}
+
 /// Dart side of the embedded libretro host (`neostation/libretro_internal`).
 class LibretroInternalBridge {
   LibretroInternalBridge._();
@@ -45,8 +58,15 @@ class LibretroInternalBridge {
             const <String, dynamic>{},
       );
 
-  static Future<bool> isSessionActive() async =>
-      await _channel.invokeMethod<bool>('isSessionActive') ?? false;
+  /// Whether the native host owns a session, its launch included. Only a
+  /// boolean answer counts: a missing or non-boolean one (Build 453 sent
+  /// the integer 0 or 1) throws [LibretroSessionProbeException], like the
+  /// channel's own errors, so that no caller takes it for "no session".
+  static Future<bool> isSessionActive() async {
+    final answer = await _channel.invokeMethod<Object?>('isSessionActive');
+    if (answer is bool) return answer;
+    throw LibretroSessionProbeException(answer);
+  }
 
   /// Lets the Library readers rotate to portrait (`allowPortrait` true) or
   /// restores the app's landscape-only mask (false, applied after Flutter's

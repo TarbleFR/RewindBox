@@ -243,7 +243,11 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
   if ([call.method isEqualToString:@"isSessionActive"]) {
-    result(@(self.session.active || self.launching));
+    // @YES or @NO, the only NSNumbers Flutter's codec sends as a bool. In
+    // this Objective-C file `a || b` is a C int: @(a || b) boxed it with
+    // numberWithInt:, sent as an int32, and Dart received 0 or 1 (Build 454,
+    // test/libretro_channel_codec_test.py).
+    result((self.session.active || self.launching) ? @YES : @NO);
     return;
   }
   if ([call.method isEqualToString:@"availableCores"]) {
