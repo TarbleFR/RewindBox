@@ -60,7 +60,7 @@
     "personal_module_added_before_signing": true
   },
   "blocked_on": [
-    "Accessible Apple Silicon Mac with Xcode and iPhoneOS SDK",
+    "Personal Apple build environment with Xcode and the supported disc kept locally (the disc-free host can be checked on macOS CI)",
     "User-owned supported disc kept in the personal build environment",
     "Personal module generation and complete native build",
     "NeoStation-specific callable host lifecycle and packaging adapter",

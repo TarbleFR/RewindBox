@@ -193,8 +193,10 @@ def build_shell(source, output, lock, jobs):
     source = source.resolve()
     verify_checkout(source, lock["bluewake"]["commit"])
     verify_profile(source, lock)
-    output = output.expanduser().absolute()
-    if output.exists() or output.is_symlink():
+    if output.is_symlink():
+        raise ValueError("The output path may not be a symlink")
+    output = output.expanduser().resolve()
+    if output.exists():
         raise ValueError("Use a new empty output path; previous builds are never overwritten")
     if source == output or source in output.parents or ROOT == output or ROOT in output.parents:
         raise ValueError("Keep the reference build outside both source repositories")

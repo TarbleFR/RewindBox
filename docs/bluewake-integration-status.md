@@ -19,7 +19,8 @@ preserved as the commit parent. `Cloud` is left intact.
   number, revision, bounded file spans and the expected DOL hash. This does not
   certify every disc byte or produce a native game module.
 - Added a standalone iOS host build command and a macOS CI workflow, limited
-  to changes in the new BlueWake sources on Claude, with manual dispatch too.
+  to changes in the new BlueWake sources on Claude. Portable checks run on
+  source changes; the longer iOS shell build is requested explicitly.
   SDL is passed by commit, Dawn by archive hash, and no game content is supplied
   or uploaded. A build receipt distinguishes the standalone executable from a
   future NeoStation framework.
@@ -57,6 +58,12 @@ they are not claimed as new executions in this phase.
 - Linux x86_64, Python 3.12: `python3 test/bluewake_preparation_test.py` —
   **16/16 passed**. `verify-vendored` also passed; all four upstream files match
   their original Git blob hashes.
-- iOS reference compilation: to be recorded after the manual CI run.
+- Follow-up preparation checks on Linux: **17/17 passed**, including output
+  preservation and refusal of a symlink into a source repository. Git attributes
+  preserve the four vendored source/notice files byte-for-byte on Windows.
+- iOS reference compilation: running at source `5535e304b429e461cc1387650ca70c64694150b4`,
+  [run 38465426084](https://github.com/TarbleFR/neostation-ios/actions/runs/38465426084).
+  The portable CI job has passed. The subsequent output-path protection does
+  not change the upstream source pins or CMake compilation arguments.
 - No supported personal disc was provided; no valid-disc import, native module
   compilation, signing, launch, save or relaunch in NeoStation was tested.

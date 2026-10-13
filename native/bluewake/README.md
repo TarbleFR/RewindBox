@@ -39,9 +39,11 @@ It builds the standalone upstream `BlueWake.app`, with no disc, game module,
 signing credentials, IPA distribution or automatic installation. A successful
 build writes `build-receipt.json` next to the app and explicitly records that
 neither a NeoStation core nor gameplay has been tested. The GitHub workflow
-**BlueWake source preparation** runs on changes to these BlueWake sources on
-`Claude`, or by manual dispatch once GitHub registers it. It runs the same gate
-without uploading the application or other build artifacts.
+**BlueWake source preparation** runs portable checks on changes to these sources
+on `Claude`. The iOS reference build runs on manual dispatch with
+`build_ios_shell=true` or a commit carrying `[bluewake-shell]`, so documentation
+and preparation-only changes do not repeatedly rebuild the unchanged engine.
+It never uploads the application or other build artifacts.
 
 For a personal disc kept on the build machine:
 

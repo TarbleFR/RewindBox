@@ -34,7 +34,7 @@ jobs:
           git diff --check
           python3 test/bluewake_preparation_test.py
   ios-shell:
-    if: ${{ github.event_name == 'push' || inputs.build_ios_shell }}
+    if: ${{ inputs.build_ios_shell || contains(github.event.head_commit.message, '[bluewake-shell]') }}
     needs: portable
     runs-on: macos-15
     timeout-minutes: 90

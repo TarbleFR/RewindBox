@@ -112,6 +112,23 @@ class PreparationTest(unittest.TestCase):
                 bw.build_shell(self.root / "absent", self.root / "out", self.lock, 3)
         self.assertFalse((self.root / "out").exists())
 
+    def test_build_does_not_overwrite_output_or_follow_alias_into_sources(self):
+        existing = self.root / "existing"
+        existing.mkdir()
+        (existing / "saved-build").write_text("keep")
+        alias = self.root / "source-alias"
+        alias.symlink_to(ROOT, target_is_directory=True)
+        with mock.patch.object(bw, "check_tools", return_value={}), \
+             mock.patch.object(bw, "verify_checkout"), \
+             mock.patch.object(bw, "verify_profile"), \
+             mock.patch.object(bw, "prepare_checkout", side_effect=AssertionError("No fetch expected")):
+            with self.assertRaisesRegex(ValueError, "never overwritten"):
+                bw.build_shell(self.root / "source", existing, self.lock, 3)
+            with self.assertRaisesRegex(ValueError, "outside both source"):
+                bw.build_shell(self.root / "source", alias / "new-output", self.lock, 3)
+        self.assertEqual((existing / "saved-build").read_text(), "keep")
+        self.assertFalse((ROOT / "new-output").exists())
+
     def test_archive_traversal_and_links_refused(self):
         for name, kind in (("../escape", tarfile.REGTYPE), ("/escape", tarfile.REGTYPE), ("symlink", tarfile.SYMTYPE)):
             with self.subTest(name=name):
