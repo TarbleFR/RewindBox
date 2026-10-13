@@ -33,6 +33,7 @@ or re-signed application.
 | IPA validation had a duplicated license entry and omitted required music and guest-memory-relay notices | Share the packager's required-file list; reject missing, empty, duplicated or modified core notices in the ZIP. |
 | Legal preflight fixtures omitted the shader compiler source records | Restore the source fixtures and exercise the actual embed/ZIP-validation commands. |
 | Credits still called Libretro an external integration | Describe embedded cores in all twelve supported languages and make their notices available offline; add Azahar attribution. |
+| Opening the credits dialog triggered Flutter's intrinsic-size assertion for its lazy list | Give the dialog content a defined width, bounded by the available screen constraints; keep the real dialog-opening regression test. |
 | Some source and license descriptions were stale | Correct ARMSX2 and Dusklight source references and identify Azahar 2127.0-alpha1 as GPLv3-or-later. |
 
 The legacy external RetroArch routes remain where required for older saved

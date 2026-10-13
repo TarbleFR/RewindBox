@@ -138,6 +138,8 @@ class LegalCreditsDialog {
           title: Text(LegalCreditsLocale.dialogTitle(dialogContext)),
           content: ConstrainedBox(
             constraints: BoxConstraints(
+              // AlertDialog measures intrinsic width; the lazy list cannot.
+              minWidth: 760,
               maxWidth: 760,
               maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.72,
             ),
