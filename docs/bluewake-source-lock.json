@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "status": "audit_only_not_integrated",
+  "review_date": "2026-10-13",
+  "neostation": {
+    "branch": "Cloud",
+    "base_commit": "5866bc658e26861c9f0d44ea8b32da33b885bbc4",
+    "base_tree": "56233b164a0218705e60dcc0ce2bd1cbaa83d6ba"
+  },
+  "bluewake": {
+    "repository": "https://github.com/chrissotraidis/bluewake",
+    "commit": "6248171f3ef6094d179d45385b522d6bc8f49248",
+    "upstream_branch": "main",
+    "ios_build_verified": false,
+    "neostation_session_verified": false
+  },
+  "retired_fork": {
+    "repository": "https://github.com/elliotttate/Wind-Waker-Recomp",
+    "commit": "adac1e616376ab0d7d57eda51d82acf4dc607079",
+    "use_for_build": false
+  },
+  "dependencies": {
+    "recompcore": {
+      "repository": "https://github.com/chrissotraidis/RecompCore",
+      "commit": "ee99bbc13c948351f6974c745cad2593a25eacbf"
+    },
+    "dolrecomp": {
+      "repository": "https://github.com/elliotttate/DolRecomp",
+      "commit": "b8b534591cba8ca7cd43943a655ee6e2591cf5de"
+    },
+    "sdl": {
+      "repository": "https://github.com/libsdl-org/SDL",
+      "tag": "release-3.4.10",
+      "resolved_commit": "8e37db5e797b6167f3a00d697d816a684bd259c7"
+    },
+    "dawn": {
+      "url": "https://github.com/encounter/dawn/releases/download/v20260618.032059/dawn-ios-arm64.tar.gz",
+      "expected_sha256": "ada0bafc173152d80eba7c3b2f9609a71185d5809cbd5dd3251b91a0803a7ae2",
+      "archive_downloaded_and_verified": false
+    }
+  },
+  "game_contract": {
+    "disc_id": "GZLE01",
+    "region": "USA",
+    "revision": 0,
+    "ios_input_containers": [
+      "iso",
+      "gcm"
+    ],
+    "expected_dol_sha1": "8d28bab68bb5078c38e43f29206f0bd01f7e7a67",
+    "expected_rel_count": 415,
+    "expected_base_composite_digest": "54f54434c3f9c899d43a96373dc0b4c1aed0e50db8b820b9698dfa76571a770a",
+    "personal_native_module": "gGZLE01_recomp.dylib",
+    "native_module_built": false
+  },
+  "distribution": {
+    "public_game_data": false,
+    "public_translated_game_code": false,
+    "personal_module_added_before_signing": true
+  },
+  "blocked_on": [
+    "Accessible Apple Silicon Mac with Xcode and iPhoneOS SDK",
+    "User-owned supported disc kept in the personal build environment",
+    "Personal module generation and complete native build",
+    "NeoStation-specific callable host lifecycle and packaging adapter",
+    "Signature and on-device session validation"
+  ]
+}
