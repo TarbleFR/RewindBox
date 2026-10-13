@@ -641,26 +641,26 @@ int main(int argc, const char *argv[]) {
     // the core runs with another, and its key is not recognized by name
     // either; before the content is loaded (renderer unknown) they are no
     // condition, so the native default still applies.
-    LibretroResolutionRules *rendered = [[LibretroResolutionRules alloc] initWithDictionary:@{
+    LibretroResolutionRules *rendererRules = [[LibretroResolutionRules alloc] initWithDictionary:@{
       @"profiles" : @[ @{@"keys" : @[ key ], @"apply" : @"live", @"renderers" : @[ LibretroResolutionRendererGLES ]} ],
       @"keyPattern" : nativeRules[@"keyPattern"],
       @"descriptionPattern" : nativeRules[@"descriptionPattern"],
     }];
-    CHECK([[rendered capabilityForCoreOptions:standalone renderer:nil consoleWidth:160 consoleHeight:144].key
+    CHECK([[rendererRules capabilityForCoreOptions:standalone renderer:nil consoleWidth:160 consoleHeight:144].key
               isEqualToString:key],
           "before the content is loaded the renderer is no condition");
-    LibretroResolutionCapability *renderedGL = [rendered capabilityForCoreOptions:standalone
+    LibretroResolutionCapability *renderedGL = [rendererRules capabilityForCoreOptions:standalone
                                                                           renderer:LibretroResolutionRendererGLES
                                                                       consoleWidth:160
                                                                      consoleHeight:144];
     CHECK([renderedGL.key isEqualToString:key] && renderedGL.apply == LibretroResolutionApplyLive,
           "a profile applies with a renderer it names");
-    CHECK([rendered capabilityForCoreOptions:standalone
+    CHECK([rendererRules capabilityForCoreOptions:standalone
                                     renderer:LibretroResolutionRendererSoftware
                                 consoleWidth:160
                                consoleHeight:144] == nil,
           "with another renderer nothing is offered, not even by the option's name");
-    CHECK([[rendered profileKeyForOptions:standalone.options] isEqualToString:key],
+    CHECK([[rendererRules profileKeyForOptions:standalone.options] isEqualToString:key],
           "the option is reported as present but not applicable");
     CHECK([generic profileKeyForOptions:standalone.options] == nil,
           "an option no profile names is never reported as not applicable");

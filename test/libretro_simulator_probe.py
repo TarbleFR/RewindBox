@@ -14,7 +14,8 @@ headers staged as <pod/...> by test/libretro_ios_syntax_test.py) into a
 small UIKit app and embeds:
 - PPSSPP, Azahar and DeSmuME from the cores artifact the delivery pins,
   with their Mach-O platform switched from iOS (2) to iOS Simulator (7) -
-  no other byte changes - and signed ad hoc;
+  no other byte changes; DeSmuME's older LC_VERSION_MIN_IPHONEOS command is
+  replaced by vtool, its code untouched - and signed ad hoc;
 - the MoltenVK simulator slice;
 - the NeoTest core and the Vulkan test core of test/libretro_host (the
   latter uses the frontend's Vulkan device like Azahar: it creates it,
@@ -101,6 +102,7 @@ REAL_CORES = ('ppsspp', 'azahar', 'desmume')
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 LC_BUILD_VERSION = 0x32
+LC_VERSION_MIN_IPHONEOS = 0x25
 PLATFORM_IOS = 2
 PLATFORM_IOS_SIMULATOR = 7
 
@@ -435,25 +437,52 @@ def framework_plist(target, executable):
                        'CFBundleSupportedPlatforms': ['iPhoneSimulator'], 'MinimumOSVersion': '17.4'}, handle)
 
 
-def retarget_to_simulator(binary):
-    """Switches LC_BUILD_VERSION's platform from iOS to iOS Simulator."""
-    data = bytearray(binary.read_bytes())
+def platform_commands(data, binary):
+    """The LC_BUILD_VERSION and LC_VERSION_MIN_IPHONEOS commands of a thin
+    64-bit Mach-O: [(command, offset)]."""
     magic, _, _, _, count = struct.unpack_from('<IiiII', data, 0)
     if magic != 0xFEEDFACF:
         raise SystemExit(f'{binary}: not a thin 64-bit Mach-O')
     cursor = 32
-    patched = 0
+    found = []
     for _ in range(count):
         command, size = struct.unpack_from('<II', data, cursor)
-        if command == LC_BUILD_VERSION:
-            platform = struct.unpack_from('<I', data, cursor + 8)[0]
-            if platform != PLATFORM_IOS:
-                raise SystemExit(f'{binary}: platform {platform}, expected iOS')
-            struct.pack_into('<I', data, cursor + 8, PLATFORM_IOS_SIMULATOR)
-            patched += 1
+        if command in (LC_BUILD_VERSION, LC_VERSION_MIN_IPHONEOS):
+            found.append((command, cursor))
         cursor += size
-    if patched != 1:
-        raise SystemExit(f'{binary}: {patched} LC_BUILD_VERSION commands patched, expected 1')
+    return found
+
+
+def retarget_to_simulator(binary):
+    """Switches LC_BUILD_VERSION's platform from iOS to iOS Simulator (only
+    that byte changes). An older build that names its platform with
+    LC_VERSION_MIN_IPHONEOS instead (DeSmuME's) gets an LC_BUILD_VERSION
+    for the simulator from Apple's vtool in its place; its code and data
+    do not change."""
+    data = bytearray(binary.read_bytes())
+    commands = platform_commands(data, binary)
+    builds = [offset for command, offset in commands if command == LC_BUILD_VERSION]
+    if not builds and [command for command, _ in commands] == [LC_VERSION_MIN_IPHONEOS]:
+        sdk = output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-version']).strip()
+        converted = binary.with_name(binary.name + '.simulator')
+        run(['xcrun', 'vtool', '-set-build-version', str(PLATFORM_IOS_SIMULATOR), '17.4', sdk, '-replace',
+             '-output', converted, binary])
+        data = bytearray(converted.read_bytes())
+        converted.unlink()
+        commands = platform_commands(data, binary)
+        builds = [offset for command, offset in commands if command == LC_BUILD_VERSION]
+        if len(commands) != 1 or len(builds) != 1 or \
+                struct.unpack_from('<I', data, builds[0] + 8)[0] != PLATFORM_IOS_SIMULATOR:
+            raise SystemExit(f'{binary}: vtool did not leave one iOS Simulator LC_BUILD_VERSION')
+        binary.write_bytes(data)
+        binary.chmod(0o755)
+        return
+    if len(builds) != 1:
+        raise SystemExit(f'{binary}: {len(builds)} LC_BUILD_VERSION commands, expected 1')
+    platform = struct.unpack_from('<I', data, builds[0] + 8)[0]
+    if platform != PLATFORM_IOS:
+        raise SystemExit(f'{binary}: platform {platform}, expected iOS')
+    struct.pack_into('<I', data, builds[0] + 8, PLATFORM_IOS_SIMULATOR)
     binary.write_bytes(data)
     binary.chmod(0o755)
 
