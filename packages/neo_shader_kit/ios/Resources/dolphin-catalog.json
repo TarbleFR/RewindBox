@@ -9,7 +9,7 @@
   "raw": ""
  },
  "compiler": "glslang 16.3.0 + SPIRV-Cross (Khronos vulkan-sdk-1.4.350.1), MSL 2.3, Dolphin post-processing interface",
- "validation": "SPIR-V -> MSL translation only",
+ "validation": "macOS 15 (GitHub macos-15 runner, Apple Paravirtual device) Metal draw through Dolphin's post-processing interface + iPhone Metal compiler, GitHub run 38334940237",
  "categories": [
   "scanlines",
   "upscaling",
@@ -58,11 +58,6 @@
    "Shaders/auto_toon2.glsl",
    1658,
    "4de5cde868960913b16f698894da431da2cf6ffe059f94cc64f06b0e62f68100"
-  ],
-  [
-   "Shaders/AutoHDR.glsl",
-   1763,
-   "3b7cffcd2e8055948aad54cf0f95ace02c081117c74232c767e3b0416e619a45"
   ],
   [
    "Shaders/bad_bloom.glsl",
@@ -170,11 +165,6 @@
    "4b9410359c3d1c3c793b35c0974ddda07c897beca78543b374e5798d982644e0"
   ],
   [
-   "Shaders/PerceptualHDR.glsl",
-   3540,
-   "d25d069a2da19447c7d8143e448667b445682f4e515d8bca2b5c637acfe82a1f"
-  ],
-  [
    "Shaders/posterize.glsl",
    242,
    "d9b89a74f642d121f45b8b7f135459cf73d00f3cb2d7be9c19fa5e157aa940e5"
@@ -265,7 +255,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -290,7 +280,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -315,7 +305,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -340,7 +330,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -365,7 +355,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -390,7 +380,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [
     {
      "name": "DEBUG_ONLY_ONE_CHAR",
@@ -442,7 +432,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -467,93 +457,9 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
-    "repository-license"
-   ]
-  },
-  {
-   "id": "sys/AutoHDR",
-   "name": "AutoHDR",
-   "category": "color",
-   "family": "Sys/Shaders",
-   "format": "dolphin-glsl",
-   "files": [
-    8
-   ],
-   "bundled": true,
-   "passes": 1,
-   "parameters": 3,
-   "cost": {
-    "samples": 1,
-    "loop": false,
-    "tier": "performance"
-   },
-   "mentions": [],
-   "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [
-    {
-     "name": "AUTO_HDR_SHOULDER_POW",
-     "gui": "Shoulder Pow",
-     "type": "float",
-     "dependent": "",
-     "offset": 140,
-     "values": [
-      2.5
-     ],
-     "minimum": [
-      1
-     ],
-     "maximum": [
-      10
-     ],
-     "step": [
-      0.0500000007
-     ]
-    },
-    {
-     "name": "AUTO_HDR_SHOULDER_START_ALPHA",
-     "gui": "Shoulder Start Alpha",
-     "type": "float",
-     "dependent": "",
-     "offset": 156,
-     "values": [
-      0
-     ],
-     "minimum": [
-      0
-     ],
-     "maximum": [
-      1
-     ],
-     "step": [
-      0.00999999978
-     ]
-    },
-    {
-     "name": "HDR_DISPLAY_MAX_NITS",
-     "gui": "HDR Display Max Nits",
-     "type": "float",
-     "dependent": "",
-     "offset": 172,
-     "values": [
-      400
-     ],
-     "minimum": [
-      80
-     ],
-     "maximum": [
-      2000
-     ],
-     "step": [
-      1
-     ]
-    }
-   ],
-   "notes": [
-    "hdr-output",
     "repository-license"
    ]
   },
@@ -564,7 +470,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    9
+    8
    ],
    "bundled": true,
    "passes": 1,
@@ -576,7 +482,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -585,6 +491,31 @@
   {
    "id": "sys/brighten",
    "name": "brighten",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    9
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "rendered",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/chrismas",
+   "name": "chrismas",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -601,15 +532,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/chrismas",
-   "name": "chrismas",
+   "id": "sys/cool1",
+   "name": "cool1",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -626,32 +557,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [],
-   "notes": [
-    "repository-license"
-   ]
-  },
-  {
-   "id": "sys/cool1",
-   "name": "cool1",
-   "category": "color",
-   "family": "Sys/Shaders",
-   "format": "dolphin-glsl",
-   "files": [
-    12
-   ],
-   "bundled": true,
-   "passes": 1,
-   "parameters": 0,
-   "cost": {
-    "samples": 1,
-    "loop": false,
-    "tier": "performance"
-   },
-   "mentions": [],
-   "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -664,7 +570,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    13
+    12
    ],
    "bundled": true,
    "passes": 1,
@@ -676,7 +582,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -689,7 +595,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    14
+    13
    ],
    "bundled": true,
    "passes": 1,
@@ -701,7 +607,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -710,6 +616,31 @@
   {
    "id": "sys/fire",
    "name": "fire",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    14
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "rendered",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/fire2",
+   "name": "fire2",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -726,32 +657,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [],
-   "notes": [
-    "repository-license"
-   ]
-  },
-  {
-   "id": "sys/fire2",
-   "name": "fire2",
-   "category": "color",
-   "family": "Sys/Shaders",
-   "format": "dolphin-glsl",
-   "files": [
-    16
-   ],
-   "bundled": true,
-   "passes": 1,
-   "parameters": 0,
-   "cost": {
-    "samples": 1,
-    "loop": false,
-    "tier": "performance"
-   },
-   "mentions": [],
-   "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -764,7 +670,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    17
+    16
    ],
    "bundled": true,
    "passes": 1,
@@ -776,7 +682,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -789,7 +695,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    18
+    17
    ],
    "bundled": true,
    "passes": 1,
@@ -803,7 +709,7 @@
     "Copyright (C) 2013 mudlord"
    ],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -812,6 +718,31 @@
   {
    "id": "sys/grayscale",
    "name": "grayscale",
+   "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    18
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 1,
+    "loop": false,
+    "tier": "performance"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "rendered",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/grayscale2",
+   "name": "grayscale2",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -828,32 +759,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [],
-   "notes": [
-    "repository-license"
-   ]
-  },
-  {
-   "id": "sys/grayscale2",
-   "name": "grayscale2",
-   "category": "color",
-   "family": "Sys/Shaders",
-   "format": "dolphin-glsl",
-   "files": [
-    20
-   ],
-   "bundled": true,
-   "passes": 1,
-   "parameters": 0,
-   "cost": {
-    "samples": 1,
-    "loop": false,
-    "tier": "performance"
-   },
-   "mentions": [],
-   "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -866,7 +772,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    21
+    20
    ],
    "bundled": true,
    "passes": 1,
@@ -880,7 +786,7 @@
     "by Themaister, Public Domain license"
    ],
    "license": "Public domain",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [
     {
      "name": "ASPECT_MSG",
@@ -1053,7 +959,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    22
+    21
    ],
    "bundled": true,
    "passes": 1,
@@ -1065,7 +971,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -1078,7 +984,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    23
+    22
    ],
    "bundled": true,
    "passes": 1,
@@ -1090,7 +996,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -1103,7 +1009,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    24
+    23
    ],
    "bundled": true,
    "passes": 1,
@@ -1115,7 +1021,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -1128,7 +1034,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    25
+    24
    ],
    "bundled": true,
    "passes": 1,
@@ -1140,7 +1046,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [
     {
      "name": "ASPECT_ADJUST",
@@ -1230,7 +1136,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    26
+    25
    ],
    "bundled": true,
    "passes": 1,
@@ -1242,7 +1148,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -1255,7 +1161,7 @@
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
-    27
+    26
    ],
    "bundled": true,
    "passes": 1,
@@ -1267,7 +1173,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
@@ -1277,6 +1183,31 @@
    "id": "sys/nightvision2",
    "name": "nightvision2",
    "category": "color",
+   "family": "Sys/Shaders",
+   "format": "dolphin-glsl",
+   "files": [
+    27
+   ],
+   "bundled": true,
+   "passes": 1,
+   "parameters": 0,
+   "cost": {
+    "samples": 9,
+    "loop": false,
+    "tier": "balanced"
+   },
+   "mentions": [],
+   "license": "GPL-2.0-or-later",
+   "validation": "rendered",
+   "options": [],
+   "notes": [
+    "repository-license"
+   ]
+  },
+  {
+   "id": "sys/nightvision2scanlines",
+   "name": "nightvision2scanlines",
+   "category": "scanlines",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1292,16 +1223,16 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/nightvision2scanlines",
-   "name": "nightvision2scanlines",
-   "category": "scanlines",
+   "id": "sys/posterize",
+   "name": "posterize",
+   "category": "retro",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1311,22 +1242,22 @@
    "passes": 1,
    "parameters": 0,
    "cost": {
-    "samples": 9,
+    "samples": 1,
     "loop": false,
-    "tier": "balanced"
+    "tier": "performance"
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/PerceptualHDR",
-   "name": "PerceptualHDR",
-   "category": "color",
+   "id": "sys/posterize2",
+   "name": "posterize2",
+   "category": "retro",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1334,7 +1265,7 @@
    ],
    "bundled": true,
    "passes": 1,
-   "parameters": 1,
+   "parameters": 0,
    "cost": {
     "samples": 1,
     "loop": false,
@@ -1342,37 +1273,16 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [
-    {
-     "name": "AMPLIFICATION",
-     "gui": "Amplificiation",
-     "type": "float",
-     "dependent": "",
-     "offset": 140,
-     "values": [
-      2.5
-     ],
-     "minimum": [
-      1
-     ],
-     "maximum": [
-      6
-     ],
-     "step": [
-      0.25
-     ]
-    }
-   ],
+   "validation": "rendered",
+   "options": [],
    "notes": [
-    "hdr-output",
     "repository-license"
    ]
   },
   {
-   "id": "sys/posterize",
-   "name": "posterize",
-   "category": "retro",
+   "id": "sys/primarycolors",
+   "name": "primarycolors",
+   "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1388,16 +1298,16 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/posterize2",
-   "name": "posterize2",
-   "category": "retro",
+   "id": "sys/sepia",
+   "name": "sepia",
+   "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1413,16 +1323,16 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/primarycolors",
-   "name": "primarycolors",
-   "category": "color",
+   "id": "sys/sketchy",
+   "name": "sketchy",
+   "category": "other",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1432,21 +1342,21 @@
    "passes": 1,
    "parameters": 0,
    "cost": {
-    "samples": 1,
+    "samples": 5,
     "loop": false,
     "tier": "performance"
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/sepia",
-   "name": "sepia",
+   "id": "sys/spookey1",
+   "name": "spookey1",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1463,16 +1373,16 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/sketchy",
-   "name": "sketchy",
-   "category": "other",
+   "id": "sys/spookey2",
+   "name": "spookey2",
+   "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
    "files": [
@@ -1482,21 +1392,21 @@
    "passes": 1,
    "parameters": 0,
    "cost": {
-    "samples": 5,
+    "samples": 1,
     "loop": false,
     "tier": "performance"
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/spookey1",
-   "name": "spookey1",
+   "id": "sys/sunset",
+   "name": "sunset",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1513,15 +1423,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/spookey2",
-   "name": "spookey2",
+   "id": "sys/swap_RGB_BGR",
+   "name": "swap_RGB_BGR",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1538,15 +1448,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/sunset",
-   "name": "sunset",
+   "id": "sys/swap_RGB_BRG",
+   "name": "swap_RGB_BRG",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1563,15 +1473,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/swap_RGB_BGR",
-   "name": "swap_RGB_BGR",
+   "id": "sys/swap_RGB_GBR",
+   "name": "swap_RGB_GBR",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1588,15 +1498,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/swap_RGB_BRG",
-   "name": "swap_RGB_BRG",
+   "id": "sys/swap_RGB_GRB",
+   "name": "swap_RGB_GRB",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1613,15 +1523,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/swap_RGB_GBR",
-   "name": "swap_RGB_GBR",
+   "id": "sys/swap_RGB_RBG",
+   "name": "swap_RGB_RBG",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1638,15 +1548,15 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"
    ]
   },
   {
-   "id": "sys/swap_RGB_GRB",
-   "name": "swap_RGB_GRB",
+   "id": "sys/toxic",
+   "name": "toxic",
    "category": "color",
    "family": "Sys/Shaders",
    "format": "dolphin-glsl",
@@ -1663,57 +1573,7 @@
    },
    "mentions": [],
    "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [],
-   "notes": [
-    "repository-license"
-   ]
-  },
-  {
-   "id": "sys/swap_RGB_RBG",
-   "name": "swap_RGB_RBG",
-   "category": "color",
-   "family": "Sys/Shaders",
-   "format": "dolphin-glsl",
-   "files": [
-    43
-   ],
-   "bundled": true,
-   "passes": 1,
-   "parameters": 0,
-   "cost": {
-    "samples": 1,
-    "loop": false,
-    "tier": "performance"
-   },
-   "mentions": [],
-   "license": "GPL-2.0-or-later",
-   "validation": "translated",
-   "options": [],
-   "notes": [
-    "repository-license"
-   ]
-  },
-  {
-   "id": "sys/toxic",
-   "name": "toxic",
-   "category": "color",
-   "family": "Sys/Shaders",
-   "format": "dolphin-glsl",
-   "files": [
-    44
-   ],
-   "bundled": true,
-   "passes": 1,
-   "parameters": 0,
-   "cost": {
-    "samples": 1,
-    "loop": false,
-    "tier": "performance"
-   },
-   "mentions": [],
-   "license": "GPL-2.0-or-later",
-   "validation": "translated",
+   "validation": "rendered",
    "options": [],
    "notes": [
     "repository-license"

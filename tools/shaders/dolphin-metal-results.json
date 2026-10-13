@@ -1,0 +1,247 @@
+{
+ "schema": 1,
+ "dolphinRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+ "environment": "macOS 15 (GitHub macos-15 runner, Apple Paravirtual device) Metal draw through Dolphin's post-processing interface + iPhone Metal compiler, GitHub run 38334940237",
+ "run": {
+  "id": 38334940237,
+  "job": 115092786948,
+  "commit": "71b8815e4a3808db9cd258165bd29a01822e9e80",
+  "workflow": ".github/workflows/shader-kit-checks.yml",
+  "transcribed": "one verdict per line of the job log; \"analysis\" is a reading of the sources, not a line of the log"
+ },
+ "files": {
+  "16bit.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9896,
+   "gpuMilliseconds": 0.443
+  },
+  "32bit.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9911,
+   "gpuMilliseconds": 0.455
+  },
+  "AutoHDR.glsl": {
+   "status": "failed",
+   "code": "NO_VISIBLE_EFFECT",
+   "stage": "visible",
+   "detail": "",
+   "changedFraction": 0.0,
+   "gpuMilliseconds": 0.414,
+   "analysis": "HDR only: the shader outputs Sample() unchanged unless OptionEnabled(hdr_output) && OptionEnabled(linear_space_output); DolphiniOS sets bSupportsHDROutput = false under IPHONEOS (Source/Core/VideoBackends/Metal/MTLUtil.mm @ 7cac5416), so it has no effect on iPhone either"
+  },
+  "FXAA.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.1234,
+   "gpuMilliseconds": 0.599
+  },
+  "PerceptualHDR.glsl": {
+   "status": "failed",
+   "code": "NO_VISIBLE_EFFECT",
+   "stage": "visible",
+   "detail": "",
+   "changedFraction": 0.0,
+   "gpuMilliseconds": 0.64,
+   "analysis": "HDR only: the shader outputs Sample() unchanged unless OptionEnabled(hdr_output) && OptionEnabled(linear_space_output); DolphiniOS sets bSupportsHDROutput = false under IPHONEOS (Source/Core/VideoBackends/Metal/MTLUtil.mm @ 7cac5416), so it has no effect on iPhone either"
+  },
+  "acidmetal.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.371
+  },
+  "acidtrip.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9998,
+   "gpuMilliseconds": 0.379
+  },
+  "acidtrip2.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9998,
+   "gpuMilliseconds": 0.522
+  },
+  "asciiart.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.027,
+   "gpuMilliseconds": 0.406
+  },
+  "auto_toon.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.1813,
+   "gpuMilliseconds": 0.491
+  },
+  "auto_toon2.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 1.501
+  },
+  "bad_bloom.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9957,
+   "gpuMilliseconds": 0.849
+  },
+  "brighten.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.385
+  },
+  "chrismas.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.411
+  },
+  "cool1.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.414
+  },
+  "darkerbrighter.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9998,
+   "gpuMilliseconds": 0.498
+  },
+  "emboss.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9962,
+   "gpuMilliseconds": 0.436
+  },
+  "fire.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.477
+  },
+  "fire2.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.391
+  },
+  "firewater.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.423
+  },
+  "grayscale.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7816,
+   "gpuMilliseconds": 0.406
+  },
+  "grayscale2.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7819,
+   "gpuMilliseconds": 0.433
+  },
+  "integer_scaling.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9818,
+   "gpuMilliseconds": 0.947
+  },
+  "invert.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.996,
+   "gpuMilliseconds": 0.401
+  },
+  "invert_blue.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.41
+  },
+  "invertedoutline.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.417
+  },
+  "lens_distortion.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7956,
+   "gpuMilliseconds": 0.382
+  },
+  "mad_world.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.494
+  },
+  "nightvision.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.395
+  },
+  "nightvision2.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.582
+  },
+  "nightvision2scanlines.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.604
+  },
+  "posterize.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.5954,
+   "gpuMilliseconds": 0.555
+  },
+  "posterize2.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7495,
+   "gpuMilliseconds": 0.473
+  },
+  "primarycolors.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7513,
+   "gpuMilliseconds": 0.699
+  },
+  "sepia.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.4
+  },
+  "sketchy.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.9996,
+   "gpuMilliseconds": 0.499
+  },
+  "spookey1.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.458
+  },
+  "spookey2.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.413
+  },
+  "sunset.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.433
+  },
+  "swap_RGB_BGR.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7782,
+   "gpuMilliseconds": 0.678
+  },
+  "swap_RGB_BRG.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7823,
+   "gpuMilliseconds": 0.671
+  },
+  "swap_RGB_GBR.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7823,
+   "gpuMilliseconds": 0.527
+  },
+  "swap_RGB_GRB.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7483,
+   "gpuMilliseconds": 0.562
+  },
+  "swap_RGB_RBG.glsl": {
+   "status": "rendered",
+   "changedFraction": 0.7458,
+   "gpuMilliseconds": 0.506
+  },
+  "toxic.glsl": {
+   "status": "rendered",
+   "changedFraction": 1.0,
+   "gpuMilliseconds": 0.645
+  }
+ }
+}

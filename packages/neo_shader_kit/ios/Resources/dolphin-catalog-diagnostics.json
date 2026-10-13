@@ -34,9 +34,19 @@
    "Anaglyph"
   ],
   [
+   "AutoHDR.glsl",
+   "NO_VISIBLE_EFFECT",
+   "HDR only: the shader outputs Sample() unchanged unless OptionEnabled(hdr_output) && OptionEnabled(linear_space_output); DolphiniOS sets bSupportsHDROutput = false under IPHONEOS (Source/Core/VideoBackends/Metal/MTLUtil.mm @ 7cac5416), so it has no effect on iPhone either"
+  ],
+  [
    "Passive/horizontal.glsl",
    "STEREOSCOPIC_ONLY",
    "Passive"
+  ],
+  [
+   "PerceptualHDR.glsl",
+   "NO_VISIBLE_EFFECT",
+   "HDR only: the shader outputs Sample() unchanged unless OptionEnabled(hdr_output) && OptionEnabled(linear_space_output); DolphiniOS sets bSupportsHDROutput = false under IPHONEOS (Source/Core/VideoBackends/Metal/MTLUtil.mm @ 7cac5416), so it has no effect on iPhone either"
   ],
   [
    "default_pre_post_process.glsl",

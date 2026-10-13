@@ -100,7 +100,7 @@ static void TestChoices(NSString* root) {
   CHECK([selection[@"global"] isEqualToString:@""] && [selection[@"games"] count] == 0, "damaged file: defaults");
   Write([user stringByAppendingPathComponent:DOLShaderSelectionPath],
         @"{\"schema\":1,\"global\":\"../evil\",\"games\":{\"GALE01\":\"sepia\",\"bad\":\"FXAA\"},"
-        @"\"options\":{\"sepia\":{\"X\":{\"type\":\"float\",\"values\":[1e999]},\"Y\":{\"type\":\"float\",\"values\":[0.5]}}},"
+        @"\"options\":{\"sepia\":{\"X\":{\"type\":\"float\",\"values\":[\"x\"]},\"Z\":{\"type\":\"vector\",\"values\":[1]},\"Y\":{\"type\":\"float\",\"values\":[0.5]}}},"
         @"\"checked\":{\"sepia\":\"nothex\"}}");
   selection = DOLShaderReadSelection(user);
   NSDictionary* expectedOptions = @{@"sepia" : @{@"Y" : @{@"type" : @"float", @"values" : @[ @0.5 ]}}};

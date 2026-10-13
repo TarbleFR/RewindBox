@@ -117,7 +117,10 @@ def main():
                 excluded.append([relative, 'METAL_OTHER_FILE', 'validated file differs'])
                 continue
             if verdict.get('status') != 'rendered':
-                excluded.append([relative, verdict.get('code', 'METAL_FAILED'), verdict.get('detail', '')[:300]])
+                # The log's detail, else the reading of the sources recorded
+                # next to the verdict (an HDR-only shader is a pass-through here).
+                reason = verdict.get('detail') or verdict.get('analysis', '')
+                excluded.append([relative, verdict.get('code', 'METAL_FAILED'), reason[:300]])
                 continue
             validation = 'rendered'
         code = path.read_text(encoding='utf-8', errors='replace')

@@ -9,6 +9,7 @@
 //
 //   neoshader-kit-tests FIXTURES_DIRECTORY [RESOURCES_DIRECTORY]
 #import <CommonCrypto/CommonDigest.h>
+#include <math.h>
 #import <Foundation/Foundation.h>
 
 #import "NeoDolphinShader.h"
@@ -472,9 +473,10 @@ static void TestDolphinShader(NSString *resources) {
   CHECK(options.count == 2 && [options[0].name isEqualToString:@"A_GLOW"] && [options[1].name isEqualToString:@"M_CURVATURE"],
         "Dolphin options in Dolphin's order (sorted by name)");
   NeoDolphinShaderOption *curvature = options.count == 2 ? options[1] : nil;
+  // Dolphin reads option numbers as float: 0.05 is 0.0500000007.
   CHECK(curvature.type == NeoDolphinOptionTypeFloat && [curvature.guiName isEqualToString:@"Curvature"] &&
             [curvature.defaultValues isEqualToArray:@[ @0.5 ]] && [curvature.maximums isEqualToArray:@[ @1 ]] &&
-            [curvature.steps isEqualToArray:@[ @0.05 ]],
+            curvature.steps.count == 1 && fabs(curvature.steps.firstObject.doubleValue - 0.05) < 1e-6,
         "float option parsed");
   CHECK(options.count == 2 && options[0].type == NeoDolphinOptionTypeBool && options[0].defaultValues.firstObject.boolValue,
         "bool option parsed");
@@ -499,21 +501,28 @@ static void TestDolphinShader(NSString *resources) {
   NeoShaderCatalogManager *manager = NeoShaderCatalogManager.sharedManager;
   [manager setCatalogDirectory:resources];
   NeoShaderCatalog *catalog = [manager catalogForEngine:@"dolphin"];
-  NSUInteger unbundled = 0, wrongFormat = 0;
+  NSUInteger unbundled = 0, wrongFormat = 0, unrendered = 0;
   for (NeoShaderCatalogEntry *entry in catalog.entries) {
     if (!entry.bundled || entry.downloadBytes != 0 || entry.files.count != 1) unbundled++;
     if (![entry.format isEqualToString:NeoShaderFormatDolphinGLSL] || ![entry.identifier hasPrefix:@"sys/"]) wrongFormat++;
+    if (![entry.validation isEqualToString:@"rendered"]) unrendered++;
   }
   CHECK(catalog != nil && catalog.entries.count >= 40 && unbundled == 0 && wrongFormat == 0,
         "Dolphin catalog: official shaders shipped with the core, nothing to download (%lu entries)",
         (unsigned long)catalog.entries.count);
+  CHECK(unrendered == 0, "Dolphin catalog: every entry offered was drawn visibly by the CI (%lu not)",
+        (unsigned long)unrendered);
   CHECK([catalog entryWithIdentifier:@"sys/FXAA"] != nil && [catalog entryWithIdentifier:@"sys/default_pre_post_process"] == nil,
         "Dolphin catalog: Dolphin's default pass is not offered");
-  BOOL stereo = NO;
+  BOOL stereo = NO, hdr = NO;
   for (NSDictionary<NSString *, NSString *> *item in [manager diagnosticsForEngine:@"dolphin"]) {
     stereo = stereo || ([item[@"identifier"] hasPrefix:@"Anaglyph/"] && [item[@"code"] isEqualToString:@"STEREOSCOPIC_ONLY"]);
+    hdr = hdr || ([item[@"identifier"] isEqualToString:@"AutoHDR.glsl"] && [item[@"code"] isEqualToString:@"NO_VISIBLE_EFFECT"]);
   }
   CHECK(stereo, "Dolphin catalog: stereoscopic shaders left out with their reason");
+  // DolphiniOS has no HDR output on iPhone: an HDR-only shader would change nothing.
+  CHECK(hdr && [catalog entryWithIdentifier:@"sys/AutoHDR"] == nil,
+        "Dolphin catalog: HDR-only shaders left out with their reason");
   [manager setCatalogDirectory:nil];
 }
 
