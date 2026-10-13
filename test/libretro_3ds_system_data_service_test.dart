@@ -927,6 +927,77 @@ void main() {
       },
     );
 
+    // Build 449: a folder picked in iCloud Drive lists the files iOS has not
+    // downloaded as hidden placeholders `.<name>.icloud`. They were listed
+    // as "not recognized", so a whole NAND folder ended in "nothing
+    // recognized" without saying why.
+    test(
+      'iCloud Drive placeholders of system files are said, never read',
+      () async {
+        final folder = await writeFolder('Nand', {
+          'nand/data/$_sourceId0/sysdata/00010017/00000000/.config.icloud':
+              utf8.encode('bplist00 placeholder'),
+          'nand/$_sourceId0/title/0004009b/00014002/content/.00000000.app.icloud':
+              utf8.encode('bplist00 placeholder'),
+          'sysdata/.aes_keys.txt.icloud': utf8.encode('bplist00 placeholder'),
+          // A placeholder of something the import never reads stays unlisted.
+          '.README.txt.icloud': utf8.encode('bplist00 placeholder'),
+          // A downloaded file next to them is analyzed as usual.
+          'sysdata/seeddb.bin': _seeddb(2),
+        });
+        final plan = await service().analyze([folder]);
+
+        expect(
+          itemFor(plan, 'sysdata/seeddb.bin').kind,
+          Libretro3dsItemKind.seeddb,
+        );
+        final waiting = {
+          for (final item in plan.rejected)
+            if (item.rejection == Libretro3dsRejection.notDownloaded)
+              item.sourceEntry: item.technicalDetail,
+        };
+        expect(waiting, {
+          'nand/data/$_sourceId0/sysdata/00010017/00000000/config':
+              'nand/data/$_sourceId0/sysdata/00010017/00000000/.config.icloud',
+          'nand/$_sourceId0/title/0004009b/00014002/content/00000000.app':
+              'nand/$_sourceId0/title/0004009b/00014002/content/.00000000.app.icloud',
+          'sysdata/aes_keys.txt': 'sysdata/.aes_keys.txt.icloud',
+        });
+        expect(
+          plan.rejected.every(
+            (i) => i.rejection == Libretro3dsRejection.notDownloaded,
+          ),
+          isTrue,
+        );
+        expect(
+          plan.items.where((i) => i.sourceEntry.toLowerCase().contains('readme')),
+          isEmpty,
+          reason: 'a placeholder of an unread file is not listed',
+        );
+        expect(
+          plan.ignored.where((i) => i.sourceEntry.endsWith('.icloud')),
+          isEmpty,
+          reason: 'placeholders are never "not recognized" any more',
+        );
+        // Nothing of a placeholder reaches the user directory.
+        final report = await service().install(plan);
+        expect(
+          report.results
+              .where((r) => r.status == Libretro3dsInstallStatus.installed)
+              .map((r) => r.item.relativeTarget),
+          ['sysdata/seeddb.bin'],
+        );
+        expect(
+          report.results
+              .where((r) => r.item.rejection == Libretro3dsRejection.notDownloaded)
+              .map((r) => r.status)
+              .toSet(),
+          {Libretro3dsInstallStatus.rejected},
+        );
+        expect(await userTree(), isNot(contains('sysdata/keys.txt')));
+      },
+    );
+
     test('a folder with too many entries is refused whole', () async {
       final folder = await writeFolder('big', {
         for (var i = 0; i < 12; i++) 'sysdata/file$i.bin': _bytes(i, 8),

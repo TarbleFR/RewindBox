@@ -604,3 +604,30 @@ après ses polices de remplacement). Aucune validation sur iPhone : tests Dart s
 synthétiques au format réel (`test/libretro_3ds_system_data_service_test.dart`, groupe
 « GodMode9 essential backup… », `test/libretro_3ds_encrypted_launch_test.dart`,
 `test/libretro_3ds_system_screen_test.dart`).
+
+## 8. Build 449 — dossier encore dans iCloud Drive (12-13 octobre 2026)
+
+Constat du mainteneur : « je ne peux toujours pas importer un dossier Nand-zip pour la 3DS ».
+Défaut confirmé dans les sources, indépendamment du contenu exact de ses fichiers : un dossier
+choisi dans iCloud Drive (emplacement par défaut des téléchargements de l'iPhone) contient, pour
+chaque fichier qu'iOS n'a pas téléchargé, un marqueur caché `.<nom>.icloud` dont le contenu n'est
+pas celui du fichier. `dart:io` ne voit que ces marqueurs : l'analyse les rangeait en « non
+reconnu » et concluait « rien de reconnu », sans dire pourquoi (sonde du 12 octobre : quatre
+marqueurs `config`, `.app`, `.tmd`, `seeddb.bin` → quatre « non reconnu »).
+
+Correctif (`lib/services/libretro_3ds_system_data_service.dart`) : le parcours de dossier met de
+côté ces marqueurs ; celui d'un fichier que l'import lirait (même reconnaissance par chemin
+que les autres fichiers) devient un refus `Libretro3dsRejection.notDownloaded`, nommé par le
+chemin du fichier qu'il remplace, le nom du marqueur en détail technique ; celui de tout autre
+fichier n'est pas listé. Rien n'est jamais lu ni copié depuis un marqueur. Texte
+`system3dsRejectedNotDownloaded` (douze langues) : le dossier est encore dans iCloud Drive ; dans
+Fichiers, maintenir le doigt sur le dossier › « Télécharger maintenant », puis recommencer.
+Test : `test/libretro_3ds_system_data_service_test.dart`, « iCloud Drive placeholders of system
+files are said, never read ».
+
+Non traité ici, faute d'élément sur les fichiers du mainteneur (constats de la sonde, à confirmer
+sur ses fichiers) : un ZIP de plus de 2 000 entrées hors dossiers élagués est refusé en bloc
+(`tooManyEntries`), même quand la plupart de ces entrées seraient ignorées (un dump CTRNAND
+complet peut s'en approcher) ; une image NAND brute (`nand.bin`, `*_sysnand_*.bin`) reste
+refusée (§ 7) ; les titres système d'une console réelle sont des NCCH chiffrés, refusés par le
+cœur (§ 7). Aucune validation sur iPhone.

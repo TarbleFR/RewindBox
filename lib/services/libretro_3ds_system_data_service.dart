@@ -109,6 +109,12 @@ enum Libretro3dsRejection {
   /// refuses every encrypted NCCH whatever keys are installed
   /// ([Libretro3dsNcch]), so the title is not installed.
   encryptedContent,
+
+  /// A system file of a picked folder that is still in iCloud Drive: iOS
+  /// lists it as its placeholder `.<name>.icloud`, whose content is not the
+  /// file's (Build 449). Downloading the folder in Files first makes it
+  /// readable.
+  notDownloaded,
 }
 
 /// Why an element is listed but never copied.
@@ -1272,6 +1278,9 @@ class Libretro3dsSystemDataService {
     final found = <_PlainSourceFile>[];
     final links = <String>[];
     final tooDeep = <String>[];
+    // iCloud Drive placeholders: (path of the file they stand for, their own
+    // relative path).
+    final notDownloaded = <(String, String)>[];
     var entries = 0;
 
     Future<bool> visit(Directory directory, int depth) async {
@@ -1297,6 +1306,11 @@ class Libretro3dsSystemDataService {
           continue;
         }
         if (entity is! File) continue;
+        final placeholderOf = _iCloudPlaceholderTarget(relative);
+        if (placeholderOf != null) {
+          notDownloaded.add((placeholderOf, relative));
+          continue;
+        }
         if (_isNoise(relative)) continue;
         final stat = await entity.stat();
         found.add(
@@ -1360,6 +1374,30 @@ class Libretro3dsSystemDataService {
           ignoreReason: Libretro3dsIgnoreReason.tooDeep,
           size: 0,
           technicalDetail: 'deeper than ${limits.maxFolderDepth} folder levels',
+        ),
+      );
+    }
+    // A placeholder of a file the import would read is said, with what to
+    // do; one of anything else stays unlisted, like the noise it stands for.
+    for (final (logical, placeholder) in notDownloaded) {
+      final recognition = _recognize(
+        '$name/$logical',
+        sourceKind: Libretro3dsSourceKind.folder,
+      );
+      if (recognition.kind == Libretro3dsItemKind.ignored ||
+          recognition.kind == Libretro3dsItemKind.rejected ||
+          _isNoise(logical)) {
+        continue;
+      }
+      context.add(
+        Libretro3dsImportItem._(
+          sourceName: name,
+          sourceEntry: logical,
+          sourceKind: Libretro3dsSourceKind.folder,
+          kind: Libretro3dsItemKind.rejected,
+          rejection: Libretro3dsRejection.notDownloaded,
+          size: 0,
+          technicalDetail: placeholder,
         ),
       );
     }
@@ -1950,6 +1988,22 @@ class Libretro3dsSystemDataService {
   };
 
   /// Entries never listed: `__MACOSX`, Finder/Explorer metadata.
+  /// The relative path of the file an iCloud Drive placeholder stands for
+  /// (`dir/.config.icloud` → `dir/config`), or null for any other name.
+  /// iOS keeps a file that is not downloaded as that hidden placeholder.
+  static String? _iCloudPlaceholderTarget(String relativePath) {
+    final segments = relativePath.split('/');
+    final name = segments.last;
+    if (name.length <= '..icloud'.length ||
+        !name.startsWith('.') ||
+        !name.toLowerCase().endsWith('.icloud')) {
+      return null;
+    }
+    final original = name.substring(1, name.length - '.icloud'.length);
+    if (original.isEmpty || original.startsWith('.')) return null;
+    return [...segments.take(segments.length - 1), original].join('/');
+  }
+
   static bool _isNoise(String relativePath) {
     final segments = relativePath.split('/').where((s) => s.isNotEmpty);
     if (segments.isEmpty) return true;

@@ -670,6 +670,7 @@ class _Libretro3dsSystemScreenState extends State<Libretro3dsSystemScreen>
         Libretro3dsRejection.unsupportedCompression => _t('system3dsRejectedCompression'),
         Libretro3dsRejection.keysFormat => _t('system3dsRejectedKeysFormat'),
         Libretro3dsRejection.encryptedContent => _t('system3dsRejectedEncrypted'),
+        Libretro3dsRejection.notDownloaded => _t('system3dsRejectedNotDownloaded'),
         Libretro3dsRejection.invalid || null => _t('system3dsRejectedInvalid'),
       };
 
