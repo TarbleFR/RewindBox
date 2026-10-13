@@ -51,8 +51,35 @@ Résultats consignés ci-dessous au fil des runs ; aucune validation sur iPhone 
 
 ### CI
 
-À compléter : `libretro-checks` (compilation iPhone de tout le pont, test hôte macOS, contrat des binaires épinglés
-avec `--cores`), sonde simulateur (PPSSPP réel), livraison.
+**`libretro-checks`, run `38385450260`, source `53cf9fb6`** — réussi (jobs `native` macOS 15 / Xcode 26.3 et `dart`).
+
+- Test hôte macOS (`test/libretro_host_test.py`) : « All libretro host checks passed », dont les 43 vérifications de
+  la session 7 :
+  - les cas de valeurs partagés lus comme en Dart, valeur par valeur et liste par liste ;
+  - le profil reconnaît l'option du cœur de test dès sa déclaration, avant `retro_init` ; quatre facteurs, natif en
+    premier ;
+  - natif appliqué par défaut (défaut du cœur ×2) sans être une mise à jour : le cœur, qui lit l'option dans
+    `retro_init`, dessine 320 × 240 dès sa première image ;
+  - ×3 pour tous les jeux du cœur : signalé au cœur, images 960 × 720 dès la reprise, nouvelle taille annoncée par
+    `SET_SYSTEM_AV_INFO`, valeur écrite tout de suite dans le fichier du cœur ;
+  - ×2 pour ce jeu seul : 640 × 480 aussitôt, valeur dans `Config/Games/NeoTest.json`, autres jeux et clés inconnues
+    conservés, valeur du cœur intacte, valeur non proposée refusée ;
+  - relancement du même jeu : ×2 conservé (jamais remplacé par le natif) ; valeur du jeu retirée : retour en direct au
+    ×3 du cœur ; un autre jeu garde son ×4, un troisième suit le ×3 du cœur ;
+  - option reconnue par son seul nom : « au prochain lancement », aucune mise à jour pour le cœur en cours, qui garde
+    ×3 ; le relancement démarre en natif ;
+  - cœur sans option de résolution, profil dont la condition échoue puis réussit, option masquée, option nommée sans
+    natif : rien n'est proposé à tort.
+- Modules frontend, préréglages de shaders Metal, compilation et édition de liens de toutes les sources du pont pour
+  iPhone (`libretro_ios_syntax_test.py`), test du codec du canal dans le Simulateur iOS (sources de cette build et
+  de la 453) : réussis.
+- Dart : `flutter analyze`, la liste de tests libretro (dont `libretro_resolution_test.dart` et
+  `libretro_resolution_screen_test.dart`), puis les contrats. Ligne du contrat des binaires épinglés
+  (`--cores`, paquet `LibretroCores-8b9e87ba…`) : « internal resolution checked for azahar, desmume, mednafen_psx,
+  mednafen_psx_hw, mupen64plus_next, ppsspp » — clé, chaque valeur, défaut et nom de bibliothèque présents dans chaque
+  binaire.
+
+À compléter : sonde simulateur (PPSSPP réel), livraison.
 
 ## Limites
 
