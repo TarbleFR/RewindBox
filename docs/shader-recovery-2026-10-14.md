@@ -109,10 +109,19 @@ Initial source commit: `06d26509d4fc5c34576eaf9ed0289ef7df2a4592`.
 The shader session job of run `38582072782` passed all six scenarios with
 actual drawable readback, menu/catalog navigation, refusal cases and
 relaunch. The global simulator probe also passed on that source.
-The shader kit's Metal presenter, storage, portable core, iPhone pod build
-and Dolphin staging regression passed in run `38582072935`. The added UIKit
-step failed; its cause and final result are still being checked. The complete
-catalog Metal checks are still running.
+The shader kit's Metal presenter (83 checks), storage (77), portable core
+(141), chain rendering (95), iPhone pod build (59 objects) and Dolphin
+staging regression (90 checks) passed in run `38582072935`. The old Dolphin
+source reproduced two partial-write failures as expected. All **982 catalog
+presets rendered**, and the separate Dolphin-interface harness rendered
+**43 catalog effects and six authentic Mattias variants**; the two HDR-only
+effects were excluded as before. This harness is not the Dolphin engine.
+The UIKit step failed before execution because `xcodegen` was missing on
+the runner, as shown by `FileNotFoundError`; its installation is now guarded.
+Only that UIKit check will be rerun in the shader workflow using its explicit
+`ui_only` input. The runtime, compiler, catalog, fixtures and shader sources
+are byte-identical to the passing shader inputs of `06d2650` (verified by
+Git comparison), so those outcomes are reused rather than rerun.
 
 In run `38582072722`, analysis passed and 560 Dart tests passed; one stale
 ARMSX2 source assertion still required an inline `Localizations` read that
@@ -122,8 +131,23 @@ bridge, keeping all twelve-language checks. No ARMSX2 product/core change
 is made. Native checks passed through the iPhone compilation stage; the
 remaining codec checks are still running.
 
-The follow-up session lifecycle changes and their new supersession/late
-activation scenarios require a new simulator/native run. Final results
+The follow-up session source is `1b3d4666b30bb74fe571cc4246fe3217892043f1`.
+Run `38583666639` passed analysis, all **561 launch/library Dart tests** and
+**245 storage tests**. The source gate then found a second stale assertion:
+the directory settings file was expected byte-for-byte at `a5650b9b`, despite
+the already accepted `builtContext.mounted` guard in the starting source.
+Its replacement requires both that exact one-line difference and full-file
+identity with `29b24945`; arbitrary changes are still refused. No product
+directory settings or library data is changed.
+
+The existing Build 455 IPA on the maintainer's PC was read-only inspected:
+both catalogs are in the shader framework, and all 43 catalog Dolphin GLSL
+files are present under `Sys/Shaders`, with the expected sizes and SHA-256s.
+This proves packaging for that file, not which binary is installed or that
+a selected effect reaches a running Dolphin game.
+
+The session lifecycle changes and supersession/late activation scenarios
+require a new simulator/native run. Final results
 will be appended when these checks finish; the results above belong to
 the initial source and are not represented as tests of later session code.
 No physical iOS device test has been performed. Dolphin's integrated engine

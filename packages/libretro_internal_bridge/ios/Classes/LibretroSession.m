@@ -1679,13 +1679,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     LibretroSession *session = weakSelf;
     BOOL success = NO;
     BOOL current = NO;
-    @synchronized(session) { current = session != nil && session->_shaderRequest == request; }
-    if (current) {
-      [session->_presenter rollbackLastSlangActivation];
-      success = [session activateShaderPreset:identifier parameters:values];
-      if (success) [session->_shaderRecovery deactivatePreset];
-      [session redrawLastFrameIfPaused];
+    @synchronized(session) {
+      current = session != nil && session->_shaderRequest == request;
+      if (current) {
+        [session->_presenter rollbackLastSlangActivation];
+        success = [session activateShaderPreset:identifier parameters:values];
+        if (success) [session->_shaderRecovery deactivatePreset];
+      }
     }
+    if (current) [session redrawLastFrameIfPaused];
     dispatch_async(dispatch_get_main_queue(), ^{
       LibretroSession *owner = weakSelf;
       BOOL latest = NO;

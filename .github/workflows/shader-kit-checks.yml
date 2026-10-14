@@ -24,6 +24,11 @@ name: Shader kit checks
     - test/libretro_host/stubs/**
     - tools/shaders/**
   workflow_dispatch:
+    inputs:
+      ui_only:
+        description: Run only the Dolphin UIKit check (other shader inputs must already be verified)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -31,6 +36,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
+    if: ${{ !inputs.ui_only }}
     # Preset and source rules, reflection and MSL bindings of the portable
     # core (vendored glslang and SPIRV-Cross), on Linux.
     runs-on: ubuntu-24.04
@@ -56,20 +62,23 @@ jobs:
       with:
         xcode-version: '26.3'
     - name: Metal runtime render tests (pixels read back from the GPU)
+      if: ${{ !inputs.ui_only }}
       run: python3 test/neo_shader_kit_test.py --require-metal --build-directory build/neo-shader-kit
     - name: The pod compiles and links for iPhone (podspec sources and settings)
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && !inputs.ui_only }}
       run: python3 test/neo_shader_kit_ios_build.py
     - name: Dolphin post-processing choice on real files, and its page compiled for iPhone
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && !inputs.ui_only }}
       run: |
         git fetch --depth 1 origin 29b24945b2e7041f08e02d7d70e8c90ffe8a1c24
         python3 test/dolphin_shader_store_test.py --reproduce-before 29b24945b2e7041f08e02d7d70e8c90ffe8a1c24
     - name: GameCube and Wii shader menu access in twelve languages (UIKit test, no Dolphin engine)
       if: ${{ !cancelled() }}
-      run: python3 test/dolphin_pacing362_ui_test.py
+      run: |
+        command -v xcodegen >/dev/null || brew install xcodegen
+        python3 test/dolphin_pacing362_ui_test.py
     - name: Fetch libretro/slang-shaders at the commit the catalog pins
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && !inputs.ui_only }}
       run: |
         commit=$(python3 -c "import json; print(json.load(open('packages/neo_shader_kit/ios/Resources/slang-catalog.json'))['source']['commit'])")
         git init -q "$RUNNER_TEMP/slang-shaders"
@@ -77,12 +86,12 @@ jobs:
         git -C "$RUNNER_TEMP/slang-shaders" checkout -q FETCH_HEAD
         test "$(git -C "$RUNNER_TEMP/slang-shaders" rev-parse HEAD)" = "$commit"
     - name: Every catalog entry compiles for iPhone and renders visibly with Metal
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && !inputs.ui_only }}
       run: >-
         python3 test/neo_shader_kit_catalog_test.py --slang-shaders "$RUNNER_TEMP/slang-shaders"
         --build-directory build/neo-shader-kit --verdicts build/slang-metal-verdicts.json
     - name: Fetch the Dolphin shaders the application ships, and a Mattias CRT port to check (never packaged)
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && !inputs.ui_only }}
       run: |
         # Data/Sys/Shaders of the DolphiniOS revision the delivery pins
         # (DOLPHIN_SHA), only those blobs.
@@ -100,7 +109,7 @@ jobs:
         git -C "$RUNNER_TEMP/mattias" checkout -q FETCH_HEAD
         test "$(git -C "$RUNNER_TEMP/mattias" rev-parse HEAD)" = "$mattias"
     - name: Dolphin shaders compile for iPhone and draw visibly through Dolphin's post-processing interface
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && !inputs.ui_only }}
       run: >-
         python3 test/neo_shader_kit_dolphin_test.py --dolphin-ios "$RUNNER_TEMP/dolphin-ios"
         --extra "mattias=$RUNNER_TEMP/mattias" --build-directory build/neo-shader-kit

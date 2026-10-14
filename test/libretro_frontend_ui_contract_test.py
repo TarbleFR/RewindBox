@@ -11,7 +11,9 @@ unified skin catalogs) and of their two entry points.
   a "+", drawn after Systems and before Search on iOS) shows the consoles
   page, and the playlist actions keep their Skins item. The former entry,
   Settings › Folders › Embedded consoles, is gone: the directories page is
-  byte-for-byte the reviewed a5650b9b version again (this replaces the
+  byte-for-byte the reviewed a5650b9b version, with only the mounted-context
+  guard already present in the reviewed 29b24945 branch before this shader
+  work (e4f6c735, 13 October 2026). This replaces the
   Build 427 contract that checked the item inside `embedded_consoles`
   markers; the tab's behaviour is proven by test/nav_tabs_test.dart,
   test/main_menu_tab_strip_test.dart, test/libretro_main_menu_test.dart and
@@ -27,7 +29,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCREENS = sorted((ROOT / 'lib/screens/libretro').glob('*.dart'))
 PLAYLIST = 'lib/widgets/libretro_internal_playlist_actions.dart'
 DIRECTORIES = 'lib/screens/settings_screen/new_settings_options/directories_settings_content.dart'
-REVIEWED = 'a5650b9b'
+ORIGINAL_REVIEWED = 'a5650b9bddefbed76f941fb53735545bebcbbd39'
+REVIEWED = '29b24945b2e7041f08e02d7d70e8c90ffe8a1c24'
 MARKER = 'LIBRETRO_INTERNAL_BEGIN: embedded_consoles'
 
 
@@ -153,15 +156,27 @@ require("'gamesImported'" in consoles and "'gamesRejected'" in consoles and "'im
         'import notifications')
 
 # 2. Entry points. Settings › Folders lost its Embedded consoles item (Build
-# 440): every other Folders function is the reviewed a5650b9b file, byte for
-# byte.
+# 440): preserve the full reviewed file. The earlier e4f6c735 UI audit added
+# one mounted-context check to the asynchronous scroll callback; it changes
+# neither the folders nor their actions. This work preserves that accepted
+# branch input rather than restoring the retired unsafe callback. Verify the
+# exact sole difference from a5650b9b, then the complete 29b24945 file identity.
 directories = read(DIRECTORIES)
 try:
     reviewed = subprocess.run(['git', 'show', f'{REVIEWED}:{DIRECTORIES}'], cwd=ROOT, check=True,
                               capture_output=True).stdout.decode('utf-8')
+    original_reviewed = subprocess.run(['git', 'show', f'{ORIGINAL_REVIEWED}:{DIRECTORIES}'], cwd=ROOT,
+                                       check=True, capture_output=True).stdout.decode('utf-8')
 except (OSError, subprocess.CalledProcessError) as error:
-    raise SystemExit(f'libretro frontend UI contract: cannot read {REVIEWED}:{DIRECTORIES} ({error})')
-require(directories == reviewed, 'directories_settings_content.dart differs from a5650b9b')
+    raise SystemExit(f'libretro frontend UI contract: cannot read reviewed directories source ({error})')
+old_guard = 'if (builtContext != null) {'
+mounted_guard = 'if (builtContext != null && builtContext.mounted) {'
+require(original_reviewed.count(old_guard) == 1,
+        'the original directories scroll callback must have exactly one context guard')
+require(reviewed == original_reviewed.replace(old_guard, mounted_guard, 1),
+        '29b24945 directories must differ from a5650b9b only by the earlier mounted-context guard')
+require(directories == reviewed,
+        'directories_settings_content.dart differs from the complete reviewed 29b24945 source')
 for leftover in (MARKER, 'libretro_consoles', 'LibretroConsolesScreen', 'LibretroLocale'):
     require(leftover not in directories, f'Settings › Folders still names {leftover}')
 
