@@ -260,6 +260,7 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
   - un cœur n'entre dans un lot que s'il figure dans la liste App Store iOS de RetroArch ou que son absence de JIT est établie par ses sources ; un cœur qui exige le JIT (Flycast) ou dont le binaire iOS du buildbot déclare une autre plateforme (Hatari) reste documenté comme incompatible, sans intégration forcée ;
   - les jeux importés vont dans un dossier que le scanner reconnaît pour le système (`LibretroCoreCatalog.importFolderFor`) ;
   - un cœur n'est annoncé fonctionnel qu'après son lancement réel en CI (sonde simulateur `--lot1` sur des programmes de test écrits par la sonde, aucun contenu tiers) ; le simulateur n'est pas l'iPhone.
+- Livraison 458 (lot 1 seul) : source `99914407242163c6637fe42fba50a3aca877bb5f`, run `38636877971` (`checks`, `native` et `cold` réussis), cœurs `LibretroCores-df0124b8…` run `38627332377`, artefact `11930360072` (214 262 173 octets, archive SHA-256 `c60b1f8ce622cb71b016eb6bf5620893058c44948cbbc7c35a5e4491da53366b`, conservé jusqu'au 28 octobre 2026), chiffré pour `build-utils/delivery-424-recipient.pem`. IPA validée avant scellement `fea5c6fe41ce3b5696fe928105f401d7ed90b6362e63d529eaf020f734a9c946` (209 620 749 octets), version 0.0.7 (458) ; SHA-256 de l'IPA scellée à relever après déchiffrement. Aucune validation sur iPhone. Ne pas réutiliser le numéro 458.
 
 ## Consoles de l'onglet Consoles — lot 2, 14 octobre 2026
 

@@ -251,3 +251,23 @@ autres consoles de ce tableau y est donné (§ 4).
   exécution : il faut un BIOS ColecoVision ou un programme Uzebox / Game &
   Watch libre. Jobs `probe`, `shaders`, `official-shaders`, `before-fix` :
   réussis ; `before-reservation` informatif.
+- `9991440` (correctifs des trois défauts), contrôles run `38634942930` :
+  **réussis** (Dart, contrats, `--cores`, natif macOS). Sonde simulateur run
+  `38634946527` : job `lot1` réussi, jobs `shaders`, `official-shaders`,
+  `before-fix` et `before-reservation` réussis ; job `probe` en échec sur le
+  seul scénario `ppsspp-crowded`, limitation connue de la sonde simulateur
+  (aucune régression de lancement démontrée).
+- **Livraison 458** (lot 1 seul) : source
+  `99914407242163c6637fe42fba50a3aca877bb5f`, run `38636877971` (`checks`,
+  `native` et `cold` réussis ; `warm` non exécuté), cœurs
+  `LibretroCores-df0124b8…` run `38627332377` (30 cœurs, validation libretro
+  de l'IPA réussie), artefact `NeoStation-Build-458-99914407…-cold`
+  (`11930360072`, 214 262 173 octets, archive SHA-256
+  `c60b1f8ce622cb71b016eb6bf5620893058c44948cbbc7c35a5e4491da53366b`,
+  conservé jusqu'au 28 octobre 2026), chiffré pour
+  `build-utils/delivery-424-recipient.pem`. IPA validée avant scellement
+  `fea5c6fe41ce3b5696fe928105f401d7ed90b6362e63d529eaf020f734a9c946`
+  (209 620 749 octets), version 0.0.7 (458) ; SHA-256 de l'IPA scellée
+  (`NeoStation-Build458-99914407…-cold.ipa`) à relever après déchiffrement
+  dans `SHA256SUMS`. Aucune validation sur iPhone. Ne pas réutiliser le
+  numéro 458. Le lot 2 n'est pas dans cette IPA.
