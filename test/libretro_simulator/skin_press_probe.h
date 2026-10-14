@@ -277,14 +277,14 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self next];break;
     }
     case 12: {
-      NSString *id=self.result[@"stickId"];
-      if(id){
+      NSString *stickIdentifier=self.result[@"stickId"];
+      if(stickIdentifier){
         NSDictionary *v=[self.renderer valueForKey:@"stickVectors"];
         LibretroLaidOutItem *stick=nil;
-        for(LibretroLaidOutItem *i in self.layout.items)if([i.item.identifier isEqual:id]){stick=i;break;}
+        for(LibretroLaidOutItem *i in self.layout.items)if([i.item.identifier isEqual:stickIdentifier]){stick=i;break;}
         id layers=[self layers:stick];CALayer *cap=[layers valueForKey:@"knobImage"] ?: [layers valueForKey:@"knob"];
         LibretroInputSnapshot input=[self.input lastDelivered:NULL];
-        [self check:v[id]!=nil && cap.transform.m11<0.99 &&
+        [self check:v[stickIdentifier]!=nil && cap.transform.m11<0.99 &&
           (input.analog[0][0][0]!=0 || input.analog[0][0][1]!=0)
           name:@"analog stick cap depression and vector reach the actual core input"];
       }
