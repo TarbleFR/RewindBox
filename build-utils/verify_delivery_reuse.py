@@ -1742,6 +1742,69 @@ DELTA |= {
     'test/neo_shader_compiler_coexistence.py',
     'build-utils/validate_shader_compiler_ipa.py',
 }
+# Lot 1 of the Consoles tab (docs/libretro-consoles-lot1.md): sixteen cores
+# added to the pinned LibretroCores package (df0124b8, run 38627332377) and
+# the 21 hidden consoles they run. The legal inputs, existing and new, are
+# pinned to the reviewed lot 1 commit: any later byte, mode or deletion needs
+# a new reviewed reference.
+LIBRETRO_LOT1_REFERENCE = 'ed61c9e4659c45e66de969230d7d6e560ec7574d'
+LIBRETRO_LOT1_LEGAL_INPUTS = {
+    'assets/legal/libretro/LIBRETRO_CORES.md',
+    'assets/legal/libretro/license-sources.json',
+    'assets/legal/libretro/a5200-License.txt',
+    'assets/legal/libretro/ardens-LICENSE.txt',
+    'assets/legal/libretro/beetle_ngp-COPYING',
+    'assets/legal/libretro/beetle_pce_fast-COPYING',
+    'assets/legal/libretro/beetle_vb-COPYING',
+    'assets/legal/libretro/beetle_wswan-COPYING',
+    'assets/legal/libretro/gearcoleco-LICENSE',
+    'assets/legal/libretro/gw-LICENSE',
+    'assets/legal/libretro/handy-license.txt',
+    'assets/legal/libretro/pokemini-LICENSE',
+    'assets/legal/libretro/potator-LICENSE',
+    'assets/legal/libretro/prosystem-License.txt',
+    'assets/legal/libretro/sameduck-LICENSE',
+    'assets/legal/libretro/stella-Copyright.txt',
+    'assets/legal/libretro/stella-License.txt',
+    'assets/legal/libretro/uzem-MIT-notice.h',
+    'assets/legal/libretro/wasm4-LICENSE.txt',
+    'test/legal_credits_dialog_test.dart',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_LOT1_LEGAL_INPUTS, LIBRETRO_LOT1_REFERENCE))
+LIBRETRO_LOT1_DELTA = LIBRETRO_LOT1_LEGAL_INPUTS | {
+    'assets/data/libretro_bios_requirements.json',
+    'build-utils/libretro/add_cores.py',
+    'build-utils/libretro/build_cores.py',
+    'build-utils/libretro/cores.json',
+    'lib/l10n/libretro_locale.dart',
+    'lib/services/console_catalog.dart',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/services/neostation_rom_library.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroDefaultSkins.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputMap.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputMap.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.m',
+    'test/console_manager_test.dart',
+    'test/fixtures/libretro_bios/core_info_5a74858a.json',
+    'test/libretro_add_cores_test.py',
+    'test/libretro_azahar_package_test.py',
+    'test/libretro_bios_catalog_test.dart',
+    'test/libretro_bios_check_service_test.dart',
+    'test/libretro_bios_checker_screen_test.dart',
+    'test/libretro_consoles_tab_test.dart',
+    'test/libretro_core_catalog_test.dart',
+    'test/libretro_core_options_test.py',
+    'test/libretro_host/frontend/chrome_layout_test.m',
+    'test/libretro_host/frontend/default_skins_test.m',
+    'test/libretro_host/frontend/input_map_test.m',
+    'test/libretro_host/frontend/skin_test.m',
+    'test/libretro_simulator_probe.py',
+}
+DELTA |= LIBRETRO_LOT1_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
