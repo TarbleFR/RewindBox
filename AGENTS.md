@@ -234,3 +234,11 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 
 - The maintainer has no iOS `.ips` reports. Do not request these files again.
 - Continue diagnosis using source evidence, regression tests, and available NeoStation logs. Clearly distinguish a demonstrated source defect from an unconfirmed explanation of a device crash; absence of an `.ips` file does not justify claiming a cause or stopping the authorized work.
+
+
+## Private Build 456 — shader candidate, 14 October 2026
+
+- The maintainer authorized a private IPA for physical iPhone tests. No public release was requested. Candidate `6346df7dcbe9f2a40caea058bc67321f6f72e85f`, workflow run `38591125638`: checks, native and cold iPhone build passed; benchmark disabled.
+- Output version **0.0.7 (456)**; do not reuse build number 456. Public recipient `build-utils/delivery-456-recipient.pem`; private key remains outside Git. Encrypted artifact `11909445866`, expires 28 October 2026.
+- Sealed IPA SHA-256 `5dc0cf7e798a95eb001f093533dbb590a0d3b08738a412e8a03313a8e0a86b35`, 211,140,422 bytes. Final app/extensions versions, source identity, native shader markers, both catalogs and all 43 Dolphin shader files were independently checked. Details: `docs/build456-plan.md`.
+- This is a test delivery, not evidence of the original device crash cause or GameCube/Wii shader rendering in the integrated Dolphin engine. Mattias redistribution remains unresolved; no Mattias shader file is bundled.

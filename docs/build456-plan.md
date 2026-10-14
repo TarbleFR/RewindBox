@@ -29,11 +29,28 @@ The original closed-tree check and unrelated-runtime rejection remain intact.
 
 ## Final artifact checks
 
-Compilation and export are pending. Before delivery, verify the sealed IPA
-hash against its manifests, output version in the app and extensions, retained
-core/dependency identities, new shader recovery and activation selectors,
-bundled catalogs, and all 43 offered Dolphin shader files by size and SHA-256.
-Mattias files must remain absent from the app bundle.
+Compilation, export and final checks passed in run
+`38591125638`, candidate `6346df7dcbe9f2a40caea058bc67321f6f72e85f`.
+`checks`, `native` and the cold iPhone build passed; warm was intentionally
+skipped because benchmarking was disabled.
+
+Encrypted artifact: `11909445866`, 211,401,117 bytes, archive SHA-256
+`4549b873f27c3ccadc4e3352f269666993eefd586afcd2f1bd7d521dfdf1a99b`,
+expires 28 October 2026. This hash identifies the encrypted ZIP.
+
+The **sealed, decrypted IPA** is 211,140,422 bytes, SHA-256
+`5dc0cf7e798a95eb001f093533dbb590a0d3b08738a412e8a03313a8e0a86b35`.
+It matches both `SHA256SUMS` and `signed-payload-identity.json`.
+Independent ZIP inspection confirmed:
+
+- App and five helper extensions: **0.0.7 (456)**.
+- Packaged source identity: exact candidate SHA above.
+- Signing preserves code/data and ABI metadata in all 56 executable images.
+- Sixteen native shader class/selector markers are present in their actual
+  compiled owner images, including recovery and GPU-confirmed activation.
+- Both catalogs match the source bytes; all 43 offered Dolphin shader files
+  match their pinned size and SHA-256.
+- No Mattias shader file is bundled; the existing local import remains.
 
 This build is intended for the maintainer's physical iPhone tests. Earlier
 results do not establish the cause of the initial device crash or prove an
