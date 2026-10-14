@@ -45,7 +45,7 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"controlsReset", @"controlsNotMovable", @"controlsGamepadFooter", @"controlsTouchFooter", @"controlsUnassigned",
     @"controlsNoController", @"inputUp", @"inputDown", @"inputLeft", @"inputRight", @"inputLeftStick",
     @"inputRightStick", @"inputTouchScreen", @"inputMenu", @"inputQuickSave", @"inputQuickLoad", @"inputFastForward",
-    @"inputToggleFastForward", @"padDpadUp", @"padDpadDown", @"padDpadLeft", @"padDpadRight", @"padOptionsButton",
+    @"inputToggleFastForward", @"inputRotateScreen", @"padDpadUp", @"padDpadDown", @"padDpadLeft", @"padDpadRight", @"padOptionsButton",
     @"padMenuButton", @"quickSaved", @"quickLoaded", @"quickMissing", @"fastForwardOn", @"fastForwardOff",
     @"buttonCircle", @"buttonCross", @"buttonTriangle", @"buttonSquare", @"inputDpad", @"padButtonNamed",
     @"padLeftShoulder", @"padRightShoulder", @"padLeftTrigger", @"padRightTrigger", @"padLeftStickButton",

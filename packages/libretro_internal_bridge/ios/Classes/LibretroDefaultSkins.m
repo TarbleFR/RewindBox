@@ -399,6 +399,35 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
     [right addButton:@"b" map:map diameter:58 x:29 y:93];
     [right addButton:@"a" map:map diameter:58 x:97 y:61];
     [right addButton:@"c" map:map diameter:50 x:161 y:25];
+  } else if (DefaultIs(console, @[ @"ws", @"wsc", @"vb" ])) {
+    // A second D-pad above B and A: the WonderSwan Y pad (Y1 up, Y3 down,
+    // Y4 left, Y2 right) or the Virtual Boy right D-pad.
+    NSArray<NSString *> *pad = [console isEqualToString:@"vb"] ? @[ @"l2", @"l3", @"r2", @"r3" ]
+                                                               : @[ @"r2", @"l2", @"l", @"r" ];
+    [right addIdentifier:[console isEqualToString:@"vb"] ? @"rightDpad" : @"yPad"
+                    kind:LibretroSkinItemKindDPad
+                   shape:LibretroSkinItemShapeDPad
+                  inputs:pad
+                   frame:LibretroRectMake(20, 0, 112, 112)];
+    [right addButton:@"b" map:map diameter:56 x:34 y:158];
+    [right addButton:@"a" map:map diameter:56 x:110 y:146];
+  } else if ([console isEqualToString:@"cv"]) {
+    // ColecoVision: keypad 1 2 3 / 4 * # above the left (L) and right (R)
+    // side buttons.
+    NSArray<NSString *> *keys = @[ @"y", @"x", @"l", @"r", @"start", @"select" ];
+    for (NSUInteger index = 0; index < keys.count; index++) {
+      [right addButton:keys[index] map:map diameter:42 x:21 + 50 * (index % 3) y:21 + 50 * (index / 3)];
+    }
+    [right addButton:@"b" map:map diameter:56 x:34 y:136];
+    [right addButton:@"a" map:map diameter:56 x:110 y:128];
+  } else if ([console isEqualToString:@"5200"]) {
+    // Atari 5200: keypad (0-9), * and # above the fire buttons 2 and 1.
+    NSArray<NSString *> *keys = @[ @"l", @"y", @"x" ];
+    for (NSUInteger index = 0; index < keys.count; index++) {
+      [right addButton:keys[index] map:map diameter:42 x:21 + 50 * index y:21];
+    }
+    [right addButton:@"b" map:map diameter:56 x:34 y:94];
+    [right addButton:@"a" map:map diameter:56 x:110 y:86];
   } else {
     // NES and Sega 8-bit pads: B / 1 left, A / 2 right.
     [right addButton:@"b" map:map diameter:66 x:33 y:33];

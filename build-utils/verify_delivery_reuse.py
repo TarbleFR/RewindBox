@@ -1784,6 +1784,7 @@ LIBRETRO_LOT1_DELTA = LIBRETRO_LOT1_LEGAL_INPUTS | {
     'packages/libretro_internal_bridge/ios/Classes/LibretroDefaultSkins.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroInputMap.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroInputMap.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.h',

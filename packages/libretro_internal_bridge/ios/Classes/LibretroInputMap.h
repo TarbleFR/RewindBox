@@ -62,7 +62,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   cv:           b[L]->B  a[R]->A  y[1]->Y  x[2]->X  l[3]->L  r[4]->R
 ///                 start[*]->START  select[#]->SELECT
 ///   mini:         a[A]->A  b[B]->B  c[C]->R
-///   gw, duck, wsv: a[A]->A  b[B]->B  select[SELECT]->SELECT  start[START]->START
+///   gw, duck, wsv: a[A]->A  b[B]->B  start[START]->START  select[SELECT]->SELECT
 ///   ard:          a[A]->A  b[B]->B
 ///   wasm4:        a[X]->A  b[Z]->B
 ///   uze:          same as snes

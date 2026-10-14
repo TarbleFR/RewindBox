@@ -496,11 +496,11 @@ static NSSet<NSString *> *PlayStationAliases(void) {
     button(@"c", @"C", RETRO_DEVICE_ID_JOYPAD_R);
   } else if ([handhelds containsObject:console]) {
     // Game & Watch (SELECT opens the game's mode menu, START picks), Mega
-    // Duck and Supervision: A, B, SELECT, START.
+    // Duck and Supervision: A, B, START, SELECT, as the NES.
     button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
     button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
-    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
     button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
   } else if ([console isEqualToString:@"ard"]) {
     // Ardens reads A and B only.
     button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);

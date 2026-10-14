@@ -102,21 +102,25 @@ n'est pas dessiné à l'écran.
 | Console | Écran tactile (habillage par défaut) | À la manette seulement |
 | --- | --- | --- |
 | PC Engine (4 consoles) | II, I, SELECT, RUN | III–VI en mode 6 boutons (option du cœur) |
-| WonderSwan (2) | A, B, START, Y1–Y4 (gâchettes), ⟳ (rotation de l'écran, SELECT) | — |
+| WonderSwan (2) | A, B, START, pavé Y (Y1 haut, Y2 droite, Y3 bas, Y4 gauche) en seconde croix au-dessus de B et A, ⟳ (rotation de l'écran, SELECT) | — |
 | Neo Geo Pocket (2) | A, B (croisés par NeoPop, rétablis), OPTION | — |
 | Lynx | A, B, OPT1, OPT2, PAUSE | SELECT (rotation dans le cœur) |
-| Virtual Boy | A, B, L, R, START, SELECT, croix droite R▲ R▼ R◀ R▶ | — |
+| Virtual Boy | A, B, L, R, START, SELECT, croix droite (R▲ R▼ R◀ R▶) dessinée en seconde croix au-dessus de B et A | — |
 | Atari 2600 | 1 (tir), SELECT, RESET | interrupteurs de difficulté et couleur (L, L2, R, R2, L3, R3) |
 | Atari 7800 | 1, 2, SELECT, PAUSE, RESET | interrupteurs de difficulté (L, R) |
-| Atari 5200 | 1, 2, START, PAUSE, 0-9 (clavier à l'écran du cœur), *, # | touches directes du clavier |
-| ColecoVision | L, R (boutons latéraux), 1, 2, 3, 4, *, # | touches 5 à 8 ; 9 et 0 au stick gauche |
+| Atari 5200 | 1, 2 ; 0-9 (clavier à l'écran du cœur), *, # en rangée au-dessus ; START, PAUSE | touches directes du clavier |
+| ColecoVision | clavier 1 2 3 / 4 * # au-dessus de L et R (boutons latéraux) | touches 5 à 8 ; 9 et 0 au stick gauche |
 | Pokémon Mini | A, B, C | secousse (L), alimentation (SELECT) |
-| Game & Watch, Mega Duck, Supervision | A, B, SELECT, START | — |
+| Game & Watch, Mega Duck, Supervision | A, B, START, SELECT | — |
 | Arduboy, WASM-4 | A, B (WASM-4 : X, Z) | — |
 | Uzebox | disposition Super Nintendo | — |
 
 Habillages : l'habillage par défaut est généré pour chaque console
-(disposition, rapport d'image). Les habillages Delta/Provenance sont
+(disposition, rapport d'image). Une rangée de plus de quatre boutons
+allongés devenait trop petite sur iPhone SE (moins de 24 points, run
+`38632620771`) : WonderSwan et Virtual Boy ont donc leur seconde croix,
+ColecoVision et 5200 leur clavier en boutons ronds dans le groupe de
+droite. Les habillages Delta/Provenance sont
 reconnus par leur `gameTypeIdentifier` (PC Engine, Lynx, Virtual Boy… voir
 `LibretroSkin.h`) ; le catalogue Provenance publie des habillages PC Engine,
 Lynx et Virtual Boy.
@@ -214,3 +218,32 @@ Résultats consignés au fil du cycle dans le § 8.
   par la liste exacte des consoles, fichier relancé : 10 réussis. Contrats
   Python du lot réussis. Tests natifs, contrôles `--cores` et simulateur :
   macOS seulement, résultats ci-dessous.
+- `22fb882` (sources `ed61c9e` + vérificateur), contrôles run
+  `38632620771` : **échec**, trois défauts réels corrigés au commit suivant.
+  1. `libretro_locale_test.dart` : la clé traduite `inputRotateScreen`
+     (⟳ WonderSwan) manquait dans la liste native `LibretroRequiredUIText`
+     — sans elle le libellé n'atteignait pas la session. Ajoutée au même rang.
+  2. `input_map_test.m` : Game & Watch, Mega Duck et Supervision listaient
+     SELECT avant START ; ordre NES rétabli (A, B, START, SELECT).
+  3. `default_skins_test.m` (560 échecs) et `chrome_layout_test.m` (12) :
+     WonderSwan (6 boutons allongés), Virtual Boy (6 + L/R), ColecoVision (6)
+     et 5200 (5) en une rangée descendaient sous 24 points sur iPhone SE et
+     déplaçaient le bouton menu sur une fenêtre iPad 700 × 507. Seconde croix
+     (pavé Y, croix droite du Virtual Boy) et claviers ronds dans le groupe
+     de droite. Vérifié avant envoi par un portage Python du générateur qui
+     reproduit exactement les cotes fautives de la CI (par ex. WonderSwan
+     `l` {8.5, 452.1, 43.5, 18.1}) : 0 échec de taille, de chevauchement, de
+     zone sûre et de bouton menu sur les mêmes formats.
+  Le reste du job natif (hôte, shaders Metal, compilation iPhone des 69
+  sources, codec de canal) était réussi.
+- Même SHA, sonde simulateur run `38632626177`, job `lot1` **réussi** :
+  29 scénarios sur 29 conformes. Lancés deux fois, exécutés environ 3 s
+  puis fermés par « Quitter » (contenu accepté, démarrage confirmé, taille
+  d'image attendue) : SameDuck, Potator, Ardens, Stella, ProSystem, a5200,
+  Beetle PCE Fast, Beetle NGP, Beetle WonderSwan, Beetle VB, Handy, PokeMini,
+  WASM-4. Refus propre (`LIBRETRO_GAME_REJECTED`, aucune session laissée) :
+  Gearcoleco sans BIOS, Uzem et GW sur un fichier qui n'est pas à leur
+  format. Gearcoleco, Uzem et GW ne sont donc pas encore démontrés en
+  exécution : il faut un BIOS ColecoVision ou un programme Uzebox / Game &
+  Watch libre. Jobs `probe`, `shaders`, `official-shaders`, `before-fix` :
+  réussis ; `before-reservation` informatif.
