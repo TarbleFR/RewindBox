@@ -657,11 +657,18 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CGRect assetFrame = LibretroSkinCGRect(laidOut.assetFrame);
   if (CGRectIsEmpty(assetFrame)) assetFrame = frame;
   CGFloat scale = _scale;
-  // Keep grouping layers in viewport coordinates with real bounds. A
-  // zero-sized group may be culled by Core Animation's offscreen renderer.
-  layers.container.frame = self.bounds;
-  layers.artwork.bounds = self.bounds;
-  layers.artwork.position = CGPointZero;
+  // Groups keep the same layout coordinate system, with bounds limited to
+  // the control and its shadow rather than a full-screen offscreen surface.
+  CGRect scope = CGRectUnion(frame, assetFrame);
+  if (item.kind == LibretroSkinItemKindThumbstick) {
+    scope = CGRectUnion(scope, LibretroSkinKnobRect(laidOut, CGPointMake(-1, -1)));
+    scope = CGRectUnion(scope, LibretroSkinKnobRect(laidOut, CGPointMake(1, 1)));
+  }
+  scope = CGRectInset(scope, -8, -8);
+  layers.container.bounds = scope;
+  layers.container.position = scope.origin;
+  layers.artwork.bounds = scope;
+  layers.artwork.position = scope.origin;
 
   if (layers.shape != nil) {
     layers.shape.contentsScale = scale;
@@ -805,8 +812,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     } else {
       CGRect frame = LibretroSkinCGRect(layers.laidOut.assetFrame);
       if (CGRectIsEmpty(frame)) frame = LibretroSkinCGRect(layers.laidOut.frame);
-      target.m41 = CGRectGetMidX(frame) * (1 - shrink);
-      target.m42 = CGRectGetMidY(frame) * (1 - shrink) + depth;
+      target.m41 = (CGRectGetMidX(frame) - face.bounds.origin.x) * (1 - shrink);
+      target.m42 = (CGRectGetMidY(frame) - face.bounds.origin.y) * (1 - shrink) + depth;
       if (item.kind == LibretroSkinItemKindDPad) {
         NSUInteger d = _dpadDirections[layers.identifier].unsignedIntegerValue;
         target.m41 += ((d & LibretroDirectionRight) != 0) - ((d & LibretroDirectionLeft) != 0);

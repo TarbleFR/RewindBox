@@ -6,6 +6,28 @@
 #import "LibretroInputState.h"
 #import <GameController/GameController.h>
 
+// Simulator exposes its own idle gamepad, which legitimately hides touch
+// controls and occupies a player port. Isolate device enumeration in this
+// test app only. Input profiles, values, UIKit, polling, latch and core reads
+// stay real; the sole controller below is Apple's GCVirtualController.
+static GCController *sSkinProbeController;
+static IMP sSkinProbeOriginalControllers;
+static NSArray<GCController *> *SkinProbeControllers(id owner, SEL selector) {
+  return sSkinProbeController != nil ? @[sSkinProbeController] : @[];
+}
+static void SkinProbeIsolateControllers(void) {
+  if(sSkinProbeOriginalControllers!=NULL)return;
+  Method method=class_getClassMethod(GCController.class,@selector(controllers));
+  sSkinProbeOriginalControllers=method_setImplementation(method,(IMP)SkinProbeControllers);
+}
+static void SkinProbeRestoreControllers(void) {
+  sSkinProbeController=nil;
+  if(sSkinProbeOriginalControllers==NULL)return;
+  Method method=class_getClassMethod(GCController.class,@selector(controllers));
+  method_setImplementation(method,sSkinProbeOriginalControllers);
+  sSkinProbeOriginalControllers=NULL;
+}
+
 static void SkinProbeBuildFlatSkin(NSString *folder) {
   [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
   UIGraphicsImageRenderer *draw=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(360,250)];
@@ -37,6 +59,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
 - (void)applicationWillResignActive;
 - (void)applicationDidBecomeActive;
 - (void)menuPressed;
+- (void)updateControlsVisibility;
 @end
 
 @interface LibretroFrontendMenu (SkinPressProbePrivate)
@@ -178,7 +201,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
     case 1: {
       self.result[@"skinName"]=[[self.session valueForKey:@"currentSkin"] valueForKey:@"name"] ?: @"";
       [self check:a!=nil name:@"skin has a mapped game button"];
-      if(a==nil){self.completion();return;}
+      if(a==nil){self.result[@"skinChecks"]=self.checks;SkinProbeRestoreControllers();self.completion();return;}
       id layers=[self layers:a];
       CALayer *image=[layers valueForKey:@"image"];
       BOOL separated=image.contents!=nil || [layers valueForKey:@"shape"]!=nil;
@@ -271,6 +294,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
           if(answered)return;answered=YES;
           self.result[@"virtualControllerError"]=error.localizedDescription ?: @"";
           [self check:error==nil name:@"Apple virtual controller connected"];
+          sSkinProbeController=self.virtualController.controller;
           [self.virtualController setValue:1 forButtonElement:GCInputButtonA];
           [self next];
         }];
@@ -287,8 +311,9 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
         @"value":@(self.virtualController.controller.extendedGamepad.buttonA.value),
         @"count":@(GCController.controllers.count),@"physical":self.input.hasPhysicalController ? @YES : @NO};
       [self check:self.input.hasPhysicalController && [self deliveredButtons]!=0 name:@"controller input uses the existing polling and console map"];
+      [self check:self.controller.overlay.controlsDisabled name:@"connected controller disables tactile game contacts"];
       [self.virtualController setValue:0 forButtonElement:GCInputButtonA];
-      [self.virtualController disconnect]; [self next];break;
+      [self.virtualController disconnect];sSkinProbeController=nil;[self next];break;
     case 16:
       if([self.scenario[@"skinPress"] isEqual:@"press-flat"]){[self chooseSkin:@"press-complex"];[self next];break;}
       [self advance];break;
@@ -306,6 +331,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self check:[self deliveredButtons]==0 name:@"controller disconnect leaves no held input"];
       self.result[@"skinChecks"]=self.checks;
       self.result[@"realDeviceTested"]=@NO;
+      SkinProbeRestoreControllers();
       self.completion();break;
   }
 }
@@ -316,6 +342,9 @@ static void RunSkinPressProbe(LibretroSession *session, NSDictionary *scenario, 
   SkinPressRunner *runner=[SkinPressRunner new];
   runner.session=session;runner.scenario=scenario;runner.result=result;runner.completion=completion;
   runner.checks=[NSMutableArray array];runner.touches=[NSMutableDictionary dictionary];
+  runner.result[@"simulatorControllersExcluded"]=@(GCController.controllers.count);
+  SkinProbeIsolateControllers();
+  [runner.input pollControllers];[runner.controller updateControlsVisibility];
   runner.controller.overlay.recordsContacts=YES;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{[runner advance];});
 }
