@@ -242,3 +242,11 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Output version **0.0.7 (456)**; do not reuse build number 456. Public recipient `build-utils/delivery-456-recipient.pem`; private key remains outside Git. Encrypted artifact `11909445866`, expires 28 October 2026.
 - Sealed IPA SHA-256 `5dc0cf7e798a95eb001f093533dbb590a0d3b08738a412e8a03313a8e0a86b35`, 211,140,422 bytes. Final app/extensions versions, source identity, native shader markers, both catalogs and all 43 Dolphin shader files were independently checked. Details: `docs/build456-plan.md`.
 - This is a test delivery, not evidence of the original device crash cause or GameCube/Wii shader rendering in the integrated Dolphin engine. Mattias redistribution remains unresolved; no Mattias shader file is bundled.
+
+## RetroArch shader crash — maintainer's Build 456 test, 14 October 2026
+
+- The maintainer confirms Dolphin effects work on GameCube/Wii and requests that they remain unchanged. Build 456 still closes immediately on RetroArch catalog Apply.
+- Supplied application journal: 0.0.7 (456), Azure Dreams, Beetle PSX HW 0.9.44.1-GLES3 10e4b0c, software renderer, `reshade/handheld-color-LUTs/PSP-2020.slangp`; stops before compilation completes. Do not claim that this application journal alone identifies an iOS exception or jetsam.
+- Native reproduction loads the actual pinned old Dolphin/new kit compiler sources in Runner's order. LLDB demonstrates the new parser calling the old weak `addSwizzle<int>`, then the old pool allocator crashing with `EXC_BAD_ACCESS`. Five official presets fail before isolation and compile after it. See `docs/retroarch-shader-compiler-2026-10-14.md`.
+- Correction `d457c8ff`: isolate glslang/SPIRV-Cross behind the kit's public Objective-C API at link time. Do not remove this boundary or consider public headers alone sufficient isolation. Final IPA export-trie validation rejects the faulty Build 456 layout. No Dolphin/core source is changed.
+- Private Build 457 candidate/run and exact evidence identities are recorded in `docs/build457-plan.md`. No physical test of this correction is yet claimed; private IPA authorization does not authorize a public GitHub release.

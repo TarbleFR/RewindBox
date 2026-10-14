@@ -85,8 +85,23 @@ linker boundary is rejected. That gate rejects the actual sealed Build 456.
   translations passed with the other compiler loaded (run above).
 - iPhone toolchain: the pod compiles and links, public API remains visible,
   compiler implementation is hidden (run 38600951774, product `d457c8ff`).
-- Full catalog Metal and embedded simulator session tests are in progress;
-  their final results will be recorded here before delivery.
+- macOS Metal: **982 catalog entries rendered, zero failures**, including
+  iPhone-targeted translation/offline Metal compilation; run 38600951774,
+  product `d457c8ff`. Device reports Apple Paravirtual device (host Metal
+  validation, not physical iOS).
+- The strict fault-stack regression passed again on the delivery candidate
+  `90f62c5c`, run 38602335265.
+- Synthetic embedded session scenarios: six passed, source `28ccbb85`, run
+  38601422411. Final six synthetic scenarios, including compilation failure and an
+  unsupported texture, passed on `8543b760` in run **38607080426**.
+- Official catalog session scenarios: **six passed**, same revision/run,
+  iPhone SE (3rd generation) iOS 26.2 Simulator. Actual download and Apply
+  menu handlers fetched `PSP-2020` with two LUTs and the two-pass
+  `crt-geom-mini` over HTTPS. Presented drawable PNGs and pixel comparisons
+  confirm the effect, parameter changes, repeated switches, disable,
+  console-scope restoration and saved-preset relaunch. There were zero
+  visual verdict problems. Evidence artifact **11915897285**, ZIP SHA-256
+  `99bb9ce6fe3a0867b87ed7ef0a64e7493d72766fc49bfe1edcefe8dc1f83d0f3`.
 - Physical iPhone: the user supplied the failing Build 456 test. No physical
   test of the correction has yet been performed. The Mac native reproduction
   strongly connects the demonstrated defect to the device journal but does
@@ -100,3 +115,22 @@ and Vulkan test cores are explicitly identified as test cores; DeSmuME is a
 real delivered core running original homebrew content. Synthetic catalog
 cases separately cover invalid/incomplete/missing-dependency failures and
 recovery; they are not described as official server failures.
+
+## Additional confirmed menu defect
+
+The official scenario exposed a separate preference/runtime mismatch:
+`activeShaderOptionWithScope:` used only the saved requested preset. After
+crash recovery or a refused load, Apply could therefore be a no-op although
+no matching slang program was active. Commit `8e6e1fe6` checks actual
+activation. Commit `8543b760` separates the resolved requested value from
+the active value so scope changes, removal and restoring console defaults
+still load the requested shader correctly. The final official scenario
+exercises the console default -> game override -> restore-console sequence
+and its pixels, then saved override -> close -> relaunch. This change is
+confined to `LibretroFrontendMenu.m`; Dolphin and the core binaries remain
+unchanged.
+
+Private delivery candidate is `8543b7609d1c793d4c4803b8d95cdecb7561f988`,
+run **38608563662**, version **0.0.7 (457)**. Earlier runs 38602619474 and
+38605838506 were cancelled before delivery to include the final menu fixes.
+Final packaging evidence will be recorded in `build457-plan.md`.
