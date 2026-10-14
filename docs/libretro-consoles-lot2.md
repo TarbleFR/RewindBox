@@ -100,3 +100,17 @@ ne quittent jamais l'application de sonde.
 - `285d87e` : paquet de 6 cœurs (run `38636930244`, réussi) — remplacé.
 - `fdeaef5` : vecx et Virtual Jaguar retirés (firmware embarqué), paquet de
   4 cœurs (run `38638115521`, réussi).
+- `6e88e78` (intégration) et `8811491` (vérificateur de livraison) :
+  contrôles run `38639581124` **réussis** (analyse et tests Dart, contrats
+  dont `--cores` sur les 34 cœurs du paquet, natif macOS : hôte, tables
+  d'entrées, habillages par défaut, compilation iPhone, codec de canal).
+  Sonde simulateur run `38639585110` **réussie**, tous jobs compris. Job
+  `lot2` (iPhone SE 3e génération, iOS 26.2) : 8 scénarios sur 8 conformes —
+  FreeChaF, FreeIntv, O2EM et Beetle PC-FX lancés deux fois chacun, rendu
+  logiciel, arrêtés et terminés proprement. Jobs `lot1`, `probe`,
+  `shaders`, `official-shaders`, `before-fix` et `before-reservation`
+  réussis. Le simulateur n'est pas l'iPhone ; FreeIntv n'y tourne que sur
+  son écran d'erreur sans BIOS (cœur chargé et exécuté, pas un jeu).
+- `3b0a5b1` et `df35dc9` (règle « aucun BIOS fourni », crédit des chargeurs
+  Cathy3K d'Ardens, mentions épinglées dans le vérificateur), puis
+  `036632b` : contrôles run `38641524647` **réussis**.
