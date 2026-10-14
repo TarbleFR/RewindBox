@@ -199,6 +199,7 @@ void main() {
     final before = await file.readAsBytes();
     final loaded = await service.installedSkin(result.skin.id);
     expect(loaded!.warnings, contains('SKIN_WARN_PAINTED_CONTROLS'));
+    expect(loaded.warningKeys, contains('skinWarnPaintedControls'));
     expect(await file.readAsBytes(), before);
   });
 

@@ -35,6 +35,12 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
 
 @interface LibretroGameViewController (SkinPressProbePrivate)
 - (void)applicationWillResignActive;
+- (void)applicationDidBecomeActive;
+- (void)menuPressed;
+@end
+
+@interface LibretroFrontendMenu (SkinPressProbePrivate)
+- (LibretroMenuPage *)skinsPage;
 @end
 
 @interface SkinProbeTouch : UITouch
@@ -164,7 +170,10 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
               name:@"baked test-skin button cropped with original removed"];
       [self capture:@"rest"]; break;
     }
-    case 2: [self touch:@"one" at:[self center:a] begin:YES]; [self next]; break;
+    case 2:
+      [self touch:@"one" at:[self center:a] begin:YES];
+      [self check:[self pressed:a] name:@"artwork depresses synchronously at contact"];
+      [self next];break;
     case 3: [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"immediate pressed artwork and emulated core input"];
       [self capture:@"pressed"]; break;
     case 4: [self touch:@"two" at:[self center:a] begin:YES]; [self end:@"one" cancel:NO]; [self next]; break;
@@ -172,7 +181,11 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self end:@"two" cancel:YES]; [self next]; break;
     case 6: [self check:![self pressed:a] && [self deliveredButtons]==0 name:@"cancellation releases visual and core state"];
       [self capture:@"released"]; break;
-    case 7: [self chooseSkin:@"default"]; [self next]; break;
+    case 7:
+      [self touch:@"change-skin" at:[self center:a] begin:YES];
+      [self chooseSkin:@"default"];
+      [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"in-game skin replacement clears a held button"];
+      [self.touches removeAllObjects];[self next];break;
     case 8: {
       a=[self primaryButton];
       [self touch:@"one" at:[self center:a] begin:YES];
@@ -209,7 +222,8 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       if(id){NSDictionary *v=[self.renderer valueForKey:@"stickVectors"]; [self check:v[id]!=nil name:@"analog stick cap follows delivered vector"];}
       [self.controller applicationWillResignActive];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"background transition cancels held controls"];
-      [self.touches removeAllObjects];[self next];break;
+      [self.touches removeAllObjects];
+      [self.controller applicationDidBecomeActive];[self next];break;
     }
     case 13: [self check:[self deliveredButtons]==0 name:@"background transition clears the input latch"];
       [self touch:@"rotation" at:[self center:[self primaryButton]] begin:YES];

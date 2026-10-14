@@ -323,7 +323,7 @@ static void TestDualScreenDS(void) {
   CHECK([summary[@"orientations"] isEqual:(@{@"iphone" : @[ @"portrait", @"landscape" ], @"ipad" : @[ @"portrait", @"landscape" ]})],
         @"summary orientations");
   CHECK([summary[@"gameTypeIdentifier"] isEqual:@"com.rileytestut.delta.game.ds"] &&
-            [summary[@"warnings"] isEqual:@[]],
+            [summary[@"warnings"] isEqual:@[LibretroSkinWarningPaintedControls]],
         @"summary game type and warnings");
 }
 

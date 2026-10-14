@@ -60,6 +60,7 @@ abstract final class LibretroSkinMessages {
     'SKIN_WARN_ITEMS_DROPPED': 'skinWarnItemsDropped',
     'SKIN_WARN_DEBUG_MISSING': 'skinWarnDebugMissing',
     'SKIN_WARN_TOUCHSCREEN_UNSUPPORTED': 'skinWarnTouchScreen',
+    'SKIN_WARN_PAINTED_CONTROLS': 'skinWarnPaintedControls',
   };
 
   /// Reasons of the native iPhone verdict (LibretroSkinCompatibility.h),
