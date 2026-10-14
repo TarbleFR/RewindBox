@@ -52,8 +52,8 @@ conséquence et `test/libretro_locale_test.dart` vérifie les douze langues.
 
 | Console | Cœur | Raison |
 | --- | --- | --- |
-| Vectrex (`vect`) | vecx | **décision du mainteneur requise** : le binaire embarque la ROM système Vectrex d'origine (`bios/system.bin`, avec Mine Storm). La consigne « aucun BIOS fourni » l'exclut tant qu'une autorisation de redistribution n'est pas établie. Intégration technique prête à refaire (rendu logiciel à verrouiller, quatre boutons). |
-| Atari Jaguar (`jag`) | Virtual Jaguar | **décision du mainteneur requise** : le binaire embarque les ROM de démarrage et BIOS CD d'Atari (`src/bios/`). Même raison. Les options JagLink et stub de débogage seraient à verrouiller (sockets). |
+| Vectrex (`vect`) | vecx | **exclu** (consigne du mainteneur du 14 octobre 2026 : ne jamais fournir de BIOS) : le binaire du buildbot embarque la ROM système Vectrex d'origine (`bios/system.bin`, avec Mine Storm), compilée sans possibilité de la lire depuis System. Seule voie : un cœur construit depuis ses sources sans cette ROM et lisant celle de l'utilisateur, ce qui suppose une chaîne de compilation de cœurs que NeoStation n'a pas aujourd'hui. |
+| Atari Jaguar (`jag`) | Virtual Jaguar | **exclu** (même consigne) : le binaire embarque les ROM de démarrage et BIOS CD d'Atari (`src/bios/`), même si le démarrage HLE ne les utilise pas par défaut. Même voie possible (construction sans `src/bios/`, ROM de l'utilisateur en option). |
 | Neo Geo CD (`ngcd`) | NeoCD | **décision de licence** : composant Z80 « freeware for non-commercial purposes » ; le dépôt a un Patreon (`.github/FUNDING.yml`), même question ouverte que Snes9x, PicoDrive ou FBNeo. |
 | 3DO (`3do`) | Opera | **décision de licence** : clause FreeDO non commerciale ; BIOS libre « Opera Boot » intégré seulement depuis le 12 octobre 2026 (présence dans le binaire épinglé à vérifier). |
 | Sega Saturn (`sat`) | Yabause | performances : deux SH-2 interprétés sans JIT, compatibilité faible ; à mesurer sur iPhone avant intégration. |
@@ -64,7 +64,19 @@ conséquence et `test/libretro_locale_test.dart` vérifie les douze langues.
 Les autres consoles en attente (ordinateurs, CD-i, Palm, ScummVM, MAME,
 Flycast, Hatari, TIC-80) sont décrites dans le lot 1, § 7.
 
-## 5. Vérifications
+## 5. Aucun BIOS fourni : audit des 34 cœurs
+
+Consigne du mainteneur : ne jamais fournir de BIOS. Aucun cœur du paquet
+n'embarque le BIOS d'un fabricant. Trois embarquent un remplacement libre
+écrit par leur communauté, crédité dans `LIBRETRO_CORES.md` : a5200
+(AltirraOS 5200, Avery Lee, avis tout-permissif dans sa source), PokeMini
+(FreeBIOS, GPLv3) et Ardens (chargeurs d'amorçage Arduboy Cathy3K de
+Mr.Blinky, MIT ; son avis de licence, requis, est ajouté). NeoPop, Handy,
+FreeChaF et Beetle PSX (OpenBIOS) remplacent le BIOS par leur propre code.
+Les images de BIOS de substitution de la sonde simulateur (une instruction)
+ne quittent jamais l'application de sonde.
+
+## 6. Vérifications
 
 - Dart : `libretro_core_catalog_test` (42 consoles), `console_manager_test`
   (36 consoles restent à RetroArch), `libretro_bios_*` (Intellivision prête
@@ -83,7 +95,7 @@ Flycast, Hatari, TIC-80) sont décrites dans le lot 1, § 7.
   par la sonde (une instruction qui saute sur elle-même), jamais un BIOS de
   console. Le simulateur n'est pas l'iPhone.
 
-## 6. Journal
+## 7. Journal
 
 - `285d87e` : paquet de 6 cœurs (run `38636930244`, réussi) — remplacé.
 - `fdeaef5` : vecx et Virtual Jaguar retirés (firmware embarqué), paquet de

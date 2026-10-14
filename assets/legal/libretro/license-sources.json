@@ -503,6 +503,12 @@
           "upstream_path": "LICENSE.txt",
           "source_url": "https://raw.githubusercontent.com/tiberiusbrown/Ardens/ba7ad0dcfc196459859d304a8c483b38621c7cfa/LICENSE.txt",
           "sha256": "825986f8856b90ca760fb5ab0e44f8a9731b0db62aa643e14a485d6801055b9e"
+        },
+        {
+          "path": "ardens-cathy3k-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/MrBlinky/cathy3k/a8c42a2e38ac13a95301dfa2379f93fe5297c445/LICENSE",
+          "sha256": "a75971bd5c4019dbc490a5d85455bd518c4ba1beaf75e77d6d9726e4dbbef0e7"
         }
       ],
       "cores": [

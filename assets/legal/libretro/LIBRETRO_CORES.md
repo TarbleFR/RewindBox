@@ -35,7 +35,7 @@ All original authors retain their rights. No endorsement or relicensing is impli
 | GW | Game & Watch | Andre Leiradella | [zlib](gw-LICENSE) |
 | SameDuck | Mega Duck | Lior Halphon (LIJI32) | [MIT](sameduck-LICENSE) |
 | Potator | Watara Supervision | Normmatt, Cal2, infval, Alekmaul | [Unlicense (public domain)](potator-LICENSE) |
-| Ardens | Arduboy | Peter Brown | [MIT](ardens-LICENSE.txt) |
+| Ardens | Arduboy | Peter Brown; embedded Arduboy bootloaders: Mr.Blinky (Cathy3K) | [MIT](ardens-LICENSE.txt); [bootloader MIT](ardens-cathy3k-LICENSE) |
 | WASM-4 | WASM-4 | Bruno Garcia and WASM-4 contributors | [ISC](wasm4-LICENSE.txt) |
 | Uzem | Uzebox | David Etherton, Eric Anderton, Alec Bourque, Filipe Rinaldi, Sandor Zsuga, Matt Pandina, Torsten Paul | [MIT (notice in the source header)](uzem-MIT-notice.h) |
 | FreeChaF | Fairchild Channel F | David Richardson and libretro contributors | [GPLv3](freechaf-LICENSE) |
@@ -68,6 +68,14 @@ adds a non-commercial condition. The four cores added after them the same
 day (FreeChaF to Beetle PC-FX) carry GPL or Artistic License 2.0 terms, add
 no non-commercial condition and embed no console firmware: FreeChaF's
 replacement for the Channel F BIOS is its own code.
+
+NeoStation ships no console BIOS or firmware. No packaged core embeds a
+manufacturer's BIOS; three embed free replacements written by their
+communities: a5200 the AltirraOS 5200 kernel (Avery Lee, all-permissive
+notice in its source), PokeMini its FreeBIOS (GPLv3) and Ardens the open
+Arduboy bootloaders (Cathy3K, MIT). Cores whose binaries embed original
+firmware (vecx: Vectrex system ROM; Virtual Jaguar: Atari boot ROMs and CD
+BIOS) are not packaged.
 
 GPL and MPL obligations remain applicable to their respective components.
 The host project's GPL does not replace core licenses or resolve combined-work
