@@ -657,6 +657,11 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CGRect assetFrame = LibretroSkinCGRect(laidOut.assetFrame);
   if (CGRectIsEmpty(assetFrame)) assetFrame = frame;
   CGFloat scale = _scale;
+  // Keep grouping layers in viewport coordinates with real bounds. A
+  // zero-sized group may be culled by Core Animation's offscreen renderer.
+  layers.container.frame = self.bounds;
+  layers.artwork.bounds = self.bounds;
+  layers.artwork.position = CGPointZero;
 
   if (layers.shape != nil) {
     layers.shape.contentsScale = scale;

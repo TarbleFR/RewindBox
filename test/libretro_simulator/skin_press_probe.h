@@ -94,6 +94,23 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
   NSSet *set=[NSSet setWithObject:touch];
   if (begin) [self.controller.overlay touchesBegan:set withEvent:nil];
   else [self.controller.overlay touchesMoved:set withEvent:nil];
+  LibretroTouchTracker *tracker=[self.controller.overlay valueForKey:@"tracker"];
+  LibretroTouchResolution *resolution=[tracker resolve];
+  NSMutableArray *observations=self.result[@"touchObservations"];
+  if(observations==nil){observations=[NSMutableArray array];self.result[@"touchObservations"]=observations;}
+  NSMutableArray *contacts=[NSMutableArray array];
+  for(LibretroTouchContact *c in resolution.contacts)
+    [contacts addObject:@{@"mode":@(c.mode),@"point":@[@(c.x),@(c.y)],@"items":c.itemIdentifiers,
+      @"sent":c.sentInputs,@"inert":c.inertInputs}];
+  [observations addObject:@{@"stage":@(self.stage),@"point":@[@(point.x),@(point.y)],
+    @"class":NSStringFromClass(touch.class),@"overlay":self.controller.overlay!=nil ? @YES : @NO,
+    @"disabled":self.controller.overlay.controlsDisabled ? @YES : @NO,
+    @"enabled":self.controller.touchControlsEnabled ? @YES : @NO,
+    @"physical":self.input.hasPhysicalController ? @YES : @NO,
+    @"contacts":@(tracker.touchCount),@"buttons":@(resolution.coreInput.buttons),
+    @"resolvedContacts":contacts,@"rendererHidden":[self.renderer valueForKey:@"controlsHidden"] ?: @NO,
+    @"pressed":resolution.pressedItems.allObjects ?: @[],
+    @"renderedPressed":[[self.renderer valueForKey:@"pressed"] allObjects] ?: @[]}];
 }
 - (void)end:(NSString *)key cancel:(BOOL)cancel {
   SkinProbeTouch *touch=self.touches[key];
@@ -245,7 +262,8 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       // exercise the production GCController polling and remap path.
       {
         GCVirtualControllerConfiguration *config=[GCVirtualControllerConfiguration new];
-        config.elements=[NSSet setWithArray:@[GCInputButtonA,GCInputDirectionPad]];
+        config.elements=[NSSet setWithArray:@[GCInputButtonA,GCInputButtonB,GCInputButtonX,GCInputButtonY,
+          GCInputLeftThumbstick,GCInputRightThumbstick]];
         config.hidden=YES;
         self.virtualController=[[GCVirtualController alloc] initWithConfiguration:config];
         __block BOOL answered=NO;
@@ -263,7 +281,12 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
         });
       }
       break;
-    case 15: [self.input pollControllers]; [self check:self.input.hasPhysicalController && [self deliveredButtons]!=0 name:@"controller input uses the existing polling and console map"];
+    case 15: [self.input pollControllers];
+      self.result[@"controllerObservation"]=@{@"connected":self.virtualController.controller!=nil ? @YES : @NO,
+        @"extended":self.virtualController.controller.extendedGamepad!=nil ? @YES : @NO,
+        @"value":@(self.virtualController.controller.extendedGamepad.buttonA.value),
+        @"count":@(GCController.controllers.count),@"physical":self.input.hasPhysicalController ? @YES : @NO};
+      [self check:self.input.hasPhysicalController && [self deliveredButtons]!=0 name:@"controller input uses the existing polling and console map"];
       [self.virtualController setValue:0 forButtonElement:GCInputButtonA];
       [self.virtualController disconnect]; [self next];break;
     case 16:
@@ -293,5 +316,6 @@ static void RunSkinPressProbe(LibretroSession *session, NSDictionary *scenario, 
   SkinPressRunner *runner=[SkinPressRunner new];
   runner.session=session;runner.scenario=scenario;runner.result=result;runner.completion=completion;
   runner.checks=[NSMutableArray array];runner.touches=[NSMutableDictionary dictionary];
+  runner.controller.overlay.recordsContacts=YES;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{[runner advance];});
 }
