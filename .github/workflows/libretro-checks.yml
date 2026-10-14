@@ -29,6 +29,7 @@ name: Libretro engine checks
     - packages/neoplay_bridge/**
     - test/header_battery_test.dart
     - test/libretro_host/**
+    - test/libretro_simulator/**
     - test/libretro_channel_codec/**
     - lib/services/embedded_ios_session_status.dart
     - build-utils/libretro/**
