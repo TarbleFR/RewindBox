@@ -25,6 +25,10 @@ name: Shader kit checks
     - tools/shaders/**
   workflow_dispatch:
     inputs:
+      compiler_only:
+        description: Diagnose compiler coexistence only
+        type: boolean
+        default: false
       ui_only:
         description: Run only the Dolphin UIKit check (other shader inputs must already be verified)
         type: boolean
@@ -36,7 +40,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
-    if: ${{ !inputs.ui_only }}
+    if: ${{ !inputs.ui_only && !inputs.compiler_only }}
     # Preset and source rules, reflection and MSL bindings of the portable
     # core (vendored glslang and SPIRV-Cross), on Linux.
     runs-on: ubuntu-24.04
@@ -51,6 +55,7 @@ jobs:
       if: ${{ !cancelled() }}
       run: python3 test/dolphin_shader_localizations_test.py
   metal:
+    if: ${{ !inputs.compiler_only }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -123,4 +128,35 @@ jobs:
           build/slang-metal-verdicts.json
           build/dolphin-metal-verdicts.json
         if-no-files-found: ignore
+        retention-days: 14
+
+  native-diagnosis:
+    if: ${{ inputs.compiler_only }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Fetch the two pinned source inputs
+      run: |
+        git init -q "$RUNNER_TEMP/dolphin-ios"
+        git -C "$RUNNER_TEMP/dolphin-ios" sparse-checkout set --no-cone /Externals/glslang/
+        git -C "$RUNNER_TEMP/dolphin-ios" fetch -q --depth 1 --filter=blob:none https://github.com/OatmealDome/dolphin-ios 7cac54161659421ed95c2cd1c0b0746539a4cd38
+        git -C "$RUNNER_TEMP/dolphin-ios" checkout -q FETCH_HEAD
+        commit=$(python3 -c "import json; print(json.load(open('packages/neo_shader_kit/ios/Resources/slang-catalog.json'))['source']['commit'])")
+        git init -q "$RUNNER_TEMP/slang-shaders"
+        git -C "$RUNNER_TEMP/slang-shaders" fetch -q --depth 1 https://github.com/libretro/slang-shaders "$commit"
+        git -C "$RUNNER_TEMP/slang-shaders" checkout -q FETCH_HEAD
+    - name: Reproduce native compilation in Runner's dylib load order
+      run: >-
+        python3 test/neo_shader_compiler_coexistence.py --dolphin-ios "$RUNNER_TEMP/dolphin-ios"
+        --slang-shaders "$RUNNER_TEMP/slang-shaders" --evidence evidence/compiler --diagnose
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: compiler-coexistence-${{ github.sha }}
+        path: |
+          evidence/compiler/*.txt
+          evidence/compiler/*.json
         retention-days: 14
