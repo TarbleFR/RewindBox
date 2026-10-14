@@ -39,6 +39,7 @@ NSString *LibretroRetroPadDescription(uint16_t buttons) {
 @property(nonatomic, readwrite) int16_t pointerX;
 @property(nonatomic, readwrite) int16_t pointerY;
 @property(nonatomic, readwrite, copy) NSSet<NSString *> *pressedItems;
+@property(nonatomic, readwrite, copy) NSDictionary<NSString *, NSNumber *> *dpadDirections;
 @property(nonatomic, readwrite, copy) NSSet<NSString *> *inertItems;
 @property(nonatomic, readwrite, copy) NSSet<NSNumber *> *actions;
 @property(nonatomic, readwrite, copy) NSDictionary<NSString *, NSValue *> *stickVectors;
@@ -162,6 +163,15 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   [self reresolvePointerTracks];
 }
 
+- (void)setControlsDisabled:(BOOL)disabled {
+  if (_controlsDisabled == disabled) return;
+  _controlsDisabled = disabled;
+  if (!disabled) return;
+  for (id key in [_tracks.allKeys copy]) {
+    if (_tracks[key].mode != LibretroTouchModePointer) [_tracks removeObjectForKey:key];
+  }
+}
+
 - (NSUInteger)touchCount {
   return _tracks.count;
 }
@@ -242,7 +252,8 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
 /// D-pad directions of the point on `laidOut`, mapped to its four inputs.
 /// Returns YES when at least one direction reached the core (NO in the
 /// dead zone or when no direction is supported).
-- (BOOL)applyDPad:(LibretroLaidOutItem *)laidOut x:(double)x y:(double)y sink:(LibretroTouchSink)sink {
+- (BOOL)applyDPad:(LibretroLaidOutItem *)laidOut x:(double)x y:(double)y sink:(LibretroTouchSink)sink delivered:(LibretroDirection *)delivered {
+  if (delivered != NULL) *delivered = 0;
   LibretroDirection directions = LibretroDPadDirections(laidOut.frame, x, y);
   if (directions == 0) return NO;
   NSArray<NSString *> *inputs = [self inputsForItem:laidOut.item];
@@ -251,7 +262,10 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   BOOL sent = NO;
   for (NSUInteger index = 0; index < 4 && index < inputs.count; index++) {
     if ((directions & bits[index]) == 0) continue;
-    if ([self applyInput:inputs[index] magnitude:1.0 sink:sink]) sent = YES;
+    if ([self applyInput:inputs[index] magnitude:1.0 sink:sink]) {
+      sent = YES;
+      if (delivered != NULL) *delivered |= bits[index];
+    }
   }
   return sent;
 }
@@ -300,6 +314,7 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   NSMutableSet<NSString *> *pressed = [NSMutableSet set];
   NSMutableSet<NSString *> *inert = [NSMutableSet set];
   NSMutableDictionary<NSString *, NSValue *> *vectors = [NSMutableDictionary dictionary];
+  NSMutableDictionary<NSString *, NSNumber *> *directions = [NSMutableDictionary dictionary];
   NSMutableArray<LibretroTouchContact *> *contacts = self.recordsContacts ? [NSMutableArray array] : nil;
   LibretroTouchTrack *pointer = nil;
 
@@ -324,7 +339,9 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
           if (identifier.length > 0) [touched addObject:identifier];
           if (item.kind == LibretroSkinItemKindDPad) {
             if (LibretroDPadDirections(laidOut.frame, x, y) == 0) continue;  // dead zone
-            BOOL sentAny = [self applyDPad:laidOut x:x y:y sink:sink];
+            LibretroDirection delivered = 0;
+            BOOL sentAny = [self applyDPad:laidOut x:x y:y sink:sink delivered:&delivered];
+            if (sentAny) directions[identifier] = @(directions[identifier].unsignedIntegerValue | delivered);
             if (identifier.length > 0) [(sentAny ? pressed : inert) addObject:identifier];
           } else if (item.kind == LibretroSkinItemKindButton) {
             BOOL sentAny = NO;
@@ -343,7 +360,9 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
           NSString *identifier = track.bound.item.identifier ?: @"";
           if (identifier.length > 0) [touched addObject:identifier];
           if (LibretroDPadDirections(track.bound.frame, x, y) == 0) break;  // dead zone
-          BOOL sentAny = [self applyDPad:track.bound x:x y:y sink:sink];
+          LibretroDirection delivered = 0;
+          BOOL sentAny = [self applyDPad:track.bound x:x y:y sink:sink delivered:&delivered];
+          if (sentAny) directions[identifier] = @(directions[identifier].unsignedIntegerValue | delivered);
           if (identifier.length > 0) [(sentAny ? pressed : inert) addObject:identifier];
         }
         break;
@@ -400,6 +419,7 @@ static NSArray<LibretroLaidOutItem *> *TrackerSlidable(NSArray<LibretroLaidOutIt
   resolution.pointerX = _lastPointerX;
   resolution.pointerY = _lastPointerY;
   resolution.pressedItems = pressed;
+  resolution.dpadDirections = directions;
   resolution.inertItems = inert;
   resolution.actions = actions;
   resolution.stickVectors = vectors;

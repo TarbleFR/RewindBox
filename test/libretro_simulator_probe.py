@@ -1059,6 +1059,9 @@ def run_in_simulator(app, evidence, timeout):
     shader_frames = documents / 'ShaderFrames'
     if shader_frames.is_dir():
         shutil.copytree(shader_frames, evidence / 'ShaderFrames', dirs_exist_ok=True)
+    skin_frames = documents / 'SkinFrames'
+    if skin_frames.is_dir():
+        shutil.copytree(skin_frames, evidence / 'SkinFrames', dirs_exist_ok=True)
     frontend = documents / 'Libretro/Config/Frontend'
     if frontend.is_dir():
         shutil.copytree(frontend, evidence / 'Frontend', dirs_exist_ok=True)
@@ -1120,6 +1123,11 @@ def evaluate(report, scenarios):
             resolution = scenario.get('resolution')
             if resolution:
                 problems += resolution_problems(name, resolution, result, launch)
+            if scenario.get('skinPress'):
+                checks = result.get('skinChecks', [])
+                if not checks:
+                    problems.append(f'{name}: no skin press checks')
+                problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('shaders'):
                 problems += shader_problems(name, scenario['shaders'], result, launch)
         elif scenario['expect'] == 'rejected':

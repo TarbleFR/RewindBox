@@ -30,6 +30,7 @@ static NSValue *LibretroOverlayKey(UITouch *touch) {
   LibretroSkinLayoutResult *_layout;
   NSSet<NSNumber *> *_activeActions;
   NSSet<NSString *> *_pressedItems;
+  NSDictionary<NSString *, NSNumber *> *_dpadDirections;
   NSDictionary<NSString *, NSValue *> *_stickVectors;
   BOOL _pointerPressed;
   int16_t _pointerX;
@@ -173,6 +174,10 @@ static NSValue *LibretroOverlayKey(UITouch *touch) {
   if (![vectors isEqualToDictionary:_stickVectors]) {
     _stickVectors = [vectors copy];
     if (self.stickVectorsChanged != nil) self.stickVectorsChanged(_stickVectors);
+  }
+  if (![resolution.dpadDirections isEqualToDictionary:_dpadDirections]) {
+    _dpadDirections = resolution.dpadDirections;
+    if (self.dpadDirectionsChanged != nil) self.dpadDirectionsChanged(_dpadDirections);
   }
   if (self.resolutionChanged != nil) self.resolutionChanged(resolution);
 

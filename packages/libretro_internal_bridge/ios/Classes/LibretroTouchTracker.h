@@ -52,6 +52,9 @@ typedef NS_ENUM(NSInteger, LibretroTouchMode) {
 /// Items that send at least one input (or action) now: the only ones the
 /// skin may highlight.
 @property(nonatomic, readonly, copy) NSSet<NSString *> *pressedItems;
+/// D-pad direction bits actually delivered for each item, from the same
+/// resolution as coreInput (not inferred from a separate visual hit test).
+@property(nonatomic, readonly, copy) NSDictionary<NSString *, NSNumber *> *dpadDirections;
 /// Items under a finger that send nothing (no supported input for the
 /// console, blocked button, empty remap). Never highlighted.
 @property(nonatomic, readonly, copy) NSSet<NSString *> *inertItems;

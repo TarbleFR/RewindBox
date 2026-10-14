@@ -50,6 +50,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// A touched item that sends nothing (unsupported or blocked input) is
 /// never reported here.
 @property(nonatomic, copy, nullable) void (^pressedItemsChanged)(NSSet<NSString *> *itemIdentifiers);
+/// Supported D-pad direction bits for the renderer, from the input resolution.
+@property(nonatomic, copy, nullable) void (^dpadDirectionsChanged)(NSDictionary<NSString *, NSNumber *> *directions);
 /// Every published resolution (touch diagnostics). Set `recordsContacts`
 /// to get the per-finger details.
 @property(nonatomic, copy, nullable) void (^resolutionChanged)(LibretroTouchResolution *resolution);

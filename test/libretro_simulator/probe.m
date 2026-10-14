@@ -328,6 +328,10 @@ static NSString *ReservationReport(void) {
   return report != NULL ? report() : @"no reservation in these sources";
 }
 
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+#import "skin_press_probe.h"
+#endif
+
 @interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>
 @property(nonatomic, strong) UIWindow *window;
 @end
@@ -358,7 +362,7 @@ static NSString *ReservationReport(void) {
   [self prepareDirectories];
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
   for (NSDictionary *scenario in _scenarios) {
-    if (scenario[@"shaders"] != nil) {
+    if (scenario[@"shaders"] != nil || scenario[@"skinPress"] != nil) {
       PrepareShaderObservation();
       break;
     }
@@ -386,6 +390,17 @@ static NSString *ReservationReport(void) {
         withIntermediateDirectories:YES
                          attributes:nil
                               error:nil];
+  }
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+  BOOL pressTest=NO;
+  for (NSDictionary *scenario in _scenarios) if(scenario[@"skinPress"]!=nil)pressTest=YES;
+  if(pressTest) SkinProbeBuildFlatSkin(DocumentsPath(@"Libretro/Skins/press-flat"));
+#endif
+  NSString *skinFixtures = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"SkinFixtures"];
+  for (NSString *entry in [files contentsOfDirectoryAtPath:skinFixtures error:nil]) {
+    NSString *target = DocumentsPath([@"Libretro/Skins/" stringByAppendingString:entry]);
+    [files removeItemAtPath:target error:nil];
+    [files copyItemAtPath:[skinFixtures stringByAppendingPathComponent:entry] toPath:target error:nil];
   }
   NSString *bundled = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"LibretroSystem"];
   NSString *system = DocumentsPath(@"Libretro/System");
@@ -882,6 +897,15 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                           if (!success) {
                             // The session has dismissed its view already.
                             [probe finishScenario:result session:session];
+                            return;
+                          }
+                          if (scenario[@"skinPress"] != nil) {
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+                            RunSkinPressProbe(session,scenario,result,^{[probe stopScenario:result session:session];});
+#else
+                            result[@"skinChecks"]=@[@{@"name":@"probe available",@"passed":@NO}];
+                            [probe stopScenario:result session:session];
+#endif
                             return;
                           }
                           if (scenario[@"shaders"] != nil) {

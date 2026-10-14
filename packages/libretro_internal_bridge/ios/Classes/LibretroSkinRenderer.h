@@ -8,7 +8,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Draws a skin representation above the game picture: the background image
 /// and the items, either their own images (imported skins) or NeoStation's
 /// vector style (default skins). One CALayer per item (CAShapeLayer /
-/// CATextLayer for vector items); highlight changes run inside
+/// CATextLayer for vector items); immediate press changes run inside
 /// [CATransaction setDisableActions:YES]. Never receives touches
 /// (userInteractionEnabled = NO); LibretroTouchOverlay sits above it.
 ///
@@ -32,8 +32,11 @@ NS_ASSUME_NONNULL_BEGIN
                    opacity:(CGFloat)opacity
             controlsHidden:(BOOL)controlsHidden;
 
-/// Highlights the items currently pressed (by identifier).
+/// Immediately depresses the artwork of delivered controls, then animates
+/// its return on release. No image decoding occurs on this path.
 - (void)setPressedItems:(NSSet<NSString *> *)itemIdentifiers;
+/// Effective D-pad directions, supplied by the same touch/input resolution.
+- (void)setDPadDirections:(NSDictionary<NSString *, NSNumber *> *)directions;
 
 /// Moves each thumbstick knob with its finger: {itemId: NSValue of a
 /// CGPoint, x and y in -1...1, y positive downward}, as reported by

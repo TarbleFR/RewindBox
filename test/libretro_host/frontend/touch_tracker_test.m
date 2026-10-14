@@ -630,6 +630,25 @@ static void TestTouchScreen(void) {
   CHECK([tracker resolve].pointerPressed, @"controls disabled: the touch screen still works");
 }
 
+static void TestVisualDirectionsAndControllerReset(void) {
+  LibretroSkinLayoutResult *layout = DefaultLayout(@"gba", LibretroSkinOrientationLandscape, kDevices[1]);
+  LibretroTouchTracker *tracker = Tracker(layout, @"gba", nil);
+  LibretroLaidOutItem *pad = LaidOut(layout, @"dpad");
+  [tracker beginTouch:@"first" x:pad.frame.x+pad.frame.w y:pad.frame.y];
+  LibretroTouchResolution *state = [tracker resolve];
+  CHECK(state.coreInput.buttons == (BIT(UP)|BIT(RIGHT)) &&
+        state.dpadDirections[@"dpad"].unsignedIntegerValue == (LibretroDirectionUp|LibretroDirectionRight),
+        @"D-pad artwork and core receive the same diagonal");
+  [tracker beginTouch:@"second" x:pad.frame.x y:pad.frame.y];
+  [tracker endTouch:@"first"];
+  CHECK([tracker resolve].dpadDirections[@"dpad"].unsignedIntegerValue == (LibretroDirectionUp|LibretroDirectionLeft),
+        @"lifting one finger preserves the other finger's actual directions");
+  tracker.controlsDisabled = YES;
+  tracker.controlsDisabled = NO;
+  CHECK(Released([tracker resolve]) && tracker.touchCount == 0,
+        @"a controller connection cannot resurrect a held touch after disconnect");
+}
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     workDirectory = argc > 1 ? @(argv[1]) : NSTemporaryDirectory();
@@ -639,6 +658,7 @@ int main(int argc, const char *argv[]) {
     TestOverlaps();
     TestImportedSkin();
     TestTouchScreen();
+    TestVisualDirectionsAndControllerReset();
   }
   if (failures > 0) {
     printf("%d of %d touch tracker check(s) failed\n", failures, checks);

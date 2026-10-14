@@ -15,6 +15,7 @@ NSString *const LibretroSkinErrorConsoleUnsupported = @"SKIN_CONSOLE_UNSUPPORTED
 NSString *const LibretroSkinErrorNoRepresentation = @"SKIN_NO_REPRESENTATION";
 NSString *const LibretroSkinErrorNoPhoneOrTablet = @"SKIN_NO_DEVICE";
 NSString *const LibretroSkinWarningOrientationMissing = @"SKIN_WARN_ORIENTATION_MISSING";
+NSString *const LibretroSkinWarningPaintedControls = @"SKIN_WARN_PAINTED_CONTROLS";
 NSString *const LibretroSkinWarningAssetMissing = @"SKIN_WARN_ASSET_MISSING";
 NSString *const LibretroSkinWarningUnknownInputs = @"SKIN_WARN_UNKNOWN_INPUTS";
 NSString *const LibretroSkinWarningFiltersIgnored = @"SKIN_WARN_FILTERS_IGNORED";
@@ -538,6 +539,9 @@ static NSString *SkinImagePath(NSString *root, id name) {
       item.assetFrame =
           LibretroRectMake(frame.x + (frame.w - size.w) / 2, frame.y + (frame.h - size.h) / 2, size.w, size.h);
     }
+  }
+  if (item.assetPath == nil && (item.kind == LibretroSkinItemKindButton || item.kind == LibretroSkinItemKindDPad)) {
+    [self.warnings addObject:LibretroSkinWarningPaintedControls];
   }
   item.shape = LibretroSkinItemShapeNone;
   // Only controls drawn with their own image can move; painted ones stay.

@@ -145,6 +145,9 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   _overlay.pressedItemsChanged = ^(NSSet<NSString *> *itemIdentifiers) {
     [renderer setPressedItems:itemIdentifiers];
   };
+  _overlay.dpadDirectionsChanged = ^(NSDictionary<NSString *, NSNumber *> *directions) {
+    [renderer setDPadDirections:directions];
+  };
   // The knob of a held thumbstick follows the finger.
   _overlay.stickVectorsChanged = ^(NSDictionary<NSString *, NSValue *> *vectors) {
     [renderer setStickVectors:vectors];
@@ -365,6 +368,10 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
                                            safeInsets:safeInsets
                                             overrides:overrides];
   }
+  // Imported representations can reuse item ids across different skins.
+  // Clear held contacts before replacing artwork/mappings, never carry them
+  // into another skin. Editing already clears game input itself.
+  if (_representation != nil && _representation != representation && !_editing) [_overlay releaseAllTouches];
   _representation = representation;
   _layout = layout;
   BOOL hasMenuItem = NO;

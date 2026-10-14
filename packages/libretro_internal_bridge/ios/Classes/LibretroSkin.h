@@ -221,6 +221,7 @@ FOUNDATION_EXPORT NSString *const LibretroSkinErrorNoRepresentation;    // SKIN_
 FOUNDATION_EXPORT NSString *const LibretroSkinErrorNoPhoneOrTablet;     // SKIN_NO_DEVICE
 /// Import warnings (skin accepted).
 FOUNDATION_EXPORT NSString *const LibretroSkinWarningOrientationMissing;  // SKIN_WARN_ORIENTATION_MISSING
+FOUNDATION_EXPORT NSString *const LibretroSkinWarningPaintedControls;     // SKIN_WARN_PAINTED_CONTROLS
 FOUNDATION_EXPORT NSString *const LibretroSkinWarningAssetMissing;        // SKIN_WARN_ASSET_MISSING
 FOUNDATION_EXPORT NSString *const LibretroSkinWarningUnknownInputs;       // SKIN_WARN_UNKNOWN_INPUTS
 FOUNDATION_EXPORT NSString *const LibretroSkinWarningFiltersIgnored;      // SKIN_WARN_FILTERS_IGNORED

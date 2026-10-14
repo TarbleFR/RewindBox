@@ -135,6 +135,7 @@ abstract final class LibretroLocale {
     'SKIN_NO_DEVICE': 'skinErrorNoDevice',
     'SKIN_WARN_ORIENTATION_MISSING': 'skinWarnOrientationMissing',
     'SKIN_WARN_ASSET_MISSING': 'skinWarnAssetMissing',
+    'SKIN_WARN_PAINTED_CONTROLS': 'skinWarnPaintedControls',
     'SKIN_WARN_UNKNOWN_INPUTS': 'skinWarnUnknownInputs',
     'SKIN_WARN_FILTERS_IGNORED': 'skinWarnFiltersIgnored',
     'SKIN_WARN_INPUT_FRAME_IGNORED': 'skinWarnInputFrameIgnored',
@@ -157,6 +158,7 @@ abstract final class LibretroLocale {
   static const Map<String, Map<String, String>> values =
       <String, Map<String, String>>{
     'en': {
+      'skinWarnPaintedControls': 'Some buttons are drawn into the background. Only reliably isolated areas animate; other buttons need an adapted skin.',
       'settingFastInterpreter': 'Fast Interpreter (relaunch game)',
       'fastInterpreterEnabled': 'Enabled',
       'fastInterpreterDisabled': 'Disabled',
@@ -827,6 +829,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Missing after the failure (their originals are in the backup folder):',
     },
     'fr': {
+      'skinWarnPaintedControls': 'Certaines touches sont dessinées dans le fond. Seules les zones isolables de façon fiable sont animées ; les autres nécessitent un skin adapté.',
       'settingFastInterpreter': 'Interpréteur rapide (relancer le jeu)',
       'fastInterpreterEnabled': 'Activé',
       'fastInterpreterDisabled': 'Désactivé',
@@ -1497,6 +1500,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Manquants après l’échec (leurs originaux sont dans le dossier de sauvegarde) :',
     },
     'de': {
+      'skinWarnPaintedControls': 'Einige Tasten sind im Hintergrund gezeichnet. Nur zuverlässig isolierbare Bereiche werden animiert; andere benötigen einen angepassten Skin.',
       'settingFastInterpreter': 'Schneller Interpreter (Spiel neu starten)',
       'fastInterpreterEnabled': 'Aktiviert',
       'fastInterpreterDisabled': 'Deaktiviert',
@@ -2167,6 +2171,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Nach dem Fehler fehlend (die Originale liegen im Sicherungsordner):',
     },
     'es': {
+      'skinWarnPaintedControls': 'Algunos botones están dibujados en el fondo. Solo se animan las zonas que pueden aislarse con fiabilidad; los demás necesitan un skin adaptado.',
       'settingFastInterpreter': 'Intérprete rápido (volver a abrir el juego)',
       'fastInterpreterEnabled': 'Activado',
       'fastInterpreterDisabled': 'Desactivado',
@@ -2837,6 +2842,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Faltan tras el error (sus originales están en la carpeta de copia de seguridad):',
     },
     'it': {
+      'skinWarnPaintedControls': 'Alcuni pulsanti sono disegnati nello sfondo. Si animano solo le aree isolabili in modo affidabile; gli altri richiedono una skin adattata.',
       'settingFastInterpreter': 'Interprete veloce (riaprire il gioco)',
       'fastInterpreterEnabled': 'Attivato',
       'fastInterpreterDisabled': 'Disattivato',
@@ -3507,6 +3513,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Mancanti dopo l’errore (gli originali sono nella cartella della copia di sicurezza):',
     },
     'pt': {
+      'skinWarnPaintedControls': 'Alguns botões estão desenhados no fundo. Só as áreas que podem ser isoladas com segurança são animadas; os outros precisam de uma skin adaptada.',
       'settingFastInterpreter': 'Interpretador rápido (reabrir o jogo)',
       'fastInterpreterEnabled': 'Ativado',
       'fastInterpreterDisabled': 'Desativado',
@@ -4177,6 +4184,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Em falta após a falha (os originais estão na pasta da cópia de segurança):',
     },
     'ru': {
+      'skinWarnPaintedControls': 'Некоторые кнопки нарисованы на фоне. Анимируются только области, которые можно надёжно отделить; для остальных нужна адаптированная тема.',
       'settingFastInterpreter': 'Быстрый интерпретатор (заново открыть игру)',
       'fastInterpreterEnabled': 'Включён',
       'fastInterpreterDisabled': 'Выключен',
@@ -4847,6 +4855,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Отсутствуют после сбоя (оригиналы находятся в папке резервной копии):',
     },
     'id': {
+      'skinWarnPaintedControls': 'Sebagian tombol digambar pada latar. Hanya area yang dapat dipisahkan dengan andal yang dianimasikan; tombol lainnya memerlukan skin yang disesuaikan.',
       'settingFastInterpreter': 'Interpreter cepat (buka ulang game)',
       'fastInterpreterEnabled': 'Diaktifkan',
       'fastInterpreterDisabled': 'Dinonaktifkan',
@@ -5517,6 +5526,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Hilang setelah kegagalan (file aslinya ada di folder cadangan):',
     },
     'ja': {
+      'skinWarnPaintedControls': '背景に描かれたボタンがあります。確実に分離できる部分だけが動き、それ以外には調整済みのスキンが必要です。',
       'settingFastInterpreter': '高速インタープリター（ゲームを開き直す）',
       'fastInterpreterEnabled': '有効',
       'fastInterpreterDisabled': '無効',
@@ -6187,6 +6197,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '失敗後に見つからないもの（元のファイルはバックアップフォルダにあります）:',
     },
     'ko': {
+      'skinWarnPaintedControls': '일부 버튼은 배경에 그려져 있습니다. 정확하게 분리할 수 있는 영역만 움직이며, 나머지는 수정된 스킨이 필요합니다.',
       'settingFastInterpreter': '고속 인터프리터 (게임을 닫고 다시 실행)',
       'fastInterpreterEnabled': '활성화',
       'fastInterpreterDisabled': '비활성화',
@@ -6857,6 +6868,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '실패 후 없는 항목 (원본은 백업 폴더에 있음):',
     },
     'zh': {
+      'skinWarnPaintedControls': '部分按钮绘制在背景中。只有能够可靠分离的区域才会播放动画；其他按钮需要适配后的皮肤。',
       'settingFastInterpreter': '快速解释器（关闭后重新打开游戏）',
       'fastInterpreterEnabled': '已启用',
       'fastInterpreterDisabled': '已禁用',
@@ -7527,6 +7539,7 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '失败后缺失（原文件在备份文件夹中）：',
     },
     'zh_Hant': {
+      'skinWarnPaintedControls': '部分按鈕繪製在背景中。只有能可靠分離的區域才會顯示動畫；其他按鈕需要調整後的皮膚。',
       'settingFastInterpreter': '快速直譯器（關閉後重新開啟遊戲）',
       'fastInterpreterEnabled': '已啟用',
       'fastInterpreterDisabled': '已停用',

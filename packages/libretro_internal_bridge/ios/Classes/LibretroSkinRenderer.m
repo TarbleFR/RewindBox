@@ -1,4 +1,5 @@
 #import "LibretroSkinRenderer.h"
+#import "LibretroSkinButtonCrop.h"
 
 #import <CommonCrypto/CommonDigest.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -393,6 +394,10 @@ static NSString *LibretroSkinItemSignature(LibretroSkinItem *item) {
 @property(nonatomic, copy) NSString *signature;
 @property(nonatomic, strong) LibretroLaidOutItem *laidOut;
 @property(nonatomic, strong) CALayer *container;
+@property(nonatomic, strong) CALayer *artwork;
+@property(nonatomic, strong, nullable) CALayer *backplate;
+@property(nonatomic, assign) BOOL pressedState;
+@property(nonatomic, assign) BOOL extracted;
 @property(nonatomic, strong, nullable) CAShapeLayer *shape;
 @property(nonatomic, strong, nullable) CAShapeLayer *arrows;
 @property(nonatomic, strong, nullable) CAShapeLayer *knob;
@@ -439,6 +444,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   NSDictionary<NSString *, NSValue *> *_stickVectors;
   BOOL _editing;
   NSString *_selectedItem;
+  NSDictionary<NSString *, NSNumber *> *_dpadDirections;
+  NSUInteger _imageGeneration;
 }
 
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory {
@@ -480,6 +487,16 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CGFloat scale = [self currentDisplayScale];
   BOOL sameContent = representation != nil && representation == _representation && layout == _layout &&
                      fabs(scale - _scale) < 0.01;
+  if (!sameContent) {
+    _imageGeneration++;
+    _backgroundLayer.mask = nil;
+    if (_representation != representation) {
+      _pressed = [NSSet set];
+      _stickVectors = @{};
+      _dpadDirections = @{};
+    }
+    if (![_representation.backgroundPath isEqualToString:representation.backgroundPath]) _backgroundLayer.contents = nil;
+  }
   _scale = scale;
   _representation = representation;
   _layout = layout;
@@ -497,6 +514,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   } else {
     [self applyPanelAndBackground];
     [self applyItems];
+    [self preparePaintedItems];
   }
   [CATransaction commit];
 }
@@ -508,6 +526,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   [_backgroundLayer setValue:nil forKey:LibretroSkinImageKey];
   for (LibretroSkinItemLayers *layers in _items) [layers.container removeFromSuperlayer];
   [_items removeAllObjects];
+  _backgroundLayer.mask = nil;
+  _imageGeneration++;
 }
 
 - (void)applyPanelAndBackground {
@@ -555,7 +575,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     NSString *signature = LibretroSkinItemSignature(item);
     if (signature == nil || item.identifier.length == 0) continue;
     LibretroSkinItemLayers *layers = previous[item.identifier];
-    if (layers != nil && [layers.signature isEqualToString:signature]) {
+    if (layers != nil && !layers.extracted && [layers.signature isEqualToString:signature]) {
       [previous removeObjectForKey:item.identifier];
     } else {
       layers = [self createLayersForItem:item signature:signature];
@@ -578,16 +598,22 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   layers.container = [CALayer layer];
   layers.container.anchorPoint = CGPointZero;
   layers.container.frame = CGRectZero;
+  layers.container.name = [@"skin-item-" stringByAppendingString:item.identifier];
+  layers.artwork = [CALayer layer];
+  layers.artwork.anchorPoint = CGPointZero;
+  layers.artwork.frame = CGRectZero;
+  layers.artwork.name = [@"skin-face-" stringByAppendingString:item.identifier];
+  [layers.container addSublayer:layers.artwork];
   if (LibretroSkinIsVector(item)) {
     layers.shape = LibretroSkinShapeLayer(scale);
-    [layers.container addSublayer:layers.shape];
+    [layers.artwork addSublayer:layers.shape];
     if (item.shape == LibretroSkinItemShapeDPad) {
       layers.arrows = LibretroSkinShapeLayer(scale);
-      [layers.container addSublayer:layers.arrows];
+      [layers.artwork addSublayer:layers.arrows];
     }
     if (item.kind == LibretroSkinItemKindThumbstick) {
       layers.knob = LibretroSkinShapeLayer(scale);
-      [layers.container addSublayer:layers.knob];
+      [layers.artwork addSublayer:layers.knob];
     }
     if (LibretroSkinHasLabel(item)) {
       CATextLayer *text = [CATextLayer layer];
@@ -596,26 +622,26 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       text.wrapped = NO;
       text.truncationMode = kCATruncationNone;
       layers.text = text;
-      [layers.container addSublayer:text];
+      [layers.artwork addSublayer:text];
     }
     layers.highlightShape = LibretroSkinShapeLayer(scale);
-    [layers.container addSublayer:layers.highlightShape];
+    [layers.artwork addSublayer:layers.highlightShape];
   } else {
     if (item.assetPath.length > 0) {
       layers.image = LibretroSkinPlainLayer(scale);
-      [layers.container addSublayer:layers.image];
+      [layers.artwork addSublayer:layers.image];
       layers.highlightImage = [CALayer layer];
       layers.highlightMask = LibretroSkinPlainLayer(scale);
       layers.highlightImage.mask = layers.highlightMask;
-      [layers.container addSublayer:layers.highlightImage];
+      [layers.artwork addSublayer:layers.highlightImage];
     } else {
       // Control painted in the background image: a soft overlay only.
       layers.highlightShape = LibretroSkinShapeLayer(scale);
-      [layers.container addSublayer:layers.highlightShape];
+      [layers.artwork addSublayer:layers.highlightShape];
     }
     if (item.kind == LibretroSkinItemKindThumbstick && item.thumbstickAssetPath.length > 0) {
       layers.knobImage = LibretroSkinPlainLayer(scale);
-      [layers.container addSublayer:layers.knobImage];
+      [layers.artwork addSublayer:layers.knobImage];
     }
   }
   layers.outline = LibretroSkinShapeLayer(scale);
@@ -703,7 +729,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     layers.highlightImage.backgroundColor = overlay.CGColor;
     layers.highlightMask.frame = CGRectMake(0, 0, assetFrame.size.width, assetFrame.size.height);
   }
-  CGRect outline = CGRectInset(frame, -3, -3);
+  CGRect outline = CGRectInset(frame, -6, -6);
   layers.outline.contentsScale = scale;
   layers.outline.frame = outline;
   CGMutablePathRef outlinePath = CGPathCreateMutable();
@@ -718,11 +744,11 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
 - (void)applyStateToLayers:(LibretroSkinItemLayers *)layers {
   LibretroSkinItem *item = layers.laidOut.item;
   // Editing shows every control, even with a physical controller.
-  layers.container.hidden = _controlsHidden && !_editing;
+  layers.container.hidden = _controlsHidden && !_editing && !layers.extracted;
+  layers.artwork.hidden = _controlsHidden && !_editing;
   layers.container.opacity = [self itemsOpacity];
   BOOL pressed = !_editing && [_pressed containsObject:layers.identifier];
-  layers.highlightShape.hidden = !pressed;
-  layers.highlightImage.hidden = !pressed;
+  [self applyPressToLayers:layers down:pressed];
   BOOL movable = _editing && item.movable;
   layers.outline.hidden = !movable;
   if (movable) {
@@ -744,10 +770,171 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   [CATransaction setDisableActions:YES];
   for (LibretroSkinItemLayers *layers in _items) {
     BOOL down = !_editing && [pressed containsObject:layers.identifier];
-    layers.highlightShape.hidden = !down;
-    layers.highlightImage.hidden = !down;
+    [self applyPressToLayers:layers down:down];
   }
   [CATransaction commit];
+}
+
+/// Press the face, not its hit area. Artwork stays in layout coordinates,
+/// so scaling is explicitly centred on the visible control. A stick moves
+/// only its cap; the base stays fixed. Touch-down has no animation delay.
+- (void)applyPressToLayers:(LibretroSkinItemLayers *)layers down:(BOOL)down {
+  LibretroSkinItem *item = layers.laidOut.item;
+  BOOL stick = item.kind == LibretroSkinItemKindThumbstick;
+  CALayer *cap = layers.knobImage ?: layers.knob;
+  BOOL movable = stick ? cap != nil : (layers.image != nil || layers.shape != nil);
+  BOOL active = down && !_controlsHidden && !_editing && movable;
+  // An unisolatable painted control keeps the old static feedback, never
+  // a duplicate animated image. Separated artwork has no primary halo.
+  layers.highlightShape.hidden = movable || !down;
+  layers.highlightImage.hidden = YES;
+  CALayer *face = stick ? cap : layers.artwork;
+  if (face == nil) return;
+  CATransform3D target = CATransform3DIdentity;
+  if (active) {
+    CGFloat shrink = stick ? 0.96 : 0.965;
+    CGFloat depth = MIN(2.0, MAX(0.7, layers.laidOut.frame.h * 0.025));
+    target = CATransform3DMakeScale(shrink, shrink, 1);
+    if (stick) {
+      target.m42 = depth;
+    } else {
+      CGRect frame = LibretroSkinCGRect(layers.laidOut.assetFrame);
+      if (CGRectIsEmpty(frame)) frame = LibretroSkinCGRect(layers.laidOut.frame);
+      target.m41 = CGRectGetMidX(frame) * (1 - shrink);
+      target.m42 = CGRectGetMidY(frame) * (1 - shrink) + depth;
+      if (item.kind == LibretroSkinItemKindDPad) {
+        NSUInteger d = _dpadDirections[layers.identifier].unsignedIntegerValue;
+        target.m41 += ((d & LibretroDirectionRight) != 0) - ((d & LibretroDirectionLeft) != 0);
+        target.m42 += (((d & LibretroDirectionDown) != 0) - ((d & LibretroDirectionUp) != 0)) * 0.7;
+      }
+    }
+  }
+  CATransform3D previous = face.presentationLayer != nil ? face.presentationLayer.transform : face.transform;
+  BOOL released = layers.pressedState && !active;
+  if (active || released || _editing || _controlsHidden) [face removeAnimationForKey:@"skin-release"];
+  face.transform = target;
+  // Editing/hidden controls return immediately. Touch release or cancellation
+  // interpolates from the visible position, so rapid re-presses never queue.
+  if (released && !_editing && !_controlsHidden && !UIAccessibilityIsReduceMotionEnabled()) {
+    CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"transform"];
+    animation.fromValue = [NSValue valueWithCATransform3D:previous];
+    animation.toValue = [NSValue valueWithCATransform3D:target];
+    animation.duration = 0.12;
+    animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+    [face addAnimation:animation forKey:@"skin-release"];
+  }
+  layers.pressedState = active;
+  // Imported artwork may already contain a shadow. Keep added shadows subtle;
+  // flat extracted rectangles keep their original perimeter, without a halo.
+  CALayer *shadow = stick ? cap : (layers.image ?: layers.shape);
+  shadow.shadowColor = UIColor.blackColor.CGColor;
+  shadow.shadowOpacity = layers.extracted || !movable ? 0 : (active ? 0.08f : 0.18f);
+  shadow.shadowRadius = active ? 0.5 : 1.5;
+  shadow.shadowOffset = CGSizeMake(0, active ? 0.4 : 1.5);
+}
+
+- (void)setDPadDirections:(NSDictionary<NSString *, NSNumber *> *)directions {
+  _dpadDirections = [directions copy] ?: @{};
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  for (LibretroSkinItemLayers *layers in _items) {
+    if (layers.laidOut.item.kind == LibretroSkinItemKindDPad)
+      [self applyPressToLayers:layers down:[_pressed containsObject:layers.identifier]];
+  }
+  [CATransaction commit];
+}
+
+/// Prepare reliable crops once on the serial image queue, before any press.
+/// The original painted area is removed with a background mask and filled
+/// with its verified background model, so it cannot remain underneath.
+- (void)preparePaintedItems {
+  if (_backgroundLayer.contents == nil || _representation.generated ||
+      ![[_backgroundLayer valueForKey:@"neostationSkinReadyKey"] isEqual:[_backgroundLayer valueForKey:LibretroSkinImageKey]]) return;
+  UIImage *background = [UIImage imageWithCGImage:(__bridge CGImageRef)_backgroundLayer.contents];
+  CGRect skin = _backgroundLayer.frame;
+  if (CGRectIsEmpty(skin)) return;
+  NSMutableArray<LibretroSkinItemLayers *> *candidates = [NSMutableArray array];
+  for (LibretroSkinItemLayers *layers in _items) {
+    LibretroSkinItem *item = layers.laidOut.item;
+    if (item.kind != LibretroSkinItemKindButton && item.kind != LibretroSkinItemKindDPad) continue;
+    if (layers.image != nil || layers.shape != nil || item.assetPath != nil || item.inputs.count == 0) continue;
+    CGRect frame = CGRectInset(LibretroSkinCGRect(layers.laidOut.frame), -6, -6);
+    if (!CGRectContainsRect(skin, frame)) continue;
+    BOOL isolated = YES;
+    for (LibretroLaidOutScreen *screen in _layout.screens) {
+      if (CGRectIntersectsRect(frame, LibretroSkinCGRect(screen.container))) isolated = NO;
+    }
+    for (LibretroLaidOutItem *other in _layout.items) {
+      if (other != layers.laidOut && CGRectIntersectsRect(frame, LibretroSkinCGRect(other.frame))) isolated = NO;
+    }
+    if (isolated) [candidates addObject:layers];
+  }
+  if (candidates.count == 0) return;
+  NSUInteger generation = _imageGeneration;
+  // Copy geometry now; a resize must not mutate what the worker reads.
+  NSMutableArray<NSValue *> *frames = [NSMutableArray array];
+  for (LibretroSkinItemLayers *layers in candidates) [frames addObject:[NSValue valueWithCGRect:CGRectInset(LibretroSkinCGRect(layers.laidOut.frame), -6, -6)]];
+  __weak LibretroSkinRenderer *weakSelf = self;
+  dispatch_async(LibretroSkinQueue(), ^{
+    NSMutableArray<NSDictionary *> *crops = [NSMutableArray array];
+    CGFloat sx = CGImageGetWidth(background.CGImage) / skin.size.width;
+    CGFloat sy = CGImageGetHeight(background.CGImage) / skin.size.height;
+    for (NSUInteger index = 0; index < candidates.count; index++) {
+      CGRect frame = frames[index].CGRectValue;
+      CGRect pixels = CGRectMake((frame.origin.x-skin.origin.x)*sx, (frame.origin.y-skin.origin.y)*sy,
+                                frame.size.width*sx, frame.size.height*sy);
+      CGImageRef underlay = NULL;
+      CGImageRef image = LibretroSkinCreateButtonCrop(background.CGImage, pixels, &underlay);
+      if (image == NULL) continue;
+      // Integral crop geometry is used for both the mask and its replacement,
+      // avoiding fractional-pixel remnants of the original painted control.
+      CGRect integral = CGRectIntegral(pixels);
+      CGRect exact = CGRectMake(skin.origin.x+integral.origin.x/sx, skin.origin.y+integral.origin.y/sy,
+                               integral.size.width/sx, integral.size.height/sy);
+      [crops addObject:@{@"index":@(index), @"frame":[NSValue valueWithCGRect:exact],
+                        @"image":[UIImage imageWithCGImage:image],
+                        @"underlay":[UIImage imageWithCGImage:underlay]}];
+      CGImageRelease(image);
+      CGImageRelease(underlay);
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroSkinRenderer *renderer = weakSelf;
+      if (renderer == nil || renderer->_imageGeneration != generation) return;
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
+      CGMutablePathRef holes = CGPathCreateMutable();
+      CGPathAddRect(holes, NULL, CGRectMake(0, 0, skin.size.width, skin.size.height));
+      for (NSDictionary *crop in crops) {
+        LibretroSkinItemLayers *layers = candidates[[crop[@"index"] unsignedIntegerValue]];
+        if (![renderer->_items containsObject:layers] || layers.extracted) continue;
+        CGRect exact = [crop[@"frame"] CGRectValue];
+        layers.extracted = YES;
+        layers.backplate = [CALayer layer];
+        layers.backplate.frame = exact;
+        layers.backplate.contents = (__bridge id)[crop[@"underlay"] CGImage];
+        layers.backplate.contentsGravity = kCAGravityResize;
+        // Backplate stays fixed below the animated face.
+        [layers.container insertSublayer:layers.backplate below:layers.artwork];
+        layers.image = LibretroSkinPlainLayer(renderer->_scale);
+        layers.image.frame = exact;
+        layers.image.contents = (__bridge id)[crop[@"image"] CGImage];
+        [layers.artwork addSublayer:layers.image];
+        [renderer applyStateToLayers:layers];
+      }
+      // Include previously extracted items when asynchronous batches overlap.
+      for (LibretroSkinItemLayers *layers in renderer->_items) {
+        if (layers.extracted)
+          CGPathAddRect(holes, NULL, CGRectOffset(layers.backplate.frame, -skin.origin.x, -skin.origin.y));
+      }
+      CAShapeLayer *mask = [CAShapeLayer layer];
+      mask.frame = CGRectMake(0, 0, skin.size.width, skin.size.height);
+      mask.path = holes;
+      mask.fillRule = kCAFillRuleEvenOdd;
+      renderer->_backgroundLayer.mask = mask;
+      CGPathRelease(holes);
+      [CATransaction commit];
+    });
+  });
 }
 
 - (void)setStickVectors:(NSDictionary<NSString *, NSValue *> *)vectors {
@@ -833,9 +1020,11 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   if (cached != nil) {
     layer.contents = (__bridge id)cached.CGImage;
     mask.contents = (__bridge id)cached.CGImage;
+    [layer setValue:key forKey:@"neostationSkinReadyKey"];
     return;
   }
   NSString *cacheDirectory = _cacheDirectory;
+  __weak LibretroSkinRenderer *weakRenderer = self;
   __weak CALayer *weakLayer = layer;
   __weak CALayer *weakMask = mask;
   dispatch_async(LibretroSkinQueue(), ^{
@@ -848,8 +1037,12 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       [CATransaction begin];
       [CATransaction setDisableActions:YES];
       target.contents = (__bridge id)image.CGImage;
+      [target setValue:key forKey:@"neostationSkinReadyKey"];
       weakMask.contents = (__bridge id)image.CGImage;
       [CATransaction commit];
+      LibretroSkinRenderer *renderer = weakRenderer;
+      if (renderer != nil && target == renderer->_backgroundLayer) [renderer preparePaintedItems];
+
     });
   });
 }

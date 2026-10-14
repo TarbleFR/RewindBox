@@ -261,7 +261,7 @@ static void TestDualScreenDS(void) {
   CHECK([skin.consoles isEqualToArray:@[ @"nds" ]] &&
             [skin.gameTypeIdentifier isEqualToString:@"com.rileytestut.delta.game.ds"],
         @"DS console and raw game type");
-  CHECK(skin.warnings.count == 0, @"a complete DS skin has no warning (%@)", [skin.warnings componentsJoinedByString:@","]);
+  CHECK([skin.warnings isEqualToArray:@[LibretroSkinWarningPaintedControls]], @"painted DS controls report their animation limit (%@)", [skin.warnings componentsJoinedByString:@","]);
   CHECK(!skin.debug && skin.author == nil, @"debug off, no author");
 
   LibretroSkinRepresentation *rep = [skin representationForOrientation:LibretroSkinOrientationPortrait

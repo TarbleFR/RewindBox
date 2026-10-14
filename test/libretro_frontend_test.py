@@ -24,6 +24,7 @@ PORTABLE_FRONTEND = (
     'LibretroInputMap.m',
     'LibretroFrontendStore.m',
     'LibretroSkin.m',
+    'LibretroSkinButtonCrop.m',
     'LibretroSkinLayout.m',
     'LibretroChromeLayout.m',
     'LibretroDefaultSkins.m',
@@ -35,7 +36,7 @@ PORTABLE_FRONTEND = (
     'LibretroTouchTracker.m',
     'LibretroSkinCompatibility.m',
 )
-FRAMEWORKS = ('Foundation',)
+FRAMEWORKS = ('Foundation', 'CoreGraphics')
 LINK_MARKER = '// LINK:'
 
 

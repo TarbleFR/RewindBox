@@ -716,11 +716,56 @@ class LibretroSkinService {
     }
   }
 
+  static bool _hasPaintedControls(Object? info) {
+    if (info is! Map || info['representations'] is! Map) return false;
+    for (final device in (info['representations'] as Map).values) {
+      if (device is! Map) continue;
+      for (final display in device.values) {
+        if (display is! Map) continue;
+        for (final representation in display.values) {
+          if (representation is! Map || representation['items'] is! List) continue;
+          for (final item in representation['items'] as List) {
+            if (item is! Map || item['thumbstick'] is Map) continue;
+            final inputs = item['inputs'];
+            final control = inputs is String || (inputs is List && inputs.isNotEmpty) ||
+                (inputs is Map && ['up', 'down', 'left', 'right'].any(inputs.containsKey));
+            final asset = item['asset'];
+            final normal = asset is Map ? asset['normal'] ?? asset['name'] : null;
+            if (control && (normal is! String || normal.isEmpty)) return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   static Future<LibretroInstalledSkin?> _readMetadata(String directory) async {
     try {
       final file = File(path.join(directory, metadataFileName));
       if (!await file.exists()) return null;
-      return LibretroInstalledSkin.fromJson(jsonDecode(await file.readAsString()), directory);
+      final metadata = jsonDecode(await file.readAsString());
+      // Existing imports predate the animation capability note. Derive it
+      // from their own configuration in memory, without rewriting metadata,
+      // selections or author files. This never runs on the touch path.
+      if (metadata is Map) {
+        final infoFile = File(path.join(directory, 'info.json'));
+        try {
+          if (await infoFile.exists() && await infoFile.length() <= 1024 * 1024) {
+            final info = jsonDecode(await infoFile.readAsString());
+            if (_hasPaintedControls(info)) {
+              final warnings = <String>{
+                if (metadata['warnings'] is List) ...(metadata['warnings'] as List).whereType<String>(),
+                'SKIN_WARN_PAINTED_CONTROLS',
+              };
+              metadata['warnings'] = warnings.toList();
+            }
+          }
+        } catch (_) {
+          // A damaged info.json keeps the existing import record; the native
+          // loader handles whether this skin can be used in a game.
+        }
+      }
+      return LibretroInstalledSkin.fromJson(metadata, directory);
     } catch (error) {
       _log.w('Libretro skin metadata unreadable in $directory: $error');
       return null;

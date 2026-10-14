@@ -187,6 +187,21 @@ void main() {
     await root.delete(recursive: true);
   });
 
+  test('existing painted imports show animation limits without rewriting their metadata', () async {
+    final info = jsonDecode(utf8.decode(infoJson())) as Map<String, dynamic>;
+    info['representations'] = {'iphone': {'standard': {'portrait': {'items': [
+      {'inputs': ['a'], 'frame': {'x': 10, 'y': 10, 'width': 40, 'height': 40}},
+    ]}}}};
+    final result = await service.importFromFile((await archiveFile(zipOf({
+      'info.json': utf8.encode(jsonEncode(info)),
+    }))).path) as LibretroSkinImported;
+    final file = File(path.join(result.skin.directory, LibretroSkinService.metadataFileName));
+    final before = await file.readAsBytes();
+    final loaded = await service.installedSkin(result.skin.id);
+    expect(loaded!.warnings, contains('SKIN_WARN_PAINTED_CONTROLS'));
+    expect(await file.readAsBytes(), before);
+  });
+
   test('a valid skin is unpacked, parsed natively and described next to its files', () async {
     final bytes = zipOf(<String, List<int>>{
       'info.json': infoJson(name: 'Lux GBA'),
