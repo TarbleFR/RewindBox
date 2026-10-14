@@ -37,6 +37,15 @@ def fixtures(app):
         url=f'https://raw.githubusercontent.com/{repository}/{revision}/{path}'
         with urllib.request.urlopen(url,timeout=60) as response:
             data=response.read(50*1024*1024+1)
+        # Manic stores these archives in Git LFS. raw.githubusercontent.com
+        # serves the pointer; the pinned media endpoint serves its object.
+        if data.startswith(b'version https://git-lfs.github.com/spec/v1\n'):
+            pointer=dict(line.split(' ',1) for line in data.decode('ascii').splitlines())
+            assert pointer['oid']=='sha256:'+expected and int(pointer['size'])<=50*1024*1024
+            media=f'https://media.githubusercontent.com/media/{repository}/{revision}/{path}'
+            with urllib.request.urlopen(media,timeout=60) as response:
+                data=response.read(50*1024*1024+1)
+            assert len(data)==int(pointer['size']), path
         assert hashlib.sha256(data).hexdigest()==expected, path
         folder=app/'SkinFixtures'/identifier
         folder.mkdir(parents=True)
