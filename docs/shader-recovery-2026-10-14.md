@@ -128,8 +128,9 @@ ARMSX2 source assertion still required an inline `Localizations` read that
 the existing asynchronous-locale fix had already replaced. The test is
 updated to verify the capture before launch and forwarding to the native
 bridge, keeping all twelve-language checks. No ARMSX2 product/core change
-is made. Native checks passed through the iPhone compilation stage; the
-remaining codec checks are still running.
+is made. Native checks passed through the iPhone compilation stage; that initial
+run was cancelled by the next source update. The complete native job later
+passed on `1b3d4666` in run `38583666639`.
 
 The follow-up session source is `1b3d4666b30bb74fe571cc4246fe3217892043f1`.
 Run `38583666639` passed analysis, all **561 launch/library Dart tests** and
@@ -196,3 +197,27 @@ its busy marker, checking blocked taps and handler calls, then restored
 scope selection for GameCube/Wii identities in all twelve languages. Its
 compiler/catalog dependencies are test stubs; this proves only UI behaviour,
 not shader compilation or rendering in Dolphin. Execution results are pending.
+
+
+### Follow-up validation and reused inputs
+
+The direct GameCube/Wii shader menu navigation passed all twelve locales in
+run `38586801064`, source `6e344c886fb9b9c95bf6fc97288b1fc0c3c29c23`:
+**9 UIKit tests, zero failures**. This does not execute a Dolphin game.
+The new busy-scope controller regression is running on `63066c54` in
+run `38587752461`; it uses declared test stubs for the shader dependencies.
+
+The loaded-session startup correction is
+`16b2763aad00a36cb4674c82946babd56a644cdf`. The Dart job of run
+`38586987693` passed, including the accepted directory settings guard;
+its native job and simulator run `38586992941` are still running.
+Later commits modifying only the Dolphin UI or the probe fixtures do not
+change those libretro runtime inputs. Results will be recorded by tested
+source instead of claiming every test ran against every documentation commit.
+
+A local invocation of `dolphin_pacing362_contract_test.py` stops in the
+pre-existing NeoSwap/ARMSX2 full-file scope assertion for
+`docs/LEGAL_AND_CREDITS.md`. That file is identical to the starting source
+`29b24945` and has not been edited by this task. The contract's later checks
+are not represented as passed. No unrelated legal, PSP or core changes are
+made to turn that assertion green.

@@ -26,6 +26,11 @@ name: Libretro simulator probe
     - test/libretro_host/test_core.c
     - test/libretro_host/vulkan_test_core.c
   workflow_dispatch:
+    inputs:
+      shaders_only:
+        description: Run only the embedded shader session scenarios
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -34,6 +39,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   probe:
+    if: ${{ !inputs.shaders_only }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -103,6 +109,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   before-fix:
+    if: ${{ !inputs.shaders_only }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -142,6 +149,7 @@ jobs:
   # whether PPSSPP finds no memory base, as on the iPhone; it does not fail
   # the run.
   before-reservation:
+    if: ${{ !inputs.shaders_only }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:

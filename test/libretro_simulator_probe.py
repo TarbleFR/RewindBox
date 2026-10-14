@@ -136,7 +136,10 @@ SHADER_ENTRY_FILES = {
     'incomplete.slangp': ['incomplete.slangp', 'simple.slang'],
 }
 SHADER_ACTIONS = [
-    {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
+    # This first action invokes the existing entry/download/apply menu
+    # handlers. Only those handlers write its saved selection. The later
+    # stress/error actions exercise the underlying session/storage APIs.
+    {'kind': 'menu-apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
     {'kind': 'apply', 'preset': 'complex.slangp', 'success': True, 'colour': 'green', 'persist': True},
     {'kind': 'parameter', 'parameter': 'STRENGTH', 'value': 0.2, 'colour': 'dim-green'},
     {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red'},
@@ -831,6 +834,8 @@ def shader_frame_problems(name, frame, colour=None):
         return [f'{name}: no live game frame: {frame!r}']
     if frame.get('gpuCompleted') is not True or frame.get('gpuError'):
         problems.append(f'{name}: live game GPU buffer did not complete: {frame.get("gpuError", "")}')
+    if frame.get('drawable') is not True:
+        problems.append(f'{name}: pixels were not observed in the presented drawable path')
     if not frame.get('png'):
         problems.append(f'{name}: no PNG evidence from the presented drawable')
     centres = frame.get('screenCentresRGBA') or []
@@ -882,7 +887,7 @@ def shader_problems(name, shaders, result, launch):
             problems.append(f'{prefix}: failure code {code!r}, expected {action["code"]!r}')
         if 'codePrefix' in action and not code.startswith(action['codePrefix']):
             problems.append(f'{prefix}: failure code {code!r}, expected prefix {action["codePrefix"]!r}')
-        if action['kind'] in ('apply', 'supersede-builtin') and action.get('success'):
+        if action['kind'] in ('apply', 'menu-apply', 'supersede-builtin') and action.get('success'):
             active = 'slang:' + action['preset']
             if step.get('installationSuccess') is not True or step.get('installationRegistered') is not True:
                 problems.append(f'{prefix}: shader was not installed through the verified storage')
@@ -891,11 +896,23 @@ def shader_problems(name, shaders, result, launch):
         frame = step.get('frame') or {}
         if frame.get('active') != active:
             problems.append(f'{prefix}: active shader {frame.get("active")!r}, expected {active!r}')
-        if active and action.get('success') and action['kind'] in ('apply', 'supersede-builtin'):
+        if active and action.get('success') and action['kind'] in ('apply', 'menu-apply', 'supersede-builtin'):
             if frame.get('textureBytes', 0) <= 0 or frame.get('passes') != (3 if action['preset'] == 'complex.slangp' else 1):
                 problems.append(f'{prefix}: completed shader has no expected active chains/passes: {frame!r}')
             if frame.get('failure'):
                 problems.append(f'{prefix}: successful selection retains failure {frame["failure"]!r}')
+        if action['kind'] == 'menu-apply':
+            if any(step.get(field) is not True for field in
+                   ('menuEntryHandler', 'menuDownloadHandler', 'menuApplyHandler', 'menuFreshInstallation')):
+                problems.append(f'{prefix}: the real entry/download/apply handlers were not traversed: {step!r}')
+            if step.get('manualPersistence') is not False or step.get('menuFlowTimeout'):
+                problems.append(f'{prefix}: the menu selection was manually persisted or timed out')
+            if set(step.get('menuDownloadedPaths') or []) != set(SHADER_ENTRY_FILES[action['preset']]):
+                problems.append(f'{prefix}: the menu did not download every expected fixture file')
+            if step.get('menuStoredPreset') != active or step.get('menuStoredEnabled') is not True:
+                problems.append(f'{prefix}: the menu completion did not persist the resolved active selection')
+            if step.get('menuStoredScope') not in ('game', 'console'):
+                problems.append(f'{prefix}: the real menu did not identify the saved scope')
         if action['kind'] == 'supersede-builtin':
             if step.get('supersededCallbackCount') != 1 or step.get('supersededSuccess') is not False or \
                     step.get('supersededCode') != 'SHADER_SUPERSEDED':
@@ -921,7 +938,9 @@ def shader_problems(name, shaders, result, launch):
         if action.get('persist') or action['kind'] == 'disable':
             # The probe stores its real session game key in every frame.
             game = frame.get('gameKey')
-            values = ((frame.get('frontend') or {}).get('games') or {}).get(game, {})
+            document = frame.get('frontend') or {}
+            values = (document.get('console') or {}) if action['kind'] == 'menu-apply' and step.get('menuStoredScope') == 'console' \
+                else (document.get('games') or {}).get(game, {})
             expected_enabled = action['kind'] != 'disable'
             if values.get('shader.enabled') is not expected_enabled:
                 problems.append(f'{prefix}: frontend did not persist shader.enabled={expected_enabled}')

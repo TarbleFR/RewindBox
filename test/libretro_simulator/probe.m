@@ -90,14 +90,30 @@ static ProbeFrameCapture sCaptureNextFrame;
 static NSString *sCaptureName;
 static NSUInteger sCaptureGeneration;
 static NSString *sShortDownload;
+static NSMutableArray<NSString *> *sFixtureDownloadPaths;
+static __thread BOOL sEncodingDrawable;
 typedef NSArray *(*ProbeEncodeFrame)(id, SEL, id<MTLCommandBuffer>, id<MTLTexture>, NSArray *, id<MTLTexture>,
                                     unsigned, unsigned, BOOL);
 static ProbeEncodeFrame sOriginalEncodeFrame;
+typedef void (*ProbeDrawTexture)(id, SEL, id<MTLTexture>, unsigned, unsigned, BOOL, NSInteger, dispatch_block_t);
+static ProbeDrawTexture sOriginalDrawTexture;
+
+static void ObserveDrawableDraw(id presenter, SEL selector, id<MTLTexture> texture, unsigned width,
+                                unsigned height, BOOL flipped, NSInteger slot, dispatch_block_t completion) {
+  BOOL before = sEncodingDrawable;
+  sEncodingDrawable = YES;
+  sOriginalDrawTexture(presenter, selector, texture, width, height, flipped, slot, completion);
+  sEncodingDrawable = before;
+}
 
 static NSArray *CaptureEncodedFrame(id presenter, SEL selector, id<MTLCommandBuffer> buffer,
                                     id<MTLTexture> target, NSArray *screens, id<MTLTexture> texture,
                                     unsigned width, unsigned height, BOOL flipped) {
   NSArray *mappings = sOriginalEncodeFrame(presenter, selector, buffer, target, screens, texture, width, height, flipped);
+  // The menu also calls this encoder for its offscreen timing measurement.
+  // Only drawTexture acquires/presents a CAMetalDrawable; those measurements
+  // must not consume a request for evidence from the actual game display.
+  if (!sEncodingDrawable) return mappings;
   ProbeFrameCapture capture = nil;
   NSString *name = nil;
   @synchronized(LibretroMetalPresenter.class) {
@@ -119,7 +135,8 @@ static NSArray *CaptureEncodedFrame(id presenter, SEL selector, id<MTLCommandBuf
     destinationBytesPerRow:rowBytes destinationBytesPerImage:rowBytes * target.height];
   [blit endEncoding];
   [buffer addCompletedHandler:^(id<MTLCommandBuffer> completed) {
-    NSMutableDictionary *observation = [@{@"gpuCompleted": completed.status == MTLCommandBufferStatusCompleted ? @YES : @NO,
+    NSMutableDictionary *observation = [@{@"drawable": @YES,
+                                         @"gpuCompleted": completed.status == MTLCommandBufferStatusCompleted ? @YES : @NO,
                                          @"width": @(target.width), @"height": @(target.height),
                                          @"format": @(target.pixelFormat)} mutableCopy];
     if (completed.error != nil) observation[@"gpuError"] = completed.error.description;
@@ -155,9 +172,11 @@ static NSArray *CaptureEncodedFrame(id presenter, SEL selector, id<MTLCommandBuf
 static void PrepareShaderObservation(void) {
   NSString *fixtures = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"ShaderFixtures"];
   [[NeoShaderCatalogManager sharedManager] setCatalogDirectory:fixtures];
+  sFixtureDownloadPaths = [NSMutableArray array];
   LibretroSlangStorage().dataLoader = ^(NSURL *url, void (^completion)(NSData *, NSInteger, NSError *)) {
     NSString *path = [[url.path substringFromIndex:@"/session/".length] stringByRemovingPercentEncoding];
     NSData *data = [NSData dataWithContentsOfFile:[fixtures stringByAppendingPathComponent:path]];
+    @synchronized(LibretroMetalPresenter.class) { [sFixtureDownloadPaths addObject:path]; }
     if ([path isEqualToString:sShortDownload] && data.length > 0) data = [data subdataWithRange:NSMakeRange(0, data.length - 1)];
     completion(data, data != nil ? 200 : 404, nil);
   };
@@ -165,6 +184,19 @@ static void PrepareShaderObservation(void) {
   Method method = class_getInstanceMethod(LibretroMetalPresenter.class, selector);
   sOriginalEncodeFrame = (ProbeEncodeFrame)method_getImplementation(method);
   method_setImplementation(method, (IMP)CaptureEncodedFrame);
+  selector = NSSelectorFromString(@"drawTexture:width:height:flipped:uploadSlot:completion:");
+  method = class_getInstanceMethod(LibretroMetalPresenter.class, selector);
+  sOriginalDrawTexture = (ProbeDrawTexture)method_getImplementation(method);
+  method_setImplementation(method, (IMP)ObserveDrawableDraw);
+}
+
+static LibretroMenuRow *MenuRowWithIdentifier(LibretroMenuPage *page, NSString *identifier) {
+  for (LibretroMenuSection *section in page.builder != nil ? page.builder() : @[]) {
+    for (LibretroMenuRow *row in section.rows) {
+      if ([row.identifier isEqualToString:identifier]) return row;
+    }
+  }
+  return nil;
 }
 
 static void CaptureNextGameFrame(LibretroSession *session, NSString *name, ProbeFrameCapture completion) {
@@ -428,6 +460,101 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
 }
 
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
+- (void)pollMenuShaderApplication:(LibretroMenuPage *)page
+                            step:(NSMutableDictionary *)step
+                         session:(LibretroSession *)session
+                     applyInvoked:(BOOL)applyInvoked
+                        deadline:(CFAbsoluteTime)deadline
+                      completion:(void (^)(BOOL, NSString *))completion {
+  id<LibretroFrontendMenuHost> host = (id<LibretroFrontendMenuHost>)session;
+  NSString *preset = step[@"preset"];
+  NSString *identifier = LibretroSlangShaderIdentifier(preset);
+  if (!applyInvoked) {
+    LibretroMenuRow *apply = MenuRowWithIdentifier(page, @"libretro-shader-entry-apply");
+    if (apply != nil && apply.enabled && apply.action != nil) {
+      NeoShaderInstallation *installation = [LibretroSlangStorage() installationWithIdentifier:preset];
+      step[@"installationRegistered"] = installation != nil ? @YES : @NO;
+      step[@"installationSuccess"] = installation != nil && [LibretroSlangStorage() installationIsComplete:installation] ? @YES : @NO;
+      step[@"menuApplyHandler"] = @YES;
+      apply.action(page);
+      applyInvoked = YES;
+    }
+  }
+  if (applyInvoked) {
+    LibretroMetalPresenter *presenter = [session valueForKey:@"presenter"];
+    LibretroSettingScope scope = LibretroSettingScopeDefault;
+    id stored = [host.frontendStore valueForKey:LibretroSettingShaderPreset console:host.console game:host.gameKey scope:&scope];
+    id enabled = [host.frontendStore valueForKey:LibretroSettingShaderEnabled console:host.console game:host.gameKey scope:NULL];
+    if ([presenter.activePresetIdentifier isEqualToString:identifier] && host.activeSlangProgram != nil &&
+        [stored isEqual:identifier] && [enabled isKindOfClass:NSNumber.class] && [enabled boolValue]) {
+      step[@"menuStoredScope"] = scope == LibretroSettingScopeGame ? @"game" : @"console";
+      step[@"menuStoredPreset"] = stored;
+      step[@"menuStoredEnabled"] = @YES;
+      NSUInteger before = [step[@"menuDownloadStart"] unsignedIntegerValue];
+      @synchronized(LibretroMetalPresenter.class) {
+        if (sFixtureDownloadPaths.count >= before) {
+          step[@"menuDownloadedPaths"] = [sFixtureDownloadPaths subarrayWithRange:NSMakeRange(before, sFixtureDownloadPaths.count - before)];
+        }
+      }
+      // These preferences are solely the existing menu's completion writes.
+      // The probe observes them before it records the drawable pixels.
+      completion(YES, host.lastShaderFailureCode);
+      return;
+    }
+  }
+  if (CFAbsoluteTimeGetCurrent() >= deadline) {
+    step[@"menuFlowTimeout"] = @YES;
+    completion(NO, host.lastShaderFailureCode ?: @"MENU_FLOW_TIMEOUT");
+    return;
+  }
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    [self pollMenuShaderApplication:page step:step session:session applyInvoked:applyInvoked deadline:deadline completion:completion];
+  });
+}
+
+- (void)applyShaderThroughMenu:(NSMutableDictionary *)step
+                      session:(LibretroSession *)session
+                   completion:(void (^)(BOOL, NSString *))completion {
+  NSString *preset = step[@"preset"];
+  NeoShaderStorage *storage = LibretroSlangStorage();
+  // A fresh installation is a fixture precondition, not a replacement for
+  // the download action: the actual entry handler must fetch verified bytes.
+  [storage removeInstallationWithIdentifier:preset error:nil];
+  NeoShaderCatalog *catalog = LibretroSlangCatalog();
+  BOOL filesAbsent = YES;
+  for (NeoShaderCatalogFile *file in [catalog entryWithIdentifier:preset].files) {
+    NSString *path = [[storage filesDirectoryForRevision:catalog.sourceRevision] stringByAppendingPathComponent:file.path];
+    [NSFileManager.defaultManager removeItemAtPath:path error:nil];
+    filesAbsent = filesAbsent && ![NSFileManager.defaultManager fileExistsAtPath:path];
+  }
+  step[@"menuFreshInstallation"] = [storage installationWithIdentifier:preset] == nil && filesAbsent ? @YES : @NO;
+  step[@"manualPersistence"] = @NO;
+  @synchronized(LibretroMetalPresenter.class) { step[@"menuDownloadStart"] = @(sFixtureDownloadPaths.count); }
+  UINavigationController *navigation = [session valueForKey:@"menu"];
+  LibretroMenuPage *category = [navigation.topViewController isKindOfClass:LibretroMenuPage.class]
+                                 ? (LibretroMenuPage *)navigation.topViewController : nil;
+  LibretroMenuRow *entry = category != nil ? MenuRowWithIdentifier(category, [@"libretro-shader-entry-" stringByAppendingString:preset]) : nil;
+  if (entry == nil || !entry.enabled || entry.action == nil) {
+    completion(NO, @"MENU_ENTRY_MISSING");
+    return;
+  }
+  step[@"menuEntryHandler"] = @YES;
+  entry.action(category);
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    LibretroMenuPage *page = [navigation.topViewController isKindOfClass:LibretroMenuPage.class]
+                               ? (LibretroMenuPage *)navigation.topViewController : nil;
+    LibretroMenuRow *download = page != nil && page != category ? MenuRowWithIdentifier(page, @"libretro-shader-entry-download") : nil;
+    if (download == nil || !download.enabled || download.action == nil) {
+      completion(NO, @"MENU_DOWNLOAD_MISSING");
+      return;
+    }
+    step[@"menuDownloadHandler"] = @YES;
+    download.action(page);
+    [self pollMenuShaderApplication:page step:step session:session applyInvoked:NO
+                          deadline:CFAbsoluteTimeGetCurrent() + 30 completion:completion];
+  });
+}
+
 - (void)verifyShaderRequestsAfterStop:(NSMutableDictionary *)result session:(LibretroSession *)session {
   id<LibretroFrontendMenuHost> host = (id<LibretroFrontendMenuHost>)session;
   NSString *recoveryPath = DocumentsPath(@"Libretro/Config/Frontend/shader-attempts.json");
@@ -482,7 +609,7 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
     step[@"observedCode"] = code ?: @"";
     // Save only after the application reports success, exactly as the
     // in-game shader menu does; parameters use its existing frontend store.
-    if (success && ([action[@"persist"] boolValue] || [kind isEqualToString:@"disable"])) {
+    if (success && ![kind isEqualToString:@"menu-apply"] && ([action[@"persist"] boolValue] || [kind isEqualToString:@"disable"])) {
       NSString *game = host.gameKey;
       BOOL disabled = [kind isEqualToString:@"disable"];
       [host.frontendStore setValue:disabled ? @NO : @YES forKey:LibretroSettingShaderEnabled console:host.console game:game];
@@ -511,7 +638,9 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                      record(success, host.lastShaderFailureCode);
                    }];
   };
-  if ([kind isEqualToString:@"parameter"]) {
+  if ([kind isEqualToString:@"menu-apply"]) {
+    [self applyShaderThroughMenu:step session:session completion:record];
+  } else if ([kind isEqualToString:@"parameter"]) {
     [host previewShaderParameter:action[@"parameter"] value:[action[@"value"] floatValue]];
     record(YES, nil);
   } else if ([kind isEqualToString:@"disable"]) {
