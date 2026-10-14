@@ -108,6 +108,38 @@ jobs:
         path: evidence/shaders/
         if-no-files-found: warn
         retention-days: 14
+  official-shaders:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Select Xcode 26.3
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Download the libretro cores pinned by the delivery
+      uses: actions/download-artifact@v4
+      with:
+        name: LibretroCores-8b9e87ba39edb647f8cddca5ee8d924319bcbacb
+        run-id: '38352378859'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/libretro
+    - name: Fetch the pinned MoltenVK simulator slice and test content
+      run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+    - name: Official HTTPS downloads and presets in the embedded session menu
+      run: |
+        python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+          --official-shaders --only official-software official-software-relaunch official-vulkan official-vulkan-relaunch \
+          official-desmume official-desmume-relaunch --evidence evidence/official-shaders --label "${GITHUB_SHA}"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: libretro-official-shader-session-probe-${{ github.sha }}
+        path: evidence/official-shaders/
+        if-no-files-found: warn
+        retention-days: 14
   before-fix:
     if: ${{ !inputs.shaders_only }}
     runs-on: macos-15

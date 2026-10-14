@@ -316,7 +316,11 @@ RETRO_API void retro_run(void) {
   begin_command_buffer(command, &begin);
   barrier(command, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-  float shade = (float)(frame % 60) / 60.0f;
+  // A fixed test-content option lets pixel differences demonstrate an
+  // effect rather than changes made by the emulated game between captures.
+  struct retro_variable variable = {"neovk_shader_pattern", NULL};
+  bool fixed = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value && strcmp(variable.value, "on") == 0;
+  float shade = fixed ? 0.65f : (float)(frame % 60) / 60.0f;
   VkClearColorValue colour = {.float32 = {shade, 0.25f, 1.0f - shade, 1.0f}};
   VkImageSubresourceRange range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
   clear_color_image(command, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &colour, 1, &range);

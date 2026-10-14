@@ -91,6 +91,7 @@ static NSString *sCaptureName;
 static NSUInteger sCaptureGeneration;
 static NSString *sShortDownload;
 static NSMutableArray<NSString *> *sFixtureDownloadPaths;
+static BOOL sOfficialCatalog;
 static __thread BOOL sEncodingDrawable;
 typedef NSArray *(*ProbeEncodeFrame)(id, SEL, id<MTLCommandBuffer>, id<MTLTexture>, NSArray *, id<MTLTexture>,
                                     unsigned, unsigned, BOOL);
@@ -152,6 +153,23 @@ static NSArray *CaptureEncodedFrame(id presenter, SEL selector, id<MTLCommandBuf
       [samples addObject:@[@(pixel[2]), @(pixel[1]), @(pixel[0]), @(pixel[3])]];
     }
     observation[@"screenCentresRGBA"] = samples;
+    // Sample each actual game rectangle, including off-centre pixels:
+    // CRT curvature/scanlines are not established by its centre alone.
+    NSMutableArray *grids = [NSMutableArray array];
+    for (NSValue *value in mappings) {
+      LibretroScreenMapping mapping;
+      [value getValue:&mapping size:sizeof(mapping)];
+      if (mapping.output.w <= 0 || mapping.output.h <= 0) continue;
+      NSMutableArray *grid = [NSMutableArray array];
+      for (NSUInteger gy = 0; gy < 16; gy++) for (NSUInteger gx = 0; gx < 16; gx++) {
+        NSUInteger x = MIN(target.width - 1, (NSUInteger)((mapping.output.x + mapping.output.w * (gx + 0.5) / 16) * target.width));
+        NSUInteger y = MIN(target.height - 1, (NSUInteger)((mapping.output.y + mapping.output.h * (gy + 0.5) / 16) * target.height));
+        const uint8_t *pixel = pixels + y * rowBytes + x * 4;
+        [grid addObject:@[@(pixel[2]), @(pixel[1]), @(pixel[0])]];
+      }
+      [grids addObject:grid];
+    }
+    observation[@"screenGridsRGB"] = grids;
     CGColorSpaceRef colour = CGColorSpaceCreateDeviceRGB();
     CGContextRef context = CGBitmapContextCreate(readback.contents, target.width, target.height, 8, rowBytes, colour,
                                                 kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
@@ -172,7 +190,22 @@ static NSArray *CaptureEncodedFrame(id presenter, SEL selector, id<MTLCommandBuf
 static void PrepareShaderObservation(void) {
   NSString *fixtures = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"ShaderFixtures"];
   [[NeoShaderCatalogManager sharedManager] setCatalogDirectory:fixtures];
+  sOfficialCatalog = [NSFileManager.defaultManager fileExistsAtPath:[fixtures stringByAppendingPathComponent:@"official"]];
   sFixtureDownloadPaths = [NSMutableArray array];
+  if (sOfficialCatalog) {
+    // Observe the production loader, without substituting its transport,
+    // response bytes, catalog, revision or dependency list.
+    NeoShaderStorage *storage = LibretroSlangStorage();
+    SEL selector = NSSelectorFromString(@"effectiveLoader");
+    NeoShaderDataLoader loader = ((NeoShaderDataLoader (*)(id, SEL))[storage methodForSelector:selector])(storage, selector);
+    NSString *base = [NSURL URLWithString:LibretroSlangCatalog().rawBaseURL].path;
+    storage.dataLoader = ^(NSURL *url, void (^completion)(NSData *, NSInteger, NSError *)) {
+      NSString *path = [[url.path substringFromIndex:base.length] stringByRemovingPercentEncoding];
+      while ([path hasPrefix:@"/"]) path = [path substringFromIndex:1];
+      @synchronized(LibretroMetalPresenter.class) { [sFixtureDownloadPaths addObject:path]; }
+      loader(url, completion);
+    };
+  } else {
   LibretroSlangStorage().dataLoader = ^(NSURL *url, void (^completion)(NSData *, NSInteger, NSError *)) {
     NSString *path = [[url.path substringFromIndex:@"/session/".length] stringByRemovingPercentEncoding];
     NSData *data = [NSData dataWithContentsOfFile:[fixtures stringByAppendingPathComponent:path]];
@@ -180,6 +213,7 @@ static void PrepareShaderObservation(void) {
     if ([path isEqualToString:sShortDownload] && data.length > 0) data = [data subdataWithRange:NSMakeRange(0, data.length - 1)];
     completion(data, data != nil ? 200 : 404, nil);
   };
+  }
   SEL selector = NSSelectorFromString(@"encodeFrameOnBuffer:target:screens:texture:width:height:flipped:");
   Method method = class_getInstanceMethod(LibretroMetalPresenter.class, selector);
   sOriginalEncodeFrame = (ProbeEncodeFrame)method_getImplementation(method);
@@ -531,6 +565,16 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
   step[@"manualPersistence"] = @NO;
   @synchronized(LibretroMetalPresenter.class) { step[@"menuDownloadStart"] = @(sFixtureDownloadPaths.count); }
   UINavigationController *navigation = [session valueForKey:@"menu"];
+  if (sOfficialCatalog) {
+    if (navigation == nil) {
+      SEL open = NSSelectorFromString(@"openMenu");
+      ((void (*)(id, SEL))[session methodForSelector:open])(session, open);
+      navigation = [session valueForKey:@"menu"];
+    }
+    LibretroFrontendMenu *frontend = [session valueForKey:@"frontendMenu"];
+    LibretroMenuPage *category = [frontend shaderCategoryPage:[catalog entryWithIdentifier:preset].category];
+    [navigation pushViewController:category animated:NO];
+  }
   LibretroMenuPage *category = [navigation.topViewController isKindOfClass:LibretroMenuPage.class]
                                  ? (LibretroMenuPage *)navigation.topViewController : nil;
   LibretroMenuRow *entry = category != nil ? MenuRowWithIdentifier(category, [@"libretro-shader-entry-" stringByAppendingString:preset]) : nil;

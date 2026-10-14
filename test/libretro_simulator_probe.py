@@ -157,6 +157,17 @@ SHADER_ACTIONS = [
     # it from the menu's frontend store and produce the same real pixels.
     {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
 ]
+OFFICIAL_PSP = 'reshade/handheld-color-LUTs/PSP-2020.slangp'
+OFFICIAL_CRT = 'crt/crt-geom-mini.slangp'
+OFFICIAL_ACTIONS = [
+    {'kind': 'menu-apply', 'preset': OFFICIAL_PSP, 'success': True, 'passes': 1, 'persist': True},
+    {'kind': 'parameter', 'parameter': 'LUT_selector_param', 'value': 2.0},
+    {'kind': 'menu-apply', 'preset': OFFICIAL_CRT, 'success': True, 'passes': 2, 'persist': True},
+    {'kind': 'parameter', 'parameter': 'SAT', 'value': 0.0},
+    {'kind': 'menu-apply', 'preset': OFFICIAL_PSP, 'success': True, 'passes': 1, 'persist': True},
+    {'kind': 'disable', 'success': True},
+    {'kind': 'menu-apply', 'preset': OFFICIAL_CRT, 'success': True, 'passes': 2, 'persist': True},
+]
 LC_BUILD_VERSION = 0x32
 LC_VERSION_MIN_IPHONEOS = 0x25
 PLATFORM_IOS = 2
@@ -268,6 +279,24 @@ SCENARIOS = [
      'expect': 'run', 'default': False, 'shaders': {'initial': 'slang:simple.slangp', 'colour': 'red',
                                                 'actions': [{'kind': 'disable', 'success': True}]}},
 ]
+
+# Real official catalog/downloads; the rendering is the actual embedded
+# bridge, with a software test core, a Vulkan test core and real DeSmuME.
+for suffix, core, content, console in (
+        ('software', 'neotest', 'content/Shader Pattern.ntc', 'gb'),
+        ('vulkan', 'neovk', 'content/Test Game.ntc', 'gb'),
+        ('desmume', 'desmume', 'content/shader-pattern.nds', 'nds')):
+    SCENARIOS += [
+        {'name': 'official-' + suffix, 'core': core, 'content': content, 'console': console,
+         'expect': 'run', 'default': False, 'shaders': {'official': True, 'menu': True,
+                                                       'actions': OFFICIAL_ACTIONS}},
+        {'name': 'official-' + suffix + '-relaunch', 'core': core, 'content': content, 'console': console,
+         'expect': 'run', 'default': False, 'shaders': {'official': True, 'initial': 'slang:' + OFFICIAL_CRT,
+                                                       'actions': [{'kind': 'disable', 'success': True}]}},
+    ]
+    if core == 'neovk':
+        for scenario in SCENARIOS[-2:]:
+            scenario['lockedOptions'] = {'neovk_shader_pattern': 'on'}
 # Journal lines of a closed session, in the order RetroArch tears a core down.
 TEARDOWN_ORDER = (
     'teardown: started',
@@ -399,7 +428,7 @@ def crc16(data):
     return value
 
 
-def build_nds(output_path):
+def build_nds(output_path, shader_pattern=False):
     """A minimal homebrew Nintendo DS image written by the probe itself (no
     third-party content): both processors loop on one branch. Its ARM9
     binary below 0x4000 makes it homebrew for DeSmuME (no secure area, no
@@ -414,6 +443,27 @@ def build_nds(output_path):
     struct.pack_into('<II', rom, 0x080, len(rom), 0x4000)
     struct.pack_into('<I', rom, 0x200, 0xEAFFFFFE)  # b .
     struct.pack_into('<I', rom, 0x204, 0xEAFFFFFE)  # b .
+    if shader_pattern:
+        # Original homebrew instructions executed by real DeSmuME: enable
+        # both LCD engines and select their backdrop colours. The core
+        # draws them normally; no image is injected into its video callback.
+        writes = [(0x04000304, 0x8203, True), (0x04000000, 0x10000, False),
+                  (0x04001000, 0x10000, False), (0x05000000, 0x5DC8, True),
+                  (0x05000400, 0x211B, True)]
+        instructions = []
+        pool_offset = (len(writes) * 3 + 1) * 4
+        for index, (address, value, half) in enumerate(writes):
+            pc = len(instructions) * 4
+            instructions += [0xE59F0000 | (pool_offset + index * 8 - pc - 8),
+                             0xE59F1000 | (pool_offset + index * 8 + 4 - (pc + 4) - 8),
+                             0xE1C010B0 if half else 0xE5801000]
+        instructions += [0xEAFFFFFE]
+        for address, value, half in writes:
+            instructions += [address, value]
+        struct.pack_into('<' + 'I' * len(instructions), rom, 0x200, *instructions)
+        struct.pack_into('<IIII', rom, 0x020, 0x200, 0x02000000, 0x02000000, len(instructions) * 4)
+        struct.pack_into('<IIII', rom, 0x030, 0x400, 0x02380000, 0x02380000, 4)
+        struct.pack_into('<I', rom, 0x400, 0xEAFFFFFE)
     struct.pack_into('<H', rom, 0x15E, crc16(rom[:0x15E]))
     output_path.write_bytes(bytes(rom))
 
@@ -450,7 +500,7 @@ def imports_shader_kit(sources):
                for path in (sources / 'Classes').glob('*.m'))
 
 
-def build_shader_fixtures(app):
+def build_shader_fixtures(app, official=False):
     """Pinned fixture catalogue consumed by the real menu/storage/compiler.
 
     It uses the public catalogue-directory and data-loader test seams; no
@@ -458,6 +508,11 @@ def build_shader_fixtures(app):
     """
     directory = app / 'ShaderFixtures'
     directory.mkdir()
+    if official:
+        shutil.copyfile(ROOT / 'packages/neo_shader_kit/ios/Resources/slang-catalog.json',
+                        directory / 'slang-catalog.json')
+        (directory / 'official').write_text('Real production network loader\n')
+        return directory
     files = []
     indexes = {}
     for name, value in SHADER_FIXTURES.items():
@@ -619,12 +674,14 @@ def assemble(args, sources, work):
     content = app / 'content'
     content.mkdir()
     (content / 'Test Game.ntc').write_bytes(bytes(range(1, 101)))
+    (content / 'Shader Pattern.ntc').write_bytes(b'SHADERPATTERN\0')
     shutil.copyfile(inputs / 'simple.prx', content / 'simple.prx')
     shutil.copyfile(inputs / 'ftpd.3dsx', content / 'ftpd.3dsx')
     build_iso(inputs / 'simple.prx', content / 'probe.iso', work)
     build_nds(content / 'probe.nds')
+    build_nds(content / 'shader-pattern.nds', shader_pattern=True)
     if imports_shader_kit(sources):
-        build_shader_fixtures(app)
+        build_shader_fixtures(app, args.official_shaders)
     catalog = CATALOG.read_text(encoding='utf-8')
     geometry = {}
     names = {}
@@ -635,6 +692,8 @@ def assemble(args, sources, work):
         if args.only and scenario['name'] not in args.only:
             continue
         if not args.only and not scenario.get('default', True):
+            continue
+        if bool(scenario.get('shaders', {}).get('official')) != args.official_shaders:
             continue
         entry = dict(scenario)
         if scenario['core'] in REAL_CORES:
@@ -897,7 +956,7 @@ def shader_problems(name, shaders, result, launch):
         if frame.get('active') != active:
             problems.append(f'{prefix}: active shader {frame.get("active")!r}, expected {active!r}')
         if active and action.get('success') and action['kind'] in ('apply', 'menu-apply', 'supersede-builtin'):
-            if frame.get('textureBytes', 0) <= 0 or frame.get('passes') != (3 if action['preset'] == 'complex.slangp' else 1):
+            if frame.get('textureBytes', 0) <= 0 or frame.get('passes') != action.get('passes', 3 if action['preset'] == 'complex.slangp' else 1):
                 problems.append(f'{prefix}: completed shader has no expected active chains/passes: {frame!r}')
             if frame.get('failure'):
                 problems.append(f'{prefix}: successful selection retains failure {frame["failure"]!r}')
@@ -907,7 +966,12 @@ def shader_problems(name, shaders, result, launch):
                 problems.append(f'{prefix}: the real entry/download/apply handlers were not traversed: {step!r}')
             if step.get('manualPersistence') is not False or step.get('menuFlowTimeout'):
                 problems.append(f'{prefix}: the menu selection was manually persisted or timed out')
-            if set(step.get('menuDownloadedPaths') or []) != set(SHADER_ENTRY_FILES[action['preset']]):
+            expected_files = SHADER_ENTRY_FILES.get(action['preset'])
+            if shaders.get('official'):
+                catalog = json.loads((ROOT / 'packages/neo_shader_kit/ios/Resources/slang-catalog.json').read_text())
+                entry = next(e for e in catalog['entries'] if e['id'] == action['preset'])
+                expected_files = [catalog['files'][i][0] for i in entry['files']]
+            if set(step.get('menuDownloadedPaths') or []) != set(expected_files):
                 problems.append(f'{prefix}: the menu did not download every expected fixture file')
             if step.get('menuStoredPreset') != active or step.get('menuStoredEnabled') is not True:
                 problems.append(f'{prefix}: the menu completion did not persist the resolved active selection')
@@ -926,10 +990,24 @@ def shader_problems(name, shaders, result, launch):
         if action['kind'] == 'delete-dependency' and step.get('dependencyRemoved') is not True:
             problems.append(f'{prefix}: the missing-dependency case never removed the file')
         problems += shader_frame_problems(prefix, frame, action.get('colour'))
+        if shaders.get('official'):
+            before = previous_frame.get('screenGridsRGB') or []
+            after = frame.get('screenGridsRGB') or []
+            differences = [sum(abs(a - b) for old, new in zip(left, right) for a, b in zip(old, new)) / (len(left) * 3)
+                           for left, right in zip(before, after) if left and len(left) == len(right)]
+            step['screenMeanAbsoluteDifferences'] = differences
+            if len(differences) != len(after) or not differences or any(d < 0.25 for d in differences):
+                problems.append(f'{prefix}: no demonstrated visual effect/parameter change on every screen: {differences}')
+            if action['kind'] == 'disable' and 'initial' not in shaders:
+                baseline = initial.get('screenGridsRGB') or []
+                restored = [sum(abs(a - b) for old, new in zip(left, right) for a, b in zip(old, new)) / (len(left) * 3)
+                            for left, right in zip(baseline, after) if left and len(left) == len(right)]
+                if len(restored) != len(after) or any(d > 1.0 for d in restored):
+                    problems.append(f'{prefix}: disabling did not restore the original game image: {restored}')
         centres = frame.get('screenCentresRGBA') or []
         if 'desmume' in name and len(centres) != 2:
             problems.append(f'{prefix}: expected both DeSmuME screens, got {len(centres)}')
-        if action['kind'] == 'disable':
+        if action['kind'] == 'disable' and not shaders.get('official'):
             previous_centres = previous_frame.get('screenCentresRGBA') or []
             if len(centres) != len(previous_centres) or any(
                     max(abs(value - previous) for value, previous in zip(pixel[:3], old[:3])) <= 20
@@ -1209,6 +1287,8 @@ def main():
     run_parser.add_argument('--only', nargs='*', default=[])
     run_parser.add_argument('--expect', choices=('fixed', 'unfixed'), default='fixed')
     run_parser.add_argument('--timeout', type=int, default=900)
+    run_parser.add_argument('--official-shaders', action='store_true',
+                            help='Use the shipped catalog and production HTTPS downloads, not synthetic fixtures')
     args = parser.parse_args()
     if args.command == 'fetch':
         fetch(Path(args.into))

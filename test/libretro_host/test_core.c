@@ -39,6 +39,7 @@ static bool disk_ejected;
 static char option_value[32];
 static bool jit_capable;
 static bool first_frame = true;
+static bool shader_pattern;
 static uint8_t restored_marker;
 /*
  * Option values seen by retro_init (like DeSmuME, which reads its options
@@ -232,6 +233,10 @@ RETRO_API void retro_run(void) {
   }
   const unsigned width = 320 * scale, height = 240 * scale;
   for (unsigned index = 0; index < width * height; index++) framebuffer[index] = frame_counter;
+  if (shader_pattern) {
+    for (unsigned y = 0; y < height; y++) for (unsigned x = 0; x < width; x++)
+      framebuffer[y * width + x] = ((64 + x * 128 / width) << 16) | ((48 + y * 144 / height) << 8) | 176;
+  }
   framebuffer[1] = restored_marker;
   save_ram[0] = (uint8_t)frame_counter;
   save_ram[1] = 0x5A;
@@ -270,6 +275,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game) {
   if (game == NULL || game->data == NULL || game->size == 0) return false;
   content_checksum = 0;
   for (size_t index = 0; index < game->size; index++) content_checksum += ((const uint8_t *)game->data)[index];
+  shader_pattern = game->size >= 13 && memcmp(game->data, "SHADERPATTERN", 13) == 0;
   struct retro_variable variable = {"neotest_mode", NULL};
   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value != NULL) {
     snprintf(option_value, sizeof(option_value), "%s", variable.value);

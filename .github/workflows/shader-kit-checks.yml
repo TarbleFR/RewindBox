@@ -36,7 +36,7 @@ name: Shader kit checks
 permissions:
   contents: read
 concurrency:
-  group: shader-kit-checks-${{ github.ref }}
+  group: shader-kit-checks-${{ github.ref }}-${{ inputs.compiler_only && 'compiler' || 'full' }}
   cancel-in-progress: true
 jobs:
   core:
