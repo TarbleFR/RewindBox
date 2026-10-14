@@ -102,6 +102,10 @@ target_link_libraries(probe PRIVATE dolphin_glslang neo_compiler)
     assert images.index('libdolphin_glslang') < images.index('libneo_compiler'), images
     for name in ('libdolphin_glslang.dylib', 'libneo_compiler.dylib'):
         (args.evidence / (name + '.symbols.txt')).write_text(run(['nm', '-m', build / name]))
+    if not args.diagnose:
+        exports = run(['nm', '-gU', build / 'libneo_compiler.dylib'])
+        if re.search(r'glslang|spirv_cross|__ZN3spv', exports):
+            raise SystemExit('The fixed compiler dylib still exports its implementation.')
     outcomes = []
     for preset in PRESETS:
         command = [str(executable), str(args.slang_shaders.resolve()), preset]
@@ -119,6 +123,10 @@ target_link_libraries(probe PRIVATE dolphin_glslang neo_compiler)
                          '--', *command], timeout=120)
             (args.evidence / f'{slug}.backtrace.txt').write_text(trace)
             print(trace[-14000:], flush=True)
+            if args.diagnose and not all(fragment in trace for fragment in (
+                    'EXC_BAD_ACCESS', 'libdolphin_glslang.dylib', 'TPoolAllocator::allocate',
+                    'TIntermediate::addSwizzle<int>', 'libneo_compiler.dylib', 'TParseContext::handleDotSwizzle')):
+                raise SystemExit('A process failure occurred, but not the diagnosed cross-compiler swizzle/allocator crash.')
         print(json.dumps(outcome), flush=True)
         outcomes.append(outcome)
     (args.evidence / 'outcomes.json').write_text(json.dumps(outcomes, indent=2) + '\n')

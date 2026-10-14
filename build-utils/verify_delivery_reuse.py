@@ -1734,6 +1734,14 @@ DELTA |= set(DELIVERY456_PINNED_INPUTS)
 DELIVERY456_RECIPIENT_PATH = 'build-utils/delivery-456-recipient.pem'
 DELIVERY456_RECIPIENT_SHA256 = '49764c811fc0dd73213b5c93835d24766cbeda98e4989885ae9733f60e43af12'
 DELTA.add(DELIVERY456_RECIPIENT_PATH)
+# Build 457: the kit's link-time public API boundary and the reproduction
+# with Dolphin's unmodified pinned compiler. Existing shader recipes and
+# podspec are already inventoried; no unrelated runtime exemption is added.
+DELTA |= {
+    'packages/neo_shader_kit/ios/neo_shader_kit.exports',
+    'test/neo_shader_compiler_coexistence.py',
+    'build-utils/validate_shader_compiler_ipa.py',
+}
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'

@@ -1340,6 +1340,8 @@ jobs:
         python3 build-utils/validate_libretro_ipa.py "dist/$IPA_NAME.ipa" \
           --identity dist/libretro/identity.json --build-number "$BUILD_NUMBER" \
           --report dist/libretro-validation.json
+        python3 build-utils/validate_shader_compiler_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --report dist/shader-compiler-validation.json
         if [ "$KARTPAD_CANDIDATE" = "1" ]; then
           python3 build-utils/validate_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
             --identity dist/kartpad-native/identity.json \
@@ -1658,6 +1660,8 @@ jobs:
         python3 build-utils/validate_libretro_ipa.py "dist/$IPA_NAME.ipa" \
           --identity dist/libretro/identity.json --build-number "$BUILD_NUMBER" \
           --report dist/libretro-validation.json
+        python3 build-utils/validate_shader_compiler_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --report dist/shader-compiler-validation.json
         if [ "$KARTPAD_CANDIDATE" = "1" ]; then
           python3 build-utils/validate_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
             --identity dist/kartpad-native/identity.json \
