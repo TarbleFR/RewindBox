@@ -66,9 +66,19 @@ NS_ASSUME_NONNULL_BEGIN
 ///   ard:          a[A]->A  b[B]->B
 ///   wasm4:        a[X]->A  b[Z]->B
 ///   uze:          same as snes
+///   chf:          x[⤒]->X (pull)  a[↻]->A (twist right)  b[⤓]->B (push)  y[↺]->Y (twist left)
+///                 start[1-4]->START (FreeChaF's console buttons)
+///   intv:         a[◣]->A  b[◢]->B  y[◤]->Y (action buttons)  l[⌨]->L (keypad while held)
+///                 x[↺]->X (last key)  l2[CLR]->L2  l3[0]->L3  r3[5]->R3  r2[ENT]->R2
+///                 start[❚❚]->START
+///   mo2:          b[●]->B  select[⌨]->SELECT (O2EM's keyboard)
+///   pcfx:         a[I]->A  b[II]->B  x[III]->X  y[IV]->Y  l[V]->L  r[VI]->R
+///                 start[RUN]->START  select[SELECT]->SELECT
 /// Buttons a console's core reads that are not listed (2600 difficulty
 /// switches, 5200 and ColecoVision keypad keys beyond these, Pokémon mini
-/// shake and power, Lynx rotation) keep their RetroPad id on controllers.
+/// shake and power, Lynx rotation, Channel F and Intellivision controller
+/// swap, Intellivision keys 1 to 9 on the right stick, Odyssey 2 keys 0 to
+/// 6, PC-FX mode switches) keep their RetroPad id on controllers.
 ///
 /// Blocked RetroPad buttons (never sent, whatever the source): nds R3
 /// (DeSmuME "Quick Screen Switch"), 3ds L3 and R3 (Azahar HOME / swap
@@ -134,12 +144,13 @@ typedef struct {
 /// "md", "mcd", "32x", "sms", "gg", "sg1000", "arcade", "nds", "n64",
 /// "psx", "psp", "3ds", then the consoles of lot 1: "pce", "tg16", "pccd",
 /// "tgcd", "ws", "wsc", "ngp", "ngpc", "lynx", "vb", "2600", "7800",
-/// "5200", "cv", "mini", "gw", "duck", "wsv", "ard", "wasm4", "uze"). An
+/// "5200", "cv", "mini", "gw", "duck", "wsv", "ard", "wasm4", "uze", then
+/// those of lot 2: "chf", "intv", "mo2", "pcfx"). An
 /// unknown console gets an empty logical table: controllers then use the
 /// passthrough mapping only.
 + (instancetype)mapForConsole:(NSString *)console;
 
-/// The 38 console ids above, in this order (LibretroCoreCatalog.consoles).
+/// The 42 console ids above, in this order (LibretroCoreCatalog.consoles).
 + (NSArray<NSString *> *)consoles;
 
 @property(nonatomic, copy, readonly) NSString *console;

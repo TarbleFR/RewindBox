@@ -260,6 +260,17 @@ abstract final class LibretroInternalService {
         );
       }
     }
+    final missing = <String>[
+      for (final name in core.biosAllOf)
+        if (!await File(path.join(biosDirectory.path, name)).exists()) name,
+    ];
+    if (missing.isNotEmpty) {
+      return LibretroLaunchOutcome(
+        success: false,
+        errorCode: 'LIBRETRO_BIOS_MISSING_ALL',
+        technicalDetails: missing.join(', '),
+      );
+    }
     // The 3DS core refuses every encrypted NCCH whatever keys are
     // installed: say so before the session starts, with the header read.
     if (coreId == 'azahar') {

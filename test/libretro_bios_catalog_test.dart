@@ -86,13 +86,15 @@ void main() {
     final packaged = <String>{for (final core in manifest['cores'] as List) (core as Map)['id'] as String};
     final described = catalog.entries.expand((entry) => entry.cores).toSet();
     // Azahar, and the lot 1 cores whose .info lists no firmware (their
-    // consoles say no BIOS is needed).
+    // consoles say no BIOS is needed). Every lot 2 core reads a BIOS.
     expect(packaged.difference(described), <String>{
       'azahar', 'mednafen_wswan', 'mednafen_ngp', 'mednafen_vb', 'stella', 'gw', 'sameduck', 'potator', 'ardens',
       'wasm4', 'uzem',
     });
     expect(catalog.consoles['3ds']!.noteKeys, contains('biosNoteAzahar'));
-    for (final console in ['ws', 'wsc', 'ngp', 'ngpc', 'vb', '2600', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze']) {
+    for (final console in [
+      'ws', 'wsc', 'ngp', 'ngpc', 'vb', '2600', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze',
+    ]) {
       expect(catalog.consoles[console]!.noteKeys, <String>['biosNoBiosNeeded'], reason: console);
     }
   });

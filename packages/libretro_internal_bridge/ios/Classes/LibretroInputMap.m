@@ -238,7 +238,8 @@ static NSSet<NSString *> *PlayStationAliases(void) {
   return @[
     @"nes", @"snes", @"gb", @"gbc", @"gba", @"md", @"mcd", @"32x", @"sms", @"gg", @"sg1000", @"arcade", @"nds",
     @"n64", @"psx", @"psp", @"3ds", @"pce", @"tg16", @"pccd", @"tgcd", @"ws", @"wsc", @"ngp", @"ngpc", @"lynx",
-    @"vb", @"2600", @"7800", @"5200", @"cv", @"mini", @"gw", @"duck", @"wsv", @"ard", @"wasm4", @"uze"
+    @"vb", @"2600", @"7800", @"5200", @"cv", @"mini", @"gw", @"duck", @"wsv", @"ard", @"wasm4", @"uze",
+    @"chf", @"intv", @"mo2", @"pcfx"
   ];
 }
 
@@ -518,6 +519,50 @@ static NSSet<NSString *> *PlayStationAliases(void) {
     button(@"l", @"L", RETRO_DEVICE_ID_JOYPAD_L);
     button(@"r", @"R", RETRO_DEVICE_ID_JOYPAD_R);
     button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
+  } else if ([console isEqualToString:@"chf"]) {
+    // FreeChaF: the hand controller's knob pushed down (B), pulled up (X),
+    // twisted right (A) and left (Y); START shows the console buttons
+    // (RESET, 1 TIME, 2 MODE, 3 HOLD, 4 START), chosen with the D-pad and
+    // pressed with any of the four. SELECT (swap controllers) passes
+    // through from controllers.
+    button(@"x", @"⤒", RETRO_DEVICE_ID_JOYPAD_X);
+    button(@"a", @"↻", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"⤓", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"y", @"↺", RETRO_DEVICE_ID_JOYPAD_Y);
+    button(@"start", @"1-4", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([console isEqualToString:@"intv"]) {
+    // FreeIntv: action buttons left (A), right (B) and top (Y); keypad
+    // CLEAR (L2), ENTER (R2), 0 (L3), 5 (R3); L held shows the keypad
+    // (D-pad, then an action button presses the key), X repeats the last
+    // key; START pauses. R (keypad), SELECT (swap controllers) and the
+    // right stick (keys 1 to 9) pass through from controllers.
+    button(@"a", @"◣", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"◢", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"y", @"◤", RETRO_DEVICE_ID_JOYPAD_Y);
+    button(@"l", @"⌨", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"x", @"↺", RETRO_DEVICE_ID_JOYPAD_X);
+    button(@"l2", @"CLR", RETRO_DEVICE_ID_JOYPAD_L2);
+    button(@"l3", @"0", RETRO_DEVICE_ID_JOYPAD_L3);
+    button(@"r3", @"5", RETRO_DEVICE_ID_JOYPAD_R3);
+    button(@"r2", @"ENT", RETRO_DEVICE_ID_JOYPAD_R2);
+    button(@"start", @"❚❚", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([console isEqualToString:@"mo2"]) {
+    // O2EM: the joystick's action button (B); SELECT shows the core's
+    // keyboard (D-pad, then B types the key). Keys 0 to 6 (X, L, R, L2,
+    // R2, L3, R3), Y and START pass through from controllers.
+    button(@"b", @"●", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"select", @"⌨", RETRO_DEVICE_ID_JOYPAD_SELECT);
+  } else if ([console isEqualToString:@"pcfx"]) {
+    // Beetle PC-FX: I to VI on A, B, X, Y, L, R, RUN on START. The MODE 1
+    // and MODE 2 switches (L2, R2) pass through from controllers.
+    button(@"a", @"I", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"II", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"x", @"III", RETRO_DEVICE_ID_JOYPAD_X);
+    button(@"y", @"IV", RETRO_DEVICE_ID_JOYPAD_Y);
+    button(@"l", @"V", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"r", @"VI", RETRO_DEVICE_ID_JOYPAD_R);
+    button(@"start", @"RUN", RETRO_DEVICE_ID_JOYPAD_START);
     button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
   }
   NSDictionary<NSString *, NSNumber *> *actions = ActionNames();

@@ -1,6 +1,6 @@
 # Embedded Libretro cores — NeoStation iOS 0.0.7 / Build 455
 
-NeoStation packages 30 iOS ARM64 libretro core binaries, including the official
+NeoStation packages 34 iOS ARM64 libretro core binaries, including the official
 Azahar 2127.0-alpha1 release. RetroArch
 is a separate frontend; NeoStation embeds these cores using its own host.
 All original authors retain their rights. No endorsement or relicensing is implied.
@@ -38,6 +38,10 @@ All original authors retain their rights. No endorsement or relicensing is impli
 | Ardens | Arduboy | Peter Brown | [MIT](ardens-LICENSE.txt) |
 | WASM-4 | WASM-4 | Bruno Garcia and WASM-4 contributors | [ISC](wasm4-LICENSE.txt) |
 | Uzem | Uzebox | David Etherton, Eric Anderton, Alec Bourque, Filipe Rinaldi, Sandor Zsuga, Matt Pandina, Torsten Paul | [MIT (notice in the source header)](uzem-MIT-notice.h) |
+| FreeChaF | Fairchild Channel F | David Richardson and libretro contributors | [GPLv3](freechaf-LICENSE) |
+| FreeIntv | Intellivision | David Richardson; Oscar Toledo G. (PSG, STIC, savestates); Joe Zbiciak (Intellivoice); Jason Carr (keypad overlays) | [GPLv2](freeintv-LICENSE) |
+| O2EM | Magnavox Odyssey 2 / Videopac | Daniel Boris, O2EM contributors and libretro contributors | [Artistic License 2.0](o2em-COPYING) |
+| Beetle PC-FX | NEC PC-FX | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_pcfx-COPYING) |
 
 ## Support libraries and resources
 
@@ -60,7 +64,10 @@ use or fundraising contrary to those terms. The complete upstream texts govern.
 
 The sixteen cores added on 14 October 2026 (Beetle PCE Fast to Uzem in the
 table above) carry GPL, MIT, zlib, ISC or public-domain terms; none of them
-adds a non-commercial condition.
+adds a non-commercial condition. The four cores added after them the same
+day (FreeChaF to Beetle PC-FX) carry GPL or Artistic License 2.0 terms, add
+no non-commercial condition and embed no console firmware: FreeChaF's
+replacement for the Channel F BIOS is its own code.
 
 GPL and MPL obligations remain applicable to their respective components.
 The host project's GPL does not replace core licenses or resolve combined-work

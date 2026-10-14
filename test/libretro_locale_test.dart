@@ -134,10 +134,18 @@ void main() {
     for (final key in LibretroLocale.launchErrorKeys.values) {
       expect(english.containsKey(key), isTrue, reason: key);
     }
+    // The missing files fill {files}; no placeholder ever reaches the user.
     expect(
-      LibretroLocale.launchError(const Locale('fr'), 'LIBRETRO_BIOS_MISSING'),
-      LibretroLocale.values['fr']!['errorBiosMissing'],
+      LibretroLocale.launchError(const Locale('fr'), 'LIBRETRO_BIOS_MISSING', 'colecovision.rom'),
+      LibretroLocale.values['fr']!['errorBiosMissing']!.replaceAll('{files}', 'colecovision.rom'),
     );
+    for (final locale in LibretroLocale.values.keys) {
+      for (final code in <String>['LIBRETRO_BIOS_MISSING', 'LIBRETRO_BIOS_MISSING_ALL']) {
+        final message = LibretroLocale.launchError(Locale(locale), code, 'exec.bin, grom.bin');
+        expect(message, contains('exec.bin, grom.bin'), reason: '$locale $code');
+        expect(message, isNot(contains('{')), reason: '$locale $code');
+      }
+    }
     expect(
       LibretroLocale.launchError(const Locale('fr'), 'SOMETHING_ELSE'),
       LibretroLocale.values['fr']!['errorUnknown'],

@@ -93,6 +93,42 @@ void main() {
     expect(launches.single['coreId'], 'mednafen_psx_hw');
   });
 
+  test('the Intellivision needs both BIOS files and names the missing ones (lot 2)', () async {
+    final cartridge = rom('4-Tris.int').path;
+    var outcome = await LibretroInternalService.launch(system: system('intv'), game: game(cartridge), locale: const Locale('en'));
+    expect(outcome.success, isFalse);
+    expect(outcome.errorCode, 'LIBRETRO_BIOS_MISSING_ALL');
+    expect(outcome.technicalDetails, 'exec.bin, grom.bin');
+
+    final systemDirectory = await LibretroInternalService.systemDirectory();
+    File(p.join(systemDirectory.path, 'exec.bin')).writeAsBytesSync(List<int>.filled(16, 4));
+    outcome = await LibretroInternalService.launch(system: system('intv'), game: game(cartridge), locale: const Locale('en'));
+    expect(outcome.errorCode, 'LIBRETRO_BIOS_MISSING_ALL');
+    expect(outcome.technicalDetails, 'grom.bin', reason: 'one file is not enough');
+    expect(launches, isEmpty);
+
+    File(p.join(systemDirectory.path, 'grom.bin')).writeAsBytesSync(List<int>.filled(16, 5));
+    outcome = await LibretroInternalService.launch(system: system('intv'), game: game(cartridge), locale: const Locale('en'));
+    expect(outcome.success, isTrue);
+    expect(launches.single['coreId'], 'freeintv');
+  });
+
+  test('O2EM and Beetle PC-FX refuse the launch without their BIOS (lot 2)', () async {
+    final o2 = await LibretroInternalService.launch(
+        system: system('mo2'), game: game(rom('Quest for the Rings.bin').path), locale: const Locale('en'));
+    expect(o2.errorCode, 'LIBRETRO_BIOS_MISSING');
+    expect(o2.technicalDetails, 'o2rom.bin');
+    final fx = await LibretroInternalService.launch(
+        system: system('pcfx'), game: game(rom('Battle Heat.cue').path), locale: const Locale('en'));
+    expect(fx.errorCode, 'LIBRETRO_BIOS_MISSING');
+    expect(fx.technicalDetails, 'pcfx.rom');
+    // The Channel F core has a replacement BIOS: it launches without one.
+    final chf = await LibretroInternalService.launch(
+        system: system('chf'), game: game(rom('Videocart 1.bin').path), locale: const Locale('en'));
+    expect(chf.success, isTrue);
+    expect(launches.single['coreId'], 'freechaf');
+  });
+
   test('the checker and the launch rule agree on the PlayStation names', () async {
     final catalog = LibretroBiosCatalog.parse(File(LibretroBiosCatalog.assetPath).readAsStringSync());
     final service = LibretroBiosCheckService(

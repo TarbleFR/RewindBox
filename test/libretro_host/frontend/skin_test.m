@@ -194,6 +194,12 @@ static void TestGameTypes(void) {
     @"org.provenance.arduboy" : @[ @"ard" ],
     @"org.provenance.wasm4" : @[ @"wasm4" ],
     @"org.provenance.uzebox" : @[ @"uze" ],
+    // Lot 2.
+    @"org.provenance.channelf" : @[ @"chf" ],
+    @"com.delta.intellivision" : @[ @"intv" ],
+    @"org.provenance.odyssey2" : @[ @"mo2" ],
+    @"org.provenance.videopac" : @[ @"mo2" ],
+    @"org.provenance.pcfx" : @[ @"pcfx" ],
   };
   for (NSString *gameType in expected) {
     NSArray<NSString *> *consoles = [LibretroSkin consolesForGameTypeIdentifier:gameType];

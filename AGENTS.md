@@ -260,3 +260,12 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
   - un cœur n'entre dans un lot que s'il figure dans la liste App Store iOS de RetroArch ou que son absence de JIT est établie par ses sources ; un cœur qui exige le JIT (Flycast) ou dont le binaire iOS du buildbot déclare une autre plateforme (Hatari) reste documenté comme incompatible, sans intégration forcée ;
   - les jeux importés vont dans un dossier que le scanner reconnaît pour le système (`LibretroCoreCatalog.importFolderFor`) ;
   - un cœur n'est annoncé fonctionnel qu'après son lancement réel en CI (sonde simulateur `--lot1` sur des programmes de test écrits par la sonde, aucun contenu tiers) ; le simulateur n'est pas l'iPhone.
+
+## Consoles de l'onglet Consoles — lot 2, 14 octobre 2026
+
+- Lot 2 : Fairchild Channel F (FreeChaF), Intellivision (FreeIntv), Magnavox Odyssey 2 (O2EM), NEC PC-FX (Beetle PC-FX), mêmes règles que le lot 1. Paquet `LibretroCores-fdeaef56…`, run `38638115521` (34 cœurs), construit sur celui du lot 1 recopié octet pour octet. Détails, commandes, BIOS et consoles en attente : `docs/libretro-consoles-lot2.md`.
+- Règles posées :
+  - un cœur dont le binaire embarque un firmware de console d'origine (vecx : ROM système Vectrex ; Virtual Jaguar : ROM de démarrage et BIOS CD Atari) n'entre pas dans le paquet sans décision explicite du mainteneur : tout le paquet est copié dans l'IPA, et NeoStation ne fournit aucun BIOS ;
+  - un cœur qui exige plusieurs fichiers BIOS et charge quand même un jeu sans eux (FreeIntv) les déclare dans `LibretroCore.biosAllOf` ; le lancement est refusé avec `LIBRETRO_BIOS_MISSING_ALL` en nommant les fichiers manquants ; les messages de BIOS manquant remplissent toujours `{files}` ;
+  - les images de BIOS de substitution de la sonde simulateur (une instruction qui saute sur elle-même) ne sont écrites que dans l'application de sonde, jamais dans le paquet ni dans l'IPA ;
+  - NeoCD et Opera (clauses non commerciales) attendent la décision du mainteneur, comme Snes9x, PicoDrive et FBNeo ; Yabause attend une mesure de performances sur iPhone ; EasyRPG reste incompatible tant que l'hôte n'offre pas `RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK`.

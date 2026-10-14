@@ -159,6 +159,10 @@ static NSArray<NSString *> *ReasonOrder(void) {
       @"ard" : @[ kDirections, @"a", @"b" ],
       @"wasm4" : @[ kDirections, @"a", @"b" ],
       @"uze" : snes,
+      @"chf" : @[ kDirections, @"a", @"b", @"x", @"y", @"start" ],
+      @"intv" : @[ kDirections, @"a", @"b", @"y" ],
+      @"mo2" : @[ kDirections, @"b" ],
+      @"pcfx" : @[ kDirections, @"a", @"b", @"start" ],
     };
   });
   return table[console] ?: @[ kDirections ];
@@ -200,6 +204,9 @@ static NSArray<NSString *> *ReasonOrder(void) {
       @"duck" : select,
       @"wsv" : select,
       @"uze" : select,
+      @"intv" : @[ @"l", @"x", @"l2", @"l3", @"r3", @"r2", @"start" ],
+      @"mo2" : select,
+      @"pcfx" : @[ @"x", @"y", @"l", @"r", @"select" ],
     };
   });
   return table[console] ?: @[];

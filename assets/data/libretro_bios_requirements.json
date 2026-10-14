@@ -15,10 +15,10 @@
       "date": "2026-06-14"
     },
     "coresArtifact": {
-      "name": "LibretroCores-df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf",
-      "run": "38627332377",
-      "created": "2026-10-14T19:53:18Z",
-      "base": "LibretroCores-8b9e87ba39edb647f8cddca5ee8d924319bcbacb (run 38352378859), copied unchanged; it kept the 13 cores of LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2 (run 38195212647)"
+      "name": "LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258",
+      "run": "38638115521",
+      "created": "2026-10-14T21:10:45Z",
+      "base": "LibretroCores-df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf (run 38627332377, lot 1), copied unchanged; it kept LibretroCores-8b9e87ba39edb647f8cddca5ee8d924319bcbacb (run 38352378859) and the 13 cores of LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2 (run 38195212647)"
     },
     "coreSources": {
       "nestopia": "libretro/nestopia b9fdc9c4",
@@ -50,10 +50,15 @@
       "potator": "libretro/potator 227c5f6f",
       "ardens": "tiberiusbrown/Ardens ba7ad0dc",
       "wasm4": "aduros/wasm4 9d6c9627",
-      "uzem": "libretro/libretro-uzem d991ee94"
+      "uzem": "libretro/libretro-uzem d991ee94",
+      "freechaf": "libretro/FreeChaF 76c7a84f",
+      "freeintv": "libretro/FreeIntv ef3e0fe3",
+      "o2em": "libretro/libretro-o2em 679d6fec",
+      "mednafen_pcfx": "libretro/beetle-pcfx-libretro c1650bad"
     },
     "coreSourcesNote": "identity.json records no source commit: these are the last commits on or before the previous pinned cores run 37945318237 (2026-10-09); they were not re-derived for run 38195212647 (2026-10-12, upstream repositories unreachable from the work container), so the nightly binaries may be newer. test/libretro_bios_requirements_test.py --cores checks the file names against the pinned binaries.",
     "coreSourcesLot1Note": "Lot 1 cores (14 October 2026): the upstream heads read that day; identity.json of run 38627332377 records no source commit either.",
+    "coreSourcesLot2Note": "Lot 2 cores (14 October 2026): the upstream heads read that day; identity.json of run 38638115521 records no source commit either.",
     "documentation": "https://docs.libretro.com/library/"
   },
   "flags": {
@@ -103,7 +108,11 @@
     "wsv": {"noteKeys": ["biosNoBiosNeeded"]},
     "ard": {"noteKeys": ["biosNoBiosNeeded"]},
     "wasm4": {"noteKeys": ["biosNoBiosNeeded"]},
-    "uze": {"noteKeys": ["biosNoBiosNeeded"]}
+    "uze": {"noteKeys": ["biosNoBiosNeeded"]},
+    "chf": {"noteKeys": ["biosNoteChannelF"]},
+    "intv": {"noteKeys": ["biosNoteIntv"]},
+    "mo2": {"noteKeys": ["biosNoteO2em"]},
+    "pcfx": {"noteKeys": ["biosNotePcfx"]}
   },
   "entries": [
     {
@@ -1051,6 +1060,168 @@
       "info": [{"core": "pokemini", "path": "bios.min"}],
       "binaryStrings": {"pokemini": ["bios.min"]},
       "sources": ["core-info pokemini firmware0", "PokeMini libretro/libretro.c (built-in free BIOS without it)"]
+    },
+    {
+      "id": "chf-psu1",
+      "consoles": ["chf"],
+      "cores": ["freechaf"],
+      "names": ["sl31253.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "knownDumps": [
+        {"size": 1024, "crc": "04694ed9", "md5": "ac9804d4c0e9d07e33472e3726ed15c3", "sha1": "81193965a374d77b99b4743d317824b53c3e3c78", "label": "Channel F PSU 1 (SL31253)", "source": "System.dat"}
+      ],
+      "info": [{"core": "freechaf", "path": "sl31253.bin"}],
+      "binaryStrings": {"freechaf": ["sl31253.bin"]},
+      "sources": ["core-info freechaf firmware0 (opt=false)", "FreeChaF src/libretro.c retro_init (falls back to its experimental replacement BIOS, channelf_hle.c, for a missing PSU)"]
+    },
+    {
+      "id": "chf-psu1-ii",
+      "consoles": ["chf"],
+      "cores": ["freechaf"],
+      "names": ["sl90025.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "knownDumps": [
+        {"size": 1024, "crc": "015c1e38", "md5": "95d339631d867c8f1d15a5f2ec26069d", "sha1": "759e2ed31fbde4a2d8daf8b9f3e0dffebc90dae2", "label": "Channel F II PSU 1 (SL90025)", "source": "System.dat"}
+      ],
+      "info": [{"core": "freechaf", "path": "sl90025.bin"}],
+      "binaryStrings": {"freechaf": ["sl90025.bin"]},
+      "sources": ["core-info freechaf firmware2 (opt=false)", "FreeChaF src/libretro.c retro_init (preferred over sl31253.bin)"]
+    },
+    {
+      "id": "chf-psu2",
+      "consoles": ["chf"],
+      "cores": ["freechaf"],
+      "names": ["sl31254.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "knownDumps": [
+        {"size": 1024, "crc": "9c047ba3", "md5": "da98f4bb3242ab80d76629021bb27585", "sha1": "8f70d1b74483ba3a37e86cf16c849d601a8c3d2c", "label": "Channel F PSU 2 (SL31254)", "source": "System.dat"}
+      ],
+      "info": [{"core": "freechaf", "path": "sl31254.bin"}],
+      "binaryStrings": {"freechaf": ["sl31254.bin"]},
+      "sources": ["core-info freechaf firmware1 (opt=false)", "FreeChaF src/libretro.c retro_init (replacement BIOS without it)"]
+    },
+    {
+      "id": "intv-exec",
+      "consoles": ["intv"],
+      "cores": ["freeintv"],
+      "names": ["exec.bin"],
+      "locations": ["system"],
+      "level": "required",
+      "region": "world",
+      "knownDumps": [
+        {"size": 8192, "crc": "cbce86f7", "md5": "62e761035cb657903761800f4437b8af", "sha1": "5a65b922b562cb1f57dab51b73151283f0e20c7a", "label": "Intellivision Executive ROM", "source": "System.dat"}
+      ],
+      "info": [{"core": "freeintv", "path": "exec.bin"}],
+      "binaryStrings": {"freeintv": ["exec.bin"]},
+      "sources": ["core-info freeintv firmware0 (opt=false)", "FreeIntv src/intv.c loadExec (retro_load_game still succeeds and only draws an error screen without it)", "LibretroCore.biosAllOf of freeintv (NeoStation refuses the launch with LIBRETRO_BIOS_MISSING_ALL)"]
+    },
+    {
+      "id": "intv-grom",
+      "consoles": ["intv"],
+      "cores": ["freeintv"],
+      "names": ["grom.bin"],
+      "locations": ["system"],
+      "level": "required",
+      "region": "world",
+      "knownDumps": [
+        {"size": 2048, "crc": "683a4158", "md5": "0cd5946c6473e42e8e4c2137785e427f", "sha1": "f9608bb4ad1cfe3640d02844c7ad8e0bcd974917", "label": "Intellivision Graphics ROM", "source": "System.dat"}
+      ],
+      "info": [{"core": "freeintv", "path": "grom.bin"}],
+      "binaryStrings": {"freeintv": ["grom.bin"]},
+      "sources": ["core-info freeintv firmware1 (opt=false)", "FreeIntv src/intv.c loadGrom", "LibretroCore.biosAllOf of freeintv (NeoStation refuses the launch with LIBRETRO_BIOS_MISSING_ALL)"]
+    },
+    {
+      "id": "mo2-o2rom",
+      "consoles": ["mo2"],
+      "cores": ["o2em"],
+      "names": ["o2rom.bin"],
+      "locations": ["system"],
+      "level": "required",
+      "region": "na",
+      "optionGates": [
+        {"core": "o2em", "all": [{"keys": ["o2em_bios"], "enabled": ["o2rom.bin"], "default": "o2rom.bin"}]}
+      ],
+      "knownDumps": [
+        {"size": 1024, "crc": "8016a315", "md5": "562d5ebf9e030a40d6fabfc2f33139fd", "sha1": "b2e1955d957a475de2411770452eff4ea19f4cee", "label": "Odyssey 2 BIOS (G7000)", "source": "System.dat"}
+      ],
+      "info": [{"core": "o2em", "path": "o2rom.bin"}],
+      "binaryStrings": {"o2em": ["o2rom.bin"]},
+      "sources": ["core-info o2em firmware0 (opt=false)", "libretro-o2em libretro.c load_bios (o2em_bios default o2rom.bin; no game loads without it)", "LibretroCore.biosAnyOf of o2em (NeoStation refuses the launch with LIBRETRO_BIOS_MISSING)"]
+    },
+    {
+      "id": "mo2-c52",
+      "consoles": ["mo2"],
+      "cores": ["o2em"],
+      "names": ["c52.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "eu",
+      "optionGates": [
+        {"core": "o2em", "all": [{"keys": ["o2em_bios"], "enabled": ["c52.bin"], "default": "o2rom.bin"}]}
+      ],
+      "knownDumps": [
+        {"size": 1024, "crc": "a318e8d6", "md5": "f1071cdb0b6b10dde94d3bc8a6146387", "sha1": "a6120aed50831c9c0d95dbdf707820f601d9452e", "label": "Videopac BIOS (France, G7000)", "source": "System.dat"}
+      ],
+      "info": [{"core": "o2em", "path": "c52.bin"}],
+      "binaryStrings": {"o2em": ["c52.bin"]},
+      "sources": ["core-info o2em firmware1", "libretro-o2em libretro.c (o2em_bios \"c52.bin\")"]
+    },
+    {
+      "id": "mo2-g7400",
+      "consoles": ["mo2"],
+      "cores": ["o2em"],
+      "names": ["g7400.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "eu",
+      "optionGates": [
+        {"core": "o2em", "all": [{"keys": ["o2em_bios"], "enabled": ["g7400.bin"], "default": "o2rom.bin"}]}
+      ],
+      "knownDumps": [
+        {"size": 1024, "crc": "e20a9f41", "md5": "c500ff71236068e0dc0d0603d265ae76", "sha1": "5130243429b40b01a14e1304d0394b8459a6fbae", "label": "Videopac+ BIOS (Europe, G7400)", "source": "System.dat"}
+      ],
+      "info": [{"core": "o2em", "path": "g7400.bin"}],
+      "binaryStrings": {"o2em": ["g7400.bin"]},
+      "sources": ["core-info o2em firmware2", "libretro-o2em libretro.c (o2em_bios \"g7400.bin\")"]
+    },
+    {
+      "id": "mo2-jopac",
+      "consoles": ["mo2"],
+      "cores": ["o2em"],
+      "names": ["jopac.bin"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "eu",
+      "optionGates": [
+        {"core": "o2em", "all": [{"keys": ["o2em_bios"], "enabled": ["jopac.bin"], "default": "o2rom.bin"}]}
+      ],
+      "knownDumps": [
+        {"size": 1024, "crc": "11647ca5", "md5": "279008e4a0db2dc5f1c048853b033828", "sha1": "54b8d2c1317628de51a85fc1c424423a986775e4", "label": "Videopac+ BIOS (France, G7400)", "source": "System.dat"}
+      ],
+      "info": [{"core": "o2em", "path": "jopac.bin"}],
+      "binaryStrings": {"o2em": ["jopac.bin"]},
+      "sources": ["core-info o2em firmware3", "libretro-o2em libretro.c (o2em_bios \"jopac.bin\")"]
+    },
+    {
+      "id": "pcfx-bios",
+      "consoles": ["pcfx"],
+      "cores": ["mednafen_pcfx"],
+      "names": ["pcfx.rom"],
+      "locations": ["system"],
+      "level": "required",
+      "region": "jp",
+      "knownDumps": [
+        {"size": 1048576, "crc": "76ffb97a", "md5": "08e36edbea28a017f79f8d4f7ff9b6d7", "sha1": "1a77fd83e337f906aecab27a1604db064cf10074", "label": "PC-FX BIOS v1.00", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_pcfx", "path": "pcfx.rom"}],
+      "binaryStrings": {"mednafen_pcfx": ["pcfx.rom"]},
+      "sources": ["core-info mednafen_pcfx firmware0 (opt=false)", "beetle-pcfx-libretro libretro.cpp (exactly 1 MiB; no game loads without it)", "LibretroCore.biosAnyOf of mednafen_pcfx (NeoStation refuses the launch with LIBRETRO_BIOS_MISSING)"]
     }
   ],
   "excluded": [

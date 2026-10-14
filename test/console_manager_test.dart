@@ -88,8 +88,9 @@ void main() {
         ConsoleEngine.ports: 1,
         ConsoleEngine.melonx: 1,
         // 61 before lot 1, whose 21 consoles moved to the libretro engine
-        // with their ids (docs/libretro-consoles-lot1.md).
-        ConsoleEngine.retroarch: 40,
+        // with their ids (docs/libretro-consoles-lot1.md), then 4 more with
+        // lot 2 (docs/libretro-consoles-lot2.md).
+        ConsoleEngine.retroarch: 36,
       });
     });
 
@@ -111,8 +112,8 @@ void main() {
         for (final entry in ConsoleCatalog.entries)
           if (entry.retroArchFallback) entry.id,
       };
-      expect(fallback, containsAll(<String>['nes', 'psx', '3ds', 'pico', 'ps2', '2600', 'pce', 'tg16']));
-      for (final id in ['gc', 'wii', 'ps3', 'ports', 'switch', 'c64']) {
+      expect(fallback, containsAll(<String>['nes', 'psx', '3ds', 'pico', 'ps2', '2600', 'pce', 'tg16', 'chf', 'intv']));
+      for (final id in ['gc', 'wii', 'ps3', 'ports', 'switch', 'c64', 'vect', 'jag']) {
         expect(fallback, isNot(contains(id)), reason: id);
       }
       expect(ConsoleCatalog.byId('switch')!.hasEmbeddedEngine, isFalse);
@@ -120,6 +121,9 @@ void main() {
       // Lot 1: the Atari 2600 keeps its id and gains the embedded engine.
       expect(ConsoleCatalog.byId('2600')!.hasEmbeddedEngine, isTrue);
       expect(ConsoleCatalog.byId('2600')!.engine, ConsoleEngine.libretro);
+      // Lot 2: the same for the Intellivision.
+      expect(ConsoleCatalog.byId('intv')!.engine, ConsoleEngine.libretro);
+      expect(ConsoleCatalog.byId('intv')!.name, 'Intellivision');
     });
   });
 

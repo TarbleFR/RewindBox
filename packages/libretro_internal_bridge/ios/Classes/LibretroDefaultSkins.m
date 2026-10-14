@@ -344,7 +344,7 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
 
   // Right: face buttons laid out like the original controller.
   LibretroDefaultGroup *right = [LibretroDefaultGroup new];
-  if (DefaultIs(console, @[ @"snes", @"nds", @"3ds", @"psx", @"psp", @"uze" ])) {
+  if (DefaultIs(console, @[ @"snes", @"nds", @"3ds", @"psx", @"psp", @"uze", @"chf" ])) {
     double top = 0;
     if ([console isEqualToString:@"3ds"] && map.hasRightStick) {
       // New 3DS C-stick above the face buttons.
@@ -355,7 +355,8 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
                      frame:LibretroRectMake(116, 0, 54, 54)];
       top = 40;
     }
-    // Diamond: X / triangle top, A / circle right, B / cross bottom, Y / square left.
+    // Diamond: X / triangle top, A / circle right, B / cross bottom, Y / square left
+    // (Channel F knob: pull, twist right, push, twist left).
     const double diameter = 54, offset = 56;
     const double x = offset + diameter / 2, y = top + offset + diameter / 2;
     [right addButton:@"x" map:map diameter:diameter x:x y:y - offset];
@@ -420,6 +421,24 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
     }
     [right addButton:@"b" map:map diameter:56 x:34 y:136];
     [right addButton:@"a" map:map diameter:56 x:110 y:128];
+  } else if ([console isEqualToString:@"intv"]) {
+    // Intellivision: keypad (keypad on hold, last key, CLEAR / 0, 5, ENTER)
+    // above the top and the two lower action buttons.
+    NSArray<NSString *> *keys = @[ @"l", @"x", @"l2", @"l3", @"r3", @"r2" ];
+    for (NSUInteger index = 0; index < keys.count; index++) {
+      [right addButton:keys[index] map:map diameter:42 x:21 + 50 * (index % 3) y:21 + 50 * (index / 3)];
+    }
+    [right addButton:@"y" map:map diameter:50 x:72 y:122];
+    [right addButton:@"a" map:map diameter:50 x:28 y:176];
+    [right addButton:@"b" map:map diameter:50 x:116 y:176];
+  } else if ([console isEqualToString:@"pcfx"]) {
+    // PC-FX pad: III II I rising to the right, IV V VI above them.
+    [right addButton:@"x" map:map diameter:50 x:30 y:116];
+    [right addButton:@"b" map:map diameter:50 x:94 y:104];
+    [right addButton:@"a" map:map diameter:50 x:158 y:92];
+    [right addButton:@"y" map:map diameter:50 x:30 y:50];
+    [right addButton:@"l" map:map diameter:50 x:94 y:38];
+    [right addButton:@"r" map:map diameter:50 x:158 y:26];
   } else if ([console isEqualToString:@"5200"]) {
     // Atari 5200: keypad (0-9), * and # above the fire buttons 2 and 1.
     NSArray<NSString *> *keys = @[ @"l", @"y", @"x" ];
@@ -494,6 +513,9 @@ static double DefaultSingleAspect(NSString *console) {
   if (DefaultIs(console, @[ @"wsv", @"wasm4" ])) return 1.0;
   if ([console isEqualToString:@"ard"]) return 2.0;
   if ([console isEqualToString:@"uze"]) return 630.0 / 448.0;
+  // Lot 2 (docs/libretro-consoles-lot2.md): FreeChaF, FreeIntv.
+  if ([console isEqualToString:@"chf"]) return 306.0 / 192.0;
+  if ([console isEqualToString:@"intv"]) return 352.0 / 224.0;
   return 4.0 / 3.0;
 }
 

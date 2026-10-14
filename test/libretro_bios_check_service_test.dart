@@ -619,6 +619,64 @@ void main() {
     });
   });
 
+  group('lot 2 consoles', () {
+    test('the Intellivision is ready only with both exec.bin and grom.bin', () async {
+      final exec = synthetic(8192, 21), grom = synthetic(2048, 22);
+      fixture.references('intv-exec', <List<int>>[exec]);
+      fixture.references('intv-grom', <List<int>>[grom]);
+      var report = await fixture.check();
+      expect(result(report, 'intv-exec').status, LibretroBiosStatus.missingRequired);
+      expect(result(report, 'intv-grom').status, LibretroBiosStatus.missingRequired);
+      expect(console(report, 'intv').ready, isFalse);
+      expect(console(report, 'intv').notes, contains(const LibretroBiosNote('biosNoteIntv')));
+
+      fixture.put('exec.bin', exec);
+      report = await fixture.check();
+      expect(result(report, 'intv-exec').status, LibretroBiosStatus.verified);
+      expect(console(report, 'intv').ready, isFalse, reason: 'grom.bin is still missing');
+
+      fixture.put('grom.bin', grom);
+      report = await fixture.check();
+      expect(result(report, 'intv-grom').status, LibretroBiosStatus.verified);
+      expect(console(report, 'intv').ready, isTrue);
+    });
+
+    test('O2EM needs the BIOS its option names; the other models follow the option', () async {
+      final o2rom = synthetic(1024, 23);
+      fixture.references('mo2-o2rom', <List<int>>[o2rom]);
+      var report = await fixture.check();
+      expect(result(report, 'mo2-o2rom').status, LibretroBiosStatus.missingRequired);
+      expect(console(report, 'mo2').ready, isFalse);
+      for (final id in <String>['mo2-c52', 'mo2-g7400', 'mo2-jopac']) {
+        expect(result(report, id).status, LibretroBiosStatus.missingOptional, reason: id);
+      }
+
+      fixture.put('o2rom.bin', o2rom);
+      report = await fixture.check();
+      expect(result(report, 'mo2-o2rom').status, LibretroBiosStatus.verified);
+      expect(console(report, 'mo2').ready, isTrue);
+
+      File(p.join(fixture.config.path, 'O2EM.json'))
+          .writeAsStringSync(jsonEncode(<String, Object?>{'values': <String, String>{'o2em_bios': 'c52.bin'}}));
+      report = await fixture.check();
+      expect(result(report, 'mo2-o2rom').notes,
+          contains(const LibretroBiosNote('biosOptionOff', <String, String>{'option': 'o2em_bios'})));
+      expect(result(report, 'mo2-c52').notes,
+          contains(const LibretroBiosNote('biosOptionOn', <String, String>{'option': 'o2em_bios'})));
+    });
+
+    test('the PC-FX needs pcfx.rom; the Channel F BIOS stay optional', () async {
+      final report = await fixture.check();
+      expect(result(report, 'pcfx-bios').status, LibretroBiosStatus.missingRequired);
+      expect(console(report, 'pcfx').ready, isFalse);
+      for (final id in <String>['chf-psu1', 'chf-psu1-ii', 'chf-psu2']) {
+        expect(result(report, id).status, LibretroBiosStatus.missingOptional, reason: id);
+      }
+      expect(console(report, 'chf').ready, isTrue);
+      expect(console(report, 'chf').notes, contains(const LibretroBiosNote('biosNoteChannelF')));
+    });
+  });
+
   group('PPSSPP support files', () {
     test('installed at the next PSP launch, incomplete, or identical to the shipped copy', () async {
       var atlas = result(await fixture.check(), 'psp-atlas');
@@ -725,6 +783,8 @@ void main() {
       // Lot 1.
       'pce', 'tg16', 'pccd', 'tgcd', 'ws', 'wsc', 'ngp', 'ngpc', 'lynx', 'vb', '2600', '7800', '5200', 'cv',
       'mini', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze',
+      // Lot 2.
+      'chf', 'intv', 'mo2', 'pcfx',
     ]);
   });
 

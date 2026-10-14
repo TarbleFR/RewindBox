@@ -12,11 +12,14 @@ void main() {
     final credits = await rootBundle.loadString(
       'assets/legal/libretro/LIBRETRO_CORES.md',
     );
-    // 14 cores, then 30 with the sixteen of lot 1 (14 October 2026).
-    expect(credits, contains('30 iOS ARM64 libretro core binaries'));
+    // 14 cores, 30 with the sixteen of lot 1, then 34 with the four of lot 2
+    // (14 October 2026).
+    expect(credits, contains('34 iOS ARM64 libretro core binaries'));
     expect(credits, contains('Snes9x'));
     expect(credits, contains('Beetle PCE Fast'));
     expect(credits, contains('Uzem'));
+    expect(credits, contains('FreeIntv'));
+    expect(credits, contains('Beetle PC-FX'));
     expect(credits, contains('FinalBurn Neo'));
     expect(credits, contains('GPLv3 or later'));
     final license = await rootBundle.loadString(

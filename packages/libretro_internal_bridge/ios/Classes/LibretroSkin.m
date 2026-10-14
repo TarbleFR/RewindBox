@@ -962,6 +962,15 @@ static NSString *SkinImagePath(NSString *root, id name) {
       @"arduboy" : @[ @"ard" ],
       @"wasm4" : @[ @"wasm4" ],
       @"uzebox" : @[ @"uze" ],
+      // Lot 2 (docs/libretro-consoles-lot2.md).
+      @"channelf" : @[ @"chf" ],
+      @"fairchildchannelf" : @[ @"chf" ],
+      @"intellivision" : @[ @"intv" ],
+      @"intv" : @[ @"intv" ],
+      @"odyssey2" : @[ @"mo2" ],
+      @"magnavoxodyssey2" : @[ @"mo2" ],
+      @"videopac" : @[ @"mo2" ],
+      @"pcfx" : @[ @"pcfx" ],
     };
   });
   return aliases[key] ?: @[];

@@ -147,8 +147,8 @@ jobs:
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf
-        run-id: '38627332377'
+        name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+        run-id: '38638115521'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Source contracts

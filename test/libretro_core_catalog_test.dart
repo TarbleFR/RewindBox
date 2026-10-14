@@ -103,14 +103,15 @@ void main() {
     }
   });
 
-  test('every bound system belongs to one of the 38 consoles', () {
+  test('every bound system belongs to one of the 42 consoles', () {
     // The 17 consoles of the embedded engine, then the 21 of lot 1
-    // (docs/libretro-consoles-lot1.md), whose ids are those the Consoles tab
+    // (docs/libretro-consoles-lot1.md) and the 4 of lot 2
+    // (docs/libretro-consoles-lot2.md), whose ids are those the Consoles tab
     // already used for them as RetroArch consoles.
     const ids = <String>[
       'nes', 'snes', 'gb', 'gbc', 'gba', 'md', 'mcd', '32x', 'sms', 'gg', 'sg1000', 'arcade', 'nds', 'n64',
       'psx', 'psp', '3ds', 'pce', 'tg16', 'pccd', 'tgcd', 'ws', 'wsc', 'ngp', 'ngpc', 'lynx', 'vb', '2600',
-      '7800', '5200', 'cv', 'mini', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze',
+      '7800', '5200', 'cv', 'mini', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze', 'chf', 'intv', 'mo2', 'pcfx',
     ];
     expect(LibretroCoreCatalog.consoles.keys.toList(), ids);
     for (final entry in LibretroCoreCatalog.consoles.entries) {
@@ -132,6 +133,8 @@ void main() {
       'pce': 'pce', 'tg16': 'tg16', 'pccd': 'pccd', 'tgcd': 'tgcd', 'ws': 'ws', 'wsc': 'wsc', 'ngp': 'ngp',
       'ngpc': 'ngpc', 'lynx': 'lynx', 'vb': 'vb', '2600': '2600', '7800': '7800', '5200': '5200', 'cv': 'cv',
       'mini': 'mini', 'gw': 'gw', 'duck': 'duck', 'wsv': 'wsv', 'ard': 'ard', 'wasm4': 'wasm4', 'uze': 'uze',
+      // Lot 2.
+      'chf': 'chf', 'intv': 'intv', 'mo2': 'mo2', 'pcfx': 'pcfx',
     };
     for (final entry in expected.entries) {
       expect(LibretroCoreCatalog.systems[entry.key]!.console, entry.value, reason: entry.key);
@@ -174,6 +177,10 @@ void main() {
       'ngp': [160, 152], 'ngpc': [160, 152], 'lynx': [160, 102], 'vb': [384, 224], '2600': [0, 0],
       '7800': [0, 0], '5200': [320, 224], 'cv': [256, 192], 'mini': [96, 64], 'gw': [0, 0],
       'duck': [160, 144], 'wsv': [160, 160], 'ard': [128, 64], 'wasm4': [160, 160], 'uze': [0, 0],
+      // Lot 2 (docs/libretro-consoles-lot2.md): FreeChaF's 102 x 64 shown
+      // three times larger, FreeIntv; 0 x 0 for O2EM (overscan crop) and
+      // Beetle PC-FX (dot clock).
+      'chf': [306, 192], 'intv': [352, 224], 'mo2': [0, 0], 'pcfx': [0, 0],
     };
     expect(sizes.keys.toSet(), LibretroCoreCatalog.consoles.keys.toSet());
     for (final entry in sizes.entries) {

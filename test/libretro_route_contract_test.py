@@ -27,7 +27,11 @@ require(end < service.index('final isArmsx2OwnedRom'), 'PS2 ownership boundary u
 require("'ios_libretro_internal'" in block, 'session registered as ios_libretro_internal')
 require('LibretroInternalService.shouldLaunchEmbedded' in block, 'eligibility checked before launching')
 require(block.count('return GameLaunchResult.failure(') >= 2, 'failures return instead of falling through')
-require('LibretroLocale.launchError(locale, outcome.errorCode)' in block, 'errors are translated')
+# Contract change (lot 2, docs/libretro-consoles-lot2.md): the translated
+# message also receives the technical detail, which fills the {files} of the
+# BIOS messages; before, the message showed the placeholder itself.
+require('LibretroLocale.launchError(locale, outcome.errorCode, outcome.technicalDetails)' in block,
+        'errors are translated with the missing files named')
 require('outcome.technicalDetails' in block, 'technical detail kept for diagnostics')
 require(service.index('DolphinInternalV2Service.isDolphinSystem') < service.index('if (Platform.isIOS) {'),
         'Dolphin isolation gate still first')

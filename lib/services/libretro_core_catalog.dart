@@ -41,6 +41,7 @@ class LibretroCore {
     required this.displayName,
     required this.extensions,
     this.biosAnyOf = const <String>[],
+    this.biosAllOf = const <String>[],
     this.preferredHardwareContext = LibretroHardwareContext.none,
     this.optionDefaults = const <String, String>{},
     this.noJitOverrides = const <String, String>{},
@@ -60,6 +61,10 @@ class LibretroCore {
 
   /// At least one of these files must exist in the System folder.
   final List<String> biosAnyOf;
+
+  /// Every one of these files must exist in the System folder (FreeIntv
+  /// loads any game without them and only draws an error screen).
+  final List<String> biosAllOf;
   final int preferredHardwareContext;
   final Map<String, String> optionDefaults;
   final Map<String, String> noJitOverrides;
@@ -476,6 +481,32 @@ abstract final class LibretroCoreCatalog {
       displayName: 'Uzem',
       extensions: {'uze'},
     ),
+    // Lot 2 (docs/libretro-consoles-lot2.md).
+    'freechaf': LibretroCore(
+      id: 'freechaf',
+      displayName: 'FreeChaF',
+      extensions: {'chf', 'bin'},
+    ),
+    'freeintv': LibretroCore(
+      id: 'freeintv',
+      displayName: 'FreeIntv',
+      extensions: {'int', 'bin', 'rom'},
+      biosAllOf: ['exec.bin', 'grom.bin'],
+    ),
+    'o2em': LibretroCore(
+      id: 'o2em',
+      displayName: 'O2EM',
+      extensions: {'bin'},
+      // The core's default BIOS option; c52.bin, g7400.bin and jopac.bin are
+      // chosen in its options.
+      biosAnyOf: ['o2rom.bin'],
+    ),
+    'mednafen_pcfx': LibretroCore(
+      id: 'mednafen_pcfx',
+      displayName: 'Beetle PC-FX',
+      extensions: {'cue', 'ccd', 'toc', 'chd', 'm3u'},
+      biosAnyOf: ['pcfx.rom'],
+    ),
   };
 
   static const Map<String, LibretroSystemBinding> systems =
@@ -541,10 +572,14 @@ abstract final class LibretroCoreCatalog {
     'ard': LibretroSystemBinding(coreId: 'ardens', console: 'ard', achievementsConsoleId: 71),
     'wasm4': LibretroSystemBinding(coreId: 'wasm4', console: 'wasm4', achievementsConsoleId: 72),
     'uze': LibretroSystemBinding(coreId: 'uzem', console: 'uze', achievementsConsoleId: 80),
+    'chf': LibretroSystemBinding(coreId: 'freechaf', console: 'chf', achievementsConsoleId: 57),
+    'intv': LibretroSystemBinding(coreId: 'freeintv', console: 'intv', achievementsConsoleId: 45),
+    'mo2': LibretroSystemBinding(coreId: 'o2em', console: 'mo2', achievementsConsoleId: 23),
+    'pcfx': LibretroSystemBinding(coreId: 'mednafen_pcfx', console: 'pcfx', achievementsConsoleId: 49),
   };
 
-  /// The consoles of the embedded engine (17, then the 21 of lot 1), in the
-  /// order of the native `+[LibretroInputMap consoles]`.
+  /// The consoles of the embedded engine (17, the 21 of lot 1, then the 4 of
+  /// lot 2), in the order of the native `+[LibretroInputMap consoles]`.
   static const Map<String, LibretroConsole> consoles = <String, LibretroConsole>{
     'nes': LibretroConsole(
       id: 'nes',
@@ -854,6 +889,37 @@ abstract final class LibretroCoreCatalog {
       width: 0,
       height: 0,
       importSystem: 'uze',
+    ),
+    // Lot 2. FreeChaF draws the 102 x 64 picture three times larger.
+    'chf': LibretroConsole(
+      id: 'chf',
+      name: 'Fairchild Channel F',
+      width: 306,
+      height: 192,
+      importSystem: 'chf',
+    ),
+    'intv': LibretroConsole(
+      id: 'intv',
+      name: 'Intellivision',
+      width: 352,
+      height: 224,
+      importSystem: 'intv',
+    ),
+    // O2EM crops the overscan or not (option).
+    'mo2': LibretroConsole(
+      id: 'mo2',
+      name: 'Magnavox Odyssey 2',
+      width: 0,
+      height: 0,
+      importSystem: 'mo2',
+    ),
+    // The PC-FX changes its dot clock between games.
+    'pcfx': LibretroConsole(
+      id: 'pcfx',
+      name: 'NEC PC-FX',
+      width: 0,
+      height: 0,
+      importSystem: 'pcfx',
     ),
   };
 

@@ -184,15 +184,19 @@ Résultats consignés au fil du cycle dans le § 8.
 
 ## 7. Consoles encore en attente (40)
 
+Mise à jour : le lot 2 (`docs/libretro-consoles-lot2.md`) intègre le
+Channel F, l'Intellivision, l'Odyssey 2 et le PC-FX ; l'état à jour des
+autres consoles de ce tableau y est donné (§ 4).
+
 | Console | Cœur envisagé | État |
 | --- | --- | --- |
 | Panasonic 3DO | Opera | lot 2 : BIOS requis, licence LGPL/non commerciale, charge processeur à mesurer |
-| Fairchild Channel F | FreeChaF | lot 2 : BIOS requis, commandes à torsion à traduire |
-| Intellivision | FreeIntv | lot 2 : BIOS requis, clavier numérique de 12 touches par manette |
-| Magnavox Odyssey 2 | O2EM | lot 2 : BIOS requis, clavier pour de nombreux jeux |
+| Fairchild Channel F | FreeChaF | intégré au lot 2 |
+| Intellivision | FreeIntv | intégré au lot 2 |
+| Magnavox Odyssey 2 | O2EM | intégré au lot 2 |
 | Emerson Arcadia 2001, Interton VC 4000 | AmiArcadia | lot 2 : licence non commerciale, claviers numériques |
 | Neo Geo CD | NeoCD | lot 2 : BIOS requis |
-| NEC PC-FX | Beetle PC-FX | lot 2 : BIOS requis |
+| NEC PC-FX | Beetle PC-FX | intégré au lot 2 |
 | Sega Saturn | Yabause / Beetle Saturn | lot 2 : charge processeur sans JIT à mesurer, BIOS |
 | Atari Jaguar | Virtual Jaguar | lot 2 : charge processeur à mesurer |
 | Vectrex | vecx | lot 2 : le `.info` annonce un rendu OpenGL Core 3.3 ; repli logiciel à vérifier |

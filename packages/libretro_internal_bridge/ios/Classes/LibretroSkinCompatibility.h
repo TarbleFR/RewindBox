@@ -93,10 +93,13 @@ FOUNDATION_EXPORT const double LibretroSkinSmallControlPoints;  // 24
 /// directions, a, b, select, start; 5200: directions, a, b, start; cv:
 /// directions, a, b, y, x (keypad 1 and 2); mini: directions, a, b, c; gw:
 /// directions, a, select, start; ard, wasm4: directions, a, b; uze: snes.
+/// Lot 2: chf: directions, a, b, x, y, start; intv: directions, a, b, y;
+/// mo2: directions, b; pcfx: directions, a, b, start.
 /// Recommended (remark only): select (nes, gb, gbc, gba, snes, nds, psx,
-/// psp, 3ds, pce, tg16, pccd, tgcd, duck, wsv, uze), mode / x / y / z (md,
-/// mcd, 32x), l, r, C buttons (n64), l2 / r2 (psx, 3ds), right stick (3ds),
-/// the Y pad (ws, wsc), the right D-pad (vb), the keypad (5200, cv).
+/// psp, 3ds, pce, tg16, pccd, tgcd, duck, wsv, uze, mo2, pcfx), mode / x /
+/// y / z (md, mcd, 32x), l, r, C buttons (n64), l2 / r2 (psx, 3ds), right
+/// stick (3ds), the Y pad (ws, wsc), the right D-pad (vb), the keypad (5200,
+/// cv, intv), III to VI (pcfx).
 @interface LibretroSkinCompatibility : NSObject
 
 + (LibretroSkinCompatibilityReport *)evaluateSkin:(LibretroSkin *)skin console:(NSString *)console;

@@ -173,9 +173,13 @@ void main() {
     expect(summary(LibretroBiosStatus.presentUnverified), 1);
     expect(summary(LibretroBiosStatus.invalid), 0);
     // Without any PS1 BIOS, the three PlayStation files are required; the
-    // ColecoVision BIOS (lot 1, docs/libretro-consoles-lot1.md) always is.
-    expect(summary(LibretroBiosStatus.missingRequired), 4);
-    expect(inEntry('cv-os7', find.text(english['biosStatusMissingRequired']!)), findsOneWidget);
+    // ColecoVision BIOS (lot 1, docs/libretro-consoles-lot1.md) always is,
+    // and so are the Intellivision's two, O2EM's default and the PC-FX's
+    // (lot 2, docs/libretro-consoles-lot2.md).
+    expect(summary(LibretroBiosStatus.missingRequired), 8);
+    for (final id in <String>['cv-os7', 'intv-exec', 'intv-grom', 'mo2-o2rom', 'pcfx-bios']) {
+      expect(inEntry(id, find.text(english['biosStatusMissingRequired']!)), findsOneWidget, reason: id);
+    }
 
     final badge = find.byKey(const ValueKey('bios-status-badge-gb-boot'));
     expect(find.descendant(of: badge, matching: find.text(english['biosStatusVerified']!)), findsOneWidget);
@@ -203,7 +207,9 @@ void main() {
       findsOneWidget,
     );
     // 32X, SG-1000 and the twelve lot 1 consoles whose cores need no firmware.
-    const noBios = <String>['32x', 'sg1000', 'ws', 'wsc', 'ngp', 'ngpc', 'vb', '2600', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze'];
+    const noBios = <String>[
+      '32x', 'sg1000', 'ws', 'wsc', 'ngp', 'ngpc', 'vb', '2600', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze',
+    ];
     expect(find.text(english['biosNoBiosNeeded']!), findsNWidgets(noBios.length));
     for (final console in noBios) {
       expect(
@@ -224,12 +230,16 @@ void main() {
     await pumpChecker(tester);
     expect(find.byKey(const ValueKey('bios-entry-mcd-na')), findsOneWidget);
 
+    // With the 42 consoles of lots 1 and 2, the filters sit below the first
+    // screen: scroll to them as a user would.
+    await tester.ensureVisible(find.byKey(const ValueKey('bios-status-verified')));
     await tester.tap(find.byKey(const ValueKey('bios-status-verified')));
     await tester.pump();
     expect(find.byKey(const ValueKey('bios-entry-gb-boot')), findsOneWidget);
     expect(find.byKey(const ValueKey('bios-entry-mcd-na')), findsNothing);
     expect(find.byKey(const ValueKey('bios-console-card-psx')), findsNothing);
 
+    await tester.ensureVisible(find.byKey(const ValueKey('bios-status-all')));
     await tester.tap(find.byKey(const ValueKey('bios-status-all')));
     await tester.pump();
     await tester.ensureVisible(find.byKey(const ValueKey('bios-console-psx')));
@@ -239,6 +249,7 @@ void main() {
     expect(find.byKey(const ValueKey('bios-console-card-gb')), findsNothing);
     expect(find.byKey(const ValueKey('bios-entry-psx-jp')), findsOneWidget);
 
+    await tester.ensureVisible(find.byKey(const ValueKey('bios-status-verified')));
     await tester.tap(find.byKey(const ValueKey('bios-status-verified')));
     await tester.pump();
     expect(find.text(english['biosNoResults']!), findsOneWidget);

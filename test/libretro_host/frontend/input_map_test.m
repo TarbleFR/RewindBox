@@ -1,5 +1,5 @@
 // Behavioural test of LibretroInputMap: the logical controls of each of the
-// 38 consoles, their RetroPad / analog / pointer / action targets and glyphs,
+// 42 consoles, their RetroPad / analog / pointer / action targets and glyphs,
 // the controller defaults (identical to the historical positional mapping),
 // blocked screen-swap buttons, user remaps, skin input aliases and analog
 // magnitudes. The expected tables are written here from the header contract,
@@ -108,7 +108,26 @@ static NSDictionary<NSString *, NSArray *> *ExpectedButtons(void) {
   NSArray *pokemonMini = @[ BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B), BUTTON(@"c", @"C", R) ];
   NSArray *twoButtons = @[ BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B) ];
   NSArray *wasm4 = @[ BUTTON(@"a", @"X", A), BUTTON(@"b", @"Z", B) ];
+  // Lot 2 (docs/libretro-consoles-lot2.md).
+  NSArray *channelF = @[
+    BUTTON(@"x", @"⤒", X), BUTTON(@"a", @"↻", A), BUTTON(@"b", @"⤓", B), BUTTON(@"y", @"↺", Y),
+    BUTTON(@"start", @"1-4", START)
+  ];
+  NSArray *intellivision = @[
+    BUTTON(@"a", @"◣", A), BUTTON(@"b", @"◢", B), BUTTON(@"y", @"◤", Y), BUTTON(@"l", @"⌨", L), BUTTON(@"x", @"↺", X),
+    BUTTON(@"l2", @"CLR", L2), BUTTON(@"l3", @"0", L3), BUTTON(@"r3", @"5", R3), BUTTON(@"r2", @"ENT", R2),
+    BUTTON(@"start", @"❚❚", START)
+  ];
+  NSArray *odyssey2 = @[ BUTTON(@"b", @"●", B), BUTTON(@"select", @"⌨", SELECT) ];
+  NSArray *pcfx = @[
+    BUTTON(@"a", @"I", A), BUTTON(@"b", @"II", B), BUTTON(@"x", @"III", X), BUTTON(@"y", @"IV", Y),
+    BUTTON(@"l", @"V", L), BUTTON(@"r", @"VI", R), BUTTON(@"start", @"RUN", START), BUTTON(@"select", @"SELECT", SELECT)
+  ];
   return @{
+    @"chf" : channelF,
+    @"intv" : intellivision,
+    @"mo2" : odyssey2,
+    @"pcfx" : pcfx,
     @"pce" : pcEngine,
     @"tg16" : pcEngine,
     @"pccd" : pcEngine,
@@ -199,9 +218,10 @@ static void TestConsoleTables(void) {
   NSArray<NSString *> *consoles = @[
     @"nes", @"snes", @"gb", @"gbc", @"gba", @"md", @"mcd", @"32x", @"sms", @"gg", @"sg1000", @"arcade", @"nds",
     @"n64", @"psx", @"psp", @"3ds", @"pce", @"tg16", @"pccd", @"tgcd", @"ws", @"wsc", @"ngp", @"ngpc", @"lynx",
-    @"vb", @"2600", @"7800", @"5200", @"cv", @"mini", @"gw", @"duck", @"wsv", @"ard", @"wasm4", @"uze"
+    @"vb", @"2600", @"7800", @"5200", @"cv", @"mini", @"gw", @"duck", @"wsv", @"ard", @"wasm4", @"uze",
+    @"chf", @"intv", @"mo2", @"pcfx"
   ];
-  CHECK([[LibretroInputMap consoles] isEqualToArray:consoles], @"the 38 consoles in order (17, then lot 1)");
+  CHECK([[LibretroInputMap consoles] isEqualToArray:consoles], @"the 42 consoles in order (17, lot 1, then lot 2)");
   CHECK(ExpectedButtons().count == consoles.count, @"one expected table per console");
   NSDictionary<NSString *, NSArray *> *expected = ExpectedButtons();
   NSSet<NSString *> *leftStick = [NSSet setWithArray:@[ @"n64", @"psp", @"3ds" ]];

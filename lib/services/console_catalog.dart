@@ -82,8 +82,8 @@ abstract final class ConsoleCatalog {
   /// A system whose console moves to the embedded libretro engine leaves
   /// this list and becomes a [LibretroCoreCatalog.consoles] entry with the
   /// same id and product name, so a console added from the Consoles tab or
-  /// switched off there keeps its stored choice (lot 1:
-  /// docs/libretro-consoles-lot1.md).
+  /// switched off there keeps its stored choice (lots 1 and 2:
+  /// docs/libretro-consoles-lot1.md, docs/libretro-consoles-lot2.md).
   static const Map<String, String> retroArchSystems = <String, String>{
     '3do': 'Panasonic 3DO',
     'a2': 'Apple II',
@@ -94,14 +94,11 @@ abstract final class ConsoleCatalog {
     'bbcmicro': 'BBC Micro',
     'c64': 'Commodore 64',
     'cdi': 'Philips CD-i',
-    'chf': 'Fairchild Channel F',
     'cpc': 'Amstrad CPC',
     'dc': 'Sega Dreamcast',
     'dos': 'MS-DOS',
-    'intv': 'Intellivision',
     'jag': 'Atari Jaguar',
     'mame': 'M.A.M.E.',
-    'mo2': 'Magnavox Odyssey 2',
     'msx': 'MSX',
     'naomi': 'Sega Naomi',
     'naomi2': 'Sega Naomi 2',
@@ -110,7 +107,6 @@ abstract final class ConsoleCatalog {
     'palm': 'Palm OS',
     'pc88': 'NEC PC-8801',
     'pc98': 'NEC PC-9801',
-    'pcfx': 'NEC PC-FX',
     'pet': 'Commodore - PET',
     'pico8': 'PICO-8',
     'plus4': 'Commodore - PLUS/4',

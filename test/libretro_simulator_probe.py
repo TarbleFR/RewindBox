@@ -106,7 +106,10 @@ FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'MetalKit', 'QuartzCore', 'AVFound
 LOT1_CORES = ('sameduck', 'potator', 'ardens', 'stella', 'prosystem', 'a5200', 'mednafen_pce_fast',
               'mednafen_ngp', 'mednafen_wswan', 'mednafen_vb', 'handy', 'pokemini', 'wasm4', 'gearcoleco',
               'uzem', 'gw')
-REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES
+# Lot 2 (docs/libretro-consoles-lot2.md): the same test for the four cores
+# of lot 2 (build_lot2_content).
+LOT2_CORES = ('freechaf', 'freeintv', 'o2em', 'mednafen_pcfx')
+REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES + LOT2_CORES
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 # Shader fixtures exercise the actual session and presenter; network bytes
@@ -337,6 +340,28 @@ SCENARIOS += [
     {'name': 'lot1-gw-not-mgw', 'core': 'gw', 'content': 'content/probe-not-mgw.mgw', 'console': 'gw',
      'expect': 'rejected', 'default': False, 'lot1': True},
 ]
+
+# Lot 2 (run by their own CI job with --lot2), as lot 1. FreeChaF runs a
+# cartridge with its own replacement BIOS (no Channel F BIOS in System);
+# FreeIntv, without exec.bin and grom.bin, runs and draws its own "PUT
+# GROM/EXEC IN SYSTEM DIRECTORY" screen (NeoStation refuses such a launch
+# before the session; the run shows the core itself loads and draws); O2EM
+# and Beetle PC-FX boot a BIOS the probe writes itself, a single jump to
+# itself, never a console's BIOS.
+LOT2_RUNS = (
+    ('freechaf', 'content/probe-chf.chf', 'chf', '306x192'),
+    ('freeintv', 'content/probe-intv.int', 'intv', '352x224'),
+    ('o2em', 'content/probe-mo2.bin', 'mo2', None),
+    ('mednafen_pcfx', 'content/probe-pcfx.cue', 'pcfx', None),
+)
+for core, content, console, size in LOT2_RUNS:
+    for run_index in (1, 2):
+        SCENARIOS.append({
+            'name': f'lot2-{core}-{run_index}', 'core': core, 'content': content, 'console': console,
+            'expect': 'run', 'runSeconds': 3.0, 'default': False, 'lot2': True,
+            'requiredLog': ['load: content accepted', 'run: startup confirmed after',
+                            f'run: frame {size}' if size else 'run: frame '],
+        })
 
 # Real official catalog/downloads; the rendering is the actual embedded
 # bridge, with a software test core, a Vulkan test core and real DeSmuME.
@@ -653,6 +678,40 @@ def build_lot1_content(content):
     (content / 'probe-not-mgw.mgw').write_bytes(b'not a game and watch package' + bytes(256))
 
 
+def build_lot2_content(content, system):
+    """Test programs for the lot 2 cores, and the two stand-in BIOS images
+    O2EM and Beetle PC-FX need to start at all, written here: each image is
+    a single jump to itself at the CPU's reset address, so nothing of a
+    console's BIOS is used or shipped. `system` is the probe's bundled
+    System folder (copied into Documents/Libretro/System at start)."""
+    # Channel F (FreeChaF, replacement BIOS): the cartridge at $0800 starts
+    # with $55, the BIOS then jumps to $0802: JMP $0802.
+    chf = bytearray(0x800)
+    chf[0:5] = bytes([0x55, 0x2B, 0x29, 0x08, 0x02])
+    (content / 'probe-chf.chf').write_bytes(bytes(chf))
+
+    # Intellivision (FreeIntv): any cartridge; without exec.bin and grom.bin
+    # the core draws its own error screen.
+    (content / 'probe-intv.int').write_bytes(bytes(0x2000))
+
+    # Odyssey 2 (O2EM): a 1 KiB stand-in BIOS, JMP $000 at the 8048's reset
+    # address; an O2EM cartridge is a multiple of 1 KiB.
+    bios = bytearray(0x400)
+    bios[0:2] = bytes([0x04, 0x00])
+    (system / 'o2rom.bin').write_bytes(bytes(bios))
+    (content / 'probe-mo2.bin').write_bytes(bytes(0x800))
+
+    # PC-FX (Beetle PC-FX): a 1 MiB stand-in BIOS mapped at $FFF00000, BR to
+    # itself (0x8A00) at the V810 reset address $FFFFFFF0, and a disc of 32
+    # empty data sectors.
+    pcfx = bytearray(0x100000)
+    pcfx[0xFFFF0:0xFFFF2] = (0x8A00).to_bytes(2, 'little')
+    (system / 'pcfx.rom').write_bytes(bytes(pcfx))
+    (content / 'probe-pcfx.bin').write_bytes(bytes(2352 * 32))
+    (content / 'probe-pcfx.cue').write_text(
+        'FILE "probe-pcfx.bin" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n')
+
+
 def build_iso(program, output_path, work):
     """An ISO 9660 image like a PSP disc: PSP_GAME/PARAM.SFO and
     PSP_GAME/SYSDIR/EBOOT.BIN, system id "PSP GAME"."""
@@ -866,6 +925,9 @@ def assemble(args, sources, work):
     build_nds(content / 'probe.nds')
     build_nds(content / 'shader-pattern.nds', shader_pattern=True)
     build_lot1_content(content)
+    if getattr(args, 'lot2', False):
+        # Only the lot 2 run carries the stand-in BIOS images.
+        build_lot2_content(content, app / 'LibretroSystem')
     if imports_shader_kit(sources):
         build_shader_fixtures(app, args.official_shaders)
     catalog = CATALOG.read_text(encoding='utf-8')
@@ -877,6 +939,9 @@ def assemble(args, sources, work):
     for scenario in SCENARIOS:
         if getattr(args, 'lot1', False):
             if not scenario.get('lot1'):
+                continue
+        elif getattr(args, 'lot2', False):
+            if not scenario.get('lot2'):
                 continue
         elif args.only and scenario['name'] not in args.only:
             continue
@@ -1502,6 +1567,8 @@ def main():
     run_parser.add_argument('--only', nargs='*', default=[])
     run_parser.add_argument('--lot1', action='store_true',
                             help='Run only the lot 1 cores (docs/libretro-consoles-lot1.md)')
+    run_parser.add_argument('--lot2', action='store_true',
+                            help='Run only the lot 2 cores (docs/libretro-consoles-lot2.md)')
     run_parser.add_argument('--expect', choices=('fixed', 'unfixed'), default='fixed')
     run_parser.add_argument('--timeout', type=int, default=900)
     run_parser.add_argument('--official-shaders', action='store_true',

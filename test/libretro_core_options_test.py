@@ -54,6 +54,11 @@ PREFIXES = {
     'ardens': ('ardens_',),
     'wasm4': ('wasm4_',),
     'uzem': ('uzem_',),
+    # Lot 2 (docs/libretro-consoles-lot2.md).
+    'freechaf': ('freechaf_',),
+    'freeintv': ('freeintv_', 'default_p1_'),
+    'o2em': ('o2em_',),
+    'mednafen_pcfx': ('pcfx_',),
 }
 CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?:^|[_-])drc(?:$|[_-])', re.I)
 

@@ -180,8 +180,9 @@ typedef NS_ENUM(NSInteger, LibretroSkinItemShape) {
 /// ngp/ngpc/neogeopocket/neogeopocketcolor -> ngp and ngpc; lynx/atarilynx;
 /// vb/virtualboy; 2600/atari2600; 7800/atari7800; 5200/atari5200;
 /// cv/coleco/colecovision; pokemini/pokemonmini -> mini; gw/gameandwatch;
-/// megaduck -> duck; supervision/wsv; arduboy -> ard; wasm4; uzebox -> uze.
-/// Empty when unsupported.
+/// megaduck -> duck; supervision/wsv; arduboy -> ard; wasm4; uzebox -> uze;
+/// lot 2: channelf/fairchildchannelf -> chf; intellivision/intv;
+/// odyssey2/magnavoxodyssey2/videopac -> mo2; pcfx. Empty when unsupported.
 + (NSArray<NSString *> *)consolesForGameTypeIdentifier:(NSString *)gameTypeIdentifier;
 
 /// Representation for an orientation. iPhone: edgeToEdge -> standard, or

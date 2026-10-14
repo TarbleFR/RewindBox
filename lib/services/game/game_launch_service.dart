@@ -404,7 +404,7 @@ class GameLaunchService {
             if (!context.mounted) return GameLaunchResult.failure('', '');
             if (!outcome.success) {
               return GameLaunchResult.failure(
-                LibretroLocale.launchError(locale, outcome.errorCode),
+                LibretroLocale.launchError(locale, outcome.errorCode, outcome.technicalDetails),
                 outcome.technicalDetails,
               );
             }
