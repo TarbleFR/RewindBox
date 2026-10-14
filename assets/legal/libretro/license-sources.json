@@ -542,6 +542,114 @@
       "cores": [
         "uzem"
       ]
+    },
+    {
+      "component": "vecx",
+      "repository": "https://github.com/libretro/libretro-vecx",
+      "license_reference_revision": "8f671cc9d737f2890c3ce19e177e2984dcae121f",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "vecx-LICENSE.md",
+          "upstream_path": "LICENSE.md",
+          "source_url": "https://raw.githubusercontent.com/libretro/libretro-vecx/8f671cc9d737f2890c3ce19e177e2984dcae121f/LICENSE.md",
+          "sha256": "72d6e1a0ffb74e5e95841061200da2f5e14b66bbe043f41e634ef9bc6070132a"
+        },
+        {
+          "path": "vecx-psg-MIT-notice.h",
+          "upstream_path": "vecx_psg.h",
+          "source_url": "https://raw.githubusercontent.com/libretro/libretro-vecx/8f671cc9d737f2890c3ce19e177e2984dcae121f/vecx_psg.h",
+          "sha256": "06939717e5e6fe79b0b8950e5c35987108d5c9c3320c2d8a4f94a23de5daca1e"
+        }
+      ],
+      "cores": [
+        "vecx"
+      ]
+    },
+    {
+      "component": "freechaf",
+      "repository": "https://github.com/libretro/FreeChaF",
+      "license_reference_revision": "76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "freechaf-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/FreeChaF/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124/LICENSE",
+          "sha256": "31d8814725a58fe4f946446f2e72b913b7b17cfc8f9e75c43fe51a1ac594c956"
+        }
+      ],
+      "cores": [
+        "freechaf"
+      ]
+    },
+    {
+      "component": "freeintv",
+      "repository": "https://github.com/libretro/FreeIntv",
+      "license_reference_revision": "ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "freeintv-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/FreeIntv/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4/LICENSE",
+          "sha256": "ca5828f5b4f89df9d828a0b9478ba50fd2e06e60e7a0124fe201c0681988b7e1"
+        }
+      ],
+      "cores": [
+        "freeintv"
+      ]
+    },
+    {
+      "component": "o2em",
+      "repository": "https://github.com/libretro/libretro-o2em",
+      "license_reference_revision": "679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "o2em-COPYING",
+          "upstream_path": "COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/libretro-o2em/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc/COPYING",
+          "sha256": "4c6b33d7cf4defd77d2e71ca6eae932139367d3a354ff034cffb5268527c0b4d"
+        }
+      ],
+      "cores": [
+        "o2em"
+      ]
+    },
+    {
+      "component": "beetle-pcfx",
+      "repository": "https://github.com/libretro/beetle-pcfx-libretro",
+      "license_reference_revision": "c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "beetle_pcfx-COPYING",
+          "upstream_path": "COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-pcfx-libretro/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff/COPYING",
+          "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb"
+        }
+      ],
+      "cores": [
+        "mednafen_pcfx"
+      ]
+    },
+    {
+      "component": "virtualjaguar",
+      "repository": "https://github.com/libretro/virtualjaguar-libretro",
+      "license_reference_revision": "6bf3574c1a98ccd57719ff6b822122017b8e5942",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "virtualjaguar-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/virtualjaguar-libretro/6bf3574c1a98ccd57719ff6b822122017b8e5942/LICENSE",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        }
+      ],
+      "cores": [
+        "virtualjaguar"
+      ]
     }
   ],
   "support_files": [

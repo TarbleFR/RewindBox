@@ -191,6 +191,42 @@
       "license": "MIT",
       "source": "https://github.com/libretro/libretro-uzem",
       "lot": 1
+    },
+    {
+      "id": "vecx",
+      "license": "GPLv3",
+      "source": "https://github.com/libretro/libretro-vecx",
+      "lot": 2
+    },
+    {
+      "id": "freechaf",
+      "license": "GPLv3",
+      "source": "https://github.com/libretro/FreeChaF",
+      "lot": 2
+    },
+    {
+      "id": "freeintv",
+      "license": "GPLv2+",
+      "source": "https://github.com/libretro/FreeIntv",
+      "lot": 2
+    },
+    {
+      "id": "o2em",
+      "license": "Artistic-2.0",
+      "source": "https://github.com/libretro/libretro-o2em",
+      "lot": 2
+    },
+    {
+      "id": "mednafen_pcfx",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-pcfx-libretro",
+      "lot": 2
+    },
+    {
+      "id": "virtualjaguar",
+      "license": "GPLv3",
+      "source": "https://github.com/libretro/virtualjaguar-libretro",
+      "lot": 2
     }
   ],
   "reuse": {
@@ -199,8 +235,8 @@
     "identitySha256": "f49155e4f5c46138663978ab1d0bd64736cabb04c4593baf8cd08d2f74ee33f4"
   },
   "base": {
-    "hostCommit": "8b9e87ba39edb647f8cddca5ee8d924319bcbacb",
-    "runId": 38352378859,
+    "hostCommit": "df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf",
+    "runId": 38627332377,
     "coreIds": [
       "nestopia",
       "snes9x",
@@ -215,7 +251,23 @@
       "mednafen_psx_hw",
       "mednafen_psx",
       "ppsspp",
-      "azahar"
+      "azahar",
+      "mednafen_pce_fast",
+      "mednafen_wswan",
+      "mednafen_ngp",
+      "handy",
+      "mednafen_vb",
+      "stella",
+      "prosystem",
+      "a5200",
+      "gearcoleco",
+      "pokemini",
+      "gw",
+      "sameduck",
+      "potator",
+      "ardens",
+      "wasm4",
+      "uzem"
     ]
   }
 }

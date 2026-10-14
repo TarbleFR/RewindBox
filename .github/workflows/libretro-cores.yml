@@ -24,8 +24,8 @@ jobs:
     - name: Retrieve the verified core collection the delivery pins
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-8b9e87ba39edb647f8cddca5ee8d924319bcbacb
-        run-id: 38352378859
+        name: LibretroCores-df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf
+        run-id: 38627332377
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro-base
     - name: Test the packaging scripts (base preserved, only missing cores added)
