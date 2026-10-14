@@ -1806,6 +1806,54 @@ LIBRETRO_LOT1_DELTA = LIBRETRO_LOT1_LEGAL_INPUTS | {
     'test/libretro_simulator_probe.py',
 }
 DELTA |= LIBRETRO_LOT1_DELTA
+# Lot 2 (docs/libretro-consoles-lot2.md): FreeChaF, FreeIntv, O2EM and
+# Beetle PC-FX (package fdeaef56, run 38638115521) for four more consoles of
+# the Consoles tab. The legal inputs it changes or adds are pinned to the
+# reviewed lot 2 commit, which replaces the lot 1 pin of the three shared
+# ones.
+LIBRETRO_LOT2_REFERENCE = '6e88e7844c8004838dc264c2839c8bd4c8c8e8e9'
+LIBRETRO_LOT2_LEGAL_INPUTS = {
+    'assets/legal/libretro/LIBRETRO_CORES.md',
+    'assets/legal/libretro/license-sources.json',
+    'assets/legal/libretro/beetle_pcfx-COPYING',
+    'assets/legal/libretro/freechaf-LICENSE',
+    'assets/legal/libretro/freeintv-LICENSE',
+    'assets/legal/libretro/o2em-COPYING',
+    'test/legal_credits_dialog_test.dart',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_LOT2_LEGAL_INPUTS, LIBRETRO_LOT2_REFERENCE))
+LIBRETRO_LOT2_DELTA = LIBRETRO_LOT2_LEGAL_INPUTS | {
+    'assets/data/libretro_bios_requirements.json',
+    'build-utils/libretro/cores.json',
+    'lib/l10n/libretro_locale.dart',
+    'lib/services/console_catalog.dart',
+    'lib/services/game/game_launch_service.dart',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/services/libretro_internal_service.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroDefaultSkins.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputMap.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInputMap.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinCompatibility.m',
+    'test/console_manager_test.dart',
+    'test/fixtures/libretro_bios/core_info_5a74858a.json',
+    'test/libretro_bios_catalog_test.dart',
+    'test/libretro_bios_check_service_test.dart',
+    'test/libretro_bios_checker_screen_test.dart',
+    'test/libretro_bios_launch_test.dart',
+    'test/libretro_core_catalog_test.dart',
+    'test/libretro_core_options_test.py',
+    'test/libretro_host/frontend/chrome_layout_test.m',
+    'test/libretro_host/frontend/default_skins_test.m',
+    'test/libretro_host/frontend/input_map_test.m',
+    'test/libretro_host/frontend/skin_test.m',
+    'test/libretro_locale_test.dart',
+    'test/libretro_route_contract_test.py',
+    'test/libretro_simulator_probe.py',
+}
+DELTA |= LIBRETRO_LOT2_DELTA
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
