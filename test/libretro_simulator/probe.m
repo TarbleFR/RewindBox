@@ -782,6 +782,17 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
   // drawables also drain before the first readback.
   CFAbsoluteTime deadline = CFAbsoluteTimeGetCurrent() + 30;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    if ([scenario[@"shaders"][@"official"] boolValue] && [scenario[@"shaders"][@"initial"] length] == 0) {
+      // A prior test core can have saved a console-scoped choice for the
+      // next core. Capture a true unfiltered baseline, without deleting or
+      // rewriting those real preferences. Relaunch cases retain them.
+      id<LibretroFrontendMenuHost> host = (id<LibretroFrontendMenuHost>)session;
+      [host applyShaderPreset:nil parameters:nil completion:^(BOOL success) {
+        result[@"baselineDisableSuccess"] = @(success);
+        [self captureInitialShaderForScenario:scenario result:result session:session deadline:deadline];
+      }];
+      return;
+    }
     [self captureInitialShaderForScenario:scenario result:result session:session deadline:deadline];
   });
 }

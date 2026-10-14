@@ -125,6 +125,11 @@ SHADER_FIXTURES = {
                         'Palette_linear = false\n'),
     'textures/palette.png': png(1, 1, [[(255, 255, 255, 255)]]),
     'invalid.slangp': 'shaders = nope\nshader0 = copy.slang\n',
+    'bad-compile.slang': slang('FragColor = THIS_DOES_NOT_COMPILE;'),
+    'bad-compile.slangp': 'shaders = 1\nshader0 = bad-compile.slang\n',
+    'incompatible.slang': slang('FragColor = texture(UnsupportedTexture, vTexCoord);',
+                                samplers=('UnsupportedTexture',)),
+    'incompatible.slangp': 'shaders = 1\nshader0 = incompatible.slang\n',
     'missing.slangp': 'shaders = 1\nshader0 = never-present.slang\n',
     'incomplete.slangp': 'shaders = 1\nshader0 = simple.slang\n',
 }
@@ -132,6 +137,8 @@ SHADER_ENTRY_FILES = {
     'simple.slangp': ['simple.slangp', 'simple.slang'],
     'complex.slangp': ['complex.slangp', 'copy.slang', 'history.slang', 'complex.slang', 'textures/palette.png'],
     'invalid.slangp': ['invalid.slangp', 'copy.slang'],
+    'bad-compile.slangp': ['bad-compile.slangp', 'bad-compile.slang'],
+    'incompatible.slangp': ['incompatible.slangp', 'incompatible.slang'],
     'missing.slangp': ['missing.slangp'],
     'incomplete.slangp': ['incomplete.slangp', 'simple.slang'],
 }
@@ -145,6 +152,8 @@ SHADER_ACTIONS = [
     {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red'},
     {'kind': 'apply', 'preset': 'complex.slangp', 'success': True, 'colour': 'green'},
     {'kind': 'apply', 'preset': 'invalid.slangp', 'success': False, 'codePrefix': 'PRESET_', 'colour': 'green'},
+    {'kind': 'apply', 'preset': 'bad-compile.slangp', 'success': False, 'code': 'GLSL_FRAGMENT_FAILED', 'colour': 'green'},
+    {'kind': 'apply', 'preset': 'incompatible.slangp', 'success': False, 'code': 'REFLECT_TEXTURE_SEMANTIC', 'colour': 'green'},
     {'kind': 'apply', 'preset': 'missing.slangp', 'success': False, 'codePrefix': 'SOURCE_', 'colour': 'green'},
     {'kind': 'download-short', 'preset': 'incomplete.slangp', 'success': False, 'code': 'DOWNLOAD_SIZE',
      'colour': 'green'},
@@ -919,6 +928,9 @@ def shader_problems(name, shaders, result, launch):
     if result.get('shaderProbeUnavailable'):
         return [f'{name}: shader session observation is unavailable in these bridge sources']
     initial = result.get('shaderInitial') or {}
+    if shaders.get('official') and 'initial' not in shaders:
+        if result.get('baselineDisableSuccess') is not True or initial.get('active') != '':
+            problems.append(f'{name}: the visual baseline was not captured without a shader')
     problems += shader_frame_problems(name + ' initial', initial, shaders.get('colour'))
     if shaders.get('menu') and (result.get('shaderMenuOpened') is not True or result.get('shaderMenuPaused') is not True
                                 or result.get('shaderCatalogOpened') is not True):
@@ -1262,6 +1274,17 @@ def command_run(args):
             print(f'NOT REPRODUCED with {args.label} in the simulator (finished={outcome["finished"]})')
         return
     problems = evaluate(report, scenarios)
+    visual = [{'scenario': result['name'], 'initial': (result.get('shaderInitial') or {}).get('active'),
+               'steps': [{'kind': step['kind'], 'preset': step.get('preset'),
+                          'success': step.get('observedSuccess'), 'code': step.get('observedCode'),
+                          'passes': (step.get('frame') or {}).get('passes'),
+                          'screenMeanAbsoluteDifferences': step.get('screenMeanAbsoluteDifferences'),
+                          'png': (step.get('frame') or {}).get('png')}
+                         for step in result.get('shaderSteps') or []]}
+              for result in report.get('results', []) if result.get('shaderInitial')]
+    if visual:
+        (evidence / 'visual-verdicts.json').write_text(json.dumps({'source': args.label, 'problems': problems,
+                                                               'scenarios': visual}, indent=2) + '\n')
     if not outcome['finished']:
         problems.insert(0, 'the probe did not finish (process ended or timed out); last progress lines:\n'
                         + '\n'.join(progress.splitlines()[-8:]))
