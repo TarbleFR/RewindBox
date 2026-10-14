@@ -26,7 +26,7 @@ name: Shader kit checks
   workflow_dispatch:
     inputs:
       compiler_only:
-        description: Diagnose compiler coexistence only
+        description: Run only compiler coexistence regression
         type: boolean
         default: false
       ui_only:
@@ -131,7 +131,7 @@ jobs:
         retention-days: 14
 
   native-diagnosis:
-    if: ${{ inputs.compiler_only }}
+    if: ${{ !inputs.ui_only }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -151,12 +151,16 @@ jobs:
     - name: Reproduce native compilation in Runner's dylib load order
       run: >-
         python3 test/neo_shader_compiler_coexistence.py --dolphin-ios "$RUNNER_TEMP/dolphin-ios"
-        --slang-shaders "$RUNNER_TEMP/slang-shaders" --evidence evidence/compiler --diagnose
+        --slang-shaders "$RUNNER_TEMP/slang-shaders" --evidence evidence/compiler-before --diagnose
+    - name: Compile the same presets with the production export boundary
+      run: >-
+        python3 test/neo_shader_compiler_coexistence.py --dolphin-ios "$RUNNER_TEMP/dolphin-ios"
+        --slang-shaders "$RUNNER_TEMP/slang-shaders" --evidence evidence/compiler-fixed
     - uses: actions/upload-artifact@v4
       if: always()
       with:
         name: compiler-coexistence-${{ github.sha }}
         path: |
-          evidence/compiler/*.txt
-          evidence/compiler/*.json
+          evidence/compiler-*/*.txt
+          evidence/compiler-*/*.json
         retention-days: 14

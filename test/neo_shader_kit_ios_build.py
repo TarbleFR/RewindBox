@@ -73,6 +73,13 @@ def podspec_frameworks():
     return podspec_list('frameworks')
 
 
+def podspec_export_flags():
+    match = re.search(r"'EXPORTED_SYMBOLS_FILE'\s*=>\s*'\$\{PODS_TARGET_SRCROOT\}/([^']+)'", PODSPEC.read_text())
+    if match is None:
+        raise SystemExit('The compiler framework must declare its private symbol boundary.')
+    return ['-Wl,-exported_symbols_list,' + str(KIT / match.group(1))]
+
+
 def compile_kit(sdk_name, target, sdk, directory, jobs=None, plugin=True, optimization='-O0'):
     """Objects of the kit for one SDK. Prints each failure and raises on any."""
     directory.mkdir(parents=True, exist_ok=True)
@@ -136,13 +143,19 @@ def main():
                 '-fobjc-arc', '-stdlib=libc++', *(str(item) for item in objects)]
         for framework in podspec_frameworks():
             link += ['-framework', framework]
-        link += ['-Wl,-undefined,dynamic_lookup', '-o', str(library)]
+        link += [*podspec_export_flags(), '-Wl,-undefined,dynamic_lookup', '-o', str(library)]
         result = subprocess.run(link, capture_output=True, text=True)
         if result.stdout.strip() or result.stderr.strip():
             print(result.stdout + result.stderr, flush=True)
         if result.returncode != 0:
             raise SystemExit('iPhone link of neo_shader_kit failed (see the linker output above)')
         undefined = undefined_symbols(library)
+        exported = subprocess.run(['xcrun', 'nm', '-gU', str(library)], check=True, capture_output=True, text=True).stdout
+        if re.search(r'glslang|spirv_cross|__ZN3spv|_Sh(?:Initialize|Compile|Construct)', exported):
+            raise SystemExit('The iPhone framework still exposes a shader compiler implementation.')
+        if '_OBJC_CLASS_$_NeoSlangProgram' not in exported or '_NeoShaderFormatSlang' not in exported:
+            raise SystemExit('The framework export boundary hid its public Objective-C API.')
+        print('iPhone framework exports its public API and no glslang/SPIRV-Cross implementation', flush=True)
     missing = sorted(name for name in undefined if KIT_SYMBOL.search(name))
     if missing:
         print('Kit symbols used but defined by no source:', flush=True)

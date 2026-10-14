@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOLPHIN = '7cac54161659421ed95c2cd1c0b0746539a4cd38'
 PRESETS = ('reshade/handheld-color-LUTs/PSP-2020.slangp',
-           'crt/crt-easymode.slangp', 'crt/crt-geom.slangp',
+           'crt/crt-easymode.slangp', 'crt/crt-geom.slangp', 'crt/crt-geom-mini.slangp',
            'pixel-art-scaling/sharp-bilinear.slangp')
 
 
@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--dolphin-ios', type=Path, required=True)
     parser.add_argument('--slang-shaders', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, required=True)
-    parser.add_argument('--diagnose', action='store_true', help='record outcomes without claiming a fix')
+    parser.add_argument('--diagnose', action='store_true', help='record the unisolated before-fix result')
     args = parser.parse_args()
     if sys.platform != 'darwin':
         raise SystemExit('This test requires macOS dyld, not ELF symbol interposition.')
@@ -49,6 +49,25 @@ def main():
     sources += [old / 'glslang/OSDependent/Unix/ossource.cpp']
     project = args.evidence.resolve() / 'project'
     project.mkdir(exist_ok=True)
+    (project / 'wrapper.cpp').write_text('''#include "NeoSlangCompiler.hpp"
+#include "NeoShaderFiles.hpp"
+#include <cstdio>
+extern "C" int NeoCompilerProbe(const char* root, const char* preset) {
+  neoshader::DirectoryFileProvider files(root);
+  neoshader::CompiledSlangPreset compiled;
+  neoshader::ShaderError error;
+  neoshader::SlangCompileOptions options;
+  bool ok = neoshader::compileSlangPreset(files, preset, options, &compiled, &error);
+  printf("{\\"ok\\":%s}\\n", ok ? "true" : "false");
+  if (!ok) fprintf(stderr, "%s: %s\\n", error.code.c_str(), error.detail.c_str());
+  return ok ? 0 : 1;
+}
+''')
+    (project / 'main.cpp').write_text('''extern "C" int NeoCompilerProbe(const char*, const char*);
+int main(int argc, char** argv) { return argc == 3 ? NeoCompilerProbe(argv[1], argv[2]) : 2; }
+''')
+    export_flags = '' if args.diagnose else ('target_link_options(neo_compiler PRIVATE '
+                    '"-Wl,-exported_symbols_list,' + str(kit / 'neo_shader_kit.exports') + '")')
     # -Os matches the release pod's optimization and retains the explicit
     # weak addSwizzle instantiations. Two-level namespace is the default.
     cmake = f'''cmake_minimum_required(VERSION 3.16)
@@ -65,11 +84,12 @@ file(GLOB NEW_GLSLANG "{kit}/ThirdParty/glslang/glslang/MachineIndependent/*.cpp
   "{kit}/ThirdParty/glslang/glslang/ResourceLimits/*.cpp" "{kit}/ThirdParty/glslang/SPIRV/*.cpp")
 file(GLOB NEW_CROSS "{kit}/ThirdParty/SPIRV-Cross/*.cpp")
 file(GLOB CORE "{kit}/Core/*.cpp")
-add_library(neo_compiler SHARED ${{NEW_GLSLANG}} ${{NEW_CROSS}} ${{CORE}})
+add_library(neo_compiler SHARED ${{NEW_GLSLANG}} ${{NEW_CROSS}} ${{CORE}} "{project}/wrapper.cpp")
 target_include_directories(neo_compiler PUBLIC "{kit}/Core" PRIVATE
   "{kit}/ThirdParty/glslang" "{kit}/ThirdParty/SPIRV-Cross")
 target_compile_options(neo_compiler PRIVATE -w)
-add_executable(probe "{ROOT}/packages/neo_shader_kit/tools/neoshader_tool.cpp")
+{export_flags}
+add_executable(probe "{project}/main.cpp")
 target_link_libraries(probe PRIVATE dolphin_glslang neo_compiler)
 '''
     (project / 'CMakeLists.txt').write_text(cmake)
@@ -84,7 +104,7 @@ target_link_libraries(probe PRIVATE dolphin_glslang neo_compiler)
         (args.evidence / (name + '.symbols.txt')).write_text(run(['nm', '-m', build / name]))
     outcomes = []
     for preset in PRESETS:
-        command = [str(executable), 'slang', str(args.slang_shaders.resolve()), preset]
+        command = [str(executable), str(args.slang_shaders.resolve()), preset]
         result = subprocess.run(command, text=True, capture_output=True, timeout=90)
         slug = Path(preset).stem
         (args.evidence / f'{slug}.stdout.txt').write_text(result.stdout)
@@ -95,13 +115,15 @@ target_link_libraries(probe PRIVATE dolphin_glslang neo_compiler)
         else:
             # LLDB runs the actual process anew and prints the faulting
             # instruction/stack instead of interpreting an exit code.
-            trace = run(['lldb', '--batch', '-o', 'run', '-o', 'thread backtrace all',
+            trace = run(['lldb', '--batch', '-o', 'run', '-k', 'thread backtrace all',
                          '--', *command], timeout=120)
             (args.evidence / f'{slug}.backtrace.txt').write_text(trace)
             print(trace[-14000:], flush=True)
         print(json.dumps(outcome), flush=True)
         outcomes.append(outcome)
     (args.evidence / 'outcomes.json').write_text(json.dumps(outcomes, indent=2) + '\n')
+    if args.diagnose and not all(o['exit'] == -11 for o in outcomes):
+        raise SystemExit('The original compiler collision was not reproduced for every representative preset.')
     if not args.diagnose and any(o.get('compiled') is not True for o in outcomes):
         raise SystemExit('The kit cannot compile alongside the compiler loaded by Dolphin.')
 

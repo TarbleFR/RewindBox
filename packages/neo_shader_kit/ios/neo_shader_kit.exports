@@ -1,0 +1,9 @@
+# The kit's public boundary is Objective-C and Neo-prefixed C constants.
+# glslang/SPIRV-Cross are private implementations. Exporting their weak C++
+# instantiations lets dyld coalesce them with incompatible embedded copies
+# (in particular DolphinCore's older glslang allocator and AST).
+_OBJC_CLASS_$_Neo*
+_OBJC_METACLASS_$_Neo*
+_OBJC_IVAR_$_Neo*
+_Neo*
+_neo_shader_kitVersion*

@@ -21,7 +21,7 @@ to Metal (glslang and SPIRV-Cross, vendored at vulkan-sdk-1.4.350.1).
   # Only the Objective-C API is public; the C++ core and the compilers stay
   # inside the pod (their headers are not modular).
   s.public_header_files = 'Classes/Public/*.h'
-  s.preserve_paths   = 'ThirdParty/**/*', 'Core/*'
+  s.preserve_paths   = 'ThirdParty/**/*', 'Core/*', 'neo_shader_kit.exports'
   s.resources        = 'Resources/*.json'
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'
@@ -34,6 +34,9 @@ to Metal (glslang and SPIRV-Cross, vendored at vulkan-sdk-1.4.350.1).
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
     'CLANG_CXX_LIBRARY' => 'libc++',
     'GCC_ENABLE_CPP_EXCEPTIONS' => 'YES',
+    # Limit the linked framework's exports, including non-inline weak
+    # template instantiations. Public headers alone do not hide symbols.
+    'EXPORTED_SYMBOLS_FILE' => '${PODS_TARGET_SRCROOT}/neo_shader_kit.exports',
     'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_TARGET_SRCROOT}/Core" ' \
                              '"${PODS_TARGET_SRCROOT}/ThirdParty/glslang" ' \
                              '"${PODS_TARGET_SRCROOT}/ThirdParty/SPIRV-Cross"',
