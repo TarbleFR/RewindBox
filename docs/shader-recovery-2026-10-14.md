@@ -51,6 +51,9 @@ possible texture, device, memory or synchronization faults.
 - Journal the exact preset, core/version, renderer, compilation and GPU
   activation stages. Translate user-facing explanations in all twelve
   app languages; technical codes remain diagnostics.
+- Complete superseded built-in and downloaded requests exactly once and
+  refuse delayed activation after normal engine teardown. Old failures
+  cannot replace the diagnostic of a newer request.
 - Add **Graphics → Post-processing effect** for both GameCube and Wii,
   opening the existing Dolphin page. Preflight both configuration files
   and restore options if the final effect-selection write fails.
@@ -102,7 +105,27 @@ New or extended CI tests:
   navigation for GameCube/Wii in twelve languages. This UIKit test does
   not execute the Dolphin core.
 
-CI outcomes and commit/run identifiers will be recorded after execution.
+Initial source commit: `06d26509d4fc5c34576eaf9ed0289ef7df2a4592`.
+The shader session job of run `38582072782` passed all six scenarios with
+actual drawable readback, menu/catalog navigation, refusal cases and
+relaunch. The global simulator probe also passed on that source.
+The shader kit's Metal presenter, storage, portable core, iPhone pod build
+and Dolphin staging regression passed in run `38582072935`. The added UIKit
+step failed; its cause and final result are still being checked. The complete
+catalog Metal checks are still running.
+
+In run `38582072722`, analysis passed and 560 Dart tests passed; one stale
+ARMSX2 source assertion still required an inline `Localizations` read that
+the existing asynchronous-locale fix had already replaced. The test is
+updated to verify the capture before launch and forwarding to the native
+bridge, keeping all twelve-language checks. No ARMSX2 product/core change
+is made. Native checks passed through the iPhone compilation stage; the
+remaining codec checks are still running.
+
+The follow-up session lifecycle changes and their new supersession/late
+activation scenarios require a new simulator/native run. Final results
+will be appended when these checks finish; the results above belong to
+the initial source and are not represented as tests of later session code.
 No physical iOS device test has been performed. Dolphin's integrated engine
 has not been run with the chosen effects during this task. No performance or
 stability claim on iPhone is justified by these checks.

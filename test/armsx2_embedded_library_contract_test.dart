@@ -241,18 +241,52 @@ void main() {
     final launcher = File(
       'lib/services/game/game_launch_service.dart',
     ).readAsStringSync();
+    final library = File(
+      'lib/services/armsx2_library_service.dart',
+    ).readAsStringSync();
+    final jitLauncher = File(
+      'lib/services/stikjit_armsx2_service.dart',
+    ).readAsStringSync();
 
     expect(dartBridge, contains("'uiLocale': uiLocale"));
-    expect(
-      launcher,
-      contains('uiLocale: Localizations.localeOf(context).toLanguageTag()'),
+    // The launch now snapshots the locale while context is mounted. Requiring
+    // the retired inline read would reject that async-lifecycle correction.
+    // Check the captured value's dataflow, including both forwarding services.
+    final launch = launcher.indexOf(
+      'await Armsx2LibraryService.launchGameByRomPath(',
     );
+    expect(launch, greaterThanOrEqualTo(0));
+    final arguments = launcher.substring(launch, launcher.indexOf(');', launch));
+    final passedLocale = RegExp(
+      r'uiLocale\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*[,)]',
+    ).firstMatch(arguments);
+    expect(passedLocale, isNotNull);
+    final identifier = passedLocale!.group(1)!;
+    final captures = RegExp(
+      'final\\s+${RegExp.escape(identifier)}\\s*=\\s*'
+      r'Localizations\.localeOf\(context\)\.toLanguageTag\(\)\s*;',
+    ).allMatches(launcher.substring(0, launch)).toList();
+    expect(captures, isNotEmpty);
+    final capture = captures.last;
+    expect(capture.end, lessThan(launch));
+    expect(
+      launcher.lastIndexOf('if (!context.mounted)', capture.start),
+      greaterThan(launcher.lastIndexOf('await ', capture.start)),
+      reason: 'The locale capture must follow the mounted check after async work.',
+    );
+    expect(arguments, isNot(contains('Localizations.localeOf(context)')));
+    expect(library, contains('_launchLinkedPhysicalRom(romPath, uiLocale: uiLocale)'));
+    expect(library, contains('StikJitArmsx2Service.launch('));
+    expect(library, contains('uiLocale: uiLocale'));
+    expect(jitLauncher, contains('Armsx2InternalBridge.launch('));
+    expect(jitLauncher, contains('uiLocale: uiLocale'));
     for (final locale in const [
       'de', 'es', 'pt', 'ru', 'zh', 'zh_Hant',
       'fr', 'it', 'id', 'ja', 'ko',
     ]) {
       expect(localization, contains('@"$locale": @{'), reason: locale);
     }
+    expect(localization, contains('return english ?: @""'));
     expect(localization, contains('@"Graphics":'));
     expect(localization, contains('@"Graphics Hacks":'));
     expect(localization, contains('@"Touch Controls":'));

@@ -417,11 +417,41 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
     result[@"stopSeconds"] = @(CFAbsoluteTimeGetCurrent() - stopStart);
     result[@"presentedAfterStop"] = @(root.presentedViewController != nil);
     Progress(@"%@: stopped", result[@"name"]);
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+    if (result[@"shaderSteps"] != nil) {
+      [weakSelf verifyShaderRequestsAfterStop:result session:session];
+      return;
+    }
+#endif
     [weakSelf finishScenario:result session:session];
   }];
 }
 
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
+- (void)verifyShaderRequestsAfterStop:(NSMutableDictionary *)result session:(LibretroSession *)session {
+  id<LibretroFrontendMenuHost> host = (id<LibretroFrontendMenuHost>)session;
+  NSString *recoveryPath = DocumentsPath(@"Libretro/Config/Frontend/shader-attempts.json");
+  NSMutableDictionary *observation = [@{@"recoveryBefore": ReadJSON(recoveryPath)} mutableCopy];
+  result[@"shaderAfterStop"] = observation;
+  for (NSString *kind in @[@"builtin", @"slang"]) {
+    NSMutableDictionary *response = [@{@"callbackCount": @0} mutableCopy];
+    observation[kind] = response;
+    NSString *identifier = [kind isEqualToString:@"slang"] ? LibretroSlangShaderIdentifier(@"simple.slangp") : nil;
+    [host applyShaderPreset:identifier parameters:nil completion:^(BOOL success) {
+      response[@"callbackCount"] = @([response[@"callbackCount"] unsignedIntegerValue] + 1);
+      response[@"success"] = @(success);
+      response[@"code"] = host.lastShaderFailureCode ?: @"";
+    }];
+  }
+  // Leave a turn for the immediate refusals and any stale shader callbacks
+  // queued before teardown. A late call must not start compilation, create
+  // a recovery attempt or consume a callback without answering it.
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    observation[@"recoveryAfter"] = ReadJSON(recoveryPath);
+    [self finishScenario:result session:session];
+  });
+}
+
 - (void)runShaderActions:(NSArray<NSDictionary *> *)actions
                    index:(NSUInteger)index
                   result:(NSMutableDictionary *)result
@@ -515,6 +545,21 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
         record(installed.success, installed.code);
       } else if (!installed.success) {
         record(NO, installed.code);
+      } else if ([kind isEqualToString:@"supersede-builtin"]) {
+        // Two choices in the same main-queue turn: the queued built-in
+        // activation/callback may not change, cancel or restore over the
+        // newer slang selection. Observe each callback separately.
+        __block NSUInteger oldCount = 0;
+        __block NSUInteger newCount = 0;
+        [host applyShaderPreset:nil parameters:nil completion:^(BOOL success) {
+          step[@"supersededCallbackCount"] = @(++oldCount);
+          step[@"supersededSuccess"] = @(success);
+          step[@"supersededCode"] = host.lastShaderFailureCode ?: @"";
+        }];
+        [host applyShaderPreset:identifier parameters:nil completion:^(BOOL success) {
+          step[@"newestCallbackCount"] = @(++newCount);
+          if (newCount == 1) record(success, host.lastShaderFailureCode);
+        }];
       } else {
         apply();
       }

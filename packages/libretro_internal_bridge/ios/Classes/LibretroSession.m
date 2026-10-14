@@ -184,6 +184,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSString *_lastShaderFailureCode;
   LibretroShaderRecovery *_shaderRecovery;
   dispatch_block_t _cancelShaderApplication;
+  BOOL _shaderApplicationsStopped;
   // Internal resolution (Build 455). The frame size is written by the
   // emulation thread and read by the menu.
   LibretroResolutionRules *_resolutionRules;
@@ -866,6 +867,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   @synchronized(self) {
     // A compilation ending after normal teardown must never create another
     // pending activation or enqueue work into a stopped emulation loop.
+    _shaderApplicationsStopped = YES;
     _shaderRequest++;
     cancelShader = _cancelShaderApplication;
     _cancelShaderApplication = nil;
@@ -1630,9 +1632,18 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 - (void)applyShaderPreset:(NSString *)presetIdentifier
                parameters:(NSDictionary<NSString *, NSNumber *> *)parameters
                completion:(void (^)(BOOL success))completion {
-  void (^done)(BOOL) = [completion copy];
-  if (!_loaded || !_screensAndShadersAvailable) {
+  NSObject *completionLock = [NSObject new];
+  __block void (^callback)(BOOL) = [completion copy];
+  void (^done)(BOOL) = ^(BOOL success) {
+    void (^deliver)(BOOL) = nil;
+    @synchronized(completionLock) { deliver = callback; callback = nil; }
+    if (deliver != nil) deliver(success);
+  };
+  BOOL stopped = NO;
+  @synchronized(self) { stopped = _shaderApplicationsStopped; }
+  if (!_loaded || !_screensAndShadersAvailable || stopped) {
     dispatch_async(dispatch_get_main_queue(), ^{
+      if (stopped) self->_lastShaderFailureCode = @"SHADER_SUPERSEDED";
       done(NO);
     });
     return;
@@ -1647,9 +1658,16 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   dispatch_block_t cancelShader = nil;
   NSUInteger request = 0;
   @synchronized(self) {
+    if (_shaderApplicationsStopped) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        self->_lastShaderFailureCode = @"SHADER_SUPERSEDED";
+        done(NO);
+      });
+      return;
+    }
     request = ++_shaderRequest;
     cancelShader = _cancelShaderApplication;
-    _cancelShaderApplication = nil;
+    _cancelShaderApplication = ^{ done(NO); };
     [_presenter invalidatePendingSlangActivation];
   }
   if (cancelShader != nil) {
@@ -1700,6 +1718,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   dispatch_block_t cancelShader = nil;
   NSUInteger request = 0;
   @synchronized(self) {
+    if (_shaderApplicationsStopped || !_loaded) {
+      _lastShaderFailureCode = @"SHADER_SUPERSEDED";
+      dispatch_async(dispatch_get_main_queue(), ^{ done(NO); });
+      return;
+    }
     cancelShader = _cancelShaderApplication;
     _cancelShaderApplication = ^{ done(NO); };
     request = ++_shaderRequest;
@@ -1726,7 +1749,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     NSString *token = nil;
     BOOL current = NO;
     @synchronized(session) {
-      current = session != nil && session->_shaderRequest == request;
+      current = session != nil && !session->_shaderApplicationsStopped && session->_shaderRequest == request;
       if (current) {
         token = [session->_shaderRecovery beginPreset:identifier
                                                 core:session->_configuration.coreId ?: @""
@@ -1736,7 +1759,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     if (!current || token == nil) {
       dispatch_async(dispatch_get_main_queue(), ^{
         LibretroSession *owner = weakSelf;
-        if (owner != nil && current) owner->_lastShaderFailureCode = @"SHADER_RECOVERY_WRITE";
+        BOOL latest = NO;
+        @synchronized(owner) { latest = owner != nil && owner->_shaderRequest == request; }
+        if (latest && current) owner->_lastShaderFailureCode = @"SHADER_RECOVERY_WRITE";
         done(NO);
       });
       return;

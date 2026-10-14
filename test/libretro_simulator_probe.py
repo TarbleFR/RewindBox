@@ -149,6 +149,7 @@ SHADER_ACTIONS = [
      'success': False, 'code': 'SHADER_NOT_INSTALLED', 'colour': 'green'},
     {'kind': 'repair', 'preset': 'complex.slangp', 'success': True, 'colour': 'green'},
     {'kind': 'disable', 'success': True},
+    {'kind': 'supersede-builtin', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
     # Persist an applied preset once again. The following session must load
     # it from the menu's frontend store and produce the same real pixels.
     {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
@@ -881,7 +882,7 @@ def shader_problems(name, shaders, result, launch):
             problems.append(f'{prefix}: failure code {code!r}, expected {action["code"]!r}')
         if 'codePrefix' in action and not code.startswith(action['codePrefix']):
             problems.append(f'{prefix}: failure code {code!r}, expected prefix {action["codePrefix"]!r}')
-        if action['kind'] == 'apply' and action.get('success'):
+        if action['kind'] in ('apply', 'supersede-builtin') and action.get('success'):
             active = 'slang:' + action['preset']
             if step.get('installationSuccess') is not True or step.get('installationRegistered') is not True:
                 problems.append(f'{prefix}: shader was not installed through the verified storage')
@@ -890,11 +891,17 @@ def shader_problems(name, shaders, result, launch):
         frame = step.get('frame') or {}
         if frame.get('active') != active:
             problems.append(f'{prefix}: active shader {frame.get("active")!r}, expected {active!r}')
-        if active and action.get('success') and action['kind'] == 'apply':
+        if active and action.get('success') and action['kind'] in ('apply', 'supersede-builtin'):
             if frame.get('textureBytes', 0) <= 0 or frame.get('passes') != (3 if action['preset'] == 'complex.slangp' else 1):
                 problems.append(f'{prefix}: completed shader has no expected active chains/passes: {frame!r}')
             if frame.get('failure'):
                 problems.append(f'{prefix}: successful selection retains failure {frame["failure"]!r}')
+        if action['kind'] == 'supersede-builtin':
+            if step.get('supersededCallbackCount') != 1 or step.get('supersededSuccess') is not False or \
+                    step.get('supersededCode') != 'SHADER_SUPERSEDED':
+                problems.append(f'{prefix}: the superseded built-in choice was not completed once with its refusal: {step!r}')
+            if step.get('newestCallbackCount') != 1:
+                problems.append(f'{prefix}: the newest shader was completed {step.get("newestCallbackCount")} times')
         if action['kind'] == 'download-short':
             if step.get('installationRegistered') is not False or step.get('applyAfterFailedDownload') is not False or \
                     step.get('applyAfterFailedDownloadCode') != 'SHADER_NOT_INSTALLED':
@@ -921,6 +928,17 @@ def shader_problems(name, shaders, result, launch):
             if expected_enabled and values.get('shader.preset') != active:
                 problems.append(f'{prefix}: frontend saved {values.get("shader.preset")!r}, expected {active!r}')
         previous_frame = frame
+    after_stop = result.get('shaderAfterStop') or {}
+    for kind in ('builtin', 'slang'):
+        response = after_stop.get(kind) or {}
+        if response.get('callbackCount') != 1 or response.get('success') is not False or \
+                response.get('code') != 'SHADER_SUPERSEDED':
+            problems.append(f'{name}: {kind} shader request after teardown did not complete once with a refusal: {response!r}')
+    if after_stop.get('recoveryBefore') != after_stop.get('recoveryAfter'):
+        problems.append(f'{name}: a shader request after teardown changed its recovery marker')
+    recovery = after_stop.get('recoveryAfter') or {}
+    if not isinstance(recovery, dict) or 'pending' in recovery or 'active' in recovery:
+        problems.append(f'{name}: shader request after teardown left an activation marker: {recovery!r}')
     return problems
 
 
