@@ -1,5 +1,5 @@
 // Behavioural test of NeoStation's default skins (LibretroDefaultSkins):
-// for the 17 consoles, both orientations, iPhone SE to iPad Pro 13 and a
+// for the 38 consoles, both orientations, iPhone SE to iPad Pro 13 and a
 // resizable iPad window, with and without safe areas, and every DS / 3DS
 // screen arrangement (swapped or not): every control inside the view and
 // the safe area, no two controls overlapping, no control on the game in
@@ -317,8 +317,8 @@ static LibretroSkinRepresentation *Phone(NSString *console, LibretroSkinOrientat
 
 static void TestCatalog(void) {
   NSArray<NSString *> *consoles = [LibretroDefaultSkins consoles];
-  CHECK(consoles.count == 17 && [consoles isEqualToArray:[LibretroInputMap consoles]],
-        @"17 consoles, the input map's list");
+  CHECK(consoles.count == 38 && [consoles isEqualToArray:[LibretroInputMap consoles]],
+        @"38 consoles (17, then lot 1), the input map's list");
   for (NSString *console in consoles) {
     BOOL dual = [console isEqualToString:@"nds"] || [console isEqualToString:@"3ds"];
     CHECK([LibretroDefaultSkins isDualScreenConsole:console] == dual, @"%@ dual screen: %d", console, dual);

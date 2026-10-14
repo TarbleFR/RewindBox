@@ -231,12 +231,14 @@ static NSSet<NSString *> *PlayStationAliases(void) {
   NSDictionary<NSString *, NSString *> *_glyphs;
   NSDictionary<NSNumber *, NSString *> *_inputForJoypad;
   BOOL _playStation;
+  BOOL _rotationOnSelect;
 }
 
 + (NSArray<NSString *> *)consoles {
   return @[
     @"nes", @"snes", @"gb", @"gbc", @"gba", @"md", @"mcd", @"32x", @"sms", @"gg", @"sg1000", @"arcade", @"nds",
-    @"n64", @"psx", @"psp", @"3ds"
+    @"n64", @"psx", @"psp", @"3ds", @"pce", @"tg16", @"pccd", @"tgcd", @"ws", @"wsc", @"ngp", @"ngpc", @"lynx",
+    @"vb", @"2600", @"7800", @"5200", @"cv", @"mini", @"gw", @"duck", @"wsv", @"ard", @"wasm4", @"uze"
   ];
 }
 
@@ -287,6 +289,10 @@ static NSSet<NSString *> *PlayStationAliases(void) {
   NSSet<NSString *> *nintendo = [NSSet setWithArray:@[ @"nes", @"gb", @"gbc", @"gba", @"snes", @"nds" ]];
   NSSet<NSString *> *genesis = [NSSet setWithArray:@[ @"md", @"mcd", @"32x" ]];
   NSSet<NSString *> *masterSystem = [NSSet setWithArray:@[ @"sms", @"gg", @"sg1000" ]];
+  NSSet<NSString *> *pcEngine = [NSSet setWithArray:@[ @"pce", @"tg16", @"pccd", @"tgcd" ]];
+  NSSet<NSString *> *wonderSwan = [NSSet setWithArray:@[ @"ws", @"wsc" ]];
+  NSSet<NSString *> *neoGeoPocket = [NSSet setWithArray:@[ @"ngp", @"ngpc" ]];
+  NSSet<NSString *> *handhelds = [NSSet setWithArray:@[ @"gw", @"duck", @"wsv" ]];
   if ([nintendo containsObject:console]) {
     BOOL fourFace = [console isEqualToString:@"snes"] || [console isEqualToString:@"nds"];
     BOOL shoulders = fourFace || [console isEqualToString:@"gba"];
@@ -399,6 +405,120 @@ static NSSet<NSString *> *PlayStationAliases(void) {
     _hasTouchScreen = YES;
     // Azahar: L3 is HOME and swaps the screens, R3 taps the touch screen.
     _blockedButtons = JOYPAD_BIT(RETRO_DEVICE_ID_JOYPAD_L3) | JOYPAD_BIT(RETRO_DEVICE_ID_JOYPAD_R3);
+  } else if ([pcEngine containsObject:console]) {
+    // Beetle PCE Fast, 2-button pad (its default): B is II, A is I.
+    button(@"b", @"II", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"a", @"I", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    button(@"start", @"RUN", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([wonderSwan containsObject:console]) {
+    // Beetle WonderSwan, horizontal keymap: the D-pad is X1-X4, the
+    // shoulders are the Y pad (R2 Y1 up, R Y2 right, L2 Y3 down, L Y4 left).
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"r2", @"Y1", RETRO_DEVICE_ID_JOYPAD_R2);
+    button(@"r", @"Y2", RETRO_DEVICE_ID_JOYPAD_R);
+    button(@"l2", @"Y3", RETRO_DEVICE_ID_JOYPAD_L2);
+    button(@"l", @"Y4", RETRO_DEVICE_ID_JOYPAD_L);
+    // The console has no SELECT: with its default "manual" rotation the
+    // core turns the screen (and the keymap) for vertical games on SELECT.
+    button(@"select", @"⟳", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    _rotationOnSelect = YES;
+  } else if ([neoGeoPocket containsObject:console]) {
+    // Beetle NeoPop: RetroPad B is the console's A, RetroPad A its B.
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"start", @"OPTION", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([console isEqualToString:@"lynx"]) {
+    // Handy: L and R are Option 1 and 2, START is Pause (SELECT rotates
+    // the picture inside the core and is left to controllers).
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"l", @"OPT1", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"r", @"OPT2", RETRO_DEVICE_ID_JOYPAD_R);
+    button(@"start", @"PAUSE", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([console isEqualToString:@"vb"]) {
+    // Beetle VB: the D-pad is the left pad; the right pad is L2 up, L3
+    // down, R2 left, R3 right.
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"l", @"L", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"r", @"R", RETRO_DEVICE_ID_JOYPAD_R);
+    button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    button(@"l2", @"R▲", RETRO_DEVICE_ID_JOYPAD_L2);
+    button(@"l3", @"R▼", RETRO_DEVICE_ID_JOYPAD_L3);
+    button(@"r2", @"R◀", RETRO_DEVICE_ID_JOYPAD_R2);
+    button(@"r3", @"R▶", RETRO_DEVICE_ID_JOYPAD_R3);
+  } else if ([console isEqualToString:@"2600"]) {
+    // Stella: B is the joystick's button, SELECT and START the console's
+    // Game Select and Game Reset. The difficulty and colour switches
+    // (L, L2, R, R2, L3, R3, which latch) stay on controllers.
+    button(@"b", @"1", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    button(@"start", @"RESET", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([console isEqualToString:@"7800"]) {
+    // ProSystem: B button 1, A button 2, X console Reset, SELECT Select,
+    // START Pause (the held difficulty switches stay on controllers).
+    button(@"b", @"1", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"a", @"2", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    button(@"start", @"PAUSE", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"x", @"RESET", RETRO_DEVICE_ID_JOYPAD_X);
+  } else if ([console isEqualToString:@"5200"]) {
+    // a5200: A Fire 1, B Fire 2, SELECT Pause, L shows the core's keypad
+    // (D-pad and A then press any key), Y and X the keypad's * and #.
+    button(@"a", @"1", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"2", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"select", @"PAUSE", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    button(@"l", @"0-9", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"y", @"*", RETRO_DEVICE_ID_JOYPAD_Y);
+    button(@"x", @"#", RETRO_DEVICE_ID_JOYPAD_X);
+  } else if ([console isEqualToString:@"cv"]) {
+    // Gearcoleco: B the left (yellow) button, A the right (red) one, keypad
+    // 1 to 4 on Y, X, L, R, * on START and # on SELECT. Keypad 5 to 8 (L2,
+    // R2, L3, R3) pass through from controllers.
+    button(@"b", @"L", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"a", @"R", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"y", @"1", RETRO_DEVICE_ID_JOYPAD_Y);
+    button(@"x", @"2", RETRO_DEVICE_ID_JOYPAD_X);
+    button(@"l", @"3", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"r", @"4", RETRO_DEVICE_ID_JOYPAD_R);
+    button(@"start", @"*", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"select", @"#", RETRO_DEVICE_ID_JOYPAD_SELECT);
+  } else if ([console isEqualToString:@"mini"]) {
+    // PokeMini: R is C (L shake and SELECT power pass through from
+    // controllers).
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"c", @"C", RETRO_DEVICE_ID_JOYPAD_R);
+  } else if ([handhelds containsObject:console]) {
+    // Game & Watch (SELECT opens the game's mode menu, START picks), Mega
+    // Duck and Supervision: A, B, SELECT, START.
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
+    button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+  } else if ([console isEqualToString:@"ard"]) {
+    // Ardens reads A and B only.
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+  } else if ([console isEqualToString:@"wasm4"]) {
+    // WASM-4: A (or X) is button 1 "X", B (or Y) button 2 "Z".
+    button(@"a", @"X", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"Z", RETRO_DEVICE_ID_JOYPAD_B);
+  } else if ([console isEqualToString:@"uze"]) {
+    // Uzem reads the SNES pad as it is.
+    button(@"a", @"A", RETRO_DEVICE_ID_JOYPAD_A);
+    button(@"b", @"B", RETRO_DEVICE_ID_JOYPAD_B);
+    button(@"x", @"X", RETRO_DEVICE_ID_JOYPAD_X);
+    button(@"y", @"Y", RETRO_DEVICE_ID_JOYPAD_Y);
+    button(@"l", @"L", RETRO_DEVICE_ID_JOYPAD_L);
+    button(@"r", @"R", RETRO_DEVICE_ID_JOYPAD_R);
+    button(@"start", @"START", RETRO_DEVICE_ID_JOYPAD_START);
+    button(@"select", @"SELECT", RETRO_DEVICE_ID_JOYPAD_SELECT);
   }
   NSDictionary<NSString *, NSNumber *> *actions = ActionNames();
   for (NSString *name in actions) {
@@ -458,6 +578,7 @@ static NSSet<NSString *> *PlayStationAliases(void) {
       @{@"up" : @"inputUp", @"down" : @"inputDown", @"left" : @"inputLeft", @"right" : @"inputRight"};
   NSString *direction = directions[input];
   if (direction != nil) return direction;
+  if (_rotationOnSelect && [input isEqualToString:@"select"]) return @"inputRotateScreen";
   if (_playStation) {
     NSDictionary<NSString *, NSString *> *faces =
         @{@"a" : @"buttonCircle", @"b" : @"buttonCross", @"x" : @"buttonTriangle", @"y" : @"buttonSquare"};

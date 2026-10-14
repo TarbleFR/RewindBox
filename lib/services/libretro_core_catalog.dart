@@ -138,6 +138,10 @@ class LibretroConsole {
         'size': <int>[width, height],
         if (regions.isNotEmpty) 'regions': regions,
       };
+
+  /// Folder the console's games are imported into, named as the library
+  /// scanner knows the import system ([LibretroCoreCatalog.importFolderFor]).
+  String get importFolder => LibretroCoreCatalog.importFolderFor(importSystem);
 }
 
 abstract final class LibretroCoreCatalog {
@@ -384,6 +388,94 @@ abstract final class LibretroCoreCatalog {
         ),
       ],
     ),
+    // Lot 1 of the consoles of the Consoles tab that only the RetroArch app
+    // ran (docs/libretro-consoles-lot1.md): software cores of RetroArch's
+    // iOS App Store list, no JIT, no hardware context.
+    'mednafen_pce_fast': LibretroCore(
+      id: 'mednafen_pce_fast',
+      displayName: 'Beetle PCE Fast',
+      extensions: {'pce', 'cue', 'ccd', 'chd', 'toc', 'm3u'},
+    ),
+    'mednafen_wswan': LibretroCore(
+      id: 'mednafen_wswan',
+      displayName: 'Beetle WonderSwan',
+      extensions: {'ws', 'wsc', 'pc2', 'pcv2'},
+    ),
+    'mednafen_ngp': LibretroCore(
+      id: 'mednafen_ngp',
+      displayName: 'Beetle NeoPop',
+      extensions: {'ngp', 'ngc', 'ngpc', 'npc'},
+    ),
+    'handy': LibretroCore(
+      id: 'handy',
+      displayName: 'Handy',
+      extensions: {'lnx', 'lyx', 'o'},
+    ),
+    'mednafen_vb': LibretroCore(
+      id: 'mednafen_vb',
+      displayName: 'Beetle VB',
+      extensions: {'vb', 'vboy', 'bin'},
+    ),
+    'stella': LibretroCore(
+      id: 'stella',
+      displayName: 'Stella',
+      extensions: {'a26', 'bin'},
+    ),
+    'prosystem': LibretroCore(
+      id: 'prosystem',
+      displayName: 'ProSystem',
+      extensions: {'a78', 'bin', 'cdf'},
+    ),
+    'a5200': LibretroCore(
+      id: 'a5200',
+      displayName: 'a5200',
+      extensions: {'a52', 'bin'},
+    ),
+    'gearcoleco': LibretroCore(
+      id: 'gearcoleco',
+      displayName: 'Gearcoleco',
+      extensions: {'col', 'cv', 'bin', 'rom'},
+      biosAnyOf: ['colecovision.rom'],
+    ),
+    'pokemini': LibretroCore(
+      id: 'pokemini',
+      displayName: 'PokeMini',
+      extensions: {'min'},
+    ),
+    'gw': LibretroCore(
+      id: 'gw',
+      displayName: 'Game & Watch',
+      extensions: {'mgw'},
+    ),
+    'sameduck': LibretroCore(
+      id: 'sameduck',
+      displayName: 'SameDuck',
+      extensions: {'bin', 'duck'},
+    ),
+    'potator': LibretroCore(
+      id: 'potator',
+      displayName: 'Potator',
+      extensions: {'bin', 'sv'},
+    ),
+    'ardens': LibretroCore(
+      id: 'ardens',
+      displayName: 'Ardens',
+      extensions: {'hex', 'arduboy'},
+    ),
+    'wasm4': LibretroCore(
+      id: 'wasm4',
+      displayName: 'WASM-4',
+      extensions: {'wasm'},
+      // The core's default "callback" audio is only heard through
+      // RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, which the host does not offer:
+      // its "normal" audio goes through the batch callback like every core.
+      lockedOptions: {'wasm4_audio_type': 'normal'},
+    ),
+    'uzem': LibretroCore(
+      id: 'uzem',
+      displayName: 'Uzem',
+      extensions: {'uze'},
+    ),
   };
 
   static const Map<String, LibretroSystemBinding> systems =
@@ -428,10 +520,31 @@ abstract final class LibretroCoreCatalog {
     'psp': LibretroSystemBinding(coreId: 'ppsspp', console: 'psp', achievementsConsoleId: 41),
     'pspminis': LibretroSystemBinding(coreId: 'ppsspp', console: 'psp', achievementsConsoleId: 41),
     '3ds': LibretroSystemBinding(coreId: 'azahar', console: '3ds', achievementsConsoleId: 62),
+    'pce': LibretroSystemBinding(coreId: 'mednafen_pce_fast', console: 'pce', achievementsConsoleId: 8),
+    'tg16': LibretroSystemBinding(coreId: 'mednafen_pce_fast', console: 'tg16', achievementsConsoleId: 8),
+    'pccd': LibretroSystemBinding(coreId: 'mednafen_pce_fast', console: 'pccd', achievementsConsoleId: 76),
+    'tgcd': LibretroSystemBinding(coreId: 'mednafen_pce_fast', console: 'tgcd', achievementsConsoleId: 76),
+    'ws': LibretroSystemBinding(coreId: 'mednafen_wswan', console: 'ws', achievementsConsoleId: 53),
+    'wsc': LibretroSystemBinding(coreId: 'mednafen_wswan', console: 'wsc', achievementsConsoleId: 53),
+    'ngp': LibretroSystemBinding(coreId: 'mednafen_ngp', console: 'ngp', achievementsConsoleId: 14),
+    'ngpc': LibretroSystemBinding(coreId: 'mednafen_ngp', console: 'ngpc', achievementsConsoleId: 14),
+    'lynx': LibretroSystemBinding(coreId: 'handy', console: 'lynx', achievementsConsoleId: 13),
+    'vb': LibretroSystemBinding(coreId: 'mednafen_vb', console: 'vb', achievementsConsoleId: 28),
+    '2600': LibretroSystemBinding(coreId: 'stella', console: '2600', achievementsConsoleId: 25),
+    '7800': LibretroSystemBinding(coreId: 'prosystem', console: '7800', achievementsConsoleId: 51),
+    '5200': LibretroSystemBinding(coreId: 'a5200', console: '5200', achievementsConsoleId: 50),
+    'cv': LibretroSystemBinding(coreId: 'gearcoleco', console: 'cv', achievementsConsoleId: 44),
+    'mini': LibretroSystemBinding(coreId: 'pokemini', console: 'mini', achievementsConsoleId: 24),
+    'gw': LibretroSystemBinding(coreId: 'gw', console: 'gw', achievementsConsoleId: 60),
+    'duck': LibretroSystemBinding(coreId: 'sameduck', console: 'duck', achievementsConsoleId: 69),
+    'wsv': LibretroSystemBinding(coreId: 'potator', console: 'wsv', achievementsConsoleId: 63),
+    'ard': LibretroSystemBinding(coreId: 'ardens', console: 'ard', achievementsConsoleId: 71),
+    'wasm4': LibretroSystemBinding(coreId: 'wasm4', console: 'wasm4', achievementsConsoleId: 72),
+    'uze': LibretroSystemBinding(coreId: 'uzem', console: 'uze', achievementsConsoleId: 80),
   };
 
-  /// The 17 consoles of the embedded engine, in the order of the native
-  /// `+[LibretroInputMap consoles]`.
+  /// The consoles of the embedded engine (17, then the 21 of lot 1), in the
+  /// order of the native `+[LibretroInputMap consoles]`.
   static const Map<String, LibretroConsole> consoles = <String, LibretroConsole>{
     'nes': LibretroConsole(
       id: 'nes',
@@ -579,7 +692,187 @@ abstract final class LibretroCoreCatalog {
         'bottom': [0.1, 0.5, 0.8, 0.5],
       },
     ),
+    // Lot 1 (docs/libretro-consoles-lot1.md): the consoles of the Consoles
+    // tab that only the RetroArch app ran, with their ids and product names
+    // unchanged. 0 x 0 where the core's picture size varies by game or by
+    // TV standard (no skin crop is trusted then).
+    // Beetle PCE Fast: 256 to 512 pixels wide depending on the game.
+    'pce': LibretroConsole(
+      id: 'pce',
+      name: 'PC Engine',
+      width: 0,
+      height: 0,
+      importSystem: 'pce',
+      catalogSystems: ['pce'],
+    ),
+    'tg16': LibretroConsole(
+      id: 'tg16',
+      name: 'TurboGrafx-16',
+      width: 0,
+      height: 0,
+      importSystem: 'tg16',
+      catalogSystems: ['pce'],
+    ),
+    'pccd': LibretroConsole(
+      id: 'pccd',
+      name: 'PC Engine-CD',
+      width: 0,
+      height: 0,
+      importSystem: 'pccd',
+      catalogSystems: ['pce'],
+    ),
+    'tgcd': LibretroConsole(
+      id: 'tgcd',
+      name: 'TurboGrafx-CD',
+      width: 0,
+      height: 0,
+      importSystem: 'tgcd',
+      catalogSystems: ['pce'],
+    ),
+    'ws': LibretroConsole(
+      id: 'ws',
+      name: 'WonderSwan',
+      width: 224,
+      height: 144,
+      importSystem: 'ws',
+    ),
+    'wsc': LibretroConsole(
+      id: 'wsc',
+      name: 'WonderSwan Color',
+      width: 224,
+      height: 144,
+      importSystem: 'wsc',
+    ),
+    'ngp': LibretroConsole(
+      id: 'ngp',
+      name: 'NeoGeo Pocket',
+      width: 160,
+      height: 152,
+      importSystem: 'ngp',
+    ),
+    'ngpc': LibretroConsole(
+      id: 'ngpc',
+      name: 'NeoGeo Pocket Color',
+      width: 160,
+      height: 152,
+      importSystem: 'ngpc',
+    ),
+    'lynx': LibretroConsole(
+      id: 'lynx',
+      name: 'Atari Lynx',
+      width: 160,
+      height: 102,
+      importSystem: 'lynx',
+      catalogSystems: ['lynx'],
+    ),
+    'vb': LibretroConsole(
+      id: 'vb',
+      name: 'Virtual Boy',
+      width: 384,
+      height: 224,
+      importSystem: 'vb',
+      catalogSystems: ['virtualboy'],
+    ),
+    // Stella: 228 lines in NTSC, 274 in PAL.
+    '2600': LibretroConsole(
+      id: '2600',
+      name: 'Atari 2600',
+      width: 0,
+      height: 0,
+      importSystem: '2600',
+    ),
+    // ProSystem: 223 lines in NTSC, 272 in PAL.
+    '7800': LibretroConsole(
+      id: '7800',
+      name: 'Atari 7800',
+      width: 0,
+      height: 0,
+      importSystem: '7800',
+    ),
+    '5200': LibretroConsole(
+      id: '5200',
+      name: 'Atari 5200',
+      width: 320,
+      height: 224,
+      importSystem: '5200',
+    ),
+    'cv': LibretroConsole(
+      id: 'cv',
+      name: 'ColecoVision',
+      width: 256,
+      height: 192,
+      importSystem: 'cv',
+    ),
+    // PokeMini draws 96 x 64 scaled four times.
+    'mini': LibretroConsole(
+      id: 'mini',
+      name: 'Pokémon Mini',
+      width: 96,
+      height: 64,
+      importSystem: 'mini',
+    ),
+    // Each Game & Watch game has its own background size.
+    'gw': LibretroConsole(
+      id: 'gw',
+      name: 'Game & Watch',
+      width: 0,
+      height: 0,
+      importSystem: 'gw',
+    ),
+    'duck': LibretroConsole(
+      id: 'duck',
+      name: 'Mega Duck',
+      width: 160,
+      height: 144,
+      importSystem: 'duck',
+    ),
+    'wsv': LibretroConsole(
+      id: 'wsv',
+      name: 'Watara Supervision',
+      width: 160,
+      height: 160,
+      importSystem: 'wsv',
+    ),
+    'ard': LibretroConsole(
+      id: 'ard',
+      name: 'Arduboy',
+      width: 128,
+      height: 64,
+      importSystem: 'ard',
+    ),
+    'wasm4': LibretroConsole(
+      id: 'wasm4',
+      name: 'WASM-4',
+      width: 160,
+      height: 160,
+      importSystem: 'wasm4',
+    ),
+    // Uzem draws 720 x 224 frames shown at 630:448.
+    'uze': LibretroConsole(
+      id: 'uze',
+      name: 'Uzebox',
+      width: 0,
+      height: 0,
+      importSystem: 'uze',
+    ),
   };
+
+  /// Bound systems whose id is not one of the folder names the library
+  /// scanner recognizes for them (`assets/systems/<id>.json` `folders`):
+  /// their games are imported into this folder instead, so they appear.
+  /// Before, games imported for the two hack playlists went to
+  /// `roms/gb-hacks` and `roms/sfc-hacks`, which the scanner never lists.
+  static const Map<String, String> _importFolders = <String, String>{
+    'duck': 'megaduck',
+    'gb-hacks': 'gbh',
+    'sfc-hacks': 'sfch',
+  };
+
+  /// Folder name (lowercase) games of a bound system are copied into.
+  static String importFolderFor(String system) {
+    final key = system.toLowerCase();
+    return _importFolders[key] ?? key;
+  }
 
   static LibretroSystemBinding? bindingFor(String folderName) =>
       systems[folderName.toLowerCase()];

@@ -1,5 +1,5 @@
 // Behavioural test of LibretroInputMap: the logical controls of each of the
-// 17 consoles, their RetroPad / analog / pointer / action targets and glyphs,
+// 38 consoles, their RetroPad / analog / pointer / action targets and glyphs,
 // the controller defaults (identical to the historical positional mapping),
 // blocked screen-swap buttons, user remaps, skin input aliases and analog
 // magnitudes. The expected tables are written here from the header contract,
@@ -74,7 +74,62 @@ static NSDictionary<NSString *, NSArray *> *ExpectedButtons(void) {
     BUTTON(@"l", @"L", L), BUTTON(@"r", @"R", R), BUTTON(@"l2", @"ZL", L2), BUTTON(@"r2", @"ZR", R2),
     BUTTON(@"start", @"START", START), BUTTON(@"select", @"SELECT", SELECT)
   ];
+  // Lot 1 (docs/libretro-consoles-lot1.md): each core's own RetroPad layout.
+  NSArray *pcEngine = @[
+    BUTTON(@"b", @"II", B), BUTTON(@"a", @"I", A), BUTTON(@"select", @"SELECT", SELECT), BUTTON(@"start", @"RUN", START)
+  ];
+  NSArray *wonderSwan = @[
+    BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B), BUTTON(@"start", @"START", START), BUTTON(@"r2", @"Y1", R2),
+    BUTTON(@"r", @"Y2", R), BUTTON(@"l2", @"Y3", L2), BUTTON(@"l", @"Y4", L), BUTTON(@"select", @"⟳", SELECT)
+  ];
+  NSArray *neoGeoPocket = @[ BUTTON(@"a", @"A", B), BUTTON(@"b", @"B", A), BUTTON(@"start", @"OPTION", START) ];
+  NSArray *lynx = @[
+    BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B), BUTTON(@"l", @"OPT1", L), BUTTON(@"r", @"OPT2", R),
+    BUTTON(@"start", @"PAUSE", START)
+  ];
+  NSArray *virtualBoy = @[
+    BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B), BUTTON(@"l", @"L", L), BUTTON(@"r", @"R", R),
+    BUTTON(@"start", @"START", START), BUTTON(@"select", @"SELECT", SELECT), BUTTON(@"l2", @"R▲", L2),
+    BUTTON(@"l3", @"R▼", L3), BUTTON(@"r2", @"R◀", R2), BUTTON(@"r3", @"R▶", R3)
+  ];
+  NSArray *atari2600 = @[ BUTTON(@"b", @"1", B), BUTTON(@"select", @"SELECT", SELECT), BUTTON(@"start", @"RESET", START) ];
+  NSArray *atari7800 = @[
+    BUTTON(@"b", @"1", B), BUTTON(@"a", @"2", A), BUTTON(@"select", @"SELECT", SELECT),
+    BUTTON(@"start", @"PAUSE", START), BUTTON(@"x", @"RESET", X)
+  ];
+  NSArray *atari5200 = @[
+    BUTTON(@"a", @"1", A), BUTTON(@"b", @"2", B), BUTTON(@"start", @"START", START), BUTTON(@"select", @"PAUSE", SELECT),
+    BUTTON(@"l", @"0-9", L), BUTTON(@"y", @"*", Y), BUTTON(@"x", @"#", X)
+  ];
+  NSArray *coleco = @[
+    BUTTON(@"b", @"L", B), BUTTON(@"a", @"R", A), BUTTON(@"y", @"1", Y), BUTTON(@"x", @"2", X), BUTTON(@"l", @"3", L),
+    BUTTON(@"r", @"4", R), BUTTON(@"start", @"*", START), BUTTON(@"select", @"#", SELECT)
+  ];
+  NSArray *pokemonMini = @[ BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B), BUTTON(@"c", @"C", R) ];
+  NSArray *twoButtons = @[ BUTTON(@"a", @"A", A), BUTTON(@"b", @"B", B) ];
+  NSArray *wasm4 = @[ BUTTON(@"a", @"X", A), BUTTON(@"b", @"Z", B) ];
   return @{
+    @"pce" : pcEngine,
+    @"tg16" : pcEngine,
+    @"pccd" : pcEngine,
+    @"tgcd" : pcEngine,
+    @"ws" : wonderSwan,
+    @"wsc" : wonderSwan,
+    @"ngp" : neoGeoPocket,
+    @"ngpc" : neoGeoPocket,
+    @"lynx" : lynx,
+    @"vb" : virtualBoy,
+    @"2600" : atari2600,
+    @"7800" : atari7800,
+    @"5200" : atari5200,
+    @"cv" : coleco,
+    @"mini" : pokemonMini,
+    @"gw" : nes,
+    @"duck" : nes,
+    @"wsv" : nes,
+    @"ard" : twoButtons,
+    @"wasm4" : wasm4,
+    @"uze" : snes,
     @"nes" : nes,
     @"gb" : nes,
     @"gbc" : nes,
@@ -143,9 +198,11 @@ static void TestElements(void) {
 static void TestConsoleTables(void) {
   NSArray<NSString *> *consoles = @[
     @"nes", @"snes", @"gb", @"gbc", @"gba", @"md", @"mcd", @"32x", @"sms", @"gg", @"sg1000", @"arcade", @"nds",
-    @"n64", @"psx", @"psp", @"3ds"
+    @"n64", @"psx", @"psp", @"3ds", @"pce", @"tg16", @"pccd", @"tgcd", @"ws", @"wsc", @"ngp", @"ngpc", @"lynx",
+    @"vb", @"2600", @"7800", @"5200", @"cv", @"mini", @"gw", @"duck", @"wsv", @"ard", @"wasm4", @"uze"
   ];
-  CHECK([[LibretroInputMap consoles] isEqualToArray:consoles], @"the 17 consoles in order");
+  CHECK([[LibretroInputMap consoles] isEqualToArray:consoles], @"the 38 consoles in order (17, then lot 1)");
+  CHECK(ExpectedButtons().count == consoles.count, @"one expected table per console");
   NSDictionary<NSString *, NSArray *> *expected = ExpectedButtons();
   NSSet<NSString *> *leftStick = [NSSet setWithArray:@[ @"n64", @"psp", @"3ds" ]];
   NSSet<NSString *> *touch = [NSSet setWithArray:@[ @"nds", @"3ds" ]];
@@ -246,6 +303,16 @@ static void TestConsoleTables(void) {
       }
     }
   }
+}
+
+static void TestWonderSwanRotation(void) {
+  for (NSString *console in @[ @"ws", @"wsc" ]) {
+    LibretroInputMap *map = [LibretroInputMap mapForConsole:console];
+    CHECK([[map labelKeyForInput:@"select"] isEqualToString:@"inputRotateScreen"],
+          @"%@: select is spoken as the screen rotation", console);
+  }
+  CHECK([[LibretroInputMap mapForConsole:@"nes"] labelKeyForInput:@"select"] == nil,
+        @"nes: select keeps its printed name");
 }
 
 static void TestBlockedButtons(void) {
@@ -610,6 +677,7 @@ int main(int argc, const char *argv[]) {
   @autoreleasepool {
     TestElements();
     TestConsoleTables();
+    TestWonderSwanRotation();
     TestBlockedButtons();
     TestDefaultsPerConsole();
     TestOverrides();

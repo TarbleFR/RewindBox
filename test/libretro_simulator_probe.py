@@ -99,7 +99,14 @@ DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', '
 # (its podspec's frameworks: it preserves an MTKView's drawable on the move).
 FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'MetalKit', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
               'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics')
-REAL_CORES = ('ppsspp', 'azahar', 'desmume')
+# Lot 1 (docs/libretro-consoles-lot1.md): the cores added for the consoles
+# of the Consoles tab that only the RetroArch app ran. Each runs a test
+# program the probe writes itself (build_lot1_content: a few instructions
+# that keep the console running, no third-party content).
+LOT1_CORES = ('sameduck', 'potator', 'ardens', 'stella', 'prosystem', 'a5200', 'mednafen_pce_fast',
+              'mednafen_ngp', 'mednafen_wswan', 'mednafen_vb', 'handy', 'pokemini', 'wasm4', 'gearcoleco',
+              'uzem', 'gw')
+REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 # Shader fixtures exercise the actual session and presenter; network bytes
@@ -291,6 +298,46 @@ SCENARIOS = [
                                                 'actions': [{'kind': 'disable', 'success': True}]}},
 ]
 
+# Lot 1 (run by their own CI job with --only): every core launched, run
+# for a few seconds, closed with "Quit game" and launched again on a test
+# program written by build_lot1_content. The journal must show the content
+# accepted, the startup confirmed after frames and, where the core's size
+# is fixed, the size of the frames it drew. Gearcoleco without its BIOS,
+# Uzem on an image without its UZEBOX header and GW on a package that is
+# not one must refuse the content and leave nothing behind (GW last: the
+# probe stops if a core takes the process down).
+LOT1_RUNS = (
+    ('sameduck', 'content/probe-duck.bin', 'duck', '160x144'),
+    ('potator', 'content/probe-wsv.sv', 'wsv', '160x160'),
+    ('ardens', 'content/probe-ard.hex', 'ard', '128x64'),
+    ('stella', 'content/probe-2600.a26', '2600', None),
+    ('prosystem', 'content/probe-7800.a78', '7800', None),
+    ('a5200', 'content/probe-5200.a52', '5200', None),
+    ('mednafen_pce_fast', 'content/probe-pce.pce', 'pce', None),
+    ('mednafen_ngp', 'content/probe-ngp.ngc', 'ngpc', '160x152'),
+    ('mednafen_wswan', 'content/probe-ws.ws', 'ws', '224x144'),
+    ('mednafen_vb', 'content/probe-vb.vb', 'vb', '384x224'),
+    ('handy', 'content/probe-lynx.o', 'lynx', '160x102'),
+    ('pokemini', 'content/probe-mini.min', 'mini', '384x256'),
+    ('wasm4', 'content/probe-wasm4.wasm', 'wasm4', '160x160'),
+)
+for core, content, console, size in LOT1_RUNS:
+    for run_index in (1, 2):
+        SCENARIOS.append({
+            'name': f'lot1-{core}-{run_index}', 'core': core, 'content': content, 'console': console,
+            'expect': 'run', 'runSeconds': 3.0, 'default': False, 'lot1': True,
+            'requiredLog': ['load: content accepted', 'run: startup confirmed after',
+                            f'run: frame {size}' if size else 'run: frame '],
+        })
+SCENARIOS += [
+    {'name': 'lot1-gearcoleco-no-bios', 'core': 'gearcoleco', 'content': 'content/probe-cv.col', 'console': 'cv',
+     'expect': 'rejected', 'default': False, 'lot1': True},
+    {'name': 'lot1-uzem-not-uze', 'core': 'uzem', 'content': 'content/probe-not-uze.uze', 'console': 'uze',
+     'expect': 'rejected', 'default': False, 'lot1': True},
+    {'name': 'lot1-gw-not-mgw', 'core': 'gw', 'content': 'content/probe-not-mgw.mgw', 'console': 'gw',
+     'expect': 'rejected', 'default': False, 'lot1': True},
+]
+
 # Real official catalog/downloads; the rendering is the actual embedded
 # bridge, with a software test core, a Vulkan test core and real DeSmuME.
 for suffix, core, content, console in (
@@ -477,6 +524,133 @@ def build_nds(output_path, shader_pattern=False):
         struct.pack_into('<I', rom, 0x400, 0xEAFFFFFE)
     struct.pack_into('<H', rom, 0x15E, crc16(rom[:0x15E]))
     output_path.write_bytes(bytes(rom))
+
+
+def _vectors_6502(rom, offset, address):
+    """NMI, RESET and IRQ vectors of a 6502 ROM image, at [offset]."""
+    struct.pack_into('<HHH', rom, offset, address, address, address)
+
+
+def build_lot1_content(content):
+    """Test programs for the lot 1 cores, written here (no third-party
+    content). Each one keeps its console running without drawing anything
+    in particular: the probe checks that the real core accepts it, runs
+    frames and is closed and launched again cleanly."""
+    # Mega Duck (SameDuck): execution starts at 0x0000; DI, JR -2.
+    duck = bytearray(0x8000)
+    duck[0:3] = bytes([0xF3, 0x18, 0xFE])
+    (content / 'probe-duck.bin').write_bytes(bytes(duck))
+
+    # Watara Supervision (Potator): the last 16 KiB are fixed at $C000;
+    # SEI, CLD, LDX #$FF, TXS, JMP *.
+    wsv = bytearray(0x8000)
+    wsv[0x4000:0x4008] = bytes([0x78, 0xD8, 0xA2, 0xFF, 0x9A, 0x4C, 0x05, 0xC0])
+    _vectors_6502(wsv, 0x7FFA, 0xC000)
+    (content / 'probe-wsv.sv').write_bytes(bytes(wsv))
+
+    # Arduboy (Ardens): Intel HEX, RJMP . at the reset vector.
+    data = bytes([0xFF, 0xCF])
+    record = bytes([len(data), 0x00, 0x00, 0x00]) + data
+    checksum = (-sum(record)) & 0xFF
+    (content / 'probe-ard.hex').write_text(':' + (record + bytes([checksum])).hex().upper() + '\n:00000001FF\n')
+
+    # Atari 2600 (Stella): 4 KiB at $F000, a full frame kernel (VSYNC, 37
+    # lines of VBLANK, 192 visible lines on a coloured background, 30 of
+    # overscan).
+    a26 = bytearray([0xEA]) * 0x1000
+    kernel = [0x78, 0xD8, 0xA2, 0xFF, 0x9A,
+              0xA9, 0x02, 0x85, 0x00, 0x85, 0x02, 0x85, 0x02, 0x85, 0x02, 0xA9, 0x00, 0x85, 0x00,
+              0xA2, 0x25, 0x85, 0x02, 0xCA, 0xD0, 0xFB,
+              0xA9, 0x00, 0x85, 0x01, 0xA9, 0x44, 0x85, 0x09,
+              0xA2, 0xC0, 0x85, 0x02, 0xCA, 0xD0, 0xFB,
+              0xA9, 0x02, 0x85, 0x01,
+              0xA2, 0x1E, 0x85, 0x02, 0xCA, 0xD0, 0xFB,
+              0x4C, 0x05, 0xF0]
+    a26[0:len(kernel)] = bytes(kernel)
+    _vectors_6502(a26, 0xFFA, 0xF000)
+    (content / 'probe-2600.a26').write_bytes(bytes(a26))
+
+    # Atari 7800 (ProSystem): a headerless 16 KiB cartridge at $C000.
+    a78 = bytearray(0x4000)
+    a78[0:8] = bytes([0x78, 0xD8, 0xA2, 0xFF, 0x9A, 0x4C, 0x05, 0xC0])
+    _vectors_6502(a78, 0x3FFA, 0xC000)
+    (content / 'probe-7800.a78').write_bytes(bytes(a78))
+
+    # Atari 5200 (a5200, internal Altirra OS): 32 KiB at $4000-$BFFF; $BFFD
+    # = $FF starts the cartridge at once from $BFFE.
+    a52 = bytearray(0x8000)
+    a52[0:8] = bytes([0x78, 0xD8, 0xA2, 0xFF, 0x9A, 0x4C, 0x05, 0x40])
+    a52[0x7FE8:0x7FFC] = b'NEOSTATION PROBE    '
+    a52[0x7FFD] = 0xFF
+    struct.pack_into('<H', a52, 0x7FFE, 0x4000)
+    (content / 'probe-5200.a52').write_bytes(bytes(a52))
+
+    # PC Engine (Beetle PCE Fast): bank 0 is at $E000 at power-on; SEI, CSH,
+    # LDX #$FF, TXS, BRA *.
+    pce = bytearray(0x8000)
+    pce[0:7] = bytes([0x78, 0xD4, 0xA2, 0xFF, 0x9A, 0x80, 0xFE])
+    struct.pack_into('<HHHHH', pce, 0x1FF6, 0xE000, 0xE000, 0xE000, 0xE000, 0xE000)
+    (content / 'probe-pce.pce').write_bytes(bytes(pce))
+
+    # Neo Geo Pocket Color (Beetle NeoPop, its built-in BIOS): header with
+    # the start address, then JR T,$ (TLCS-900H).
+    ngp = bytearray(0x10000)
+    ngp[0x00:0x1C] = b'COPYRIGHT BY SNK CORPORATION'
+    struct.pack_into('<I', ngp, 0x1C, 0x200040)
+    ngp[0x23] = 0x10
+    ngp[0x24:0x30] = b'NEOSTATION  '
+    ngp[0x40:0x42] = bytes([0x68, 0xFE])
+    (content / 'probe-ngp.ngc').write_bytes(bytes(ngp))
+
+    # WonderSwan (Beetle WonderSwan): 64 KiB; the V30 starts at FFFF:0000,
+    # the footer's JMPF F000:0000 (ROM offset 0), where JMP $ loops. No
+    # save memory, horizontal.
+    ws = bytearray([0xFF]) * 0x10000
+    ws[0:2] = bytes([0xEB, 0xFE])
+    ws[-16:-11] = bytes([0xEA, 0x00, 0x00, 0x00, 0xF0])
+    ws[-11:] = bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00])
+    (content / 'probe-ws.ws').write_bytes(bytes(ws))
+
+    # Virtual Boy (Beetle VB): 64 KiB (a power of two); the V810 starts at
+    # 0xFFFFFFF0, the last 16 bytes: BR $.
+    vb = bytearray(0x10000)
+    vb[-16:-14] = bytes([0x00, 0x8A])
+    (content / 'probe-vb.vb').write_bytes(bytes(vb))
+
+    # Atari Lynx (Handy, without boot ROM): a BLL homebrew loaded at $0200.
+    # Its header starts with BRA +8, executed first; then SEI, CLD, BRA *.
+    code = bytes([0x78, 0xD8, 0x80, 0xFE])
+    lynx = bytes([0x80, 0x08, 0x02, 0x00]) + struct.pack('>H', 10 + len(code)) + b'BS93' + code
+    (content / 'probe-lynx.o').write_bytes(lynx)
+
+    # Pokemon mini (PokeMini, built-in free BIOS): "MN" at $2100, then
+    # JRS $ (S1C88).
+    mini = bytearray(0x10000)
+    mini[0x2100:0x2102] = b'MN'
+    mini[0x2102:0x2104] = bytes([0xF1, 0xFE])
+    (content / 'probe-mini.min').write_bytes(bytes(mini))
+
+    # WASM-4: a module importing the 64 KiB env.memory and exporting an
+    # empty update().
+    wasm = (b'\0asm' + bytes([1, 0, 0, 0])
+            + bytes([0x01, 0x04, 0x01, 0x60, 0x00, 0x00])
+            + bytes([0x02, 0x10, 0x01, 0x03]) + b'env' + bytes([0x06]) + b'memory' + bytes([0x02, 0x01, 0x01, 0x01])
+            + bytes([0x03, 0x02, 0x01, 0x00])
+            + bytes([0x07, 0x0A, 0x01, 0x06]) + b'update' + bytes([0x00, 0x00])
+            + bytes([0x0A, 0x04, 0x01, 0x02, 0x00, 0x0B]))
+    (content / 'probe-wasm4.wasm').write_bytes(wasm)
+
+    # ColecoVision (Gearcoleco): a cartridge header and a loop; refused
+    # here because the probe has no BIOS (none is shipped).
+    col = bytearray(0x2000)
+    col[0:2] = bytes([0xAA, 0x55])
+    struct.pack_into('<H', col, 0x0A, 0x8010)
+    col[0x10:0x12] = bytes([0x18, 0xFE])
+    (content / 'probe-cv.col').write_bytes(bytes(col))
+
+    # Uzebox and Game & Watch: files that are not their formats.
+    (content / 'probe-not-uze.uze').write_bytes(b'NOTUZE' + bytes(1024))
+    (content / 'probe-not-mgw.mgw').write_bytes(b'not a game and watch package' + bytes(256))
 
 
 def build_iso(program, output_path, work):
@@ -691,18 +865,22 @@ def assemble(args, sources, work):
     build_iso(inputs / 'simple.prx', content / 'probe.iso', work)
     build_nds(content / 'probe.nds')
     build_nds(content / 'shader-pattern.nds', shader_pattern=True)
+    build_lot1_content(content)
     if imports_shader_kit(sources):
         build_shader_fixtures(app, args.official_shaders)
     catalog = CATALOG.read_text(encoding='utf-8')
     geometry = {}
     names = {}
-    for console in ('gb', 'psp', '3ds', 'nds'):
+    for console in sorted({'gb', 'psp', '3ds', 'nds'} | {scenario['console'] for scenario in SCENARIOS}):
         names[console], geometry[console] = console_geometry(catalog, console)
     scenarios = []
     for scenario in SCENARIOS:
-        if args.only and scenario['name'] not in args.only:
+        if getattr(args, 'lot1', False):
+            if not scenario.get('lot1'):
+                continue
+        elif args.only and scenario['name'] not in args.only:
             continue
-        if not args.only and not scenario.get('default', True):
+        elif not args.only and not scenario.get('default', True):
             continue
         if bool(scenario.get('shaders', {}).get('official')) != args.official_shaders:
             continue
@@ -879,6 +1057,16 @@ def evaluate(report, scenarios):
                 problems += resolution_problems(name, resolution, result, launch)
             if scenario.get('shaders'):
                 problems += shader_problems(name, scenario['shaders'], result, launch)
+        elif scenario['expect'] == 'rejected':
+            # The core is loaded and initialised, refuses the content, and
+            # the session tears down to nothing.
+            if launch.get('success') or launch.get('code') != 'LIBRETRO_GAME_REJECTED':
+                problems.append(f"{name}: expected a LIBRETRO_GAME_REJECTED launch failure, got "
+                                f"{launch.get('success')} {launch.get('code')}: {launch.get('message')}")
+            if result.get('presentedAtEnd') or result.get('activeAfterStop'):
+                problems.append(f'{name}: the game view or session stayed after the refusal')
+            if 'initialised' not in result.get('journal', ''):
+                problems.append(f'{name}: the journal does not show the core initialised before the refusal')
         elif scenario['expect'] == 'core-stopped':
             if launch.get('success') or launch.get('code') != 'LIBRETRO_CORE_STOPPED':
                 problems.append(f"{name}: expected a LIBRETRO_CORE_STOPPED launch failure, got "
@@ -1312,6 +1500,8 @@ def main():
     run_parser.add_argument('--sources', help='libretro bridge ios/ directory (default: this tree)')
     run_parser.add_argument('--label', default='this tree')
     run_parser.add_argument('--only', nargs='*', default=[])
+    run_parser.add_argument('--lot1', action='store_true',
+                            help='Run only the lot 1 cores (docs/libretro-consoles-lot1.md)')
     run_parser.add_argument('--expect', choices=('fixed', 'unfixed'), default='fixed')
     run_parser.add_argument('--timeout', type=int, default=900)
     run_parser.add_argument('--official-shaders', action='store_true',

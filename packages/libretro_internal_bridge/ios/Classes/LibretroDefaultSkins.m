@@ -344,7 +344,7 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
 
   // Right: face buttons laid out like the original controller.
   LibretroDefaultGroup *right = [LibretroDefaultGroup new];
-  if (DefaultIs(console, @[ @"snes", @"nds", @"3ds", @"psx", @"psp" ])) {
+  if (DefaultIs(console, @[ @"snes", @"nds", @"3ds", @"psx", @"psp", @"uze" ])) {
     double top = 0;
     if ([console isEqualToString:@"3ds"] && map.hasRightStick) {
       // New 3DS C-stick above the face buttons.
@@ -386,10 +386,19 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
     [right addButton:@"cDown" map:map diameter:38 x:124 y:99];
     [right addButton:@"cLeft" map:map diameter:38 x:84 y:59];
     [right addButton:@"cRight" map:map diameter:38 x:164 y:59];
-  } else if (DefaultIs(console, @[ @"gb", @"gbc", @"gba" ])) {
+  } else if (DefaultIs(console, @[ @"gb", @"gbc", @"gba", @"duck", @"wsv" ])) {
     // Handhelds: B low left, A high right.
     [right addButton:@"b" map:map diameter:66 x:33 y:73];
     [right addButton:@"a" map:map diameter:66 x:103 y:33];
+  } else if (DefaultIs(console, @[ @"ngp", @"ngpc", @"ard" ])) {
+    // Neo Geo Pocket and Arduboy: A low left, B high right.
+    [right addButton:@"a" map:map diameter:66 x:33 y:73];
+    [right addButton:@"b" map:map diameter:66 x:103 y:33];
+  } else if ([console isEqualToString:@"mini"]) {
+    // Pokémon mini: B, A and C rising to the right.
+    [right addButton:@"b" map:map diameter:58 x:29 y:93];
+    [right addButton:@"a" map:map diameter:58 x:97 y:61];
+    [right addButton:@"c" map:map diameter:50 x:161 y:25];
   } else {
     // NES and Sega 8-bit pads: B / 1 left, A / 2 right.
     [right addButton:@"b" map:map diameter:66 x:33 y:33];
@@ -403,7 +412,7 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
   }
   NSArray<NSString *> *leftShoulders = @[];
   NSArray<NSString *> *rightShoulders = @[];
-  if (DefaultIs(console, @[ @"gba", @"snes", @"nds", @"psp" ])) {
+  if (DefaultIs(console, @[ @"gba", @"snes", @"nds", @"psp", @"vb", @"uze" ])) {
     leftShoulders = @[ @"l" ];
     rightShoulders = @[ @"r" ];
   } else if ([console isEqualToString:@"n64"]) {
@@ -445,9 +454,17 @@ static LibretroDefaultPlan *DefaultPlanForConsole(NSString *console, LibretroInp
 #pragma mark - Screens
 
 static double DefaultSingleAspect(NSString *console) {
-  if (DefaultIs(console, @[ @"gb", @"gbc", @"gg" ])) return 10.0 / 9.0;
-  if ([console isEqualToString:@"gba"]) return 3.0 / 2.0;
+  if (DefaultIs(console, @[ @"gb", @"gbc", @"gg", @"duck" ])) return 10.0 / 9.0;
+  if (DefaultIs(console, @[ @"gba", @"mini" ])) return 3.0 / 2.0;
   if ([console isEqualToString:@"psp"]) return 480.0 / 272.0;
+  // Aspects the lot 1 cores declare (docs/libretro-consoles-lot1.md).
+  if (DefaultIs(console, @[ @"ws", @"wsc" ])) return 14.0 / 9.0;
+  if (DefaultIs(console, @[ @"ngp", @"ngpc" ])) return 20.0 / 19.0;
+  if ([console isEqualToString:@"lynx"]) return 160.0 / 102.0;
+  if ([console isEqualToString:@"vb"]) return 12.0 / 7.0;
+  if (DefaultIs(console, @[ @"wsv", @"wasm4" ])) return 1.0;
+  if ([console isEqualToString:@"ard"]) return 2.0;
+  if ([console isEqualToString:@"uze"]) return 630.0 / 448.0;
   return 4.0 / 3.0;
 }
 

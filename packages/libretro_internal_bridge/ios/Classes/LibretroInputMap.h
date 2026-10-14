@@ -47,6 +47,28 @@ NS_ASSUME_NONNULL_BEGIN
 ///                 l2[ZL]->L2  r2[ZR]->R2  start[START]->START  select[SELECT]->SELECT
 ///                 leftStick* (Circle Pad) -> left analog, rightStick* (C-Stick) -> right analog
 ///                 touchScreen -> POINTER
+///   pce, tg16, pccd, tgcd: b[II]->B  a[I]->A  select[SELECT]->SELECT  start[RUN]->START
+///   ws, wsc:      a[A]->A  b[B]->B  start[START]->START
+///                 r2[Y1]->R2  r[Y2]->R  l2[Y3]->L2  l[Y4]->L (Beetle WonderSwan's Y pad)
+///                 select[⟳]->SELECT (turns the screen for vertical games)
+///   ngp, ngpc:    a[A]->B  b[B]->A  start[OPTION]->START (Beetle NeoPop crosses A and B)
+///   lynx:         a[A]->A  b[B]->B  l[OPT1]->L  r[OPT2]->R  start[PAUSE]->START
+///   vb:           a[A]->A  b[B]->B  l[L]->L  r[R]->R  start[START]->START  select[SELECT]->SELECT
+///                 l2[R▲]->L2  l3[R▼]->L3  r2[R◀]->R2  r3[R▶]->R3 (right D-pad)
+///   2600:         b[1]->B  select[SELECT]->SELECT  start[RESET]->START
+///   7800:         b[1]->B  a[2]->A  select[SELECT]->SELECT  start[PAUSE]->START  x[RESET]->X
+///   5200:         a[1]->A  b[2]->B  start[START]->START  select[PAUSE]->SELECT
+///                 l[0-9]->L (a5200's on-screen keypad)  y[*]->Y  x[#]->X
+///   cv:           b[L]->B  a[R]->A  y[1]->Y  x[2]->X  l[3]->L  r[4]->R
+///                 start[*]->START  select[#]->SELECT
+///   mini:         a[A]->A  b[B]->B  c[C]->R
+///   gw, duck, wsv: a[A]->A  b[B]->B  select[SELECT]->SELECT  start[START]->START
+///   ard:          a[A]->A  b[B]->B
+///   wasm4:        a[X]->A  b[Z]->B
+///   uze:          same as snes
+/// Buttons a console's core reads that are not listed (2600 difficulty
+/// switches, 5200 and ColecoVision keypad keys beyond these, Pokémon mini
+/// shake and power, Lynx rotation) keep their RetroPad id on controllers.
 ///
 /// Blocked RetroPad buttons (never sent, whatever the source): nds R3
 /// (DeSmuME "Quick Screen Switch"), 3ds L3 and R3 (Azahar HOME / swap
@@ -110,11 +132,14 @@ typedef struct {
 
 /// Map of a NeoStation console id ("nes", "snes", "gb", "gbc", "gba",
 /// "md", "mcd", "32x", "sms", "gg", "sg1000", "arcade", "nds", "n64",
-/// "psx", "psp", "3ds"). An unknown console gets an empty logical table:
-/// controllers then use the passthrough mapping only.
+/// "psx", "psp", "3ds", then the consoles of lot 1: "pce", "tg16", "pccd",
+/// "tgcd", "ws", "wsc", "ngp", "ngpc", "lynx", "vb", "2600", "7800",
+/// "5200", "cv", "mini", "gw", "duck", "wsv", "ard", "wasm4", "uze"). An
+/// unknown console gets an empty logical table: controllers then use the
+/// passthrough mapping only.
 + (instancetype)mapForConsole:(NSString *)console;
 
-/// The 17 console ids above, in this order.
+/// The 38 console ids above, in this order (LibretroCoreCatalog.consoles).
 + (NSArray<NSString *> *)consoles;
 
 @property(nonatomic, copy, readonly) NSString *console;
@@ -137,6 +162,7 @@ typedef struct {
 /// readable by VoiceOver or is a direction: "buttonCircle", "buttonCross",
 /// "buttonTriangle", "buttonSquare", "inputUp", "inputDown", "inputLeft",
 /// "inputRight", "inputLeftStick", "inputRightStick", "inputTouchScreen",
+/// "inputRotateScreen" (WonderSwan select),
 /// "inputMenu", "inputQuickSave", "inputQuickLoad", "inputFastForward",
 /// "inputToggleFastForward", "swapScreens"; nil when the glyph itself is the
 /// name ("A", "L", "START"...).

@@ -564,6 +564,61 @@ void main() {
     });
   });
 
+  group('lot 1 consoles', () {
+    test('ColecoVision needs its BIOS for every game; the console is ready once it is there', () async {
+      final os7 = synthetic(8192, 7);
+      fixture.references('cv-os7', <List<int>>[os7]);
+      var report = await fixture.check();
+      expect(result(report, 'cv-os7').status, LibretroBiosStatus.missingRequired);
+      expect(console(report, 'cv').ready, isFalse);
+      expect(console(report, 'cv').notes, contains(const LibretroBiosNote('biosNoteColeco')));
+
+      fixture.put('colecovision.rom', os7);
+      report = await fixture.check();
+      expect(result(report, 'cv-os7').status, LibretroBiosStatus.verified);
+      expect(console(report, 'cv').ready, isTrue);
+    });
+
+    test('a PC Engine CD System Card is required only by discs, and follows the CD BIOS option', () async {
+      var card = result(await fixture.check(), 'pcecd-syscard3');
+      expect(card.status, LibretroBiosStatus.missingOptional);
+      expect(keys(card), contains('biosConditionUnmet'));
+
+      fixture.games = <LibretroBiosGame>[fixture.game('pce', 'pce/Bonk.pce')];
+      card = result(await fixture.check(), 'pcecd-syscard3');
+      expect(card.status, LibretroBiosStatus.missingOptional, reason: 'a HuCard needs no BIOS');
+
+      fixture.games = <LibretroBiosGame>[fixture.game('pccd', 'pccd/Ys Book I & II.cue')];
+      var report = await fixture.check();
+      card = result(report, 'pcecd-syscard3');
+      expect(card.status, LibretroBiosStatus.missingRequired);
+      expect(console(report, 'pccd').ready, isFalse);
+      expect(card.notes, contains(const LibretroBiosNote('biosOptionOn', <String, String>{'option': 'pce_fast_cdbios'})));
+      // A disc kept in the HuCard folder needs it too.
+      fixture.games = <LibretroBiosGame>[fixture.game('tg16', 'tg16/Lords of Thunder.chd')];
+      expect(result(await fixture.check(), 'pcecd-syscard3').status, LibretroBiosStatus.missingRequired);
+
+      File(p.join(fixture.config.path, 'Beetle PCE Fast.json'))
+          .writeAsStringSync(jsonEncode(<String, Object?>{'values': <String, String>{'pce_fast_cdbios': 'System Card 2'}}));
+      report = await fixture.check();
+      expect(result(report, 'pcecd-syscard3').notes,
+          contains(const LibretroBiosNote('biosOptionOff', <String, String>{'option': 'pce_fast_cdbios'})));
+      expect(result(report, 'pcecd-syscard2').notes,
+          contains(const LibretroBiosNote('biosOptionOn', <String, String>{'option': 'pce_fast_cdbios'})));
+    });
+
+    test('optional lot 1 BIOS never make a console unready', () async {
+      final report = await fixture.check();
+      for (final id in <String>['lynx-boot', '7800-na', '7800-eu', '5200-bios', 'mini-bios']) {
+        expect(result(report, id).status, LibretroBiosStatus.missingOptional, reason: id);
+      }
+      for (final id in <String>['lynx', '7800', '5200', 'mini', 'pce', 'tg16', 'ws', 'ngp', 'vb', '2600', 'gw', 'uze']) {
+        expect(console(report, id).ready, isTrue, reason: id);
+      }
+      expect(console(report, '5200').notes, contains(const LibretroBiosNote('biosNote5200')));
+    });
+  });
+
   group('PPSSPP support files', () {
     test('installed at the next PSP launch, incomplete, or identical to the shipped copy', () async {
       var atlas = result(await fixture.check(), 'psp-atlas');
@@ -667,6 +722,9 @@ void main() {
     expect(report.consoles.map((console) => console.id), <String>[
       'nes', 'snes', 'gb', 'gbc', 'gba', 'md', 'mcd', '32x', 'sms', 'gg', 'sg1000',
       'arcade', 'nds', 'n64', 'psx', 'psp', '3ds',
+      // Lot 1.
+      'pce', 'tg16', 'pccd', 'tgcd', 'ws', 'wsc', 'ngp', 'ngpc', 'lynx', 'vb', '2600', '7800', '5200', 'cv',
+      'mini', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze',
     ]);
   });
 

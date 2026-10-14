@@ -90,7 +90,8 @@ void main() {
       ['genesis', 'Sega Genesis'],
       ['3ds', 'Nintendo 3DS'],
       ['gc', 'Nintendo GameCube'],
-      ['2600', 'Atari 2600'],
+      // An external-app console (the Atari 2600 before lot 1 embedded it).
+      ['c64', 'Commodore 64'],
       ['switch', 'Nintendo Switch'],
     ]) {
       await db.insert('app_systems', {'id': system[0], 'real_name': system[1], 'folder_name': system[0]});
@@ -207,7 +208,7 @@ void main() {
     }
     // External apps only: MeloNX, RetroArch.
     expect(find.descendant(of: find.byKey(const ValueKey('console-switch')), matching: find.text('External app: MeloNX')), findsOneWidget);
-    expect(find.descendant(of: find.byKey(const ValueKey('console-2600')), matching: find.text('External app: RetroArch')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const ValueKey('console-c64')), matching: find.text('External app: RetroArch')), findsOneWidget);
     // The page sits below the 46.r header.
     expect(tester.getTopLeft(find.text(c(ConsoleManagerLocale.tabTitle))).dy, greaterThan(46.r));
     // A console whose core is not in the build is shown unavailable: no
@@ -233,10 +234,10 @@ void main() {
     // Not only libretro consoles: GameCube (Dolphin) and an external app.
     await tester.tap(visible('gc'));
     await settle(tester);
-    await tester.tap(visible('2600'));
+    await tester.tap(visible('c64'));
     await settle(tester);
-    expect(provider.detectedSystems.map((s) => s.folderName), containsAll(<String>['gc', '2600']));
-    expect(menu.pinned, ['nes', 'gc', '2600']);
+    expect(provider.detectedSystems.map((s) => s.folderName), containsAll(<String>['gc', 'c64']));
+    expect(menu.pinned, ['nes', 'gc', 'c64']);
   });
 
   testWidgets('a console present through another system is not added twice', (tester) async {
@@ -326,12 +327,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(provider.hiddenSystemFolders, isNot(contains('nes')));
-    for (final id in ['nes', 'md', 'gc', '2600', 'switch']) {
+    for (final id in ['nes', 'md', 'gc', 'c64', 'switch']) {
       expect(switchOf(tester, visible(id)).value, isTrue, reason: id);
     }
     // Only systems known to this test database could be added.
     expect(provider.detectedSystems.map((s) => s.folderName).toSet(),
-        <String>{'nes', 'md', '3ds', 'gc', '2600', 'switch'});
+        <String>{'nes', 'md', '3ds', 'gc', 'c64', 'switch'});
   });
 
   testWidgets('Restore defaults shows the hidden, removes the empty additions and turns the engines back on',

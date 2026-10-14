@@ -87,7 +87,9 @@ void main() {
         ConsoleEngine.rpcs3: 1,
         ConsoleEngine.ports: 1,
         ConsoleEngine.melonx: 1,
-        ConsoleEngine.retroarch: 61,
+        // 61 before lot 1, whose 21 consoles moved to the libretro engine
+        // with their ids (docs/libretro-consoles-lot1.md).
+        ConsoleEngine.retroarch: 40,
       });
     });
 
@@ -109,12 +111,15 @@ void main() {
         for (final entry in ConsoleCatalog.entries)
           if (entry.retroArchFallback) entry.id,
       };
-      expect(fallback, containsAll(<String>['nes', 'psx', '3ds', 'pico', 'ps2']));
-      for (final id in ['gc', 'wii', 'ps3', 'ports', 'switch', '2600']) {
+      expect(fallback, containsAll(<String>['nes', 'psx', '3ds', 'pico', 'ps2', '2600', 'pce', 'tg16']));
+      for (final id in ['gc', 'wii', 'ps3', 'ports', 'switch', 'c64']) {
         expect(fallback, isNot(contains(id)), reason: id);
       }
       expect(ConsoleCatalog.byId('switch')!.hasEmbeddedEngine, isFalse);
-      expect(ConsoleCatalog.byId('2600')!.hasEmbeddedEngine, isFalse);
+      expect(ConsoleCatalog.byId('c64')!.hasEmbeddedEngine, isFalse);
+      // Lot 1: the Atari 2600 keeps its id and gains the embedded engine.
+      expect(ConsoleCatalog.byId('2600')!.hasEmbeddedEngine, isTrue);
+      expect(ConsoleCatalog.byId('2600')!.engine, ConsoleEngine.libretro);
     });
   });
 

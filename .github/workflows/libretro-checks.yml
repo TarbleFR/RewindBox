@@ -140,20 +140,21 @@ jobs:
         flutter analyze --no-fatal-infos
     - name: Libretro, launch and library tests
       run: |
-        flutter test test/libretro_locale_test.dart test/libretro_core_catalog_test.dart test/frontend_media_gate_test.dart test/rom_folder_registration_test.dart test/library_scan_restart_test.dart test/retroarch_library_protocol_test.dart test/retroarch_library_cache_test.dart test/retroarch_launch_diagnostics_test.dart test/retroarch_sync_locale_test.dart test/ios_selective_rollback_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/game_repository_test.dart test/system_repository_test.dart test/rpcs3_embedded_identity_test.dart test/audio_policy_service_test.dart test/libretro_skin_service_test.dart test/libretro_skin_catalog_test.dart test/libretro_skin_catalogs_test.dart test/libretro_skin_manager_test.dart test/libretro_playlist_actions_test.dart test/ios_library_root_relocation_test.dart test/neostation_rom_library_test.dart test/header_battery_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/libretro_3ds_language_test.dart test/libretro_core_option_store_test.dart test/libretro_3ds_system_data_service_test.dart test/libretro_3ds_system_screen_test.dart test/libretro_3ds_launch_default_test.dart test/libretro_3ds_encrypted_launch_test.dart test/console_manager_test.dart test/libretro_session_probe_codec_test.dart test/libretro_resolution_test.dart test/libretro_resolution_screen_test.dart
+        flutter test test/libretro_locale_test.dart test/libretro_core_catalog_test.dart test/frontend_media_gate_test.dart test/rom_folder_registration_test.dart test/library_scan_restart_test.dart test/retroarch_library_protocol_test.dart test/retroarch_library_cache_test.dart test/retroarch_launch_diagnostics_test.dart test/retroarch_sync_locale_test.dart test/ios_selective_rollback_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/game_repository_test.dart test/system_repository_test.dart test/rpcs3_embedded_identity_test.dart test/audio_policy_service_test.dart test/libretro_skin_service_test.dart test/libretro_skin_catalog_test.dart test/libretro_skin_catalogs_test.dart test/libretro_skin_manager_test.dart test/libretro_playlist_actions_test.dart test/ios_library_root_relocation_test.dart test/neostation_rom_library_test.dart test/header_battery_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/libretro_3ds_language_test.dart test/libretro_core_option_store_test.dart test/libretro_3ds_system_data_service_test.dart test/libretro_3ds_system_screen_test.dart test/libretro_3ds_launch_default_test.dart test/libretro_3ds_encrypted_launch_test.dart test/console_manager_test.dart test/libretro_session_probe_codec_test.dart test/libretro_resolution_test.dart test/libretro_resolution_screen_test.dart test/legal_credits_dialog_test.dart
         # Build 447: storage analysis and cleanup, with the fifth Tools row
         # (docs/storage-audit-cleanup.md § 5).
         flutter test test/storage_*_test.dart
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-8b9e87ba39edb647f8cddca5ee8d924319bcbacb
-        run-id: '38352378859'
+        name: LibretroCores-df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf
+        run-id: '38627332377'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Source contracts
       run: |
         python3 test/libretro_azahar_package_test.py
+        python3 test/libretro_add_cores_test.py
         python3 test/libretro_core_options_test.py --cores dist/libretro
         python3 test/libretro_bios_requirements_test.py --cores dist/libretro
         python3 test/libretro_route_contract_test.py

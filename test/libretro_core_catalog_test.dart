@@ -103,10 +103,14 @@ void main() {
     }
   });
 
-  test('every bound system belongs to one of the 17 consoles', () {
+  test('every bound system belongs to one of the 38 consoles', () {
+    // The 17 consoles of the embedded engine, then the 21 of lot 1
+    // (docs/libretro-consoles-lot1.md), whose ids are those the Consoles tab
+    // already used for them as RetroArch consoles.
     const ids = <String>[
       'nes', 'snes', 'gb', 'gbc', 'gba', 'md', 'mcd', '32x', 'sms', 'gg', 'sg1000', 'arcade', 'nds', 'n64',
-      'psx', 'psp', '3ds',
+      'psx', 'psp', '3ds', 'pce', 'tg16', 'pccd', 'tgcd', 'ws', 'wsc', 'ngp', 'ngpc', 'lynx', 'vb', '2600',
+      '7800', '5200', 'cv', 'mini', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze',
     ];
     expect(LibretroCoreCatalog.consoles.keys.toList(), ids);
     for (final entry in LibretroCoreCatalog.consoles.entries) {
@@ -124,6 +128,10 @@ void main() {
       'mark3': 'sms', 'gg': 'gg', 'sg1k': 'sg1000', 'arc': 'arcade', 'fbneo': 'arcade', 'cps1': 'arcade',
       'cps2': 'arcade', 'cps3': 'arcade', 'neogeo': 'arcade', 'ds': 'nds', 'n64': 'n64', 'ps1': 'psx',
       'psp': 'psp', 'pspminis': 'psp', '3ds': '3ds',
+      // Lot 1: one console per system, as in the Consoles tab before.
+      'pce': 'pce', 'tg16': 'tg16', 'pccd': 'pccd', 'tgcd': 'tgcd', 'ws': 'ws', 'wsc': 'wsc', 'ngp': 'ngp',
+      'ngpc': 'ngpc', 'lynx': 'lynx', 'vb': 'vb', '2600': '2600', '7800': '7800', '5200': '5200', 'cv': 'cv',
+      'mini': 'mini', 'gw': 'gw', 'duck': 'duck', 'wsv': 'wsv', 'ard': 'ard', 'wasm4': 'wasm4', 'uze': 'uze',
     };
     for (final entry in expected.entries) {
       expect(LibretroCoreCatalog.systems[entry.key]!.console, entry.value, reason: entry.key);
@@ -158,7 +166,16 @@ void main() {
       'md': [320, 224], 'mcd': [320, 224], '32x': [320, 224], 'sms': [256, 192], 'sg1000': [256, 192],
       'gg': [160, 144], 'arcade': [0, 0], 'nds': [256, 384], 'n64': [320, 240], 'psx': [320, 240],
       'psp': [480, 272], '3ds': [400, 480],
+      // Lot 1: av_info of each core (docs/libretro-consoles-lot1.md); 0 x 0
+      // where it changes per game or TV standard (Beetle PCE Fast width,
+      // Stella and ProSystem lines, Game & Watch backgrounds, Uzem's
+      // 720 x 224 frames shown at 630:448).
+      'pce': [0, 0], 'tg16': [0, 0], 'pccd': [0, 0], 'tgcd': [0, 0], 'ws': [224, 144], 'wsc': [224, 144],
+      'ngp': [160, 152], 'ngpc': [160, 152], 'lynx': [160, 102], 'vb': [384, 224], '2600': [0, 0],
+      '7800': [0, 0], '5200': [320, 224], 'cv': [256, 192], 'mini': [96, 64], 'gw': [0, 0],
+      'duck': [160, 144], 'wsv': [160, 160], 'ard': [128, 64], 'wasm4': [160, 160], 'uze': [0, 0],
     };
+    expect(sizes.keys.toSet(), LibretroCoreCatalog.consoles.keys.toSet());
     for (final entry in sizes.entries) {
       expect(geometry[entry.key]!['size'], entry.value, reason: entry.key);
     }
@@ -190,6 +207,23 @@ void main() {
     expect(LibretroCoreCatalog.consoles['nds']!.importSystem, 'ds');
     expect(LibretroCoreCatalog.consoles['psx']!.importSystem, 'ps1');
     expect(LibretroCoreCatalog.consoles['sg1000']!.importSystem, 'sg1k');
+    // The scanner knows the Mega Duck as "megaduck" (its system id "duck"
+    // is not one of its folders): imported games must go where they are
+    // listed.
+    for (final console in LibretroCoreCatalog.consoles.values) {
+      final folders = <String>[
+        for (final folder in systems[console.importSystem]!['system']['folders'] as List)
+          (folder as String).toLowerCase(),
+      ];
+      expect(folders, contains(console.importFolder), reason: console.id);
+    }
+    expect(LibretroCoreCatalog.consoles['duck']!.importFolder, 'megaduck');
+    for (final system in LibretroCoreCatalog.systems.keys) {
+      final folders = <String>[
+        for (final folder in systems[system]!['system']['folders'] as List) (folder as String).toLowerCase(),
+      ];
+      expect(folders, contains(LibretroCoreCatalog.importFolderFor(system)), reason: system);
+    }
     expect(LibretroCoreCatalog.consoles['arcade']!.importSystem, 'arc');
   });
 
@@ -227,7 +261,11 @@ void main() {
       'citra_render_3d': 'off',
       'citra_use_libretro_save_path': 'LibRetro Default',
     });
-    for (final core in cores.values.where((core) => core.id != 'desmume' && core.id != 'azahar')) {
+    // Lot 1: WASM-4 plays its sound through the batch callback only with
+    // "normal" audio; its default "callback" needs an audio callback the
+    // host does not offer (the game would be silent).
+    expect(cores['wasm4']!.lockedOptions, <String, String>{'wasm4_audio_type': 'normal'});
+    for (final core in cores.values.where((core) => !{'desmume', 'azahar', 'wasm4'}.contains(core.id))) {
       expect(core.lockedOptions, isEmpty, reason: core.id);
     }
     for (final core in cores.values) {

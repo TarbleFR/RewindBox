@@ -1,6 +1,6 @@
 # Embedded Libretro cores — NeoStation iOS 0.0.7 / Build 455
 
-NeoStation packages 14 iOS ARM64 libretro core binaries, including the official
+NeoStation packages 30 iOS ARM64 libretro core binaries, including the official
 Azahar 2127.0-alpha1 release. RetroArch
 is a separate frontend; NeoStation embeds these cores using its own host.
 All original authors retain their rights. No endorsement or relicensing is implied.
@@ -22,6 +22,22 @@ All original authors retain their rights. No endorsement or relicensing is impli
 | Beetle PSX / Beetle PSX HW | PlayStation | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_psx-COPYING) |
 | PPSSPP | PSP | Henrik Rydgård and PPSSPP contributors | [GPLv2 or later; bundled assets and dependencies retain their terms](ppsspp-LICENSE.TXT) |
 | Azahar | Nintendo 3DS | Azahar, Citra, Lime3DS, PabloMK7; FastInterp by warmenhoven and contributors | [GPLv3 or later; component notices apply](azahar-LICENSE.txt) |
+| Beetle PCE Fast | PC Engine / TurboGrafx-16 / CD | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_pce_fast-COPYING) |
+| Beetle WonderSwan | WonderSwan / WonderSwan Color | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_wswan-COPYING) |
+| Beetle NeoPop | Neo Geo Pocket / Color | NeoPop, Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_ngp-COPYING) |
+| Handy | Atari Lynx | K. Wilkins and libretro contributors | [zlib](handy-license.txt) |
+| Beetle VB | Virtual Boy | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_vb-COPYING) |
+| Stella | Atari 2600 | The Stella Team | [GPLv2](stella-License.txt); [copyright notice](stella-Copyright.txt) |
+| ProSystem | Atari 7800 | Greg Stanton and libretro contributors | [GPLv2](prosystem-License.txt) |
+| a5200 | Atari 5200 | a5200 (Atari800) and libretro contributors | [GPLv2](a5200-License.txt) |
+| Gearcoleco | ColecoVision | Ignacio Sanchez (drhelius) | [GPLv3](gearcoleco-LICENSE) |
+| PokeMini | Pokémon mini | JustBurn and libretro contributors | [GPLv3 or later](pokemini-LICENSE) |
+| GW | Game & Watch | Andre Leiradella | [zlib](gw-LICENSE) |
+| SameDuck | Mega Duck | Lior Halphon (LIJI32) | [MIT](sameduck-LICENSE) |
+| Potator | Watara Supervision | Normmatt, Cal2, infval, Alekmaul | [Unlicense (public domain)](potator-LICENSE) |
+| Ardens | Arduboy | Peter Brown | [MIT](ardens-LICENSE.txt) |
+| WASM-4 | WASM-4 | Bruno Garcia and WASM-4 contributors | [ISC](wasm4-LICENSE.txt) |
+| Uzem | Uzebox | David Etherton, Eric Anderton, Alec Bourque, Filipe Rinaldi, Sandor Zsuga, Matt Pandina, Torsten Paul | [MIT (notice in the source header)](uzem-MIT-notice.h) |
 
 ## Support libraries and resources
 
@@ -41,6 +57,10 @@ non-commercial conditions. FinalBurn Neo also explicitly restricts monetary
 profit and donation solicitation for projects using its source. This archive
 does not grant permission for commercial use, sale, paid access, promotional
 use or fundraising contrary to those terms. The complete upstream texts govern.
+
+The sixteen cores added on 14 October 2026 (Beetle PCE Fast to Uzem in the
+table above) carry GPL, MIT, zlib, ISC or public-domain terms; none of them
+adds a non-commercial condition.
 
 GPL and MPL obligations remain applicable to their respective components.
 The host project's GPL does not replace core licenses or resolve combined-work

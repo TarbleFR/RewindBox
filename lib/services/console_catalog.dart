@@ -77,16 +77,18 @@ abstract final class ConsoleCatalog {
   /// Systems run only by the RetroArch app on iOS (their `assets/systems`
   /// definition names `url_scheme: retroarch` and no embedded engine binds
   /// them), with their product names. Checked against the assets by
-  /// test/console_catalog_test.dart.
+  /// test/console_manager_test.dart.
+  ///
+  /// A system whose console moves to the embedded libretro engine leaves
+  /// this list and becomes a [LibretroCoreCatalog.consoles] entry with the
+  /// same id and product name, so a console added from the Consoles tab or
+  /// switched off there keeps its stored choice (lot 1:
+  /// docs/libretro-consoles-lot1.md).
   static const Map<String, String> retroArchSystems = <String, String>{
-    '2600': 'Atari 2600',
     '3do': 'Panasonic 3DO',
-    '5200': 'Atari 5200',
-    '7800': 'Atari 7800',
     'a2': 'Apple II',
     'a2001': 'Emerson Arcadia 2001',
     'amiga': 'Commodore Amiga',
-    'ard': 'Arduboy',
     'ast': 'Atari ST',
     'aw': 'Atomiswave',
     'bbcmicro': 'BBC Micro',
@@ -94,29 +96,20 @@ abstract final class ConsoleCatalog {
     'cdi': 'Philips CD-i',
     'chf': 'Fairchild Channel F',
     'cpc': 'Amstrad CPC',
-    'cv': 'ColecoVision',
     'dc': 'Sega Dreamcast',
     'dos': 'MS-DOS',
-    'duck': 'Mega Duck',
-    'gw': 'Game & Watch',
     'intv': 'Intellivision',
     'jag': 'Atari Jaguar',
-    'lynx': 'Atari Lynx',
     'mame': 'M.A.M.E.',
-    'mini': 'Pokémon Mini',
     'mo2': 'Magnavox Odyssey 2',
     'msx': 'MSX',
     'naomi': 'Sega Naomi',
     'naomi2': 'Sega Naomi 2',
     'naomigd': 'Sega Naomi GD-ROM',
     'ngcd': 'Neo Geo CD',
-    'ngp': 'NeoGeo Pocket',
-    'ngpc': 'NeoGeo Pocket Color',
     'palm': 'Palm OS',
     'pc88': 'NEC PC-8801',
     'pc98': 'NEC PC-9801',
-    'pccd': 'PC Engine-CD',
-    'pce': 'PC Engine',
     'pcfx': 'NEC PC-FX',
     'pet': 'Commodore - PET',
     'pico8': 'PICO-8',
@@ -125,18 +118,10 @@ abstract final class ConsoleCatalog {
     'sat': 'Sega Saturn',
     'scummvm': 'ScummVM',
     'sharpx68000': 'Sharp X68000',
-    'tg16': 'TurboGrafx-16',
-    'tgcd': 'TurboGrafx-CD',
     'tic80': 'TIC-80',
-    'uze': 'Uzebox',
-    'vb': 'Virtual Boy',
     'vc4k': 'Interton VC 4000',
     'vect': 'Vectrex',
     'vic20': 'VIC-20',
-    'wasm4': 'WASM-4',
-    'ws': 'WonderSwan',
-    'wsc': 'WonderSwan Color',
-    'wsv': 'Watara Supervision',
     'x1': 'Sharp X1',
     'zx81': 'ZX 81',
     'zxspectrum': 'ZX Spectrum',

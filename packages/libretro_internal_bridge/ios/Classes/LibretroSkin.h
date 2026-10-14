@@ -174,7 +174,14 @@ typedef NS_ENUM(NSInteger, LibretroSkinItemShape) {
 /// without '-', '_' and spaces). Aliases: nds/ds -> nds; gbc/gb -> gb and
 /// gbc; gba; nes; snes; n64; md/genesis/megadrive/mcd/32x -> md, mcd and
 /// 32x; ms/sms/mastersystem -> sms; gg -> gg; sg1000; psx/ps1 -> psx; psp;
-/// 3ds/threeds -> 3ds; arcade/fbneo/mame -> arcade. Empty when unsupported.
+/// 3ds/threeds -> 3ds; arcade/fbneo/mame -> arcade; pce/pcengine/tg16/
+/// turbografx16/turbografx/pcecd/pccd/pcenginecd/tgcd/turbografxcd -> pce,
+/// tg16, pccd and tgcd; ws/wsc/wonderswan/wonderswancolor -> ws and wsc;
+/// ngp/ngpc/neogeopocket/neogeopocketcolor -> ngp and ngpc; lynx/atarilynx;
+/// vb/virtualboy; 2600/atari2600; 7800/atari7800; 5200/atari5200;
+/// cv/coleco/colecovision; pokemini/pokemonmini -> mini; gw/gameandwatch;
+/// megaduck -> duck; supervision/wsv; arduboy -> ard; wasm4; uzebox -> uze.
+/// Empty when unsupported.
 + (NSArray<NSString *> *)consolesForGameTypeIdentifier:(NSString *)gameTypeIdentifier;
 
 /// Representation for an orientation. iPhone: edgeToEdge -> standard, or

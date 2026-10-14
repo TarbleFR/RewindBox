@@ -372,23 +372,25 @@ abstract final class LibretroInternalService {
   }
 
   /// NeoStation's own Files-visible ROM folder, registered like any library
-  /// folder so imported games appear in the usual playlists.
+  /// folder so imported games appear in the usual playlists; one folder per
+  /// system, named as the scanner knows it.
   static Future<Directory> importDirectoryFor(String systemFolder) async {
     final roms = await ConfigService.getDefaultIOSRomsFolder();
-    return Directory(path.join(roms, systemFolder.toLowerCase()));
+    return Directory(path.join(roms, LibretroCoreCatalog.importFolderFor(systemFolder)));
   }
 
   /// The registered library folders games of [systemFolder] can be imported
   /// into, in their registration order: those this device can open. A
   /// library keeps its own console folder: the first child whose name is
-  /// [systemFolder] or one of [folderAliases] (ignoring case), else a new
-  /// `<root>/<systemFolder>`.
+  /// the system's import folder ([LibretroCoreCatalog.importFolderFor], its
+  /// id unless the scanner knows it under another name) or one of
+  /// [folderAliases] (ignoring case), else a new `<root>/<import folder>`.
   static Future<List<LibretroImportLibrary>> importLibraries(
     String systemFolder, {
     required Iterable<String> registeredRoots,
     Iterable<String> folderAliases = const <String>[],
   }) async {
-    final folder = systemFolder.toLowerCase();
+    final folder = LibretroCoreCatalog.importFolderFor(systemFolder);
     final names = <String>{
       folder,
       for (final alias in folderAliases)

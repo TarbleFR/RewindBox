@@ -174,6 +174,26 @@ static void TestGameTypes(void) {
     @"public.aoshuang.game.arcade" : @[ @"arcade" ],
     @"org.provenance.fbneo" : @[ @"arcade" ],
     @"org.provenance.mame" : @[ @"arcade" ],
+    // Lot 1: the Provenance catalog's PC Engine skins (public.aoshuang.game.pce)
+    // fit the four PC Engine consoles, a WonderSwan skin both WonderSwans.
+    @"public.aoshuang.game.pce" : @[ @"pce", @"tg16", @"pccd", @"tgcd" ],
+    @"org.provenance.PCECD" : @[ @"pce", @"tg16", @"pccd", @"tgcd" ],
+    @"com.provenance.turbografx-16" : @[ @"pce", @"tg16", @"pccd", @"tgcd" ],
+    @"org.provenance.wonderswan-color" : @[ @"ws", @"wsc" ],
+    @"org.provenance.ngpc" : @[ @"ngp", @"ngpc" ],
+    @"org.provenance.lynx" : @[ @"lynx" ],
+    @"org.provenance.virtual_boy" : @[ @"vb" ],
+    @"org.provenance.2600" : @[ @"2600" ],
+    @"org.provenance.atari7800" : @[ @"7800" ],
+    @"org.provenance.5200" : @[ @"5200" ],
+    @"org.provenance.ColecoVision" : @[ @"cv" ],
+    @"org.provenance.pokemonmini" : @[ @"mini" ],
+    @"org.provenance.game-and-watch" : @[ @"gw" ],
+    @"org.provenance.megaduck" : @[ @"duck" ],
+    @"org.provenance.supervision" : @[ @"wsv" ],
+    @"org.provenance.arduboy" : @[ @"ard" ],
+    @"org.provenance.wasm4" : @[ @"wasm4" ],
+    @"org.provenance.uzebox" : @[ @"uze" ],
   };
   for (NSString *gameType in expected) {
     NSArray<NSString *> *consoles = [LibretroSkin consolesForGameTypeIdentifier:gameType];

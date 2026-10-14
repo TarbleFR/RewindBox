@@ -172,8 +172,10 @@ void main() {
     expect(summary(LibretroBiosStatus.verified), 1);
     expect(summary(LibretroBiosStatus.presentUnverified), 1);
     expect(summary(LibretroBiosStatus.invalid), 0);
-    // Without any PS1 BIOS, the three PlayStation files are required.
-    expect(summary(LibretroBiosStatus.missingRequired), 3);
+    // Without any PS1 BIOS, the three PlayStation files are required; the
+    // ColecoVision BIOS (lot 1, docs/libretro-consoles-lot1.md) always is.
+    expect(summary(LibretroBiosStatus.missingRequired), 4);
+    expect(inEntry('cv-os7', find.text(english['biosStatusMissingRequired']!)), findsOneWidget);
 
     final badge = find.byKey(const ValueKey('bios-status-badge-gb-boot'));
     expect(find.descendant(of: badge, matching: find.text(english['biosStatusVerified']!)), findsOneWidget);
@@ -200,7 +202,16 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text(english['biosNoBiosNeeded']!), findsNWidgets(2), reason: '32X and SG-1000');
+    // 32X, SG-1000 and the twelve lot 1 consoles whose cores need no firmware.
+    const noBios = <String>['32x', 'sg1000', 'ws', 'wsc', 'ngp', 'ngpc', 'vb', '2600', 'gw', 'duck', 'wsv', 'ard', 'wasm4', 'uze'];
+    expect(find.text(english['biosNoBiosNeeded']!), findsNWidgets(noBios.length));
+    for (final console in noBios) {
+      expect(
+        find.descendant(of: find.byKey(ValueKey('bios-console-card-$console')), matching: find.text(english['biosNoBiosNeeded']!)),
+        findsOneWidget,
+        reason: console,
+      );
+    }
 
     // Technical details open on demand.
     await tester.ensureVisible(find.byKey(const ValueKey('bios-details-gb-boot')));

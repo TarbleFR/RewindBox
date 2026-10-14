@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "about": "Vendored subset of public libretro reference data (no BIOS bytes): firmware fields and notes md5 values of the 14 embedded cores, and the matching System.dat rows.",
+  "about": "Vendored subset of public libretro reference data (no BIOS bytes): firmware fields and notes md5 values of the 30 embedded cores, and the matching System.dat rows.",
   "coreInfo": {
     "repository": "https://github.com/libretro/libretro-core-info",
     "commit": "5a74858ab2f7a50cebb5a6330895bc38899531c0",
@@ -524,6 +524,191 @@
         "corename": "Azahar",
         "display_version": "Git",
         "supported_extensions": "3ds|3dsx|z3dsx|elf|axf|cci|zcci|cxi|zcxi|app",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "mednafen_pce_fast": {
+        "corename": "Beetle PCE Fast",
+        "display_version": "v0.9.38.7",
+        "supported_extensions": "pce|cue|ccd|chd|toc|m3u",
+        "firmware": [
+          {
+            "path": "syscard3.pce",
+            "desc": "syscard3.pce (PCE-CD BIOS)",
+            "opt": true
+          },
+          {
+            "path": "syscard2.pce",
+            "desc": "syscard2.pce (PCE-CD BIOS)",
+            "opt": true
+          },
+          {
+            "path": "syscard1.pce",
+            "desc": "syscard1.pce (PCE-CD BIOS)",
+            "opt": true
+          },
+          {
+            "path": "gexpress.pce",
+            "desc": "gexpress.pce (PCE-CD BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "syscard3.pce": "38179df8f4ac870017db21ebcbf53114"
+        }
+      },
+      "mednafen_wswan": {
+        "corename": "Beetle WonderSwan",
+        "display_version": "v0.9.35.1",
+        "supported_extensions": "ws|wsc|pc2|pcv2",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "mednafen_ngp": {
+        "corename": "Beetle NeoPop",
+        "display_version": "v0.9.36.1",
+        "supported_extensions": "ngp|ngc|ngpc|npc",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "handy": {
+        "corename": "Handy",
+        "display_version": "0.95",
+        "supported_extensions": "lnx|lyx|o",
+        "firmware": [
+          {
+            "path": "lynxboot.img",
+            "desc": "lynxboot.img (Lynx Boot Image)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "lynxboot.img": "fcd403db69f54290b51035d82f835e7b"
+        }
+      },
+      "mednafen_vb": {
+        "corename": "Beetle VB",
+        "display_version": "v0.9.36.1",
+        "supported_extensions": "vb|vboy|bin",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "stella": {
+        "corename": "Stella",
+        "display_version": "6.6",
+        "supported_extensions": "a26|bin",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "prosystem": {
+        "corename": "ProSystem",
+        "display_version": "1.3e",
+        "supported_extensions": "a78|bin|cdf",
+        "firmware": [
+          {
+            "path": "7800 BIOS (U).rom",
+            "desc": "7800 BIOS (U).rom (7800 BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "7800 BIOS (U).rom": "0763f1ffb006ddbe32e52d497ee848ae"
+        }
+      },
+      "a5200": {
+        "corename": "a5200",
+        "display_version": "2.0.2",
+        "supported_extensions": "a52|bin",
+        "firmware": [
+          {
+            "path": "5200.rom",
+            "desc": "5200.rom (5200 BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "5200.rom": "281f20ea4320404ec820fb7ec0693b38"
+        }
+      },
+      "gearcoleco": {
+        "corename": "Gearcoleco",
+        "display_version": "1.7.0",
+        "supported_extensions": "col|cv|bin|rom|zip|ddp|dsk|m3u",
+        "firmware": [
+          {
+            "path": "colecovision.rom",
+            "desc": "colecovision.rom (ColecoVision / ADAM OS-7 BIOS)",
+            "opt": false
+          },
+          {
+            "path": "eos.rom",
+            "desc": "eos.rom (required for ADAM)",
+            "opt": true
+          },
+          {
+            "path": "writer.rom",
+            "desc": "writer.rom (required for ADAM)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "colecovision.rom": "2c66f5911e5b42b8ebe113403548eee7",
+          "eos.rom": "01df3140909f09aa9aac4f88890f676c",
+          "writer.rom": "4fe4f6800076ea3d897d4285653447bd"
+        }
+      },
+      "pokemini": {
+        "corename": "PokeMini",
+        "display_version": "v0.60",
+        "supported_extensions": "min",
+        "firmware": [
+          {
+            "path": "bios.min",
+            "desc": "bios.min (Pokemon Mini BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {}
+      },
+      "gw": {
+        "corename": "GW",
+        "display_version": "Git",
+        "supported_extensions": "mgw",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "sameduck": {
+        "corename": "SameDuck",
+        "display_version": "git",
+        "supported_extensions": "bin|duck",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "potator": {
+        "corename": "Potator",
+        "display_version": "1.0.5",
+        "supported_extensions": "bin|sv",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "ardens": {
+        "corename": "Ardens",
+        "display_version": "Git",
+        "supported_extensions": "hex|arduboy",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "wasm4": {
+        "corename": "WASM-4",
+        "display_version": "2.1.0",
+        "supported_extensions": "wasm",
+        "firmware": [],
+        "notes_md5": {}
+      },
+      "uzem": {
+        "corename": "uzem",
+        "display_version": "",
+        "supported_extensions": "uze",
         "firmware": [],
         "notes_md5": {}
       }
@@ -1302,6 +1487,86 @@
         "crc": "7b57fa78",
         "md5": "866855cc330b9b95cc69135fb7b41d38",
         "sha1": "30a33f3651f8e1b0967a5dfe6ff714baebcce41a"
+      },
+      {
+        "section": "Atari - 5200",
+        "name": "5200.rom",
+        "size": 2048,
+        "crc": "4248d3e3",
+        "md5": "281f20ea4320404ec820fb7ec0693b38",
+        "sha1": "6ad7a1e8c9fad486fbec9498cb48bf5bc3adc530"
+      },
+      {
+        "section": "Atari - 7800",
+        "name": "7800 BIOS (E).rom",
+        "size": 16384,
+        "crc": "d5b61170",
+        "md5": "397bb566584be7b9764e7a68974c4263",
+        "sha1": "5a140136a16d1d83e4ff32a19409ca376a8df874"
+      },
+      {
+        "section": "Atari - 7800",
+        "name": "7800 BIOS (U).rom",
+        "size": 4096,
+        "crc": "5d13730c",
+        "md5": "0763f1ffb006ddbe32e52d497ee848ae",
+        "sha1": "d9d134bb6b36907c615a594cc7688f7bfcef5b43"
+      },
+      {
+        "section": "Atari - Lynx",
+        "name": "lynxboot.img",
+        "size": 512,
+        "crc": "0d973c9d",
+        "md5": "fcd403db69f54290b51035d82f835e7b",
+        "sha1": "e4ed47fae31693e016b081c6bda48da5b70d7ccb"
+      },
+      {
+        "section": "Coleco - ColecoVision",
+        "name": "colecovision.rom",
+        "size": 8192,
+        "crc": "3aa93ef3",
+        "md5": "2c66f5911e5b42b8ebe113403548eee7",
+        "sha1": "45bedc4cbdeac66c7df59e9e599195c778d86a92"
+      },
+      {
+        "section": "NEC - PC Engine - TurboGrafx 16 - SuperGrafx",
+        "name": "gexpress.pce",
+        "size": 32768,
+        "crc": "51a12d90",
+        "md5": "6d2cb14fc3e1f65ceb135633d1694122",
+        "sha1": "014881a959e045e00f4db8f52955200865d40280"
+      },
+      {
+        "section": "NEC - PC Engine - TurboGrafx 16 - SuperGrafx",
+        "name": "syscard1.pce",
+        "size": 262144,
+        "crc": "3f9f95a4",
+        "md5": "2b7ccb3d86baa18f6402c176f3065082",
+        "sha1": "a39a66da7de6ba94ab84d04eef7afeec7d4ee66a"
+      },
+      {
+        "section": "NEC - PC Engine - TurboGrafx 16 - SuperGrafx",
+        "name": "syscard2.pce",
+        "size": 262144,
+        "crc": "283b74e0",
+        "md5": "3cdd6614a918616bfc41c862e889dd79",
+        "sha1": "88da02e2503f7c32810f5d93a34849d470742b6d"
+      },
+      {
+        "section": "NEC - PC Engine - TurboGrafx 16 - SuperGrafx",
+        "name": "syscard3.pce",
+        "size": 262144,
+        "crc": "6d9a73ef",
+        "md5": "38179df8f4ac870017db21ebcbf53114",
+        "sha1": "79f5ff55dd10187c7fd7b8daab0b3ffbd1f56a2c"
+      },
+      {
+        "section": "Nintendo - Pokemon Mini",
+        "name": "bios.min",
+        "size": 4096,
+        "crc": "aed3c14d",
+        "md5": "1e4fb124a3a886865acb574f388c803d",
+        "sha1": "daad4113713ed776fbd47727762bca81ba74915f"
       }
     ]
   }

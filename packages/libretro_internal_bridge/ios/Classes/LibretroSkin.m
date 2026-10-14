@@ -889,6 +889,9 @@ static NSString *SkinImagePath(NSString *root, id name) {
   dispatch_once(&once, ^{
     NSArray<NSString *> *gameBoy = @[ @"gb", @"gbc" ];
     NSArray<NSString *> *megaDrive = @[ @"md", @"mcd", @"32x" ];
+    NSArray<NSString *> *pcEngine = @[ @"pce", @"tg16", @"pccd", @"tgcd" ];
+    NSArray<NSString *> *wonderSwan = @[ @"ws", @"wsc" ];
+    NSArray<NSString *> *neoGeoPocket = @[ @"ngp", @"ngpc" ];
     aliases = @{
       @"nds" : @[ @"nds" ],
       @"ds" : @[ @"nds" ],
@@ -916,6 +919,49 @@ static NSString *SkinImagePath(NSString *root, id name) {
       @"arcade" : @[ @"arcade" ],
       @"fbneo" : @[ @"arcade" ],
       @"mame" : @[ @"arcade" ],
+      // Lot 1 (docs/libretro-consoles-lot1.md): one pad for the PC Engine
+      // family, one per pair of handheld revisions.
+      @"pce" : pcEngine,
+      @"pcengine" : pcEngine,
+      @"tg16" : pcEngine,
+      @"turbografx16" : pcEngine,
+      @"turbografx" : pcEngine,
+      @"pcecd" : pcEngine,
+      @"pccd" : pcEngine,
+      @"pcenginecd" : pcEngine,
+      @"tgcd" : pcEngine,
+      @"turbografxcd" : pcEngine,
+      @"ws" : wonderSwan,
+      @"wsc" : wonderSwan,
+      @"wonderswan" : wonderSwan,
+      @"wonderswancolor" : wonderSwan,
+      @"ngp" : neoGeoPocket,
+      @"ngpc" : neoGeoPocket,
+      @"neogeopocket" : neoGeoPocket,
+      @"neogeopocketcolor" : neoGeoPocket,
+      @"lynx" : @[ @"lynx" ],
+      @"atarilynx" : @[ @"lynx" ],
+      @"vb" : @[ @"vb" ],
+      @"virtualboy" : @[ @"vb" ],
+      @"2600" : @[ @"2600" ],
+      @"atari2600" : @[ @"2600" ],
+      @"7800" : @[ @"7800" ],
+      @"atari7800" : @[ @"7800" ],
+      @"5200" : @[ @"5200" ],
+      @"atari5200" : @[ @"5200" ],
+      @"cv" : @[ @"cv" ],
+      @"coleco" : @[ @"cv" ],
+      @"colecovision" : @[ @"cv" ],
+      @"pokemini" : @[ @"mini" ],
+      @"pokemonmini" : @[ @"mini" ],
+      @"gw" : @[ @"gw" ],
+      @"gameandwatch" : @[ @"gw" ],
+      @"megaduck" : @[ @"duck" ],
+      @"supervision" : @[ @"wsv" ],
+      @"wsv" : @[ @"wsv" ],
+      @"arduboy" : @[ @"ard" ],
+      @"wasm4" : @[ @"wasm4" ],
+      @"uzebox" : @[ @"uze" ],
     };
   });
   return aliases[key] ?: @[];

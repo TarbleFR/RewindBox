@@ -1,6 +1,6 @@
 // Behavioural test of LibretroChromeLayout.
 //
-// Menu button: for the 17 consoles' default skins, both orientations,
+// Menu button: for the 38 consoles' default skins, both orientations,
 // iPhone SE to iPad Pro 13 and resizable iPad windows, with and without
 // safe areas, every DS / 3DS screen arrangement, swapped or not, controls
 // shown or hidden (controller connected): the button stays inside the safe

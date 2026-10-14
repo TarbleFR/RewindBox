@@ -37,6 +37,23 @@ PREFIXES = {
     'mednafen_psx': ('beetle_psx_',),
     'ppsspp': ('ppsspp_',),
     'azahar': ('citra_', 'azahar_'),
+    # Lot 1 (docs/libretro-consoles-lot1.md).
+    'mednafen_pce_fast': ('pce_fast_', 'pce_'),
+    'mednafen_wswan': ('wswan_',),
+    'mednafen_ngp': ('ngp_',),
+    'handy': ('handy_',),
+    'mednafen_vb': ('vb_',),
+    'stella': ('stella_',),
+    'prosystem': ('prosystem_',),
+    'a5200': ('a5200_',),
+    'gearcoleco': ('gearcoleco_',),
+    'pokemini': ('pokemini_',),
+    'gw': ('gw_',),
+    'sameduck': ('sameduck_',),
+    'potator': ('potator_',),
+    'ardens': ('ardens_',),
+    'wasm4': ('wasm4_',),
+    'uzem': ('uzem_',),
 }
 CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?:^|[_-])drc(?:$|[_-])', re.I)
 
@@ -85,6 +102,11 @@ LOCKED = {
         'citra_analog_function': 'c_stick',
         'citra_render_3d': 'off',
         'citra_use_libretro_save_path': 'LibRetro Default',
+    },
+    # Lot 1: the core's default "callback" audio needs
+    # RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, which the host does not offer.
+    'wasm4': {
+        'wasm4_audio_type': 'normal',
     },
 }
 # The choices of every curated setting, exactly: the raw values the core

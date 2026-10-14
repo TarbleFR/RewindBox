@@ -44,7 +44,7 @@ abstract final class NeoStationRomLibrary {
   /// The folder of each console the embedded engine runs, named as the
   /// scanner knows it (the system games are imported into).
   static List<String> consoleFolders() =>
-      {for (final console in LibretroCoreCatalog.consoles.values) console.importSystem.toLowerCase()}.toList()
+      {for (final console in LibretroCoreCatalog.consoles.values) console.importFolder}.toList()
         ..sort();
 
   /// Creates `<romsRoot>/<console>` for every console of the embedded engine;

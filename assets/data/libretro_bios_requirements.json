@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "about": "BIOS and system files read by the libretro cores embedded in NeoStation iOS (Build 440). Public sizes and checksums only, never BIOS bytes. Read by lib/services/libretro_bios_catalog.dart and checked by test/libretro_bios_requirements_test.py.",
+  "about": "BIOS and system files read by the libretro cores embedded in NeoStation iOS (Build 440; lot 1 consoles, 14 October 2026). Public sizes and checksums only, never BIOS bytes. Read by lib/services/libretro_bios_catalog.dart and checked by test/libretro_bios_requirements_test.py.",
   "sources": {
     "coreInfo": {
       "repository": "https://github.com/libretro/libretro-core-info",
@@ -15,9 +15,10 @@
       "date": "2026-06-14"
     },
     "coresArtifact": {
-      "name": "LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2",
-      "run": "38195212647",
-      "created": "2026-10-12T02:17:40Z"
+      "name": "LibretroCores-df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf",
+      "run": "38627332377",
+      "created": "2026-10-14T19:53:18Z",
+      "base": "LibretroCores-8b9e87ba39edb647f8cddca5ee8d924319bcbacb (run 38352378859), copied unchanged; it kept the 13 cores of LibretroCores-ba3dc14d7196429b65f20cdb8573616633dfb8a2 (run 38195212647)"
     },
     "coreSources": {
       "nestopia": "libretro/nestopia b9fdc9c4",
@@ -33,9 +34,26 @@
       "mednafen_psx_hw": "libretro/beetle-psx-libretro 10e4b0c6",
       "mednafen_psx": "libretro/beetle-psx-libretro 10e4b0c6",
       "ppsspp": "hrydgard/ppsspp ed7de3ea",
-      "azahar": "azahar-emu/azahar a5c3d4f8"
+      "azahar": "azahar-emu/azahar a5c3d4f8",
+      "mednafen_pce_fast": "libretro/beetle-pce-fast-libretro 3f946f27",
+      "mednafen_wswan": "libretro/beetle-wswan-libretro 4b012958",
+      "mednafen_ngp": "libretro/beetle-ngp-libretro a50d5ac2",
+      "handy": "libretro/libretro-handy bc55d462",
+      "mednafen_vb": "libretro/beetle-vb-libretro d5ae54c8",
+      "stella": "stella-emu/stella 2c3d7023",
+      "prosystem": "libretro/prosystem-libretro 8a880142",
+      "a5200": "libretro/a5200 40c6f2f1",
+      "gearcoleco": "drhelius/Gearcoleco d74e9b82",
+      "pokemini": "libretro/PokeMini 132111b7",
+      "gw": "libretro/gw-libretro 91d599b9",
+      "sameduck": "LIJI32/SameBoy SameDuck 5619abdb",
+      "potator": "libretro/potator 227c5f6f",
+      "ardens": "tiberiusbrown/Ardens ba7ad0dc",
+      "wasm4": "aduros/wasm4 9d6c9627",
+      "uzem": "libretro/libretro-uzem d991ee94"
     },
     "coreSourcesNote": "identity.json records no source commit: these are the last commits on or before the previous pinned cores run 37945318237 (2026-10-09); they were not re-derived for run 38195212647 (2026-10-12, upstream repositories unreachable from the work container), so the nightly binaries may be newer. test/libretro_bios_requirements_test.py --cores checks the file names against the pinned binaries.",
+    "coreSourcesLot1Note": "Lot 1 cores (14 October 2026): the upstream heads read that day; identity.json of run 38627332377 records no source commit either.",
     "documentation": "https://docs.libretro.com/library/"
   },
   "flags": {
@@ -64,7 +82,28 @@
     "n64": {"noteKeys": ["biosNoteCartridges"]},
     "psx": {"noteKeys": ["biosNotePsx"]},
     "psp": {"noteKeys": ["biosNotePsp"]},
-    "3ds": {"noteKeys": ["biosNoteAzahar"]}
+    "3ds": {"noteKeys": ["biosNoteAzahar"]},
+    "pce": {"noteKeys": ["biosNoteCartridges"]},
+    "tg16": {"noteKeys": ["biosNoteCartridges"]},
+    "pccd": {"noteKeys": ["biosNotePceCd"]},
+    "tgcd": {"noteKeys": ["biosNotePceCd"]},
+    "ws": {"noteKeys": ["biosNoBiosNeeded"]},
+    "wsc": {"noteKeys": ["biosNoBiosNeeded"]},
+    "ngp": {"noteKeys": ["biosNoBiosNeeded"]},
+    "ngpc": {"noteKeys": ["biosNoBiosNeeded"]},
+    "lynx": {"noteKeys": ["biosNoteBootLogo"]},
+    "vb": {"noteKeys": ["biosNoBiosNeeded"]},
+    "2600": {"noteKeys": ["biosNoBiosNeeded"]},
+    "7800": {"noteKeys": ["biosNoteBootLogo"]},
+    "5200": {"noteKeys": ["biosNote5200"]},
+    "cv": {"noteKeys": ["biosNoteColeco"]},
+    "mini": {"noteKeys": ["biosNoteBootLogo"]},
+    "gw": {"noteKeys": ["biosNoBiosNeeded"]},
+    "duck": {"noteKeys": ["biosNoBiosNeeded"]},
+    "wsv": {"noteKeys": ["biosNoBiosNeeded"]},
+    "ard": {"noteKeys": ["biosNoBiosNeeded"]},
+    "wasm4": {"noteKeys": ["biosNoBiosNeeded"]},
+    "uze": {"noteKeys": ["biosNoBiosNeeded"]}
   },
   "entries": [
     {
@@ -841,6 +880,177 @@
       "hashVaries": true,
       "binaryStrings": {"ppsspp": ["compat.ini"]},
       "sources": ["ppsspp libretro/libretro.cpp:1220-1264 (only a warning when missing)", "build-utils/libretro/cores.json systemAssets"]
+    },
+    {
+      "id": "pcecd-syscard3",
+      "consoles": ["pce", "tg16", "pccd", "tgcd"],
+      "cores": ["mednafen_pce_fast"],
+      "names": ["syscard3.pce"],
+      "locations": ["system"],
+      "level": "conditional",
+      "condition": {
+        "key": "biosCondPceCd",
+        "games": [
+          {"systems": ["pccd", "tgcd"]},
+          {"systems": ["pce", "tg16"], "extensions": ["cue", "ccd", "chd", "toc", "m3u"]}
+        ]
+      },
+      "region": "jp",
+      "optionGates": [
+        {"core": "mednafen_pce_fast", "all": [{"keys": ["pce_fast_cdbios"], "enabled": ["System Card 3"], "default": "System Card 3"}]}
+      ],
+      "knownDumps": [
+        {"size": 262144, "crc": "6d9a73ef", "md5": "38179df8f4ac870017db21ebcbf53114", "sha1": "79f5ff55dd10187c7fd7b8daab0b3ffbd1f56a2c", "label": "Super CD-ROM2 System V3.00 (Japan)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_pce_fast", "path": "syscard3.pce"}],
+      "binaryStrings": {"mednafen_pce_fast": ["syscard3.pce"]},
+      "sources": ["core-info mednafen_pce_fast firmware0", "beetle-pce-fast-libretro libretro.c (pce_fast_cdbios \"System Card 3\", the default, reads syscard3.pce; LoadCD fails without it)"]
+    },
+    {
+      "id": "pcecd-syscard2",
+      "consoles": ["pce", "tg16", "pccd", "tgcd"],
+      "cores": ["mednafen_pce_fast"],
+      "names": ["syscard2.pce"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "jp",
+      "optionGates": [
+        {"core": "mednafen_pce_fast", "all": [{"keys": ["pce_fast_cdbios"], "enabled": ["System Card 2"], "default": "System Card 3"}]}
+      ],
+      "knownDumps": [
+        {"size": 262144, "crc": "283b74e0", "md5": "3cdd6614a918616bfc41c862e889dd79", "sha1": "88da02e2503f7c32810f5d93a34849d470742b6d", "label": "CD-ROM2 System V2.00 (Japan)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_pce_fast", "path": "syscard2.pce"}],
+      "binaryStrings": {"mednafen_pce_fast": ["syscard2.pce"]},
+      "sources": ["core-info mednafen_pce_fast firmware1", "beetle-pce-fast-libretro libretro.c (pce_fast_cdbios \"System Card 2\")"]
+    },
+    {
+      "id": "pcecd-syscard1",
+      "consoles": ["pce", "tg16", "pccd", "tgcd"],
+      "cores": ["mednafen_pce_fast"],
+      "names": ["syscard1.pce"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "jp",
+      "optionGates": [
+        {"core": "mednafen_pce_fast", "all": [{"keys": ["pce_fast_cdbios"], "enabled": ["System Card 1"], "default": "System Card 3"}]}
+      ],
+      "knownDumps": [
+        {"size": 262144, "crc": "3f9f95a4", "md5": "2b7ccb3d86baa18f6402c176f3065082", "sha1": "a39a66da7de6ba94ab84d04eef7afeec7d4ee66a", "label": "CD-ROM2 System V1.00 (Japan)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_pce_fast", "path": "syscard1.pce"}],
+      "binaryStrings": {"mednafen_pce_fast": ["syscard1.pce"]},
+      "sources": ["core-info mednafen_pce_fast firmware2", "beetle-pce-fast-libretro libretro.c (pce_fast_cdbios \"System Card 1\")"]
+    },
+    {
+      "id": "pcecd-gexpress",
+      "consoles": ["pce", "tg16", "pccd", "tgcd"],
+      "cores": ["mednafen_pce_fast"],
+      "names": ["gexpress.pce"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "jp",
+      "optionGates": [
+        {"core": "mednafen_pce_fast", "all": [{"keys": ["pce_fast_cdbios"], "enabled": ["Games Express"], "default": "System Card 3"}]}
+      ],
+      "knownDumps": [
+        {"size": 32768, "crc": "51a12d90", "md5": "6d2cb14fc3e1f65ceb135633d1694122", "sha1": "014881a959e045e00f4db8f52955200865d40280", "label": "Games Express CD Card (Japan)", "source": "System.dat"}
+      ],
+      "info": [{"core": "mednafen_pce_fast", "path": "gexpress.pce"}],
+      "binaryStrings": {"mednafen_pce_fast": ["gexpress.pce"]},
+      "sources": ["core-info mednafen_pce_fast firmware3", "beetle-pce-fast-libretro libretro.c (pce_fast_cdbios \"Games Express\")"]
+    },
+    {
+      "id": "lynx-boot",
+      "consoles": ["lynx"],
+      "cores": ["handy"],
+      "names": ["lynxboot.img"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "knownDumps": [
+        {"size": 512, "crc": "0d973c9d", "md5": "fcd403db69f54290b51035d82f835e7b", "sha1": "e4ed47fae31693e016b081c6bda48da5b70d7ccb", "label": "Atari Lynx boot ROM", "source": "System.dat"}
+      ],
+      "info": [{"core": "handy", "path": "lynxboot.img"}],
+      "binaryStrings": {"handy": ["lynxboot.img"]},
+      "sources": ["core-info handy firmware0", "libretro-handy libretro/libretro.cpp (warns \"BIOS file missing\" and starts without it)"]
+    },
+    {
+      "id": "7800-na",
+      "consoles": ["7800"],
+      "cores": ["prosystem"],
+      "names": ["7800 BIOS (U).rom"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "na",
+      "knownDumps": [
+        {"size": 4096, "crc": "5d13730c", "md5": "0763f1ffb006ddbe32e52d497ee848ae", "sha1": "d9d134bb6b36907c615a594cc7688f7bfcef5b43", "label": "Atari 7800 BIOS (USA)", "source": "System.dat"}
+      ],
+      "info": [{"core": "prosystem", "path": "7800 BIOS (U).rom"}],
+      "binaryStrings": {"prosystem": ["7800 BIOS (U).rom"]},
+      "sources": ["core-info prosystem firmware0", "prosystem-libretro core/libretro.c (\"BIOS is optional\"; read for NTSC cartridges)"]
+    },
+    {
+      "id": "7800-eu",
+      "consoles": ["7800"],
+      "cores": ["prosystem"],
+      "names": ["7800 BIOS (E).rom"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "eu",
+      "knownDumps": [
+        {"size": 16384, "crc": "d5b61170", "md5": "397bb566584be7b9764e7a68974c4263", "sha1": "5a140136a16d1d83e4ff32a19409ca376a8df874", "label": "Atari 7800 BIOS (Europe)", "source": "System.dat"}
+      ],
+      "binaryStrings": {"prosystem": ["7800 BIOS (E).rom"]},
+      "sources": ["prosystem-libretro core/libretro.c (\"BIOS is optional\"; PAL cartridges read this name, which core-info does not list)"]
+    },
+    {
+      "id": "5200-bios",
+      "consoles": ["5200"],
+      "cores": ["a5200"],
+      "names": ["5200.rom"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "optionGates": [
+        {"core": "a5200", "all": [{"keys": ["a5200_bios"], "enabled": ["official"], "default": "official"}]}
+      ],
+      "knownDumps": [
+        {"size": 2048, "crc": "4248d3e3", "md5": "281f20ea4320404ec820fb7ec0693b38", "sha1": "6ad7a1e8c9fad486fbec9498cb48bf5bc3adc530", "label": "Atari 5200 BIOS", "source": "System.dat"}
+      ],
+      "info": [{"core": "a5200", "path": "5200.rom"}],
+      "binaryStrings": {"a5200": ["5200.rom"]},
+      "sources": ["core-info a5200 firmware0", "a5200 libretro/libretro.c (falls back to its internal Altirra OS without it)"]
+    },
+    {
+      "id": "cv-os7",
+      "consoles": ["cv"],
+      "cores": ["gearcoleco"],
+      "names": ["colecovision.rom"],
+      "locations": ["system"],
+      "level": "required",
+      "region": "world",
+      "knownDumps": [
+        {"size": 8192, "crc": "3aa93ef3", "md5": "2c66f5911e5b42b8ebe113403548eee7", "sha1": "45bedc4cbdeac66c7df59e9e599195c778d86a92", "label": "ColecoVision BIOS (OS-7)", "source": "System.dat"}
+      ],
+      "info": [{"core": "gearcoleco", "path": "colecovision.rom"}],
+      "binaryStrings": {"gearcoleco": ["colecovision.rom"]},
+      "sources": ["core-info gearcoleco firmware0 (opt=false)", "Gearcoleco platforms/libretro/libretro.cpp load_colecovision_firmware (no game loads without it)", "LibretroCore.biosAnyOf of gearcoleco (NeoStation refuses the launch with LIBRETRO_BIOS_MISSING)"]
+    },
+    {
+      "id": "mini-bios",
+      "consoles": ["mini"],
+      "cores": ["pokemini"],
+      "names": ["bios.min"],
+      "locations": ["system"],
+      "level": "optional",
+      "region": "world",
+      "knownDumps": [
+        {"size": 4096, "crc": "aed3c14d", "md5": "1e4fb124a3a886865acb574f388c803d", "sha1": "daad4113713ed776fbd47727762bca81ba74915f", "label": "Pokemon Mini BIOS", "source": "System.dat"}
+      ],
+      "info": [{"core": "pokemini", "path": "bios.min"}],
+      "binaryStrings": {"pokemini": ["bios.min"]},
+      "sources": ["core-info pokemini firmware0", "PokeMini libretro/libretro.c (built-in free BIOS without it)"]
     }
   ],
   "excluded": [
@@ -858,6 +1068,8 @@
     {"core": "genesis_plus_gx_wide", "path": "bios_E.sms", "reason": "NeoStation runs Master System games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
     {"core": "genesis_plus_gx_wide", "path": "bios_U.sms", "reason": "NeoStation runs Master System games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
     {"core": "genesis_plus_gx_wide", "path": "bios_J.sms", "reason": "NeoStation runs Master System games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
-    {"core": "genesis_plus_gx_wide", "path": "bios.gg", "reason": "NeoStation runs Game Gear games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."}
+    {"core": "genesis_plus_gx_wide", "path": "bios.gg", "reason": "NeoStation runs Game Gear games with Genesis Plus GX or PicoDrive, never with Genesis Plus GX Wide (LibretroCoreCatalog.systems)."},
+    {"core": "gearcoleco", "path": "eos.rom", "reason": "ADAM computer firmware: NeoStation runs ColecoVision cartridges only (gearcoleco_cartridge_hardware keeps its ColecoVision default; the ADAM needs a keyboard)."},
+    {"core": "gearcoleco", "path": "writer.rom", "reason": "ADAM SmartWRITER firmware: NeoStation runs ColecoVision cartridges only (the ADAM computer mode is not offered)."}
   ]
 }
