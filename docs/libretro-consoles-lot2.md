@@ -114,3 +114,19 @@ ne quittent jamais l'application de sonde.
 - `3b0a5b1` et `df35dc9` (règle « aucun BIOS fourni », crédit des chargeurs
   Cathy3K d'Ardens, mentions épinglées dans le vérificateur), puis
   `036632b` : contrôles run `38641524647` **réussis**.
+- **Livraison 459** (lots 1 et 2) : source
+  `e5400cbeacf850328a6d069be46dbf0479eb7a4a`, run `38642923272` (`checks`,
+  `native` et `cold` réussis), cœurs `LibretroCores-fdeaef56…` run
+  `38638115521`, artefact `NeoStation-Build-459-e5400cbe…-cold`
+  (`11932985033`, 215 447 453 octets, archive SHA-256
+  `d2378c2607941fb5a57710897f26c355f1c34f888170e9c876b9fcdaae087654`,
+  conservé jusqu'au 28 octobre 2026), chiffré pour
+  `build-utils/delivery-424-recipient.pem`. IPA
+  `NeoStation-Build459-e5400cbe…-cold.ipa`, 215 167 326 octets, SHA-256
+  `e72d9163b4b3c02f8d96f8294c18de9c547f729a41bdd4d67ed8060a53bbb513`, égal
+  à `SHA256SUMS` et à `signed-payload-identity.json` ; version 0.0.7 (459)
+  dans l'application et ses cinq extensions ; 34 cœurs libretro, dont
+  FreeChaF, FreeIntv, O2EM et Beetle PC-FX, sans vecx ni Virtual Jaguar.
+  Déchiffrée sur le PC du mainteneur à sa demande (`decrypt-459.ps1`, clé
+  424) ; copie `C:\Users\Coren\Downloads\NeoStation-Build459-e5400cb.ipa`.
+  Aucune validation sur iPhone. Ne pas réutiliser le numéro 459.
