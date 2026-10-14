@@ -176,6 +176,8 @@ OFFICIAL_ACTIONS = [
     {'kind': 'menu-apply', 'preset': OFFICIAL_PSP, 'success': True, 'passes': 1, 'persist': True},
     {'kind': 'disable', 'success': True},
     {'kind': 'menu-apply', 'preset': OFFICIAL_CRT, 'success': True, 'passes': 2, 'persist': True},
+    {'kind': 'restore-console', 'preset': OFFICIAL_PSP, 'success': True, 'passes': 1},
+    {'kind': 'menu-apply', 'preset': OFFICIAL_CRT, 'success': True, 'passes': 2, 'persist': True},
 ]
 LC_BUILD_VERSION = 0x32
 LC_VERSION_MIN_IPHONEOS = 0x25
@@ -958,16 +960,16 @@ def shader_problems(name, shaders, result, launch):
             problems.append(f'{prefix}: failure code {code!r}, expected {action["code"]!r}')
         if 'codePrefix' in action and not code.startswith(action['codePrefix']):
             problems.append(f'{prefix}: failure code {code!r}, expected prefix {action["codePrefix"]!r}')
-        if action['kind'] in ('apply', 'menu-apply', 'supersede-builtin') and action.get('success'):
+        if action['kind'] in ('apply', 'menu-apply', 'supersede-builtin', 'restore-console') and action.get('success'):
             active = 'slang:' + action['preset']
-            if step.get('installationSuccess') is not True or step.get('installationRegistered') is not True:
+            if action['kind'] != 'restore-console' and (step.get('installationSuccess') is not True or step.get('installationRegistered') is not True):
                 problems.append(f'{prefix}: shader was not installed through the verified storage')
         elif action['kind'] == 'disable':
             active = ''
         frame = step.get('frame') or {}
         if frame.get('active') != active:
             problems.append(f'{prefix}: active shader {frame.get("active")!r}, expected {active!r}')
-        if active and action.get('success') and action['kind'] in ('apply', 'menu-apply', 'supersede-builtin'):
+        if active and action.get('success') and action['kind'] in ('apply', 'menu-apply', 'supersede-builtin', 'restore-console'):
             if frame.get('textureBytes', 0) <= 0 or frame.get('passes') != action.get('passes', 3 if action['preset'] == 'complex.slangp' else 1):
                 problems.append(f'{prefix}: completed shader has no expected active chains/passes: {frame!r}')
             if frame.get('failure'):

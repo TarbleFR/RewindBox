@@ -930,17 +930,23 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
   return option.builtin != nil ? option : nil;
 }
 
-/// Shader in effect: the resolved setting, and for slang the program that
-/// actually completed activation. A stored preset skipped by crash recovery
-/// or refused at load must not be marked active or make Apply a no-op.
-- (nullable LibretroShaderOption *)activeShaderOptionWithScope:(LibretroSettingScope *)scope {
+/// Requested shader after game/console/default preference resolution.
+/// Used when applying a changed scope, resetting defaults or removing it.
+- (nullable LibretroShaderOption *)resolvedShaderOptionWithScope:(LibretroSettingScope *)scope {
   LibretroSettingScope enabledScope = LibretroSettingScopeDefault;
   LibretroSettingScope presetScope = LibretroSettingScopeDefault;
   NSNumber *enabled = [self settingForKey:LibretroSettingShaderEnabled ofClass:[NSNumber class] scope:&enabledScope];
   NSString *identifier = [self settingForKey:LibretroSettingShaderPreset ofClass:[NSString class] scope:&presetScope];
   if (scope != NULL) *scope = MaxScope(enabledScope, presetScope);
   if (!enabled.boolValue || identifier == nil) return nil;
-  LibretroShaderOption *option = [self shaderOptionForIdentifier:identifier];
+  return [self shaderOptionForIdentifier:identifier];
+}
+
+/// Shader in effect: the resolved setting, and for slang the program that
+/// actually completed activation. A stored preset skipped by crash recovery
+/// or refused at load must not be marked active or make Apply a no-op.
+- (nullable LibretroShaderOption *)activeShaderOptionWithScope:(LibretroSettingScope *)scope {
+  LibretroShaderOption *option = [self resolvedShaderOptionWithScope:scope];
   if (option != nil && option.builtin == nil && [self slangProgramOfOption:option] == nil) return nil;
   return option;
 }
@@ -1466,7 +1472,7 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
                    if (storeParameters) {
                      [menu storeValue:RoundedParameters(parameters) forKey:LibretroSettingShaderParameters state:state];
                    }
-                   LibretroShaderOption *effective = [menu activeShaderOptionWithScope:NULL];
+                   LibretroShaderOption *effective = [menu resolvedShaderOptionWithScope:NULL];
                    if (![effective.identifier isEqualToString:identifier]) {
                      // This game's own values hide the console-wide change.
                      [menu applyResolvedShaderWithState:state page:target];
@@ -1517,7 +1523,7 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
 - (void)applyResolvedShaderWithState:(LibretroFrontendPageState *)state page:(LibretroMenuPage *)page {
   id<LibretroFrontendMenuHost> host = _host;
   if (host == nil) return;
-  LibretroShaderOption *option = [self activeShaderOptionWithScope:NULL];
+  LibretroShaderOption *option = [self resolvedShaderOptionWithScope:NULL];
   NSDictionary *stored = [self settingForKey:LibretroSettingShaderParameters ofClass:[NSDictionary class] scope:NULL];
   NSDictionary<NSString *, NSNumber *> *parameters =
       option != nil ? [self parametersToApplyForOption:option stored:stored] : nil;
@@ -1939,7 +1945,7 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
                     state:(LibretroFrontendPageState *)state
                      page:(nullable LibretroMenuPage *)page {
   NSString *identifier = LibretroSlangShaderIdentifier(entry.identifier);
-  LibretroShaderOption *active = [self activeShaderOptionWithScope:NULL];
+  LibretroShaderOption *active = [self resolvedShaderOptionWithScope:NULL];
   if ([active.identifier isEqualToString:identifier]) {
     // Switched off where it is switched on (this game or the console),
     // whatever scope the Shaders page shows.

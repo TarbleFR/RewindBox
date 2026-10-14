@@ -690,6 +690,35 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
     record(YES, nil);
   } else if ([kind isEqualToString:@"disable"]) {
     apply();
+  } else if ([kind isEqualToString:@"restore-console"]) {
+    // Set up the real preference transition of restoring console defaults:
+    // console PSP LUT, current game CRT -> remove the game shader keys.
+    // Invoke the menu's real reapplication method, not applyShaderPreset.
+    [host.frontendStore setValue:@YES forKey:LibretroSettingShaderEnabled console:host.console game:nil];
+    [host.frontendStore setValue:identifier forKey:LibretroSettingShaderPreset console:host.console game:nil];
+    [host.frontendStore setValue:@{} forKey:LibretroSettingShaderParameters console:host.console game:nil];
+    for (NSString *key in @[LibretroSettingShaderEnabled, LibretroSettingShaderPreset, LibretroSettingShaderParameters])
+      [host.frontendStore setValue:nil forKey:key console:host.console game:host.gameKey];
+    LibretroFrontendMenu *frontend = [session valueForKey:@"frontendMenu"];
+    id state = [NSClassFromString(@"LibretroFrontendPageState") new];
+    SEL selector = NSSelectorFromString(@"applyResolvedShaderWithState:page:");
+    ((void (*)(id, SEL, id, id))[frontend methodForSelector:selector])(frontend, selector, state, nil);
+    CFAbsoluteTime deadline = CFAbsoluteTimeGetCurrent() + 30;
+    __block void (^poll)(void);
+    poll = ^{
+      LibretroMetalPresenter *presenter = [session valueForKey:@"presenter"];
+      if ([presenter.activePresetIdentifier isEqualToString:identifier] &&
+          [host.activeSlangProgram.presetPath isEqualToString:preset]) {
+        poll = nil;
+        record(YES, nil);
+      } else if (CFAbsoluteTimeGetCurrent() >= deadline) {
+        poll = nil;
+        record(NO, @"CONSOLE_SHADER_RESTORE_TIMEOUT");
+      } else {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), poll);
+      }
+    };
+    poll();
   } else if ([kind isEqualToString:@"delete-dependency"]) {
     NeoShaderInstallation *installation = [storage installationWithIdentifier:preset];
     NSString *path = [[storage filesDirectoryForRevision:installation.revision] stringByAppendingPathComponent:action[@"path"]];
