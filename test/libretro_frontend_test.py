@@ -30,6 +30,7 @@ PORTABLE_FRONTEND = (
     'LibretroShaderLibrary.m',
     'LibretroAddressSpace.m',
     'LibretroSessionJournal.m',
+    'LibretroShaderRecovery.m',
     'LibretroInputLatch.m',
     'LibretroTouchTracker.m',
     'LibretroSkinCompatibility.m',

@@ -59,8 +59,8 @@ typedef NS_ENUM(NSInteger, LibretroShaderFilter) {
 
 /// A post-processing preset NeoStation ships, hand-ported to Metal Shading
 /// Language from libretro/slang-shaders. Single pass, applied to each game
-/// screen separately, never to the skin or the menu. NeoStation does NOT
-/// load RetroArch .slangp / .glslp / .cgp files.
+/// screen separately, never to the skin or the menu. Downloaded .slangp
+/// presets use the separate shared NeoSlangRenderer chain.
 @interface LibretroShaderPreset : NSObject
 @property(nonatomic, copy, readonly) NSString *identifier;   // e.g. "crt-lottes-fast"
 @property(nonatomic, copy, readonly) NSString *nameKey;      // LibretroLocale key of the translated name

@@ -7,6 +7,7 @@
 #import "LibretroGeometry.h"
 #import "LibretroShaderLibrary.h"
 #import "LibretroSlangShaders.h"
+#import "LibretroShaderRecovery.h"
 
 #import <neo_shader_kit/NeoShaderCatalog.h>
 #import <neo_shader_kit/NeoShaderStorage.h>
@@ -992,12 +993,7 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
 }
 
 - (NSString *)textForShaderFailure:(nullable NSString *)code {
-  if ([code isEqualToString:LibretroSlangNotInstalled]) return [self text:@"shaderNotInstalled"];
-  if ([code isEqualToString:@"CHAIN_MEMORY"] || [code isEqualToString:@"CHAIN_PASS_SIZE"] ||
-      [code isEqualToString:@"CHAIN_ALLOCATION"]) {
-    return [self text:@"shaderTooHeavy"];
-  }
-  return [self text:@"shaderFailed"];
+  return [self text:LibretroShaderFailureTextKey(code)];
 }
 
 - (NSString *)textForCategory:(NSString *)category {
@@ -1467,10 +1463,6 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
                    if (storeParameters) {
                      [menu storeValue:RoundedParameters(parameters) forKey:LibretroSettingShaderParameters state:state];
                    }
-                   // Drawn as the standard picture (too heavy at this size).
-                   if (owner.lastShaderFailureCode != nil) {
-                     [owner showStatus:[menu textForShaderFailure:owner.lastShaderFailureCode]];
-                   }
                    LibretroShaderOption *effective = [menu activeShaderOptionWithScope:NULL];
                    if (![effective.identifier isEqualToString:identifier]) {
                      // This game's own values hide the console-wide change.
@@ -1479,12 +1471,15 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
                      [menu measureShaderWithState:state page:target];
                    }
                  } else {
-                   [owner showStatus:[menu textForShaderFailure:owner.lastShaderFailureCode]];
+                   if (![owner.lastShaderFailureCode isEqualToString:@"SHADER_SUPERSEDED"]) {
+                     [owner showStatus:[menu textForShaderFailure:owner.lastShaderFailureCode]];
+                   }
                    // A failed built-in preset leaves the standard picture: the
                    // shader in effect before comes back. A slang preset that
                    // failed changed nothing (it replaces the picture only once
                    // compiled).
-                   if (option.builtin != nil && previous != nil) {
+                   if (option.builtin != nil && previous != nil &&
+                       ![owner.lastShaderFailureCode isEqualToString:@"SHADER_SUPERSEDED"]) {
                      [menu restoreShaderOption:previous parameters:previousParameters state:state page:target];
                    }
                  }
@@ -1534,7 +1529,7 @@ static NSDictionary<NSString *, NSNumber *> *StoredNumbers(NSDictionary *stored)
                completion:^(BOOL success) {
                  state.busy = NO;
                  LibretroMenuPage *target = weakPage;
-                 if (!success) {
+                 if (!success && ![menu->_host.lastShaderFailureCode isEqualToString:@"SHADER_SUPERSEDED"]) {
                    [menu->_host showStatus:[menu textForShaderFailure:menu->_host.lastShaderFailureCode]];
                  } else if (option != nil && target != nil) {
                    [menu measureShaderWithState:state page:target];

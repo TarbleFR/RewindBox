@@ -1289,6 +1289,16 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         if(!bridge || bridge.stopInProgress || bridge.dolphinController!=owner)return;
         [bridge.sessionMenu pushViewController:[owner.framePacing settingsController] animated:YES];
       };
+      // Open the same post-processing page directly from Graphics. The
+      // Display page keeps its shortcut; both use Dolphin's own settings.
+      if (owner.framePacing.shaderPage != nil) {
+        menu.openShaderSettings = ^{
+          DolphinInternalBridgePlugin* bridge=weakSelf;
+          if(!bridge || bridge.stopInProgress || bridge.dolphinController!=owner)return;
+          UIViewController* page=owner.framePacing.shaderPage();
+          if(page)[bridge.sessionMenu pushViewController:page animated:YES];
+        };
+      }
       menu.openTextureSettings = ^{
         DolphinInternalBridgePlugin* bridge=weakSelf;
         if(!bridge || bridge.stopInProgress || bridge.dolphinController!=owner || bridge.systemMenuSession)return;

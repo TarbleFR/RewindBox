@@ -6,6 +6,7 @@
 //
 //   dolphin-shader-store-tests
 #import <Foundation/Foundation.h>
+#include <string.h>
 
 #include "DOLShaderStore.h"
 
@@ -183,13 +184,44 @@ static void TestDisplayTrial(NSString* root) {
   CHECK([Shader(user, system, @"GALE01") isEqualToString:@"FXAA"], "next launch: effect staged again");
 }
 
-int main(void) {
+/// Regression: the previous staging order wrote PostProcessingShader first,
+/// then returned failure on an unreadable Dolphin.ini while leaving that new
+/// shader selected. No file should change when either destination is invalid.
+static void TestStageFailure(NSString* root) {
+  NSString* user=[root stringByAppendingPathComponent:@"User"];
+  NSString* system=[root stringByAppendingPathComponent:@"Sys"];
+  NSString* gfx=[user stringByAppendingPathComponent:@"Config/GFX.ini"];
+  NSString* options=[user stringByAppendingPathComponent:@"Config/Dolphin.ini"];
+  Write([system stringByAppendingPathComponent:@"Shaders/FXAA.glsl"],@"void main() { SetOutput(Sample()); }\n");
+  NSString* previous=@"[Enhancements]\nPostProcessingShader = sepia\n";
+  Write(gfx,previous);
+  const unsigned char invalidUTF8[]={0xff,0xfe,0x01};
+  NSData* invalid=[NSData dataWithBytes:invalidUTF8 length:sizeof(invalidUTF8)];
+  [invalid writeToFile:options atomically:YES];
+  CHECK(DOLShaderSetChoice(user,nil,@"FXAA"),"choice saved independently of Dolphin's files");
+  NSString* applied=@"old";
+  CHECK(!DOLApplyShaderSelection(user,system,@"GALE01",&applied),"invalid options refuse staging");
+  CHECK([Read(gfx) isEqual:previous],"failed staging preserves the previous shader selection");
+  CHECK([[NSData dataWithContentsOfFile:options] isEqual:invalid],"failed staging preserves invalid source bytes");
+  CHECK([applied isEqual:@""],"a failed stage reports no applied shader");
+  [NSFileManager.defaultManager removeItemAtPath:options error:nil];
+  [NSFileManager.defaultManager createDirectoryAtPath:options withIntermediateDirectories:NO attributes:nil error:nil];
+  CHECK(!DOLApplyShaderSelection(user,system,@"RMGE01",NULL),"a directory is not an options file, also for Wii");
+  CHECK([Read(gfx) isEqual:previous],"directory failure also leaves selection unchanged");
+}
+
+int main(int argc,char** argv) {
   @autoreleasepool {
     NSString* base = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
-    TestNames();
-    TestChoices([base stringByAppendingPathComponent:@"a"]);
-    TestOptionsImportsRemoval([base stringByAppendingPathComponent:@"b"]);
-    TestDisplayTrial([base stringByAppendingPathComponent:@"c"]);
+    if(argc>1 && strcmp(argv[1],"--stage-failure-only")==0) {
+      TestStageFailure(base);
+    } else {
+      TestNames();
+      TestChoices([base stringByAppendingPathComponent:@"a"]);
+      TestOptionsImportsRemoval([base stringByAppendingPathComponent:@"b"]);
+      TestDisplayTrial([base stringByAppendingPathComponent:@"c"]);
+      TestStageFailure([base stringByAppendingPathComponent:@"d"]);
+    }
     [NSFileManager.defaultManager removeItemAtPath:base error:nil];
     printf("%d checks, %d failures\n", gChecks, gFailures);
     return gFailures == 0 ? 0 : 1;

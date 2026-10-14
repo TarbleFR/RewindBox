@@ -94,6 +94,26 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setSlangProgram:(nullable NeoSlangProgram *)program
              identifier:(nullable NSString *)identifier
              parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters;
+/// As above, but the choice remains provisional until its first frame has
+/// encoded without a fallback AND its actual Metal command buffer completed.
+/// The callback runs once on the main queue. It reports a superseded choice
+/// as SHADER_SUPERSEDED, never as a successful activation. With no drawable
+/// it waits for a frame rather than claiming the shader was rendered.
+- (void)setSlangProgram:(nullable NeoSlangProgram *)program
+             identifier:(nullable NSString *)identifier
+             parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters
+             completion:(nullable void (^)(BOOL success, NSString *_Nullable failureCode))completion;
+/// Thread-safe, call immediately when the session receives a newer choice,
+/// before that choice starts compiling. Invalidates a provisional candidate's
+/// pending GPU callback while keeping the preceding accepted state alive.
+/// Then enqueue rollbackLastSlangActivation on the emulation thread. A newer
+/// choice that fails compilation must not leave the superseded candidate on
+/// screen or accidentally accept it through a late successful GPU callback.
+- (void)invalidatePendingSlangActivation;
+/// Emulation thread, after a failed provisional activation: restores the
+/// preceding shader and its chains/parameter values. No-op after success or
+/// when a newer selection replaced that activation.
+- (void)rollbackLastSlangActivation;
 /// Frames per second of the core (OriginalFPS of slang presets).
 @property(atomic, assign) float coreFPS;
 /// Reason code of the last slang frame drawn as the standard picture

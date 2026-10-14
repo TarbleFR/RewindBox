@@ -204,14 +204,22 @@ static NSString* DOLIniRemoveSection(NSString* text,NSString* section) {
   return [kept componentsJoinedByString:@"\n"];
 }
 
-static BOOL DOLShaderPatchIni(NSString* file,NSString* (^patch)(NSString* text)) {
+/// Read both destination files before changing either. A malformed options
+/// file must not leave GFX.ini pointing at a newly selected effect.
+static NSString* DOLShaderReadIni(NSString* file,BOOL* existed) {
   NSFileManager* fm=NSFileManager.defaultManager;
   NSDictionary* attributes=[fm attributesOfItemAtPath:file error:nil];
-  if([attributes[NSFileType] isEqual:NSFileTypeSymbolicLink] || [attributes[NSFileSize] unsignedLongLongValue]>4194304)return NO;
-  NSString* before=attributes?[NSString stringWithContentsOfFile:file encoding:NSUTF8StringEncoding error:nil]:@"";
-  if(!before || ![fm createDirectoryAtPath:file.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:nil])return NO;
-  NSString* after=patch(before);
-  return [after isEqualToString:before] || [after writeToFile:file atomically:YES encoding:NSUTF8StringEncoding error:nil];
+  if(existed)*existed=attributes!=nil;
+  if(attributes && (![attributes[NSFileType] isEqual:NSFileTypeRegular] ||
+     [attributes[NSFileSize] unsignedLongLongValue]>4194304))return nil;
+  return attributes?[NSString stringWithContentsOfFile:file encoding:NSUTF8StringEncoding error:nil]:@"";
+}
+
+static BOOL DOLShaderWriteIni(NSString* file,NSString* before,NSString* after) {
+  if([after isEqualToString:before])return YES;
+  if(![NSFileManager.defaultManager createDirectoryAtPath:file.stringByDeletingLastPathComponent
+    withIntermediateDirectories:YES attributes:nil error:nil])return NO;
+  return [after writeToFile:file atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 
 /// Right before the core initializes: the effect of this game (or of every
@@ -229,20 +237,36 @@ static BOOL DOLApplyShaderSelection(NSString* user,NSString* system,NSString* ga
   NSDictionary* attributes=file?[NSFileManager.defaultManager attributesOfItemAtPath:file error:nil]:nil;
   if(!file || ![attributes[NSFileType] isEqual:NSFileTypeRegular] ||
      [attributes[NSFileSize] unsignedLongLongValue]>DOLShaderMaxBytes)name=@"";
+  NSString* gfx=[user stringByAppendingPathComponent:@"Config/GFX.ini"];
+  NSString* gfxBefore=DOLShaderReadIni(gfx,NULL);
+  if(gfxBefore==nil)return NO;
   // An explicit empty value: the pinned loader does not clear a key that
   // is missing from the file, so a removal would keep the last effect.
-  if(!DOLShaderPatchIni([user stringByAppendingPathComponent:@"Config/GFX.ini"],^NSString*(NSString* text){
-    return DOLIniSet(text,@"Enhancements",@"PostProcessingShader",name);
-  }))return NO;
+  NSString* gfxAfter=DOLIniSet(gfxBefore,@"Enhancements",@"PostProcessingShader",name);
+  NSString* dolphin=[user stringByAppendingPathComponent:@"Config/Dolphin.ini"];
+  NSString* dolphinBefore=nil;
+  NSString* dolphinAfter=nil;
+  BOOL dolphinExisted=NO;
   if(name.length) {
     NSDictionary* options=selection[@"options"][name];
     NSString* section=[name stringByAppendingString:@"-options"];
-    if(!DOLShaderPatchIni([user stringByAppendingPathComponent:@"Config/Dolphin.ini"],^NSString*(NSString* text){
-      NSString* patched=DOLIniRemoveSection(text,section);
-      for(NSString* option in [[options allKeys] sortedArrayUsingSelector:@selector(compare:)])
-        patched=DOLIniSet(patched,section,option,DOLShaderIniValue(options[option]));
-      return patched;
-    }))return NO;
+    dolphinBefore=DOLShaderReadIni(dolphin,&dolphinExisted);
+    if(dolphinBefore==nil)return NO;
+    dolphinAfter=DOLIniRemoveSection(dolphinBefore,section);
+    for(NSString* option in [[options allKeys] sortedArrayUsingSelector:@selector(compare:)])
+      dolphinAfter=DOLIniSet(dolphinAfter,section,option,DOLShaderIniValue(options[option]));
+    if(!DOLShaderWriteIni(dolphin,dolphinBefore,dolphinAfter))return NO;
+  }
+  if(!DOLShaderWriteIni(gfx,gfxBefore,gfxAfter)) {
+    // Options were committed first, so an options failure never activates
+    // the shader. Restore them if the final selection write fails too.
+    if(dolphinAfter && ![dolphinAfter isEqualToString:dolphinBefore]) {
+      const BOOL restored=dolphinExisted
+        ? [dolphinBefore writeToFile:dolphin atomically:YES encoding:NSUTF8StringEncoding error:nil]
+        : [NSFileManager.defaultManager removeItemAtPath:dolphin error:nil];
+      if(!restored)NSLog(@"[Dolphin] shader staging failed; previous option file could not be restored: %@",dolphin);
+    }
+    return NO;
   }
   if(applied)*applied=name;
   return YES;

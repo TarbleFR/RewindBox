@@ -53,6 +53,7 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"layoutTopBottom", @"layoutLeftRight", @"layoutHybridTop", @"layoutTopOnly", @"layoutBottomOnly",
     @"controlsOpacityNotApplicable", @"controlsGameLayoutApplies", @"skinNotPlayable", @"touchDiagnostics",
     @"touchDiagnosticsFooter", @"shaderNotInstalled", @"shaderTooHeavy", @"shaderCompiling",
+    @"shaderInvalid", @"shaderIncompatible", @"shaderCompileFailed", @"shaderGpuFailed", @"shaderInterrupted", @"shaderProtectionFailed",
     @"shaderParametersPending", @"shaderProgramDetails", @"shaderInstalledSection", @"shaderInstalledNone",
     @"shaderInstalledFooter", @"shaderCatalog", @"shaderProfiles", @"shaderCatalogUnavailable", @"shaderSearch",
     @"shaderSearchPlaceholder", @"shaderSearchResults", @"shaderFavorites", @"shaderCategories",

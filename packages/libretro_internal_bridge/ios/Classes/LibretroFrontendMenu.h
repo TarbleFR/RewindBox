@@ -50,8 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// emulation thread, a slang preset ("slang:<catalog id>", Build 450) off
 /// the main and emulation threads first. `completion` (main queue) gets NO
 /// when it could not be applied: the caller must not save the preset (the
-/// picture in effect is unchanged for a slang preset, standard for a
-/// built-in one).
+/// preceding picture is retained on a handled failure).
 - (void)applyShaderPreset:(nullable NSString *)presetIdentifier
                parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters
                completion:(void (^)(BOOL success))completion;
@@ -61,8 +60,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// compile times), nil when the preset in effect is built-in or none.
 @property(nonatomic, readonly, nullable) NeoSlangProgram *activeSlangProgram;
 /// Why the last shader was not applied (SHADER_NOT_INSTALLED, a shader kit
-/// code) or is drawn as the standard picture (CHAIN_MEMORY...); nil after
-/// a success.
+/// code, interrupted attempt or GPU failure); nil after a success confirmed
+/// by the first actual GPU frame, with the previous rendering restored on
+/// a handled slang activation failure.
 @property(nonatomic, readonly, copy, nullable) NSString *lastShaderFailureCode;
 /// GPU memory of the slang chains in effect, bytes.
 @property(nonatomic, readonly) NSUInteger slangTextureBytes;

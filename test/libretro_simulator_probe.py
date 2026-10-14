@@ -90,6 +90,7 @@ from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 # kit without its Flutter plugin class is compiled for the simulator and
 # linked with the bridge, as the delivery links the pod.
 from neo_shader_kit_ios_build import compile_kit, podspec_frameworks  # noqa: E402
+from neo_shader_kit_test import slang, png  # noqa: E402
 TARGET = 'arm64-apple-ios17.4-simulator'
 BUNDLE_ID = 'com.neostation.libretro.probe'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
@@ -101,6 +102,57 @@ FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'MetalKit', 'QuartzCore', 'AVFound
 REAL_CORES = ('ppsspp', 'azahar', 'desmume')
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
+# Shader fixtures exercise the actual session and presenter; network bytes
+# are served from the app bundle through NeoShaderStorage's test seam.
+# These are deliberately synthetic effects with known output colours, so a
+# PNG from the real game's drawable establishes that a selection reached it.
+SHADER_REVISION = '0123456789abcdef0123456789abcdef01234567'
+SHADER_FIXTURES = {
+    'simple.slang': slang('FragColor = vec4(0.90, 0.05, 0.05, 1.0);'),
+    'simple.slangp': 'shaders = 1\nshader0 = simple.slang\nfilter_linear0 = false\n',
+    'copy.slang': slang('FragColor = texture(Source, vTexCoord);'),
+    'history.slang': slang('FragColor = mix(texture(Source, vTexCoord), '
+                          'texture(OriginalHistory1, vTexCoord), 0.25);',
+                          samplers=('Source', 'OriginalHistory1')),
+    'complex.slang': slang('vec3 detail = texture(Source, vTexCoord).rgb * 0.01 + '
+                          'texture(Palette, vec2(0.5)).rgb * 0.01;\n'
+                          'FragColor = vec4(detail + vec3(0.05, 0.85 * global.STRENGTH + 0.03, 0.05), 1.0);',
+                          ubo=('float STRENGTH',), samplers=('Source', 'Palette'),
+                          pragmas=('#pragma parameter STRENGTH "Strength" 1.0 0.0 1.0 0.1',)),
+    'complex.slangp': ('shaders = 3\nshader0 = copy.slang\nscale_type0 = source\nscale0 = 1.0\n'
+                        'shader1 = history.slang\nscale_type1 = source\nscale1 = 1.0\n'
+                        'shader2 = complex.slang\ntextures = Palette\nPalette = textures/palette.png\n'
+                        'Palette_linear = false\n'),
+    'textures/palette.png': png(1, 1, [[(255, 255, 255, 255)]]),
+    'invalid.slangp': 'shaders = nope\nshader0 = copy.slang\n',
+    'missing.slangp': 'shaders = 1\nshader0 = never-present.slang\n',
+    'incomplete.slangp': 'shaders = 1\nshader0 = simple.slang\n',
+}
+SHADER_ENTRY_FILES = {
+    'simple.slangp': ['simple.slangp', 'simple.slang'],
+    'complex.slangp': ['complex.slangp', 'copy.slang', 'history.slang', 'complex.slang', 'textures/palette.png'],
+    'invalid.slangp': ['invalid.slangp', 'copy.slang'],
+    'missing.slangp': ['missing.slangp'],
+    'incomplete.slangp': ['incomplete.slangp', 'simple.slang'],
+}
+SHADER_ACTIONS = [
+    {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
+    {'kind': 'apply', 'preset': 'complex.slangp', 'success': True, 'colour': 'green', 'persist': True},
+    {'kind': 'parameter', 'parameter': 'STRENGTH', 'value': 0.2, 'colour': 'dim-green'},
+    {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red'},
+    {'kind': 'apply', 'preset': 'complex.slangp', 'success': True, 'colour': 'green'},
+    {'kind': 'apply', 'preset': 'invalid.slangp', 'success': False, 'codePrefix': 'PRESET_', 'colour': 'green'},
+    {'kind': 'apply', 'preset': 'missing.slangp', 'success': False, 'codePrefix': 'SOURCE_', 'colour': 'green'},
+    {'kind': 'download-short', 'preset': 'incomplete.slangp', 'success': False, 'code': 'DOWNLOAD_SIZE',
+     'colour': 'green'},
+    {'kind': 'delete-dependency', 'preset': 'complex.slangp', 'path': 'textures/palette.png',
+     'success': False, 'code': 'SHADER_NOT_INSTALLED', 'colour': 'green'},
+    {'kind': 'repair', 'preset': 'complex.slangp', 'success': True, 'colour': 'green'},
+    {'kind': 'disable', 'success': True},
+    # Persist an applied preset once again. The following session must load
+    # it from the menu's frontend store and produce the same real pixels.
+    {'kind': 'apply', 'preset': 'simple.slangp', 'success': True, 'colour': 'red', 'persist': True},
+]
 LC_BUILD_VERSION = 0x32
 LC_VERSION_MIN_IPHONEOS = 0x25
 PLATFORM_IOS = 2
@@ -192,6 +244,25 @@ SCENARIOS = [
      'runSeconds': 4.0, 'default': False},
     {'name': 'azahar-2', 'core': 'azahar', 'content': 'content/ftpd.3dsx', 'console': '3ds', 'expect': 'run',
      'runSeconds': 4.0, 'default': False},
+    # Separately run in the shaders CI job: it cannot be hidden behind the
+    # independent ppsspp-crowded memory-address assertion of the main job.
+    {'name': 'shader-software', 'core': 'neotest', 'content': 'content/Test Game.ntc', 'console': 'gb',
+     'expect': 'run', 'default': False, 'shaders': {'menu': True, 'afterMenuColour': 'red', 'actions': SHADER_ACTIONS}},
+    {'name': 'shader-software-relaunch', 'core': 'neotest', 'content': 'content/Test Game.ntc', 'console': 'gb',
+     'expect': 'run', 'default': False, 'shaders': {'initial': 'slang:simple.slangp', 'colour': 'red',
+                                                'actions': [{'kind': 'disable', 'success': True}]}},
+    {'name': 'shader-vulkan', 'core': 'neovk', 'content': 'content/Test Game.ntc', 'console': 'gb',
+     'expect': 'run', 'default': False, 'shaders': {'menu': True, 'afterMenuColour': 'red', 'actions': SHADER_ACTIONS},
+     'requiredLog': ['neovk create_device: device created by the core',
+                     "neovk unload_game: resources destroyed through the frontend's device"]},
+    {'name': 'shader-vulkan-relaunch', 'core': 'neovk', 'content': 'content/Test Game.ntc', 'console': 'gb',
+     'expect': 'run', 'default': False, 'shaders': {'initial': 'slang:simple.slangp', 'colour': 'red',
+                                                'actions': [{'kind': 'disable', 'success': True}]}},
+    {'name': 'shader-desmume', 'core': 'desmume', 'content': 'content/probe.nds', 'console': 'nds',
+     'expect': 'run', 'default': False, 'shaders': {'menu': True, 'afterMenuColour': 'red', 'actions': SHADER_ACTIONS}},
+    {'name': 'shader-desmume-relaunch', 'core': 'desmume', 'content': 'content/probe.nds', 'console': 'nds',
+     'expect': 'run', 'default': False, 'shaders': {'initial': 'slang:simple.slangp', 'colour': 'red',
+                                                'actions': [{'kind': 'disable', 'success': True}]}},
 ]
 # Journal lines of a closed session, in the order RetroArch tears a core down.
 TEARDOWN_ORDER = (
@@ -375,6 +446,40 @@ def imports_shader_kit(sources):
                for path in (sources / 'Classes').glob('*.m'))
 
 
+def build_shader_fixtures(app):
+    """Pinned fixture catalogue consumed by the real menu/storage/compiler.
+
+    It uses the public catalogue-directory and data-loader test seams; no
+    production catalogue is replaced or claimed as tested by these effects.
+    """
+    directory = app / 'ShaderFixtures'
+    directory.mkdir()
+    files = []
+    indexes = {}
+    for name, value in SHADER_FIXTURES.items():
+        data = value.encode('utf-8') if isinstance(value, str) else value
+        path = directory / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        indexes[name] = len(files)
+        files.append([name, len(data), hashlib.sha256(data).hexdigest()])
+    catalog = {
+        'schema': 1, 'engine': 'libretro', 'format': 'slang',
+        'source': {'name': 'NeoStation session test fixtures', 'repository': 'https://fixtures.invalid',
+                   'commit': SHADER_REVISION, 'raw': 'https://fixtures.invalid/session/'},
+        'compiler': 'test-only synthetic presets', 'categories': ['other'], 'files': files,
+        'entries': [
+            {'id': identifier, 'name': Path(identifier).stem, 'category': 'other', 'family': '.',
+             'files': [indexes[name] for name in required], 'passes': 3 if identifier == 'complex.slangp' else 1,
+             'luts': int(identifier == 'complex.slangp'), 'history': int(identifier == 'complex.slangp'),
+             'parameters': int(identifier == 'complex.slangp'), 'preview': -1, 'validation': 'translated'}
+            for identifier, required in SHADER_ENTRY_FILES.items()
+        ],
+    }
+    (directory / 'slang-catalog.json').write_text(json.dumps(catalog, indent=2) + '\n')
+    return directory
+
+
 def compile_probe(sources, sdk, work, app):
     # <pod/Name.h> resolves as the bridge sees its pods: their public
     # headers and nothing else (test/libretro_ios_syntax_test.py).
@@ -387,6 +492,8 @@ def compile_probe(sources, sdk, work, app):
         base += ['-I', str(include)]
     for define in DEFINES:
         base += ['-D', define]
+    if imports_shader_kit(sources):
+        base += ['-DNEOSTATION_SHADER_SESSION_PROBE=1']
     units = [path for path in sorted((sources / 'Classes').glob('*.m')) if path.name != 'LibretroInternalBridgePlugin.m']
     units += [EXTERNAL_DISPLAY / name for name in EXTERNAL_DISPLAY_SOURCES]
     units += sorted((sources / 'ThirdParty/rcheevos/src').rglob('*.c'))
@@ -512,6 +619,8 @@ def assemble(args, sources, work):
     shutil.copyfile(inputs / 'ftpd.3dsx', content / 'ftpd.3dsx')
     build_iso(inputs / 'simple.prx', content / 'probe.iso', work)
     build_nds(content / 'probe.nds')
+    if imports_shader_kit(sources):
+        build_shader_fixtures(app)
     catalog = CATALOG.read_text(encoding='utf-8')
     geometry = {}
     names = {}
@@ -630,6 +739,12 @@ def run_in_simulator(app, evidence, timeout):
     logs = documents / 'Libretro/Logs'
     if logs.is_dir():
         shutil.copytree(logs, evidence / 'Logs', dirs_exist_ok=True)
+    shader_frames = documents / 'ShaderFrames'
+    if shader_frames.is_dir():
+        shutil.copytree(shader_frames, evidence / 'ShaderFrames', dirs_exist_ok=True)
+    frontend = documents / 'Libretro/Config/Frontend'
+    if frontend.is_dir():
+        shutil.copytree(frontend, evidence / 'Frontend', dirs_exist_ok=True)
     reports = Path.home() / 'Library/Logs/DiagnosticReports'
     for report in sorted(reports.glob('Probe*')) if reports.is_dir() else []:
         if report.stat().st_mtime >= launched_at - 5:
@@ -688,6 +803,8 @@ def evaluate(report, scenarios):
             resolution = scenario.get('resolution')
             if resolution:
                 problems += resolution_problems(name, resolution, result, launch)
+            if scenario.get('shaders'):
+                problems += shader_problems(name, scenario['shaders'], result, launch)
         elif scenario['expect'] == 'core-stopped':
             if launch.get('success') or launch.get('code') != 'LIBRETRO_CORE_STOPPED':
                 problems.append(f"{name}: expected a LIBRETRO_CORE_STOPPED launch failure, got "
@@ -698,6 +815,112 @@ def evaluate(report, scenarios):
                 problems.append(f'{name}: the game view or session stayed after the failure')
             if 'END launch failed LIBRETRO_CORE_STOPPED' not in result.get('journal', ''):
                 problems.append(f'{name}: the journal does not end with the launch failure')
+    return problems
+
+
+def shader_frame_problems(name, frame, colour=None):
+    """Pixels from the same CAMetalDrawable buffer the real session presents.
+
+    Both DS screens are checked independently. Colour tolerances cover
+    quantisation and a possible sRGB drawable, while distinguishing red,
+    green and a reduced strength without depending on a ROM's artwork.
+    """
+    problems = []
+    if not isinstance(frame, dict) or frame.get('captureError'):
+        return [f'{name}: no live game frame: {frame!r}']
+    if frame.get('gpuCompleted') is not True or frame.get('gpuError'):
+        problems.append(f'{name}: live game GPU buffer did not complete: {frame.get("gpuError", "")}')
+    if not frame.get('png'):
+        problems.append(f'{name}: no PNG evidence from the presented drawable')
+    centres = frame.get('screenCentresRGBA') or []
+    if not centres:
+        problems.append(f'{name}: no drawn game screen was observed')
+    for index, pixel in enumerate(centres):
+        if len(pixel) != 4:
+            problems.append(f'{name}: screen {index} has invalid pixels {pixel!r}')
+            continue
+        red, green, blue, alpha = pixel
+        valid = (colour is None or
+                 (colour == 'red' and red >= 180 and green <= 90 and blue <= 90) or
+                 (colour == 'green' and green >= 180 and red <= 90 and blue <= 90) or
+                 (colour == 'dim-green' and 35 <= green <= 160 and red <= 90 and blue <= 90))
+        if not valid or alpha < 240:
+            problems.append(f'{name}: screen {index} pixels {pixel} do not show {colour or "an opaque game frame"}')
+    return problems
+
+
+def shader_problems(name, shaders, result, launch):
+    problems = []
+    if result.get('shaderProbeUnavailable'):
+        return [f'{name}: shader session observation is unavailable in these bridge sources']
+    initial = result.get('shaderInitial') or {}
+    problems += shader_frame_problems(name + ' initial', initial, shaders.get('colour'))
+    if shaders.get('menu') and (result.get('shaderMenuOpened') is not True or result.get('shaderMenuPaused') is not True
+                                or result.get('shaderCatalogOpened') is not True):
+        problems.append(f'{name}: the existing in-game catalogue did not open and pause the real session')
+    problems += shader_frame_problems(name + ' resumed', result.get('shaderAfterMenu'), shaders.get('afterMenuColour'))
+    if 'initial' in shaders and initial.get('active') != shaders['initial']:
+        problems.append(f'{name}: stored preset after relaunch is {initial.get("active")!r}, '
+                        f'expected {shaders["initial"]!r}')
+    if launch.get('hardwareRendering') == 'vulkan' and 'vulkan' not in name:
+        problems.append(f'{name}: unexpected Vulkan renderer')
+    if 'vulkan' in name and launch.get('hardwareRendering') != 'vulkan':
+        problems.append(f'{name}: expected the true Vulkan renderer, got {launch.get("hardwareRendering")!r}')
+    steps = result.get('shaderSteps') or []
+    actions = shaders.get('actions') or []
+    if len(steps) != len(actions):
+        problems.append(f'{name}: {len(steps)} shader actions finished, expected {len(actions)}')
+    active = initial.get('active', '')
+    previous_frame = initial
+    for index, (action, step) in enumerate(zip(actions, steps)):
+        prefix = f'{name} step {index} {action["kind"]}'
+        if step.get('observedSuccess') is not action.get('success', True):
+            problems.append(f'{prefix}: success {step.get("observedSuccess")!r}, expected {action.get("success", True)}')
+        code = step.get('observedCode', '')
+        if 'code' in action and code != action['code']:
+            problems.append(f'{prefix}: failure code {code!r}, expected {action["code"]!r}')
+        if 'codePrefix' in action and not code.startswith(action['codePrefix']):
+            problems.append(f'{prefix}: failure code {code!r}, expected prefix {action["codePrefix"]!r}')
+        if action['kind'] == 'apply' and action.get('success'):
+            active = 'slang:' + action['preset']
+            if step.get('installationSuccess') is not True or step.get('installationRegistered') is not True:
+                problems.append(f'{prefix}: shader was not installed through the verified storage')
+        elif action['kind'] == 'disable':
+            active = ''
+        frame = step.get('frame') or {}
+        if frame.get('active') != active:
+            problems.append(f'{prefix}: active shader {frame.get("active")!r}, expected {active!r}')
+        if active and action.get('success') and action['kind'] == 'apply':
+            if frame.get('textureBytes', 0) <= 0 or frame.get('passes') != (3 if action['preset'] == 'complex.slangp' else 1):
+                problems.append(f'{prefix}: completed shader has no expected active chains/passes: {frame!r}')
+            if frame.get('failure'):
+                problems.append(f'{prefix}: successful selection retains failure {frame["failure"]!r}')
+        if action['kind'] == 'download-short':
+            if step.get('installationRegistered') is not False or step.get('applyAfterFailedDownload') is not False or \
+                    step.get('applyAfterFailedDownloadCode') != 'SHADER_NOT_INSTALLED':
+                problems.append(f'{prefix}: interrupted download was registered/applied: {step!r}')
+        if action['kind'] == 'delete-dependency' and step.get('dependencyRemoved') is not True:
+            problems.append(f'{prefix}: the missing-dependency case never removed the file')
+        problems += shader_frame_problems(prefix, frame, action.get('colour'))
+        centres = frame.get('screenCentresRGBA') or []
+        if 'desmume' in name and len(centres) != 2:
+            problems.append(f'{prefix}: expected both DeSmuME screens, got {len(centres)}')
+        if action['kind'] == 'disable':
+            previous_centres = previous_frame.get('screenCentresRGBA') or []
+            if len(centres) != len(previous_centres) or any(
+                    max(abs(value - previous) for value, previous in zip(pixel[:3], old[:3])) <= 20
+                    for pixel, old in zip(centres, previous_centres)):
+                problems.append(f'{prefix}: disabling did not visibly remove the previous effect on every screen')
+        if action.get('persist') or action['kind'] == 'disable':
+            # The probe stores its real session game key in every frame.
+            game = frame.get('gameKey')
+            values = ((frame.get('frontend') or {}).get('games') or {}).get(game, {})
+            expected_enabled = action['kind'] != 'disable'
+            if values.get('shader.enabled') is not expected_enabled:
+                problems.append(f'{prefix}: frontend did not persist shader.enabled={expected_enabled}')
+            if expected_enabled and values.get('shader.preset') != active:
+                problems.append(f'{prefix}: frontend saved {values.get("shader.preset")!r}, expected {active!r}')
+        previous_frame = frame
     return problems
 
 
@@ -836,6 +1059,12 @@ def summarise(report, scenarios):
         if 'resolutionBefore' in result or 'resolutionAfter' in result:
             print(f"    resolution: frames {result.get('resolutionBefore')} -> {result.get('resolutionAfter')}, "
                   f"choice accepted {result.get('resolutionSelected')}", flush=True)
+        for index, step in enumerate(result.get('shaderSteps') or []):
+            frame = step.get('frame') or {}
+            print(f'    shader {index}: {step.get("kind")} {step.get("preset", "-")} '
+                  f'success={step.get("observedSuccess")} code={step.get("observedCode", "")} '
+                  f'active={frame.get("active", "")} pixels={frame.get("screenCentresRGBA")} '
+                  f'PNG={frame.get("png", "-")}', flush=True)
         for line in result.get('journal', '').splitlines():
             if 'unavailable' in line or 'PPSSPP memory window' in line or 'PPSSPP window' in line or \
                     (scenario.get('resolution') and ('resolution' in line or 'run: frame' in line)):

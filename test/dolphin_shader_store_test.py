@@ -12,6 +12,7 @@
    and <external_display/> public headers only): DOLShaderSettings.mm,
    DolphinFramePacing.mm.
 """
+import argparse
 import shutil
 import subprocess
 import sys
@@ -24,7 +25,32 @@ sys.path.insert(0, str(ROOT / 'test'))
 from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 
 IPHONE_TARGET = 'arm64-apple-ios17.4'
-PAGE_SOURCES = ('DOLShaderSettings.mm', 'DolphinFramePacing.mm')
+PAGE_SOURCES = ('DOLShaderSettings.mm', 'DolphinFramePacing.mm', 'DolphinSessionMenu.mm')
+
+
+def source_contracts():
+    """Host routing contracts only; these do not execute the Dolphin engine."""
+    plugin=(CLASSES/'DolphinInternalBridgePlugin.mm').read_text()
+    header=(CLASSES/'DolphinSessionMenu.h').read_text()
+    menu=(CLASSES/'DolphinSessionMenu.mm').read_text()
+    # The common GameCube/Wii launch writes the effect to the same user/Sys
+    # directories handed to the retained core, before it reads configuration.
+    launch=plugin[plugin.index('NSString* gamePath = [arguments[@"gamePath"]'):]
+    assert '![system isEqualToString:@"gc"] && ![system isEqualToString:@"wii"]' in launch
+    staged=launch.index('DOLApplyShaderSelection(userDirectory,systemDirectory,self.activeDisplayGameId,&stagedShader)')
+    initialized=launch.index('neostation_dolphin_initialize(userDirectory.fileSystemRepresentation,')
+    assert staged<initialized
+    assert 'systemDirectory.fileSystemRepresentation' in launch[initialized:initialized+230]
+    assert 'self.activeSystemDirectory = systemDirectory;' in launch
+    assert 'self.activeUserDirectory = userDirectory;' in launch
+    assert 'menu.openShaderSettings = ^{' in plugin
+    direct=plugin[plugin.index('menu.openShaderSettings = ^{'):plugin.index('menu.openTextureSettings = ^{')]
+    assert 'owner.framePacing.shaderPage()' in direct, 'the direct row must use the existing page factory'
+    assert '@property(nonatomic, copy, nullable) dispatch_block_t openShaderSettings;' in header
+    assert 'child.openShaderSettings = self.openShaderSettings;' in menu
+    assert 'dolphinPostProcessingFromMenu' in menu
+    assert 'DOLShaderText(@"nextLaunch",locale)' in menu
+    print('PASS Dolphin shader host wiring: shared GameCube/Wii launch, same paths, staging before initialize, existing page',flush=True)
 
 
 def run(arguments, **options):
@@ -33,11 +59,32 @@ def run(arguments, **options):
 
 
 def main():
+    arguments=argparse.ArgumentParser(description=__doc__)
+    arguments.add_argument('--reproduce-before',help='Git revision of DOLShaderStore.h before the staging fix.')
+    arguments.add_argument('--source-only',action='store_true',help='Check host wiring without compiling or executing the engine.')
+    options=arguments.parse_args()
+    source_contracts()
+    if options.source_only:
+        return
     if sys.platform != 'darwin' or shutil.which('xcrun') is None:
         raise SystemExit('The Dolphin shader store and page checks run on macOS.')
     with tempfile.TemporaryDirectory(prefix='dolphin-shaders-') as temporary:
         temporary = Path(temporary)
         binary = temporary / 'dolphin-shader-store-tests'
+        if options.reproduce_before:
+            prior=temporary/'before'
+            prior.mkdir()
+            header='packages/dolphin_internal_bridge/ios/Classes/DOLShaderStore.h'
+            (prior/'DOLShaderStore.h').write_bytes(subprocess.check_output(
+                ['git','show',options.reproduce_before+':'+header],cwd=ROOT))
+            before_binary=temporary/'dolphin-shader-store-before'
+            run(['xcrun','clang++','-std=c++20','-x','objective-c++','-fobjc-arc','-Wall','-Wno-unused-function',
+                 '-I',prior,'-I',CLASSES,ROOT/'test/dolphin_shader_store_test.mm',
+                 '-framework','Foundation','-o',before_binary],check=True)
+            before=run([before_binary,'--stage-failure-only'],capture_output=True,text=True)
+            print(before.stdout+before.stderr,flush=True)
+            assert before.returncode==1 and 'failed staging preserves the previous shader selection' in before.stderr, \
+                'The pre-fix source must reproduce the partial shader selection write'
         run(['xcrun', 'clang++', '-std=c++20', '-x', 'objective-c++', '-fobjc-arc', '-Wall', '-Wno-unused-function',
              '-I', CLASSES, ROOT / 'test/dolphin_shader_store_test.mm', '-framework', 'Foundation', '-o', binary],
             check=True)

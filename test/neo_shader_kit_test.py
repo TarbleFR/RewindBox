@@ -273,7 +273,7 @@ def main():
         run('cmake', '-S', TOOLS, '-B', build, '-DCMAKE_BUILD_TYPE=Release', check=True)
         targets = ['neoshader-core-tests']
         if sys.platform == 'darwin':
-            targets += ['neoshader-kit-tests', 'neoshader-render-tests']
+            targets += ['neoshader-kit-tests', 'neoshader-render-tests', 'neoshader-presenter-tests']
         run('cmake', '--build', build, '--parallel', jobs, '--target', *targets, check=True)
         run(build / 'neoshader-core-tests', check=True)
         if sys.platform != 'darwin':
@@ -291,6 +291,7 @@ def main():
             return
         if result.returncode != 0:
             raise SystemExit(f'Metal render tests failed (exit {result.returncode})')
+        run(build / 'neoshader-presenter-tests', fixtures, check=True)
         print('PASS: shader kit core and Metal runtime render tests', flush=True)
 
 

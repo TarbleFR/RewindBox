@@ -14,8 +14,11 @@ name: Shader kit checks
     - test/dolphin_shader_store_test.py
     - test/dolphin_shader_store_test.mm
     - test/dolphin_shader_localizations_test.py
+    - test/dolphin_pacing362_ui_test.py
     - native/dolphin_shaders/**
     - packages/dolphin_internal_bridge/ios/Classes/DOLShader*
+    - packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.*
+    - packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm
     - packages/dolphin_internal_bridge/ios/Classes/DolphinFramePacing.*
     - packages/dolphin_internal_bridge/ios/Classes/DolphinDisplayTrial.h
     - test/libretro_host/stubs/**
@@ -59,7 +62,12 @@ jobs:
       run: python3 test/neo_shader_kit_ios_build.py
     - name: Dolphin post-processing choice on real files, and its page compiled for iPhone
       if: ${{ !cancelled() }}
-      run: python3 test/dolphin_shader_store_test.py
+      run: |
+        git fetch --depth 1 origin 29b24945b2e7041f08e02d7d70e8c90ffe8a1c24
+        python3 test/dolphin_shader_store_test.py --reproduce-before 29b24945b2e7041f08e02d7d70e8c90ffe8a1c24
+    - name: GameCube and Wii shader menu access in twelve languages (UIKit test, no Dolphin engine)
+      if: ${{ !cancelled() }}
+      run: python3 test/dolphin_pacing362_ui_test.py
     - name: Fetch libretro/slang-shaders at the commit the catalog pins
       if: ${{ !cancelled() }}
       run: |

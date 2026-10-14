@@ -85,9 +85,14 @@ typedef void (^NeoShaderDataLoader)(NSURL *url,
 
 - (NSArray<NeoShaderInstallation *> *)installations;
 - (nullable NeoShaderInstallation *)installationWithIdentifier:(NSString *)identifier;
-/// Every file of the installation is present with a regular file of the
-/// size its catalog recorded (no hashing: cheap enough for list rows).
+/// Every registered file is present as a regular file (no hashing: cheap
+/// enough for list rows). This is not a validation before compilation.
 - (BOOL)installationIsComplete:(NeoShaderInstallation *)installation;
+/// Revalidates the complete manifest, revision, size and SHA-256 before a
+/// preset reaches the compiler. Run off the UI/render threads; changed or
+/// missing files are refused without changing the active shader.
+- (NeoShaderResult *)validateInstallation:(NeoShaderInstallation *)installation
+                                  catalog:(NeoShaderCatalog *)catalog;
 /// Downloads (only the files missing or different), verifies and installs
 /// `entry` of `catalog`. `progress` (bytes received, bytes to receive) and
 /// `completion` run on the main queue; one installation at a time per

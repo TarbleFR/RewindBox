@@ -238,6 +238,51 @@ static void TestInstallAndRemove(NSString *root, NSString *fixtures, NeoShaderCa
         "remove lut: empty texture folder removed");
 }
 
+static void TestValidationBeforeCompile(NSString *root, NSString *fixtures, NeoShaderCatalog *catalog) {
+  FakeNetwork *network = [FakeNetwork new];
+  network.fixtures = fixtures;
+  NeoShaderStorage *storage = [[NeoShaderStorage alloc] initWithRoot:root engine:@"libretro"];
+  storage.dataLoader = [network loader];
+  CHECK(Install(storage, catalog, @"lut.slangp").success, "validation: install complete LUT preset");
+  NeoShaderInstallation *installation = [storage installationWithIdentifier:@"lut.slangp"];
+  CHECK([storage validateInstallation:installation catalog:catalog].success, "validation: trusted complete preset");
+  NSString *path = [[storage filesDirectoryForRevision:kRevision] stringByAppendingPathComponent:@"textures/palette.png"];
+  NSData *original = [NSData dataWithContentsOfFile:path];
+  NSMutableData *changed = [original mutableCopy];
+  ((uint8_t *)changed.mutableBytes)[0] ^= 0xFF;
+  [changed writeToFile:path atomically:YES];
+  // This demonstrates the previous predicate accepting a corrupt regular
+  // file; compilation must now refuse it against the catalog's digest.
+  CHECK([storage installationIsComplete:installation], "old presence predicate accepts same-size corruption");
+  NeoShaderResult *result = [storage validateInstallation:installation catalog:catalog];
+  CHECK(!result.success && [result.code isEqualToString:@"DOWNLOAD_HASH"], "same-size changed dependency refused");
+  [[original subdataWithRange:NSMakeRange(0, original.length - 1)] writeToFile:path atomically:YES];
+  result = [storage validateInstallation:installation catalog:catalog];
+  CHECK(!result.success && [result.code isEqualToString:@"DOWNLOAD_SIZE"], "truncated dependency refused");
+  [NSFileManager.defaultManager removeItemAtPath:path error:nil];
+  result = [storage validateInstallation:installation catalog:catalog];
+  CHECK(!result.success && [result.code isEqualToString:@"DOWNLOAD_SIZE"], "missing dependency refused");
+  [original writeToFile:path atomically:YES];
+  CHECK([storage validateInstallation:installation catalog:catalog].success, "restored dependency validates");
+
+  // A damaged registry cannot omit the missing dependency or select a
+  // different revision and still be mistaken for a complete install.
+  NSString *registry = [root stringByAppendingPathComponent:@"installed.json"];
+  NSMutableDictionary *json = [[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:registry]
+                                                               options:NSJSONReadingMutableContainers error:nil] mutableCopy];
+  NSMutableDictionary *record = json[@"installations"][0];
+  record[@"files"] = @[ @"lut.slangp", @"lut.slang" ];
+  [[NSJSONSerialization dataWithJSONObject:json options:0 error:nil] writeToFile:registry atomically:YES];
+  installation = [storage installationWithIdentifier:@"lut.slangp"];
+  result = [storage validateInstallation:installation catalog:catalog];
+  CHECK(!result.success && [result.code isEqualToString:@"ENTRY_INVALID"], "truncated registry manifest refused");
+  record[@"files"] = @[ @"lut.slangp", @"lut.slang", @"textures/palette.png" ];
+  record[@"revision"] = @"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  [[NSJSONSerialization dataWithJSONObject:json options:0 error:nil] writeToFile:registry atomically:YES];
+  result = [storage validateInstallation:[storage installationWithIdentifier:@"lut.slangp"] catalog:catalog];
+  CHECK(!result.success && [result.code isEqualToString:@"ENTRY_INVALID"], "untrusted revision refused");
+}
+
 static void TestRefusals(NSString *root, NSString *fixtures, NeoShaderCatalog *catalog) {
   FakeNetwork *network = [FakeNetwork new];
   network.fixtures = fixtures;
@@ -541,6 +586,7 @@ int main(int argc, const char *argv[]) {
       NSString *base = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
       TestInstallAndRemove([base stringByAppendingPathComponent:@"a"], fixtures, catalog);
       TestRefusals([base stringByAppendingPathComponent:@"b"], fixtures, catalog);
+      TestValidationBeforeCompile([base stringByAppendingPathComponent:@"validation"], fixtures, catalog);
       TestPreviewsFavoritesProfiles([base stringByAppendingPathComponent:@"c"], fixtures, catalog);
       TestStorageReport([base stringByAppendingPathComponent:@"d"], fixtures, catalog);
       [NSFileManager.defaultManager removeItemAtPath:base error:nil];

@@ -10,6 +10,10 @@ ns['TESTS']=r'''
 #import "DolphinFramePacing.h"
 #import "DolphinSessionMenu.h"
 #import "DolphinPhoneShakeLabels.h"
+#import "DOLShaderLabels.h"
+@interface DolphinSessionMenu (ShaderTestAccess)
+- (DolphinSessionMenu*)child:(NSInteger)page title:(NSString*)title;
+@end
 @interface DolphinFramePacing (TestAccess)
 - (void)tick:(CADisplayLink*)link;
 @end
@@ -95,6 +99,38 @@ ns['TESTS']=r'''
  XCTAssertEqual([menu tableView:menu.tableView numberOfRowsInSection:0],5);
  XCTAssertEqualObjects([menu tableView:menu.tableView cellForRowAtIndexPath:row].textLabel.text,@"Affichage et fluidité");
  [menu tableView:menu.tableView didSelectRowAtIndexPath:row];XCTAssertTrue(opened);
+}
+
+- (void)testDirectShaderAccessOnGameCubeAndWiiPreservesDisplayAndTextureNavigation {
+ for(NSNumber* wii in @[@NO,@YES])
+  for(NSString* locale in @[@"en",@"fr",@"de",@"es",@"it",@"pt",@"ru",@"id",@"ja",@"ko",@"zh",@"zh_Hant"]) {
+   DolphinSessionMenu* root=[DolphinSessionMenu new];root.wii=wii.boolValue;
+   root.labels=@{@"__locale":locale};[root setValue:@{} forKey:@"snapshot"];
+   __block NSUInteger display=0,shader=0,textures=0,coreWrites=0;
+   root.openDisplaySettings=^{++display;};root.openShaderSettings=^{++shader;};root.openTextureSettings=^{++textures;};
+   root.applySettings=^(NSDictionary* request,void(^done)(BOOL)){++coreWrites;done(YES);};
+   // The graphics child created by the real menu must retain every shortcut.
+   DolphinSessionMenu* menu=[root child:1 title:@"Graphics"];[menu loadViewIfNeeded];
+   XCTAssertEqual(menu.wii,wii.boolValue);
+   XCTAssertEqual([menu tableView:menu.tableView numberOfRowsInSection:0],7);
+   NSIndexPath* effect=[NSIndexPath indexPathForRow:5 inSection:0];
+   UITableViewCell* cell=[menu tableView:menu.tableView cellForRowAtIndexPath:effect];
+   XCTAssertEqualObjects(cell.textLabel.text,DOLShaderText(@"title",locale));
+   XCTAssertEqualObjects(cell.detailTextLabel.text,DOLShaderText(@"nextLaunch",locale));
+   XCTAssertEqualObjects(cell.accessibilityIdentifier,@"dolphinPostProcessingFromMenu");
+   [menu tableView:menu.tableView didSelectRowAtIndexPath:effect];XCTAssertEqual(shader,1U);
+   [menu tableView:menu.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:4 inSection:0]];
+   XCTAssertEqual(display,1U);
+   [menu tableView:menu.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:6 inSection:0]];
+   XCTAssertEqual(textures,1U);XCTAssertEqual(coreWrites,0U);
+   // No Display callback: the same shader row moves to index four.
+   menu.openDisplaySettings=nil;
+   XCTAssertEqual([menu tableView:menu.tableView numberOfRowsInSection:0],6);
+   cell=[menu tableView:menu.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:4 inSection:0]];
+   XCTAssertEqualObjects(cell.accessibilityIdentifier,@"dolphinPostProcessingFromMenu");
+   [menu tableView:menu.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:4 inSection:0]];
+   XCTAssertEqual(shader,2U);XCTAssertEqual(coreWrites,0U);
+  }
 }
 
 - (void)testWiiPhoneShakeOptionIsLocalizedPersistentAndDoesNotApplyCoreSettings {

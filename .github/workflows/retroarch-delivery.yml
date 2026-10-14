@@ -837,7 +837,7 @@ jobs:
         menu_path='packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.h'
         original=subprocess.check_output(['git','show',os.environ['DOLPHIN_CORE_HOST_SHA']+':'+menu_path],text=True)
         current=Path(menu_path).read_text()
-        for callback in ('openDisplaySettings','openTextureSettings'):
+        for callback in ('openDisplaySettings','openShaderSettings','openTextureSettings'):
             addition='@property(nonatomic, copy, nullable) dispatch_block_t '+callback+';\n'
             assert current.count(addition)==1
             current=current.replace(addition,'')

@@ -6,6 +6,7 @@
 #include "TouchController/TCManagerInterface.h"
 #include "TouchController/DolphinShakeAssignment.h"
 #include "DOLTextureLabels.h"
+#include "DOLShaderLabels.h"
 #include "DolphinPhoneShakePreferences.h"
 
 typedef NS_ENUM(NSInteger, DOLMenuPage) {
@@ -374,6 +375,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   child.readSettings = self.readSettings;
   child.applySettings = self.applySettings;
   child.openDisplaySettings = self.openDisplaySettings;
+  child.openShaderSettings = self.openShaderSettings;
   child.openTextureSettings = self.openTextureSettings;
   child.readStates = self.readStates;
   child.performStateOperation = self.performStateOperation;
@@ -403,7 +405,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     case DOLMenuSaveStates:
     case DOLMenuLoadStates: return [self.snapshot[@"slots"] count];
     case DOLMenuConsole: return self.snapshot ? 2 : 0;
-    case DOLMenuGraphics: return self.snapshot ? 4 + (self.openDisplaySettings?1:0) + (self.openTextureSettings?1:0) : 0;
+    case DOLMenuGraphics: return self.snapshot ? 4 + (self.openDisplaySettings?1:0) + (self.openShaderSettings?1:0) + (self.openTextureSettings?1:0) : 0;
     case DOLMenuHacks: return self.snapshot ? 8 : 0;
     case DOLMenuCheats:
       return self.cheatsSnapshot ? 5 +
@@ -616,13 +618,20 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       cell.detailTextLabel.text = [self text:@"restartRequired"];
     }
   } else if (self.page == DOLMenuGraphics) {
-    if(row==4+(self.openDisplaySettings?1:0) && self.openTextureSettings){
+    if(row==4+(self.openDisplaySettings?1:0)+(self.openShaderSettings?1:0) && self.openTextureSettings){
       cell.textLabel.text=DOLTextureText(@"title",self.labels[@"__locale"]?:@"en");
       cell.detailTextLabel.text=@"PNG · DDS";cell.accessibilityIdentifier=@"dolphinHDTexturesFromMenu";return cell;
     }
     if(row==4 && self.openDisplaySettings){
       cell.textLabel.text=DOLPacingText(@"title",self.labels[@"__locale"]?:@"en");
       cell.detailTextLabel.text=@"60 / 120 Hz · Metal";
+      return cell;
+    }
+    if(row==4+(self.openDisplaySettings?1:0) && self.openShaderSettings){
+      NSString* locale=self.labels[@"__locale"]?:@"en";
+      cell.textLabel.text=DOLShaderText(@"title",locale);
+      cell.detailTextLabel.text=DOLShaderText(@"nextLaunch",locale);
+      cell.accessibilityIdentifier=@"dolphinPostProcessingFromMenu";
       return cell;
     }
     NSString* key = @[@"resolution", @"aspect", @"anisotropy", @"vsync"][row];
@@ -864,8 +873,9 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     child.choices = choices;
     [self.navigationController pushViewController:child animated:YES];
   } else if (self.page == DOLMenuGraphics) {
-    if(row==4+(self.openDisplaySettings?1:0) && self.openTextureSettings){self.openTextureSettings();return;}
+    if(row==4+(self.openDisplaySettings?1:0)+(self.openShaderSettings?1:0) && self.openTextureSettings){self.openTextureSettings();return;}
     if(row==4 && self.openDisplaySettings){self.openDisplaySettings();return;}
+    if(row==4+(self.openDisplaySettings?1:0) && self.openShaderSettings){self.openShaderSettings();return;}
     NSString* key = @[@"resolution", @"aspect", @"anisotropy", @"vsync"][row];
     NSArray* values;
     NSArray* titles;

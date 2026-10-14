@@ -61,6 +61,33 @@ if(APPLE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/sla
     "-framework QuartzCore")
 endif()
 
+# The application's actual presenter is a second layer around the chain:
+# core-image crop/copy, optional passes, final composition, activation GPU
+# completion and rollback. The chain-only catalog test does not cover it.
+if(APPLE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/libretro_presenter_test.mm)
+  enable_language(OBJC)
+  enable_language(OBJCXX)
+  set(LIBRETRO_CLASSES ${CMAKE_CURRENT_SOURCE_DIR}/../../libretro_internal_bridge/ios/Classes)
+  add_executable(neoshader-presenter-tests
+    ${KIT}/Classes/NeoSlangRenderer.mm
+    ${LIBRETRO_CLASSES}/LibretroMetalPresenter.m
+    ${LIBRETRO_CLASSES}/LibretroGeometry.m
+    ${LIBRETRO_CLASSES}/LibretroShaderLibrary.m
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/libretro_presenter_test.mm)
+  target_include_directories(neoshader-presenter-tests PRIVATE ${KIT}/Classes/Public ${LIBRETRO_CLASSES}
+    ${LIBRETRO_CLASSES}/../ThirdParty/include/libretro)
+  # The application imports the shader-kit module; expose its public headers
+  # under that name in this standalone build as well.
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/public/neo_shader_kit)
+  configure_file(${KIT}/Classes/Public/NeoSlangRenderer.h
+    ${CMAKE_CURRENT_BINARY_DIR}/public/neo_shader_kit/NeoSlangRenderer.h COPYONLY)
+  target_include_directories(neoshader-presenter-tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/public)
+  target_compile_options(neoshader-presenter-tests PRIVATE -fobjc-arc -Wall -Wextra -Wno-unused-parameter)
+  target_link_libraries(neoshader-presenter-tests PRIVATE neoshader_core
+    "-framework Foundation" "-framework Metal" "-framework CoreGraphics" "-framework ImageIO"
+    "-framework QuartzCore")
+endif()
+
 # macOS: storage (verified downloads, removal, favourites, profiles) and
 # catalog parsing, with a fake network; no Metal.
 if(APPLE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../../test/neo_shader_kit/storage_test.m)

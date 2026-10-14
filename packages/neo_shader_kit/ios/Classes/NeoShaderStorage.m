@@ -315,6 +315,33 @@ static NSDictionary *ReadJSONObject(NSString *path) {
   return YES;
 }
 
+- (NeoShaderResult *)validateInstallation:(NeoShaderInstallation *)installation
+                                  catalog:(NeoShaderCatalog *)catalog {
+  NeoShaderCatalogEntry *entry = [catalog entryWithIdentifier:installation.identifier];
+  NSSet<NSString *> *registered = [NSSet setWithArray:installation.files];
+  NSMutableSet<NSString *> *expected = [NSMutableSet set];
+  for (NeoShaderCatalogFile *file in entry.files) [expected addObject:file.path];
+  // The registry alone is not a trusted manifest: a truncated file list
+  // must not let an incomplete preset pass validation.
+  if (entry == nil || ![catalog.engine isEqualToString:_engine] ||
+      ![installation.revision isEqualToString:catalog.sourceRevision] ||
+      expected.count == 0 || registered.count != installation.files.count ||
+      ![registered isEqualToSet:expected]) {
+    return Failure(NeoShaderErrorEntryInvalid, installation.identifier);
+  }
+  NSString *directory = [self filesDirectoryForRevision:installation.revision];
+  for (NeoShaderCatalogFile *file in entry.files) {
+    NSString *path = [directory stringByAppendingPathComponent:file.path];
+    if (RegularFileSize(path) != (long long)file.size) {
+      return Failure(NeoShaderErrorSizeMismatch, file.path);
+    }
+    if (![FileSHA256(path) isEqualToString:file.sha256]) {
+      return Failure(NeoShaderErrorHashMismatch, file.path);
+    }
+  }
+  return [NeoShaderResult success];
+}
+
 #pragma mark Installation
 
 - (BOOL)isInstallingIdentifier:(NSString *)identifier {

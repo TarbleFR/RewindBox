@@ -45,6 +45,12 @@ NeoSlangProgram *LibretroCompileSlangShader(NSString *identifier, id<MTLDevice> 
     if (detail != NULL) *detail = identifier;
     return nil;
   }
+  NeoShaderResult *validation = [storage validateInstallation:installation catalog:LibretroSlangCatalog()];
+  if (!validation.success) {
+    if (code != NULL) *code = validation.code;
+    if (detail != NULL) *detail = validation.detail;
+    return nil;
+  }
   NSError *error = nil;
   NeoSlangProgram *program = [NeoSlangProgram programWithRoot:[storage filesDirectoryForRevision:installation.revision]
                                                        preset:catalogIdentifier

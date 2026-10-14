@@ -186,6 +186,26 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
 @property(atomic, copy, readwrite, nullable) NSString *slangFailureCode;
 @end
 
+/// The preceding selection stays alive until a provisional slang frame has
+/// really completed. Metal command buffers also retain the resources they use.
+@interface LibretroPresenterShaderState : NSObject
+@property(nonatomic, strong) id<MTLRenderPipelineState> pipeline;
+@property(nonatomic, assign) LibretroShaderFilter filter;
+@property(nonatomic, strong) NeoSlangProgram *program;
+@property(nonatomic, assign) CFTimeInterval lastEncode;
+@property(nonatomic, copy) NSString *identifier;
+@property(nonatomic, copy) NSDictionary *slots;
+@property(nonatomic, copy) NSData *values;
+@property(nonatomic, copy) NSData *minimums;
+@property(nonatomic, copy) NSData *maximums;
+@property(nonatomic, assign) uint32_t distortMask;
+@property(nonatomic, strong) NSMutableArray<NeoSlangChain *> *chains;
+@property(nonatomic, copy) NSDictionary *parameters;
+@end
+
+@implementation LibretroPresenterShaderState
+@end
+
 @implementation LibretroMetalPresenter {
   CAMetalLayer *_layer;
   id<MTLCommandQueue> _queue;
@@ -243,6 +263,10 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
   // values new chains start with (nil without a slang program).
   NSMutableArray<NeoSlangChain *> *_slangChains;
   NSDictionary<NSString *, NSNumber *> *_slangParameters;
+  // Under _lock. Completion is taken by the first encoded frame; the
+  // preceding state is retained until that buffer is known to have completed.
+  void (^_slangActivationCompletion)(BOOL, NSString *);
+  LibretroPresenterShaderState *_slangPreviousState;
   double _gpuSamples[LIBRETRO_GPU_SAMPLES];
   NSUInteger _gpuSampleCount;
   NSUInteger _gpuSampleNext;
@@ -349,6 +373,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
 - (BOOL)setShaderPreset:(nullable LibretroShaderPreset *)preset
              parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters
                   error:(NSError *_Nullable *_Nullable)error {
+  [self cancelSlangActivation];
   if (preset != nil && ![preset isKindOfClass:[LibretroShaderPreset class]]) preset = nil;
   if (preset == nil) {
     [self deactivatePreset];
@@ -361,7 +386,6 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
     pipeline = [self compilePipelineForPreset:preset error:&compileError];
     if (pipeline == nil) {
       NSLog(@"[Libretro] shader preset %@ unavailable: %@", identifier, compileError);
-      [self deactivatePreset];
       if (error != NULL) {
         *error = compileError != nil ? compileError
                                      : [NSError errorWithDomain:kLibretroPresenterErrorDomain
@@ -419,6 +443,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
 
 /// Standard picture: pass-through pipeline, smoothing toggle.
 - (void)deactivatePreset {
+  [self cancelSlangActivation];
   _presetPipeline = nil;
   _presetFilter = LibretroShaderFilterFollowSmoothing;
   _slangProgram = nil;
@@ -466,10 +491,92 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
 - (void)setSlangProgram:(nullable NeoSlangProgram *)program
              identifier:(nullable NSString *)identifier
              parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters {
+  [self setSlangProgram:program identifier:identifier parameters:parameters completion:nil];
+}
+
+- (void)cancelSlangActivation {
+  os_unfair_lock_lock(&_lock);
+  void (^completion)(BOOL, NSString *) = _slangActivationCompletion;
+  _slangActivationCompletion = nil;
+  _slangPreviousState = nil;
+  // A callback already attached to a buffer must also be superseded, even
+  // when the next choice happens to have the same identifier.
+  _gpuGeneration++;
+  os_unfair_lock_unlock(&_lock);
+  if (completion != nil) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, @"SHADER_SUPERSEDED"); });
+}
+
+- (void)invalidatePendingSlangActivation {
+  os_unfair_lock_lock(&_lock);
+  void (^completion)(BOOL, NSString *) = _slangActivationCompletion;
+  _slangActivationCompletion = nil;
+  // The first frame may have finished on the GPU while its main-queue
+  // callback is still waiting. Keep the preceding state until the emulation
+  // thread rolls back; merely discarding the callback would accept its image
+  // implicitly if the next shader then failed to compile.
+  if (_slangPreviousState != nil || completion != nil) _gpuGeneration++;
+  os_unfair_lock_unlock(&_lock);
+  if (completion != nil) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, @"SHADER_SUPERSEDED"); });
+}
+
+- (LibretroPresenterShaderState *)currentShaderState {
+  LibretroPresenterShaderState *state = [LibretroPresenterShaderState new];
+  state.pipeline = _presetPipeline;
+  state.filter = _presetFilter;
+  state.program = _slangProgram;
+  state.lastEncode = _slangLastEncode;
+  os_unfair_lock_lock(&_lock);
+  state.identifier = _presetIdentifier;
+  state.slots = _parameterSlots;
+  state.values = [NSData dataWithBytes:_parameterValues length:sizeof(_parameterValues)];
+  state.minimums = [NSData dataWithBytes:_parameterMinimum length:sizeof(_parameterMinimum)];
+  state.maximums = [NSData dataWithBytes:_parameterMaximum length:sizeof(_parameterMaximum)];
+  state.distortMask = _distortMask;
+  state.chains = _slangChains;
+  state.parameters = _slangParameters;
+  os_unfair_lock_unlock(&_lock);
+  return state;
+}
+
+- (void)rollbackLastSlangActivation {
+  os_unfair_lock_lock(&_lock);
+  LibretroPresenterShaderState *state = _slangPreviousState;
+  _slangPreviousState = nil;
+  if (state != nil) {
+    _presetIdentifier = state.identifier;
+    _parameterSlots = state.slots;
+    memcpy(_parameterValues, state.values.bytes, sizeof(_parameterValues));
+    memcpy(_parameterMinimum, state.minimums.bytes, sizeof(_parameterMinimum));
+    memcpy(_parameterMaximum, state.maximums.bytes, sizeof(_parameterMaximum));
+    _distortMask = state.distortMask;
+    _slangChains = state.chains;
+    _slangParameters = state.parameters;
+    _gpuGeneration++;
+    _gpuSampleCount = _gpuSampleNext = 0;
+  }
+  os_unfair_lock_unlock(&_lock);
+  if (state != nil) {
+    _presetPipeline = state.pipeline;
+    _presetFilter = state.filter;
+    _slangProgram = state.program;
+    _slangLastEncode = state.lastEncode;
+  }
+}
+
+- (void)setSlangProgram:(nullable NeoSlangProgram *)program
+             identifier:(nullable NSString *)identifier
+             parameters:(nullable NSDictionary<NSString *, NSNumber *> *)parameters
+             completion:(nullable void (^)(BOOL success, NSString *_Nullable failureCode))completion {
   if (program == nil) {
     [self deactivatePreset];
+    if (completion != nil) dispatch_async(dispatch_get_main_queue(), ^{ completion(YES, nil); });
     return;
   }
+  // If the last attempt is still provisional, a second attempt starts from
+  // the last accepted selection, not from the unvalidated candidate.
+  [self rollbackLastSlangActivation];
+  [self cancelSlangActivation];
+  LibretroPresenterShaderState *previous = completion != nil ? [self currentShaderState] : nil;
   _presetPipeline = nil;
   _presetFilter = LibretroShaderFilterFollowSmoothing;
   _slangProgram = program;
@@ -477,7 +584,6 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
   self.slangFailureCode = nil;
   NSString *name = [identifier copy] ?: program.presetPath;
   os_unfair_lock_lock(&_lock);
-  const BOOL changed = ![_presetIdentifier isEqualToString:name];
   _presetIdentifier = name;
   _parameterSlots = @{};
   memset(_parameterValues, 0, sizeof(_parameterValues));
@@ -487,12 +593,48 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
   // Chains are created for the screens at the next draw.
   _slangChains = [NSMutableArray array];
   _slangParameters = [parameters isKindOfClass:NSDictionary.class] ? [parameters copy] : @{};
-  if (changed) {
-    _gpuGeneration++;
-    _gpuSampleCount = 0;
-    _gpuSampleNext = 0;
-  }
+  _slangActivationCompletion = [completion copy];
+  _slangPreviousState = previous;
+  _gpuGeneration++;
+  _gpuSampleCount = 0;
+  _gpuSampleNext = 0;
   os_unfair_lock_unlock(&_lock);
+}
+
+/// Attach the provisional choice to the same command buffer that draws it,
+/// including the core-image copy, shader passes and final screen copy.
+- (void)observeSlangActivationOnBuffer:(id<MTLCommandBuffer>)buffer generation:(uint64_t)generation {
+  os_unfair_lock_lock(&_lock);
+  void (^completion)(BOOL, NSString *) = _slangActivationCompletion;
+  _slangActivationCompletion = nil;
+  os_unfair_lock_unlock(&_lock);
+  if (completion == nil) return;
+  NSString *encodingFailure = self.slangFailureCode;
+  __weak LibretroMetalPresenter *weakSelf = self;
+  [buffer addCompletedHandler:^(id<MTLCommandBuffer> completed) {
+    NSString *failure = encodingFailure;
+    if (completed.status != MTLCommandBufferStatusCompleted) {
+      failure = @"SHADER_GPU_FAILED";
+      NSLog(@"[Libretro] slang activation Metal status %lu: %@", (unsigned long)completed.status, completed.error);
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroMetalPresenter *owner = weakSelf;
+      BOOL current = NO;
+      if (owner != nil) {
+        os_unfair_lock_lock(&owner->_lock);
+        current = generation == owner->_gpuGeneration;
+        if (current && failure == nil) owner->_slangPreviousState = nil;
+        os_unfair_lock_unlock(&owner->_lock);
+      }
+      if (!current) completion(NO, @"SHADER_SUPERSEDED");
+      else {
+        // A later frame may already have reported a size/allocation error;
+        // a delayed successful callback must not clear that diagnostic.
+        if (failure != nil) owner.slangFailureCode = failure;
+        completion(failure == nil, failure);
+      }
+    });
+  }];
 }
 
 - (NSUInteger)slangTextureBytes {
@@ -822,6 +964,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
                                                      width:width
                                                     height:height
                                                    flipped:flipped];
+  [self observeSlangActivationOnBuffer:buffer generation:generation];
   [buffer presentDrawable:drawable];
   _lastDrawableWidth = targetWidth;
   _lastDrawableHeight = targetHeight;
@@ -922,6 +1065,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
   NSMutableArray<NSValue *> *outputs = [NSMutableArray arrayWithCapacity:count];
   NSMutableArray<NSNumber *> *nearest = [NSMutableArray arrayWithCapacity:count];
   NSString *failure = nil;
+  BOOL encodedScreen = NO;
   for (NSUInteger index = 0; index < count; index++) {
     LibretroPresenterScreen *screen = screens[index];
     LibretroScreenMapping mapping;
@@ -977,6 +1121,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
         if (last != nil) {
           result = last;
           oneToOne = chain.lastPassMatchesOutput;
+          encodedScreen = YES;
         } else if (failure == nil) {
           failure = chain.lastFailureCode ?: @"CHAIN_FAILED";
           NSLog(@"[Libretro] slang chain of screen %lu: %@ (%@), standard picture", (unsigned long)index, failure,
@@ -991,6 +1136,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
     [outputs addObject:[NSValue valueWithBytes:&output objCType:@encode(LibretroRect)]];
     [nearest addObject:@(oneToOne)];
   }
+  if (!encodedScreen && failure == nil) failure = @"CHAIN_NO_PICTURE";
   if (![self.slangFailureCode isEqualToString:failure] && (failure != nil || self.slangFailureCode != nil)) {
     self.slangFailureCode = failure;
   }
