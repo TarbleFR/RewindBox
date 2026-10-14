@@ -1670,6 +1670,70 @@ BUILD455_DELTA = {
     'test/libretro_simulator_probe.py',
 }
 DELTA |= BUILD455_DELTA
+# The Build 456 delivery closes omissions in the historical inventory without
+# granting those paths an open-ended exception. The 39 earlier legal/UI inputs
+# are exactly the shader investigation's starting tree; the six shader inputs
+# are exactly the completed shader candidate. Changed bytes, modes, deletions
+# and symlinks require a new reviewed reference before another delivery.
+DELIVERY456_HISTORICAL_REFERENCE = '29b24945b2e7041f08e02d7d70e8c90ffe8a1c24'
+DELIVERY456_HISTORICAL_INPUTS = {
+    'assets/legal/libretro/LIBRETRO_CORES.md',
+    'assets/legal/libretro/MoltenVK-LICENSE',
+    'assets/legal/libretro/MoltenVK-README.md',
+    'assets/legal/libretro/Vulkan-Headers-LICENSE.md',
+    'assets/legal/libretro/azahar-LICENSE.txt',
+    'assets/legal/libretro/beetle_psx-COPYING',
+    'assets/legal/libretro/desmume-license.txt',
+    'assets/legal/libretro/fbneo-LICENSE.md',
+    'assets/legal/libretro/fbneo-src-license.txt',
+    'assets/legal/libretro/gambatte-COPYING',
+    'assets/legal/libretro/genesis_plus_gx-LICENSE.txt',
+    'assets/legal/libretro/genesis_plus_gx_wide-LICENSE.txt',
+    'assets/legal/libretro/libretro-api-MIT.txt',
+    'assets/legal/libretro/license-sources.json',
+    'assets/legal/libretro/mgba-LICENSE',
+    'assets/legal/libretro/mupen64plus_next-LICENSE',
+    'assets/legal/libretro/nestopia-COPYING',
+    'assets/legal/libretro/nestopia-README',
+    'assets/legal/libretro/picodrive-AUTHORS',
+    'assets/legal/libretro/picodrive-COPYING',
+    'assets/legal/libretro/ppsspp-LICENSE.TXT',
+    'assets/legal/libretro/rcheevos-LICENSE.txt',
+    'assets/legal/libretro/snes9x-LICENSE',
+    'lib/l10n/armsx2_ui_locale.dart',
+    'lib/l10n/legal_credits_locale.dart',
+    'lib/l10n/secondary_ui_locale.dart',
+    'lib/screens/scraper_screen/new_scraper_options_screen.dart',
+    'lib/services/dolphin_system_files.dart',
+    'lib/services/dusklight_game_identity.dart',
+    'lib/services/rpcs3_game_deletion.dart',
+    'lib/widgets/rpcs3_multi_delete_dialog.dart',
+    'packages/armsx2_internal_bridge/lib/armsx2_internal_bridge.dart',
+    'packages/rpcs3_internal_bridge/lib/rpcs3_internal_bridge.dart',
+    'test/armsx2_in_game_localization_test.dart',
+    'test/ios_gamepad_navigation_test.dart',
+    'test/legal_bundle_preflight_test.py',
+    'test/legal_credits_dialog_test.dart',
+    'test/neoswap_shader_storage_test.dart',
+    'test/retro_achievements_layout_test.dart',
+}
+DELIVERY456_SHADER_REFERENCE = '5d90ea223d0dc1894b0763f3ea77a70be844b2ba'
+DELIVERY456_SHADER_INPUTS = {
+    'packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroShaderRecovery.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroShaderRecovery.m',
+    'test/armsx2_embedded_library_contract_test.dart',
+    'test/libretro_host/frontend/shader_recovery_test.m',
+    'test/neo_shader_kit/libretro_presenter_test.mm',
+}
+DELIVERY456_PINNED_INPUTS = {
+    **dict.fromkeys(DELIVERY456_HISTORICAL_INPUTS, DELIVERY456_HISTORICAL_REFERENCE),
+    **dict.fromkeys(DELIVERY456_SHADER_INPUTS, DELIVERY456_SHADER_REFERENCE),
+}
+DELTA |= set(DELIVERY456_PINNED_INPUTS)
+DELIVERY456_RECIPIENT_PATH = 'build-utils/delivery-456-recipient.pem'
+DELIVERY456_RECIPIENT_SHA256 = '49764c811fc0dd73213b5c93835d24766cbeda98e4989885ae9733f60e43af12'
+DELTA.add(DELIVERY456_RECIPIENT_PATH)
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -1880,7 +1944,43 @@ def verify_library_covers_evidence():
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
+def verify_reviewed_delivery_inputs():
+    for reference in sorted(set(DELIVERY456_PINNED_INPUTS.values())):
+        paths = sorted(path for path, pinned in DELIVERY456_PINNED_INPUTS.items()
+                       if pinned == reference)
+        entries = subprocess.check_output(
+            ['git', 'ls-tree', '-r', reference, '--', *paths], cwd=ROOT, text=True)
+        expected = {}
+        for line in entries.splitlines():
+            metadata, path = line.split('\t', 1)
+            expected[path] = metadata.split()
+        for path in paths:
+            file = ROOT / path
+            if path not in expected or not file.is_file() or file.is_symlink():
+                raise ValueError('Reviewed delivery input is missing or symlinked: ' + path)
+            mode, kind, oid = expected[path]
+            if kind != 'blob' or mode not in ('100644', '100755'):
+                raise ValueError('Reviewed delivery reference is not a regular input: ' + path)
+            actual_mode = '100755' if file.stat().st_mode & 0o111 else '100644'
+            if actual_mode != mode:
+                raise ValueError('Reviewed delivery input mode changed: ' + path)
+            data = file.read_bytes()
+            actual_oid = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+            if actual_oid != oid:
+                raise ValueError('Reviewed delivery input differs from ' + reference + ': ' + path)
+    recipient = ROOT / DELIVERY456_RECIPIENT_PATH
+    if not recipient.is_file() or recipient.is_symlink():
+        raise ValueError('Private delivery recipient is missing or symlinked')
+    if recipient.stat().st_mode & 0o111:
+        raise ValueError('Private delivery recipient must be nonexecutable')
+    public_key = recipient.read_bytes()
+    if (sha(public_key) != DELIVERY456_RECIPIENT_SHA256
+            or not public_key.startswith(b'-----BEGIN PUBLIC KEY-----\n')
+            or not public_key.rstrip().endswith(b'-----END PUBLIC KEY-----')):
+        raise ValueError('Private delivery recipient differs from the reviewed public key')
+
 def verify_tree():
+    verify_reviewed_delivery_inputs()
     old = {}
     tree = subprocess.check_output(['git', 'ls-tree', '-r', REFERENCE], cwd=ROOT, text=True)
     for line in tree.splitlines():
@@ -1959,6 +2059,9 @@ def main():
     report = {'scope': args.scope, 'build440Reuse': scoped, 'referenceSHA': REFERENCE, 'referenceRun': REFERENCE_RUN,
               'onlineSuccessVerified': run is not None,
               'receiverReferenceSHA': RECEIVER_REFERENCE, 'receiverReferenceRun': RECEIVER_RUN,
+              'reviewedInputReferences': DELIVERY456_PINNED_INPUTS,
+              'privateDeliveryRecipient': {'path': DELIVERY456_RECIPIENT_PATH,
+                                          'sha256': DELIVERY456_RECIPIENT_SHA256},
               'unchangedInputCount': len(unchanged),
               'unchangedInputsSha256': sha(json.dumps(unchanged, sort_keys=True).encode()),
               'changedInputsRequiringNewTests': changed,

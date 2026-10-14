@@ -21,6 +21,68 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_reviewed_delivery_pins_reject_changed_historical_and_shader_inputs(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp)
+            files={
+                'assets/legal/libretro/mgba-LICENSE': b'reviewed historical licence\n',
+                'packages/libretro_internal_bridge/ios/Classes/LibretroShaderRecovery.m': b'reviewed shader recovery\n',
+            }
+            recipient=folder/reuse.DELIVERY456_RECIPIENT_PATH
+            recipient.parent.mkdir(parents=True)
+            recipient.write_bytes((ROOT/reuse.DELIVERY456_RECIPIENT_PATH).read_bytes())
+            for name,data in files.items():
+                path=folder/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+            subprocess.run(['git','init','-q',str(folder)],check=True)
+            subprocess.run(['git','-C',str(folder),'add','.'],check=True)
+            subprocess.run(['git','-C',str(folder),'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','reviewed inputs'],check=True)
+            with patch.object(reuse,'ROOT',folder),patch.object(reuse,'DELIVERY456_PINNED_INPUTS',dict.fromkeys(files,'HEAD')):
+                reuse.verify_reviewed_delivery_inputs()
+                for name,data in files.items():
+                    path=folder/name
+                    with self.subTest(path=name,mutation='bytes'):
+                        path.write_bytes(data+b'unreviewed change\n')
+                        with self.assertRaisesRegex(ValueError,'Reviewed delivery input differs from HEAD: '+re.escape(name)):
+                            reuse.verify_tree()
+                        path.write_bytes(data)
+                    with self.subTest(path=name,mutation='mode'):
+                        path.chmod(0o755)
+                        with self.assertRaisesRegex(ValueError,'Reviewed delivery input mode changed: '+re.escape(name)):
+                            reuse.verify_tree()
+                        path.chmod(0o644)
+                    with self.subTest(path=name,mutation='deletion'):
+                        path.unlink()
+                        with self.assertRaisesRegex(ValueError,'Reviewed delivery input is missing or symlinked: '+re.escape(name)):
+                            reuse.verify_tree()
+                        path.write_bytes(data)
+                    with self.subTest(path=name,mutation='symlink'):
+                        target=folder/'same-reviewed-bytes';target.write_bytes(data)
+                        path.unlink();path.symlink_to(target)
+                        with self.assertRaisesRegex(ValueError,'Reviewed delivery input is missing or symlinked: '+re.escape(name)):
+                            reuse.verify_tree()
+                        path.unlink();path.write_bytes(data)
+
+    def test_private_delivery_recipient_rejects_replacement_or_private_key(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp);recipient=folder/reuse.DELIVERY456_RECIPIENT_PATH
+            recipient.parent.mkdir(parents=True)
+            reviewed=(ROOT/reuse.DELIVERY456_RECIPIENT_PATH).read_bytes()
+            recipient.write_bytes(reviewed)
+            with patch.object(reuse,'ROOT',folder),patch.object(reuse,'DELIVERY456_PINNED_INPUTS',{}):
+                reuse.verify_reviewed_delivery_inputs()
+                for replacement in (reviewed+b'\n',b'-----BEGIN PRIVATE KEY-----\nfixture\n-----END PRIVATE KEY-----\n'):
+                    recipient.write_bytes(replacement)
+                    with self.assertRaisesRegex(ValueError,'differs from the reviewed public key'):
+                        reuse.verify_tree()
+                recipient.write_bytes(reviewed);recipient.chmod(0o755)
+                with self.assertRaisesRegex(ValueError,'must be nonexecutable'):
+                    reuse.verify_tree()
+                recipient.chmod(0o644);recipient.unlink()
+                with self.assertRaisesRegex(ValueError,'is missing or symlinked'):
+                    reuse.verify_tree()
+
     def test_reuse_rejects_modified_unrelated_runtime(self):
         for path in ('native/armsx2_internal_helper/Info.plist',
                      'native/neoswap-donation/Broker.cpp'):
