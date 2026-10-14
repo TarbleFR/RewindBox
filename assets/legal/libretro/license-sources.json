@@ -544,29 +544,6 @@
       ]
     },
     {
-      "component": "vecx",
-      "repository": "https://github.com/libretro/libretro-vecx",
-      "license_reference_revision": "8f671cc9d737f2890c3ce19e177e2984dcae121f",
-      "binary_source_revision_attested": false,
-      "files": [
-        {
-          "path": "vecx-LICENSE.md",
-          "upstream_path": "LICENSE.md",
-          "source_url": "https://raw.githubusercontent.com/libretro/libretro-vecx/8f671cc9d737f2890c3ce19e177e2984dcae121f/LICENSE.md",
-          "sha256": "72d6e1a0ffb74e5e95841061200da2f5e14b66bbe043f41e634ef9bc6070132a"
-        },
-        {
-          "path": "vecx-psg-MIT-notice.h",
-          "upstream_path": "vecx_psg.h",
-          "source_url": "https://raw.githubusercontent.com/libretro/libretro-vecx/8f671cc9d737f2890c3ce19e177e2984dcae121f/vecx_psg.h",
-          "sha256": "06939717e5e6fe79b0b8950e5c35987108d5c9c3320c2d8a4f94a23de5daca1e"
-        }
-      ],
-      "cores": [
-        "vecx"
-      ]
-    },
-    {
       "component": "freechaf",
       "repository": "https://github.com/libretro/FreeChaF",
       "license_reference_revision": "76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
@@ -632,23 +609,6 @@
       ],
       "cores": [
         "mednafen_pcfx"
-      ]
-    },
-    {
-      "component": "virtualjaguar",
-      "repository": "https://github.com/libretro/virtualjaguar-libretro",
-      "license_reference_revision": "6bf3574c1a98ccd57719ff6b822122017b8e5942",
-      "binary_source_revision_attested": false,
-      "files": [
-        {
-          "path": "virtualjaguar-LICENSE",
-          "upstream_path": "LICENSE",
-          "source_url": "https://raw.githubusercontent.com/libretro/virtualjaguar-libretro/6bf3574c1a98ccd57719ff6b822122017b8e5942/LICENSE",
-          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
-        }
-      ],
-      "cores": [
-        "virtualjaguar"
       ]
     }
   ],

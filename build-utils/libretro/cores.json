@@ -193,12 +193,6 @@
       "lot": 1
     },
     {
-      "id": "vecx",
-      "license": "GPLv3",
-      "source": "https://github.com/libretro/libretro-vecx",
-      "lot": 2
-    },
-    {
       "id": "freechaf",
       "license": "GPLv3",
       "source": "https://github.com/libretro/FreeChaF",
@@ -220,12 +214,6 @@
       "id": "mednafen_pcfx",
       "license": "GPLv2",
       "source": "https://github.com/libretro/beetle-pcfx-libretro",
-      "lot": 2
-    },
-    {
-      "id": "virtualjaguar",
-      "license": "GPLv3",
-      "source": "https://github.com/libretro/virtualjaguar-libretro",
       "lot": 2
     }
   ],
