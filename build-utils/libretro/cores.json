@@ -95,11 +95,127 @@
         "member": "azahar_libretro.dylib",
         "sha256": "a646ee8f804327e2d33cbacf4d4f64b6725d25c7d7ece1ccc13698b16f3bf1d8"
       }
+    },
+    {
+      "id": "mednafen_pce_fast",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-pce-fast-libretro",
+      "lot": 1
+    },
+    {
+      "id": "mednafen_wswan",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-wswan-libretro",
+      "lot": 1
+    },
+    {
+      "id": "mednafen_ngp",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-ngp-libretro",
+      "lot": 1
+    },
+    {
+      "id": "handy",
+      "license": "Zlib",
+      "source": "https://github.com/libretro/libretro-handy",
+      "lot": 1
+    },
+    {
+      "id": "mednafen_vb",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/beetle-vb-libretro",
+      "lot": 1
+    },
+    {
+      "id": "stella",
+      "license": "GPLv2",
+      "source": "https://github.com/stella-emu/stella",
+      "lot": 1
+    },
+    {
+      "id": "prosystem",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/prosystem-libretro",
+      "lot": 1
+    },
+    {
+      "id": "a5200",
+      "license": "GPLv2",
+      "source": "https://github.com/libretro/a5200",
+      "lot": 1
+    },
+    {
+      "id": "gearcoleco",
+      "license": "GPLv3",
+      "source": "https://github.com/drhelius/Gearcoleco",
+      "lot": 1
+    },
+    {
+      "id": "pokemini",
+      "license": "GPLv3+",
+      "source": "https://github.com/libretro/PokeMini",
+      "lot": 1
+    },
+    {
+      "id": "gw",
+      "license": "Zlib",
+      "source": "https://github.com/libretro/gw-libretro",
+      "lot": 1
+    },
+    {
+      "id": "sameduck",
+      "license": "MIT",
+      "source": "https://github.com/LIJI32/SameBoy/tree/SameDuck",
+      "lot": 1
+    },
+    {
+      "id": "potator",
+      "license": "Unlicense (public domain)",
+      "source": "https://github.com/libretro/potator",
+      "lot": 1
+    },
+    {
+      "id": "ardens",
+      "license": "MIT",
+      "source": "https://github.com/tiberiusbrown/Ardens",
+      "lot": 1
+    },
+    {
+      "id": "wasm4",
+      "license": "ISC",
+      "source": "https://github.com/aduros/wasm4",
+      "lot": 1
+    },
+    {
+      "id": "uzem",
+      "license": "MIT",
+      "source": "https://github.com/libretro/libretro-uzem",
+      "lot": 1
     }
   ],
   "reuse": {
     "hostCommit": "ba3dc14d7196429b65f20cdb8573616633dfb8a2",
     "runId": 38195212647,
     "identitySha256": "f49155e4f5c46138663978ab1d0bd64736cabb04c4593baf8cd08d2f74ee33f4"
+  },
+  "base": {
+    "hostCommit": "8b9e87ba39edb647f8cddca5ee8d924319bcbacb",
+    "runId": 38352378859,
+    "coreIds": [
+      "nestopia",
+      "snes9x",
+      "gambatte",
+      "mgba",
+      "genesis_plus_gx",
+      "genesis_plus_gx_wide",
+      "picodrive",
+      "fbneo",
+      "desmume",
+      "mupen64plus_next",
+      "mednafen_psx_hw",
+      "mednafen_psx",
+      "ppsspp",
+      "azahar"
+    ]
   }
 }

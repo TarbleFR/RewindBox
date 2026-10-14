@@ -263,6 +263,285 @@
         }
       ],
       "cores": []
+    },
+    {
+      "component": "beetle_pce_fast",
+      "repository": "https://github.com/libretro/beetle-pce-fast-libretro",
+      "license_reference_revision": "3f946f277aef3aa99a95551618bbcd1dd2bda0d9",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "beetle_pce_fast-COPYING",
+          "upstream_path": "COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-pce-fast-libretro/3f946f277aef3aa99a95551618bbcd1dd2bda0d9/COPYING",
+          "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb"
+        }
+      ],
+      "cores": [
+        "mednafen_pce_fast"
+      ]
+    },
+    {
+      "component": "beetle_wswan",
+      "repository": "https://github.com/libretro/beetle-wswan-libretro",
+      "license_reference_revision": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "beetle_wswan-COPYING",
+          "upstream_path": "COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-wswan-libretro/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd/COPYING",
+          "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb"
+        }
+      ],
+      "cores": [
+        "mednafen_wswan"
+      ]
+    },
+    {
+      "component": "beetle_ngp",
+      "repository": "https://github.com/libretro/beetle-ngp-libretro",
+      "license_reference_revision": "a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "beetle_ngp-COPYING",
+          "upstream_path": "COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-ngp-libretro/a50d5ac288a81f2104ddf43195a4efdd15c72227/COPYING",
+          "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb"
+        }
+      ],
+      "cores": [
+        "mednafen_ngp"
+      ]
+    },
+    {
+      "component": "handy",
+      "repository": "https://github.com/libretro/libretro-handy",
+      "license_reference_revision": "bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "handy-license.txt",
+          "upstream_path": "lynx/license.txt",
+          "source_url": "https://raw.githubusercontent.com/libretro/libretro-handy/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1/lynx/license.txt",
+          "sha256": "c75a7fed8afe9d6a5a70a48c0b52bf37207e8dee49dfa664b0b73819248db671"
+        }
+      ],
+      "cores": [
+        "handy"
+      ]
+    },
+    {
+      "component": "beetle_vb",
+      "repository": "https://github.com/libretro/beetle-vb-libretro",
+      "license_reference_revision": "d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "beetle_vb-COPYING",
+          "upstream_path": "COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-vb-libretro/d5ae54c8e23b573a3b34e888b2d48a588027e92c/COPYING",
+          "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb"
+        }
+      ],
+      "cores": [
+        "mednafen_vb"
+      ]
+    },
+    {
+      "component": "stella",
+      "repository": "https://github.com/stella-emu/stella",
+      "license_reference_revision": "2c3d7023e9136f75c789803b44f119d8749dc104",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "stella-License.txt",
+          "upstream_path": "License.txt",
+          "source_url": "https://raw.githubusercontent.com/stella-emu/stella/2c3d7023e9136f75c789803b44f119d8749dc104/License.txt",
+          "sha256": "58530d09b6fcb91ae27071be0081af90e6c2d7fdf991d34a29e234a2a5e75455"
+        },
+        {
+          "path": "stella-Copyright.txt",
+          "upstream_path": "Copyright.txt",
+          "source_url": "https://raw.githubusercontent.com/stella-emu/stella/2c3d7023e9136f75c789803b44f119d8749dc104/Copyright.txt",
+          "sha256": "5b2fb88a3c54b1217b0e725f1c44ecd44dc0ab1bb1ee59dae9e7511162400c94"
+        }
+      ],
+      "cores": [
+        "stella"
+      ]
+    },
+    {
+      "component": "prosystem",
+      "repository": "https://github.com/libretro/prosystem-libretro",
+      "license_reference_revision": "8a88014287c7a01cd568067e5a557d0a2b2a051f",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "prosystem-License.txt",
+          "upstream_path": "License.txt",
+          "source_url": "https://raw.githubusercontent.com/libretro/prosystem-libretro/8a88014287c7a01cd568067e5a557d0a2b2a051f/License.txt",
+          "sha256": "9fae8c2ae211ea4b3515621484bb0a558a0ca62d05c9534265c7e223bdf981b0"
+        }
+      ],
+      "cores": [
+        "prosystem"
+      ]
+    },
+    {
+      "component": "a5200",
+      "repository": "https://github.com/libretro/a5200",
+      "license_reference_revision": "40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "a5200-License.txt",
+          "upstream_path": "License.txt",
+          "source_url": "https://raw.githubusercontent.com/libretro/a5200/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b/License.txt",
+          "sha256": "63755afa640d0ae54e295a7290ebc28aaa3bacb8b3a87ccc15e19d17a5beb896"
+        }
+      ],
+      "cores": [
+        "a5200"
+      ]
+    },
+    {
+      "component": "gearcoleco",
+      "repository": "https://github.com/drhelius/Gearcoleco",
+      "license_reference_revision": "d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "gearcoleco-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/drhelius/Gearcoleco/d74e9b82f6bba36610ea7823b11e95202c1d8e29/LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        }
+      ],
+      "cores": [
+        "gearcoleco"
+      ]
+    },
+    {
+      "component": "pokemini",
+      "repository": "https://github.com/libretro/PokeMini",
+      "license_reference_revision": "132111b76343559860532a1ccc094f93f1ed5650",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "pokemini-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/PokeMini/132111b76343559860532a1ccc094f93f1ed5650/LICENSE",
+          "sha256": "ded5742c5726ec53c985db1f333be39c18096dcc89bd71f0617efee2369b4dca"
+        }
+      ],
+      "cores": [
+        "pokemini"
+      ]
+    },
+    {
+      "component": "gw",
+      "repository": "https://github.com/libretro/gw-libretro",
+      "license_reference_revision": "91d599b951e7bfe7e040347f58667cba20074adc",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "gw-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/gw-libretro/91d599b951e7bfe7e040347f58667cba20074adc/LICENSE",
+          "sha256": "de05dd3d34f865668f989705eb578af3cf749765bebf892c80d427f20ec05cbe"
+        }
+      ],
+      "cores": [
+        "gw"
+      ]
+    },
+    {
+      "component": "sameduck",
+      "repository": "https://github.com/LIJI32/SameBoy",
+      "license_reference_revision": "5619abdb01cee6bedb47599cdb5532c318443b52",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "sameduck-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/LIJI32/SameBoy/5619abdb01cee6bedb47599cdb5532c318443b52/LICENSE",
+          "sha256": "429744ec081f13c856b1ed9726a591d7d6c2151a371601c004e110b28d0bf237"
+        }
+      ],
+      "cores": [
+        "sameduck"
+      ],
+      "repository_branch": "SameDuck"
+    },
+    {
+      "component": "potator",
+      "repository": "https://github.com/libretro/potator",
+      "license_reference_revision": "227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "potator-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/potator/227c5f6f3ce74d32e9002ce24c1420288559a860/LICENSE",
+          "sha256": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd"
+        }
+      ],
+      "cores": [
+        "potator"
+      ]
+    },
+    {
+      "component": "ardens",
+      "repository": "https://github.com/tiberiusbrown/Ardens",
+      "license_reference_revision": "ba7ad0dcfc196459859d304a8c483b38621c7cfa",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "ardens-LICENSE.txt",
+          "upstream_path": "LICENSE.txt",
+          "source_url": "https://raw.githubusercontent.com/tiberiusbrown/Ardens/ba7ad0dcfc196459859d304a8c483b38621c7cfa/LICENSE.txt",
+          "sha256": "825986f8856b90ca760fb5ab0e44f8a9731b0db62aa643e14a485d6801055b9e"
+        }
+      ],
+      "cores": [
+        "ardens"
+      ]
+    },
+    {
+      "component": "wasm4",
+      "repository": "https://github.com/aduros/wasm4",
+      "license_reference_revision": "9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "wasm4-LICENSE.txt",
+          "upstream_path": "LICENSE.txt",
+          "source_url": "https://raw.githubusercontent.com/aduros/wasm4/9d6c962785cfe3719d0245fd279ecbe98a4dbb63/LICENSE.txt",
+          "sha256": "57dece2bb0324db24532eba37aa2f9103e2f7f96bfbfea535358bf66ba5a1f1b"
+        }
+      ],
+      "cores": [
+        "wasm4"
+      ]
+    },
+    {
+      "component": "uzem",
+      "repository": "https://github.com/libretro/libretro-uzem",
+      "license_reference_revision": "d991ee94547c8294abc1c4cb73d63116aa58b5bc",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "uzem-MIT-notice.h",
+          "upstream_path": "uzem.h",
+          "source_url": "https://raw.githubusercontent.com/libretro/libretro-uzem/d991ee94547c8294abc1c4cb73d63116aa58b5bc/uzem.h",
+          "sha256": "9fe5f165423299c308bed2197dccf53bb36475593a90ab2def0768d0ef232279"
+        }
+      ],
+      "cores": [
+        "uzem"
+      ]
     }
   ],
   "support_files": [

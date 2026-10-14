@@ -118,9 +118,13 @@ class AzaharPackageTests(unittest.TestCase):
                 self.assertEqual((self.output / name).read_bytes(), data)
         identity = json.loads((self.output / 'identity.json').read_text())
         self.assertEqual(identity['host_commit'], 'candidate-sha')
-        self.assertEqual(identity['cores'][:-1], self.identity['cores'][:-1])
-        self.assertEqual(identity['cores'][-1]['sha256'], pkg.sha(self.binary))
-        self.assertEqual(identity['cores'][-1]['fastInterpreterOption'], 'citra_use_fastinterp')
+        # Azahar is no longer the last core since the cores added after it
+        # (build-utils/libretro/add_cores.py): every other record is kept.
+        azahar = [core['id'] for core in identity['cores']].index('azahar')
+        self.assertEqual(identity['cores'][:azahar] + identity['cores'][azahar + 1:],
+                         self.identity['cores'][:azahar] + self.identity['cores'][azahar + 1:])
+        self.assertEqual(identity['cores'][azahar]['sha256'], pkg.sha(self.binary))
+        self.assertEqual(identity['cores'][azahar]['fastInterpreterOption'], 'citra_use_fastinterp')
         for name, digest in identity['files'].items():
             self.assertEqual(pkg.sha((self.output / name).read_bytes()), digest)
 

@@ -130,58 +130,67 @@ def framework_plist(identifier, executable, minimum):
     })
 
 
-def package_cores(output):
+def buildbot_listing():
+    """Archive names the buildbot directory lists (`*.dylib.zip`)."""
     listing = fetch(MANIFEST['buildbot'])[0].decode()
-    available = set(re.findall(r'href="[^"]*/([^"/]+\.dylib\.zip)"', listing))
-    frameworks = output / 'Frameworks'
+    return sorted(set(re.findall(r'href="[^"]*/([^"/]+\.dylib\.zip)"', listing)))
+
+
+def package_core(core, available, frameworks):
+    """Downloads one core from the buildbot, checks its Mach-O and wraps it as
+    `<id>_libretro.framework` in `frameworks`, binary unchanged. Returns its
+    identity record."""
+    identifier = core['id']
     limit = version_tuple(MANIFEST['maximumCoreMinimumOS'])
-    records = []
-    for core in MANIFEST['cores']:
-        identifier = core['id']
-        candidates = [f'{identifier}_libretro_ios.dylib.zip', f'{identifier}_libretro.dylib.zip']
-        archive_name = next((name for name in candidates if name in available), None)
-        if archive_name is None:
-            raise ValueError(f'{identifier}: not published on the buildbot')
-        archive, headers = fetch(MANIFEST['buildbot'] + archive_name)
-        member = archive_name[:-4]
-        with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
-            if member not in bundle.namelist():
-                raise ValueError(f'{identifier}: archive lacks {member}')
-            original = bundle.read(member)
-        binary = thin_arm64(original)
-        info = macho(binary)
-        if info['fileType'] != 6 or info['platform'] != PLATFORM_IOS or info['minimumOS'] is None:
-            raise ValueError(f'{identifier}: not an iOS dylib ({info})')
-        if version_tuple(info['minimumOS']) > limit:
-            raise ValueError(f'{identifier}: requires iOS {info["minimumOS"]}')
-        check_dependencies(identifier, info)
-        executable = f'{identifier}_libretro'
-        target = frameworks / f'{executable}.framework'
-        target.mkdir(parents=True, exist_ok=True)
-        (target / executable).write_bytes(binary)
-        (target / executable).chmod(0o755)
-        missing = [name for name in REQUIRED_EXPORTS if name not in exported_symbols(target / executable)]
-        if missing:
-            raise ValueError(f'{identifier}: missing libretro exports {missing}')
-        bundle_id = 'com.neogamelab.neostation.libretro.' + identifier.replace('_', '-')
-        (target / 'Info.plist').write_bytes(framework_plist(bundle_id, executable, info['minimumOS']))
-        records.append({
-            'id': identifier,
-            'archive': archive_name,
-            'url': MANIFEST['buildbot'] + archive_name,
-            'archiveSha256': sha(archive),
-            'sha256': sha(binary),
-            'thinnedFromFat': binary is not original,
-            'bytes': len(binary),
-            'minimumOS': info['minimumOS'],
-            'dependencies': info['dependencies'],
-            'installName': info['id'],
-            'license': core['license'],
-            'source': core['source'],
-            **headers,
-        })
-        print(f'{identifier}: {archive_name} {len(binary)} bytes iOS {info["minimumOS"]}', flush=True)
-    return records
+    candidates = [f'{identifier}_libretro_ios.dylib.zip', f'{identifier}_libretro.dylib.zip']
+    archive_name = next((name for name in candidates if name in available), None)
+    if archive_name is None:
+        raise ValueError(f'{identifier}: not published on the buildbot')
+    archive, headers = fetch(MANIFEST['buildbot'] + archive_name)
+    member = archive_name[:-4]
+    with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
+        if member not in bundle.namelist():
+            raise ValueError(f'{identifier}: archive lacks {member}')
+        original = bundle.read(member)
+    binary = thin_arm64(original)
+    info = macho(binary)
+    if info['fileType'] != 6 or info['platform'] != PLATFORM_IOS or info['minimumOS'] is None:
+        raise ValueError(f'{identifier}: not an iOS dylib ({info})')
+    if version_tuple(info['minimumOS']) > limit:
+        raise ValueError(f'{identifier}: requires iOS {info["minimumOS"]}')
+    check_dependencies(identifier, info)
+    executable = f'{identifier}_libretro'
+    target = frameworks / f'{executable}.framework'
+    target.mkdir(parents=True, exist_ok=True)
+    (target / executable).write_bytes(binary)
+    (target / executable).chmod(0o755)
+    missing = [name for name in REQUIRED_EXPORTS if name not in exported_symbols(target / executable)]
+    if missing:
+        raise ValueError(f'{identifier}: missing libretro exports {missing}')
+    bundle_id = 'com.neogamelab.neostation.libretro.' + identifier.replace('_', '-')
+    (target / 'Info.plist').write_bytes(framework_plist(bundle_id, executable, info['minimumOS']))
+    print(f'{identifier}: {archive_name} {len(binary)} bytes iOS {info["minimumOS"]}', flush=True)
+    return {
+        'id': identifier,
+        'archive': archive_name,
+        'url': MANIFEST['buildbot'] + archive_name,
+        'archiveSha256': sha(archive),
+        'sha256': sha(binary),
+        'thinnedFromFat': binary is not original,
+        'bytes': len(binary),
+        'minimumOS': info['minimumOS'],
+        'dependencies': info['dependencies'],
+        'installName': info['id'],
+        'license': core['license'],
+        'source': core['source'],
+        **headers,
+    }
+
+
+def package_cores(output):
+    available = set(buildbot_listing())
+    frameworks = output / 'Frameworks'
+    return [package_core(core, available, frameworks) for core in MANIFEST['cores']]
 
 
 def package_moltenvk(output):
