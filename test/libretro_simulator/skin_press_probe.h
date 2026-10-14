@@ -60,6 +60,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
 @property(nonatomic, strong) NSMutableDictionary<NSString *, SkinProbeTouch *> *touches;
 @property(nonatomic, strong) GCVirtualController *virtualController;
 @property(nonatomic) NSUInteger stage;
+@property(nonatomic) NSUInteger preparationAttempts;
 - (void)advance;
 @end
 
@@ -162,12 +163,21 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self check:a!=nil name:@"skin has a mapped game button"];
       if(a==nil){self.completion();return;}
       id layers=[self layers:a];
-      BOOL separated=[layers valueForKey:@"image"]!=nil || [layers valueForKey:@"shape"]!=nil;
+      CALayer *image=[layers valueForKey:@"image"];
+      BOOL separated=image.contents!=nil || [layers valueForKey:@"shape"]!=nil;
+      if(!separated && self.preparationAttempts++<20){self.stage--;[self next];break;}
       [self check:separated name:@"button artwork separated before contact"];
       self.result[@"extracted"]= [[layers valueForKey:@"extracted"] boolValue] ? @YES : @NO;
-      if([self.scenario[@"skinPress"] isEqual:@"press-flat"])
-        [self check:[[layers valueForKey:@"extracted"] boolValue] && self.renderer.layer!=nil
+      if([self.scenario[@"skinPress"] isEqual:@"press-flat"]) {
+        CALayer *background=[self.renderer valueForKey:@"backgroundLayer"];
+        CAShapeLayer *mask=(CAShapeLayer *)background.mask;
+        CGPoint center=[self center:a];
+        center.x-=background.frame.origin.x;center.y-=background.frame.origin.y;
+        BOOL hole=mask.path!=NULL && !CGPathContainsPoint(mask.path,NULL,center,YES);
+        CALayer *backplate=[layers valueForKey:@"backplate"];
+        [self check:[[layers valueForKey:@"extracted"] boolValue] && hole && backplate.contents!=nil
               name:@"baked test-skin button cropped with original removed"];
+      }
       [self capture:@"rest"]; break;
     }
     case 2:
@@ -236,17 +246,25 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       {
         GCVirtualControllerConfiguration *config=[GCVirtualControllerConfiguration new];
         config.elements=[NSSet setWithArray:@[GCInputButtonA,GCInputDirectionPad]];
+        config.hidden=YES;
         self.virtualController=[[GCVirtualController alloc] initWithConfiguration:config];
+        __block BOOL answered=NO;
         [self.virtualController connectWithReplyHandler:^(NSError *error){
+          if(answered)return;answered=YES;
           self.result[@"virtualControllerError"]=error.localizedDescription ?: @"";
           [self check:error==nil name:@"Apple virtual controller connected"];
-          [self.virtualController.controller.extendedGamepad.buttonA setValue:1];
+          [self.virtualController setValue:1 forButtonElement:GCInputButtonA];
           [self next];
         }];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,5*NSEC_PER_SEC),dispatch_get_main_queue(),^{
+          if(answered)return;answered=YES;
+          [self check:NO name:@"Apple virtual controller connection timeout"];
+          [self next];
+        });
       }
       break;
     case 15: [self.input pollControllers]; [self check:self.input.hasPhysicalController && [self deliveredButtons]!=0 name:@"controller input uses the existing polling and console map"];
-      [self.virtualController.controller.extendedGamepad.buttonA setValue:0];
+      [self.virtualController setValue:0 forButtonElement:GCInputButtonA];
       [self.virtualController disconnect]; [self next];break;
     case 16:
       if([self.scenario[@"skinPress"] isEqual:@"press-flat"]){[self chooseSkin:@"press-complex"];[self next];break;}
