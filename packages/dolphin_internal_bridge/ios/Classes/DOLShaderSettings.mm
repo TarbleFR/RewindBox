@@ -296,12 +296,14 @@ typedef NS_ENUM(NSInteger, DOLShaderRowKind) { DOLShaderRowAction, DOLShaderRowS
                                       [weakSelf setGameScope:NO];
                                     }];
     all.checked = !_gameScope;
+    all.enabled = idle;
     all.identifier = @"dolphinShaderScopeAll";
     DOLShaderRow* game = [self rowWithTitle:[self text:@"scopeGame" values:@{@"game" : self.gameId}]
                                      action:^(UIView* cell) {
                                        [weakSelf setGameScope:YES];
                                      }];
     game.checked = _gameScope;
+    game.enabled = idle;
     game.identifier = @"dolphinShaderScopeGame";
     DOLShaderSection* scope = [DOLShaderSection new];
     scope.title = [self text:@"scopeSection"];
@@ -474,6 +476,9 @@ typedef NS_ENUM(NSInteger, DOLShaderRowKind) { DOLShaderRowAction, DOLShaderRowS
 #pragma mark Actions
 
 - (void)setGameScope:(BOOL)gameScope {
+  // check: captures the destination scope before leaving the main thread.
+  // Keep it fixed until that check saves or refuses its result.
+  if (_checking != nil) return;
   _gameScope = gameScope && self.hasGame;
   self.navigationItem.prompt = nil;
   [self rebuild];

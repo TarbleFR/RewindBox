@@ -3,16 +3,46 @@ ROOT=Path(__file__).resolve().parents[1]
 origin=ROOT/'test/dolphin_account_267_test.py'
 source=origin.read_text().replace("'CLANG_ENABLE_OBJC_ARC': 'YES',", "'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',")
 source=source.replace("{'sdk': 'UIKit.framework'}", "{'sdk': 'UniformTypeIdentifiers.framework'}, {'sdk': 'UIKit.framework'}")
+source=source.replace("include = stage_external_display(directory)", "include = stage_dependency_headers(directory)")
+source=source.replace("str(CLASSES / 'DolphinSessionMenu.mm'),", "str(CLASSES / 'DolphinSessionMenu.mm'), str(CLASSES / 'DOLShaderSettings.mm'),")
 ns={'__file__':str(origin),'__name__':'pacing_tests'}
 exec(compile(source,str(origin),'exec'),ns)
+from libretro_ios_syntax_test import stage_dependency_headers
+ns['stage_dependency_headers']=stage_dependency_headers
+# This fixture exercises the actual settings controller's busy state. It
+# links no shader compiler or emulator; real shader compilation/rendering is
+# covered separately by shader-kit-checks and is not asserted by this UI test.
+ns['APP']+=r'''
+#import <neo_shader_kit/NeoDolphinShader.h>
+#import <neo_shader_kit/NeoShaderCatalog.h>
+NSString* const NeoDolphinShaderErrorDomain=@"Test.DolphinShader";
+NSString* const NeoDolphinShaderErrorCodeKey=@"code";
+@implementation NeoDolphinShader
++ (NSArray*)optionsOfCode:(NSString*)code { return @[]; }
++ (NSArray*)creditLinesOfCode:(NSString*)code { return @[]; }
++ (instancetype)shaderWithCode:(NSString*)code error:(NSError**)error { return nil; }
+- (BOOL)compileWithDevice:(id<MTLDevice>)device error:(NSError**)error { return NO; }
+@end
+@implementation NeoShaderCatalogManager
++ (instancetype)sharedManager { static id manager; static dispatch_once_t once; dispatch_once(&once,^{manager=[self new];}); return manager; }
+- (NSArray*)diagnosticsForEngine:(NSString*)engine { return @[]; }
+- (NeoShaderCatalog*)catalogForEngine:(NSString*)engine { return nil; }
+- (void)setCatalogDirectory:(NSString*)directory {}
+@end
+'''
 ns['TESTS']=r'''
 #import <XCTest/XCTest.h>
 #import "DolphinFramePacing.h"
 #import "DolphinSessionMenu.h"
 #import "DolphinPhoneShakeLabels.h"
 #import "DOLShaderLabels.h"
+#import "DOLShaderSettings.h"
 @interface DolphinSessionMenu (ShaderTestAccess)
 - (DolphinSessionMenu*)child:(NSInteger)page title:(NSString*)title;
+@end
+@interface DOLShaderSettings (BusyStateTestAccess)
+- (void)rebuild;
+- (void)setGameScope:(BOOL)gameScope;
 @end
 @interface DolphinFramePacing (TestAccess)
 - (void)tick:(CADisplayLink*)link;
@@ -130,6 +160,37 @@ ns['TESTS']=r'''
    XCTAssertEqualObjects(cell.accessibilityIdentifier,@"dolphinPostProcessingFromMenu");
    [menu tableView:menu.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:4 inSection:0]];
    XCTAssertEqual(shader,2U);XCTAssertEqual(coreWrites,0U);
+  }
+}
+
+- (void)testShaderScopeCannotChangeDuringAnOutstandingCheck {
+ for(NSString* game in @[@"GALE01",@"RMGE01"])
+  for(NSString* locale in @[@"en",@"fr",@"de",@"es",@"it",@"pt",@"ru",@"id",@"ja",@"ko",@"zh",@"zh_Hant"]) {
+   NSString* folder=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+   DOLShaderSettings* page=[[DOLShaderSettings alloc] initWithStyle:UITableViewStyleInsetGrouped];
+   page.userDirectory=folder;page.systemDirectory=folder;page.gameId=game;page.locale=locale;
+   [page loadViewIfNeeded];
+   XCTAssertFalse([[page valueForKey:@"gameScope"] boolValue]);
+   // Simulate the existing marker while the worker checks a file. This tests
+   // UI scope locking, not shader translation, Metal or the Dolphin engine.
+   [page setValue:@"fixture" forKey:@"checking"];[page rebuild];
+   for(NSInteger row=0;row<2;row++) {
+    NSIndexPath* index=[NSIndexPath indexPathForRow:row inSection:0];
+    UITableViewCell* cell=[page tableView:page.tableView cellForRowAtIndexPath:index];
+    XCTAssertEqual(cell.selectionStyle,UITableViewCellSelectionStyleNone);
+    [page tableView:page.tableView didSelectRowAtIndexPath:index];
+    XCTAssertFalse([[page valueForKey:@"gameScope"] boolValue]);
+   }
+   // A stale handler invocation is also refused while checking.
+   [page setGameScope:YES];XCTAssertFalse([[page valueForKey:@"gameScope"] boolValue]);
+   [page setValue:nil forKey:@"checking"];[page rebuild];
+   NSIndexPath* gameScope=[NSIndexPath indexPathForRow:1 inSection:0];
+   XCTAssertNotEqual([page tableView:page.tableView cellForRowAtIndexPath:gameScope].selectionStyle,UITableViewCellSelectionStyleNone);
+   [page tableView:page.tableView didSelectRowAtIndexPath:gameScope];
+   XCTAssertTrue([[page valueForKey:@"gameScope"] boolValue]);
+   [page tableView:page.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+   XCTAssertFalse([[page valueForKey:@"gameScope"] boolValue]);
+   [NSFileManager.defaultManager removeItemAtPath:folder error:nil];
   }
 }
 

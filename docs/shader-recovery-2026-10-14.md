@@ -183,3 +183,16 @@ separate shader job prevents that existing scenario from hiding shader test
 results. A stale, unrelated `dolphin_achievements_hacks_menu_test.py` assertion
 for `UIBlurEffectStyleSystemChromeMaterial` is absent in the starting source
 as well; it is not changed to obtain a passing result.
+
+### Dolphin scope during an outstanding file check
+
+Final review found a pre-existing settings-page race: its asynchronous shader
+check captures the destination scope, but the All games / This game rows
+remained selectable while that check ran. Both rows now follow the existing
+busy-state lock, and the scope handler rejects a late invocation until the
+check finishes. No translation or core interface changes are required.
+The UIKit fixture instantiates the actual settings controller and simulates
+its busy marker, checking blocked taps and handler calls, then restored
+scope selection for GameCube/Wii identities in all twelve languages. Its
+compiler/catalog dependencies are test stubs; this proves only UI behaviour,
+not shader compilation or rendering in Dolphin. Execution results are pending.
