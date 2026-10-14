@@ -118,8 +118,9 @@ presets rendered**, and the separate Dolphin-interface harness rendered
 effects were excluded as before. This harness is not the Dolphin engine.
 The UIKit step failed before execution because `xcodegen` was missing on
 the runner, as shown by `FileNotFoundError`; its installation is now guarded.
-Only that UIKit check will be rerun in the shader workflow using its explicit
-`ui_only` input. The runtime, compiler, catalog, fixtures and shader sources
+That UIKit check was rerun in the shader workflow using its explicit
+`ui_only` input and passed on `6e344c88`; the later scope regression also
+passed on `63066c54`. The runtime, compiler, catalog, fixtures and shader sources
 are byte-identical to the passing shader inputs of `06d2650` (verified by
 Git comparison), so those outcomes are reused rather than rerun.
 
@@ -147,10 +148,11 @@ files are present under `Sys/Shaders`, with the expected sizes and SHA-256s.
 This proves packaging for that file, not which binary is installed or that
 a selected effect reaches a running Dolphin game.
 
-The session lifecycle changes and supersession/late activation scenarios
-require a new simulator/native run. Final results
-will be appended when these checks finish; the results above belong to
-the initial source and are not represented as tests of later session code.
+The final session lifecycle source `16b2763a` passed the complete engine
+workflow `38586987693` (Dart and native) and all four jobs of simulator run
+`38586992941`, including all six shader scenarios, supersession, late
+activation refusals and stored-shader relaunch. The original shader kit
+results above remain attributed to their actual source `06d26509`.
 No physical iOS device test has been performed. Dolphin's integrated engine
 has not been run with the chosen effects during this task. No performance or
 stability claim on iPhone is justified by these checks.
@@ -204,13 +206,14 @@ not shader compilation or rendering in Dolphin. Execution results are pending.
 The direct GameCube/Wii shader menu navigation passed all twelve locales in
 run `38586801064`, source `6e344c886fb9b9c95bf6fc97288b1fc0c3c29c23`:
 **9 UIKit tests, zero failures**. This does not execute a Dolphin game.
-The new busy-scope controller regression is running on `63066c54` in
-run `38587752461`; it uses declared test stubs for the shader dependencies.
+The new busy-scope controller regression passed on `63066c54` in
+run `38587752461`: **10 UIKit tests, zero failures**. It uses declared
+test stubs for the shader dependencies and the actual settings controller.
 
 The loaded-session startup correction is
 `16b2763aad00a36cb4674c82946babd56a644cdf`. The Dart job of run
 `38586987693` passed, including the accepted directory settings guard;
-its native job and simulator run `38586992941` are still running.
+its native job and all four jobs of simulator run `38586992941` passed.
 Later commits modifying only the Dolphin UI or the probe fixtures do not
 change those libretro runtime inputs. Results will be recorded by tested
 source instead of claiming every test ran against every documentation commit.
@@ -221,3 +224,62 @@ pre-existing NeoSwap/ARMSX2 full-file scope assertion for
 `29b24945` and has not been edited by this task. The contract's later checks
 are not represented as passed. No unrelated legal, PSP or core changes are
 made to turn that assertion green.
+
+
+### Runtime test identity and Dolphin execution limit
+
+The libretro simulator application is **Libretro Probe 1.0 (1)**,
+`com.neostation.libretro.probe`, tested on **iPhone SE (3rd generation), iOS 26.2 Simulator**, with the
+tested Git SHA recorded in its configuration and evidence. It compiles the actual NeoStation session,
+menu, storage, compiler and presenter, with a fixture catalog and synthetic
+network responses. It is not a full NeoStation app build. No new NeoStation
+IPA or release build was created; the app source version remains `0.0.7+455`.
+
+The embedded Dolphin delivery pins `OatmealDome/dolphin-ios` revision
+`7cac54161659421ed95c2cd1c0b0746539a4cd38` and supplies an iPhone-only
+arm64 core (Mach-O
+platform 2, `iPhoneOS`, built with `-DPLATFORM=OS64`). It supplies no iOS
+Simulator slice (platform 7). Its host requires a fresh StikJIT PID attach
+and the RX/RW handshake, and its retained core requires JITARM64 with Metal.
+The repository has no integrated GameCube/Wii simulator harness or playable
+homebrew fixture. This Linux workspace cannot execute that iPhone binary.
+The UIKit harness explicitly substitutes the emulator dependencies. No
+integrated Dolphin execution or visual GameCube/Wii comparison was performed.
+
+The known `ppsspp-crowded` address-string assertion failed in intermediate
+run `38583666660`; the games still launched and stopped. The unchanged
+assertion passed in final runtime run `38586992941`. It was neither changed
+nor treated as a new PSP fault or a cause of the shader crash.
+
+The first shader action was subsequently strengthened on `7f384124` to
+invoke the actual entry, Download and Apply menu handlers in each of the
+software/Vulkan/DeSmuME sessions. It requires fresh verified fixture
+transfers, preferences written solely by the menu completion, and pixels
+from the presented drawable. Timing-measurement buffers cannot supply that
+evidence. Later stress/error actions still use the session/storage APIs.
+The dedicated run `38588559285` passed **all six scenarios** on
+`7f38412477f574c79f23f2703a4497619a3d10df`. It does not repeat the unchanged
+PSP, baseline teardown or core native inputs.
+
+
+### Commits on Claude
+
+- `06d26509d4fc5c34576eaf9ed0289ef7df2a4592`: GPU-confirmed activation,
+  validated storage, recovery markers, Dolphin menu/configuration, locales
+  and initial native/Metal/session regressions.
+- `1b3d4666b30bb74fe571cc4246fe3217892043f1`: one-shot callbacks,
+  after-teardown refusal and extended lifecycle regressions.
+- `6e344c886fb9b9c95bf6fc97288b1fc0c3c29c23`: synchronization guard,
+  UIKit runner prerequisite and exact accepted-directory contract.
+- `16b2763aad00a36cb4674c82946babd56a644cdf`: demonstrated stored-shader
+  startup-order regression corrected; final runtime tests all pass.
+- `63066c54e6a4a3de0fe570d387e0471896f39271`: Dolphin scope locked while
+  verifying, with the actual-controller UIKit regression.
+- `7f38412477f574c79f23f2703a4497619a3d10df`: actual catalog handler flow,
+  presented-drawable evidence and a scoped manual shader-test invocation.
+
+Final limits: no device crash reproduction, no physical iOS test, no live
+GLES producer test, and no GameCube/Wii effect validation in the integrated
+Dolphin engine. Mattias redistribution remains unresolved. Passing catalog
+renders are not a promise of compatibility or memory/performance on every
+core/device/output size; each activation must still pass runtime validation.
