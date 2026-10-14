@@ -1854,6 +1854,17 @@ LIBRETRO_LOT2_DELTA = LIBRETRO_LOT2_LEGAL_INPUTS | {
     'test/libretro_simulator_probe.py',
 }
 DELTA |= LIBRETRO_LOT2_DELTA
+# Maintainer rule of 14 October 2026, never ship a BIOS: the notices that
+# state it and the MIT notice of the Arduboy bootloaders Ardens embeds,
+# pinned to the reviewed commit.
+LIBRETRO_NO_BIOS_REFERENCE = '3b0a5b1837c8c7ff159d51759abc2f6a041cd0c0'
+LIBRETRO_NO_BIOS_LEGAL_INPUTS = {
+    'assets/legal/libretro/LIBRETRO_CORES.md',
+    'assets/legal/libretro/license-sources.json',
+    'assets/legal/libretro/ardens-cathy3k-LICENSE',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_NO_BIOS_LEGAL_INPUTS, LIBRETRO_NO_BIOS_REFERENCE))
+DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
