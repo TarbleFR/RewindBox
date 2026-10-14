@@ -154,6 +154,29 @@ No physical iOS device test has been performed. Dolphin's integrated engine
 has not been run with the chosen effects during this task. No performance or
 stability claim on iPhone is justified by these checks.
 
+### Stored shader startup regression
+
+Run `38583666660`, source `1b3d4666b30bb74fe571cc4246fe3217892043f1`,
+passed the live shader actions, including built-in supersession and requests
+after teardown, but failed all three stored-shader relaunch scenarios
+(software test core, Vulkan test core and real DeSmuME). The artifacts show
+`shader.enabled=true` and `shader.preset=slang:simple.slangp` still present,
+an empty interrupted list with no pending or active recovery marker,
+`SHADER_SUPERSEDED` at relaunch and no shader-attempt journal entry.
+
+The new unloaded-session guard exposed a startup ordering defect:
+`loadCore` scheduled the stored shader on the main queue before audio and
+the remaining initialization, while `_loaded` was still false. That queued
+request could run before initialization finished and was correctly refused
+by the guard. It never reached compilation; neither the test's post-stop
+calls nor recovery changed the saved choice.
+
+Stored activation is now scheduled after `_loaded=YES`, at the end of
+successful initialization. The guards against teardown remain intact. The
+existing three real-session relaunch scenarios cover this regression;
+their results on the corrected source must be recorded separately from the
+failed run above. This is simulator evidence, not an iPhone crash diagnosis.
+
 The existing `ppsspp-crowded` assertions remain intact. Their known simulator
 probe limitation is unrelated unless new evidence establishes a link. A
 separate shader job prevents that existing scenario from hiding shader test

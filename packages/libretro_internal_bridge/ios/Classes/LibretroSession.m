@@ -746,7 +746,6 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   } else {
     [_presenter presentBlack];
   }
-  if (shadersAvailable) [self applyStoredShader];
   _audio = [[LibretroAudioOutput alloc] initWithInputRate:av.timing.sample_rate];
   NSError *audioError = nil;
   if (![_audio start:&audioError]) {
@@ -766,6 +765,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [_achievements startWithContentPath:configuration.contentPath];
   }
   _loaded = YES;
+  // Stored slang activation runs on the main queue and refuses an unloaded
+  // session. Publish readiness before scheduling it, after all load work.
+  if (shadersAvailable) [self applyStoredShader];
   return nil;
 }
 
