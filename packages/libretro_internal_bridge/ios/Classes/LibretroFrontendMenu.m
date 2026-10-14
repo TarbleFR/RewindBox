@@ -930,8 +930,9 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
   return option.builtin != nil ? option : nil;
 }
 
-/// Shader in effect: shader.enabled and a known shader.preset (game value,
-/// else console value); nil for the standard picture.
+/// Shader in effect: the resolved setting, and for slang the program that
+/// actually completed activation. A stored preset skipped by crash recovery
+/// or refused at load must not be marked active or make Apply a no-op.
 - (nullable LibretroShaderOption *)activeShaderOptionWithScope:(LibretroSettingScope *)scope {
   LibretroSettingScope enabledScope = LibretroSettingScopeDefault;
   LibretroSettingScope presetScope = LibretroSettingScopeDefault;
@@ -939,7 +940,9 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
   NSString *identifier = [self settingForKey:LibretroSettingShaderPreset ofClass:[NSString class] scope:&presetScope];
   if (scope != NULL) *scope = MaxScope(enabledScope, presetScope);
   if (!enabled.boolValue || identifier == nil) return nil;
-  return [self shaderOptionForIdentifier:identifier];
+  LibretroShaderOption *option = [self shaderOptionForIdentifier:identifier];
+  if (option != nil && option.builtin == nil && [self slangProgramOfOption:option] == nil) return nil;
+  return option;
 }
 
 /// Name shown for an option: the translated built-in name, the upstream

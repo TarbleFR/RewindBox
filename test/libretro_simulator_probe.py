@@ -978,6 +978,8 @@ def shader_problems(name, shaders, result, launch):
                 problems.append(f'{prefix}: the real entry/download/apply handlers were not traversed: {step!r}')
             if step.get('manualPersistence') is not False or step.get('menuFlowTimeout'):
                 problems.append(f'{prefix}: the menu selection was manually persisted or timed out')
+            if shaders.get('official') and step.get('menuPresetCheckedBeforeApply') is not False:
+                problems.append(f'{prefix}: the menu marked the unrendered stored selection as active')
             expected_files = SHADER_ENTRY_FILES.get(action['preset'])
             if shaders.get('official'):
                 catalog = json.loads((ROOT / 'packages/neo_shader_kit/ios/Resources/slang-catalog.json').read_text())

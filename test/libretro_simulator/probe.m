@@ -510,6 +510,7 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
       step[@"installationRegistered"] = installation != nil ? @YES : @NO;
       step[@"installationSuccess"] = installation != nil && [LibretroSlangStorage() installationIsComplete:installation] ? @YES : @NO;
       step[@"menuApplyHandler"] = @YES;
+      step[@"menuPresetCheckedBeforeApply"] = @(apply.checked);
       apply.action(page);
       applyInvoked = YES;
     }
@@ -783,9 +784,11 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
   CFAbsoluteTime deadline = CFAbsoluteTimeGetCurrent() + 30;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
     if ([scenario[@"shaders"][@"official"] boolValue] && [scenario[@"shaders"][@"initial"] length] == 0) {
-      // A prior test core can have saved a console-scoped choice for the
-      // next core. Capture a true unfiltered baseline, without deleting or
-      // rewriting those real preferences. Relaunch cases retain them.
+      // A prior core can have saved a console-scoped choice. Keep that
+      // preference and make the program absent, also the state after an
+      // interrupted/failed automatic load. Apply must really retry it and
+      // may not claim the stored choice is already rendered. Relaunch
+      // cases retain and observe the real restored program.
       id<LibretroFrontendMenuHost> host = (id<LibretroFrontendMenuHost>)session;
       [host applyShaderPreset:nil parameters:nil completion:^(BOOL success) {
         result[@"baselineDisableSuccess"] = @(success);
