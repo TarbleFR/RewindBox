@@ -246,14 +246,23 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
     case 9: {
       LibretroLaidOutItem *b=[self button:@"b"];
       if([self.result[@"slideChecked"] boolValue]) [self check:![self pressed:a] && [self pressed:b] name:@"slide changes the actual pressed button"];
-      LibretroLaidOutItem *pad=nil;
-      for(LibretroLaidOutItem *i in self.layout.items) if(i.item.kind==LibretroSkinItemKindDPad){pad=i;break;}
-      if(pad!=nil){[self touch:@"pad" at:CGPointMake(pad.frame.x+pad.frame.w-3,pad.frame.y+3) begin:YES];}
+      LibretroLaidOutItem *pad=nil,*stick=nil;
+      for(LibretroLaidOutItem *i in self.layout.items) {
+        if(i.item.kind==LibretroSkinItemKindDPad && pad==nil)pad=i;
+        if(i.item.kind==LibretroSkinItemKindThumbstick && stick==nil)stick=i;
+      }
+      LibretroLaidOutItem *direction=pad ?: stick;
+      self.result[@"combinedDirectionIsAnalog"]=(pad==nil && stick!=nil) ? @YES : @NO;
+      if(direction!=nil){[self touch:@"pad" at:CGPointMake(direction.frame.x+direction.frame.w-3,direction.frame.y+3) begin:YES];}
       [self next];break;
     }
     case 10: {
       NSDictionary *directions=[self.renderer valueForKey:@"dpadDirections"];
-      [self check:directions.count>0 && [self deliveredButtons]!=0 name:@"D-pad diagonal plus held button reaches core and artwork"];
+      LibretroInputSnapshot input=[self.input lastDelivered:NULL];
+      BOOL directional=[self.result[@"combinedDirectionIsAnalog"] boolValue]
+        ? [[self.renderer valueForKey:@"stickVectors"] count]>0 && input.analog[0][0][0]!=0 && input.analog[0][0][1]!=0
+        : directions.count>0;
+      [self check:directional && [self deliveredButtons]!=0 name:@"direction diagonal plus held button reaches core and artwork"];
       [self.controller menuPressed];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"opening menu releases every visual button"];
       SEL close=NSSelectorFromString(@"closeMenu");
@@ -269,7 +278,16 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
     }
     case 12: {
       NSString *id=self.result[@"stickId"];
-      if(id){NSDictionary *v=[self.renderer valueForKey:@"stickVectors"]; [self check:v[id]!=nil name:@"analog stick cap follows delivered vector"];}
+      if(id){
+        NSDictionary *v=[self.renderer valueForKey:@"stickVectors"];
+        LibretroLaidOutItem *stick=nil;
+        for(LibretroLaidOutItem *i in self.layout.items)if([i.item.identifier isEqual:id]){stick=i;break;}
+        id layers=[self layers:stick];CALayer *cap=[layers valueForKey:@"knobImage"] ?: [layers valueForKey:@"knob"];
+        LibretroInputSnapshot input=[self.input lastDelivered:NULL];
+        [self check:v[id]!=nil && cap.transform.m11<0.99 &&
+          (input.analog[0][0][0]!=0 || input.analog[0][0][1]!=0)
+          name:@"analog stick cap depression and vector reach the actual core input"];
+      }
       [self.controller applicationWillResignActive];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"background transition cancels held controls"];
       [self.touches removeAllObjects];
