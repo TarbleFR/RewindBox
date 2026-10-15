@@ -3,6 +3,8 @@
 #import "LibretroInputMap.h"
 
 #include <math.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -102,7 +104,7 @@ static BOOL SkinRect(id object, LibretroRect *out) {
   NSDictionary *dictionary = SkinDictionary(object);
   if (dictionary == nil) return NO;
   double x = 0, y = 0, width = 0, height = 0;
-  if (!SkinNumber(dictionary[@"x"], &x) || !SkinNumber(dictionary[@"y"], &y)) return NO;
+  if (!SkinNumber(dictionary[@"x"], &x) || !SkinNumber(dictionary[@"y"], &y) || fabs(x) > 1000000 || fabs(y) > 1000000) return NO;
   if (!SkinNumber(dictionary[@"width"], &width) && !SkinNumber(dictionary[@"w"], &width)) return NO;
   if (!SkinNumber(dictionary[@"height"], &height) && !SkinNumber(dictionary[@"h"], &height)) return NO;
   if (width < 0.001 || height < 0.001 || width > 1000000 || height > 1000000) return NO;
@@ -153,10 +155,10 @@ static LibretroInsets SkinEdges(id object, LibretroInsets base) {
   NSDictionary *dictionary = SkinDictionary(object);
   if (dictionary == nil) return base;
   double value = 0;
-  if (SkinNumber(dictionary[@"top"], &value)) base.top = value;
-  if (SkinNumber(dictionary[@"bottom"], &value)) base.bottom = value;
-  if (SkinNumber(dictionary[@"left"], &value)) base.left = value;
-  if (SkinNumber(dictionary[@"right"], &value)) base.right = value;
+  if (SkinNumber(dictionary[@"top"], &value) && fabs(value) <= 1000000) base.top = value;
+  if (SkinNumber(dictionary[@"bottom"], &value) && fabs(value) <= 1000000) base.bottom = value;
+  if (SkinNumber(dictionary[@"left"], &value) && fabs(value) <= 1000000) base.left = value;
+  if (SkinNumber(dictionary[@"right"], &value) && fabs(value) <= 1000000) base.right = value;
   return base;
 }
 
@@ -206,14 +208,18 @@ typedef NS_ENUM(NSInteger, SkinImageType) {
 
 /// Image type from the first bytes of the file (never from its name or key).
 static SkinImageType SkinImageTypeAtPath(NSString *path) {
-  NSData *data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
-  if (data.length < 4) return SkinImageTypeNone;
-  const uint8_t *bytes = data.bytes;
+  // Sniff a bounded header; mapping or allocating the whole file here is unnecessary.
+  uint8_t bytes[1024];
+  int descriptor = open(path.fileSystemRepresentation, O_RDONLY);
+  if (descriptor < 0) return SkinImageTypeNone;
+  ssize_t length = read(descriptor, bytes, sizeof(bytes));
+  close(descriptor);
+  if (length < 4) return SkinImageTypeNone;
   static const uint8_t png[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
-  if (data.length >= 8 && memcmp(bytes, png, 8) == 0) return SkinImageTypePNG;
+  if (length >= 8 && memcmp(bytes, png, 8) == 0) return SkinImageTypePNG;
   if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return SkinImageTypeJPEG;
   // The PDF header may follow a few bytes of junk (PDF 1.7, 7.5.2).
-  NSUInteger limit = MIN(data.length, (NSUInteger)1024);
+  NSUInteger limit = (NSUInteger)length;
   for (NSUInteger offset = 0; offset + 5 <= limit; offset++) {
     if (memcmp(bytes + offset, "%PDF-", 5) == 0) return SkinImageTypePDF;
   }

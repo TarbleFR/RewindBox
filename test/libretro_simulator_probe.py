@@ -1062,6 +1062,9 @@ def run_in_simulator(app, evidence, timeout):
     skin_frames = documents / 'SkinFrames'
     if skin_frames.is_dir():
         shutil.copytree(skin_frames, evidence / 'SkinFrames', dirs_exist_ok=True)
+    previews = documents / 'overlay-previews'
+    if previews.is_dir():
+        shutil.copytree(previews, evidence / 'OverlayPreviews', dirs_exist_ok=True)
     frontend = documents / 'Libretro/Config/Frontend'
     if frontend.is_dir():
         shutil.copytree(frontend, evidence / 'Frontend', dirs_exist_ok=True)

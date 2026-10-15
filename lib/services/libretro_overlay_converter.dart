@@ -277,10 +277,13 @@ class LibretroOverlayConverter {
       final rangeY = double.tryParse(parts[5]);
       if (x == null || y == null || rangeX == null || rangeY == null ||
           !x.isFinite || !y.isFinite || !rangeX.isFinite || !rangeY.isFinite ||
-          x.abs() > 8 || y.abs() > 8 || rangeX <= 0 || rangeY <= 0 || rangeX > 8 || rangeY > 8) {
+          x.abs() > 8 || y.abs() > 8 || rangeX < 0 || rangeY < 0 || rangeX > 8 || rangeY > 8) {
         problems.add('invalid descriptor geometry: $key');
         continue;
       }
+      // Zero-area descriptors are intentional hidden page-switch placeholders
+      // in RGPAD; RetroArch neither draws nor hits a rectangle with no area.
+      if (rangeX == 0 || rangeY == 0) continue;
       double reach(String side, String axis) =>
           double.tryParse(conf['${key}_reach_$side'] ?? '') ?? double.tryParse(conf['${key}_reach_$axis'] ?? '') ?? 1;
       final reaches = <String, double>{

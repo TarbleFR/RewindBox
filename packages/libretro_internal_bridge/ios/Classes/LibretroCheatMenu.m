@@ -65,7 +65,17 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     NSString *code = String(raw[@"code"]), *name = String(raw[@"name"]);
     if (name.length == 0 || name.length > 2048 || code.length > 8192) continue;
     // Same session/game and exact code semantics: keep one toggle, retain every attribution.
-    NSString *key = [NSString stringWithFormat:@"%@|%@", raw[@"handler"] ?: @0, code.uppercaseString];
+    NSNumber *handler = [raw[@"handler"] isKindOfClass:NSNumber.class] ? raw[@"handler"] : @0;
+    NSArray *prepared = [LibretroCheats codesForCheat:raw core:_core console:_console];
+    NSString *semanticCode = prepared ? [prepared componentsJoinedByString:@"+"] : code.uppercaseString;
+    if (handler.integerValue != 0) {
+      // Memory-engine cheats commonly have an empty code string. Their address,
+      // value and conditions must keep them distinct even while unsupported.
+      NSDictionary *memoryFields = [raw[@"raw"] isKindOfClass:NSDictionary.class] ? raw[@"raw"] : @{@"name":name};
+      NSData *fields = [NSJSONSerialization dataWithJSONObject:memoryFields options:NSJSONWritingSortedKeys error:nil];
+      semanticCode = [LibretroCheats digest:fields ?: [NSData data]];
+    }
+    NSString *key = [NSString stringWithFormat:@"%@|%@", handler, semanticCode];
     NSMutableDictionary *existing = nil;
     for (NSMutableDictionary *record in _records) if ([record[@"dedup"] isEqual:key]) { existing = record; break; }
     NSString *attribution = [NSString stringWithFormat:@"%@ · %@ · %@", String(raw[@"source"]), String(raw[@"game"]), String(raw[@"revision"])];

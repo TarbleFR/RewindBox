@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/libretro-cheats-checks.yml
       - packages/libretro_internal_bridge/ios/Classes/LibretroCheat*
+      - lib/services/libretro_overlay_converter.dart
       - test/libretro_cheat_probe.py
       - test/libretro_overlay_fixture_test.dart
       - test/libretro_simulator/overlay_preview_probe.h

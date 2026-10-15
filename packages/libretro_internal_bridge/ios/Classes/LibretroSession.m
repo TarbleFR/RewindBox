@@ -1292,6 +1292,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 /// Skin chosen for an orientation (game, else console); the default skin
 /// when none is chosen or the chosen one cannot be loaded.
 - (LibretroSkin *)selectedSkinForOrientation:(LibretroSkinOrientation)orientation {
+  if (_currentSkin != nil && _currentRepresentation != nil &&
+      ![_failedSkins containsObject:_currentSkin.installedIdentifier]) {
+    _lastWorkingSkins[@(_currentRepresentation.orientation)] = _currentSkin;
+  }
   NSString *key =
       orientation == LibretroSkinOrientationPortrait ? LibretroSettingSkinPortrait : LibretroSettingSkinLandscape;
   NSString *identifier = SettingString([self settingValue:key]);
@@ -1309,7 +1313,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       LibretroSession *session = weakSelf;
       if (session == nil) return;
       [session->_validatingSkins removeObject:identifier];
-      if (valid) [session->_validatedSkins addObject:identifier];
+      if (valid) {
+        [session->_validatedSkins addObject:identifier];
+        [session->_journal note:[NSString stringWithFormat:@"skin %@: resources decoded and validated", identifier]];
+      }
       else [session rejectSkinIdentifier:identifier reason:@"resource validation failed"];
       [session->_controller setNeedsSkinLayout];
     }];

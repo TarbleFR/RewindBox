@@ -8,6 +8,8 @@
 #import <QuartzCore/QuartzCore.h>
 
 #include <math.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -45,6 +47,8 @@ static NSCache<NSString *, UIImage *> *LibretroSkinMemoryCache(void) {
     cache = [[NSCache alloc] init];
     cache.name = @"neostation.libretro.skin-images";
     cache.totalCostLimit = LibretroSkinCacheCostLimit;
+    [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidReceiveMemoryWarningNotification
+      object:nil queue:nil usingBlock:^(__unused NSNotification *notification) { [cache removeAllObjects]; }];
   });
   return cache;
 }
@@ -57,14 +61,18 @@ static NSString *LibretroSkinCacheFolder(NSString *cacheDirectory) {
 /// Image type from the first bytes (never from the name).
 static LibretroSkinImageKind LibretroSkinImageKindAtPath(NSString *path) {
   if (path.length == 0) return LibretroSkinImageKindNone;
-  NSData *data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
-  if (data.length < 4) return LibretroSkinImageKindNone;
-  const uint8_t *bytes = data.bytes;
+  // Sniff a bounded header; mapping or allocating the whole file here is unnecessary.
+  uint8_t bytes[1024];
+  int descriptor = open(path.fileSystemRepresentation, O_RDONLY);
+  if (descriptor < 0) return LibretroSkinImageKindNone;
+  ssize_t length = read(descriptor, bytes, sizeof(bytes));
+  close(descriptor);
+  if (length < 4) return LibretroSkinImageKindNone;
   static const uint8_t png[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
-  if (data.length >= 8 && memcmp(bytes, png, 8) == 0) return LibretroSkinImageKindBitmap;
+  if (length >= 8 && memcmp(bytes, png, 8) == 0) return LibretroSkinImageKindBitmap;
   if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return LibretroSkinImageKindBitmap;
   // The PDF header may follow a few bytes of junk (PDF 1.7, 7.5.2).
-  NSUInteger limit = MIN(data.length, (NSUInteger)1024);
+  NSUInteger limit = (NSUInteger)length;
   for (NSUInteger offset = 0; offset + 5 <= limit; offset++) {
     if (memcmp(bytes + offset, "%PDF-", 5) == 0) return LibretroSkinImageKindPDF;
   }
