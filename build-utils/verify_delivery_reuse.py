@@ -1925,6 +1925,29 @@ LIBRETRO_DIRECTIONAL_INPUTS = {
 }
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_DIRECTIONAL_INPUTS, LIBRETRO_DIRECTIONAL_REFERENCE))
 DELTA |= LIBRETRO_DIRECTIONAL_INPUTS
+# Build 462: reviewed pressure profiles, intensity preference and regression
+# fixtures. Bind all changed source bytes to the actual tested candidate.
+LIBRETRO_PRESSURE462_REFERENCE = '06143ac80815c5f125b20e18c47c2d6291eeb117'
+LIBRETRO_PRESSURE462_INPUTS = {
+    'lib/l10n/libretro_locale.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroFrontendMenu.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroFrontendStore.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroFrontendStore.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinPressure.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinPressure.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'test/libretro_host/frontend/frontend_store_test.m',
+    'test/libretro_host/frontend/skin_pressure_test.m',
+    'test/libretro_locale_test.dart',
+    'test/libretro_simulator/skin_press_probe.h',
+    'test/libretro_skin_press_probe.py',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_PRESSURE462_INPUTS, LIBRETRO_PRESSURE462_REFERENCE))
+DELTA |= LIBRETRO_PRESSURE462_INPUTS
+DELIVERY456_PINNED_INPUTS['build-utils/reuse_skin_frontend.py'] = 'ca856f875ab937e515bc43a107496bb4a1db3f2a'
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2163,8 +2186,8 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '7c05e44f89cb5f5095e9c1f4c4c745e36e2bde0e'
-SKIN_SESSION_RUN = 38731165154
+SKIN_SESSION_REFERENCE = '06143ac80815c5f125b20e18c47c2d6291eeb117'
+SKIN_SESSION_RUN = 38743904734
 
 def verify_skin_session_evidence():
     """Keep the successful rendering job separate from the failed macOS test."""
