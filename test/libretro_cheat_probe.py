@@ -3,6 +3,8 @@
 import argparse
 import json
 import tempfile
+import shutil
+import urllib.request
 from pathlib import Path
 import libretro_simulator_probe as probe
 import libretro_skin_press_probe as skins
@@ -32,6 +34,7 @@ def main():
     probe.SCENARIOS = [
         {'name':'ignited-nestopia', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'skinPress':'press-complex', 'expect':'run'},
         {'name':'cheats-nestopia', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'cheatProbe':True, 'expect':'run'},
+        {'name':'overlay-previews', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'previewProbe':True, 'expect':'run'},
         {'name':'cheats-snes9x', 'core':'snes9x', 'console':'snes', 'content':'content/cheat-probe.sfc', 'cheatProbe':True, 'expect':'run'},
     ]
     evidence = Path(args.evidence); evidence.mkdir(parents=True, exist_ok=True)
@@ -41,13 +44,26 @@ def main():
         skins.REFERENCES = tuple(f for f in skins.REFERENCES if f[0] == 'press-complex')
         skins.fixtures(app)
         content(app / 'content')
+        # Exact production Dart conversion, exported by the preceding Flutter test.
+        for directory in sorted(Path('evidence/overlay-layouts').glob('*')):
+            if not directory.is_dir(): continue
+            target = app / 'SkinFixtures' / directory.name
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(directory / 'info.json', target / 'info.json')
+            for local, remote in json.loads((directory / 'resources.json').read_text()).items():
+                url = 'https://raw.githubusercontent.com/libretro/common-overlays/42c21b99889468a8e77fd7f002229ec16e2f9fa2/' + remote
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    data = response.read(16 * 1024 * 1024 + 1)
+                assert len(data) <= 16 * 1024 * 1024
+                file = target / local; file.parent.mkdir(parents=True, exist_ok=True); file.write_bytes(data)
+
         probe.run(['codesign', '--force', '--sign', '-', '--timestamp=none', app])
         outcome = probe.run_in_simulator(app, evidence, 180)
         (evidence/'outcome.json').write_text(json.dumps(outcome, indent=2))
         report = json.loads((evidence/'probe.json').read_text()) if (evidence/'probe.json').exists() else {'results':[]}
         problems = probe.evaluate(report, scenarios)
         for result in report.get('results', []):
-            checks = result.get('cheatChecks', result.get('skinChecks', []))
+            checks = result.get('cheatChecks', result.get('skinChecks', result.get('previewChecks', [])))
             print(json.dumps({'name':result['name'], 'checks':len(checks), 'failures':[x for x in checks if not x['passed']]}))
     (evidence/'verdict.json').write_text(json.dumps({'source':args.label,'problems':problems,'physicalDeviceValidated':False}, indent=2))
     if problems: raise SystemExit('\n'.join(problems))

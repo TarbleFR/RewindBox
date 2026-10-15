@@ -6,6 +6,9 @@ on:
       - .github/workflows/libretro-cheats-checks.yml
       - packages/libretro_internal_bridge/ios/Classes/LibretroCheat*
       - test/libretro_cheat_probe.py
+      - test/libretro_overlay_fixture_test.dart
+      - test/libretro_simulator/overlay_preview_probe.h
+      - test/fixtures/libretro_overlays/**
       - test/libretro_simulator/cheat_probe.h
       - test/libretro_host/frontend/cheat*_test.m
       - test/fixtures/libretro_cheats/**
@@ -49,6 +52,17 @@ jobs:
           path: dist/libretro
       - name: Fetch pinned simulator inputs
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Convert the actual Libretro overlay configurations used in the reported previews
+        env:
+          NEOSTATION_OVERLAY_FIXTURES: evidence/overlay-layouts
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter test test/libretro_overlay_fixture_test.dart
       - name: Real Nestopia and Snes9x cheat effects, original Ignited on Nestopia
         run: |
           python3 test/libretro_cheat_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \

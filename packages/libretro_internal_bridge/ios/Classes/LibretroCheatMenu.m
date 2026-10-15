@@ -74,7 +74,12 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
       [sources addObject:attribution]; existing[@"attributions"] = sources.array; continue;
     }
     NSMutableDictionary *record = [raw mutableCopy]; record[@"enabled"] = @NO; record[@"dedup"] = key;
-    record[@"attributions"] = [raw[@"attributions"] isKindOfClass:NSArray.class] ? raw[@"attributions"] : @[attribution];
+    record[@"handler"] = [raw[@"handler"] isKindOfClass:NSNumber.class] ? raw[@"handler"] : @0;
+    record[@"selected"] = @([raw[@"selected"] isKindOfClass:NSNumber.class] && [raw[@"selected"] boolValue]);
+    NSMutableArray *attributions = [NSMutableArray array];
+    if ([raw[@"attributions"] isKindOfClass:NSArray.class]) for (id source in raw[@"attributions"])
+      if ([source isKindOfClass:NSString.class] && [source length] <= 2048) [attributions addObject:source];
+    record[@"attributions"] = attributions.count ? attributions : @[attribution];
     [_records addObject:record];
   }
 }
@@ -152,8 +157,15 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     }]; remember.enabled = menu->_ready && menu->_preferencesPath != nil; [actions addObject:remember];
     if (menu->_remember) [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRestore"] action:^(LibretroMenuPage *page) {
       [menu warnOnPage:page action:^{
-        for (NSMutableDictionary *record in menu->_records) record[@"enabled"] = @([record[@"selected"] boolValue] && [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil);
-        if ([menu enabledCodes] == nil) { for (NSMutableDictionary *record in menu->_records) record[@"enabled"] = @NO; [menu failed]; }
+        NSMutableArray *previous = [NSMutableArray array];
+        for (NSMutableDictionary *record in menu->_records) {
+          [previous addObject:record[@"enabled"] ?: @NO];
+          record[@"enabled"] = @([record[@"selected"] boolValue] && [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil);
+        }
+        if ([menu enabledCodes] == nil) {
+          for (NSUInteger i = 0; i < menu->_records.count; i++) menu->_records[i][@"enabled"] = previous[i];
+          [menu failed];
+        }
         [menu applyAndSave]; [page rebuild];
       }];
     }]];

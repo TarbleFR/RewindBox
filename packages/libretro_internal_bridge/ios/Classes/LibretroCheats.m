@@ -139,7 +139,9 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
 }
 + (NSArray<NSString *> *)codesForCheat:(NSDictionary *)cheat core:(NSString *)core console:(NSString *)console {
   if ([core hasSuffix:@"_libretro"]) core = [core substringToIndex:core.length - 9];
-  if (![[self supportedCoreIDs] containsObject:core] || [cheat[@"handler"] integerValue] != 0) return nil;
+  id handler = cheat[@"handler"];
+  if (handler != nil && ![handler isKindOfClass:NSNumber.class]) return nil;
+  if (![[self supportedCoreIDs] containsObject:core] || [handler integerValue] != 0) return nil;
   NSString *code = [String(cheat[@"code"]) uppercaseString];
   if (code.length == 0 || code.length > 8192 || ![code canBeConvertedToEncoding:NSASCIIStringEncoding]) return nil;
   NSString *pattern = nil;

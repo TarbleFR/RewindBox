@@ -74,7 +74,7 @@ static BOOL SafePath(NSString *path) {
     @"pcfx": @"NEC - PC-FX", @"ws": @"Bandai - WonderSwan", @"wsc": @"Bandai - WonderSwan Color",
     @"ngp": @"SNK - Neo Geo Pocket", @"ngpc": @"SNK - Neo Geo Pocket Color", @"lynx": @"Atari - Lynx",
     @"vb": @"Nintendo - Virtual Boy", @"2600": @"Atari - 2600", @"5200": @"Atari - 5200", @"7800": @"Atari - 7800",
-    @"coleco": @"Coleco - ColecoVision", @"intv": @"Mattel - Intellivision", @"arcade": @"FBNeo - Arcade Games"}[console];
+    @"cv": @"Coleco - ColecoVision", @"intv": @"Mattel - Intellivision", @"arcade": @"FBNeo - Arcade Games"}[console];
 }
 - (NSDictionary *)source:(NSString *)identifier {
   for (NSDictionary *source in self.class.sources) if ([source[@"id"] isEqual:identifier]) return source;
@@ -135,6 +135,14 @@ static BOOL SafePath(NSString *path) {
     NSData *data = attributes && [attributes fileSize] <= 16u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
     id json = data.length <= 16u * 1024u * 1024u && data != nil ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
     NSDictionary *catalog = [json isKindOfClass:NSDictionary.class] && [json[@"games"] isKindOfClass:NSArray.class] ? json : nil;
+    if (catalog && (![catalog[@"source"] isEqual:source] || ![catalog[@"console"] isEqual:console] ||
+        !SHA(Text(catalog[@"revision"])) || [catalog[@"games"] count] > 20000)) catalog = nil;
+    for (id game in catalog[@"games"]) {
+      if (![game isKindOfClass:NSDictionary.class] || ![game[@"source"] isEqual:source] ||
+          ![game[@"console"] isEqual:console] || Text(game[@"title"]).length == 0 ||
+          !SHA(Text(game[@"revision"])) ||
+          (game[@"cheats"] && ![game[@"cheats"] isKindOfClass:NSArray.class])) { catalog = nil; break; }
+    }
     dispatch_async(dispatch_get_main_queue(), ^{ completion(catalog); });
   });
 }
@@ -206,7 +214,7 @@ static BOOL SafePath(NSString *path) {
     dispatch_async(dispatch_get_main_queue(), ^{ completion(catalog, error); });
   });
 }
-- (void)downloadGame:(NSDictionary *)game completion:(void (^)(NSArray *, NSError *))completion {
+- (void)downloadGame:(NSDictionary *)game completion:(void (^)(NSArray<NSDictionary *> *, NSError *))completion {
   dispatch_async(_queue, ^{
     NSError *error = nil; NSDictionary *source = [self source:game[@"source"]];
     NSArray *cheats = nil;

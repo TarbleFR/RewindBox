@@ -331,6 +331,7 @@ static NSString *ReservationReport(void) {
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
 #import "skin_press_probe.h"
 #import "cheat_probe.h"
+#import "overlay_preview_probe.h"
 #endif
 
 @interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>
@@ -901,6 +902,15 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                           if (!success) {
                             // The session has dismissed its view already.
                             [probe finishScenario:result session:session];
+                            return;
+                          }
+                          if (scenario[@"previewProbe"] != nil) {
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+                            RunOverlayPreviewProbe(result,^{[probe stopScenario:result session:session];});
+#else
+                            result[@"previewChecks"] = @[];
+                            [probe stopScenario:result session:session];
+#endif
                             return;
                           }
                           if (scenario[@"cheatProbe"] != nil) {
