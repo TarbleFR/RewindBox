@@ -99,3 +99,27 @@ file to be found only by its winning source, whereas the requested correction
 preserves both index memberships. The assertion is updated to require the
 shared file under both indexes, with its original attribution and unique
 download identity retained. The old failure is not counted as a pass.
+
+Corrected test candidate: `21027385ba349fda77a5966b7eabcbd77a91e48b`.
+Product bytes are identical to `9c1d6382`; the source-membership expectation
+and delivery-only guards are corrected separately. Current pending runs:
+
+| Check | Run |
+| --- | --- |
+| PocketArch originals, Provenance filters and native compositions | 38816490259 |
+| Engine Dart/native plus full pressure sessions | 38816478454 |
+| Existing-install upgrade/loading | 38816483690 |
+| Existing Libretro preview/cheat/core regression | 38816486744 |
+
+The separate directional run `38816480254` was cancelled while still queued:
+the engine workflow already executes the same complete
+`libretro_skin_press_probe.py` command and scenarios, with the same Xcode,
+cores and simulator inputs. The delivery gate requires that exact successful
+`skin-press` job and its actual execution step from `38816478454`, plus the
+independent native/Dart checks; no planned result is treated as a pass. All
+older queued `9c1d6382` runs were cancelled following the outdated search
+expectation; the original failed Dart phase remains recorded above.
+
+The corrected PS1 widget test passed in the first actual Dart phase, along
+with download/import, installed selections and the other skin manager tests.
+The complete rerun and native jobs must still pass before packaging.

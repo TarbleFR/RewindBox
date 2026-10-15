@@ -1868,8 +1868,8 @@ DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 460: pressable skin artwork and touch lifecycle, validated at this
 # exact source by libretro-checks run 38661616452. New crop sources and all
 # changed inputs are pinned, rather than admitted as open-ended exceptions.
-LIBRETRO_SKIN_PRESS_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
-LIBRETRO_SKIN_PRESS_RUN = 38815903727
+LIBRETRO_SKIN_PRESS_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
+LIBRETRO_SKIN_PRESS_RUN = 38816478454
 LIBRETRO_SKIN_PRESS_INPUTS = {
     '.github/workflows/libretro-checks.yml',
     'lib/l10n/libretro_locale.dart',
@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
-SKIN_LOADING_RUN = 38815907900
+SKIN_LOADING_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
+SKIN_LOADING_RUN = 38816483690
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2029,8 +2029,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING
 DELTA |= SKIN_LOADING_INPUTS
 
 # Build 465: catalogue-only product corrections and original-source audit.
-CATALOG_AUDIT_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
-CATALOG_AUDIT_RUN = 38815903796
+CATALOG_AUDIT_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
+CATALOG_AUDIT_RUN = 38816490259
 CATALOG_AUDIT_INPUTS = {
     '.github/workflows/libretro-catalog-checks.yml',
     'assets/data/libretro_skin_overlays.json',
@@ -2287,11 +2287,11 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
-SKIN_SESSION_RUN = 38815904483
+SKIN_SESSION_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
+SKIN_SESSION_RUN = 38816478454
 
-CHEAT_CATALOG_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
-CHEAT_CATALOG_RUN = 38815903637
+CHEAT_CATALOG_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
+CHEAT_CATALOG_RUN = 38816486744
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""
@@ -2353,17 +2353,19 @@ def verify_cheat_catalog_evidence():
             'successfulJob': 'catalogues-and-cores', 'physicalDeviceValidated': False}
 
 def verify_skin_session_evidence():
-    """Keep the successful rendering job separate from the failed macOS test."""
+    """Require the complete shared session suite from the engine workflow."""
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_SESSION_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != SKIN_SESSION_REFERENCE or run.get('status') != 'completed'
-            or run.get('path') != '.github/workflows/libretro-skin-checks.yml'):
+            or run.get('path') != '.github/workflows/libretro-checks.yml'):
         raise ValueError('Directional skin session evidence is different or incomplete')
     jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
     matches = [job for job in jobs if job.get('name') == 'skin-press']
     if (len(matches) != 1 or matches[0].get('head_sha') != SKIN_SESSION_REFERENCE
             or matches[0].get('conclusion') != 'success'
             or not matches[0].get('steps')
+            or not any(step.get('name') == 'Skin artwork and delivered inputs in actual embedded sessions'
+                       for step in matches[0]['steps'])
             or any(step.get('conclusion') != 'success' for step in matches[0]['steps'])):
         raise ValueError('Directional skin sessions did not all pass')
     return {'run': SKIN_SESSION_RUN, 'testedSHA': SKIN_SESSION_REFERENCE,
