@@ -12,6 +12,9 @@ on:
       - test/fixtures/libretro_overlays/**
       - test/libretro_simulator/cheat_probe.h
       - test/libretro_host/frontend/cheat*_test.m
+      - test/libretro_host/frontend/cheat_catalog_live_probe.m
+      - test/libretro_simulator/cheat_menu_probe.h
+      - test/libretro_simulator/skin_failure_probe.h
       - test/fixtures/libretro_cheats/**
   workflow_dispatch:
 permissions:
@@ -19,7 +22,8 @@ permissions:
   actions: read
 concurrency:
   group: libretro-cheats-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep the running evidence when a follow-up commit adds independent checks.
+  cancel-in-progress: false
 jobs:
   catalogues-and-cores:
     runs-on: macos-15
@@ -40,7 +44,7 @@ jobs:
           import libretro_frontend_test as test
           with tempfile.TemporaryDirectory() as temporary:
               root = Path(temporary)
-              for name in ('cheats_test.m', 'cheat_catalog_test.m'):
+              for name in ('cheats_test.m', 'cheat_catalog_test.m', 'cheat_catalog_live_probe.m'):
                   executable = root / name.removesuffix('.m')
                   assert test.build(test.TESTS / name, executable), name
                   subprocess.run([str(executable), str(root), str(test.ROOT)], check=True)

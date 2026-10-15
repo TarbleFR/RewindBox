@@ -42,7 +42,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
       dispatch_async(dispatch_get_main_queue(), ^{
         LibretroCheatMenu *menu = weakSelf; if (!menu) return;
         menu->_identity = identity ?: @{@"console": console, @"core": core, @"title": contentPath.lastPathComponent.stringByDeletingPathExtension};
-        menu->_preferencesPath = file; menu->_remember = [saved[@"remember"] boolValue];
+        menu->_preferencesPath = file; menu->_remember = [saved[@"remember"] isKindOfClass:NSNumber.class] && [saved[@"remember"] boolValue];
         NSArray *records = menu->_remember && [saved[@"cheats"] isKindOfClass:NSArray.class] ? saved[@"cheats"] : legacy;
         [menu merge:records]; menu->_ready = YES;
         [menu->_visiblePage rebuild];
@@ -78,10 +78,21 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     NSString *key = [NSString stringWithFormat:@"%@|%@", handler, semanticCode];
     NSMutableDictionary *existing = nil;
     for (NSMutableDictionary *record in _records) if ([record[@"dedup"] isEqual:key]) { existing = record; break; }
-    NSString *attribution = [NSString stringWithFormat:@"%@ · %@ · %@", String(raw[@"source"]), String(raw[@"game"]), String(raw[@"revision"])];
+    NSMutableArray *origins = [NSMutableArray array];
+    NSArray *providedOrigins = [raw[@"origins"] isKindOfClass:NSArray.class] ? raw[@"origins"] : @[raw];
+    for (id origin in providedOrigins) {
+      if (![origin isKindOfClass:NSDictionary.class] || origins.count >= 16) continue;
+      NSMutableDictionary *clean = [NSMutableDictionary dictionary];
+      for (NSString *field in @[@"source", @"game", @"revision", @"license", @"licenseURL", @"repository"])
+        clean[field] = [String(origin[field]) substringToIndex:MIN(String(origin[field]).length, (NSUInteger)2048)];
+      [origins addObject:clean];
+    }
+    NSString *attribution = [NSString stringWithFormat:@"%@ · %@ · %@ · %@", String(raw[@"source"]), String(raw[@"game"]), String(raw[@"revision"]), String(raw[@"license"])];
     if (existing) {
       NSMutableOrderedSet *sources = [NSMutableOrderedSet orderedSetWithArray:existing[@"attributions"] ?: @[]];
-      [sources addObject:attribution]; existing[@"attributions"] = sources.array; continue;
+      [sources addObject:attribution]; existing[@"attributions"] = sources.array;
+      NSMutableOrderedSet *allOrigins = [NSMutableOrderedSet orderedSetWithArray:existing[@"origins"] ?: @[]];
+      [allOrigins addObjectsFromArray:origins]; existing[@"origins"] = allOrigins.array; continue;
     }
     NSMutableDictionary *record = [raw mutableCopy]; record[@"enabled"] = @NO; record[@"dedup"] = key;
     record[@"handler"] = [raw[@"handler"] isKindOfClass:NSNumber.class] ? raw[@"handler"] : @0;
@@ -90,6 +101,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     if ([raw[@"attributions"] isKindOfClass:NSArray.class]) for (id source in raw[@"attributions"])
       if ([source isKindOfClass:NSString.class] && [source length] <= 2048) [attributions addObject:source];
     record[@"attributions"] = attributions.count ? attributions : @[attribution];
+    record[@"origins"] = origins;
     [_records addObject:record];
   }
 }

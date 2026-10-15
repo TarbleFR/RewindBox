@@ -479,6 +479,37 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
 
 #pragma mark - Renderer
 
+/// Bound the complete displayed texture set, not just each image or the evictable cache.
+/// Thumbnail aspect ratio comes from the source; square bounds cover every PNG/JPEG.
+static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *representation,
+                                               LibretroSkinLayoutResult *layout, CGFloat scale) {
+  __block NSUInteger bytes = 0;
+  NSMutableSet *resources = [NSMutableSet set];
+  BOOL (^include)(NSString *, CGSize) = ^BOOL(NSString *path, CGSize size) {
+    if (path.length == 0) return YES;
+    size_t width = 0, height = 0;
+    if (!LibretroSkinPixelSize(size, scale, &width, &height)) return NO;
+    NSString *key = [NSString stringWithFormat:@"%@|%zux%zu",path,width,height];
+    if ([resources containsObject:key]) return YES;
+    [resources addObject:key];
+    NSUInteger edge = MAX(width,height), cost = edge * edge * 4;
+    const NSUInteger limit = 96u * 1024u * 1024u;
+    if (cost > limit - bytes) return NO;
+    bytes += cost; return YES;
+  };
+  if (!representation.generated &&
+      (!include(representation.backgroundPath, LibretroSkinCGRect(layout.skinRect).size) ||
+       !include(representation.pressedBackgroundPath, LibretroSkinCGRect(layout.skinRect).size))) return NO;
+  for (LibretroLaidOutItem *item in layout.items) {
+    if (LibretroSkinIsVector(item.item) || item.item.kind == LibretroSkinItemKindTouchScreen) continue;
+    CGRect frame = LibretroSkinCGRect(item.assetFrame);
+    if (CGRectIsEmpty(frame)) frame = LibretroSkinCGRect(item.frame);
+    if (!include(item.item.assetPath, frame.size) ||
+        !include(item.item.thumbstickAssetPath, LibretroSkinKnobRect(item, CGPointZero).size)) return NO;
+  }
+  return YES;
+}
+
 @implementation LibretroSkinRenderer {
   NSString *_cacheDirectory;
   CALayer *_panelLayer;
@@ -548,9 +579,16 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
                     layout:(LibretroSkinLayoutResult *)layout
                    opacity:(CGFloat)opacity
             controlsHidden:(BOOL)controlsHidden {
+  CGFloat scale = [self currentDisplayScale];
+  if (representation != nil && layout != nil &&
+      !LibretroSkinLayoutFitsImageBudget(representation, layout, scale)) {
+    // Keep the previous rendered controls while the session restores its working skin.
+    dispatch_block_t failed = self.resourceLoadFailed;
+    if (failed) dispatch_async(dispatch_get_main_queue(), failed);
+    return;
+  }
   [CATransaction begin];
   [CATransaction setDisableActions:YES];
-  CGFloat scale = [self currentDisplayScale];
   BOOL sameContent = representation != nil && representation == _representation && layout == _layout &&
                      fabs(scale - _scale) < 0.01;
   if (!sameContent) {
@@ -1607,6 +1645,10 @@ static void LibretroSkinDrawVectorItem(CGContextRef context, LibretroLaidOutItem
                                                                          viewSize:(LibretroSize){size.width, size.height}
                                                                        safeInsets:insets
                                                                         overrides:nil];
+      if (!LibretroSkinLayoutFitsImageBudget(representation, layout, pixelScale)) {
+        dispatch_async(dispatch_get_main_queue(), ^{ finish(nil); });
+        return;
+      }
       // Images first (cached), then one drawing pass.
       UIImage *background = nil;
       CGRect skinRect = LibretroSkinCGRect(layout.skinRect);

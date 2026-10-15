@@ -332,6 +332,7 @@ static NSString *ReservationReport(void) {
 #import "skin_press_probe.h"
 #import "cheat_probe.h"
 #import "overlay_preview_probe.h"
+#import "skin_failure_probe.h"
 #endif
 
 @interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>
@@ -924,7 +925,11 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                           }
                           if (scenario[@"skinPress"] != nil) {
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
-                            RunSkinPressProbe(session,scenario,result,^{[probe stopScenario:result session:session];});
+                            RunSkinPressProbe(session,scenario,result,^{
+                              if ([scenario[@"core"] isEqual:@"nestopia"] && [scenario[@"skinPress"] isEqual:@"press-complex"])
+                                RunSkinFailureProbe(session,result,^{[probe stopScenario:result session:session];});
+                              else [probe stopScenario:result session:session];
+                            });
 #else
                             result[@"skinChecks"]=@[@{@"name":@"probe available",@"passed":@NO}];
                             [probe stopScenario:result session:session];

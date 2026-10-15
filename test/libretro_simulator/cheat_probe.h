@@ -1,6 +1,7 @@
 // Real core effect probe. Own synthetic ROMs never write $24 after reset.
 #import "LibretroCoreHost.h"
 #import "LibretroCheats.h"
+#import "cheat_menu_probe.h"
 @interface LibretroSession (CheatProbePrivate)
 - (void)enqueue:(dispatch_block_t)command;
 @end
@@ -31,7 +32,7 @@ static void RunCheatProbe(LibretroSession *session, NSDictionary *scenario, NSMu
               BOOL inactive = released && releasedSize > 0x24 && released[0x24] == 0x22;
               dispatch_async(dispatch_get_main_queue(), ^{
                 [checks addObject:@{@"name":@"disabled code stops modifying emulated memory without restart", @"passed":@(inactive)}];
-                completion();
+                if ([console isEqual:@"nes"]) RunCheatMenuProbe(checks, completion); else completion();
               });
             }];
           });
