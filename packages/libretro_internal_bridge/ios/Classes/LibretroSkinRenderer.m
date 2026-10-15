@@ -388,7 +388,7 @@ static NSString *LibretroSkinItemSignature(LibretroSkinItem *item) {
 #pragma mark - Item layers
 
 /// Layers of one item, all positioned in renderer coordinates inside
-/// `container` (zero-sized: it only groups opacity and visibility).
+/// `container` (bounds and position preserve layout coordinates).
 @interface LibretroSkinItemLayers : NSObject
 @property(nonatomic, copy) NSString *identifier;
 @property(nonatomic, copy) NSString *signature;
@@ -712,7 +712,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
                                    frame.size.width, lineHeight);
     layers.text.hidden = size <= 0;
   }
-  if (layers.image != nil) {
+  if (layers.image != nil && !layers.extracted) {
     layers.image.frame = assetFrame;
     [self loadImageAtPath:item.assetPath
                    points:assetFrame.size

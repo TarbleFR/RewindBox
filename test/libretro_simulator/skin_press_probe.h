@@ -239,6 +239,11 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
         CALayer *backplate=[layers valueForKey:@"backplate"];
         [self check:[[layers valueForKey:@"extracted"] boolValue] && hole && backplate.contents!=nil
               name:@"baked test-skin button cropped with original removed"];
+        id original=image.contents;
+        [self.renderer setEditing:YES selectedItem:nil];
+        [self.renderer setEditing:NO selectedItem:nil];
+        [self check:image.contents!=nil && image.contents==original
+          name:@"leaving the layout editor preserves extracted artwork"];
       }
       [self capture:@"rest"]; break;
     }
