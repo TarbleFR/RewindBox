@@ -255,13 +255,14 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 // wall-clock duration. Observe a bounded number of actual core frames before
 // asserting delivery; do not wait for the desired button value (which could
 // conceal a stuck input). Cancellation's contact/artwork checks stay immediate.
-- (BOOL)waitForReleasePolls {
+- (BOOL)waitForReleasePolls:(NSString *)phase {
   uint64_t frame=0;LibretroInputSnapshot input=[self.input lastDelivered:&frame];
   BOOL observed=frame>=self.releaseStartFrame+LIBRETRO_LATCH_PRESS_FRAMES+1;
-  self.result[@"releaseCorePoll"]=@{@"cancelFrame":@(self.releaseStartFrame),@"observedFrame":@(frame),
+  NSString *key=[phase isEqual:@"cancellation"] ? @"releaseCorePoll" : @"controllerReleaseCorePoll";
+  self.result[key]=@{@"cancelFrame":@(self.releaseStartFrame),@"observedFrame":@(frame),
     @"buttons":@(input.buttons[0]),@"waitSeconds":@(CACurrentMediaTime()-self.releaseWaitStarted)};
   if(observed || CACurrentMediaTime()-self.releaseWaitStarted>=2.0){
-    [self check:observed name:@"cancellation is observed after fresh core polls within the deadline"];
+    [self check:observed name:[phase stringByAppendingString:@" is observed after fresh core polls within the deadline"]];
     return NO;
   }
   self.stage--;
@@ -791,7 +792,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       self.releaseWaitStarted=CACurrentMediaTime();[self next];break;
     }
     case 6:
-      if([self waitForReleasePolls])break;
+      if([self waitForReleasePolls:@"cancellation"])break;
       [self check:![self pressed:a] && [self deliveredButtons]==0 name:@"cancellation releases visual and core state"];
       [self check:[UIImagePNGRepresentation(self.buttonRest) isEqualToData:UIImagePNGRepresentation([self padImage:a])]
         name:@"released button pixels exactly match rest"];
@@ -950,8 +951,18 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     case 20:
       if([self waitForCoreInputPoll])break;
       [self check:[self deliveredButtons]!=0 && [self pressed:[self primaryButton]] name:@"first touch after controller disconnect reaches artwork and core"];
-      [self end:@"after-controller" cancel:YES];[self next];break;
+      [self end:@"after-controller" cancel:YES];
+      {
+        LibretroTouchTracker *tracker=[self.controller.overlay valueForKey:@"tracker"];
+        [self check:tracker.touchCount==0 && [tracker resolve].coreInput.buttons==0 &&
+          [[self.renderer valueForKey:@"pressed"] count]==0
+          name:@"post-controller cancellation synchronously clears contacts, resolved input and artwork"];
+        uint64_t frame=0;[self.input lastDelivered:&frame];self.releaseStartFrame=frame;
+        self.releaseWaitStarted=CACurrentMediaTime();
+      }
+      [self next];break;
     default:
+      if([self waitForReleasePolls:@"controller disconnect release"])break;
       [self check:[self deliveredButtons]==0 name:@"controller disconnect leaves no held input"];
       self.result[@"skinChecks"]=self.checks;
       self.result[@"realDeviceTested"]=@NO;

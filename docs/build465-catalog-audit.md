@@ -123,3 +123,44 @@ expectation; the original failed Dart phase remains recorded above.
 The corrected PS1 widget test passed in the first actual Dart phase, along
 with download/import, installed selections and the other skin manager tests.
 The complete rerun and native jobs must still pass before packaging.
+
+## Actual first native results and retained failure
+
+- Catalogue run `38816490259`, job `116702356265`: **109 Flutter tests passed**;
+  **158 native checks passed** for 39 associations / 78 orientations, using
+  279 original image files verified by SHA-256. Native reports: 68 compatible
+  orientation reports and 10 adaptable, no incompatible candidate. Catalogue
+  artifact `12011054111`, ZIP SHA-256
+  `a0cd1f1e3e59a853da8ce1bd9b25ef6a269d9e45666fe58b7abab745d7eca5cd`.
+  Original PSX portrait and landscape captures were also visually inspected.
+- Engine run `38816478454`: Dart job `116702308526` passed (578 main tests,
+  245 storage tests, source/locale/core contracts); native job `116702308801`
+  passed (18 frontend executables, 1,133 pressure-pixel and 6,025 tracker
+  checks; 74 iPhone sources compiled/linked; real Flutter channel codec).
+- Loading run `38816483690`, job `116702331613`: exact 463 rejection reproduced;
+  current installed-skin upgrade 53 checks and relaunch 10 checks passed.
+- Catalogue/core run `38816486744`, job `116702341072`: 38 parser, 23 offline,
+  15 live-source, two original Libretro configuration tests and 160 UIKit/core
+  checks passed, including actual Ignited/Nestopia and full Libretro previews.
+- The engine's pressure job `116702308728` completed 27 sessions / 2,786
+  checks, with one failed final `press-flat-nes` iPhone assertion:
+  `controller disconnect leaves no held input`. All other checks, including
+  directional pixels, intensities and the preceding post-controller touch,
+  passed. Failed artifact `12012176780`, ZIP SHA-256
+  `258edf795ced8cd0d6a56b9700790afeb9d92a69492990c17fb7377b6b86fa0d`.
+  This whole pressure run is **not a success** and cannot authorize packaging.
+
+The failing final observer checked after a fixed 250 ms. The production latch
+deliberately holds a short press for three **emulated frames**; the earlier
+cancellation observer already waits for four actual core polls. The final
+post-controller cancellation now checks contacts, resolved input and artwork
+immediately, then independently observes four fresh core polls within two
+seconds before requiring the same zero-button assertion. It never waits for
+the expected button value. The original and final cancellation diagnostics
+are retained separately. This is a stronger test observation; no runtime
+input, rendering, loading or controller source is changed. A focused
+reproduction and the relevant suites must pass before delivery proceeds.
+
+Delivery attempt `38818023275` at `f1366b8b` was started with mandatory gates;
+it must not package against the failed pressure evidence. Its successful
+native phase remains genuine; no IPA success is claimed from this attempt.
