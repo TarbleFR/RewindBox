@@ -270,7 +270,12 @@ NSArray *LibretroSkinPressureFramesWithIntensity(CGImageRef source, CGRect pixel
   NSMutableData *supports=excluded.count ? [NSMutableData dataWithLength:w*h*sizeof(float)] : nil;
   float *support=supports.mutableBytes;
   CGRect blocks[64];for(NSUInteger i=0;i<excluded.count;i++)blocks[i]=LibretroSkinPressureRect(excluded[i]);
-  double feather=MAX(4/pointsPerPixel,3*(profile.compression*MAX(w,h)+depth));
+  // The protected footprint must stay identical across levels. Expanding
+  // the feather with intensity can otherwise suppress more pixels than the
+  // deeper profile moves, making Very pronounced weaker near a neighbour.
+  LibretroSkinPressureProfile strongest = LibretroSkinPressureProfileForSize(
+      CGSizeMake(w*pointsPerPixel,h*pointsPerPixel),3);
+  double feather=MAX(4/pointsPerPixel,3*(strongest.compression*MAX(w,h)+strongest.depth/pointsPerPixel));
   if(support!=NULL)for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++){
     double factor=1,px=pixels.origin.x+x+0.5,py=pixels.origin.y+y+0.5;
     for(NSUInteger i=0;i<excluded.count;i++){
