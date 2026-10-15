@@ -63,6 +63,19 @@ static void TestKeys(void) {
         @"per-skin keys");
 }
 
+static void TestPressurePreference(LibretroFrontendStore *store) {
+  NSString *key=LibretroSettingPressureIntensity;
+  CHECK([store valueForKey:key console:@"gbc" game:@"pressure-game" scope:NULL]==nil,@"missing intensity retains the renderer default");
+  CHECK([store setValue:@"light" forKey:key console:@"gbc" game:nil],@"console intensity persists");
+  CHECK([store setValue:@"veryPronounced" forKey:key console:@"gbc" game:@"pressure-game"],@"game intensity persists");
+  LibretroFrontendStore *fresh=FreshStore();
+  CHECK([[fresh valueForKey:key console:@"gbc" game:@"pressure-game" scope:NULL] isEqual:@"veryPronounced"],@"game intensity survives reload");
+  CHECK([[fresh valueForKey:key console:@"gbc" game:@"other-game" scope:NULL] isEqual:@"light"],@"other games retain console intensity");
+  CHECK([fresh valueForKey:key console:@"nes" game:nil scope:NULL]==nil,@"intensity does not migrate between consoles");
+  [store resetConsole:@"gbc" game:@"pressure-game" prefixes:@[key]];
+  CHECK([[store valueForKey:key console:@"gbc" game:@"pressure-game" scope:NULL] isEqual:@"light"],@"resetting game intensity restores console choice");
+}
+
 static void TestResolution(LibretroFrontendStore *store) {
   LibretroSettingScope scope = LibretroSettingScopeGame;
   CHECK([store valueForKey:LibretroSettingScreenFormat console:@"psp" game:@"game-1" scope:&scope] == nil &&
@@ -279,7 +292,8 @@ int main(int argc, const char *argv[]) {
                                                     error:nil];
     LibretroFrontendStore *store = [LibretroFrontendStore storeWithDirectory:gDirectory];
     TestKeys();
-    TestResolution(store);
+    TestPressurePreference(store);
+  TestResolution(store);
     TestPersistence(store);
     TestReset(store);
     TestForgetSkin(store);

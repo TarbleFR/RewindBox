@@ -23,6 +23,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory;
 
+/// Light / Normal / Pronounced (default) / Very pronounced, 0...3.
+/// Changing the setting rebuilds only prepared visual resources.
+@property(nonatomic, assign) NSUInteger pressureIntensity;
+
 /// Replaces the drawn representation. `opacity` applies to the controls of
 /// translucent and default skins (background images of opaque skins stay
 /// fully opaque). `controlsHidden` hides items but keeps the background and

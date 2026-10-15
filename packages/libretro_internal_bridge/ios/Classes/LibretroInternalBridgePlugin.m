@@ -42,6 +42,7 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"paramScanlineBrightness", @"paramLcdBrightness", @"paramColorLow", @"paramColorHigh", @"paramScanlineDepth",
     @"paramShine", @"paramBlend", @"paramSoftness", @"paramBorderSize", @"paramGbaGamma", @"controlsGamepad",
     @"controlsTouchRemap", @"controlsEditLayout", @"controlsEditHint", @"controlsEditDone", @"controlsOpacity",
+    @"pressureIntensity", @"pressureLight", @"pressureNormal", @"pressurePronounced", @"pressureVeryPronounced",
     @"controlsReset", @"controlsNotMovable", @"controlsGamepadFooter", @"controlsTouchFooter", @"controlsUnassigned",
     @"controlsNoController", @"inputUp", @"inputDown", @"inputLeft", @"inputRight", @"inputLeftStick",
     @"inputRightStick", @"inputTouchScreen", @"inputMenu", @"inputQuickSave", @"inputQuickLoad", @"inputFastForward",

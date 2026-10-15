@@ -27,6 +27,7 @@
 #import "LibretroSkinCompatibility.h"
 #import "LibretroSkinLayout.h"
 #import "LibretroSkinRenderer.h"
+#import "LibretroSkinPressure.h"
 #import "LibretroTouchOverlay.h"
 #import "LibretroVulkanRenderer.h"
 
@@ -1479,6 +1480,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [_controller.overlay applyLayout:layout inputMap:_inputMap touchRemap:[self touchRemapForSkin:skin]];
   [_input setInputMap:_inputMap gamepadRemap:[self gamepadRemap]];
   _controller.controlsOpacity = [self opacityForRepresentation:representation];
+  _controller.skinRenderer.pressureIntensity = LibretroSkinPressureIntensityFromIdentifier(
+      [self settingValue:LibretroSettingPressureIntensity]);
   [self requestRedraw];
 }
 

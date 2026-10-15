@@ -13,6 +13,9 @@ void main() {
   // Product names and words that are genuinely identical in a language.
   const identical = <String>{
     'fr:menu', 'fr:cheatCode', 'fr:resolutionNative',
+    // Normal has the same spelling in these languages.
+    'fr:pressureNormal', 'de:pressureNormal', 'es:pressureNormal',
+    'pt:pressureNormal', 'id:pressureNormal',
     'de:disc', 'de:cheatName', 'de:cheatCode',
     'it:menu', 'it:slot', 'it:achievementsPassword',
     'pt:menu', 'id:menu', 'id:slot',

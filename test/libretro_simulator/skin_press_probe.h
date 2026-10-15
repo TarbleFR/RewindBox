@@ -62,7 +62,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   NSString *flat=[root stringByAppendingPathComponent:@"press-flat"];
   UIImage *original=[UIImage imageWithContentsOfFile:[flat stringByAppendingPathComponent:@"painted.png"]];
   NSData *infoData=[NSData dataWithContentsOfFile:[flat stringByAppendingPathComponent:@"info.json"]];
-  for(NSString *name in @[@"press-texture",@"press-authored",@"press-alpha",@"press-overlap",@"press-asymmetric"]){
+  for(NSString *name in @[@"press-texture",@"press-authored",@"press-alpha",@"press-overlap",@"press-asymmetric",@"press-separated"]){
     NSString *folder=[root stringByAppendingPathComponent:name];
     [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
     // PNGs don't retain UIImage.scale when read back from a plain filename.
@@ -79,7 +79,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
         [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(285,137,30,30)] fill];
         UIRectFill(CGRectMake(132,69,9,16)); // fixed logo in a D-pad corner
       }
-      if([name isEqual:@"press-asymmetric"]){
+      if([@[@"press-asymmetric",@"press-separated"] containsObject:name]){
         [[UIColor colorWithWhite:0.16 alpha:1] setFill];UIRectFill(CGRectMake(25,65,120,120));
       }
     }];
@@ -99,13 +99,21 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       [items addObject:@{@"frame":@{@"x":@260,@"y":@110,@"width":@65,@"height":@70},@"inputs":@[@"a",@"b"]}];
       [items addObject:@{@"frame":@{@"x":@130,@"y":@65,@"width":@15,@"height":@25},@"inputs":@[]}];
     }
-    if([name isEqual:@"press-asymmetric"]){
+    if([@[@"press-asymmetric",@"press-separated"] containsObject:name]){
       UIGraphicsImageRenderer *cross=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(120,120)];
       UIImage *asset=[cross imageWithActions:^(UIGraphicsImageRendererContext *ctx){
         [[UIColor colorWithWhite:0.7 alpha:0.8] setFill];
         // Fill a union, avoiding darker overlapping alpha in the centre.
-        UIBezierPath *path=[UIBezierPath bezierPathWithRect:CGRectMake(50,10,26,101)];
-        [path appendPath:[UIBezierPath bezierPathWithRect:CGRectMake(9,46,103,20)]];[path fill];
+        if([name isEqual:@"press-separated"]){
+          for(NSValue *value in @[[NSValue valueWithCGRect:CGRectMake(50,8,24,27)],
+              [NSValue valueWithCGRect:CGRectMake(48,80,26,29)],
+              [NSValue valueWithCGRect:CGRectMake(9,46,28,22)],
+              [NSValue valueWithCGRect:CGRectMake(86,44,26,24)]])
+            [[UIBezierPath bezierPathWithRoundedRect:value.CGRectValue cornerRadius:4] fill];
+        } else {
+          UIBezierPath *path=[UIBezierPath bezierPathWithRect:CGRectMake(50,10,26,101)];
+          [path appendPath:[UIBezierPath bezierPathWithRect:CGRectMake(9,46,103,20)]];[path fill];
+        }
       }];
       [UIImagePNGRepresentation(asset) writeToFile:[folder stringByAppendingPathComponent:@"cross.png"] atomically:YES];
       ((NSMutableDictionary *)rep[@"items"][0])[@"asset"]=@{@"normal":@"cross.png",@"width":@120,@"height":@120};
@@ -131,6 +139,10 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 - (LibretroMenuPage *)skinsPage;
 @end
 
+@interface LibretroSkinRenderer (SkinPressProbePrivate)
+- (NSArray<NSValue *> *)compositeExclusionsForFrame:(CGRect)frame item:(LibretroLaidOutItem *)item;
+@end
+
 @interface SkinProbeTouch : UITouch
 @property(nonatomic) CGPoint probePoint;
 @end
@@ -148,6 +160,8 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 @property(nonatomic, strong) NSMutableDictionary<NSString *, SkinProbeTouch *> *touches;
 @property(nonatomic, strong) GCVirtualController *virtualController;
 @property(nonatomic) NSUInteger stage;
+@property(nonatomic) BOOL intensityChecked;
+@property(nonatomic, strong) NSMutableArray *intensityFrames;
 @property(nonatomic) NSUInteger preparationAttempts;
 @property(nonatomic) NSUInteger menuWaitAttempts;
 @property(nonatomic) NSUInteger inputWaitAttempts;
@@ -263,6 +277,20 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   LibretroLaidOutItem *pad=nil;
   for(LibretroLaidOutItem *item in self.layout.items)if(item.item.kind==LibretroSkinItemKindDPad){pad=item;break;}
   if(pad==nil)return;
+  NSArray *savedItems=self.layout.items;
+  CGRect padRect=CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h);
+  NSArray *beforeExclusions=[self.renderer compositeExclusionsForFrame:padRect item:pad];
+  LibretroLaidOutItem *neighbour=[LibretroLaidOutItem new];
+  neighbour.item=[LibretroSkinItem new];neighbour.item.assetPath=@"independent-test-image.png";
+  neighbour.frame=pad.frame;
+  neighbour.assetFrame=(LibretroRect){CGRectGetMaxX(padRect)+10,pad.frame.y,10,10};
+  self.layout.items=[savedItems arrayByAddingObject:neighbour];
+  [self check:[[self.renderer compositeExclusionsForFrame:padRect item:pad] isEqualToArray:beforeExclusions]
+    name:@"independent neighbour hit area cannot freeze unrelated composite pixels"];
+  neighbour.frame=neighbour.assetFrame;neighbour.assetFrame=pad.frame;
+  [self check:LibretroSkinPressureVisibleRects(padRect,[self.renderer compositeExclusionsForFrame:padRect item:pad]).count==0
+    name:@"independent neighbour artwork is protected even outside its hit area"];
+  self.layout.items=savedItems;
   id layers=[self layers:pad];NSArray *regions=[layers valueForKey:@"pressureRegions"];
   [self check:regions.count==4 name:@"four prepared directional regions including monobloc skins"];
   if(regions.count!=4)return;
@@ -374,7 +402,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     NSArray *frames=[region valueForKey:@"frames"];
     releaseValid=releaseValid && (frames.count==8 || frames.count==12) && recipe.values.count==frames.count &&
       recipe.keyTimes.count==frames.count && recipe.keyTimes.firstObject.doubleValue==0 &&
-      recipe.keyTimes.lastObject.doubleValue==1 && fabs(recipe.duration-0.12)<1e-9;
+      recipe.keyTimes.lastObject.doubleValue==1 && fabs(recipe.duration-0.18)<1e-9;
     for(NSUInteger i=1;i<recipe.keyTimes.count;i++)releaseValid=releaseValid &&
       [recipe.keyTimes[i] doubleValue]>[recipe.keyTimes[i-1] doubleValue];
   }
@@ -401,6 +429,73 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   [UIImagePNGRepresentation(released) writeToFile:[padFolder stringByAppendingPathComponent:
     [self.result[@"name"] stringByAppendingString:@"-dpad-released.png"]] atomically:YES];
   CFRelease(reference);
+}
+
+// Compare the actual production renderer at all four levels. This is visual
+// validation only; the surrounding stages separately exercise actual touches
+// and core polling. No input is injected by changing a visual preference.
+- (void)verifyIntensity:(NSUInteger)level attempt:(NSUInteger)attempt {
+  if(attempt==0)self.renderer.pressureIntensity=level<4 ? level : 2;
+  BOOL pending=NO; NSUInteger buttons=0;
+  for(id layers in [self.renderer valueForKey:@"items"]){
+    LibretroLaidOutItem *item=[layers valueForKey:@"laidOut"];
+    if(item.item.inputs.count==0 || item.item.kind==LibretroSkinItemKindTouchScreen)continue;
+    if([[layers valueForKey:@"cropPreparing"] boolValue] ||
+       ([[layers valueForKey:@"pressurePreparing"] boolValue] && [[layers valueForKey:@"pressureRegions"] count]==0))pending=YES;
+    if(item.item.kind==LibretroSkinItemKindButton)buttons++;
+  }
+  if(pending && attempt<100){dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/20),dispatch_get_main_queue(),^{
+    [self verifyIntensity:level attempt:attempt+1];});return;}
+  [self check:!pending name:[NSString stringWithFormat:@"intensity %lu prepares before any contact",(unsigned long)level]];
+  if(level==5){self.intensityChecked=YES;[self advance];return;}
+  if(level==4){
+    [self check:self.renderer.pressureIntensity==2 name:@"Pronounced is restored after all four levels"];
+    LibretroFrontendMenu *frontend=[self.session valueForKey:@"frontendMenu"];
+    LibretroMenuPage *page=[frontend skinsPage];
+    LibretroMenuRow *defaultRow=MenuRowWithIdentifier(page,@"libretro-pressure-pronounced");
+    [self check:defaultRow.checked name:@"Skins menu defaults to Pronounced"];
+    for(NSString *identifier in LibretroSkinPressureIntensityIdentifiers()){
+      LibretroMenuRow *row=MenuRowWithIdentifier(page,[@"libretro-pressure-" stringByAppendingString:identifier]);
+      [self check:row.action!=nil && row.enabled name:@"intensity is selectable from the real in-game Skins page"];
+    }
+    LibretroMenuRow *light=MenuRowWithIdentifier(page,@"libretro-pressure-light");
+    if(light.action!=nil)light.action(page);
+    [self check:self.renderer.pressureIntensity==0 name:@"saved Light preference reaches the active renderer"];
+    page=[frontend skinsPage];
+    [self check:MenuRowWithIdentifier(page,@"libretro-pressure-light").checked name:@"reopening Skins retains the chosen intensity"];
+    LibretroMenuRow *pronounced=MenuRowWithIdentifier(page,@"libretro-pressure-pronounced");
+    if(pronounced.action!=nil)pronounced.action(page);
+    [self check:self.renderer.pressureIntensity==2 name:@"saved Pronounced preference restores the active renderer"];
+    [self verifyIntensity:5 attempt:0];return;
+  }
+  if(self.intensityFrames==nil)self.intensityFrames=[NSMutableArray array];
+  NSMutableSet *pressed=[NSMutableSet set];NSMutableDictionary *directions=[NSMutableDictionary dictionary];
+  for(id layers in [self.renderer valueForKey:@"items"]){
+    LibretroLaidOutItem *item=[layers valueForKey:@"laidOut"];
+    if(item.item.inputs.count==0 || item.item.kind==LibretroSkinItemKindTouchScreen)continue;
+    [pressed addObject:item.item.identifier];
+    if(item.item.kind==LibretroSkinItemKindDPad)directions[item.item.identifier]=@9;
+  }
+  UIGraphicsImageRenderer *capture=[[UIGraphicsImageRenderer alloc] initWithSize:self.renderer.bounds.size];
+  UIImage *(^snapshot)(void)=^UIImage *{return [capture imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+    [self.renderer.layer renderInContext:ctx.CGContext];}];};
+  NSData *rest=UIImagePNGRepresentation(snapshot());
+  [self.renderer setPressedItems:pressed];[self.renderer setDPadDirections:directions];
+  BOOL all=YES;for(id layers in [self.renderer valueForKey:@"items"]){
+    LibretroLaidOutItem *item=[layers valueForKey:@"laidOut"];
+    if(item.item.kind==LibretroSkinItemKindButton && item.item.inputs.count>0)
+      all=all && [[layers valueForKey:@"pressedState"] boolValue];
+  }
+  [self check:all && buttons>0 name:[NSString stringWithFormat:@"intensity %lu: every mapped button holds its own pressed artwork",(unsigned long)level]];
+  NSData *image=UIImagePNGRepresentation(snapshot());
+  [self.intensityFrames addObject:image];
+  [image writeToFile:DocumentsPath([NSString stringWithFormat:@"SkinFrames/%@-intensity-%lu.png",self.result[@"name"],(unsigned long)level]) atomically:YES];
+  [self check:![image isEqualToData:rest] name:@"intensity changes visible geometry while held"];
+  if(level>0)[self check:![image isEqualToData:self.intensityFrames[level-1]] name:@"adjacent intensities change the held image, not only animation speed"];
+  [self.renderer setPressedItems:[NSSet set]];[self.renderer setDPadDirections:@{}];
+  [self.renderer setEditing:YES selectedItem:nil];[self.renderer setEditing:NO selectedItem:nil];
+  [self check:[rest isEqualToData:UIImagePNGRepresentation(snapshot())] name:@"all buttons return to the identical resting image"];
+  [self verifyIntensity:level+1 attempt:0];
 }
 
 - (void)verifyLayouts:(NSUInteger)index {
@@ -642,6 +737,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
         name:@"released button pixels exactly match rest"];
       [self capture:@"released"]; break;
     case 7:
+      if(!self.intensityChecked){self.stage--;[self verifyIntensity:0 attempt:0];break;}
       [self verifyDirectionalArtwork];
       [self touch:@"change-skin" at:[self center:a] begin:YES];
       [self chooseSkin:@"default"];

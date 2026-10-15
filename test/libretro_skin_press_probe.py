@@ -34,7 +34,7 @@ SCENARIOS = [
     {'name':'press-pce','core':'mednafen_pce_fast','console':'pce','content':'content/probe-pce.pce','skinPress':'default','expect':'run'},
     {'name':'press-n64','core':'neotest','console':'n64','content':'content/Shader Pattern.ntc','skinPress':'default','expect':'run'},
     *[{'name':skin,'core':'neotest','console':'nes','content':'content/Shader Pattern.ntc','skinPress':skin,'expect':'run'}
-      for skin in ['press-complex','press-texture','press-authored','press-alpha','press-overlap','press-asymmetric']],
+      for skin in ['press-complex','press-texture','press-authored','press-alpha','press-overlap','press-asymmetric','press-separated']],
 ]
 
 

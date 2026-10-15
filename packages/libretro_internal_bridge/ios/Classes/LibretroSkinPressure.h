@@ -5,8 +5,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 FOUNDATION_EXPORT const NSUInteger LibretroSkinPressureFrameCount;
 
+/// Shared mechanical profile in display points. Unknown preferences use
+/// Pronounced (2). Geometry and resource preparation never change hit areas.
+typedef struct {
+  CGFloat depth, compression, occlusion, releaseDuration;
+} LibretroSkinPressureProfile;
+FOUNDATION_EXPORT NSArray<NSString *> *LibretroSkinPressureIntensityIdentifiers(void);
+FOUNDATION_EXPORT NSUInteger LibretroSkinPressureIntensityFromIdentifier(id _Nullable value);
+FOUNDATION_EXPORT LibretroSkinPressureProfile LibretroSkinPressureProfileForSize(CGSize points, NSUInteger intensity);
+FOUNDATION_EXPORT double LibretroSkinPressureReleaseTime(double progress);
+
 /// Detect a well-defined alpha cross, including transparent padding and
-/// unequal/off-centre stems. Otherwise retain the conservative outer thirds.
+/// unequal/off-centre stems, or exactly four separated cardinal arrows in
+/// one texture. Otherwise retain the conservative outer thirds.
 /// Four integral source-image rectangles, ordered up/down/left/right.
 FOUNDATION_EXPORT NSArray<NSValue *> *LibretroSkinPressureRegions(CGImageRef source, CGRect pixels);
 
@@ -40,5 +51,12 @@ FOUNDATION_EXPORT NSArray *LibretroSkinPressureFrames(CGImageRef source,
 FOUNDATION_EXPORT NSArray *LibretroSkinPressureFramesExcluding(CGImageRef source,
     CGRect pixels, CGFloat pointsPerPixel, NSUInteger direction,
     CGImageRef _Nullable authoredPressed, NSArray<NSValue *> *excluded, NSUInteger frameCount);
+
+/// Same bounded preparation with the selected profile. Level zero preserves
+/// the original gentle effect, including an author's exact pressed endpoint.
+FOUNDATION_EXPORT NSArray *LibretroSkinPressureFramesWithIntensity(CGImageRef source,
+    CGRect pixels, CGFloat pointsPerPixel, NSUInteger direction,
+    CGImageRef _Nullable authoredPressed, NSArray<NSValue *> *excluded,
+    NSUInteger frameCount, NSUInteger intensity);
 
 NS_ASSUME_NONNULL_END

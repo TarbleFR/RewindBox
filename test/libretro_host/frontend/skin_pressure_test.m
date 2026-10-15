@@ -12,6 +12,58 @@ static CGImageRef Image(NSData *data, size_t w, size_t h) {
   CGDataProviderRelease(provider);CGColorSpaceRelease(space);return image;
 }
 static NSValue *BoxTestRect(CGRect r){return [NSValue valueWithBytes:&r objCType:@encode(CGRect)];}
+static void IntensityAndSeparatedArms(void) {
+  CHECK(LibretroSkinPressureIntensityFromIdentifier(nil)==2);
+  CHECK(LibretroSkinPressureIntensityFromIdentifier(@99)==2);
+  CHECK(LibretroSkinPressureIntensityFromIdentifier(@"invalid")==2);
+  CGFloat lastDepth=0,lastCompression=0;
+  for(NSUInteger level=0;level<4;level++) {
+    CHECK(LibretroSkinPressureIntensityFromIdentifier(LibretroSkinPressureIntensityIdentifiers()[level])==level);
+    LibretroSkinPressureProfile p=LibretroSkinPressureProfileForSize(CGSizeMake(48,48),level);
+    CHECK(p.depth>lastDepth && p.compression>lastCompression && p.depth<=6);
+    CHECK(LibretroSkinPressureProfileForSize(CGSizeMake(80,9),level).depth<=9*0.125);
+    lastDepth=p.depth;lastCompression=p.compression;
+  }
+  CHECK(LibretroSkinPressureProfileForSize(CGSizeMake(NAN,50),2).depth==0);
+  CHECK(LibretroSkinPressureReleaseTime(0)==0 && LibretroSkinPressureReleaseTime(1)==1);
+  for(int i=1;i<=100;i++)CHECK(LibretroSkinPressureReleaseTime(i/100.0)>LibretroSkinPressureReleaseTime((i-1)/100.0));
+  size_t w=120,h=110;
+  NSMutableData *data=[NSMutableData dataWithLength:w*h*4];uint8_t *p=data.mutableBytes;
+  CGRect expected[]={CGRectMake(50,5,20,31),CGRectMake(48,76,25,29),
+    CGRectMake(8,45,30,20),CGRectMake(85,43,29,24)};
+  for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++)for(int i=0;i<4;i++)
+    if(CGRectContainsPoint(expected[i],CGPointMake(x+0.5,y+0.5))){size_t at=(y*w+x)*4;p[at]=180;p[at+1]=140;p[at+2]=80;p[at+3]=255;}
+  CGImageRef arrows=Image(data,w,h);
+  NSArray *regions=LibretroSkinPressureRegions(arrows,CGRectMake(0,0,w,h));
+  CHECK(regions.count==4);
+  for(int i=0;i<4;i++)CHECK(CGRectEqualToRect(LibretroSkinPressureRect(regions[i]),expected[i]));
+  CGImageRelease(arrows);
+  p[3]=255; // A fifth disconnected symbol is ambiguous, never a guessed arm.
+  arrows=Image(data,w,h);regions=LibretroSkinPressureRegions(arrows,CGRectMake(0,0,w,h));
+  for(int i=0;i<4;i++)CHECK(CGRectEqualToRect(LibretroSkinPressureRect(regions[i]),LibretroSkinPressureArm(CGSizeMake(w,h),i)));
+  CGImageRelease(arrows);
+  // Uniform material: the measured darkening is monotonic, not texture noise.
+  for(size_t i=0;i<w*h;i++){p[i*4]=180;p[i*4+1]=120;p[i*4+2]=60;p[i*4+3]=255;}
+  CGImageRef normal=Image(data,w,h);
+  NSArray *blocked=@[BoxTestRect(CGRectMake(60,0,60,30))];
+  double previous=0,light=0;
+  for(NSUInteger level=0;level<4;level++) {
+    NSArray *frames=LibretroSkinPressureFramesWithIntensity(normal,CGRectMake(0,0,w,h),0.5,0,NULL,blocked,12,level);
+    CHECK(frames.count==12);
+    CFDataRef bytes=CGDataProviderCopyData(CGImageGetDataProvider((__bridge CGImageRef)frames.lastObject));
+    const uint8_t *q=CFDataGetBytePtr(bytes);double difference=0;BOOL untouched=YES,valid=YES;
+    for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++) {
+      size_t at=((y+1)*(w+2)+x+1)*4;difference+=180-q[at];
+      if(x>=60 && y<30 && memcmp(q+at,p+(y*w+x)*4,4))untouched=NO;
+      for(int c=0;c<3;c++)if(q[at+c]>q[at+3])valid=NO;
+    }
+    CHECK(untouched && valid && difference>previous);
+    if(level==0)light=difference;
+    if(level==2)CHECK(difference>light*1.7);
+    previous=difference;CFRelease(bytes);
+  }
+  CGImageRelease(normal);
+}
 static void GeometryAndOverlap(void) {
   size_t w=120,h=100;
   NSMutableData *bytes=[NSMutableData dataWithLength:w*h*4];uint8_t *p=bytes.mutableBytes;
@@ -68,6 +120,7 @@ static void GeometryAndOverlap(void) {
 }
 int main(void) {
   @autoreleasepool {
+    IntensityAndSeparatedArms();
     GeometryAndOverlap();
     for (NSNumber *scale in @[@1,@2,@3]) {
       size_t w=93*scale.unsignedIntegerValue, h=117*scale.unsignedIntegerValue;

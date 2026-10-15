@@ -4,6 +4,7 @@
 
 #import "LibretroChromeLayout.h"
 #import "LibretroDefaultSkins.h"
+#import "LibretroSkinPressure.h"
 #import "LibretroGeometry.h"
 #import "LibretroShaderLibrary.h"
 #import "LibretroSlangShaders.h"
@@ -610,7 +611,7 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
 
 - (LibretroMenuPage *)skinsPage {
   LibretroFrontendPageState *state =
-      [self stateForPrefixes:@[ LibretroSettingSkinPortrait, LibretroSettingSkinLandscape ]];
+      [self stateForPrefixes:@[ LibretroSettingSkinPortrait, LibretroSettingSkinLandscape, LibretroSettingPressureIntensity ]];
   return [self pageWithTitle:[self text:@"skins"]
                     previews:YES
                     sections:^(LibretroFrontendMenu *menu, id<LibretroFrontendMenuHost> host) {
@@ -719,6 +720,25 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
                                                    state:(LibretroFrontendPageState *)state {
   __weak LibretroFrontendMenu *weakSelf = self;
   NSMutableArray<LibretroMenuSection *> *sections = [NSMutableArray arrayWithObject:[self scopeSectionWithState:state]];
+  LibretroSettingScope intensityScope = LibretroSettingScopeDefault;
+  NSUInteger intensity = LibretroSkinPressureIntensityFromIdentifier(
+      [self settingForKey:LibretroSettingPressureIntensity ofClass:NSString.class scope:&intensityScope]);
+  NSArray *labels = @[@"pressureLight", @"pressureNormal", @"pressurePronounced", @"pressureVeryPronounced"];
+  NSArray *identifiers = LibretroSkinPressureIntensityIdentifiers();
+  NSMutableArray *intensityRows = [NSMutableArray array];
+  for (NSUInteger i=0;i<identifiers.count;i++) {
+    NSString *value = identifiers[i];
+    LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:[self text:labels[i]] action:^(LibretroMenuPage *page) {
+      [weakSelf applyValue:value forKey:LibretroSettingPressureIntensity state:state];
+      [page rebuild];
+    }];
+    row.checked = i == intensity;
+    row.identifier = [@"libretro-pressure-" stringByAppendingString:value];
+    [intensityRows addObject:row];
+  }
+  LibretroMenuSection *pressure = [LibretroMenuSection sectionWithTitle:[self text:@"pressureIntensity"] rows:intensityRows];
+  pressure.footer = [self sourceTextForScope:intensityScope];
+  [sections addObject:pressure];
   NSArray<LibretroSkin *> *skins = [self orderedSkinsForHost:host];
   BOOL iPad = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
   NSArray<NSNumber *> *orientations = @[ @(LibretroSkinOrientationPortrait), @(LibretroSkinOrientationLandscape) ];
@@ -793,7 +813,7 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
   }
   [sections addObject:[self resetSectionWithTitle:[self text:@"resetSettings"]
                                             state:state
-                                         prefixes:@[ LibretroSettingSkinPortrait, LibretroSettingSkinLandscape ]
+                                         prefixes:@[ LibretroSettingSkinPortrait, LibretroSettingSkinLandscape, LibretroSettingPressureIntensity ]
                                             after:nil]];
   return sections;
 }

@@ -11,6 +11,7 @@ NSString *const LibretroSettingShaderPreset = @"shader.preset";
 NSString *const LibretroSettingShaderParameters = @"shader.parameters";
 NSString *const LibretroSettingGamepad = @"controls.gamepad";
 NSString *const LibretroSettingOpacity = @"controls.opacity";
+NSString *const LibretroSettingPressureIntensity = @"controls.pressureIntensity";
 
 static NSString *const kTouchRemapPrefix = @"controls.touch.";
 static NSString *const kLayoutPrefix = @"controls.layout.";

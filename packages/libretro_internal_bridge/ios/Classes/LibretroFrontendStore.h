@@ -21,6 +21,7 @@ typedef NS_ENUM(NSInteger, LibretroSettingScope) {
 ///   controls.touch.<skinId>                  NSDictionary itemId -> NSArray<NSString *> logical inputs
 ///   controls.layout.<skinId>.<orientation>   NSDictionary itemId -> {dx, dy, scale}
 ///   controls.opacity                         NSNumber 0.15 ... 1.0
+///   controls.pressureIntensity               NSString light/normal/pronounced/veryPronounced
 FOUNDATION_EXPORT NSString *const LibretroSettingSkinPortrait;
 FOUNDATION_EXPORT NSString *const LibretroSettingSkinLandscape;
 FOUNDATION_EXPORT NSString *const LibretroSettingScreenFormat;
@@ -32,6 +33,7 @@ FOUNDATION_EXPORT NSString *const LibretroSettingShaderPreset;
 FOUNDATION_EXPORT NSString *const LibretroSettingShaderParameters;
 FOUNDATION_EXPORT NSString *const LibretroSettingGamepad;
 FOUNDATION_EXPORT NSString *const LibretroSettingOpacity;
+FOUNDATION_EXPORT NSString *const LibretroSettingPressureIntensity;
 FOUNDATION_EXPORT NSString *LibretroSettingTouchRemapKey(NSString *skinId);
 FOUNDATION_EXPORT NSString *LibretroSettingLayoutKey(NSString *skinId, NSString *orientation);
 

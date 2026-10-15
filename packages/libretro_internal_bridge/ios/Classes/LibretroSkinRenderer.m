@@ -490,6 +490,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     _stickVectors = @{};
     _opacity = 1;
     _scale = 2;
+    _pressureIntensity = 2;
     self.userInteractionEnabled = NO;
     self.opaque = NO;
     self.backgroundColor = UIColor.clearColor;
@@ -510,6 +511,17 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CGFloat scale = self.traitCollection.displayScale;
   if (!(scale > 0)) scale = UIScreen.mainScreen.scale;
   return scale > 0 ? scale : 2;
+}
+
+- (void)setPressureIntensity:(NSUInteger)intensity {
+  if (intensity > 3) intensity = 2;
+  if (_pressureIntensity == intensity) return;
+  _pressureIntensity = intensity;
+  if (_representation != nil && _layout != nil) {
+    LibretroSkinLayoutResult *layout = _layout;
+    _layout = nil; // invalidate preparation, including outstanding callbacks
+    [self showRepresentation:_representation layout:layout opacity:_opacity controlsHidden:_controlsHidden];
+  }
 }
 
 - (void)showRepresentation:(LibretroSkinRepresentation *)representation
@@ -885,17 +897,25 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CALayer *face = stick ? cap : layers.artwork;
   if (face == nil) return;
   CATransform3D target = CATransform3DIdentity;
+  CGRect visualFrame = stick ? cap.bounds : LibretroSkinCGRect(layers.laidOut.assetFrame);
+  if (CGRectIsEmpty(visualFrame)) visualFrame = LibretroSkinCGRect(layers.laidOut.frame);
+  LibretroSkinPressureProfile profile = LibretroSkinPressureProfileForSize(visualFrame.size,_pressureIntensity);
   if (active) {
-    CGFloat shrink = stick ? 0.96 : 0.965;
-    CGFloat depth = MIN(2.0, MAX(0.7, layers.laidOut.frame.h * 0.025));
-    target = CATransform3DMakeScale(shrink, shrink, 1);
+    CGFloat shrinkX = 1-profile.compression*(_pressureIntensity == 0 ? 1 : 0.65);
+    CGFloat shrinkY = 1-profile.compression;
+    CGFloat depth = profile.depth;
+    if (_pressureIntensity == 0) {
+      shrinkX = shrinkY = stick ? 0.96 : 0.965;
+      depth = MIN(2.0, MAX(0.7, layers.laidOut.frame.h * 0.025));
+    }
+    target = CATransform3DMakeScale(shrinkX, shrinkY, 1);
     if (stick) {
       target.m42 = depth;
     } else {
       CGRect frame = LibretroSkinCGRect(layers.laidOut.assetFrame);
       if (CGRectIsEmpty(frame)) frame = LibretroSkinCGRect(layers.laidOut.frame);
-      target.m41 = (CGRectGetMidX(frame) - face.bounds.origin.x) * (1 - shrink);
-      target.m42 = (CGRectGetMidY(frame) - face.bounds.origin.y) * (1 - shrink) + depth;
+      target.m41 = (CGRectGetMidX(frame) - face.bounds.origin.x) * (1 - shrinkX);
+      target.m42 = (CGRectGetMidY(frame) - face.bounds.origin.y) * (1 - shrinkY) + depth;
     }
   }
   CATransform3D previous = face.presentationLayer != nil ? face.presentationLayer.transform : face.transform;
@@ -908,8 +928,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"transform"];
     animation.fromValue = [NSValue valueWithCATransform3D:previous];
     animation.toValue = [NSValue valueWithCATransform3D:target];
-    animation.duration = 0.12;
-    animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+    animation.duration = profile.releaseDuration;
+    animation.timingFunction = [CAMediaTimingFunction functionWithControlPoints:0.18 :0.8 :0.28 :1];
     [face addAnimation:animation forKey:@"skin-release"];
   }
   layers.pressedState = active;
@@ -982,8 +1002,19 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     if (screen.touchScreen || (explicitWindow && !_representation.translucent))
       exclude(LibretroSkinCGRect(screen.container));
   }
-  for (LibretroLaidOutItem *other in _layout.items)
-    if (other != item) exclude(LibretroSkinCGRect(other.frame));
+  for (LibretroLaidOutItem *other in _layout.items) {
+    if (other == item) continue;
+    // Independent images can be smaller or larger than their touch target.
+    // Reserve their actual drawing, never an invisible extended hit area.
+    BOOL independent = other.item.assetPath.length > 0 && !LibretroSkinIsVector(other.item);
+    CGRect visual = LibretroSkinCGRect(independent ? other.assetFrame : other.frame);
+    if (CGRectIsEmpty(visual)) visual = LibretroSkinCGRect(other.frame);
+    exclude(visual);
+    if (other.item.kind == LibretroSkinItemKindThumbstick &&
+        (other.item.thumbstickAssetPath.length > 0 || LibretroSkinIsVector(other.item)))
+      exclude(CGRectUnion(LibretroSkinKnobRect(other, CGPointMake(-1,-1)),
+                          LibretroSkinKnobRect(other, CGPointMake(1,1))));
+  }
   return excluded;
 }
 
@@ -1064,6 +1095,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     NSUInteger generation = _imageGeneration;
     NSProgress *preparation = _pressurePreparation;
     CGFloat displayScale = _scale;
+    NSUInteger intensity = _pressureIntensity;
     NSMutableArray *excludedPixels = [NSMutableArray array];
     for (NSValue *value in excluded) {
       CGRect r = LibretroSkinPressureRect(value);
@@ -1123,7 +1155,12 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
         for (NSUInteger slot = 0; slot < (pad ? 4u : 1u); slot++) {
           if (preparation.cancelled) return;
           CGRect area = pad && arms.count == 4 ? LibretroSkinPressureRect(arms[slot]) : pixels;
-          NSArray *frames = normal ? LibretroSkinPressureFramesExcluding(normal.CGImage, area, 1/sy, pad ? 1u<<slot : 0, pressed.CGImage, excludedPixels, frameCount) : @[];
+          CGRect fallback = CGRectOffset(LibretroSkinPressureArm(pixels.size,slot),pixels.origin.x,pixels.origin.y);
+          // Silhouette-derived arms already exclude the surrounding housing.
+          // Do not narrow their active support a second time.
+          NSUInteger supportDirection = pad && CGRectEqualToRect(area,fallback) ? 1u<<slot : 0;
+          NSArray *frames = normal ? LibretroSkinPressureFramesWithIntensity(normal.CGImage, area, 1/sy,
+              supportDirection, pressed.CGImage, excludedPixels, frameCount, intensity) : @[];
           if (frames.count == 0) break;
           CGRect exact = CGRectMake(sourceFrame.origin.x+area.origin.x/sx, sourceFrame.origin.y+area.origin.y/sy,
                                    area.size.width/sx, area.size.height/sy);
@@ -1166,8 +1203,10 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
             release.values = region.frames.reverseObjectEnumerator.allObjects;
             NSMutableArray *times = [NSMutableArray array];
             for (NSUInteger i=0;i<region.frames.count;i++)
-              [times addObject:@(1-sqrt(1-(double)i/(region.frames.count-1)))];
-            release.keyTimes = times; release.duration = 0.12; release.calculationMode = kCAAnimationDiscrete;
+              [times addObject:@(LibretroSkinPressureReleaseTime((double)i/(region.frames.count-1)))];
+            release.keyTimes = times;
+            release.duration = LibretroSkinPressureProfileForSize(frame.size,intensity).releaseDuration;
+            release.calculationMode = kCAAnimationDiscrete;
             region.releaseAnimation = release;
             region.texture = LibretroSkinPlainLayer(renderer->_scale);
             region.texture.edgeAntialiasingMask = 0;

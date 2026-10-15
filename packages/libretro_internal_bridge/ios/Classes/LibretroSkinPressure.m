@@ -5,6 +5,39 @@
 
 const NSUInteger LibretroSkinPressureFrameCount = 12;
 
+NSArray<NSString *> *LibretroSkinPressureIntensityIdentifiers(void) {
+  return @[@"light", @"normal", @"pronounced", @"veryPronounced"];
+}
+NSUInteger LibretroSkinPressureIntensityFromIdentifier(id value) {
+  NSUInteger index = [value isKindOfClass:NSString.class] ?
+    [LibretroSkinPressureIntensityIdentifiers() indexOfObject:value] : NSNotFound;
+  return index == NSNotFound ? 2 : index;
+}
+LibretroSkinPressureProfile LibretroSkinPressureProfileForSize(CGSize points, NSUInteger intensity) {
+  if (intensity > 3) intensity = 2;
+  static const double fractions[] = {0.045,0.07,0.10,0.125};
+  static const double caps[] = {1.6,2.8,4.5,6.0};
+  static const double compression[] = {0.035,0.05,0.075,0.095};
+  static const double occlusion[] = {0.06,0.09,0.14,0.18};
+  static const double duration[] = {0.12,0.15,0.18,0.20};
+  double side = isfinite(points.width) && isfinite(points.height) ?
+    fmax(0,fmin(points.width,points.height)) : 0;
+  return (LibretroSkinPressureProfile){fmin(caps[intensity],side*fractions[intensity]),
+    compression[intensity],occlusion[intensity],duration[intensity]};
+}
+double LibretroSkinPressureReleaseTime(double progress) {
+  // Invert a critically damped return, normalised to finish exactly at rest.
+  // Prepared key times only: no solver or pixel work during a touch callback.
+  if (progress <= 0) return 0;
+  if (progress >= 1) return 1;
+  double lo=0,hi=1,normal=1-7*exp(-6);
+  for (NSUInteger i=0;i<24;i++) {
+    double t=(lo+hi)*0.5, value=(1-(1+6*t)*exp(-6*t))/normal;
+    if (value<progress) lo=t; else hi=t;
+  }
+  return (lo+hi)*0.5;
+}
+
 static NSValue *BoxRect(CGRect rect) { return [NSValue valueWithBytes:&rect objCType:@encode(CGRect)]; }
 CGRect LibretroSkinPressureRect(NSValue *value) {
   CGRect rect = CGRectNull;
@@ -73,6 +106,61 @@ static BOOL ReadPixels(CGImageRef source, CGRect rect, uint8_t *bytes, size_t w,
   return context != NULL;
 }
 
+// Some monobloc textures contain four disconnected arrows, rather than a
+// solid cross. Accept exactly four unambiguous cardinal components. Do not
+// mistake diagonal decoration, a fifth symbol or a disc for a direction.
+// This bounded flood fill runs once on the preparation queue (never touch).
+static NSArray<NSValue *> *SeparatedArms(const uint8_t *p, size_t w, size_t h, CGPoint origin) {
+  uint8_t *seen = calloc(w*h, 1);
+  uint32_t *queue = malloc(w*h*sizeof(uint32_t));
+  if (!seen || !queue) { free(seen); free(queue); return nil; }
+  CGRect boxes[4]; size_t counts[4]; NSUInteger count = 0;
+  BOOL valid = YES;
+  for (size_t start=0; start<w*h && valid; start++) {
+    if (seen[start] || p[start*4+3]<32) continue;
+    if (count==4) { valid=NO; break; }
+    size_t head=0, tail=1, left=w, right=0, top=h, bottom=0;
+    queue[0]=(uint32_t)start; seen[start]=1;
+    while (head<tail) {
+      size_t at=queue[head++], x=at%w, y=at/w;
+      left=MIN(left,x); right=MAX(right,x+1); top=MIN(top,y); bottom=MAX(bottom,y+1);
+      for (size_t ny=y ? y-1 : 0; ny<=MIN(y+1,h-1); ny++)
+        for (size_t nx=x ? x-1 : 0; nx<=MIN(x+1,w-1); nx++) {
+          size_t next=ny*w+nx;
+          if (!seen[next] && p[next*4+3]>=32) { seen[next]=1; queue[tail++]=(uint32_t)next; }
+        }
+    }
+    boxes[count]=CGRectMake(left,top,right-left,bottom-top); counts[count]=tail; count++;
+  }
+  free(seen); free(queue);
+  if (!valid || count!=4) return nil;
+  NSUInteger slots[4]={0,0,0,0};
+  for (NSUInteger i=1;i<4;i++) {
+    if (CGRectGetMidY(boxes[i])<CGRectGetMidY(boxes[slots[0]])) slots[0]=i;
+    if (CGRectGetMidY(boxes[i])>CGRectGetMidY(boxes[slots[1]])) slots[1]=i;
+    if (CGRectGetMidX(boxes[i])<CGRectGetMidX(boxes[slots[2]])) slots[2]=i;
+    if (CGRectGetMidX(boxes[i])>CGRectGetMidX(boxes[slots[3]])) slots[3]=i;
+  }
+  for (NSUInteger i=0;i<4;i++) {
+    CGRect r=boxes[i];
+    if (r.size.width<3 || r.size.height<3 || counts[i]<r.size.width*r.size.height*0.25) return nil;
+    for (NSUInteger j=0;j<i;j++) if (slots[i]==slots[j]) return nil;
+  }
+  CGRect up=boxes[slots[0]], down=boxes[slots[1]], left=boxes[slots[2]], right=boxes[slots[3]];
+  CGFloat x1=MAX(up.origin.x,down.origin.x), x2=MIN(CGRectGetMaxX(up),CGRectGetMaxX(down));
+  CGFloat y1=MAX(left.origin.y,right.origin.y), y2=MIN(CGRectGetMaxY(left),CGRectGetMaxY(right));
+  if (x2-x1<3 || y2-y1<3 || CGRectGetMaxY(up)>=y1 || down.origin.y<=y2 ||
+      CGRectGetMaxX(left)>=x1 || right.origin.x<=x2) return nil;
+  // Entire components, not just their centres, must lie in distinct arms.
+  if (CGRectGetMaxY(up)>=MIN(left.origin.y,right.origin.y) ||
+      down.origin.y<=MAX(CGRectGetMaxY(left),CGRectGetMaxY(right)) ||
+      CGRectGetMaxX(left)>=MIN(up.origin.x,down.origin.x) ||
+      right.origin.x<=MAX(CGRectGetMaxX(up),CGRectGetMaxX(down))) return nil;
+  NSMutableArray *result=[NSMutableArray array];
+  for (NSUInteger i=0;i<4;i++) [result addObject:BoxRect(CGRectOffset(boxes[slots[i]],origin.x,origin.y))];
+  return result;
+}
+
 NSArray<NSValue *> *LibretroSkinPressureRegions(CGImageRef source, CGRect pixels) {
   if (!ValidRect(pixels)) return @[];
   NSMutableArray *fallback = [NSMutableArray array];
@@ -92,6 +180,10 @@ NSArray<NSValue *> *LibretroSkinPressureRegions(CGImageRef source, CGRect pixels
     left=MIN(left,x);right=MAX(right,x+1);top=MIN(top,y);bottom=MAX(bottom,y+1);count++;
   }
   if(count==0 || right-left<12 || bottom-top<12)return fallback;
+  // A solid photograph cannot be four separated arrows. Avoid its flood
+  // fill altogether; all recognition remains off the input/render thread.
+  NSArray *separated=count<(right-left)*(bottom-top)*0.7 ? SeparatedArms(p,w,h,pixels.origin) : nil;
+  if(separated!=nil)return separated;
   size_t bw=right-left,bh=bottom-top,x1=right,x2=left,y1=bottom,y2=top;
   for(size_t y=top;y<bottom;y++){
     size_t n=0;for(size_t x=left;x<right;x++)if(p[(y*w+x)*4+3]>=32)n++;
@@ -125,6 +217,13 @@ NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
 
 NSArray *LibretroSkinPressureFramesExcluding(CGImageRef source, CGRect pixels,
     CGFloat pointsPerPixel, NSUInteger direction, CGImageRef authoredPressed, NSArray<NSValue *> *excluded, NSUInteger frameCount) {
+  return LibretroSkinPressureFramesWithIntensity(source,pixels,pointsPerPixel,direction,authoredPressed,excluded,frameCount,0);
+}
+
+NSArray *LibretroSkinPressureFramesWithIntensity(CGImageRef source, CGRect pixels,
+    CGFloat pointsPerPixel, NSUInteger direction, CGImageRef authoredPressed,
+    NSArray<NSValue *> *excluded, NSUInteger frameCount, NSUInteger intensity) {
+  if (intensity > 3) intensity = 2;
   if (source == NULL || !isfinite(pointsPerPixel) || pointsPerPixel <= 0 ||
       !isfinite(pixels.origin.x) || !isfinite(pixels.origin.y) ||
       !isfinite(pixels.size.width) || !isfinite(pixels.size.height) ||
@@ -160,13 +259,18 @@ NSArray *LibretroSkinPressureFramesExcluding(CGImageRef source, CGRect pixels,
   NSMutableArray *frames = [NSMutableArray arrayWithCapacity:frameCount];
   // Limit displacement relative to the smaller side too: the mapping stays
   // monotonic even for thin Start/Select keys. No fold or edge extrapolation.
-  double depth = fmin(1.6 / pointsPerPixel, fmin(w, h) * 0.045);
+  LibretroSkinPressureProfile profile = LibretroSkinPressureProfileForSize(
+      CGSizeMake(w*pointsPerPixel,h*pointsPerPixel),intensity);
+  double depth = profile.depth/pointsPerPixel;
+  // An authored endpoint already includes its own relief: retain its colour
+  // and texture, adding only a smaller local depression at stronger settings.
+  double authoredDepth = intensity == 0 ? 0 : 0.35;
   // Compute shared-area falloff once, not once per release frame. Taper far
   // enough that inverse sampling cannot borrow pixels across a blocked edge.
   NSMutableData *supports=excluded.count ? [NSMutableData dataWithLength:w*h*sizeof(float)] : nil;
   float *support=supports.mutableBytes;
   CGRect blocks[64];for(NSUInteger i=0;i<excluded.count;i++)blocks[i]=LibretroSkinPressureRect(excluded[i]);
-  double feather=MAX(4/pointsPerPixel,3*(0.035*MAX(w,h)+depth));
+  double feather=MAX(4/pointsPerPixel,3*(profile.compression*MAX(w,h)+depth));
   if(support!=NULL)for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++){
     double factor=1,px=pixels.origin.x+x+0.5,py=pixels.origin.y+y+0.5;
     for(NSUInteger i=0;i<excluded.count;i++){
@@ -194,7 +298,7 @@ NSArray *LibretroSkinPressureFramesExcluding(CGImageRef source, CGRect pixels,
       // corners alongside a cross. Other arms never share this support.
       double permitted = support != NULL ? support[y*w+x] : 1;
       double weight = horizontal[x] * vertical[y] * permitted;
-      if (pressed != NULL) {
+      if (pressed != NULL && intensity == 0) {
         // Authored states have their own edges/shadows: preserve those
         // pixels, including alpha, instead of adding a lighting effect.
         double local=amount*permitted;
@@ -202,22 +306,26 @@ NSArray *LibretroSkinPressureFramesExcluding(CGImageRef source, CGRect pixels,
           out[offset+c] = (uint8_t)lround(normal[offset+c]*(1-local) + pressed[offset+c]*local);
         continue;
       }
-      if (weight == 0) { memcpy(out+offset, normal+offset, 4); continue; }
+      if (weight == 0 && pressed == NULL) { memcpy(out+offset, normal+offset, 4); continue; }
       // Inverse sampling: a slight contraction and downward depression,
       // smoothly anchored to the untouched image at the region boundary.
-      double dx = (x-(w-1)*0.5)*0.035;
-      double dy = (y-(h-1)*0.5)*0.035 - depth;
+      double dx = (x-(w-1)*0.5)*profile.compression;
+      double dy = (y-(h-1)*0.5)*profile.compression - depth;
+      if (pressed != NULL) { dx*=authoredDepth; dy*=authoredDepth; }
       double sx = fmax(0, fmin(w-1, x + dx*weight*amount));
       double sy = fmax(0, fmin(h-1, y + dy*weight*amount));
       size_t x0 = (size_t)sx, y0 = (size_t)sy, x1 = MIN(x0+1,w-1), y1 = MIN(y0+1,h-1);
       double fx = sx-x0, fy = sy-y0;
       for (size_t c = 0; c < 4; c++) {
-        double top = normal[(y0*w+x0)*4+c]*(1-fx)+normal[(y0*w+x1)*4+c]*fx;
-        double bottom = normal[(y1*w+x0)*4+c]*(1-fx)+normal[(y1*w+x1)*4+c]*fx;
+        const uint8_t *texture = pressed ?: normal;
+        double top = texture[(y0*w+x0)*4+c]*(1-fx)+texture[(y0*w+x1)*4+c]*fx;
+        double bottom = texture[(y1*w+x0)*4+c]*(1-fx)+texture[(y1*w+x1)*4+c]*fx;
         // Subtle occlusion also makes a featureless solid-colour arm read
         // as depressed. Preserve its hue and alpha; never add a glow.
-        double shade = c == 3 ? 1 : 1 - 0.06*weight*amount;
-        out[offset+c] = (uint8_t)lround((top*(1-fy)+bottom*fy)*shade);
+        double shade = c == 3 || pressed != NULL ? 1 : 1 - profile.occlusion*weight*amount;
+        double sample = (top*(1-fy)+bottom*fy)*shade;
+        if (pressed != NULL) sample=normal[offset+c]*(1-amount*permitted)+sample*amount*permitted;
+        out[offset+c] = (uint8_t)lround(sample);
       }
     }
     NSMutableData *padded = [NSMutableData dataWithLength:outputLength];
