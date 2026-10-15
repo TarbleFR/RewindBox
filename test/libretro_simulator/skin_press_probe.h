@@ -85,6 +85,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
 @property(nonatomic) NSUInteger stage;
 @property(nonatomic) NSUInteger preparationAttempts;
 @property(nonatomic) NSUInteger menuWaitAttempts;
+@property(nonatomic) NSUInteger inputWaitAttempts;
 - (void)advance;
 @end
 
@@ -148,6 +149,18 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
   LibretroInputSnapshot snapshot=[self.input lastDelivered:&frame];
   self.result[@"lastInputFrame"]=@(frame);
   return snapshot.buttons[0];
+}
+// UIKit's visual transition is synchronous (checked at touch-down). The
+// emulation thread is asynchronous: wait for its actual poll, not a fixed
+// 250 ms wall-clock slot on a contended Simulator runner. Missing delivery
+// still fails after two seconds; no input state or assertion is replaced.
+- (BOOL)waitForCoreInputPoll {
+  if([self deliveredButtons]!=0){self.inputWaitAttempts=0;return NO;}
+  if(self.inputWaitAttempts++>=100){self.inputWaitAttempts=0;return NO;}
+  self.result[@"corePollWaitRetries"]=@([self.result[@"corePollWaitRetries"] unsignedIntegerValue]+1);
+  self.stage--;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/50),dispatch_get_main_queue(),^{[self advance];});
+  return YES;
 }
 - (BOOL)pressed:(LibretroLaidOutItem *)item {
   id layers=[self layers:item];
@@ -251,7 +264,9 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self touch:@"one" at:[self center:a] begin:YES];
       [self check:[self pressed:a] name:@"artwork depresses synchronously at contact"];
       [self next];break;
-    case 3: [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"immediate pressed artwork and emulated core input"];
+    case 3:
+      if([self waitForCoreInputPoll])break;
+      [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"held artwork and input received at the actual core poll"];
       [self capture:@"pressed"]; break;
     case 4: [self touch:@"two" at:[self center:a] begin:YES]; [self end:@"one" cancel:NO]; [self next]; break;
     case 5: [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"second finger keeps the same button held"];
@@ -350,6 +365,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       }
       break;
     case 15: [self.input pollControllers];
+      if([self waitForCoreInputPoll])break;
       self.result[@"controllerObservation"]=@{@"connected":self.virtualController.controller!=nil ? @YES : @NO,
         @"extended":self.virtualController.controller.extendedGamepad!=nil ? @YES : @NO,
         @"value":@(self.virtualController.controller.extendedGamepad.buttonA.value),
