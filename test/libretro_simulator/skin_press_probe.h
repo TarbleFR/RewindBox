@@ -84,6 +84,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
 @property(nonatomic, strong) GCVirtualController *virtualController;
 @property(nonatomic) NSUInteger stage;
 @property(nonatomic) NSUInteger preparationAttempts;
+@property(nonatomic) NSUInteger menuWaitAttempts;
 - (void)advance;
 @end
 
@@ -164,8 +165,29 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
     if(row.action!=nil && row.enabled){row.action(page);found=YES;}
   }
   [self check:found name:[@"in-game skin action: " stringByAppendingString:skin]];
+  self.menuWaitAttempts=0;
+  [self resumeAfterMenuPresentation];
+}
+- (void)resumeAfterMenuPresentation {
+  UINavigationController *menu=[self.session valueForKey:@"menu"];
+  if(menu.isBeingPresented && self.menuWaitAttempts++<200){
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/20),dispatch_get_main_queue(),^{[self resumeAfterMenuPresentation];});
+    return;
+  }
+  [self check:!menu.isBeingPresented name:@"native menu presentation finished before resume"];
   SEL close=NSSelectorFromString(@"closeMenu");
   ((void(*)(id,SEL))[self.session methodForSelector:close])(self.session,close);
+  self.menuWaitAttempts=0;
+  [self waitForMenuDismissal];
+}
+- (void)waitForMenuDismissal {
+  BOOL closed=[self.session valueForKey:@"menu"]==nil && self.controller.presentedViewController==nil;
+  if(!closed && self.menuWaitAttempts++<200){
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/20),dispatch_get_main_queue(),^{[self waitForMenuDismissal];});
+    return;
+  }
+  [self check:closed name:@"native resume completion precedes gameplay contacts"];
+  [self next];
 }
 - (void)capture:(NSString *)suffix {
   NSString *name=[NSString stringWithFormat:@"%@-%@",self.result[@"name"],suffix];
@@ -197,7 +219,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
   NSUInteger stage=self.stage++;
   LibretroLaidOutItem *a=[self primaryButton];
   switch(stage) {
-    case 0: [self chooseSkin:self.scenario[@"skinPress"]]; [self next]; break;
+    case 0: [self chooseSkin:self.scenario[@"skinPress"]]; break;
     case 1: {
       self.result[@"skinName"]=[[self.session valueForKey:@"currentSkin"] valueForKey:@"name"] ?: @"";
       [self check:a!=nil name:@"skin has a mapped game button"];
@@ -235,7 +257,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self touch:@"change-skin" at:[self center:a] begin:YES];
       [self chooseSkin:@"default"];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"in-game skin replacement clears a held button"];
-      [self.touches removeAllObjects];[self next];break;
+      [self.touches removeAllObjects];break;
     case 8: {
       a=[self primaryButton];
       [self touch:@"one" at:[self center:a] begin:YES];
@@ -265,9 +287,8 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self check:directional && [self deliveredButtons]!=0 name:@"direction diagonal plus held button reaches core and artwork"];
       [self.controller menuPressed];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"opening menu releases every visual button"];
-      SEL close=NSSelectorFromString(@"closeMenu");
-      ((void(*)(id,SEL))[self.session methodForSelector:close])(self.session,close);
-      [self.touches removeAllObjects];[self next];break;
+      [self.touches removeAllObjects];self.menuWaitAttempts=0;
+      [self resumeAfterMenuPresentation];break;
     }
     case 11: {
       [self check:[self deliveredButtons]==0 name:@"menu clears queued touch inputs"];
@@ -333,7 +354,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       [self.virtualController setValue:0 forButtonElement:GCInputButtonA];
       [self.virtualController disconnect];sSkinProbeController=nil;[self next];break;
     case 16:
-      if([self.scenario[@"skinPress"] isEqual:@"press-flat"]){[self chooseSkin:@"press-complex"];[self next];break;}
+      if([self.scenario[@"skinPress"] isEqual:@"press-flat"]){[self chooseSkin:@"press-complex"];break;}
       [self advance];break;
     case 17:
       if([self.scenario[@"skinPress"] isEqual:@"press-flat"]){
