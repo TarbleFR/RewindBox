@@ -5,6 +5,7 @@
 #import "LibretroSkinPressure.h"
 #import "LibretroTouchOverlay.h"
 #import "LibretroInputState.h"
+#import "LibretroInputLatch.h"
 #import <GameController/GameController.h>
 
 // Simulator exposes its own idle gamepad, which legitimately hides touch
@@ -165,6 +166,8 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 @property(nonatomic) NSUInteger preparationAttempts;
 @property(nonatomic) NSUInteger menuWaitAttempts;
 @property(nonatomic) NSUInteger inputWaitAttempts;
+@property(nonatomic) uint64_t releaseStartFrame;
+@property(nonatomic) CFTimeInterval releaseWaitStarted;
 @property(nonatomic, strong) LibretroSkinRenderer *layoutRenderer;
 @property(nonatomic, strong) UIImage *buttonRest;
 - (void)advance;
@@ -239,6 +242,23 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   if([self deliveredButtons]!=0){self.inputWaitAttempts=0;return NO;}
   if(self.inputWaitAttempts++>=100){self.inputWaitAttempts=0;return NO;}
   self.result[@"corePollWaitRetries"]=@([self.result[@"corePollWaitRetries"] unsignedIntegerValue]+1);
+  self.stage--;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/50),dispatch_get_main_queue(),^{[self advance];});
+  return YES;
+}
+// The production latch preserves a tap for three emulated frames, not for a
+// wall-clock duration. Observe a bounded number of actual core frames before
+// asserting delivery; do not wait for the desired button value (which could
+// conceal a stuck input). Cancellation's contact/artwork checks stay immediate.
+- (BOOL)waitForReleasePolls {
+  uint64_t frame=0;LibretroInputSnapshot input=[self.input lastDelivered:&frame];
+  BOOL observed=frame>=self.releaseStartFrame+LIBRETRO_LATCH_PRESS_FRAMES+1;
+  self.result[@"releaseCorePoll"]=@{@"cancelFrame":@(self.releaseStartFrame),@"observedFrame":@(frame),
+    @"buttons":@(input.buttons[0]),@"waitSeconds":@(CACurrentMediaTime()-self.releaseWaitStarted)};
+  if(observed || CACurrentMediaTime()-self.releaseWaitStarted>=2.0){
+    [self check:observed name:@"cancellation is observed after fresh core polls within the deadline"];
+    return NO;
+  }
   self.stage--;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/50),dispatch_get_main_queue(),^{[self advance];});
   return YES;
@@ -742,9 +762,19 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
         name:@"pressed button pixels differ from rest (skin only, no moving game pixels)"];
       [self capture:@"pressed"]; break;
     case 4: [self touch:@"two" at:[self center:a] begin:YES]; [self end:@"one" cancel:NO]; [self next]; break;
-    case 5: [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"second finger keeps the same button held"];
-      [self end:@"two" cancel:YES]; [self next]; break;
-    case 6: [self check:![self pressed:a] && [self deliveredButtons]==0 name:@"cancellation releases visual and core state"];
+    case 5: {
+      [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"second finger keeps the same button held"];
+      [self end:@"two" cancel:YES];
+      LibretroTouchTracker *tracker=[self.controller.overlay valueForKey:@"tracker"];
+      [self check:tracker.touchCount==0 && [tracker resolve].coreInput.buttons==0 &&
+        [[self.renderer valueForKey:@"pressed"] count]==0
+        name:@"cancellation synchronously clears contacts, resolved input and visual state"];
+      uint64_t frame=0;[self.input lastDelivered:&frame];self.releaseStartFrame=frame;
+      self.releaseWaitStarted=CACurrentMediaTime();[self next];break;
+    }
+    case 6:
+      if([self waitForReleasePolls])break;
+      [self check:![self pressed:a] && [self deliveredButtons]==0 name:@"cancellation releases visual and core state"];
       [self check:[UIImagePNGRepresentation(self.buttonRest) isEqualToData:UIImagePNGRepresentation([self padImage:a])]
         name:@"released button pixels exactly match rest"];
       [self capture:@"released"]; break;
