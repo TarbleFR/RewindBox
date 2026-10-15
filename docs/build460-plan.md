@@ -33,7 +33,31 @@ phases may be reused only with identical source/dependency bytes, runner,
 Flutter setup and test commands; the later failed Python contract is recorded
 as failed and is executed again. This never labels the failed job successful.
 
-This is a private test delivery. The requested destination is the maintainer's
-Downloads folder. Record the exact candidate, run, artifact, sealed IPA hash,
-byte count and final destination after validation. No physical iPhone test or
-hardware controller validation is claimed from CI.
+## Verified delivery
+
+- Candidate: `b92ff6e984d9086bd7da2d7361fe477804ce86aa` on `Claude`.
+- [Delivery run 38708722521](https://github.com/TarbleFR/neostation-ios/actions/runs/38708722521):
+  `checks`, `native` and the cold Release iPhone build passed. The warm build
+  was intentionally skipped (benchmark disabled).
+- Encrypted artifact `11960198085`, 215,456,157 bytes, expires 29 October 2026.
+  Archive digest: `c1ea1e22ea031b62c5d8c4188609ecb2e894195e1fc8c54be01785cdc01503f7`.
+- Sealed, decrypted IPA: **215,173,379 bytes**, SHA-256
+  `a4734d95ff7c833d6fe17caadf732048bf545e7c42620323193a9315e48085fd`.
+  It matches `SHA256SUMS` and `signed-payload-identity.json`.
+- Copied to the maintainer's Downloads folder as
+  `NeoStation-Build460-b92ff6e.ipa`, with the destination hash checked.
+- Independent verification on the PC checked ZIP integrity, actual packaged
+  source/build identity, **0.0.7 (460)** in the app and five extensions,
+  34 libretro cores, device ARM64/code-signature metadata and all 76 sealed
+  image code/data/ABI fingerprints. The libretro bridge contains
+  `applyPressToLayers:down:`, `preparePaintedItems` and `setDPadDirections:`.
+- Native libretro evidence is reused from `d6cb962d` / run `38661616452` only
+  after successful CI and an exact comparison of 2,551 source/dependency
+  files, Xcode 26.3 and iPhone SDK 26.2. Passed Dart phases retain their real
+  `2f7a0960` / run `38707150124` identity and the later failed contract is
+  explicitly recorded; changed pipeline guards pass in the final run.
+- Product sources under `lib/`, `packages/`, `native/`, `assets/` and both
+  pubspec files remain identical to the tested skin source `d6cb962d`.
+
+This is a private test IPA for SideStore re-signing, with no public release.
+No physical iPhone test or hardware controller validation is claimed from CI.
