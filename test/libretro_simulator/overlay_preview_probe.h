@@ -1,24 +1,32 @@
 #import "LibretroSkinRenderer.h"
+#import "LibretroSkinCompatibility.h"
 @interface OverlayPreviewProbe : NSObject
 @property(nonatomic, strong) NSMutableArray *checks;
 @property(nonatomic, copy) dispatch_block_t finish;
 @property(nonatomic) NSUInteger index;
 @property(nonatomic, strong) LibretroSkinRenderer *budgetRenderer;
+@property(nonatomic, strong) NSArray<NSDictionary *> *fixtures;
+@property(nonatomic, strong) NSMutableArray *reports;
 - (void)next;
 - (void)rejectOversized;
 @end
 @implementation OverlayPreviewProbe
 - (void)next {
-  if (_index >= 4) { [self rejectOversized]; return; }
+  if (_index >= self.fixtures.count) { [self rejectOversized]; return; }
   NSUInteger index = _index++;
-  NSString *identifier = index < 2 ? @"flat-psx" : @"rgpad-modern";
-  BOOL portrait = index % 2 == 0;
+  NSDictionary *fixture = self.fixtures[index];
+  NSString *identifier = fixture[@"identifier"];
+  BOOL portrait = [fixture[@"orientation"] isEqual:@"portrait"];
   NSString *directory = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:[@"SkinFixtures/" stringByAppendingString:identifier]];
   LibretroSkin *skin = [LibretroSkin skinWithDirectory:directory consoleGeometry:nil errorCode:nil];
   LibretroSkinRepresentation *representation = [skin representationForOrientation:portrait ? LibretroSkinOrientationPortrait : LibretroSkinOrientationLandscape iPad:NO edgeToEdge:YES];
+  LibretroSkinCompatibilityReport *compatibility = [LibretroSkinCompatibility prepareSkin:skin console:fixture[@"console"] ?: @"psx"];
+  [self.reports addObject:@{@"identifier":identifier, @"orientation":fixture[@"orientation"], @"report":compatibility.dictionary ?: @{}}];
   NSUInteger assets = 0; for (LibretroSkinItem *item in representation.items) if (item.assetPath.length) assets++;
   NSString *name = [NSString stringWithFormat:@"%@-%@",identifier, portrait ? @"portrait" : @"landscape"];
-  [_checks addObject:@{@"name":[name stringByAppendingString:@": full composite has more than eight images"],@"passed":@(assets > 8)}];
+  BOOL usable = skin != nil && representation != nil && (assets > 0 || representation.backgroundPath.length > 0) &&
+    [compatibility statusForOrientation:portrait ? LibretroSkinOrientationPortrait : LibretroSkinOrientationLandscape] != LibretroSkinCompatibilityIncompatible;
+  [_checks addObject:@{@"name":[name stringByAppendingString:@": native compatibility and complete controller artwork"],@"passed":@(usable && assets >= [fixture[@"minimumAssets"] unsignedIntegerValue])}];
   if (representation == nil) { [self next]; return; }
   [LibretroSkinRenderer renderPreviewForRepresentation:representation size:portrait ? CGSizeMake(390,844) : CGSizeMake(844,390)
     scale:1 safeInsets:portrait ? UIEdgeInsetsMake(44,0,34,0) : UIEdgeInsetsMake(0,44,21,44)
@@ -58,5 +66,15 @@
 @end
 static void RunOverlayPreviewProbe(NSMutableDictionary *result, dispatch_block_t completion) {
   OverlayPreviewProbe *probe = [OverlayPreviewProbe new]; probe.checks = [NSMutableArray array];
+  probe.reports = [NSMutableArray array]; result[@"catalogReports"] = probe.reports;
+  NSString *manifest = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"SkinFixtures/catalog-audit.json"];
+  probe.fixtures = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:manifest] ?: [NSData data] options:0 error:nil];
+  if (!probe.fixtures) {
+    NSMutableArray *fixtures = [NSMutableArray array];
+    for (NSString *identifier in @[@"flat-psx", @"rgpad-modern"])
+      for (NSString *orientation in @[@"portrait", @"landscape"])
+        [fixtures addObject:@{@"identifier":identifier,@"orientation":orientation,@"console":@"psx",@"minimumAssets":@9}];
+    probe.fixtures = fixtures;
+  }
   result[@"previewChecks"] = probe.checks; probe.finish = completion; [probe next];
 }

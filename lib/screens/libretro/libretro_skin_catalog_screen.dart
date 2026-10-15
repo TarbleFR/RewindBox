@@ -188,7 +188,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
       _favorites
         ..clear()
         ..addAll(favorites);
-      if (_source != null && !_entries.any((entry) => entry.source == _source)) _source = null;
+      if (_source != null && !_entries.any((entry) => entry.belongsToSource(_source!))) _source = null;
     });
     if (!_failed) {
       _restoreOffset();
@@ -253,7 +253,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
 
   /// Entries matching the search, source and favorites filters.
   List<LibretroCatalogSkin> get _matching => LibretroSkinCatalogs.search(_entries, _query)
-      .where((entry) => _source == null || entry.source == _source)
+      .where((entry) => _source == null || entry.belongsToSource(_source!))
       .where((entry) => !_favoritesOnly || _favorites.contains(entry.key))
       .toList();
 
@@ -379,7 +379,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
     final theme = Theme.of(context);
     final sources = <String>[
       for (final source in LibretroSkinSources.all)
-        if (_entries.any((entry) => entry.source == source)) source,
+        if (_entries.any((entry) => entry.belongsToSource(source) && !_hidden(entry))) source,
     ];
     void change(VoidCallback update) => setState(() {
           update();

@@ -503,6 +503,8 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
             source: source,
           ));
       expect(from('DeltaStyles.com').source, LibretroSkinSources.deltaStyles);
+      expect(from('DeltaStyles.com').belongsToSource(LibretroSkinSources.provenance), isTrue);
+      expect(from('DeltaStyles.com').belongsToSource(LibretroSkinSources.deltaStyles), isTrue);
       expect(from('https://delta-skins.github.io').source, LibretroSkinSources.deltaSkins);
       final provenance = from('LitRitt/emuskins');
       expect(provenance.source, LibretroSkinSources.provenance);
@@ -670,6 +672,7 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       expect(entries.map((entry) => entry.name).toList(), <String>['Shared', 'Twice', 'Site only']);
       expect(entries.firstWhere((entry) => entry.name == 'Twice').downloadCount, 5);
       expect(entries.first.source, LibretroSkinSources.provenance);
+      expect(entries.first.belongsToSource(LibretroSkinSources.provenance), isTrue);
       expect(unified.unavailableSources, isEmpty);
       expect(LibretroSkinCatalogs.forConsole(entries, 'gba').map((entry) => entry.name), <String>['Shared', 'Twice', 'Site only']);
       expect(LibretroSkinCatalogs.search(entries, 'delta skins').map((entry) => entry.name), <String>['Site only']);
@@ -766,7 +769,7 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       final client = MockClient((request) async {
         final url = request.url;
         if (url.host != 'raw.githubusercontent.com') return http.Response('offline', 503);
-        final file = Uri.decodeComponent(url.path);
+        final file = '/${url.pathSegments.join('/')}';
         requested.add(file);
         if (!file.startsWith('/stunrelay/PocketArch/$commit/')) return http.Response('missing', 404);
         if (file.endsWith('/GBA.cfg')) return http.Response(_gbaOverlay, 200);

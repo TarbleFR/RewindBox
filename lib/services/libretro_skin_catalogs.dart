@@ -60,6 +60,7 @@ class LibretroCatalogSkin {
     this.overlay,
     this.excludedReason,
     this.supports,
+    this.catalogSources = const <String>[],
   });
 
   /// Unique key: the normalized download link, or the overlay's path.
@@ -67,6 +68,19 @@ class LibretroCatalogSkin {
 
   /// [LibretroSkinSources] id.
   final String source;
+
+  /// Indexes that list this file, independently of its author's host.
+  final List<String> catalogSources;
+
+  bool belongsToSource(String value) => source == value || catalogSources.contains(value);
+
+  LibretroCatalogSkin withCatalogSources(Iterable<String> values) => LibretroCatalogSkin(
+        key: key, source: source, name: name, consoles: consoles,
+        author: author, origin: origin, thumbnailURL: thumbnailURL,
+        downloadCount: downloadCount, license: license, archive: archive,
+        overlay: overlay, excludedReason: excludedReason, supports: supports,
+        catalogSources: values.toSet().toList(),
+      );
   final String name;
 
   /// Consoles the catalog lists it for (verified by the native filter).
@@ -122,9 +136,10 @@ class LibretroOverlayEntry {
   final List<String> files;
 
   /// Immutable download link of a repository file at the pinned commit.
-  Uri fileUri(String file) => Uri.https(
-        'raw.githubusercontent.com',
-        '/$repository/$commit/${file.split('/').map(Uri.encodeComponent).join('/')}',
+  Uri fileUri(String file) => Uri(
+        scheme: 'https',
+        host: 'raw.githubusercontent.com',
+        pathSegments: <String>[...repository.split('/'), commit, ...file.split('/')],
       );
 
   String get webURL => 'https://github.com/$repository/blob/$commit/${path.split('/').map(Uri.encodeComponent).join('/')}';
@@ -178,7 +193,7 @@ class LibretroSkinCatalogs {
   static const String inspectionFolderName = 'SkinInspection';
 
   /// Bump when the native or Dart rules change: cached verdicts are redone.
-  static const int rulesVersion = 2;
+  static const int rulesVersion = 3;
   static const Duration verdictLifetime = Duration(days: 30);
   static const Duration unreachableLifetime = Duration(hours: 6);
 
@@ -228,12 +243,12 @@ class LibretroSkinCatalogs {
           _log.w('Provenance skin skipped (${entry.downloadURL}): $error');
           continue;
         }
-        merged.putIfAbsent(skin.key, () => skin);
+        _mergeEntry(merged, skin);
       }
     }
     try {
       for (final skin in await _deltaSkinsSite()) {
-        merged.putIfAbsent(skin.key, () => skin);
+        _mergeEntry(merged, skin);
       }
       any = true;
     } catch (error) {
@@ -242,7 +257,7 @@ class LibretroSkinCatalogs {
     }
     try {
       for (final skin in parseOverlayIndex(await _overlayIndex())) {
-        merged.putIfAbsent(skin.key, () => skin);
+        _mergeEntry(merged, skin);
       }
       any = true;
     } catch (error) {
@@ -266,7 +281,8 @@ class LibretroSkinCatalogs {
         .where((entry) =>
             entry.name.toLowerCase().contains(needle) ||
             (entry.author?.toLowerCase().contains(needle) ?? false) ||
-            LibretroSkinSources.label(entry.source).toLowerCase().contains(needle))
+            <String>[entry.source, ...entry.catalogSources]
+                .any((source) => LibretroSkinSources.label(source).toLowerCase().contains(needle)))
         .toList();
   }
 
@@ -284,6 +300,7 @@ class LibretroSkinCatalogs {
     return LibretroCatalogSkin(
       key: normalizeDownloadURL(entry.downloadURL),
       source: source,
+      catalogSources: const <String>[LibretroSkinSources.provenance],
       name: entry.name,
       consoles: entry.consoles,
       author: entry.author,
@@ -472,10 +489,23 @@ class LibretroSkinCatalogs {
       final consoles = <String>[...entry.consoles]..sort();
       final identity = '${entry.name.trim().toLowerCase()}|${(entry.author ?? '').trim().toLowerCase()}|${consoles.join(',')}';
       final previous = kept[identity];
-      if (previous == null || (entry.downloadCount ?? 0) > (previous.downloadCount ?? 0)) kept[identity] = entry;
+      if (previous == null) {
+        kept[identity] = entry;
+      } else {
+        final winner = (entry.downloadCount ?? 0) > (previous.downloadCount ?? 0) ? entry : previous;
+        kept[identity] = winner.withCatalogSources(<String>[
+          previous.source, ...previous.catalogSources, entry.source, ...entry.catalogSources,
+        ]);
+      }
     }
-    final keys = kept.values.map((entry) => entry.key).toSet();
-    return entries.where((entry) => keys.contains(entry.key)).toList();
+    return kept.values.toList();
+  }
+
+  static void _mergeEntry(Map<String, LibretroCatalogSkin> entries, LibretroCatalogSkin entry) {
+    final previous = entries[entry.key];
+    entries[entry.key] = previous == null ? entry : previous.withCatalogSources(<String>[
+      ...previous.catalogSources, entry.source, ...entry.catalogSources,
+    ]);
   }
 
   // ---- Central filter ----

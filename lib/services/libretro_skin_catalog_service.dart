@@ -73,9 +73,21 @@ class LibretroSkinCatalogEntry {
       ];
 
   bool isForConsole(String console) {
-    final codes = LibretroCoreCatalog.consoles[console]?.catalogSystems ?? const <String>[];
-    return systems.any((code) => codes.contains(code.toLowerCase()));
+    final platform = LibretroCoreCatalog.consoles[console];
+    if (platform == null) return false;
+    // Use the platform registry for both visible and default-hidden consoles.
+    // Metadata only supplies candidates; the native report still decides playability.
+    final codes = <String>{
+      for (final code in <String>[
+        platform.id, platform.importSystem, ...platform.catalogSystems,
+        ...platform.name.split('/'),
+      ]) _systemKey(code),
+    };
+    return <String>[...systems, if (gameTypeIdentifier != null) gameTypeIdentifier!]
+        .any((code) => codes.contains(_systemKey(code)));
   }
+
+  static String _systemKey(String value) => value.trim().split('.').last.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
   /// HTTPS link to fetch. Some published links contain a raw '#' or space
   /// that belongs to the file name.

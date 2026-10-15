@@ -1,0 +1,58 @@
+name: Libretro PocketArch and Provenance catalogue audit
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - lib/services/libretro_skin_catalog*.dart
+      - lib/screens/libretro/libretro_skin_catalog_screen.dart
+      - assets/data/libretro_skin_overlays.json
+      - test/libretro_skin_catalog_audit_test.dart
+      - test/libretro_catalog_probe.py
+      - test/fixtures/libretro_overlays/pocketarch/**
+      - test/libretro_simulator/overlay_preview_probe.h
+      - .github/workflows/libretro-catalog-checks.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  catalogues:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Original configurations, transport, platform matrix and source filters
+        env:
+          NEOSTATION_CATALOG_FIXTURES: evidence/catalog-layouts
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter test test/libretro_skin_catalog_audit_test.dart test/libretro_skin_catalog_test.dart test/libretro_skin_catalogs_test.dart test/libretro_skin_manager_test.dart test/libretro_skin_service_test.dart
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Fetch pinned simulator inputs
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Actual native compatibility and full previews from original PocketArch images
+        run: |
+          python3 test/libretro_catalog_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+            --layouts evidence/catalog-layouts --evidence evidence/catalog-native --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libretro-catalog-audit-${{ github.sha }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn

@@ -1138,7 +1138,7 @@ def evaluate(report, scenarios):
                 problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('previewProbe'):
                 checks = result.get('previewChecks', [])
-                if len(checks) != 10: problems.append(f'{name}: missing native overlay compositions or texture budget checks')
+                if len(checks) != scenario.get('previewChecksExpected', 10): problems.append(f'{name}: missing native overlay compositions or texture budget checks')
                 problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('cheatProbe'):
                 checks = result.get('cheatChecks', [])

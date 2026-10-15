@@ -547,6 +547,41 @@ void main() {
     expect(hiddenHeader, findsNothing);
   });
 
+  testWidgets('Provenance PS1 filter retains DeltaStyles attribution and never appears without candidates', (tester) async {
+    final client = MockClient((request) async {
+      final file = request.url.pathSegments.last;
+      if (file == 'catalog.json') {
+        return http.Response(jsonEncode({'skins': [
+          {'id': 'ps1', 'name': 'PS1 usable', 'systems': ['psx'], 'source': 'deltastyles.com',
+            'downloadURL': 'https://example.com/ps1.manicskin'},
+        ]}), 200);
+      }
+      if (file.endsWith('.html')) return http.Response('<html></html>', 200);
+      return http.Response.bytes(_skinArchive('PS1 usable', 'com.example.game.psx'), 200);
+    });
+    final catalogs = LibretroSkinCatalogs(skins: service,
+      provenance: LibretroSkinCatalogService(cacheDirectory: service.cacheDirectory, skins: service, client: client),
+      client: client, overlayIndex: () async => '{"sources":{},"entries":[]}');
+    addTearDown(catalogs.dispose);
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(locale: const Locale('en'),
+      home: LibretroSkinCatalogScreen(console: 'psx', skins: service, catalogs: catalogs)));
+    await settle(tester, find.text('PS1 usable'), rounds: 1000);
+    expect(find.widgetWithText(FilterChip, 'Provenance'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'DeltaStyles'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilterChip, 'Provenance'));
+    await tester.pump();
+    expect(find.text('PS1 usable'), findsOneWidget);
+    expect(find.text(en('catalogSource', {'source': 'DeltaStyles'})), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(MaterialApp(locale: const Locale('en'),
+      home: LibretroSkinCatalogScreen(console: 'wasm4', skins: service, catalogs: catalogs)));
+    await settle(tester, find.text(english['catalogSourcesAll']!), rounds: 1000);
+    expect(find.widgetWithText(FilterChip, 'Provenance'), findsNothing);
+  });
+
   testWidgets('on a phone in landscape the filters fold, and the page comes back where it was left (Build 448)',
       (tester) async {
     final entries = <String>[
