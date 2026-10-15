@@ -1,9 +1,18 @@
-# Build 465 candidate — PocketArch and Provenance catalogues
+# Build 465 — PocketArch and Provenance catalogues
 
 Baseline: delivered Build 464, branch `Claude`, source `5a5433eb`.
 The maintainer confirmed on iPhone that custom skins work again and authorized
 the catalogue audit, correction, push, CI and private test IPA without further
 intermediate approval. Build 464 must not be reused for another binary.
+
+Final private test IPA: **0.0.7 (465)**, source
+`a0f1b291951008a141e0b857800c091660c2b855`, successful delivery run
+[`38822682091`](https://github.com/TarbleFR/neostation-ios/actions/runs/38822682091).
+PocketArch transport is repaired, its 26 complete originals are retained,
+and only the two incomplete PSP originals are hidden. Provenance membership
+is restored for PS1 and every other registry console with offered candidates.
+No native loading, rendering, pressure or input source changed from Build 464.
+Final IPA identity and verification are recorded at the end of this report.
 
 ## Confirmed causes and corrections
 
@@ -186,3 +195,116 @@ focused reproduction. The unrelated broad simulator run `38819105117` was
 cancelled; all relevant skin sessions run in the table above. The product
 still changes only the same four catalogue paths, with native sources and
 the converter/install service identical to delivered Build 464.
+
+## Complete registry census and final regression evidence
+
+The inspected Provenance snapshot contains 1,358 entries, last updated
+2026-10-04T05:11:24Z. The central registry contains 42 embedded console
+identities. Matching the published systems against that registry produces the
+following candidate counts, regardless of the console's default visibility.
+These counts precede download/native inspection and deduplication; they do
+not certify every listed archive, orientation or current third-party host.
+
+| Registry consoles | Indexed candidates per console |
+| --- | ---: |
+| NES | 91 |
+| SNES | 132 |
+| GB, GBC | 210 |
+| GBA | 303 |
+| Mega Drive, Mega-CD | 37 |
+| 32X | 38 |
+| Master System | 7 |
+| Game Gear | 5 |
+| SG-1000 | 3 |
+| Arcade | 6 |
+| DS | 354 (353 direct archive links) |
+| N64 | 57 |
+| PS1 / PSX / PlayStation | 8 |
+| PSP | 20 |
+| 3DS | 92 |
+| PC Engine, TurboGrafx-16, PC Engine-CD, TurboGrafx-CD | 5 |
+| Atari Lynx | 3 |
+| Virtual Boy | 3 (2 direct archive links) |
+| WonderSwan, WonderSwan Color, NeoGeo Pocket, NeoGeo Pocket Color, Atari 2600/7800/5200, ColecoVision, Pokémon Mini, Game & Watch, Mega Duck, Watara Supervision, Arduboy, WASM-4, Uzebox, Channel F, Intellivision, Odyssey 2, PC-FX | 0 |
+
+The eight PSX entries are DualShocked, the two HZN PS1 console styles,
+M-Gage PlayStation Gamepad, Belmon T Taco PSX Dark, PS1 Controller,
+PS1 Dark Controller SCE and PS1 Pocket Taco Minimal. All eight have direct
+`.manicskin`/`.deltaskin` URLs and DeltaStyles attribution. Original
+DualShocked is also exercised by the real native pressure and existing-install
+regressions; the catalogue chip fix does not bypass native inspection of
+the seven other archives.
+
+At source `6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99`:
+
+- Engine run `38819105153` completed successfully: Dart job `116711020448`
+  passed the 578 main and 245 storage tests; native job `116711020713`
+  passed the frontend, 6,025 tracker, iPhone compilation and actual channel
+  codec checks. Pressure job `116711020588` passed **27 sessions / 2,840
+  assertions**, with zero failures. Artifact `12013710327`, ZIP SHA-256
+  `eb82a71d374df04dd4d1a2e4c52ed6a171223b423b1e03e9d744eea85c78eb29`.
+- Focused iPhone `press-flat-nes` run `38819107430`, job `116711036861`,
+  passed **110 assertions**. Its retained report observes zero buttons at
+  frame 775 after cancellation at frame 760 (0.259 seconds), independently
+  of the expected button value. Artifact `12013116007`, ZIP SHA-256
+  `74b8ef224f24e44ed6184a300cb468f4d5c5e792ac38f4a911615b5ba18b544a`.
+- Catalogue run `38819113652`, job `116711052906`, passed again: 109 Flutter
+  tests and the 39 original PocketArch associations / 78 native orientations.
+- Cheat/preview run `38819105076`, job `116711023170`, passed again,
+  including 128 actual Ignited/Nestopia, 20 Nestopia cheat, 10 overlay preview
+  and four Snes9x checks.
+- Loading run `38819110606`, attempt 1, failed before the unchanged 463
+  witness application produced any report (`probe.json` absent; launcher
+  had no process id at the 120-second diagnostic; system logs show the
+  application entering UIKit only at 23:02:57, after that launch deadline).
+  It is not an application assertion failure or a
+  successful test. Failed artifact `12012564293`, ZIP SHA-256
+  `83cc9ea517dc1e276d55774c26b0b66363dbf1d1bdb06b5d199d4710fe547037`.
+  Only this failed job was rerun on the same exact source. Attempt 2, job
+  `116718443812`, **passed**: the exact 463 rejection was reproduced, then
+  all 53 candidate upgrade/selection/orientation/fallback and 10 relaunch
+  assertions passed. Artifact `12013283201`, ZIP SHA-256
+  `cc02719e879428b12383a4efff787ca1922cf95e2292a434d34e0cc69a419667`.
+
+With all required runs actually successful, private delivery run `38822682091`
+was dispatched at source `a0f1b291951008a141e0b857800c091660c2b855`, build
+number 465, full validation, benchmark disabled, encrypted to the existing
+maintainer recipient `build-utils/delivery-424-recipient.pem`. Packaging and
+final IPA verification remain pending until the results below.
+
+## Final private IPA and independent verification
+
+Delivery run `38822682091` at `a0f1b291951008a141e0b857800c091660c2b855`
+completed successfully: `checks` job `116722744730`, `native` job
+`116722745064` and cold iPhone Release job `116723545669`. The optional warm
+benchmark job was intentionally skipped (`benchmark=false`). Successful
+unchanged Dart and native phases were reused only after their closed input
+identities were verified; the changed pipeline guard checks ran again.
+Xcode Release compilation completed in 326 seconds; sealing/export took 55.
+
+- Encrypted IPA/evidence artifact: `12013744858`, 216,816,029 bytes;
+  ZIP SHA-256 `a8b7bb96c62deb71c4156d6a3dc687e5450e3ffc008a3e86621c93312aebf735`.
+- Final sealed IPA: **215,262,198 bytes**, SHA-256
+  `e5b49390d78f2ad9f340c057be694cb0773b8888f1b6a5f44c748ffc980d48ad`.
+  Filename: `NeoStation-Build465-a0f1b291.ipa`. Do not reuse build number 465.
+- Independent verification of the transferred artifact confirmed the official
+  ZIP digest, both final IPA integrity records, ZIP CRCs, exact source commit,
+  app and five extension versions, iPhoneOS platform and minimum iOS 18.0.
+  All 76 compiled payload fingerprints match the pre/post-signing manifest;
+  ABI metadata and compiled code/data sections are unchanged by signing.
+  Raw framework hashes change with the delivery signatures; these are not
+  falsely claimed to equal the unsigned package hashes.
+- All 34 Libretro cores are covered by those payload fingerprints. CI verified
+  their unchanged pinned package before sealing. The bundled catalogue index
+  exactly matches the corrected repository asset; no CI skin fixtures or
+  original PocketArch artwork were added to the application.
+- Decryption used the maintainer's existing recipient key on the Windows PC;
+  its private key never left that PC. Only the small encrypted password
+  envelope was rewrapped for this session, and transient plaintext passwords
+  were deleted. No public release or device installation was performed.
+
+The result is a private test IPA requiring Apple re-signing with SideStore.
+Actual iPhone upgrade, real rotation, commercial-game use and a physical
+controller still need maintainer validation. Simulator contacts and virtual
+controllers are not proof of those hardware behaviors. Installed user skins,
+ids, favorites, metadata and portrait/landscape selections are preserved.
