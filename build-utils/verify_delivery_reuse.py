@@ -1948,6 +1948,59 @@ LIBRETRO_PRESSURE462_INPUTS = {
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_PRESSURE462_INPUTS, LIBRETRO_PRESSURE462_REFERENCE))
 DELTA |= LIBRETRO_PRESSURE462_INPUTS
 DELIVERY456_PINNED_INPUTS['build-utils/reuse_skin_frontend.py'] = 'ca856f875ab937e515bc43a107496bb4a1db3f2a'
+# Build 463: reviewed overlay reconstruction, bounded skin loading and opt-in
+# multi-source cheats. Native sources and fixtures are pinned, not excluded.
+LIBRETRO_CATALOG463_REFERENCE = 'c93f493aa17caafce820ce126e37ec090cb4e8a5'
+LIBRETRO_CATALOG463_INPUTS = {
+    ".github/workflows/libretro-skin-checks.yml",
+    "packages/libretro_internal_bridge/ios/Classes/LibretroSessionMenu.m",
+    '.github/workflows/libretro-cheats-checks.yml',
+    'lib/l10n/libretro_locale.dart',
+    'lib/screens/libretro/libretro_skin_catalog_screen.dart',
+    'lib/services/libretro_overlay_converter.dart',
+    'lib/services/libretro_skin_catalogs.dart',
+    'lib/services/libretro_skin_service.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatCatalog.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatCatalog.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheats.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheats.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec',
+    'packages/libretro_internal_bridge/lib/libretro_internal_bridge.dart',
+    'test/fixtures/libretro_cheats/README.md',
+    'test/fixtures/libretro_cheats/libretro-LICENSE',
+    'test/fixtures/libretro_cheats/openemu-LICENSE',
+    'test/fixtures/libretro_cheats/openemu-original.xml',
+    'test/fixtures/libretro_overlays/COPYING',
+    'test/fixtures/libretro_overlays/README.md',
+    'test/fixtures/libretro_overlays/psx.cfg',
+    'test/fixtures/libretro_overlays/rgpad_modern.cfg',
+    'test/libretro_cheat_probe.py',
+    'test/libretro_frontend_test.py',
+    'test/libretro_host/frontend/cheat_catalog_live_probe.m',
+    'test/libretro_host/frontend/cheat_catalog_test.m',
+    'test/libretro_host/frontend/cheats_test.m',
+    'test/libretro_host/host_test.m',
+    'test/libretro_ios_syntax_test.py',
+    'test/libretro_overlay_fixture_test.dart',
+    'test/libretro_simulator/cheat_menu_probe.h',
+    'test/libretro_simulator/cheat_probe.h',
+    'test/libretro_simulator/overlay_preview_probe.h',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator/skin_failure_probe.h',
+    'test/libretro_simulator/skin_press_probe.h',
+    'test/libretro_simulator_probe.py',
+    'test/libretro_skin_catalogs_test.dart',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRETRO_CATALOG463_REFERENCE))
+DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2186,8 +2239,27 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '06143ac80815c5f125b20e18c47c2d6291eeb117'
-SKIN_SESSION_RUN = 38743904734
+SKIN_SESSION_REFERENCE = 'c93f493aa17caafce820ce126e37ec090cb4e8a5'
+SKIN_SESSION_RUN = 38774454891
+
+CHEAT_CATALOG_REFERENCE = 'c93f493aa17caafce820ce126e37ec090cb4e8a5'
+CHEAT_CATALOG_RUN = 38774454871
+
+def verify_cheat_catalog_evidence():
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CHEAT_CATALOG_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != CHEAT_CATALOG_REFERENCE or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/libretro-cheats-checks.yml'):
+        raise ValueError('Cheat catalogue/core evidence is different or incomplete')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    matches = [job for job in jobs if job.get('name') == 'catalogues-and-cores']
+    if (len(matches) != 1 or matches[0].get('head_sha') != CHEAT_CATALOG_REFERENCE
+            or matches[0].get('conclusion') != 'success' or not matches[0].get('steps')
+            or any(step.get('conclusion') != 'success' for step in matches[0]['steps'])):
+        raise ValueError('Cheat catalogue/core checks did not all pass')
+    return {'run': CHEAT_CATALOG_RUN, 'testedSHA': CHEAT_CATALOG_REFERENCE,
+            'successfulJob': 'catalogues-and-cores', 'physicalDeviceValidated': False}
 
 def verify_skin_session_evidence():
     """Keep the successful rendering job separate from the failed macOS test."""
@@ -2334,18 +2406,18 @@ def main():
     if args.skin_session_evidence:
         if args.offline:
             raise ValueError('Skin session verification requires online CI evidence')
-        # Only delivery guards, a public recipient and the portable-only test
-        # utility changed since this rendering job. No renderer, UIKit probe,
-        # fixture, manifest, dependency or simulator recipe is excluded.
-        hashes = verify_libretro_reuse_tree(SKIN_SESSION_REFERENCE, ignored={
-            'build-utils/delivery-461-recipient.pem', 'build-utils/reuse_skin_frontend.py',
-            'test/skin_frontend_reuse_test.py', 'test/libretro_host/frontend/skin_pressure_test.m',
-        }, exact_inputs={'.github/workflows/libretro-skin-checks.yml'})
+        # Both suites must attest this exact shared source tree, including all
+        # fixtures, native code, UIKit probes and their workflow recipes.
+        hashes = verify_libretro_reuse_tree(SKIN_SESSION_REFERENCE,
+            exact_inputs={'.github/workflows/libretro-skin-checks.yml'})
         evidence = verify_skin_session_evidence()
+        cheat_hashes = verify_libretro_reuse_tree(CHEAT_CATALOG_REFERENCE, exact_inputs={'.github/workflows/libretro-cheats-checks.yml'})
+        cheats = verify_cheat_catalog_evidence()
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({'result': 'passed', 'evidence': evidence,
-            'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
+            'unchangedInputsSHA256': hashes, 'cheatEvidence': cheats,
+            'cheatInputsSHA256': cheat_hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
         print('Verified unchanged UIKit session inputs:', len(hashes), '; evidence:', evidence)
         return
     if args.dart_evidence:

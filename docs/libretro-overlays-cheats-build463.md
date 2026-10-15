@@ -73,7 +73,51 @@ The community source is small (currently useful chiefly for SNES and GBA), not a
 - Catalogue candidate `ce929f4b`: iPhone sources compiled; a native required-string ordering test and a C macro test declaration failed. Corrected in `d599d543`.
 - `d599d543` targeted native compilation exposed a block generic-signature mismatch. Corrected in `019a58d2`.
 - `019a58d2`: 34 parser/adapter checks and 23 offline/two-source catalogue checks passed; Dart engine job passed. Original Flat PSX conversion passed, RGPAD zero-area placeholder failed and was corrected in `4fa84f44`.
-- Further exact-revision results and build identity will be appended after the final candidate completes. No pending check is counted as passed.
+- `4fa84f44`, targeted run `38765020084`: original Ignited on pinned Nestopia passed 115 checks; NES/SNES actual memory-effect probes passed 4 checks each; native Flat PSX/RGPAD previews passed all 8 checks. The four generated PNGs were visually inspected: complete composed controls, not isolated source icons. Neither the synthetic NES content nor this Simulator run reproduces the reported iPhone termination.
+- `f666412c`: live official download succeeded (2,773 SNES game entries), but the community XML exposed a 12,239-character GBA program that aborted the entire cross-console index. `b2d1b47e` preserves bounded long programs as unsupported entries without sending them to a core. The original pinned XML is now a regression fixture.
+- The first fixture count assertion counted four empty separator rows as cheats (629 total XML rows). `c368e7bf` checks the exact 625 nonempty code entries; no product behaviour or fixture was changed by this test correction.
+- `c368e7bf`: all 38 parser/fixture checks passed. Both live installs then received HTTP 403 from the shared runner (unauthenticated GitHub API quota). `fd84b4e5` uses the production bounded transfer delegate with a CI-only read token on `api.github.com`; raw downloads remain public. No credential or authentication feature is added to the app. The normal unauthenticated official download had already succeeded on `f666412c`.
+
+### Candidate checks and final source
+
+`fd84b4e5`, focused run `38769703925`, passed 38 parser/original-XML checks, 23 source/offline checks and 15 live network checks. The official SNES index contained 2,773 entries and the community index four SNES games. Both sources passed licence/blob verification and offline reload. The same run passed 149 UIKit checks: original Ignited/Nestopia 119 (including four corrupt-resource fallback checks), Nestopia cheats/menu/import/preferences 16, four native previews plus aggregate-texture guards 10, and Snes9x cheat effects four.
+
+The `b2d1b47e` directional run `38767280812` exposed an iPad Ignited cancellation assertion at a fixed 250 ms. The production latch intentionally preserves a press for three core polls; an elapsed wall-clock delay does not prove those polls occurred on a contended Simulator. `bcb6d6e9` strengthens the probe: contacts, resolved input and visual state must clear synchronously, then at least four actual new core polls must occur within two seconds before the unchanged zero-input assertion. It does not wait until the expected button value appears, and changes no product input logic. The observed frame counts and delay are retained in `releaseCorePoll`.
+
+`bcb6d6e9`, focused run `38771763641`, passed every step: the same 38/23/15 Foundation/network checks, both original overlay conversion tests and **151 UIKit checks** (Ignited 121, NES menu/cheats 16, previews/texture guards 10, SNES four). Cancellation was observed at core frame 474 after frame 458, with zero delivered buttons; the recorded wait was 0.262 seconds. The artifact is `11992586307`, archive SHA-256 `90874fc683c6f1740de5c47e7a30b12821e4c915297f82c2afd7052cc0468fe5`. All four final native preview PNGs were inspected. Flat's edge clipping and extra bottom L1 come from the original configuration, not a guessed button layout.
+
+The native job `116549101178` of the same directional run passed: **18 frontend executables actually run**, including **1,133 pressure-pixel checks** and **6,025 touch-tracker checks**; **74 bridge sources compiled/linked for iPhone**. These phases were executed again because the closed input tree had changed, not reused from Build 462. The exact-revision Dart engine job also passed.
+
+The broad simulator workflow `38771763507` passed its six other jobs but its first generic probe attempt failed one PPSSPP crowded-address-space log assertion (expected `PPSSPP's memory at the reserved base`). This is separate from the skin/cheat scenarios. The final `c93f493a` generic probe passed this scenario without changes to that core, its memory reservation logic or the assertion. The earlier failure is retained here; it is not silently reclassified as successful.
+
+Delivery 463 is gated on complete successful skin and catalogue/core jobs at the final `c93f493a` source, with 2,581 closed inputs checked for each suite. Both required suites completed successfully; no pending job is counted as passed. The 20 local delivery-gate tests and offline source-scope check passed after these pins were updated.
+
+### Final menu review
+
+`c93f493a` fixes two additional interaction defects before shipping. UISwitch previously used `section * 1000 + row` as its target, which aliases another section after row 999; controls now hold a weak identity reference to the exact current row, with stale/disabled rows rejected. The cheat activation prompt rebuilds from the still-disabled model before asking for consent, so cancelling does not leave a visually enabled switch. No cheat or emulator input is applied before consent.
+
+The native menu probe now sends real UIKit value-changed events to a switch at row 1001, checks disabled/stale controls, and cancels the first cheat confirmation before explicitly confirming a second attempt. Existing restore/import tests remain. Both exact-source suites rerun for this final shared-menu change; no rendering source exception is added to the delivery gate.
+
+### Final tested source: c93f493a
+
+- Directional run [38774454891](https://github.com/TarbleFR/neostation-ios/actions/runs/38774454891): both jobs passed; **25 Simulator sessions / 2,457 checks**, no failed assertion. Covers original Atomic Pink/Ignited, authored and synthetic composites, overlap/asymmetric D-pads, directions/diagonals, simultaneous contacts, cancellation, rotation, menu/skin replacement and virtual-controller handoff.
+- Focused run [38774454871](https://github.com/TarbleFR/neostation-ios/actions/runs/38774454871): all steps passed; 38 parser checks, 23 source/offline checks, 15 real-download checks, two original overlay conversion tests and **155 UIKit checks** (Ignited/Nestopia 121, NES cheats/native menu 20, previews and allocation guards 10, Snes9x four). Includes actual UISwitch dispatch beyond row 1000 and cancellation of consent.
+- Engine run [38774454885](https://github.com/TarbleFR/neostation-ios/actions/runs/38774454885): Dart, native and skin-session jobs passed. The repeated skin suite is not counted as 25 additional distinct scenarios.
+- Broad simulator run `38774454935`: generic probe, lot1, lot2, synthetic shaders and both historical reproduction controls passed. The first official-shader attempt failed at `MENU_DOWNLOAD_MISSING` for PSP-2020, with consequent assertions failing; only this job was rerun unchanged. Its final outcome is recorded separately when available. This failure is not presented as a skin or cheat success.
+
+## Changed files
+
+| Area | Files |
+|---|---|
+| Catalogue preview/conversion | `lib/services/libretro_skin_catalogs.dart`, `lib/services/libretro_overlay_converter.dart`, `lib/screens/libretro/libretro_skin_catalog_screen.dart` |
+| Import/validation/fallback | `lib/services/libretro_skin_service.dart`, `LibretroSkin.m`, `LibretroSkinRenderer.h/.m`, `LibretroSession.m`, `LibretroInternalBridgePlugin.m`, Dart bridge |
+| Cheat product code | New `LibretroCheats.h/.m`, `LibretroCheatCatalog.h/.m`, `LibretroCheatMenu.h/.m`; bounded ABI arguments in `LibretroCoreHost.m`; session menu integration; exact switch identity in `LibretroSessionMenu.m` |
+| Native linkage and translations | Bridge podspec (`UniformTypeIdentifiers`), `lib/l10n/libretro_locale.dart`, required native string contract |
+| Behaviour tests | Dart catalogue/converter tests and real overlay fixture test; Foundation cheat/parser/catalogue tests; host ABI bounds; real-core cheat/menu/skin-failure/preview probes; original Ignited layouts in skin pressure probe |
+| Fixtures | Original Flat PSX/RGPAD configurations with COPYING/attribution; source licences and original OpenEmu XML with immutable identities |
+| CI and delivery | Dedicated catalogue/core workflow, iPhone/simulator link flags, exact-source delivery gates and their negative tests; build number 463 |
+
+Native filenames in this table are under `packages/libretro_internal_bridge/ios/Classes/`.
 
 ## Physical iPhone checklist (not performed by CI)
 

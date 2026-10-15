@@ -21,6 +21,29 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_cheat_catalogue_gate_requires_complete_success_and_exact_source(self):
+        from unittest.mock import patch
+        run = {'head_sha': reuse.CHEAT_CATALOG_REFERENCE, 'status': 'completed',
+               'conclusion': 'success', 'path': '.github/workflows/libretro-cheats-checks.yml'}
+        job = {'name': 'catalogues-and-cores', 'head_sha': reuse.CHEAT_CATALOG_REFERENCE,
+               'conclusion': 'success', 'steps': [{'conclusion': 'success'}]}
+        def verify():
+            with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': [job]})]):
+                return reuse.verify_cheat_catalog_evidence()
+        self.assertFalse(verify()['physicalDeviceValidated'])
+        for invalid in ('failure', 'skipped', None):
+            job['steps'][0]['conclusion'] = invalid
+            with self.assertRaisesRegex(ValueError, 'did not all pass'):
+                verify()
+        job['steps'][0]['conclusion'] = 'success'
+        run['head_sha'] = 'other'
+        with self.assertRaisesRegex(ValueError, 'different or incomplete'):
+            verify()
+        run['head_sha'] = reuse.CHEAT_CATALOG_REFERENCE
+        run['status'] = 'in_progress'
+        with self.assertRaisesRegex(ValueError, 'different or incomplete'):
+            verify()
+
     def test_directional_sessions_require_the_exact_complete_successful_job(self):
         from unittest.mock import patch
         run = {'head_sha': reuse.SKIN_SESSION_REFERENCE, 'status': 'completed',
