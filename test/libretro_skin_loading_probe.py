@@ -39,7 +39,11 @@ def legacy_validation(sources, fixture, work, evidence):
                       'CFBundleSupportedPlatforms':['iPhoneSimulator']},output)
     probe.run(['codesign','--force','--sign','-','--timestamp=none',app])
     evidence.mkdir(parents=True,exist_ok=True)
-    outcome = probe.run_in_simulator(app,evidence,90)
+    # Cold CI launch can consume the old 90 s before UIApplication even enters
+    # its delegate (fd643394 evidence). This is a process-start allowance, not
+    # touch latency or waiting for a particular validation answer. The original
+    # skin must still parse and the exact old validator must still return false.
+    outcome = probe.run_in_simulator(app,evidence,240)
     report = json.loads((evidence/'probe.json').read_text())
     result = report['results'][0]
     assert outcome['finished'] and result['valid'] is False

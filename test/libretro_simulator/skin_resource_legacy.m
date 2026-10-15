@@ -9,6 +9,9 @@ static NSDictionary *ReadFixture(NSString *file);
 @end
 @implementation SkinResourceDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
+  NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+  [@"original-skin validator entered application delegate\n" writeToFile:[documents stringByAppendingPathComponent:@"probe-progress.log"]
+    atomically:YES encoding:NSUTF8StringEncoding error:nil];
   self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
   self.window.rootViewController = [UIViewController new];
   [self.window makeKeyAndVisible];
