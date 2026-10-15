@@ -860,7 +860,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
 /// The original painted area is removed with a background mask and filled
 /// with its verified background model, so it cannot remain underneath.
 - (void)preparePaintedItems {
-  if (_backgroundLayer.contents == nil || _representation.generated ||
+  if (_backgroundLayer.contents == nil || _representation.generated || _representation.translucent ||
       ![[_backgroundLayer valueForKey:@"neostationSkinReadyKey"] isEqual:[_backgroundLayer valueForKey:LibretroSkinImageKey]]) return;
   UIImage *background = [UIImage imageWithCGImage:(__bridge CGImageRef)_backgroundLayer.contents];
   CGRect skin = _backgroundLayer.frame;
@@ -922,7 +922,11 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
         CGRect exact = [crop[@"frame"] CGRectValue];
         layers.extracted = YES;
         layers.backplate = [CALayer layer];
-        layers.backplate.frame = exact;
+        // Cover the mask's antialiased edge with one physical pixel of the
+        // same opaque background. Two complementary translucent edges alone
+        // leave a dark seam. Translucent skins keep their original backdrop.
+        CGFloat overlap = 1.0 / renderer->_scale;
+        layers.backplate.frame = CGRectIntersection(CGRectInset(exact, -overlap, -overlap), skin);
         layers.backplate.contents = (__bridge id)[crop[@"underlay"] CGImage];
         layers.backplate.contentsGravity = kCAGravityResize;
         // Backplate stays fixed below the animated face.
@@ -936,7 +940,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       // Include previously extracted items when asynchronous batches overlap.
       for (LibretroSkinItemLayers *layers in renderer->_items) {
         if (layers.extracted)
-          CGPathAddRect(holes, NULL, CGRectOffset(layers.backplate.frame, -skin.origin.x, -skin.origin.y));
+          CGPathAddRect(holes, NULL, CGRectOffset(layers.image.frame, -skin.origin.x, -skin.origin.y));
       }
       CAShapeLayer *mask = [CAShapeLayer layer];
       mask.frame = CGRectMake(0, 0, skin.size.width, skin.size.height);
