@@ -50,12 +50,21 @@ NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
   if (length > 4u*1024u*1024u) return @[];
   if (authoredPressed != NULL && (CGImageGetWidth(authoredPressed) != CGImageGetWidth(source) ||
       CGImageGetHeight(authoredPressed) != CGImageGetHeight(source))) return @[];
+  // Keep a one-pixel sampling apron. Core Animation can then filter a
+  // scaled patch against the same neighbouring pixels as the unsplit skin,
+  // instead of clamping the crop's edge into a visible seam.
+  size_t outputWidth = w+2, outputHeight = h+2, outputLength = outputWidth*outputHeight*4;
+  CGRect apronRect = CGRectIntersection(CGRectInset(pixels, -1, -1),
+      CGRectMake(0, 0, CGImageGetWidth(source), CGImageGetHeight(source)));
+  size_t apronWidth = apronRect.size.width, apronHeight = apronRect.size.height;
+  NSMutableData *apronData = [NSMutableData dataWithLength:apronWidth*apronHeight*4];
   uint8_t *normal = calloc(1, length), *pressed = authoredPressed ? calloc(1, length) : NULL;
   if (normal == NULL || (authoredPressed && pressed == NULL)) { free(normal); free(pressed); return @[]; }
   CGColorSpaceRef originalSpace = CGImageGetColorSpace(source);
   CGColorSpaceRef space = originalSpace != NULL && CGColorSpaceGetModel(originalSpace) == kCGColorSpaceModelRGB ?
       CGColorSpaceRetain(originalSpace) : CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-  if (!ReadPixels(source, pixels, normal, w, h, space) ||
+  if (!ReadPixels(source, apronRect, apronData.mutableBytes, apronWidth, apronHeight, space) ||
+      !ReadPixels(source, pixels, normal, w, h, space) ||
       (authoredPressed && !ReadPixels(authoredPressed, pixels, pressed, w, h, space))) {
     CGColorSpaceRelease(space); free(normal); free(pressed); return @[];
   }
@@ -101,9 +110,21 @@ NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
         out[offset+c] = (uint8_t)lround((top*(1-fy)+bottom*fy)*shade);
       }
     }
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
-    CGImageRef image = CGImageCreate(w, h, 8, 32, w*4, space,
-        kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big, provider, NULL, false, kCGRenderingIntentDefault);
+    NSMutableData *padded = [NSMutableData dataWithLength:outputLength];
+    uint8_t *destination = padded.mutableBytes;
+    const uint8_t *apron = apronData.bytes;
+    for (size_t y=0; y<outputHeight; y++) for (size_t x=0; x<outputWidth; x++) {
+      if (x>0 && x<=w && y>0 && y<=h) {
+        memcpy(destination+(y*outputWidth+x)*4, out+((y-1)*w+x-1)*4, 4);
+      } else {
+        size_t ax = (size_t)fmax(0, fmin(apronWidth-1, pixels.origin.x-apronRect.origin.x+(double)x-1));
+        size_t ay = (size_t)fmax(0, fmin(apronHeight-1, pixels.origin.y-apronRect.origin.y+(double)y-1));
+        memcpy(destination+(y*outputWidth+x)*4, apron+(ay*apronWidth+ax)*4, 4);
+      }
+    }
+    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)padded);
+    CGImageRef image = CGImageCreate(outputWidth, outputHeight, 8, 32, outputWidth*4, space,
+        kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big, provider, NULL, true, kCGRenderingIntentDefault);
     CGDataProviderRelease(provider);
     if (image != NULL) { [frames addObject:(__bridge id)image]; CGImageRelease(image); }
   }

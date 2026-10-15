@@ -15,6 +15,8 @@ FOUNDATION_EXPORT CGRect LibretroSkinPressureArm(CGSize size, NSUInteger slot);
 /// `pixels` must be integral and inside source. `pointsPerPixel` sets depth
 /// independently of the image's resolution; direction is 0 for a button,
 /// 1/2/4/8 for a D-pad arm. Invalid/oversized inputs return an empty array.
+/// Each image includes one unchanged pixel of sampling apron on every side;
+/// display its inner `pixels.size` using contentsRect, not the whole image.
 FOUNDATION_EXPORT NSArray *LibretroSkinPressureFrames(CGImageRef source,
     CGRect pixels, CGFloat pointsPerPixel, NSUInteger direction,
     CGImageRef _Nullable authoredPressed);

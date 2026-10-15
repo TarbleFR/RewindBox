@@ -993,7 +993,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     CGRect pixels = CGRectMake(x, y, floor((CGRectGetMaxX(frame)-sourceFrame.origin.x)*sx)-x,
                                    floor((CGRectGetMaxY(frame)-sourceFrame.origin.y)*sy)-y);
     if (pixels.size.width < 9 || pixels.size.height < 9) continue;
-    NSUInteger cost = (NSUInteger)(pixels.size.width*pixels.size.height)*4*8;
+    // Conservative bound for up to four two-sided sampling aprons.
+    NSUInteger cost = (NSUInteger)((pixels.size.width+8)*(pixels.size.height+8))*4*8;
     if (cost > budget - _pressureBytes) continue;
     _pressureBytes += cost;
     layers.pressurePreparing = YES;
@@ -1054,6 +1055,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
           if (frames.count == 0) break;
           CGRect exact = CGRectMake(sourceFrame.origin.x+area.origin.x/sx, sourceFrame.origin.y+area.origin.y/sy,
                                    area.size.width/sx, area.size.height/sy);
+          exact = CGRectIntersection(exact, frame);
           [prepared addObject:@{@"frame":[NSValue valueWithCGRect:exact], @"images":frames, @"direction":@(pad ? 1u<<slot : 0)}];
         }
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -1072,6 +1074,9 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
             region.edgeAntialiasingMask = 0;
             region.frames = part[@"images"];
             region.contents = region.frames.firstObject;
+            CGImageRef texture = (__bridge CGImageRef)region.contents;
+            CGFloat tw = CGImageGetWidth(texture), th = CGImageGetHeight(texture);
+            region.contentsRect = CGRectMake(1/tw, 1/th, (tw-2)/tw, (th-2)/th);
             region.direction = [part[@"direction"] unsignedIntegerValue];
             [regions addObject:region];
             CGPathAddRect(holes, NULL, CGRectOffset(region.frame,-frame.origin.x,-frame.origin.y));

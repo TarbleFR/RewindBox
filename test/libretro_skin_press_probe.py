@@ -75,16 +75,18 @@ def main():
     parser.add_argument('--inputs',required=True)
     parser.add_argument('--evidence',required=True)
     parser.add_argument('--label',required=True)
+    parser.add_argument('--scenario',choices=[s['name'] for s in SCENARIOS])
+    parser.add_argument('--device',choices=['iphone','ipad'])
     args=parser.parse_args()
     args.sources=None;args.only=[];args.lot1=False;args.lot2=False;args.official_shaders=False
-    probe.SCENARIOS=SCENARIOS
+    probe.SCENARIOS=[s for s in SCENARIOS if not args.scenario or s['name']==args.scenario]
     evidence=Path(args.evidence);evidence.mkdir(parents=True,exist_ok=True)
     problems=[]
     with tempfile.TemporaryDirectory(prefix='skin-press-') as work:
         app,scenarios=probe.assemble(args,probe.BRIDGE,Path(work))
         fixtures(app)
         probe.run(['codesign','--force','--sign','-','--timestamp=none',app])
-        for device in ['iphone','ipad']:
+        for device in ([args.device] if args.device else ['iphone','ipad']):
             selected=scenarios if device=='iphone' else [s for s in scenarios if s['skinPress']!='press-flat']
             config=json.loads((app/'probe-config.json').read_text());config['scenarios']=selected
             (app/'probe-config.json').write_text(json.dumps(config))
@@ -101,6 +103,6 @@ def main():
     (evidence/'verdict.json').write_text(json.dumps({'source':args.label,'problems':problems,
         'physicalDeviceValidated':False,'contacts':'scripted UIKit','controller':'Apple virtual GCController'},indent=2))
     if problems:raise SystemExit('\n'.join(problems))
-    print('Seventeen actual embedded-session skin scenarios passed (iPhone and iPad Simulator).')
+    print('Selected actual embedded-session skin scenarios passed (scripted UIKit, Simulator).')
 
 if __name__=='__main__':main()

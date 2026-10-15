@@ -38,11 +38,19 @@ int main(void) {
           BOOL restMatches=YES, borderFixed=YES, changed=NO, alphaValid=YES, authoredMatches=YES;
           for(NSUInteger step=0;step<8;step++){
             CGImageRef frame=(__bridge CGImageRef)frames[step];
+            CHECK(CGImageGetWidth(frame)==aw+2 && CGImageGetHeight(frame)==ah+2);
             CFDataRef bytes=CGDataProviderCopyData(CGImageGetDataProvider(frame));
             const uint8_t *b=CFDataGetBytePtr(bytes);
+            BOOL apronMatches=YES;
+            for(size_t y=0;y<ah+2;y++)for(size_t x=0;x<aw+2;x++)if(x==0 || y==0 || x==aw+1 || y==ah+1){
+              size_t sx=(size_t)fmax(0,fmin(w-1,area.origin.x+(double)x-1));
+              size_t sy=(size_t)fmax(0,fmin(h-1,area.origin.y+(double)y-1));
+              if(memcmp(b+(y*(aw+2)+x)*4,p+(sy*w+sx)*4,4))apronMatches=NO;
+            }
+            CHECK(apronMatches);
             for(size_t y=0;y<ah;y++)for(size_t x=0;x<aw;x++){
               size_t original=(((size_t)area.origin.y+y)*w+(size_t)area.origin.x+x)*4;
-              size_t i=(y*aw+x)*4;
+              size_t i=((y+1)*(aw+2)+x+1)*4;
               if(step==0 && memcmp(b+i,p+original,4))restMatches=NO;
               if(step==7 && memcmp(b+i,p+original,4))changed=YES;
               if(!authoredState && (x==0 || y==0 || x==aw-1 || y==ah-1) && memcmp(b+i,p+original,4))borderFixed=NO;

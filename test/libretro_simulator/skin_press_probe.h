@@ -244,6 +244,8 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   UIImage *unsplit=[self padImage:pad];
   source.mask=savedMask;for(CALayer *region in regions)region.hidden=NO;
   [CATransaction commit];
+  [UIImagePNGRepresentation(unsplit) writeToFile:[padFolder stringByAppendingPathComponent:
+    [self.result[@"name"] stringByAppendingString:@"-dpad-original.png"]] atomically:YES];
   CFDataRef reference=CGDataProviderCopyData(CGImageGetDataProvider(rest.CGImage));
   size_t width=CGImageGetWidth(rest.CGImage),height=CGImageGetHeight(rest.CGImage),stride=CGImageGetBytesPerRow(rest.CGImage);
   const uint8_t *before=CFDataGetBytePtr(reference);
@@ -363,10 +365,16 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   LibretroTouchResolution *resolution=[tracker resolve];
   [self.layoutRenderer setPressedItems:resolution.pressedItems];[self.layoutRenderer setDPadDirections:resolution.dpadDirections];
   NSUInteger active=0;BOOL inside=YES;
+  NSMutableArray *geometry=[NSMutableArray array];
   for(id region in regions){
     if([[region valueForKey:@"down"] boolValue])active|=[[region valueForKey:@"direction"] unsignedIntegerValue];
     inside=inside && CGRectContainsRect(CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h),((CALayer *)region).frame);
+    [geometry addObject:NSStringFromCGRect(((CALayer *)region).frame)];
   }
+  NSMutableArray *layouts=self.result[@"layoutMetrics"];
+  if(layouts==nil){layouts=[NSMutableArray array];self.result[@"layoutMetrics"]=layouts;}
+  [layouts addObject:@{@"index":@(index),@"active":@(active),@"inside":@(inside),
+    @"buttons":@(resolution.coreInput.buttons),@"pad":NSStringFromCGRect(CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h)),@"regions":geometry}];
   [self check:active==9 && inside && resolution.coreInput.buttons!=0
     name:[NSString stringWithFormat:@"layout %lu: aligned diagonal and mapped inputs",(unsigned long)index]];
   [self.layoutRenderer showRepresentation:rep layout:layout opacity:0.65 controlsHidden:YES];

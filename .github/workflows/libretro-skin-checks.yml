@@ -4,6 +4,15 @@ name: Libretro directional skin checks
     branches: [Claude]
     paths: [.github/workflows/libretro-skin-checks.yml]
   workflow_dispatch:
+    inputs:
+      scenario:
+        description: Optional exact scenario for focused reproduction
+        required: false
+        default: ''
+      device:
+        description: Optional iphone or ipad
+        required: false
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -55,9 +64,15 @@ jobs:
     - name: Fetch pinned simulator inputs
       run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
     - name: Actual sessions, per-arm pixels and existing input lifecycle
+      env:
+        PROBE_SCENARIO: ${{ inputs.scenario }}
+        PROBE_DEVICE: ${{ inputs.device }}
       run: |
+        args=()
+        if [ -n "$PROBE_SCENARIO" ]; then args+=(--scenario "$PROBE_SCENARIO"); fi
+        if [ -n "$PROBE_DEVICE" ]; then args+=(--device "$PROBE_DEVICE"); fi
         python3 test/libretro_skin_press_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
-          --evidence evidence/skin-press --label "${GITHUB_SHA}"
+          --evidence evidence/skin-press --label "${GITHUB_SHA}" "${args[@]}"
     - uses: actions/upload-artifact@v4
       if: always()
       with:
