@@ -1,94 +1,155 @@
-# Embedded libretro skin button press
+# Enfoncement des touches des skins — frontend libretro embarqué
 
-Work on `Claude`, based on `4eab71c` (Build 459). The correction belongs to
-NeoStation's shared skin/input frontend; no core or other emulator changes.
-No public release or new IPA is requested for this cycle.
+Travail sur `Claude`, par-dessus `4eab71c` (Build 459). Le renderer et le
+suivi tactile sont communs aux plateformes du moteur embarqué, y compris
+les consoles masquées. Un nouveau cœur d'une plateforme connue reprend ce
+fonctionnement ; une nouvelle plateforme doit déclarer son profil de commandes.
 
-## Confirmed diagnosis
+## Diagnostic établi
 
-`LibretroSkin.itemFromObject:` already accepts `asset.normal` (and the older
-`asset.name`), including content-validated PNG/JPEG/PDF files. It preserves
-the independent thumbstick cap. The renderer nevertheless only toggled a
-white shape/image overlay with implicit animation disabled. No artwork
-transform or return animation existed. Controls baked into a background
-had no independent layer at all and were explicitly a soft overlay only.
+`LibretroSkin.itemFromObject:` décodait déjà `asset.normal`, l'ancien
+`asset.name`, les dimensions du graphisme et le capuchon indépendant des
+sticks. PNG, JPEG et PDF sont contrôlés par leur contenu. Le défaut principal
+était dans `LibretroSkinRenderer` : l'appui activait une forme blanche ou une
+image blanche masquée, sans déplacer le graphisme. Les touches dessinées
+uniquement dans le fond n'avaient pas de calque indépendant.
 
-Reference formats examined:
+Sources et fichiers réellement examinés :
 
-- [Manic official guide](https://manicemu.site/guides/homemade-skins/): split
-  foreground/background, `asset.normal`; `asset.selected` and `animation`
-  describe switch selection, not a standard pressed-state resource.
-- [RetroSkinner](https://github.com/Manic-EMU/RetroSkinner), `Python CLI/skin_common.py`:
-  Manic export creates per-button/d-pad assets and a separate background;
-  Delta export flattens the feature and omits those per-button assets.
-- Actual Manic DS, PS1, GBA and SNES archives, source
-  `fbaeab79c214d5920bb51afa6f2d786fb2b12a58`: independent PDF controls,
-  phone/tablet and portrait/landscape variants. No source code/art copied
-  into the product. Tests fetch pinned DS/PS1 archives only.
-- Actual catalog entries Control Center NES and NES Ignited by LitRitt,
-  `8f788c6ea9c0cadb15ce700fc4208507c463131c`, and DMG-01 4NES from
-  `61dad28f552051bc05f519f968e913bf243d22eb`: controls are in PDFs rather
-  than independent item assets. Their decorative surfaces must not be
-  advertised as automatically separable. Third-party artwork stays external.
+| Source | Constat |
+| --- | --- |
+| [Guide officiel Manic EMU](https://manicemu.site/guides/homemade-skins/) | Séparation fond/éléments ; `asset.normal`. `asset.selected` et `animation.begin/end` concernent la sélection des interrupteurs. Aucun champ standard `pressed` n'est supposé. |
+| [RetroSkinner](https://github.com/Manic-EMU/RetroSkinner), `Python CLI/skin_common.py` | L'export Manic fournit les éléments séparés ; l'export Delta aplatit le rendu dans le fond. |
+| Manic DS, PS1, GBA et SNES, révision `fbaeab79c214d5920bb51afa6f2d786fb2b12a58` | Contrôles PDF séparés et variantes téléphone/tablette, portrait/paysage. Les tests téléchargent DS/PS1 depuis Git LFS, avec taille et SHA-256 vérifiés. |
+| NES Ignited et Control Center NES, LitRitt `8f788c6ea9c0cadb15ce700fc4208507c463131c` | Touches intégrées aux PDF du fond. Les textures ne permettent pas d'annoncer une séparation automatique fiable. |
+| DMG-01 4NES, `delta-skins/delta-skins.github.io` `61dad28f552051bc05f519f968e913bf243d22eb` | Même limite pour les graphismes intégrés au fond. Une variante adaptée reste nécessaire si les contrôles ne peuvent pas être isolés. |
 
-The existing archive import, per-console association, device selection,
-layout/remap preferences and image cache remain the canonical path.
+Les archives de référence restent externes au produit. Aucun code Manic,
+aucun nouveau cœur et aucun fichier graphique tiers ne sont ajoutés à l'app.
+L'association plateforme/skin, les profils `LibretroInputMap`, les descripteurs
+et libellés des commandes du cœur, la sélection des variantes et les réglages
+existants restent les chemins canoniques.
 
-## Implementation
+## Corrections
 
-- `LibretroSkinRenderer`: own artwork group (including the label), immediate
-  ~3.5% depression with a small downward displacement, subtle shadow change
-  and 120 ms ease-out return. A re-press cancels the return and immediately
-  sets the held state. Reduce Motion removes return interpolation. Hit
-  areas stay fixed. D-pad displacement follows delivered direction bits;
-  a stick depresses only its moving cap. Separated controls have no main halo.
-- `LibretroSkinButtonCrop`: non-destructive preparation on the image queue.
-  The expanded control must be wholly inside the skin, off game screens and
-  neighbouring visible controls. Its opaque perimeter must match a uniform
-  or gentle bilinear background; empty/near-solid or uncertain regions are
-  refused. Successful crops use an underlay and background cutout mask, so
-  the original face cannot remain beneath the pressed face. No file edits,
-  downloads or decoding occur on touch-down. Layout generations reject stale
-  work, and removal/rotation clears its mask.
-- `LibretroTouchTracker` / `LibretroTouchOverlay`: visual D-pad bits are
-  produced by the same resolution that sets RetroPad input, filtered to
-  commands actually delivered. Disabling controls cancels held game
-  contacts while preserving a DS/3DS stylus; disconnect cannot resurrect them.
-- `LibretroGameViewController`: skin replacement clears held touches even
-  when two imports reuse the same item identifiers. Existing menu,
-  rotation, background and teardown cancellation remain in use.
-- `LibretroSkin` / `libretro_skin_service.dart` / `LibretroLocale`: a painted
-  control capability note is translated in all twelve languages. Already
-  installed skins derive the note in memory from info.json, without changing
-  their files or saved selections. Incompatible graphics need an adapted
-  author variant; input compatibility does not imply animated artwork.
+- Chaque contrôle possède un groupe graphique, borné au contrôle et à son
+  ombre. Le contact applique immédiatement une réduction de 3,5 % et un
+  enfoncement de 0,7 à 2 points. Le relâchement revient en 120 ms ; une nouvelle
+  pression interrompt ce retour. « Réduire les animations » supprime
+  l'interpolation du retour. Les zones tactiles restent fixes.
+- Une croix monobloc s'enfonce et se déplace légèrement vers les directions
+  effectivement résolues. Les flèches séparées s'animent comme des touches.
+  Un stick conserve sa base et ne réduit que son capuchon mobile.
+- Le halo blanc cesse d'être le retour principal des éléments séparés.
+  L'ombre supplémentaire reste discrète ; les rectangles extraits ne
+  reçoivent pas d'ombre artificielle.
+- Un fond peut être adapté en mémoire si la zone, élargie de 6 points, reste
+  dans le skin et hors des écrans et contrôles voisins. Un périmètre opaque
+  doit correspondre à un fond uniforme ou à un léger gradient bilinéaire.
+  Les fonds translucides et les zones vides, presque entièrement remplies, texturées ou incertaines
+  sont refusées. Le fond original est masqué sous l'élément extrait et
+  remplacé par un arrière-plan fixe ; la touche originale ne reste pas dessous.
+- Cette préparation et le décodage se font sur la file des images, avec cache.
+  L'appui ne déclenche ni lecture de fichier ni téléchargement. Le retour de l'éditeur conserve les
+  éléments extraits. Les générations
+  de disposition empêchent un ancien résultat de modifier un nouveau skin.
+- Les directions visuelles proviennent de la même résolution tactile que
+  l'entrée RetroPad. Le raccordement ne dépend pas du diagnostic tactile.
+  La connexion d'une manette annule les contacts de jeu, en conservant le
+  stylet DS/3DS. La déconnexion ne ressuscite pas les anciens contacts.
+- Un remplacement de skin annule les contacts même si les deux imports
+  réutilisent les mêmes identifiants. Les annulations du menu, de la rotation,
+  de l'arrière-plan et de la fermeture sont conservées.
+- Un avertissement sur les touches intégrées au fond est traduit dans les
+  douze langues. Les imports existants le déduisent en mémoire d'`info.json` :
+  leurs fichiers, leur identité et leurs sélections ne sont pas réécrits.
 
-`selected` is never treated as `pressed`. Stateful switch-selection
-animations and unsupported custom switch commands are not implemented by
-this momentary control change and are not claimed as supported.
+`selected` n'est jamais utilisé comme état d'appui. Cette modification des
+contrôles momentanés n'ajoute pas les animations persistantes de sélection
+ni les commandes personnalisées d'interrupteurs non prises en charge.
 
-## Verification recipe and limits
+## Fichiers modifiés
 
-- Portable behaviour: extraction success/refusal, actual D-pad bit masks,
-  multitouch ownership, hidden-controls reset; existing profile/layout tests
-  cover phone/tablet and orientations. Parser warnings changed intentionally:
-  a valid flat DS skin now reports its artwork animation limitation.
-- iPhone SDK: compile and link the actual bridge, including the new image
-  utility. No unrelated core/helper is rebuilt.
-- `test/libretro_skin_press_probe.py`: actual LibretroSession, game controller,
-  UIKit overlay, renderer and emulation thread. Scripted UIKit contacts
-  exercise press, hold, second-finger release, sliding, diagonal+button,
-  cancellation, native skin menu actions, background and rotation methods.
-  Apple's virtual controller exercises the unchanged GCController polling
-  path; this is not a physical controller test.
-- Real DeSmuME and PC Engine run original homebrew. NeoTest explicitly covers
-  PSX and NES controller profiles. Reference DS/PS1 assets are used as imported
-  controls. An original flattened test skin verifies safe extraction; a real
-  complex NES catalog skin verifies refusal instead of a false moving copy.
-- The evidence combines the actual presented Metal game frame with the
-  production skin CALayers at their live layout. Captures are not mockups.
-  It runs on iPhone and iPad Simulator. Physical iPhone touch/haptic timing
-  and physical controller hardware remain to be tested by the maintainer.
+| Fichiers | Fonction |
+| --- | --- |
+| `LibretroSkinRenderer.h/.m`, `LibretroSkinButtonCrop.h/.m` | Graphismes animés, préparation des fonds, masque et arrière-plan fixe. |
+| `LibretroTouchTracker.h/.m`, `LibretroTouchOverlay.h/.m` | Directions résolues, publication commune, annulation des contacts désactivés. |
+| `LibretroGameViewController.m` | Raccordement visuel et annulation au changement de représentation. |
+| `LibretroSkin.h/.m`, `lib/services/libretro_skin_service.dart`, `lib/l10n/libretro_locale.dart` | Limites des fonds, imports existants, traductions et affichage de l'avertissement. |
+| `test/libretro_host/frontend/{skin_test,touch_tracker_test,skin_button_crop_test}.m`, `test/libretro_frontend_test.py` | Comportement natif, extraction/refus, profils et dispositions. |
+| `test/libretro_simulator/{probe.m,skin_press_probe.h}`, `test/libretro_simulator_probe.py`, `test/libretro_skin_press_probe.py` | Sessions réelles, contacts UIKit scriptés, entrées reçues et captures. |
+| `test/libretro_skin_service_test.dart`, `.github/workflows/libretro-checks.yml` | Imports conservés et exécution des contrôles en CI. |
 
-Final commits, CI outcomes and visual deliverables will be recorded after
-verification; a passing build is not described as physical device validation.
+Les fichiers natifs du tableau se trouvent dans
+`packages/libretro_internal_bridge/ios/Classes/`.
+
+## Vérifications et limites
+
+La sonde utilise le vrai `LibretroSession`, la surcouche UIKit, le renderer,
+le verrouillage des entrées et le thread d'émulation. Les contacts sont
+scriptés : ils ne constituent pas un essai de l'écran tactile physique.
+
+Le Simulateur expose une manette inactive qui masque normalement les touches
+et occupe un port. L'énumération des manettes est isolée dans l'exécutable de
+test uniquement : aucune manette pendant les essais tactiles, puis une vraie
+`GCVirtualController` Apple pendant l'essai du polling. Ni les profils et
+valeurs de cette manette, ni le suivi tactile, ni l'état d'entrée du produit
+ne sont remplacés. Ce contrôle ne vaut pas un essai de manette matérielle.
+
+La matrice exécutée contient neuf sessions :
+
+| Cas | Cœur / contenu | Graphismes | Appareils simulés |
+| --- | --- | --- | --- |
+| DS | DeSmuME réel / programme original | Manic DS, PDF indépendants | iPhone, iPad |
+| Profil PSX | NeoTest / mire originale | Manic PS1, PDF indépendants | iPhone, iPad |
+| NES | NeoTest / mire originale | Skin PNG original avec touches intégrées ; refus de NES Ignited réel | iPhone |
+| PC Engine | Beetle PCE Fast réel / programme original | Skin vectoriel par défaut | iPhone, iPad |
+| Profil N64 | NeoTest / mire originale | Skin par défaut et stick analogique | iPhone, iPad |
+
+Les séquences vérifient le contact immédiat, le maintien, deux doigts sur une
+même touche, le glissement, la diagonale avec un bouton, le relâchement et
+l'annulation, les actions du menu de skins, les méthodes de cycle de vie,
+le capuchon et les axes du stick, puis la connexion et la déconnexion de la
+manette virtuelle. Les tests portables couvrent les profils et dispositions
+portrait/paysage du téléphone et de la tablette.
+
+Les captures combinent une vraie image Metal présentée et les calques du
+renderer à leur disposition courante. Une alternance de trois captures
+ne mesure pas la durée de l'animation de retour.
+
+Restent à effectuer sur appareil : touchers physiques et latence perçue,
+rotation réelle et changements de taille de fenêtre, manettes Bluetooth/USB,
+variantes de skins propres à l'appareil et contrôles en jeux commerciaux.
+Les profils PSX/N64 testés avec NeoTest ne sont pas des validations des vrais
+cœurs PlayStation/Nintendo 64.
+
+## Résultats exécutés — 15 octobre 2026
+
+Révision testée : `d6cb962d5597f7ecd7c81bb17b633e559c95d8d6`.
+[CI complète](https://github.com/TarbleFR/neostation-ios/actions/runs/38661616452) :
+les jobs `native`, `dart` et `skin-press` sont réussis.
+
+- Compilation et édition de liens des 70 sources du pont pour iPhone.
+- 15 fichiers de tests de comportement natif, dont 6 025 vérifications du
+  suivi tactile ; extraction et refus des fonds ; variantes et géométrie.
+- Analyse Flutter ; 573 tests fonctionnels, 245 tests de stockage et les
+  contrats du dépôt. Le stockage n'est pas modifié par ce travail.
+- Neuf sessions iPhone SE (3e génération) / iPad mini (A17 Pro), iOS 26.2
+  Simulator, Xcode 26.3 : 270 vérifications, zéro échec.
+- Les images montrent un graphisme différent pendant le maintien et un
+  retour pixel pour pixel au repos dans les neuf zones de touches contrôlées.
+  Le raccord du fond simple ne laisse plus de liseré de masque.
+- Le passage dans l'état d'édition puis sa sortie conserve l'image extraite.
+  NES Ignited est refusé par l'extraction et porte l'avertissement attendu.
+
+La sonde attend la fin effective des transitions du menu avant les contacts.
+L'enfoncement visuel reste contrôlé synchroniquement au contact ; la réception
+asynchrone par le cœur est attendue à son polling, avec une échéance de deux
+secondes. Une entrée absente échoue toujours. Sur cette exécution finale,
+aucune attente supplémentaire de polling n'a été nécessaire.
+
+Artefact de preuves : `11939890679`, archive SHA-256
+`f8ac05d2f299d2c2ad83667e0e69ed2314b9ab82fab5f1add6de30d24bfedd7a`.
+Il contient les images originales, les résultats par session et le verdict.
+Les documents seuls sont mis à jour après cette révision ; aucune validation
+physique ni mesure de latence sur iPhone n'est déduite de la CI.
