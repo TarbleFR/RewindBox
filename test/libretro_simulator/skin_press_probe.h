@@ -273,7 +273,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       BOOL active=([region valueForKey:@"direction"] && ([[region valueForKey:@"direction"] unsignedIntegerValue]&expected)!=0);
       NSArray *frames=[region valueForKey:@"frames"];
       correct=correct && [[region valueForKey:@"down"] boolValue]==active &&
-        ((CALayer *)region).contents==(active ? frames.lastObject : frames.firstObject);
+        ((CALayer *)[region valueForKey:@"texture"]).contents==(active ? frames.lastObject : frames.firstObject);
     }
     [self check:correct name:[NSString stringWithFormat:@"direction mask %lu affects only its own regions",(unsigned long)expected]];
     UIImage *image=[self padImage:pad];
@@ -368,7 +368,9 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   NSMutableArray *geometry=[NSMutableArray array];
   for(id region in regions){
     if([[region valueForKey:@"down"] boolValue])active|=[[region valueForKey:@"direction"] unsignedIntegerValue];
-    inside=inside && CGRectContainsRect(CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h),((CALayer *)region).frame);
+    // CALayer reconstructs frame from position/anchor/bounds; allow only
+    // floating-point arithmetic noise, far below any fraction of a pixel.
+    inside=inside && CGRectContainsRect(CGRectInset(CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h),-1e-7,-1e-7),((CALayer *)region).frame);
     [geometry addObject:NSStringFromCGRect(((CALayer *)region).frame)];
   }
   NSMutableArray *layouts=self.result[@"layoutMetrics"];

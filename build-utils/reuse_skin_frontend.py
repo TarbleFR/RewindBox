@@ -12,10 +12,10 @@ import sys
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-REFERENCE = '871986710377f54ba92b10e9a7c5b7d47adddfa8'
-RUN = 38715089014
-IPHONE_REFERENCE = '2c9ef8f8a2ea0cef5022af7d83215c42fd7c0235'
-IPHONE_RUN = 38716623483
+REFERENCE = 'b3538c127fe54799a3822cfd27f853b2a0ac246f'
+RUN = 38719706135
+IPHONE_REFERENCE = 'b3538c127fe54799a3822cfd27f853b2a0ac246f'
+IPHONE_RUN = 38719706135
 RENDERER = 'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m'
 NON_INPUTS = {
     'AGENTS.md', '.github/workflows/libretro-skin-checks.yml',

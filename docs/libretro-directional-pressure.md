@@ -45,9 +45,13 @@ the same path, symlink and image-content validation. This is not a JSON
   queue. Contact selects the final state immediately; release plays the
   prepared sequence over 120 ms. Re-press interrupts release. Reduce Motion,
   editing and hidden controls reset without animation.
+- Prepared images retain a one-pixel sampling apron. Their inner rectangle
+  is displayed with `contentsRect`, so scaling samples the original texture
+  neighbours instead of extending a crop edge. The apron never animates.
 - Prepared states are limited to 32 MiB per layout. Asset geometry excludes
   extended touch edges. Generation checks discard results after layout or
-  skin replacement. The common renderer has no console/core allowlist.
+  skin replacement, and cancelled jobs stop before preparing more regions.
+  The common renderer has no console/core allowlist.
 
 ## Limits
 
@@ -55,8 +59,10 @@ The local warp is a visual approximation, not reconstruction of a hidden
 three-dimensional button. Without authored shapes, the D-pad partition uses
 outer thirds of its visual frame; asymmetrical or unconventional geometry
 can need a dedicated asset. Composite frames intersecting another control
-or a game screen are left intact, as are controls exceeding preparation
-limits. No image-processing path can infer every author's intended contour
+or an explicit opaque game window/stylus surface are left intact, as are
+controls exceeding preparation limits. Translucent landscape overlays can
+cover the game: preparation reads only the skin texture, never game pixels.
+No image-processing path can infer every author's intended contour
 from touch rectangles alone. These unsupported areas remain static, without
 a fallback halo. The generic painted-control import warning stays applicable.
 
@@ -64,7 +70,7 @@ a fallback halo. The generic painted-control import warning stays applicable.
 
 New portable pixel tests cover scale 1/2/3, disjoint directional geometry,
 unchanged region boundaries, asymmetric image orientation, premultiplied
-alpha, authored pixels and malformed input. Parser tests cover PNG/PDF,
+alpha, authored pixels, fixed sampling aprons and malformed input. Parser tests cover PNG/PDF,
 extensionless and nested assets, missing siblings, selection separation and
 symlink escape rejection.
 
@@ -72,7 +78,10 @@ The UIKit session matrix adds original textured, translucent and authored
 fixtures plus the pinned real Ignited archive. Each D-pad sweeps all four
 directions and four diagonals without lifting. Rendered pixel comparisons
 require the centre and inactive regions to stay identical, and the active
-region to change. Existing tests retain multitouch, cancellations, actual
+region to change. Rest is also compared to the original unsplit texture;
+two D-pad fingers must retain the union until each is lifted. Four additional
+layout sizes exercise portrait/landscape and phone/tablet geometry, including
+stale preparation cancellation. Existing tests retain multitouch, cancellations, actual
 core polls, menu, rotation cancellation, backgrounding, in-game skin changes,
 sticks and Apple's virtual controller. Physical touch/controller hardware
 and device frame pacing require a separate iPhone test.

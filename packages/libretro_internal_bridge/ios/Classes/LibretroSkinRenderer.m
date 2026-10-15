@@ -389,6 +389,7 @@ static NSString *LibretroSkinItemSignature(LibretroSkinItem *item) {
 #pragma mark - Item layers
 
 @interface LibretroSkinPressureLayer : CALayer
+@property(nonatomic, strong) CALayer *texture;
 @property(nonatomic, copy) NSArray *frames;
 @property(nonatomic, assign) NSUInteger direction;
 @property(nonatomic, assign) BOOL down;
@@ -837,15 +838,15 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       BOOL active = enabled && (region.direction == 0 || (directions & region.direction) != 0);
       if (active == region.down && !_controlsHidden && !_editing) continue;
       BOOL released = region.down && !active;
-      [region removeAnimationForKey:@"skin-release"];
-      region.contents = active ? region.frames.lastObject : region.frames.firstObject;
+      [region.texture removeAnimationForKey:@"skin-release"];
+      region.texture.contents = active ? region.frames.lastObject : region.frames.firstObject;
       if (released && !_controlsHidden && !_editing && !UIAccessibilityIsReduceMotionEnabled()) {
         CAKeyframeAnimation *animation = [CAKeyframeAnimation animationWithKeyPath:@"contents"];
         animation.values = region.frames.reverseObjectEnumerator.allObjects;
         animation.duration = 0.12;
         animation.calculationMode = kCAAnimationDiscrete;
         animation.keyTimes = @[@0, @0.075, @0.155, @0.244, @0.345, @0.465, @0.622, @1];
-        [region addAnimation:animation forKey:@"skin-release"];
+        [region.texture addAnimation:animation forKey:@"skin-release"];
       }
       region.down = active;
     }
@@ -1056,7 +1057,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
           CGRect exact = CGRectMake(sourceFrame.origin.x+area.origin.x/sx, sourceFrame.origin.y+area.origin.y/sy,
                                    area.size.width/sx, area.size.height/sy);
           exact = CGRectIntersection(exact, frame);
-          [prepared addObject:@{@"frame":[NSValue valueWithCGRect:exact], @"images":frames, @"direction":@(pad ? 1u<<slot : 0)}];
+          [prepared addObject:@{@"frame":[NSValue valueWithCGRect:exact], @"pixels":[NSValue valueWithCGRect:area],
+            @"images":frames, @"direction":@(pad ? 1u<<slot : 0)}];
         }
         dispatch_async(dispatch_get_main_queue(), ^{
           LibretroSkinRenderer *renderer = weakSelf;
@@ -1072,11 +1074,22 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
             region.frame = [part[@"frame"] CGRectValue];
             region.contentsScale = renderer->_scale;
             region.edgeAntialiasingMask = 0;
+            region.masksToBounds = YES;
             region.frames = part[@"images"];
-            region.contents = region.frames.firstObject;
-            CGImageRef texture = (__bridge CGImageRef)region.contents;
+            region.texture = LibretroSkinPlainLayer(renderer->_scale);
+            region.texture.edgeAntialiasingMask = 0;
+            region.texture.contents = region.frames.firstObject;
+            CGImageRef texture = (__bridge CGImageRef)region.texture.contents;
             CGFloat tw = CGImageGetWidth(texture), th = CGImageGetHeight(texture);
-            region.contentsRect = CGRectMake(1/tw, 1/th, (tw-2)/tw, (th-2)/th);
+            CGRect area = [part[@"pixels"] CGRectValue];
+            // Keep the same image plane/transform as the unsplit source.
+            // A separately resized crop can acquire a different sampling
+            // phase at fractional layout coordinates. The parent clips the
+            // full-plane mapping to this arm; only small patch pixels are
+            // stored, with their one-pixel apron available for filtering.
+            region.texture.frame = CGRectOffset(sourceFrame, -region.frame.origin.x, -region.frame.origin.y);
+            region.texture.contentsRect = CGRectMake((1-area.origin.x)/tw, (1-area.origin.y)/th, width/tw, height/th);
+            [region addSublayer:region.texture];
             region.direction = [part[@"direction"] unsignedIntegerValue];
             [regions addObject:region];
             CGPathAddRect(holes, NULL, CGRectOffset(region.frame,-frame.origin.x,-frame.origin.y));

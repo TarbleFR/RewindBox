@@ -80,6 +80,11 @@ def main():
     args=parser.parse_args()
     args.sources=None;args.only=[];args.lot1=False;args.lot2=False;args.official_shaders=False
     probe.SCENARIOS=[s for s in SCENARIOS if not args.scenario or s['name']==args.scenario]
+    # These session tests load only their selected cores. Avoid installing
+    # unrelated large frameworks into each freshly erased simulator; the
+    # pinned binary bytes of the exercised cores remain unchanged.
+    used={s['core'] for s in probe.SCENARIOS}
+    probe.REAL_CORES=[core for core in probe.REAL_CORES if core in used]
     evidence=Path(args.evidence);evidence.mkdir(parents=True,exist_ok=True)
     problems=[]
     with tempfile.TemporaryDirectory(prefix='skin-press-') as work:
