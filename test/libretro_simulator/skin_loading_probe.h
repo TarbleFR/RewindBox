@@ -14,6 +14,8 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
 - (void)frontendSettingsDidChange;
 - (NSString *)gameScopeKey;
 - (LibretroSkinOrientation)currentOrientation;
+- (LibretroSkinRepresentation *)representationForOrientation:(LibretroSkinOrientation)orientation
+  viewSize:(LibretroSize)size safeInsets:(LibretroInsets)insets iPad:(BOOL)iPad;
 @end
 
 @interface SkinLoadingRunner : NSObject
@@ -116,7 +118,7 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
         name:@"a new session restores the saved per-game selection"];
       self.finish();return;
     }
-    [self withMenu:^(LibretroMenuPage *page){
+    [self testPendingSelection:^{[self withMenu:^(LibretroMenuPage *page){
       for(NSString *orientation in @[@"portrait",@"landscape"]){
         LibretroMenuRow *row=MenuRowWithIdentifier(page,[NSString stringWithFormat:@"libretro-skin-%@-%@",orientation,LoadingSkinID]);
         [self check:row.checked && row.enabled name:[orientation stringByAppendingString:@": installed selection is checked in game"]];
@@ -134,8 +136,37 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
             [self testDamagedOrientation];
           }];}];
       }];}];
-    }];}];
+    }];}];}];
   }];
+}
+- (void)testPendingSelection:(dispatch_block_t)then {
+  NSString *source=DocumentsPath([@"Libretro/Skins/" stringByAppendingString:LoadingSkinID]);
+  NSString *target=DocumentsPath(@"Libretro/Skins/loading-pending");
+  [NSFileManager.defaultManager copyItemAtPath:source toPath:target error:nil];
+  NSString *info=[target stringByAppendingPathComponent:@"info.json"];
+  NSMutableDictionary *json=[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:info]
+    options:NSJSONReadingMutableContainers error:nil];
+  json[@"representations"][@"iphone"][@"edgeToEdge"][@"landscape"][@"assets"]=@{@"large":@"stale-missing.png"};
+  [[NSJSONSerialization dataWithJSONObject:json options:0 error:nil] writeToFile:info atomically:YES];
+  NSMutableDictionary *working=[_session valueForKey:@"lastWorkingSkins"];
+  NSDictionary *saved=[working copy];[working removeAllObjects];
+  [self.store setValue:@"loading-pending" forKey:LibretroSettingSkinLandscape console:@"psx" game:[_session gameScopeKey]];
+  LibretroSkinRepresentation *pending=[_session representationForOrientation:LibretroSkinOrientationLandscape
+    viewSize:(LibretroSize){844,390} safeInsets:(LibretroInsets){0,44,21,44} iPad:NO];
+  [self check:pending.generated && pending.items.count==0 && pending.panelColor==0
+    name:@"unvalidated first selection never displays or enables the standard controls"];
+  // Switch away synchronously, before the validator's main-queue completion.
+  [self.store setValue:nil forKey:LibretroSettingSkinLandscape console:@"psx" game:[_session gameScopeKey]];
+  [working addEntriesFromDictionary:saved];[_session frontendSettingsDidChange];
+  [self poll:^BOOL{return [[[[self.session valueForKey:@"failedSkinRepresentations"] allKeys]
+    filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"SELF BEGINSWITH %@",@"loading-pending|"]] count]>0;}
+    attempt:0 name:@"late validation failure retains its own layout identity" then:^{
+      [self waitSkin:LoadingSkinID then:^{
+        [self check:![[self.session valueForKey:@"skinFailureShown"] boolValue]
+          name:@"obsolete failure does not report a fallback for the newly selected valid skin"];
+        then();
+      }];
+    }];
 }
 - (void)testDamagedOrientation {
   NSString *source=DocumentsPath([@"Libretro/Skins/" stringByAppendingString:LoadingSkinID]);
@@ -152,7 +183,8 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
   for(NSString *key in @[LibretroSettingSkinPortrait,LibretroSettingSkinLandscape])
     [self.store setValue:@"loading-damaged" forKey:key console:@"psx" game:[_session gameScopeKey]];
   [_session frontendSettingsDidChange];
-  [self poll:^BOOL{return [[self.session valueForKey:@"failedSkinRepresentations"] count]>0;}
+  [self poll:^BOOL{return [[[[self.session valueForKey:@"failedSkinRepresentations"] allKeys]
+    filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"SELF BEGINSWITH %@",@"loading-damaged|"]] count]>0;}
     attempt:0 name:@"a real missing resource is refused on the active portrait only" then:^{
       [self waitSkin:@"press-psx" then:^{
         [self check:[[[self.session valueForKey:@"availableSkins"] valueForKey:@"installedIdentifier"] containsObject:@"loading-damaged"]

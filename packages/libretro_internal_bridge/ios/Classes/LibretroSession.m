@@ -162,6 +162,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSMutableDictionary<NSString *, LibretroSkin *> *_skinCache;
   NSMutableSet<NSString *> *_failedSkins;
   BOOL _skinFailureShown;
+  BOOL _skinWaitingWithoutPrevious;
   NSMutableSet<NSString *> *_validatedSkins;
   NSMutableSet<NSString *> *_validatingSkins;
   NSMutableSet<NSString *> *_validatedSkinRepresentations;
@@ -1300,6 +1301,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 /// Skin chosen for an orientation (game, else console); the default skin
 /// when none is chosen or the chosen one cannot be loaded.
 - (LibretroSkin *)selectedSkinForOrientation:(LibretroSkinOrientation)orientation {
+  _skinWaitingWithoutPrevious = NO;
   NSString *key =
       orientation == LibretroSkinOrientationPortrait ? LibretroSettingSkinPortrait : LibretroSettingSkinLandscape;
   NSString *identifier = SettingString([self settingValue:key]);
@@ -1319,6 +1321,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSString *resourceKey = [self resourceKeyForSkin:skin representation:representation];
   if (_failedSkinRepresentations[resourceKey] != nil) return previous ?: _defaultSkin;
   if ([_validatedSkinRepresentations containsObject:resourceKey]) return skin;
+  _skinWaitingWithoutPrevious = previous == nil;
   if (![_validatingSkins containsObject:resourceKey]) {
     [_validatingSkins addObject:resourceKey];
     [self noteSkin:identifier representation:representation event:@"validating" issue:nil];
@@ -1513,6 +1516,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }
   if (representation == nil) {
     representation = [self defaultRepresentationForOrientation:orientation viewSize:size safeInsets:insets iPad:iPad];
+    if (_skinWaitingWithoutPrevious) {
+      // First launch has no known-good controller to keep on screen. Maintain
+      // the picture layout, but do not flash standard controls or enable their
+      // hit areas before the chosen custom layout's validation has answered.
+      representation.items = @[];
+      representation.panelColor = 0;
+      representation.panelFrame = LibretroRectMake(0, 0, 0, 0);
+    }
   }
   // Working layouts are recorded only after the renderer confirms readiness.
   _currentSkin = skin;
