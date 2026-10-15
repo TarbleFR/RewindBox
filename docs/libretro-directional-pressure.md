@@ -69,6 +69,27 @@ cover the game: preparation reads only the skin texture, never game pixels.
 No image-processing path can infer every author's intended contour
 from touch rectangles alone. These unsupported areas remain static, without
 a fallback halo. The generic painted-control import warning stays applicable.
+Sticks still require an independent cap to animate that cap. Initial image
+preparation is asynchronous: an early contact is delivered normally and its
+current visual state is applied when preparation finishes.
+
+## Changed files
+
+Product code is limited to `packages/libretro_internal_bridge/ios/Classes/`:
+
+| Files | Responsibility |
+| --- | --- |
+| `LibretroSkin.h`, `LibretroSkin.m` | Optional validated Delta pressed-image sibling |
+| `LibretroSkinPressure.h`, `LibretroSkinPressure.m` | Directional regions, bounded warp, authored states and sampling aprons |
+| `LibretroSkinRenderer.m` | Preloading, pixel-aligned masks, local animation and cancellation |
+
+Validation is in `test/libretro_host/frontend/skin_pressure_test.m`,
+`skin_test.m`, `test/libretro_frontend_test.py`,
+`test/libretro_simulator/probe.m`, `skin_press_probe.h`, and
+`test/libretro_skin_press_probe.py`. The focused workflow is
+`.github/workflows/libretro-skin-checks.yml`; native-result provenance is
+checked by `build-utils/reuse_skin_frontend.py` and
+`test/skin_frontend_reuse_test.py`.
 
 ## Validation
 

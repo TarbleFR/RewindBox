@@ -438,6 +438,42 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   self.menuWaitAttempts=0;
   [self resumeAfterMenuPresentation];
 }
+- (void)verifyAuthoredReload {
+  LibretroSkin *skin=[LibretroSkin skinWithDirectory:DocumentsPath(@"Libretro/Skins/press-authored") consoleGeometry:nil errorCode:nil];
+  LibretroSkinRepresentation *rep=[skin representationForOrientation:LibretroSkinOrientationPortrait iPad:NO edgeToEdge:NO];
+  LibretroSkinLayoutResult *layout=[LibretroSkinLayout layoutRepresentation:rep viewSize:(LibretroSize){390,844}
+    safeInsets:(LibretroInsets){0,0,0,0} overrides:nil];
+  self.layoutRenderer=[[LibretroSkinRenderer alloc] initWithCacheDirectory:DocumentsPath(@"SkinReloadProbeCache")];
+  self.layoutRenderer.frame=CGRectMake(0,0,390,844);
+  [self.layoutRenderer showRepresentation:rep layout:layout opacity:1 controlsHidden:NO];
+  [self waitForAuthoredReload:rep layout:layout expected:nil attempt:0];
+}
+- (void)waitForAuthoredReload:(LibretroSkinRepresentation *)rep layout:(LibretroSkinLayoutResult *)layout
+                    expected:(NSArray *)expected attempt:(NSUInteger)attempt {
+  id item=[[self.layoutRenderer valueForKey:@"items"] firstObject];
+  NSArray *regions=[item valueForKey:@"pressureRegions"];
+  if(regions.count!=4 && attempt<100){
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/20),dispatch_get_main_queue(),^{
+      [self waitForAuthoredReload:rep layout:layout expected:expected attempt:attempt+1];});return;
+  }
+  NSMutableArray *pixels=[NSMutableArray array];
+  for(id region in regions){
+    CGImageRef image=(__bridge CGImageRef)[[region valueForKey:@"frames"] lastObject];
+    [pixels addObject:CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(image)))];
+  }
+  if(expected==nil && pixels.count==4){
+    [self.layoutRenderer showRepresentation:nil layout:nil opacity:1 controlsHidden:NO];
+    [LibretroSkinRenderer purgeCacheForSkinDirectory:@"" cacheDirectory:@""];
+    [self.layoutRenderer showRepresentation:rep layout:layout opacity:1 controlsHidden:NO];
+    CALayer *pressed=[self.layoutRenderer valueForKey:@"pressedBackgroundLayer"];
+    [self check:[pressed valueForKey:@"neostationSkinReadyKey"]==nil
+      name:@"reselecting an uncached authored skin waits for its pressed image"];
+    [self waitForAuthoredReload:rep layout:layout expected:pixels attempt:0];return;
+  }
+  [self check:expected!=nil && pixels.count==4 && [pixels isEqualToArray:expected]
+    name:@"authored directional pixels survive clear, cache eviction and reload"];
+  self.layoutRenderer=nil;[self advance];
+}
 - (void)resumeAfterMenuPresentation {
   UINavigationController *menu=[self.session valueForKey:@"menu"];
   if(menu.isBeingPresented && self.menuWaitAttempts++<200){
@@ -651,6 +687,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       [self advance];break;
     case 18:
       if([self.scenario[@"skinPress"] isEqual:@"press-texture"]){[self verifyLayouts:0];break;}
+      if([self.scenario[@"skinPress"] isEqual:@"press-authored"]){[self verifyAuthoredReload];break;}
       [self advance];break;
     default:
       [self check:[self deliveredButtons]==0 name:@"controller disconnect leaves no held input"];

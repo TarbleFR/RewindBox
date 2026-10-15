@@ -1304,6 +1304,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     layer.contents = nil;
     mask.contents = nil;
     [layer setValue:nil forKey:LibretroSkinImageKey];
+    [layer setValue:nil forKey:@"neostationSkinReadyKey"];
     return;
   }
   if (!force && layer.contents != nil) return;
@@ -1313,6 +1314,10 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   NSString *current = [layer valueForKey:LibretroSkinImageKey];
   if ([current isKindOfClass:[NSString class]] && [current isEqualToString:key]) return;
   [layer setValue:key forKey:LibretroSkinImageKey];
+  // A cleared/reloaded layer can request the same cache key again. Its old
+  // ready marker must not allow preparation before the new async result,
+  // especially while an authored pressed image is still being loaded.
+  [layer setValue:nil forKey:@"neostationSkinReadyKey"];
   UIImage *cached = [LibretroSkinMemoryCache() objectForKey:key];
   if (cached != nil) {
     layer.contents = (__bridge id)cached.CGImage;
