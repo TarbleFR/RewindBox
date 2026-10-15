@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: libretro-directional-skins-${{ github.ref }}
+  group: libretro-directional-skins-${{ github.sha }}
   cancel-in-progress: true
 jobs:
   native:
