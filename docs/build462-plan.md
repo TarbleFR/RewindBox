@@ -77,7 +77,7 @@ Evidence artifact: `11978678277`, archive SHA-256
 The delivery gate binds these results to the exact tested source
 `06143ac80815c5f125b20e18c47c2d6291eeb117` and rejects changed rendering inputs.
 
-Delivery results and the remaining retrieval blocker are recorded below.
+Delivery results and independent post-download verification are recorded below.
 These are Simulator sessions, not physical-device validation.
 
 ## Rendering validation scope
@@ -128,7 +128,7 @@ polling, core binaries and the library migration baseline are unchanged.
 | Bluetooth/USB controller alongside touch | Existing controller commands and connect/disconnect behaviour remain correct. |
 | Sustained multi-button play on 60/120 Hz iPhone | Judge pacing, responsiveness and heat on the device; simulator update timings are not touch latency or FPS. |
 
-## Build result and remaining delivery blocker
+## Build result and completed private delivery
 
 - **0.0.7 (462)**, source `a2862cb43303dd5bb3e709e002d061cf3d5a58ec`.
 - Delivery run [38748215667](https://github.com/TarbleFR/neostation-ios/actions/runs/38748215667):
@@ -155,20 +155,46 @@ polling, core binaries and the library migration baseline are unchanged.
 Recipient: `build-utils/delivery-461-recipient.pem`; the matching session
 private key remains outside Git. Artifact expiry: **2026-10-29T14:27:01Z**.
 
-**Not yet delivered:** the local execution environment stopped responding
-during capture retrieval, including repeated minimal read-only commands.
-The maintainer's Desktop Commander PC was also offline. The sealed IPA has
-therefore not been decrypted, independently rechecked after download, saved
-as a downloadable IPA, or copied into Downloads in this session.
-The archive contains the final `SHA256SUMS` and
-`signed-payload-identity.json`; recover and compare both before delivery.
-The `5d8b4f7e…` checksum printed earlier by CI is **pre-sealing**, not the
-checksum to announce for the delivered IPA.
+The execution environment briefly stopped responding during capture retrieval
+and the maintainer's PC was offline. Both recovered on 15 October. Delivery
+resumed from the existing successful build; no compilation was repeated and
+no product code was changed during recovery.
 
-Resume by retrieving this existing artifact with its matching key, verifying
-the sealed bytes and version, and delivering that IPA. **Do not rebuild or
-reuse build number 462 for different code.** Final UIKit captures are retained
-in artifact `11978678277`; the local comparison sheet still needs to be
-generated from that successful run. Earlier candidate captures were inspected
-against build 461, but are not a substitute for the final capture package.
-No physical-iPhone or hardware-controller validation is claimed.
+The encrypted archive was downloaded, checked against the archive digest above
+and decrypted. Independent checks of the sealed IPA passed:
+
+- **215,191,633 bytes**, SHA-256
+  `9d5ea68cb204e167815c18edd05f3c07999ffa5a5d45745565d3b8e8cf37e736`,
+  matching both `SHA256SUMS` and `signed-payload-identity.json`.
+- App and all five extensions report **0.0.7 (462)**; packaged and environment
+  identities match source `a2862cb43303dd5bb3e709e002d061cf3d5a58ec`.
+- All **76 sealed Mach-O payload fingerprints** match the signing manifest;
+  the 34 unchanged libretro core frameworks are present.
+- The arm64 iOS bridge contains the new pressure profile, intensity preference
+  and directional renderer symbols. ZIP integrity passed. CI's strict signature
+  check remains CI evidence; the Linux download verifier does not execute
+  Apple's `codesign` tool.
+
+Delivered privately as `NeoStation-Build462-a2862cb4.ipa`, available for download
+in the conversation and copied to the maintainer's resolved Downloads folder:
+`C:\Users\Coren\Downloads\NeoStation-Build462-a2862cb4.ipa`.
+The Windows copy was independently hashed and matches the final sealed digest
+above. The temporary encrypted transfer files were removed. No private key or
+decrypted IPA was committed to Git or published as a public release.
+The earlier CI `5d8b4f7e…` digest is pre-sealing, not the delivered IPA digest.
+SideStore must still perform Apple re-signing/provisioning for installation.
+
+The successful UIKit evidence archive `11978678277` was also downloaded and
+verified against its recorded SHA-256. Its 25 sessions / 2,367 checks passed;
+**168 directional pixel comparisons** have **zero changed pixels outside active
+regions**. The maximum resting split difference is one channel value and the
+maximum reserved pressure resources are **26,716,272 bytes**, below 32 MiB.
+`NeoStation-Build462-comparaison.png` compares the actual final Simulator
+captures with Build 461, including Atomic Pink A, its diagonal, an asymmetric
+cross and all four intensity levels. It was visually inspected and delivered
+alongside the IPA. These fixed-state captures show increased local relief;
+they do not measure touch latency, animation pacing or physical-device FPS.
+
+**Do not rebuild or reuse build number 462 for different code.** No physical
+iPhone, installation or hardware-controller validation is claimed. Use the
+manual acceptance checklist above for the next device test.
