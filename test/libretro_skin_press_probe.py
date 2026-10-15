@@ -17,6 +17,8 @@ import zipfile
 import libretro_simulator_probe as probe
 
 REFERENCES = (
+    ('press-atomic','gbc','delta-skins/delta-skins.github.io','61dad28f552051bc05f519f968e913bf243d22eb',
+     'gbc/GBC-AtomicPink.deltaskin','d870e53c3728c6b84aeb163b489e03e8ab903ad0927f18ce27dd3235ddcfec84'),
     ('press-complex','nes','LitRitt/emuskins','8f788c6ea9c0cadb15ce700fc4208507c463131c',
      'Skins/LitRitt/Ignited/Orange/NES/skin.deltaskin','3f23a623b4d7d35fc7297c8f4bdd7a6b29e27f58e397ef78b052598a51e7cc69'),
     ('press-ds','nds','Manic-EMU/ManicEMU','fbaeab79c214d5920bb51afa6f2d786fb2b12a58',
@@ -25,13 +27,14 @@ REFERENCES = (
      'System.core/PS1.manicskin','e82581ce172af8049fb6a9c610a151cbb12ee224c730c88d7a3f785b350a4778'),
 )
 SCENARIOS = [
+    {'name':'press-atomic','core':'neotest','console':'gbc','content':'content/Shader Pattern.ntc','skinPress':'press-atomic','expect':'run'},
     {'name':'press-ds','core':'desmume','console':'nds','content':'content/shader-pattern.nds','skinPress':'press-ds','expect':'run'},
     {'name':'press-psx','core':'neotest','console':'psx','content':'content/Shader Pattern.ntc','skinPress':'press-psx','expect':'run'},
     {'name':'press-flat-nes','core':'neotest','console':'nes','content':'content/Shader Pattern.ntc','skinPress':'press-flat','expect':'run'},
     {'name':'press-pce','core':'mednafen_pce_fast','console':'pce','content':'content/probe-pce.pce','skinPress':'default','expect':'run'},
     {'name':'press-n64','core':'neotest','console':'n64','content':'content/Shader Pattern.ntc','skinPress':'default','expect':'run'},
     *[{'name':skin,'core':'neotest','console':'nes','content':'content/Shader Pattern.ntc','skinPress':skin,'expect':'run'}
-      for skin in ['press-complex','press-texture','press-authored','press-alpha']],
+      for skin in ['press-complex','press-texture','press-authored','press-alpha','press-overlap','press-asymmetric']],
 ]
 
 

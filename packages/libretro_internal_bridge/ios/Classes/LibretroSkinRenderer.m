@@ -390,6 +390,8 @@ static NSString *LibretroSkinItemSignature(LibretroSkinItem *item) {
 
 @interface LibretroSkinPressureLayer : CALayer
 @property(nonatomic, strong) CALayer *texture;
+@property(nonatomic, copy) NSArray<NSValue *> *visibleRects;
+@property(nonatomic, strong) CAKeyframeAnimation *releaseAnimation;
 @property(nonatomic, copy) NSArray *frames;
 @property(nonatomic, assign) NSUInteger direction;
 @property(nonatomic, assign) BOOL down;
@@ -475,6 +477,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   NSDictionary<NSString *, NSNumber *> *_dpadDirections;
   NSUInteger _imageGeneration;
   NSUInteger _pressureBytes;
+  NSUInteger _pressureFrameCount;
   NSProgress *_pressurePreparation;
 }
 
@@ -521,6 +524,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   if (!sameContent) {
     _imageGeneration++;
     _pressureBytes = 0;
+    _pressureFrameCount = 0;
     [_pressurePreparation cancel];
     _pressurePreparation = [NSProgress progressWithTotalUnitCount:1];
     _backgroundLayer.mask = nil;
@@ -863,12 +867,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       [region.texture removeAnimationForKey:@"skin-release"];
       region.texture.contents = active ? region.frames.lastObject : region.frames.firstObject;
       if (released && !_controlsHidden && !_editing && !UIAccessibilityIsReduceMotionEnabled()) {
-        CAKeyframeAnimation *animation = [CAKeyframeAnimation animationWithKeyPath:@"contents"];
-        animation.values = region.frames.reverseObjectEnumerator.allObjects;
-        animation.duration = 0.12;
-        animation.calculationMode = kCAAnimationDiscrete;
-        animation.keyTimes = @[@0, @0.075, @0.155, @0.244, @0.345, @0.465, @0.622, @1];
-        [region.texture addAnimation:animation forKey:@"skin-release"];
+        [region.texture addAnimation:region.releaseAnimation forKey:@"skin-release"];
       }
       region.down = active;
     }
@@ -944,8 +943,9 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   for (LibretroSkinItemLayers *layers in _items) {
     if (layers.extracted)
       CGPathAddRect(holes, NULL, CGRectOffset(layers.image.frame, -skin.origin.x, -skin.origin.y));
-    if (layers.compositePressure) for (CALayer *region in layers.pressureRegions)
-      CGPathAddRect(holes, NULL, CGRectOffset(region.frame, -skin.origin.x, -skin.origin.y));
+    if (layers.compositePressure) for (LibretroSkinPressureLayer *region in layers.pressureRegions)
+      for (NSValue *value in region.visibleRects)
+        CGPathAddRect(holes, NULL, CGRectOffset(LibretroSkinPressureRect(value), -skin.origin.x, -skin.origin.y));
   }
   CAShapeLayer *mask = [CAShapeLayer layer];
   mask.frame = CGRectMake(0, 0, skin.size.width, skin.size.height);
@@ -958,22 +958,33 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
 }
 
 /// Normalized visual geometry deliberately excludes extended hit edges.
-/// Regions crossing another item or a game screen are not inferred from a
-/// touch rectangle. Such layouts keep their original artwork intact.
-- (BOOL)canAdaptCompositeFrame:(CGRect)frame item:(LibretroLaidOutItem *)item {
-  if (!CGRectContainsRect(_backgroundLayer.frame, frame) || CGRectIsEmpty(frame)) return NO;
+/// Shared pixels remain in the background; exclusive parts can still move.
+/// Extended hit edges never become visual masks. Touching edges are not
+/// intersections (small layout floating-point round trips are ignored).
+- (NSArray<NSValue *> *)compositeExclusionsForFrame:(CGRect)frame item:(LibretroLaidOutItem *)item {
+  NSMutableArray *excluded = [NSMutableArray array];
+  void (^exclude)(CGRect) = ^(CGRect other) {
+    CGRect overlap = CGRectIntersection(frame, other);
+    if (CGRectIsNull(overlap) || overlap.size.width <= 1e-7 || overlap.size.height <= 1e-7) return;
+    CGFloat scale = self->_scale;
+    CGRect aligned = CGRectMake(floor(other.origin.x*scale)/scale, floor(other.origin.y*scale)/scale,
+      0,0);
+    aligned.size = CGSizeMake(ceil(CGRectGetMaxX(other)*scale)/scale-aligned.origin.x,
+                              ceil(CGRectGetMaxY(other)*scale)/scale-aligned.origin.y);
+    [excluded addObject:[NSValue valueWithCGRect:aligned]];
+  };
   for (NSUInteger index = 0; index < _layout.screens.count; index++) {
     LibretroLaidOutScreen *screen = _layout.screens[index];
     BOOL explicitWindow = index < _representation.screens.count && _representation.screens[index].hasOutputFrame;
     // Landscape overlays intentionally sit above a full-view game. We only
     // sample the skin texture, never game pixels. A declared opaque window
     // or a stylus surface, however, must not be inferred as button artwork.
-    if ((screen.touchScreen || (explicitWindow && !_representation.translucent)) &&
-        CGRectIntersectsRect(frame, LibretroSkinCGRect(screen.container))) return NO;
+    if (screen.touchScreen || (explicitWindow && !_representation.translucent))
+      exclude(LibretroSkinCGRect(screen.container));
   }
   for (LibretroLaidOutItem *other in _layout.items)
-    if (other != item && CGRectIntersectsRect(frame, LibretroSkinCGRect(other.frame))) return NO;
-  return YES;
+    if (other != item) exclude(LibretroSkinCGRect(other.frame));
+  return excluded;
 }
 
 /// Prepare four independent D-pad regions, or one composite button region.
@@ -986,6 +997,29 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     BOOL ap = a.laidOut.item.kind == LibretroSkinItemKindDPad, bp = b.laidOut.item.kind == LibretroSkinItemKindDPad;
     return ap == bp ? NSOrderedSame : (ap ? NSOrderedAscending : NSOrderedDescending);
   }];
+  // Choose the release density for the whole layout, not greedily per key:
+  // a large D-pad must not spend extra frames and leave its A/B keys static.
+  // Eight is the already supported baseline; twelve is used when all the
+  // estimated pressure resources fit the unchanged memory budget.
+  NSUInteger preferred = LibretroSkinPressureFrameCount;
+  if (_pressureFrameCount == 0) {
+    double estimate = 0;
+    for (LibretroSkinItemLayers *candidate in ordered) {
+      LibretroSkinItem *item = candidate.laidOut.item;
+      BOOL composite = item.assetPath == nil && candidate.shape == nil;
+      if (item.kind != LibretroSkinItemKindDPad && !(composite && item.kind == LibretroSkinItemKindButton)) continue;
+      if (item.inputs.count == 0 || candidate.extracted) continue;
+      CGRect r = LibretroSkinCGRect(composite || candidate.shape ? candidate.laidOut.frame : candidate.laidOut.assetFrame);
+      CALayer *source = composite ? _backgroundLayer : candidate.image;
+      double sx = _scale, sy = _scale;
+      if (source.contents != nil && source.frame.size.width>0 && source.frame.size.height>0) {
+        sx = CGImageGetWidth((__bridge CGImageRef)source.contents)/source.frame.size.width;
+        sy = CGImageGetHeight((__bridge CGImageRef)source.contents)/source.frame.size.height;
+      }
+      estimate += (ceil(r.size.width*sx)+8)*(ceil(r.size.height*sy)+8)*4;
+    }
+    if (estimate*preferred>budget) preferred=8;
+  }
   for (LibretroSkinItemLayers *layers in ordered) {
     LibretroSkinItem *item = layers.laidOut.item;
     BOOL pad = item.kind == LibretroSkinItemKindDPad;
@@ -997,7 +1031,10 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     CGRect frame = LibretroSkinCGRect(composite || layers.shape != nil ? layers.laidOut.frame : layers.laidOut.assetFrame);
     if (CGRectIsEmpty(frame)) frame = LibretroSkinCGRect(layers.laidOut.frame);
     if (!composite) frame = LibretroSkinPixelRect(frame, _scale, YES);
-    if (composite && ![self canAdaptCompositeFrame:frame item:layers.laidOut]) continue;
+    if (composite) frame = CGRectIntersection(frame, _backgroundLayer.frame);
+    if (CGRectIsNull(frame) || CGRectIsEmpty(frame)) continue;
+    NSArray<NSValue *> *excluded = composite ? [self compositeExclusionsForFrame:frame item:layers.laidOut] : @[];
+    if (LibretroSkinPressureVisibleRects(frame, excluded).count == 0) continue;
     if (layers.shape == nil && (sourceLayer.contents == nil ||
         ![[sourceLayer valueForKey:@"neostationSkinReadyKey"] isEqual:[sourceLayer valueForKey:LibretroSkinImageKey]])) continue;
     if (composite && _representation.pressedBackgroundPath != nil &&
@@ -1018,13 +1055,22 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
                                    floor((CGRectGetMaxY(frame)-sourceFrame.origin.y)*sy)-y);
     if (pixels.size.width < 9 || pixels.size.height < 9) continue;
     // Conservative bound for up to four two-sided sampling aprons.
-    NSUInteger cost = (NSUInteger)((pixels.size.width+8)*(pixels.size.height+8))*4*8;
+    NSUInteger frameCount = _pressureFrameCount ?: preferred;
+    NSUInteger cost = (NSUInteger)((pixels.size.width+8)*(pixels.size.height+8))*4*frameCount;
     if (cost > budget - _pressureBytes) continue;
+    _pressureFrameCount = frameCount;
     _pressureBytes += cost;
     layers.pressurePreparing = YES;
     NSUInteger generation = _imageGeneration;
     NSProgress *preparation = _pressurePreparation;
     CGFloat displayScale = _scale;
+    NSMutableArray *excludedPixels = [NSMutableArray array];
+    for (NSValue *value in excluded) {
+      CGRect r = LibretroSkinPressureRect(value);
+      CGRect p = CGRectIntegral(CGRectMake((r.origin.x-sourceFrame.origin.x)*sx, (r.origin.y-sourceFrame.origin.y)*sy,
+                                           r.size.width*sx,r.size.height*sy));
+      [excludedPixels addObject:[NSValue valueWithCGRect:p]];
+    }
     uint32_t fillColor = item.fillColor, labelColor = item.labelColor;
     __weak LibretroSkinRenderer *weakSelf = self;
     dispatch_async(LibretroSkinQueue(), ^{
@@ -1073,17 +1119,19 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
           }
         }
         NSMutableArray *prepared = [NSMutableArray array];
+        NSArray *arms = pad && normal ? LibretroSkinPressureRegions(normal.CGImage, pixels) : nil;
         for (NSUInteger slot = 0; slot < (pad ? 4u : 1u); slot++) {
           if (preparation.cancelled) return;
-          CGRect area = pad ? CGRectOffset(LibretroSkinPressureArm(pixels.size, slot), pixels.origin.x, pixels.origin.y) : pixels;
-          NSArray *frames = normal ? LibretroSkinPressureFrames(normal.CGImage, area, 1/sy, pad ? 1u<<slot : 0, pressed.CGImage) : @[];
+          CGRect area = pad && arms.count == 4 ? LibretroSkinPressureRect(arms[slot]) : pixels;
+          NSArray *frames = normal ? LibretroSkinPressureFramesExcluding(normal.CGImage, area, 1/sy, pad ? 1u<<slot : 0, pressed.CGImage, excludedPixels, frameCount) : @[];
           if (frames.count == 0) break;
           CGRect exact = CGRectMake(sourceFrame.origin.x+area.origin.x/sx, sourceFrame.origin.y+area.origin.y/sy,
                                    area.size.width/sx, area.size.height/sy);
           exact = LibretroSkinPixelRect(CGRectIntersection(exact, frame), displayScale, YES);
           if (CGRectIsEmpty(exact)) break;
+          NSArray *clips = LibretroSkinPressureVisibleRects(exact, excluded);
           [prepared addObject:@{@"frame":[NSValue valueWithCGRect:exact], @"pixels":[NSValue valueWithCGRect:area],
-            @"images":frames, @"direction":@(pad ? 1u<<slot : 0)}];
+            @"images":frames, @"clips":clips, @"direction":@(pad ? 1u<<slot : 0)}];
         }
         dispatch_async(dispatch_get_main_queue(), ^{
           LibretroSkinRenderer *renderer = weakSelf;
@@ -1101,6 +1149,26 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
             region.edgeAntialiasingMask = 0;
             region.masksToBounds = YES;
             region.frames = part[@"images"];
+            region.visibleRects = part[@"clips"];
+            CGMutablePathRef visible = CGPathCreateMutable();
+            for (NSValue *value in region.visibleRects) {
+              CGRect r = LibretroSkinPressureRect(value);
+              CGPathAddRect(visible, NULL, CGRectOffset(r,-region.frame.origin.x,-region.frame.origin.y));
+              CGPathAddRect(holes, NULL, CGRectOffset(r,-frame.origin.x,-frame.origin.y));
+            }
+            CAShapeLayer *regionMask = [CAShapeLayer layer];
+            regionMask.frame = region.bounds; regionMask.path = visible;
+            regionMask.contentsScale = renderer->_scale; regionMask.edgeAntialiasingMask = 0;
+            region.mask = regionMask; CGPathRelease(visible);
+            // Immutable release recipe: no array reversal/key-time creation
+            // in the touch callback. CALayer copies it when starting a return.
+            CAKeyframeAnimation *release = [CAKeyframeAnimation animationWithKeyPath:@"contents"];
+            release.values = region.frames.reverseObjectEnumerator.allObjects;
+            NSMutableArray *times = [NSMutableArray array];
+            for (NSUInteger i=0;i<region.frames.count;i++)
+              [times addObject:@(1-sqrt(1-(double)i/(region.frames.count-1)))];
+            release.keyTimes = times; release.duration = 0.12; release.calculationMode = kCAAnimationDiscrete;
+            region.releaseAnimation = release;
             region.texture = LibretroSkinPlainLayer(renderer->_scale);
             region.texture.edgeAntialiasingMask = 0;
             region.texture.contents = region.frames.firstObject;
@@ -1117,7 +1185,6 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
             [region addSublayer:region.texture];
             region.direction = [part[@"direction"] unsignedIntegerValue];
             [regions addObject:region];
-            CGPathAddRect(holes, NULL, CGRectOffset(region.frame,-frame.origin.x,-frame.origin.y));
           }
           layers.pressureRegions = regions;
           layers.compositePressure = composite;

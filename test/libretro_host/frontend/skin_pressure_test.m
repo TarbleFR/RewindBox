@@ -11,8 +11,64 @@ static CGImageRef Image(NSData *data, size_t w, size_t h) {
   CGImageRef image=CGImageCreate(w,h,8,32,w*4,space,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big,provider,NULL,false,kCGRenderingIntentDefault);
   CGDataProviderRelease(provider);CGColorSpaceRelease(space);return image;
 }
+static NSValue *Rect(CGRect r){return [NSValue valueWithBytes:&r objCType:@encode(CGRect)];}
+static void GeometryAndOverlap(void) {
+  size_t w=120,h=100;
+  NSMutableData *bytes=[NSMutableData dataWithLength:w*h*4];uint8_t *p=bytes.mutableBytes;
+  for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++)
+    if((x>=49 && x<75 && y>=10 && y<93)||(x>=9 && x<112 && y>=35 && y<54)){
+      size_t i=(y*w+x)*4;p[i]=130;p[i+1]=100;p[i+2]=90;p[i+3]=255;
+    }
+  CGImageRef cross=Image(bytes,w,h);
+  NSArray *regions=LibretroSkinPressureRegions(cross,CGRectMake(0,0,w,h));
+  CGRect expected[]={CGRectMake(49,10,26,25),CGRectMake(49,54,26,39),CGRectMake(9,35,40,19),CGRectMake(75,35,37,19)};
+  CHECK(regions.count==4);
+  for(NSUInteger i=0;i<4;i++)CHECK(CGRectEqualToRect(LibretroSkinPressureRect(regions[i]),expected[i]));
+  CGImageRelease(cross);
+  // Opaque/textured pictures must not be mistaken for a silhouette.
+  for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++){
+    size_t i=(y*w+x)*4;p[i]=(x*11+y*3)%255;p[i+1]=(x+y*7)%255;p[i+2]=80;p[i+3]=255;
+  }
+  CGImageRef opaque=Image(bytes,w,h);
+  regions=LibretroSkinPressureRegions(opaque,CGRectMake(0,0,w,h));
+  for(NSUInteger i=0;i<4;i++)CHECK(CGRectEqualToRect(LibretroSkinPressureRect(regions[i]),LibretroSkinPressureArm(CGSizeMake(w,h),i)));
+  CGRect whole=CGRectMake(10,10,80,70),block=CGRectMake(50,0,30,45);
+  NSArray *excluded=@[Rect(block),Rect(CGRectMake(0,55,35,40))];
+  NSArray *parts=LibretroSkinPressureVisibleRects(whole,excluded);
+  double area=0;
+  for(NSUInteger i=0;i<parts.count;i++){
+    CGRect r=LibretroSkinPressureRect(parts[i]);area+=r.size.width*r.size.height;
+    CHECK(CGRectContainsRect(whole,r));
+    for(NSValue *e in excluded)CHECK(CGRectIsEmpty(CGRectIntersection(r,LibretroSkinPressureRect(e))));
+    for(NSUInteger j=0;j<i;j++)CHECK(CGRectIsEmpty(CGRectIntersection(r,LibretroSkinPressureRect(parts[j]))));
+  }
+  CHECK(area==80*70-30*35-25*25);
+  CHECK(LibretroSkinPressureVisibleRects(whole,@[Rect(whole)]).count==0);
+  CHECK(LibretroSkinPressureVisibleRects(whole,@[Rect(CGRectMake(90,10,20,70))]).count==1);
+  CHECK(LibretroSkinPressureVisibleRects(whole,@[Rect(CGRectMake(NAN,10,20,70))]).count==0);
+  for(NSNumber *steps in @[@8,@12]){
+    NSArray *frames=LibretroSkinPressureFramesExcluding(opaque,whole,0.5,0,NULL,excluded,steps.unsignedIntegerValue);
+    CHECK(frames.count==steps.unsignedIntegerValue);
+    BOOL unchanged=YES,changed=NO;
+    for(id value in frames){
+      CGImageRef image=(__bridge CGImageRef)value;
+      CFDataRef data=CGDataProviderCopyData(CGImageGetDataProvider(image));const uint8_t *q=CFDataGetBytePtr(data);
+      for(size_t y=0;y<70;y++)for(size_t x=0;x<80;x++){
+        CGPoint at=CGPointMake(10+x+0.5,10+y+0.5);BOOL blocked=NO;
+        for(NSValue *e in excluded)blocked|=CGRectContainsPoint(LibretroSkinPressureRect(e),at);
+        BOOL differs=memcmp(q+((y+1)*82+x+1)*4,p+((y+10)*w+x+10)*4,4)!=0;
+        if(blocked && differs)unchanged=NO;if(!blocked && differs)changed=YES;
+      }
+      CFRelease(data);
+    }
+    CHECK(unchanged);CHECK(changed);
+  }
+  CHECK(LibretroSkinPressureFramesExcluding(opaque,whole,1,0,NULL,@[],0).count==0);
+  CGImageRelease(opaque);
+}
 int main(void) {
   @autoreleasepool {
+    GeometryAndOverlap();
     for (NSNumber *scale in @[@1,@2,@3]) {
       size_t w=93*scale.unsignedIntegerValue, h=117*scale.unsignedIntegerValue;
       NSMutableData *source=[NSMutableData dataWithLength:w*h*4]; uint8_t *p=source.mutableBytes;
@@ -33,10 +89,10 @@ int main(void) {
         }
         for(NSUInteger authoredState=0;authoredState<2;authoredState++){
           NSArray *frames=LibretroSkinPressureFrames(normal,area,1.0/scale.doubleValue,slot<4 ? 1u<<slot : 0,authoredState ? authored : NULL);
-          CHECK(frames.count==8); if(frames.count!=8)continue;
+          CHECK(frames.count==LibretroSkinPressureFrameCount); if(frames.count!=LibretroSkinPressureFrameCount)continue;
           size_t aw=area.size.width, ah=area.size.height;
           BOOL restMatches=YES, borderFixed=YES, changed=NO, alphaValid=YES, authoredMatches=YES;
-          for(NSUInteger step=0;step<8;step++){
+          for(NSUInteger step=0;step<LibretroSkinPressureFrameCount;step++){
             CGImageRef frame=(__bridge CGImageRef)frames[step];
             CHECK(CGImageGetWidth(frame)==aw+2 && CGImageGetHeight(frame)==ah+2);
             CFDataRef bytes=CGDataProviderCopyData(CGImageGetDataProvider(frame));
@@ -52,10 +108,10 @@ int main(void) {
               size_t original=(((size_t)area.origin.y+y)*w+(size_t)area.origin.x+x)*4;
               size_t i=((y+1)*(aw+2)+x+1)*4;
               if(step==0 && memcmp(b+i,p+original,4))restMatches=NO;
-              if(step==7 && memcmp(b+i,p+original,4))changed=YES;
+              if(step==LibretroSkinPressureFrameCount-1 && memcmp(b+i,p+original,4))changed=YES;
               if(!authoredState && (x==0 || y==0 || x==aw-1 || y==ah-1) && memcmp(b+i,p+original,4))borderFixed=NO;
               for(int c=0;c<3;c++)if(b[i+c]>b[i+3])alphaValid=NO;
-              if(authoredState && step==7 && memcmp(b+i,q+original,4))authoredMatches=NO;
+              if(authoredState && step==LibretroSkinPressureFrameCount-1 && memcmp(b+i,q+original,4))authoredMatches=NO;
             }
             CFRelease(bytes);
           }

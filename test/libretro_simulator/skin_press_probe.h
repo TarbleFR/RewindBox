@@ -2,6 +2,7 @@
 // synthetic renderer or input sink replaces the production implementations.
 #import "LibretroGameViewController.h"
 #import "LibretroSkinRenderer.h"
+#import "LibretroSkinPressure.h"
 #import "LibretroTouchOverlay.h"
 #import "LibretroInputState.h"
 #import <GameController/GameController.h>
@@ -61,7 +62,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   NSString *flat=[root stringByAppendingPathComponent:@"press-flat"];
   UIImage *original=[UIImage imageWithContentsOfFile:[flat stringByAppendingPathComponent:@"painted.png"]];
   NSData *infoData=[NSData dataWithContentsOfFile:[flat stringByAppendingPathComponent:@"info.json"]];
-  for(NSString *name in @[@"press-texture",@"press-authored",@"press-alpha"]){
+  for(NSString *name in @[@"press-texture",@"press-authored",@"press-alpha",@"press-overlap",@"press-asymmetric"]){
     NSString *folder=[root stringByAppendingPathComponent:name];
     [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
     // PNGs don't retain UIImage.scale when read back from a plain filename.
@@ -73,6 +74,14 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       [[UIColor colorWithWhite:0.9 alpha:alpha ? 0.15 : 0.3] setFill];
       for(int y=0;y<250;y+=3)for(int x=0;x<360;x+=3)
         if((x/3+y/3)%2==0)UIRectFillUsingBlendMode(CGRectMake(x,y,1,1),kCGBlendModeNormal);
+      if([name isEqual:@"press-overlap"]){
+        [[UIColor colorWithRed:0.2 green:0.55 blue:0.8 alpha:1] setFill];
+        [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(285,137,30,30)] fill];
+        UIRectFill(CGRectMake(132,69,9,16)); // fixed logo in a D-pad corner
+      }
+      if([name isEqual:@"press-asymmetric"]){
+        [[UIColor colorWithWhite:0.16 alpha:1] setFill];UIRectFill(CGRectMake(25,65,120,120));
+      }
     }];
     [UIImagePNGRepresentation(normal) writeToFile:[folder stringByAppendingPathComponent:@"painted.png"] atomically:YES];
     if([name isEqual:@"press-authored"]){
@@ -85,6 +94,22 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     NSMutableDictionary *info=[NSJSONSerialization JSONObjectWithData:infoData options:NSJSONReadingMutableContainers error:nil];
     info[@"name"]=name;info[@"identifier"]=[@"org.neostation." stringByAppendingString:name];
     NSMutableDictionary *rep=info[@"representations"][@"iphone"][@"standard"][@"portrait"];
+    if([name isEqual:@"press-overlap"]){
+      NSMutableArray *items=rep[@"items"];
+      [items addObject:@{@"frame":@{@"x":@260,@"y":@110,@"width":@65,@"height":@70},@"inputs":@[@"a",@"b"]}];
+      [items addObject:@{@"frame":@{@"x":@130,@"y":@65,@"width":@15,@"height":@25},@"inputs":@[]}];
+    }
+    if([name isEqual:@"press-asymmetric"]){
+      UIGraphicsImageRenderer *cross=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(120,120)];
+      UIImage *asset=[cross imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+        [[UIColor colorWithWhite:0.7 alpha:0.8] setFill];
+        // Fill a union, avoiding darker overlapping alpha in the centre.
+        UIBezierPath *path=[UIBezierPath bezierPathWithRect:CGRectMake(50,10,26,101)];
+        [path appendPath:[UIBezierPath bezierPathWithRect:CGRectMake(9,46,103,20)]];[path fill];
+      }];
+      [UIImagePNGRepresentation(asset) writeToFile:[folder stringByAppendingPathComponent:@"cross.png"] atomically:YES];
+      ((NSMutableDictionary *)rep[@"items"][0])[@"asset"]=@{@"normal":@"cross.png",@"width":@120,@"height":@120};
+    }
     if(alpha)rep[@"translucent"]=@YES;
     // Same authored geometry offered to both devices and orientations;
     // the production aspect-fit transform must keep masks aligned.
@@ -313,8 +338,9 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       BOOL affected=NO;
       CGPoint point=CGPointMake((floor(pad.frame.x*rest.scale)+x+0.5)/rest.scale,
                                (floor(pad.frame.y*rest.scale)+y+0.5)/rest.scale);
-      for(id region in regions)if(([[region valueForKey:@"direction"] unsignedIntegerValue]&expected)!=0 &&
-        CGRectContainsPoint(CGRectInset(((CALayer *)region).frame,-1/rest.scale,-1/rest.scale),point))affected=YES;
+      for(id region in regions)if(([[region valueForKey:@"direction"] unsignedIntegerValue]&expected)!=0)
+        for(NSValue *rect in [region valueForKey:@"visibleRects"])
+          if(CGRectContainsPoint(LibretroSkinPressureRect(rect),point))affected=YES;
       if(memcmp(before+y*stride+x*4,after+y*stride+x*4,4)) { if(affected)inside++;else outside++; }
     }
     [self check:outside==0 && inside>0 name:[NSString stringWithFormat:@"pixels mask %lu: active changes, centre and other arms identical",(unsigned long)expected]];
@@ -330,6 +356,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   }
   self.result[@"directionSweepWithPixelChecksSeconds"]=@(CACurrentMediaTime()-start);
   self.result[@"pressurePreparedBytes"]=[self.renderer valueForKey:@"pressureBytes"];
+  self.result[@"pressureFrameCount"]=[self.renderer valueForKey:@"pressureFrameCount"];
   [self check:[[self.renderer valueForKey:@"pressureBytes"] unsignedIntegerValue]<=32u*1024u*1024u name:@"pressure resources stay within 32 MiB per layout"];
   [self touch:@"direction-sweep" at:CGPointMake(pad.frame.x+pad.frame.w*0.5,pad.frame.y+pad.frame.h*0.1) begin:NO];
   [self touch:@"second-direction" at:CGPointMake(pad.frame.x+pad.frame.w*0.9,pad.frame.y+pad.frame.h*0.5) begin:YES];
@@ -341,9 +368,25 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   [self end:@"second-direction" cancel:YES];
   BOOL clear=YES;for(id region in regions)clear=clear && ![[region valueForKey:@"down"] boolValue];
   [self check:clear name:@"direction cancellation resets all four regions"];
+  BOOL releaseValid=YES;
+  for(id region in regions){
+    CAKeyframeAnimation *recipe=[region valueForKey:@"releaseAnimation"];
+    NSArray *frames=[region valueForKey:@"frames"];
+    releaseValid=releaseValid && (frames.count==8 || frames.count==12) && recipe.values.count==frames.count &&
+      recipe.keyTimes.count==frames.count && recipe.keyTimes.firstObject.doubleValue==0 &&
+      recipe.keyTimes.lastObject.doubleValue==1 && fabs(recipe.duration-0.12)<1e-9;
+    for(NSUInteger i=1;i<recipe.keyTimes.count;i++)releaseValid=releaseValid &&
+      [recipe.keyTimes[i] doubleValue]>[recipe.keyTimes[i-1] doubleValue];
+  }
+  [self check:releaseValid name:@"preloaded release frames and monotonic ease-out respect the layout budget"];
   // Measure submission cost only; separate from screenshots and image
   // preparation, and explicitly not a physical-device GPU/FPS claim.
   [self.renderer setPressedItems:[NSSet setWithObject:pad.item.identifier]];
+  [self.renderer setDPadDirections:@{pad.item.identifier:@1}];
+  BOOL interrupted=YES;
+  for(id region in regions)if([[region valueForKey:@"down"] boolValue])interrupted=interrupted &&
+    [(CALayer *)[region valueForKey:@"texture"] animationForKey:@"skin-release"]==nil;
+  [self check:interrupted name:@"re-press interrupts the return immediately without queued animations"];
   NSTimeInterval updates=CACurrentMediaTime();
   for(NSUInteger iteration=0;iteration<500;iteration++)
     [self.renderer setDPadDirections:@{pad.item.identifier:@(iteration%2 ? 1 : 8)}];
@@ -362,13 +405,14 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 
 - (void)verifyLayouts:(NSUInteger)index {
   if(index==4){self.layoutRenderer=nil;[self advance];return;}
-  const LibretroSize sizes[]={{390,844},{844,390},{768,1024},{1024,768}};
+  BOOL atomic=[self.scenario[@"skinPress"] isEqual:@"press-atomic"];
+  const LibretroSize sizes[]={{390,844},{844,390},{atomic?440:768,atomic?956:1024},{atomic?956:1024,atomic?440:768}};
   LibretroSkin *skin=[self.session valueForKey:@"currentSkin"];
   // This helper is invoked after the main scenario changed back to default;
   // reload only the original test fixture, using the real decoder/layout.
-  skin=[LibretroSkin skinWithDirectory:DocumentsPath(@"Libretro/Skins/press-texture") consoleGeometry:nil errorCode:nil];
+  skin=[LibretroSkin skinWithDirectory:DocumentsPath(atomic ? @"Libretro/Skins/press-atomic" : @"Libretro/Skins/press-texture") consoleGeometry:nil errorCode:nil];
   LibretroSkinRepresentation *rep=[skin representationForOrientation:index%2 ? LibretroSkinOrientationLandscape : LibretroSkinOrientationPortrait
-    iPad:index>=2 edgeToEdge:NO];
+    iPad:!atomic && index>=2 edgeToEdge:atomic && index>=2];
   LibretroInsets insets={0,0,0,0};
   LibretroSkinLayoutResult *layout=[LibretroSkinLayout layoutRepresentation:rep viewSize:sizes[index] safeInsets:insets overrides:nil];
   self.layoutRenderer=[[LibretroSkinRenderer alloc] initWithCacheDirectory:DocumentsPath(@"SkinLayoutProbeCache")];
@@ -384,14 +428,18 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   id layers=nil;for(id candidate in [self.layoutRenderer valueForKey:@"items"])
     if([[candidate valueForKey:@"identifier"] isEqual:pad.item.identifier])layers=candidate;
   NSArray *regions=[layers valueForKey:@"pressureRegions"];
-  if(regions.count!=4 && attempt<100){
+  BOOL pending=NO;
+  for(id candidate in [self.layoutRenderer valueForKey:@"items"])
+    if([[candidate valueForKey:@"pressurePreparing"] boolValue] && [[candidate valueForKey:@"pressureRegions"] count]==0)pending=YES;
+  if((regions.count!=4 || pending) && attempt<100){
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/20),dispatch_get_main_queue(),^{
       [self waitForLayout:layout representation:rep index:index attempt:attempt+1];});return;
   }
   [self check:regions.count==4 && [layers valueForKey:@"laidOut"]==pad
     name:[NSString stringWithFormat:@"layout %lu: final geometry wins over stale preparation",(unsigned long)index]];
   LibretroTouchTracker *tracker=[LibretroTouchTracker new];
-  [tracker applyLayout:layout inputMap:[LibretroInputMap mapForConsole:@"nes"] touchRemap:nil];
+  LibretroInputMap *map=[LibretroInputMap mapForConsole:self.scenario[@"console"]];
+  [tracker applyLayout:layout inputMap:map touchRemap:nil];
   [tracker beginTouch:@1 x:pad.frame.x+pad.frame.w*0.9 y:pad.frame.y+pad.frame.h*0.1];
   LibretroTouchResolution *resolution=[tracker resolve];
   [self.layoutRenderer setPressedItems:resolution.pressedItems];[self.layoutRenderer setDPadDirections:resolution.dpadDirections];
@@ -416,6 +464,28 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   [self check:active==9 && inside && resolution.coreInput.buttons!=0
     name:[NSString stringWithFormat:@"layout %lu: aligned diagonal and mapped inputs",(unsigned long)index]];
   [self check:pixelAligned name:[NSString stringWithFormat:@"layout %lu: cut edges use whole display pixels",(unsigned long)index]];
+  if([self.scenario[@"skinPress"] isEqual:@"press-atomic"]){
+    [tracker endAllTouches];
+    BOOL buttonsReady=YES;
+    for(id candidate in [self.layoutRenderer valueForKey:@"items"]){
+      LibretroLaidOutItem *item=[candidate valueForKey:@"laidOut"];
+      if(item.item.kind!=LibretroSkinItemKindButton || item.item.inputs.count==0)continue;
+      buttonsReady=buttonsReady && ([[candidate valueForKey:@"pressureRegions"] count]>0 || [[candidate valueForKey:@"extracted"] boolValue]);
+      if(item.item.inputs.count==2){
+        [tracker beginTouch:@2 x:item.frame.x+item.frame.w*0.5 y:item.frame.y+item.frame.h*0.5];
+        LibretroTouchResolution *combo=tracker.resolve;
+        LibretroCoreInput expected={0};for(NSString *input in item.item.inputs)[map applyInput:input magnitude:1 toState:&expected];
+        [self.layoutRenderer setPressedItems:combo.pressedItems];[self.layoutRenderer setDPadDirections:combo.dpadDirections];
+        [self check:combo.coreInput.buttons==expected.buttons && [[candidate valueForKey:@"pressedState"] boolValue]
+          name:[NSString stringWithFormat:@"Atomic layout %lu: authored A+B key animates and sends both inputs",(unsigned long)index]];
+        [tracker endAllTouches];
+      }
+    }
+    [self check:buttonsReady name:[NSString stringWithFormat:@"Atomic layout %lu: every button has prepared artwork",(unsigned long)index]];
+    UIGraphicsImageRenderer *capture=[[UIGraphicsImageRenderer alloc] initWithSize:self.layoutRenderer.bounds.size];
+    UIImage *image=[capture imageWithActions:^(UIGraphicsImageRendererContext *ctx){[self.layoutRenderer.layer renderInContext:ctx.CGContext];}];
+    [UIImagePNGRepresentation(image) writeToFile:DocumentsPath([NSString stringWithFormat:@"SkinFrames/press-atomic-layout-%lu.png",(unsigned long)index]) atomically:YES];
+  }
   [self.layoutRenderer showRepresentation:rep layout:layout opacity:0.65 controlsHidden:YES];
   BOOL reset=YES;for(id region in regions)reset=reset && ![[region valueForKey:@"down"] boolValue];
   [self check:reset && !((CALayer *)[layers valueForKey:@"artwork"]).hidden
@@ -639,6 +709,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       [self next];break;
     case 14: [self check:[self deliveredButtons]==0 && [[self.renderer valueForKey:@"pressed"] count]==0 name:@"rotation cancels inputs and pressed artwork"];
       [self.touches removeAllObjects];
+      [self touch:@"controller-handoff" at:[self center:[self primaryButton]] begin:YES];
       // No physical hardware is claimed: use Apple's virtual controller to
       // exercise the production GCController polling and remap path.
       {
@@ -671,6 +742,9 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
         @"count":@(GCController.controllers.count),@"physical":self.input.hasPhysicalController ? @YES : @NO};
       [self check:self.input.hasPhysicalController && [self deliveredButtons]!=0 name:@"controller input uses the existing polling and console map"];
       [self check:self.controller.overlay.controlsDisabled name:@"connected controller disables tactile game contacts"];
+      [self touch:@"controller-suppressed" at:[self center:[self primaryButton]] begin:YES];
+      [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"controller handoff clears a held finger and suppresses simultaneous touch artwork"];
+      [self end:@"controller-handoff" cancel:YES];[self end:@"controller-suppressed" cancel:YES];
       [self.virtualController setValue:0 forButtonElement:GCInputButtonA];
       [self.virtualController disconnect];sSkinProbeController=nil;[self next];break;
     case 16:
@@ -686,9 +760,17 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       }
       [self advance];break;
     case 18:
-      if([self.scenario[@"skinPress"] isEqual:@"press-texture"]){[self verifyLayouts:0];break;}
+      if([@[@"press-texture",@"press-atomic"] containsObject:self.scenario[@"skinPress"]]){[self verifyLayouts:0];break;}
       if([self.scenario[@"skinPress"] isEqual:@"press-authored"]){[self verifyAuthoredReload];break;}
       [self advance];break;
+    case 19:
+      [self.input pollControllers];[self.controller updateControlsVisibility];
+      [self check:!self.controller.overlay.controlsDisabled name:@"controller disconnect restores tactile controls"];
+      [self touch:@"after-controller" at:[self center:[self primaryButton]] begin:YES];[self next];break;
+    case 20:
+      if([self waitForCoreInputPoll])break;
+      [self check:[self deliveredButtons]!=0 && [self pressed:[self primaryButton]] name:@"first touch after controller disconnect reaches artwork and core"];
+      [self end:@"after-controller" cancel:YES];[self next];break;
     default:
       [self check:[self deliveredButtons]==0 name:@"controller disconnect leaves no held input"];
       self.result[@"skinChecks"]=self.checks;

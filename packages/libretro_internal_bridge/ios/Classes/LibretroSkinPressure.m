@@ -3,6 +3,43 @@
 #include <stdlib.h>
 #include <string.h>
 
+const NSUInteger LibretroSkinPressureFrameCount = 12;
+
+static NSValue *BoxRect(CGRect rect) { return [NSValue valueWithBytes:&rect objCType:@encode(CGRect)]; }
+CGRect LibretroSkinPressureRect(NSValue *value) {
+  CGRect rect = CGRectNull;
+  if ([value isKindOfClass:NSValue.class] && strcmp(value.objCType, @encode(CGRect)) == 0)
+    [value getValue:&rect size:sizeof(rect)];
+  return rect;
+}
+static BOOL ValidRect(CGRect r) {
+  return isfinite(r.origin.x) && isfinite(r.origin.y) && isfinite(r.size.width) &&
+    isfinite(r.size.height) && r.size.width > 0 && r.size.height > 0;
+}
+
+NSArray<NSValue *> *LibretroSkinPressureVisibleRects(CGRect rect, NSArray<NSValue *> *excluded) {
+  if (!ValidRect(rect) || excluded.count > 64) return @[];
+  NSMutableArray *parts = [NSMutableArray arrayWithObject:BoxRect(rect)];
+  for (NSValue *value in excluded) {
+    CGRect block = LibretroSkinPressureRect(value);
+    if (!ValidRect(block)) return @[];
+    NSMutableArray *next = [NSMutableArray array];
+    for (NSValue *part in parts) {
+      CGRect r = LibretroSkinPressureRect(part), cut = CGRectIntersection(r, block);
+      if (CGRectIsNull(cut) || CGRectIsEmpty(cut)) { [next addObject:part]; continue; }
+      CGRect pieces[] = {
+        CGRectMake(r.origin.x, r.origin.y, r.size.width, cut.origin.y-r.origin.y),
+        CGRectMake(r.origin.x, CGRectGetMaxY(cut), r.size.width, CGRectGetMaxY(r)-CGRectGetMaxY(cut)),
+        CGRectMake(r.origin.x, cut.origin.y, cut.origin.x-r.origin.x, cut.size.height),
+        CGRectMake(CGRectGetMaxX(cut), cut.origin.y, CGRectGetMaxX(r)-CGRectGetMaxX(cut), cut.size.height)};
+      for (NSUInteger i=0;i<4;i++) if (!CGRectIsEmpty(pieces[i])) [next addObject:BoxRect(pieces[i])];
+      if (next.count > 64) return @[];
+    }
+    parts = next;
+  }
+  return parts;
+}
+
 CGRect LibretroSkinPressureArm(CGSize size, NSUInteger slot) {
   CGFloat x = floor(size.width / 3), y = floor(size.height / 3);
   CGFloat right = ceil(size.width * 2 / 3), bottom = ceil(size.height * 2 / 3);
@@ -36,8 +73,58 @@ static BOOL ReadPixels(CGImageRef source, CGRect rect, uint8_t *bytes, size_t w,
   return context != NULL;
 }
 
+NSArray<NSValue *> *LibretroSkinPressureRegions(CGImageRef source, CGRect pixels) {
+  if (!ValidRect(pixels)) return @[];
+  NSMutableArray *fallback = [NSMutableArray array];
+  for (NSUInteger slot=0;slot<4;slot++)
+    [fallback addObject:BoxRect(CGRectOffset(LibretroSkinPressureArm(pixels.size, slot), pixels.origin.x, pixels.origin.y))];
+  if (source == NULL || !ValidRect(pixels) || !CGRectEqualToRect(pixels, CGRectIntegral(pixels)) ||
+      pixels.size.width < 12 || pixels.size.height < 12 || pixels.size.width*pixels.size.height > 1024*1024 ||
+      !CGRectContainsRect(CGRectMake(0,0,CGImageGetWidth(source),CGImageGetHeight(source)), pixels)) return fallback;
+  size_t w=pixels.size.width,h=pixels.size.height;
+  NSMutableData *data=[NSMutableData dataWithLength:w*h*4];
+  CGColorSpaceRef space=CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+  BOOL read=ReadPixels(source,pixels,data.mutableBytes,w,h,space);CGColorSpaceRelease(space);
+  if(!read)return fallback;
+  const uint8_t *p=data.bytes;
+  size_t left=w,top=h,right=0,bottom=0,count=0;
+  for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++)if(p[(y*w+x)*4+3]>=32){
+    left=MIN(left,x);right=MAX(right,x+1);top=MIN(top,y);bottom=MAX(bottom,y+1);count++;
+  }
+  if(count==0 || right-left<12 || bottom-top<12)return fallback;
+  size_t bw=right-left,bh=bottom-top,x1=right,x2=left,y1=bottom,y2=top;
+  for(size_t y=top;y<bottom;y++){
+    size_t n=0;for(size_t x=left;x<right;x++)if(p[(y*w+x)*4+3]>=32)n++;
+    if(n>=bw*0.75){y1=MIN(y1,y);y2=MAX(y2,y+1);}
+  }
+  for(size_t x=left;x<right;x++){
+    size_t n=0;for(size_t y=top;y<bottom;y++)if(p[(y*w+x)*4+3]>=32)n++;
+    if(n>=bh*0.75){x1=MIN(x1,x);x2=MAX(x2,x+1);}
+  }
+  // Only accept an actual cross with four separated tips and clear corners;
+  // an opaque photograph, a disc or disconnected arrows is not a silhouette.
+  if(x2<=x1 || y2<=y1 || x1-left<3 || right-x2<3 || y1-top<3 || bottom-y2<3 ||
+     x2-x1<bw*0.12 || x2-x1>bw*0.6 || y2-y1<bh*0.12 || y2-y1>bh*0.6)return fallback;
+  size_t outside=0,inside=0;
+  for(size_t y=top;y<bottom;y++)for(size_t x=left;x<right;x++)if(p[(y*w+x)*4+3]>=32){
+    if((x>=x1 && x<x2)||(y>=y1 && y<y2))inside++;else outside++;
+  }
+  size_t cross=(x2-x1)*bh+(y2-y1)*bw-(x2-x1)*(y2-y1);
+  if(outside>count*0.025 || inside<cross*0.72)return fallback;
+  CGRect areas[]={CGRectMake(x1,top,x2-x1,y1-top),CGRectMake(x1,y2,x2-x1,bottom-y2),
+    CGRectMake(left,y1,x1-left,y2-y1),CGRectMake(x2,y1,right-x2,y2-y1)};
+  NSMutableArray *regions=[NSMutableArray array];
+  for(NSUInteger i=0;i<4;i++)[regions addObject:BoxRect(CGRectOffset(areas[i],pixels.origin.x,pixels.origin.y))];
+  return regions;
+}
+
 NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
     CGFloat pointsPerPixel, NSUInteger direction, CGImageRef authoredPressed) {
+  return LibretroSkinPressureFramesExcluding(source,pixels,pointsPerPixel,direction,authoredPressed,@[],LibretroSkinPressureFrameCount);
+}
+
+NSArray *LibretroSkinPressureFramesExcluding(CGImageRef source, CGRect pixels,
+    CGFloat pointsPerPixel, NSUInteger direction, CGImageRef authoredPressed, NSArray<NSValue *> *excluded, NSUInteger frameCount) {
   if (source == NULL || !isfinite(pointsPerPixel) || pointsPerPixel <= 0 ||
       !isfinite(pixels.origin.x) || !isfinite(pixels.origin.y) ||
       !isfinite(pixels.size.width) || !isfinite(pixels.size.height) ||
@@ -45,6 +132,8 @@ NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
       pixels.size.width < 3 || pixels.size.height < 3 ||
       pixels.size.width > 2048 || pixels.size.height > 2048 ||
       !CGRectContainsRect(CGRectMake(0, 0, CGImageGetWidth(source), CGImageGetHeight(source)), pixels)) return @[];
+  if (excluded.count>64 || frameCount<2 || frameCount>LibretroSkinPressureFrameCount) return @[];
+  for(NSValue *value in excluded)if(!ValidRect(LibretroSkinPressureRect(value)))return @[];
   size_t w = (size_t)pixels.size.width, h = (size_t)pixels.size.height, length = w*h*4;
   // Caller also enforces a per-renderer budget across controls.
   if (length > 4u*1024u*1024u) return @[];
@@ -68,28 +157,49 @@ NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
       (authoredPressed && !ReadPixels(authoredPressed, pixels, pressed, w, h, space))) {
     CGColorSpaceRelease(space); free(normal); free(pressed); return @[];
   }
-  NSMutableArray *frames = [NSMutableArray arrayWithCapacity:8];
+  NSMutableArray *frames = [NSMutableArray arrayWithCapacity:frameCount];
   // Limit displacement relative to the smaller side too: the mapping stays
   // monotonic even for thin Start/Select keys. No fold or edge extrapolation.
   double depth = fmin(1.6 / pointsPerPixel, fmin(w, h) * 0.045);
-  for (NSUInteger step = 0; step < 8; step++) {
-    double amount = (double)step / 7;
+  // Compute shared-area falloff once, not once per release frame. Taper far
+  // enough that inverse sampling cannot borrow pixels across a blocked edge.
+  NSMutableData *supports=excluded.count ? [NSMutableData dataWithLength:w*h*sizeof(float)] : nil;
+  float *support=supports.mutableBytes;
+  CGRect blocks[64];for(NSUInteger i=0;i<excluded.count;i++)blocks[i]=LibretroSkinPressureRect(excluded[i]);
+  double feather=MAX(4/pointsPerPixel,3*(0.035*MAX(w,h)+depth));
+  if(support!=NULL)for(size_t y=0;y<h;y++)for(size_t x=0;x<w;x++){
+    double factor=1,px=pixels.origin.x+x+0.5,py=pixels.origin.y+y+0.5;
+    for(NSUInteger i=0;i<excluded.count;i++){
+      CGRect r=blocks[i];
+      double dx=fmax(0,fmax(r.origin.x-px,px-CGRectGetMaxX(r)));
+      double dy=fmax(0,fmax(r.origin.y-py,py-CGRectGetMaxY(r)));
+      double t=fmin(1,hypot(dx,dy)/feather);factor=fmin(factor,t*t*(3-2*t));
+    }
+    support[y*w+x]=factor;
+  }
+  // Column/row factors are shared by all twelve frames.
+  double *horizontal=calloc(w,sizeof(double)),*vertical=calloc(h,sizeof(double));
+  if(!horizontal || !vertical){free(horizontal);free(vertical);free(normal);free(pressed);CGColorSpaceRelease(space);return @[];}
+  for(size_t x=0;x<w;x++)horizontal[x]=Weight((2.0*x/(w-1)-1)*((direction==1 || direction==2)?1.5:1));
+  for(size_t y=0;y<h;y++)vertical[y]=Weight(2.0*y/(h-1)-1);
+  for (NSUInteger step = 0; step < frameCount; step++) {
+    double amount = (double)step / (frameCount-1);
     NSMutableData *data = [NSMutableData dataWithLength:length];
     uint8_t *out = data.mutableBytes;
     if (step == 0) {
       memcpy(out, normal, length);
     } else for (size_t y = 0; y < h; y++) for (size_t x = 0; x < w; x++) {
       size_t offset = (y*w+x)*4;
-      double nx = 2.0*x/(w-1)-1, ny = 2.0*y/(h-1)-1;
       // For the broad upper/lower regions, don't bend the housing in the
       // corners alongside a cross. Other arms never share this support.
-      double wx = Weight(nx * ((direction == 1 || direction == 2) ? 1.5 : 1));
-      double weight = wx * Weight(ny);
+      double permitted = support != NULL ? support[y*w+x] : 1;
+      double weight = horizontal[x] * vertical[y] * permitted;
       if (pressed != NULL) {
         // Authored states have their own edges/shadows: preserve those
         // pixels, including alpha, instead of adding a lighting effect.
+        double local=amount*permitted;
         for (size_t c = 0; c < 4; c++)
-          out[offset+c] = (uint8_t)lround(normal[offset+c]*(1-amount) + pressed[offset+c]*amount);
+          out[offset+c] = (uint8_t)lround(normal[offset+c]*(1-local) + pressed[offset+c]*local);
         continue;
       }
       if (weight == 0) { memcpy(out+offset, normal+offset, 4); continue; }
@@ -130,5 +240,6 @@ NSArray *LibretroSkinPressureFrames(CGImageRef source, CGRect pixels,
   }
   CGColorSpaceRelease(space);
   free(normal); free(pressed);
-  return frames.count == 8 ? frames : @[];
+  free(horizontal);free(vertical);
+  return frames.count == frameCount ? frames : @[];
 }
