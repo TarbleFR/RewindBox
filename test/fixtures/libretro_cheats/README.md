@@ -12,3 +12,8 @@ integrity checks. Test codes are synthetic; no commercial ROMs are included.
 
 Downloaded catalogue data retains source, pinned revision and licence separately
 from application code. libretro-derived catalogue data remains CC BY-SA 4.0.
+
+`openemu-original.xml` is the unmodified `cheats-database.xml` from
+`skyzyx/openemu-cheat-database@5f1af6161ee30fddccc3942dfbcc20b253bcb152`,
+Git blob `d05cac329917e7d28f57367ff558bb9137ea64bf` (Unlicense; see `openemu-LICENSE`).
+Its original long GBA entry must not prevent unrelated consoles from installing.

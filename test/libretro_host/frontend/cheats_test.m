@@ -5,7 +5,7 @@ static unsigned failures, checks;
 #define CHECK(c, m) do { checks++; if (!(c)) { failures++; fprintf(stderr, "FAIL %s:%d %s\n", __FILE__, __LINE__, m); } } while (0)
 static NSData *UTF8(NSString *s) { return [s dataUsingEncoding:NSUTF8StringEncoding]; }
 static NSDictionary *Cheat(NSString *code) { return @{@"name":@"Test", @"code":code, @"handler":@0}; }
-int main(void) {
+int main(int argc, const char **argv) {
   @autoreleasepool {
     NSError *error = nil;
     NSString *cht = @"cheats = 2\ncheat0_desc = \"Infinite health\"\ncheat0_code = \"0024:00+ZEEXIPIE\"\ncheat0_enable = true\ncheat1_desc = \"Memory\"\ncheat1_handler = 1\ncheat1_address = 4\ncheat1_value = 10\n";
@@ -48,6 +48,20 @@ int main(void) {
     CHECK([first[@"md5"] isEqual:@"900150983cd24fb0d6963f7d28e17f72"], "actual content streamed and hashed");
     [UTF8(@"def") writeToFile:rom atomically:YES];
     CHECK(![first[@"sha256"] isEqual:[LibretroCheats identityAtPath:rom console:@"nes" core:@"nestopia"][@"sha256"]], "same filename different content cannot share preferences identity");
+    NSString *repo = argc > 2 ? @(argv[2]) : NSFileManager.defaultManager.currentDirectoryPath;
+    NSData *original = [NSData dataWithContentsOfFile:[repo stringByAppendingPathComponent:@"test/fixtures/libretro_cheats/openemu-original.xml"]];
+    CHECK([[LibretroCheats gitBlobSHA:original] isEqual:@"d05cac329917e7d28f57367ff558bb9137ea64bf"], "unmodified community fixture has the reviewed upstream identity");
+    NSArray *actual = [LibretroCheats parseOpenEmu:original error:&error];
+    CHECK(actual.count == 10 && error == nil, "all actual community games parse despite a long GBA program");
+    NSUInteger entries = 0, longEntries = 0;
+    for (NSDictionary *game in actual) for (NSDictionary *entry in game[@"cheats"]) {
+      entries++;
+      if ([entry[@"code"] length] > 8192) {
+        longEntries++;
+        CHECK([LibretroCheats codesForCheat:entry core:@"mgba" console:@"gba"] == nil, "long original program remains unavailable for unsafe native activation");
+      }
+    }
+    CHECK(entries == 629 && longEntries > 0, "original descriptions and codes retained without truncating executable programs");
     CHECK(LibretroCheatCatalog.sources.count >= 2, "multiple independent source adapters");
     CHECK([LibretroCheatCatalog folderForConsole:@"7800"] != nil && [LibretroCheatCatalog folderForConsole:@"gba"] != nil, "catalogues cover enabled and hidden consoles");
     [[NSFileManager defaultManager] removeItemAtPath:folder error:nil];

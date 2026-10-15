@@ -38,7 +38,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   }
   if ([element isEqual:@"cheat"] && _game != nil) {
     NSString *code = String(attributes[@"code"]), *name = String(attributes[@"description"]);
-    if (code.length > 8192 || name.length > 2048 || [_game[@"cheats"] count] >= 4096) { [parser abortParsing]; return; }
+    if (code.length > 65536 || name.length > 2048 || [_game[@"cheats"] count] >= 4096) { [parser abortParsing]; return; }
     if (code.length > 0) [_game[@"cheats"] addObject:@{@"name": name.length ? name : code, @"code": code,
       @"format": String(attributes[@"type"]), @"handler": @0, @"enabled": @NO}];
   }
@@ -120,6 +120,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   return result;
 }
 + (NSArray<NSDictionary *> *)parseOpenEmu:(NSData *)data error:(NSError **)error {
+  if (error) *error = nil;
   if (error) *error = nil;
   NSString *text = data.length <= 4u * 1024u * 1024u ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
   if (text == nil || [text rangeOfString:@"<!DOCTYPE" options:NSCaseInsensitiveSearch].location != NSNotFound ||

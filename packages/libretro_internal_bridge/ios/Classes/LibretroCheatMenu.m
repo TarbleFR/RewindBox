@@ -63,7 +63,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   for (id raw in records) {
     if (![raw isKindOfClass:NSDictionary.class] || _records.count >= 4096) continue;
     NSString *code = String(raw[@"code"]), *name = String(raw[@"name"]);
-    if (name.length == 0 || name.length > 2048 || code.length > 8192) continue;
+    if (name.length == 0 || name.length > 2048 || code.length > 65536) continue;
     // Same session/game and exact code semantics: keep one toggle, retain every attribution.
     NSNumber *handler = [raw[@"handler"] isKindOfClass:NSNumber.class] ? raw[@"handler"] : @0;
     NSArray *prepared = [LibretroCheats codesForCheat:raw core:_core console:_console];
@@ -207,7 +207,8 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
       row.enabled = supported && menu->_ready;
       NSString *reason = [record[@"handler"] integerValue] != 0 ? [menu t:@"cheatMemoryUnsupported"] : [menu t:@"cheatCodeUnsupported"];
       row.detail = [NSString stringWithFormat:@"%@%@\n%@", supported ? @"" : [reason stringByAppendingString:@"\n"],
-        String(record[@"code"]), [record[@"attributions"] componentsJoinedByString:@"\n"]];
+        String(record[@"code"]).length > 512 ? [[String(record[@"code"]) substringToIndex:512] stringByAppendingString:@"…"] : String(record[@"code"]),
+        [record[@"attributions"] componentsJoinedByString:@"\n"]];
       row.remove = ^(LibretroMenuPage *page) { [menu->_records removeObjectIdenticalTo:record]; [menu applyAndSave]; [page rebuild]; };
       [rows addObject:row];
     }

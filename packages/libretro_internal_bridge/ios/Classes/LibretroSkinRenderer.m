@@ -580,7 +580,9 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
                    opacity:(CGFloat)opacity
             controlsHidden:(BOOL)controlsHidden {
   CGFloat scale = [self currentDisplayScale];
-  if (representation != nil && layout != nil &&
+  BOOL sameContent = representation != nil && representation == _representation && layout == _layout &&
+                     fabs(scale - _scale) < 0.01;
+  if (!sameContent && representation != nil && layout != nil &&
       !LibretroSkinLayoutFitsImageBudget(representation, layout, scale)) {
     // Keep the previous rendered controls while the session restores its working skin.
     dispatch_block_t failed = self.resourceLoadFailed;
@@ -589,8 +591,6 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   }
   [CATransaction begin];
   [CATransaction setDisableActions:YES];
-  BOOL sameContent = representation != nil && representation == _representation && layout == _layout &&
-                     fabs(scale - _scale) < 0.01;
   if (!sameContent) {
     _imageGeneration++;
     _pressureBytes = 0;
