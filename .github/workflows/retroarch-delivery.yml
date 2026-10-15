@@ -1,5 +1,5 @@
-name: NeoStation RetroArch • Build 463 • SideStore
-run-name: NeoStation Build ${{ inputs.build_number || '463' }} • ${{ github.sha }} • embedded libretro
+name: NeoStation RetroArch • Build 464 • SideStore
+run-name: NeoStation Build ${{ inputs.build_number || '464' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
@@ -9,7 +9,7 @@ run-name: NeoStation Build ${{ inputs.build_number || '463' }} • ${{ github.sh
       build_number:
         description: New delivery build number
         required: true
-        default: '463'
+        default: '464'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -237,7 +237,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '463' }}-validation-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '464' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -295,7 +295,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '463' }}-native-reuse-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '464' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -435,7 +435,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '463' }}-neoswap-native-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '464' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -552,10 +552,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '463' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '464' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-461-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '463' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '464' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -1454,10 +1454,10 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '463' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '464' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-461-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '463' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '464' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'

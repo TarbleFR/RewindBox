@@ -21,6 +21,33 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_installed_skin_gate_requires_exact_success_and_actual_proof_step(self):
+        from unittest.mock import patch
+        run={'head_sha':reuse.SKIN_LOADING_REFERENCE,'status':'completed','conclusion':'success',
+             'path':'.github/workflows/libretro-skin-loading-checks.yml'}
+        job={'name':'existing-install','head_sha':reuse.SKIN_LOADING_REFERENCE,'run_id':reuse.SKIN_LOADING_RUN,
+             'conclusion':'success','steps':[{'name':'Reproduce exact 463 rejection then test already installed skins in the candidate',
+                                            'conclusion':'success'}]}
+        def verify():
+            with patch.object(reuse.subprocess,'check_output',side_effect=[json.dumps(run),json.dumps({'jobs':[job]})]):
+                return reuse.verify_skin_loading_evidence()
+        self.assertFalse(verify()['physicalDeviceValidated'])
+        for invalid in ('failure','skipped',None):
+            job['steps'][0]['conclusion']=invalid
+            with self.assertRaisesRegex(ValueError,'did not all pass'):verify()
+        job['steps'][0]['conclusion']='success'
+        job['steps'][0]['name']='unrelated passing check'
+        with self.assertRaisesRegex(ValueError,'proof step is missing'):verify()
+        job['steps'][0]['name']='Reproduce exact 463 rejection then test already installed skins in the candidate'
+        job['run_id']+=1
+        with self.assertRaisesRegex(ValueError,'did not all pass'):verify()
+        job['run_id']=reuse.SKIN_LOADING_RUN
+        run['head_sha']='other'
+        with self.assertRaisesRegex(ValueError,'different or incomplete'):verify()
+        run['head_sha']=reuse.SKIN_LOADING_REFERENCE
+        run['conclusion']='failure'
+        with self.assertRaisesRegex(ValueError,'different or incomplete'):verify()
+
     def test_cheat_catalogue_gate_requires_complete_success_and_exact_source(self):
         from unittest.mock import patch
         run = {'head_sha': reuse.CHEAT_CATALOG_REFERENCE, 'status': 'completed',

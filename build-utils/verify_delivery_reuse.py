@@ -2001,6 +2001,32 @@ LIBRETRO_CATALOG463_INPUTS = {
 }
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRETRO_CATALOG463_REFERENCE))
 DELTA |= LIBRETRO_CATALOG463_INPUTS
+# Build 464 keeps the 463 features and repairs layout-scoped activation.
+# New and changed source/test inputs are pinned, never excluded from evidence.
+SKIN_LOADING_REFERENCE = '12574f598e30bb2476e7cc969ce92cc955dd8daf'
+SKIN_LOADING_RUN = 38807637925
+SKIN_LOADING_INPUTS = {
+    '.github/workflows/libretro-skin-loading-checks.yml',
+    '.github/workflows/libretro-skin-checks.yml',
+    '.github/workflows/libretro-cheats-checks.yml',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'test/libretro_host/frontend/skin_test.m',
+    'test/libretro_simulator/overlay_preview_probe.h',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator/skin_failure_probe.h',
+    'test/libretro_simulator/skin_loading_probe.h',
+    'test/libretro_simulator/skin_resource_legacy.m',
+    'test/libretro_simulator_probe.py',
+    'test/libretro_skin_loading_probe.py',
+    'test/libretro_skin_press_probe.py',
+    'test/libretro_simulator/skin_press_probe.h',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING_REFERENCE))
+DELTA |= SKIN_LOADING_INPUTS
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2239,11 +2265,32 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = 'c93f493aa17caafce820ce126e37ec090cb4e8a5'
-SKIN_SESSION_RUN = 38774454891
+SKIN_SESSION_REFERENCE = '12574f598e30bb2476e7cc969ce92cc955dd8daf'
+SKIN_SESSION_RUN = 38807496814
 
-CHEAT_CATALOG_REFERENCE = 'c93f493aa17caafce820ce126e37ec090cb4e8a5'
-CHEAT_CATALOG_RUN = 38774454871
+CHEAT_CATALOG_REFERENCE = '12574f598e30bb2476e7cc969ce92cc955dd8daf'
+CHEAT_CATALOG_RUN = 38807496808
+
+def verify_skin_loading_evidence():
+    """Require the historical negative reproduction and current installed-skin tests."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_LOADING_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != SKIN_LOADING_REFERENCE or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/libretro-skin-loading-checks.yml'):
+        raise ValueError('Installed-skin loading evidence is different or incomplete')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    matches = [job for job in jobs if job.get('name') == 'existing-install']
+    if (len(matches) != 1 or matches[0].get('head_sha') != SKIN_LOADING_REFERENCE
+            or matches[0].get('run_id') != SKIN_LOADING_RUN or matches[0].get('conclusion') != 'success'
+            or not matches[0].get('steps')
+            or any(step.get('conclusion') != 'success' for step in matches[0]['steps'])):
+        raise ValueError('Installed-skin loading checks did not all pass')
+    required = 'Reproduce exact 463 rejection then test already installed skins in the candidate'
+    if not any(step.get('name') == required and step.get('conclusion') == 'success' for step in matches[0]['steps']):
+        raise ValueError('Installed-skin loading proof step is missing')
+    return {'run':SKIN_LOADING_RUN, 'testedSHA':SKIN_LOADING_REFERENCE,
+            'successfulJob':'existing-install', 'physicalDeviceValidated':False}
 
 def verify_cheat_catalog_evidence():
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CHEAT_CATALOG_RUN}'
@@ -2413,11 +2460,15 @@ def main():
         evidence = verify_skin_session_evidence()
         cheat_hashes = verify_libretro_reuse_tree(CHEAT_CATALOG_REFERENCE, exact_inputs={'.github/workflows/libretro-cheats-checks.yml'})
         cheats = verify_cheat_catalog_evidence()
+        loading_hashes = verify_libretro_reuse_tree(SKIN_LOADING_REFERENCE,
+            exact_inputs={'.github/workflows/libretro-skin-loading-checks.yml'})
+        loading = verify_skin_loading_evidence()
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({'result': 'passed', 'evidence': evidence,
             'unchangedInputsSHA256': hashes, 'cheatEvidence': cheats,
-            'cheatInputsSHA256': cheat_hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
+            'cheatInputsSHA256': cheat_hashes, 'loadingEvidence':loading,
+            'loadingInputsSHA256':loading_hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
         print('Verified unchanged UIKit session inputs:', len(hashes), '; evidence:', evidence)
         return
     if args.dart_evidence:
