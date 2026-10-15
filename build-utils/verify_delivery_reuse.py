@@ -1868,8 +1868,8 @@ DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 460: pressable skin artwork and touch lifecycle, validated at this
 # exact source by libretro-checks run 38661616452. New crop sources and all
 # changed inputs are pinned, rather than admitted as open-ended exceptions.
-LIBRETRO_SKIN_PRESS_REFERENCE = 'd6cb962d5597f7ecd7c81bb17b633e559c95d8d6'
-LIBRETRO_SKIN_PRESS_RUN = 38661616452
+LIBRETRO_SKIN_PRESS_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
+LIBRETRO_SKIN_PRESS_RUN = 38815903727
 LIBRETRO_SKIN_PRESS_INPUTS = {
     '.github/workflows/libretro-checks.yml',
     'lib/l10n/libretro_locale.dart',
@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = '12574f598e30bb2476e7cc969ce92cc955dd8daf'
-SKIN_LOADING_RUN = 38807637925
+SKIN_LOADING_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
+SKIN_LOADING_RUN = 38815907900
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2027,6 +2027,28 @@ SKIN_LOADING_INPUTS = {
 }
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING_REFERENCE))
 DELTA |= SKIN_LOADING_INPUTS
+
+# Build 465: catalogue-only product corrections and original-source audit.
+CATALOG_AUDIT_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
+CATALOG_AUDIT_RUN = 38815903796
+CATALOG_AUDIT_INPUTS = {
+    '.github/workflows/libretro-catalog-checks.yml',
+    'assets/data/libretro_skin_overlays.json',
+    'lib/screens/libretro/libretro_skin_catalog_screen.dart',
+    'lib/services/libretro_skin_catalog_service.dart',
+    'lib/services/libretro_skin_catalogs.dart',
+    'test/fixtures/libretro_overlays/pocketarch/LICENSE',
+    'test/fixtures/libretro_overlays/pocketarch/README.md',
+    'test/fixtures/libretro_overlays/pocketarch/manifest.json',
+    'test/libretro_catalog_probe.py',
+    'test/libretro_simulator/overlay_preview_probe.h',
+    'test/libretro_simulator_probe.py',
+    'test/libretro_skin_catalog_audit_test.dart',
+    'test/libretro_skin_catalogs_test.dart',
+    'test/libretro_skin_manager_test.dart',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(CATALOG_AUDIT_INPUTS, CATALOG_AUDIT_REFERENCE))
+DELTA |= CATALOG_AUDIT_INPUTS
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2265,11 +2287,11 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '12574f598e30bb2476e7cc969ce92cc955dd8daf'
-SKIN_SESSION_RUN = 38807496814
+SKIN_SESSION_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
+SKIN_SESSION_RUN = 38815904483
 
-CHEAT_CATALOG_REFERENCE = '12574f598e30bb2476e7cc969ce92cc955dd8daf'
-CHEAT_CATALOG_RUN = 38807496808
+CHEAT_CATALOG_REFERENCE = '9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f'
+CHEAT_CATALOG_RUN = 38815903637
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""
@@ -2291,6 +2313,28 @@ def verify_skin_loading_evidence():
         raise ValueError('Installed-skin loading proof step is missing')
     return {'run':SKIN_LOADING_RUN, 'testedSHA':SKIN_LOADING_REFERENCE,
             'successfulJob':'existing-install', 'physicalDeviceValidated':False}
+
+def verify_catalog_audit_evidence():
+    """Require actual transport/filter tests and original-image native compositions."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CATALOG_AUDIT_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != CATALOG_AUDIT_REFERENCE or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/libretro-catalog-checks.yml'):
+        raise ValueError('Catalogue audit evidence is different or incomplete')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    matches = [job for job in jobs if job.get('name') == 'catalogues']
+    required = {'Original configurations, transport, platform matrix and source filters',
+                'Actual native compatibility and full previews from original PocketArch images'}
+    if (len(matches) != 1 or matches[0].get('head_sha') != CATALOG_AUDIT_REFERENCE
+            or matches[0].get('run_id') != CATALOG_AUDIT_RUN
+            or matches[0].get('conclusion') != 'success' or not matches[0].get('steps')
+            or any(step.get('conclusion') != 'success' for step in matches[0]['steps'])
+            or not required.issubset({step.get('name') for step in matches[0]['steps']})):
+        raise ValueError('Catalogue transport/filter/native audit did not all pass')
+    return {'run': CATALOG_AUDIT_RUN, 'testedSHA': CATALOG_AUDIT_REFERENCE,
+            'successfulJob': 'catalogues', 'physicalDeviceValidated': False}
+
 
 def verify_cheat_catalog_evidence():
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CHEAT_CATALOG_RUN}'
@@ -2463,12 +2507,16 @@ def main():
         loading_hashes = verify_libretro_reuse_tree(SKIN_LOADING_REFERENCE,
             exact_inputs={'.github/workflows/libretro-skin-loading-checks.yml'})
         loading = verify_skin_loading_evidence()
+        catalog_hashes = verify_libretro_reuse_tree(CATALOG_AUDIT_REFERENCE,
+            exact_inputs={'.github/workflows/libretro-catalog-checks.yml'})
+        catalog = verify_catalog_audit_evidence()
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({'result': 'passed', 'evidence': evidence,
             'unchangedInputsSHA256': hashes, 'cheatEvidence': cheats,
             'cheatInputsSHA256': cheat_hashes, 'loadingEvidence':loading,
-            'loadingInputsSHA256':loading_hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
+            'loadingInputsSHA256':loading_hashes, 'catalogueEvidence':catalog,
+            'catalogueInputsSHA256':catalog_hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
         print('Verified unchanged UIKit session inputs:', len(hashes), '; evidence:', evidence)
         return
     if args.dart_evidence:

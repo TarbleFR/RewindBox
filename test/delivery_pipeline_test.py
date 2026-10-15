@@ -21,6 +21,31 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_catalogue_audit_gate_requires_real_native_and_transport_success(self):
+        from unittest.mock import patch
+        run = {'head_sha': reuse.CATALOG_AUDIT_REFERENCE, 'status': 'completed',
+               'conclusion': 'success', 'path': '.github/workflows/libretro-catalog-checks.yml'}
+        job = {'name': 'catalogues', 'head_sha': reuse.CATALOG_AUDIT_REFERENCE,
+               'run_id': reuse.CATALOG_AUDIT_RUN, 'conclusion': 'success', 'steps': [
+                   {'name': 'Original configurations, transport, platform matrix and source filters', 'conclusion': 'success'},
+                   {'name': 'Actual native compatibility and full previews from original PocketArch images', 'conclusion': 'success'},
+               ]}
+        def verify():
+            with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': [job]})]):
+                return reuse.verify_catalog_audit_evidence()
+        self.assertFalse(verify()['physicalDeviceValidated'])
+        for invalid in ('failure', 'skipped', None):
+            job['steps'][1]['conclusion'] = invalid
+            with self.assertRaisesRegex(ValueError, 'did not all pass'):
+                verify()
+        job['steps'][1]['conclusion'] = 'success'
+        job['steps'][1]['name'] = 'unrelated check'
+        with self.assertRaisesRegex(ValueError, 'did not all pass'):
+            verify()
+        run['head_sha'] = 'wrong-source'
+        with self.assertRaisesRegex(ValueError, 'different or incomplete'):
+            verify()
+
     def test_installed_skin_gate_requires_exact_success_and_actual_proof_step(self):
         from unittest.mock import patch
         run={'head_sha':reuse.SKIN_LOADING_REFERENCE,'status':'completed','conclusion':'success',

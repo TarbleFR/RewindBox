@@ -71,3 +71,24 @@ empty Provenance catalogue is forced onto them.
 Local setup note: automatic review stopped Flutter bootstrap when it attempted
 to contact the cloud-instance metadata endpoint. The allowed offline Dart
 conversion audit completed; the full Flutter/native checks run in GitHub CI.
+
+## Candidate and pending runs
+
+Product/audit source: `9c1d63827ae15bcae6a9b73bd4b6bf393987ec6f`.
+The following runs were launched and are not yet recorded as successful:
+
+| Check | Run |
+| --- | --- |
+| PocketArch originals and Provenance filters | 38815903796 |
+| Full engine Dart/native checks | 38815903727 |
+| Directional/pressure sessions | 38815904483 |
+| Existing-install upgrade/loading | 38815907900 |
+| Existing Libretro preview/cheat/core regression | 38815903637 |
+
+The accidentally duplicated manual cheat run `38815911848` was cancelled
+before execution; the original push-triggered run is retained above.
+The delivery guard requires actual success and exact closed input identity
+for these runs, including the new catalogue workflow's real-image native
+compositions, before an IPA can be packaged. Three targeted Python guard
+tests passed locally, including rejection of failed/skipped/wrong-source or
+unrelated evidence. This is pipeline validation, not a successful IPA build.
