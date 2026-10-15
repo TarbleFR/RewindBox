@@ -164,3 +164,25 @@ reproduction and the relevant suites must pass before delivery proceeds.
 Delivery attempt `38818023275` at `f1366b8b` was started with mandatory gates;
 it must not package against the failed pressure evidence. Its successful
 native phase remains genuine; no IPA success is claimed from this attempt.
+
+That delivery attempt completed with successful `checks` and `native` jobs,
+then refused the cold job at its first mandatory evidence gate with
+`Directional skin sessions did not all pass`. It produced no IPA. This is
+the intended fail-closed result, not a successful delivery.
+
+Observer-only correction: `6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99`.
+Relevant reruns (pending until actual results below):
+
+| Check | Run |
+| --- | --- |
+| Exact `press-flat-nes` / iPhone reproduction | 38819107430 |
+| Complete engine/pressure suite | 38819105153 |
+| Existing-install upgrade/loading | 38819110606 |
+| Existing preview/cheat/core regression | 38819105076 |
+| PocketArch/Provenance audit | 38819113652 |
+
+The automatic duplicate directional run `38819105079` was superseded by the
+focused reproduction. The unrelated broad simulator run `38819105117` was
+cancelled; all relevant skin sessions run in the table above. The product
+still changes only the same four catalogue paths, with native sources and
+the converter/install service identical to delivered Build 464.

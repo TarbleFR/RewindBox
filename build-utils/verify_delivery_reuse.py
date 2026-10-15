@@ -1868,8 +1868,8 @@ DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 460: pressable skin artwork and touch lifecycle, validated at this
 # exact source by libretro-checks run 38661616452. New crop sources and all
 # changed inputs are pinned, rather than admitted as open-ended exceptions.
-LIBRETRO_SKIN_PRESS_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
-LIBRETRO_SKIN_PRESS_RUN = 38816478454
+LIBRETRO_SKIN_PRESS_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
+LIBRETRO_SKIN_PRESS_RUN = 38819105153
 LIBRETRO_SKIN_PRESS_INPUTS = {
     '.github/workflows/libretro-checks.yml',
     'lib/l10n/libretro_locale.dart',
@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
-SKIN_LOADING_RUN = 38816483690
+SKIN_LOADING_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
+SKIN_LOADING_RUN = 38819110606
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2029,8 +2029,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING
 DELTA |= SKIN_LOADING_INPUTS
 
 # Build 465: catalogue-only product corrections and original-source audit.
-CATALOG_AUDIT_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
-CATALOG_AUDIT_RUN = 38816490259
+CATALOG_AUDIT_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
+CATALOG_AUDIT_RUN = 38819113652
 CATALOG_AUDIT_INPUTS = {
     '.github/workflows/libretro-catalog-checks.yml',
     'assets/data/libretro_skin_overlays.json',
@@ -2287,11 +2287,11 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
-SKIN_SESSION_RUN = 38816478454
+SKIN_SESSION_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
+SKIN_SESSION_RUN = 38819105153
 
-CHEAT_CATALOG_REFERENCE = '21027385ba349fda77a5966b7eabcbd77a91e48b'
-CHEAT_CATALOG_RUN = 38816486744
+CHEAT_CATALOG_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
+CHEAT_CATALOG_RUN = 38819105076
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""

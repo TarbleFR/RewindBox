@@ -194,7 +194,7 @@ class DeliveryPipeline(unittest.TestCase):
         def verify():
             with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': jobs})]):
                 return reuse.verify_libretro_reuse_evidence()
-        self.assertEqual(verify()['run'], 38816478454)
+        self.assertEqual(verify()['run'], 38819105153)
         for field, invalid in (('head_sha', 'other'), ('conclusion', 'failure'), ('status', 'in_progress')):
             old = run[field]
             run[field] = invalid
