@@ -55,6 +55,44 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
   [[NSJSONSerialization dataWithJSONObject:@{@"consoles":@[@"nes"]} options:0 error:nil] writeToFile:[folder stringByAppendingPathComponent:@"neostation-skin.json"] atomically:YES];
 }
 
+// Original test artwork, with the same geometry as the flat fixture. The
+// texture deliberately defeats the older perimeter/background estimator.
+static void SkinProbeBuildCompositeSkins(NSString *root) {
+  NSString *flat=[root stringByAppendingPathComponent:@"press-flat"];
+  UIImage *original=[UIImage imageWithContentsOfFile:[flat stringByAppendingPathComponent:@"painted.png"]];
+  NSData *infoData=[NSData dataWithContentsOfFile:[flat stringByAppendingPathComponent:@"info.json"]];
+  for(NSString *name in @[@"press-texture",@"press-authored",@"press-alpha"]){
+    NSString *folder=[root stringByAppendingPathComponent:name];
+    [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
+    UIGraphicsImageRenderer *draw=[[UIGraphicsImageRenderer alloc] initWithSize:original.size];
+    BOOL alpha=[name isEqual:@"press-alpha"];
+    UIImage *normal=[draw imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+      [original drawAtPoint:CGPointZero blendMode:kCGBlendModeNormal alpha:alpha ? 0.6 : 1];
+      [[UIColor colorWithWhite:0.9 alpha:alpha ? 0.15 : 0.3] setFill];
+      for(int y=0;y<250;y+=3)for(int x=0;x<360;x+=3)
+        if((x/3+y/3)%2==0)UIRectFill(CGRectMake(x,y,1,1));
+    }];
+    [UIImagePNGRepresentation(normal) writeToFile:[folder stringByAppendingPathComponent:@"painted.png"] atomically:YES];
+    if([name isEqual:@"press-authored"]){
+      UIImage *pressed=[draw imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+        [normal drawAtPoint:CGPointZero];
+        [[UIColor colorWithWhite:0 alpha:0.25] setFill];UIRectFill(CGRectMake(0,0,360,250));
+      }];
+      [UIImagePNGRepresentation(pressed) writeToFile:[folder stringByAppendingPathComponent:@"painted_pressed.png"] atomically:YES];
+    }
+    NSMutableDictionary *info=[NSJSONSerialization JSONObjectWithData:infoData options:NSJSONReadingMutableContainers error:nil];
+    info[@"name"]=name;info[@"identifier"]=[@"org.neostation." stringByAppendingString:name];
+    NSMutableDictionary *rep=info[@"representations"][@"iphone"][@"standard"][@"portrait"];
+    if(alpha)rep[@"translucent"]=@YES;
+    // Same authored geometry offered to both devices and orientations;
+    // the production aspect-fit transform must keep masks aligned.
+    info[@"representations"]=@{@"iphone":@{@"standard":@{@"portrait":rep,@"landscape":rep}},
+      @"ipad":@{@"standard":@{@"portrait":rep,@"landscape":rep}}};
+    [[NSJSONSerialization dataWithJSONObject:info options:0 error:nil] writeToFile:[folder stringByAppendingPathComponent:@"info.json"] atomically:YES];
+    [[NSJSONSerialization dataWithJSONObject:@{@"consoles":@[@"nes"]} options:0 error:nil] writeToFile:[folder stringByAppendingPathComponent:@"neostation-skin.json"] atomically:YES];
+  }
+}
+
 @interface LibretroGameViewController (SkinPressProbePrivate)
 - (void)applicationWillResignActive;
 - (void)applicationDidBecomeActive;
@@ -164,8 +202,73 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
 }
 - (BOOL)pressed:(LibretroLaidOutItem *)item {
   id layers=[self layers:item];
+  NSArray *regions=[layers valueForKey:@"pressureRegions"];
+  if(regions.count>0)return [[layers valueForKey:@"pressedState"] boolValue];
   CALayer *face=[layers valueForKey:@"artwork"];
   return face!=nil && face.transform.m11 < 0.99;
+}
+
+- (UIImage *)padImage:(LibretroLaidOutItem *)pad {
+  UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];format.scale=1;
+  UIGraphicsImageRenderer *render=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(ceil(pad.frame.w),ceil(pad.frame.h)) format:format];
+  return [render imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+    CGContextTranslateCTM(ctx.CGContext,-pad.frame.x,-pad.frame.y);
+    [self.renderer.layer renderInContext:ctx.CGContext];
+  }];
+}
+- (void)verifyDirectionalArtwork {
+  LibretroLaidOutItem *pad=nil;
+  for(LibretroLaidOutItem *item in self.layout.items)if(item.item.kind==LibretroSkinItemKindDPad){pad=item;break;}
+  if(pad==nil)return;
+  id layers=[self layers:pad];NSArray *regions=[layers valueForKey:@"pressureRegions"];
+  [self check:regions.count==4 name:@"four prepared directional regions including monobloc skins"];
+  if(regions.count!=4)return;
+  CALayer *face=[layers valueForKey:@"artwork"];
+  UIImage *rest=[self padImage:pad];
+  CFDataRef reference=CGDataProviderCopyData(CGImageGetDataProvider(rest.CGImage));
+  size_t width=CGImageGetWidth(rest.CGImage),height=CGImageGetHeight(rest.CGImage),stride=CGImageGetBytesPerRow(rest.CGImage);
+  const uint8_t *before=CFDataGetBytePtr(reference);
+  NSArray *cases=@[@[@0.5,@0.1,@1],@[@0.5,@0.9,@2],@[@0.1,@0.5,@4],@[@0.9,@0.5,@8],
+    @[@0.9,@0.1,@9],@[@0.1,@0.9,@6],@[@0.1,@0.1,@5],@[@0.9,@0.9,@10]];
+  NSTimeInterval start=CACurrentMediaTime();
+  NSUInteger index=0;
+  for(NSArray *entry in cases){
+    NSUInteger expected=[entry[2] unsignedIntegerValue];
+    CGPoint point=CGPointMake(pad.frame.x+pad.frame.w*[entry[0] doubleValue],pad.frame.y+pad.frame.h*[entry[1] doubleValue]);
+    [self touch:@"direction-sweep" at:point begin:index==0];
+    BOOL correct=CATransform3DIsIdentity(face.transform);
+    for(id region in regions){
+      BOOL active=([region valueForKey:@"direction"] && ([[region valueForKey:@"direction"] unsignedIntegerValue]&expected)!=0);
+      NSArray *frames=[region valueForKey:@"frames"];
+      correct=correct && [[region valueForKey:@"down"] boolValue]==active &&
+        ((CALayer *)region).contents==(active ? frames.lastObject : frames.firstObject);
+    }
+    [self check:correct name:[NSString stringWithFormat:@"direction mask %lu affects only its own regions",(unsigned long)expected]];
+    UIImage *image=[self padImage:pad];
+    CFDataRef pixels=CGDataProviderCopyData(CGImageGetDataProvider(image.CGImage));
+    const uint8_t *after=CFDataGetBytePtr(pixels); NSUInteger outside=0,inside=0;
+    for(size_t y=0;y<height;y++)for(size_t x=0;x<width;x++){
+      BOOL affected=NO;
+      CGPoint point=CGPointMake(pad.frame.x+x+0.5,pad.frame.y+y+0.5);
+      for(id region in regions)if(([[region valueForKey:@"direction"] unsignedIntegerValue]&expected)!=0 &&
+        CGRectContainsPoint(CGRectInset(((CALayer *)region).frame,-1,-1),point))affected=YES;
+      if(memcmp(before+y*stride+x*4,after+y*stride+x*4,4)) { if(affected)inside++;else outside++; }
+    }
+    [self check:outside==0 && inside>0 name:[NSString stringWithFormat:@"pixels mask %lu: active changes, centre and other arms identical",(unsigned long)expected]];
+    if(index==0 || index==4){
+      NSString *folder=DocumentsPath(@"SkinFrames");
+      NSString *file=[NSString stringWithFormat:@"%@-dpad-%lu.png",self.result[@"name"],(unsigned long)expected];
+      [UIImagePNGRepresentation(image) writeToFile:[folder stringByAppendingPathComponent:file] atomically:YES];
+    }
+    CFRelease(pixels);index++;
+  }
+  self.result[@"directionSweepWithPixelChecksSeconds"]=@(CACurrentMediaTime()-start);
+  self.result[@"pressurePreparedBytes"]=[self.renderer valueForKey:@"pressureBytes"];
+  [self check:[[self.renderer valueForKey:@"pressureBytes"] unsignedIntegerValue]<=32u*1024u*1024u name:@"pressure resources stay within 32 MiB per layout"];
+  [self end:@"direction-sweep" cancel:YES];
+  BOOL clear=YES;for(id region in regions)clear=clear && ![[region valueForKey:@"down"] boolValue];
+  [self check:clear name:@"direction cancellation resets all four regions"];
+  CFRelease(reference);
 }
 - (void)chooseSkin:(NSString *)skin {
   [self.controller menuPressed];
@@ -239,7 +342,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       if(a==nil){self.result[@"skinChecks"]=self.checks;SkinProbeRestoreControllers();self.completion();return;}
       id layers=[self layers:a];
       CALayer *image=[layers valueForKey:@"image"];
-      BOOL separated=image.contents!=nil || [layers valueForKey:@"shape"]!=nil;
+      BOOL separated=image.contents!=nil || [layers valueForKey:@"shape"]!=nil || [[layers valueForKey:@"pressureRegions"] count]>0;
       if(!separated && self.preparationAttempts++<20){self.stage--;[self next];break;}
       [self check:separated name:@"button artwork separated before contact"];
       self.result[@"extracted"]= [[layers valueForKey:@"extracted"] boolValue] ? @YES : @NO;
@@ -274,6 +377,7 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
     case 6: [self check:![self pressed:a] && [self deliveredButtons]==0 name:@"cancellation releases visual and core state"];
       [self capture:@"released"]; break;
     case 7:
+      [self verifyDirectionalArtwork];
       [self touch:@"change-skin" at:[self center:a] begin:YES];
       [self chooseSkin:@"default"];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"in-game skin replacement clears a held button"];
@@ -381,10 +485,9 @@ static void SkinProbeBuildFlatSkin(NSString *folder) {
       if([self.scenario[@"skinPress"] isEqual:@"press-flat"]){
         LibretroLaidOutItem *button=[self primaryButton];
         id layers=[self layers:button];
-        [self check:![[layers valueForKey:@"extracted"] boolValue]
-              name:@"complex catalog background refused without a duplicated animated face"];
-        LibretroSkin *skin=[self.session valueForKey:@"currentSkin"];
-        [self check:[skin.warnings containsObject:LibretroSkinWarningPaintedControls] name:@"complex skin explains that an adapted variant is needed"];
+        if([[layers valueForKey:@"pressureRegions"] count]==0 && self.preparationAttempts++<40){self.stage--;[self next];break;}
+        [self check:![[layers valueForKey:@"extracted"] boolValue] && [[layers valueForKey:@"pressureRegions"] count]>0
+              name:@"complex catalog background animates locally without inferred backplate"];
       }
       [self advance];break;
     default:

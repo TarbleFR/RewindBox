@@ -30,6 +30,8 @@ SCENARIOS = [
     {'name':'press-flat-nes','core':'neotest','console':'nes','content':'content/Shader Pattern.ntc','skinPress':'press-flat','expect':'run'},
     {'name':'press-pce','core':'mednafen_pce_fast','console':'pce','content':'content/probe-pce.pce','skinPress':'default','expect':'run'},
     {'name':'press-n64','core':'neotest','console':'n64','content':'content/Shader Pattern.ntc','skinPress':'default','expect':'run'},
+    *[{'name':skin,'core':'neotest','console':'nes','content':'content/Shader Pattern.ntc','skinPress':skin,'expect':'run'}
+      for skin in ['press-complex','press-texture','press-authored','press-alpha']],
 ]
 
 
@@ -99,6 +101,6 @@ def main():
     (evidence/'verdict.json').write_text(json.dumps({'source':args.label,'problems':problems,
         'physicalDeviceValidated':False,'contacts':'scripted UIKit','controller':'Apple virtual GCController'},indent=2))
     if problems:raise SystemExit('\n'.join(problems))
-    print('Nine actual embedded-session skin scenarios passed (iPhone and iPad Simulator).')
+    print('Seventeen actual embedded-session skin scenarios passed (iPhone and iPad Simulator).')
 
 if __name__=='__main__':main()

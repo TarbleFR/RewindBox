@@ -394,7 +394,10 @@ static NSString *ReservationReport(void) {
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
   BOOL pressTest=NO;
   for (NSDictionary *scenario in _scenarios) if(scenario[@"skinPress"]!=nil)pressTest=YES;
-  if(pressTest) SkinProbeBuildFlatSkin(DocumentsPath(@"Libretro/Skins/press-flat"));
+  if(pressTest) {
+    SkinProbeBuildFlatSkin(DocumentsPath(@"Libretro/Skins/press-flat"));
+    SkinProbeBuildCompositeSkins(DocumentsPath(@"Libretro/Skins"));
+  }
 #endif
   NSString *skinFixtures = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"SkinFixtures"];
   for (NSString *entry in [files contentsOfDirectoryAtPath:skinFixtures error:nil]) {

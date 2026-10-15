@@ -734,6 +734,16 @@ static NSString *SkinImagePath(NSString *root, id name) {
   BOOL translucent = NO;
   if (SkinBool(object[@"translucent"], &translucent)) representation.translucent = translucent;
   representation.backgroundPath = [self backgroundPathFromAssets:object[@"assets"]];
+  // DeltaCore ControllerSkin.image(for:assetSize:isPressed:) uses a sibling
+  // filename, not an item JSON field. Resolve it through the same sandbox
+  // and content checks as every normal resource (including symlinks).
+  if (representation.backgroundPath != nil) {
+    NSString *relative = [representation.backgroundPath substringFromIndex:self.root.length + 1];
+    NSString *ext = relative.pathExtension;
+    NSString *pressed = [relative.stringByDeletingPathExtension stringByAppendingString:@"_pressed"];
+    if (ext.length > 0) pressed = [pressed stringByAppendingPathExtension:ext];
+    representation.pressedBackgroundPath = SkinImagePath(self.root, pressed);
+  }
   self.itemPrefix = [NSString stringWithFormat:@"%@-%@-%@-", device, displayType,
                                                LibretroSkinOrientationName(orientation)];
   NSArray<LibretroSkinItem *> *items = [self itemsFromObject:object[@"items"]

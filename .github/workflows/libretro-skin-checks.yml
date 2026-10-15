@@ -1,0 +1,57 @@
+name: Libretro directional skin checks
+'on':
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: libretro-directional-skins-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Frontend behaviour and pressure pixel tests
+      run: python3 test/libretro_frontend_test.py
+    - name: Compile and link every bridge source for iPhone
+      if: ${{ !cancelled() }}
+      run: python3 test/libretro_ios_syntax_test.py
+    - name: Frontend UI source contract
+      if: ${{ !cancelled() }}
+      run: python3 test/libretro_frontend_ui_contract_test.py
+  skin-press:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - uses: actions/download-artifact@v4
+      with:
+        name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+        run-id: '38638115521'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/libretro
+    - name: Fetch pinned simulator inputs
+      run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+    - name: Actual sessions, per-arm pixels and existing input lifecycle
+      run: |
+        python3 test/libretro_skin_press_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+          --evidence evidence/skin-press --label "${GITHUB_SHA}"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: libretro-directional-skins-${{ github.sha }}
+        path: evidence/skin-press/
+        retention-days: 14
+        if-no-files-found: warn

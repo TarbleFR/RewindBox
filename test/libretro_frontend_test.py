@@ -25,6 +25,7 @@ PORTABLE_FRONTEND = (
     'LibretroFrontendStore.m',
     'LibretroSkin.m',
     'LibretroSkinButtonCrop.m',
+    'LibretroSkinPressure.m',
     'LibretroSkinLayout.m',
     'LibretroChromeLayout.m',
     'LibretroDefaultSkins.m',

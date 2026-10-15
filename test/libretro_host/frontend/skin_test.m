@@ -862,6 +862,27 @@ static void TestErrors(void) {
   CHECK(skin.debug && ![skin.warnings containsObject:LibretroSkinWarningDebugMissing], @"debug read");
 }
 
+static void TestPressedImages(void) {
+  for (NSString *name in @[@"controls.png",@"controls.pdf",@"controls",@"sub/controls.PNG"]) {
+    NSString *ext=name.pathExtension;
+    NSString *pressed=[name.stringByDeletingPathExtension stringByAppendingString:@"_pressed"];
+    if(ext.length)pressed=[pressed stringByAppendingPathExtension:ext];
+    NSDictionary *rep=@{@"mappingSize":Mapping(360,640),@"assets":@{@"large":name}};
+    NSString *root=WriteSkin(@"pressed",Info(@"nes",Phone(@"standard",@"portrait",rep)),
+      @{name:PNGData(),pressed:PDFData(),@"controls_selected.png":PNGData()});
+    LibretroSkinRepresentation *parsed=Parse(root,NULL).representations.firstObject;
+    CHECK([parsed.pressedBackgroundPath isEqual:[root stringByAppendingPathComponent:pressed]],
+          @"Delta sibling _pressed: %@ (type detected by content)",name);
+    [NSFileManager.defaultManager removeItemAtPath:parsed.pressedBackgroundPath error:nil];
+    parsed=Parse(root,NULL).representations.firstObject;
+    CHECK(parsed.pressedBackgroundPath==nil,@"absent pressed state never becomes selected");
+    [NSFileManager.defaultManager createSymbolicLinkAtPath:[root stringByAppendingPathComponent:pressed]
+      withDestinationPath:[workDirectory stringByAppendingPathComponent:@"outside.png"] error:nil];
+    parsed=Parse(root,NULL).representations.firstObject;
+    CHECK(parsed.pressedBackgroundPath==nil,@"pressed resource cannot escape through a symlink");
+  }
+}
+
 static void TestAuthor(void) {
   NSData *metadata = [NSJSONSerialization dataWithJSONObject:@{@"author" : @"Jane Doe", @"license" : @"GPL-3.0"}
                                                      options:0
@@ -893,6 +914,7 @@ int main(int argc, const char *argv[]) {
     TestItemsAndTouch();
     TestRepresentationFallbacks();
     TestImages();
+    TestPressedImages();
     TestErrors();
     TestAuthor();
     // The input map behind the canonical names (sanity: 3DS HOME refused).
