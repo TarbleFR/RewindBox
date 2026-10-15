@@ -100,6 +100,18 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
   NSUInteger renderers=0;for(UIView *view in self.renderer.superview.subviews)
     if([view isKindOfClass:LibretroSkinRenderer.class])renderers++;
   [self check:renderers==1 name:@"exactly one skin renderer is attached"];
+  NSUInteger artwork=0; BOOL visible=YES;
+  for(id layers in [self.renderer valueForKey:@"items"]) {
+    CALayer *container=[layers valueForKey:@"container"], *face=[layers valueForKey:@"artwork"];
+    for(NSString *key in @[@"image",@"knobImage"]) {
+      CALayer *image=[layers valueForKey:key];
+      if(image==nil)continue;
+      artwork++;
+      visible=visible && image.contents!=nil && !image.hidden && !container.hidden && !face.hidden &&
+        container.opacity>0 && CGRectIntersectsRect(self.renderer.bounds,image.frame);
+    }
+  }
+  [self check:artwork>=14 && visible name:@"all fourteen original PDF button/stick instances are loaded and visible"];
 }
 - (void)start:(BOOL)relaunch {
   NSString *metadata=DocumentsPath([NSString stringWithFormat:@"Libretro/Skins/%@/neostation-skin.json",LoadingSkinID]);
@@ -210,6 +222,12 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
 @end
 static void RunSkinLoadingProbe(LibretroSession *session,NSDictionary *scenario,NSMutableDictionary *result,dispatch_block_t completion){
   SkinLoadingRunner *runner=[SkinLoadingRunner new];runner.session=session;runner.result=result;
-  runner.checks=[NSMutableArray array];result[@"skinLoadingChecks"]=runner.checks;runner.finish=completion;
+  runner.checks=[NSMutableArray array];result[@"skinLoadingChecks"]=runner.checks;
+  // Like the pressure suite, remove only the Simulator's idle gamepad from
+  // this test app's enumeration. Production correctly hides buttons for it.
+  result[@"simulatorControllersExcluded"]=@(GCController.controllers.count);
+  SkinProbeIsolateControllers();
+  [[session valueForKey:@"input"] pollControllers];[runner.controller updateControlsVisibility];
+  runner.finish=^{SkinProbeRestoreControllers();completion();};
   [runner start:[scenario[@"skinLoading"] isEqual:@"relaunch"]];
 }

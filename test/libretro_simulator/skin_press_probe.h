@@ -509,12 +509,25 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     [self.renderer.layer renderInContext:ctx.CGContext];}];};
   NSData *rest=UIImagePNGRepresentation(snapshot());
   [self.renderer setPressedItems:pressed];[self.renderer setDPadDirections:directions];
-  BOOL all=YES;for(id layers in [self.renderer valueForKey:@"items"]){
+  BOOL all=YES, neutral=YES; NSUInteger illustrated=0;
+  NSMutableArray *unillustrated=[NSMutableArray array];
+  for(id layers in [self.renderer valueForKey:@"items"]){
     LibretroLaidOutItem *item=[layers valueForKey:@"laidOut"];
-    if(item.item.kind==LibretroSkinItemKindButton && item.item.inputs.count>0)
-      all=all && [[layers valueForKey:@"pressedState"] boolValue];
+    if(item.item.kind!=LibretroSkinItemKindButton || item.item.inputs.count==0)continue;
+    BOOL movable=[layers valueForKey:@"image"]!=nil || [layers valueForKey:@"shape"]!=nil ||
+      [[layers valueForKey:@"pressureRegions"] count]>0;
+    if(movable){illustrated++; all=all && [[layers valueForKey:@"pressedState"] boolValue];}
+    else {
+      // E.g. DualShocked's fast-forward hit area covers the game screen.
+      // Never invent a movable face or distort gameplay for a touch-only area.
+      [unillustrated addObject:item.item.identifier];
+      neutral=neutral && ![[layers valueForKey:@"pressedState"] boolValue] &&
+        CATransform3DIsIdentity(((CALayer *)[layers valueForKey:@"artwork"]).transform);
+    }
   }
-  [self check:all && buttons>0 name:[NSString stringWithFormat:@"intensity %lu: every mapped button holds its own pressed artwork",(unsigned long)level]];
+  self.result[@"touchOnlyAreasWithoutIndependentArtwork"]=unillustrated;
+  [self check:all && illustrated>0 && buttons>=illustrated name:[NSString stringWithFormat:@"intensity %lu: every illustrated mapped button holds its own pressed artwork",(unsigned long)level]];
+  [self check:neutral name:@"touch-only areas keep gameplay and ambiguous artwork undeformed"];
   NSData *image=UIImagePNGRepresentation(snapshot());
   [self.intensityFrames addObject:image];
   [image writeToFile:DocumentsPath([NSString stringWithFormat:@"SkinFrames/%@-intensity-%lu.png",self.result[@"name"],(unsigned long)level]) atomically:YES];
