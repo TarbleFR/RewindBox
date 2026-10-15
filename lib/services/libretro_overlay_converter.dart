@@ -135,7 +135,7 @@ class LibretroOverlayConverter {
     if (gameType == null) problems.add('console $console has no converted layout');
     if (cfg.contains('#include')) problems.add('#include is not supported');
     var count = int.tryParse(conf['overlays'] ?? '') ?? 0;
-    if (count < 1 || count > 64) {
+    if (count < 0 || count > 64) {
       problems.add('overlay count outside 1...64');
       count = 0;
     }

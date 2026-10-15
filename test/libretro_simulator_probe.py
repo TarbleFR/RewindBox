@@ -98,7 +98,7 @@ DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', '
 # The bridge's frameworks, plus MetalKit for the external_display coordinator
 # (its podspec's frameworks: it preserves an MTKView's drawable on the move).
 FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'MetalKit', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
-              'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics')
+              'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics', 'UniformTypeIdentifiers')
 # Lot 1 (docs/libretro-consoles-lot1.md): the cores added for the consoles
 # of the Consoles tab that only the RetroArch app ran. Each runs a test
 # program the probe writes itself (build_lot1_content: a few instructions

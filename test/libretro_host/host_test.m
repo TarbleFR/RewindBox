@@ -248,7 +248,8 @@ int main(int argc, const char *argv[]) {
     CHECK([host loadStateFromSlot:1 error:&error], "state loaded from slot 1");
     [host runFrame];
     CHECK(delegate.pixel0 == 11, "restored state resumes at frame 11");
-    [host applyCheats:@[ @"CODE-1", @"", @"CODE-2" ]];
+    [host applyCheats:@[ @"CODE-1", @"", @"CODE-2",
+      [@"A" stringByPaddingToLength:256 withString:@"A" startingAtIndex:0], @"é" ]];
     CHECK(host.supportsDiskControl && host.diskCount == 2, "disk control interface registered");
     CHECK([host selectDisk:1] && host.diskIndex == 1, "disk 2 selected");
     CHECK([[host labelForDisk:1] isEqualToString:@"Test disc 2"], "disk label read");
@@ -261,7 +262,7 @@ int main(int argc, const char *argv[]) {
     CHECK(sram.length == 2048 && bytes[1] == 0x5A, "save RAM content");
     CHECK(sram.length == 2048 && bytes[2] == 'b', "NeoStation default option reached the core");
     CHECK(sram.length == 2048 && bytes[3] == 0, "JIT reported unavailable");
-    CHECK(sram.length == 2048 && bytes[4] == 2, "only non-empty cheats applied");
+    CHECK(sram.length == 2048 && bytes[4] == 2, "empty, oversized and non-ASCII cheats never reach the core");
     CHECK(sram.length == 2048 && bytes[5] == 1, "disk index persisted in core state");
     CHECK(sram.length == 2048 && bytes[10] == 0x03, "input bitmask delivered");
     CHECK([saveRAM.stringByDeletingLastPathComponent.lastPathComponent isEqualToString:@"NeoTest"],

@@ -20,6 +20,8 @@ CLASSES = ROOT / 'packages/libretro_internal_bridge/ios/Classes'
 LIBRETRO = ROOT / 'packages/libretro_internal_bridge/ios/ThirdParty/include/libretro'
 TESTS = ROOT / 'test/libretro_host/frontend'
 PORTABLE_FRONTEND = (
+    'LibretroCheats.m',
+    'LibretroCheatCatalog.m',
     'LibretroGeometry.m',
     'LibretroInputMap.m',
     'LibretroFrontendStore.m',

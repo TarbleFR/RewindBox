@@ -43,7 +43,7 @@ DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', '
 # The podspec's frameworks, plus ImageIO and CoreGraphics used by the skin
 # code. Modules imported by the Objective-C sources are also auto-linked.
 FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
-              'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics')
+              'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics', 'UniformTypeIdentifiers')
 BRIDGE_SYMBOL = 'Libretro'
 
 

@@ -5,6 +5,7 @@
 #import "LibretroAudioOutput.h"
 #import "LibretroChromeLayout.h"
 #import "LibretroCoreHost.h"
+#import "LibretroCheatMenu.h"
 #import "LibretroCoreOptions.h"
 #import "LibretroDefaultSkins.h"
 #import "LibretroFrontendMenu.h"
@@ -137,6 +138,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSMutableArray<dispatch_block_t> *_stopCompletions;
   NSMutableArray<NSMutableDictionary<NSString *, id> *> *_cheats;
   NSString *_cheatsPath;
+  LibretroCheatMenu *_cheatMenu;
   unsigned _diskCount;
   unsigned _diskIndex;
   NSArray<NSString *> *_diskLabels;
@@ -2260,7 +2262,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       [cheats addObject:[@{
         @"name" : [item[@"name"] isKindOfClass:NSString.class] ? item[@"name"] : code,
         @"code" : code,
-        @"enabled" : @([item[@"enabled"] boolValue]),
+        @"enabled" : @NO,
+        @"selected" : @([item[@"enabled"] boolValue]),
       } mutableCopy]];
     }
   }
@@ -3047,58 +3050,17 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (LibretroMenuPage *)cheatsPage {
-  __weak LibretroSession *weakSelf = self;
-  return [[LibretroMenuPage alloc]
-      initWithTitle:[self text:@"cheats"]
-            builder:^NSArray<LibretroMenuSection *> * {
-              LibretroSession *session = weakSelf;
-              if (session == nil) return @[];
-              NSMutableArray<LibretroMenuRow *> *rows = [NSMutableArray array];
-              NSArray *cheats = [session->_cheats copy];
-              for (NSUInteger index = 0; index < cheats.count; index++) {
-                NSMutableDictionary *cheat = cheats[index];
-                LibretroMenuRow *row = [LibretroMenuRow
-                    toggleWithTitle:cheat[@"name"]
-                                 on:[cheat[@"enabled"] boolValue]
-                             toggle:^(__unused LibretroMenuPage *page, BOOL on) {
-                               cheat[@"enabled"] = @(on);
-                               [session saveAndApplyCheats];
-                             }];
-                row.detail = cheat[@"code"];
-                row.remove = ^(LibretroMenuPage *page) {
-                  [session->_cheats removeObjectIdenticalTo:cheat];
-                  [session saveAndApplyCheats];
-                  [page rebuild];
-                };
-                [rows addObject:row];
-              }
-              LibretroMenuSection *list = [LibretroMenuSection sectionWithTitle:nil rows:rows];
-              list.footer = [session text:@"cheatsHelp"];
-              LibretroMenuRow *add = [LibretroMenuRow
-                  rowWithTitle:[session text:@"addCheat"]
-                        action:^(LibretroMenuPage *page) {
-                          [page askWithTitle:[session text:@"addCheat"]
-                                      fields:@[ [session text:@"cheatName"], [session text:@"cheatCode"] ]
-                                      secure:@[ @NO, @NO ]
-                                      action:[session text:@"add"]
-                                 cancelTitle:[session text:@"cancel"]
-                                     handler:^(NSArray<NSString *> *values) {
-                                       NSString *code = [values.lastObject
-                                           stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-                                       if (code.length == 0) return;
-                                       NSString *name = [values.firstObject
-                                           stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-                                       [session->_cheats addObject:[@{
-                                         @"name" : name.length > 0 ? name : code,
-                                         @"code" : code,
-                                         @"enabled" : @YES,
-                                       } mutableCopy]];
-                                       [session saveAndApplyCheats];
-                                       [page rebuild];
-                                     }];
-                        }];
-              return @[ list, [LibretroMenuSection sectionWithTitle:nil rows:@[ add ]] ];
-            }];
+  if (_cheatMenu == nil) {
+    __weak LibretroSession *weakSelf = self;
+    _cheatMenu = [[LibretroCheatMenu alloc] initWithDirectory:_configuration.cheatsDirectory
+      console:_console core:_configuration.coreId ?: @"" contentPath:_host.loadedContentPath ?: _configuration.contentPath
+      legacy:[_cheats copy] text:^NSString *(NSString *key) { return [weakSelf text:key] ?: key; }
+      apply:^(NSArray<NSString *> *codes) {
+        LibretroSession *session = weakSelf; if (!session) return;
+        [session enqueue:^{ [session->_host applyCheats:codes]; }];
+      }];
+  }
+  return [_cheatMenu rootPage];
 }
 
 - (LibretroMenuPage *)achievementsPage {

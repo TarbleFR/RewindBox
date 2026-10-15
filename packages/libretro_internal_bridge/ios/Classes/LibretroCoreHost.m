@@ -1085,8 +1085,15 @@ static bool HostEnvironment(unsigned command, void *data) {
   if (!_contentLoaded) return;
   _symbols.retro_cheat_reset();
   unsigned index = 0;
-  for (NSString *code in codes) {
-    if (code.length == 0) continue;
+  BOOL mgba = [_corePath.lastPathComponent hasPrefix:@"mgba"];
+  for (id raw in codes) {
+    if (![raw isKindOfClass:NSString.class] || index >= 99) continue;
+    NSString *code = raw;
+    NSData *ascii = [code dataUsingEncoding:NSASCIIStringEncoding allowLossyConversion:NO];
+    // Nestopia/Snes9x use strcpy into 256-byte stack buffers. The shared
+    // adapter splits independent lines before this final ABI boundary.
+    if (ascii.length == 0 || ascii.length > (mgba ? 4096u : 255u) ||
+        [code rangeOfString:[NSString stringWithFormat:@"%C", (unichar)0]].location != NSNotFound) continue;
     _symbols.retro_cheat_set(index++, true, code.UTF8String);
   }
 }
