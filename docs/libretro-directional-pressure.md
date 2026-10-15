@@ -25,6 +25,8 @@ loads a representation-wide sibling with `_pressed` before its extension.
 NeoStation now recognizes that sibling of its chosen normal resource, with
 the same path, symlink and image-content validation. This is not a JSON
 `pressed` property; Manic `asset.selected` remains a switch selection state.
+The sibling belongs to the selected normal resource, not an unrelated
+resolution or device variant.
 
 ## Shared rendering path
 
@@ -56,6 +58,9 @@ the same path, symlink and image-content validation. This is not a JSON
   extended touch edges. Generation checks discard results after layout or
   skin replacement, and cancelled jobs stop before preparing more regions.
   The common renderer has no console/core allowlist.
+- Image readiness is reset when a layer is cleared or requests a new image.
+  Reopening a skin after cache eviction waits for its authored pressed image
+  again instead of preparing a fallback from a stale readiness flag.
 
 ## Limits
 
@@ -72,6 +77,9 @@ a fallback halo. The generic painted-control import warning stays applicable.
 Sticks still require an independent cap to animate that cap. Initial image
 preparation is asynchronous: an early contact is delivered normally and its
 current visual state is applied when preparation finishes.
+The real Ignited archive is exercised in portrait. Its landscape overlapping
+button/combination zones are not covered by that result and can remain static;
+the separate four-size layout test uses the original textured fixture.
 
 ## Changed files
 
@@ -110,6 +118,8 @@ stale preparation cancellation. Existing tests retain multitouch, cancellations,
 core polls, menu, rotation cancellation, backgrounding, in-game skin changes,
 sticks and Apple's virtual controller. Physical touch/controller hardware
 and device frame pacing require a separate iPhone test.
+The authored fixture also closes, evicts the image cache and reopens the same
+skin; its prepared pressed pixels must remain identical after reloading.
 
 The focused `libretro-skin-checks.yml` workflow runs the affected native
 frontend tests, full iPhone bridge compile/link, UI contracts and actual
@@ -117,5 +127,84 @@ embedded-session probes. Unchanged Dart/library sources, dependencies and
 core packages retain the Build 460 validation references in
 `build460-plan.md`; this cycle does not claim those checks ran again.
 
-Execution results and exact candidate/run identities will be recorded after
-the CI finishes. No new IPA is asserted by this implementation report.
+## Completed validation — 15 October 2026
+
+Tested product source: `9e19d947a9dd5595cf09701fcf3c08024b3787c4`, branch
+`Claude`. Both jobs passed in
+[run 38724927589](https://github.com/TarbleFR/neostation-ios/actions/runs/38724927589).
+The final documentation/provenance commit does not change product sources.
+
+| Check | Result and provenance |
+| --- | --- |
+| iPhone native bridge | All 71 sources compiled and linked again on the final candidate; no bridge symbol left undefined. This is not a complete IPA export. |
+| Frontend UI source contract | Executed and passed on the final candidate. |
+| Native frontend executables | All 16 passed in [run 38719706135](https://github.com/TarbleFR/neostation-ios/actions/runs/38719706135), source `b3538c127fe54799a3822cfd27f853b2a0ac246f`: 720 pressure-pixel checks, 6,025 touch-tracker checks, parser, extraction, layout, compatibility, mapping and lifecycle tests. Reused on the final candidate only after closed-tree and toolchain identity verification; not claimed as re-executed. That reference run's separate UIKit job failed and remains recorded. |
+| UIKit embedded sessions | 17 sessions, 891 checks, zero failures, executed on the final candidate. |
+| D-pad rendered pixels | 13 D-pad cases × 8 cardinal/diagonal states = 104 comparisons. Zero changed pixels outside the active regions. Rest versus original unsplit artwork: maximum difference zero in every case, including alpha. Release exactly restores rest. |
+| Authored-image reload | Clear renderer, evict memory cache, reselect the same skin: waits for the pressed image and retains identical prepared pressed pixels on both simulated devices. |
+| Layout changes | Four additional sizes per device (390×844, 844×390, 768×1024, 1024×768), stale preparation cancellation, aligned cuts, unchanged mapped diagonal inputs and controller-hidden artwork. |
+| Reuse gate | Two fail-closed unit tests passed in CI and after updating its iPhone reference to this candidate. |
+
+Environment: Xcode 26.3 (`17C529`), macOS runner image `20260907.0337.1`,
+iOS 26.2 Simulator, iPhone SE (3rd generation) and iPad mini (A17 Pro).
+The nine iPhone/eight iPad sessions cover:
+
+- Real DeSmuME with the pinned Manic DS skin and original test content.
+- PSX controls with the pinned Manic PS1 skin and the NeoTest input core.
+- NES opaque extraction fixture (iPhone only).
+- Real Beetle PCE Fast with generated controls and original test content.
+- N64 controls/stick with NeoTest and generated controls.
+- Pinned Ignited NES composite, plus original textured, authored `_pressed`
+  and translucent fixtures with the NES profile/NeoTest core.
+
+PSX/N64/NES profile coverage is not a claim that their production cores were
+run in this matrix. The shipped 34-core package is unchanged. Contacts use
+scripted UIKit events through the production overlay/tracker/session; input
+assertions observe actual core polls. The controller is Apple's virtual
+`GCController`, not Bluetooth/USB hardware.
+
+Across the 13 D-pad cases, average CPU time to submit each of 500 direction
+updates was 4.03–11.92 microseconds. The maximum reserved pressure-state
+allocation was 17,810,848 bytes (16.99 MiB), below the 32 MiB layout budget.
+These figures exclude total application memory and GPU presentation latency;
+they do not establish device FPS, 120 Hz pacing or physical touch latency.
+
+### Failures retained and corrected
+
+Earlier failed runs remain available. The authored fixture originally used
+UIImage point dimensions after decoding a higher-resolution PNG; correcting
+its explicit 360×250 canvas restored the intended `_pressed` correspondence.
+Strict rest-versus-original comparisons then exposed real alpha seams at
+fractional cut edges. Sampling aprons and a shared image coordinate plane
+preserve texture sampling; aligning cuts and opacity groups to display
+pixels removes complementary half-alpha gaps. The rest-pixel threshold was
+not relaxed: the final measured difference is zero. Layout containment uses
+only a 1e-7-point tolerance for CALayer floating-point round trips.
+
+[Run 38722064566](https://github.com/TarbleFR/neostation-ios/actions/runs/38722064566)
+records the native-pixel alpha-seam failure;
+[run 38723429539](https://github.com/TarbleFR/neostation-ios/actions/runs/38723429539)
+passes the focused correction, and
+[run 38723827570](https://github.com/TarbleFR/neostation-ios/actions/runs/38723827570)
+passes all 17 sessions before the additional cache-readiness regression test.
+
+### Evidence and remaining device work
+
+Final artifact: `libretro-directional-skins-9e19d947a9dd5595cf09701fcf3c08024b3787c4`,
+[artifact 11967803588](https://github.com/TarbleFR/neostation-ios/actions/runs/38724927589/artifacts/11967803588),
+21,099,404 bytes, ZIP SHA-256
+`81a893b7cd49ff7b01ddd4a60f0a986dbaf8c0553eca05b6ea40f746862016ff`.
+GitHub retention ends 29 October 2026. It contains the verdict, raw per-device
+reports, logs, full session images and D-pad rest/cardinal/diagonal/released
+PNG captures. Downloaded size, digest and source were verified independently.
+
+The comparative proof image uses those actual captured control states. Its
+last column amplifies the per-pixel RGBA difference eightfold; it is not an
+animation or a photograph of a device. Core Animation model-layer captures
+prove state selection and unchanged surrounding pixels, not display timing.
+
+Still required: the exact Atomic Pink archive, physical iPhone testing
+(including the maintainer's iPhone 16 Pro Max), Bluetooth/USB controllers,
+device frame pacing, and additional unusual/overlapping skin geometries.
+No new IPA is produced by this implementation cycle; Build 460 predates these
+directional refinements and must not be presented as containing them.
