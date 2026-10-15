@@ -547,6 +547,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   _backgroundLayer.contents = nil;
   _pressedBackgroundLayer.contents = nil;
   [_backgroundLayer setValue:nil forKey:LibretroSkinImageKey];
+  [_pressedBackgroundLayer setValue:nil forKey:LibretroSkinImageKey];
   for (LibretroSkinItemLayers *layers in _items) [layers.container removeFromSuperlayer];
   [_items removeAllObjects];
   _backgroundLayer.mask = nil;
@@ -588,6 +589,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     _backgroundLayer.hidden = YES;
     _backgroundLayer.contents = nil;
     [_backgroundLayer setValue:nil forKey:LibretroSkinImageKey];
+    _pressedBackgroundLayer.contents = nil;
+    [_pressedBackgroundLayer setValue:nil forKey:LibretroSkinImageKey];
   }
 }
 
@@ -853,8 +856,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CALayer *cap = layers.knobImage ?: layers.knob;
   BOOL movable = stick ? cap != nil : (layers.image != nil || layers.shape != nil);
   BOOL active = down && !_controlsHidden && !_editing && movable;
-  // An unisolatable painted control keeps the old static feedback, never
-  // a duplicate animated image. Separated artwork has no primary halo.
+  // An ambiguous painted control stays intact. Neither an artificial glow
+  // nor a duplicate face substitutes for safely identified artwork.
   layers.highlightShape.hidden = YES;
   layers.highlightImage.hidden = YES;
   CALayer *face = stick ? cap : layers.artwork;

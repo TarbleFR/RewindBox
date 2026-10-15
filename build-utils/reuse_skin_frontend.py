@@ -8,11 +8,15 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = '871986710377f54ba92b10e9a7c5b7d47adddfa8'
 RUN = 38715089014
+IPHONE_REFERENCE = '2c9ef8f8a2ea0cef5022af7d83215c42fd7c0235'
+IPHONE_RUN = 38716623483
+RENDERER = 'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m'
 NON_INPUTS = {
     'AGENTS.md', '.github/workflows/libretro-skin-checks.yml',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
@@ -28,19 +32,20 @@ def tree(revision):
             for metadata, path in [entry.split(b'\t', 1)]}
 
 
-def same_inputs(before, after):
+def same_inputs(before, after, iphone=False):
     return all(before.get(p) == after.get(p) for p in before.keys() | after.keys()
-               if p not in NON_INPUTS and not p.startswith('docs/'))
+               if (p not in NON_INPUTS or (iphone and p == RENDERER)) and not p.startswith('docs/'))
 
 
-def phase_passed(run, jobs):
-    if run.get('head_sha') != REFERENCE or run.get('status') != 'completed':
+def phase_passed(run, jobs, iphone=False):
+    if run.get('head_sha') != (IPHONE_REFERENCE if iphone else REFERENCE) or run.get('status') != 'completed':
         return False
     matches = [j for j in jobs.get('jobs', []) if j.get('name') == 'native']
     if len(matches) != 1:
         return False
     steps = matches[0].get('steps', [])
-    wanted = [s for s in steps if s.get('name') == 'Frontend behaviour and pressure pixel tests']
+    name = 'Compile and link every bridge source for iPhone' if iphone else 'Frontend behaviour and pressure pixel tests'
+    wanted = [s for s in steps if s.get('name') == name]
     setup = [s for s in steps if s.get('name') == 'Run maxim-lobanov/setup-xcode@v1']
     return (len(wanted) == len(setup) == 1 and
             all(s.get('status') == 'completed' and s.get('conclusion') == 'success' for s in wanted + setup))
@@ -54,24 +59,27 @@ def api(path):
 
 
 def main():
+    iphone = '--iphone' in sys.argv[1:]
+    reference, run_id = (IPHONE_REFERENCE, IPHONE_RUN) if iphone else (REFERENCE, RUN)
     try:
-        if not same_inputs(tree(REFERENCE), tree('HEAD')):
-            raise ValueError('a closed-tree portable input changed')
+        if not same_inputs(tree(reference), tree('HEAD'), iphone):
+            raise ValueError('a closed-tree input changed')
         tools = subprocess.check_output(['xcodebuild', '-version'], text=True)
         if tools.strip() != 'Xcode 26.3\nBuild version 17C529':
             raise ValueError('Xcode identity differs')
         if os.environ.get('ImageVersion') != '20260907.0337.1':
             raise ValueError('macOS runner image differs')
-        run = api(f'actions/runs/{RUN}')
-        jobs = api(f'actions/runs/{RUN}/jobs?per_page=100')
-        if not phase_passed(run, jobs):
+        run = api(f'actions/runs/{run_id}')
+        jobs = api(f'actions/runs/{run_id}/jobs?per_page=100')
+        if not phase_passed(run, jobs, iphone):
             raise ValueError('successful phase provenance missing')
-        print(json.dumps({'reusedPortablePhase': RUN, 'source': REFERENCE,
+        print(json.dumps({'reusedPhase': 'iphone-compile-link' if iphone else 'portable', 'run': run_id, 'source': reference,
                           'overallRunConclusion': run.get('conclusion'), 'xcode': tools.strip(),
                           'runnerImage': os.environ['ImageVersion'], 'inputs': 'identical closed Git tree except listed non-inputs'}))
-    except (OSError, ValueError, KeyError) as error:
-        print('Portable phase reuse unavailable; executing tests:', str(error), flush=True)
-        subprocess.run(['python3', 'test/libretro_frontend_test.py'], cwd=ROOT, check=True)
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+        print('Phase reuse unavailable; executing checks:', str(error), flush=True)
+        script = 'test/libretro_ios_syntax_test.py' if iphone else 'test/libretro_frontend_test.py'
+        subprocess.run(['python3', script], cwd=ROOT, check=True)
 
 
 if __name__ == '__main__':

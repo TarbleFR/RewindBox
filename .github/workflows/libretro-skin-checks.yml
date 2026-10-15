@@ -30,7 +30,9 @@ jobs:
         python3 build-utils/reuse_skin_frontend.py
     - name: Compile and link every bridge source for iPhone
       if: ${{ !cancelled() }}
-      run: python3 test/libretro_ios_syntax_test.py
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/reuse_skin_frontend.py --iphone
     - name: Frontend UI source contract
       if: ${{ !cancelled() }}
       run: python3 test/libretro_frontend_ui_contract_test.py

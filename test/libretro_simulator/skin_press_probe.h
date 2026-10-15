@@ -64,19 +64,21 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   for(NSString *name in @[@"press-texture",@"press-authored",@"press-alpha"]){
     NSString *folder=[root stringByAppendingPathComponent:name];
     [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
-    UIGraphicsImageRenderer *draw=[[UIGraphicsImageRenderer alloc] initWithSize:original.size];
+    // PNGs don't retain UIImage.scale when read back from a plain filename.
+    // Use the JSON mapping size, not the reloaded image's pixel-size points.
+    UIGraphicsImageRenderer *draw=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(360,250)];
     BOOL alpha=[name isEqual:@"press-alpha"];
     UIImage *normal=[draw imageWithActions:^(UIGraphicsImageRendererContext *ctx){
-      [original drawAtPoint:CGPointZero blendMode:kCGBlendModeNormal alpha:alpha ? 0.6 : 1];
+      [original drawInRect:CGRectMake(0,0,360,250) blendMode:kCGBlendModeNormal alpha:alpha ? 0.6 : 1];
       [[UIColor colorWithWhite:0.9 alpha:alpha ? 0.15 : 0.3] setFill];
       for(int y=0;y<250;y+=3)for(int x=0;x<360;x+=3)
-        if((x/3+y/3)%2==0)UIRectFill(CGRectMake(x,y,1,1));
+        if((x/3+y/3)%2==0)UIRectFillUsingBlendMode(CGRectMake(x,y,1,1),kCGBlendModeNormal);
     }];
     [UIImagePNGRepresentation(normal) writeToFile:[folder stringByAppendingPathComponent:@"painted.png"] atomically:YES];
     if([name isEqual:@"press-authored"]){
       UIImage *pressed=[draw imageWithActions:^(UIGraphicsImageRendererContext *ctx){
         [normal drawAtPoint:CGPointZero];
-        [[UIColor colorWithWhite:0 alpha:0.25] setFill];UIRectFill(CGRectMake(0,0,360,250));
+        [[UIColor colorWithWhite:0 alpha:0.25] setFill];UIRectFillUsingBlendMode(CGRectMake(0,0,360,250),kCGBlendModeNormal);
       }];
       [UIImagePNGRepresentation(pressed) writeToFile:[folder stringByAppendingPathComponent:@"painted_pressed.png"] atomically:YES];
     }
@@ -125,6 +127,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 @property(nonatomic) NSUInteger menuWaitAttempts;
 @property(nonatomic) NSUInteger inputWaitAttempts;
 @property(nonatomic, strong) LibretroSkinRenderer *layoutRenderer;
+@property(nonatomic, strong) UIImage *buttonRest;
 - (void)advance;
 @end
 
@@ -227,6 +230,10 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   if(regions.count!=4)return;
   CALayer *face=[layers valueForKey:@"artwork"];
   UIImage *rest=[self padImage:pad];
+  self.result[@"dpadFrame"]=@[@(pad.frame.x),@(pad.frame.y),@(pad.frame.w),@(pad.frame.h)];
+  NSString *padFolder=DocumentsPath(@"SkinFrames");
+  [UIImagePNGRepresentation(rest) writeToFile:[padFolder stringByAppendingPathComponent:
+    [self.result[@"name"] stringByAppendingString:@"-dpad-rest.png"]] atomically:YES];
   // Compare prepared rest with the original single texture, including
   // alpha. This catches a duplicated face or a mask seam before any press.
   BOOL composite=[[layers valueForKey:@"compositePressure"] boolValue];
@@ -278,17 +285,27 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       if(memcmp(before+y*stride+x*4,after+y*stride+x*4,4)) { if(affected)inside++;else outside++; }
     }
     [self check:outside==0 && inside>0 name:[NSString stringWithFormat:@"pixels mask %lu: active changes, centre and other arms identical",(unsigned long)expected]];
-    if(index==0 || index==4){
+    {
       NSString *folder=DocumentsPath(@"SkinFrames");
       NSString *file=[NSString stringWithFormat:@"%@-dpad-%lu.png",self.result[@"name"],(unsigned long)expected];
       [UIImagePNGRepresentation(image) writeToFile:[folder stringByAppendingPathComponent:file] atomically:YES];
     }
+    NSMutableArray *metrics=self.result[@"directionPixelMetrics"];
+    if(metrics==nil){metrics=[NSMutableArray array];self.result[@"directionPixelMetrics"]=metrics;}
+    [metrics addObject:@{@"directions":@(expected),@"insideChanged":@(inside),@"outsideChanged":@(outside)}];
     CFRelease(pixels);index++;
   }
   self.result[@"directionSweepWithPixelChecksSeconds"]=@(CACurrentMediaTime()-start);
   self.result[@"pressurePreparedBytes"]=[self.renderer valueForKey:@"pressureBytes"];
   [self check:[[self.renderer valueForKey:@"pressureBytes"] unsignedIntegerValue]<=32u*1024u*1024u name:@"pressure resources stay within 32 MiB per layout"];
+  [self touch:@"direction-sweep" at:CGPointMake(pad.frame.x+pad.frame.w*0.5,pad.frame.y+pad.frame.h*0.1) begin:NO];
+  [self touch:@"second-direction" at:CGPointMake(pad.frame.x+pad.frame.w*0.9,pad.frame.y+pad.frame.h*0.5) begin:YES];
+  NSUInteger multi=0;for(id region in regions)if([[region valueForKey:@"down"] boolValue])multi|=[[region valueForKey:@"direction"] unsignedIntegerValue];
+  [self check:multi==9 name:@"two fingers on separate arms animate their union"];
   [self end:@"direction-sweep" cancel:YES];
+  multi=0;for(id region in regions)if([[region valueForKey:@"down"] boolValue])multi|=[[region valueForKey:@"direction"] unsignedIntegerValue];
+  [self check:multi==8 name:@"lifting one D-pad finger preserves the other arm"];
+  [self end:@"second-direction" cancel:YES];
   BOOL clear=YES;for(id region in regions)clear=clear && ![[region valueForKey:@"down"] boolValue];
   [self check:clear name:@"direction cancellation resets all four regions"];
   // Measure submission cost only; separate from screenshots and image
@@ -302,6 +319,11 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   [self.renderer setEditing:YES selectedItem:nil];[self.renderer setEditing:NO selectedItem:nil];
   [self check:((CALayer *)[layers valueForKey:@"image"]).contents!=nil || composite
     name:@"layout editor preserves prepared D-pad artwork"];
+  UIImage *released=[self padImage:pad];
+  [self check:[UIImagePNGRepresentation(rest) isEqualToData:UIImagePNGRepresentation(released)]
+    name:@"released D-pad pixels exactly match rest after editor and rapid presses"];
+  [UIImagePNGRepresentation(released) writeToFile:[padFolder stringByAppendingPathComponent:
+    [self.result[@"name"] stringByAppendingString:@"-dpad-released.png"]] atomically:YES];
   CFRelease(reference);
 }
 
@@ -446,6 +468,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
         [self check:image.contents!=nil && image.contents==original
           name:@"leaving the layout editor preserves extracted artwork"];
       }
+      self.buttonRest=[self padImage:a];
       [self capture:@"rest"]; break;
     }
     case 2:
@@ -455,11 +478,15 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     case 3:
       if([self waitForCoreInputPoll])break;
       [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"held artwork and input received at the actual core poll"];
+      [self check:![UIImagePNGRepresentation(self.buttonRest) isEqualToData:UIImagePNGRepresentation([self padImage:a])]
+        name:@"pressed button pixels differ from rest (skin only, no moving game pixels)"];
       [self capture:@"pressed"]; break;
     case 4: [self touch:@"two" at:[self center:a] begin:YES]; [self end:@"one" cancel:NO]; [self next]; break;
     case 5: [self check:[self pressed:a] && [self deliveredButtons]!=0 name:@"second finger keeps the same button held"];
       [self end:@"two" cancel:YES]; [self next]; break;
     case 6: [self check:![self pressed:a] && [self deliveredButtons]==0 name:@"cancellation releases visual and core state"];
+      [self check:[UIImagePNGRepresentation(self.buttonRest) isEqualToData:UIImagePNGRepresentation([self padImage:a])]
+        name:@"released button pixels exactly match rest"];
       [self capture:@"released"]; break;
     case 7:
       [self verifyDirectionalArtwork];
