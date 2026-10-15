@@ -447,10 +447,18 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   if(pending && attempt<100){dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/20),dispatch_get_main_queue(),^{
     [self verifyIntensity:level attempt:attempt+1];});return;}
   [self check:!pending name:[NSString stringWithFormat:@"intensity %lu prepares before any contact",(unsigned long)level]];
-  if(level==5){self.intensityChecked=YES;[self advance];return;}
+  if(level==5){
+    self.intensityChecked=YES;
+    self.menuWaitAttempts=0;
+    [self resumeAfterMenuPresentation];return;
+  }
   if(level==4){
     [self check:self.renderer.pressureIntensity==2 name:@"Pronounced is restored after all four levels"];
+    // Frontend pages belong to an open menu; closeMenu deliberately destroys
+    // that owner. Exercise the same live menu lifecycle as chooseSkin:.
+    [self.controller menuPressed];
     LibretroFrontendMenu *frontend=[self.session valueForKey:@"frontendMenu"];
+    [self check:frontend!=nil name:@"intensity settings use the live in-game menu owner"];
     LibretroMenuPage *page=[frontend skinsPage];
     LibretroMenuRow *defaultRow=MenuRowWithIdentifier(page,@"libretro-pressure-pronounced");
     [self check:defaultRow.checked name:@"Skins menu defaults to Pronounced"];
