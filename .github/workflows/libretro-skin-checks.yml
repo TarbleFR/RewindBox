@@ -1,5 +1,8 @@
 name: Libretro directional skin checks
 'on':
+  push:
+    branches: [Claude]
+    paths: [.github/workflows/libretro-skin-checks.yml]
   workflow_dispatch:
 permissions:
   contents: read
