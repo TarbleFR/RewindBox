@@ -255,8 +255,37 @@ workflow, job, proof step and all 2,584 common inputs.
 
 ## Build 464 delivery
 
-All three exact-candidate integration gates are successful. The private
-Release workflow is now authorized to run with build number 464 and the
-existing delivery recipient. Final source, artifact, sealed IPA SHA-256 and
-Windows copy verification will be recorded after successful compilation.
-No 464 IPA is claimed at this source-preparation stage.
+- Version: **0.0.7 (464)**. Source commit
+  `b4c385036dfc89e1d795a7b54474911358f80819`, branch `Claude`.
+- Delivery run [38810224933](https://github.com/TarbleFR/neostation-ios/actions/runs/38810224933):
+  `checks`, `native` and `Release device build • cold` all succeeded. The warm
+  benchmark is intentionally skipped. Full Flutter/application checks and
+  native transport/codec checks were executed in addition to the focused skin
+  suites. The release job verified all three exact-candidate integration gates
+  and their closed common inputs before building.
+- Private encrypted artifact `12008918114` (216,496,541 bytes), ZIP SHA-256
+  `6e3d7bda6689742f136e01ffde6bff7ee4e707e671333418ed3c7bf1701fee13`.
+- Final sealed IPA: **215,260,715 bytes**, SHA-256
+  **`dedd79d1ca6291da7c0e4825faa9bac58531e3a9395c096bb89c82ad60a3bc0e`**.
+  Filename: `NeoStation-Build464-b4c38503.ipa`.
+- The downloaded bytes were independently checked against both integrity
+  records. All 76 sealed executable/framework/extension payload fingerprints
+  match, the app and its five extensions have build 464, all 34 pinned
+  libretro cores are present, and the actual iPhone bridge contains the new
+  scoped-validation/readiness/diagnostic selectors alongside the unchanged
+  pressure and cheat modules. No 463 binary was renamed or reused.
+- Verified Windows copy:
+  `C:\Users\Coren\Downloads\NeoStation-Build464-b4c38503.ipa`, with
+  the same 215,260,715-byte count and SHA-256 after copying. Existing files
+  were retained. The IPA and four original Simulator proof images are also
+  available in the conversation.
+- This is a SideStore test package: Apple re-signing by SideStore remains
+  necessary. No physical iPhone installation, Azure Dreams run, real hardware
+  controller test, sustained-device performance or subjective tactile-latency
+  validation is claimed. Follow the iPhone checklist above.
+
+The correction changes resource requirements, activation and diagnostics; it
+keeps the pressure renderer, intensity levels, mappings and touch-tracker
+source intact. The final candidate passed **27 scripted UIKit sessions /
+2,786 checks**, plus the 63 upgrade/relaunch checks, native pressure/input
+checks and actual Nestopia/Snes9x/overlay compatibility checks listed above.
