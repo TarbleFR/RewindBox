@@ -61,7 +61,8 @@ int main(int argc, const char **argv) {
         CHECK([LibretroCheats codesForCheat:entry core:@"mgba" console:@"gba"] == nil, "long original program remains unavailable for unsafe native activation");
       }
     }
-    CHECK(entries == 629 && longEntries > 0, "original descriptions and codes retained without truncating executable programs");
+    // Four original XML rows are empty visual separators, not cheats.
+    CHECK(entries == 625 && longEntries > 0, "all 625 code-bearing entries retained without truncating executable programs");
     CHECK(LibretroCheatCatalog.sources.count >= 2, "multiple independent source adapters");
     CHECK([LibretroCheatCatalog folderForConsole:@"7800"] != nil && [LibretroCheatCatalog folderForConsole:@"gba"] != nil, "catalogues cover enabled and hidden consoles");
     [[NSFileManager defaultManager] removeItemAtPath:folder error:nil];
