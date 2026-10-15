@@ -316,6 +316,14 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
 
 #pragma mark - Page
 
+// Bind a control to its row object: arithmetic tags alias rows once a cheat
+// catalogue has more than 1,000 entries in a section.
+@interface LibretroMenuSwitch : UISwitch
+@property(nonatomic, weak) LibretroMenuRow *row;
+@end
+@implementation LibretroMenuSwitch
+@end
+
 @implementation LibretroMenuPage {
   NSArray<LibretroMenuSection *> *_sections;
   /// Layout applied for previewsGame: avoids re-applying the same values
@@ -486,10 +494,10 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
                                    : (row.disclosure ? UITableViewCellAccessoryDisclosureIndicator
                                                      : UITableViewCellAccessoryNone);
   if (row.isToggle) {
-    UISwitch *control = [[UISwitch alloc] init];
+    LibretroMenuSwitch *control = [[LibretroMenuSwitch alloc] init];
     control.on = row.toggleOn;
     control.enabled = row.enabled;
-    control.tag = indexPath.section * 1000 + indexPath.row;
+    control.row = row;
     [control addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
     cell.accessoryView = control;
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
@@ -618,10 +626,10 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
   if (self.previewsGame) cell.backgroundColor = LibretroMenuPreviewCellColor();
 }
 
-- (void)switchChanged:(UISwitch *)control {
-  NSIndexPath *indexPath = [NSIndexPath indexPathForRow:control.tag % 1000 inSection:control.tag / 1000];
-  LibretroMenuRow *row = [self rowAtIndexPath:indexPath];
-  if (row.toggle != nil) row.toggle(self, control.on);
+- (void)switchChanged:(LibretroMenuSwitch *)control {
+  LibretroMenuRow *row = control.row;
+  if (row != nil && row.enabled && [self indexPathForMenuRow:row] != nil && row.toggle != nil)
+    row.toggle(self, control.on);
 }
 
 - (BOOL)tableView:(UITableView *)tableView shouldHighlightRowAtIndexPath:(NSIndexPath *)indexPath {

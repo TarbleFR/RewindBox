@@ -138,6 +138,9 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
 }
 - (void)warnOnPage:(LibretroMenuPage *)page action:(dispatch_block_t)action {
   if (_warned) { action(); return; }
+  // UISwitch has already toggled visually when its callback arrives. Restore
+  // the still-disabled model before asking, including when the user cancels.
+  [page rebuild];
   [page confirmWithTitle:[self t:@"cheats"] message:[self t:@"cheatSaveWarning"] action:[self t:@"cheatActivate"]
     cancelTitle:[self t:@"cancel"] destructive:NO handler:^{ self->_warned = YES; action(); }];
 }
