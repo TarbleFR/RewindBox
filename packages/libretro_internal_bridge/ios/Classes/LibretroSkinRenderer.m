@@ -716,6 +716,12 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     scope = CGRectUnion(scope, LibretroSkinKnobRect(laidOut, CGPointMake(1, 1)));
   }
   scope = CGRectInset(scope, -8, -8);
+  // Group opacity on translucent skins can rasterize this coordinate
+  // system too. Bounds and position move together, preserving every child
+  // coordinate while keeping that intermediate surface on the same grid.
+  scope = LibretroSkinPixelRect(scope, scale, NO);
+  layers.container.contentsScale = scale;
+  layers.artwork.contentsScale = scale;
   layers.container.bounds = scope;
   layers.container.position = scope.origin;
   layers.artwork.bounds = scope;

@@ -48,6 +48,10 @@ the same path, symlink and image-content validation. This is not a JSON
 - Prepared images retain a one-pixel sampling apron. Their inner rectangle
   is displayed with `contentsRect`, so scaling samples the original texture
   neighbours instead of extending a crop edge. The apron never animates.
+  Clipped layers retain the source image's coordinate plane; source planes,
+  opacity groups and cut boundaries use the physical display pixel grid.
+  Complementary half-covered alpha edges would otherwise leave a visible
+  transparency seam. Hit areas and input coordinates are unchanged.
 - Prepared states are limited to 32 MiB per layout. Asset geometry excludes
   extended touch edges. Generation checks discard results after layout or
   skin replacement, and cancelled jobs stop before preparing more regions.
