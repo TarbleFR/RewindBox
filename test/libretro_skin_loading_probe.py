@@ -24,7 +24,8 @@ def legacy_validation(sources, fixture, work, evidence):
              'LibretroSkinLayout.m','LibretroSkinButtonCrop.m','LibretroSkinPressure.m','LibretroSkinRenderer.m')
     command = ['xcrun','--sdk','iphonesimulator','clang','-target',probe.TARGET,
                '-isysroot',probe.sdk_path(),'-fobjc-arc','-O1','-Wno-deprecated-declarations',
-               '-I',str(classes), *(str(classes / name) for name in names),
+               '-I',str(classes),'-I',str(sources/'ThirdParty/include/libretro'),
+               *(str(classes / name) for name in names),
                str(probe.ROOT / 'test/libretro_simulator/skin_resource_legacy.m'),
                '-framework','UIKit','-framework','Foundation','-framework','CoreGraphics',
                '-framework','ImageIO','-framework','QuartzCore','-o',str(app/'Probe')]

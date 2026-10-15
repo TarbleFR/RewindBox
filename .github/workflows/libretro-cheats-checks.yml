@@ -16,6 +16,7 @@ on:
       - test/libretro_simulator/cheat_menu_probe.h
       - test/libretro_simulator/skin_failure_probe.h
       - test/libretro_simulator/skin_loading_probe.h
+      - test/libretro_skin_loading_probe.py
       - test/libretro_simulator/skin_press_probe.h
       - test/fixtures/libretro_cheats/**
   workflow_dispatch:
