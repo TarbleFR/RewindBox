@@ -437,6 +437,18 @@ static CALayer *LibretroSkinPlainLayer(CGFloat scale) {
   return layer;
 }
 
+// Complementary alpha masks cannot be composited losslessly at a fractional
+// pixel boundary (two half-covered layers yield 75%, not 100%, coverage).
+// Keep source planes and cut edges on the display grid. Inward alignment is
+// used for control regions so no neighbouring graphic is borrowed.
+static CGRect LibretroSkinPixelRect(CGRect rect, CGFloat scale, BOOL inward) {
+  CGFloat x = (inward ? ceil(rect.origin.x*scale) : round(rect.origin.x*scale))/scale;
+  CGFloat y = (inward ? ceil(rect.origin.y*scale) : round(rect.origin.y*scale))/scale;
+  CGFloat right = (inward ? floor(CGRectGetMaxX(rect)*scale) : round(CGRectGetMaxX(rect)*scale))/scale;
+  CGFloat bottom = (inward ? floor(CGRectGetMaxY(rect)*scale) : round(CGRectGetMaxY(rect)*scale))/scale;
+  return CGRectMake(x, y, MAX(0,right-x), MAX(0,bottom-y));
+}
+
 static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CAShapeLayer *layer = [CAShapeLayer layer];
   layer.contentsScale = scale;
@@ -570,7 +582,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     _panelLayer.hidden = YES;
   }
 
-  CGRect skinRect = LibretroSkinCGRect(layout.skinRect);
+  CGRect skinRect = LibretroSkinPixelRect(LibretroSkinCGRect(layout.skinRect), _scale, NO);
   NSString *background = representation.generated ? nil : representation.backgroundPath;
   if (background.length > 0 && !CGRectIsEmpty(skinRect)) {
     _backgroundLayer.hidden = NO;
@@ -691,6 +703,10 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   CGRect frame = LibretroSkinCGRect(laidOut.frame);
   CGRect assetFrame = LibretroSkinCGRect(laidOut.assetFrame);
   if (CGRectIsEmpty(assetFrame)) assetFrame = frame;
+  if (item.kind == LibretroSkinItemKindDPad) {
+    frame = LibretroSkinPixelRect(frame, _scale, YES);
+    assetFrame = LibretroSkinPixelRect(assetFrame, _scale, YES);
+  }
   CGFloat scale = _scale;
   // Groups keep the same layout coordinate system, with bounds limited to
   // the control and its shadow rather than a full-screen offscreen surface.
@@ -974,6 +990,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     CALayer *sourceLayer = composite ? _backgroundLayer : layers.image;
     CGRect frame = LibretroSkinCGRect(composite || layers.shape != nil ? layers.laidOut.frame : layers.laidOut.assetFrame);
     if (CGRectIsEmpty(frame)) frame = LibretroSkinCGRect(layers.laidOut.frame);
+    if (!composite) frame = LibretroSkinPixelRect(frame, _scale, YES);
     if (composite && ![self canAdaptCompositeFrame:frame item:layers.laidOut]) continue;
     if (layers.shape == nil && (sourceLayer.contents == nil ||
         ![[sourceLayer valueForKey:@"neostationSkinReadyKey"] isEqual:[sourceLayer valueForKey:LibretroSkinImageKey]])) continue;
@@ -1001,6 +1018,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     layers.pressurePreparing = YES;
     NSUInteger generation = _imageGeneration;
     NSProgress *preparation = _pressurePreparation;
+    CGFloat displayScale = _scale;
     uint32_t fillColor = item.fillColor, labelColor = item.labelColor;
     __weak LibretroSkinRenderer *weakSelf = self;
     dispatch_async(LibretroSkinQueue(), ^{
@@ -1056,7 +1074,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
           if (frames.count == 0) break;
           CGRect exact = CGRectMake(sourceFrame.origin.x+area.origin.x/sx, sourceFrame.origin.y+area.origin.y/sy,
                                    area.size.width/sx, area.size.height/sy);
-          exact = CGRectIntersection(exact, frame);
+          exact = LibretroSkinPixelRect(CGRectIntersection(exact, frame), displayScale, YES);
+          if (CGRectIsEmpty(exact)) break;
           [prepared addObject:@{@"frame":[NSValue valueWithCGRect:exact], @"pixels":[NSValue valueWithCGRect:area],
             @"images":frames, @"direction":@(pad ? 1u<<slot : 0)}];
         }

@@ -395,7 +395,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   [tracker beginTouch:@1 x:pad.frame.x+pad.frame.w*0.9 y:pad.frame.y+pad.frame.h*0.1];
   LibretroTouchResolution *resolution=[tracker resolve];
   [self.layoutRenderer setPressedItems:resolution.pressedItems];[self.layoutRenderer setDPadDirections:resolution.dpadDirections];
-  NSUInteger active=0;BOOL inside=YES;
+  NSUInteger active=0;BOOL inside=YES,pixelAligned=YES;
   NSMutableArray *geometry=[NSMutableArray array];
   for(id region in regions){
     if([[region valueForKey:@"down"] boolValue])active|=[[region valueForKey:@"direction"] unsignedIntegerValue];
@@ -403,6 +403,11 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     // floating-point arithmetic noise, far below any fraction of a pixel.
     inside=inside && CGRectContainsRect(CGRectInset(CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h),-1e-7,-1e-7),((CALayer *)region).frame);
     [geometry addObject:NSStringFromCGRect(((CALayer *)region).frame)];
+    CGFloat scale=self.layoutRenderer.traitCollection.displayScale;
+    if(scale<=0)scale=UIScreen.mainScreen.scale;
+    CGRect rf=((CALayer *)region).frame;
+    for(NSNumber *edge in @[@(rf.origin.x),@(rf.origin.y),@(CGRectGetMaxX(rf)),@(CGRectGetMaxY(rf))])
+      pixelAligned=pixelAligned && fabs(edge.doubleValue*scale-round(edge.doubleValue*scale))<1e-6;
   }
   NSMutableArray *layouts=self.result[@"layoutMetrics"];
   if(layouts==nil){layouts=[NSMutableArray array];self.result[@"layoutMetrics"]=layouts;}
@@ -410,6 +415,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     @"buttons":@(resolution.coreInput.buttons),@"pad":NSStringFromCGRect(CGRectMake(pad.frame.x,pad.frame.y,pad.frame.w,pad.frame.h)),@"regions":geometry}];
   [self check:active==9 && inside && resolution.coreInput.buttons!=0
     name:[NSString stringWithFormat:@"layout %lu: aligned diagonal and mapped inputs",(unsigned long)index]];
+  [self check:pixelAligned name:[NSString stringWithFormat:@"layout %lu: cut edges use whole display pixels",(unsigned long)index]];
   [self.layoutRenderer showRepresentation:rep layout:layout opacity:0.65 controlsHidden:YES];
   BOOL reset=YES;for(id region in regions)reset=reset && ![[region valueForKey:@"down"] boolValue];
   [self check:reset && !((CALayer *)[layers valueForKey:@"artwork"]).hidden
