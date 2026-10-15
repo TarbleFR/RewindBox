@@ -7,9 +7,11 @@ name: Libretro directional skin checks
     - packages/libretro_internal_bridge/ios/Classes/LibretroSkin*.h
     - packages/libretro_internal_bridge/ios/Classes/LibretroSkin*.m
     - packages/libretro_internal_bridge/ios/Classes/LibretroSessionMenu.m
+    - packages/libretro_internal_bridge/ios/Classes/LibretroSession.m
     - test/libretro_host/frontend/skin*_test.m
     - test/libretro_simulator/skin_press_probe.h
     - test/libretro_skin_press_probe.py
+    - test/libretro_simulator/skin_loading_probe.h
   workflow_dispatch:
     inputs:
       scenario:

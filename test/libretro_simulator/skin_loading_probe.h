@@ -141,6 +141,9 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
   NSString *source=DocumentsPath([@"Libretro/Skins/" stringByAppendingString:LoadingSkinID]);
   NSString *target=DocumentsPath(@"Libretro/Skins/loading-damaged");
   [NSFileManager.defaultManager copyItemAtPath:source toPath:target error:nil];
+  NSString *record=[target stringByAppendingPathComponent:@"neostation-skin.json"];
+  NSMutableDictionary *metadata=[ReadJSON(record) mutableCopy];metadata[@"id"]=@"loading-damaged";
+  [[NSJSONSerialization dataWithJSONObject:metadata options:0 error:nil] writeToFile:record atomically:YES];
   NSString *info=[target stringByAppendingPathComponent:@"info.json"];
   NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:info]
     options:NSJSONReadingMutableContainers error:nil] mutableCopy];
