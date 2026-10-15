@@ -2,7 +2,13 @@ name: Libretro directional skin checks
 'on':
   push:
     branches: [Claude]
-    paths: [.github/workflows/libretro-skin-checks.yml]
+    paths:
+    - .github/workflows/libretro-skin-checks.yml
+    - packages/libretro_internal_bridge/ios/Classes/LibretroSkin*.h
+    - packages/libretro_internal_bridge/ios/Classes/LibretroSkin*.m
+    - test/libretro_host/frontend/skin*_test.m
+    - test/libretro_simulator/skin_press_probe.h
+    - test/libretro_skin_press_probe.py
   workflow_dispatch:
     inputs:
       scenario:
