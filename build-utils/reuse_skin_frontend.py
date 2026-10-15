@@ -1,7 +1,7 @@
 """Reuse only the exact successful portable phase, otherwise run it again.
 
-The original native job later failed a Git-history UI contract. That failure
-remains recorded; it does not invalidate the preceding successful executables.
+The reference run's UIKit rendering checks failed. That failure remains
+recorded; it does not invalidate its successful native executables/link step.
 UIKit renderer/session tests are never reused by this gate.
 """
 import json
@@ -14,8 +14,8 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = 'b3538c127fe54799a3822cfd27f853b2a0ac246f'
 RUN = 38719706135
-IPHONE_REFERENCE = 'b3538c127fe54799a3822cfd27f853b2a0ac246f'
-IPHONE_RUN = 38719706135
+IPHONE_REFERENCE = '3edecd09a37f3c861788d0302c3b839bd459cd29'
+IPHONE_RUN = 38721046830
 RENDERER = 'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m'
 NON_INPUTS = {
     'AGENTS.md', '.github/workflows/libretro-skin-checks.yml',

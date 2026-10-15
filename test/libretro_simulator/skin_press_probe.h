@@ -213,13 +213,26 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 }
 
 - (UIImage *)padImage:(LibretroLaidOutItem *)pad {
-  UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];format.scale=1;
-  format.preferredRange=UIGraphicsImageRendererFormatRangeStandard;
-  UIGraphicsImageRenderer *render=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(ceil(pad.frame.w),ceil(pad.frame.h)) format:format];
-  return [render imageWithActions:^(UIGraphicsImageRendererContext *ctx){
-    CGContextTranslateCTM(ctx.CGContext,-pad.frame.x,-pad.frame.y);
-    [self.renderer.layer renderInContext:ctx.CGContext];
-  }];
+  @autoreleasepool {
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];
+    format.scale=self.renderer.traitCollection.displayScale;
+    if(format.scale<=0)format.scale=UIScreen.mainScreen.scale;
+    format.preferredRange=UIGraphicsImageRendererFormatRangeStandard;
+    // Capture at the display's pixel grid, then crop integer pixels. A 1x
+    // translated capture resamples masked layers twice but the unmasked
+    // reference only once, producing differences absent on the display.
+    UIGraphicsImageRenderer *render=[[UIGraphicsImageRenderer alloc] initWithSize:self.renderer.bounds.size format:format];
+    UIImage *whole=[render imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+      [self.renderer.layer renderInContext:ctx.CGContext];
+    }];
+    CGFloat scale=format.scale;
+    CGRect pixels=CGRectIntegral(CGRectMake(pad.frame.x*scale,pad.frame.y*scale,pad.frame.w*scale,pad.frame.h*scale));
+    CGRect crop=CGRectMake(pixels.origin.x/scale,pixels.origin.y/scale,pixels.size.width/scale,pixels.size.height/scale);
+    UIGraphicsImageRenderer *extract=[[UIGraphicsImageRenderer alloc] initWithSize:crop.size format:format];
+    return [extract imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+      [whole drawAtPoint:CGPointMake(-crop.origin.x,-crop.origin.y) blendMode:kCGBlendModeCopy alpha:1];
+    }];
+  }
 }
 - (void)verifyDirectionalArtwork {
   LibretroLaidOutItem *pad=nil;
@@ -242,24 +255,41 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
   [CATransaction begin];[CATransaction setDisableActions:YES];
   source.mask=nil; for(CALayer *region in regions)region.hidden=YES;
   UIImage *unsplit=[self padImage:pad];
+  CAShapeLayer *fullMask=[CAShapeLayer layer];fullMask.frame=source.bounds;
+  fullMask.contentsScale=source.contentsScale;fullMask.edgeAntialiasingMask=0;
+  fullMask.path=[UIBezierPath bezierPathWithRect:source.bounds].CGPath;
+  source.mask=fullMask;
+  UIImage *maskedOriginal=[self padImage:pad];
   source.mask=savedMask;for(CALayer *region in regions)region.hidden=NO;
   [CATransaction commit];
   [UIImagePNGRepresentation(unsplit) writeToFile:[padFolder stringByAppendingPathComponent:
     [self.result[@"name"] stringByAppendingString:@"-dpad-original.png"]] atomically:YES];
+  [UIImagePNGRepresentation(maskedOriginal) writeToFile:[padFolder stringByAppendingPathComponent:
+    [self.result[@"name"] stringByAppendingString:@"-dpad-original-full-mask.png"]] atomically:YES];
   CFDataRef reference=CGDataProviderCopyData(CGImageGetDataProvider(rest.CGImage));
   size_t width=CGImageGetWidth(rest.CGImage),height=CGImageGetHeight(rest.CGImage),stride=CGImageGetBytesPerRow(rest.CGImage);
   const uint8_t *before=CFDataGetBytePtr(reference);
   CFDataRef unsplitData=CGDataProviderCopyData(CGImageGetDataProvider(unsplit.CGImage));
   const uint8_t *original=CFDataGetBytePtr(unsplitData);
-  NSUInteger seamPixels=0,maximum=0;
+  CFDataRef maskedData=CGDataProviderCopyData(CGImageGetDataProvider(maskedOriginal.CGImage));
+  const uint8_t *masked=CFDataGetBytePtr(maskedData);
+  NSUInteger seamPixels=0,maximum=0,maskDifference=0,splitVsFullMask=0;
   for(size_t y=0;y<height;y++)for(size_t x=0;x<width;x++){
     NSUInteger difference=0;
     for(int c=0;c<4;c++)difference=MAX(difference,(NSUInteger)abs(before[y*stride+x*4+c]-original[y*stride+x*4+c]));
     if(difference>2)seamPixels++; maximum=MAX(maximum,difference);
+    NSUInteger md=0,sd=0;
+    for(int c=0;c<4;c++){
+      md=MAX(md,(NSUInteger)abs(masked[y*stride+x*4+c]-original[y*stride+x*4+c]));
+      sd=MAX(sd,(NSUInteger)abs(masked[y*stride+x*4+c]-before[y*stride+x*4+c]));
+    }
+    if(md>2)maskDifference++;if(sd>2)splitVsFullMask++;
   }
-  self.result[@"restSplitDifference"]=@{@"pixelsAboveTwoLevels":@(seamPixels),@"maximum":@(maximum)};
+  self.result[@"restSplitDifference"]=@{@"pixelsAboveTwoLevels":@(seamPixels),@"maximum":@(maximum),
+    @"fullMaskVsOriginal":@(maskDifference),@"splitVsFullMask":@(splitVsFullMask),@"captureScale":@(rest.scale)};
   [self check:seamPixels==0 name:@"rest preserves original texture and alpha without seams (2/255 rounding tolerance)"];
   CFRelease(unsplitData);
+  CFRelease(maskedData);
   NSArray *cases=@[@[@0.5,@0.1,@1],@[@0.5,@0.9,@2],@[@0.1,@0.5,@4],@[@0.9,@0.5,@8],
     @[@0.9,@0.1,@9],@[@0.1,@0.9,@6],@[@0.1,@0.1,@5],@[@0.9,@0.9,@10]];
   NSTimeInterval start=CACurrentMediaTime();
@@ -281,9 +311,10 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
     const uint8_t *after=CFDataGetBytePtr(pixels); NSUInteger outside=0,inside=0;
     for(size_t y=0;y<height;y++)for(size_t x=0;x<width;x++){
       BOOL affected=NO;
-      CGPoint point=CGPointMake(pad.frame.x+x+0.5,pad.frame.y+y+0.5);
+      CGPoint point=CGPointMake((floor(pad.frame.x*rest.scale)+x+0.5)/rest.scale,
+                               (floor(pad.frame.y*rest.scale)+y+0.5)/rest.scale);
       for(id region in regions)if(([[region valueForKey:@"direction"] unsignedIntegerValue]&expected)!=0 &&
-        CGRectContainsPoint(CGRectInset(((CALayer *)region).frame,-1,-1),point))affected=YES;
+        CGRectContainsPoint(CGRectInset(((CALayer *)region).frame,-1/rest.scale,-1/rest.scale),point))affected=YES;
       if(memcmp(before+y*stride+x*4,after+y*stride+x*4,4)) { if(affected)inside++;else outside++; }
     }
     [self check:outside==0 && inside>0 name:[NSString stringWithFormat:@"pixels mask %lu: active changes, centre and other arms identical",(unsigned long)expected]];
