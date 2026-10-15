@@ -119,7 +119,7 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
     [self withMenu:^(LibretroMenuPage *page){
       for(NSString *orientation in @[@"portrait",@"landscape"]){
         LibretroMenuRow *row=MenuRowWithIdentifier(page,[NSString stringWithFormat:@"libretro-skin-%@-%@",orientation,LoadingSkinID]);
-        [self check:row.checked && row.enabled name:[orientation stringByAppendingString:@": installed selection is checked in game"];
+        [self check:row.checked && row.enabled name:[orientation stringByAppendingString:@": installed selection is checked in game"]];
       }
       [self choose:@"default" orientation:@"landscape" game:YES page:page];
     } then:^{[self waitSkin:@"default" then:^{
