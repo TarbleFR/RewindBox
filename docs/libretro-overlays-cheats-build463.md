@@ -103,7 +103,11 @@ The native menu probe now sends real UIKit value-changed events to a switch at r
 - Directional run [38774454891](https://github.com/TarbleFR/neostation-ios/actions/runs/38774454891): both jobs passed; **25 Simulator sessions / 2,457 checks**, no failed assertion. Covers original Atomic Pink/Ignited, authored and synthetic composites, overlap/asymmetric D-pads, directions/diagonals, simultaneous contacts, cancellation, rotation, menu/skin replacement and virtual-controller handoff.
 - Focused run [38774454871](https://github.com/TarbleFR/neostation-ios/actions/runs/38774454871): all steps passed; 38 parser checks, 23 source/offline checks, 15 real-download checks, two original overlay conversion tests and **155 UIKit checks** (Ignited/Nestopia 121, NES cheats/native menu 20, previews and allocation guards 10, Snes9x four). Includes actual UISwitch dispatch beyond row 1000 and cancellation of consent.
 - Engine run [38774454885](https://github.com/TarbleFR/neostation-ios/actions/runs/38774454885): Dart, native and skin-session jobs passed. The repeated skin suite is not counted as 25 additional distinct scenarios.
-- Broad simulator run `38774454935`: generic probe, lot1, lot2, synthetic shaders and both historical reproduction controls passed. The first official-shader attempt failed at `MENU_DOWNLOAD_MISSING` for PSP-2020, with consequent assertions failing; only this job was rerun unchanged. Its final outcome is recorded separately when available. This failure is not presented as a skin or cheat success.
+- Broad simulator run `38774454935`: generic probe, lot1, lot2, synthetic shaders and both historical reproduction controls passed. The first official-shader attempt failed at `MENU_DOWNLOAD_MISSING` for PSP-2020, with consequent assertions failing; only this job was rerun unchanged. Rerun job `116574323493` passed, as did all other jobs of that final workflow. The earlier failed attempt remains recorded; no product shader change or relaxed assertion was used to obtain the pass.
+
+### Downloaded final rendering evidence
+
+Artifacts `11993713062` (directional skins, 98,543,153 bytes, ZIP SHA-256 `56a8664e1097c89960818f94ae8ac80b1b23ba8a87d2ee1eb6f8df605c40aefa`) and `11994170689` (focused cheats/previews, 1,526,504 bytes, ZIP SHA-256 `2f3fc3233eba49ca51f1fa72835963c1ade5ea269ce983639a8ee3978356f0ff`) were downloaded and verified against GitHub's recorded digests. The final four preview PNGs are byte-identical to the inspected preceding candidate. iPhone: 13 sessions / 1,280 checks; iPad: 12 / 1,177. Every cancellation records zero buttons after fresh core polls, with a maximum observed wait of 0.263 seconds. This interval includes the probe's normal 250 ms staging delay and is not an end-to-end device latency measurement.
 
 ## Changed files
 
@@ -128,3 +132,19 @@ Native filenames in this table are under `packages/libretro_internal_bridge/ios/
 5. With disposable save copies, enable/disable a known compatible code in each tested core; compare memory/game effects and ensure disabling stops future modifications. Some changes already written by a cheat cannot be undone by disabling it.
 6. Import local CHT, opt into preferences, quit/relaunch, explicitly restore; test airplane mode after downloading, source removal and later reinstallation.
 7. Physical Bluetooth/USB controllers plus touch, D-pad diagonals/sliding/multitouch, Atomic Pink, 60/120 Hz responsiveness and sustained memory/thermal behaviour remain device checks.
+
+## Delivery candidate
+
+Private Build **0.0.7 (463)** was launched from [`73b0aabc81ffec7e14873b1e466c294980ea28fc`](https://github.com/TarbleFR/neostation-ios/commit/73b0aabc81ffec7e14873b1e466c294980ea28fc), [delivery run 38779178451](https://github.com/TarbleFR/neostation-ios/actions/runs/38779178451). Product sources match tested `c93f493a`; the delivery commit only updates guards, the build number and documentation. The existing public recipient is `build-utils/delivery-461-recipient.pem`; its private key is outside Git. Binary identity and delivery are recorded below only after verification.
+
+Delivery `checks` and `native` jobs passed. Native tests were executed again: 18 frontend files, 1,133 pressure checks, 6,025 tracker checks and 74 iPhone bridge sources compiled/linked. The exact skin and cheat provenance gate is required before the Release build. No simulator or compilation result is described as physical-device validation.
+
+### Produced and independently verified IPA
+
+Delivery run `38779178451`: **checks, native and cold Release succeeded**; optional warm benchmark skipped. Private encrypted artifact `11996806067`, 216,175,005 bytes, ZIP SHA-256 `845579a432f12517687e343127aa653cfb5f386f63b8b705ad010bda8aa1acc1`. It was downloaded, verified and decrypted with the existing session key, which remains outside Git.
+
+Final sealed IPA `NeoStation-Build463-73b0aabc.ipa`: **215,255,436 bytes**, SHA-256 **`0912ddc8e7cf5594363f39a04c486bf3e2851b6f504aabae13007231bc5afba6`**. Independent verification matches both integrity manifests, source identity, app and all five extension versions **0.0.7 (463)**, all 76 sealed Mach-O payload fingerprints and the unchanged 34-core package. The new catalogue, parser/menu, resource-validation and precise menu-switch classes/selectors are present in the packaged ARM64 iPhone bridge. The on-disk signature checks passed in macOS CI. Minimum iOS is 18.0; this is an ad-hoc SideStore package requiring Apple re-signing/provisioning, not a directly Apple-signed installation or a device test.
+
+Do not reuse build number 463 for a different delivery. Neither private key, decrypted IPA nor restricted original skin archive is committed to Git or published as a public release.
+
+The verified IPA was copied to the maintainer's Windows Downloads folder as `C:\Users\Coren\Downloads\NeoStation-Build463-73b0aabc.ipa`. The Windows-side SHA-256 is the same final sealed digest above; existing builds were retained. The encrypted transport was decrypted in a private temporary folder on the authorized PC, using only the one-artifact password in memory, then the temporary folder was removed. The RSA private key stayed outside Git on the original workspace.
