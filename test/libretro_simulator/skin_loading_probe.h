@@ -66,7 +66,8 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
     [self check:page!=nil && self.controller.presentedViewController!=nil name:@"actual in-game Skins menu is open"];
     if(page)action(page);
     [self.session closeMenu];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,400*NSEC_PER_MSEC),dispatch_get_main_queue(),then);
+    [self poll:^BOOL{return self.controller.presentedViewController==nil;} attempt:0
+      name:@"native menu is dismissed before the next orientation or selection" then:then];
   });
 }
 - (void)choose:(NSString *)identifier orientation:(NSString *)orientation game:(BOOL)game page:(LibretroMenuPage *)page {
@@ -79,12 +80,15 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
   if(row.action && row.enabled)row.action(page);
 }
 - (void)simulateOrientation:(BOOL)portrait then:(dispatch_block_t)then {
-  CGSize size=portrait?CGSizeMake(390,844):CGSizeMake(844,390);
-  self.controller.view.bounds=(CGRect){CGPointZero,size};
-  [self.controller setNeedsSkinLayout];
-  [self.controller.view layoutIfNeeded];
+  UIWindowScene *scene=self.controller.view.window.windowScene;
+  [self check:scene!=nil name:@"the running game owns a UIWindowScene for orientation requests"];
+  if(scene==nil){self.finish();return;}
+  [self.controller setNeedsUpdateOfSupportedInterfaceOrientations];
+  UIInterfaceOrientationMask mask=portrait?UIInterfaceOrientationMaskPortrait:UIInterfaceOrientationMaskLandscapeLeft;
+  [scene requestGeometryUpdateWithPreferences:[[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:mask]
+    errorHandler:^(NSError *error){[self check:NO name:[@"Simulator geometry request: " stringByAppendingString:error.localizedDescription]];}];
   [self poll:^BOOL{return self.session.currentOrientation==(portrait?LibretroSkinOrientationPortrait:LibretroSkinOrientationLandscape);}
-    attempt:0 name:portrait?@"portrait game-view layout applied":@"landscape game-view layout applied" then:then];
+    attempt:0 name:portrait?@"UIKit portrait orientation applied":@"UIKit landscape orientation applied" then:then];
 }
 - (void)verifyOneRenderer {
   LibretroSkinRepresentation *representation=[_session valueForKey:@"currentRepresentation"];
@@ -100,7 +104,7 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
 - (void)start:(BOOL)relaunch {
   NSString *metadata=DocumentsPath([NSString stringWithFormat:@"Libretro/Skins/%@/neostation-skin.json",LoadingSkinID]);
   self.originalMetadata=[NSData dataWithContentsOfFile:metadata];
-  [self waitSkin:LoadingSkinID then:^{
+  [self simulateOrientation:NO then:^{[self waitSkin:LoadingSkinID then:^{
     [self verifyOneRenderer];[self capture:relaunch?@"dualshocked-relaunch":@"dualshocked-upgrade"];
     NSArray *skins=[self.session valueForKey:@"availableSkins"];
     [self check:[[skins valueForKey:@"installedIdentifier"] containsObject:LoadingSkinID]
@@ -137,7 +141,7 @@ static void PrepareSkinLoadingUpgrade(NSDictionary *scenario) {
           }];}];
       }];}];
     }];}];}];
-  }];
+  }];}];
 }
 - (void)testPendingSelection:(dispatch_block_t)then {
   NSString *source=DocumentsPath([@"Libretro/Skins/" stringByAppendingString:LoadingSkinID]);
