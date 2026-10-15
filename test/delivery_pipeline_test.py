@@ -21,6 +21,65 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_libretro_reuse_closes_sources_dependencies_modes_and_new_files(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            names = ('packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+                     'packages/neo_shader_kit/ios/Classes/Public/API.h',
+                     'test/libretro_host/frontend/skin_test.m', 'pubspec.lock')
+            for name in names:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'validated input\n')
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            subprocess.run(['git', '-C', str(root), 'add', '.'], check=True)
+            subprocess.run(['git', '-C', str(root), '-c', 'user.name=Test', '-c',
+                            'user.email=test@example.invalid', 'commit', '-qm', 'validated'], check=True)
+            with patch.object(reuse, 'ROOT', root):
+                self.assertEqual(len(reuse.verify_libretro_reuse_tree('HEAD')), len(names))
+                for name in names:
+                    path = root / name
+                    original = path.read_bytes()
+                    path.write_bytes(original + b'changed')
+                    with self.assertRaisesRegex(ValueError, 'reuse input changed'):
+                        reuse.verify_libretro_reuse_tree('HEAD')
+                    path.write_bytes(original)
+                    path.chmod(0o755)
+                    with self.assertRaisesRegex(ValueError, 'reuse input changed'):
+                        reuse.verify_libretro_reuse_tree('HEAD')
+                    path.chmod(0o644)
+                    path.unlink()
+                    with self.assertRaisesRegex(ValueError, 'missing or symlinked'):
+                        reuse.verify_libretro_reuse_tree('HEAD')
+                    path.write_bytes(original)
+                added = root / 'packages/new-dependency.h'
+                added.write_bytes(b'new input')
+                with self.assertRaisesRegex(ValueError, 'input added'):
+                    reuse.verify_libretro_reuse_tree('HEAD')
+
+    def test_libretro_reuse_rejects_failed_skipped_or_different_ci(self):
+        from unittest.mock import patch
+        run = {'head_sha': reuse.LIBRETRO_SKIN_PRESS_REFERENCE, 'status': 'completed',
+               'conclusion': 'success', 'path': '.github/workflows/libretro-checks.yml'}
+        jobs = [{'name': name, 'head_sha': reuse.LIBRETRO_SKIN_PRESS_REFERENCE,
+                 'conclusion': 'success', 'steps': [{'conclusion': 'success'}]}
+                for name in ('native', 'dart', 'skin-press')]
+        def verify():
+            with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': jobs})]):
+                return reuse.verify_libretro_reuse_evidence()
+        self.assertEqual(verify()['run'], 38661616452)
+        for field, invalid in (('head_sha', 'other'), ('conclusion', 'failure'), ('status', 'in_progress')):
+            old = run[field]
+            run[field] = invalid
+            with self.assertRaisesRegex(ValueError, 'exact reference'):
+                verify()
+            run[field] = old
+        for invalid in ('failure', 'skipped'):
+            jobs[0]['steps'][0]['conclusion'] = invalid
+            with self.assertRaisesRegex(ValueError, 'unsuccessful or different job'):
+                verify()
+
     def test_reviewed_delivery_pins_reject_changed_historical_and_shader_inputs(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as temp:

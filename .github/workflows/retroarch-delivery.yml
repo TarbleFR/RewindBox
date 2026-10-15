@@ -453,19 +453,31 @@ jobs:
         swiftc -warnings-as-errors packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift test/retroarch_url_handoff_test.swift -o "$RUNNER_TEMP/retroarch-handoff"
         "$RUNNER_TEMP/retroarch-handoff"
         xcrun swiftc -parse -target arm64-apple-ios18.0 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" packages/external_folder_access/ios/Classes/ExternalFolderAccessPlugin.swift packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift
-    - name: Run the embedded libretro host against a test core
+    - name: Reuse successful libretro checks with identical source and toolchain
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      id: libretro-evidence
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        if python3 build-utils/verify_delivery_reuse.py --libretro-evidence --output build/delivery/libretro-native-reuse.json; then
+          echo 'reused=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'Reuse unavailable; all native libretro checks will run below.'
+          echo 'reused=false' >> "$GITHUB_OUTPUT"
+        fi
+    - name: Run the embedded libretro host against a test core
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
       run: python3 test/libretro_host_test.py
     - name: Run the portable libretro frontend modules (geometry, controls, settings, skins)
       # Runs even when an earlier native check failed, so one round reports
       # every native problem; the job still fails and blocks the IPA.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
       run: python3 test/libretro_frontend_test.py
     - name: Compile and render every libretro shader preset with Metal
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
       run: python3 test/libretro_shader_test.py
     - name: Compile and link every libretro bridge source for iPhone
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
       run: python3 test/libretro_ios_syntax_test.py
     - name: Fetch the pinned Flutter for the external display plugin headers
       # Build 447: the plugin uses engine groups, event and message channels that
@@ -511,7 +523,7 @@ jobs:
       # and the 3DS system data import refused to run. Built with the real
       # Flutter.framework of the pinned SDK (precached above) and run in the
       # iOS Simulator; the bytes must be those the Dart tests use.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
       run: python3 test/libretro_channel_codec_test.py --evidence build/delivery/libretro-channel-codec --label "${GITHUB_SHA}"
   cold:
     name: Release device build • cold

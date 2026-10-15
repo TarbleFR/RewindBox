@@ -1865,6 +1865,41 @@ LIBRETRO_NO_BIOS_LEGAL_INPUTS = {
 }
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_NO_BIOS_LEGAL_INPUTS, LIBRETRO_NO_BIOS_REFERENCE))
 DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
+# Build 460: pressable skin artwork and touch lifecycle, validated at this
+# exact source by libretro-checks run 38661616452. New crop sources and all
+# changed inputs are pinned, rather than admitted as open-ended exceptions.
+LIBRETRO_SKIN_PRESS_REFERENCE = 'd6cb962d5597f7ecd7c81bb17b633e559c95d8d6'
+LIBRETRO_SKIN_PRESS_RUN = 38661616452
+LIBRETRO_SKIN_PRESS_INPUTS = {
+    '.github/workflows/libretro-checks.yml',
+    'lib/l10n/libretro_locale.dart',
+    'lib/services/libretro_skin_service.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinButtonCrop.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinButtonCrop.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchOverlay.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchOverlay.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchTracker.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroTouchTracker.m',
+    'test/libretro_frontend_test.py',
+    'test/libretro_host/frontend/skin_button_crop_test.m',
+    'test/libretro_host/frontend/skin_test.m',
+    'test/libretro_host/frontend/touch_tracker_test.m',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator/skin_press_probe.h',
+    'test/libretro_simulator_probe.py',
+    'test/libretro_skin_press_probe.py',
+    'test/libretro_skin_service_test.dart',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_SKIN_PRESS_INPUTS, LIBRETRO_SKIN_PRESS_REFERENCE))
+DELTA |= LIBRETRO_SKIN_PRESS_INPUTS
+DELIVERY460_RECIPIENT_PATH = 'build-utils/delivery-460-recipient.pem'
+DELIVERY456_PINNED_INPUTS[DELIVERY460_RECIPIENT_PATH] = '24dca74cc09be795da67494380b7fb6a8cef0960'
+DELTA.add(DELIVERY460_RECIPIENT_PATH)
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2075,6 +2110,49 @@ def verify_library_covers_evidence():
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
+def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE):
+    """Close all source/dependency inputs of the already successful native job."""
+    roots = INPUT_ROOTS + ('tools/',)
+    exact = {'pubspec.yaml', 'pubspec.lock', '.github/workflows/libretro-checks.yml'}
+    # Delivery-only guards have new tests; none is imported by these harnesses.
+    guards = {'build-utils/verify_delivery_reuse.py', 'test/delivery_pipeline_test.py', DELIVERY460_RECIPIENT_PATH}
+    selected = lambda p: (p.startswith(roots) or p in exact) and p not in guards
+    old = {}
+    for line in subprocess.check_output(['git', 'ls-tree', '-r', reference], cwd=ROOT, text=True).splitlines():
+        metadata, path = line.split('\t', 1)
+        if selected(path):
+            old[path] = metadata.split()
+    current = {p for p in subprocess.check_output(
+        ['git', 'ls-files', '--cached', '--others', '--exclude-standard'], cwd=ROOT, text=True).splitlines() if selected(p)}
+    hashes = {}
+    for path in sorted(set(old) | current):
+        file = ROOT / path
+        if path not in old or file.is_symlink() or not file.is_file():
+            raise ValueError('Libretro reuse input added, missing or symlinked: ' + path)
+        data = file.read_bytes()
+        mode = '100755' if file.stat().st_mode & 0o111 else '100644'
+        oid = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+        if old[path] != [mode, 'blob', oid]:
+            raise ValueError('Libretro reuse input changed: ' + path)
+        hashes[path] = sha(data)
+    return hashes
+
+def verify_libretro_reuse_evidence():
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{LIBRETRO_SKIN_PRESS_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != LIBRETRO_SKIN_PRESS_REFERENCE or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success' or run.get('path') != '.github/workflows/libretro-checks.yml'):
+        raise ValueError('Skin press evidence is not successful at the exact reference')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    for name in ('native', 'dart', 'skin-press'):
+        matches = [j for j in jobs if j.get('name') == name]
+        if (len(matches) != 1 or matches[0].get('conclusion') != 'success'
+                or matches[0].get('head_sha') != LIBRETRO_SKIN_PRESS_REFERENCE
+                or any(s.get('conclusion') != 'success' for s in matches[0].get('steps', []))):
+            raise ValueError('Skin press evidence has an unsuccessful or different job: ' + name)
+    return {'run': LIBRETRO_SKIN_PRESS_RUN, 'testedSHA': LIBRETRO_SKIN_PRESS_REFERENCE,
+            'workflow': run['path'], 'successfulJobs': ['native', 'dart', 'skin-press']}
+
 def verify_reviewed_delivery_inputs():
     for reference in sorted(set(DELIVERY456_PINNED_INPUTS.values())):
         paths = sorted(path for path, pinned in DELIVERY456_PINNED_INPUTS.items()
@@ -2146,9 +2224,28 @@ def verify_tree():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--libretro-evidence', action='store_true')
     parser.add_argument('--scope', choices=('full', 'rpcs3_neoswap', 'library_covers'), default='full')
     parser.add_argument('--output', default='build/delivery/reused-validation.json')
     args = parser.parse_args()
+    if args.libretro_evidence:
+        if args.offline:
+            raise ValueError('Native reuse requires online CI success and the real Xcode toolchain')
+        verify_tree()
+        hashes = verify_libretro_reuse_tree()
+        xcode = subprocess.check_output(['xcodebuild', '-version'], text=True).strip()
+        sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip()
+        if xcode != 'Xcode 26.3\nBuild version 17C529' or sdk != '26.2':
+            raise ValueError('Libretro reuse toolchain differs from the successful native job')
+        report = {'result': 'passed', 'validationWasReused': True,
+                  'evidence': verify_libretro_reuse_evidence(), 'xcode': xcode, 'iphoneSDK': sdk,
+                  'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}
+        out = ROOT / args.output
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2) + '\n')
+        print('Reused successful native libretro checks from', LIBRETRO_SKIN_PRESS_REFERENCE,
+              'run', LIBRETRO_SKIN_PRESS_RUN, '; identical source/dependency files:', len(hashes))
+        return
     if args.scope == 'library_covers':
         changed, unchanged = verify_library_covers_tree()
         report = {'scope': args.scope, 'referenceSHA': LIBRARY_COVERS_REFERENCE,
