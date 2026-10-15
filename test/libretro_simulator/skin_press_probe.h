@@ -509,13 +509,17 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 - (void)verifyLayouts:(NSUInteger)index {
   if(index==4){self.layoutRenderer=nil;[self advance];return;}
   BOOL atomic=[self.scenario[@"skinPress"] isEqual:@"press-atomic"];
-  const LibretroSize sizes[]={{390,844},{844,390},{atomic?440:768,atomic?956:1024},{atomic?956:1024,atomic?440:768}};
+  BOOL ignited=[self.scenario[@"skinPress"] isEqual:@"press-complex"];
+  BOOL phoneVariants=atomic || ignited;
+  const LibretroSize sizes[]={{390,844},{844,390},{phoneVariants?440:768,phoneVariants?956:1024},{phoneVariants?956:1024,phoneVariants?440:768}};
   LibretroSkin *skin=[self.session valueForKey:@"currentSkin"];
   // This helper is invoked after the main scenario changed back to default;
   // reload only the original test fixture, using the real decoder/layout.
-  skin=[LibretroSkin skinWithDirectory:DocumentsPath(atomic ? @"Libretro/Skins/press-atomic" : @"Libretro/Skins/press-texture") consoleGeometry:nil errorCode:nil];
+  NSString *fixture=ignited ? @"press-complex" : (atomic ? @"press-atomic" : @"press-texture");
+  skin=[LibretroSkin skinWithDirectory:DocumentsPath([@"Libretro/Skins" stringByAppendingPathComponent:fixture]) consoleGeometry:nil errorCode:nil];
   LibretroSkinRepresentation *rep=[skin representationForOrientation:index%2 ? LibretroSkinOrientationLandscape : LibretroSkinOrientationPortrait
-    iPad:!atomic && index>=2 edgeToEdge:atomic && index>=2];
+    iPad:!phoneVariants && index>=2 edgeToEdge:phoneVariants && index>=2];
+  NSLog(@"Skin layout reproduction %@ variant %lu %@", fixture, (unsigned long)index, rep.backgroundPath);
   LibretroInsets insets={0,0,0,0};
   LibretroSkinLayoutResult *layout=[LibretroSkinLayout layoutRepresentation:rep viewSize:sizes[index] safeInsets:insets overrides:nil];
   self.layoutRenderer=[[LibretroSkinRenderer alloc] initWithCacheDirectory:DocumentsPath(@"SkinLayoutProbeCache")];
@@ -864,7 +868,7 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       }
       [self advance];break;
     case 18:
-      if([@[@"press-texture",@"press-atomic"] containsObject:self.scenario[@"skinPress"]]){[self verifyLayouts:0];break;}
+      if([@[@"press-texture",@"press-atomic",@"press-complex"] containsObject:self.scenario[@"skinPress"]]){[self verifyLayouts:0];break;}
       if([self.scenario[@"skinPress"] isEqual:@"press-authored"]){[self verifyAuthoredReload];break;}
       [self advance];break;
     case 19:
