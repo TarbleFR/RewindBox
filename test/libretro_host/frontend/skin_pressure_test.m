@@ -11,7 +11,7 @@ static CGImageRef Image(NSData *data, size_t w, size_t h) {
   CGImageRef image=CGImageCreate(w,h,8,32,w*4,space,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big,provider,NULL,false,kCGRenderingIntentDefault);
   CGDataProviderRelease(provider);CGColorSpaceRelease(space);return image;
 }
-static NSValue *Rect(CGRect r){return [NSValue valueWithBytes:&r objCType:@encode(CGRect)];}
+static NSValue *BoxTestRect(CGRect r){return [NSValue valueWithBytes:&r objCType:@encode(CGRect)];}
 static void GeometryAndOverlap(void) {
   size_t w=120,h=100;
   NSMutableData *bytes=[NSMutableData dataWithLength:w*h*4];uint8_t *p=bytes.mutableBytes;
@@ -33,7 +33,7 @@ static void GeometryAndOverlap(void) {
   regions=LibretroSkinPressureRegions(opaque,CGRectMake(0,0,w,h));
   for(NSUInteger i=0;i<4;i++)CHECK(CGRectEqualToRect(LibretroSkinPressureRect(regions[i]),LibretroSkinPressureArm(CGSizeMake(w,h),i)));
   CGRect whole=CGRectMake(10,10,80,70),block=CGRectMake(50,0,30,45);
-  NSArray *excluded=@[Rect(block),Rect(CGRectMake(0,55,35,40))];
+  NSArray *excluded=@[BoxTestRect(block),BoxTestRect(CGRectMake(0,55,35,40))];
   NSArray *parts=LibretroSkinPressureVisibleRects(whole,excluded);
   double area=0;
   for(NSUInteger i=0;i<parts.count;i++){
@@ -43,9 +43,9 @@ static void GeometryAndOverlap(void) {
     for(NSUInteger j=0;j<i;j++)CHECK(CGRectIsEmpty(CGRectIntersection(r,LibretroSkinPressureRect(parts[j]))));
   }
   CHECK(area==80*70-30*35-25*25);
-  CHECK(LibretroSkinPressureVisibleRects(whole,@[Rect(whole)]).count==0);
-  CHECK(LibretroSkinPressureVisibleRects(whole,@[Rect(CGRectMake(90,10,20,70))]).count==1);
-  CHECK(LibretroSkinPressureVisibleRects(whole,@[Rect(CGRectMake(NAN,10,20,70))]).count==0);
+  CHECK(LibretroSkinPressureVisibleRects(whole,@[BoxTestRect(whole)]).count==0);
+  CHECK(LibretroSkinPressureVisibleRects(whole,@[BoxTestRect(CGRectMake(90,10,20,70))]).count==1);
+  CHECK(LibretroSkinPressureVisibleRects(whole,@[BoxTestRect(CGRectMake(NAN,10,20,70))]).count==0);
   for(NSNumber *steps in @[@8,@12]){
     NSArray *frames=LibretroSkinPressureFramesExcluding(opaque,whole,0.5,0,NULL,excluded,steps.unsignedIntegerValue);
     CHECK(frames.count==steps.unsignedIntegerValue);
