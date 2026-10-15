@@ -168,6 +168,11 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
 @property(nonatomic) NSUInteger inputWaitAttempts;
 @property(nonatomic) uint64_t releaseStartFrame;
 @property(nonatomic) CFTimeInterval releaseWaitStarted;
+@property(nonatomic) uint64_t combinationStartFrame;
+@property(nonatomic) CFTimeInterval combinationWaitStarted;
+@property(nonatomic) uint16_t combinationExpectedButtons;
+@property(nonatomic, copy) NSDictionary *combinationDirections;
+@property(nonatomic, copy) NSSet *combinationPressedItems;
 @property(nonatomic, strong) LibretroSkinRenderer *layoutRenderer;
 @property(nonatomic, strong) UIImage *buttonRest;
 - (void)advance;
@@ -816,15 +821,39 @@ static void SkinProbeBuildCompositeSkins(NSString *root) {
       LibretroLaidOutItem *direction=pad ?: stick;
       self.result[@"combinedDirectionIsAnalog"]=(pad==nil && stick!=nil) ? @YES : @NO;
       if(direction!=nil){[self touch:@"pad" at:CGPointMake(direction.frame.x+direction.frame.w-3,direction.frame.y+3) begin:YES];}
+      LibretroTouchTracker *tracker=[self.controller.overlay valueForKey:@"tracker"];
+      LibretroTouchResolution *resolved=[tracker resolve];
+      self.combinationExpectedButtons=resolved.coreInput.buttons;
+      self.combinationDirections=resolved.dpadDirections;
+      self.combinationPressedItems=resolved.pressedItems;
+      uint64_t frame=0;[self.input lastDelivered:&frame];self.combinationStartFrame=frame;
+      self.combinationWaitStarted=CACurrentMediaTime();
       [self next];break;
     }
     case 10: {
       NSDictionary *directions=[self.renderer valueForKey:@"dpadDirections"];
-      LibretroInputSnapshot input=[self.input lastDelivered:NULL];
+      uint64_t frame=0;LibretroInputSnapshot input=[self.input lastDelivered:&frame];
+      // Observe real emulated frames, never wait for a desired button value.
+      // The old fixed 250 ms slot could precede the core's first new poll on
+      // a contended runner. Four polls also expire the previous sliding tap's
+      // intentional three-frame latch, allowing an exact combination check.
+      BOOL observed=frame>=self.combinationStartFrame+LIBRETRO_LATCH_PRESS_FRAMES+1;
+      if(!observed && CACurrentMediaTime()-self.combinationWaitStarted<2.0){
+        self.stage--;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/50),dispatch_get_main_queue(),^{[self advance];});
+        break;
+      }
+      self.result[@"combinationCorePoll"]=@{@"contactFrame":@(self.combinationStartFrame),@"observedFrame":@(frame),
+        @"expectedButtons":@(self.combinationExpectedButtons),@"buttons":@(input.buttons[0]),
+        @"directions":directions ?: @{},@"expectedDirections":self.combinationDirections ?: @{},
+        @"waitSeconds":@(CACurrentMediaTime()-self.combinationWaitStarted)};
+      [self check:observed name:@"held combination is checked after fresh core polls within the deadline"];
       BOOL directional=[self.result[@"combinedDirectionIsAnalog"] boolValue]
         ? [[self.renderer valueForKey:@"stickVectors"] count]>0 && input.analog[0][0][0]!=0 && input.analog[0][0][1]!=0
-        : directions.count>0;
-      [self check:directional && [self deliveredButtons]!=0 name:@"direction diagonal plus held button reaches core and artwork"];
+        : directions.count>0 && [directions isEqualToDictionary:self.combinationDirections];
+      [self check:directional && self.combinationExpectedButtons!=0 && input.buttons[0]==self.combinationExpectedButtons &&
+        [[self.renderer valueForKey:@"pressed"] isEqualToSet:self.combinationPressedItems]
+        name:@"direction diagonal plus held button reaches core and artwork"];
       [self.controller menuPressed];
       [self check:[[self.renderer valueForKey:@"pressed"] count]==0 name:@"opening menu releases every visual button"];
       [self.touches removeAllObjects];self.menuWaitAttempts=0;
