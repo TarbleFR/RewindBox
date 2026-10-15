@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 
 /// Memory cache budget of rasterised skin images (bytes).
-static const NSUInteger LibretroSkinCacheCostLimit = 96u * 1024u * 1024u;
+static const NSUInteger LibretroSkinCacheCostLimit = 48u * 1024u * 1024u;
 /// Longest side of a rasterised image, in pixels.
 static const double LibretroSkinMaximumPixels = 4096.0;
 /// KVC key holding the cache key of the image a layer waits for or shows.
@@ -75,13 +75,10 @@ static LibretroSkinImageKind LibretroSkinImageKindAtPath(NSString *path) {
 static BOOL LibretroSkinPixelSize(CGSize points, CGFloat scale, size_t *width, size_t *height) {
   if (!(points.width > 0) || !(points.height > 0) || !isfinite(points.width) || !isfinite(points.height)) return NO;
   double factor = scale > 0 && isfinite(scale) ? scale : 1;
+  // Bound before multiplying: a finite JSON number can still overflow at scale 3.
+  factor = MIN(factor, LibretroSkinMaximumPixels / MAX(points.width, points.height));
   double w = ceil(points.width * factor), h = ceil(points.height * factor);
-  double longest = MAX(w, h);
-  if (longest > LibretroSkinMaximumPixels) {
-    double shrink = LibretroSkinMaximumPixels / longest;
-    w = floor(w * shrink);
-    h = floor(h * shrink);
-  }
+  if (!isfinite(w) || !isfinite(h)) return NO;
   *width = (size_t)MAX(w, 1.0);
   *height = (size_t)MAX(h, 1.0);
   return YES;
@@ -113,12 +110,23 @@ static NSString *LibretroSkinCacheKey(NSString *path, size_t width, size_t heigh
 static CGImageRef LibretroSkinCreateRaster(NSString *path, size_t width, size_t height) CF_RETURNS_RETAINED;
 static CGImageRef LibretroSkinCreateRaster(NSString *path, size_t width, size_t height) {
   LibretroSkinImageKind kind = LibretroSkinImageKindAtPath(path);
-  if (kind == LibretroSkinImageKindNone || width == 0 || height == 0) return NULL;
+  if (kind == LibretroSkinImageKindNone || width == 0 || height == 0 ||
+      width > LibretroSkinMaximumPixels || height > LibretroSkinMaximumPixels) return NULL;
+  NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+  if ([attributes fileSize] > 50u * 1024u * 1024u) return NULL;
   NSURL *url = [NSURL fileURLWithPath:path];
   if (kind == LibretroSkinImageKindBitmap) {
     NSDictionary *sourceOptions = @{(__bridge NSString *)kCGImageSourceShouldCache : @NO};
     CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)url, (__bridge CFDictionaryRef)sourceOptions);
     if (source == NULL) return NULL;
+    NSDictionary *properties = CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, NULL));
+    double sourceWidth = [properties[(__bridge NSString *)kCGImagePropertyPixelWidth] doubleValue];
+    double sourceHeight = [properties[(__bridge NSString *)kCGImagePropertyPixelHeight] doubleValue];
+    if (!(sourceWidth > 0) || !(sourceHeight > 0) || !isfinite(sourceWidth * sourceHeight) ||
+        sourceWidth > 32768 || sourceHeight > 32768 || sourceWidth * sourceHeight > 64u * 1024u * 1024u) {
+      CFRelease(source);
+      return NULL;
+    }
     NSDictionary *options = @{
       (__bridge NSString *)kCGImageSourceCreateThumbnailFromImageAlways : @YES,
       (__bridge NSString *)kCGImageSourceCreateThumbnailWithTransform : @YES,
@@ -142,7 +150,8 @@ static CGImageRef LibretroSkinCreateRaster(NSString *path, size_t width, size_t 
   CGRect box = CGPDFPageGetBoxRect(page, kCGPDFCropBox);
   int angle = CGPDFPageGetRotationAngle(page);
   CGSize pageSize = (abs(angle) % 180) == 90 ? CGSizeMake(box.size.height, box.size.width) : box.size;
-  if (!(pageSize.width > 0) || !(pageSize.height > 0)) {
+  if (!(pageSize.width > 0) || !(pageSize.height > 0) || !isfinite(pageSize.width) ||
+      !isfinite(pageSize.height) || !isfinite(box.origin.x) || !isfinite(box.origin.y)) {
     CGPDFDocumentRelease(document);
     return NULL;
   }
@@ -177,7 +186,10 @@ static CGImageRef LibretroSkinCreateFromDisk(NSString *file) {
   if (source == NULL) return NULL;
   NSDictionary *options = @{(__bridge NSString *)kCGImageSourceShouldCacheImmediately : @YES};
   CGImageRef image = NULL;
-  if (CGImageSourceGetCount(source) > 0) {
+  NSDictionary *properties = CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, NULL));
+  double w = [properties[(__bridge NSString *)kCGImagePropertyPixelWidth] doubleValue];
+  double h = [properties[(__bridge NSString *)kCGImagePropertyPixelHeight] doubleValue];
+  if (w > 0 && h > 0 && w <= LibretroSkinMaximumPixels && h <= LibretroSkinMaximumPixels) {
     image = CGImageSourceCreateImageAtIndex(source, 0, (__bridge CFDictionaryRef)options);
   }
   CFRelease(source);
@@ -1449,12 +1461,41 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       weakMask.contents = (__bridge id)image.CGImage;
       [CATransaction commit];
       LibretroSkinRenderer *renderer = weakRenderer;
+      if (image == nil && renderer.resourceLoadFailed != nil) {
+        renderer.resourceLoadFailed();
+        return;
+      }
       if (renderer != nil) {
         if (target == renderer->_backgroundLayer) [renderer preparePaintedItems];
         [renderer preparePressureItems];
       }
 
     });
+  });
+}
+
++ (void)validateResourcesForSkin:(LibretroSkin *)skin completion:(void (^)(BOOL))completion {
+  dispatch_async(LibretroSkinQueue(), ^{
+    BOOL valid = skin != nil && ![skin.warnings containsObject:LibretroSkinWarningAssetMissing];
+    NSMutableSet<NSString *> *paths = [NSMutableSet set];
+    for (LibretroSkinRepresentation *representation in skin.representations) {
+      if (representation.backgroundPath.length > 0) [paths addObject:representation.backgroundPath];
+      if (representation.pressedBackgroundPath.length > 0) [paths addObject:representation.pressedBackgroundPath];
+      for (LibretroSkinItem *item in representation.items) {
+        if (item.assetPath.length > 0) [paths addObject:item.assetPath];
+        if (item.thumbstickAssetPath.length > 0) [paths addObject:item.thumbstickAssetPath];
+      }
+    }
+    if (paths.count > 256) valid = NO;
+    for (NSString *path in paths) {
+      if (!valid) break;
+      @autoreleasepool {
+        CGImageRef decoded = LibretroSkinCreateRaster(path, 64, 64);
+        valid = decoded != NULL;
+        if (decoded != NULL) CGImageRelease(decoded);
+      }
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{ completion(valid); });
   });
 }
 
@@ -1567,6 +1608,7 @@ static void LibretroSkinDrawVectorItem(CGContextRef context, LibretroLaidOutItem
         NSString *key = LibretroSkinCacheKey(representation.backgroundPath, width, height);
         background = LibretroSkinLoadImage(representation.backgroundPath, width, height, key, cache);
       }
+      BOOL complete = representation.generated || representation.backgroundPath.length == 0 || background != nil;
       NSMutableDictionary<NSString *, UIImage *> *images = [NSMutableDictionary dictionary];
       NSMutableDictionary<NSString *, UIImage *> *knobs = [NSMutableDictionary dictionary];
       for (LibretroLaidOutItem *laidOut in layout.items) {
@@ -1580,6 +1622,7 @@ static void LibretroSkinDrawVectorItem(CGContextRef context, LibretroLaidOutItem
           NSString *key = LibretroSkinCacheKey(item.assetPath, width, height);
           UIImage *image = LibretroSkinLoadImage(item.assetPath, width, height, key, cache);
           if (image != nil) images[item.identifier] = image;
+          else complete = NO;
         }
         CGRect knob = LibretroSkinKnobRect(laidOut, CGPointZero);
         if (item.kind == LibretroSkinItemKindThumbstick && item.thumbstickAssetPath.length > 0 &&
@@ -1587,9 +1630,14 @@ static void LibretroSkinDrawVectorItem(CGContextRef context, LibretroLaidOutItem
           NSString *key = LibretroSkinCacheKey(item.thumbstickAssetPath, width, height);
           UIImage *image = LibretroSkinLoadImage(item.thumbstickAssetPath, width, height, key, cache);
           if (image != nil) knobs[item.identifier] = image;
+          else complete = NO;
         }
       }
 
+      if (!complete) {
+        dispatch_async(dispatch_get_main_queue(), ^{ finish(nil); });
+        return;
+      }
       // A plain bitmap context made the current UIKit context (thread-safe,
       // unlike renderer formats that consult the main screen), flipped to
       // UIKit coordinates in points.

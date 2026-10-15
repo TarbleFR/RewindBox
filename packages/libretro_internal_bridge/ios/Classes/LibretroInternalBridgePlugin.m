@@ -412,9 +412,13 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
     } else {
       reply = @{@"ok" : @NO, @"error" : code ?: LibretroSkinErrorInfoInvalid, @"device" : device};
     }
-    dispatch_async(dispatch_get_main_queue(), ^{
-      result(reply);
-    });
+    if (skin != nil && [arguments[@"validateResources"] boolValue]) {
+      [LibretroSkinRenderer validateResourcesForSkin:skin completion:^(BOOL valid) {
+        result(valid ? reply : @{@"ok": @NO, @"error": LibretroSkinErrorInfoInvalid, @"device": device});
+      }];
+    } else {
+      dispatch_async(dispatch_get_main_queue(), ^{ result(reply); });
+    }
   });
 }
 

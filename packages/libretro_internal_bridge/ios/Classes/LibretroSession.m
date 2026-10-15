@@ -160,6 +160,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSMutableDictionary<NSString *, LibretroSkin *> *_skinCache;
   NSMutableSet<NSString *> *_failedSkins;
   BOOL _skinFailureShown;
+  NSMutableSet<NSString *> *_validatedSkins;
+  NSMutableSet<NSString *> *_validatingSkins;
+  NSMutableDictionary<NSNumber *, LibretroSkin *> *_lastWorkingSkins;
   // iPhone verdict of each loaded skin (LibretroSkinCompatibility) and the
   // skins already announced as not playable by touch in an orientation.
   NSMutableDictionary<NSString *, LibretroSkinCompatibilityReport *> *_skinReports;
@@ -213,6 +216,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _currentOrientation = LibretroSkinOrientationLandscape;
     _skinCache = [NSMutableDictionary dictionary];
     _failedSkins = [NSMutableSet set];
+    _validatedSkins = [NSMutableSet set];
+    _validatingSkins = [NSMutableSet set];
+    _lastWorkingSkins = [NSMutableDictionary dictionary];
     _skinReports = [NSMutableDictionary dictionary];
     _unplayableAnnounced = [NSMutableSet set];
     _lastTouchMappings = @[];
@@ -1288,7 +1294,37 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       orientation == LibretroSkinOrientationPortrait ? LibretroSettingSkinPortrait : LibretroSettingSkinLandscape;
   NSString *identifier = SettingString([self settingValue:key]);
   if (identifier == nil || [identifier isEqualToString:LibretroDefaultSkinIdentifier]) return _defaultSkin;
-  return [self importedSkinWithIdentifier:identifier report:YES] ?: _defaultSkin;
+  LibretroSkin *skin = [self importedSkinWithIdentifier:identifier report:YES];
+  LibretroSkin *previous = _currentRepresentation.orientation == orientation ? _currentSkin : _lastWorkingSkins[@(orientation)];
+  if (previous == nil || [_failedSkins containsObject:previous.installedIdentifier]) previous = _lastWorkingSkins[@(orientation)];
+  if (previous != nil && [_failedSkins containsObject:previous.installedIdentifier]) previous = nil;
+  if (skin == nil) return previous ?: _defaultSkin;
+  if ([_validatedSkins containsObject:identifier]) return skin;
+  if (![_validatingSkins containsObject:identifier]) {
+    [_validatingSkins addObject:identifier];
+    __weak LibretroSession *weakSelf = self;
+    [LibretroSkinRenderer validateResourcesForSkin:skin completion:^(BOOL valid) {
+      LibretroSession *session = weakSelf;
+      if (session == nil) return;
+      [session->_validatingSkins removeObject:identifier];
+      if (valid) [session->_validatedSkins addObject:identifier];
+      else [session rejectSkinIdentifier:identifier reason:@"resource validation failed"];
+      [session->_controller setNeedsSkinLayout];
+    }];
+  }
+  // Never activate a partially decoded skin. Keep the previous controls while checking.
+  return previous ?: _defaultSkin;
+}
+
+- (void)rejectSkinIdentifier:(NSString *)identifier reason:(NSString *)reason {
+  if (identifier.length == 0 || [identifier isEqualToString:LibretroDefaultSkinIdentifier]) return;
+  [_failedSkins addObject:identifier];
+  [_skinCache removeObjectForKey:identifier];
+  [_validatedSkins removeObject:identifier];
+  [_journal note:[NSString stringWithFormat:@"skin %@ refused: %@", identifier, reason]];
+  [self showStatus:[self text:@"skinLoadFailed"]];
+  _skinFailureShown = YES;
+  [_controller setNeedsSkinLayout];
 }
 
 /// NeoStation's skin generated for the view: DS / 3DS arrangement and
@@ -1410,6 +1446,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   if (representation == nil) {
     representation = [self defaultRepresentationForOrientation:orientation viewSize:size safeInsets:insets iPad:iPad];
   }
+  // Preserve the most recent complete layout, separately for each orientation.
+  if (_currentSkin != nil && _currentSkin != skin &&
+      ![_failedSkins containsObject:_currentSkin.installedIdentifier] && _currentRepresentation.orientation == orientation) {
+    _lastWorkingSkins[@(orientation)] = _currentSkin;
+  }
   _currentSkin = skin;
   _currentRepresentation = representation;
   return representation;
@@ -1480,6 +1521,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [_controller.overlay applyLayout:layout inputMap:_inputMap touchRemap:[self touchRemapForSkin:skin]];
   [_input setInputMap:_inputMap gamepadRemap:[self gamepadRemap]];
   _controller.controlsOpacity = [self opacityForRepresentation:representation];
+  __weak LibretroSession *weakSession = self;
+  NSString *renderedIdentifier = skin.installedIdentifier;
+  _controller.skinRenderer.resourceLoadFailed = ^{
+    [weakSession rejectSkinIdentifier:renderedIdentifier reason:@"on-screen image decode failed"];
+  };
   _controller.skinRenderer.pressureIntensity = LibretroSkinPressureIntensityFromIdentifier(
       [self settingValue:LibretroSettingPressureIntensity]);
   [self requestRedraw];

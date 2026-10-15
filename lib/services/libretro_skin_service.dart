@@ -390,6 +390,7 @@ class LibretroSkinService {
       final inspected = await LibretroInternalBridge.inspectSkin(
         directory: staging.path,
         consoleGeometry: consoleGeometry,
+        validateResources: true,
       );
       final rawSummary = inspected['summary'];
       final summary = rawSummary is Map ? rawSummary : inspected;

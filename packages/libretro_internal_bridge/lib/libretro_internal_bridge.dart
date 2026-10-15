@@ -142,6 +142,7 @@ class LibretroInternalBridge {
   /// LibretroSkinCompatibility for each of the skin's consoles.
   static Future<Map<String, dynamic>> inspectSkin({
     required String directory,
+    bool validateResources = false,
     required Map<String, Object?> consoleGeometry,
   }) async =>
       Map<String, dynamic>.from(
@@ -149,6 +150,7 @@ class LibretroInternalBridge {
               'inspectSkin',
               <String, Object?>{
                 'directory': directory,
+                'validateResources': validateResources,
                 'consoleGeometry': consoleGeometry,
               },
             ) ??

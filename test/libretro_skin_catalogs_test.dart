@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart' show Archive, ArchiveFile, ZipEncoder;
 import 'package:flutter/services.dart';
@@ -185,6 +186,33 @@ void main() {
         <String>{'gamepads/gba/img/bg.png', 'gamepads/gba/img/dpad.png', 'gamepads/gba/img/a.png', 'gamepads/gba/img/b.png'},
       );
       expect(conversion.files.keys.every((name) => name.startsWith('images/')), isTrue);
+    });
+
+    test('page rectangles move every image and touch area together', () {
+      final result = LibretroOverlayConverter.convert(
+        '$_gbaOverlay\noverlay1_rect = 0.1,0.2,0.8,0.6\noverlay1_overlay = img/bg.png',
+        cfgPath: 'gba/layout.cfg', console: 'gba', name: 'Composite', identifier: 'test.rect');
+      expect(result.converted, isTrue);
+      final landscape = _layout(result, 'landscape');
+      final start = _itemWith(landscape, <String>['start']);
+      expect(start['frame'], {'x': 460.0, 'y': 358.0, 'width': 80.0, 'height': 24.0});
+      expect(_items(landscape).first['frame'], {'x': 100.0, 'y': 100.0, 'width': 800.0, 'height': 300.0});
+      expect(landscape['assets'], isNull);
+    });
+
+    test('untrusted counts and nonfinite geometry fail before allocation', () {
+      for (final extra in <String>[
+        'overlays = 2147483647', 'overlay0_descs = 9999999',
+        'overlay0_aspect_ratio = NaN', 'overlay0_aspect_ratio = 0',
+        'overlay0_desc0 = "a,NaN,0.8,rect,0.1,0.1"',
+        'overlay0_desc0_reach_x = Infinity', 'overlay0_rect = 0,0,-1,1',
+        'overlay0_desc0_normalized = false', 'overlay0_desc0_overlay = ../../secret.png',
+      ]) {
+        final result = LibretroOverlayConverter.convert('$_gbaOverlay\n$extra',
+          cfgPath: 'gba/skin.cfg', console: 'gba', name: 'Invalid', identifier: 'test.invalid');
+        expect(result.converted, isFalse, reason: extra);
+        expect(result.problems, isNotEmpty, reason: extra);
+      }
     });
 
     test('RetroPad names become the console buttons they press', () {
@@ -779,6 +807,57 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       expect(refused, isA<LibretroSkinImportFailed>());
       expect((refused as LibretroSkinImportFailed).messageKey, LibretroSkinMessages.notPlayable);
       expect(refused.compatibility.single.reasons, <String>[LibretroSkinCompatibility.overlayUnsupported]);
+    });
+
+    test('composite previews use native layouts, both orientations, cache and no installation', () async {
+      const overlay = LibretroOverlayEntry(id: 'preview-test', source: 'pocketarch',
+        path: 'gba/test.cfg', repository: 'stunrelay/PocketArch', commit: 'abc', device: 'iphone',
+        files: ['gba/img/bg.png', 'gba/img/dpad.png', 'gba/img/a.png', 'gba/img/b.png']);
+      var downloads = 0;
+      final client = MockClient((request) async {
+        downloads++;
+        return request.url.path.endsWith('.cfg') ? http.Response(_gbaOverlay, 200)
+            : http.Response.bytes([1, 2, 3], 200);
+      });
+      var renders = 0;
+      Future<Uint8List?> render(String directory, String console, String orientation, double w, double h) async {
+        renders++;
+        expect(console, 'gba');
+        expect(orientation == 'portrait' ? w < h : w > h, isTrue);
+        final info = jsonDecode(await File(path.join(directory, 'info.json')).readAsString()) as Map;
+        final layout = ((info['representations'] as Map)['iphone'] as Map)['edgeToEdge'] as Map;
+        expect(layout.keys, containsAll(['portrait', 'landscape']));
+        final portrait = layout['portrait'] as Map;
+        expect((portrait['items'] as List).length, greaterThan(4));
+        expect(Directory(path.join(directory, 'images')).listSync().length, 4);
+        return Uint8List.fromList([137, 80, 78, 71, orientation == 'portrait' ? 1 : 2]);
+      }
+      final unified = LibretroSkinCatalogs(skins: skins,
+        provenance: LibretroSkinCatalogService(cacheDirectory: skins.cacheDirectory, skins: skins, client: client),
+        client: client, renderPreview: render);
+      final results = await Future.wait([unified.overlayPreviews(overlay, 'gba'), unified.overlayPreviews(overlay, 'gba')]);
+      expect(results.first.keys, ['portrait', 'landscape']);
+      expect(renders, 2);
+      expect(downloads, 5);
+      expect(await Directory(skins.skinsDirectory).exists(), isFalse);
+      expect(nativeCalls.where((c) => c.method == 'setFrontendSetting'), isEmpty);
+      unified.dispose();
+      final offline = catalogs(MockClient((_) async => throw const SocketException('offline')));
+      final cached = await offline.overlayPreviews(overlay, 'gba');
+      expect(cached.keys, ['portrait', 'landscape']);
+      expect(cached['portrait'], results.first['portrait']);
+      offline.dispose();
+    });
+
+    test('missing descriptor images never produce a partial preview or installation', () async {
+      const overlay = LibretroOverlayEntry(id: 'broken', source: 'pocketarch', path: 'gba/test.cfg',
+        repository: 'stunrelay/PocketArch', commit: 'abc', device: 'iphone', files: ['gba/img/a.png']);
+      final unified = catalogs(MockClient((_) async => http.Response(_gbaOverlay, 200)));
+      expect(await unified.overlayPreviews(overlay, 'gba'), isEmpty);
+      final entry = LibretroCatalogSkin(key: 'broken', source: 'pocketarch', name: 'Broken', consoles: ['gba'], overlay: overlay);
+      expect(await unified.install(entry, 'gba'), isA<LibretroSkinImportFailed>());
+      expect(nativeCalls.where((c) => c.method == 'skinPreview'), isEmpty);
+      unified.dispose();
     });
 
     test('checks cut by closing the catalogs are not cached as unreachable', () async {

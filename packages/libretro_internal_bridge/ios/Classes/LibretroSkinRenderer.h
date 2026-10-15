@@ -23,6 +23,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory;
 
+/// Decode/geometry validation off the main thread before activation/import.
+/// Missing, damaged or unreasonably large resources are refused as a whole.
++ (void)validateResourcesForSkin:(LibretroSkin *)skin completion:(void (^)(BOOL valid))completion;
+/// Main-thread notification if an on-screen resource still fails after validation.
+@property(nonatomic, copy, nullable) void (^resourceLoadFailed)(void);
+
 /// Light / Normal / Pronounced (default) / Very pronounced, 0...3.
 /// Changing the setting rebuilds only prepared visual resources.
 @property(nonatomic, assign) NSUInteger pressureIntensity;

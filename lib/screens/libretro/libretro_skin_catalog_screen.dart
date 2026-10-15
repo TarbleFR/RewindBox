@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -626,7 +627,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
                 canRequestFocus: false,
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => _showDetails(entry),
-                child: _Thumbnail(url: _thumbnail(entry), size: _thumbnailSize),
+                child: _preview(entry, _thumbnailSize),
               ),
             ),
             const SizedBox(width: 12),
@@ -694,13 +695,10 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: _Thumbnail(
-                      url: _thumbnail(entry),
-                      size: Size(
+                    child: _preview(entry, Size(
                         (size.width * 0.7).clamp(200.0, 680.0).toDouble(),
                         (size.height * 0.45).clamp(160.0, 520.0).toDouble(),
-                      ),
-                    ),
+                      )),
                   ),
                   const SizedBox(height: 12),
                   Text(entry.author ?? _t('skinsAuthorUnknown'), style: muted),
@@ -721,12 +719,28 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
     );
   }
 
-  /// The catalog's thumbnail, or for an overlay its first image (the
-  /// background of its first page in most overlays).
-  static String? _thumbnail(LibretroCatalogSkin entry) {
+  Widget _preview(LibretroCatalogSkin entry, Size size) {
     final overlay = entry.overlay;
-    if (entry.thumbnailURL != null || overlay == null || overlay.files.isEmpty) return entry.thumbnailURL;
-    return overlay.fileUri(overlay.files.first).toString();
+    if (overlay == null) return _Thumbnail(url: entry.thumbnailURL, size: size);
+    return SizedBox(
+      width: size.width, height: size.height,
+      child: FutureBuilder<Map<String, Uint8List>>(
+        future: _catalogs.overlayPreviews(overlay, widget.console),
+        builder: (context, snapshot) {
+          final previews = (snapshot.data ?? const <String, Uint8List>{}).entries
+              .where((entry) => _orientation == null || entry.key == _orientation).toList();
+          if (previews.isEmpty) return _Thumbnail(url: null, size: size);
+          return Row(children: [
+            for (final preview in previews)
+              Expanded(child: Semantics(
+                label: _t(preview.key == 'portrait' ? 'orientationPortrait' : 'orientationLandscape'),
+                image: true,
+                child: Image.memory(preview.value, fit: BoxFit.contain, gaplessPlayback: true),
+              )),
+          ]);
+        },
+      ),
+    );
   }
 }
 

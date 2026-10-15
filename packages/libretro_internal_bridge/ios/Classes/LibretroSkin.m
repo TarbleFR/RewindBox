@@ -105,7 +105,7 @@ static BOOL SkinRect(id object, LibretroRect *out) {
   if (!SkinNumber(dictionary[@"x"], &x) || !SkinNumber(dictionary[@"y"], &y)) return NO;
   if (!SkinNumber(dictionary[@"width"], &width) && !SkinNumber(dictionary[@"w"], &width)) return NO;
   if (!SkinNumber(dictionary[@"height"], &height) && !SkinNumber(dictionary[@"h"], &height)) return NO;
-  if (width <= 0 || height <= 0) return NO;
+  if (width < 0.001 || height < 0.001 || width > 1000000 || height > 1000000) return NO;
   *out = LibretroRectMake(x, y, width, height);
   return YES;
 }
@@ -116,7 +116,7 @@ static BOOL SkinSize(id object, LibretroSize *out) {
   if (dictionary == nil) return NO;
   double width = 0, height = 0;
   if (!SkinNumber(dictionary[@"width"], &width) || !SkinNumber(dictionary[@"height"], &height)) return NO;
-  if (width <= 0 || height <= 0) return NO;
+  if (width < 0.001 || height < 0.001 || width > 1000000 || height > 1000000) return NO;
   out->w = width;
   out->h = height;
   return YES;
@@ -724,6 +724,8 @@ static NSString *SkinImagePath(NSString *root, id name) {
                                               orientation:(LibretroSkinOrientation)orientation {
   LibretroSize mapping = {0, 0};
   if (!SkinSize(object[@"mappingSize"], &mapping)) return nil;
+  id rawItems = object[@"items"];
+  if ([rawItems isKindOfClass:NSArray.class] && [rawItems count] > 256) return nil;
   LibretroSkinRepresentation *representation = [LibretroSkinRepresentation new];
   representation.orientation = orientation;
   representation.device = device;
@@ -784,6 +786,11 @@ static NSString *SkinImagePath(NSString *root, id name) {
   if (root.length == 0 || ![[NSFileManager defaultManager] fileExistsAtPath:infoPath isDirectory:&isDirectory] ||
       isDirectory) {
     if (errorCode != NULL) *errorCode = LibretroSkinErrorInfoMissing;
+    return nil;
+  }
+  NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:infoPath error:nil];
+  if ([attributes fileSize] > 1024u * 1024u) {
+    if (errorCode != NULL) *errorCode = LibretroSkinErrorInfoInvalid;
     return nil;
   }
   NSData *data = [NSData dataWithContentsOfFile:infoPath];

@@ -126,14 +126,19 @@ class LibretroOverlayConverter {
     required String identifier,
     String device = 'iphone',
   }) {
-    final conf = _parse(cfg);
-    final problems = <String>[];
+    final oversized = cfg.length > 1024 * 1024;
+    final conf = _parse(oversized ? '' : cfg);
+    final problems = <String>[if (oversized) 'configuration exceeds 1 MiB'];
     final dropped = <String>{};
     final files = <String, String>{};
     final gameType = gameTypes[console];
     if (gameType == null) problems.add('console $console has no converted layout');
     if (cfg.contains('#include')) problems.add('#include is not supported');
-    final count = int.tryParse(conf['overlays'] ?? '') ?? 0;
+    var count = int.tryParse(conf['overlays'] ?? '') ?? 0;
+    if (count < 1 || count > 64) {
+      problems.add('overlay count outside 1...64');
+      count = 0;
+    }
     final pages = <int, _Page>{};
     for (var index = 0; index < count; index++) {
       pages[index] = _Page(index, conf);
@@ -152,6 +157,13 @@ class LibretroOverlayConverter {
     for (final orientation in const <String>['portrait', 'landscape']) {
       final page = picked[orientation];
       if (page == null) continue;
+      if (page.descCount < 0 || page.descCount > 256 ||
+          (page.aspect != null && (!page.aspect!.isFinite || page.aspect! < 0.05 || page.aspect! > 20)) ||
+          page.rect.length != 4 || page.rect.any((v) => !v.isFinite || v.abs() > 8) ||
+          page.rect[2] <= 0 || page.rect[3] <= 0) {
+        problems.add('invalid geometry or descriptor count on page ${page.index}');
+        continue;
+      }
       if (!page.normalized || !page.fullScreen) {
         problems.add('page ${page.name.isEmpty ? page.index : page.name} is not full_screen and normalized');
         continue;
@@ -230,9 +242,15 @@ class LibretroOverlayConverter {
     String? image(String? source) {
       if (source == null || source.isEmpty) return null;
       final resolved = path.posix.normalize(path.posix.join(cfgDirectory, source));
-      if (resolved.startsWith('../') || path.posix.isAbsolute(resolved)) return null;
+      if (resolved.startsWith('../') || path.posix.isAbsolute(resolved) || resolved.contains('\\')) {
+        problems.add('unsafe resource path');
+        return null;
+      }
       final extension = path.posix.extension(resolved).toLowerCase();
-      if (extension != '.png' && extension != '.jpg' && extension != '.jpeg') return null;
+      if (extension != '.png' && extension != '.jpg' && extension != '.jpeg') {
+        problems.add('unsupported image format: $extension');
+        return null;
+      }
       final existing = files.entries.where((entry) => entry.value == resolved).map((entry) => entry.key);
       if (existing.isNotEmpty) return existing.first;
       final name = 'images/${orientation[0]}${imageIndex++}$extension';
@@ -243,15 +261,26 @@ class LibretroOverlayConverter {
     for (var index = 0; index < page.descCount; index++) {
       final key = 'overlay${page.index}_desc$index';
       final raw = conf[key];
-      if (raw == null) continue;
+      if (raw == null || conf['${key}_normalized']?.toLowerCase() == 'false') {
+        problems.add('missing or pixel-based descriptor: $key');
+        continue;
+      }
       final parts = raw.split(',').map((part) => part.trim()).toList();
-      if (parts.length < 6) continue;
+      if (parts.length < 6 || (parts[3] != 'rect' && parts[3] != 'radial')) {
+        problems.add('invalid descriptor: $key');
+        continue;
+      }
       final names = parts[0].split('|').map((name) => name.trim().toLowerCase()).where((name) => name.isNotEmpty).toList();
       final x = double.tryParse(parts[1]);
       final y = double.tryParse(parts[2]);
       final rangeX = double.tryParse(parts[4]);
       final rangeY = double.tryParse(parts[5]);
-      if (x == null || y == null || rangeX == null || rangeY == null || rangeX <= 0 || rangeY <= 0) continue;
+      if (x == null || y == null || rangeX == null || rangeY == null ||
+          !x.isFinite || !y.isFinite || !rangeX.isFinite || !rangeY.isFinite ||
+          x.abs() > 8 || y.abs() > 8 || rangeX <= 0 || rangeY <= 0 || rangeX > 8 || rangeY > 8) {
+        problems.add('invalid descriptor geometry: $key');
+        continue;
+      }
       double reach(String side, String axis) =>
           double.tryParse(conf['${key}_reach_$side'] ?? '') ?? double.tryParse(conf['${key}_reach_$axis'] ?? '') ?? 1;
       final reaches = <String, double>{
@@ -260,17 +289,21 @@ class LibretroOverlayConverter {
         'up': reach('up', 'y'),
         'down': reach('down', 'y'),
       };
+      if (reaches.values.any((value) => !value.isFinite || value < 0 || value > 16)) {
+        problems.add('invalid reach: $key');
+        continue;
+      }
       final frame = <String, Object?>{
-        'x': _round((x - rangeX) * width),
-        'y': _round((y - rangeY) * height),
-        'width': _round(2 * rangeX * width),
-        'height': _round(2 * rangeY * height),
+        'x': _round((page.rect[0] + (x - rangeX) * page.rect[2]) * width),
+        'y': _round((page.rect[1] + (y - rangeY) * page.rect[3]) * height),
+        'width': _round(2 * rangeX * width * page.rect[2]),
+        'height': _round(2 * rangeY * height * page.rect[3]),
       };
       final edges = <String, Object?>{
-        'top': _round(math.max(0, reaches['up']! - 1) * rangeY * height),
-        'bottom': _round(math.max(0, reaches['down']! - 1) * rangeY * height),
-        'left': _round(math.max(0, reaches['left']! - 1) * rangeX * width),
-        'right': _round(math.max(0, reaches['right']! - 1) * rangeX * width),
+        'top': _round(math.max(0, reaches['up']! - 1) * rangeY * height * page.rect[3]),
+        'bottom': _round(math.max(0, reaches['down']! - 1) * rangeY * height * page.rect[3]),
+        'left': _round(math.max(0, reaches['left']! - 1) * rangeX * width * page.rect[2]),
+        'right': _round(math.max(0, reaches['right']! - 1) * rangeX * width * page.rect[2]),
       };
       final asset = image(conf['${key}_overlay']);
       Map<String, Object?>? item;
@@ -374,7 +407,20 @@ class LibretroOverlayConverter {
       'items': items,
     };
     final background = image(page.background);
-    if (background != null) representation['assets'] = <String, Object?>{'medium': background};
+    if (background != null) {
+      if (page.rect[0] == 0 && page.rect[1] == 0 && page.rect[2] == 1 && page.rect[3] == 1) {
+        representation['assets'] = <String, Object?>{'medium': background};
+      } else {
+        // RetroArch's page rect transforms both the base image and all descriptors.
+        // Keep it below the button images; never stretch a partial background full-screen.
+        items.insert(0, <String, Object?>{
+          'inputs': <String>[],
+          'frame': <String, Object?>{'x': _round(page.rect[0] * width), 'y': _round(page.rect[1] * height),
+            'width': _round(page.rect[2] * width), 'height': _round(page.rect[3] * height)},
+          'asset': <String, Object?>{'normal': background},
+        });
+      }
+    }
 
     if (portrait) {
       // The game takes the room above the topmost control (the frames of
@@ -459,6 +505,8 @@ class _Page {
         normalized = (conf['overlay${index}_normalized'] ?? 'false').toLowerCase() == 'true',
         aspect = double.tryParse(conf['overlay${index}_aspect_ratio'] ?? conf['aspect_ratio'] ?? ''),
         background = conf['overlay${index}_overlay'],
+        rect = (conf['overlay${index}_rect'] ?? '0,0,1,1').split(RegExp(r'[, ]+'))
+            .where((v) => v.isNotEmpty).map((v) => double.tryParse(v) ?? double.nan).toList(),
         descCount = int.tryParse(conf['overlay${index}_descs'] ?? '') ?? 0;
 
   final int index;
@@ -468,6 +516,7 @@ class _Page {
   final double? aspect;
   final String? background;
   final int descCount;
+  final List<double> rect;
 
   /// A pause or menu page (reached by overlay_next): NeoStation's own menu
   /// replaces it.

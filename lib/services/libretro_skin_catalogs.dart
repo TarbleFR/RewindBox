@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:archive/archive.dart' show Archive, ArchiveFile, ZipEncoder;
 import 'package:flutter/services.dart' show rootBundle;
@@ -141,12 +144,14 @@ class LibretroSkinCatalogs {
     Future<String> Function()? overlayIndex,
     Future<Map<String, dynamic>> Function(String directory)? inspect,
     DateTime Function()? clock,
+    Future<Uint8List?> Function(String directory, String console, String orientation, double width, double height)? renderPreview,
     this.concurrency = 4,
     bool ownsClient = false,
   })  : _client = client ?? http.Client(),
         _ownsClient = client == null || ownsClient,
         _overlayIndex = overlayIndex ?? (() => rootBundle.loadString(overlayIndexAsset)),
         _inspect = inspect,
+        _renderPreview = renderPreview,
         _clock = clock ?? DateTime.now;
 
   /// The catalogs installing into [skins], with their own HTTP client
@@ -173,7 +178,7 @@ class LibretroSkinCatalogs {
   static const String inspectionFolderName = 'SkinInspection';
 
   /// Bump when the native or Dart rules change: cached verdicts are redone.
-  static const int rulesVersion = 1;
+  static const int rulesVersion = 2;
   static const Duration verdictLifetime = Duration(days: 30);
   static const Duration unreachableLifetime = Duration(hours: 6);
 
@@ -185,6 +190,10 @@ class LibretroSkinCatalogs {
   final Future<String> Function() _overlayIndex;
   final Future<Map<String, dynamic>> Function(String directory)? _inspect;
   final DateTime Function() _clock;
+  final Future<Uint8List?> Function(String, String, String, double, double)? _renderPreview;
+  final Map<String, Future<Map<String, Uint8List>>> _previews = {};
+  final List<Future<void>> _previewWorkers = [Future<void>.value(), Future<void>.value()];
+  int _nextPreviewWorker = 0;
 
   List<LibretroCatalogSkin>? _entries;
   final Set<String> _unavailable = <String>{};
@@ -640,20 +649,19 @@ class LibretroSkinCatalogs {
   }
 
   Future<LibretroOverlayConversion> _convert(LibretroOverlayEntry overlay, String console) async {
-    final response = await _client.get(overlay.fileUri(overlay.path)).timeout(LibretroSkinCatalogService.requestTimeout);
-    if (response.statusCode != 200) {
-      throw LibretroRemoteSkinInspectionException('HTTP ${response.statusCode} ${overlay.path}', network: true);
-    }
+    final bytes = await _readOverlayFile(overlay, overlay.path, 1024 * 1024);
     final conversion = LibretroOverlayConverter.convert(
-      utf8.decode(response.bodyBytes, allowMalformed: true),
+      utf8.decode(bytes),
       cfgPath: overlay.path,
       console: console,
       name: path.basenameWithoutExtension(overlay.path).replaceAll('_', ' '),
       identifier: 'org.neostation.overlay.${overlay.id}.$console',
       device: overlay.device,
     );
-    // Only images the index found in the repository are used.
-    conversion.files.removeWhere((_, file) => !overlay.files.contains(file));
+    // Do not silently remove an image while leaving its reference in info.json.
+    for (final file in conversion.files.values) {
+      if (!overlay.files.contains(file)) conversion.problems.add('missing indexed resource: $file');
+    }
     return conversion;
   }
 
@@ -750,17 +758,10 @@ class LibretroSkinCatalogs {
       bundle.addFile(ArchiveFile('info.json', info.length, info));
       var total = info.length;
       for (final file in conversion.files.entries) {
-        final response = await _client.get(overlay.fileUri(file.value)).timeout(LibretroSkinCatalogService.requestTimeout);
-        if (response.statusCode != 200) {
-          return LibretroSkinImportFailed(LibretroSkinMessages.download,
-              technicalDetails: 'HTTP ${response.statusCode} ${file.value}');
-        }
-        total += response.bodyBytes.length;
-        if (total > LibretroSkinService.maxArchiveBytes) {
-          return LibretroSkinImportFailed(LibretroSkinMessages.tooLarge,
-              parameters: <String, Object>{'limit': LibretroSkinService.maxArchiveBytes ~/ (1024 * 1024)});
-        }
-        bundle.addFile(ArchiveFile(file.key, response.bodyBytes.length, response.bodyBytes));
+        final bytes = await _readOverlayFile(overlay, file.value,
+            min(16 * 1024 * 1024, LibretroSkinService.maxArchiveBytes - total));
+        total += bytes.length;
+        bundle.addFile(ArchiveFile(file.key, bytes.length, bytes));
       }
       await folder.create(recursive: true);
       await zip.writeAsBytes(ZipEncoder().encode(bundle), flush: true);
@@ -771,6 +772,10 @@ class LibretroSkinCatalogs {
         license: entry.license,
         targetConsole: console,
       );
+    } on LibretroRemoteSkinInspectionException catch (error) {
+      return LibretroSkinImportFailed(LibretroSkinMessages.download, technicalDetails: '$error');
+    } on FormatException catch (error) {
+      return LibretroSkinImportFailed(LibretroSkinMessages.importFailed, technicalDetails: '$error');
     } on TimeoutException catch (error) {
       return LibretroSkinImportFailed(LibretroSkinMessages.download, technicalDetails: '$error');
     } on IOException catch (error) {
@@ -781,6 +786,126 @@ class LibretroSkinCatalogs {
       try {
         if (await zip.exists()) await zip.delete();
       } catch (_) {}
+    }
+  }
+
+  /// The same converted layout and native compositor used by gameplay. Never
+  /// substitute an individual descriptor image for a complete controller.
+  /// At most two compositions/downloads run together; pinned PNGs work offline.
+  Future<Map<String, Uint8List>> overlayPreviews(LibretroOverlayEntry overlay, String console) {
+    final key = sha256.convert(utf8.encode(jsonEncode([
+      rulesVersion, overlay.repository, overlay.commit, overlay.path, overlay.device,
+      console, skins.consoleGeometry,
+    ]))).toString();
+    final existing = _previews[key];
+    if (existing != null) return existing;
+    // The disk cache remains authoritative when scrolling back through a large catalog.
+    if (_previews.length >= 32) _previews.remove(_previews.keys.first);
+    final worker = _nextPreviewWorker++ % _previewWorkers.length;
+    final future = _previewWorkers[worker].then((_) => _composeOverlay(overlay, console, key));
+    _previewWorkers[worker] = future.then<void>((_) {});
+    return _previews[key] = future;
+  }
+
+  Future<Uint8List> _readOverlayFile(LibretroOverlayEntry overlay, String file, int limit) async {
+    if (_disposed || limit <= 0) throw const LibretroRemoteSkinInspectionException('download cancelled or too large');
+    final response = await _client.send(http.Request('GET', overlay.fileUri(file)))
+        .timeout(LibretroSkinCatalogService.requestTimeout);
+    if (response.statusCode != 200 || (response.contentLength ?? 0) > limit) {
+      await response.stream.listen((_) {}).cancel();
+      throw LibretroRemoteSkinInspectionException('HTTP ${response.statusCode} or oversized resource: $file', network: true);
+    }
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in response.stream.timeout(LibretroSkinCatalogService.requestTimeout)) {
+      if (_disposed || bytes.length + chunk.length > limit) {
+        throw const LibretroRemoteSkinInspectionException('resource exceeds download limit');
+      }
+      bytes.add(chunk);
+    }
+    return bytes.takeBytes();
+  }
+
+  Future<Map<String, Uint8List>> _composeOverlay(LibretroOverlayEntry overlay, String console, String key) async {
+    final folder = Directory(path.join(skins.cacheDirectory, 'OverlayPreviews'));
+    final manifest = File(path.join(folder.path, '$key.json'));
+    Directory? staging;
+    try {
+      if (_disposed) return {};
+      if (await manifest.exists()) {
+        try {
+          final orientations = (jsonDecode(await manifest.readAsString()) as List).whereType<String>();
+          final cached = <String, Uint8List>{};
+          for (final orientation in orientations) {
+            if (orientation != 'portrait' && orientation != 'landscape') throw const FormatException('orientation');
+            cached[orientation] = await File(path.join(folder.path, '$key-$orientation.png')).readAsBytes();
+          }
+          return cached;
+        } catch (_) {
+          await manifest.delete(); // Eviction/interruption: regenerate the entire preview.
+        }
+      }
+      final conversion = await _convert(overlay, console);
+      if (!conversion.converted) return {};
+      await folder.create(recursive: true);
+      // A parser-safe skin id. No installed skin or selection is changed.
+      final stagingRoot = await Directory(path.join(folder.path, 'staging')).create(recursive: true);
+      staging = await stagingRoot.createTemp();
+      final skin = await Directory(path.join(staging.path, key)).create();
+      final info = utf8.encode(jsonEncode(conversion.info));
+      await File(path.join(skin.path, 'info.json')).writeAsBytes(info);
+      var total = info.length;
+      for (final file in conversion.files.entries) {
+        final bytes = await _readOverlayFile(overlay, file.value,
+            min(16 * 1024 * 1024, LibretroSkinService.maxArchiveBytes - total));
+        total += bytes.length;
+        final target = File(path.join(skin.path, file.key));
+        await target.parent.create(recursive: true);
+        await target.writeAsBytes(bytes);
+      }
+      final result = <String, Uint8List>{};
+      for (final orientation in conversion.orientations) {
+        final portrait = orientation == 'portrait';
+        final width = overlay.device == 'ipad' ? (portrait ? 768.0 : 1024.0) : (portrait ? 390.0 : 844.0);
+        final height = overlay.device == 'ipad' ? (portrait ? 1024.0 : 768.0) : (portrait ? 844.0 : 390.0);
+        final renderer = _renderPreview;
+        final png = renderer != null
+            ? await renderer(skin.path, console, orientation, width, height)
+            : await LibretroInternalBridge.skinPreview(
+                skinDirectory: skin.path, console: console, orientation: orientation,
+                width: width, height: height, scale: 1,
+                consoleGeometry: skins.consoleGeometry, cacheDirectory: staging.path);
+        if (png == null || png.isEmpty) return {}; // No partial preview presented as complete.
+        result[orientation] = png;
+      }
+      // Commit the manifest last; interrupted writes are never used as complete.
+      for (final entry in result.entries) {
+        await File(path.join(folder.path, '$key-${entry.key}.png')).writeAsBytes(entry.value, flush: true);
+      }
+      await manifest.writeAsString(jsonEncode(result.keys.toList()), flush: true);
+      await _trimOverlayPreviews(folder, key);
+      return result;
+    } catch (error) {
+      _log.w('Overlay preview unavailable (${overlay.path}): $error');
+      return {};
+    } finally {
+      if (staging != null) {
+        try { await staging.delete(recursive: true); } catch (_) {}
+      }
+    }
+  }
+
+  static Future<void> _trimOverlayPreviews(Directory folder, String keep) async {
+    final files = <File, FileStat>{};
+    await for (final entity in folder.list()) {
+      if (entity is File) files[entity] = await entity.stat();
+    }
+    var bytes = files.values.fold<int>(0, (sum, stat) => sum + stat.size);
+    final oldest = files.keys.toList()..sort((a, b) => files[a]!.modified.compareTo(files[b]!.modified));
+    for (final file in oldest) {
+      if (bytes <= 32 * 1024 * 1024) break;
+      if (path.basename(file.path).startsWith(keep)) continue;
+      bytes -= files[file]!.size;
+      try { await file.delete(); } catch (_) {}
     }
   }
 
