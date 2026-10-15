@@ -63,10 +63,91 @@ DeSmuME and PCE run homebrew with their real cores; GBC, NES, PSX and N64 input
 profiles use the deterministic NeoTest core. This does not claim real gameplay
 validation of those latter cores.
 
-Before delivery, record exact source, run IDs, actual results, output IPA hash,
-version and packaged core count here. The 34-core artifact and other native
-engine identities remain unchanged. The delivery uses a session public
-recipient; its private key stays outside Git. No public release is requested.
+The 34-core artifact and other native engine identities remain unchanged.
+The delivery uses a session public recipient; its private key stays outside
+Git. No public release is requested.
+
+## Executed skin checks
+
+- UIKit source: `7c05e44f89cb5f5095e9c1f4c4c745e36e2bde0e`;
+  [run 38731165154](https://github.com/TarbleFR/neostation-ios/actions/runs/38731165154),
+  successful `skin-press` job `116409014310`.
+- **23 sessions, 1,380 successful checks**: 12 iPhone and 11 iPad Simulator
+  sessions, including the actual Atomic Pink archive, transparent asymmetric
+  crosses, overlapping areas and previously passing skin fixtures.
+- **152 directional pixel comparisons**, zero changed pixels outside the
+  permitted regions. Released states match their prepared resting states.
+  Prepared rest versus the unsplit original has at most **1/255** channel
+  difference on the translucent asymmetric fixture, and zero on the other
+  measured skins. No pixel exceeds two levels in the rest comparison.
+- Atomic Pink's four phone representations, landscape A+B input, iPad fallback,
+  touch-to-controller handoff and the first fresh touch after disconnection
+  pass. Both devices also pass authored-state reload after cache eviction.
+- All measured layouts use 12 release states. Maximum reserved pressure-image
+  storage is **26,716,272 bytes (25.48 MiB)**, under the 32 MiB limit. The native
+  pixel tests separately exercise both the 8-state and 12-state preparation.
+- Isolated direction-state updates measure **2.10–14.12 microseconds average**
+  per measured session on these CI machines. This excludes display presentation,
+  physical touch, frame pacing and the pixel-comparison harness; it is not a
+  device latency claim.
+- Evidence archive `11971488387`: 52,655,402 bytes, SHA-256
+  `b49dbc2dd5efa924d1cdecd3c94122e983dd34508cd5b2046b07153303fb54af`.
+
+The same run's portable step initially failed to compile because the test
+helper `Rect` collided with Apple's macOS `Rect` typedef. Renaming that helper
+to `BoxTestRect` changes no product behaviour or assertion. The fixed portable
+suite subsequently passes in delivery run `38732938115` at `fa201417`.
+The original failed step remains a failure; its rendering and iPhone compile
+results have separate provenance. Delivery checks **2,554 identical UIKit
+source/dependency files** and the exact successful rendering job before the
+Release build. No renderer, fixture, simulator probe or skin-test recipe is
+excluded from that comparison.
+
+At candidate `fa2014171e23771d1abd1a5d80c243813af771c2`, delivery run
+`38732938115` also actually executes and passes all **16 native frontend
+executables**, including **998 pressure-pixel checks** and **6,025 touch-tracker
+checks**. The default-control sweep covers 1,848 buttons, 352 D-pads, 32 sticks
+and 16 touch screens. All **71 bridge sources compile and link for iPhone**;
+this phase is executed again because the closed comparison includes a changed
+delivery test. It is not reported as reused. Flutter analysis reports no
+issues; the configured Dart suites and pipeline contracts pass, including
+the 19 delivery-gate tests and 17 external-display host tests.
+
+The additional product changes are in `LibretroSkinPressure.h`,
+`LibretroSkinPressure.m` and `LibretroSkinRenderer.m` under
+`packages/libretro_internal_bridge/ios/Classes/`. Regression coverage changes
+`test/libretro_host/frontend/skin_pressure_test.m`,
+`test/libretro_simulator/skin_press_probe.h` and
+`test/libretro_skin_press_probe.py`. The two workflows and delivery/reuse
+guards bind these results to the candidate; no other emulator engine changes.
+
+## Verified delivery
+
+- Candidate: `fa2014171e23771d1abd1a5d80c243813af771c2`, branch `Claude`.
+- [Delivery run 38732938115](https://github.com/TarbleFR/neostation-ios/actions/runs/38732938115):
+  `checks`, `native` and the cold Release device build all succeeded. The warm
+  benchmark build was intentionally skipped. The Release build starts only
+  after successful verification of the exact UIKit session evidence.
+- Encrypted artifact `11974260046`, 215,785,373 bytes, expires 29 October 2026;
+  archive SHA-256
+  `027329f1b21b0ec4afb53d50f75630f182f40a3524b3f19e8da7921441ea3efd`.
+  Public recipient: `build-utils/delivery-461-recipient.pem`.
+- Downloaded, decrypted IPA: **NeoStation-Build461-fa201417.ipa**,
+  **215,189,456 bytes**, SHA-256
+  `f799f5512ee558bbd3a10e98cbf35cba11bfe93a109cff839616de702ed541ab`.
+  The downloaded bytes match both `SHA256SUMS` and the sealed payload identity.
+- Independent checks of those bytes confirm **0.0.7 (461)** in the application
+  and all five extensions, the packaged source identity, all **34 libretro
+  cores**, and the code/data/ABI fingerprints of all **76 sealed images**.
+  The iOS ARM64 bridge contains the new shared-exclusion selector and the
+  pressure-region/deformation functions. CI verifies the final ZIP's signatures
+  with `codesign --verify --deep --strict` after export.
+- This private IPA requires the usual Apple re-signing with SideStore.
+  Installation, gameplay, touch latency, ProMotion pacing and physical
+  controllers have **not** been tested on a real iPhone in this cycle.
+
+The maintainer's PC was offline; the IPA and the captured-state evidence are
+provided as downloadable files. The build number 461 must not be reused.
 
 ## Required manual iPhone validation
 
