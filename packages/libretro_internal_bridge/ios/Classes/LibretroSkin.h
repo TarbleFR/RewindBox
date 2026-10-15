@@ -101,6 +101,9 @@ typedef NS_ENUM(NSInteger, LibretroSkinItemShape) {
 /// Delta's optional representation image: the selected asset's filename
 /// with `_pressed` inserted before its extension. Not asset.selected.
 @property(nonatomic, copy, nullable) NSString *pressedBackgroundPath;
+/// Required resources which could not be resolved for this exact layout.
+/// Import warnings (including unused image-size alternatives) are advisory.
+@property(nonatomic, copy) NSArray<NSDictionary<NSString *, NSString *> *> *resourceIssues;
 @property(nonatomic, copy) NSArray<LibretroSkinItem *> *items;
 @property(nonatomic, copy) NSArray<LibretroSkinScreen *> *screens;
 /// Delta "translucent": controls are drawn at the user's opacity.

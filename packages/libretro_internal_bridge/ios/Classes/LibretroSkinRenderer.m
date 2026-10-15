@@ -530,6 +530,10 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   NSUInteger _pressureBytes;
   NSUInteger _pressureFrameCount;
   NSProgress *_pressurePreparation;
+  NSUInteger _pendingRequiredImages;
+  NSUInteger _readyGeneration;
+  BOOL _resourceFailed;
+  BOOL _preparingRepresentation;
 }
 
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory {
@@ -585,14 +589,18 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   if (!sameContent && representation != nil && layout != nil &&
       !LibretroSkinLayoutFitsImageBudget(representation, layout, scale)) {
     // Keep the previous rendered controls while the session restores its working skin.
-    dispatch_block_t failed = self.resourceLoadFailed;
-    if (failed) dispatch_async(dispatch_get_main_queue(), failed);
+    void (^failed)(LibretroSkinRepresentation *, NSDictionary *) = self.resourceLoadFailed;
+    if (failed) dispatch_async(dispatch_get_main_queue(), ^{
+      failed(representation, @{@"stage":@"texture-budget", @"reason":@"displayed-textures-exceed-96-MiB"});
+    });
     return;
   }
   [CATransaction begin];
   [CATransaction setDisableActions:YES];
   if (!sameContent) {
     _imageGeneration++;
+    _pendingRequiredImages = 0;
+    _resourceFailed = NO;
     _pressureBytes = 0;
     _pressureFrameCount = 0;
     [_pressurePreparation cancel];
@@ -620,12 +628,22 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
     }
     for (LibretroSkinItemLayers *layers in _items) [self applyStateToLayers:layers];
   } else {
+    _preparingRepresentation = YES;
     [self applyPanelAndBackground];
     [self applyItems];
     [self preparePaintedItems];
     [self preparePressureItems];
+    _preparingRepresentation = NO;
   }
   [CATransaction commit];
+  [self reportRepresentationReady];
+}
+
+- (void)reportRepresentationReady {
+  if (_representation == nil || _layout == nil || _preparingRepresentation || _resourceFailed ||
+      _pendingRequiredImages != 0 || _readyGeneration == _imageGeneration) return;
+  _readyGeneration = _imageGeneration;
+  if (self.representationReady) self.representationReady(_representation);
 }
 
 - (void)clearAll {
@@ -1476,8 +1494,10 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   if (!LibretroSkinPixelSize(points, _scale, &width, &height)) return;
   NSString *key = LibretroSkinCacheKey(path, width, height);
   NSString *current = [layer valueForKey:LibretroSkinImageKey];
-  if ([current isKindOfClass:[NSString class]] && [current isEqualToString:key]) return;
+  if ([current isKindOfClass:[NSString class]] && [current isEqualToString:key] &&
+      [[layer valueForKey:@"neostationSkinGeneration"] unsignedIntegerValue] == _imageGeneration) return;
   [layer setValue:key forKey:LibretroSkinImageKey];
+  [layer setValue:@(_imageGeneration) forKey:@"neostationSkinGeneration"];
   // A cleared/reloaded layer can request the same cache key again. Its old
   // ready marker must not allow preparation before the new async result,
   // especially while an authored pressed image is still being loaded.
@@ -1490,6 +1510,10 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
     return;
   }
   NSString *cacheDirectory = _cacheDirectory;
+  NSUInteger generation = _imageGeneration;
+  LibretroSkinRepresentation *representation = _representation;
+  BOOL required = layer != _pressedBackgroundLayer;
+  if (required) _pendingRequiredImages++;
   __weak LibretroSkinRenderer *weakRenderer = self;
   __weak CALayer *weakLayer = layer;
   __weak CALayer *weakMask = mask;
@@ -1497,7 +1521,9 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
     UIImage *image = LibretroSkinLoadImage(path, width, height, key, cacheDirectory);
     dispatch_async(dispatch_get_main_queue(), ^{
       CALayer *target = weakLayer;
-      if (target == nil) return;
+      LibretroSkinRenderer *renderer = weakRenderer;
+      if (target == nil || renderer == nil || renderer->_imageGeneration != generation ||
+          renderer->_representation != representation) return;
       NSString *expected = [target valueForKey:LibretroSkinImageKey];
       if (![expected isKindOfClass:[NSString class]] || ![expected isEqualToString:key]) return;
       [CATransaction begin];
@@ -1506,14 +1532,18 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
       [target setValue:key forKey:@"neostationSkinReadyKey"];
       weakMask.contents = (__bridge id)image.CGImage;
       [CATransaction commit];
-      LibretroSkinRenderer *renderer = weakRenderer;
-      if (image == nil && renderer.resourceLoadFailed != nil) {
-        renderer.resourceLoadFailed();
+      if (required && renderer->_pendingRequiredImages > 0) renderer->_pendingRequiredImages--;
+      if (image == nil && required) {
+        renderer->_resourceFailed = YES;
+        if (renderer.resourceLoadFailed) renderer.resourceLoadFailed(representation,
+          @{@"stage":@"display-decode", @"resource":path.lastPathComponent ?: @"", @"reason":@"image-decode-failed"});
         return;
       }
+      if (image == nil && !required) representation.pressedBackgroundPath = nil;
       if (renderer != nil) {
         if (target == renderer->_backgroundLayer) [renderer preparePaintedItems];
         [renderer preparePressureItems];
+        [renderer reportRepresentationReady];
       }
 
     });
@@ -1521,27 +1551,50 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
 }
 
 + (void)validateResourcesForSkin:(LibretroSkin *)skin completion:(void (^)(BOOL))completion {
+  if (skin.representations.count == 0) { dispatch_async(dispatch_get_main_queue(), ^{ completion(NO); }); return; }
+  __block NSUInteger remaining = skin.representations.count;
+  __block BOOL anyValid = NO;
+  for (LibretroSkinRepresentation *representation in skin.representations) {
+    [self validateResourcesForRepresentation:representation completion:^(NSDictionary *issue) {
+      anyValid = anyValid || issue == nil;
+      if (--remaining == 0) completion(anyValid);
+    }];
+  }
+}
+
++ (void)validateResourcesForRepresentation:(LibretroSkinRepresentation *)representation
+                               completion:(void (^)(NSDictionary *_Nullable))completion {
   dispatch_async(LibretroSkinQueue(), ^{
-    BOOL valid = skin != nil && ![skin.warnings containsObject:LibretroSkinWarningAssetMissing];
+    NSDictionary *issue = representation == nil ? @{@"stage":@"resolve", @"reason":@"layout-missing"} :
+      representation.resourceIssues.firstObject;
     NSMutableSet<NSString *> *paths = [NSMutableSet set];
-    for (LibretroSkinRepresentation *representation in skin.representations) {
       if (representation.backgroundPath.length > 0) [paths addObject:representation.backgroundPath];
-      if (representation.pressedBackgroundPath.length > 0) [paths addObject:representation.pressedBackgroundPath];
       for (LibretroSkinItem *item in representation.items) {
         if (item.assetPath.length > 0) [paths addObject:item.assetPath];
         if (item.thumbstickAssetPath.length > 0) [paths addObject:item.thumbstickAssetPath];
       }
-    }
-    if (paths.count > 256) valid = NO;
+    if (paths.count > 256) issue = @{@"stage":@"preflight", @"reason":@"too-many-resources"};
     for (NSString *path in paths) {
-      if (!valid) break;
+      if (issue != nil) break;
       @autoreleasepool {
         CGImageRef decoded = LibretroSkinCreateRaster(path, 64, 64);
-        valid = decoded != NULL;
+        if (decoded == NULL) issue = @{@"stage":@"preflight-decode", @"resource":path.lastPathComponent ?: @"",
+          @"reason":@"image-decode-failed-or-resource-limit"};
         if (decoded != NULL) CGImageRelease(decoded);
       }
     }
-    dispatch_async(dispatch_get_main_queue(), ^{ completion(valid); });
+    // Authored pressed artwork is optional. A damaged sibling must not disable
+    // otherwise usable controls; the existing local pressure deformation remains.
+    BOOL discardPressed = NO;
+    if (issue == nil && representation.pressedBackgroundPath.length > 0) {
+      CGImageRef pressed = LibretroSkinCreateRaster(representation.pressedBackgroundPath, 64, 64);
+      discardPressed = pressed == NULL;
+      if (pressed != NULL) CGImageRelease(pressed);
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (discardPressed) representation.pressedBackgroundPath = nil;
+      completion(issue);
+    });
   });
 }
 

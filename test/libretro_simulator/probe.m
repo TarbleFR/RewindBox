@@ -333,6 +333,7 @@ static NSString *ReservationReport(void) {
 #import "cheat_probe.h"
 #import "overlay_preview_probe.h"
 #import "skin_failure_probe.h"
+#import "skin_loading_probe.h"
 #endif
 
 @interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>
@@ -871,6 +872,9 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
              ReservationReport());
   }
   UIViewController *root = self.window.rootViewController;
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+  PrepareSkinLoadingUpgrade(scenario);
+#endif
   LibretroSession *session = [[LibretroSession alloc] initWithConfiguration:[self configurationForScenario:scenario]];
   _session = session;
   CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
@@ -903,6 +907,15 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                           if (!success) {
                             // The session has dismissed its view already.
                             [probe finishScenario:result session:session];
+                            return;
+                          }
+                          if (scenario[@"skinLoading"] != nil) {
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+                            RunSkinLoadingProbe(session,scenario,result,^{[probe stopScenario:result session:session];});
+#else
+                            result[@"skinLoadingChecks"] = @[@{@"name":@"probe available",@"passed":@NO}];
+                            [probe stopScenario:result session:session];
+#endif
                             return;
                           }
                           if (scenario[@"previewProbe"] != nil) {

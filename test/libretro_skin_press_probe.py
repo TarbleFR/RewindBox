@@ -26,7 +26,12 @@ REFERENCES = (
     ('press-psx','psx','Manic-EMU/ManicEMU','fbaeab79c214d5920bb51afa6f2d786fb2b12a58',
      'System.core/PS1.manicskin','e82581ce172af8049fb6a9c610a151cbb12ee224c730c88d7a3f785b350a4778'),
 )
+DUALSHOCKED_URL = 'https://deltastyles.com/download.php?id=541'
+DUALSHOCKED_SHA256 = '05878738f250279bfae6e27b9b597f182562b4dcfb71f86ab286d49c0c7f59c4'
+DUALSHOCKED_ID = DUALSHOCKED_SHA256
+
 SCENARIOS = [
+    {'name':'press-dualshocked','core':'neotest','console':'psx','content':'content/Shader Pattern.ntc','skinPress':DUALSHOCKED_ID,'expect':'run'},
     {'name':'press-atomic','core':'neotest','console':'gbc','content':'content/Shader Pattern.ntc','skinPress':'press-atomic','expect':'run'},
     {'name':'press-ds','core':'desmume','console':'nds','content':'content/shader-pattern.nds','skinPress':'press-ds','expect':'run'},
     {'name':'press-psx','core':'neotest','console':'psx','content':'content/Shader Pattern.ntc','skinPress':'press-psx','expect':'run'},
@@ -38,7 +43,34 @@ SCENARIOS = [
 ]
 
 
+def dualshocked_fixture(app):
+    # Original starvingartist archive, permitted with credit by the author on
+    # https://deltastyles.com/skins/541-dualshocked. CI-only; never in the IPA.
+    request = urllib.request.Request(DUALSHOCKED_URL, headers={'User-Agent':'NeoStation-Skin-Regression-CI'})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        data = response.read(50 * 1024 * 1024 + 1)
+    assert hashlib.sha256(data).hexdigest() == DUALSHOCKED_SHA256, 'DualShocked archive changed'
+    folder = app / 'SkinFixtures' / DUALSHOCKED_ID
+    folder.mkdir(parents=True, exist_ok=True)
+    from io import BytesIO
+    with zipfile.ZipFile(BytesIO(data)) as archive:
+        for name in archive.namelist():
+            assert not name.startswith('/') and '..' not in Path(name).parts
+        archive.extractall(folder)
+    (folder / 'neostation-skin.json').write_text(json.dumps({
+        'id':DUALSHOCKED_ID, 'identifier':'com.starvingartist.ps1.dualshocked-gray',
+        'name':'DualShocked - Gray by starvingartist', 'author':'starvingartist', 'consoles':['psx'],
+        'gameTypeIdentifier':'public.aoshuang.game.ps1', 'orientations':{'iphone':['portrait','landscape']},
+        'source':'https://deltastyles.com/files/skins/541/dualshocked-gray.manicskin',
+        'license':'Other creators may modify and share this work so long as they provide credit to the original author.',
+        'sha256':DUALSHOCKED_SHA256, 'importedAt':'2026-10-14T12:00:00.000Z', 'warnings':[],
+    }, indent=2))
+    return folder
+
+
 def fixtures(app):
+    if any(s.get('skinPress') == DUALSHOCKED_ID for s in probe.SCENARIOS):
+        dualshocked_fixture(app)
     for identifier, console, repository, revision, path, expected in REFERENCES:
         url=f'https://raw.githubusercontent.com/{repository}/{revision}/{path}'
         with urllib.request.urlopen(url,timeout=60) as response:

@@ -44,7 +44,7 @@
     safeInsets:(LibretroInsets){0,0,0,0} overrides:nil];
   LibretroSkinRenderer *renderer=[[LibretroSkinRenderer alloc] initWithCacheDirectory:DocumentsPath(@"BudgetProbe")];
   self.budgetRenderer=renderer;
-  renderer.resourceLoadFailed=^{
+  renderer.resourceLoadFailed=^(__unused LibretroSkinRepresentation *failed, __unused NSDictionary *issue){
     [self.checks addObject:@{@"name":@"oversized displayed texture set rejected before activating its layers",@"passed":@([self.budgetRenderer valueForKey:@"representation"]==nil)}];
     self.budgetRenderer.resourceLoadFailed=nil;
     self.budgetRenderer=nil;

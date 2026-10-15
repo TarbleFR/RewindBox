@@ -320,6 +320,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
     _displayType = @"standard";
     _items = @[];
     _screens = @[];
+    _resourceIssues = @[];
   }
   return self;
 }
@@ -355,6 +356,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
 @property(nonatomic, copy) NSString *console;
 @property(nonatomic, strong) LibretroInputMap *inputMap;
 @property(nonatomic, strong) NSMutableOrderedSet<NSString *> *warnings;
+@property(nonatomic, strong) NSMutableArray<NSDictionary<NSString *, NSString *> *> *resourceIssues;
 /// "<device>-<displayType>-<orientation>-" of the representation being
 /// parsed: item identifiers are unique per layout, so a remap or a moved
 /// button of one layout never lands on another layout's item.
@@ -431,18 +433,26 @@ static NSString *SkinImagePath(NSString *root, id name) {
   if (assets == nil) return nil;
   NSString *chosen = nil;
   BOOL missing = NO;
+  NSString *unresolved = nil;
   // Best first: the PDF scales to any size, then the largest bitmap.
   for (NSString *key in @[ @"resizable", @"large", @"medium", @"small" ]) {
     id name = assets[key];
     if (name == nil) continue;
+    // An empty asset name intentionally draws nothing (Manic/Delta skins).
+    if ([name isKindOfClass:NSString.class] && [name length] == 0) continue;
     NSString *path = SkinImagePath(self.root, name);
     if (path == nil) {
       missing = YES;
+      unresolved = [name isKindOfClass:NSString.class] ? name : @"(invalid image name)";
     } else if (chosen == nil) {
       chosen = path;
     }
   }
   if (missing) [self.warnings addObject:LibretroSkinWarningAssetMissing];
+  if (chosen == nil && unresolved != nil) {
+    [self.resourceIssues addObject:@{@"stage":@"resolve", @"role":@"background",
+      @"resource":unresolved, @"reason":@"missing-or-unsupported-resource"}];
+  }
   return chosen;
 }
 
@@ -505,7 +515,11 @@ static NSString *SkinImagePath(NSString *root, id name) {
         item.kind = LibretroSkinItemKindThumbstick;
         item.thumbstickSize = knob;
         item.thumbstickAssetPath = SkinImagePath(self.root, knobName);
-        if (item.thumbstickAssetPath == nil) [self.warnings addObject:LibretroSkinWarningAssetMissing];
+        if (item.thumbstickAssetPath == nil && [knobName length] > 0) {
+          [self.warnings addObject:LibretroSkinWarningAssetMissing];
+          [self.resourceIssues addObject:@{@"stage":@"resolve", @"role":@"thumbstick", @"item":item.identifier,
+            @"resource":knobName, @"reason":@"missing-or-unsupported-resource"}];
+        }
       } else {
         item.kind = LibretroSkinItemKindDPad;
       }
@@ -536,9 +550,14 @@ static NSString *SkinImagePath(NSString *root, id name) {
   NSDictionary *asset = SkinDictionary(object[@"asset"]);
   if (asset != nil) {
     id assetName = asset[@"normal"] ?: asset[@"name"];
-    if (assetName != nil) {
+    if (assetName != nil && !([assetName isKindOfClass:NSString.class] && [assetName length] == 0)) {
       item.assetPath = SkinImagePath(self.root, assetName);
-      if (item.assetPath == nil) [self.warnings addObject:LibretroSkinWarningAssetMissing];
+      if (item.assetPath == nil) {
+        [self.warnings addObject:LibretroSkinWarningAssetMissing];
+        [self.resourceIssues addObject:@{@"stage":@"resolve", @"role":@"button", @"item":item.identifier,
+          @"resource":[assetName isKindOfClass:NSString.class] ? assetName : @"(invalid image name)",
+          @"reason":@"missing-or-unsupported-resource"}];
+      }
     }
     LibretroSize size = {0, 0};
     if (SkinNumber(asset[@"width"], &size.w) && SkinNumber(asset[@"height"], &size.h) && size.w > 0 && size.h > 0) {
@@ -739,6 +758,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
   representation.mappingSize = mapping;
   LibretroInsets noEdges = {0, 0, 0, 0};
   representation.extendedEdges = SkinEdges(object[@"extendedEdges"], noEdges);
+  self.resourceIssues = [NSMutableArray array];
   BOOL translucent = NO;
   if (SkinBool(object[@"translucent"], &translucent)) representation.translucent = translucent;
   representation.backgroundPath = [self backgroundPathFromAssets:object[@"assets"]];
@@ -759,6 +779,7 @@ static NSString *SkinImagePath(NSString *root, id name) {
                                                        edges:representation.extendedEdges];
   representation.items = items;
   representation.screens = [self screensFromObject:object items:items];
+  representation.resourceIssues = [self.resourceIssues copy];
   return representation;
 }
 

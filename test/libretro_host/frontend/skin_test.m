@@ -795,6 +795,39 @@ static void TestImages(void) {
   CHECK(path == nil && !warned, @"a skin without images is valid (transparent controller)");
 }
 
+static void TestLayoutResourceRequirements(void) {
+  // Real DualShocked uses asset.normal:"" for its portrait toggleAnalog.
+  // An intentionally absent image is not a missing file and must not turn
+  // a usable landscape layout into a whole-skin load failure (Build 463).
+  NSDictionary *empty = @{@"frame":Frame(1, 1, 20, 20), @"inputs":@[@"a"], @"asset":@{@"normal":@""}};
+  NSDictionary *portrait = @{@"mappingSize":Mapping(375, 812), @"assets":@{@"large":@"valid.png", @"small":@"absent.png"},
+                             @"items":@[empty]};
+  NSDictionary *landscape = @{@"mappingSize":Mapping(812, 375), @"assets":@{@"large":@"missing-landscape.png"}};
+  NSDictionary *layouts = @{@"iphone":@{@"edgeToEdge":@{@"portrait":portrait, @"landscape":landscape}}};
+  LibretroSkin *skin = Parse(WriteSkin(@"layout-resources", Info(@"com.rileytestut.delta.game.gba", layouts),
+                                      @{@"valid.png":PNGData()}), NULL);
+  LibretroSkinRepresentation *p = [skin representationForOrientation:LibretroSkinOrientationPortrait iPad:NO edgeToEdge:YES];
+  LibretroSkinRepresentation *l = [skin representationForOrientation:LibretroSkinOrientationLandscape iPad:NO edgeToEdge:YES];
+  CHECK(p.items.count == 1 && p.items.firstObject.assetPath == nil && p.items.firstObject.inputs.count == 1,
+        @"empty normal asset preserves its exact touch input without requesting an image");
+  CHECK(p.resourceIssues.count == 0 && [p.backgroundPath hasSuffix:@"/valid.png"],
+        @"a missing unused size alternative does not invalidate the selected background");
+  CHECK([skin.warnings containsObject:LibretroSkinWarningAssetMissing] && p.resourceIssues.count == 0,
+        @"whole-skin import warnings do not become activation requirements of a valid layout");
+  CHECK(l.resourceIssues.count == 1 && [l.resourceIssues.firstObject[@"resource"] isEqual:@"missing-landscape.png"],
+        @"an actually missing background is identified on its own orientation");
+  NSDictionary *onlyEmpty = @{@"mappingSize":Mapping(375, 812), @"items":@[empty]};
+  skin = Parse(WriteSkin(@"empty-normal", Info(@"com.rileytestut.delta.game.gba", Phone(@"edgeToEdge", @"portrait", onlyEmpty)), @{}), NULL);
+  CHECK(![skin.warnings containsObject:LibretroSkinWarningAssetMissing] && skin.representations.firstObject.resourceIssues.count == 0,
+        @"blank normal is intentional and never produces a missing-resource warning");
+  NSDictionary *missingButton = @{@"frame":Frame(1,1,20,20), @"inputs":@[@"a"], @"asset":@{@"normal":@"missing-button.pdf"}};
+  skin = Parse(WriteSkin(@"missing-required-button", Info(@"com.rileytestut.delta.game.gba",
+    Phone(@"standard", @"portrait", @{@"mappingSize":Mapping(375,812), @"items":@[missingButton]})), @{}), NULL);
+  NSDictionary *issue = skin.representations.firstObject.resourceIssues.firstObject;
+  CHECK([issue[@"role"] isEqual:@"button"] && [issue[@"resource"] isEqual:@"missing-button.pdf"] && [issue[@"item"] length] > 0,
+        @"missing required button graphics retain resource, role and item diagnostics");
+}
+
 static void TestErrors(void) {
   NSDictionary *valid = Phone(@"edgeToEdge", @"portrait", Plain(414, 896));
   CHECK([ErrorFor(@"missing-info", nil) isEqualToString:LibretroSkinErrorInfoMissing], @"no info.json");
@@ -914,6 +947,7 @@ int main(int argc, const char *argv[]) {
     TestItemsAndTouch();
     TestRepresentationFallbacks();
     TestImages();
+    TestLayoutResourceRequirements();
     TestPressedImages();
     TestErrors();
     TestAuthor();

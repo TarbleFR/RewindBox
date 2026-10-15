@@ -1131,6 +1131,11 @@ def evaluate(report, scenarios):
                 if not checks:
                     problems.append(f'{name}: no skin press checks')
                 problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
+            if scenario.get('skinLoading'):
+                checks = result.get('skinLoadingChecks', [])
+                if len(checks) < 7:
+                    problems.append(f'{name}: missing installed-skin loading and persistence checks')
+                problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('previewProbe'):
                 checks = result.get('previewChecks', [])
                 if len(checks) != 10: problems.append(f'{name}: missing native overlay compositions or texture budget checks')

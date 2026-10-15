@@ -31,7 +31,8 @@
         [@"%PDF-1.7\ntruncated fixture" writeToFile:[broken stringByAppendingPathComponent:file] atomically:YES encoding:NSUTF8StringEncoding error:nil];
     [self check:error==nil name:@"corrupt-PDF fixture created from the original skin"];
     [self select:@"press-broken"];_stage=2;_attempts=0;
-  } else if(_stage==2 && [[_session valueForKey:@"failedSkins"] containsObject:@"press-broken"]){
+  } else if(_stage==2 && [[[_session valueForKey:@"failedSkinRepresentations"] allKeys]
+                            filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"SELF BEGINSWITH %@", @"press-broken|"]].count > 0){
     [self check:[current.installedIdentifier isEqual:@"press-complex"] name:@"failed decoded skin restores previous working Ignited without replacing it by default"];
     [self check:![[_session valueForKey:@"validatedSkins"] containsObject:@"press-broken"] name:@"malformed skin never becomes a validated active skin"];
     [self select:@"default"];self.finish();return;

@@ -24,10 +24,16 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory;
 
 /// Decode/geometry validation off the main thread before activation/import.
-/// Missing, damaged or unreasonably large resources are refused as a whole.
+/// Import succeeds when at least one layout has usable required resources.
 + (void)validateResourcesForSkin:(LibretroSkin *)skin completion:(void (^)(BOOL valid))completion;
-/// Main-thread notification if an on-screen resource still fails after validation.
-@property(nonatomic, copy, nullable) void (^resourceLoadFailed)(void);
+/// Only the chosen device/display/orientation is an activation requirement.
+/// A nil issue means success; otherwise stage/resource/role/reason identify failure.
++ (void)validateResourcesForRepresentation:(LibretroSkinRepresentation *)representation
+                               completion:(void (^)(NSDictionary *_Nullable issue))completion;
+/// Notifications identify the exact layout, so stale loads cannot reject a new skin.
+@property(nonatomic, copy, nullable) void (^resourceLoadFailed)(LibretroSkinRepresentation *representation,
+                                                              NSDictionary *issue);
+@property(nonatomic, copy, nullable) void (^representationReady)(LibretroSkinRepresentation *representation);
 
 /// Light / Normal / Pronounced (default) / Very pronounced, 0...3.
 /// Changing the setting rebuilds only prepared visual resources.
