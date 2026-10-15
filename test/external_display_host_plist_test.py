@@ -346,12 +346,22 @@ class DeliveryWiringTests(unittest.TestCase):
         self.assertIn('-fsyntax-only', after)
         self.assertIn('-miphoneos-version-min=17.4', after)
         self.assertIn('Flutter.xcframework', after)
-        # Build 454 adds a third step after them, on the same Flutter and the
-        # same conditions: the libretro bridge's channel codec test in the
-        # iOS Simulator. The count stays exact (was 2).
+        # Build 460 reuses the libretro codec only with an exact successful
+        # source/toolchain proof. The external-display setup and compilation
+        # stay unconditional within the full lane, even on a reuse hit.
         self.assertIn('run: python3 test/libretro_channel_codec_test.py', after)
-        self.assertEqual(after.count(condition), 3,
-                         'Flutter setup, plugin compilation and the channel codec test share the libretro step conditions')
+        self.assertEqual(after.count(condition), 2,
+                         'Flutter setup and external-display compilation must always run in the full lane')
+        codec = after.split("    - name: Encode the libretro bridge's isSessionActive answer with the real Flutter codec\n", 1)[1]
+        reuse_condition = condition.replace(' }}', " && steps.libretro-evidence.outputs.reused != 'true' }}")
+        self.assertIn(reuse_condition, codec)
+        proof = native.split('    - name: Reuse successful libretro checks with identical source and toolchain\n', 1)[1]
+        proof = proof.split('    - name: Run the embedded libretro host against a test core\n', 1)[0]
+        self.assertIn('if python3 build-utils/verify_delivery_reuse.py --libretro-evidence', proof)
+        success, fallback = proof.split('        else\n', 1)
+        self.assertIn("echo 'reused=true'", success)
+        self.assertNotIn("echo 'reused=true'", fallback)
+        self.assertIn("echo 'reused=false'", fallback)
 
     def test_rpcs3_bridge_syntax_check_stages_the_published_plugin_headers(self) -> None:
         # The RPCS3 bridge imports <external_display/NeoExternalDisplayCoordinator.h>; its

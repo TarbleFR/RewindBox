@@ -2115,7 +2115,8 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE):
     roots = INPUT_ROOTS + ('tools/',)
     exact = {'pubspec.yaml', 'pubspec.lock', '.github/workflows/libretro-checks.yml'}
     # Delivery-only guards have new tests; none is imported by these harnesses.
-    guards = {'build-utils/verify_delivery_reuse.py', 'test/delivery_pipeline_test.py', DELIVERY460_RECIPIENT_PATH}
+    guards = {'build-utils/verify_delivery_reuse.py', 'test/delivery_pipeline_test.py',
+              'test/external_display_host_plist_test.py', DELIVERY460_RECIPIENT_PATH}
     selected = lambda p: (p.startswith(roots) or p in exact) and p not in guards
     old = {}
     for line in subprocess.check_output(['git', 'ls-tree', '-r', reference], cwd=ROOT, text=True).splitlines():
@@ -2152,6 +2153,37 @@ def verify_libretro_reuse_evidence():
             raise ValueError('Skin press evidence has an unsuccessful or different job: ' + name)
     return {'run': LIBRETRO_SKIN_PRESS_RUN, 'testedSHA': LIBRETRO_SKIN_PRESS_REFERENCE,
             'workflow': run['path'], 'successfulJobs': ['native', 'dart', 'skin-press']}
+
+DELIVERY460_DART_REFERENCE = '2f7a09608d7587f8522e2323433c7d31b15565df'
+DELIVERY460_DART_RUN = 38707150124
+
+def verify_delivery460_dart_evidence():
+    """The Dart phases passed; a later, separate Python contract failed."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{DELIVERY460_DART_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != DELIVERY460_DART_REFERENCE or run.get('status') != 'completed'
+            or run.get('path') != '.github/workflows/retroarch-delivery.yml'):
+        raise ValueError('Dart phase evidence has a different or incomplete source')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    matches = [j for j in jobs if j.get('name') == 'checks']
+    if len(matches) != 1 or matches[0].get('head_sha') != DELIVERY460_DART_REFERENCE:
+        raise ValueError('Dart phase job differs')
+    steps = matches[0].get('steps', [])
+    required = ('Run subosito/flutter-action@v2',
+                'Verify closed validation input tree and previous CI success',
+                'Analyze the changed integration and its restored dependencies',
+                'Reproduce the seven-root registration defect on the unchanged 422 code',
+                'Validate changed library, callback, launch and restart behavior')
+    for name in required:
+        hits = [s for s in steps if s.get('name') == name]
+        if len(hits) != 1 or hits[0].get('conclusion') != 'success':
+            raise ValueError('Dart phase did not pass: ' + name)
+    failed = [s['name'] for s in steps if s.get('conclusion') == 'failure']
+    if failed != ['Verify reused Dart evidence and changed pipeline guards']:
+        raise ValueError('Dart evidence has an unexpected failure')
+    return {'run': DELIVERY460_DART_RUN, 'testedSHA': DELIVERY460_DART_REFERENCE,
+            'successfulSteps': list(required), 'overallJobConclusion': matches[0]['conclusion'],
+            'laterFailedStepRequiringNewValidation': failed[0]}
 
 def verify_reviewed_delivery_inputs():
     for reference in sorted(set(DELIVERY456_PINNED_INPUTS.values())):
@@ -2225,9 +2257,39 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--libretro-evidence', action='store_true')
+    parser.add_argument('--dart-evidence', action='store_true')
     parser.add_argument('--scope', choices=('full', 'rpcs3_neoswap', 'library_covers'), default='full')
     parser.add_argument('--output', default='build/delivery/reused-validation.json')
     args = parser.parse_args()
+    if args.dart_evidence:
+        import os
+        if args.offline:
+            raise ValueError('Dart reuse requires online success of every named phase')
+        verify_tree()
+        hashes = verify_libretro_reuse_tree(DELIVERY460_DART_REFERENCE)
+        path = '.github/workflows/retroarch-delivery.yml'
+        old = subprocess.check_output(['git', 'show', DELIVERY460_DART_REFERENCE + ':' + path], cwd=ROOT, text=True)
+        current = (ROOT / path).read_text()
+        start = '    - name: Analyze the changed integration and its restored dependencies\n'
+        end = '    - name: Verify reused Dart evidence and changed pipeline guards\n'
+        if old.split(start, 1)[1].split(end, 1)[0] != current.split(start, 1)[1].split(end, 1)[0]:
+            raise ValueError('Dart validation recipe changed')
+        # Runner and pinned Flutter setup must also match the passed phases.
+        for start, end in (('  checks:\n', '    steps:\n'),
+                           ('    - uses: subosito/flutter-action@v2\n',
+                            '    - name: Verify closed validation input tree and previous CI success\n')):
+            if old.split(start, 1)[1].split(end, 1)[0] != current.split(start, 1)[1].split(end, 1)[0]:
+                raise ValueError('Dart runner or Flutter setup changed')
+        report = {'result': 'passed', 'testedSHA': DELIVERY460_DART_REFERENCE,
+                  'key': os.environ['DART_VALIDATION_KEY'], 'tool': 'Flutter 3.47.2, Ubuntu 24.04',
+                  'validationWasReused': True, 'evidence': verify_delivery460_dart_evidence(),
+                  'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}
+        out = ROOT / args.output
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2) + '\n')
+        print('Reused passed Dart phases from', DELIVERY460_DART_RUN,
+              '; later Python contracts still require validation in this run')
+        return
     if args.libretro_evidence:
         if args.offline:
             raise ValueError('Native reuse requires online CI success and the real Xcode toolchain')

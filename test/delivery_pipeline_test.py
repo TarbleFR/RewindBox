@@ -21,6 +21,33 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_dart_phase_reuse_requires_every_passed_phase_and_records_later_failure(self):
+        from unittest.mock import patch
+        names = ['Run subosito/flutter-action@v2',
+                 'Verify closed validation input tree and previous CI success',
+                 'Analyze the changed integration and its restored dependencies',
+                 'Reproduce the seven-root registration defect on the unchanged 422 code',
+                 'Validate changed library, callback, launch and restart behavior']
+        steps = [{'name': n, 'conclusion': 'success'} for n in names]
+        steps.append({'name': 'Verify reused Dart evidence and changed pipeline guards', 'conclusion': 'failure'})
+        run = {'head_sha': reuse.DELIVERY460_DART_REFERENCE, 'status': 'completed',
+               'path': '.github/workflows/retroarch-delivery.yml'}
+        job = {'name': 'checks', 'head_sha': reuse.DELIVERY460_DART_REFERENCE,
+               'conclusion': 'failure', 'steps': steps}
+        def verify():
+            with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': [job]})]):
+                return reuse.verify_delivery460_dart_evidence()
+        self.assertEqual(verify()['overallJobConclusion'], 'failure')
+        for step in steps[:-1]:
+            for invalid in ('failure', 'skipped'):
+                step['conclusion'] = invalid
+                with self.assertRaisesRegex(ValueError, 'did not pass'):
+                    verify()
+            step['conclusion'] = 'success'
+        run['head_sha'] = 'different'
+        with self.assertRaisesRegex(ValueError, 'different or incomplete'):
+            verify()
+
     def test_libretro_reuse_closes_sources_dependencies_modes_and_new_files(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as temp:
@@ -211,8 +238,12 @@ class DeliveryPipeline(unittest.TestCase):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
         checks=workflow.split('  checks:\n',1)[1].split('  native:\n',1)[0]
         keys=re.findall(r'hashFiles\((.*?)\)',checks,re.S)
-        self.assertEqual(len(keys),3) # Restore, record and verify the same key.
-        self.assertEqual(keys,[keys[0]]*3)
+        self.assertEqual(len(keys),4) # Cache restore, phase reuse, record and final check.
+        self.assertEqual(keys,[keys[0]]*4)
+        proof=checks.split('name: Reuse exact successful Dart phases before rerunning changed pipeline guards',1)[1]
+        proof=proof.split('    - uses: subosito/flutter-action@v2',1)[0]
+        self.assertIn('elif python3 build-utils/verify_delivery_reuse.py --dart-evidence',proof)
+        self.assertIn("echo 'cache-hit=false'",proof)
         for path in ('native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml'):
             self.assertIn("'"+path+"'",keys[0])
         fresh=checks.split('name: Validate changed library, callback, launch and restart behavior',1)[1]

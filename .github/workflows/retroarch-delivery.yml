@@ -49,7 +49,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Reuse successful unchanged Dart validation
-      id: dart-evidence
+      id: dart-cache
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       uses: actions/cache@v4
       # The key also covers the native files some Dart tests read (the bridge's
@@ -61,6 +61,21 @@ jobs:
         path: build/delivery/dart-validation.json
         key: neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml')
           }}
+    - name: Reuse exact successful Dart phases before rerunning changed pipeline guards
+      id: dart-evidence
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      env:
+        DART_VALIDATION_KEY: neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml')
+          }}
+      run: |
+        if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
+          echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
+        elif python3 build-utils/verify_delivery_reuse.py --dart-evidence --output build/delivery/dart-validation.json; then
+          echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'Dart phase reuse unavailable; the complete validation runs below.'
+          echo 'cache-hit=false' >> "$GITHUB_OUTPUT"
+        fi
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2

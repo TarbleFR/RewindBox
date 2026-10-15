@@ -24,6 +24,15 @@ Output version: **0.0.7 (460)** through the delivery build-number override.
 - The full delivery's other checks and the actual Release device build,
   final IPA validators, executable sealing and payload identity run normally.
 
+First attempt `2f7a0960`, run `38707150124`, produced no IPA: native checks,
+Flutter analysis and all Dart suites passed, then the Python delivery contract
+`test_external_display_host_plist_test` rejected the newly distinct codec
+reuse condition. Its replacement checks mandatory external-display compilation,
+verified codec reuse and the fallback test execution separately. Passed Dart
+phases may be reused only with identical source/dependency bytes, runner,
+Flutter setup and test commands; the later failed Python contract is recorded
+as failed and is executed again. This never labels the failed job successful.
+
 This is a private test delivery. The requested destination is the maintainer's
 Downloads folder. Record the exact candidate, run, artifact, sealed IPA hash,
 byte count and final destination after validation. No physical iPhone test or
