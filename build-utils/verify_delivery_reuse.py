@@ -1900,6 +1900,31 @@ DELTA |= LIBRETRO_SKIN_PRESS_INPUTS
 DELIVERY460_RECIPIENT_PATH = 'build-utils/delivery-460-recipient.pem'
 DELIVERY456_PINNED_INPUTS[DELIVERY460_RECIPIENT_PATH] = '24dca74cc09be795da67494380b7fb6a8cef0960'
 DELTA.add(DELIVERY460_RECIPIENT_PATH)
+# Build 461: directional deformation, asymmetric/overlapping artwork, Atomic
+# Pink regression inputs, and the exact successful iPhone-phase reuse gate.
+# These are closed byte/mode pins. The portable tests still run in delivery;
+# the earlier failed portable step is never treated as successful evidence.
+LIBRETRO_DIRECTIONAL_REFERENCE = 'a5aaac2e13a0d44564a847613fb89cc990674698'
+LIBRETRO_DIRECTIONAL_INPUTS = {
+    '.github/workflows/libretro-skin-checks.yml',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinPressure.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinPressure.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'test/libretro_frontend_test.py',
+    'test/libretro_host/frontend/skin_pressure_test.m',
+    'test/libretro_host/frontend/skin_test.m',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator/skin_press_probe.h',
+    'test/libretro_skin_press_probe.py',
+    'build-utils/reuse_skin_frontend.py',
+    'test/skin_frontend_reuse_test.py',
+    'test/external_display_host_plist_test.py',
+    'build-utils/delivery-461-recipient.pem',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_DIRECTIONAL_INPUTS, LIBRETRO_DIRECTIONAL_REFERENCE))
+DELTA |= LIBRETRO_DIRECTIONAL_INPUTS
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2110,13 +2135,13 @@ def verify_library_covers_evidence():
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE):
+def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignored=(), exact_inputs=()):
     """Close all source/dependency inputs of the already successful native job."""
     roots = INPUT_ROOTS + ('tools/',)
-    exact = {'pubspec.yaml', 'pubspec.lock', '.github/workflows/libretro-checks.yml'}
+    exact = {'pubspec.yaml', 'pubspec.lock', '.github/workflows/libretro-checks.yml'} | set(exact_inputs)
     # Delivery-only guards have new tests; none is imported by these harnesses.
     guards = {'build-utils/verify_delivery_reuse.py', 'test/delivery_pipeline_test.py',
-              'test/external_display_host_plist_test.py', DELIVERY460_RECIPIENT_PATH}
+              'test/external_display_host_plist_test.py', DELIVERY460_RECIPIENT_PATH} | set(ignored)
     selected = lambda p: (p.startswith(roots) or p in exact) and p not in guards
     old = {}
     for line in subprocess.check_output(['git', 'ls-tree', '-r', reference], cwd=ROOT, text=True).splitlines():
@@ -2137,6 +2162,27 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE):
             raise ValueError('Libretro reuse input changed: ' + path)
         hashes[path] = sha(data)
     return hashes
+
+SKIN_SESSION_REFERENCE = '7c05e44f89cb5f5095e9c1f4c4c745e36e2bde0e'
+SKIN_SESSION_RUN = 38731165154
+
+def verify_skin_session_evidence():
+    """Keep the successful rendering job separate from the failed macOS test."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_SESSION_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != SKIN_SESSION_REFERENCE or run.get('status') != 'completed'
+            or run.get('path') != '.github/workflows/libretro-skin-checks.yml'):
+        raise ValueError('Directional skin session evidence is different or incomplete')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    matches = [job for job in jobs if job.get('name') == 'skin-press']
+    if (len(matches) != 1 or matches[0].get('head_sha') != SKIN_SESSION_REFERENCE
+            or matches[0].get('conclusion') != 'success'
+            or not matches[0].get('steps')
+            or any(step.get('conclusion') != 'success' for step in matches[0]['steps'])):
+        raise ValueError('Directional skin sessions did not all pass')
+    return {'run': SKIN_SESSION_RUN, 'testedSHA': SKIN_SESSION_REFERENCE,
+            'successfulJob': 'skin-press', 'overallRunConclusion': run.get('conclusion'),
+            'nativePortableTestsRequireSeparateSuccess': True}
 
 def verify_libretro_reuse_evidence():
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{LIBRETRO_SKIN_PRESS_RUN}'
@@ -2258,9 +2304,27 @@ def main():
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--libretro-evidence', action='store_true')
     parser.add_argument('--dart-evidence', action='store_true')
+    parser.add_argument('--skin-session-evidence', action='store_true')
     parser.add_argument('--scope', choices=('full', 'rpcs3_neoswap', 'library_covers'), default='full')
     parser.add_argument('--output', default='build/delivery/reused-validation.json')
     args = parser.parse_args()
+    if args.skin_session_evidence:
+        if args.offline:
+            raise ValueError('Skin session verification requires online CI evidence')
+        # Only delivery guards, a public recipient and the portable-only test
+        # utility changed since this rendering job. No renderer, UIKit probe,
+        # fixture, manifest, dependency or simulator recipe is excluded.
+        hashes = verify_libretro_reuse_tree(SKIN_SESSION_REFERENCE, ignored={
+            'build-utils/delivery-461-recipient.pem', 'build-utils/reuse_skin_frontend.py',
+            'test/skin_frontend_reuse_test.py', 'test/libretro_host/frontend/skin_pressure_test.m',
+        }, exact_inputs={'.github/workflows/libretro-skin-checks.yml'})
+        evidence = verify_skin_session_evidence()
+        out = ROOT / args.output
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps({'result': 'passed', 'evidence': evidence,
+            'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
+        print('Verified unchanged UIKit session inputs:', len(hashes), '; evidence:', evidence)
+        return
     if args.dart_evidence:
         import os
         if args.offline:

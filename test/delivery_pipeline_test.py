@@ -21,6 +21,30 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_directional_sessions_require_the_exact_complete_successful_job(self):
+        from unittest.mock import patch
+        run = {'head_sha': reuse.SKIN_SESSION_REFERENCE, 'status': 'completed',
+               'conclusion': 'failure', 'path': '.github/workflows/libretro-skin-checks.yml'}
+        job = {'name': 'skin-press', 'head_sha': reuse.SKIN_SESSION_REFERENCE,
+               'conclusion': 'success', 'steps': [{'conclusion': 'success'}]}
+        def verify():
+            with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': [job]})]):
+                return reuse.verify_skin_session_evidence()
+        self.assertEqual(verify()['overallRunConclusion'], 'failure')
+        self.assertTrue(verify()['nativePortableTestsRequireSeparateSuccess'])
+        for invalid in ('failure', 'skipped', None):
+            job['steps'][0]['conclusion'] = invalid
+            with self.assertRaisesRegex(ValueError, 'did not all pass'):
+                verify()
+        job['steps'][0]['conclusion'] = 'success'
+        job['head_sha'] = 'other'
+        with self.assertRaisesRegex(ValueError, 'did not all pass'):
+            verify()
+        job['head_sha'] = reuse.SKIN_SESSION_REFERENCE
+        run['status'] = 'in_progress'
+        with self.assertRaisesRegex(ValueError, 'different or incomplete'):
+            verify()
+
     def test_dart_phase_reuse_requires_every_passed_phase_and_records_later_failure(self):
         from unittest.mock import patch
         names = ['Run subosito/flutter-action@v2',
