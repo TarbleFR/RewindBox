@@ -36,6 +36,8 @@ jobs:
         with:
           xcode-version: '26.3'
       - name: Bounded parsers, adapters, two sources and offline storage
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
           import sys, tempfile, subprocess

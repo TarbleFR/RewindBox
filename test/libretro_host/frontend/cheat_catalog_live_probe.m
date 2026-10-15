@@ -1,6 +1,14 @@
 // Opt-in network integration: real pinned repositories, then a disconnected reload.
 #import <Foundation/Foundation.h>
 #import "LibretroCheatCatalog.h"
+// Reuse the production bounded NSURLSession delegate. Only CI API requests get
+// the runner's read-only token; raw data stays public and the app has no token.
+@interface LibretroCheatTransfer : NSObject <NSURLSessionDataDelegate>
+@property(nonatomic, strong) NSMutableData *data;
+@property(nonatomic, strong) NSError *error;
+@property(nonatomic) NSUInteger limit;
+@property(nonatomic, strong) dispatch_semaphore_t done;
+@end
 static unsigned checks, failures;
 #define CHECK(c,m) do { checks++; if (!(c)) { failures++; fprintf(stderr,"FAIL %s\n",m); } } while(0)
 static void Wait(BOOL *done) {
@@ -11,6 +19,22 @@ static void Wait(BOOL *done) {
 int main(void) { @autoreleasepool {
   NSString *root = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   LibretroCheatCatalog *catalog = [[LibretroCheatCatalog alloc] initWithDirectory:root];
+  NSString *token = NSProcessInfo.processInfo.environment[@"GH_TOKEN"];
+  if (token.length) catalog.fetch = ^NSData *(NSURL *url,NSUInteger limit,NSError **error) {
+    LibretroCheatTransfer *transfer=[LibretroCheatTransfer new];
+    transfer.data=[NSMutableData data];transfer.limit=limit;transfer.done=dispatch_semaphore_create(0);
+    NSURLSessionConfiguration *configuration=NSURLSessionConfiguration.ephemeralSessionConfiguration;
+    configuration.timeoutIntervalForRequest=20;configuration.timeoutIntervalForResource=30;
+    NSMutableDictionary *headers=[@{@"User-Agent":@"NeoStation-CheatCatalog-CI",@"Accept":@"application/vnd.github+json"} mutableCopy];
+    if ([url.host isEqual:@"api.github.com"]) headers[@"Authorization"]=[@"Bearer " stringByAppendingString:token];
+    configuration.HTTPAdditionalHeaders=headers;
+    NSURLSession *session=[NSURLSession sessionWithConfiguration:configuration delegate:transfer delegateQueue:nil];
+    [[session dataTaskWithURL:url] resume];
+    BOOL timedOut=dispatch_semaphore_wait(transfer.done,dispatch_time(DISPATCH_TIME_NOW,35*NSEC_PER_SEC))!=0;
+    [session invalidateAndCancel];
+    if(timedOut){if(error)*error=[NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorTimedOut userInfo:nil];return nil;}
+    if(error)*error=transfer.error;return transfer.error ? nil : [transfer.data copy];
+  };
   NSMutableArray *downloaded = [NSMutableArray array];
   for (NSString *source in @[@"libretro",@"openemu-community"]) {
     __block BOOL done = NO; __block NSDictionary *index = nil;
