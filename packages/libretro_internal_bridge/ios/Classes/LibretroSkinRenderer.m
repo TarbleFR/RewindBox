@@ -462,6 +462,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   NSDictionary<NSString *, NSNumber *> *_dpadDirections;
   NSUInteger _imageGeneration;
   NSUInteger _pressureBytes;
+  NSProgress *_pressurePreparation;
 }
 
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory {
@@ -507,6 +508,8 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   if (!sameContent) {
     _imageGeneration++;
     _pressureBytes = 0;
+    [_pressurePreparation cancel];
+    _pressurePreparation = [NSProgress progressWithTotalUnitCount:1];
     _backgroundLayer.mask = nil;
     if (_representation != representation) {
       _pressed = [NSSet set];
@@ -548,6 +551,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
   [_items removeAllObjects];
   _backgroundLayer.mask = nil;
   _imageGeneration++;
+  [_pressurePreparation cancel];
 }
 
 - (void)applyPanelAndBackground {
@@ -837,6 +841,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
         animation.values = region.frames.reverseObjectEnumerator.allObjects;
         animation.duration = 0.12;
         animation.calculationMode = kCAAnimationDiscrete;
+        animation.keyTimes = @[@0, @0.075, @0.155, @0.244, @0.345, @0.465, @0.622, @1];
         [region addAnimation:animation forKey:@"skin-release"];
       }
       region.down = active;
@@ -931,8 +936,15 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
 /// touch rectangle. Such layouts keep their original artwork intact.
 - (BOOL)canAdaptCompositeFrame:(CGRect)frame item:(LibretroLaidOutItem *)item {
   if (!CGRectContainsRect(_backgroundLayer.frame, frame) || CGRectIsEmpty(frame)) return NO;
-  for (LibretroLaidOutScreen *screen in _layout.screens)
-    if (CGRectIntersectsRect(frame, LibretroSkinCGRect(screen.container))) return NO;
+  for (NSUInteger index = 0; index < _layout.screens.count; index++) {
+    LibretroLaidOutScreen *screen = _layout.screens[index];
+    BOOL explicitWindow = index < _representation.screens.count && _representation.screens[index].hasOutputFrame;
+    // Landscape overlays intentionally sit above a full-view game. We only
+    // sample the skin texture, never game pixels. A declared opaque window
+    // or a stylus surface, however, must not be inferred as button artwork.
+    if ((screen.touchScreen || (explicitWindow && !_representation.translucent)) &&
+        CGRectIntersectsRect(frame, LibretroSkinCGRect(screen.container))) return NO;
+  }
   for (LibretroLaidOutItem *other in _layout.items)
     if (other != item && CGRectIntersectsRect(frame, LibretroSkinCGRect(other.frame))) return NO;
   return YES;
@@ -944,7 +956,11 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
 /// or layer from a previous layout can publish into the new generation.
 - (void)preparePressureItems {
   const NSUInteger budget = 32u * 1024u * 1024u;
-  for (LibretroSkinItemLayers *layers in _items) {
+  NSArray *ordered = [_items sortedArrayUsingComparator:^NSComparisonResult(LibretroSkinItemLayers *a, LibretroSkinItemLayers *b) {
+    BOOL ap = a.laidOut.item.kind == LibretroSkinItemKindDPad, bp = b.laidOut.item.kind == LibretroSkinItemKindDPad;
+    return ap == bp ? NSOrderedSame : (ap ? NSOrderedAscending : NSOrderedDescending);
+  }];
+  for (LibretroSkinItemLayers *layers in ordered) {
     LibretroSkinItem *item = layers.laidOut.item;
     BOOL pad = item.kind == LibretroSkinItemKindDPad;
     BOOL composite = item.assetPath == nil && layers.shape == nil;
@@ -979,10 +995,12 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
     _pressureBytes += cost;
     layers.pressurePreparing = YES;
     NSUInteger generation = _imageGeneration;
+    NSProgress *preparation = _pressurePreparation;
     uint32_t fillColor = item.fillColor, labelColor = item.labelColor;
     __weak LibretroSkinRenderer *weakSelf = self;
     dispatch_async(LibretroSkinQueue(), ^{
       @autoreleasepool {
+        if (preparation.cancelled) return;
         UIImage *normal = source;
         if (normal == nil) {
           // Rasterize the built-in vector once, in the same UIKit geometry.
@@ -1027,6 +1045,7 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
         }
         NSMutableArray *prepared = [NSMutableArray array];
         for (NSUInteger slot = 0; slot < (pad ? 4u : 1u); slot++) {
+          if (preparation.cancelled) return;
           CGRect area = pad ? CGRectOffset(LibretroSkinPressureArm(pixels.size, slot), pixels.origin.x, pixels.origin.y) : pixels;
           NSArray *frames = normal ? LibretroSkinPressureFrames(normal.CGImage, area, 1/sy, pad ? 1u<<slot : 0, pressed.CGImage) : @[];
           if (frames.count == 0) break;
@@ -1141,8 +1160,6 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
       [CATransaction begin];
       [CATransaction setDisableActions:YES];
       for (LibretroSkinItemLayers *layers in candidates) { layers.cropPreparing = NO; layers.cropAttempted = YES; }
-      CGMutablePathRef holes = CGPathCreateMutable();
-      CGPathAddRect(holes, NULL, CGRectMake(0, 0, skin.size.width, skin.size.height));
       for (NSDictionary *crop in crops) {
         LibretroSkinItemLayers *layers = candidates[[crop[@"index"] unsignedIntegerValue]];
         if (![renderer->_items containsObject:layers] || layers.extracted) continue;
@@ -1164,12 +1181,6 @@ static CAShapeLayer *LibretroSkinShapeLayer(CGFloat scale) {
         [layers.artwork addSublayer:layers.image];
         [renderer applyStateToLayers:layers];
       }
-      // Include previously extracted items when asynchronous batches overlap.
-      for (LibretroSkinItemLayers *layers in renderer->_items) {
-        if (layers.extracted)
-          CGPathAddRect(holes, NULL, CGRectOffset(layers.image.frame, -skin.origin.x, -skin.origin.y));
-      }
-      CGPathRelease(holes);
       [renderer updateBackgroundMask];
       [renderer preparePressureItems];
       [CATransaction commit];
