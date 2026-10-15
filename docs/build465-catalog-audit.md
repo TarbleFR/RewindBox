@@ -92,3 +92,10 @@ for these runs, including the new catalogue workflow's real-image native
 compositions, before an IPA can be packaged. Three targeted Python guard
 tests passed locally, including rejection of failed/skipped/wrong-source or
 unrelated evidence. This is pipeline validation, not a successful IPA build.
+
+First Dart attempt (`9c1d6382`, job `116700371912`): analysis passed;
+577 tests passed and one old search assertion failed. It expected a shared
+file to be found only by its winning source, whereas the requested correction
+preserves both index memberships. The assertion is updated to require the
+shared file under both indexes, with its original attribution and unique
+download identity retained. The old failure is not counted as a pass.

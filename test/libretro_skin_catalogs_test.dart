@@ -675,7 +675,10 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       expect(entries.first.belongsToSource(LibretroSkinSources.provenance), isTrue);
       expect(unified.unavailableSources, isEmpty);
       expect(LibretroSkinCatalogs.forConsole(entries, 'gba').map((entry) => entry.name), <String>['Shared', 'Twice', 'Site only']);
-      expect(LibretroSkinCatalogs.search(entries, 'delta skins').map((entry) => entry.name), <String>['Site only']);
+      // The shared file belongs to both indexes while keeping one download
+      // identity and its original author/source attribution.
+      expect(entries.first.belongsToSource(LibretroSkinSources.deltaSkins), isTrue);
+      expect(LibretroSkinCatalogs.search(entries, 'delta skins').map((entry) => entry.name), <String>['Shared', 'Site only']);
 
       siteUp = false;
       final again = (await unified.load(refresh: true))!;
