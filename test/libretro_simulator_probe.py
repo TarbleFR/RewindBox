@@ -1128,6 +1128,10 @@ def evaluate(report, scenarios):
                 if not checks:
                     problems.append(f'{name}: no skin press checks')
                 problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
+            if scenario.get('cheatProbe'):
+                checks = result.get('cheatChecks', [])
+                if len(checks) < 4: problems.append(f'{name}: missing real-core cheat checks')
+                problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('shaders'):
                 problems += shader_problems(name, scenario['shaders'], result, launch)
         elif scenario['expect'] == 'rejected':

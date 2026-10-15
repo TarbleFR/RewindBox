@@ -1,0 +1,14 @@
+# Cheat source licence fixtures
+
+The unmodified licence texts are used to verify the downloader's Git blob
+integrity checks. Test codes are synthetic; no commercial ROMs are included.
+
+- `libretro-LICENSE`: libretro/libretro-database at
+  `12c21cf79f1e20eff6ac68b80875816c717d0a7a`, LICENSE (CC BY-SA 4.0),
+  Git blob `7d4f96c54aa155a17387e64501c50b6a0469932c`.
+- `openemu-LICENSE`: skyzyx/openemu-cheat-database at
+  `5f1af6161ee30fddccc3942dfbcc20b253bcb152`, LICENSE (Unlicense),
+  Git blob `fdddb29aa445bf3d6a5d843d6dd77e10a9f99657`.
+
+Downloaded catalogue data retains source, pinned revision and licence separately
+from application code. libretro-derived catalogue data remains CC BY-SA 4.0.

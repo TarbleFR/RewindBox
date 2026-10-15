@@ -153,7 +153,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     pattern = @"^(?:[0-9A-F]{8}|[0-9A-F]{3}-[0-9A-F]{3}(?:-[0-9A-F]{3})?)$";
   if ([core hasPrefix:@"genesis_plus_gx"] && [@[@"md", @"sms", @"gg", @"mcd"] containsObject:console])
     pattern = [console isEqual:@"md"] || [console isEqual:@"mcd"]
-        ? @"^(?:[0-9A-HJ-NPR-Z]{4}-[0-9A-HJ-NPR-Z]{4}|[0-9A-F]{6}:[0-9A-F]{4})$"
+        ? @"^(?:[0-9ABCDEFGHJKLMNPRSTVWXYZ]{4}-[0-9ABCDEFGHJKLMNPRSTVWXYZ]{4}|[0-9A-F]{6}:[0-9A-F]{4})$"
         : @"^(?:[0-9A-F]{3}-[0-9A-F]{3}-[0-9A-F]{3}|[0-9A-F]{6}:[0-9A-F]{2})$";
   if (gba) {
     // OpenEmu writes concatenated address/value pairs; RetroArch CHT uses '+' separators.

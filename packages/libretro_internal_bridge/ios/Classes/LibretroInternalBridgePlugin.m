@@ -19,10 +19,11 @@ static NSString *const kLibretroChannel = @"neostation/libretro_internal";
 /// label refuses the launch rather than showing untranslated text.
 static NSArray<NSString *> *LibretroRequiredUIText(void) {
   return @[
-    @"cheatCatalog", @"cheatSources", @"cheatSearch", @"cheatSearchGames", @"cheatImport", @"cheatRemember", @"cheatRestore", @"cheatPreferencesHelp", @"cheatSaveWarning", @"cheatActivate", @"cheatFailed", @"cheatBusy", @"cheatManual", @"cheatMatches", @"cheatHashMatch", @"cheatHashMismatch", @"cheatVersionUncertain", @"cheatMemoryUnsupported", @"cheatCodeUnsupported", @"cheatCatalogHelp", @"cheatSourceHelp", @"cheatInstall", @"cheatUpdate", @"cheatCheckUpdates", @"cheatUpdateAvailable", @"cheatRemoveData", @"cheatDownload",
     @"menu", @"resume", @"reset", @"resetConfirm", @"saveState", @"loadState", @"slot", @"emptySlot",
     @"stateSaved", @"stateLoaded", @"stateFailed", @"changeDisc", @"disc", @"discChanged", @"display",
-    @"touchControls", @"smoothing", @"fastForward", @"coreSettings", @"settingsRestartHint", @"cheats",
+    @"touchControls", @"smoothing", @"fastForward", @"coreSettings", @"settingsRestartHint",
+    @"cheatCatalog", @"cheatSources", @"cheatSearch", @"cheatSearchGames", @"cheatImport", @"cheatRemember", @"cheatRestore", @"cheatPreferencesHelp", @"cheatSaveWarning", @"cheatActivate", @"cheatFailed", @"cheatBusy", @"cheatManual", @"cheatMatches", @"cheatHashMatch", @"cheatHashMismatch", @"cheatVersionUncertain", @"cheatMemoryUnsupported", @"cheatCodeUnsupported", @"cheatCatalogHelp", @"cheatSourceHelp", @"cheatInstall", @"cheatUpdate", @"cheatCheckUpdates", @"cheatUpdateAvailable", @"cheatRemoveData", @"cheatDownload",
+    @"cheats",
     @"addCheat", @"cheatName", @"cheatCode", @"cheatsHelp", @"achievements", @"achievementsEnabled",
     @"achievementsLogin", @"achievementsLogout", @"achievementsUser", @"achievementsPassword",
     @"achievementsLoggedIn", @"achievementsUnlocked", @"achievementsLoginFailed", @"achievementsNone",

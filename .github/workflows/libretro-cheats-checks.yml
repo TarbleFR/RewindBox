@@ -1,0 +1,62 @@
+name: Libretro cheat catalogues and real core checks
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/libretro-cheats-checks.yml
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCheat*
+      - test/libretro_cheat_probe.py
+      - test/libretro_simulator/cheat_probe.h
+      - test/libretro_host/frontend/cheat*_test.m
+      - test/fixtures/libretro_cheats/**
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: libretro-cheats-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  catalogues-and-cores:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Bounded parsers, adapters, two sources and offline storage
+        run: |
+          python3 - <<'PY'
+          import sys, tempfile, subprocess
+          from pathlib import Path
+          sys.path.insert(0, 'test')
+          import libretro_frontend_test as test
+          with tempfile.TemporaryDirectory() as temporary:
+              root = Path(temporary)
+              for name in ('cheats_test.m', 'cheat_catalog_test.m'):
+                  executable = root / name.removesuffix('.m')
+                  assert test.build(test.TESTS / name, executable), name
+                  subprocess.run([str(executable), str(root), str(test.ROOT)], check=True)
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Fetch pinned simulator inputs
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Real Nestopia and Snes9x cheat effects, original Ignited on Nestopia
+        run: |
+          python3 test/libretro_cheat_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+            --evidence evidence/cheats --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libretro-cheats-${{ github.sha }}
+          path: evidence/cheats/
+          retention-days: 14
+          if-no-files-found: warn
