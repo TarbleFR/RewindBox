@@ -14,8 +14,8 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = 'b3538c127fe54799a3822cfd27f853b2a0ac246f'
 RUN = 38719706135
-IPHONE_REFERENCE = '9e19d947a9dd5595cf09701fcf3c08024b3787c4'
-IPHONE_RUN = 38724927589
+IPHONE_REFERENCE = '7c05e44f89cb5f5095e9c1f4c4c745e36e2bde0e'
+IPHONE_RUN = 38731165154
 RENDERER = 'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m'
 NON_INPUTS = {
     'AGENTS.md', '.github/workflows/libretro-skin-checks.yml',
@@ -23,6 +23,9 @@ NON_INPUTS = {
     'test/libretro_simulator/probe.m', 'test/libretro_simulator/skin_press_probe.h',
     'test/libretro_skin_press_probe.py', 'build-utils/reuse_skin_frontend.py',
     'test/skin_frontend_reuse_test.py',
+    '.github/workflows/retroarch-delivery.yml',
+    'build-utils/verify_delivery_reuse.py', 'build-utils/delivery-461-recipient.pem',
+    'test/external_display_host_plist_test.py',
 }
 
 
@@ -34,7 +37,9 @@ def tree(revision):
 
 def same_inputs(before, after, iphone=False):
     return all(before.get(p) == after.get(p) for p in before.keys() | after.keys()
-               if (p not in NON_INPUTS or (iphone and p == RENDERER)) and not p.startswith('docs/'))
+               if (p not in NON_INPUTS or (iphone and p == RENDERER))
+               and not (iphone and p == 'test/libretro_host/frontend/skin_pressure_test.m')
+               and not p.startswith('docs/'))
 
 
 def phase_passed(run, jobs, iphone=False):

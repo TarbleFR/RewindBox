@@ -339,7 +339,7 @@ class DeliveryWiringTests(unittest.TestCase):
     def test_native_job_compiles_the_plugin_for_iphone(self) -> None:
         native = self.delivery.split('  native:\n', 1)[1].split('  cold:\n', 1)[0]
         after = native.split('    - name: Compile and link every libretro bridge source for iPhone\n', 1)[1]
-        after = after.split('      run: python3 test/libretro_ios_syntax_test.py\n', 1)[1]
+        after = after.split('      run: python3 build-utils/reuse_skin_frontend.py --iphone\n', 1)[1]
         condition = "if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}"
         self.assertIn('flutter precache --ios', after)
         self.assertIn('packages/external_display/ios/Classes/*.m', after)

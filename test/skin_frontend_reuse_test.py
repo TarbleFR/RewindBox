@@ -18,6 +18,11 @@ class ReuseTest(unittest.TestCase):
         self.assertTrue(reuse.same_inputs(original, {**original,
             'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m': '100644 blob new'}))
         self.assertFalse(reuse.same_inputs(original, {**original, reuse.RENDERER: '100644 blob new'}, iphone=True))
+        # The pressure executable is a portable test input, never compiled or
+        # imported by the iPhone bridge compile/link harness.
+        pressure_test = 'test/libretro_host/frontend/skin_pressure_test.m'
+        self.assertFalse(reuse.same_inputs(original, {**original, pressure_test: '100644 blob new'}))
+        self.assertTrue(reuse.same_inputs(original, {**original, pressure_test: '100644 blob new'}, iphone=True))
 
     def test_only_the_exact_successful_phase_can_be_reused(self):
         run = {'head_sha': reuse.REFERENCE, 'status': 'completed', 'conclusion': 'failure'}
