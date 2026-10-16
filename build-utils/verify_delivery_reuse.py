@@ -1868,8 +1868,8 @@ DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 460: pressable skin artwork and touch lifecycle, validated at this
 # exact source by libretro-checks run 38661616452. New crop sources and all
 # changed inputs are pinned, rather than admitted as open-ended exceptions.
-LIBRETRO_SKIN_PRESS_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
-LIBRETRO_SKIN_PRESS_RUN = 38830357231
+LIBRETRO_SKIN_PRESS_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
+LIBRETRO_SKIN_PRESS_RUN = 38832178562
 LIBRETRO_SKIN_PRESS_INPUTS = {
     '.github/workflows/libretro-checks.yml',
     'lib/l10n/libretro_locale.dart',
@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
-SKIN_LOADING_RUN = 38830356935
+SKIN_LOADING_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
+SKIN_LOADING_RUN = 38832181302
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2029,8 +2029,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING
 DELTA |= SKIN_LOADING_INPUTS
 
 # Build 465: catalogue-only product corrections and original-source audit.
-CATALOG_AUDIT_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
-CATALOG_AUDIT_RUN = 38830359635
+CATALOG_AUDIT_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
+CATALOG_AUDIT_RUN = 38832183687
 CATALOG_AUDIT_INPUTS = {
     '.github/workflows/libretro-catalog-checks.yml',
     'assets/data/libretro_skin_overlays.json',
@@ -2052,7 +2052,7 @@ DELTA |= CATALOG_AUDIT_INPUTS
 # Build 466: exact reviewed automatic-cheat product, data, test and recipe inputs.
 # New bytes are pinned, never hidden from the reuse boundary. Successful native,
 # UIKit, loading, catalogue and cheat jobs are checked independently below.
-AUTOMATIC_CHEATS466_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+AUTOMATIC_CHEATS466_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
 AUTOMATIC_CHEATS466_INPUTS = {
     '.gitattributes',
     '.github/workflows/libretro-cheats-checks.yml',
@@ -2357,11 +2357,11 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
-SKIN_SESSION_RUN = 38830357231
+SKIN_SESSION_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
+SKIN_SESSION_RUN = 38832178562
 
-CHEAT_CATALOG_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
-CHEAT_CATALOG_RUN = 38830357209
+CHEAT_CATALOG_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
+CHEAT_CATALOG_RUN = 38832175806
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""
@@ -2613,8 +2613,7 @@ def main():
         report = {'result': 'passed', 'testedSHA': DELIVERY460_DART_REFERENCE,
                   'key': os.environ['DART_VALIDATION_KEY'], 'tool': 'Flutter 3.47.2, Ubuntu 24.04',
                   'validationWasReused': True, 'evidence': verify_delivery460_dart_evidence(),
-                  'unchangedInputsSHA256': hashes, 'cheatEvidence': cheats,
-                  'cheatInputsSHA256': cheat_hashes, 'deviceGameplayValidated': False}
+                  'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2) + '\n')

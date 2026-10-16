@@ -121,3 +121,22 @@ async game-file transfer finishes. The root cheat table now refreshes even if
 the last nested controller has gone; the test inspects the actual table row
 count with that stale child reference cleared. No shared menu/skin controller
 source or touch input is changed.
+
+## Mandatory acceptance coverage
+
+| Requested case | Executed proof |
+| --- | --- |
+| New catalogue installation and real indexing | Native install/validation/offline round-trip; live official-source probe |
+| Launched and renamed game detection | Content hashes and bundled RDB identity tests; UIKit CUE/renamed-content fixture |
+| Automatic visible rows | Actual root table after async discovery, including return from a nested page |
+| Several sources and exact duplicates | Cached `.cht` plus inline XML-style records, complementary codes, retained attribution |
+| Real activation and disabling | Pinned Nestopia, Snes9x and DeSmuME core memory observations, after observed frames |
+| Persistent per-game choices | Object reload, then a second actual Simulator process without reinstall/data reset |
+| Regional/revision safety | USA/Europe and explicit revision conflicts, mismatching hashes, uncertain legacy choices |
+| Unsupported formats/cores | Bounded native adapters, handler-1 and unreviewed core rejection; visible disabled UIKit row |
+| Already downloaded installations | Valid legacy indices, corrupt/incomplete index recovery from bundled data; descriptor-keyed preference migration |
+| Diagnostics and packaging | Stage diagnostics, complete bundled byte manifest and verification inside the actual final IPA |
+
+These fixtures use original synthetic content. They demonstrate the catalogue,
+UI, persistence and native dispatch chain; they do not establish commercial
+code correctness for every game or physical iPhone behaviour.
