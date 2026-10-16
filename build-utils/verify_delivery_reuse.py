@@ -2119,11 +2119,16 @@ AUTOMATIC_CHEATS466_INPUTS = {
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(AUTOMATIC_CHEATS466_INPUTS, AUTOMATIC_CHEATS466_REFERENCE))
 DELTA |= AUTOMATIC_CHEATS466_INPUTS
 
-# Build 467: PS1 metadata, shared search UI, actual FFVII fixture and exact recipe.
-PS1_CHEATS467_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+# Build 467: pin the reviewed PS1 cheat flow AND the subsequent native
+# readable-cell layout to the same immutable product/test snapshot. The
+# delivery-only verification edit does not modify that snapshot.
+PS1_CHEATS467_REFERENCE = '408c4431d2cfe6d7fad9fae34e6f55e01b6cc457'
 PS1_CHEATS467_INPUTS = AUTOMATIC_CHEATS466_INPUTS | {
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSessionMenu.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSessionMenu.m',
     'test/fixtures/libretro_cheats/README.md',
     'test/fixtures/libretro_cheats/ff7-usa-original.cht',
+    'test/fixtures/libretro_cheats/digimon-world-original.cht',
     'test/libretro_host/frontend/cheat_catalog_live_probe.m',
     'test/libretro_simulator/cheat_menu_probe.h',
 }
