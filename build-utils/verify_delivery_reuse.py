@@ -2122,7 +2122,7 @@ DELTA |= AUTOMATIC_CHEATS466_INPUTS
 # Build 467: pin the reviewed PS1 cheat flow AND the subsequent native
 # readable-cell layout to the same immutable product/test snapshot. The
 # delivery-only verification edit does not modify that snapshot.
-PS1_CHEATS467_REFERENCE = '408c4431d2cfe6d7fad9fae34e6f55e01b6cc457'
+PS1_CHEATS467_REFERENCE = '8e94231e0ea0879dead658c6c66b0d46f13ab2ed'
 PS1_CHEATS467_INPUTS = AUTOMATIC_CHEATS466_INPUTS | {
     'packages/libretro_internal_bridge/ios/Classes/LibretroSessionMenu.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSessionMenu.m',
