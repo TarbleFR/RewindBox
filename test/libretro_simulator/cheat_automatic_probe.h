@@ -47,11 +47,16 @@
   if(pending){[self check:NO name:@"automatic catalogue resolution deadline"];_finish();return;}_attempts=0;
   if(_stage==0){
     NSArray *records=[_menu valueForKey:@"records"];
-    [self check:records.count==3 name:@"two installed sources automatically aggregate and deduplicate without catalogue selection"];
+    [self check:records.count==4 name:@"two installed sources automatically aggregate and deduplicate while retaining an unverified legacy choice"];
     [self check:[self row:@"Automatic A"]!=nil && [self row:@"Complement"]!=nil && [self row:@"Wrong region"]==nil name:@"renamed exact content gets compatible codes and excludes mismatched regional hash"];
-    [self check:[records.firstObject[@"origins"] count]==2 name:@"automatic duplicate keeps both source attributions"];
+    [self check:[records.firstObject[@"origins"] count]==3 name:@"automatic duplicate keeps both source attributions and the recovered legacy choice"];
     BOOL disabled=YES;for(NSDictionary *r in records)disabled &= ![r[@"enabled"] boolValue];
     [self check:disabled name:@"automatic discovery never enables downloaded codes"];
+    [self check:[records.firstObject[@"selected"] boolValue] && ![records.firstObject[@"uncertain"] boolValue] name:@"legacy CUE preference is retained and verified only by an exact matching current code"];
+    LibretroMenuRow *restoreLegacy=[self row:@"cheatRestore"];if(restoreLegacy.action)restoreLegacy.action(_page);
+    if(_page.confirmation){_page.confirmation();_page.confirmation=nil;}
+    [self check:[self row:@"Automatic A"].toggleOn && ![self row:@"Unverified legacy choice"].toggleOn name:@"upgrade restoration enables a verified matching choice but refuses the selected uncertain variant"];
+    LibretroMenuRow *clearLegacy=[self row:@"cheatDisableAll"];if(clearLegacy.action)clearLegacy.action(_page);
     LibretroMenuRow *row=[self row:@"Automatic A"];if(row.toggle)row.toggle(_page,YES);
     if(_page.confirmation){_page.confirmation();_page.confirmation=nil;}
     [self check:[self row:@"Automatic A"].toggleOn name:@"discovered code has a working individual switch"];
@@ -104,9 +109,22 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
   [NSFileManager.defaultManager createDirectoryAtPath:probe.folder withIntermediateDirectories:YES attributes:nil error:nil];
   probe.content=[probe.folder stringByAppendingPathComponent:@"renamed-by-user.nes"];
   if (![NSFileManager.defaultManager fileExistsAtPath:probe.content]) [NSFileManager.defaultManager copyItemAtPath:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"content/cheat-probe.nes"] toPath:probe.content error:nil];
+  NSString *cue=[probe.folder stringByAppendingPathComponent:@"renamed-by-user.cue"];
+  if (![NSFileManager.defaultManager fileExistsAtPath:cue]) [@"FILE \"renamed-by-user.nes\" BINARY\n" writeToFile:cue atomically:YES encoding:NSUTF8StringEncoding error:nil];
+  probe.content=cue;
   NSString *md5=[LibretroCheats identityAtPath:probe.content console:@"nes" core:@"nestopia"][@"md5"];
   BOOL restart=getenv("NEOSTATION_CHEAT_RESTART")!=NULL;
   if(restart)probe.stage=3;
+  if(!restart) {
+    NSString *oldHash=[LibretroCheats digest:[NSData dataWithContentsOfFile:cue]];
+    NSString *key=[LibretroCheats digest:[[NSString stringWithFormat:@"nes|nestopia|%@",oldHash] dataUsingEncoding:NSUTF8StringEncoding]];
+    NSString *folder=[probe.folder stringByAppendingPathComponent:@"Games"];
+    [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
+    NSDictionary *legacy=@{@"version":@2,@"remember":@YES,@"identity":@{@"sha256":oldHash},@"cheats":@[
+      @{@"name":@"Old descriptor choice",@"code":@"0024:7F",@"handler":@0,@"selected":@YES,@"source":@"legacy",@"game":@"Synthetic (USA)"},
+      @{@"name":@"Unverified legacy choice",@"code":@"0027:33",@"handler":@0,@"selected":@YES,@"source":@"legacy",@"game":@"Synthetic (Europe)"}]};
+    [[NSJSONSerialization dataWithJSONObject:legacy options:0 error:nil] writeToFile:[folder stringByAppendingPathComponent:[key stringByAppendingPathExtension:@"json"]] atomically:YES];
+  }
   NSArray *sources=restart ? @[] : LibretroCheatCatalog.sources;
   for(NSUInteger i=0;i<sources.count;i++){
     NSDictionary *source=sources[i];NSString *identifier=source[@"id"];

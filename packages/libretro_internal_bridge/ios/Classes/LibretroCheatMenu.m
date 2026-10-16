@@ -73,6 +73,29 @@ static NSString *GameKey(NSDictionary *game) {
       NSData *data = savedAttributes && [savedAttributes fileSize] <= 8u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
       id saved = data && data.length <= 8u * 1024u * 1024u ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
       if (![saved isKindOfClass:NSDictionary.class]) saved = nil;
+      if (!saved && ![identityPath isEqual:contentPath]) {
+        // 463–465 keyed CUE preferences by descriptor bytes. Preserve those
+        // choices while moving to actual track identity; keep the old file.
+        NSDictionary *descriptorAttributes = [NSFileManager.defaultManager attributesOfItemAtPath:contentPath error:nil];
+        NSData *descriptor = descriptorAttributes && [descriptorAttributes fileSize] <= 1024u*1024u ? [NSData dataWithContentsOfFile:contentPath] : nil;
+        NSString *oldHash = descriptor ? [LibretroCheats digest:descriptor] : @"";
+        NSString *oldKey = [LibretroCheats digest:[[NSString stringWithFormat:@"%@|%@|%@", console, core, oldHash] dataUsingEncoding:NSUTF8StringEncoding]];
+        NSString *oldFile = [[directory stringByAppendingPathComponent:@"Games"] stringByAppendingPathComponent:[oldKey stringByAppendingPathExtension:@"json"]];
+        NSDictionary *oldAttributes = [NSFileManager.defaultManager attributesOfItemAtPath:oldFile error:nil];
+        NSData *oldData = oldAttributes && [oldAttributes fileSize] <= 8u*1024u*1024u ? [NSData dataWithContentsOfFile:oldFile] : nil;
+        id old = oldData ? [NSJSONSerialization JSONObjectWithData:oldData options:0 error:nil] : nil;
+        if ([old isKindOfClass:NSDictionary.class] && [old[@"identity"] isKindOfClass:NSDictionary.class] &&
+            [old[@"identity"][@"sha256"] isEqual:oldHash] && [old[@"cheats"] isKindOfClass:NSArray.class]) {
+          NSMutableDictionary *recovered = [old mutableCopy]; NSMutableArray *choices = [NSMutableArray array];
+          for (id raw in old[@"cheats"]) if ([raw isKindOfClass:NSDictionary.class]) {
+            NSMutableDictionary *record = [raw mutableCopy]; record[@"enabled"] = @NO; record[@"uncertain"] = @YES; record[@"automaticExact"] = @NO;
+            if (!String(record[@"game"]).length) record[@"game"] = contentPath.lastPathComponent.stringByDeletingPathExtension;
+            [choices addObject:record];
+          }
+          recovered[@"cheats"] = choices; recovered[@"confirmedGames"] = @[]; saved = recovered;
+          NSLog(@"[Cheats] recovered %lu descriptor-keyed choices; current source matches must verify them", (unsigned long)choices.count);
+        }
+      }
       dispatch_async(dispatch_get_main_queue(), ^{
         LibretroCheatMenu *menu = weakSelf; if (!menu) return;
         menu->_identity = identity ?: @{@"console": console, @"core": core, @"title": contentPath.lastPathComponent.stringByDeletingPathExtension};
@@ -131,7 +154,7 @@ static NSString *GameKey(NSDictionary *game) {
           if (cheats) {
             BOOL uncertain = ![[LibretroCheats matchGame:game identity:identity] isEqual:@"hash"];
             NSMutableArray *records = [NSMutableArray array];
-            for (NSDictionary *raw in cheats) { NSMutableDictionary *record = [raw mutableCopy]; record[@"uncertain"] = @(uncertain); [records addObject:record]; }
+            for (NSDictionary *raw in cheats) { NSMutableDictionary *record = [raw mutableCopy]; record[@"uncertain"] = @(uncertain); record[@"automaticExact"] = @(!uncertain); [records addObject:record]; }
             [current merge:records]; [current->_automaticKeys addObject:key];
           } else failed++;
           pending--;
@@ -187,6 +210,14 @@ static NSString *GameKey(NSDictionary *game) {
     NSString *key = [NSString stringWithFormat:@"%@|%@|%@", handler, semanticCode, scope];
     NSMutableDictionary *existing = nil;
     for (NSMutableDictionary *record in _records) if ([record[@"dedup"] isEqual:key]) { existing = record; break; }
+    if (!existing && scope.length == 0 && prepared != nil && [raw[@"automaticExact"] boolValue]) {
+      // A recovered descriptor choice becomes verified only when its complete
+      // code program also exists in an exact current-content source match.
+      for (NSMutableDictionary *record in _records) if ([record[@"uncertain"] boolValue] &&
+          [String(record[@"dedup"]) hasPrefix:key]) {
+        existing = record; existing[@"uncertain"] = @NO; existing[@"dedup"] = key; existing[@"name"] = name; break;
+      }
+    }
     NSMutableArray *origins = [NSMutableArray array];
     NSArray *providedOrigins = [raw[@"origins"] isKindOfClass:NSArray.class] ? raw[@"origins"] : @[raw];
     for (id origin in providedOrigins) {

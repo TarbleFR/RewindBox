@@ -100,3 +100,10 @@ cheat discovery and reports enabled cheat counts/application diagnostics.
   ARM7 DISPSTAT requests VBlank IRQs. The corrected original ARM7 program
   enables DISPSTAT bit 3, retaining the same memory-effect assertion and the
   same pinned core. This is a fixture correction, not an emulator fix.
+
+The final review also found that resolving a CUE to its real track changes the
+old preference key. Descriptor-keyed 463–465 choices are recovered without
+deleting the old file. They remain disabled/unverified unless the complete code
+program matches a current exact-content source. Matching choices retain their
+selection and attribution; the end-to-end CUE fixture and second process cover
+this upgrade path. This product change requires fresh shared native/UI gates.
