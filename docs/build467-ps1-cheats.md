@@ -55,3 +55,39 @@ physical iPhone or PS1 core RAM effect is claimed. CHD/PBP decompression is not
 implemented: these use library hints/manual version selection. A missing
 regional catalogue cannot be filled by applying USA addresses to a different
 version. No BIOS or game image is fetched or bundled.
+
+## Local checks
+
+Five bootstrap/IPA-resource tests, all 23 delivery-pipeline guards, the frontend
+UI and routing contracts, Python compilation and `git diff --check` passed.
+The final source closure contains 2,632 identical inputs per UIKit suite
+(including its workflow); these are identity checks, not physical-device tests.
+
+Initial source `3903f033d6a505ed25828bb51ccc73e46297c9c4` has passed its
+Dart job `116911897914` (578 + 245 + 4 tests) and catalogue job
+`116911926449` (39 PocketArch associations / 78 native checks). Its remaining
+jobs are pending at the time of this entry. These results are not substituted
+for the final query/status regression source `e82dd916c42c404875258156a505eea9c1299410`.
+
+## Retained initial failure and performance correction
+
+Cheat run `38882361802` / `116911884682` failed. Its 38 parser, 23 catalogue,
+72 automatic-index and 23 real-source checks passed. The Simulator passed
+Ignited 128, previews 10 and real NES/SNES/DS base RAM effects, but menu
+initialization and automatic/PS1 resolution exceeded their unchanged deadlines;
+second-process startup also produced no result. Artifact `12038289164`,
+SHA-256 `acd57a891950036cd3b649d28a33352790eb12589a7673bf114d8cacbac09109`,
+was retained and inspected. Logs show delayed identity/index completions around
+09:50:15–23, after Nestopia stopped at 09:50:09, including the actual FFVII
+resource parsed with 19 entries. This is a failed run, not UI validation.
+
+The two cheat queues ran at Utility QoS below the user-interactive emulation
+thread. They now use UserInitiated QoS off-main, and repeated SHA/title pattern
+construction is removed. Candidate matching no longer computes exact version
+keys when the content has no canonical hash title. Assertions and deadlines
+remain unchanged; a fresh complete run is required.
+
+Additional-source review: DuckStation chtdb has French FFVII data, but its
+LICENSE reserves cheat/patch copyright to original authors and licenses only
+processing scripts under MIT. It is not integrated or redistributed as a
+blanket MIT-licensed cheat collection.

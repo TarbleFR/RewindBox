@@ -330,21 +330,26 @@ static uint32_t ISO32(const uint8_t *p) {
     @"sha1s": [NSOrderedSet orderedSetWithArray:@[Hex(h, sizeof(h)), Hex(ch, sizeof(ch))]].array};
 }
 + (NSString *)searchTitle:(NSString *)title {
-  static NSRegularExpression *tags; static dispatch_once_t once;
-  dispatch_once(&once, ^{ tags = [NSRegularExpression regularExpressionWithPattern:@"\\([^)]*\\)|\\[[^]]*\\]" options:0 error:nil]; });
+  static NSRegularExpression *tags, *spaces; static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    tags = [NSRegularExpression regularExpressionWithPattern:@"\\([^)]*\\)|\\[[^]]*\\]" options:0 error:nil];
+    spaces = [NSRegularExpression regularExpressionWithPattern:@"\\s+" options:0 error:nil];
+  });
   NSString *base = [tags stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
-  NSRegularExpression *spaces = [NSRegularExpression regularExpressionWithPattern:@"\\s+" options:0 error:nil];
   base = [spaces stringByReplacingMatchesInString:base.lowercaseString options:0 range:NSMakeRange(0,base.length) withTemplate:@" "];
   return [base stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
 }
 // Device tags describe the code format, not a different ROM. Region/revision tags
 // remain in the exact key. Never strip all parentheses for an automatic match.
 + (NSString *)versionTitle:(NSString *)title {
-  NSRegularExpression *tags = [NSRegularExpression regularExpressionWithPattern:
-    @"\\((?:Game Genie|GameShark|Game Shark|Action Replay|Pro Action Replay|Game Buster|Xploder|CodeBreaker|Code Breaker)\\)" options:NSRegularExpressionCaseInsensitive error:nil];
+  static NSRegularExpression *tags, *spaces; static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    tags = [NSRegularExpression regularExpressionWithPattern:
+      @"\\((?:Game Genie|GameShark|Game Shark|Action Replay|Pro Action Replay|Game Buster|Xploder|CodeBreaker|Code Breaker)\\)" options:NSRegularExpressionCaseInsensitive error:nil];
+    spaces = [NSRegularExpression regularExpressionWithPattern:@"\\s+" options:0 error:nil];
+  });
   NSString *result = [tags stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
   result = [result lowercaseString];
-  NSRegularExpression *spaces = [NSRegularExpression regularExpressionWithPattern:@"\\s+" options:0 error:nil];
   return [[spaces stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, result.length) withTemplate:@" "] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
 }
 + (NSSet *)regions:(NSString *)title {
@@ -368,8 +373,10 @@ static uint32_t ISO32(const uint8_t *p) {
     return @"mismatch";
   }
   NSArray *titles = [identity[@"titles"] isKindOfClass:NSArray.class] ? identity[@"titles"] : @[];
-  NSString *version = [self versionTitle:String(game[@"title"])];
-  for (NSString *title in titles) if ([version isEqual:[self versionTitle:title]]) return @"hash";
+  if (titles.count) {
+    NSString *version = [self versionTitle:String(game[@"title"])];
+    for (NSString *title in titles) if ([version isEqual:[self versionTitle:title]]) return @"hash";
+  }
   NSArray *serialTitles = [identity[@"serialTitles"] isKindOfClass:NSArray.class] ? identity[@"serialTitles"] : @[];
   NSArray *hints = [identity[@"titleHints"] isKindOfClass:NSArray.class] ? identity[@"titleHints"] : @[String(identity[@"title"])];
   // A real identity always outranks a library label, including its region.

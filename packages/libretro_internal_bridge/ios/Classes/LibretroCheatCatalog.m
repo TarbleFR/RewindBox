@@ -6,7 +6,10 @@ static NSError *CatalogError(NSString *text) {
 }
 static NSString *Text(id value) { return [value isKindOfClass:NSString.class] ? value : @""; }
 static BOOL SHA(NSString *text) {
-  return [text rangeOfString:@"^[a-f0-9]{40}$" options:NSRegularExpressionSearch].location != NSNotFound;
+  if (text.length != 40) return NO;
+  static NSRegularExpression *pattern; static dispatch_once_t once;
+  dispatch_once(&once, ^{ pattern = [NSRegularExpression regularExpressionWithPattern:@"^[a-f0-9]{40}$" options:0 error:nil]; });
+  return [pattern firstMatchInString:text options:0 range:NSMakeRange(0,text.length)] != nil;
 }
 static BOOL SafePath(NSString *path) {
   return path.length > 0 && !path.isAbsolutePath && ![path.pathComponents containsObject:@".."] &&
@@ -50,7 +53,7 @@ static BOOL SafePath(NSString *path) {
 }
 - (instancetype)initWithDirectory:(NSString *)directory {
   if ((self = [super init])) { _directory = [directory copy];
-    _queue = dispatch_queue_create("neostation.cheat-catalog", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
+    _queue = dispatch_queue_create("neostation.cheat-catalog", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
     NSBundle *owner = [NSBundle bundleForClass:self.class];
     NSString *bundle = [owner pathForResource:@"NeoStationCheats" ofType:@"bundle"] ?: [NSBundle.mainBundle pathForResource:@"NeoStationCheats" ofType:@"bundle"];
     _bundledDirectory = bundle ? [[NSBundle bundleWithPath:bundle] resourcePath] : nil;

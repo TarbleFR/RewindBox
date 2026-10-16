@@ -44,7 +44,9 @@ static NSString *GameKey(NSDictionary *game) {
     _records = [NSMutableArray array]; _installed = [NSMutableDictionary dictionary]; _updates = [NSMutableDictionary dictionary];
     _automaticKeys = [NSMutableSet set]; _confirmedGames = [NSMutableSet set];
     _pendingSources = LibretroCheatCatalog.sources.count;
-    _queue = dispatch_queue_create("neostation.cheat-preferences", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
+    // Discovery serves the live menu. Utility work can be starved by the
+    // user-interactive emulation thread even with tiny local indices.
+    _queue = dispatch_queue_create("neostation.cheat-preferences", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
     __weak LibretroCheatMenu *weakSelf = self;
     dispatch_async(_queue, ^{
       // Cache only an unchanged regular file. Changed content, inode or modification
