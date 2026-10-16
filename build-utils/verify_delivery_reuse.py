@@ -1868,8 +1868,8 @@ DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 460: pressable skin artwork and touch lifecycle, validated at this
 # exact source by libretro-checks run 38661616452. New crop sources and all
 # changed inputs are pinned, rather than admitted as open-ended exceptions.
-LIBRETRO_SKIN_PRESS_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
-LIBRETRO_SKIN_PRESS_RUN = 38819105153
+LIBRETRO_SKIN_PRESS_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+LIBRETRO_SKIN_PRESS_RUN = 38830357231
 LIBRETRO_SKIN_PRESS_INPUTS = {
     '.github/workflows/libretro-checks.yml',
     'lib/l10n/libretro_locale.dart',
@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
-SKIN_LOADING_RUN = 38819110606
+SKIN_LOADING_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+SKIN_LOADING_RUN = 38830356935
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2029,8 +2029,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING
 DELTA |= SKIN_LOADING_INPUTS
 
 # Build 465: catalogue-only product corrections and original-source audit.
-CATALOG_AUDIT_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
-CATALOG_AUDIT_RUN = 38819113652
+CATALOG_AUDIT_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+CATALOG_AUDIT_RUN = 38830359635
 CATALOG_AUDIT_INPUTS = {
     '.github/workflows/libretro-catalog-checks.yml',
     'assets/data/libretro_skin_overlays.json',
@@ -2049,6 +2049,76 @@ CATALOG_AUDIT_INPUTS = {
 }
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(CATALOG_AUDIT_INPUTS, CATALOG_AUDIT_REFERENCE))
 DELTA |= CATALOG_AUDIT_INPUTS
+# Build 466: exact reviewed automatic-cheat product, data, test and recipe inputs.
+# New bytes are pinned, never hidden from the reuse boundary. Successful native,
+# UIKit, loading, catalogue and cheat jobs are checked independently below.
+AUTOMATIC_CHEATS466_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+AUTOMATIC_CHEATS466_INPUTS = {
+    '.gitattributes',
+    '.github/workflows/libretro-cheats-checks.yml',
+    '.github/workflows/retroarch-delivery.yml',
+    'build-utils/validate_cheat_bootstrap_ipa.py',
+    'lib/l10n/libretro_locale.dart',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatCatalog.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatCatalog.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheats.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCheats.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/NOTICE.txt',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-2600.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-32x.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-5200.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-7800.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-LICENSE',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-arcade.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-cv.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-gb.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-gba.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-gbc.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-gg.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-intv.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-lynx.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-mcd.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-md.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-n64.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-nds.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-nes.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-ngp.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-ngpc.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-pccd.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-pce.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-pcfx.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-psp.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-psx.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-sg1000.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-sms.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-snes.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-vb.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-ws.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-wsc.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/manifest.json',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/openemu-LICENSE',
+    'packages/libretro_internal_bridge/ios/Resources/Cheats/openemu.xml',
+    'packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec',
+    'test/cheat_bootstrap_ipa_test.py',
+    'test/cheat_bootstrap_test.py',
+    'test/libretro_cheat_probe.py',
+    'test/libretro_frontend_test.py',
+    'test/libretro_host/frontend/cheat_automatic_test.m',
+    'test/libretro_host/frontend/cheats_test.m',
+    'test/libretro_simulator/cheat_automatic_probe.h',
+    'test/libretro_simulator/cheat_probe.h',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator_probe.py',
+    'tools/cheats/NOTICE.txt',
+    'tools/cheats/build_bootstrap.py',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(AUTOMATIC_CHEATS466_INPUTS, AUTOMATIC_CHEATS466_REFERENCE))
+DELTA |= AUTOMATIC_CHEATS466_INPUTS
+
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2287,11 +2357,11 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
-SKIN_SESSION_RUN = 38819105153
+SKIN_SESSION_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+SKIN_SESSION_RUN = 38830357231
 
-CHEAT_CATALOG_REFERENCE = '6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99'
-CHEAT_CATALOG_RUN = 38819105076
+CHEAT_CATALOG_REFERENCE = 'ed78ab1117e5e0b7a98ea21825c3f038f7b0ec4d'
+CHEAT_CATALOG_RUN = 38830357209
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""
@@ -2543,7 +2613,8 @@ def main():
         report = {'result': 'passed', 'testedSHA': DELIVERY460_DART_REFERENCE,
                   'key': os.environ['DART_VALIDATION_KEY'], 'tool': 'Flutter 3.47.2, Ubuntu 24.04',
                   'validationWasReused': True, 'evidence': verify_delivery460_dart_evidence(),
-                  'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}
+                  'unchangedInputsSHA256': hashes, 'cheatEvidence': cheats,
+                  'cheatInputsSHA256': cheat_hashes, 'deviceGameplayValidated': False}
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2) + '\n')
@@ -2555,6 +2626,8 @@ def main():
             raise ValueError('Native reuse requires online CI success and the real Xcode toolchain')
         verify_tree()
         hashes = verify_libretro_reuse_tree()
+        cheat_hashes = verify_libretro_reuse_tree(CHEAT_CATALOG_REFERENCE, exact_inputs={'.github/workflows/libretro-cheats-checks.yml'})
+        cheats = verify_cheat_catalog_evidence()
         xcode = subprocess.check_output(['xcodebuild', '-version'], text=True).strip()
         sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip()
         if xcode != 'Xcode 26.3\nBuild version 17C529' or sdk != '26.2':

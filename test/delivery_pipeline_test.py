@@ -194,7 +194,7 @@ class DeliveryPipeline(unittest.TestCase):
         def verify():
             with patch.object(reuse.subprocess, 'check_output', side_effect=[json.dumps(run), json.dumps({'jobs': jobs})]):
                 return reuse.verify_libretro_reuse_evidence()
-        self.assertEqual(verify()['run'], 38819105153)
+        self.assertEqual(verify()['run'], reuse.LIBRETRO_SKIN_PRESS_RUN)
         for field, invalid in (('head_sha', 'other'), ('conclusion', 'failure'), ('status', 'in_progress')):
             old = run[field]
             run[field] = invalid
@@ -377,6 +377,13 @@ class DeliveryPipeline(unittest.TestCase):
             'test/relay_backend_test.cpp',
             'test/rpcs3_neoswap_localizations_test.py',
         })
+
+    def test_automatic_cheat_delivery_pins_runtime_data_and_packaged_validation(self):
+        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'], reuse.AUTOMATIC_CHEATS466_REFERENCE)
+        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Resources/Cheats/manifest.json'], reuse.AUTOMATIC_CHEATS466_REFERENCE)
+        self.assertEqual(reuse.CHEAT_CATALOG_REFERENCE, reuse.SKIN_SESSION_REFERENCE)
+        workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
+        self.assertEqual(workflow.count('python3 build-utils/validate_cheat_bootstrap_ipa.py'), 2)
 
     def test_release_device_and_signature_guards_are_active(self):
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
