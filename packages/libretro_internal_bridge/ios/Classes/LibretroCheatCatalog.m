@@ -218,9 +218,15 @@ static BOOL SafePath(NSString *path) {
     NSData *data = attributes && [attributes fileSize] <= 16u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
     id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
     NSDictionary *catalog = [self validatedCatalog:json source:source console:console];
-    if (!catalog) {
-      catalog = [self bundledSource:source console:console];
-      if (attributes) [self log:[NSString stringWithFormat:@"invalid index recovered source=%@ console=%@ bundled=%d", source, console, catalog != nil]];
+    if (!catalog || [catalog[@"games"] count] == 0) {
+      NSDictionary *bundled = [self bundledSource:source console:console];
+      // A syntactically valid empty downloaded index must not hide an existing
+      // verified reference catalogue. Some sources legitimately lack a console;
+      // retain their empty index when the bundled source is also empty.
+      if (!catalog || [bundled[@"games"] count] > 0) {
+        catalog = bundled;
+        if (attributes) [self log:[NSString stringWithFormat:@"invalid or empty index recovered source=%@ console=%@ bundled=%d", source, console, catalog != nil]];
+      }
     }
     [self log:[NSString stringWithFormat:@"index source=%@ console=%@ games=%lu bundled=%d", source, console,
       (unsigned long)[catalog[@"games"] count], [catalog[@"bundled"] boolValue]]];

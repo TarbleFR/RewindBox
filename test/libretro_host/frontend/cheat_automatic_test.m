@@ -54,6 +54,9 @@ int main(int argc,const char **argv) { @autoreleasepool {
   NSMutableDictionary *legacy=[official mutableCopy];[legacy removeObjectForKey:@"bundled"];[legacy removeObjectForKey:@"schema"];
   [[NSJSONSerialization dataWithJSONObject:legacy options:0 error:nil] writeToFile:[folder stringByAppendingPathComponent:@"index.json"] atomically:YES];
   done=NO;[catalog loadSource:@"libretro" console:@"nes" completion:^(NSDictionary *value) {CHECK(value!=nil && ![value[@"bundled"] boolValue],"already installed v463 index remains indexed without migration");done=YES;}];Wait(&done);
+  legacy[@"games"]=@[];
+  [[NSJSONSerialization dataWithJSONObject:legacy options:0 error:nil] writeToFile:[folder stringByAppendingPathComponent:@"index.json"] atomically:YES];
+  done=NO;[catalog loadSource:@"libretro" console:@"nes" completion:^(NSDictionary *value) {CHECK([value[@"games"] count]>2000 && [value[@"bundled"] boolValue],"downloaded-but-empty valid legacy index cannot hide the verified reference catalogue");done=YES;}];Wait(&done);
   done=NO;[catalog loadSource:@"libretro" console:@"tg16" completion:^(NSDictionary *value) {CHECK([value[@"games"] count]>0 && [value[@"games"][0][@"console"] isEqual:@"tg16"],"hidden console aliases use the same central index");done=YES;}];Wait(&done);
   done=NO;[catalog removeSource:@"libretro" console:@"nes" completion:^{done=YES;}];Wait(&done);
   done=NO;[catalog loadSource:@"libretro" console:@"nes" completion:^(NSDictionary *value) {CHECK(value==nil,"explicitly removed bundled source stays disabled");done=YES;}];Wait(&done);

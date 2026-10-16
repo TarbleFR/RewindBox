@@ -107,3 +107,13 @@ The results follow only two primary actions: Find cheats and Disable all.
 Import, manual editing, filters and saved-choice tools remain available after
 the results. A UIKit regression checks the actual FFVII section arrangement;
 code rows keep their existing section identity and native switch handling.
+
+## Downloaded-but-empty legacy index
+
+A further reproducible installed-data gap: `validatedCatalog` accepts an empty
+`games` array. `loadSource` then preferred that downloaded index over the
+nonempty bundled reference, leaving a source marked installed with zero games.
+Loading now recovers a verified nonempty reference in that case, preserving
+the existing files and preferences. Sources genuinely lacking a console remain
+empty. A regression writes exactly this valid legacy index and requires
+offline recovery, alongside the existing malformed-index recovery case.
