@@ -130,7 +130,7 @@ static NSString *GameKey(NSDictionary *game) {
 // Only this worker traverses indices. All UI/model mutations stay on the main queue.
 - (void)discover {
   if (!_ready || _pendingSources) return;
-  NSUInteger generation = ++_discoveryGeneration; _discovering = YES;
+  NSUInteger generation = ++_discoveryGeneration; _discovering = YES; _status = nil;
   NSArray *catalogs = [_installed.allValues sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
     return [a[@"source"] compare:b[@"source"]]; }];
   NSDictionary *identity = _identity; __weak LibretroCheatMenu *weakSelf = self;
@@ -318,14 +318,15 @@ static NSString *GameKey(NSDictionary *game) {
       if (!menu->_records.count) {
         // One entry searches every source. The library title is a hint for
         // CHD/renamed files, never a claim of exact regional compatibility.
-        menu->_gameSearch = [LibretroCheats searchTitle:String(menu->_identity[@"title"])];
+        NSString *title = [menu->_identity[@"titles"] firstObject] ?: [menu->_identity[@"serialTitles"] firstObject] ?: String(menu->_identity[@"title"]);
+        menu->_gameSearch = [LibretroCheats searchTitle:title];
         [page push:[menu catalogPage]];
       } else [page rebuild];
     }];
-    find.enabled = menu->_ready && !menu->_busy;
+    find.enabled = menu->_ready && !menu->_busy && !menu->_pendingSources;
     NSMutableArray *sourceNames = [NSMutableArray array];
     for (NSDictionary *source in LibretroCheatCatalog.sources) if ([menu->_installed[source[@"id"]][@"games"] count]) [sourceNames addObject:source[@"name"]];
-    find.detail = sourceNames.count ? [sourceNames componentsJoinedByString:@" · "] : [menu t:@"cheatNoSources"];
+    find.detail = menu->_pendingSources ? [menu t:@"cheatBusy"] : sourceNames.count ? [sourceNames componentsJoinedByString:@" · "] : [menu t:@"cheatNoSources"];
     [actions addObject:find];
     [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatDisableAll"] action:^(LibretroMenuPage *page) {
       for (NSMutableDictionary *record in menu->_records) { record[@"enabled"] = @NO; record[@"selected"] = @NO; }
