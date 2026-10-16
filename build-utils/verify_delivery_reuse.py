@@ -2135,6 +2135,13 @@ PS1_CHEATS467_INPUTS = AUTOMATIC_CHEATS466_INPUTS | {
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(PS1_CHEATS467_INPUTS, PS1_CHEATS467_REFERENCE))
 DELTA |= PS1_CHEATS467_INPUTS
 
+# The corrected Build 467 IPA is encrypted to a new, locally held private
+# key. Pin its public certificate to the immutable reviewed commit that added
+# it; it must never be mistaken for a source/input exemption.
+DELIVERY467_RECIPIENT_PATH = 'build-utils/delivery-467-recipient.pem'
+DELIVERY456_PINNED_INPUTS[DELIVERY467_RECIPIENT_PATH] = '5077a9384dcf5b603b42073d619579ffbb06b0b9'
+DELTA.add(DELIVERY467_RECIPIENT_PATH)
+
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
