@@ -302,8 +302,8 @@ static NSString *GameKey(NSDictionary *game) {
   __weak LibretroCheatMenu *weakSelf = self;
   LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:[self t:games ? @"cheatSearchGames" : @"cheatSearch"] action:^(LibretroMenuPage *page) {
     LibretroCheatMenu *menu = weakSelf; if (!menu) return;
-    [page askWithTitle:[menu t:games ? @"cheatSearchGames" : @"cheatSearch"] fields:@[[menu t:@"cheatSearch"]]
-       secure:@[@NO] action:[menu t:@"cheatSearch"] cancelTitle:[menu t:@"cancel"] handler:^(NSArray<NSString *> *values) {
+    [page askWithTitle:[menu t:games ? @"cheatSearchGames" : @"cheatSearch"] fields:@[[menu t:games ? @"cheatSearchGames" : @"cheatSearch"]]
+       secure:@[@NO] action:[menu t:games ? @"cheatFind" : @"cheatSearch"] cancelTitle:[menu t:@"cancel"] handler:^(NSArray<NSString *> *values) {
       if (games) menu->_gameSearch = values.firstObject; else menu->_cheatSearch = values.firstObject;
       [page rebuild];
     }];
