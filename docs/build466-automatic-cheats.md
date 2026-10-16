@@ -107,3 +107,17 @@ deleting the old file. They remain disabled/unverified unless the complete code
 program matches a current exact-content source. Matching choices retain their
 selection and attribution; the end-to-end CUE fixture and second process cover
 this upgrade path. This product change requires fresh shared native/UI gates.
+
+The optional broad emulator probe `38830357263` / job `116747907319`
+retained its one known `ppsspp-crowded` reserved-address observation failure:
+PSP content actually launched and closed, but chose another usable base. This
+is the already classified Simulator probe limitation, not a demonstrated
+launch regression (see AGENTS.md). No assertion or runtime was changed for it.
+Its remaining historical/unrelated probes were cancelled to free runners for
+the mandatory current cheat/skin suites; that broad workflow is not a pass.
+
+A final UI lifecycle check also covers returning from a catalogue before its
+async game-file transfer finishes. The root cheat table now refreshes even if
+the last nested controller has gone; the test inspects the actual table row
+count with that stale child reference cleared. No shared menu/skin controller
+source or touch input is changed.

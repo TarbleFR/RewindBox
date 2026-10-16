@@ -27,7 +27,10 @@
       AutomaticCheatProbe *probe=weakSelf;if(!probe)return;
       [probe.session enqueue:^{[[probe.session valueForKey:@"host"] applyCheats:codes];}];
     }];
-  _root=[_menu rootPage];_page.builder=_root.builder;[_page rebuild];
+  _root=[_menu rootPage];[_root loadViewIfNeeded];
+  // A user may leave a child catalogue page before async results arrive.
+  [_menu setValue:nil forKey:@"visiblePage"];
+  _page.builder=_root.builder;[_page rebuild];
 }
 - (void)memoryAfter:(uint64_t)serial expected:(uint8_t)expected remaining:(NSUInteger)remaining then:(dispatch_block_t)then {
   [_session enqueue:^{
@@ -48,6 +51,7 @@
   if(_stage==0){
     NSArray *records=[_menu valueForKey:@"records"];
     [self check:records.count==4 name:@"two installed sources automatically aggregate and deduplicate while retaining an unverified legacy choice"];
+    [self check:[_root.tableView numberOfRowsInSection:1]==4 name:@"visible root table receives async results after the previous catalogue page has gone"];
     [self check:[self row:@"Automatic A"]!=nil && [self row:@"Complement"]!=nil && [self row:@"Wrong region"]==nil name:@"renamed exact content gets compatible codes and excludes mismatched regional hash"];
     [self check:[records.firstObject[@"origins"] count]==3 name:@"automatic duplicate keeps both source attributions and the recovered legacy choice"];
     BOOL disabled=YES;for(NSDictionary *r in records)disabled &= ![r[@"enabled"] boolValue];

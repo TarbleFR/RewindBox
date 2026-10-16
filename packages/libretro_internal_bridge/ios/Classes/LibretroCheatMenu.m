@@ -23,7 +23,7 @@ static NSString *GameKey(NSDictionary *game) {
   NSUInteger _pendingSources, _discoveryGeneration;
   NSMutableSet *_automaticKeys, *_confirmedGames;
   NSString *_cheatSearch, *_gameSearch, *_status;
-  __weak LibretroMenuPage *_visiblePage;
+  __weak LibretroMenuPage *_visiblePage, *_rootPage;
   dispatch_queue_t _queue;
 }
 @synthesize diagnostic = _diagnostic;
@@ -105,7 +105,7 @@ static NSString *GameKey(NSDictionary *game) {
           if ([game isKindOfClass:NSString.class] && [game length] <= 2048) [menu->_confirmedGames addObject:game];
         [menu merge:records]; menu->_ready = YES;
         [menu discover];
-        [menu->_visiblePage rebuild];
+        [menu refresh];
       });
     });
     for (NSDictionary *source in LibretroCheatCatalog.sources) {
@@ -114,7 +114,7 @@ static NSString *GameKey(NSDictionary *game) {
         if (catalog) menu->_installed[source[@"id"]] = catalog;
         if (menu->_pendingSources) menu->_pendingSources--;
         [menu discover];
-        [menu->_visiblePage rebuild];
+        [menu refresh];
       }];
     }
   }
@@ -163,14 +163,14 @@ static NSString *GameKey(NSDictionary *game) {
             current->_status = failed ? [current t:@"cheatFailed"] : (matches.count > limit || current->_records.count >= 4096) ? [current t:@"cheatResultsLimited"] : nil;
             [current save];
           }
-          [current->_visiblePage rebuild];
+          [current refresh];
         }];
       }
       if (!pending) { menu->_discovering = NO; menu->_status = matches.count > limit ? [menu t:@"cheatResultsLimited"] : nil; }
       NSString *diagnostic = [NSString stringWithFormat:@"match console=%@ core=%@ sources=%lu exact=%lu candidates=%lu requested=%lu", menu->_console, menu->_core,
         (unsigned long)catalogs.count, (unsigned long)exact.count, (unsigned long)candidates.count, (unsigned long)pending];
       NSLog(@"[Cheats] %@", diagnostic); if (menu->_diagnostic) menu->_diagnostic(diagnostic);
-      [menu->_visiblePage rebuild];
+      [menu refresh];
     });
   });
 }
@@ -188,6 +188,12 @@ static NSString *GameKey(NSDictionary *game) {
     action:[self t:@"cheatActivate"] cancelTitle:[self t:@"cancel"] destructive:NO handler:^{
       [self->_confirmedGames addObject:String(record[@"game"])]; self->_warned = YES; action();
     }];
+}
+// Nested pages can be popped before a transfer finishes. Keep the actual root
+// list current even when the last child controller no longer exists.
+- (void)refresh {
+  LibretroMenuPage *root = _rootPage, *visible = _visiblePage;
+  [root rebuild]; if (visible != root) [visible rebuild];
 }
 - (NSString *)t:(NSString *)key { return _text(key); }
 - (void)merge:(NSArray *)records {
@@ -270,11 +276,11 @@ static NSString *GameKey(NSDictionary *game) {
     if (error) dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf failed]; });
   });
 }
-- (void)failed { _status = [self t:@"cheatFailed"]; [_visiblePage rebuild]; }
+- (void)failed { _status = [self t:@"cheatFailed"]; [self refresh]; }
 - (void)applyAndSave {
   NSArray *codes = [self enabledCodes];
   if (codes == nil) { [self failed]; return; }
-  _apply(codes); [self save]; [_visiblePage rebuild];
+  _apply(codes); [self save]; [self refresh];
 }
 - (void)warnOnPage:(LibretroMenuPage *)page action:(dispatch_block_t)action {
   if (_warned) { action(); return; }
@@ -368,7 +374,7 @@ static NSString *GameKey(NSDictionary *game) {
       [LibretroCheats.supportedCoreIDs containsObject:menu->_core] ? @"" : [[@"\n" stringByAppendingString:[menu t:@"cheatCoreUnsupported"]] stringByAppendingFormat:@" (%@)", menu->_core]];
     return @[[LibretroMenuSection sectionWithTitle:nil rows:actions], list];
   }];
-  _visiblePage = root; return root;
+  _rootPage = root; _visiblePage = root; return root;
 }
 - (LibretroMenuPage *)catalogPage {
   __weak LibretroCheatMenu *weakSelf = self;
@@ -468,7 +474,7 @@ static NSString *GameKey(NSDictionary *game) {
     dispatch_async(dispatch_get_main_queue(), ^{
       LibretroCheatMenu *menu = weakSelf; if (!menu) return; menu->_busy = NO;
       if (failed) [menu failed]; else { [menu merge:records]; [menu save]; }
-      [menu->_visiblePage rebuild];
+      [menu refresh];
     });
   });
 }
