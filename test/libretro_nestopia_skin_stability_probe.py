@@ -104,8 +104,26 @@ def main():
     probe.SCENARIOS = scenarios()
     output = Path(args.evidence)
     output.mkdir(parents=True, exist_ok=True)
+    # Choose a notched iPhone instead of the default alphabetic iPhone SE:
+    # the reported failure uses the author's edge-to-edge landscape layout.
+    def pick_notched_iphone():
+        listing = json.loads(probe.output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json']))
+        candidates = [(runtime, device['name'], device['udid'])
+                      for runtime, devices in listing['devices'].items()
+                      for device in devices if device.get('isAvailable') and device['name'].startswith('iPhone')]
+        notched = [x for x in candidates if 'SE' not in x[1] and 'Pro' in x[1]]
+        if not notched:
+            raise RuntimeError('No notched iPhone Simulator is available for edgeToEdge fixture')
+        runtime, name, udid = sorted(notched, reverse=True)[0]
+        print(f'notched iPhone Simulator: {name} ({runtime}, {udid})', flush=True)
+        return udid, name + ' ' + runtime
+    probe.pick_device = pick_notched_iphone
     with tempfile.TemporaryDirectory(prefix='nestopia-skin-stability-') as temporary:
         app, tests = probe.assemble(args, probe.BRIDGE, Path(temporary))
+        config_file = app / 'probe-config.json'
+        config = json.loads(config_file.read_text())
+        config['forceLandscape'] = True
+        config_file.write_text(json.dumps(config, indent=2))
         skin_data = original_skin(app)
         press.REFERENCES = tuple(item for item in press.REFERENCES if item[0] == SECONDARY)
         press.fixtures(app)
@@ -126,6 +144,9 @@ def main():
         journal = record.get('journal', '')
         if expected and f'"event":"active","identifier":"{expected}"' not in journal:
             failures.append(f'{name}: expected selected original/cross-catalogue skin did not reach active')
+        if expected == ORIGINAL_ID and ('"orientation":"landscape"' not in journal or
+                                        '"display":"edgeToEdge"' not in journal):
+            failures.append(f'{name}: the original skin was not rendered in landscape edgeToEdge')
         if expected == ORIGINAL_ID and 'skin-load ' not in journal:
             failures.append(f'{name}: no original skin lifecycle diagnostics')
         if expected is None and f'"event":"active","identifier":"{ORIGINAL_ID}"' in journal:

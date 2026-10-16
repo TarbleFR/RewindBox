@@ -16,7 +16,7 @@ permissions:
   actions: read
 concurrency:
   group: nestopia-skin-stability-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   original-skin-on-real-nestopia:
     runs-on: macos-15

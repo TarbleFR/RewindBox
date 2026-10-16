@@ -24,6 +24,7 @@
 #import <UIKit/UIKit.h>
 
 #import "LibretroSession.h"
+#import "LibretroFrontendStore.h"
 
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
 #import "LibretroFrontendMenu.h"
@@ -336,6 +337,15 @@ static NSString *ReservationReport(void) {
 #import "skin_loading_probe.h"
 #endif
 
+@interface ProbeRootController : UIViewController
+@property(nonatomic) UIInterfaceOrientationMask probeMask;
+@end
+@implementation ProbeRootController
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  return self.probeMask ?: UIInterfaceOrientationMaskAllButUpsideDown;
+}
+@end
+
 @interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>
 @property(nonatomic, strong) UIWindow *window;
 @end
@@ -351,7 +361,7 @@ static NSString *ReservationReport(void) {
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
   self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
-  UIViewController *root = [UIViewController new];
+  ProbeRootController *root = [ProbeRootController new];
   root.view.backgroundColor = UIColor.blackColor;
   self.window.rootViewController = root;
   [self.window makeKeyAndVisible];
@@ -361,6 +371,18 @@ static NSString *ReservationReport(void) {
   NSData *configData = configPath != nil ? [NSData dataWithContentsOfFile:configPath] : nil;
   id config = configData != nil ? [NSJSONSerialization JSONObjectWithData:configData options:0 error:nil] : nil;
   _config = [config isKindOfClass:NSDictionary.class] ? config : @{};
+  if ([_config[@"forceLandscape"] boolValue]) {
+    root.probeMask = UIInterfaceOrientationMaskLandscape;
+    [root setNeedsUpdateOfSupportedInterfaceOrientations];
+    UIWindowScene *scene = self.window.windowScene;
+    if (scene != nil) {
+      UIWindowSceneGeometryPreferencesIOS *preferences =
+        [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskLandscape];
+      [scene requestGeometryUpdateWithPreferences:preferences errorHandler:^(NSError *error) {
+        Progress(@"landscape fixture rotation request failed: %@", error.localizedDescription);
+      }];
+    }
+  }
   _scenarios = [_config[@"scenarios"] isKindOfClass:NSArray.class] ? _config[@"scenarios"] : @[];
   if (getenv("NEOSTATION_CHEAT_RESTART")) {
     NSMutableArray *only = [NSMutableArray array];
@@ -864,29 +886,25 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
     return;
   }
   NSDictionary *scenario = _scenarios[_index++];
-  // Simulator-only fixture: select an installed skin through the same JSON
-  // store the production session reads. Run it before each game launch to
-  // exercise actual first-load and subsequent-session resource lifecycles.
-  // The fixture never touches a production user's preferences.
+  // Fixture preferences must use the production singleton frontend store.
+  // Writing a JSON file directly bypasses its in-process cached document,
+  // making subsequent switches appear to fail even when production is correct.
   NSString *selectedSkin = [scenario[@"skinSelection"] isKindOfClass:NSString.class]
       ? scenario[@"skinSelection"] : nil;
   if (selectedSkin.length > 0) {
     NSString *console = [scenario[@"console"] isKindOfClass:NSString.class] ? scenario[@"console"] : @"";
-    NSString *path = DocumentsPath([NSString stringWithFormat:@"Libretro/Config/Frontend/%@.json", console]);
-    NSMutableDictionary *file = [ReadJSON(path) isKindOfClass:NSDictionary.class]
-        ? [[ReadJSON(path) mutableCopy] mutableCopy] : [@{@"version":@1} mutableCopy];
-    NSMutableDictionary *settings = [file[@"console"] isKindOfClass:NSDictionary.class]
-        ? [file[@"console"] mutableCopy] : [NSMutableDictionary dictionary];
-    settings[@"skin.landscape"] = selectedSkin;
-    settings[@"skin.portrait"] = selectedSkin;
-    file[@"console"] = settings;
-    NSData *bytes = [NSJSONSerialization dataWithJSONObject:file options:0 error:nil];
-    if (bytes == nil || ![bytes writeToFile:path atomically:YES]) {
-      Progress(@"%@ failed to seed fixture-only skin preference", scenario[@"name"]);
+    LibretroFrontendStore *store =
+      [LibretroFrontendStore storeWithDirectory:DocumentsPath(@"Libretro/Config/Frontend")];
+    BOOL landscape = [store setValue:selectedSkin forKey:LibretroSettingSkinLandscape
+                             console:console game:nil];
+    BOOL portrait = [store setValue:selectedSkin forKey:LibretroSettingSkinPortrait
+                            console:console game:nil];
+    if (!landscape || !portrait) {
+      Progress(@"%@ failed to store fixture-only skin selection", scenario[@"name"]);
       [self writeResultsFinished:NO];
       return;
     }
-    Progress(@"%@ fixture-only selected skin %@", scenario[@"name"], selectedSkin);
+    Progress(@"%@ production frontend store selected skin %@", scenario[@"name"], selectedSkin);
   }
   NSString *name = scenario[@"name"];
   NSUInteger generation = ++_generation;
