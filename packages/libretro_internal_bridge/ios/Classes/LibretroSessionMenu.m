@@ -361,6 +361,18 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
   [self applyPreviewStyle];
 }
 
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraits {
+  [super traitCollectionDidChange:previousTraits];
+  if (previousTraits != nil &&
+      ![previousTraits.preferredContentSizeCategory isEqualToString:self.traitCollection.preferredContentSizeCategory] &&
+      self.isViewLoaded) {
+    // Explicitly scaled fonts belong to the current menu-page traits. Rebuild
+    // the visible cells when accessibility text size changes while a game runs.
+    [self.tableView reloadData];
+    [self.tableView setNeedsLayout];
+  }
+}
+
 - (void)setPreviewsGame:(BOOL)previewsGame {
   if (_previewsGame == previewsGame) return;
   _previewsGame = previewsGame;
@@ -620,10 +632,16 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
     content.secondaryTextProperties.numberOfLines = 0;
     content.textProperties.lineBreakMode = NSLineBreakByCharWrapping;
     content.secondaryTextProperties.lineBreakMode = NSLineBreakByCharWrapping;
-    content.textProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody compatibleWithTraitCollection:self.traitCollection];
-    content.secondaryTextProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline compatibleWithTraitCollection:self.traitCollection];
-    content.textProperties.adjustsFontForContentSizeCategory = YES;
-    content.secondaryTextProperties.adjustsFontForContentSizeCategory = YES;
+    // UIListContentView can re-apply a global preferred category after the
+    // configuration is installed. Scale against this page's actual traits,
+    // then reload cells on a category change rather than scaling them twice.
+    UITraitCollection *traits = self.traitCollection;
+    content.textProperties.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleBody]
+        scaledFontForFont:[UIFont systemFontOfSize:17] compatibleWithTraitCollection:traits];
+    content.secondaryTextProperties.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline]
+        scaledFontForFont:[UIFont systemFontOfSize:15] compatibleWithTraitCollection:traits];
+    content.textProperties.adjustsFontForContentSizeCategory = NO;
+    content.secondaryTextProperties.adjustsFontForContentSizeCategory = NO;
     content.textProperties.color = row.destructive ? UIColor.systemRedColor : UIColor.labelColor;
     content.secondaryTextProperties.color = UIColor.secondaryLabelColor;
     content.directionalLayoutMargins = NSDirectionalEdgeInsetsMake(12, 16, 12, 16);
