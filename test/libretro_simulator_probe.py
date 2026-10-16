@@ -903,6 +903,11 @@ def assemble(args, sources, work):
     frameworks = app / 'Frameworks'
     frameworks.mkdir(parents=True)
     compile_probe(sources, sdk, work, app)
+    cheat_data = sources / 'Resources/Cheats'
+    if cheat_data.is_dir():
+        bundle = app / 'NeoStationCheats.bundle'
+        shutil.copytree(cheat_data, bundle)
+        (bundle / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'ai.neostation.cheats','CFBundlePackageType':'BNDL'}))
     build_test_cores(sdk, frameworks)
     cores = Path(args.cores)
     for core in REAL_CORES:

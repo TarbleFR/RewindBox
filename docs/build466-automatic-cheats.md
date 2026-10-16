@@ -23,6 +23,7 @@ manual title search, stripping all region/revision tags for candidates.
   offline. CHT bodies are downloaded per matching game and blob-checked/cached.
 - MD5, SHA-1, SHA-256, CRC32; iNES/trainer, SNES copier headers and N64 byte order
   get canonical hash aliases. Preferences retain full original-content identity.
+  CUE descriptors resolve their first local binary track.
   Unchanged regular files reuse an identity cache (path, console/core, inode,
   size and fractional modification timestamp); changed files are rehashed.
 - Hash-derived canonical titles retain region and revision. Code-device tags
@@ -78,3 +79,11 @@ compatibility of a commercial game's codes still need the maintainer's test.
 Skins, touch rendering/pressure/loading, other engines, the 34-core package and
 baseline library sources are preserved. A shared Session change only starts
 cheat discovery and reports enabled cheat counts/application diagnostics.
+
+## Retained development results
+
+- First candidate `74a28e27339d6d3c3d7bf4048fb9170c7f70621d`, focused run
+  `38828551158`: native parsers/catalogues/automatic-index tests and resource
+  integrity checks passed. Simulator compilation then failed on a duplicate
+  local variable name in the new menu initializer; corrected before any IPA.
+  This run is not a successful end-to-end validation.

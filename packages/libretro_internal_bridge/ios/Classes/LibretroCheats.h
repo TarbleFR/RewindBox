@@ -11,6 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)digest:(NSData *)data;
 + (NSString *)gitBlobSHA:(NSData *)data;
 /// Stream the actual extracted content, off the emulation/main queues. No basename-only identity.
++ (NSString *)identityContentPath:(NSString *)path;
 + (nullable NSDictionary *)identityAtPath:(NSString *)path console:(NSString *)console core:(NSString *)core;
 /// A hash mismatch is never promoted by a similar name. Title matches are candidates only.
 + (NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity;

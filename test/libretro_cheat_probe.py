@@ -45,9 +45,6 @@ def main():
         skins.REFERENCES = tuple(f for f in skins.REFERENCES if f[0] == 'press-complex')
         skins.fixtures(app)
         content(app / 'content')
-        shutil.copytree(probe.BRIDGE / 'Resources/Cheats', app / 'NeoStationCheats.bundle')
-        import plistlib
-        (app / 'NeoStationCheats.bundle/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'ai.neostation.cheats','CFBundlePackageType':'BNDL'}))
         # Exact production Dart conversion, exported by the preceding Flutter test.
         for directory in sorted(Path('evidence/overlay-layouts').glob('*')):
             if not directory.is_dir(): continue

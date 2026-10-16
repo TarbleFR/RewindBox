@@ -5,6 +5,9 @@
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 static NSString *String(id value) { return [value isKindOfClass:NSString.class] ? value : @""; }
+static NSString *GameKey(NSDictionary *game) {
+  return [NSString stringWithFormat:@"%@|%@|%@|%@", game[@"source"], game[@"revision"], game[@"sha"] ?: @"", game[@"title"]];
+}
 @interface LibretroCheatMenu () <UIDocumentPickerDelegate>
 @end
 @implementation LibretroCheatMenu {
@@ -15,7 +18,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   NSMutableArray<NSMutableDictionary *> *_records;
   NSMutableDictionary<NSString *, NSDictionary *> *_installed;
   NSMutableDictionary<NSString *, NSString *> *_updates;
-  NSDictionary *_identity;
+  NSDictionary *_identity, *_matchKinds;
   BOOL _ready, _busy, _remember, _warned, _discovering;
   NSUInteger _pendingSources, _discoveryGeneration;
   NSMutableSet *_automaticKeys, *_confirmedGames;
@@ -37,8 +40,9 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     dispatch_async(_queue, ^{
       // Cache only an unchanged regular file. Changed content, inode or modification
       // time invalidates it; no hashing or index traversal blocks the launch queue.
-      NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:contentPath error:nil];
-      NSString *fingerprint = [NSString stringWithFormat:@"3|%@|%@|%@|%@|%@|%@", contentPath, console, core,
+      NSString *identityPath = [LibretroCheats identityContentPath:contentPath];
+      NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:identityPath error:nil];
+      NSString *fingerprint = [NSString stringWithFormat:@"4|%@|%@|%@|%@|%@|%@", identityPath, console, core,
         attributes[NSFileSize], @([attributes[NSFileModificationDate] timeIntervalSince1970]), attributes[NSFileSystemFileNumber]];
       NSString *cacheKey = [LibretroCheats digest:[fingerprint dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *cacheFile = [[directory stringByAppendingPathComponent:@"Identity"] stringByAppendingPathComponent:[cacheKey stringByAppendingPathExtension:@"json"]];
@@ -54,12 +58,15 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
           [[NSJSONSerialization dataWithJSONObject:identity options:0 error:nil] writeToFile:cacheFile atomically:YES];
         }
       }
-      if (identity) identity = [self->_catalog resolveIdentity:identity];
+      if (identity) {
+        NSMutableDictionary *current = [identity mutableCopy]; current[@"title"] = contentPath.lastPathComponent.stringByDeletingPathExtension;
+        identity = [self->_catalog resolveIdentity:current];
+      }
       NSString *hash = String(identity[@"sha256"]);
       NSString *key = [LibretroCheats digest:[[NSString stringWithFormat:@"%@|%@|%@", console, core, hash] dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *file = hash.length ? [[directory stringByAppendingPathComponent:@"Games"] stringByAppendingPathComponent:[key stringByAppendingPathExtension:@"json"]] : nil;
-      NSDictionary *attributes = file ? [[NSFileManager defaultManager] attributesOfItemAtPath:file error:nil] : nil;
-      NSData *data = attributes && [attributes fileSize] <= 8u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
+      NSDictionary *savedAttributes = file ? [[NSFileManager defaultManager] attributesOfItemAtPath:file error:nil] : nil;
+      NSData *data = savedAttributes && [savedAttributes fileSize] <= 8u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
       id saved = data && data.length <= 8u * 1024u * 1024u ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
       if (![saved isKindOfClass:NSDictionary.class]) saved = nil;
       dispatch_async(dispatch_get_main_queue(), ^{
@@ -96,8 +103,10 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   NSDictionary *identity = _identity; __weak LibretroCheatMenu *weakSelf = self;
   dispatch_async(_queue, ^{
     NSMutableArray *exact = [NSMutableArray array], *candidates = [NSMutableArray array];
+    NSMutableDictionary *kinds = [NSMutableDictionary dictionary];
     for (NSDictionary *catalog in catalogs) for (NSDictionary *game in catalog[@"games"]) {
       NSString *match = [LibretroCheats matchGame:game identity:identity];
+      if (![match isEqual:@"none"]) kinds[GameKey(game)] = match;
       if ([match isEqual:@"hash"]) [exact addObject:game];
       else if ([match isEqual:@"candidate"]) [candidates addObject:game];
     }
@@ -105,11 +114,12 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     NSArray *matches = [exact arrayByAddingObjectsFromArray:candidates];
     dispatch_async(dispatch_get_main_queue(), ^{
       LibretroCheatMenu *menu = weakSelf; if (!menu || generation != menu->_discoveryGeneration) return;
+      menu->_matchKinds = [kinds copy];
       NSUInteger limit = MIN(matches.count, (NSUInteger)64);
       __block NSUInteger pending = 0, failed = 0;
       for (NSUInteger i = 0; i < limit; i++) {
         NSDictionary *game = matches[i];
-        NSString *key = [NSString stringWithFormat:@"%@|%@|%@|%@", game[@"source"], game[@"revision"], game[@"sha"] ?: @"", game[@"title"]];
+        NSString *key = GameKey(game);
         if ([menu->_automaticKeys containsObject:key]) continue;
         pending++;
         [menu->_catalog downloadGame:game completion:^(NSArray *cheats, NSError *error) {
@@ -123,7 +133,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
           pending--;
           if (!pending) {
             current->_discovering = NO;
-            current->_status = failed ? [current t:@"cheatFailed"] : matches.count > limit ? [current t:@"cheatResultsLimited"] : nil;
+            current->_status = failed ? [current t:@"cheatFailed"] : (matches.count > limit || current->_records.count >= 4096) ? [current t:@"cheatResultsLimited"] : nil;
             [current save];
           }
           [current->_visiblePage rebuild];
@@ -331,7 +341,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     NSMutableArray *matches = [NSMutableArray array], *manual = [NSMutableArray array];
     NSArray *catalogs = [menu->_installed.allValues sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) { return [a[@"source"] compare:b[@"source"]]; }];
     for (NSDictionary *catalog in catalogs) for (NSDictionary *game in catalog[@"games"]) {
-      NSString *match = [LibretroCheats matchGame:game identity:menu->_identity ?: @{}];
+      NSString *match = menu->_matchKinds[GameKey(game)] ?: @"none";
       BOOL found = [match isEqual:@"hash"] || [match isEqual:@"candidate"];
       if (menu->_gameSearch.length) {
         if ([String(game[@"title"]) rangeOfString:menu->_gameSearch options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location == NSNotFound) continue;

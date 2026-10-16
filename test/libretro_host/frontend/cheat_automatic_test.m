@@ -56,6 +56,21 @@ int main(int argc,const char **argv) { @autoreleasepool {
   CHECK([identity[@"sha1s"] containsObject:@"a9993e364706816aba3e25717850c26c9cd0d89d"],"SHA-1 canonical alias correct");
   CHECK(![identity[@"sha256"] isEqual:[LibretroCheats digest:UTF8(@"abc")]],"preferences retain full original content identity");
   CHECK([identity[@"crc32"] length]==8,"CRC32 available for diagnosis");
+  NSString *cue=[work stringByAppendingPathComponent:@"renamed.cue"];
+  [UTF8(@"FILE \"renamed.nes\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n") writeToFile:cue atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:cue] isEqual:rom],"CUE resolves actual local game track instead of hashing descriptor text");
+  CHECK([[LibretroCheats identityAtPath:cue console:@"psx" core:@"mednafen_psx_hw"][@"md5"] isEqual:identity[@"md5"]],"renamed CUE hashes actual track content");
+  [UTF8(@"FILE \"../outside.bin\" BINARY\n") writeToFile:cue atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:cue] isEqual:cue],"CUE traversal never reads another folder");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"80012345 007F+30010000 00FF",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"].count==1),"PSX program preserves bounded simple GameShark writes");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"D0012345 0001+80012345 0002",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"]==nil),"unreviewed PSX conditional opcode remains explicitly unavailable");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"22000024 0000007F",@"handler":@0} core:@"desmume" console:@"nds"].count==1),"DeSmuME Action Replay adapter retains a complete program");
+  NSError *parseError=nil;
+  NSArray *separators=[LibretroCheats parseCHT:UTF8(@"cheats=2\ncheat0_desc=Section\ncheat0_code=\"\"\ncheat1_desc=Counter\ncheat1_code=0024:7F") error:&parseError];
+  CHECK(separators.count==1 && parseError==nil,"explicit CHT separator does not hide valid following codes");
+  NSString *longCode=[@"A" stringByPaddingToLength:9000 withString:@"A" startingAtIndex:0];
+  NSArray *longEntries=[LibretroCheats parseCHT:UTF8([NSString stringWithFormat:@"cheats=1\ncheat0_desc=Long\ncheat0_code=\"%@\"",longCode]) error:&parseError];
+  CHECK(longEntries.count==1 && [LibretroCheats codesForCheat:longEntries[0] core:@"nestopia" console:@"nes"]==nil,"long source program is retained visibly but unavailable for unsafe activation");
   [NSFileManager.defaultManager removeItemAtPath:work error:nil];
  } printf("Automatic cheats: %u checks, %u failures\n",checks,failures);return failures?1:0;
 }

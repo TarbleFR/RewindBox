@@ -89,7 +89,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     } else {
       value = [[[value componentsSeparatedByString:@"#"] firstObject] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
     }
-    if (value.length > 8192 || values.count > 150000) { if (error) *error = CheatError(@"CHT limits exceeded"); return nil; }
+    if (value.length > 65536 || values.count > 150000) { if (error) *error = CheatError(@"CHT limits exceeded"); return nil; }
     if (values[key] != nil) { if (error) *error = CheatError(@"Duplicate CHT field"); return nil; }
     values[key] = value;
   }
@@ -112,6 +112,9 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     NSString *code = values[[prefix stringByAppendingString:@"code"]] ?: @"";
     NSString *name = values[[prefix stringByAppendingString:@"desc"]] ?: code;
     NSString *handler = values[[prefix stringByAppendingString:@"handler"]] ?: @"0";
+    // Explicit empty code + description is a source's visual separator, not
+    // a native program. Missing fields still reject an incomplete document.
+    if ([handler isEqual:@"0"] && !code.length && name.length && values[[prefix stringByAppendingString:@"code"]] != nil) continue;
     if (!Matches(handler, @"^[01]$") || name.length == 0 || (code.length == 0 && [handler isEqual:@"0"])) {
       if (error) *error = CheatError(@"Missing CHT code, description or unsupported handler"); return nil;
     }
@@ -209,9 +212,31 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   // Nestopia and Snes9x use 256-byte stack buffers. Each call receives one bounded code.
   return result.count > 0 && result.count <= 100 ? result : nil;
 }
+// A CUE describes tracks, not game bytes. Resolve its first binary track without
+// accepting absolute paths, traversal or a different directory. CHD/playlists
+// are deliberately left uncertain; their compressed/wrapper hash is not a ROM hash.
++ (NSString *)identityContentPath:(NSString *)path {
+  if (![path.pathExtension.lowercaseString isEqual:@"cue"]) return path;
+  NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+  if (!attributes || [attributes fileSize] > 1024u * 1024u) return path;
+  NSString *cue = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+  if (!cue) return path;
+  NSRegularExpression *file = [NSRegularExpression regularExpressionWithPattern:@"^\\s*FILE\\s+(?:\"([^\"]+)\"|([^\\s]+))\\s+BINARY\\s*$"
+    options:NSRegularExpressionCaseInsensitive | NSRegularExpressionAnchorsMatchLines error:nil];
+  NSTextCheckingResult *match = [file firstMatchInString:cue options:0 range:NSMakeRange(0,cue.length)];
+  if (!match) return path;
+  NSRange capture = [match rangeAtIndex:1]; if (capture.location == NSNotFound) capture = [match rangeAtIndex:2];
+  NSString *relative = [cue substringWithRange:capture];
+  if (relative.isAbsolutePath || [relative.pathComponents containsObject:@".."] || [relative containsString:@"\\"]) return path;
+  NSString *track = [path.stringByDeletingLastPathComponent stringByAppendingPathComponent:relative];
+  NSDictionary *trackAttributes = [NSFileManager.defaultManager attributesOfItemAtPath:track error:nil];
+  return [trackAttributes[NSFileType] isEqual:NSFileTypeRegular] ? track : path;
+}
 // Raw content identifies preferences. Headerless/canonical aliases identify catalogues.
 // The caller runs this once off-main and caches by file identity, size and mtime.
 + (NSDictionary *)identityAtPath:(NSString *)path console:(NSString *)console core:(NSString *)core {
+  NSString *title = path.lastPathComponent.stringByDeletingPathExtension;
+  path = [self identityContentPath:path];
   NSDictionary *before = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
   if (![before[NSFileType] isEqual:NSFileTypeRegular]) return nil;
   NSInputStream *stream = [NSInputStream inputStreamWithFileAtPath:path]; [stream open];
@@ -243,14 +268,15 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   if (!valid || ![before[NSFileModificationDate] isEqual:after[NSFileModificationDate]] || [before fileSize] != [after fileSize]) return nil;
   unsigned char m[16], s[32], h[20], cm[16], ch[20]; CC_MD5_Final(m, &md5); CC_SHA1_Final(h, &sha1); CC_SHA256_Final(s, &sha);
   CC_MD5_Final(cm, &canonicalMD5); CC_SHA1_Final(ch, &canonicalSHA1);
-  return @{@"console": console, @"core": core, @"title": path.lastPathComponent.stringByDeletingPathExtension,
+  return @{@"console": console, @"core": core, @"title": title,
     @"md5": Hex(m, sizeof(m)), @"sha1": Hex(h, sizeof(h)), @"sha256": Hex(s, sizeof(s)),
     @"crc32": [NSString stringWithFormat:@"%08lx", (unsigned long)crc], @"bytes": @(total),
     @"md5s": [NSOrderedSet orderedSetWithArray:@[Hex(m, sizeof(m)), Hex(cm, sizeof(cm))]].array,
     @"sha1s": [NSOrderedSet orderedSetWithArray:@[Hex(h, sizeof(h)), Hex(ch, sizeof(ch))]].array};
 }
 + (NSString *)searchTitle:(NSString *)title {
-  NSRegularExpression *tags = [NSRegularExpression regularExpressionWithPattern:@"\\([^)]*\\)|\\[[^]]*\\]" options:0 error:nil];
+  static NSRegularExpression *tags; static dispatch_once_t once;
+  dispatch_once(&once, ^{ tags = [NSRegularExpression regularExpressionWithPattern:@"\\([^)]*\\)|\\[[^]]*\\]" options:0 error:nil]; });
   NSString *base = [tags stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
   return [[base lowercaseString] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
 }
