@@ -39,6 +39,7 @@
     "libretro/cht-tree": "82732f21cd5b083ad7b8625fa7c8ca1ca920b6b1"
   },
   "outputs": {
+    "NOTICE.txt": "ef008af5a7b6ef20c684ad3f2deb5769ae46eddb8fcd522bdbae51dfcbc2f044",
     "libretro-2600.json": "b3bacbec39159b83b0e8035245abf6914562d050893dfdcb98e94ce339884ce4",
     "libretro-32x.json": "2f44c65bff5e84c5f6986ae09cf68cb0c48b95c50dc2d4cb95decae7a68a93e1",
     "libretro-5200.json": "782bda4d954fbb637424a0a7d04859bfb414d526a81a4a2d60746bc9da37587d",
@@ -63,7 +64,7 @@
     "libretro-pce.json": "dab43a05d9dba0e7b496b176ba7b585626d63a6a641a4a9fa31b170534440ebe",
     "libretro-pcfx.json": "d4be57e6610a5ce08082f10ccc1b0a5094dc9be390fa6585f0b357d5ddeba051",
     "libretro-psp.json": "d75ffc97849c93de49476628be09404425112ef600951e741281f3e941e86897",
-    "libretro-psx.json": "9f797bb09db732c6ad79bf7ae359164367a5a68a09cd931e69921a516ad66903",
+    "libretro-psx.json": "baf1c6af157472b6191f49465ed5bd871f729e64d5d9ffe1b16e98ab06286680",
     "libretro-sg1000.json": "6a570a5dfdfad8df3f479edaa7206681ca585b2bb3a2376e20d47502a6ec8f3d",
     "libretro-sms.json": "9e0785c72592a8b1a491224f04e0a8318acef2bc3a5d5ebeb68b6954b7bb0202",
     "libretro-snes.json": "ff773e3e8079d573226b731e7b4169114e07ac122e0c46961e467a2a81314739",
@@ -71,7 +72,6 @@
     "libretro-ws.json": "4a15c06ee87c923aa8e9f9b0edd374cc25e64dd89db1abd8036f3b410f3d47bf",
     "libretro-wsc.json": "f5e807a6efcbec0262059982f97180ad3a7c00d98fdb72ea6f37dada4e09ec63",
     "openemu-LICENSE": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e",
-    "openemu.xml": "51e7cbee443d3b0dfd1c22fef144f4301ed79c7c5194f07bc516a2da7b714809",
-    "NOTICE.txt": "ef008af5a7b6ef20c684ad3f2deb5769ae46eddb8fcd522bdbae51dfcbc2f044"
+    "openemu.xml": "51e7cbee443d3b0dfd1c22fef144f4301ed79c7c5194f07bc516a2da7b714809"
   }
 }

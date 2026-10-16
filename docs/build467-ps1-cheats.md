@@ -25,7 +25,7 @@ all existing cores/engines. Private IPA and source pushes remain authorized.
 Pass library title as an explicitly unverified search hint, behind content
 hash/serial identification. Add bounded ISO9660 SYSTEM.CNF boot-serial reading
 for ISO and raw Mode 1/2 BIN/CUE data tracks, including a 150-sector pregap.
-The reference projection now retains 4,266 PS1 serial identities from the same
+The reference projection now retains 3,978 PS1 serial identities from the same
 reviewed, licence-compatible RDB. Serial matches remain candidates because
 multiple revisions can share a serial. Identity cache schema changes; saved
 content/core preference keys do not.
@@ -117,3 +117,15 @@ Loading now recovers a verified nonempty reference in that case, preserving
 the existing files and preferences. Sources genuinely lacking a console remain
 empty. A regression writes exactly this valid legacy index and requires
 offline recovery, alongside the existing malformed-index recovery case.
+
+## Exact regeneration
+
+The complete bootstrap generator was rerun offline against every cached,
+Git-blob-verified upstream RDB, cheat tree and original licence/XML resource.
+It reproduces all thirty indices; PS1 retains **3,978** serial-bearing identity
+rows. The initial partial data update had collapsed multiple metadata rows with
+the same name/hash, losing some release serials and filling absent fields.
+The final data is the generator's per-row projection, preserving distinct
+release aliases and missing serials instead of inventing identity metadata.
+All other console outputs remain byte-identical. Five bootstrap/IPA-resource
+tests pass, including the serial shape and exact reviewed row count.

@@ -22,6 +22,8 @@ class Bootstrap(unittest.TestCase):
     self.assertTrue(row['title']);self.assertTrue(row.get('md5') or row.get('sha1'))
     if 'md5' in row:self.assertRegex(row['md5'],'^[a-f0-9]{32}$')
     if 'sha1' in row:self.assertRegex(row['sha1'],'^[a-f0-9]{40}$')
+    if 'serial' in row:self.assertRegex(row['serial'],'^[A-Z]{4}-[0-9]{5}$')
+   if catalog['console']=='psx':self.assertEqual(sum('serial' in r for r in catalog['identities']),3978)
    games+=len(catalog['games']);identities+=len(catalog['identities'])
   self.assertEqual(games,22746);self.assertEqual(identities,40398)
   print('Bundled official entries:',games,'content identities:',identities)
