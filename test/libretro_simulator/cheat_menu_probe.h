@@ -18,14 +18,15 @@ static BOOL CheatCellFits(UITableViewCell *cell,LibretroMenuRow *row) {
   if(!name || (row.detail.length && !detail))return NO;
   CGRect title=[name convertRect:name.bounds toView:cell];
   CGRect bounds=CGRectInset(cell.bounds,-1,-1);
+  CGRect accessory=cell.accessoryView ? [cell.accessoryView convertRect:cell.accessoryView.bounds toView:cell] : CGRectZero;
   if(!CGRectContainsRect(bounds,title) || name.bounds.size.height+1 < [name sizeThatFits:CGSizeMake(name.bounds.size.width,CGFLOAT_MAX)].height)return NO;
   if(detail){
     CGRect subtitle=[detail convertRect:detail.bounds toView:cell];
     if(!CGRectContainsRect(bounds,subtitle) || CGRectIntersectsRect(title,subtitle) ||
       detail.bounds.size.height+1 < [detail sizeThatFits:CGSizeMake(detail.bounds.size.width,CGFLOAT_MAX)].height)return NO;
-    if(cell.accessoryView && CGRectIntersectsRect(subtitle,cell.accessoryView.frame))return NO;
+    if(cell.accessoryView && CGRectIntersectsRect(subtitle,accessory))return NO;
   }
-  return !cell.accessoryView || !CGRectIntersectsRect(title,cell.accessoryView.frame);
+  return !cell.accessoryView || !CGRectIntersectsRect(title,accessory);
 }
 static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *checks,NSString *label) {
   NSArray *records=[menu valueForKey:@"records"];
@@ -53,7 +54,10 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
         [page.tableView scrollToRowAtIndexPath:path atScrollPosition:UITableViewScrollPositionTop animated:NO];
         [page.tableView layoutIfNeeded];
         UITableViewCell *cell=[page.tableView cellForRowAtIndexPath:path];
-        if(!cell || !CheatCellFits(cell,rows[index]))fits=NO;seen++;
+        if(!cell || !CheatCellFits(cell,rows[index])){
+          if(fits)NSLog(@"[CheatLayout] %@ %.0fx%.0f %@ row %lu: %@ frame %@ content %@",label,dimensions.width,dimensions.height,category,(unsigned long)index,((LibretroMenuRow *)rows[index]).title,NSStringFromCGRect(cell.frame),NSStringFromCGRect(cell.contentView.frame));
+          fits=NO;
+        }seen++;
       }
       CheatLayoutCheck(checks,fits && seen==records.count,[NSString stringWithFormat:@"%@ all %lu rows fit %.0fx%.0f %@ without clipping, overlap or switch collision",label,(unsigned long)seen,dimensions.width,dimensions.height,category]);
     }];

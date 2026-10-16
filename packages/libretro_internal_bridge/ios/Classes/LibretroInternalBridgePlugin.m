@@ -24,6 +24,7 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"touchControls", @"smoothing", @"fastForward", @"coreSettings", @"settingsRestartHint",
     @"cheatFind", @"cheatNoSources", @"cheatNoVariant", @"cheatNone", @"cheatRetry", @"cheatDisableAll", @"cheatCoreUnsupported", @"cheatEffectsHelp", @"cheatResultsLimited",
     @"cheatCatalog", @"cheatSources", @"cheatSearch", @"cheatSearchGames", @"cheatImport", @"cheatRemember", @"cheatRestore", @"cheatPreferencesHelp", @"cheatSaveWarning", @"cheatActivate", @"cheatFailed", @"cheatBusy", @"cheatManual", @"cheatMatches", @"cheatHashMatch", @"cheatHashMismatch", @"cheatVersionUncertain", @"cheatMemoryUnsupported", @"cheatCodeUnsupported", @"cheatCatalogHelp", @"cheatSourceHelp", @"cheatInstall", @"cheatUpdate", @"cheatCheckUpdates", @"cheatUpdateAvailable", @"cheatRemoveData", @"cheatDownload",
+    @"cheatDetails", @"cheatVersionBadge", @"cheatFormatBadge", @"cheatMemoryBadge", @"cheatDetailsHint", @"biosDetails",
     @"cheats",
     @"addCheat", @"cheatName", @"cheatCode", @"cheatsHelp", @"achievements", @"achievementsEnabled",
     @"achievementsLogin", @"achievementsLogout", @"achievementsUser", @"achievementsPassword",
