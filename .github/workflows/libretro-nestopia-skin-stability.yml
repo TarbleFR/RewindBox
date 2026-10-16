@@ -1,0 +1,50 @@
+name: NES NESThumbstick 37-launch stability regression
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/libretro-nestopia-skin-stability.yml
+      - packages/libretro_internal_bridge/ios/Classes/LibretroSkin*
+      - packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroSession.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroMetalPresenter.m
+      - test/libretro_simulator/probe.m
+      - test/libretro_nestopia_skin_stability_probe.py
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nestopia-skin-stability-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  original-skin-on-real-nestopia:
+    runs-on: macos-15
+    timeout-minutes: 39
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Fetch the existing verified simulator inputs
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Real Nestopia — original NESThumbstick and 37 game sessions
+        run: |
+          python3 test/libretro_nestopia_skin_stability_probe.py \
+            --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+            --evidence evidence/nestopia-skins --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nestopia-skin-stability-${{ github.sha }}
+          path: evidence/nestopia-skins/
+          retention-days: 14
+          if-no-files-found: warn

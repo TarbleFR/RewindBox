@@ -864,6 +864,30 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
     return;
   }
   NSDictionary *scenario = _scenarios[_index++];
+  // Simulator-only fixture: select an installed skin through the same JSON
+  // store the production session reads. Run it before each game launch to
+  // exercise actual first-load and subsequent-session resource lifecycles.
+  // The fixture never touches a production user's preferences.
+  NSString *selectedSkin = [scenario[@"skinSelection"] isKindOfClass:NSString.class]
+      ? scenario[@"skinSelection"] : nil;
+  if (selectedSkin.length > 0) {
+    NSString *console = [scenario[@"console"] isKindOfClass:NSString.class] ? scenario[@"console"] : @"";
+    NSString *path = DocumentsPath([NSString stringWithFormat:@"Libretro/Config/Frontend/%@.json", console]);
+    NSMutableDictionary *file = [ReadJSON(path) isKindOfClass:NSDictionary.class]
+        ? [[ReadJSON(path) mutableCopy] mutableCopy] : [@{@"version":@1} mutableCopy];
+    NSMutableDictionary *settings = [file[@"console"] isKindOfClass:NSDictionary.class]
+        ? [file[@"console"] mutableCopy] : [NSMutableDictionary dictionary];
+    settings[@"skin.landscape"] = selectedSkin;
+    settings[@"skin.portrait"] = selectedSkin;
+    file[@"console"] = settings;
+    NSData *bytes = [NSJSONSerialization dataWithJSONObject:file options:0 error:nil];
+    if (bytes == nil || ![bytes writeToFile:path atomically:YES]) {
+      Progress(@"%@ failed to seed fixture-only skin preference", scenario[@"name"]);
+      [self writeResultsFinished:NO];
+      return;
+    }
+    Progress(@"%@ fixture-only selected skin %@", scenario[@"name"], selectedSkin);
+  }
   NSString *name = scenario[@"name"];
   NSUInteger generation = ++_generation;
   NSMutableDictionary *result = [@{@"name" : name, @"core" : scenario[@"core"] ?: @""} mutableCopy];
