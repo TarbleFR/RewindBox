@@ -32,6 +32,10 @@ class Bootstrap(unittest.TestCase):
   self.assertEqual((DATA/'openemu.xml').read_bytes(),(ROOT/'test/fixtures/libretro_cheats/openemu-original.xml').read_bytes())
   for source in ('openemu','libretro'):
    self.assertEqual((DATA/(source+'-LICENSE')).read_bytes(),(ROOT/'test/fixtures/libretro_cheats'/(source+'-LICENSE')).read_bytes())
+ def test_original_ps1_fixtures(self):
+  for name,digest in {'ff7-usa-original.cht':'4415f274cc966b86668c0ffa3ee36b5537c89878','digimon-world-original.cht':'2bbb9ddd4df3bc85792b8dc871849f5da8767499'}.items():
+   data=(ROOT/'test/fixtures/libretro_cheats'/name).read_bytes()
+   self.assertEqual(hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest(),digest)
  def test_twelve_complete_locales(self):
   text=(ROOT/'lib/l10n/libretro_locale.dart').read_text()
   for key in ('cheatDetails','cheatVersionBadge','cheatFormatBadge','cheatMemoryBadge','cheatDetailsHint','cheatFind','cheatNoSources','cheatNoVariant','cheatNone','cheatRetry','cheatDisableAll','cheatCoreUnsupported','cheatEffectsHelp','cheatResultsLimited'):

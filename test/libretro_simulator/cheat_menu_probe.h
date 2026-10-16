@@ -42,7 +42,7 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
   for(NSValue *size in sizes)for(NSString *category in categories){
     CGSize dimensions=size.CGSizeValue;
     [container setOverrideTraitCollection:[UITraitCollection traitCollectionWithPreferredContentSizeCategory:category] forChildViewController:page];
-    [page.traitCollection performAsCurrent:^{
+    [page.traitCollection performAsCurrentTraitCollection:^{
       container.view.frame=CGRectMake(0,0,dimensions.width,dimensions.height);page.view.frame=container.view.bounds;
       [page rebuild];[page.tableView layoutIfNeeded];
       NSArray *rows=((LibretroMenuSection *)page.builder()[1]).rows;
@@ -65,26 +65,27 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
   }
   CheatLayoutCheck(checks,largeHeight>normalHeight && normalHeight>0,[label stringByAppendingString:@" Dynamic Type increases actual row height"]);
   NSArray *rows=((LibretroMenuSection *)page.builder()[1]).rows;
-  BOOL clean=YES,details=YES;NSUInteger unsupported=0;
+  BOOL clean=YES,details=YES;
   for(NSUInteger i=0;i<rows.count;i++){
     LibretroMenuRow *row=rows[i];NSDictionary *record=records[i];
     clean &= row.stackedText && (![record[@"code"] length] || ![row.detail containsString:record[@"code"]]) && ![row.detail containsString:@"https://"];
     LibretroMenuPage *detail=nil;
-    // The actual table selection must open details even when activation is disabled.
-    if(!row.enabled)unsupported++;
     if(row.detailsAction){
-      // Use the production details builder through the action's push target.
+      // Read the production details builder; actual selection is checked below.
       detail=[menu detailsPage:record];
     }
     NSArray *sections=detail.builder ? detail.builder() : @[];
     NSMutableString *code=[NSMutableString string];
     if(sections.count>1)for(LibretroMenuRow *part in ((LibretroMenuSection *)sections[1]).rows)[code appendString:part.title];
-    details &= [code isEqual:record[@"code"] ?: @""] && sections.count>=2;
+    NSMutableString *technical=[NSMutableString string];
+    if(sections.count)for(LibretroMenuRow *part in ((LibretroMenuSection *)sections.lastObject).rows)[technical appendString:part.title];
+    NSDictionary *decoded=[NSJSONSerialization JSONObjectWithData:[technical dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    NSMutableDictionary *expected=[record mutableCopy];[expected removeObjectForKey:@"code"];
+    details &= [code isEqual:record[@"code"] ?: @""] && [decoded isEqual:expected] && sections.count>=2;
   }
   CheatLayoutCheck(checks,clean,[label stringByAppendingString:@" main rows hide raw codes and provenance"]);
-  CheatLayoutCheck(checks,details,[label stringByAppendingString:@" details retain every complete multi-line program"]);
+  CheatLayoutCheck(checks,details,[label stringByAppendingString:@" details retain every complete multi-line program and all technical metadata"]);
   CheatLayoutCheck(checks,[records isEqual:before],[label stringByAppendingString:@" layout and details never change engine records or selections"]);
-  (void)unsupported;
   [page willMoveToParentViewController:nil];[page.view removeFromSuperview];[page removeFromParentViewController];
 }
 

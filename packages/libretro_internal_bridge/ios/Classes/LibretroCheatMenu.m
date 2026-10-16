@@ -334,7 +334,7 @@ static NSString *GameKey(NSDictionary *game) {
     NSMutableDictionary *metadata = [record mutableCopy]; [metadata removeObjectForKey:@"code"];
     NSData *json = [NSJSONSerialization dataWithJSONObject:metadata options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys error:nil];
     NSArray *texts = @[String(record[@"code"]), json ? [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] : @""];
-    NSArray *titles = @[[menu t:@"cheatCode"], [menu t:@"cheatSources"]];
+    NSArray *titles = @[[menu t:@"cheatCode"], [menu t:@"biosDetails"]];
     // Bound each cell, not the information: even a 64 KiB multi-line code or
     // attribution stays scrollable and is available in full without mutation.
     for (NSUInteger field = 0; field < texts.count; field++) {
