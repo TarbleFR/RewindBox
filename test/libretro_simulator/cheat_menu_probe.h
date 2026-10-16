@@ -34,6 +34,18 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
   LibretroMenuPage *page=[menu rootPage];
   UIViewController *container=[UIViewController new];[container addChildViewController:page];
   [container.view addSubview:page.view];[page didMoveToParentViewController:container];
+  // Trait overrides are not propagated reliably to an unattached child.
+  // Host the probe in the real Simulator window, behind its active content,
+  // so category-dependent UIFontMetrics and UITableView self-sizing run in
+  // the same trait environment as the shipped in-game menu.
+  UIViewController *windowHost=UIApplication.sharedApplication.keyWindow.rootViewController;
+  if(windowHost){
+    [windowHost addChildViewController:container];
+    [windowHost.view addSubview:container.view];
+    [container didMoveToParentViewController:windowHost];
+    [windowHost.view sendSubviewToBack:container.view];
+    container.view.userInteractionEnabled=NO;
+  }
   NSArray *categories=@[UIContentSizeCategoryExtraSmall,UIContentSizeCategoryLarge,
     UIContentSizeCategoryExtraExtraExtraLarge,UIContentSizeCategoryAccessibilityExtraExtraExtraLarge];
   NSArray *sizes=@[[NSValue valueWithCGSize:CGSizeMake(320,568)],[NSValue valueWithCGSize:CGSizeMake(390,844)],
@@ -60,7 +72,7 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
           CGFloat height=cell.bounds.size.height,font=CheatLabel(cell.contentView,((LibretroMenuRow *)rows[index]).title).font.pointSize;
           if([category isEqual:UIContentSizeCategoryLarge]){normalHeight=height;normalFont=font;}
           if([category isEqual:UIContentSizeCategoryAccessibilityExtraExtraExtraLarge]){largeHeight=height;largeFont=font;}
-          NSLog(@"[CheatLayout] %@ %@ visible first row height %.2f font %.2f",label,category,height,font);
+          NSLog(@"[CheatLayout] %@ requested %@ actual %@ visible first row height %.2f font %.2f",label,category,page.traitCollection.preferredContentSizeCategory,height,font);
         }
         if(!cell || !CheatCellFits(cell,rows[index])){
           if(fits)NSLog(@"[CheatLayout] %@ %.0fx%.0f %@ row %lu: %@ frame %@ content %@",label,dimensions.width,dimensions.height,category,(unsigned long)index,((LibretroMenuRow *)rows[index]).title,NSStringFromCGRect(cell.frame),NSStringFromCGRect(cell.contentView.frame));
@@ -95,6 +107,11 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
   CheatLayoutCheck(checks,details,[label stringByAppendingString:@" details retain every complete multi-line program and all technical metadata"]);
   CheatLayoutCheck(checks,[records isEqual:before],[label stringByAppendingString:@" layout and details never change engine records or selections"]);
   [page willMoveToParentViewController:nil];[page.view removeFromSuperview];[page removeFromParentViewController];
+  if(windowHost){
+    [container willMoveToParentViewController:nil];
+    [container.view removeFromSuperview];
+    [container removeFromParentViewController];
+  }
 }
 
 @interface LibretroCheatMenu (MenuProbePrivate)
