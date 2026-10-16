@@ -2146,8 +2146,8 @@ DELTA.add(DELIVERY467_RECIPIENT_PATH)
 # Build 468: crash-hardening product + reproducible 37-session Nestopia test.
 # Pin only changed source/test bytes to the immutable candidate. The previous
 # 467 cheat, catalogue and notice pins remain untouched.
-SKIN_STABILITY468_REFERENCE = '4411dd2de0278c76010ce122df04d5000f35c4a5'
-SKIN_STABILITY468_RUN = 38961617527
+SKIN_STABILITY468_REFERENCE = '9ee313d96b79550406c62c5b862c0f859b01ad00'
+SKIN_STABILITY468_RUN = 38963540654
 SKIN_STABILITY468_INPUTS = {
     'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
