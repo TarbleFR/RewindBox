@@ -91,3 +91,12 @@ cheat discovery and reports enabled cheat counts/application diagnostics.
   integrity checks passed. Simulator compilation then failed on a duplicate
   local variable name in the new menu initializer; corrected before any IPA.
   This run is not a successful end-to-end validation.
+
+- `534f2b6b`, focused run `38828865544`: 38 parser, 23 catalogue/offline,
+  49 automatic-index and 15 live-source checks passed. UIKit passed original
+  Ignited (128 checks), NES cheats/menu (31), four complete previews (10) and
+  SNES memory effects (4); DS failed its activation-memory assertion (1/4).
+  The synthetic DS image only looped; the source core processes AR only when
+  ARM7 DISPSTAT requests VBlank IRQs. The corrected original ARM7 program
+  enables DISPSTAT bit 3, retaining the same memory-effect assertion and the
+  same pinned core. This is a fixture correction, not an emulator fix.

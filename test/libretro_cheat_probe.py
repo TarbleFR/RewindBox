@@ -2,6 +2,7 @@
 """Real pinned Nestopia/Snes9x cheats plus Ignited on Nestopia; no commercial ROMs."""
 import argparse
 import os
+import struct
 import json
 import tempfile
 import shutil
@@ -24,6 +25,17 @@ def content(folder):
     rom[0x7fdc:0x7fe0] = bytes.fromhex('ff ff 00 00')
     rom[0x7ffa:0x8000] = bytes.fromhex('01 80 00 80 01 80')
     (folder / 'cheat-probe.sfc').write_bytes(rom)
+    # DeSmuME executes Action Replay from its ARM7 VBlank IRQ hook
+    # (NDSSystem.cpp execHardware_hstart_vblankStart), not every bare loop.
+    # Enable the hook in our own ARM7 program; no commercial firmware/ROM.
+    probe.build_nds(folder / 'cheat-probe.nds')
+    nds = bytearray((folder / 'cheat-probe.nds').read_bytes())
+    arm7 = [0xE59F0008, 0xE3A01008, 0xE1C010B0, 0xEAFFFFFE, 0x04000004]
+    # ldr r0,[pc,#8]; mov r1,#8; strh r1,[r0]; b .; DISPSTAT address
+    struct.pack_into('<' + 'I' * len(arm7), nds, 0x204, *arm7)
+    struct.pack_into('<IIII', nds, 0x030, 0x204, 0x02380000, 0x02380000, len(arm7) * 4)
+    struct.pack_into('<H', nds, 0x15E, probe.crc16(nds[:0x15E]))
+    (folder / 'cheat-probe.nds').write_bytes(nds)
 
 
 def main():
@@ -36,7 +48,7 @@ def main():
         {'name':'ignited-nestopia', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'skinPress':'press-complex', 'expect':'run'},
         {'name':'cheats-nestopia', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'cheatProbe':True, 'expect':'run'},
         {'name':'overlay-previews', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'previewProbe':True, 'expect':'run'},
-        {'name':'cheats-desmume', 'core':'desmume', 'console':'nds', 'content':'content/probe.nds', 'cheatProbe':True, 'expect':'run'},
+        {'name':'cheats-desmume', 'core':'desmume', 'console':'nds', 'content':'content/cheat-probe.nds', 'cheatProbe':True, 'expect':'run'},
         {'name':'cheats-snes9x', 'core':'snes9x', 'console':'snes', 'content':'content/cheat-probe.sfc', 'cheatProbe':True, 'expect':'run'},
     ]
     evidence = Path(args.evidence); evidence.mkdir(parents=True, exist_ok=True)
