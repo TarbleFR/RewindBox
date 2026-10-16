@@ -1,4 +1,4 @@
-# Build 467 candidate — direct PS1 cheat discovery
+# Build 467 — direct PS1 cheat discovery
 
 Follow-up to the maintainer's Build 466 report: FFVII/PS1 shows no codes or
 useful source results. Work stays on `Claude`, preserving 464/465 skins and
@@ -50,7 +50,7 @@ misleading names/metadata, French-vs-USA exclusion, title hints for containers,
 actual FFVII parsing/adaptation and UIKit activation/disable dispatch. Existing
 NES/SNES/DS actual-core RAM and process-restart regression checks are retained.
 
-Final-source CI results are recorded below; the private IPA identity is pending. No FFVII commercial-ROM gameplay,
+Final-source CI and the verified private IPA identity are recorded below. No FFVII commercial-ROM gameplay,
 physical iPhone or PS1 core RAM effect is claimed. CHD/PBP decompression is not
 implemented: these use library hints/manual version selection. A missing
 regional catalogue cannot be filled by applying USA addresses to a different
@@ -173,5 +173,36 @@ as earlier evidence, not substituted for this final source. Intermediate
 `e82dd916`, `4917679e`, `64677e8b` and `ef064dc7` runs cancelled after their
 source was superseded are not counted as passes.
 
-Private Build 467 may now compile with these exact successful gates. No public
+Private Build 467 uses these exact successful gates. No public
 release or physical iPhone installation/gameplay validation is implied.
+
+## Verified private delivery
+
+- Build **0.0.7 (467)** compiled from
+  `3e943d3e7adddd5d7d1160c02d5e6b2d66ce104a` (delivery-only pins/report over
+  the byte-identical tested product/data source `6a7ddb54`).
+- Delivery run **38890710447**: checks `116939259658`, native
+  `116939259957` and cold iPhone Release `116942607741` all succeeded.
+  Optional warm job `116945491042` was intentionally skipped. Native proof
+  was reused from the exact successful source/toolchain, with **2,631**
+  unchanged inputs; it is not presented as a second execution.
+- Encrypted artifact **12042815582**, 220,211,101 bytes, ZIP SHA-256
+  `34ac9887fb635b72c2658b5c61f42671d5e01f2592db117a6f0f4d76182e70b5`,
+  recipient `build-utils/delivery-424-recipient.pem`, expires 30 October 2026.
+- Final sealed **IPA: 218,623,618 bytes**, SHA-256
+  **`6d7a5807a2b1d9532be3c7b6f4dde5d752d5950744e856f8afd5632971701d84`**.
+  This is the delivered hash, after sealing, matching both integrity records.
+- Independent verification: ZIP CRC; exact actual Mach-O image set and all
+  **76** payload fingerprints; app/five extensions at 0.0.7 (467); both source
+  stamps; **34** cores; new boot-serial/game-title/search selectors; every
+  reviewed catalogue/licence byte in the **34** bootstrap resources
+  (**12,348,053 bytes**). The IPA is 24,341 bytes larger than delivered 466.
+- User file `NeoStation-Build467-3e943d3e.ipa` is available privately. Windows
+  copy `C:\Users\Coren\Downloads\NeoStation-Build467-3e943d3e.ipa` has the
+  same bytes and SHA-256. Prior builds remain unchanged.
+
+SideStore Apple re-signing/provisioning remains required; preparation signatures
+are not an Apple distribution signature. No physical iPhone installation,
+commercial FFVII gameplay or PS1 RAM effect is claimed. Reference FFVII coverage
+is USA only; CHD/PBP identification uses library hints/manual version choice,
+not decompression. Do not reuse Build 467 for another delivered revision.
