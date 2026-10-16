@@ -1,6 +1,7 @@
 // Opt-in network integration: real pinned repositories, then a disconnected reload.
 #import <Foundation/Foundation.h>
 #import "LibretroCheatCatalog.h"
+#import "LibretroCheats.h"
 // Reuse the production bounded NSURLSession delegate. Only CI API requests get
 // the runner's read-only token; raw data stays public and the app has no token.
 @interface LibretroCheatTransfer : NSObject <NSURLSessionDataDelegate>
@@ -56,6 +57,17 @@ int main(void) { @autoreleasepool {
     printf("Downloaded %s revision %s (%lu games)\n",source.UTF8String,[index[@"revision"] UTF8String],(unsigned long)[index[@"games"] count]);
   }
   CHECK(downloaded.count == 2,"both independent online sources downloaded");
+  __block BOOL psxDone=NO;__block NSDictionary *ff7=nil;
+  [catalog installSource:@"libretro" console:@"psx" update:NO completion:^(NSDictionary *index,NSError *error){
+    CHECK(error==nil && [index[@"games"] count]>0,"real PS1 source installs and indexes");
+    for(NSDictionary *game in index[@"games"])if([game[@"title"] isEqual:@"Final Fantasy VII (USA)"])ff7=game;
+    psxDone=YES;
+  }];Wait(&psxDone);CHECK(ff7!=nil,"live PS1 source lists actual FFVII USA");
+  if(ff7){psxDone=NO;[catalog downloadGame:ff7 completion:^(NSArray *cheats,NSError *error){
+    CHECK(error==nil && cheats.count==19,"real FFVII resource downloads, validates and parses all 19 codes");
+    NSUInteger supported=0;for(NSDictionary *cheat in cheats)if([LibretroCheats codesForCheat:cheat core:@"mednafen_psx_hw" console:@"psx"])supported++;
+    CHECK(supported==17,"downloaded FFVII contains 17 supported native programs");psxDone=YES;
+  }];Wait(&psxDone);[downloaded addObject:ff7];}
   LibretroCheatCatalog *offline = [[LibretroCheatCatalog alloc] initWithDirectory:root];
   offline.fetch = ^NSData *(NSURL *url,NSUInteger limit,NSError **error) {
     CHECK(NO,"offline reload must not request any network resource");

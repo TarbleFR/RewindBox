@@ -188,6 +188,7 @@ static BOOL SafePath(NSString *path) {
 }
 - (NSDictionary *)resolveIdentity:(NSDictionary *)identity {
   NSMutableOrderedSet *titles = [NSMutableOrderedSet orderedSet];
+  NSMutableOrderedSet *serialTitles = [NSMutableOrderedSet orderedSet];
   NSDictionary *bundled = [self bundledSource:@"libretro" console:Text(identity[@"console"])];
   NSArray *md5s = [identity[@"md5s"] isKindOfClass:NSArray.class] ? identity[@"md5s"] : @[identity[@"md5"] ?: @""];
   NSArray *sha1s = [identity[@"sha1s"] isKindOfClass:NSArray.class] ? identity[@"sha1s"] : @[identity[@"sha1"] ?: @""];
@@ -195,9 +196,10 @@ static BOOL SafePath(NSString *path) {
     if (![row isKindOfClass:NSDictionary.class] || Text(row[@"title"]).length == 0) continue;
     if ((Text(row[@"md5"]).length && [md5s containsObject:row[@"md5"]]) ||
         (Text(row[@"sha1"]).length && [sha1s containsObject:row[@"sha1"]])) [titles addObject:row[@"title"]];
+    if (Text(identity[@"serial"]).length && [row[@"serial"] isEqual:identity[@"serial"]]) [serialTitles addObject:row[@"title"]];
   }
-  NSMutableDictionary *result = [identity mutableCopy]; result[@"titles"] = titles.array;
-  [self log:[NSString stringWithFormat:@"identity console=%@ core=%@ canonicalTitles=%lu", identity[@"console"], identity[@"core"], (unsigned long)titles.count]];
+  NSMutableDictionary *result = [identity mutableCopy]; result[@"titles"] = titles.array; result[@"serialTitles"] = serialTitles.array;
+  [self log:[NSString stringWithFormat:@"identity console=%@ core=%@ serial=%@ canonicalTitles=%lu serialTitles=%lu", identity[@"console"], identity[@"core"], identity[@"serial"] ?: @"", (unsigned long)titles.count, (unsigned long)serialTitles.count]];
   return result;
 }
 - (NSString *)disabledFile:(NSString *)source console:(NSString *)console {

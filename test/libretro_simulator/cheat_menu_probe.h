@@ -6,8 +6,10 @@
 @end
 @interface CheatConfirmationProbe : LibretroMenuPage
 @property(nonatomic, copy) dispatch_block_t confirmation;
+@property(nonatomic, strong) LibretroMenuPage *pushedPage;
 @end
 @implementation CheatConfirmationProbe
+- (void)push:(LibretroMenuPage *)page { self.pushedPage=page; }
 - (void)confirmWithTitle:(NSString *)title message:(NSString *)message action:(NSString *)action cancelTitle:(NSString *)cancel destructive:(BOOL)destructive handler:(dispatch_block_t)handler {
   self.confirmation = handler;
 }

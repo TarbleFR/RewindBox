@@ -60,7 +60,12 @@ def main():
     for field,length in [('md5',16),('sha1',20)]:
      value=row.get(field)
      if isinstance(value,bytes) and len(value)==length:identity[field]=value.hex()
-    if len(identity)>1:identities.append(identity)
+    if console=='psx':
+     serial=row.get('serial',b'')
+     if isinstance(serial,bytes):serial=serial.decode('ascii',errors='replace')
+     serial=re.fullmatch(r'([A-Z]{4})-([0-9]{5})(?:-[0-9]+)?',serial)
+     if serial:identity['serial']=serial[1]+'-'+serial[2]
+    if 'md5' in identity or 'sha1' in identity:identities.append(identity)
   catalog={'schema':1,'source':'libretro','console':console,'revision':REV,'license':'CC BY-SA 4.0',
     'repository':'libretro/libretro-database','games':games,'identities':identities}
   file=out/f'libretro-{console}.json';file.write_text(json.dumps(catalog,ensure_ascii=False,separators=(',',':'))+'\n')

@@ -141,7 +141,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
 + (NSArray<NSString *> *)supportedCoreIDs {
   // Explicitly audited native handlers, not just the presence of mandatory ABI symbols.
   return @[@"nestopia", @"snes9x", @"gambatte", @"mgba",
-           @"genesis_plus_gx", @"genesis_plus_gx_wide", @"desmume", @"mednafen_psx_hw"];
+           @"genesis_plus_gx", @"genesis_plus_gx_wide", @"desmume", @"mednafen_psx_hw", @"mednafen_psx"];
 }
 + (NSArray<NSString *> *)codesForCheat:(NSDictionary *)cheat core:(NSString *)core console:(NSString *)console {
   if ([core hasSuffix:@"_libretro"]) core = [core substringToIndex:core.length - 9];
@@ -163,7 +163,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     pattern = [console isEqual:@"md"] || [console isEqual:@"mcd"]
         ? @"^(?:[0-9ABCDEFGHJKLMNPRSTVWXYZ]{4}-[0-9ABCDEFGHJKLMNPRSTVWXYZ]{4}|[0-9A-F]{6}:[0-9A-F]{4})$"
         : @"^(?:[0-9A-F]{3}-[0-9A-F]{3}-[0-9A-F]{3}|[0-9A-F]{6}:[0-9A-F]{2})$";
-  BOOL psx = [core isEqual:@"mednafen_psx_hw"] && [console isEqual:@"psx"];
+  BOOL psx = [@[@"mednafen_psx_hw", @"mednafen_psx"] containsObject:core] && [console isEqual:@"psx"];
   BOOL ds = [core isEqual:@"desmume"] && [console isEqual:@"nds"];
   if (psx || ds) {
     NSMutableArray *words = [NSMutableArray array], *lines = [NSMutableArray array];
@@ -232,6 +232,60 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   NSDictionary *trackAttributes = [NSFileManager.defaultManager attributesOfItemAtPath:track error:nil];
   return [trackAttributes[NSFileType] isEqual:NSFileTypeRegular] ? track : path;
 }
+static uint32_t ISO32(const uint8_t *p) {
+  return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
++ (NSString *)playStationSerialAtPath:(NSString *)path {
+  path = [self identityContentPath:path];
+  // Compressed containers require the core's CD reader. They use the library
+  // title/manual version picker below, never a fabricated raw-disc identity.
+  if (![@[@"bin", @"iso", @"img"] containsObject:path.pathExtension.lowercaseString]) return nil;
+  NSFileHandle *file = [NSFileHandle fileHandleForReadingAtPath:path]; if (!file) return nil;
+  NSString *serial = nil;
+  @try {
+    for (NSArray<NSNumber *> *layout in @[@[@2048,@0], @[@2352,@24], @[@2352,@16]]) {
+      NSUInteger stride = layout[0].unsignedIntegerValue, header = layout[1].unsignedIntegerValue;
+      for (NSNumber *pregap in @[@0,@150]) {
+        unsigned long long start = pregap.unsignedLongLongValue * stride;
+        [file seekToFileOffset:start + 16 * stride + header];
+        NSData *pvd = [file readDataOfLength:2048]; const uint8_t *p = pvd.bytes;
+        if (pvd.length != 2048 || p[0] != 1 || memcmp(p+1,"CD001",5) || p[6] != 1 || p[156] < 34) continue;
+        uint32_t root = ISO32(p+158), length = ISO32(p+166);
+        if (!root || !length || length > 65536) continue;
+        NSMutableData *directory = [NSMutableData data];
+        for (uint32_t offset = 0; offset < length; offset += 2048) {
+          [file seekToFileOffset:start + ((unsigned long long)root + offset/2048)*stride + header];
+          NSData *sector = [file readDataOfLength:MIN((uint32_t)2048,length-offset)];
+          if (!sector.length) break; [directory appendData:sector];
+        }
+        const uint8_t *d = directory.bytes;
+        for (NSUInteger offset = 0; offset < directory.length;) {
+          NSUInteger count = d[offset];
+          if (!count) { offset = (offset/2048+1)*2048; continue; }
+          if (count < 34 || offset + count > directory.length || d[offset+32] > count-33) break;
+          NSString *name = [[NSString alloc] initWithBytes:d+offset+33 length:d[offset+32] encoding:NSASCIIStringEncoding];
+          if ([name.uppercaseString isEqual:@"SYSTEM.CNF;1"] || [name.uppercaseString isEqual:@"SYSTEM.CNF"]) {
+            uint32_t sector = ISO32(d+offset+2), bytes = ISO32(d+offset+10);
+            if (sector && bytes && bytes <= 2048 && !(d[offset+25]&2)) {
+              [file seekToFileOffset:start + (unsigned long long)sector*stride + header];
+              NSData *data = [file readDataOfLength:bytes];
+              NSString *cnf = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
+              NSRegularExpression *boot = [NSRegularExpression regularExpressionWithPattern:@"(?im)^\\s*BOOT\\s*=\\s*cdrom:\\\\?([A-Z]{4})[_-]([0-9]{3})\\.?([0-9]{2})(?:;1)?\\s*$" options:0 error:nil];
+              NSTextCheckingResult *match = cnf ? [boot firstMatchInString:cnf options:0 range:NSMakeRange(0,cnf.length)] : nil;
+              if (match) serial = [NSString stringWithFormat:@"%@-%@%@", [[cnf substringWithRange:[match rangeAtIndex:1]] uppercaseString], [cnf substringWithRange:[match rangeAtIndex:2]], [cnf substringWithRange:[match rangeAtIndex:3]]];
+            }
+            break;
+          }
+          offset += count;
+        }
+        if (serial) break;
+      }
+      if (serial) break;
+    }
+  } @catch (NSException *__unused exception) { serial = nil; }
+  @finally { [file closeFile]; }
+  return serial;
+}
 // Raw content identifies preferences. Headerless/canonical aliases identify catalogues.
 // The caller runs this once off-main and caches by file identity, size and mtime.
 + (NSDictionary *)identityAtPath:(NSString *)path console:(NSString *)console core:(NSString *)core {
@@ -269,6 +323,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   unsigned char m[16], s[32], h[20], cm[16], ch[20]; CC_MD5_Final(m, &md5); CC_SHA1_Final(h, &sha1); CC_SHA256_Final(s, &sha);
   CC_MD5_Final(cm, &canonicalMD5); CC_SHA1_Final(ch, &canonicalSHA1);
   return @{@"console": console, @"core": core, @"title": title,
+    @"serial": [console isEqual:@"psx"] ? ([self playStationSerialAtPath:path] ?: @"") : @"",
     @"md5": Hex(m, sizeof(m)), @"sha1": Hex(h, sizeof(h)), @"sha256": Hex(s, sizeof(s)),
     @"crc32": [NSString stringWithFormat:@"%08lx", (unsigned long)crc], @"bytes": @(total),
     @"md5s": [NSOrderedSet orderedSetWithArray:@[Hex(m, sizeof(m)), Hex(cm, sizeof(cm))]].array,
@@ -278,7 +333,9 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   static NSRegularExpression *tags; static dispatch_once_t once;
   dispatch_once(&once, ^{ tags = [NSRegularExpression regularExpressionWithPattern:@"\\([^)]*\\)|\\[[^]]*\\]" options:0 error:nil]; });
   NSString *base = [tags stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
-  return [[base lowercaseString] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+  NSRegularExpression *spaces = [NSRegularExpression regularExpressionWithPattern:@"\\s+" options:0 error:nil];
+  base = [spaces stringByReplacingMatchesInString:base.lowercaseString options:0 range:NSMakeRange(0,base.length) withTemplate:@" "];
+  return [base stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
 }
 // Device tags describe the code format, not a different ROM. Region/revision tags
 // remain in the exact key. Never strip all parentheses for an automatic match.
@@ -313,7 +370,10 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   NSArray *titles = [identity[@"titles"] isKindOfClass:NSArray.class] ? identity[@"titles"] : @[];
   NSString *version = [self versionTitle:String(game[@"title"])];
   for (NSString *title in titles) if ([version isEqual:[self versionTitle:title]]) return @"hash";
-  NSArray *search = titles.count ? titles : @[String(identity[@"title"])];
+  NSArray *serialTitles = [identity[@"serialTitles"] isKindOfClass:NSArray.class] ? identity[@"serialTitles"] : @[];
+  NSArray *hints = [identity[@"titleHints"] isKindOfClass:NSArray.class] ? identity[@"titleHints"] : @[String(identity[@"title"])];
+  // A real identity always outranks a library label, including its region.
+  NSArray *search = titles.count ? titles : serialTitles.count ? serialTitles : hints;
   for (NSString *title in search) {
     if (![[self searchTitle:title] isEqual:[self searchTitle:String(game[@"title"])]]) continue;
     NSSet *a = [self regions:title], *b = [self regions:String(game[@"title"])];

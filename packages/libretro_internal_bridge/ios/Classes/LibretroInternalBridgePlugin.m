@@ -22,7 +22,7 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"menu", @"resume", @"reset", @"resetConfirm", @"saveState", @"loadState", @"slot", @"emptySlot",
     @"stateSaved", @"stateLoaded", @"stateFailed", @"changeDisc", @"disc", @"discChanged", @"display",
     @"touchControls", @"smoothing", @"fastForward", @"coreSettings", @"settingsRestartHint",
-    @"cheatNone", @"cheatRetry", @"cheatDisableAll", @"cheatCoreUnsupported", @"cheatEffectsHelp", @"cheatResultsLimited",
+    @"cheatFind", @"cheatNoSources", @"cheatNoVariant", @"cheatNone", @"cheatRetry", @"cheatDisableAll", @"cheatCoreUnsupported", @"cheatEffectsHelp", @"cheatResultsLimited",
     @"cheatCatalog", @"cheatSources", @"cheatSearch", @"cheatSearchGames", @"cheatImport", @"cheatRemember", @"cheatRestore", @"cheatPreferencesHelp", @"cheatSaveWarning", @"cheatActivate", @"cheatFailed", @"cheatBusy", @"cheatManual", @"cheatMatches", @"cheatHashMatch", @"cheatHashMismatch", @"cheatVersionUncertain", @"cheatMemoryUnsupported", @"cheatCodeUnsupported", @"cheatCatalogHelp", @"cheatSourceHelp", @"cheatInstall", @"cheatUpdate", @"cheatCheckUpdates", @"cheatUpdateAvailable", @"cheatRemoveData", @"cheatDownload",
     @"cheats",
     @"addCheat", @"cheatName", @"cheatCode", @"cheatsHelp", @"achievements", @"achievementsEnabled",

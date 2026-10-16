@@ -4,6 +4,15 @@
 static unsigned checks, failures;
 #define CHECK(c,m) do { checks++; if (!(c)) { failures++; fprintf(stderr,"FAIL %s:%d %s\n",__FILE__,__LINE__,m); } } while(0)
 static NSData *UTF8(NSString *s) { return [s dataUsingEncoding:NSUTF8StringEncoding]; }
+static void Put32(uint8_t *p,uint32_t v) { for(unsigned i=0;i<4;i++)p[i]=(uint8_t)(v>>(8*i)); }
+// Original minimal ISO9660 fixture, no executable, BIOS or commercial game bytes.
+static NSData *Disc(NSUInteger stride,NSUInteger header,NSUInteger pregap,NSString *serial) {
+  NSMutableData *data=[NSMutableData dataWithLength:(pregap+24)*stride];uint8_t *p=data.mutableBytes;
+  uint8_t *pvd=p+(pregap+16)*stride+header;pvd[0]=1;memcpy(pvd+1,"CD001",5);pvd[6]=1;pvd[156]=34;
+  Put32(pvd+158,20);Put32(pvd+166,2048);
+  uint8_t *entry=p+(pregap+20)*stride+header;entry[0]=46;Put32(entry+2,21);Put32(entry+10,64);entry[32]=12;memcpy(entry+33,"SYSTEM.CNF;1",12);
+  NSData *cnf=UTF8([NSString stringWithFormat:@"BOOT = cdrom:\\%@;1\r\n",serial]);memcpy(p+(pregap+21)*stride+header,cnf.bytes,cnf.length);return data;
+}
 static void Wait(BOOL *done) {
   NSDate *deadline=[NSDate dateWithTimeIntervalSinceNow:10];
   while (!*done && deadline.timeIntervalSinceNow>0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
@@ -71,6 +80,31 @@ int main(int argc,const char **argv) { @autoreleasepool {
   NSString *longCode=[@"A" stringByPaddingToLength:9000 withString:@"A" startingAtIndex:0];
   NSArray *longEntries=[LibretroCheats parseCHT:UTF8([NSString stringWithFormat:@"cheats=1\ncheat0_desc=Long\ncheat0_code=\"%@\"",longCode]) error:&parseError];
   CHECK(longEntries.count==1 && [LibretroCheats codesForCheat:longEntries[0] core:@"nestopia" console:@"nes"]==nil,"long source program is retained visibly but unavailable for unsafe activation");
+  __block NSDictionary *psx=nil;done=NO;
+  [catalog loadSource:@"libretro" console:@"psx" completion:^(NSDictionary *value){psx=value;done=YES;}];Wait(&done);
+  NSDictionary *ff7=nil;for(NSDictionary *g in psx[@"games"])if([g[@"title"] isEqual:@"Final Fantasy VII (USA)"])ff7=g;
+  CHECK(ff7!=nil,"actual reviewed PS1 index contains FFVII USA");
+  for(NSArray *layout in @[@[@2048,@0,@0],@[@2352,@24,@0],@[@2352,@16,@0],@[@2352,@24,@150]]) {
+    NSString *disc=[work stringByAppendingPathComponent:@"renamed.iso"];
+    [Disc([layout[0] unsignedIntegerValue],[layout[1] unsignedIntegerValue],[layout[2] unsignedIntegerValue],@"SCUS_941.63") writeToFile:disc atomically:YES];
+    CHECK([[LibretroCheats playStationSerialAtPath:disc] isEqual:@"SCUS-94163"],"ISO/raw mode1/mode2/pregap identifies SYSTEM.CNF without basename");
+    NSDictionary *identified=[catalog resolveIdentity:[LibretroCheats identityAtPath:disc console:@"psx" core:@"mednafen_psx_hw"]];
+    CHECK([identified[@"serialTitles"] containsObject:@"Final Fantasy VII (USA) (Disc 1)"],"reviewed RDB serial resolves renamed PS1 title");
+    CHECK([[LibretroCheats matchGame:ff7 identity:identified] isEqual:@"candidate"],"serial matching discovers generic multidisc codes without asserting a revision hash");
+  }
+  NSDictionary *fr=[catalog resolveIdentity:@{@"console":@"psx",@"core":@"mednafen_psx_hw",@"md5":@"cb1dfccc75154da5cf08994130139216",@"titleHints":@[@"Final Fantasy VII (USA)"]}];
+  CHECK([[LibretroCheats matchGame:ff7 identity:fr] isEqual:@"none"],"French content hash excludes USA codes even with misleading library title");
+  CHECK(([[LibretroCheats matchGame:ff7 identity:@{@"console":@"psx",@"title":@"renamed",@"titleHints":@[@"Final Fantasy VII"]}] isEqual:@"candidate"]),"library metadata discovers renamed compressed discs as uncertain candidates");
+  NSString *fake=[work stringByAppendingPathComponent:@"SCUS-94163.iso"];[UTF8(@"BOOT = cdrom:\\SCUS_941.63;1") writeToFile:fake atomically:YES];
+  CHECK([LibretroCheats playStationSerialAtPath:fake]==nil,"serial text outside a valid ISO filesystem is not trusted");
+  NSData *ff7data=[NSData dataWithContentsOfFile:[repo stringByAppendingPathComponent:@"test/fixtures/libretro_cheats/ff7-usa-original.cht"]];
+  CHECK([[LibretroCheats gitBlobSHA:ff7data] isEqual:ff7[@"sha"]],"FFVII fixture is the unchanged reviewed upstream file");
+  NSArray *ff7codes=[LibretroCheats parseCHT:ff7data error:&parseError];CHECK(ff7codes.count==19,"all actual FFVII CHT entries parse");
+  for(NSString *core in @[@"mednafen_psx_hw",@"mednafen_psx"]) {
+    NSUInteger supported=0;for(NSDictionary *r in ff7codes)if([LibretroCheats codesForCheat:r core:core console:@"psx"])supported++;
+    CHECK(supported==17,"both Beetle variants accept 17 simple FFVII programs and explicitly reject two repeat programs");
+    CHECK(([[LibretroCheats codesForCheat:ff7codes.lastObject core:core console:@"psx"] isEqual:@[@"8009D260 967F+8009D262 0098"]]),"actual Max Gil plus-separated words become complete libretro program");
+  }
   [NSFileManager.defaultManager removeItemAtPath:work error:nil];
  } printf("Automatic cheats: %u checks, %u failures\n",checks,failures);return failures?1:0;
 }

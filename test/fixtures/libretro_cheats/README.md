@@ -17,3 +17,9 @@ from application code. libretro-derived catalogue data remains CC BY-SA 4.0.
 `skyzyx/openemu-cheat-database@5f1af6161ee30fddccc3942dfbcc20b253bcb152`,
 Git blob `d05cac329917e7d28f57367ff558bb9137ea64bf` (Unlicense; see `openemu-LICENSE`).
 Its original long GBA entry must not prevent unrelated consoles from installing.
+
+`ff7-usa-original.cht` is the unchanged reference file
+`cht/Sony - PlayStation/Final Fantasy VII (USA).cht` from the same reviewed
+libretro revision, Git blob `4415f274cc966b86668c0ffa3ee36b5537c89878`.
+It remains CC BY-SA 4.0 (see `libretro-LICENSE`). This fixture is cheat data,
+not a game image. The PS1 ISO9660 test image is original synthetic metadata.

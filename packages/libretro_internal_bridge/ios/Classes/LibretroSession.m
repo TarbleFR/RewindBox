@@ -3157,7 +3157,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     __weak LibretroSession *weakSelf = self;
     _cheatMenu = [[LibretroCheatMenu alloc] initWithDirectory:_configuration.cheatsDirectory
       console:_console core:_configuration.coreId ?: @"" contentPath:_host.loadedContentPath ?: _configuration.contentPath
-      legacy:[_cheats copy] text:^NSString *(NSString *key) { return [weakSelf text:key] ?: key; }
+      gameTitle:_configuration.gameTitle ?: @"" legacy:[_cheats copy] text:^NSString *(NSString *key) { return [weakSelf text:key] ?: key; }
       apply:^(NSArray<NSString *> *codes) {
         LibretroSession *session = weakSelf; if (!session) return;
         [session enqueue:^{

@@ -33,6 +33,11 @@ static NSString *GameKey(NSDictionary *game) {
 - (instancetype)initWithDirectory:(NSString *)directory console:(NSString *)console core:(NSString *)core
                      contentPath:(NSString *)contentPath legacy:(NSArray<NSDictionary *> *)legacy
                             text:(NSString *(^)(NSString *))text apply:(void (^)(NSArray<NSString *> *))apply {
+  return [self initWithDirectory:directory console:console core:core contentPath:contentPath gameTitle:@"" legacy:legacy text:text apply:apply];
+}
+- (instancetype)initWithDirectory:(NSString *)directory console:(NSString *)console core:(NSString *)core
+                     contentPath:(NSString *)contentPath gameTitle:(NSString *)gameTitle legacy:(NSArray<NSDictionary *> *)legacy
+                            text:(NSString *(^)(NSString *))text apply:(void (^)(NSArray<NSString *> *))apply {
   if ((self = [super init])) {
     _directory = directory; _console = console; _core = core; _text = [text copy]; _apply = [apply copy];
     _catalog = [[LibretroCheatCatalog alloc] initWithDirectory:[directory stringByAppendingPathComponent:@"Catalogs"]];
@@ -46,7 +51,7 @@ static NSString *GameKey(NSDictionary *game) {
       // time invalidates it; no hashing or index traversal blocks the launch queue.
       NSString *identityPath = [LibretroCheats identityContentPath:contentPath];
       NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:identityPath error:nil];
-      NSString *fingerprint = [NSString stringWithFormat:@"4|%@|%@|%@|%@|%@|%@", identityPath, console, core,
+      NSString *fingerprint = [NSString stringWithFormat:@"5|%@|%@|%@|%@|%@|%@", identityPath, console, core,
         attributes[NSFileSize], @([attributes[NSFileModificationDate] timeIntervalSince1970]), attributes[NSFileSystemFileNumber]];
       NSString *cacheKey = [LibretroCheats digest:[fingerprint dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *cacheFile = [[directory stringByAppendingPathComponent:@"Identity"] stringByAppendingPathComponent:[cacheKey stringByAppendingPathExtension:@"json"]];
@@ -62,10 +67,11 @@ static NSString *GameKey(NSDictionary *game) {
           [[NSJSONSerialization dataWithJSONObject:identity options:0 error:nil] writeToFile:cacheFile atomically:YES];
         }
       }
-      if (identity) {
-        NSMutableDictionary *current = [identity mutableCopy]; current[@"title"] = contentPath.lastPathComponent.stringByDeletingPathExtension;
-        identity = [self->_catalog resolveIdentity:current];
-      }
+      NSMutableDictionary *current = [identity mutableCopy] ?: [NSMutableDictionary dictionary];
+      current[@"console"] = console; current[@"core"] = core;
+      current[@"title"] = gameTitle.length ? gameTitle : contentPath.lastPathComponent.stringByDeletingPathExtension;
+      current[@"titleHints"] = gameTitle.length ? @[gameTitle, contentPath.lastPathComponent.stringByDeletingPathExtension] : @[current[@"title"]];
+      identity = [self->_catalog resolveIdentity:current];
       NSString *hash = String(identity[@"sha256"]);
       NSString *key = [LibretroCheats digest:[[NSString stringWithFormat:@"%@|%@|%@", console, core, hash] dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *file = hash.length ? [[directory stringByAppendingPathComponent:@"Games"] stringByAppendingPathComponent:[key stringByAppendingPathExtension:@"json"]] : nil;
@@ -307,11 +313,20 @@ static NSString *GameKey(NSDictionary *game) {
   LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
     LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
     NSMutableArray *actions = [NSMutableArray array];
-    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatCatalog"] action:^(LibretroMenuPage *page) { [page push:[menu catalogPage]]; }]];
-    [actions addObject:[menu searchRow:NO]];
-    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRetry"] action:^(LibretroMenuPage *page) {
-      [menu discover]; [page rebuild];
-    }]];
+    LibretroMenuRow *find = [LibretroMenuRow rowWithTitle:[menu t:@"cheatFind"] action:^(LibretroMenuPage *page) {
+      [menu discover];
+      if (!menu->_records.count) {
+        // One entry searches every source. The library title is a hint for
+        // CHD/renamed files, never a claim of exact regional compatibility.
+        menu->_gameSearch = [LibretroCheats searchTitle:String(menu->_identity[@"title"])];
+        [page push:[menu catalogPage]];
+      } else [page rebuild];
+    }];
+    find.enabled = menu->_ready && !menu->_busy;
+    NSMutableArray *sourceNames = [NSMutableArray array];
+    for (NSDictionary *source in LibretroCheatCatalog.sources) if ([menu->_installed[source[@"id"]][@"games"] count]) [sourceNames addObject:source[@"name"]];
+    find.detail = sourceNames.count ? [sourceNames componentsJoinedByString:@" · "] : [menu t:@"cheatNoSources"];
+    [actions addObject:find];
     [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatDisableAll"] action:^(LibretroMenuPage *page) {
       for (NSMutableDictionary *record in menu->_records) { record[@"enabled"] = @NO; record[@"selected"] = @NO; }
       [menu applyAndSave]; [page rebuild];
@@ -347,6 +362,8 @@ static NSString *GameKey(NSDictionary *game) {
         [menu applyAndSave]; [page rebuild];
       }];
     }]];
+    [actions addObject:[menu searchRow:NO]];
+    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatCatalog"] action:^(LibretroMenuPage *page) { [page push:[menu catalogPage]]; }]];
     NSMutableArray *rows = [NSMutableArray array];
     for (NSMutableDictionary *record in menu->_records) {
       if (menu->_cheatSearch.length && [String(record[@"name"]) rangeOfString:menu->_cheatSearch options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location == NSNotFound) continue;
@@ -397,7 +414,11 @@ static NSString *GameKey(NSDictionary *game) {
           [menu->_catalog downloadGame:game completion:^(NSArray<NSDictionary *> *cheats, NSError *error) {
             menu->_busy = NO;
             if (error) { [menu failed]; [page rebuild]; return; }
-            [menu merge:cheats]; [menu save]; [page.navigationController popViewControllerAnimated:YES];
+            NSMutableArray *records = [NSMutableArray array];
+            for (NSDictionary *raw in cheats) {
+              NSMutableDictionary *record = [raw mutableCopy]; record[@"uncertain"] = @(![match isEqual:@"hash"]); [records addObject:record];
+            }
+            [menu merge:records]; [menu save]; [menu refresh]; [page.navigationController popViewControllerAnimated:YES];
           }];
         };
         if ([match isEqual:@"hash"]) download();
@@ -410,7 +431,7 @@ static NSString *GameKey(NSDictionary *game) {
     }
     LibretroMenuRow *sources = [LibretroMenuRow rowWithTitle:[menu t:@"cheatSources"] action:^(LibretroMenuPage *page) { [page push:[menu sourcesPage]]; }];
     LibretroMenuSection *matchSection = [LibretroMenuSection sectionWithTitle:[menu t:@"cheatMatches"] rows:matches];
-    matchSection.footer = menu->_status ?: [menu t:@"cheatCatalogHelp"];
+    matchSection.footer = menu->_status ?: ((!menu->_ready || menu->_discovering) ? [menu t:@"cheatBusy"] : (matches.count + manual.count ? [menu t:@"cheatCatalogHelp"] : [menu t:@"cheatNoVariant"]));
     return @[[LibretroMenuSection sectionWithTitle:menu->_identity[@"title"] rows:@[sources, [menu searchRow:YES]]],
       matchSection, [LibretroMenuSection sectionWithTitle:[menu t:@"cheatManual"] rows:manual]];
   }];

@@ -373,3 +373,10 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
   retained separately, not counted as a pass. Full evidence and format/container
   limits: `docs/build466-automatic-cheats.md`. SideStore Apple re-signing remains
   required; no physical iPhone test is claimed. **Do not reuse 466.**
+
+## Build 467 candidate — PS1 search follow-up, 16 October 2026
+
+- The maintainer reports no PS1/FFVII cheat results in delivered 466 and requests a direct search-to-toggle experience. Correct on `Claude`, preserving the delivered skins and all cores/other engines. Do not reuse 466.
+- Carry the session's existing game title as an uncertain hint; read bounded ISO9660 SYSTEM.CNF serials for uncompressed discs and retain reviewed RDB serial metadata. Hash/serial region identity outranks title hints. CHD/PBP raw hashes do not establish game identity.
+- Root search must name available sources and reach game/version results without requiring catalogue selection. Clearly distinguish filtering loaded codes. Catalogue data absent for a region must never be invented or replaced automatically by USA codes. FFVII reference coverage is USA only; 17 of its 19 programs use the reviewed simple writes.
+- Tests and IPA pending actual results; see `docs/build467-ps1-cheats.md`. No physical iPhone or commercial PS1 gameplay effect is claimed by metadata/UIKit dispatch checks.

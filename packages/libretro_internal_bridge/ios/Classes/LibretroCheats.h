@@ -12,6 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)gitBlobSHA:(NSData *)data;
 /// Stream the actual extracted content, off the emulation/main queues. No basename-only identity.
 + (NSString *)identityContentPath:(NSString *)path;
+/// Read SYSTEM.CNF from a bounded ISO9660 data track; never infer serial from its filename.
++ (nullable NSString *)playStationSerialAtPath:(NSString *)path;
 + (nullable NSDictionary *)identityAtPath:(NSString *)path console:(NSString *)console core:(NSString *)core;
 /// A hash mismatch is never promoted by a similar name. Title matches are candidates only.
 + (NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity;

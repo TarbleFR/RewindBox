@@ -58,6 +58,7 @@ def main():
         skins.REFERENCES = tuple(f for f in skins.REFERENCES if f[0] == 'press-complex')
         skins.fixtures(app)
         content(app / 'content')
+        shutil.copyfile(probe.ROOT / 'test/fixtures/libretro_cheats/ff7-usa-original.cht', app / 'ff7-usa-original.cht')
         # Exact production Dart conversion, exported by the preceding Flutter test.
         for directory in sorted(Path('evidence/overlay-layouts').glob('*')):
             if not directory.is_dir(): continue

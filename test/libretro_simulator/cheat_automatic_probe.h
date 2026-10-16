@@ -1,5 +1,6 @@
 // End-to-end: pre-existing indices -> renamed content -> automatic rows -> actual core RAM.
 #import "LibretroCheatCatalog.h"
+static void RunPSXCheatMenuProbe(NSMutableArray *checks,dispatch_block_t completion);
 @interface LibretroCheatMenu (AutomaticProbePrivate)
 - (void)discover;
 @end
@@ -118,6 +119,7 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
   probe.content=cue;
   NSString *md5=[LibretroCheats identityAtPath:probe.content console:@"nes" core:@"nestopia"][@"md5"];
   BOOL restart=getenv("NEOSTATION_CHEAT_RESTART")!=NULL;
+  if(!restart)probe.finish=^{RunPSXCheatMenuProbe(checks,completion);};
   if(restart)probe.stage=3;
   if(!restart) {
     NSString *oldHash=[LibretroCheats digest:[NSData dataWithContentsOfFile:cue]];
@@ -152,4 +154,72 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
   }
   probe.page=[[CheatConfirmationProbe alloc] initWithTitle:@"Automatic" builder:^NSArray *{return @[];}];
   [probe.page loadViewIfNeeded];[probe create:@"nestopia"];[probe next];
+}
+
+// Production catalogue + actual FFVII CHT -> UIKit switches -> native dispatch.
+// Deliberately no PS1 emulation/BIOS: dispatch is observed, gameplay is not claimed.
+@interface PSXCheatMenuProbe : NSObject
+@property(nonatomic,strong) LibretroCheatMenu *menu;
+@property(nonatomic,strong) LibretroMenuPage *root;
+@property(nonatomic,strong) CheatConfirmationProbe *page;
+@property(nonatomic,strong) NSMutableArray *checks,*applied;
+@property(nonatomic,copy) dispatch_block_t finish;
+@property(nonatomic,copy) NSString *folder,*content;
+@property(nonatomic) NSUInteger attempts,stage;
+@end
+@implementation PSXCheatMenuProbe
+- (void)check:(BOOL)value name:(NSString *)name { [_checks addObject:@{@"name":name,@"passed":@(value)}]; }
+- (LibretroMenuRow *)row:(NSString *)title {
+  for(LibretroMenuSection *s in _root.builder())for(LibretroMenuRow *r in s.rows)if([r.title isEqual:title])return r;return nil;
+}
+- (void)create:(NSString *)title {
+  __weak PSXCheatMenuProbe *weakSelf=self;
+  _menu=[[LibretroCheatMenu alloc] initWithDirectory:_folder console:@"psx" core:@"mednafen_psx_hw" contentPath:_content gameTitle:title legacy:@[] text:^NSString *(NSString *key){return key;} apply:^(NSArray *codes){[weakSelf.applied addObject:codes];}];
+  LibretroCheatCatalog *catalog=[_menu valueForKey:@"catalog"];
+  catalog.fetch=^NSData *(NSURL *url,NSUInteger limit,NSError **error){
+    if([url.absoluteString containsString:@"Final%20Fantasy%20VII%20(USA).cht"])return [NSData dataWithContentsOfFile:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"ff7-usa-original.cht"]];
+    if(error)*error=[NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorNotConnectedToInternet userInfo:nil];return nil;
+  };
+  _root=[_menu rootPage];[_root loadViewIfNeeded];_page.builder=_root.builder;[_page rebuild];
+}
+- (void)next {
+  BOOL pending=![[_menu valueForKey:@"ready"] boolValue] || [[_menu valueForKey:@"discovering"] boolValue] || [[_menu valueForKey:@"pendingSources"] unsignedIntegerValue]>0;
+  if(pending && _attempts++<600){dispatch_after(dispatch_time(DISPATCH_TIME_NOW,25*NSEC_PER_MSEC),dispatch_get_main_queue(),^{[self next];});return;}
+  [self check:!pending name:@"PS1 production index/title resolution finishes"];if(pending){_finish();return;}_attempts=0;
+  if(!_stage) {
+    NSArray *records=[_menu valueForKey:@"records"];NSUInteger available=0;for(NSDictionary *r in records)if([self row:r[@"name"]].enabled)available++;
+    [self check:records.count==19 && available==17 name:@"renamed CHD library title exposes actual 19 FFVII entries, 17 supported switches"];
+    [self check:[[self row:@"cheatFind"].detail containsString:@"libretro"] name:@"direct search identifies its available PS1 source"];
+    [self check:_menu.enabledCount==0 && _applied.count==0 name:@"PS1 discovery leaves every code off"];
+    LibretroMenuRow *gil=[self row:@"Max Gil"];if(gil.toggle)gil.toggle(_page,YES);
+    [self check:_page.confirmation!=nil && _applied.count==0 name:@"library title match requires version confirmation before native dispatch"];
+    if(_page.confirmation){_page.confirmation();_page.confirmation=nil;}
+    [self check:[_applied.lastObject isEqual:@[@"8009D260 967F+8009D262 0098"]] name:@"Max Gil switch dispatches complete real GameShark program"];
+    LibretroMenuRow *phs=[self row:@"Save and use PHS Anywhere"];if(phs.toggle)phs.toggle(_page,YES);
+    [self check:_menu.enabledCount==2 && [_applied.lastObject count]==2 name:@"PS1 switches allow simultaneous programs"];
+    LibretroMenuRow *all=[self row:@"cheatDisableAll"];if(all.action)all.action(_page);
+    [self check:_menu.enabledCount==0 && [_applied.lastObject count]==0 name:@"PS1 disable-all dispatches an empty program list"];
+    _stage=1;dispatch_queue_t queue=[_menu valueForKey:@"queue"];
+    dispatch_async(queue,^{dispatch_async(dispatch_get_main_queue(),^{
+      self.folder=[self.folder stringByAppendingPathComponent:@"French"];
+      [self create:@"Final Fantasy VII (France) (Disc 1)"];[self next];
+    });});return;
+  }
+  [self check:[[_menu valueForKey:@"records"] count]==0 name:@"French FFVII does not automatically receive USA codes"];
+  LibretroMenuRow *find=[self row:@"cheatFind"];if(find.action)find.action(_page);
+  [self check:_page.pushedPage!=nil name:@"one search action opens results across sources when automatic match is empty"];
+  NSArray *sections=_page.pushedPage.builder ? _page.pushedPage.builder() : @[];NSUInteger candidates=0;
+  for(LibretroMenuSection *s in sections)for(LibretroMenuRow *r in s.rows)if([r.title isEqual:@"Final Fantasy VII (USA)"])candidates++;
+  [self check:candidates==1 name:@"version picker reveals available USA catalogue instead of a blank source selector"];
+  _finish();
+}
+@end
+static void RunPSXCheatMenuProbe(NSMutableArray *checks,dispatch_block_t completion) {
+  PSXCheatMenuProbe *probe=[PSXCheatMenuProbe new];probe.checks=checks;probe.applied=[NSMutableArray array];probe.finish=completion;
+  probe.folder=DocumentsPath([@"PSXCheatMenuProbe/" stringByAppendingString:NSUUID.UUID.UUIDString]);
+  [NSFileManager.defaultManager createDirectoryAtPath:probe.folder withIntermediateDirectories:YES attributes:nil error:nil];
+  probe.content=[probe.folder stringByAppendingPathComponent:@"renamed.chd"];
+  [@"Original synthetic container fixture, not a disc image" writeToFile:probe.content atomically:YES encoding:NSUTF8StringEncoding error:nil];
+  probe.page=[[CheatConfirmationProbe alloc] initWithTitle:@"PS1 cheats" builder:^NSArray *{return @[];}];[probe.page loadViewIfNeeded];
+  [probe create:@"Final Fantasy VII"];[probe next];
 }
