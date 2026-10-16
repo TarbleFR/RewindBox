@@ -50,7 +50,11 @@ static BOOL SafePath(NSString *path) {
 }
 - (instancetype)initWithDirectory:(NSString *)directory {
   if ((self = [super init])) { _directory = [directory copy];
-    _queue = dispatch_queue_create("neostation.cheat-catalog", DISPATCH_QUEUE_SERIAL); }
+    _queue = dispatch_queue_create("neostation.cheat-catalog", DISPATCH_QUEUE_SERIAL);
+    NSBundle *owner = [NSBundle bundleForClass:self.class];
+    NSString *bundle = [owner pathForResource:@"NeoStationCheats" ofType:@"bundle"] ?: [NSBundle.mainBundle pathForResource:@"NeoStationCheats" ofType:@"bundle"];
+    _bundledDirectory = bundle ? [[NSBundle bundleWithPath:bundle] resourcePath] : nil;
+  }
   return self;
 }
 + (NSArray<NSDictionary *> *)sources {
@@ -127,22 +131,91 @@ static BOOL SafePath(NSString *path) {
   NSString *encoded = [path stringByAddingPercentEncodingWithAllowedCharacters:allowed];
   return [self read:[NSURL URLWithString:[NSString stringWithFormat:@"https://raw.githubusercontent.com/%@/%@/%@", repository, revision, encoded]] limit:limit error:error];
 }
+- (NSDictionary *)validatedCatalog:(id)json source:(NSString *)source console:(NSString *)console {
+  if (![json isKindOfClass:NSDictionary.class] || ![json[@"games"] isKindOfClass:NSArray.class] ||
+      ![json[@"source"] isEqual:source] || ![json[@"console"] isEqual:console] ||
+      !SHA(Text(json[@"revision"])) || [json[@"games"] count] > 20000) return nil;
+  for (id game in json[@"games"]) {
+    if (![game isKindOfClass:NSDictionary.class] || ![game[@"source"] isEqual:source] || ![game[@"console"] isEqual:console] ||
+        Text(game[@"title"]).length == 0 || Text(game[@"title"]).length > 2048 || !SHA(Text(game[@"revision"])) ||
+        (game[@"md5s"] && ![game[@"md5s"] isKindOfClass:NSArray.class])) return nil;
+    if (game[@"cheats"]) {
+      if (![game[@"cheats"] isKindOfClass:NSArray.class] || [game[@"cheats"] count] > 4096) return nil;
+      for (id cheat in game[@"cheats"]) if (![cheat isKindOfClass:NSDictionary.class] || Text(cheat[@"name"]).length == 0 ||
+        ![cheat[@"code"] isKindOfClass:NSString.class] || Text(cheat[@"code"]).length > 65536 ||
+        ![cheat[@"handler"] isKindOfClass:NSNumber.class]) return nil;
+    } else if (!SafePath(Text(game[@"path"])) || !SHA(Text(game[@"sha"]))) return nil;
+  }
+  return json;
+}
+- (NSData *)bundledFile:(NSString *)name {
+  if (!_bundledDirectory || !SafePath(name)) return nil;
+  NSData *manifestData = [NSData dataWithContentsOfFile:[_bundledDirectory stringByAppendingPathComponent:@"manifest.json"]];
+  id manifest = manifestData ? [NSJSONSerialization JSONObjectWithData:manifestData options:0 error:nil] : nil;
+  if (![manifest isKindOfClass:NSDictionary.class] || ![manifest[@"outputs"] isKindOfClass:NSDictionary.class]) return nil;
+  NSString *file = [_bundledDirectory stringByAppendingPathComponent:name];
+  NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:file error:nil];
+  NSData *data = attributes && [attributes fileSize] <= 16u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
+  return data && [[LibretroCheats digest:data] isEqual:manifest[@"outputs"][name]] ? data : nil;
+}
+- (NSDictionary *)bundledSource:(NSString *)source console:(NSString *)console {
+  // Aliases share data, but every returned row carries the session's own console.
+  NSString *canonical = @{@"tg16":@"pce", @"tgcd":@"pccd"}[console] ?: console;
+  NSDictionary *descriptor = [self source:source]; NSMutableArray *games = [NSMutableArray array];
+  NSDictionary *json = nil;
+  if ([source isEqual:@"libretro"]) {
+    NSData *data = [self bundledFile:[NSString stringWithFormat:@"libretro-%@.json", canonical]];
+    id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    json = [self validatedCatalog:parsed source:source console:canonical];
+    if (!json) return nil;
+    for (NSDictionary *entry in json[@"games"]) { NSMutableDictionary *game = [entry mutableCopy]; game[@"console"] = console; [games addObject:game]; }
+  } else if ([source isEqual:@"openemu-community"]) {
+    NSData *data = [self bundledFile:@"openemu.xml"];
+    NSArray *parsed = data ? [LibretroCheats parseOpenEmu:data error:nil] : nil;
+    if (!parsed) return nil;
+    for (NSDictionary *entry in parsed) if ([entry[@"console"] isEqual:canonical]) {
+      NSMutableDictionary *game = [entry mutableCopy]; game[@"source"] = source; game[@"console"] = console;
+      game[@"revision"] = descriptor[@"revision"]; [games addObject:game];
+    }
+  } else return nil;
+  NSMutableDictionary *result = [@{@"source":source, @"console":console, @"revision":descriptor[@"revision"],
+    @"repository":descriptor[@"repository"], @"license":descriptor[@"license"], @"games":games, @"bundled":@YES} mutableCopy];
+  if ([json[@"identities"] isKindOfClass:NSArray.class]) result[@"identities"] = json[@"identities"];
+  return result;
+}
+- (NSDictionary *)resolveIdentity:(NSDictionary *)identity {
+  NSMutableOrderedSet *titles = [NSMutableOrderedSet orderedSet];
+  NSDictionary *bundled = [self bundledSource:@"libretro" console:Text(identity[@"console"])];
+  NSArray *md5s = [identity[@"md5s"] isKindOfClass:NSArray.class] ? identity[@"md5s"] : @[identity[@"md5"] ?: @""];
+  NSArray *sha1s = [identity[@"sha1s"] isKindOfClass:NSArray.class] ? identity[@"sha1s"] : @[identity[@"sha1"] ?: @""];
+  for (id row in bundled[@"identities"]) {
+    if (![row isKindOfClass:NSDictionary.class] || Text(row[@"title"]).length == 0) continue;
+    if ((Text(row[@"md5"]).length && [md5s containsObject:row[@"md5"]]) ||
+        (Text(row[@"sha1"]).length && [sha1s containsObject:row[@"sha1"]])) [titles addObject:row[@"title"]];
+  }
+  NSMutableDictionary *result = [identity mutableCopy]; result[@"titles"] = titles.array;
+  NSLog(@"[Cheats] identity console=%@ core=%@ canonicalTitles=%lu", identity[@"console"], identity[@"core"], (unsigned long)titles.count);
+  return result;
+}
+- (NSString *)disabledFile:(NSString *)source console:(NSString *)console {
+  return [[self folder:source console:console] stringByAppendingPathComponent:@"disabled"];
+}
 - (void)loadSource:(NSString *)source console:(NSString *)console completion:(void (^)(NSDictionary *))completion {
   dispatch_async(_queue, ^{
-    NSString *folder = [self folder:source console:console];
-    NSString *file = [folder stringByAppendingPathComponent:@"index.json"];
-    NSDictionary *attributes = file ? [[NSFileManager defaultManager] attributesOfItemAtPath:file error:nil] : nil;
-    NSData *data = attributes && [attributes fileSize] <= 16u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
-    id json = data.length <= 16u * 1024u * 1024u && data != nil ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-    NSDictionary *catalog = [json isKindOfClass:NSDictionary.class] && [json[@"games"] isKindOfClass:NSArray.class] ? json : nil;
-    if (catalog && (![catalog[@"source"] isEqual:source] || ![catalog[@"console"] isEqual:console] ||
-        !SHA(Text(catalog[@"revision"])) || [catalog[@"games"] count] > 20000)) catalog = nil;
-    for (id game in catalog[@"games"]) {
-      if (![game isKindOfClass:NSDictionary.class] || ![game[@"source"] isEqual:source] ||
-          ![game[@"console"] isEqual:console] || Text(game[@"title"]).length == 0 ||
-          !SHA(Text(game[@"revision"])) ||
-          (game[@"cheats"] && ![game[@"cheats"] isKindOfClass:NSArray.class])) { catalog = nil; break; }
+    if ([NSFileManager.defaultManager fileExistsAtPath:[self disabledFile:source console:console]]) {
+      dispatch_async(dispatch_get_main_queue(), ^{ completion(nil); }); return;
     }
+    NSString *file = [[self folder:source console:console] stringByAppendingPathComponent:@"index.json"];
+    NSDictionary *attributes = file ? [NSFileManager.defaultManager attributesOfItemAtPath:file error:nil] : nil;
+    NSData *data = attributes && [attributes fileSize] <= 16u * 1024u * 1024u ? [NSData dataWithContentsOfFile:file] : nil;
+    id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    NSDictionary *catalog = [self validatedCatalog:json source:source console:console];
+    if (!catalog) {
+      catalog = [self bundledSource:source console:console];
+      if (attributes) NSLog(@"[Cheats] invalid index recovered source=%@ console=%@ bundled=%d", source, console, catalog != nil);
+    }
+    NSLog(@"[Cheats] index source=%@ console=%@ games=%lu bundled=%d", source, console,
+      (unsigned long)[catalog[@"games"] count], [catalog[@"bundled"] boolValue]);
     dispatch_async(dispatch_get_main_queue(), ^{ completion(catalog); });
   });
 }
@@ -211,6 +284,8 @@ static BOOL SafePath(NSString *path) {
       if (data != nil && error == nil) [data writeToFile:[folder stringByAppendingPathComponent:@"index.json"] options:NSDataWritingAtomic error:&error];
     }
     if (error != nil) catalog = nil;
+    if (catalog) [NSFileManager.defaultManager removeItemAtPath:[self disabledFile:source console:console] error:nil];
+    NSLog(@"[Cheats] install source=%@ console=%@ indexed=%lu error=%@", source, console, (unsigned long)[catalog[@"games"] count], error);
     dispatch_async(dispatch_get_main_queue(), ^{ completion(catalog, error); });
   });
 }
@@ -243,13 +318,18 @@ static BOOL SafePath(NSString *path) {
       [attributed addObject:cheat];
     }
     if (cheats == nil && error == nil) error = CatalogError(@"Cheat file unavailable");
+    NSLog(@"[Cheats] resource source=%@ game=%@ parsed=%lu error=%@", game[@"source"], game[@"title"], (unsigned long)attributed.count, error);
     dispatch_async(dispatch_get_main_queue(), ^{ completion(error == nil ? attributed : nil, error); });
   });
 }
 - (void)removeSource:(NSString *)source console:(NSString *)console completion:(void (^)(void))completion {
   dispatch_async(_queue, ^{
     NSString *folder = [self folder:source console:console];
-    if (folder) [[NSFileManager defaultManager] removeItemAtPath:folder error:nil];
+    if (folder) {
+      [[NSFileManager defaultManager] removeItemAtPath:folder error:nil];
+      [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
+      [[NSData data] writeToFile:[self disabledFile:source console:console] atomically:YES];
+    }
     dispatch_async(dispatch_get_main_queue(), completion);
   });
 }

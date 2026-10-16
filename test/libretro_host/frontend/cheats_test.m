@@ -38,7 +38,7 @@ int main(int argc, const char **argv) {
     CHECK([[LibretroCheats matchGame:games[0] identity:identity] isEqual:@"hash"], "file hash outranks imprecise filename");
     NSDictionary *other = @{@"console":@"snes", @"title":@"Game (USA)", @"md5":@"11111111111111111111111111111111"};
     CHECK([[LibretroCheats matchGame:games[0] identity:other] isEqual:@"mismatch"], "same title cannot override a different hash");
-    CHECK(([[LibretroCheats matchGame:@{@"console":@"snes", @"title":@"Game (Japan)"} identity:identity] isEqual:@"candidate"]), "regional title match is manual, never exact");
+    CHECK(([[LibretroCheats matchGame:@{@"console":@"snes", @"title":@"Game (Japan)"} identity:identity] isEqual:@"none"]), "conflicting regional variants are excluded");
     CHECK(([[LibretroCheats matchGame:@{@"console":@"nes", @"title":@"Game"} identity:identity] isEqual:@"none"]), "console identity respected");
     CHECK([[LibretroCheats gitBlobSHA:UTF8(@"hello\n")] isEqual:@"ce013625030ba8dba906f756967f9e9ca394464a"], "Git blob integrity algorithm");
     NSString *folder = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];

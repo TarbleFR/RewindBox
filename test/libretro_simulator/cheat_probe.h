@@ -5,11 +5,12 @@
 @interface LibretroSession (CheatProbePrivate)
 - (void)enqueue:(dispatch_block_t)command;
 @end
+#import "cheat_automatic_probe.h"
 static void RunCheatProbe(LibretroSession *session, NSDictionary *scenario, NSMutableDictionary *result,
                           dispatch_block_t completion) {
   NSMutableArray *checks = [NSMutableArray array]; result[@"cheatChecks"] = checks;
   NSString *console = scenario[@"console"], *core = scenario[@"core"];
-  NSString *raw = [console isEqual:@"snes"] ? @"7E0024:7F" : @"0024:7F";
+  NSString *raw = [console isEqual:@"snes"] ? @"7E0024:7F" : [console isEqual:@"nds"] ? @"22000024 0000007F" : @"0024:7F";
   NSArray *codes = [LibretroCheats codesForCheat:@{@"name":@"Synthetic counter", @"code":raw, @"handler":@0} core:core console:console];
   [checks addObject:@{@"name":@"core adapter accepts the synthetic native code", @"passed":@(codes.count == 1)}];
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 600 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
@@ -32,7 +33,7 @@ static void RunCheatProbe(LibretroSession *session, NSDictionary *scenario, NSMu
               BOOL inactive = released && releasedSize > 0x24 && released[0x24] == 0x22;
               dispatch_async(dispatch_get_main_queue(), ^{
                 [checks addObject:@{@"name":@"disabled code stops modifying emulated memory without restart", @"passed":@(inactive)}];
-                if ([console isEqual:@"nes"]) RunCheatMenuProbe(checks, completion); else completion();
+                if ([console isEqual:@"nes"]) RunCheatMenuProbe(checks, ^{ RunAutomaticCheatProbe(session,checks,completion); }); else completion();
               });
             }];
           });

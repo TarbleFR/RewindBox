@@ -6,6 +6,10 @@ on:
       - .github/workflows/libretro-cheats-checks.yml
       - packages/libretro_internal_bridge/ios/Classes/LibretroCheat*
       - lib/services/libretro_overlay_converter.dart
+      - packages/libretro_internal_bridge/ios/Resources/Cheats/**
+      - packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec
+      - lib/l10n/libretro_locale.dart
+      - test/cheat_bootstrap_test.py
       - test/libretro_cheat_probe.py
       - test/libretro_overlay_fixture_test.dart
       - test/libretro_simulator/overlay_preview_probe.h
@@ -14,6 +18,7 @@ on:
       - test/libretro_host/frontend/cheat*_test.m
       - test/libretro_host/frontend/cheat_catalog_live_probe.m
       - test/libretro_simulator/cheat_menu_probe.h
+      - test/libretro_simulator/cheat_automatic_probe.h
       - test/libretro_simulator/skin_failure_probe.h
       - test/libretro_simulator/skin_loading_probe.h
       - test/libretro_skin_loading_probe.py
@@ -49,11 +54,13 @@ jobs:
           import libretro_frontend_test as test
           with tempfile.TemporaryDirectory() as temporary:
               root = Path(temporary)
-              for name in ('cheats_test.m', 'cheat_catalog_test.m', 'cheat_catalog_live_probe.m'):
+              for name in ('cheats_test.m', 'cheat_catalog_test.m', 'cheat_automatic_test.m', 'cheat_catalog_live_probe.m'):
                   executable = root / name.removesuffix('.m')
                   assert test.build(test.TESTS / name, executable), name
                   subprocess.run([str(executable), str(root), str(test.ROOT)], check=True)
           PY
+      - name: Bundled index integrity and complete translations
+        run: python3 test/cheat_bootstrap_test.py
       - uses: actions/download-artifact@v4
         with:
           name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258

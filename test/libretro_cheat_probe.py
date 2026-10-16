@@ -30,11 +30,12 @@ def main():
     for flag in ['cores', 'inputs', 'evidence', 'label']: parser.add_argument('--' + flag, required=True)
     args = parser.parse_args()
     args.sources = None; args.only = []; args.lot1 = False; args.lot2 = False; args.official_shaders = False
-    probe.REAL_CORES = ('nestopia', 'snes9x')
+    probe.REAL_CORES = ('nestopia', 'snes9x', 'desmume')
     probe.SCENARIOS = [
         {'name':'ignited-nestopia', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'skinPress':'press-complex', 'expect':'run'},
         {'name':'cheats-nestopia', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'cheatProbe':True, 'expect':'run'},
         {'name':'overlay-previews', 'core':'nestopia', 'console':'nes', 'content':'content/cheat-probe.nes', 'previewProbe':True, 'expect':'run'},
+        {'name':'cheats-desmume', 'core':'desmume', 'console':'nds', 'content':'content/probe.nds', 'cheatProbe':True, 'expect':'run'},
         {'name':'cheats-snes9x', 'core':'snes9x', 'console':'snes', 'content':'content/cheat-probe.sfc', 'cheatProbe':True, 'expect':'run'},
     ]
     evidence = Path(args.evidence); evidence.mkdir(parents=True, exist_ok=True)
@@ -44,6 +45,9 @@ def main():
         skins.REFERENCES = tuple(f for f in skins.REFERENCES if f[0] == 'press-complex')
         skins.fixtures(app)
         content(app / 'content')
+        shutil.copytree(probe.BRIDGE / 'Resources/Cheats', app / 'NeoStationCheats.bundle')
+        import plistlib
+        (app / 'NeoStationCheats.bundle/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'ai.neostation.cheats','CFBundlePackageType':'BNDL'}))
         # Exact production Dart conversion, exported by the preceding Flutter test.
         for directory in sorted(Path('evidence/overlay-layouts').glob('*')):
             if not directory.is_dir(): continue

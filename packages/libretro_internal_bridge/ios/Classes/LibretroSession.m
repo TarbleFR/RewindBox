@@ -2371,6 +2371,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [_host applyCheats:[self enabledCodesIn:cheats]];
   dispatch_async(dispatch_get_main_queue(), ^{
     self->_cheats = cheats;
+    // Prepare identity and catalogues after launch; never wait on the emulation queue.
+    [self cheatsPage];
   });
 }
 
@@ -2907,7 +2909,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                                      [page push:[weakSelf cheatsPage]];
                                                    }];
   cheats.disclosure = YES;
-  NSUInteger enabledCheats = [self enabledCodesIn:_cheats].count;
+  NSUInteger enabledCheats = _cheatMenu.enabledCount;
   if (enabledCheats > 0) cheats.detail = @(enabledCheats).stringValue;
   [extras addObject:cheats];
   if (_achievements != nil) {
@@ -3158,7 +3160,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       legacy:[_cheats copy] text:^NSString *(NSString *key) { return [weakSelf text:key] ?: key; }
       apply:^(NSArray<NSString *> *codes) {
         LibretroSession *session = weakSelf; if (!session) return;
-        [session enqueue:^{ [session->_host applyCheats:codes]; }];
+        [session enqueue:^{
+          [session->_host applyCheats:codes];
+          [session->_journal note:[NSString stringWithFormat:@"cheats: applied %lu validated code programs", (unsigned long)codes.count]];
+        }];
       }];
   }
   return [_cheatMenu rootPage];

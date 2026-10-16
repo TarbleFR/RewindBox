@@ -14,6 +14,7 @@ abstract final class LibretroLocale {
     'slot', 'emptySlot', 'stateSaved', 'stateLoaded', 'stateFailed',
     'changeDisc', 'disc', 'discChanged', 'display', 'touchControls',
     'smoothing', 'fastForward', 'coreSettings', 'settingsRestartHint',
+    'cheatNone', 'cheatRetry', 'cheatDisableAll', 'cheatCoreUnsupported', 'cheatEffectsHelp', 'cheatResultsLimited',
     'cheatCatalog', 'cheatSources', 'cheatSearch', 'cheatSearchGames', 'cheatImport', 'cheatRemember', 'cheatRestore', 'cheatPreferencesHelp', 'cheatSaveWarning', 'cheatActivate', 'cheatFailed', 'cheatBusy', 'cheatManual', 'cheatMatches', 'cheatHashMatch', 'cheatHashMismatch', 'cheatVersionUncertain', 'cheatMemoryUnsupported', 'cheatCodeUnsupported', 'cheatCatalogHelp', 'cheatSourceHelp', 'cheatInstall', 'cheatUpdate', 'cheatCheckUpdates', 'cheatUpdateAvailable', 'cheatRemoveData', 'cheatDownload',
     'cheats', 'addCheat', 'cheatName', 'cheatCode', 'cheatsHelp',
     'achievements', 'achievementsEnabled', 'achievementsLogin',
@@ -160,6 +161,13 @@ abstract final class LibretroLocale {
   static const Map<String, Map<String, String>> values =
       <String, Map<String, String>>{
     'en': {
+      "cheatNone": "No cheats found for this game. You can search the catalogue or retry when online.",
+      "cheatRetry": "Search again",
+      "cheatDisableAll": "Disable all cheats",
+      "cheatCoreUnsupported": "This core has no verified native cheat adapter. Codes can be viewed but cannot be enabled.",
+      "cheatEffectsHelp": "Disabling a code stops applying it. Some effects require restarting the game to undo.",
+      "cheatResultsLimited": "More matches are available. Refine your search in the catalogue.",
+
       "cheatCatalog": "Cheat catalogue",
       "cheatSources": "Cheat sources",
       "cheatSearch": "Search cheats",
@@ -863,6 +871,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Missing after the failure (their originals are in the backup folder):',
     },
     'fr': {
+      "cheatNone": "Aucun cheat trouvé pour ce jeu. Recherchez dans le catalogue ou réessayez avec une connexion.",
+      "cheatRetry": "Relancer la recherche",
+      "cheatDisableAll": "Désactiver tous les cheats",
+      "cheatCoreUnsupported": "Ce cœur ne dispose pas d’adaptateur de cheats natifs vérifié. Les codes sont consultables, mais leur activation est indisponible.",
+      "cheatEffectsHelp": "Désactiver un code arrête son application. Certains effets nécessitent un redémarrage du jeu pour être annulés.",
+      "cheatResultsLimited": "D’autres résultats sont disponibles. Affinez votre recherche dans le catalogue.",
+
       "cheatCatalog": "Catalogue de cheats",
       "cheatSources": "Sources de cheats",
       "cheatSearch": "Rechercher un cheat",
@@ -1566,6 +1581,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Manquants après l’échec (leurs originaux sont dans le dossier de sauvegarde) :',
     },
     'de': {
+      "cheatNone": "Keine Cheats für dieses Spiel gefunden. Suche im Katalog oder versuche es mit Internetverbindung erneut.",
+      "cheatRetry": "Erneut suchen",
+      "cheatDisableAll": "Alle Cheats deaktivieren",
+      "cheatCoreUnsupported": "Für diesen Kern ist kein nativer Cheat-Adapter verifiziert. Codes können angezeigt, aber nicht aktiviert werden.",
+      "cheatEffectsHelp": "Deaktivieren beendet die Anwendung eines Codes. Manche Effekte lassen sich erst durch einen Spielneustart rückgängig machen.",
+      "cheatResultsLimited": "Weitere Treffer sind verfügbar. Grenze die Suche im Katalog ein.",
+
       "cheatCatalog": "Cheat-Katalog",
       "cheatSources": "Cheat-Quellen",
       "cheatSearch": "Cheats suchen",
@@ -2269,6 +2291,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Nach dem Fehler fehlend (die Originale liegen im Sicherungsordner):',
     },
     'es': {
+      "cheatNone": "No se encontraron trucos para este juego. Busca en el catálogo o vuelve a intentarlo con conexión.",
+      "cheatRetry": "Volver a buscar",
+      "cheatDisableAll": "Desactivar todos los trucos",
+      "cheatCoreUnsupported": "Este núcleo no tiene un adaptador de trucos nativos verificado. Los códigos se pueden consultar, pero no activar.",
+      "cheatEffectsHelp": "Desactivar un código detiene su aplicación. Algunos efectos requieren reiniciar el juego para deshacerse.",
+      "cheatResultsLimited": "Hay más resultados. Afina la búsqueda en el catálogo.",
+
       "cheatCatalog": "Catálogo de trucos",
       "cheatSources": "Fuentes de trucos",
       "cheatSearch": "Buscar trucos",
@@ -2972,6 +3001,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Faltan tras el error (sus originales están en la carpeta de copia de seguridad):',
     },
     'it': {
+      "cheatNone": "Nessun trucco trovato per questo gioco. Cerca nel catalogo o riprova con una connessione.",
+      "cheatRetry": "Cerca di nuovo",
+      "cheatDisableAll": "Disattiva tutti i trucchi",
+      "cheatCoreUnsupported": "Questo core non dispone di un adattatore verificato per i trucchi nativi. I codici sono consultabili, ma non attivabili.",
+      "cheatEffectsHelp": "Disattivare un codice ne interrompe l’applicazione. Alcuni effetti richiedono il riavvio del gioco per essere annullati.",
+      "cheatResultsLimited": "Sono disponibili altri risultati. Affina la ricerca nel catalogo.",
+
       "cheatCatalog": "Catalogo trucchi",
       "cheatSources": "Fonti dei trucchi",
       "cheatSearch": "Cerca trucchi",
@@ -3675,6 +3711,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Mancanti dopo l’errore (gli originali sono nella cartella della copia di sicurezza):',
     },
     'pt': {
+      "cheatNone": "Nenhum cheat encontrado para este jogo. Pesquise no catálogo ou tente novamente com ligação à Internet.",
+      "cheatRetry": "Pesquisar novamente",
+      "cheatDisableAll": "Desativar todos os cheats",
+      "cheatCoreUnsupported": "Este núcleo não tem um adaptador de cheats nativos verificado. Os códigos podem ser consultados, mas não ativados.",
+      "cheatEffectsHelp": "Desativar um código interrompe a sua aplicação. Alguns efeitos exigem reiniciar o jogo para serem anulados.",
+      "cheatResultsLimited": "Há mais resultados disponíveis. Refine a pesquisa no catálogo.",
+
       "cheatCatalog": "Catálogo de cheats",
       "cheatSources": "Fontes de cheats",
       "cheatSearch": "Procurar cheats",
@@ -4378,6 +4421,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Em falta após a falha (os originais estão na pasta da cópia de segurança):',
     },
     'ru': {
+      "cheatNone": "Читы для этой игры не найдены. Поищите в каталоге или повторите поиск с подключением к сети.",
+      "cheatRetry": "Повторить поиск",
+      "cheatDisableAll": "Отключить все читы",
+      "cheatCoreUnsupported": "У этого ядра нет проверенного адаптера встроенных читов. Коды можно просматривать, но нельзя включать.",
+      "cheatEffectsHelp": "Отключение кода прекращает его применение. Для отмены некоторых эффектов нужно перезапустить игру.",
+      "cheatResultsLimited": "Доступны другие результаты. Уточните поиск в каталоге.",
+
       "cheatCatalog": "Каталог читов",
       "cheatSources": "Источники читов",
       "cheatSearch": "Поиск читов",
@@ -5081,6 +5131,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Отсутствуют после сбоя (оригиналы находятся в папке резервной копии):',
     },
     'id': {
+      "cheatNone": "Cheat untuk game ini tidak ditemukan. Cari di katalog atau coba lagi saat terhubung ke internet.",
+      "cheatRetry": "Cari lagi",
+      "cheatDisableAll": "Nonaktifkan semua cheat",
+      "cheatCoreUnsupported": "Core ini belum memiliki adaptor cheat native yang terverifikasi. Kode dapat dilihat, tetapi tidak dapat diaktifkan.",
+      "cheatEffectsHelp": "Menonaktifkan kode menghentikan penerapannya. Beberapa efek memerlukan mulai ulang game agar dibatalkan.",
+      "cheatResultsLimited": "Masih ada hasil lain. Persempit pencarian di katalog.",
+
       "cheatCatalog": "Katalog cheat",
       "cheatSources": "Sumber cheat",
       "cheatSearch": "Cari cheat",
@@ -5784,6 +5841,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': 'Hilang setelah kegagalan (file aslinya ada di folder cadangan):',
     },
     'ja': {
+      "cheatNone": "このゲームのチートは見つかりませんでした。カタログで検索するか、オンラインで再試行してください。",
+      "cheatRetry": "再検索",
+      "cheatDisableAll": "すべてのチートを無効化",
+      "cheatCoreUnsupported": "このコアには検証済みのネイティブチートアダプターがありません。コードは閲覧できますが、有効化できません。",
+      "cheatEffectsHelp": "コードを無効にすると適用が停止します。一部の効果を元に戻すにはゲームの再起動が必要です。",
+      "cheatResultsLimited": "ほかにも結果があります。カタログの検索条件を絞り込んでください。",
+
       "cheatCatalog": "チートカタログ",
       "cheatSources": "チートの配布元",
       "cheatSearch": "チートを検索",
@@ -6487,6 +6551,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '失敗後に見つからないもの（元のファイルはバックアップフォルダにあります）:',
     },
     'ko': {
+      "cheatNone": "이 게임의 치트를 찾지 못했습니다. 목록에서 검색하거나 인터넷에 연결한 후 다시 시도하세요.",
+      "cheatRetry": "다시 검색",
+      "cheatDisableAll": "모든 치트 비활성화",
+      "cheatCoreUnsupported": "이 코어에는 검증된 네이티브 치트 어댑터가 없습니다. 코드를 볼 수는 있지만 활성화할 수는 없습니다.",
+      "cheatEffectsHelp": "코드를 비활성화하면 적용이 중지됩니다. 일부 효과를 되돌리려면 게임을 다시 시작해야 합니다.",
+      "cheatResultsLimited": "다른 결과가 더 있습니다. 목록에서 검색 범위를 좁히세요.",
+
       "cheatCatalog": "치트 카탈로그",
       "cheatSources": "치트 출처",
       "cheatSearch": "치트 검색",
@@ -7190,6 +7261,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '실패 후 없는 항목 (원본은 백업 폴더에 있음):',
     },
     'zh': {
+      "cheatNone": "未找到此游戏的金手指。请搜索目录或联网后重试。",
+      "cheatRetry": "重新搜索",
+      "cheatDisableAll": "禁用所有金手指",
+      "cheatCoreUnsupported": "此核心没有经过验证的原生金手指适配器。代码可以查看，但无法启用。",
+      "cheatEffectsHelp": "禁用代码会停止应用该代码。某些效果需要重启游戏才能撤销。",
+      "cheatResultsLimited": "还有更多结果。请在目录中缩小搜索范围。",
+
       "cheatCatalog": "金手指目录",
       "cheatSources": "金手指来源",
       "cheatSearch": "搜索金手指",
@@ -7893,6 +7971,13 @@ abstract final class LibretroLocale {
       'system3dsMissingFiles': '失败后缺失（原文件在备份文件夹中）：',
     },
     'zh_Hant': {
+      "cheatNone": "找不到此遊戲的金手指。請搜尋目錄或連線後重試。",
+      "cheatRetry": "重新搜尋",
+      "cheatDisableAll": "停用所有金手指",
+      "cheatCoreUnsupported": "此核心沒有經過驗證的原生金手指配接器。代碼可以檢視，但無法啟用。",
+      "cheatEffectsHelp": "停用代碼會停止套用該代碼。某些效果需要重新啟動遊戲才能撤銷。",
+      "cheatResultsLimited": "還有更多結果。請在目錄中縮小搜尋範圍。",
+
       "cheatCatalog": "金手指目錄",
       "cheatSources": "金手指來源",
       "cheatSearch": "搜尋金手指",

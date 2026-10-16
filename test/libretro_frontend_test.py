@@ -55,7 +55,7 @@ def build(test, output):
     frameworks = [argument for name in FRAMEWORKS for argument in ('-framework', name)]
     command = ['clang', '-fobjc-arc', '-O1', '-Wall', '-Werror', '-I', str(CLASSES), '-I', str(LIBRETRO),
                *(str(CLASSES / name) for name in PORTABLE_FRONTEND), str(test),
-               *frameworks, *extra_link_flags(test), '-o', str(output)]
+               *frameworks, '-lz', *extra_link_flags(test), '-o', str(output)]
     print('+', ' '.join(command), flush=True)
     return subprocess.run(command).returncode == 0
 

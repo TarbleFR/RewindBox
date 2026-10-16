@@ -1,5 +1,7 @@
 #import "LibretroCheats.h"
 #import <CommonCrypto/CommonDigest.h>
+#import <zlib.h>
+#include <string.h>
 // Catalogue identity uses published MD5 hashes; it is not a security signature.
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
@@ -136,7 +138,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
 + (NSArray<NSString *> *)supportedCoreIDs {
   // Explicitly audited native handlers, not just the presence of mandatory ABI symbols.
   return @[@"nestopia", @"snes9x", @"gambatte", @"mgba",
-           @"genesis_plus_gx", @"genesis_plus_gx_wide"];
+           @"genesis_plus_gx", @"genesis_plus_gx_wide", @"desmume", @"mednafen_psx_hw"];
 }
 + (NSArray<NSString *> *)codesForCheat:(NSDictionary *)cheat core:(NSString *)core console:(NSString *)console {
   if ([core hasSuffix:@"_libretro"]) core = [core substringToIndex:core.length - 9];
@@ -158,6 +160,25 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     pattern = [console isEqual:@"md"] || [console isEqual:@"mcd"]
         ? @"^(?:[0-9ABCDEFGHJKLMNPRSTVWXYZ]{4}-[0-9ABCDEFGHJKLMNPRSTVWXYZ]{4}|[0-9A-F]{6}:[0-9A-F]{4})$"
         : @"^(?:[0-9A-F]{3}-[0-9A-F]{3}-[0-9A-F]{3}|[0-9A-F]{6}:[0-9A-F]{2})$";
+  BOOL psx = [core isEqual:@"mednafen_psx_hw"] && [console isEqual:@"psx"];
+  BOOL ds = [core isEqual:@"desmume"] && [console isEqual:@"nds"];
+  if (psx || ds) {
+    NSMutableArray *words = [NSMutableArray array], *lines = [NSMutableArray array];
+    for (NSString *word in [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ ;,\t\r\n"]])
+      if (word.length) [words addObject:word];
+    for (NSUInteger i = 0; i < words.count; i++) {
+      NSString *word = words[i], *pair = nil;
+      if (Matches(word, psx ? @"^[0-9A-F]{12}$" : @"^[0-9A-F]{16}$")) pair = word;
+      else if (Matches(word, @"^[0-9A-F]{8}$") && i+1 < words.count &&
+        Matches(words[i+1], psx ? @"^[0-9A-F]{4}$" : @"^[0-9A-F]{8}$")) pair = [word stringByAppendingString:words[++i]];
+      if (!pair || (psx && !Matches(pair, @"^(?:30|80)[0-9A-F]{10}$"))) return nil;
+      [lines addObject:[NSString stringWithFormat:@"%@ %@", [pair substringToIndex:8], [pair substringFromIndex:8]]];
+    }
+    NSString *program = [lines componentsJoinedByString:@"+"];
+    // Preserve AR conditions as one program. The shared ABI boundary is 255
+    // bytes; longer programs stay unavailable rather than being truncated.
+    return lines.count && program.length <= 255 ? @[program] : nil;
+  }
   if (gba) {
     // OpenEmu writes concatenated address/value pairs; RetroArch CHT uses '+' separators.
     NSMutableArray *lines = [NSMutableArray array];
@@ -175,7 +196,8 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     }
     if (lines.count == 0 || lines.count > 128) return nil;
     // Keep each multi-line program intact: encrypted/conditional lines depend on ordering.
-    return @[[lines componentsJoinedByString:@"+"]];
+    NSString *program = [lines componentsJoinedByString:@"+"];
+    return program.length <= 4096 ? @[program] : nil;
   }
   if (pattern == nil) return nil;
   NSMutableArray *result = [NSMutableArray array];
@@ -187,29 +209,97 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   // Nestopia and Snes9x use 256-byte stack buffers. Each call receives one bounded code.
   return result.count > 0 && result.count <= 100 ? result : nil;
 }
+// Raw content identifies preferences. Headerless/canonical aliases identify catalogues.
+// The caller runs this once off-main and caches by file identity, size and mtime.
 + (NSDictionary *)identityAtPath:(NSString *)path console:(NSString *)console core:(NSString *)core {
+  NSDictionary *before = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+  if (![before[NSFileType] isEqual:NSFileTypeRegular]) return nil;
   NSInputStream *stream = [NSInputStream inputStreamWithFileAtPath:path]; [stream open];
-  CC_MD5_CTX md5; CC_SHA256_CTX sha; CC_MD5_Init(&md5); CC_SHA256_Init(&sha);
-  uint8_t buffer[65536]; NSInteger length; unsigned long long total = 0;
+  CC_MD5_CTX md5, canonicalMD5; CC_SHA1_CTX sha1, canonicalSHA1; CC_SHA256_CTX sha;
+  CC_MD5_Init(&md5); CC_SHA1_Init(&sha1); CC_SHA256_Init(&sha);
+  CC_MD5_Init(&canonicalMD5); CC_SHA1_Init(&canonicalSHA1);
+  uint8_t buffer[65536]; NSInteger length; unsigned long long total = 0, skip = 0;
+  uLong crc = crc32(0L, Z_NULL, 0); NSUInteger swap = 0;
   while ((length = [stream read:buffer maxLength:sizeof(buffer)]) > 0) {
-    CC_MD5_Update(&md5, buffer, (CC_LONG)length); CC_SHA256_Update(&sha, buffer, (CC_LONG)length); total += length;
+    CC_MD5_Update(&md5, buffer, (CC_LONG)length); CC_SHA1_Update(&sha1, buffer, (CC_LONG)length);
+    CC_SHA256_Update(&sha, buffer, (CC_LONG)length); crc = crc32(crc, buffer, (uInt)length);
+    if (total == 0) {
+      if ([console isEqual:@"nes"] && length >= 16 && memcmp(buffer, "NES\x1a", 4) == 0)
+        skip = 16 + ((buffer[6] & 4) ? 512 : 0);
+      if ([console isEqual:@"snes"] && [before fileSize] % 1024 == 512) skip = 512;
+      if ([console isEqual:@"n64"] && length >= 4) {
+        if (memcmp(buffer, "\x37\x80\x40\x12", 4) == 0) swap = 2;
+        if (memcmp(buffer, "\x40\x12\x37\x80", 4) == 0) swap = 4;
+      }
+    }
+    NSUInteger offset = total < skip ? (NSUInteger)MIN(skip - total, (unsigned long long)length) : 0;
+    if (swap) for (NSUInteger i = 0; i + swap <= (NSUInteger)length; i += swap)
+      for (NSUInteger j = 0; j < swap / 2; j++) { uint8_t t = buffer[i+j]; buffer[i+j] = buffer[i+swap-1-j]; buffer[i+swap-1-j] = t; }
+    CC_MD5_Update(&canonicalMD5, buffer + offset, (CC_LONG)(length - offset));
+    CC_SHA1_Update(&canonicalSHA1, buffer + offset, (CC_LONG)(length - offset)); total += length;
   }
-  BOOL valid = length == 0 && stream.streamError == nil && total > 0; [stream close];
-  if (!valid) return nil;
-  unsigned char m[CC_MD5_DIGEST_LENGTH], s[CC_SHA256_DIGEST_LENGTH]; CC_MD5_Final(m, &md5); CC_SHA256_Final(s, &sha);
+  BOOL valid = length == 0 && stream.streamError == nil && total > skip; [stream close];
+  NSDictionary *after = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+  if (!valid || ![before[NSFileModificationDate] isEqual:after[NSFileModificationDate]] || [before fileSize] != [after fileSize]) return nil;
+  unsigned char m[16], s[32], h[20], cm[16], ch[20]; CC_MD5_Final(m, &md5); CC_SHA1_Final(h, &sha1); CC_SHA256_Final(s, &sha);
+  CC_MD5_Final(cm, &canonicalMD5); CC_SHA1_Final(ch, &canonicalSHA1);
   return @{@"console": console, @"core": core, @"title": path.lastPathComponent.stringByDeletingPathExtension,
-           @"md5": Hex(m, sizeof(m)), @"sha256": Hex(s, sizeof(s)), @"bytes": @(total)};
+    @"md5": Hex(m, sizeof(m)), @"sha1": Hex(h, sizeof(h)), @"sha256": Hex(s, sizeof(s)),
+    @"crc32": [NSString stringWithFormat:@"%08lx", (unsigned long)crc], @"bytes": @(total),
+    @"md5s": [NSOrderedSet orderedSetWithArray:@[Hex(m, sizeof(m)), Hex(cm, sizeof(cm))]].array,
+    @"sha1s": [NSOrderedSet orderedSetWithArray:@[Hex(h, sizeof(h)), Hex(ch, sizeof(ch))]].array};
 }
 + (NSString *)searchTitle:(NSString *)title {
   NSRegularExpression *tags = [NSRegularExpression regularExpressionWithPattern:@"\\([^)]*\\)|\\[[^]]*\\]" options:0 error:nil];
   NSString *base = [tags stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
   return [[base lowercaseString] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
 }
+// Device tags describe the code format, not a different ROM. Region/revision tags
+// remain in the exact key. Never strip all parentheses for an automatic match.
++ (NSString *)versionTitle:(NSString *)title {
+  NSRegularExpression *tags = [NSRegularExpression regularExpressionWithPattern:
+    @"\\((?:Game Genie|GameShark|Game Shark|Action Replay|Pro Action Replay|Game Buster|Xploder|CodeBreaker|Code Breaker)\\)" options:NSRegularExpressionCaseInsensitive error:nil];
+  NSString *result = [tags stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
+  result = [result lowercaseString];
+  NSRegularExpression *spaces = [NSRegularExpression regularExpressionWithPattern:@"\\s+" options:0 error:nil];
+  return [[spaces stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, result.length) withTemplate:@" "] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+}
++ (NSSet *)regions:(NSString *)title {
+  NSMutableSet *regions = [NSMutableSet set];
+  NSDictionary *aliases = @{@"usa":@"usa", @"europe":@"europe", @"japan":@"japan", @"world":@"world",
+    @"germany":@"germany", @"france":@"france", @"spain":@"spain", @"italy":@"italy", @"korea":@"korea", @"australia":@"australia"};
+  NSRegularExpression *tags = [NSRegularExpression regularExpressionWithPattern:@"\\(([^)]*)\\)" options:0 error:nil];
+  for (NSTextCheckingResult *match in [tags matchesInString:title.lowercaseString options:0 range:NSMakeRange(0, title.length)])
+    for (NSString *part in [[title.lowercaseString substringWithRange:[match rangeAtIndex:1]] componentsSeparatedByString:@","]) {
+      NSString *region = aliases[[part stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet]];
+      if (region) [regions addObject:region];
+    }
+  return regions;
+}
 + (NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity {
   if (![String(game[@"console"]) isEqual:String(identity[@"console"])]) return @"none";
   NSArray *hashes = [game[@"md5s"] isKindOfClass:NSArray.class] ? game[@"md5s"] : @[];
-  if (hashes.count > 0) return [hashes containsObject:identity[@"md5"] ?: @""] ? @"hash" : @"mismatch";
-  NSString *title = [self searchTitle:String(game[@"title"])];
-  return title.length && [title isEqual:[self searchTitle:String(identity[@"title"])]] ? @"candidate" : @"none";
+  NSArray *actual = [identity[@"md5s"] isKindOfClass:NSArray.class] ? identity[@"md5s"] : @[identity[@"md5"] ?: @""];
+  if (hashes.count) {
+    for (NSString *hash in actual) if ([hashes containsObject:hash]) return @"hash";
+    return @"mismatch";
+  }
+  NSArray *titles = [identity[@"titles"] isKindOfClass:NSArray.class] ? identity[@"titles"] : @[];
+  NSString *version = [self versionTitle:String(game[@"title"])];
+  for (NSString *title in titles) if ([version isEqual:[self versionTitle:title]]) return @"hash";
+  NSArray *search = titles.count ? titles : @[String(identity[@"title"])];
+  for (NSString *title in search) {
+    if (![[self searchTitle:title] isEqual:[self searchTitle:String(game[@"title"])]]) continue;
+    NSSet *a = [self regions:title], *b = [self regions:String(game[@"title"])];
+    if (a.count && b.count && ![a containsObject:@"world"] && ![b containsObject:@"world"] && ![a intersectsSet:b]) continue;
+    // A different explicit revision is never a candidate for automatic loading.
+    NSRegularExpression *rev = [NSRegularExpression regularExpressionWithPattern:@"\\((?:rev |v)[^)]*\\)" options:NSRegularExpressionCaseInsensitive error:nil];
+    NSTextCheckingResult *ar = [rev firstMatchInString:title options:0 range:NSMakeRange(0,title.length)];
+    NSString *other = String(game[@"title"]);
+    NSTextCheckingResult *br = [rev firstMatchInString:other options:0 range:NSMakeRange(0,other.length)];
+    if (ar && br && ![[title substringWithRange:ar.range].lowercaseString isEqual:[other substringWithRange:br.range].lowercaseString]) continue;
+    return @"candidate";
+  }
+  return @"none";
 }
 @end

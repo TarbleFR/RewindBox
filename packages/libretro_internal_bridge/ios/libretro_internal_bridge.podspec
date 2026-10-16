@@ -16,6 +16,7 @@ starts; no external RetroArch application is involved.
                        'ThirdParty/rcheevos/src/**/*.{h,c}'
   s.public_header_files = 'Classes/LibretroInternalBridgePlugin.h'
   s.preserve_paths   = 'ThirdParty/**/*'
+  s.resource_bundles = { 'NeoStationCheats' => ['Resources/Cheats/*'] }
   s.dependency 'Flutter'
   # The game view adopts NeoExternalRenderHost: the external-display
   # coordinator shows the Metal view on an AirPlay / adapter screen.

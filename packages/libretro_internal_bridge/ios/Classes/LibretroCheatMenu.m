@@ -16,7 +16,9 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   NSMutableDictionary<NSString *, NSDictionary *> *_installed;
   NSMutableDictionary<NSString *, NSString *> *_updates;
   NSDictionary *_identity;
-  BOOL _ready, _busy, _remember, _warned;
+  BOOL _ready, _busy, _remember, _warned, _discovering;
+  NSUInteger _pendingSources, _discoveryGeneration;
+  NSMutableSet *_automaticKeys, *_confirmedGames;
   NSString *_cheatSearch, *_gameSearch, *_status;
   __weak LibretroMenuPage *_visiblePage;
   dispatch_queue_t _queue;
@@ -28,10 +30,31 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     _directory = directory; _console = console; _core = core; _text = [text copy]; _apply = [apply copy];
     _catalog = [[LibretroCheatCatalog alloc] initWithDirectory:[directory stringByAppendingPathComponent:@"Catalogs"]];
     _records = [NSMutableArray array]; _installed = [NSMutableDictionary dictionary]; _updates = [NSMutableDictionary dictionary];
+    _automaticKeys = [NSMutableSet set]; _confirmedGames = [NSMutableSet set];
+    _pendingSources = LibretroCheatCatalog.sources.count;
     _queue = dispatch_queue_create("neostation.cheat-preferences", DISPATCH_QUEUE_SERIAL);
     __weak LibretroCheatMenu *weakSelf = self;
     dispatch_async(_queue, ^{
-      NSDictionary *identity = [LibretroCheats identityAtPath:contentPath console:console core:core];
+      // Cache only an unchanged regular file. Changed content, inode or modification
+      // time invalidates it; no hashing or index traversal blocks the launch queue.
+      NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:contentPath error:nil];
+      NSString *fingerprint = [NSString stringWithFormat:@"3|%@|%@|%@|%@|%@|%@", contentPath, console, core,
+        attributes[NSFileSize], @([attributes[NSFileModificationDate] timeIntervalSince1970]), attributes[NSFileSystemFileNumber]];
+      NSString *cacheKey = [LibretroCheats digest:[fingerprint dataUsingEncoding:NSUTF8StringEncoding]];
+      NSString *cacheFile = [[directory stringByAppendingPathComponent:@"Identity"] stringByAppendingPathComponent:[cacheKey stringByAppendingPathExtension:@"json"]];
+      NSDictionary *cacheAttributes = [NSFileManager.defaultManager attributesOfItemAtPath:cacheFile error:nil];
+      NSData *cacheData = cacheAttributes && [cacheAttributes fileSize] <= 65536 ? [NSData dataWithContentsOfFile:cacheFile] : nil;
+      id cached = cacheData ? [NSJSONSerialization JSONObjectWithData:cacheData options:0 error:nil] : nil;
+      NSDictionary *identity = [cached isKindOfClass:NSDictionary.class] && [String(cached[@"sha256"]) length] == 64 &&
+        [cached[@"console"] isEqual:console] && [cached[@"core"] isEqual:core] ? cached : nil;
+      if (!identity) {
+        identity = [LibretroCheats identityAtPath:contentPath console:console core:core];
+        if (identity) {
+          [NSFileManager.defaultManager createDirectoryAtPath:cacheFile.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:nil];
+          [[NSJSONSerialization dataWithJSONObject:identity options:0 error:nil] writeToFile:cacheFile atomically:YES];
+        }
+      }
+      if (identity) identity = [self->_catalog resolveIdentity:identity];
       NSString *hash = String(identity[@"sha256"]);
       NSString *key = [LibretroCheats digest:[[NSString stringWithFormat:@"%@|%@|%@", console, core, hash] dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *file = hash.length ? [[directory stringByAppendingPathComponent:@"Games"] stringByAppendingPathComponent:[key stringByAppendingPathExtension:@"json"]] : nil;
@@ -42,9 +65,12 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
       dispatch_async(dispatch_get_main_queue(), ^{
         LibretroCheatMenu *menu = weakSelf; if (!menu) return;
         menu->_identity = identity ?: @{@"console": console, @"core": core, @"title": contentPath.lastPathComponent.stringByDeletingPathExtension};
-        menu->_preferencesPath = file; menu->_remember = [saved[@"remember"] isKindOfClass:NSNumber.class] && [saved[@"remember"] boolValue];
+        menu->_preferencesPath = file; menu->_remember = [saved[@"remember"] isKindOfClass:NSNumber.class] ? [saved[@"remember"] boolValue] : YES;
         NSArray *records = menu->_remember && [saved[@"cheats"] isKindOfClass:NSArray.class] ? saved[@"cheats"] : legacy;
+        if ([saved[@"confirmedGames"] isKindOfClass:NSArray.class]) for (id game in saved[@"confirmedGames"])
+          if ([game isKindOfClass:NSString.class] && [game length] <= 2048) [menu->_confirmedGames addObject:game];
         [menu merge:records]; menu->_ready = YES;
+        [menu discover];
         [menu->_visiblePage rebuild];
       });
     });
@@ -52,11 +78,78 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
       [_catalog loadSource:source[@"id"] console:console completion:^(NSDictionary *catalog) {
         LibretroCheatMenu *menu = weakSelf; if (!menu) return;
         if (catalog) menu->_installed[source[@"id"]] = catalog;
+        if (menu->_pendingSources) menu->_pendingSources--;
+        [menu discover];
         [menu->_visiblePage rebuild];
       }];
     }
   }
   return self;
+}
+// Called after both identity and all source indices are ready, and after install/update.
+// Only this worker traverses indices. All UI/model mutations stay on the main queue.
+- (void)discover {
+  if (!_ready || _pendingSources) return;
+  NSUInteger generation = ++_discoveryGeneration; _discovering = YES;
+  NSArray *catalogs = [_installed.allValues sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+    return [a[@"source"] compare:b[@"source"]]; }];
+  NSDictionary *identity = _identity; __weak LibretroCheatMenu *weakSelf = self;
+  dispatch_async(_queue, ^{
+    NSMutableArray *exact = [NSMutableArray array], *candidates = [NSMutableArray array];
+    for (NSDictionary *catalog in catalogs) for (NSDictionary *game in catalog[@"games"]) {
+      NSString *match = [LibretroCheats matchGame:game identity:identity];
+      if ([match isEqual:@"hash"]) [exact addObject:game];
+      else if ([match isEqual:@"candidate"]) [candidates addObject:game];
+    }
+    // Exact variants take priority; uncertain candidates remain individually labelled.
+    NSArray *matches = [exact arrayByAddingObjectsFromArray:candidates];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroCheatMenu *menu = weakSelf; if (!menu || generation != menu->_discoveryGeneration) return;
+      NSUInteger limit = MIN(matches.count, (NSUInteger)64);
+      __block NSUInteger pending = 0, failed = 0;
+      for (NSUInteger i = 0; i < limit; i++) {
+        NSDictionary *game = matches[i];
+        NSString *key = [NSString stringWithFormat:@"%@|%@|%@|%@", game[@"source"], game[@"revision"], game[@"sha"] ?: @"", game[@"title"]];
+        if ([menu->_automaticKeys containsObject:key]) continue;
+        pending++;
+        [menu->_catalog downloadGame:game completion:^(NSArray *cheats, NSError *error) {
+          LibretroCheatMenu *current = weakSelf; if (!current || generation != current->_discoveryGeneration) return;
+          if (cheats) {
+            BOOL uncertain = ![[LibretroCheats matchGame:game identity:identity] isEqual:@"hash"];
+            NSMutableArray *records = [NSMutableArray array];
+            for (NSDictionary *raw in cheats) { NSMutableDictionary *record = [raw mutableCopy]; record[@"uncertain"] = @(uncertain); [records addObject:record]; }
+            [current merge:records]; [current->_automaticKeys addObject:key];
+          } else failed++;
+          pending--;
+          if (!pending) {
+            current->_discovering = NO;
+            current->_status = failed ? [current t:@"cheatFailed"] : matches.count > limit ? [current t:@"cheatResultsLimited"] : nil;
+            [current save];
+          }
+          [current->_visiblePage rebuild];
+        }];
+      }
+      if (!pending) { menu->_discovering = NO; menu->_status = matches.count > limit ? [menu t:@"cheatResultsLimited"] : nil; }
+      NSLog(@"[Cheats] match console=%@ core=%@ sources=%lu exact=%lu candidates=%lu requested=%lu", menu->_console, menu->_core,
+        (unsigned long)catalogs.count, (unsigned long)exact.count, (unsigned long)candidates.count, (unsigned long)pending);
+      [menu->_visiblePage rebuild];
+    });
+  });
+}
+- (NSUInteger)enabledCount {
+  NSUInteger count = 0; for (NSDictionary *record in _records) if ([record[@"enabled"] boolValue]) count++;
+  return count;
+}
+- (BOOL)verified:(NSDictionary *)record {
+  return ![record[@"uncertain"] boolValue] || [_confirmedGames containsObject:String(record[@"game"])];
+}
+- (void)activate:(NSDictionary *)record page:(LibretroMenuPage *)page action:(dispatch_block_t)action {
+  if ([self verified:record]) { [self warnOnPage:page action:action]; return; }
+  [page rebuild];
+  [page confirmWithTitle:String(record[@"game"]) message:[NSString stringWithFormat:@"%@\n%@", [self t:@"cheatVersionUncertain"], [self t:@"cheatSaveWarning"]]
+    action:[self t:@"cheatActivate"] cancelTitle:[self t:@"cancel"] destructive:NO handler:^{
+      [self->_confirmedGames addObject:String(record[@"game"])]; self->_warned = YES; action();
+    }];
 }
 - (NSString *)t:(NSString *)key { return _text(key); }
 - (void)merge:(NSArray *)records {
@@ -75,7 +168,8 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
       NSData *fields = [NSJSONSerialization dataWithJSONObject:memoryFields options:NSJSONWritingSortedKeys error:nil];
       semanticCode = [LibretroCheats digest:fields ?: [NSData data]];
     }
-    NSString *key = [NSString stringWithFormat:@"%@|%@", handler, semanticCode];
+    NSString *scope = [raw[@"uncertain"] boolValue] ? String(raw[@"game"]) : @"";
+    NSString *key = [NSString stringWithFormat:@"%@|%@|%@", handler, semanticCode, scope];
     NSMutableDictionary *existing = nil;
     for (NSMutableDictionary *record in _records) if ([record[@"dedup"] isEqual:key]) { existing = record; break; }
     NSMutableArray *origins = [NSMutableArray array];
@@ -120,7 +214,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
   if (_remember) for (NSDictionary *record in _records) {
     NSMutableDictionary *copy = [record mutableCopy]; copy[@"enabled"] = @NO; [records addObject:copy];
   }
-  NSDictionary *saved = @{@"version": @2, @"remember": @(_remember), @"identity": _identity, @"cheats": records};
+  NSDictionary *saved = @{@"version": @2, @"remember": @(_remember), @"identity": _identity, @"cheats": records, @"confirmedGames": _confirmedGames.allObjects};
   NSString *file = _preferencesPath; __weak LibretroCheatMenu *weakSelf = self;
   dispatch_async(_queue, ^{
     NSError *error = nil;
@@ -163,6 +257,13 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
     NSMutableArray *actions = [NSMutableArray array];
     [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatCatalog"] action:^(LibretroMenuPage *page) { [page push:[menu catalogPage]]; }]];
     [actions addObject:[menu searchRow:NO]];
+    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRetry"] action:^(LibretroMenuPage *page) {
+      [menu discover]; [page rebuild];
+    }]];
+    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatDisableAll"] action:^(LibretroMenuPage *page) {
+      for (NSMutableDictionary *record in menu->_records) { record[@"enabled"] = @NO; record[@"selected"] = @NO; }
+      [menu applyAndSave]; [page rebuild];
+    }]];
     LibretroMenuRow *import = [LibretroMenuRow rowWithTitle:[menu t:@"cheatImport"] action:^(LibretroMenuPage *page) {
       menu->_visiblePage = page;
       UTType *type = [UTType typeWithFilenameExtension:@"cht"] ?: UTTypeData;
@@ -185,7 +286,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
         NSMutableArray *previous = [NSMutableArray array];
         for (NSMutableDictionary *record in menu->_records) {
           [previous addObject:record[@"enabled"] ?: @NO];
-          record[@"enabled"] = @([record[@"selected"] boolValue] && [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil);
+          record[@"enabled"] = @([record[@"selected"] boolValue] && [menu verified:record] && [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil);
         }
         if ([menu enabledCodes] == nil) {
           for (NSUInteger i = 0; i < menu->_records.count; i++) menu->_records[i][@"enabled"] = previous[i];
@@ -205,18 +306,20 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
           if ([menu enabledCodes] == nil) { record[@"enabled"] = @NO; [menu failed]; [page rebuild]; return; }
           record[@"selected"] = @(on); [menu applyAndSave]; [page rebuild];
         };
-        if (on) [menu warnOnPage:page action:change]; else change();
+        if (on) [menu activate:record page:page action:change]; else change();
       }];
       row.enabled = supported && menu->_ready;
       NSString *reason = [record[@"handler"] integerValue] != 0 ? [menu t:@"cheatMemoryUnsupported"] : [menu t:@"cheatCodeUnsupported"];
-      row.detail = [NSString stringWithFormat:@"%@%@\n%@", supported ? @"" : [reason stringByAppendingString:@"\n"],
+      row.detail = [NSString stringWithFormat:@"%@%@%@\n%@", [menu verified:record] ? @"" : [[menu t:@"cheatVersionUncertain"] stringByAppendingString:@"\n"], supported ? @"" : [reason stringByAppendingString:@"\n"],
         String(record[@"code"]).length > 512 ? [[String(record[@"code"]) substringToIndex:512] stringByAppendingString:@"…"] : String(record[@"code"]),
         [record[@"attributions"] componentsJoinedByString:@"\n"]];
       row.remove = ^(LibretroMenuPage *page) { [menu->_records removeObjectIdenticalTo:record]; [menu applyAndSave]; [page rebuild]; };
       [rows addObject:row];
     }
-    LibretroMenuSection *list = [LibretroMenuSection sectionWithTitle:menu->_status ?: (menu->_ready ? nil : [menu t:@"cheatBusy"]) rows:rows];
-    list.footer = [menu t:@"cheatPreferencesHelp"];
+    NSString *status = menu->_status ?: ((!menu->_ready || menu->_discovering) ? [menu t:@"cheatBusy"] : (rows.count ? nil : [menu t:@"cheatNone"]));
+    LibretroMenuSection *list = [LibretroMenuSection sectionWithTitle:status rows:rows];
+    list.footer = [NSString stringWithFormat:@"%@\n%@%@", [menu t:@"cheatPreferencesHelp"], [menu t:@"cheatEffectsHelp"],
+      [LibretroCheats.supportedCoreIDs containsObject:menu->_core] ? @"" : [[@"\n" stringByAppendingString:[menu t:@"cheatCoreUnsupported"]] stringByAppendingFormat:@" (%@)", menu->_core]];
     return @[[LibretroMenuSection sectionWithTitle:nil rows:actions], list];
   }];
   _visiblePage = root; return root;
@@ -272,7 +375,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
         menu->_visiblePage = page; menu->_busy = YES; [page rebuild];
         [menu->_catalog installSource:identifier console:menu->_console update:installed != nil completion:^(NSDictionary *catalog, NSError *error) {
           menu->_busy = NO;
-          if (catalog) { menu->_installed[identifier] = catalog; menu->_status = nil; } else [menu failed];
+          if (catalog) { menu->_installed[identifier] = catalog; menu->_status = nil; [menu discover]; } else [menu failed];
           [page rebuild];
         }];
       }]; install.enabled = !menu->_busy;
@@ -289,7 +392,7 @@ static NSString *String(id value) { return [value isKindOfClass:NSString.class] 
         [page confirmWithTitle:source[@"name"] message:[menu t:@"cheatRemoveData"] action:[menu t:@"cheatRemoveData"] cancelTitle:[menu t:@"cancel"] destructive:YES handler:^{
           menu->_busy = YES;
           [menu->_catalog removeSource:identifier console:menu->_console completion:^{
-            menu->_busy = NO; [menu->_installed removeObjectForKey:identifier]; [page rebuild];
+            menu->_busy = NO; [menu->_installed removeObjectForKey:identifier]; [menu discover]; [page rebuild];
           }];
         }];
       }]; remove.enabled = installed != nil && !menu->_busy; remove.destructive = YES;

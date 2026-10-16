@@ -1,0 +1,20 @@
+NeoStation cheat catalogue bootstrap
+
+libretro/libretro-database contributors, revision 12c21cf79f1e20eff6ac68b80875816c717d0a7a
+https://github.com/libretro/libretro-database
+CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+Full licence and warranty disclaimer: libretro-LICENSE.
+
+The libretro-*.json indices are adapted from the repository cheat tree and RDB
+metadata: console subsets, JSON conversion and content-hash/title projection.
+These adapted DATA files remain CC BY-SA 4.0, separately from application code.
+Source revisions and hashes are in manifest.json. No endorsement is implied.
+No game ROM, BIOS, key or console firmware is included.
+
+OpenEmu community: skyzyx/openemu-cheat-database, revision
+5f1af6161ee30fddccc3942dfbcc20b253bcb152
+https://github.com/skyzyx/openemu-cheat-database
+openemu.xml is an unmodified cheats-database.xml under the Unlicense.
+Full licence and warranty disclaimer: openemu-LICENSE.
+
+Regenerate using tools/cheats/build_bootstrap.py with msgpack installed.
