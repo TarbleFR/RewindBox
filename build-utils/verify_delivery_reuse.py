@@ -2142,6 +2142,29 @@ DELIVERY467_RECIPIENT_PATH = 'build-utils/delivery-467-recipient.pem'
 DELIVERY456_PINNED_INPUTS[DELIVERY467_RECIPIENT_PATH] = '5077a9384dcf5b603b42073d619579ffbb06b0b9'
 DELTA.add(DELIVERY467_RECIPIENT_PATH)
 
+
+# Build 468: crash-hardening product + reproducible 37-session Nestopia test.
+# Pin only changed source/test bytes to the immutable candidate. The previous
+# 467 cheat, catalogue and notice pins remain untouched.
+SKIN_STABILITY468_REFERENCE = '4411dd2de0278c76010ce122df04d5000f35c4a5'
+SKIN_STABILITY468_RUN = 38961617527
+SKIN_STABILITY468_INPUTS = {
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroMetalPresenter.m',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_nestopia_skin_stability_probe.py',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_STABILITY468_INPUTS, SKIN_STABILITY468_REFERENCE))
+DELTA |= SKIN_STABILITY468_INPUTS
+# This workflow/CI recipe is a delivery-only update over the source above;
+# it cannot modify the already-validated native inputs.
+SKIN_STABILITY468_DELIVERY_RECIPE = 'e634c98b49776db219b5a8cb8b15d433e55c6b6b'
+DELIVERY456_PINNED_INPUTS['.github/workflows/retroarch-delivery.yml'] = SKIN_STABILITY468_DELIVERY_RECIPE
+SKIN_STABILITY468_RECIPIENT = 'docs/delivery/recipients/neostation-468-chatgpt-recipient.pem'
+SKIN_STABILITY468_RECIPIENT_SHA256 = '503232ab14e40879949584b809fc36fa081cc2634ba1b8c993bb12b56aebaa73'
+
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
 LIBRARY_COVERS_REFERENCE = 'e8808dd32301f71fdd421a70c0ac6be2ed6fba47'
@@ -2480,6 +2503,29 @@ def verify_cheat_layout467_evidence():
             'successfulSteps': sorted(required), 'physicalDeviceValidated': False}
 
 
+def verify_nestopia_skin_stability468_evidence():
+    """Require the complete real Nestopia + original author skin CI results."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_STABILITY468_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != SKIN_STABILITY468_REFERENCE
+            or run.get('status') != 'completed' or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/libretro-nestopia-skin-stability.yml'):
+        raise ValueError('37-session NESThumbstick proof did not pass at exact source')
+    jobs = json.loads(subprocess.check_output(['gh','api',endpoint + '/jobs?per_page=100']))['jobs']
+    relevant = [j for j in jobs if j.get('name') == 'original-skin-on-real-nestopia']
+    if (len(relevant) != 1 or relevant[0].get('head_sha') != SKIN_STABILITY468_REFERENCE
+            or relevant[0].get('conclusion') != 'success' or not relevant[0].get('steps')
+            or any(s.get('conclusion') != 'success' for s in relevant[0]['steps'])):
+        raise ValueError('37-session Nestopia job or its required steps failed')
+    name = 'Real Nestopia — original NESThumbstick and 37 game sessions'
+    if not any(s.get('name') == name and s.get('conclusion') == 'success'
+               for s in relevant[0]['steps']):
+        raise ValueError('Original author skin was not run through real Nestopia')
+    return {'run':SKIN_STABILITY468_RUN,'testedSHA':SKIN_STABILITY468_REFERENCE,
+            'realNestopiaSessions':37, 'originalSkinSessions':31,
+            'physicalDeviceValidated':False}
+
+
 def verify_skin_session_evidence():
     """Require the complete shared session suite from the engine workflow."""
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_SESSION_RUN}'
@@ -2632,7 +2678,8 @@ def main():
         # Freeze EVERY current libretro dependency, test and recipe to the
         # reviewed post-layout product commit. Delivery-only source/recipient
         # records have separate pinned checks and cannot change this product.
-        closed = verify_libretro_reuse_tree(PS1_CHEATS467_REFERENCE, exact_inputs={
+        closed = verify_libretro_reuse_tree(SKIN_STABILITY468_REFERENCE, exact_inputs={
+            '.github/workflows/libretro-nestopia-skin-stability.yml',
             '.github/workflows/libretro-skin-checks.yml',
             '.github/workflows/libretro-cheats-checks.yml',
             '.github/workflows/libretro-skin-loading-checks.yml',
@@ -2642,10 +2689,16 @@ def main():
         loading = verify_skin_loading_evidence()
         catalog = verify_catalog_audit_evidence()
         current_layout = verify_cheat_layout467_evidence()
+        stability = verify_nestopia_skin_stability468_evidence()
+        recipient = ROOT / SKIN_STABILITY468_RECIPIENT
+        if (not recipient.is_file() or recipient.is_symlink()
+                or sha(recipient.read_bytes()) != SKIN_STABILITY468_RECIPIENT_SHA256):
+            raise ValueError('Build 468 public delivery recipient differs from reviewed bytes')
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps({'result':'passed', 'reviewedProductSHA':PS1_CHEATS467_REFERENCE,
+        out.write_text(json.dumps({'result':'passed', 'reviewedProductSHA':SKIN_STABILITY468_REFERENCE,
             'closedSourceInputsSHA256':closed, 'currentLayoutEvidence':current_layout,
+            'nestopiaSkinStabilityEvidence':stability, 'deliveryPublicRecipientSha256':SKIN_STABILITY468_RECIPIENT_SHA256,
             'historicalSkinEvidence':evidence, 'historicalCheatEvidence':cheats,
             'historicalLoadingEvidence':loading, 'historicalCatalogueEvidence':catalog,
             'deviceGameplayValidated':False}, indent=2) + '\n')
