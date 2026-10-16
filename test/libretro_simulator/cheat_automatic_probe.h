@@ -206,11 +206,17 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
     });});return;
   }
   [self check:[[_menu valueForKey:@"records"] count]==0 name:@"French FFVII does not automatically receive USA codes"];
+  NSMutableDictionary *identity=[[_menu valueForKey:@"identity"] mutableCopy];
+  identity[@"title"]=@"renamed-by-user";identity[@"serialTitles"]=@[@"Final Fantasy VII (France) (Disc 1)"];
+  [_menu setValue:identity forKey:@"identity"];
   LibretroMenuRow *find=[self row:@"cheatFind"];if(find.action)find.action(_page);
   [self check:_page.pushedPage!=nil name:@"one search action opens results across sources when automatic match is empty"];
   NSArray *sections=_page.pushedPage.builder ? _page.pushedPage.builder() : @[];NSUInteger candidates=0;
   for(LibretroMenuSection *s in sections)for(LibretroMenuRow *r in s.rows)if([r.title isEqual:@"Final Fantasy VII (USA)"])candidates++;
   [self check:candidates==1 name:@"version picker reveals available USA catalogue instead of a blank source selector"];
+  [self check:[[_menu valueForKey:@"gameSearch"] isEqual:@"final fantasy vii"] name:@"empty search uses the identified disc title instead of a renamed filename"];
+  [[_menu valueForKey:@"installed"] removeAllObjects];
+  [self check:[[self row:@"cheatFind"].detail isEqual:@"cheatNoSources"] name:@"a console with no usable source has an explicit explanation"];
   _finish();
 }
 @end
