@@ -39,7 +39,7 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
   NSArray *sizes=@[[NSValue valueWithCGSize:CGSizeMake(320,568)],[NSValue valueWithCGSize:CGSizeMake(390,844)],
     [NSValue valueWithCGSize:CGSizeMake(844,390)],[NSValue valueWithCGSize:CGSizeMake(768,1024)],
     [NSValue valueWithCGSize:CGSizeMake(1024,768)]];
-  CGFloat normalHeight=0,largeHeight=0;
+  __block CGFloat normalHeight=0,largeHeight=0,normalFont=0,largeFont=0;
   for(NSValue *size in sizes)for(NSString *category in categories){
     CGSize dimensions=size.CGSizeValue;
     [container setOverrideTraitCollection:[UITraitCollection traitCollectionWithPreferredContentSizeCategory:category] forChildViewController:page];
@@ -54,6 +54,14 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
         [page.tableView scrollToRowAtIndexPath:path atScrollPosition:UITableViewScrollPositionTop animated:NO];
         [page.tableView layoutIfNeeded];
         UITableViewCell *cell=[page.tableView cellForRowAtIndexPath:path];
+        // Inspect the visible cell. Offscreen rectForRow... may return the
+        // estimate after later rows have displaced it, regardless of text size.
+        if(index==0 && dimensions.width==320){
+          CGFloat height=cell.bounds.size.height,font=CheatLabel(cell.contentView,((LibretroMenuRow *)rows[index]).title).font.pointSize;
+          if([category isEqual:UIContentSizeCategoryLarge]){normalHeight=height;normalFont=font;}
+          if([category isEqual:UIContentSizeCategoryAccessibilityExtraExtraExtraLarge]){largeHeight=height;largeFont=font;}
+          NSLog(@"[CheatLayout] %@ %@ visible first row height %.2f font %.2f",label,category,height,font);
+        }
         if(!cell || !CheatCellFits(cell,rows[index])){
           if(fits)NSLog(@"[CheatLayout] %@ %.0fx%.0f %@ row %lu: %@ frame %@ content %@",label,dimensions.width,dimensions.height,category,(unsigned long)index,((LibretroMenuRow *)rows[index]).title,NSStringFromCGRect(cell.frame),NSStringFromCGRect(cell.contentView.frame));
           fits=NO;
@@ -61,13 +69,9 @@ static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *chec
       }
       CheatLayoutCheck(checks,fits && seen==records.count,[NSString stringWithFormat:@"%@ all %lu rows fit %.0fx%.0f %@ without clipping, overlap or switch collision",label,(unsigned long)seen,dimensions.width,dimensions.height,category]);
     }];
-    if(dimensions.width==320){
-      CGFloat height=[page.tableView rectForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]].size.height;
-      if([category isEqual:UIContentSizeCategoryLarge])normalHeight=height;
-      if([category isEqual:UIContentSizeCategoryAccessibilityExtraExtraExtraLarge])largeHeight=height;
-    }
   }
-  CheatLayoutCheck(checks,largeHeight>normalHeight && normalHeight>0,[label stringByAppendingString:@" Dynamic Type increases actual row height"]);
+  CheatLayoutCheck(checks,largeHeight>normalHeight && normalHeight>0 && largeFont>normalFont && normalFont>0,
+    [label stringByAppendingString:@" Dynamic Type increases visible font size and actual row height"]);
   NSArray *rows=((LibretroMenuSection *)page.builder()[1]).rows;
   BOOL clean=YES,details=YES;
   for(NSUInteger i=0;i<rows.count;i++){

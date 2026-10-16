@@ -620,8 +620,10 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
     content.secondaryTextProperties.numberOfLines = 0;
     content.textProperties.lineBreakMode = NSLineBreakByCharWrapping;
     content.secondaryTextProperties.lineBreakMode = NSLineBreakByCharWrapping;
-    content.textProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-    content.secondaryTextProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
+    content.textProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody compatibleWithTraitCollection:self.traitCollection];
+    content.secondaryTextProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline compatibleWithTraitCollection:self.traitCollection];
+    content.textProperties.adjustsFontForContentSizeCategory = YES;
+    content.secondaryTextProperties.adjustsFontForContentSizeCategory = YES;
     content.textProperties.color = row.destructive ? UIColor.systemRedColor : UIColor.labelColor;
     content.secondaryTextProperties.color = UIColor.secondaryLabelColor;
     content.directionalLayoutMargins = NSDirectionalEdgeInsetsMake(12, 16, 12, 16);
