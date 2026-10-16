@@ -48,6 +48,10 @@ NS_ASSUME_NONNULL_BEGIN
                    opacity:(CGFloat)opacity
             controlsHidden:(BOOL)controlsHidden;
 
+/// Called when the owning game view closes (main thread). Revokes all pending
+/// raster work and prevents stale completions from touching a new session.
+- (void)invalidateSession;
+
 /// Immediately depresses the artwork of delivered controls, then animates
 /// its return on release. No image decoding occurs on this path.
 - (void)setPressedItems:(NSSet<NSString *> *)itemIdentifiers;

@@ -552,6 +552,9 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   [_displayLink invalidate];
   _displayLink = nil;
   [_overlay releaseAllTouches];
+  // Renderer/image callbacks can outlive core teardown. Invalidate all
+  // generations before UIKit releases the game view.
+  [_skinRenderer invalidateSession];
 }
 
 - (void)tick {

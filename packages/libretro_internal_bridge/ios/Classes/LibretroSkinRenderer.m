@@ -530,6 +530,9 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   NSUInteger _pressureBytes;
   NSUInteger _pressureFrameCount;
   NSProgress *_pressurePreparation;
+  // Thread-safe cancellation token for queued bitmap/PDF decodes. Each new
+  // representation revokes old requests without touching UIKit off main.
+  NSProgress *_imagePreparation;
   NSUInteger _pendingRequiredImages;
   NSUInteger _readyGeneration;
   BOOL _resourceFailed;
@@ -599,6 +602,8 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   [CATransaction setDisableActions:YES];
   if (!sameContent) {
     _imageGeneration++;
+    [_imagePreparation cancel];
+    _imagePreparation = [NSProgress progressWithTotalUnitCount:1];
     _pendingRequiredImages = 0;
     _resourceFailed = NO;
     _pressureBytes = 0;
@@ -657,7 +662,31 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   [_items removeAllObjects];
   _backgroundLayer.mask = nil;
   _imageGeneration++;
+  [_imagePreparation cancel];
   [_pressurePreparation cancel];
+}
+
+/// The entire view/session lifetime ends here; do not keep bitmap contents or
+/// old callbacks alive while another emulator session starts. All calls are
+/// on the main queue, matching every Core Animation mutation in this class.
+- (void)invalidateSession {
+  NSAssert(NSThread.isMainThread, @"Skin renderer teardown must run on the main thread");
+  self.resourceLoadFailed = nil;
+  self.representationReady = nil;
+  [_imagePreparation cancel];
+  [_pressurePreparation cancel];
+  _imagePreparation = nil;
+  _pressurePreparation = nil;
+  _pendingRequiredImages = 0;
+  _representation = nil;
+  _layout = nil;
+  _pressed = [NSSet set];
+  _stickVectors = @{};
+  _dpadDirections = @{};
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  [self clearAll];
+  [CATransaction commit];
 }
 
 - (void)applyPanelAndBackground {
@@ -1249,8 +1278,9 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
         dispatch_async(dispatch_get_main_queue(), ^{
           LibretroSkinRenderer *renderer = weakSelf;
           if (renderer == nil || renderer->_imageGeneration != generation || ![renderer->_items containsObject:layers]) return;
-          // One attempt per layout, including failures; never retry on touch.
-          if (prepared.count != (pad ? 4u : 1u)) return;
+          // A failed CPU preparation must not leave this layer stuck in the
+          // preparing state after a retained layout is shown again.
+          if (prepared.count != (pad ? 4u : 1u)) { layers.pressurePreparing = NO; return; }
           [CATransaction begin]; [CATransaction setDisableActions:YES];
           NSMutableArray *regions = [NSMutableArray array];
           CGMutablePathRef holes = CGPathCreateMutable();
@@ -1514,15 +1544,21 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   LibretroSkinRepresentation *representation = _representation;
   BOOL required = layer != _pressedBackgroundLayer;
   if (required) _pendingRequiredImages++;
+  NSProgress *request = _imagePreparation;
   __weak LibretroSkinRenderer *weakRenderer = self;
   __weak CALayer *weakLayer = layer;
   __weak CALayer *weakMask = mask;
   dispatch_async(LibretroSkinQueue(), ^{
-    UIImage *image = LibretroSkinLoadImage(path, width, height, key, cacheDirectory);
-    dispatch_async(dispatch_get_main_queue(), ^{
+    @autoreleasepool {
+      // Many first-launch / rotation callbacks can queue images. Do not
+      // decode a stale PDF/bitmap just because it was queued before teardown.
+      if (request.cancelled) return;
+      UIImage *image = LibretroSkinLoadImage(path, width, height, key, cacheDirectory);
+      if (request.cancelled) return;
+      dispatch_async(dispatch_get_main_queue(), ^{
       CALayer *target = weakLayer;
       LibretroSkinRenderer *renderer = weakRenderer;
-      if (target == nil || renderer == nil || renderer->_imageGeneration != generation ||
+      if (request.cancelled || target == nil || renderer == nil || renderer->_imageGeneration != generation ||
           renderer->_representation != representation) return;
       NSString *expected = [target valueForKey:LibretroSkinImageKey];
       if (![expected isKindOfClass:[NSString class]] || ![expected isEqualToString:key]) return;
@@ -1546,7 +1582,8 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
         [renderer reportRepresentationReady];
       }
 
-    });
+      });
+    }
   });
 }
 
@@ -1564,37 +1601,52 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
 
 + (void)validateResourcesForRepresentation:(LibretroSkinRepresentation *)representation
                                completion:(void (^)(NSDictionary *_Nullable))completion {
+  // Capture immutable filenames on main before the serial image worker runs.
+  // A layout may be resized/replaced while that queue is decoding an earlier
+  // request; neither its NSMutableArray nor its optional artwork can be read
+  // concurrently from the decoding thread.
+  NSDictionary *sourceIssue = representation == nil
+      ? @{@"stage":@"resolve", @"reason":@"layout-missing"}
+      : [representation.resourceIssues.firstObject copy];
+  NSMutableSet<NSString *> *required = [NSMutableSet set];
+  if (representation.backgroundPath.length > 0)
+    [required addObject:[representation.backgroundPath copy]];
+  for (LibretroSkinItem *item in representation.items) {
+    if (item.assetPath.length > 0) [required addObject:[item.assetPath copy]];
+    if (item.thumbstickAssetPath.length > 0)
+      [required addObject:[item.thumbstickAssetPath copy]];
+  }
+  NSArray<NSString *> *paths = required.allObjects;
+  NSString *pressedPath = [representation.pressedBackgroundPath copy];
   dispatch_async(LibretroSkinQueue(), ^{
-    NSDictionary *issue = representation == nil ? @{@"stage":@"resolve", @"reason":@"layout-missing"} :
-      representation.resourceIssues.firstObject;
-    NSMutableSet<NSString *> *paths = [NSMutableSet set];
-      if (representation.backgroundPath.length > 0) [paths addObject:representation.backgroundPath];
-      for (LibretroSkinItem *item in representation.items) {
-        if (item.assetPath.length > 0) [paths addObject:item.assetPath];
-        if (item.thumbstickAssetPath.length > 0) [paths addObject:item.thumbstickAssetPath];
+    @autoreleasepool {
+      NSDictionary *issue = sourceIssue;
+      if (paths.count > 256) issue = @{@"stage":@"preflight", @"reason":@"too-many-resources"};
+      for (NSString *path in paths) {
+        if (issue != nil) break;
+        @autoreleasepool {
+          CGImageRef decoded = LibretroSkinCreateRaster(path, 64, 64);
+          if (decoded == NULL) issue = @{@"stage":@"preflight-decode",
+            @"resource":path.lastPathComponent ?: @"",
+            @"reason":@"image-decode-failed-or-resource-limit"};
+          if (decoded != NULL) CGImageRelease(decoded);
+        }
       }
-    if (paths.count > 256) issue = @{@"stage":@"preflight", @"reason":@"too-many-resources"};
-    for (NSString *path in paths) {
-      if (issue != nil) break;
-      @autoreleasepool {
-        CGImageRef decoded = LibretroSkinCreateRaster(path, 64, 64);
-        if (decoded == NULL) issue = @{@"stage":@"preflight-decode", @"resource":path.lastPathComponent ?: @"",
-          @"reason":@"image-decode-failed-or-resource-limit"};
-        if (decoded != NULL) CGImageRelease(decoded);
+      // Damaged optional pressed artwork never disables usable base controls.
+      BOOL discardPressed = NO;
+      if (issue == nil && pressedPath.length > 0) {
+        CGImageRef pressed = LibretroSkinCreateRaster(pressedPath, 64, 64);
+        discardPressed = pressed == NULL;
+        if (pressed != NULL) CGImageRelease(pressed);
       }
+      dispatch_async(dispatch_get_main_queue(), ^{
+        // A newer selection may already own this representation. Do not
+        // overwrite an optional asset name that changed during preflight.
+        if (discardPressed && [representation.pressedBackgroundPath isEqualToString:pressedPath])
+          representation.pressedBackgroundPath = nil;
+        if (completion != nil) completion(issue);
+      });
     }
-    // Authored pressed artwork is optional. A damaged sibling must not disable
-    // otherwise usable controls; the existing local pressure deformation remains.
-    BOOL discardPressed = NO;
-    if (issue == nil && representation.pressedBackgroundPath.length > 0) {
-      CGImageRef pressed = LibretroSkinCreateRaster(representation.pressedBackgroundPath, 64, 64);
-      discardPressed = pressed == NULL;
-      if (pressed != NULL) CGImageRelease(pressed);
-    }
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (discardPressed) representation.pressedBackgroundPath = nil;
-      completion(issue);
-    });
   });
 }
 

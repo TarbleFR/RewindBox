@@ -787,6 +787,14 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
                        pitch:(size_t)pitch
                       format:(enum retro_pixel_format)format {
   if (data == NULL || width == 0 || height == 0) return;
+  // A software core may output a filtered NES frame (e.g. 602x224), which
+  // is legal. Validate its actual stride, not an assumed 256x240 preset,
+  // before uploading rows to Metal. Never read past the core's frame.
+  const size_t bytesPerPixel = format == RETRO_PIXEL_FORMAT_XRGB8888 ? 4u :
+      (format == RETRO_PIXEL_FORMAT_RGB565 || format == RETRO_PIXEL_FORMAT_0RGB1555 ? 2u : 0u);
+  if (bytesPerPixel == 0 || width > LIBRETRO_MAX_TEXTURE_SIZE || height > LIBRETRO_MAX_TEXTURE_SIZE ||
+      width > SIZE_MAX / bytesPerPixel || pitch < (size_t)width * bytesPerPixel ||
+      height > SIZE_MAX / ((size_t)width * 4u)) return;
   dispatch_semaphore_wait(_inFlight, DISPATCH_TIME_FOREVER);
   const NSInteger slot = [self uploadSlotForFormat:MTLPixelFormatBGRA8Unorm width:width height:height];
   if (slot < 0) {
