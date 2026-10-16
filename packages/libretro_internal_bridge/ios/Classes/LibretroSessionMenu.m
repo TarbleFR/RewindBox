@@ -498,9 +498,10 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
     control.on = row.toggleOn;
     control.enabled = row.enabled;
     control.row = row;
+    control.accessibilityLabel = row.spokenLabel ?: row.title;
     [control addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
     cell.accessoryView = control;
-    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.selectionStyle = row.detailsAction ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
   }
 }
 
@@ -607,6 +608,31 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
   if (row == nil) return [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
   if (row.isSlider) return [self sliderCellForRow:row];
   if (row.image != nil || row.imageLoader != nil) return [self imageCellForRow:row indexPath:indexPath];
+  if (row.stackedText) {
+    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
+    // Value1's legacy side-by-side labels do not provide the vertical sizing
+    // chain needed by long subtitles. UIKit's content view owns that layout,
+    // accounts for the accessory width and follows Dynamic Type/rotation.
+    UIListContentConfiguration *content = [UIListContentConfiguration subtitleCellConfiguration];
+    content.text = row.title;
+    content.secondaryText = row.detail;
+    content.textProperties.numberOfLines = 0;
+    content.secondaryTextProperties.numberOfLines = 0;
+    content.textProperties.lineBreakMode = NSLineBreakByCharWrapping;
+    content.secondaryTextProperties.lineBreakMode = NSLineBreakByCharWrapping;
+    content.textProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    content.secondaryTextProperties.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
+    content.textProperties.color = row.destructive ? UIColor.systemRedColor : UIColor.labelColor;
+    content.secondaryTextProperties.color = UIColor.secondaryLabelColor;
+    content.directionalLayoutMargins = NSDirectionalEdgeInsetsMake(12, 16, 12, 16);
+    content.textToSecondaryTextVerticalPadding = 5;
+    cell.contentConfiguration = content;
+    cell.accessibilityIdentifier = row.identifier;
+    if (row.spokenLabel) cell.accessibilityLabel = row.spokenLabel;
+    cell.accessibilityHint = row.detailsHint;
+    [self configureAccessoryOfCell:cell row:row indexPath:indexPath];
+    return cell;
+  }
   UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:nil];
   cell.textLabel.text = row.title;
   cell.textLabel.numberOfLines = 0;
@@ -633,12 +659,14 @@ static UIImage *LibretroMenuPlaceholder(CGSize size) {
 }
 
 - (BOOL)tableView:(UITableView *)tableView shouldHighlightRowAtIndexPath:(NSIndexPath *)indexPath {
-  return ![self rowAtIndexPath:indexPath].isSlider;
+  LibretroMenuRow *row = [self rowAtIndexPath:indexPath];
+  return row.detailsAction != nil || (!row.isSlider && !row.isToggle && row.enabled && row.action != nil);
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
   [tableView deselectRowAtIndexPath:indexPath animated:YES];
   LibretroMenuRow *row = [self rowAtIndexPath:indexPath];
+  if (row.detailsAction != nil) { row.detailsAction(self); return; }
   if (row == nil || !row.enabled || row.isToggle || row.isSlider || row.action == nil) return;
   row.action(self);
 }

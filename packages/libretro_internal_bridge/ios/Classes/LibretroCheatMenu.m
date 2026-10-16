@@ -310,6 +310,45 @@ static NSString *GameKey(NSDictionary *game) {
   }];
   row.detail = games ? _gameSearch : _cheatSearch; return row;
 }
+- (NSString *)displayName:(NSDictionary *)record {
+  NSString *name = String(record[@"name"]);
+  // Some sources use the raw code as the name when no description exists.
+  return name.length && ![name isEqual:String(record[@"code"])] ? name : [self t:@"cheats"];
+}
+- (NSString *)gameSubtitle:(NSDictionary *)record {
+  return String(record[@"game"]).length ? String(record[@"game"]) : String(_identity[@"title"]);
+}
+- (LibretroMenuPage *)detailsPage:(NSDictionary *)record {
+  __weak LibretroCheatMenu *weakSelf = self;
+  return [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheatDetails"] builder:^NSArray<LibretroMenuSection *> * {
+    LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
+    LibretroMenuRow *name = [LibretroMenuRow rowWithTitle:[menu displayName:record] action:nil];
+    name.detail = [menu gameSubtitle:record]; name.stackedText = YES;
+    NSMutableArray *warnings = [NSMutableArray array];
+    if (![menu verified:record]) [warnings addObject:[menu t:@"cheatVersionUncertain"]];
+    if ([LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] == nil)
+      [warnings addObject:[menu t:[record[@"handler"] integerValue] != 0 ? @"cheatMemoryUnsupported" : @"cheatCodeUnsupported"]];
+    LibretroMenuSection *summary = [LibretroMenuSection sectionWithTitle:nil rows:@[name]];
+    summary.footer = [warnings componentsJoinedByString:@"\n\n"];
+    NSMutableArray *sections = [NSMutableArray arrayWithObject:summary];
+    NSMutableDictionary *metadata = [record mutableCopy]; [metadata removeObjectForKey:@"code"];
+    NSData *json = [NSJSONSerialization dataWithJSONObject:metadata options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys error:nil];
+    NSArray *texts = @[String(record[@"code"]), json ? [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] : @""];
+    NSArray *titles = @[[menu t:@"cheatCode"], [menu t:@"cheatSources"]];
+    // Bound each cell, not the information: even a 64 KiB multi-line code or
+    // attribution stays scrollable and is available in full without mutation.
+    for (NSUInteger field = 0; field < texts.count; field++) {
+      NSString *text = texts[field]; NSMutableArray *rows = [NSMutableArray array];
+      for (NSUInteger offset = 0; offset < text.length;) {
+        NSRange range = [text rangeOfComposedCharacterSequencesForRange:NSMakeRange(offset, MIN((NSUInteger)512, text.length - offset))];
+        LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:[text substringWithRange:range] action:nil];
+        row.stackedText = YES; [rows addObject:row]; offset = NSMaxRange(range);
+      }
+      if (rows.count) [sections addObject:[LibretroMenuSection sectionWithTitle:titles[field] rows:rows]];
+    }
+    return sections;
+  }];
+}
 - (LibretroMenuPage *)rootPage {
   __weak LibretroCheatMenu *weakSelf = self;
   LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
@@ -372,7 +411,7 @@ static NSString *GameKey(NSDictionary *game) {
     for (NSMutableDictionary *record in menu->_records) {
       if (menu->_cheatSearch.length && [String(record[@"name"]) rangeOfString:menu->_cheatSearch options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location == NSNotFound) continue;
       BOOL supported = [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil;
-      LibretroMenuRow *row = [LibretroMenuRow toggleWithTitle:String(record[@"name"]) on:[record[@"enabled"] boolValue] toggle:^(LibretroMenuPage *page, BOOL on) {
+      LibretroMenuRow *row = [LibretroMenuRow toggleWithTitle:[menu displayName:record] on:[record[@"enabled"] boolValue] toggle:^(LibretroMenuPage *page, BOOL on) {
         menu->_visiblePage = page;
         void (^change)(void) = ^{
           record[@"enabled"] = @(on);
@@ -382,16 +421,20 @@ static NSString *GameKey(NSDictionary *game) {
         if (on) [menu activate:record page:page action:change]; else change();
       }];
       row.enabled = supported && menu->_ready;
-      NSString *reason = [record[@"handler"] integerValue] != 0 ? [menu t:@"cheatMemoryUnsupported"] : [menu t:@"cheatCodeUnsupported"];
-      row.detail = [NSString stringWithFormat:@"%@%@%@\n%@", [menu verified:record] ? @"" : [[menu t:@"cheatVersionUncertain"] stringByAppendingString:@"\n"], supported ? @"" : [reason stringByAppendingString:@"\n"],
-        String(record[@"code"]).length > 512 ? [[String(record[@"code"]) substringToIndex:512] stringByAppendingString:@"…"] : String(record[@"code"]),
-        [record[@"attributions"] componentsJoinedByString:@"\n"]];
+      row.stackedText = YES;
+      NSMutableArray *subtitle = [NSMutableArray array];
+      NSString *game = [menu gameSubtitle:record]; if (game.length) [subtitle addObject:game];
+      if (![menu verified:record]) [subtitle addObject:[menu t:@"cheatVersionBadge"]];
+      if (!supported) [subtitle addObject:[menu t:[record[@"handler"] integerValue] != 0 ? @"cheatMemoryBadge" : @"cheatFormatBadge"]];
+      row.detail = [subtitle componentsJoinedByString:@" · "];
+      row.detailsHint = [menu t:@"cheatDetailsHint"];
+      row.detailsAction = ^(LibretroMenuPage *page) { [page push:[menu detailsPage:record]]; };
       row.remove = ^(LibretroMenuPage *page) { [menu->_records removeObjectIdenticalTo:record]; [menu applyAndSave]; [page rebuild]; };
       [rows addObject:row];
     }
     NSString *status = menu->_status ?: ((!menu->_ready || menu->_discovering) ? [menu t:@"cheatBusy"] : (rows.count ? nil : [menu t:@"cheatNone"]));
     LibretroMenuSection *list = [LibretroMenuSection sectionWithTitle:status rows:rows];
-    list.footer = [NSString stringWithFormat:@"%@\n%@%@", [menu t:@"cheatPreferencesHelp"], [menu t:@"cheatEffectsHelp"],
+    list.footer = [NSString stringWithFormat:@"%@\n%@\n%@%@", [menu t:@"cheatDetailsHint"], [menu t:@"cheatPreferencesHelp"], [menu t:@"cheatEffectsHelp"],
       [LibretroCheats.supportedCoreIDs containsObject:menu->_core] ? @"" : [[@"\n" stringByAppendingString:[menu t:@"cheatCoreUnsupported"]] stringByAppendingFormat:@" (%@)", menu->_core]];
     // Keep the search and switches together on a phone. Import, editing and
     // preferences remain available after the results instead of hiding them
@@ -435,6 +478,7 @@ static NSString *GameKey(NSDictionary *game) {
       }];
       row.detail = [NSString stringWithFormat:@"%@ · %@\n%@", game[@"source"], game[@"revision"],
           [menu t:[match isEqual:@"hash"] ? @"cheatHashMatch" : @"cheatVersionUncertain"]];
+      row.stackedText = YES;
       row.enabled = menu->_ready && !menu->_busy; [(found ? matches : manual) addObject:row];
     }
     LibretroMenuRow *sources = [LibretroMenuRow rowWithTitle:[menu t:@"cheatSources"] action:^(LibretroMenuPage *page) { [page push:[menu sourcesPage]]; }];
@@ -463,6 +507,7 @@ static NSString *GameKey(NSDictionary *game) {
       NSString *latest = menu->_updates[identifier];
       install.detail = [NSString stringWithFormat:@"%@ · %@\n%@", source[@"license"], installed[@"revision"] ?: source[@"revision"],
           latest && ![latest isEqual:installed[@"revision"]] ? [menu t:@"cheatUpdateAvailable"] : @""];
+      install.stackedText = YES;
       LibretroMenuRow *check = [LibretroMenuRow rowWithTitle:[menu t:@"cheatCheckUpdates"] action:^(LibretroMenuPage *page) {
         menu->_busy = YES; [page rebuild];
         [menu->_catalog checkSource:identifier completion:^(NSString *revision, NSError *error) {

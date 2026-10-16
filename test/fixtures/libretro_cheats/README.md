@@ -23,3 +23,9 @@ Its original long GBA entry must not prevent unrelated consoles from installing.
 libretro revision, Git blob `4415f274cc966b86668c0ffa3ee36b5537c89878`.
 It remains CC BY-SA 4.0 (see `libretro-LICENSE`). This fixture is cheat data,
 not a game image. The PS1 ISO9660 test image is original synthetic metadata.
+
+`digimon-world-original.cht` is the unchanged
+`cht/Sony - PlayStation/Digimon World (USA, Europe) (GameShark).cht` from the
+same reviewed libretro revision, Git blob `2bbb9ddd4df3bc85792b8dc871849f5da8767499`.
+It remains CC BY-SA 4.0 (see `libretro-LICENSE`). The 56 original descriptions
+and programs exercise native layout only; no Digimon game image is included.

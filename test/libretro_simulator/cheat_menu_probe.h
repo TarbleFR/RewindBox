@@ -1,5 +1,93 @@
 #import "LibretroCheatMenu.h"
 #import "LibretroSessionMenu.h"
+@interface LibretroCheatMenu (LayoutProbePrivate)
+- (LibretroMenuPage *)detailsPage:(NSDictionary *)record;
+@end
+// Inspect the real UIKit content view, not a calculated text-height surrogate.
+static UILabel *CheatLabel(UIView *view, NSString *text) {
+  if ([view isKindOfClass:UILabel.class] && [((UILabel *)view).text isEqual:text]) return (UILabel *)view;
+  for (UIView *child in view.subviews) { UILabel *label=CheatLabel(child,text); if(label)return label; }
+  return nil;
+}
+static void CheatLayoutCheck(NSMutableArray *checks,BOOL passed,NSString *name) {
+  [checks addObject:@{@"name":name,@"passed":@(passed)}];
+}
+static BOOL CheatCellFits(UITableViewCell *cell,LibretroMenuRow *row) {
+  [cell layoutIfNeeded];
+  UILabel *name=CheatLabel(cell.contentView,row.title),*detail=CheatLabel(cell.contentView,row.detail);
+  if(!name || (row.detail.length && !detail))return NO;
+  CGRect title=[name convertRect:name.bounds toView:cell];
+  CGRect bounds=CGRectInset(cell.bounds,-1,-1);
+  if(!CGRectContainsRect(bounds,title) || name.bounds.size.height+1 < [name sizeThatFits:CGSizeMake(name.bounds.size.width,CGFLOAT_MAX)].height)return NO;
+  if(detail){
+    CGRect subtitle=[detail convertRect:detail.bounds toView:cell];
+    if(!CGRectContainsRect(bounds,subtitle) || CGRectIntersectsRect(title,subtitle) ||
+      detail.bounds.size.height+1 < [detail sizeThatFits:CGSizeMake(detail.bounds.size.width,CGFLOAT_MAX)].height)return NO;
+    if(cell.accessoryView && CGRectIntersectsRect(subtitle,cell.accessoryView.frame))return NO;
+  }
+  return !cell.accessoryView || !CGRectIntersectsRect(title,cell.accessoryView.frame);
+}
+static void VerifyCheatPresentation(LibretroCheatMenu *menu,NSMutableArray *checks,NSString *label) {
+  NSArray *records=[menu valueForKey:@"records"];
+  NSArray *before=[[NSArray alloc] initWithArray:records copyItems:YES];
+  LibretroMenuPage *page=[menu rootPage];
+  UIViewController *container=[UIViewController new];[container addChildViewController:page];
+  [container.view addSubview:page.view];[page didMoveToParentViewController:container];
+  NSArray *categories=@[UIContentSizeCategoryExtraSmall,UIContentSizeCategoryLarge,
+    UIContentSizeCategoryExtraExtraExtraLarge,UIContentSizeCategoryAccessibilityExtraExtraExtraLarge];
+  NSArray *sizes=@[[NSValue valueWithCGSize:CGSizeMake(320,568)],[NSValue valueWithCGSize:CGSizeMake(390,844)],
+    [NSValue valueWithCGSize:CGSizeMake(844,390)],[NSValue valueWithCGSize:CGSizeMake(768,1024)],
+    [NSValue valueWithCGSize:CGSizeMake(1024,768)]];
+  CGFloat normalHeight=0,largeHeight=0;
+  for(NSValue *size in sizes)for(NSString *category in categories){
+    CGSize dimensions=size.CGSizeValue;
+    [container setOverrideTraitCollection:[UITraitCollection traitCollectionWithPreferredContentSizeCategory:category] forChildViewController:page];
+    [page.traitCollection performAsCurrent:^{
+      container.view.frame=CGRectMake(0,0,dimensions.width,dimensions.height);page.view.frame=container.view.bounds;
+      [page rebuild];[page.tableView layoutIfNeeded];
+      NSArray *rows=((LibretroMenuSection *)page.builder()[1]).rows;
+      BOOL fits=YES;NSUInteger seen=0;
+      // Scroll to every production cheat to exercise self-sizing and long lists.
+      for(NSUInteger index=0;index<rows.count;index++){
+        NSIndexPath *path=[NSIndexPath indexPathForRow:index inSection:1];
+        [page.tableView scrollToRowAtIndexPath:path atScrollPosition:UITableViewScrollPositionTop animated:NO];
+        [page.tableView layoutIfNeeded];
+        UITableViewCell *cell=[page.tableView cellForRowAtIndexPath:path];
+        if(!cell || !CheatCellFits(cell,rows[index]))fits=NO;seen++;
+      }
+      CheatLayoutCheck(checks,fits && seen==records.count,[NSString stringWithFormat:@"%@ all %lu rows fit %.0fx%.0f %@ without clipping, overlap or switch collision",label,(unsigned long)seen,dimensions.width,dimensions.height,category]);
+    }];
+    if(dimensions.width==320){
+      CGFloat height=[page.tableView rectForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]].size.height;
+      if([category isEqual:UIContentSizeCategoryLarge])normalHeight=height;
+      if([category isEqual:UIContentSizeCategoryAccessibilityExtraExtraExtraLarge])largeHeight=height;
+    }
+  }
+  CheatLayoutCheck(checks,largeHeight>normalHeight && normalHeight>0,[label stringByAppendingString:@" Dynamic Type increases actual row height"]);
+  NSArray *rows=((LibretroMenuSection *)page.builder()[1]).rows;
+  BOOL clean=YES,details=YES;NSUInteger unsupported=0;
+  for(NSUInteger i=0;i<rows.count;i++){
+    LibretroMenuRow *row=rows[i];NSDictionary *record=records[i];
+    clean &= row.stackedText && (![record[@"code"] length] || ![row.detail containsString:record[@"code"]]) && ![row.detail containsString:@"https://"];
+    LibretroMenuPage *detail=nil;
+    // The actual table selection must open details even when activation is disabled.
+    if(!row.enabled)unsupported++;
+    if(row.detailsAction){
+      // Use the production details builder through the action's push target.
+      detail=[menu detailsPage:record];
+    }
+    NSArray *sections=detail.builder ? detail.builder() : @[];
+    NSMutableString *code=[NSMutableString string];
+    if(sections.count>1)for(LibretroMenuRow *part in ((LibretroMenuSection *)sections[1]).rows)[code appendString:part.title];
+    details &= [code isEqual:record[@"code"] ?: @""] && sections.count>=2;
+  }
+  CheatLayoutCheck(checks,clean,[label stringByAppendingString:@" main rows hide raw codes and provenance"]);
+  CheatLayoutCheck(checks,details,[label stringByAppendingString:@" details retain every complete multi-line program"]);
+  CheatLayoutCheck(checks,[records isEqual:before],[label stringByAppendingString:@" layout and details never change engine records or selections"]);
+  (void)unsupported;
+  [page willMoveToParentViewController:nil];[page.view removeFromSuperview];[page removeFromParentViewController];
+}
+
 @interface LibretroCheatMenu (MenuProbePrivate)
 - (void)merge:(NSArray *)records;
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls;
@@ -37,6 +125,7 @@
   NSMutableArray *rows=[NSMutableArray array];
   for(NSUInteger i=0;i<1002;i++) [rows addObject:[LibretroMenuRow toggleWithTitle:[NSString stringWithFormat:@"Row %lu",(unsigned long)i]
     on:NO toggle:^(LibretroMenuPage *page,BOOL on){selected=(NSInteger)i;calls++;}]];
+  for(LibretroMenuRow *row in rows){row.stackedText=YES;row.detail=@"Long list subtitle";}
   LibretroMenuRow *decoy=[LibretroMenuRow toggleWithTitle:@"Other section" on:NO toggle:^(LibretroMenuPage *page,BOOL on){selected=-2;calls++;}];
   NSArray *sections=@[[LibretroMenuSection sectionWithTitle:nil rows:rows],
     [LibretroMenuSection sectionWithTitle:nil rows:@[decoy,decoy]]];

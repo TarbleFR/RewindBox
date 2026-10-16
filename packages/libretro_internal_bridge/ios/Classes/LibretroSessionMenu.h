@@ -19,6 +19,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, nullable) void (^action)(LibretroMenuPage *page);
 @property(nonatomic, copy, nullable) void (^toggle)(LibretroMenuPage *page, BOOL on);
 @property(nonatomic, copy, nullable) void (^remove)(LibretroMenuPage *page);
+/// Vertical, self-sizing text for content-heavy rows (cheats and their details).
+@property(nonatomic, assign) BOOL stackedText;
+/// Opens read-only details independently of a toggle's enabled state.
+@property(nonatomic, copy, nullable) void (^detailsAction)(LibretroMenuPage *page);
+@property(nonatomic, copy, nullable) NSString *detailsHint;
 /// Optional preview drawn at the leading edge (skin pickers). When
 /// `imageLoader` is set the cell shows a placeholder of `imageSize` and the
 /// loader delivers the image asynchronously (on the main queue).

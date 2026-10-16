@@ -193,6 +193,15 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
     [self check:sections.count==3 && [sections[0] rows].count==2 && [sections[1] rows].count==19 name:@"phone menu places FFVII switches immediately after search and disable-all, before advanced tools"];
     [self check:[[self row:@"cheatFind"].detail containsString:@"libretro"] name:@"direct search identifies its available PS1 source"];
     [self check:_menu.enabledCount==0 && _applied.count==0 name:@"PS1 discovery leaves every code off"];
+    VerifyCheatPresentation(_menu,_checks,@"Final Fantasy VII");
+    [_page rebuild];
+    NSUInteger unavailable=0;
+    NSArray *visibleRows=((LibretroMenuSection *)_page.builder()[1]).rows;
+    for(NSUInteger i=0;i<visibleRows.count;i++)if(!((LibretroMenuRow *)visibleRows[i]).enabled){
+      [_page tableView:_page.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:1]];
+      unavailable++;break;
+    }
+    [self check:unavailable && _page.pushedPage!=nil && _applied.count==0 name:@"disabled PS1 switch still opens read-only details through actual table selection without activation"];
     LibretroMenuRow *gil=[self row:@"Max Gil"];if(gil.toggle)gil.toggle(_page,YES);
     [self check:_page.confirmation!=nil && _applied.count==0 name:@"library title match requires version confirmation before native dispatch"];
     if(_page.confirmation){_page.confirmation();_page.confirmation=nil;}
@@ -201,6 +210,16 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
     [self check:_menu.enabledCount==2 && [_applied.lastObject count]==2 name:@"PS1 switches allow simultaneous programs"];
     LibretroMenuRow *all=[self row:@"cheatDisableAll"];if(all.action)all.action(_page);
     [self check:_menu.enabledCount==0 && [_applied.lastObject count]==0 name:@"PS1 disable-all dispatches an empty program list"];
+    NSData *digimon=[NSData dataWithContentsOfFile:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"digimon-world-original.cht"]];
+    NSError *parseError=nil;NSArray *parsed=[LibretroCheats parseCHT:digimon error:&parseError];
+    [self check:parsed.count==56 && !parseError name:@"actual reviewed Digimon World fixture parses all 56 entries"];
+    NSMutableArray *digimonRecords=[NSMutableArray array];
+    for(NSDictionary *raw in parsed){NSMutableDictionary *r=[raw mutableCopy];r[@"game"]=@"Digimon World (USA, Europe) (GameShark)";r[@"uncertain"]=@YES;r[@"source"]=@"libretro";[digimonRecords addObject:r];}
+    [_menu merge:digimonRecords];
+    // Stress metadata and raw code size independently of the compact main cell.
+    NSMutableString *longCode=[NSMutableString string];for(NSUInteger n=0;n<2000;n++)[longCode appendString:@"80000000 0001+"];
+    [_menu merge:@[@{@"name":@"Long multi-line program with an intentionally long descriptive name that must wrap without colliding with its switch",@"code":longCode,@"handler":@0,@"game":@"Digimon World",@"source":@"libretro",@"revision":[@"a" stringByPaddingToLength:2048 withString:@"a" startingAtIndex:0]}]];
+    VerifyCheatPresentation(_menu,_checks,@"Digimon World + FFVII + long program");
     _stage=1;dispatch_queue_t queue=[_menu valueForKey:@"queue"];
     dispatch_async(queue,^{dispatch_async(dispatch_get_main_queue(),^{
       self.folder=[self.folder stringByAppendingPathComponent:@"French"];

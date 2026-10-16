@@ -34,7 +34,7 @@ class Bootstrap(unittest.TestCase):
    self.assertEqual((DATA/(source+'-LICENSE')).read_bytes(),(ROOT/'test/fixtures/libretro_cheats'/(source+'-LICENSE')).read_bytes())
  def test_twelve_complete_locales(self):
   text=(ROOT/'lib/l10n/libretro_locale.dart').read_text()
-  for key in ('cheatFind','cheatNoSources','cheatNoVariant','cheatNone','cheatRetry','cheatDisableAll','cheatCoreUnsupported','cheatEffectsHelp','cheatResultsLimited'):
+  for key in ('cheatDetails','cheatVersionBadge','cheatFormatBadge','cheatMemoryBadge','cheatDetailsHint','cheatFind','cheatNoSources','cheatNoVariant','cheatNone','cheatRetry','cheatDisableAll','cheatCoreUnsupported','cheatEffectsHelp','cheatResultsLimited'):
    self.assertEqual(text.count('"'+key+'":'),12,key)
   self.assertIn("'zh_Hant':",text)
 if __name__=='__main__':unittest.main()
