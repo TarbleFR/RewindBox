@@ -67,7 +67,7 @@ Initial source `3903f033d6a505ed25828bb51ccc73e46297c9c4` has passed its
 Dart job `116911897914` (578 + 245 + 4 tests) and catalogue job
 `116911926449` (39 PocketArch associations / 78 native checks). Its remaining
 jobs are pending at the time of this entry. These results are not substituted
-for the final query/status regression source `e82dd916c42c404875258156a505eea9c1299410`.
+for the query/status regression source `e82dd916c42c404875258156a505eea9c1299410`.
 
 ## Retained initial failure and performance correction
 
@@ -91,3 +91,19 @@ Additional-source review: DuckStation chtdb has French FFVII data, but its
 LICENSE reserves cheat/patch copyright to original authors and licenses only
 processing scripts under MIT. It is not integrated or redistributed as a
 blanket MIT-licensed cheat collection.
+
+The `e82dd916` runs (38882905507, 38882909335, 38882913738) were cancelled
+as superseded by the priority fix. The initial engine run retained successful
+native/Dart jobs; its still-running skin job is superseded by the complete
+priority-corrected revision. Neither cancelled suite is recorded as a pass.
+Initial loading job `116911908389` also failed with no candidate/relaunch
+result before its deadline; artifact `12038821044` is retained separately
+(SHA-256 `801ebe867457c83835504cd160af55218af4d157037292896f9f39a4b3621872`).
+The absence of a candidate result does not establish a product skin regression.
+
+## Phone layout
+
+The results follow only two primary actions: Find cheats and Disable all.
+Import, manual editing, filters and saved-choice tools remain available after
+the results. A UIKit regression checks the actual FFVII section arrangement;
+code rows keep their existing section identity and native switch handling.

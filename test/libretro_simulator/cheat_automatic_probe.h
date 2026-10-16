@@ -189,6 +189,8 @@ static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *chec
   if(!_stage) {
     NSArray *records=[_menu valueForKey:@"records"];NSUInteger available=0;for(NSDictionary *r in records)if([self row:r[@"name"]].enabled)available++;
     [self check:records.count==19 && available==17 name:@"renamed CHD library title exposes actual 19 FFVII entries, 17 supported switches"];
+    NSArray *sections=_root.builder();
+    [self check:sections.count==3 && [sections[0] rows].count==2 && [sections[1] rows].count==19 name:@"phone menu places FFVII switches immediately after search and disable-all, before advanced tools"];
     [self check:[[self row:@"cheatFind"].detail containsString:@"libretro"] name:@"direct search identifies its available PS1 source"];
     [self check:_menu.enabledCount==0 && _applied.count==0 name:@"PS1 discovery leaves every code off"];
     LibretroMenuRow *gil=[self row:@"Max Gil"];if(gil.toggle)gil.toggle(_page,YES);

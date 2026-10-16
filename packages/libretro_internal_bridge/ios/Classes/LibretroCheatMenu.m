@@ -334,12 +334,13 @@ static NSString *GameKey(NSDictionary *game) {
       for (NSMutableDictionary *record in menu->_records) { record[@"enabled"] = @NO; record[@"selected"] = @NO; }
       [menu applyAndSave]; [page rebuild];
     }]];
+    NSMutableArray *tools = [NSMutableArray array];
     LibretroMenuRow *import = [LibretroMenuRow rowWithTitle:[menu t:@"cheatImport"] action:^(LibretroMenuPage *page) {
       menu->_visiblePage = page;
       UTType *type = [UTType typeWithFilenameExtension:@"cht"] ?: UTTypeData;
       UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[type] asCopy:YES];
       picker.delegate = menu; picker.allowsMultipleSelection = YES; [page presentViewController:picker animated:YES completion:nil];
-    }]; import.enabled = menu->_ready && !menu->_busy; [actions addObject:import];
+    }]; import.enabled = menu->_ready && !menu->_busy; [tools addObject:import];
     LibretroMenuRow *add = [LibretroMenuRow rowWithTitle:[menu t:@"addCheat"] action:^(LibretroMenuPage *page) {
       [page askWithTitle:[menu t:@"addCheat"] fields:@[[menu t:@"cheatName"], [menu t:@"cheatCode"]] secure:@[@NO,@NO]
         action:[menu t:@"add"] cancelTitle:[menu t:@"cancel"] handler:^(NSArray<NSString *> *values) {
@@ -347,11 +348,11 @@ static NSString *GameKey(NSDictionary *game) {
             @"code": values.lastObject, @"handler": @0, @"source": [menu t:@"cheatManual"]}]];
           [menu save]; [page rebuild];
         }];
-    }]; add.enabled = menu->_ready; [actions addObject:add];
+    }]; add.enabled = menu->_ready; [tools addObject:add];
     LibretroMenuRow *remember = [LibretroMenuRow toggleWithTitle:[menu t:@"cheatRemember"] on:menu->_remember toggle:^(LibretroMenuPage *page, BOOL on) {
       menu->_remember = on; [menu save]; [page rebuild];
-    }]; remember.enabled = menu->_ready && menu->_preferencesPath != nil; [actions addObject:remember];
-    if (menu->_remember) [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRestore"] action:^(LibretroMenuPage *page) {
+    }]; remember.enabled = menu->_ready && menu->_preferencesPath != nil; [tools addObject:remember];
+    if (menu->_remember) [tools addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRestore"] action:^(LibretroMenuPage *page) {
       [menu warnOnPage:page action:^{
         NSMutableArray *previous = [NSMutableArray array];
         for (NSMutableDictionary *record in menu->_records) {
@@ -365,8 +366,8 @@ static NSString *GameKey(NSDictionary *game) {
         [menu applyAndSave]; [page rebuild];
       }];
     }]];
-    [actions addObject:[menu searchRow:NO]];
-    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatCatalog"] action:^(LibretroMenuPage *page) { [page push:[menu catalogPage]]; }]];
+    [tools addObject:[menu searchRow:NO]];
+    [tools addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatCatalog"] action:^(LibretroMenuPage *page) { [page push:[menu catalogPage]]; }]];
     NSMutableArray *rows = [NSMutableArray array];
     for (NSMutableDictionary *record in menu->_records) {
       if (menu->_cheatSearch.length && [String(record[@"name"]) rangeOfString:menu->_cheatSearch options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location == NSNotFound) continue;
@@ -392,7 +393,11 @@ static NSString *GameKey(NSDictionary *game) {
     LibretroMenuSection *list = [LibretroMenuSection sectionWithTitle:status rows:rows];
     list.footer = [NSString stringWithFormat:@"%@\n%@%@", [menu t:@"cheatPreferencesHelp"], [menu t:@"cheatEffectsHelp"],
       [LibretroCheats.supportedCoreIDs containsObject:menu->_core] ? @"" : [[@"\n" stringByAppendingString:[menu t:@"cheatCoreUnsupported"]] stringByAppendingFormat:@" (%@)", menu->_core]];
-    return @[[LibretroMenuSection sectionWithTitle:nil rows:actions], list];
+    // Keep the search and switches together on a phone. Import, editing and
+    // preferences remain available after the results instead of hiding them
+    // below a screenful of tools.
+    return @[[LibretroMenuSection sectionWithTitle:nil rows:actions], list,
+      [LibretroMenuSection sectionWithTitle:nil rows:tools]];
   }];
   _rootPage = root; _visiblePage = root; return root;
 }
