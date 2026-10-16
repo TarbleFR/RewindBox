@@ -379,9 +379,10 @@ class DeliveryPipeline(unittest.TestCase):
         })
 
     def test_automatic_cheat_delivery_pins_runtime_data_and_packaged_validation(self):
-        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'], reuse.AUTOMATIC_CHEATS466_REFERENCE)
-        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Resources/Cheats/manifest.json'], reuse.AUTOMATIC_CHEATS466_REFERENCE)
+        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'], reuse.PS1_CHEATS467_REFERENCE)
+        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Resources/Cheats/manifest.json'], reuse.PS1_CHEATS467_REFERENCE)
         self.assertEqual(reuse.CHEAT_CATALOG_REFERENCE, reuse.SKIN_SESSION_REFERENCE)
+        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['test/fixtures/libretro_cheats/ff7-usa-original.cht'], reuse.PS1_CHEATS467_REFERENCE)
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
         self.assertEqual(workflow.count('python3 build-utils/validate_cheat_bootstrap_ipa.py'), 2)
 

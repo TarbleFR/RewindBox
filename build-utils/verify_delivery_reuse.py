@@ -1868,8 +1868,8 @@ DELTA |= LIBRETRO_NO_BIOS_LEGAL_INPUTS
 # Build 460: pressable skin artwork and touch lifecycle, validated at this
 # exact source by libretro-checks run 38661616452. New crop sources and all
 # changed inputs are pinned, rather than admitted as open-ended exceptions.
-LIBRETRO_SKIN_PRESS_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
-LIBRETRO_SKIN_PRESS_RUN = 38832178562
+LIBRETRO_SKIN_PRESS_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+LIBRETRO_SKIN_PRESS_RUN = 38887228314
 LIBRETRO_SKIN_PRESS_INPUTS = {
     '.github/workflows/libretro-checks.yml',
     'lib/l10n/libretro_locale.dart',
@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
-SKIN_LOADING_RUN = 38832181302
+SKIN_LOADING_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+SKIN_LOADING_RUN = 38887222398
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2029,8 +2029,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING
 DELTA |= SKIN_LOADING_INPUTS
 
 # Build 465: catalogue-only product corrections and original-source audit.
-CATALOG_AUDIT_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
-CATALOG_AUDIT_RUN = 38832183687
+CATALOG_AUDIT_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+CATALOG_AUDIT_RUN = 38887225249
 CATALOG_AUDIT_INPUTS = {
     '.github/workflows/libretro-catalog-checks.yml',
     'assets/data/libretro_skin_overlays.json',
@@ -2118,6 +2118,17 @@ AUTOMATIC_CHEATS466_INPUTS = {
 }
 DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(AUTOMATIC_CHEATS466_INPUTS, AUTOMATIC_CHEATS466_REFERENCE))
 DELTA |= AUTOMATIC_CHEATS466_INPUTS
+
+# Build 467: PS1 metadata, shared search UI, actual FFVII fixture and exact recipe.
+PS1_CHEATS467_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+PS1_CHEATS467_INPUTS = AUTOMATIC_CHEATS466_INPUTS | {
+    'test/fixtures/libretro_cheats/README.md',
+    'test/fixtures/libretro_cheats/ff7-usa-original.cht',
+    'test/libretro_host/frontend/cheat_catalog_live_probe.m',
+    'test/libretro_simulator/cheat_menu_probe.h',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(PS1_CHEATS467_INPUTS, PS1_CHEATS467_REFERENCE))
+DELTA |= PS1_CHEATS467_INPUTS
 
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
@@ -2357,11 +2368,11 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
-SKIN_SESSION_RUN = 38832178562
+SKIN_SESSION_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+SKIN_SESSION_RUN = 38887228314
 
-CHEAT_CATALOG_REFERENCE = 'cc594d40a751be462dad0e3ef437c4ade5e2fc80'
-CHEAT_CATALOG_RUN = 38832175806
+CHEAT_CATALOG_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
+CHEAT_CATALOG_RUN = 38887218980
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""

@@ -50,7 +50,7 @@ misleading names/metadata, French-vs-USA exclusion, title hints for containers,
 actual FFVII parsing/adaptation and UIKit activation/disable dispatch. Existing
 NES/SNES/DS actual-core RAM and process-restart regression checks are retained.
 
-CI results and delivery identity are pending. No FFVII commercial-ROM gameplay,
+Final-source CI results are recorded below; the private IPA identity is pending. No FFVII commercial-ROM gameplay,
 physical iPhone or PS1 core RAM effect is claimed. CHD/PBP decompression is not
 implemented: these use library hints/manual version selection. A missing
 regional catalogue cannot be filled by applying USA addresses to a different
@@ -129,3 +129,49 @@ The final data is the generator's per-row projection, preserving distinct
 release aliases and missing serials instead of inventing identity metadata.
 All other console outputs remain byte-identical. Five bootstrap/IPA-resource
 tests pass, including the serial shape and exact reviewed row count.
+
+## Final-source acceptance
+
+Frozen product/data/test source: `6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef`.
+Every gate closes the same 2,632 source/dependency/recipe inputs, including its
+workflow. Delivery-only guards and this report do not change compiled inputs.
+
+- Engine `38887228314`: native `116929179312` passed all **19** frontend
+  executables, **1,133** pressure-pixel / **6,025** tracker checks, shader
+  execution, all **74** iPhone bridge objects and the real Flutter codec
+  current/historical negative tests. Dart `116929178910` passed **578 + 245 + 4**
+  tests and analysis. Skin `116929179330` passed **27 sessions / 2,840 checks**.
+- Catalogue `38887225249` / `116927801841`: **109** Flutter tests plus **39**
+  original PocketArch associations / **78** native compositions passed.
+- Loading `38887222398`, attempt 1 / `116927795912`, failed before the candidate
+  ran: the unchanged 463 reference produced no progress/result before its
+  deadline (a PID appeared late); reading its missing `probe.json` failed.
+  Artifact `12040872096`, 2,141 bytes, SHA-256
+  `e5cd34c3770af7a7ef46279744af5d3ee28eaa7d34704044695a5e28991d4755`,
+  is retained. Attempt 2 / `116931995411` **passed**, same source/assertions/
+  deadlines: historical rejection, **53** upgrade and **10** relaunch checks.
+- Cheats `38887218980`, attempt 1 / `116929358305`: **38 / 23 / 74 / 23**
+  native/live checks and the first-process **128 / 49 / 10 / 4 / 4** checks
+  passed. The second process produced only a late PID and no result in 218 s;
+  the overall run failed. Artifact `12040243418`, 3,043,055 bytes, SHA-256
+  `d24851246f105f7edd73c6aefe0ff6eee88517ee373c3277312f23904e9c67e3`,
+  is retained. Attempt 2 / `116934254447` **passed** the complete suite with
+  unchanged source/assertions/deadlines, including **4** second-process checks
+  against actual Nestopia RAM. Successful artifact `12041302286`, 3,056,607
+  bytes, SHA-256
+  `108a2962d071b10d179c385d2c3bf22ea607374fb43b497d8eb965075af1c1f4`.
+
+The 49 NES-session checks include the actual FFVII reference's 19 menu entries,
+17 supported programs, individual/two-code/disable-all dispatch, regional
+exclusion, identified-title fallback and the two-primary-action phone layout.
+PS1 dispatch is observed at the menu callback, not as commercial FFVII gameplay
+or PS1 core RAM effects. Actual RAM effects are tested with original synthetic
+NES/SNES/DS content; no BIOS or commercial image is used.
+
+The successful earlier `03112921` focused/loading/catalogue runs are retained
+as earlier evidence, not substituted for this final source. Intermediate
+`e82dd916`, `4917679e`, `64677e8b` and `ef064dc7` runs cancelled after their
+source was superseded are not counted as passes.
+
+Private Build 467 may now compile with these exact successful gates. No public
+release or physical iPhone installation/gameplay validation is implied.
