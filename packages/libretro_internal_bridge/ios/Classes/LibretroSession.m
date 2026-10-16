@@ -3165,6 +3165,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
           [session->_journal note:[NSString stringWithFormat:@"cheats: applied %lu validated code programs", (unsigned long)codes.count]];
         }];
       }];
+    _cheatMenu.diagnostic = ^(NSString *message) {
+      LibretroSession *session = weakSelf; if (!session) return;
+      [session->_journal note:[@"cheats: " stringByAppendingString:message]];
+    };
   }
   return [_cheatMenu rootPage];
 }

@@ -50,7 +50,7 @@ static BOOL SafePath(NSString *path) {
 }
 - (instancetype)initWithDirectory:(NSString *)directory {
   if ((self = [super init])) { _directory = [directory copy];
-    _queue = dispatch_queue_create("neostation.cheat-catalog", DISPATCH_QUEUE_SERIAL);
+    _queue = dispatch_queue_create("neostation.cheat-catalog", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
     NSBundle *owner = [NSBundle bundleForClass:self.class];
     NSString *bundle = [owner pathForResource:@"NeoStationCheats" ofType:@"bundle"] ?: [NSBundle.mainBundle pathForResource:@"NeoStationCheats" ofType:@"bundle"];
     _bundledDirectory = bundle ? [[NSBundle bundleWithPath:bundle] resourcePath] : nil;
@@ -183,6 +183,9 @@ static BOOL SafePath(NSString *path) {
   if ([json[@"identities"] isKindOfClass:NSArray.class]) result[@"identities"] = json[@"identities"];
   return result;
 }
+- (void)log:(NSString *)message {
+  NSLog(@"[Cheats] %@", message); if (self.diagnostic) self.diagnostic(message);
+}
 - (NSDictionary *)resolveIdentity:(NSDictionary *)identity {
   NSMutableOrderedSet *titles = [NSMutableOrderedSet orderedSet];
   NSDictionary *bundled = [self bundledSource:@"libretro" console:Text(identity[@"console"])];
@@ -194,7 +197,7 @@ static BOOL SafePath(NSString *path) {
         (Text(row[@"sha1"]).length && [sha1s containsObject:row[@"sha1"]])) [titles addObject:row[@"title"]];
   }
   NSMutableDictionary *result = [identity mutableCopy]; result[@"titles"] = titles.array;
-  NSLog(@"[Cheats] identity console=%@ core=%@ canonicalTitles=%lu", identity[@"console"], identity[@"core"], (unsigned long)titles.count);
+  [self log:[NSString stringWithFormat:@"identity console=%@ core=%@ canonicalTitles=%lu", identity[@"console"], identity[@"core"], (unsigned long)titles.count]];
   return result;
 }
 - (NSString *)disabledFile:(NSString *)source console:(NSString *)console {
@@ -212,10 +215,10 @@ static BOOL SafePath(NSString *path) {
     NSDictionary *catalog = [self validatedCatalog:json source:source console:console];
     if (!catalog) {
       catalog = [self bundledSource:source console:console];
-      if (attributes) NSLog(@"[Cheats] invalid index recovered source=%@ console=%@ bundled=%d", source, console, catalog != nil);
+      if (attributes) [self log:[NSString stringWithFormat:@"invalid index recovered source=%@ console=%@ bundled=%d", source, console, catalog != nil]];
     }
-    NSLog(@"[Cheats] index source=%@ console=%@ games=%lu bundled=%d", source, console,
-      (unsigned long)[catalog[@"games"] count], [catalog[@"bundled"] boolValue]);
+    [self log:[NSString stringWithFormat:@"index source=%@ console=%@ games=%lu bundled=%d", source, console,
+      (unsigned long)[catalog[@"games"] count], [catalog[@"bundled"] boolValue]]];
     dispatch_async(dispatch_get_main_queue(), ^{ completion(catalog); });
   });
 }
@@ -285,7 +288,7 @@ static BOOL SafePath(NSString *path) {
     }
     if (error != nil) catalog = nil;
     if (catalog) [NSFileManager.defaultManager removeItemAtPath:[self disabledFile:source console:console] error:nil];
-    NSLog(@"[Cheats] install source=%@ console=%@ indexed=%lu error=%@", source, console, (unsigned long)[catalog[@"games"] count], error);
+    [self log:[NSString stringWithFormat:@"install source=%@ console=%@ indexed=%lu error=%@", source, console, (unsigned long)[catalog[@"games"] count], error]];
     dispatch_async(dispatch_get_main_queue(), ^{ completion(catalog, error); });
   });
 }
@@ -318,7 +321,7 @@ static BOOL SafePath(NSString *path) {
       [attributed addObject:cheat];
     }
     if (cheats == nil && error == nil) error = CatalogError(@"Cheat file unavailable");
-    NSLog(@"[Cheats] resource source=%@ game=%@ parsed=%lu error=%@", game[@"source"], game[@"title"], (unsigned long)attributed.count, error);
+    [self log:[NSString stringWithFormat:@"resource source=%@ game=%@ parsed=%lu error=%@", game[@"source"], game[@"title"], (unsigned long)attributed.count, error]];
     dispatch_async(dispatch_get_main_queue(), ^{ completion(error == nil ? attributed : nil, error); });
   });
 }

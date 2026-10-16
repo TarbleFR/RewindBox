@@ -76,26 +76,51 @@
     LibretroMenuRow *restore=[self row:@"cheatRestore"];if(restore.action)restore.action(_page);
     if(_page.confirmation){_page.confirmation();_page.confirmation=nil;}
     [self check:[self row:@"Automatic A"].toggleOn name:@"content-specific explicit restore remembers automatic selections"];
-    LibretroMenuRow *all=[self row:@"cheatDisableAll"];if(all.action)all.action(_page);
-    _stage=2;[self create:@"future_core"];[self next];return;
+    // Keep the explicit selection on disk; clear only the live core before the
+    // next object. The second process must load it disabled and restore it itself.
+    [_session enqueue:^{[[self.session valueForKey:@"host"] applyCheats:@[]];}];
+    _stage=2;dispatch_queue_t queue=[_menu valueForKey:@"queue"];
+    dispatch_async(queue,^{dispatch_async(dispatch_get_main_queue(),^{[self create:@"future_core"];[self next];});});return;
+  }
+  if (_stage==3) {
+    [self check:[NSFileManager.defaultManager fileExistsAtPath:[_folder stringByAppendingPathComponent:@"process-restart-ready"]] name:@"second process reads the first process receipt without reinstalling or erasing data"];
+    [self check:[self row:@"Automatic A"]!=nil && ![self row:@"Automatic A"].toggleOn name:@"process restart automatically rediscovers codes without activating remembered selections"];
+    LibretroMenuRow *restore=[self row:@"cheatRestore"];if(restore.action)restore.action(_page);
+    if(_page.confirmation){_page.confirmation();_page.confirmation=nil;}
+    [self check:[self row:@"Automatic A"].toggleOn name:@"second process restores the first process saved selection explicitly"];
+    [_session enqueue:^{
+      LibretroCoreHost *host=[self.session valueForKey:@"host"];uint64_t serial=host.frameSerial;
+      dispatch_async(dispatch_get_main_queue(),^{[self memoryAfter:serial expected:0x7f remaining:100 then:^{self.finish();}];});
+    }];return;
   }
   [self check:[self row:@"Automatic A"]!=nil && ![self row:@"Automatic A"].enabled name:@"unknown core can browse the common catalogue but cannot activate unreviewed formats"];
+  [[NSData data] writeToFile:[_folder stringByAppendingPathComponent:@"process-restart-ready"] atomically:YES];
   _finish();
 }
 @end
 static void RunAutomaticCheatProbe(LibretroSession *session,NSMutableArray *checks,dispatch_block_t completion) {
   AutomaticCheatProbe *probe=[AutomaticCheatProbe new];probe.session=session;probe.checks=checks;probe.finish=completion;
-  probe.folder=DocumentsPath([@"AutomaticCheatProbe/" stringByAppendingString:NSUUID.UUID.UUIDString]);
+  probe.folder=DocumentsPath(@"AutomaticCheatProbe/Persistent");
   [NSFileManager.defaultManager createDirectoryAtPath:probe.folder withIntermediateDirectories:YES attributes:nil error:nil];
   probe.content=[probe.folder stringByAppendingPathComponent:@"renamed-by-user.nes"];
-  [NSFileManager.defaultManager copyItemAtPath:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"content/cheat-probe.nes"] toPath:probe.content error:nil];
+  if (![NSFileManager.defaultManager fileExistsAtPath:probe.content]) [NSFileManager.defaultManager copyItemAtPath:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"content/cheat-probe.nes"] toPath:probe.content error:nil];
   NSString *md5=[LibretroCheats identityAtPath:probe.content console:@"nes" core:@"nestopia"][@"md5"];
-  NSArray *sources=LibretroCheatCatalog.sources;
+  BOOL restart=getenv("NEOSTATION_CHEAT_RESTART")!=NULL;
+  if(restart)probe.stage=3;
+  NSArray *sources=restart ? @[] : LibretroCheatCatalog.sources;
   for(NSUInteger i=0;i<sources.count;i++){
     NSDictionary *source=sources[i];NSString *identifier=source[@"id"];
     NSArray *cheats=i==0 ? @[@{@"name":@"Automatic A",@"code":@"0024:7F",@"handler":@0},@{@"name":@"Automatic B",@"code":@"0010:44",@"handler":@0}]
       : @[@{@"name":@"Duplicate",@"code":@"0024:7F",@"handler":@0},@{@"name":@"Complement",@"code":@"0025:66",@"handler":@0}];
-    NSDictionary *game=@{@"title":@"Synthetic (USA)",@"console":@"nes",@"source":identifier,@"revision":source[@"revision"],@"md5s":@[md5 ?: @""],@"cheats":cheats};
+    NSMutableDictionary *game=[@{@"title":@"Synthetic (USA)",@"console":@"nes",@"source":identifier,@"revision":source[@"revision"],@"md5s":@[md5 ?: @""],@"cheats":cheats} mutableCopy];
+    if(i==0) {
+      NSData *cht=[@"cheats=2\ncheat0_desc=Automatic A\ncheat0_code=0024:7F\ncheat1_desc=Automatic B\ncheat1_code=0010:44\n" dataUsingEncoding:NSUTF8StringEncoding];
+      NSString *sha=[LibretroCheats gitBlobSHA:cht];
+      [game removeObjectForKey:@"cheats"];game[@"sha"]=sha;game[@"path"]=@"cht/Nintendo - Nintendo Entertainment System/Synthetic (USA).cht";
+      NSString *cache=[probe.folder stringByAppendingPathComponent:@"Catalogs/libretro/nes/Files"];
+      [NSFileManager.defaultManager createDirectoryAtPath:cache withIntermediateDirectories:YES attributes:nil error:nil];
+      [cht writeToFile:[cache stringByAppendingPathComponent:[sha stringByAppendingPathExtension:@"cht"]] atomically:YES];
+    }
     NSMutableDictionary *wrong=[game mutableCopy];wrong[@"title"]=@"Synthetic (Europe)";wrong[@"md5s"]=@[@"11111111111111111111111111111111"];
     wrong[@"cheats"]=@[@{@"name":@"Wrong region",@"code":@"0024:01",@"handler":@0}];
     NSDictionary *index=@{@"source":identifier,@"console":@"nes",@"revision":source[@"revision"],@"games":@[game,wrong]};

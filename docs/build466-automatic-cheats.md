@@ -61,6 +61,10 @@ manual title search, stripping all region/revision tags for candidates.
 
 ## Validation and limits
 
+A dedicated second Simulator process keeps the installed app and its data, loads
+the first process receipt and saved selection, asserts discovery with activation
+off, then explicitly restores the selection and checks actual core RAM.
+
 Local offline tests: manifest integrity, all index rows and identity hashes,
 original XML/licence equality, twelve-language presence; Python compilation and
 `git diff --check`. Native/macOS and Simulator results will be recorded after

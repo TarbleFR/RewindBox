@@ -26,6 +26,10 @@ static NSString *GameKey(NSDictionary *game) {
   __weak LibretroMenuPage *_visiblePage;
   dispatch_queue_t _queue;
 }
+@synthesize diagnostic = _diagnostic;
+- (void)setDiagnostic:(void (^)(NSString *))diagnostic {
+  _diagnostic = [diagnostic copy]; _catalog.diagnostic = diagnostic;
+}
 - (instancetype)initWithDirectory:(NSString *)directory console:(NSString *)console core:(NSString *)core
                      contentPath:(NSString *)contentPath legacy:(NSArray<NSDictionary *> *)legacy
                             text:(NSString *(^)(NSString *))text apply:(void (^)(NSArray<NSString *> *))apply {
@@ -35,7 +39,7 @@ static NSString *GameKey(NSDictionary *game) {
     _records = [NSMutableArray array]; _installed = [NSMutableDictionary dictionary]; _updates = [NSMutableDictionary dictionary];
     _automaticKeys = [NSMutableSet set]; _confirmedGames = [NSMutableSet set];
     _pendingSources = LibretroCheatCatalog.sources.count;
-    _queue = dispatch_queue_create("neostation.cheat-preferences", DISPATCH_QUEUE_SERIAL);
+    _queue = dispatch_queue_create("neostation.cheat-preferences", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
     __weak LibretroCheatMenu *weakSelf = self;
     dispatch_async(_queue, ^{
       // Cache only an unchanged regular file. Changed content, inode or modification
@@ -140,8 +144,9 @@ static NSString *GameKey(NSDictionary *game) {
         }];
       }
       if (!pending) { menu->_discovering = NO; menu->_status = matches.count > limit ? [menu t:@"cheatResultsLimited"] : nil; }
-      NSLog(@"[Cheats] match console=%@ core=%@ sources=%lu exact=%lu candidates=%lu requested=%lu", menu->_console, menu->_core,
-        (unsigned long)catalogs.count, (unsigned long)exact.count, (unsigned long)candidates.count, (unsigned long)pending);
+      NSString *diagnostic = [NSString stringWithFormat:@"match console=%@ core=%@ sources=%lu exact=%lu candidates=%lu requested=%lu", menu->_console, menu->_core,
+        (unsigned long)catalogs.count, (unsigned long)exact.count, (unsigned long)candidates.count, (unsigned long)pending];
+      NSLog(@"[Cheats] %@", diagnostic); if (menu->_diagnostic) menu->_diagnostic(diagnostic);
       [menu->_visiblePage rebuild];
     });
   });

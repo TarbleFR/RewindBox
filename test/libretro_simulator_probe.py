@@ -1007,16 +1007,21 @@ def probe_pid(console_path):
     return int(match.group(1)) if match else None
 
 
-def run_in_simulator(app, evidence, timeout):
+def run_in_simulator(app, evidence, timeout, *, reset=True):
     udid, description = pick_device()
     # A fresh device for every run: nothing left by a previous probe.
     subprocess.run(['xcrun', 'simctl', 'shutdown', udid], capture_output=True)
-    run(['xcrun', 'simctl', 'erase', udid])
+    if reset:
+        run(['xcrun', 'simctl', 'erase', udid])
     subprocess.run(['xcrun', 'simctl', 'boot', udid], capture_output=True)
     run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], timeout=600)
-    run(['xcrun', 'simctl', 'install', udid, app])
+    if reset:
+        run(['xcrun', 'simctl', 'install', udid, app])
     data = Path(output(['xcrun', 'simctl', 'get_app_container', udid, BUNDLE_ID, 'data']).strip())
     documents = data / 'Documents'
+    if not reset:
+        for name in ('probe.json', 'probe-partial.json', 'probe-progress.log'):
+            (documents / name).unlink(missing_ok=True)
     console_path = evidence / 'probe-console.log'
     console = open(console_path, 'w')
     launched_at = time.time()

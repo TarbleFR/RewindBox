@@ -362,6 +362,11 @@ static NSString *ReservationReport(void) {
   id config = configData != nil ? [NSJSONSerialization JSONObjectWithData:configData options:0 error:nil] : nil;
   _config = [config isKindOfClass:NSDictionary.class] ? config : @{};
   _scenarios = [_config[@"scenarios"] isKindOfClass:NSArray.class] ? _config[@"scenarios"] : @[];
+  if (getenv("NEOSTATION_CHEAT_RESTART")) {
+    NSMutableArray *only = [NSMutableArray array];
+    for (NSDictionary *scenario in _scenarios) if ([scenario[@"name"] isEqual:@"cheats-nestopia"]) [only addObject:scenario];
+    _scenarios = only;
+  }
   _results = [NSMutableArray array];
   [self prepareDirectories];
 #ifdef NEOSTATION_SHADER_SESSION_PROBE

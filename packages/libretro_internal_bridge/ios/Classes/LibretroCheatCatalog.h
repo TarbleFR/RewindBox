@@ -8,6 +8,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (nullable NSString *)folderForConsole:(NSString *)console;
 /// Resource bundle override for integration tests. Read only from background queues.
 @property(nonatomic, copy, nullable) NSString *bundledDirectory;
+@property(nonatomic, copy, nullable) void (^diagnostic)(NSString *message);
 - (NSDictionary *)resolveIdentity:(NSDictionary *)identity;
 /// Injectable bounded transport for deterministic parser/cache/network tests. Runs off-main.
 @property(nonatomic, copy, nullable) NSData *_Nullable (^fetch)(NSURL *url, NSUInteger limit, NSError **error);

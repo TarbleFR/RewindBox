@@ -4,3 +4,7 @@ build-utils/armsx2/neostation-core.patch -whitespace
 
 # Upstream notices are hashed byte-for-byte; do not convert line endings.
 /assets/legal/libretro/* -text
+
+# Cheat resources and licence hashes are byte-exact on every host.
+/packages/libretro_internal_bridge/ios/Resources/Cheats/* -text
+/tools/cheats/NOTICE.txt text eol=lf

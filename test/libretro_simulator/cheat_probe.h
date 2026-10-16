@@ -9,6 +9,7 @@
 static void RunCheatProbe(LibretroSession *session, NSDictionary *scenario, NSMutableDictionary *result,
                           dispatch_block_t completion) {
   NSMutableArray *checks = [NSMutableArray array]; result[@"cheatChecks"] = checks;
+  if (getenv("NEOSTATION_CHEAT_RESTART")) { RunAutomaticCheatProbe(session,checks,completion); return; }
   NSString *console = scenario[@"console"], *core = scenario[@"core"];
   NSString *raw = [console isEqual:@"snes"] ? @"7E0024:7F" : [console isEqual:@"nds"] ? @"22000024 0000007F" : @"0024:7F";
   NSArray *codes = [LibretroCheats codesForCheat:@{@"name":@"Synthetic counter", @"code":raw, @"handler":@0} core:core console:console];

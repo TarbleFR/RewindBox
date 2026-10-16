@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real pinned Nestopia/Snes9x cheats plus Ignited on Nestopia; no commercial ROMs."""
 import argparse
+import os
 import json
 import tempfile
 import shutil
@@ -62,8 +63,19 @@ def main():
         outcome = probe.run_in_simulator(app, evidence, 180)
         (evidence/'outcome.json').write_text(json.dumps(outcome, indent=2))
         report = json.loads((evidence/'probe.json').read_text()) if (evidence/'probe.json').exists() else {'results':[]}
-        problems = probe.evaluate(report, scenarios)
-        for result in report.get('results', []):
+        restart_evidence = evidence / 'process-restart'; restart_evidence.mkdir()
+        os.environ['SIMCTL_CHILD_NEOSTATION_CHEAT_RESTART'] = '1'
+        try:
+            restarted = probe.run_in_simulator(app, restart_evidence, 180, reset=False)
+        finally:
+            os.environ.pop('SIMCTL_CHILD_NEOSTATION_CHEAT_RESTART', None)
+        restart_report = json.loads((restart_evidence/'probe.json').read_text()) if (restart_evidence/'probe.json').exists() else {'results':[]}
+        restart_scenarios = [s for s in scenarios if s['name'] == 'cheats-nestopia']
+        restart_problems = probe.evaluate(restart_report, restart_scenarios)
+        if not restarted['finished']: restart_problems.append('second process did not finish')
+        (restart_evidence/'outcome.json').write_text(json.dumps(restarted, indent=2))
+        problems = probe.evaluate(report, scenarios) + restart_problems
+        for result in report.get('results', []) + restart_report.get('results', []):
             checks = result.get('cheatChecks', result.get('skinChecks', result.get('previewChecks', [])))
             print(json.dumps({'name':result['name'], 'checks':len(checks), 'failures':[x for x in checks if not x['passed']]}))
     (evidence/'verdict.json').write_text(json.dumps({'source':args.label,'problems':problems,'physicalDeviceValidated':False}, indent=2))
