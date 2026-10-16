@@ -346,9 +346,30 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Regression source `6f3f017c2ff0ca7bcb24acad2c6253f6b8ce5e99`: full pressure run `38819105153` passed 27 sessions / 2,840 checks, focused flat NES/iPhone run `38819107430` passed 110. Catalogue run `38819113652` passed 109 Flutter tests plus 39 original PocketArch associations / 78 orientations. Loading run `38819110606` attempt 2 passed exact 463 rejection plus 53 upgrade and 10 relaunch checks; attempt 1's late simulator startup and the earlier single fixed-delay observer failure remain documented, not counted as successes. Cheat/preview run `38819105076` passed. Product changes remain confined to four catalogue paths; all 464 native sources and installed user files/selections are preserved. No physical iPhone or hardware-controller validation is claimed; see the report for complete evidence and limits.
 
 
-## Build 466 candidate — automatic cheat discovery, 16 October 2026
+## Build 466 — delivered automatic cheat discovery, 16 October 2026
 
 - The maintainer authorizes auditing, fixing, testing, pushing and a private IPA on `Claude`, preserving the delivered 464/465 skin corrections. Confirmed rupture: installed source indices never automatically populated the game's cheat records. Candidate design, reviewed sources, bounds and validation: `docs/build466-automatic-cheats.md`.
 - Bundled source/console indices and original complementary XML are allowed by the latest request. Preserve source licences/attribution separately; hash-derived canonical titles retain regions/revisions. Uncertain identity still needs confirmation before activation. Discovery and session launch never enable codes.
 - Shared catalogue/UI for current and future cores; activation requires an explicit bounded adapter, never just presence of mandatory ABI symbols. Handler-1 memory operations and unreviewed formats remain disabled. All added labels use the twelve-language catalogue.
-- Tests and private IPA identity are pending actual CI evidence. Do not reuse 465 or claim physical-device gameplay validation. No public release is authorized by this request.
+- Successful checks and the exact private IPA identity are recorded below. Do not claim physical-device gameplay validation. No public release is authorized by this request.
+
+- Build 466 delivered from `ff70cc9df1fe30a28cf1fc53e7dfdc2c56738624`, run `38835740295`
+  (`full`; checks, native and cold iPhone Release succeeded; optional warm
+  benchmark disabled). Final sealed IPA 0.0.7 (466): 218,599,277 bytes,
+  SHA-256 `1eabef6e3ac7b6b0d47ec591cc18a335d583acf39eeff1f7ead3744b51167d3e`. Encrypted artifact
+  `12019654684`, ZIP SHA-256 `b89d5c1cb7311fcb3ee5bec21bf21ad4c42d5a861136b6a2d553b0b694f8927d`.
+- Independent final-IPA verification confirms both integrity records, exact
+  source stamps, app/five extension versions, all 76 payload fingerprints,
+  34 unchanged cores, six new cheat runtime markers and the 34 reviewed
+  catalogue/licence resources (12,260,537 bytes). Windows Downloads copy
+  `C:\Users\Coren\Downloads\NeoStation-Build466-ff70cc9d.ipa` has the same hash.
+- Final runtime/data/test source `cc594d40a751be462dad0e3ef437c4ade5e2fc80`:
+  engine `38832178562` passed native/Dart plus 27 skin sessions / 2,840 checks;
+  loading `38832181302` passed exact 463 rejection + 53 upgrade and 10 relaunch
+  checks; catalogue `38832183687` passed 109 Flutter / 78 native checks. Cheat
+  run `38832175806` attempt 2 passed 38/23/49/15 native/live checks and actual
+  NES/SNES/DS activation/disable, automatic UI/CUE migration and second-process
+  persistence. Attempt 1 reached no app progress before Simulator deadlines;
+  retained separately, not counted as a pass. Full evidence and format/container
+  limits: `docs/build466-automatic-cheats.md`. SideStore Apple re-signing remains
+  required; no physical iPhone test is claimed. **Do not reuse 466.**

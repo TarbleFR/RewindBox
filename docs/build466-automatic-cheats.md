@@ -1,7 +1,7 @@
 # Build 466 — automatic libretro cheats
 
-Candidate on `Claude`, based on delivered 465 (`09c406c2`). Private test IPA
-requested by the maintainer on 16 October 2026. No public release is authorized.
+Private test Build 466 on `Claude`, following delivered 465 (`09c406c2`).
+Requested by the maintainer on 16 October 2026. No public release is authorized.
 
 ## Confirmed defect
 
@@ -13,7 +13,7 @@ The libretro tree has titles/paths/blob hashes, not ROM hashes. Previously only
 ten games in the complementary XML carried content hashes; the rest relied on
 manual title search, stripping all region/revision tags for candidates.
 
-## Candidate behaviour
+## Implemented behaviour
 
 - Prepares identities and source indices after the game launches, off the main
   and emulation queues. The menu automatically loads every matching source.
@@ -67,15 +67,15 @@ off, then explicitly restores the selection and checks actual core RAM.
 
 Local offline tests: manifest integrity, all index rows and identity hashes,
 original XML/licence equality, twelve-language presence; Python compilation and
-`git diff --check`. Native/macOS and Simulator results will be recorded after
-actual execution. No physical iPhone test has been performed in this session.
+`git diff --check`. Successful native/macOS, Simulator and actual IPA results
+are recorded below. No physical iPhone test was performed in this session.
 
 The central catalogue can be consulted for any console/core. Native code
 activation is offered only for reviewed adapters, not inferred from the two
 mandatory ABI symbols (many cores implement stubs). Handler-1 memory operations,
 unknown core formats, conditional PSX opcodes and over-budget programs remain
-explicitly unavailable. Recognition of renamed compressed discs/CHD or playlist
-wrappers is not established by raw-file hashes. Games absent from reviewed
+explicitly unavailable. Recognition of renamed compressed ROM archives, CHD/disc containers or
+playlist wrappers is not established by raw-file hashes. Games absent from reviewed
 metadata remain uncertain. Automatic loads are bounded to 64 files/4096 rows;
 additional results remain in the searchable catalogue. Physical gameplay and
 compatibility of a commercial game's codes still need the maintainer's test.
@@ -140,3 +140,92 @@ source or touch input is changed.
 These fixtures use original synthetic content. They demonstrate the catalogue,
 UI, persistence and native dispatch chain; they do not establish commercial
 code correctness for every game or physical iPhone behaviour.
+
+## Validation of the delivered sources
+
+Runtime/test/data source: `cc594d40a751be462dad0e3ef437c4ade5e2fc80`.
+Delivery-only pins and report: `ff70cc9df1fe30a28cf1fc53e7dfdc2c56738624`;
+the closed native/UI inputs are byte-identical (2,630 inputs plus each suite's
+workflow). No independent fixture exclusion is used.
+
+- Engine `38832178562`: native job `116753195961` passed all 19 frontend
+  executables, 1,133 pressure-pixel and 6,025 tracker assertions, shaders,
+  compiled/linked 74 iPhone objects and real Flutter codec current/historical
+  negative tests. Dart job `116753195780` passed analysis and launch/library
+  suites. Skin job `116753196120` passed **27 sessions / 2,840 checks**.
+- Installed skins `38832181302` / `116753203949`: exact 463 negative followed
+  by **53** upgrade/menu/orientation/fallback and **10** new-session checks.
+- Catalogue `38832183687` / `116753221277`: **109** Flutter tests and **39**
+  original PocketArch associations / **78** native resource/render checks.
+- Cheat `38832175806`, attempt 1 / `116755206620`: 38 parser, 23 catalogue,
+  49 automatic-index and 15 live-source checks passed. Both Simulator launches
+  produced no application progress or result before their deadlines. Launch
+  output eventually contained PIDs but no app traces; no functional assertion
+  was reached. Retained artifact `12018716506`, SHA-256
+  `13d5636b8d99095b51a497e00ef081beb8352cc52d30832d36463e359a047300`.
+  This is a failed run, not validation. The same source and assertions are
+  retried; the cause of the silent Simulator startup is not conclusively known.
+
+The earlier `ed78ab11` complete cheat run `38830357209` passed NES (33), DS (4),
+SNES (4), Ignited (128), previews (10), then a second actual process (4).
+It establishes the corrected original DS fixture and migration behaviour, but
+is not substituted for the final root-table navigation check.
+
+Cheat attempt 2 / job `116761076526` **succeeded**, same exact source and
+assertions. Native/live checks: 38 / 23 / 49 / 15; packaged-bootstrap unit checks
+also passed. UIKit/core checks: Ignited 128, NES 34 (including the actual root
+table after stale-child navigation), complete previews 10, DeSmuME 4, Snes9x 4,
+then a second process with retained app/data 4. Actual RAM activation and disable
+were observed in all three cores; automatic aggregation, CUE migration and
+process-restart explicit restore passed. Verdict `problems: []`, physical-device
+validation false. Retained artifact `12018614232` (3,056,654 bytes), ZIP SHA-256
+`ba98e92253abb730de8663e033216f51b798eb11ca634ce76227280feeb5d5d1`.
+The archived JSON was independently downloaded and inspected. Attempt 1 is
+retained separately above and is not counted as a pass.
+
+Private full delivery `38835740295` dispatched from
+`ff70cc9df1fe30a28cf1fc53e7dfdc2c56738624`, build 466, benchmark disabled,
+recipient `build-utils/delivery-424-recipient.pem`. The Release build and
+independent verification succeeded; exact binary identity is recorded below.
+
+## Delivered private IPA — 0.0.7 (466)
+
+- Source **`ff70cc9df1fe30a28cf1fc53e7dfdc2c56738624`**, full delivery
+  [38835740295](https://github.com/TarbleFR/neostation-ios/actions/runs/38835740295):
+  checks, native and cold iPhone Release succeeded. The optional warm benchmark
+  was intentionally disabled. No deployment or public release was created.
+- Final sealed IPA: **218,599,277 bytes**, SHA-256
+  **`1eabef6e3ac7b6b0d47ec591cc18a335d583acf39eeff1f7ead3744b51167d3e`**.
+  Filename: `NeoStation-Build466-ff70cc9d.ipa`. The app and all five extensions
+  contain version 0.0.7 / build 466. This is 3,337,079 bytes more than sealed 465.
+- Encrypted CI artifact **12019654684**, 220,185,501 bytes, ZIP SHA-256
+  `b89d5c1cb7311fcb3ee5bec21bf21ad4c42d5a861136b6a2d553b0b694f8927d`, retained until 2026-10-30T01:56:20Z.
+- Independent verification of the downloaded/decrypted final ZIP: ZIP CRCs,
+  both sealed integrity records, exact source stamps, all **76** compiled
+  code/data/ABI fingerprints, complete image membership and **34** core images.
+  The actual bridge contains all six new runtime markers, including identity
+  resolution, `_rootPage`, disable-all, CUE recovery and bundle discovery.
+- Actual `NeoStationCheats.bundle`: **34** verified
+  resources / **12,260,537 bytes**, including the exact reviewed
+  indices, original XML and licences. Both source revisions match the pins above.
+- Windows Downloads receipt verified independently after transfer:
+  `C:\Users\Coren\Downloads\NeoStation-Build466-ff70cc9d.ipa`, same bytes
+  and SHA-256. Previous deliveries remain separate.
+
+SideStore Apple re-signing is required. No physical iPhone gameplay, upgrade,
+controller, latency or commercial-code compatibility observation is claimed.
+Activation remains limited to reviewed formats/adapters; unsupported memory
+operations, unknown cores and uncertain containers retain the explicit limits
+above. **Do not reuse build number 466.**
+
+## Physical iPhone acceptance still pending
+
+Upgrade without deleting the app/data and verify the existing DualShocked
+selection in both orientations. Launch an owned, reference-identifiable game:
+rows should populate without installing sources or choosing a catalogue entry,
+with every switch initially off. Check one appropriate code in gameplay,
+several simultaneous choices, disable-all, then close/relaunch and explicitly
+restore. Repeat offline after the game resources have been cached. Turning a
+code off stops its writes; a code's previous irreversible game-state changes
+may require a reset or a clean save, as explained in the in-game effects help.
+No such physical-device observation is claimed by these automated results.
