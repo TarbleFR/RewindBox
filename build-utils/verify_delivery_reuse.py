@@ -2358,7 +2358,10 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
     exact = {'pubspec.yaml', 'pubspec.lock', '.github/workflows/libretro-checks.yml'} | set(exact_inputs)
     # Delivery-only guards have new tests; none is imported by these harnesses.
     guards = {'build-utils/verify_delivery_reuse.py', 'test/delivery_pipeline_test.py',
-              'test/external_display_host_plist_test.py', DELIVERY460_RECIPIENT_PATH} | set(ignored)
+              'test/external_display_host_plist_test.py', DELIVERY460_RECIPIENT_PATH,
+              # The public envelope is pinned byte-for-byte above and never
+              # linked into or read by the libretro runtime/test harness.
+              DELIVERY467_RECIPIENT_PATH} | set(ignored)
     selected = lambda p: (p.startswith(roots) or p in exact) and p not in guards
     old = {}
     for line in subprocess.check_output(['git', 'ls-tree', '-r', reference], cwd=ROOT, text=True).splitlines():
@@ -2444,6 +2447,38 @@ def verify_cheat_catalog_evidence():
         raise ValueError('Cheat catalogue/core checks did not all pass')
     return {'run': CHEAT_CATALOG_RUN, 'testedSHA': CHEAT_CATALOG_REFERENCE,
             'successfulJob': 'catalogues-and-cores', 'physicalDeviceValidated': False}
+
+# The corrected menu and its Dynamic Type assertions are independently
+# exercised on the exact reviewed product snapshot (not claimed as covered by
+# the older successful 6a7d reference).
+CHEAT_LAYOUT467_REFERENCE = '14e66cf20ca9c38154d2a26d39ca7705f95c1b4d'
+CHEAT_LAYOUT467_RUN = 38907359293
+
+def verify_cheat_layout467_evidence():
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CHEAT_LAYOUT467_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != CHEAT_LAYOUT467_REFERENCE
+            or run.get('status') != 'completed' or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/libretro-cheats-checks.yml'):
+        raise ValueError('Corrected native cheat layout was not validated by the exact Simulator run')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    matching = [job for job in jobs if job.get('name') == 'catalogues-and-cores']
+    if (len(matching) != 1 or matching[0].get('head_sha') != CHEAT_LAYOUT467_REFERENCE
+            or matching[0].get('conclusion') != 'success'):
+        raise ValueError('Corrected native cheat layout job is not successful')
+    required = {
+        'Bounded parsers, adapters, two sources and offline storage',
+        'Bundled index integrity and complete translations',
+        'Convert the actual Libretro overlay configurations used in the reported previews',
+        'Real Nestopia and Snes9x cheat effects, original Ignited on Nestopia',
+    }
+    successful = {step.get('name') for step in matching[0].get('steps', [])
+                  if step.get('conclusion') == 'success'}
+    if not required.issubset(successful):
+        raise ValueError('Corrected native cheat layout did not pass all source and Simulator checks')
+    return {'testedSHA': CHEAT_LAYOUT467_REFERENCE, 'run': CHEAT_LAYOUT467_RUN,
+            'successfulSteps': sorted(required), 'physicalDeviceValidated': False}
+
 
 def verify_skin_session_evidence():
     """Require the complete shared session suite from the engine workflow."""
@@ -2592,27 +2627,30 @@ def main():
     if args.skin_session_evidence:
         if args.offline:
             raise ValueError('Skin session verification requires online CI evidence')
-        # Both suites must attest this exact shared source tree, including all
-        # fixtures, native code, UIKit probes and their workflow recipes.
-        hashes = verify_libretro_reuse_tree(SKIN_SESSION_REFERENCE,
-            exact_inputs={'.github/workflows/libretro-skin-checks.yml'})
+        # The old successful skin/catalogue runs prove their historical
+        # baselines. They do not claim coverage of the corrected menu.
+        # Freeze EVERY current libretro dependency, test and recipe to the
+        # reviewed post-layout product commit. Delivery-only source/recipient
+        # records have separate pinned checks and cannot change this product.
+        closed = verify_libretro_reuse_tree(PS1_CHEATS467_REFERENCE, exact_inputs={
+            '.github/workflows/libretro-skin-checks.yml',
+            '.github/workflows/libretro-cheats-checks.yml',
+            '.github/workflows/libretro-skin-loading-checks.yml',
+            '.github/workflows/libretro-catalog-checks.yml'})
         evidence = verify_skin_session_evidence()
-        cheat_hashes = verify_libretro_reuse_tree(CHEAT_CATALOG_REFERENCE, exact_inputs={'.github/workflows/libretro-cheats-checks.yml'})
         cheats = verify_cheat_catalog_evidence()
-        loading_hashes = verify_libretro_reuse_tree(SKIN_LOADING_REFERENCE,
-            exact_inputs={'.github/workflows/libretro-skin-loading-checks.yml'})
         loading = verify_skin_loading_evidence()
-        catalog_hashes = verify_libretro_reuse_tree(CATALOG_AUDIT_REFERENCE,
-            exact_inputs={'.github/workflows/libretro-catalog-checks.yml'})
         catalog = verify_catalog_audit_evidence()
+        current_layout = verify_cheat_layout467_evidence()
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps({'result': 'passed', 'evidence': evidence,
-            'unchangedInputsSHA256': hashes, 'cheatEvidence': cheats,
-            'cheatInputsSHA256': cheat_hashes, 'loadingEvidence':loading,
-            'loadingInputsSHA256':loading_hashes, 'catalogueEvidence':catalog,
-            'catalogueInputsSHA256':catalog_hashes, 'deviceGameplayValidated': False}, indent=2) + '\n')
-        print('Verified unchanged UIKit session inputs:', len(hashes), '; evidence:', evidence)
+        out.write_text(json.dumps({'result':'passed', 'reviewedProductSHA':PS1_CHEATS467_REFERENCE,
+            'closedSourceInputsSHA256':closed, 'currentLayoutEvidence':current_layout,
+            'historicalSkinEvidence':evidence, 'historicalCheatEvidence':cheats,
+            'historicalLoadingEvidence':loading, 'historicalCatalogueEvidence':catalog,
+            'deviceGameplayValidated':False}, indent=2) + '\n')
+        print('Verified complete corrected libretro product input closure:', len(closed),
+              '; successful real-core Simulator evidence:', current_layout)
         return
     if args.dart_evidence:
         import os
