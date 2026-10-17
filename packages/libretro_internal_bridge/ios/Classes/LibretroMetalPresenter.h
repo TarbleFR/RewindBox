@@ -40,6 +40,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// thread-safe.
 @interface LibretroMetalPresenter : NSObject
 
+/// Technical events; first frames and GPU failures only. Set before starting
+/// the emulation thread, retained through outstanding command completions.
+@property(nonatomic, copy, nullable) void (^diagnosticHandler)(NSString *event);
+
 - (nullable instancetype)initWithLayer:(CAMetalLayer *)layer;
 
 @property(nonatomic, readonly) id<MTLDevice> device;

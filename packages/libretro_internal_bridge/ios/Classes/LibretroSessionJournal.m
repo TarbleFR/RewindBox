@@ -1,9 +1,12 @@
 #import "LibretroSessionJournal.h"
+#include "LibretroCrashCapture.h"
 
 #include <fcntl.h>
 #include <mach/mach_time.h>
 #include <os/lock.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <mach-o/dyld.h>
 
 static NSString *const kCurrentName = @"session.log";
 static NSString *const kPreviousName = @"previous-session.log";
@@ -66,8 +69,36 @@ static NSString *JournalTimestamp(void) {
   mach_timebase_info(&journal->_timebase);
   journal->_previousSessionUnfinished = unfinished;
   journal->_path = [current copy];
+  journal->_sessionIdentifier = NSUUID.UUID.UUIDString;
   [journal writeText:[NSString stringWithFormat:@"NeoStation libretro session journal 1, started %@\n",
                                                 JournalTimestamp()]];
+  static int crashDescriptor = -1;
+  static unsigned capturedSignals = 0;
+  static dispatch_once_t captureOnce;
+  dispatch_once(&captureOnce, ^{
+    NSString *crash = [directory stringByAppendingPathComponent:@"native-termination.log"];
+    NSData *priorCrash = [NSData dataWithContentsOfFile:crash];
+    NSData *fatal = [@"\nfatal signal=" dataUsingEncoding:NSUTF8StringEncoding];
+    if (priorCrash.length > 0 && [priorCrash rangeOfData:fatal options:0
+        range:NSMakeRange(0, priorCrash.length)].location != NSNotFound) {
+      NSString *kept = [directory stringByAppendingPathComponent:@"previous-native-termination.log"];
+      [files removeItemAtPath:kept error:nil];
+      [files moveItemAtPath:crash toPath:kept error:nil];
+    }
+    crashDescriptor = open(crash.fileSystemRepresentation, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    capturedSignals = LibretroInstallCrashCapture(crashDescriptor);
+  });
+  NSString *identity = [NSString stringWithFormat:@"session=%@ pid=%d main-slide=0x%llx fatal-signal-mask=0x%x",
+    journal.sessionIdentifier, getpid(), (unsigned long long)_dyld_get_image_vmaddr_slide(0), capturedSignals];
+  // Only the latest session identity is needed; keep the crash file bounded
+  // during long launch/relaunch runs. A fatal write appends after this header.
+  if (crashDescriptor >= 0) {
+    ftruncate(crashDescriptor, 0);
+    NSData *header = [[identity stringByAppendingString:@"\n"] dataUsingEncoding:NSUTF8StringEncoding];
+    ssize_t written = write(crashDescriptor, header.bytes, header.length);
+    (void)written;
+  }
+  [journal note:identity];
   if (unfinished) [journal note:@"the previous session ended without its END line: kept as unfinished-session.log"];
   return journal;
 }
@@ -106,7 +137,10 @@ static NSString *JournalTimestamp(void) {
   double seconds = (double)(mach_absolute_time() - _start) * _timebase.numer / _timebase.denom / 1e9;
   NSString *single = [[line ?: @"" componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]
       componentsJoinedByString:@" | "];
-  [self writeText:[NSString stringWithFormat:@"%@ +%.3fs %@\n", JournalTimestamp(), seconds, single]];
+  uint64_t thread = 0;
+  pthread_threadid_np(NULL, &thread);
+  [self writeText:[NSString stringWithFormat:@"%@ +%.3fs [session=%@ thread=%llu %@] %@\n", JournalTimestamp(), seconds,
+    _sessionIdentifier, (unsigned long long)thread, NSThread.isMainThread ? @"main" : (NSThread.currentThread.name ?: @"worker"), single]];
 }
 
 - (void)noteLines:(NSArray<NSString *> *)lines title:(NSString *)title {

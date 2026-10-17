@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""30+ real Nestopia session launches with the author's original NES Delta skin.
+"""100 real Nestopia sessions plus a negative 469 renderer/view reproduction.
 
 This is a CI-only iPhone Simulator integration test: no commercial ROMs,
 no author artwork in the shipping IPA, no physical iPhone claim.
@@ -11,6 +11,7 @@ import hashlib
 import json
 import shutil
 import struct
+import subprocess
 import tempfile
 import urllib.request
 import zipfile
@@ -73,22 +74,24 @@ def make_roms(app):
 def scenarios():
     names = ['nes-skin-loop-a.nes', 'nes-skin-loop-b.nes', 'nes-skin-loop-b.zip']
     tests = []
-    for index in range(30):
+    for index in range(80):
         tests.append({'name':f'nestopia-original-{index + 1:02d}',
                       'core':'nestopia', 'console':'nes', 'content':'content/' + names[index % 3],
-                      'skinSelection':ORIGINAL_ID, 'expect':'run', 'runSeconds':1.0})
-    for index in range(4):
+                      'skinSelection':ORIGINAL_ID, 'expect':'run', 'runSeconds':1.0,
+                      'lifetimeProbe':index == 0, 'stabilityActions':1 <= index <= 5})
+    for index in range(10):
         tests.append({'name':f'nestopia-default-{index + 1:02d}',
                       'core':'nestopia','console':'nes', 'content':'content/' + names[index % 2],
                       'skinSelection':'default','expect':'run','runSeconds':1.0})
-    for index in range(2):
+    for index in range(8):
         tests.append({'name':f'nestopia-other-catalogue-{index + 1:02d}',
-                      'core':'nestopia','console':'nes', 'content':'content/' + names[index],
+                      'core':'nestopia','console':'nes', 'content':'content/' + names[index % 3],
                       'skinSelection':SECONDARY,'expect':'run','runSeconds':1.0})
     # Return to the exact original skin after using another catalogue.
-    tests.append({'name':'nestopia-original-restored','core':'nestopia','console':'nes',
+    for seconds in (10, 30):
+      tests.append({'name':f'nestopia-original-restored-{seconds}s','core':'nestopia','console':'nes',
                   'content':'content/nes-skin-loop-a.nes',
-                  'skinSelection':ORIGINAL_ID,'expect':'run','runSeconds':1.0})
+                  'skinSelection':ORIGINAL_ID,'expect':'run','runSeconds':seconds})
     return tests
 
 
@@ -96,12 +99,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for field in ('cores','inputs','evidence','label'):
         parser.add_argument('--' + field, required=True)
+    parser.add_argument('--baseline', action='store_true', help='reproduce only the terminal-lifetime defects using original 469 renderer/view bodies')
     args = parser.parse_args()
     args.sources = None
     args.only = []
     args.lot1 = args.lot2 = args.official_shaders = False
     probe.REAL_CORES = ('nestopia',)
     probe.SCENARIOS = scenarios()
+    if args.baseline:
+        probe.SCENARIOS = [{**probe.SCENARIOS[0], 'lifetimeBaseline': True}]
     output = Path(args.evidence)
     output.mkdir(parents=True, exist_ok=True)
     # Choose a notched iPhone instead of the default alphabetic iPhone SE:
@@ -119,7 +125,15 @@ def main():
         return udid, name + ' ' + runtime
     probe.pick_device = pick_notched_iphone
     with tempfile.TemporaryDirectory(prefix='nestopia-skin-stability-') as temporary:
-        app, tests = probe.assemble(args, probe.BRIDGE, Path(temporary))
+        sources = probe.BRIDGE
+        if args.baseline:
+            sources = Path(temporary) / 'baseline'
+            shutil.copytree(probe.BRIDGE, sources)
+            for name in ('LibretroSkinRenderer.m', 'LibretroGameViewController.m'):
+                path = 'packages/libretro_internal_bridge/ios/Classes/' + name
+                (sources / 'Classes' / name).write_bytes(subprocess.check_output([
+                    'git', 'show', '69f2194acb415a4d68f7898428d42262ab2149da:' + path]))
+        app, tests = probe.assemble(args, sources, Path(temporary))
         config_file = app / 'probe-config.json'
         config = json.loads(config_file.read_text())
         config['forceLandscape'] = True
@@ -129,19 +143,29 @@ def main():
         press.fixtures(app)
         make_roms(app)
         probe.run(['codesign','--force','--sign','-','--timestamp=none',app])
-        # 37 sessions in one actual process: detects repeated core create/unload,
+        # 100 sessions in one actual process: detects repeated core create/unload,
         # asynchronous skin/image callbacks and replacements without faking launches.
-        result = probe.run_in_simulator(app, output, 1080)
+        result = probe.run_in_simulator(app, output, 1500)
     report_path = output / ('probe.json' if (output/'probe.json').exists() else 'probe-partial.json')
     report = json.loads(report_path.read_text()) if report_path.exists() else {'results': []}
     failures = probe.evaluate(report, tests)
     if not result['finished']:
-        failures.append('Simulator process did not finish all 37 sessions')
+        failures.append(f'Simulator process did not finish all {len(tests)} sessions')
     for record in report.get('results', []):
         name = record['name']
         expected = ORIGINAL_ID if name.startswith('nestopia-original') else (
             SECONDARY if 'other-catalogue' in name else None)
         journal = record.get('journal', '')
+        for check in record.get('lifetimeChecks', []):
+            if not check.get('passed'): failures.append(f'{name}: ' + check['name'])
+        if name == 'nestopia-original-01' and len(record.get('lifetimeChecks', [])) != 3:
+            failures.append(f'{name}: terminal lifetime checks missing')
+        scenario = next(s for s in tests if s['name'] == name)
+        if scenario.get('stabilityActions') and len(record.get('lifetimeChecks', [])) != 7:
+            failures.append(f'{name}: four live switches/rotations, terminal checks and deallocation required')
+        if not args.baseline and expected == ORIGINAL_ID:
+            for marker in ('session=', 'skin-renderer=', 'video: frame=1 begin', 'pitch=', 'metal: completed status=4'):
+                if marker not in journal: failures.append(f'{name}: diagnostic missing {marker}')
         if expected and f'"event":"active","identifier":"{expected}"' not in journal:
             failures.append(f'{name}: expected selected original/cross-catalogue skin did not reach active')
         if expected == ORIGINAL_ID and ('"orientation":"landscape"' not in journal or
@@ -153,7 +177,11 @@ def main():
             failures.append(f'{name}: previous custom skin leaked into default selection')
     verdict = {
         'source':args.label,'originalSkin':skin_data,
-        'attemptsOriginal':31,'attemptsWithoutSkin':4,'attemptsOtherCatalogue':2,
+        'attemptsOriginal':sum(s['skinSelection'] == ORIGINAL_ID for s in tests),
+        'attemptsWithoutSkin':sum(s['skinSelection'] == 'default' for s in tests),
+        'attemptsOtherCatalogue':sum(s['skinSelection'] == SECONDARY for s in tests),
+        'baseline469Bodies':args.baseline,
+        'checks':sum(len(r.get('lifetimeChecks', [])) for r in report.get('results', [])),
         'allSessionsClosed':result['finished'],'failures':failures,
         'physicalDeviceValidated':False,'commercialROMUsed':False,
         'simulator':result.get('simulator'),
@@ -164,8 +192,7 @@ def main():
         for failure in failures: print('FAILED:',failure,flush=True)
         for line in probe.crash_summary(output): print('CRASH:',line,flush=True)
         raise SystemExit(f'{len(failures)} distinct stability failures')
-    print('PASS: 31 original NESThumbstick + 4 defaults + 2 other-catalogue '
-          'real Nestopia launches, stops, and relaunches on iPhone Simulator.',flush=True)
+    print('PASS:', len(tests), 'real Nestopia sessions;', verdict, flush=True)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-name: NES NESThumbstick 37-launch stability regression
+name: NES NESThumbstick 100-launch lifetime and stability regression
 on:
   push:
     branches: [Claude]
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   original-skin-on-real-nestopia:
     runs-on: macos-15
-    timeout-minutes: 39
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +36,14 @@ jobs:
           path: dist/libretro
       - name: Fetch the existing verified simulator inputs
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
-      - name: Real Nestopia — original NESThumbstick and 37 game sessions
+      - name: Native fatal-signal capture behaviour
+        run: python3 test/libretro_crash_capture_test.py
+      - name: Reproduce 469 terminal-lifetime defects with unchanged renderer and view bodies
+        run: |
+          python3 test/libretro_nestopia_skin_stability_probe.py \
+            --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+            --evidence evidence/nestopia-skins/baseline469 --label "$GITHUB_SHA" --baseline
+      - name: Real Nestopia — original NESThumbstick and 100 game sessions
         run: |
           python3 test/libretro_nestopia_skin_stability_probe.py \
             --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \

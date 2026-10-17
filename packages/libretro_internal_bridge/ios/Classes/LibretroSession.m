@@ -36,6 +36,7 @@
 #import <neo_shader_kit/NeoSlangRenderer.h>
 
 #include <mach/mach_time.h>
+#include <mach/mach.h>
 #include <math.h>
 #include <stdatomic.h>
 
@@ -205,6 +206,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _Atomic uint32_t _frameWidth;
   _Atomic uint32_t _frameHeight;
   NSUInteger _frameSizeNotes;
+  BOOL _launchAccepted; // Main thread: a session object is single-use.
+  BOOL _closing;        // Main thread: reject deferred layout/activation.
+  NSUInteger _videoDiagnosticFrames; // Emulation thread only.
 }
 
 - (instancetype)initWithConfiguration:(LibretroSessionConfiguration *)configuration {
@@ -266,8 +270,27 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 #pragma mark - Start and stop
 
+- (void)dealloc {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+  [_journal note:[NSString stringWithFormat:@"session=%p deallocated", self]];
+}
+
+- (void)systemDiagnostic:(NSNotification *)notification {
+  task_vm_info_data_t memory = {0};
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  kern_return_t status = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&memory, &count);
+  [_journal note:[NSString stringWithFormat:@"system: %@ thermal=%ld footprint=%llu task-info=%d", notification.name,
+    (long)NSProcessInfo.processInfo.thermalState, (unsigned long long)memory.phys_footprint, status]];
+}
+
 - (void)startFromViewController:(UIViewController *)presenter
                      completion:(void (^)(NSDictionary<NSString *, id> *result))completion {
+  NSAssert(NSThread.isMainThread, @"Session presentation must run on main");
+  if (_launchAccepted) {
+    if (completion) completion(@{@"success":@NO, @"code":@"LIBRETRO_SESSION_ACTIVE", @"message":@""});
+    return;
+  }
+  _launchAccepted = YES;
   _startCompletion = [completion copy];
   _journal = [LibretroSessionJournal journalInDirectory:_configuration.logsDirectory ?: @""];
   [_journal note:[NSString stringWithFormat:@"launch: \"%@\" (%@) with %@, console %@, locale %@",
@@ -275,6 +298,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                             _configuration.contentPath.lastPathComponent ?: @"",
                                             _configuration.corePath.lastPathComponent ?: @"",
                                             _configuration.console ?: @"", _configuration.uiLocale ?: @""]];
+  [_journal note:[NSString stringWithFormat:@"session=%p created os=%@ physical-memory=%llu simulator=%d",
+    self, NSProcessInfo.processInfo.operatingSystemVersionString,
+    NSProcessInfo.processInfo.physicalMemory, TARGET_OS_SIMULATOR]];
+  for (NSString *name in @[UIApplicationDidReceiveMemoryWarningNotification,
+      UIApplicationWillResignActiveNotification, UIApplicationDidEnterBackgroundNotification,
+      UIApplicationDidBecomeActiveNotification, UIApplicationWillTerminateNotification,
+      NSProcessInfoThermalStateDidChangeNotification]) {
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(systemDiagnostic:) name:name object:nil];
+  }
   [self prepareFrontend];
   _shaderRecovery = [[LibretroShaderRecovery alloc] initWithDirectory:_configuration.frontendDirectory ?: @""];
   NSString *cacheDirectory =
@@ -299,6 +331,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     return session != nil ? [session touchScreenMappings] : @[];
   };
   [_controller loadViewIfNeeded];
+  LibretroSessionJournal *diagnosticJournal = _journal;
+  _controller.skinRenderer.diagnosticHandler = ^(NSString *event) { [diagnosticJournal note:event]; };
   _metalLayer = _controller.metalLayer;
   _presenter = [[LibretroMetalPresenter alloc] initWithLayer:_metalLayer];
   if (_presenter == nil) {
@@ -308,6 +342,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     return;
   }
   _presenter.smooth = _smooth;
+  _presenter.diagnosticHandler = ^(NSString *event) { [diagnosticJournal note:event]; };
+  [_journal note:[NSString stringWithFormat:@"controller=%p renderer=%p presenter=%p layer=%p ready device=%@",
+    _controller, _controller.skinRenderer, _presenter, _metalLayer, _presenter.device.name]];
   void (^actions)(LibretroFrontendAction, BOOL) = ^(LibretroFrontendAction action, BOOL pressed) {
     [weakSelf performFrontendAction:action pressed:pressed];
   };
@@ -321,7 +358,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                           animated:NO
                         completion:^{
                           LibretroSession *session = weakSelf;
-                          if (session == nil) return;
+                          if (session == nil || session->_closing) return;
                           [session->_journal note:@"launch: game view presented, emulation thread starting"];
                           // The game view appeared: a connected TV takes the
                           // picture now, before the first frame is drawn.
@@ -354,6 +391,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)stopWithCompletion:(dispatch_block_t)completion {
+  NSAssert(NSThread.isMainThread, @"Session stop must run on main");
+  _closing = YES;
+  [_controller stopInputPolling];
   if (completion != nil) [_stopCompletions addObject:[completion copy]];
   // The picture comes back to the iPhone before the core is asked to stop.
   [self detachExternalDisplayFrom:_controller];
@@ -369,6 +409,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)finishStop {
+  _closing = YES;
   _thread = nil;
   _finalLog = _host.recentLog;
   LibretroGameViewController *controller = _controller;
@@ -394,6 +435,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [journal note:@"stop: game view dismissed, returning to NeoStation"];
     [journal noteLines:finalLog title:@"core log"];
     [journal finishWithOutcome:@"closed"];
+    // A stop during UIKit presentation revokes its deferred start as well.
+    // Resolve the original caller once; it must not remain "launching".
+    if (self->_startCompletion != nil) [self finishStartWithResult:
+      @{@"success":@NO, @"code":@"LIBRETRO_CORE_STOPPED", @"message":@""}];
     for (dispatch_block_t completion in completions) completion();
     if (notify && self.endedHandler != nil) self.endedHandler();
   };
@@ -405,6 +450,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)failStartWithResult:(NSDictionary<NSString *, id> *)result {
+  _closing = YES;
   _thread = nil;
   _finalLog = result[@"log"];
   LibretroGameViewController *controller = _controller;
@@ -760,15 +806,21 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [_journal note:[NSString stringWithFormat:@"load: %@ context ready, context_reset called", [self rendererName]]];
     [_host hardwareContextReset];
   } else {
+    [_journal note:@"video: initial black begin"];
     [_presenter presentBlack];
+    [_journal note:@"video: initial black submitted"];
   }
   _audio = [[LibretroAudioOutput alloc] initWithInputRate:av.timing.sample_rate];
   NSError *audioError = nil;
+  [_journal note:@"audio: start begin"];
   if (![_audio start:&audioError]) {
     NSLog(@"[Libretro] audio output unavailable: %@", audioError);
     _audio = nil;
   }
+  [_journal note:[NSString stringWithFormat:@"audio: start end available=%d error=%@", _audio != nil, audioError]];
+  [_journal note:@"services: cheats begin"];
   [self loadCheats];
+  [_journal note:@"services: cheats scheduled"];
   [self refreshDiskSnapshot];
   if (configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
     _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId host:_host];
@@ -969,8 +1021,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     return;
   }
   if (data == NULL || _gl != nil || _vulkan != nil) return;
+  BOOL trace = _videoDiagnosticFrames++ < 3;
+  if (trace) [_journal note:[NSString stringWithFormat:@"video: frame=%lu begin %ux%u pitch=%zu format=%u",
+    (unsigned long)_videoDiagnosticFrames, width, height, pitch, host.pixelFormat]];
   [self noteFrameWidth:width height:height];
   [_presenter presentSoftwareFrame:data width:width height:height pitch:pitch format:host.pixelFormat];
+  if (trace) [_journal note:[NSString stringWithFormat:@"video: frame=%lu submitted", (unsigned long)_videoDiagnosticFrames]];
 }
 
 - (void)coreHost:(LibretroCoreHost *)host audioFrames:(const int16_t *)frames count:(size_t)count {
@@ -1328,7 +1384,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     __weak LibretroSession *weakSelf = self;
     [LibretroSkinRenderer validateResourcesForRepresentation:representation completion:^(NSDictionary *issue) {
       LibretroSession *session = weakSelf;
-      if (session == nil || session->_skinCache[identifier] != skin) return;
+      if (session == nil || session->_closing || session->_skinCache[identifier] != skin) return;
       [session->_validatingSkins removeObject:resourceKey];
       if (issue == nil) {
         [session->_validatedSkinRepresentations addObject:resourceKey];
@@ -1600,12 +1656,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSString *renderedIdentifier = skin.installedIdentifier;
   _controller.skinRenderer.resourceLoadFailed = ^(LibretroSkinRepresentation *failed, NSDictionary *issue) {
     LibretroSession *session = weakSession;
-    if (session == nil || session->_currentRepresentation != failed || session->_currentSkin != skin) return;
+    if (session == nil || session->_closing || session->_currentRepresentation != failed || session->_currentSkin != skin) return;
     [session rejectSkin:skin representation:failed issue:issue];
   };
   _controller.skinRenderer.representationReady = ^(LibretroSkinRepresentation *ready) {
     LibretroSession *session = weakSession;
-    if (session == nil || session->_currentRepresentation != ready || session->_currentSkin != skin) return;
+    if (session == nil || session->_closing || session->_currentRepresentation != ready || session->_currentSkin != skin) return;
     NSString *key = ready.orientation == LibretroSkinOrientationPortrait ? LibretroSettingSkinPortrait : LibretroSettingSkinLandscape;
     NSString *selected = SettingString([session settingValue:key]) ?: LibretroDefaultSkinIdentifier;
     if (![selected isEqual:renderedIdentifier]) return;

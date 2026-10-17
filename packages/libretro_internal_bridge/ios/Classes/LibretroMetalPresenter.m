@@ -951,7 +951,11 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
          completion:(nullable dispatch_block_t)completion {
   dispatch_semaphore_t semaphore = _inFlight;
   id<CAMetalDrawable> drawable = nil;
+  BOOL trace = _frameCount <= 3;
+  void (^diagnostic)(NSString *) = self.diagnosticHandler;
+  if (trace && diagnostic) diagnostic(@"metal: nextDrawable begin");
   if (texture != nil && width > 0 && height > 0) drawable = [_layer nextDrawable];
+  if (trace && diagnostic) diagnostic([NSString stringWithFormat:@"metal: nextDrawable end drawable=%p", drawable]);
   id<MTLTexture> target = drawable.texture;
   const NSUInteger targetWidth = target.width;
   const NSUInteger targetHeight = target.height;
@@ -990,6 +994,9 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
     if (readers != nil) dispatch_group_leave(readers);
     dispatch_semaphore_signal(semaphore);
     [weakSelf recordGPUTimeOfBuffer:completed generation:generation];
+    if ((trace || completed.status == MTLCommandBufferStatusError) && diagnostic)
+      diagnostic([NSString stringWithFormat:@"metal: completed status=%lu error=%@ generation=%llu",
+        (unsigned long)completed.status, completed.error, (unsigned long long)generation]);
     if (completion != nil) completion();
   }];
   [buffer commit];

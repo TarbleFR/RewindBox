@@ -21,6 +21,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Public methods: main thread only.
 @interface LibretroSkinRenderer : UIView
 
+/// Technical breadcrumbs, delivered from main or the serial image worker.
+@property(nonatomic, copy, nullable) void (^diagnosticHandler)(NSString *event);
+
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory;
 
 /// Decode/geometry validation off the main thread before activation/import.

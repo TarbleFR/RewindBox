@@ -537,6 +537,7 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   NSUInteger _readyGeneration;
   BOOL _resourceFailed;
   BOOL _preparingRepresentation;
+  BOOL _sessionInvalidated;
 }
 
 - (instancetype)initWithCacheDirectory:(NSString *)cacheDirectory {
@@ -586,6 +587,8 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
                     layout:(LibretroSkinLayoutResult *)layout
                    opacity:(CGFloat)opacity
             controlsHidden:(BOOL)controlsHidden {
+  NSAssert(NSThread.isMainThread, @"Skin layout must run on main");
+  if (_sessionInvalidated) return;
   CGFloat scale = [self currentDisplayScale];
   BOOL sameContent = representation != nil && representation == _representation && layout == _layout &&
                      fabs(scale - _scale) < 0.01;
@@ -602,6 +605,9 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   [CATransaction setDisableActions:YES];
   if (!sameContent) {
     _imageGeneration++;
+    if (self.diagnosticHandler) self.diagnosticHandler([NSString stringWithFormat:
+      @"skin-renderer=%p generation=%lu layout=%p representation=%p", self,
+      (unsigned long)_imageGeneration, layout, representation]);
     [_imagePreparation cancel];
     _imagePreparation = [NSProgress progressWithTotalUnitCount:1];
     _pendingRequiredImages = 0;
@@ -671,6 +677,11 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
 /// on the main queue, matching every Core Animation mutation in this class.
 - (void)invalidateSession {
   NSAssert(NSThread.isMainThread, @"Skin renderer teardown must run on the main thread");
+  if (_sessionInvalidated) return;
+  _sessionInvalidated = YES;
+  if (self.diagnosticHandler) self.diagnosticHandler([NSString stringWithFormat:
+    @"skin-renderer=%p invalidated generation=%lu", self, (unsigned long)_imageGeneration]);
+  self.diagnosticHandler = nil;
   self.resourceLoadFailed = nil;
   self.representationReady = nil;
   [_imagePreparation cancel];
@@ -1548,12 +1559,17 @@ static BOOL LibretroSkinLayoutFitsImageBudget(LibretroSkinRepresentation *repres
   __weak LibretroSkinRenderer *weakRenderer = self;
   __weak CALayer *weakLayer = layer;
   __weak CALayer *weakMask = mask;
+  void (^diagnostic)(NSString *) = self.diagnosticHandler;
   dispatch_async(LibretroSkinQueue(), ^{
     @autoreleasepool {
       // Many first-launch / rotation callbacks can queue images. Do not
       // decode a stale PDF/bitmap just because it was queued before teardown.
       if (request.cancelled) return;
+      if (diagnostic) diagnostic([NSString stringWithFormat:@"skin-decode begin generation=%lu resource=%@ pixels=%zux%zu",
+        (unsigned long)generation, path.lastPathComponent, width, height]);
       UIImage *image = LibretroSkinLoadImage(path, width, height, key, cacheDirectory);
+      if (diagnostic) diagnostic([NSString stringWithFormat:@"skin-decode end generation=%lu resource=%@ success=%d cancelled=%d",
+        (unsigned long)generation, path.lastPathComponent, image != nil, request.cancelled]);
       if (request.cancelled) return;
       dispatch_async(dispatch_get_main_queue(), ^{
       CALayer *target = weakLayer;

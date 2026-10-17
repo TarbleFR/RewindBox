@@ -45,6 +45,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   LibretroTouchDiagnosticsView *_diagnosticsView;
   CADisplayLink *_displayLink;
   NSUInteger _statusGeneration;
+  BOOL _inputPollingStopped;
 
   // Skin layout (main thread).
   LibretroSkinRepresentation *_representation;
@@ -268,6 +269,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  if (_inputPollingStopped) return;
   if (_displayLink == nil) {
     _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
     [_displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
@@ -282,6 +284,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 #pragma mark - Skin layout
 
 - (void)setNeedsSkinLayout {
+  if (_inputPollingStopped) return;
   _skinLayoutDirty = YES;
   if (!self.isViewLoaded) return;
   if (_inLayoutPass) {
@@ -331,6 +334,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 /// bounds; the drawable follows the external surface while the Metal view
 /// is on the TV (LibretroRenderSurface).
 - (void)performSkinLayoutIfNeeded {
+  if (_inputPollingStopped) return;
   if (!self.isViewLoaded || self.view.window == nil || _inLayoutPass) return;
   CGRect bounds = self.view.bounds;
   if (bounds.size.width < 1 || bounds.size.height < 1) return;
@@ -549,6 +553,13 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 #pragma mark - Input polling
 
 - (void)stopInputPolling {
+  if (_inputPollingStopped) return;
+  _inputPollingStopped = YES;
+  self.layoutSource = nil;
+  self.layoutHandler = nil;
+  self.screenMappingsProvider = nil;
+  self.menuHandler = nil;
+  self.activeHandler = nil;
   [_displayLink invalidate];
   _displayLink = nil;
   [_overlay releaseAllTouches];
@@ -558,6 +569,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 }
 
 - (void)tick {
+  if (_inputPollingStopped) return;
   BOOL menuRequested = [_input pollControllers];
   if (_diagnosticsView != nil) {
     uint64_t frame = 0;

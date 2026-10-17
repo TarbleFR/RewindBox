@@ -233,6 +233,7 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 ## Diagnostic preferences — maintainer instruction, 14 October 2026
 
 - The maintainer has no iOS `.ips` reports. Do not request these files again.
+- Permanent maintainer instruction, 17 October 2026: never ask for `.ips`, Jetsam or watchdog reports for NeoStation. Do not make diagnosis, corrections or IPA delivery depend on these files. Continue with source evidence, application journals, executable reproductions and diagnostics captured automatically by the app. Keep the distinction between a proven source defect and the unconfirmed mechanism of a device termination.
 - Continue diagnosis using source evidence, regression tests, and available NeoStation logs. Clearly distinguish a demonstrated source defect from an unconfirmed explanation of a device crash; absence of an `.ips` file does not justify claiming a cause or stopping the authorized work.
 
 

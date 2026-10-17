@@ -350,6 +350,10 @@ static NSString *ReservationReport(void) {
 @property(nonatomic, strong) UIWindow *window;
 @end
 
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+#import "skin_lifetime_probe.h"
+#endif
+
 @implementation ProbeAppDelegate {
   NSDictionary *_config;
   NSArray<NSDictionary *> *_scenarios;
@@ -527,12 +531,24 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
   Progress(@"%@: stop requested", result[@"name"]);
   CFAbsoluteTime stopStart = CFAbsoluteTimeGetCurrent();
   __weak ProbeAppDelegate *weakSelf = self;
+  LibretroGameViewController *stoppedController = [session valueForKey:@"controller"];
   [session stopWithCompletion:^{
     result[@"stopped"] = @YES;
     result[@"stopSeconds"] = @(CFAbsoluteTimeGetCurrent() - stopStart);
     result[@"presentedAfterStop"] = @(root.presentedViewController != nil);
     Progress(@"%@: stopped", result[@"name"]);
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
+    if (result[@"lifetimeChecks"] != nil) {
+      NSUInteger before = [[stoppedController.skinRenderer valueForKey:@"imageGeneration"] unsignedIntegerValue];
+      [stoppedController setNeedsSkinLayout];
+      [stoppedController viewDidAppear:NO];
+      BOOL terminal = [stoppedController valueForKey:@"displayLink"] == nil &&
+        [[stoppedController.skinRenderer valueForKey:@"imageGeneration"] unsignedIntegerValue] == before;
+      BOOL baseline = [result[@"lifetimeBaseline"] boolValue];
+      result[@"viewReactivatedAfterStop"] = @(!terminal);
+      LifetimeCheck(result, terminal != baseline, baseline ? @"469 view body recreates polling after stop" : @"closed view rejects late appearance/layout");
+      [stoppedController stopInputPolling];
+    }
     if (result[@"shaderSteps"] != nil) {
       [weakSelf verifyShaderRequestsAfterStop:result session:session];
       return;
@@ -909,6 +925,12 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
   NSString *name = scenario[@"name"];
   NSUInteger generation = ++_generation;
   NSMutableDictionary *result = [@{@"name" : name, @"core" : scenario[@"core"] ?: @""} mutableCopy];
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+  if ([scenario[@"lifetimeProbe"] boolValue]) {
+    result[@"lifetimeBaseline"] = scenario[@"lifetimeBaseline"] ?: @NO;
+    ProbeTerminalRenderer(result, [scenario[@"lifetimeBaseline"] boolValue]);
+  }
+#endif
   if ([scenario[@"crowdWindow"] boolValue]) {
     result[@"regionsBeforeCrowd"] = WindowRegions();
     NSArray<NSNumber *> *crowd = CrowdWindow();
@@ -956,6 +978,13 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                             [probe finishScenario:result session:session];
                             return;
                           }
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+                          if ([scenario[@"stabilityActions"] boolValue]) {
+                            ProbeTerminalRenderer(result, NO);
+                            RunSkinStabilityActions(session, result, ^{ [probe stopScenario:result session:session]; });
+                            return;
+                          }
+#endif
                           if (scenario[@"skinLoading"] != nil) {
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
                             RunSkinLoadingProbe(session,scenario,result,^{[probe stopScenario:result session:session];});
@@ -1049,11 +1078,12 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                         }];
   // A launch that never answers ends the probe: the session may still hold
   // the emulation thread.
+  __weak LibretroSession *watchedSession = session;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(150 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     ProbeAppDelegate *probe = weakSelf;
     if (probe == nil || generation != probe->_generation || result[@"finished"] != nil) return;
     result[@"timeout"] = @YES;
-    result[@"recentLog"] = Tail(session.recentLog, 80);
+    result[@"recentLog"] = Tail(watchedSession.recentLog, 80);
     result[@"journal"] = ReadText(DocumentsPath(@"Libretro/Logs/session.log"));
     Progress(@"%@: timed out", name);
     [probe->_results addObject:result];
@@ -1063,6 +1093,7 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
 
 - (void)finishScenario:(NSMutableDictionary *)result session:(LibretroSession *)session {
   result[@"finished"] = @YES;
+  __weak LibretroSession *releasedSession = session;
   // The journal's END line is written in the dismissal completion, before
   // the stop completion; give the ended handler a turn as well.
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -1081,6 +1112,12 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
     self->_session = nil;
     Progress(@"%@: recorded", result[@"name"]);
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+      if (result[@"lifetimeChecks"] != nil) {
+        LifetimeCheck(result, releasedSession == nil, @"closed session deallocates before next launch");
+        [self writeResultsFinished:NO];
+      }
+#endif
       [self runNext];
     });
   });

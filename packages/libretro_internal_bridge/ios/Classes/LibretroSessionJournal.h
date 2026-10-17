@@ -29,6 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The session before this one never wrote its END line.
 @property(nonatomic, readonly) BOOL previousSessionUnfinished;
 @property(nonatomic, copy, readonly) NSString *path;
+@property(nonatomic, copy, readonly) NSString *sessionIdentifier;
 
 /// One timestamped line (UTC time and seconds since the session started).
 - (void)note:(NSString *)line;
