@@ -164,7 +164,7 @@ Success is not physical-device validation.
 - No commercial 10-Yard Fight ROM or physical iPhone is available. No 30-launch
   physical run or long-duration thermal result is claimed.
 
-### Verified results before IPA packaging
+### Verified results
 
 The common runtime and full test source are frozen at
 `2e877872a919c119fb3d10f47699218cc1a34e96`. The sole subsequent product change
@@ -230,8 +230,8 @@ SDK. The 34 precompiled libretro cores and other unchanged native runtimes are
 reused. The affected bridge/application must still be compiled, packaged and
 signed to create a testable IPA.
 
-The targeted runtime check has passed. Compilation and final IPA identity
-are the only pending delivery steps.
+The targeted runtime check and final private IPA delivery have passed.
+Final file identity and the Windows copy are recorded below.
 
 ## Retained diagnostic evidence before the targeted fix
 
@@ -295,3 +295,28 @@ source contracts, native NeoSwap checks and unchanged precompiled runtimes.
 The public 470 recipient contains no private key. `AGENTS.md` persists both
 maintainer rules: never request system crash reports and never repeat passing
 validations with unchanged inputs.
+
+
+## Final private Build 470 delivery — 18 October 2026
+
+- Built commit: `a43a570412ed2bf382d2df3acc0a9ce9ca88c27c`, branch `Claude`.
+- Actions run `39078262825`: checks, native and Release iPhone build pass; optional warm benchmark skipped.
+- Actual IPA: `NeoStation-Build470-a43a5704.ipa`, **218,634,697 bytes**, version **0.0.7 (470)** in the app and all five extensions.
+- IPA SHA-256: `c240faf5ec816243fd9b595e7fae1c07118e8e71a5db3f1abb394e9242bceb60`.
+- Encrypted artifact `12118192232`: 220,259,229 bytes, archive SHA-256 `77262a977f7d19a67a61bbb2d6aa9569dcf08ca6b929a527c428039ab97ee3b9`.
+- Independently decrypted with the authorized 470 recipient; actual ZIP structure/CRC, source stamps, six versions, 34 cores, all 76 sealed Mach-O code/data/ABI fingerprints and shader compiler boundary verified. CI verifies 79 ad hoc signatures; Linux did not execute codesign.
+- The actual delivered `libretro_internal_bridge` binary has weak-layout bytes `f0 52`: `_visiblePage` at offset 168 and `_rootPage` at offset 176 are both weak and absent from the strong layout. This checks the compiled correction in the IPA, beyond the source commit or a build label.
+- Desktop Commander copied the same verified bytes to `C:\Users\Coren\Downloads\NeoStation-Build470-a43a5704.ipa`; the final Windows SHA-256 matches. The old 469 IPA remains untouched.
+
+SideStore Apple re-signing is required, as with earlier private deliveries. No
+public GitHub release was created. No physical iPhone, exact commercial
+10-Yard Fight ROM run, 30-device-launch test or long thermal soak was available.
+The retained-owner defect and its correction are established; definitive
+disappearance of the reported device crash is not claimed.
+
+The maintainer's two permanent rules are retained in `AGENTS.md`: never request
+`.ips`, Jetsam or watchdog files, and never repeat passing validations when
+their tested inputs are unchanged. The final delivery reused the successful
+Dart, source-contract, Swift, NeoSwap, native libretro and skin results; only
+the changed delivery guards and the targeted ownership/cheat regression were
+executed for the new change.
