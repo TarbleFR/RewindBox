@@ -26,5 +26,8 @@ jobs:
               gh run cancel "$run"
             fi
           done
-          gh workflow run libretro-cheats-checks.yml --ref Claude
-          gh workflow run libretro-catalog-checks.yml --ref Claude
+          # Catalogue/cheat suites were dispatched at 8fd47e2a and are
+          # already queued with identical runtime sources. Start only the
+          # remaining existing-install and directional suites here.
+          gh workflow run libretro-skin-loading-checks.yml --ref Claude
+          gh workflow run libretro-skin-checks.yml --ref Claude
