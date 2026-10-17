@@ -1,0 +1,44 @@
+name: Libretro measured memory and owner diagnosis
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/libretro-memory-ownership470.yml
+      - .github/diagnostics/libretro_memory_probe.py
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  memory-owners:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Prove production and existing test source identity
+        run: git diff --exit-code 2e877872a919c119fb3d10f47699218cc1a34e96 HEAD -- lib packages native assets test build-utils pubspec.yaml pubspec.lock
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Fetch pinned simulator inputs
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Measure weak owners, malloc, VM regions and leaks through 20 sessions
+        run: |
+          python3 .github/diagnostics/libretro_memory_probe.py --cores dist/libretro \
+            --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/memory-owners --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libretro-memory-owners-${{ github.sha }}
+          path: evidence/memory-owners/
+          retention-days: 14
+          if-no-files-found: warn
