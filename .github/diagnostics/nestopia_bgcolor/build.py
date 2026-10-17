@@ -25,10 +25,10 @@ def main():
  command=['make','-C',source/'libretro','-j4','platform=ios-arm64','DEBUG=0','GIT_VERSION=135dfa6-neostation-bgcolor1','IOSSDK='+sdk,
           'CC=xcrun --sdk iphoneos clang -arch arm64 -isysroot '+sdk,
           'CXX=xcrun --sdk iphoneos clang++ -arch arm64 -isysroot '+sdk,
-          'PLATFORM_DEFINES=-miphoneos-version-min=18.0','LDFLAGS=-Wl,-install_name,'+install]
+          'PLATFORM_DEFINES=-miphoneos-version-min=18.0','LDFLAGS=-miphoneos-version-min=18.0 -Wl,-install_name,'+install]
  with (work/'compile.log').open('w') as log:run(command,stdout=log,stderr=subprocess.STDOUT)
  binary=source/'libretro/nestopia_libretro_ios.dylib';info=package.macho(binary.read_bytes())
- assert info['platform']==2 and info['minimumOS']=='18.0',info
+ assert info['platform']==2 and info['minimumOS']=='18.0.0',info
  package.check_dependencies(name,info);assert set(package.REQUIRED_EXPORTS)<=package.exported_symbols(binary)
  shutil.copytree(base,out)
  target=out/('Frameworks/'+name+'.framework');shutil.copy2(binary,target/name)
