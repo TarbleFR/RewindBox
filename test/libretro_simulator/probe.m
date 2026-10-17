@@ -388,6 +388,8 @@ static NSString *ReservationReport(void) {
     }
   }
   _scenarios = [_config[@"scenarios"] isKindOfClass:NSArray.class] ? _config[@"scenarios"] : @[];
+  // Independent process starts, retaining the installed app and disk cache.
+  if (getenv("NEOSTATION_COLD_LAUNCH") && _scenarios.count > 0) _scenarios = @[_scenarios.firstObject];
   if (getenv("NEOSTATION_CHEAT_RESTART")) {
     NSMutableArray *only = [NSMutableArray array];
     for (NSDictionary *scenario in _scenarios) if ([scenario[@"name"] isEqual:@"cheats-nestopia"]) [only addObject:scenario];

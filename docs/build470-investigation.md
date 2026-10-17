@@ -102,6 +102,11 @@ Success is not physical-device validation.
 - Five live sequences, each with four skin switches, requested and observed
   portrait/landscape rotations, 32 MiB touched memory and a clearly synthetic
   memory-warning notification/cache eviction.
+- Ten independent process restarts with original NESThumbstick, retaining the
+  installed application and disk cache. Each must record its process/session
+  identity, first submitted/completed video frame, original landscape edgeToEdge
+  activation, normal close and session deallocation. The previous 37-session
+  single-process result did not cover this startup boundary.
 - Native signal child processes, journal concurrent writes/rotation,
   existing native frontend/input/pressure checks, iPhone compile/link,
   installed-skin preservation, catalogue, cheats and other-core suites.

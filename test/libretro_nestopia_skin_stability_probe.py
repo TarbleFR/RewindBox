@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -156,9 +157,41 @@ def main():
         # 100 sessions in one actual process: detects repeated core create/unload,
         # asynchronous skin/image callbacks and replacements without faking launches.
         result = probe.run_in_simulator(app, output, 1500)
+        cold_evidence, cold_failures = [], []
+        if result['finished'] and not args.baseline and not args.asan:
+            os.environ['SIMCTL_CHILD_NEOSTATION_COLD_LAUNCH'] = '1'
+            try:
+                for index in range(10):
+                    cold_dir = output / f'cold-{index+1:02d}'
+                    cold_dir.mkdir()
+                    outcome = probe.run_in_simulator(app, cold_dir, 180, reset=False)
+                    cold_report = cold_dir / 'probe.json'
+                    payload = json.loads(cold_report.read_text()) if cold_report.exists() else {'results': []}
+                    errors = probe.evaluate(payload, [tests[0]])
+                    if not outcome['finished']: errors.append('process did not finish')
+                    rows = payload.get('results', [])
+                    journal = rows[0].get('journal', '') if len(rows) == 1 else ''
+                    checks = rows[0].get('lifetimeChecks', []) if len(rows) == 1 else []
+                    if len(checks) != 3 or any(not c.get('passed') for c in checks):
+                        errors.append('terminal/deallocation checks failed or missing')
+                    for marker in (f'"event":"active","identifier":"{ORIGINAL_ID}"',
+                                   '"orientation":"landscape"', '"display":"edgeToEdge"',
+                                   'video: frame=1 begin', 'metal: completed status=4'):
+                        if marker not in journal: errors.append('missing ' + marker)
+                    pid = re.search(r'\bpid=(\d+)\b', journal)
+                    session = re.search(r'\bsession=([A-Fa-f0-9-]{36})\b', journal)
+                    if not pid or not session: errors.append('process/session identity missing')
+                    cold_evidence.append({'launch': index+1, 'pid': pid.group(1) if pid else None,
+                                          'session': session.group(1) if session else None,
+                                          'finished': outcome['finished'], 'failures': errors})
+                    cold_failures.extend(f'cold-{index+1:02d}: {error}' for error in errors)
+                    if errors: break
+            finally:
+                os.environ.pop('SIMCTL_CHILD_NEOSTATION_COLD_LAUNCH', None)
     report_path = output / ('probe.json' if (output/'probe.json').exists() else 'probe-partial.json')
     report = json.loads(report_path.read_text()) if report_path.exists() else {'results': []}
     failures = probe.evaluate(report, tests)
+    failures.extend(cold_failures)
     if not result['finished']:
         failures.append(f'Simulator process did not finish all {len(tests)} sessions')
     for record in report.get('results', []):
@@ -193,6 +226,7 @@ def main():
         'baseline469Bodies':args.baseline,
         'addressSanitizer':args.asan,
         'prebuiltCoreInstrumented':False,
+        'coldProcesses':len(cold_evidence), 'coldProcessEvidence':cold_evidence,
         'checks':sum(len(r.get('lifetimeChecks', [])) for r in report.get('results', [])),
         'allSessionsClosed':result['finished'],'failures':failures,
         'physicalDeviceValidated':False,'commercialROMUsed':False,
