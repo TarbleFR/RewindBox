@@ -123,14 +123,26 @@ def main():
         source = source.replace(marker, '      result[@"memoryAfterStop"] = MemorySnapshot();\n' + marker)
         instrumented.write_text(source)
 
+        compiled_probes = []
         def compile_run(command, *a, **kw):
             values = [str(x) for x in command]
             if str(original_source) in values:
+                assert '-c' in values, 'unexpected probe source command'
                 values = [str(instrumented) if x == str(original_source) else x for x in values]
                 values += ['-I', str(original_source.parent)]
-            return original_run(values, *a, **kw)
-        probe.run = compile_run
-        app, scenarios = probe.assemble(args, sources, work)
+                compiled_probes.append(str(instrumented))
+            return original_subprocess_run(values, *a, **kw)
+        # assemble compiles translation units with subprocess.run directly.
+        # Intercept that boundary and prove injection occurred before launch.
+        subprocess.run = compile_run
+        try:
+            app, scenarios = probe.assemble(args, sources, work)
+        finally:
+            subprocess.run = original_subprocess_run
+        assert compiled_probes == [str(instrumented)], compiled_probes
+        (evidence / 'instrumentation.json').write_text(json.dumps({
+            'compiledInstrumentedProbeCount': len(compiled_probes),
+            'weakOwnersAndMallocSnapshots': True}))
         config_file = app / 'probe-config.json'
         config = json.loads(config_file.read_text())
         config['forceLandscape'] = True
