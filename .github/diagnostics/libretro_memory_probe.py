@@ -13,6 +13,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'test'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import libretro_simulator_probe as probe
 import libretro_nestopia_skin_stability_probe as stability
 import libretro_cheat_probe as cheats
@@ -87,9 +88,18 @@ def verify_ownership(evidence):
             '@interface Original:Root {\n' + old + '\n} @end\n'
             '@interface Candidate:Root {\n' + new + '\n} @end\n')
         ast = subprocess.check_output(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios17.4',
-            '-fobjc-arc','-Xclang','-ast-dump','-fsyntax-only',str(source)], text=True)
-    roots = re.findall(r"ObjCIvarDecl[^\n]*_rootPage 'LibretroMenuPage \*__(strong|weak)'", ast)
-    visible = re.findall(r"ObjCIvarDecl[^\n]*_visiblePage 'LibretroMenuPage \*__(strong|weak)'", ast)
+            '-fobjc-arc','-Xclang','-ast-dump=json','-fsyntax-only',str(source)], text=True)
+    def declarations(node):
+        if node.get('kind') == 'ObjCIvarDecl':
+            yield node
+        for child in node.get('inner',[]):
+            yield from declarations(child)
+    ivars = list(declarations(json.loads(ast)))
+    def ownership(name):
+        return ['weak' if '__weak' in node['type']['qualType'] else
+                'strong' if '__strong' in node['type']['qualType'] else 'unknown'
+                for node in ivars if node.get('name') == name]
+    roots, visible = ownership('_rootPage'), ownership('_visiblePage')
     assert roots == ['strong','weak'] and visible == ['weak','weak'], ast
     sdk = subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
     subprocess.run(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios17.4','-isysroot',sdk,
