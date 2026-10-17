@@ -167,6 +167,7 @@ def main():
                         report_file.write_text(json.dumps({'pid':pid,'source':'live journal'}))
                         for name, cmd in [('vmmap-summary', ['vmmap','-summary',pid]),
                                           ('leaks', ['leaks','-nocontext',pid]),
+                                          ('heap', ['heap','-sortBySize',pid]),
                                           ('sample', ['sample',pid,'3'])]:
                             with (evidence / (name + '.txt')).open('w') as out:
                                 try:
