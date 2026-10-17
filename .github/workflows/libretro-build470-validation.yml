@@ -19,17 +19,6 @@ jobs:
       - name: Verify branch identity and dispatch the existing exact-source suites
         run: |
           test "$(gh api repos/TarbleFR/neostation-ios/branches/Claude --jq .commit.sha)" = "$GITHUB_SHA"
-          # Preserve run history while releasing macOS slots held by our
-          # superseded candidates. Do not cancel unrelated maintainer runs.
-          for run in 39070603129 39070603080 39070603101 39070619413 39070620907 39070622348 39070603078; do
-            state="$(gh api repos/TarbleFR/neostation-ios/actions/runs/$run --jq .status)"
-            if test "$state" = in_progress; then
-              gh api -X POST "repos/TarbleFR/neostation-ios/actions/runs/$run/force-cancel" || gh run cancel "$run"
-            elif test "$state" != completed; then
-              gh run cancel "$run"
-            fi
-          done
-          gh workflow run libretro-cheats-checks.yml --ref Claude
-          gh workflow run libretro-catalog-checks.yml --ref Claude
-          # The changed common probe also starts installed-skin checks by push.
-          gh workflow run libretro-skin-checks.yml --ref Claude
+          # Scope the dispatch to the repaired historical compile controls.
+          # Current-product 100-session and other-core evidence remains intact.
+          gh workflow run libretro-simulator.yml --ref Claude -f legacy_only=true

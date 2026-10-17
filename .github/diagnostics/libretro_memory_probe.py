@@ -5,8 +5,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import plistlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,11 +15,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'test'))
 import libretro_simulator_probe as probe
 import libretro_nestopia_skin_stability_probe as stability
+from libretro_simulator_device import pick_notched_device
 
 OWNERSHIP = r'''
 #include <malloc/malloc.h>
 static NSMutableDictionary<NSString *, NSHashTable *> *sMemoryOwners;
-static NSMutableArray<NSDictionary *> *sMemorySamples;
 static id MemoryValue(id object, NSString *key) {
   if (object == nil) return nil;
   @try { return [object valueForKey:key]; }
@@ -32,17 +32,18 @@ static void MemoryTrack(NSString *key, id object) {
 }
 static void MemoryTrackSession(LibretroSession *session) {
   MemoryTrack(@"session", session);
-  for (NSString *key in @[@"controller", @"presenter", @"audio", @"host", @"input"])
+  for (NSString *key in @[@"controller", @"presenter", @"audio", @"host", @"input", @"cheatMenu"])
     MemoryTrack(key, MemoryValue(session, key));
+  id menu = MemoryValue(session, @"cheatMenu");
+  MemoryTrack(@"cheatCatalog", MemoryValue(menu, @"catalog"));
+  for (id document in [MemoryValue(menu, @"installed") allValues]) MemoryTrack(@"catalogDocument", document);
   id controller = MemoryValue(session, @"controller");
   for (NSString *key in @[@"skinRenderer", @"overlay", @"metalLayer", @"view"])
     MemoryTrack(key, MemoryValue(controller, key));
   id audio = MemoryValue(session, @"audio");
   for (NSString *key in @[@"engine", @"source"])
     MemoryTrack([@"audio." stringByAppendingString:key], MemoryValue(audio, key));
-  id presenter = MemoryValue(session, @"presenter");
-  for (NSString *key in @[@"device", @"queue", @"passthroughPipeline", @"nearest", @"linear", @"lastTexture"])
-    MemoryTrack([@"metal." stringByAppendingString:key], MemoryValue(presenter, key));
+
 }
 static NSDictionary *MemorySnapshot(void) {
   task_vm_info_data_t memory = {0};
@@ -68,11 +69,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for key in ('cores', 'inputs', 'evidence', 'label'):
         parser.add_argument('--' + key, required=True)
+    parser.add_argument('--mode', choices=('baseline','pools','no-prewarm'), default='baseline')
     args = parser.parse_args()
     args.sources = None
     args.only = []
     args.lot1 = args.lot2 = args.official_shaders = False
     probe.REAL_CORES = ('nestopia',)
+    probe.pick_device = pick_notched_device
     probe.SCENARIOS = [dict(name=f'memory-{i+1:02d}', core='nestopia', console='nes',
                             content='content/nes-skin-loop-a.nes', expect='run', runSeconds=1.0,
                             skinSelection=stability.ORIGINAL_ID if i < 10 else 'default', lifetimeProbe=True)
@@ -84,6 +87,29 @@ def main():
     original_source = ROOT / 'test/libretro_simulator/probe.m'
     with tempfile.TemporaryDirectory(prefix='libretro-memory-') as temporary:
         work = Path(temporary)
+        sources = probe.BRIDGE
+        variant_files = []
+        if args.mode != 'baseline':
+            sources = work / 'variant-bridge'
+            shutil.copytree(probe.BRIDGE, sources)
+            if args.mode == 'pools':
+                for name in ('LibretroCheatMenu.m','LibretroCheatCatalog.m'):
+                    path = sources / 'Classes' / name
+                    before = path.read_text()
+                    old = 'dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,'
+                    assert before.count(old) == 1
+                    path.write_text(before.replace(old, 'dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL,'))
+                    variant_files.append(name)
+            else:
+                path = sources / 'Classes/LibretroSession.m'
+                before = path.read_text()
+                old = '// Prepare identity and catalogues after launch; never wait on the emulation queue.\n    [self cheatsPage];'
+                assert before.count(old) == 1
+                path.write_text(before.replace(old, '// CI isolation only: omit eager catalogue preparation.'))
+                variant_files.append(path.name)
+            with (evidence / 'nonshipping-variant.patch').open('w') as output:
+                for name in variant_files:
+                    subprocess.run(['diff','-u',str(probe.BRIDGE/'Classes'/name),str(sources/'Classes'/name)],stdout=output)
         instrumented = work / 'probe-memory.m'
         source = original_source.read_text()
         marker = '@interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>'
@@ -104,16 +130,16 @@ def main():
                 values += ['-I', str(original_source.parent)]
             return original_run(values, *a, **kw)
         probe.run = compile_run
-        app, scenarios = probe.assemble(args, probe.BRIDGE, work)
+        app, scenarios = probe.assemble(args, sources, work)
         config_file = app / 'probe-config.json'
         config = json.loads(config_file.read_text())
         config['forceLandscape'] = True
         config_file.write_text(json.dumps(config))
         stability.original_skin(app)
         stability.make_roms(app)
-        entitlements = work / 'debug-entitlements.plist'
-        entitlements.write_bytes(plistlib.dumps({'get-task-allow': True}))
-        original_run(['codesign', '--force', '--sign', '-', '--timestamp=none', '--entitlements', entitlements, app])
+        # Match the successful 100-session app's normal simulator signature.
+        # VM tooling permission failures are preserved as diagnostic output.
+        original_run(['codesign', '--force', '--sign', '-', '--timestamp=none', app])
 
         def capture_before_termination(command, *a, **kw):
             if len(command) >= 3 and [str(x) for x in command[:3]] == ['xcrun', 'simctl', 'terminate']:
@@ -149,17 +175,22 @@ def main():
     if not outcome['finished']:
         problems.append('memory probe process did not finish')
     records = []
-    for row in report['results']:
+    for index, row in enumerate(report['results']):
+        if index < 10:
+            required = f'"event":"active","identifier":"{stability.ORIGINAL_ID}"'
+            if required not in row.get('journal','') or '"display":"edgeToEdge"' not in row.get('journal',''):
+                problems.append(row['name'] + ': original edgeToEdge skin activation missing')
         snapshot = row.get('memoryAfterStop')
         if not snapshot:
             problems.append(row['name'] + ': no post-release memory snapshot')
             continue
         records.append({'name':row['name'], **snapshot})
-        for owner in ('session','controller','presenter','audio','host','input','skinRenderer','overlay'):
+        for owner in ('session','controller','presenter','audio','host','input','skinRenderer','overlay','cheatMenu','cheatCatalog'):
             if snapshot['owners'].get(owner) != 0:
                 problems.append(row['name'] + ': retained owner ' + owner + '=' + str(snapshot['owners'].get(owner)))
         print('MEMORY', json.dumps(records[-1]), flush=True)
     verdict = {'source':args.label, 'productionSource':'2e877872a919c119fb3d10f47699218cc1a34e96',
+               'mode':args.mode,'nonshippingVariantFiles':variant_files,
                'outcome':outcome,'records':records,'problems':problems,'physicalDeviceValidated':False,
                'notes':'No RSS threshold asserted; weak application owners, malloc statistics and VM categories identify what remains.'}
     (evidence / 'memory-verdict.json').write_text(json.dumps(verdict,indent=2))

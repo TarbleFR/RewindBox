@@ -97,9 +97,11 @@ jobs:
           while True:
               listing = subprocess.check_output(['ps', '-axo', 'pid=,args='], text=True)
               for line in listing.splitlines():
-                  if '/CoreSimulator/Devices/' not in line or '/Probe.app/Probe' not in line:
+                  if '/Probe.app/Probe' not in line:
                       continue
                   pid, command = line.strip().split(None, 1)
+                  if pid not in seen:
+                      (folder / f'process-first-seen-{pid}.txt').write_text(str(time.time()) + '\n' + command + '\n')
                   start = seen.setdefault(pid, time.monotonic())
                   age = time.monotonic() - start
                   for threshold in (90, 180):
@@ -113,8 +115,18 @@ jobs:
           PY
           cheat_sampler_pid=$!
           trap 'kill "$cheat_sampler_pid" 2>/dev/null || true' EXIT
-          python3 test/libretro_cheat_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
-            --evidence evidence/cheats --label "$GITHUB_SHA"
+          # Match the reported edge-to-edge iPhone class and the 100-session
+          # witness. Assertions and time budgets in the test stay unchanged.
+          python3 - --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+            --evidence evidence/cheats --label "$GITHUB_SHA" <<'PY'
+          import runpy
+          import sys
+          sys.path.insert(0, 'test')
+          import libretro_simulator_probe as probe
+          helpers = runpy.run_path('.github/diagnostics/libretro_simulator_device.py')
+          probe.pick_device = helpers['pick_notched_device']
+          runpy.run_path('test/libretro_cheat_probe.py', run_name='__main__')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:

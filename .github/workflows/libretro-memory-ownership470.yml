@@ -11,6 +11,10 @@ permissions:
   actions: read
 jobs:
   memory-owners:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, pools, no-prewarm]
     runs-on: macos-15
     timeout-minutes: 35
     steps:
@@ -34,11 +38,11 @@ jobs:
       - name: Measure weak owners, malloc, VM regions and leaks through 20 sessions
         run: |
           python3 .github/diagnostics/libretro_memory_probe.py --cores dist/libretro \
-            --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/memory-owners --label "$GITHUB_SHA"
+            --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/memory-owners --label "$GITHUB_SHA" --mode "${{ matrix.mode }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: libretro-memory-owners-${{ github.sha }}
+          name: libretro-memory-owners-${{ matrix.mode }}-${{ github.sha }}
           path: evidence/memory-owners/
           retention-days: 14
           if-no-files-found: warn
