@@ -7,7 +7,9 @@
 #include <dlfcn.h>
 #include <signal.h>
 #include <unistd.h>
+#ifndef __APPLE__
 #include <ucontext.h>
+#endif
 #include "libretro.h"
 static const char *filter;
 static unsigned frames;

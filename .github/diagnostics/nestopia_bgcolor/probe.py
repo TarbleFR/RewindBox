@@ -11,8 +11,6 @@ def main():
  p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--fixed',required=True);p.add_argument('--evidence',required=True);a=p.parse_args()
  evidence=Path(a.evidence).resolve();evidence.mkdir(parents=True,exist_ok=True)
  bundle='com.neostation.nestopia.bgprobe';device,name=pick_notched_device();print(name,flush=True)
- subprocess.run(['xcrun','simctl','boot',device],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
- run(['xcrun','simctl','bootstatus',device,'-b'])
  app=evidence/'Probe.app';app.mkdir();(app/'Frameworks').mkdir();sdk=capture(['xcrun','--sdk','iphonesimulator','--show-sdk-path'])
  flags=['xcrun','--sdk','iphonesimulator','clang','-target','arm64-apple-ios17.4-simulator','-isysroot',sdk,'-g','-O1']
  here=Path(__file__).parent;classes=ROOT/'packages/libretro_internal_bridge/ios/Classes'
@@ -22,6 +20,8 @@ def main():
         'CFBundleVersion':'1','CFBundleShortVersionString':'1.0','MinimumOSVersion':'17.4','LSRequiresIPhoneOS':True,
         'UIDeviceFamily':[1,2],'UILaunchScreen':{}}
  (app/'Info.plist').write_bytes(plistlib.dumps(plist))
+ subprocess.run(['xcrun','simctl','boot',device],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ run(['xcrun','simctl','bootstatus',device,'-b'])
  results=[];pin=json.loads((ROOT/'native/nestopia/source.json').read_text())
  old=(Path(a.base)/'Frameworks/nestopia_libretro.framework/nestopia_libretro').read_bytes();offset=32;image_uuid=None
  for _ in range(struct.unpack_from('<I',old,16)[0]):

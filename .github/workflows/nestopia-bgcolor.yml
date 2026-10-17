@@ -32,18 +32,19 @@ jobs:
           path: dist/libretro-base
       - name: Compile only Nestopia with the one-line reset correction
         run: python3 .github/diagnostics/nestopia_bgcolor/build.py --base dist/libretro-base --output dist/libretro --work "$RUNNER_TEMP/nestopia-reset"
+      - name: Preserve the compiled core before running the regression probes
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibretroCores-${{ github.sha }}
+          path: dist/libretro/
+          retention-days: 14
+          if-no-files-found: error
       - name: Reproduce the exact old iPhone fault and exercise corrected NTSC modes
         run: python3 .github/diagnostics/nestopia_bgcolor/probe.py --base dist/libretro-base --fixed dist/libretro --evidence evidence/nestopia-core
       - name: Fetch existing integration fixtures
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
       - name: Run corrected core with original skin and nonzero heap initialization
         run: python3 .github/diagnostics/nestopia_bgcolor/skin.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/nestopia-skin --label "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: LibretroCores-${{ github.sha }}
-          path: dist/libretro/
-          retention-days: 14
-          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
