@@ -5,10 +5,15 @@ on:
     paths:
       - .github/workflows/libretro-nestopia-skin-stability.yml
       - packages/libretro_internal_bridge/ios/Classes/LibretroSkin*
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCrashCapture.h
+      - packages/libretro_internal_bridge/ios/Classes/LibretroSessionJournal.*
       - packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m
       - packages/libretro_internal_bridge/ios/Classes/LibretroSession.m
       - packages/libretro_internal_bridge/ios/Classes/LibretroMetalPresenter.m
       - test/libretro_simulator/probe.m
+      - test/libretro_simulator/skin_lifetime_probe.h
+      - test/libretro_simulator_probe.py
+      - test/libretro_crash_capture_test.*
       - test/libretro_nestopia_skin_stability_probe.py
   workflow_dispatch:
 permissions:

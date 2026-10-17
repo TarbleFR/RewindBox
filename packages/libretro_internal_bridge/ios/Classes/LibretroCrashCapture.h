@@ -53,7 +53,9 @@ static void LibretroCaptureSignal(int number, siginfo_t *info, void *context) {
   }
   // SA_RESETHAND has restored SIG_DFL. Preserve native fatal termination;
   // do not swallow the fault or resume the emulation session.
-  kill(getpid(), number);
+  // Thread-directed redelivery preserves the faulting thread. Process-wide
+  // kill() could terminate an unrelated UIKit/audio thread instead.
+  raise(number);
 }
 
 // Call once in normal process context. Descriptor stays open until exit;
