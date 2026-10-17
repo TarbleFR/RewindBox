@@ -388,3 +388,10 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 
 - Build 467 delivered from `3e943d3e7adddd5d7d1160c02d5e6b2d66ce104a`, run `38890710447`: checks/native/cold Release succeeded; optional warm skipped. Final sealed IPA 0.0.7 (467), **218,623,618 bytes**, SHA-256 `6d7a5807a2b1d9532be3c7b6f4dde5d752d5950744e856f8afd5632971701d84`. Encrypted artifact `12042815582`, ZIP SHA-256 `34ac9887fb635b72c2658b5c61f42671d5e01f2592db117a6f0f4d76182e70b5`, recipient 424. Independent verification confirms both integrity records, source stamps, six versions, all 76 sealed payload fingerprints, 34 cores, new PS1/search selectors and all 34 cheat resources (12,348,053 bytes). Native validation reused exact successful 6a inputs/toolchain; not re-executed.
 - Private downloadable IPA and Windows `C:\Users\Coren\Downloads\NeoStation-Build467-3e943d3e.ipa` have the same verified hash. **Do not reuse 467.** SideStore Apple re-signing remains required; no physical iPhone or commercial PS1 gameplay validation is claimed. Full evidence, retained failures, source licences, regional/format/container limits: `docs/build467-ps1-cheats.md`.
+
+
+## Validation reuse — permanent maintainer instruction, 18 October 2026
+
+- Do not multiply or repeat validations that have already passed when their tested inputs are unchanged. Reuse the recorded successful evidence and advance toward the requested testable IPA.
+- After a targeted fix, run only the checks affected by that fix. A relevant new failure or changed tested input may justify a targeted rerun; it does not justify restarting every previously successful suite.
+- Reuse unchanged precompiled emulator cores and native components. Passing tests permit delivery of a clearly identified candidate for the maintainer to test; do not keep delivery blocked by redundant validation or present Simulator success as physical-device proof.
