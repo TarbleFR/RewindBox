@@ -1,20 +1,17 @@
-name: Libretro measured memory and owner diagnosis
+name: Libretro targeted cheat ownership regression
 on:
   push:
     branches: [Claude]
     paths:
       - .github/workflows/libretro-memory-ownership470.yml
       - .github/diagnostics/libretro_memory_probe.py
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 jobs:
-  memory-owners:
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [baseline]
+  targeted-cheat-lifetime:
     runs-on: macos-15
     timeout-minutes: 35
     steps:
@@ -26,7 +23,13 @@ jobs:
         with:
           xcode-version: '26.3'
       - name: Prove production and existing test source identity
-        run: git diff --exit-code 2e877872a919c119fb3d10f47699218cc1a34e96 HEAD -- lib packages native assets test build-utils pubspec.yaml pubspec.lock
+        run: git diff --exit-code 6b1aaba9dd8b6e7cdb50de5730fbd6f51dd0a9eb HEAD -- lib packages native assets test build-utils pubspec.yaml pubspec.lock
+      - name: Prove ARC ownership and compile only the changed iPhone file
+        run: |
+          python3 - <<'PY'
+          import runpy
+          runpy.run_path('.github/diagnostics/libretro_memory_probe.py')['verify_ownership']('evidence/memory-owners')
+          PY
       - uses: actions/download-artifact@v4
         with:
           name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
@@ -35,14 +38,14 @@ jobs:
           path: dist/libretro
       - name: Fetch pinned simulator inputs
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
-      - name: Measure weak owners, malloc, VM regions and leaks through 20 sessions
+      - name: Verify 20 closed-session owners and actual cheat activation and persistence
         run: |
           python3 .github/diagnostics/libretro_memory_probe.py --cores dist/libretro \
-            --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/memory-owners --label "$GITHUB_SHA" --mode "${{ matrix.mode }}"
+            --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/memory-owners --label "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: libretro-memory-owners-${{ matrix.mode }}-${{ github.sha }}
+          name: libretro-targeted-lifetime-${{ github.sha }}
           path: evidence/memory-owners/
           retention-days: 14
           if-no-files-found: warn

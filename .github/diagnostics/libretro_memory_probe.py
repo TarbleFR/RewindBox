@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'test'))
 import libretro_simulator_probe as probe
 import libretro_nestopia_skin_stability_probe as stability
+import libretro_cheat_probe as cheats
 from libretro_simulator_device import pick_notched_device
 
 OWNERSHIP = r'''
@@ -27,7 +28,8 @@ static id MemoryValue(id object, NSString *key) {
 }
 static void MemoryTrack(NSString *key, id object) {
   if (!sMemoryOwners) sMemoryOwners = [NSMutableDictionary dictionary];
-  if (!sMemoryOwners[key]) sMemoryOwners[key] = [NSHashTable weakObjectsHashTable];
+  if (!sMemoryOwners[key]) sMemoryOwners[key] = [NSHashTable hashTableWithOptions:
+    NSPointerFunctionsWeakMemory | NSPointerFunctionsObjectPointerPersonality];
   if (object) [sMemoryOwners[key] addObject:object];
 }
 static void MemoryTrackSession(LibretroSession *session) {
@@ -35,6 +37,7 @@ static void MemoryTrackSession(LibretroSession *session) {
   for (NSString *key in @[@"controller", @"presenter", @"audio", @"host", @"input", @"cheatMenu"])
     MemoryTrack(key, MemoryValue(session, key));
   id menu = MemoryValue(session, @"cheatMenu");
+  MemoryTrack(@"cheatRootPage", MemoryValue(menu, @"_rootPage"));
   MemoryTrack(@"cheatCatalog", MemoryValue(menu, @"catalog"));
   for (id document in [MemoryValue(menu, @"installed") allValues]) MemoryTrack(@"catalogDocument", document);
   id controller = MemoryValue(session, @"controller");
@@ -65,11 +68,42 @@ static NSDictionary *MemorySnapshot(void) {
 '''
 
 
+
+def verify_ownership(evidence):
+    """Compile the actual declarations and only the changed iPhone source."""
+    evidence = Path(evidence)
+    evidence.mkdir(parents=True, exist_ok=True)
+    path = 'packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'
+    baseline = subprocess.check_output(['git','show','69f2194acb415a4d68f7898428d42262ab2149da:' + path], cwd=ROOT, text=True)
+    current = (ROOT / path).read_text()
+    pattern = r'^\s*__weak LibretroMenuPage \*[^;]+;'
+    old = '\n'.join(re.findall(pattern, baseline, re.M))
+    new = '\n'.join(re.findall(pattern, current, re.M))
+    assert old and new
+    with tempfile.TemporaryDirectory(prefix='libretro-arc-') as temporary:
+        source = Path(temporary) / 'ownership.m'
+        source.write_text('__attribute__((objc_root_class)) @interface Root @end\n'
+            '@interface LibretroMenuPage:Root @end\n'
+            '@interface Original:Root {\n' + old + '\n} @end\n'
+            '@interface Candidate:Root {\n' + new + '\n} @end\n')
+        ast = subprocess.check_output(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios17.4',
+            '-fobjc-arc','-Xclang','-ast-dump','-fsyntax-only',str(source)], text=True)
+    roots = re.findall(r"ObjCIvarDecl[^\n]*_rootPage 'LibretroMenuPage \*__(strong|weak)'", ast)
+    visible = re.findall(r"ObjCIvarDecl[^\n]*_visiblePage 'LibretroMenuPage \*__(strong|weak)'", ast)
+    assert roots == ['strong','weak'] and visible == ['weak','weak'], ast
+    sdk = subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
+    subprocess.run(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios17.4','-isysroot',sdk,
+        '-fobjc-arc','-fmodules','-Werror','-Wno-deprecated-declarations','-fsyntax-only',str(ROOT/path)],check=True)
+    (evidence/'ownership-proof.json').write_text(json.dumps({'baselineRootOwnership':roots[0],
+        'candidateRootOwnership':roots[1],'visibleOwnership':visible,'actualSourcePath':path,
+        'changedIPhoneSourceCompiled':True,'ast':ast},indent=2))
+    print('PASS: Apple Clang proves 469 root is strong, candidate root is weak; changed iPhone source compiles.',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for key in ('cores', 'inputs', 'evidence', 'label'):
         parser.add_argument('--' + key, required=True)
-    parser.add_argument('--mode', choices=('baseline','pools','no-prewarm'), default='baseline')
     args = parser.parse_args()
     args.sources = None
     args.only = []
@@ -79,7 +113,8 @@ def main():
     probe.SCENARIOS = [dict(name=f'memory-{i+1:02d}', core='nestopia', console='nes',
                             content='content/nes-skin-loop-a.nes', expect='run', runSeconds=1.0,
                             skinSelection=stability.ORIGINAL_ID if i < 10 else 'default', lifetimeProbe=True)
-                       for i in range(20)]
+                       for i in range(20)] + [dict(name='cheats-nestopia', core='nestopia', console='nes',
+                            content='content/cheat-probe.nes', expect='run', cheatProbe=True)]
     evidence = Path(args.evidence)
     evidence.mkdir(parents=True, exist_ok=True)
     original_run = probe.run
@@ -89,27 +124,6 @@ def main():
         work = Path(temporary)
         sources = probe.BRIDGE
         variant_files = []
-        if args.mode != 'baseline':
-            sources = work / 'variant-bridge'
-            shutil.copytree(probe.BRIDGE, sources)
-            if args.mode == 'pools':
-                for name in ('LibretroCheatMenu.m','LibretroCheatCatalog.m'):
-                    path = sources / 'Classes' / name
-                    before = path.read_text()
-                    old = 'dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,'
-                    assert before.count(old) == 1
-                    path.write_text(before.replace(old, 'dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL,'))
-                    variant_files.append(name)
-            else:
-                path = sources / 'Classes/LibretroSession.m'
-                before = path.read_text()
-                old = '// Prepare identity and catalogues after launch; never wait on the emulation queue.\n    [self cheatsPage];'
-                assert before.count(old) == 1
-                path.write_text(before.replace(old, '// CI isolation only: omit eager catalogue preparation.'))
-                variant_files.append(path.name)
-            with (evidence / 'nonshipping-variant.patch').open('w') as output:
-                for name in variant_files:
-                    subprocess.run(['diff','-u',str(probe.BRIDGE/'Classes'/name),str(sources/'Classes'/name)],stdout=output)
         instrumented = work / 'probe-memory.m'
         source = original_source.read_text()
         marker = '@interface ProbeAppDelegate : UIResponder <UIApplicationDelegate>'
@@ -149,6 +163,9 @@ def main():
         config_file.write_text(json.dumps(config))
         stability.original_skin(app)
         stability.make_roms(app)
+        cheats.content(app / 'content')
+        for name in ('ff7-usa-original.cht', 'digimon-world-original.cht'):
+            shutil.copyfile(ROOT / 'test/fixtures/libretro_cheats' / name, app / name)
         # Match the successful 100-session app's normal simulator signature.
         # VM tooling permission failures are preserved as diagnostic output.
         original_run(['codesign', '--force', '--sign', '-', '--timestamp=none', app])
@@ -183,12 +200,21 @@ def main():
             outcome = probe.run_in_simulator(app, evidence, 900)
         finally:
             subprocess.run = original_subprocess_run
+        restart_evidence = evidence / 'process-restart'
+        restart_evidence.mkdir()
+        os.environ['SIMCTL_CHILD_NEOSTATION_CHEAT_RESTART'] = '1'
+        try:
+            restarted = probe.run_in_simulator(app, restart_evidence, 180, reset=False)
+        finally:
+            os.environ.pop('SIMCTL_CHILD_NEOSTATION_CHEAT_RESTART', None)
     report = json.loads((evidence / 'probe.json').read_text()) if (evidence / 'probe.json').exists() else {'results':[]}
     problems = probe.evaluate(report, scenarios)
     if not outcome['finished']:
         problems.append('memory probe process did not finish')
     records = []
     for index, row in enumerate(report['results']):
+        if index >= 20:
+            continue
         if index < 10:
             required = f'"event":"active","identifier":"{stability.ORIGINAL_ID}"'
             if required not in row.get('journal','') or '"display":"edgeToEdge"' not in row.get('journal',''):
@@ -198,18 +224,32 @@ def main():
             problems.append(row['name'] + ': no post-release memory snapshot')
             continue
         records.append({'name':row['name'], **snapshot})
-        for owner in ('session','controller','presenter','audio','host','input','skinRenderer','overlay','cheatMenu','cheatCatalog'):
+        for owner in ('session','controller','presenter','audio','host','input','skinRenderer','overlay','cheatMenu','cheatCatalog','catalogDocument','cheatRootPage'):
             if snapshot['owners'].get(owner) != 0:
                 problems.append(row['name'] + ': retained owner ' + owner + '=' + str(snapshot['owners'].get(owner)))
         print('MEMORY', json.dumps(records[-1]), flush=True)
-    verdict = {'source':args.label, 'productionSource':'2e877872a919c119fb3d10f47699218cc1a34e96',
-               'mode':args.mode,'nonshippingVariantFiles':variant_files,
-               'outcome':outcome,'records':records,'problems':problems,'physicalDeviceValidated':False,
-               'notes':'No RSS threshold asserted; weak application owners, malloc statistics and VM categories identify what remains.'}
+    if len(records) != 20:
+        problems.append('expected exactly 20 ownership regression records')
+    restart_file = restart_evidence / 'probe.json'
+    restart_report = json.loads(restart_file.read_text()) if restart_file.exists() else {'results':[]}
+    problems += probe.evaluate(restart_report, [scenarios[-1]])
+    if not restarted['finished']:
+        problems.append('cheat persistence process did not finish')
+    functional = next((row.get('cheatChecks',[]) for row in report['results'] if row['name']=='cheats-nestopia'), [])
+    persistence = next((row.get('cheatChecks',[]) for row in restart_report['results'] if row['name']=='cheats-nestopia'), [])
+    if len(functional) != 99 or any(not row['passed'] for row in functional):
+        problems.append('99 actual NES cheat/menu checks did not all pass')
+    if len(persistence) != 4 or any(not row['passed'] for row in persistence):
+        problems.append('4 actual second-process cheat checks did not all pass')
+    verdict = {'source':args.label, 'productionSource':'6b1aaba9dd8b6e7cdb50de5730fbd6f51dd0a9eb',
+               'outcome':outcome,'restartOutcome':restarted,'records':records,
+               'functionalCheatChecks':len(functional),'persistenceCheatChecks':len(persistence),
+               'problems':problems,'physicalDeviceValidated':False,
+               'notes':'Targeted weak-owner regression and unchanged cheat functionality; no shipping variants or arbitrary memory threshold.'}
     (evidence / 'memory-verdict.json').write_text(json.dumps(verdict,indent=2))
     if problems:
         raise SystemExit('\n'.join(problems))
-    print('PASS: 20 complete sessions; all tracked application owners released; memory diagnosis captured.',flush=True)
+    print('PASS: 20 sessions release every tracked owner; 99 cheat checks and 4 second-process checks pass.',flush=True)
 
 if __name__ == '__main__':
     main()
