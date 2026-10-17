@@ -35,7 +35,18 @@ int main(int argc, char **argv) {
   unsigned lines = 0;
   for (char *p = bytes; *p; p++) if (*p == '\n') lines++;
   assert(lines == 4 && strstr(bytes, "fatal signal=0x") && strstr(bytes, " code=0x") && strstr(bytes, " pc=0x"));
+  LibretroUninstallCrashCapture();
+  assert(sigaction(SIGSEGV, NULL, &found) == 0 && found.sa_handler == SIG_DFL);
+  assert(sigaction(SIGILL, NULL, &found) == 0 && found.sa_handler == ExistingReporter);
+  // An unrelated emulator after the session closes must not acquire the
+  // preceding libretro session's identity in this diagnostic file.
+  pid_t later = fork();
+  assert(later >= 0);
+  if (later == 0) { raise(SIGABRT); _exit(99); }
+  int status;
+  assert(waitpid(later, &status, 0) == later && WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+  assert(lseek(descriptor, 0, SEEK_END) == (off_t)strlen(bytes));
   close(descriptor);
-  puts("PASS: four fatal signals captured and preserved; installed reporter untouched");
+  puts("PASS: four fatal signals captured and preserved; reporter untouched; closed-session handler removed");
   return 0;
 }

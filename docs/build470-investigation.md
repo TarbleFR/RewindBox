@@ -73,7 +73,10 @@ session creation and successful skin activation.
 `native-termination.log` captures fatal signals only when no handler already
 owns them. The handler uses fixed stack storage and a preopened descriptor,
 without Objective-C, allocation, locks or unwinding. It preserves fatal signal
-termination. The next process keeps an actual fault in
+termination on the originating thread. The owning journal removes only its own
+handlers when the session ends; another emulator cannot inherit a Libretro
+session's fault identity. A pre-existing or subsequently registered reporter is
+preserved. The next process keeps an actual fault in
 `previous-native-termination.log`; normal launches do not overwrite that fault.
 It cannot capture SIGKILL/jetsam/watchdog or promise a complete stack trace.
 Absence of a fatal line never proves a system kill.

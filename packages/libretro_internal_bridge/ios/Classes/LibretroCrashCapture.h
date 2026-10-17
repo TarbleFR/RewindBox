@@ -76,4 +76,19 @@ static inline unsigned LibretroInstallCrashCapture(int descriptor) {
   }
   return installed;
 }
+
+// Leave another reporter's later registration intact. Outside an active
+// libretro session no signal handler from this module should remain installed.
+static inline void LibretroUninstallCrashCapture(void) {
+  const int signals[] = {SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGSEGV};
+  for (size_t i = 0; i < sizeof(signals)/sizeof(signals[0]); i++) {
+    struct sigaction current;
+    if (sigaction(signals[i], NULL, &current) != 0 || !(current.sa_flags & SA_SIGINFO) ||
+        current.sa_sigaction != LibretroCaptureSignal) continue;
+    struct sigaction original = {0};
+    sigemptyset(&original.sa_mask);
+    original.sa_handler = SIG_DFL;
+    sigaction(signals[i], &original, NULL);
+  }
+}
 #endif

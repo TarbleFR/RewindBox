@@ -21,13 +21,15 @@ jobs:
           test "$(gh api repos/TarbleFR/neostation-ios/branches/Claude --jq .commit.sha)" = "$GITHUB_SHA"
           # Preserve run history while releasing macOS slots held by our
           # superseded candidates. Do not cancel unrelated maintainer runs.
-          for run in 39068915352 39068915366 39068915383 39068915356 39069274170 39069274197 39069274165 39069274205 39069274297 39069354076 39069355850; do
-            if test "$(gh api repos/TarbleFR/neostation-ios/actions/runs/$run --jq .status)" != completed; then
+          for run in 39068915352 39068915366 39068915383 39068915356 39069274170 39069274197 39069274165 39069274205 39069274297 39069354076 39069355850 39069418680 39069418690 39069418679 39069434569 39069436384 39069497371 39069498785; do
+            state="$(gh api repos/TarbleFR/neostation-ios/actions/runs/$run --jq .status)"
+            if test "$state" = in_progress; then
+              gh api -X POST "repos/TarbleFR/neostation-ios/actions/runs/$run/force-cancel" || gh run cancel "$run"
+            elif test "$state" != completed; then
               gh run cancel "$run"
             fi
           done
-          # Catalogue/cheat suites were dispatched at 8fd47e2a and are
-          # already queued with identical runtime sources. Start only the
-          # remaining existing-install and directional suites here.
+          gh workflow run libretro-cheats-checks.yml --ref Claude
+          gh workflow run libretro-catalog-checks.yml --ref Claude
           gh workflow run libretro-skin-loading-checks.yml --ref Claude
           gh workflow run libretro-skin-checks.yml --ref Claude

@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <mach-o/dyld.h>
+#include <stdatomic.h>
+
+static _Atomic uintptr_t gNativeCaptureOwner;
 
 static NSString *const kCurrentName = @"session.log";
 static NSString *const kPreviousName = @"previous-session.log";
@@ -73,7 +76,6 @@ static NSString *JournalTimestamp(void) {
   [journal writeText:[NSString stringWithFormat:@"NeoStation libretro session journal 1, started %@\n",
                                                 JournalTimestamp()]];
   static int crashDescriptor = -1;
-  static unsigned capturedSignals = 0;
   static dispatch_once_t captureOnce;
   dispatch_once(&captureOnce, ^{
     NSString *crash = [directory stringByAppendingPathComponent:@"native-termination.log"];
@@ -86,8 +88,9 @@ static NSString *JournalTimestamp(void) {
       [files moveItemAtPath:crash toPath:kept error:nil];
     }
     crashDescriptor = open(crash.fileSystemRepresentation, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
-    capturedSignals = LibretroInstallCrashCapture(crashDescriptor);
   });
+  unsigned capturedSignals = LibretroInstallCrashCapture(crashDescriptor);
+  atomic_store(&gNativeCaptureOwner, (uintptr_t)(__bridge void *)journal);
   NSString *identity = [NSString stringWithFormat:@"session=%@ pid=%d main-slide=0x%llx fatal-signal-mask=0x%x",
     journal.sessionIdentifier, getpid(), (unsigned long long)_dyld_get_image_vmaddr_slide(0), capturedSignals];
   // Only the latest session identity is needed; keep the crash file bounded
@@ -113,6 +116,8 @@ static NSString *JournalTimestamp(void) {
 }
 
 - (void)dealloc {
+  uintptr_t owner = (uintptr_t)(__bridge void *)self;
+  if (atomic_compare_exchange_strong(&gNativeCaptureOwner, &owner, 0)) LibretroUninstallCrashCapture();
   if (_descriptor >= 0) close(_descriptor);
 }
 
@@ -187,6 +192,10 @@ static NSString *JournalTimestamp(void) {
     _descriptor = -1;
   }
   os_unfair_lock_unlock(&_lock);
+  if (closed) {
+    uintptr_t owner = (uintptr_t)(__bridge void *)self;
+    if (atomic_compare_exchange_strong(&gNativeCaptureOwner, &owner, 0)) LibretroUninstallCrashCapture();
+  }
   if (closed && [outcome hasPrefix:kFailedLaunchOutcome]) {
     // Kept until another launch fails: the sessions after it rotate
     // session.log and previous-session.log away.
