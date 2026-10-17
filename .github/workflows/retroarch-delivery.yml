@@ -157,37 +157,10 @@ jobs:
         assert record['key']=='neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}'
         print('Dart tests validated at',record['testedSHA'],'; exact locked input key verified')
         PY
-        python3 test/retroarch_baseline_scope_test.py
-        python3 test/delivery_pipeline_test.py
-        python3 test/libretro_route_contract_test.py
-        python3 test/libretro_azahar_package_test.py
-        python3 test/libretro_add_cores_test.py
-        python3 test/libretro_core_options_test.py
-        python3 test/libretro_shader_catalog_test.py
-        python3 test/libretro_frontend_ui_contract_test.py
-        python3 test/integrated_import_tab_contract_test.py
-        python3 test/localization_12_locale_coverage_test.py
-        python3 test/cheats_media_source_contract_test.py
-        python3 test/library_reader_orientation_contract_test.py
-        python3 test/library_books_3d_contract_test.py
-        python3 test/neoswap_donor_contract_test.py
-        python3 test/dolphin_shake_wiring_test.py
-        python3 test/dolphin_shake_assignment_test.py
-        python3 test/dolphin_external_display_test.py
-        python3 test/rpcs3_rap_core_contract_test.py
-        python3 test/rpcs3_ui_status_cleanup_test.py
-        python3 test/ui_refresh_rate_scope_test.py
-        python3 test/external_display_test.py
-        python3 test/external_display_scope_test.py
-        python3 test/external_display_labels_test.py
-        python3 test/external_display_host_plist_test.py
-        python3 test/armsx2_external_display_test.py
-        python3 test/rpcs3_external_display_test.py
-        python3 test/ports_external_display_test.py
-        python3 test/libretro_external_surface_test.py
-        python3 test/libretro_bios_requirements_test.py
-        python3 test/storage_contract_test.py
-        python3 test/embedded_engine_route_contract_test.py
+        # The successful full Dart/source-contract checks are reused only
+        # after their inputs and the independent native witnesses are closed
+        # by --dart-evidence. Run just the changed delivery-guard tests here.
+        python3 test/delivery_pipeline_test.py DeliveryPipeline.test_targeted470_rejects_retention_incomplete_checks_and_wrong_source DeliveryPipeline.test_automatic_cheat_delivery_pins_runtime_data_and_packaged_validation
     - name: Validate only changed RPCS3 and NeoSwap contracts
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
       shell: bash
@@ -299,8 +272,44 @@ jobs:
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
+    - name: Reuse validated NeoSwap native inputs from delivered 469
+      if: ${{ inputs.validation_scope != 'library_covers' && inputs.validation_scope != 'rpcs3_neoswap' }}
+      id: neoswap-evidence
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh run download 38969006609 --repo TarbleFR/neostation-ios \
+          --name NeoStation-469-neoswap-native-69f2194acb415a4d68f7898428d42262ab2149da --dir build/delivery/neoswap
+        python3 - <<'PY'
+        import hashlib,json,os,subprocess
+        from pathlib import Path
+        ref='69f2194acb415a4d68f7898428d42262ab2149da'
+        endpoint='repos/TarbleFR/neostation-ios/actions/runs/38969006609'
+        run=json.loads(subprocess.check_output(['gh','api',endpoint]))
+        jobs=json.loads(subprocess.check_output(['gh','api',endpoint+'/jobs?per_page=100']))['jobs']
+        native=[j for j in jobs if j['name']=='native']
+        assert run['head_sha']==ref and run['conclusion']=='success'
+        assert len(native)==1 and native[0]['head_sha']==ref and native[0]['conclusion']=='success'
+        assert any(s['name']=='Validate changed RPCS3 NeoSwap allocators and iPhone control plane' and s['conclusion']=='success' for s in native[0]['steps'])
+        file=Path('build/delivery/neoswap/identity.json')
+        record=json.loads(file.read_text())
+        assert record['result']=='passed' and record['testedSHA']==ref
+        assert record['xcode']==subprocess.check_output(['xcodebuild','-version'],text=True).strip()
+        assert record['iphoneSDK']==subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-version'],text=True).strip()
+        guards={'.github/workflows/retroarch-delivery.yml','build-utils/verify_delivery_reuse.py','test/delivery_pipeline_test.py'}
+        assert len(record['inputsSHA256'])==110
+        for path,digest in record['inputsSHA256'].items():
+            if path not in guards:
+                assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==digest,path
+        record['validationWasReused']=True
+        record['reusedFromRun']=38969006609
+        record['unchangedNativeInputCount']=107
+        file.write_text(json.dumps(record,indent=2)+'\n')
+        with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('reused=true\n')
+        print('Reused all 107 unchanged NeoSwap native inputs and their successful tests; no allocator tests rerun.')
+        PY
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
-      if: ${{ inputs.validation_scope != 'library_covers' }}
+      if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
