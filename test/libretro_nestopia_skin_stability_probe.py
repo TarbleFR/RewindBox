@@ -9,6 +9,7 @@ renderer, emulation thread, close and relaunch. A process death is a failure.
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import struct
 import subprocess
@@ -63,6 +64,9 @@ def make_roms(app):
     for number, name in ((0xEA, 'nes-skin-loop-a.nes'), (0x18, 'nes-skin-loop-b.nes')):
         rom = bytearray([0xEA] * 16384)
         rom[:4] = bytes.fromhex('78 4c 01 80')  # SEI, JMP $8001
+        if number == 0x18:
+            # A distinct CPU/RAM workload, rather than an unused-byte change.
+            rom[:7] = bytes.fromhex('78 e6 00 4c 01 80 ea')  # SEI; INC $00; JMP $8001
         rom[0x20] = number
         rom[-6:] = bytes.fromhex('01 80 00 80 01 80')
         (content / name).write_bytes(b'NES\x1a\x01\x01' + bytes(10) + rom + bytes(8192))
@@ -100,6 +104,7 @@ def main():
     for field in ('cores','inputs','evidence','label'):
         parser.add_argument('--' + field, required=True)
     parser.add_argument('--baseline', action='store_true', help='reproduce only the terminal-lifetime defects using original 469 renderer/view bodies')
+    parser.add_argument('--asan', action='store_true', help='instrument bridge/probe CPU memory access, 12 focused sessions')
     args = parser.parse_args()
     args.sources = None
     args.only = []
@@ -108,6 +113,11 @@ def main():
     probe.SCENARIOS = scenarios()
     if args.baseline:
         probe.SCENARIOS = [{**probe.SCENARIOS[0], 'lifetimeBaseline': True}]
+    elif args.asan:
+        all_tests = probe.SCENARIOS
+        probe.SCENARIOS = all_tests[:6] + all_tests[80:83] + all_tests[90:93]
+        os.environ['NEOSTATION_SIMULATOR_ASAN'] = '1'
+        os.environ['SIMCTL_CHILD_ASAN_OPTIONS'] = 'detect_leaks=0:abort_on_error=1'
     output = Path(args.evidence)
     output.mkdir(parents=True, exist_ok=True)
     # Choose a notched iPhone instead of the default alphabetic iPhone SE:
@@ -181,6 +191,8 @@ def main():
         'attemptsWithoutSkin':sum(s['skinSelection'] == 'default' for s in tests),
         'attemptsOtherCatalogue':sum(s['skinSelection'] == SECONDARY for s in tests),
         'baseline469Bodies':args.baseline,
+        'addressSanitizer':args.asan,
+        'prebuiltCoreInstrumented':False,
         'checks':sum(len(r.get('lifetimeChecks', [])) for r in report.get('results', [])),
         'allSessionsClosed':result['finished'],'failures':failures,
         'physicalDeviceValidated':False,'commercialROMUsed':False,

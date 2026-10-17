@@ -406,9 +406,11 @@ static NSString *ReservationReport(void) {
   Progress(@"probe started: %lu scenarios, source %@", (unsigned long)_scenarios.count, _config[@"source"] ?: @"?");
   // As LibretroInternalBridgePlugin does once the plugins are registered.
   dispatch_async(dispatch_get_main_queue(), ^{
+#ifndef NEOSTATION_ADDRESS_SANITIZER
     BOOL (*reserve)(void) = (BOOL (*)(void))dlsym(RTLD_DEFAULT, "LibretroPPSSPPReserveWindow");
     if (reserve != NULL) reserve();
     Progress(@"PPSSPP window at launch: %@", ReservationReport());
+#endif
   });
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     [self runNext];

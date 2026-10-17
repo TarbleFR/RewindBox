@@ -66,6 +66,9 @@ decode start/end/error/cancellation, first software frame dimensions/stride/
 format, drawable acquisition and GPU completion/error, audio start and service
 scheduling. System notifications record background/foreground, memory warning,
 thermal state and measured footprint.
+Loaded app/core image UUIDs and load addresses are recorded for matching a
+fatal PC against the exact delivered Mach-O images; footprint is sampled at
+session creation and successful skin activation.
 
 `native-termination.log` captures fatal signals only when no handler already
 owns them. The handler uses fixed stack storage and a preopened descriptor,
@@ -99,6 +102,10 @@ Success is not physical-device validation.
 - Native signal child processes, journal concurrent writes/rotation,
   existing native frontend/input/pressure checks, iPhone compile/link,
   installed-skin preservation, catalogue, cheats and other-core suites.
+- 12 additional sessions with AddressSanitizer instrumenting bridge/probe CPU
+  memory operations (the prebuilt core and GPU are not instrumented); concurrent
+  journal writers also run under ThreadSanitizer on macOS. These are additional
+  diagnostic tests, never presented as a physical-device run.
 - No commercial 10-Yard Fight ROM or physical iPhone is available. No 30-launch
   physical run or long-duration thermal result is claimed.
 

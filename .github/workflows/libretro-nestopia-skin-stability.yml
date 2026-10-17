@@ -24,6 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -53,5 +54,44 @@ jobs:
         with:
           name: nestopia-skin-stability-${{ github.sha }}
           path: evidence/nestopia-skins/
+          retention-days: 14
+          if-no-files-found: warn
+  memory-sanitizers:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Concurrent journal writes under ThreadSanitizer
+        run: |
+          mkdir -p "$RUNNER_TEMP/journal-tsan"
+          clang -fobjc-arc -O1 -g -fsanitize=thread -fno-omit-frame-pointer \
+            -I packages/libretro_internal_bridge/ios/Classes \
+            packages/libretro_internal_bridge/ios/Classes/LibretroSessionJournal.m \
+            test/libretro_host/frontend/session_journal_test.m -framework Foundation \
+            -o "$RUNNER_TEMP/journal-tsan/probe"
+          TSAN_OPTIONS=halt_on_error=1 "$RUNNER_TEMP/journal-tsan/probe" "$RUNNER_TEMP/journal-tsan"
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Fetch pinned simulator inputs
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Real Nestopia — 12 bridge AddressSanitizer sessions
+        run: |
+          python3 test/libretro_nestopia_skin_stability_probe.py \
+            --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+            --evidence evidence/nestopia-asan --label "$GITHUB_SHA" --asan
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nestopia-memory-sanitizers-${{ github.sha }}
+          path: evidence/nestopia-asan/
           retention-days: 14
           if-no-files-found: warn

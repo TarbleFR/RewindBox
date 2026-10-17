@@ -151,6 +151,32 @@ static NSString *JournalTimestamp(void) {
   [self writeText:block];
 }
 
+- (void)noteLoadedImages {
+  NSString *bundle = NSBundle.mainBundle.bundlePath;
+  uint32_t count = _dyld_image_count();
+  for (uint32_t index = 0; index < count; index++) {
+    const char *name = _dyld_get_image_name(index);
+    NSString *path = name ? @(name) : nil;
+    if (![path hasPrefix:bundle]) continue;
+    const struct mach_header *header = _dyld_get_image_header(index);
+    if (header == NULL || header->magic != MH_MAGIC_64) continue;
+    const struct mach_header_64 *wide = (const struct mach_header_64 *)header;
+    const uint8_t *command = (const uint8_t *)(wide + 1), *end = command + wide->sizeofcmds;
+    NSString *uuid = @"unknown";
+    for (uint32_t n = 0; n < wide->ncmds && command + sizeof(struct load_command) <= end; n++) {
+      const struct load_command *load = (const struct load_command *)command;
+      if (load->cmdsize < sizeof(*load) || load->cmdsize > (size_t)(end-command)) break;
+      if (load->cmd == LC_UUID && load->cmdsize >= sizeof(struct uuid_command)) {
+        uuid = [[NSUUID alloc] initWithUUIDBytes:((const struct uuid_command *)command)->uuid].UUIDString;
+        break;
+      }
+      command += load->cmdsize;
+    }
+    [self note:[NSString stringWithFormat:@"image: %@ uuid=%@ address=%p slide=0x%llx", path.lastPathComponent,
+      uuid, header, (unsigned long long)_dyld_get_image_vmaddr_slide(index)]];
+  }
+}
+
 - (void)finishWithOutcome:(NSString *)outcome {
   [self note:[NSString stringWithFormat:@"session %@", outcome]];
   [self writeText:[NSString stringWithFormat:@"END %@\n", outcome]];

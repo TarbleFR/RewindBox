@@ -791,6 +791,9 @@ def compile_probe(sources, sdk, work, app):
                 sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include]
     base = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-O1',
             '-Wno-deprecated-declarations']
+    sanitizer = os.environ.get('NEOSTATION_SIMULATOR_ASAN') == '1'
+    if sanitizer:
+        base += ['-fsanitize=address', '-fno-omit-frame-pointer', '-DNEOSTATION_ADDRESS_SANITIZER=1']
     for include in includes:
         base += ['-I', str(include)]
     for define in DEFINES:
@@ -822,10 +825,16 @@ def compile_probe(sources, sdk, work, app):
         libraries.append('-lc++')
     link = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-fobjc-arc',
             *(str(item) for item in objects)]
+    if sanitizer:
+        link += ['-fsanitize=address']
     for framework in frameworks:
         link += ['-framework', framework]
     link += [*libraries, '-Wl,-rpath,@executable_path/Frameworks', '-o', str(app / 'Probe')]
     run(link)
+    if sanitizer:
+        resource = Path(output(['xcrun', '--sdk', 'iphonesimulator', 'clang', '-print-resource-dir']).strip())
+        runtime = resource / 'lib/darwin/libclang_rt.asan_iossim_dynamic.dylib'
+        shutil.copyfile(runtime, app / 'Frameworks' / runtime.name)
 
 
 def build_test_cores(sdk, frameworks):

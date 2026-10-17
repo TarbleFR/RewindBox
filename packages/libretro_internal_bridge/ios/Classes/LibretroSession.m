@@ -301,6 +301,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [_journal note:[NSString stringWithFormat:@"session=%p created os=%@ physical-memory=%llu simulator=%d",
     self, NSProcessInfo.processInfo.operatingSystemVersionString,
     NSProcessInfo.processInfo.physicalMemory, TARGET_OS_SIMULATOR]];
+  [self systemDiagnostic:[NSNotification notificationWithName:@"session-start" object:nil]];
   for (NSString *name in @[UIApplicationDidReceiveMemoryWarningNotification,
       UIApplicationWillResignActiveNotification, UIApplicationDidEnterBackgroundNotification,
       UIApplicationDidBecomeActiveNotification, UIApplicationWillTerminateNotification,
@@ -739,6 +740,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   };
   NSError *error = nil;
   if (![_host loadCore:&error]) return [self failureFromError:error];
+  [_journal noteLoadedImages];
   [_journal note:[NSString stringWithFormat:@"load: core %@ %@ initialised", _host.libraryName ?: @"",
                                             _host.libraryVersion ?: @""]];
   if ([_host.libraryName isEqualToString:@"PPSSPP"]) {
@@ -1668,6 +1670,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     session->_lastWorkingSkins[@(ready.orientation)] = skin;
     session->_skinFailureShown = NO;
     [session noteSkin:renderedIdentifier representation:ready event:@"active" issue:nil];
+    [session systemDiagnostic:[NSNotification notificationWithName:@"skin-active" object:nil]];
   };
   _controller.skinRenderer.pressureIntensity = LibretroSkinPressureIntensityFromIdentifier(
       [self settingValue:LibretroSettingPressureIntensity]);

@@ -34,6 +34,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// One timestamped line (UTC time and seconds since the session started).
 - (void)note:(NSString *)line;
 
+/// Loaded app/core image UUIDs and addresses for the fatal PC breadcrumb.
+- (void)noteLoadedImages;
+
 /// A titled block of lines (the core's log), indented.
 - (void)noteLines:(NSArray<NSString *> *)lines title:(NSString *)title;
 
