@@ -1,0 +1,12 @@
+{
+  "upstream": "https://github.com/libretro/nestopia",
+  "revision": "135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+  "archiveSha256": "e1a8a853e919cb46a33b48702d703d2e8019d6bc8aff7c3fab88828f8e3c1619",
+  "originalPpuSha256": "0923606afb871cf259f91db78e4a0b0ef1c7acf473104c16817f6b5b8d733146",
+  "patchedPpuSha256": "79f370ccdf7311429982bf8b76aeb44d1a860cad013b21281fdd45bbb3b33a81",
+  "patchSha256": "53847d26b0f914e6fe7ae00415a91f93a5d9573a78453b4947b752b0f9e10d59",
+  "baselineImageUUID": "AB4FBC0A-FF62-367B-A96B-01480A9B8DAF",
+  "baselineFaultOffset": "0x45cc8",
+  "baseHostCommit": "fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258",
+  "baseRunId": 38638115521
+}

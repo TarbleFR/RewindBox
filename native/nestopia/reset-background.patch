@@ -1,0 +1,10 @@
+--- a/source/core/NstPpu.cpp
++++ b/source/core/NstPpu.cpp
+@@ -274,6 +274,7 @@
+ 			std::memset( oam.buffer, Oam::GARBAGE, sizeof(oam.buffer) );
+ 
+ 			output.target = NULL;
++			output.bgColor = palette.ram[0] & uint(Palette::COLOR);
+ 
+ 			hActiveHook.Unset();
+ 			hBlankHook.Unset();

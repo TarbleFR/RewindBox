@@ -1,0 +1,55 @@
+name: Nestopia targeted background reset correction
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - native/nestopia/**
+      - .github/diagnostics/nestopia_bgcolor/**
+      - .github/workflows/nestopia-bgcolor.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  nestopia-reset:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Reuse unchanged production frontend and all unrelated cores
+        run: git diff --exit-code a43a570412ed2bf382d2df3acc0a9ce9ca88c27c HEAD -- lib packages assets test build-utils/libretro pubspec.yaml pubspec.lock
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro-base
+      - name: Compile only Nestopia with the one-line reset correction
+        run: python3 .github/diagnostics/nestopia_bgcolor/build.py --base dist/libretro-base --output dist/libretro --work "$RUNNER_TEMP/nestopia-reset"
+      - name: Reproduce the exact old iPhone fault and exercise corrected NTSC modes
+        run: python3 .github/diagnostics/nestopia_bgcolor/probe.py --base dist/libretro-base --fixed dist/libretro --evidence evidence/nestopia-core
+      - name: Fetch existing integration fixtures
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Run corrected core with original skin and nonzero heap initialization
+        run: python3 .github/diagnostics/nestopia_bgcolor/skin.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/nestopia-skin --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LibretroCores-${{ github.sha }}
+          path: dist/libretro/
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nestopia-reset-proof-${{ github.sha }}
+          path: |
+            evidence/
+            ${{ runner.temp }}/nestopia-reset/compile.log
+          retention-days: 14
+          if-no-files-found: warn
