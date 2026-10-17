@@ -2003,8 +2003,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(LIBRETRO_CATALOG463_INPUTS, LIBRE
 DELTA |= LIBRETRO_CATALOG463_INPUTS
 # Build 464 keeps the 463 features and repairs layout-scoped activation.
 # New and changed source/test inputs are pinned, never excluded from evidence.
-SKIN_LOADING_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
-SKIN_LOADING_RUN = 38887222398
+SKIN_LOADING_REFERENCE = 'ed45df2e97cefb63b455037f72390455a3309692'
+SKIN_LOADING_RUN = 39072237930
 SKIN_LOADING_INPUTS = {
     '.github/workflows/libretro-skin-loading-checks.yml',
     '.github/workflows/libretro-skin-checks.yml',
@@ -2029,8 +2029,8 @@ DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_LOADING_INPUTS, SKIN_LOADING
 DELTA |= SKIN_LOADING_INPUTS
 
 # Build 465: catalogue-only product corrections and original-source audit.
-CATALOG_AUDIT_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
-CATALOG_AUDIT_RUN = 38887225249
+CATALOG_AUDIT_REFERENCE = '2e877872a919c119fb3d10f47699218cc1a34e96'
+CATALOG_AUDIT_RUN = 39071418361
 CATALOG_AUDIT_INPUTS = {
     '.github/workflows/libretro-catalog-checks.yml',
     'assets/data/libretro_skin_overlays.json',
@@ -2164,6 +2164,33 @@ SKIN_STABILITY468_DELIVERY_RECIPE = 'e634c98b49776db219b5a8cb8b15d433e55c6b6b'
 DELIVERY456_PINNED_INPUTS['.github/workflows/retroarch-delivery.yml'] = SKIN_STABILITY468_DELIVERY_RECIPE
 SKIN_STABILITY468_RECIPIENT = 'docs/delivery/recipients/neostation-468-chatgpt-recipient.pem'
 SKIN_STABILITY468_RECIPIENT_SHA256 = '503232ab14e40879949584b809fc36fa081cc2634ba1b8c993bb12b56aebaa73'
+
+# Build 470: terminal lifetime repair and native fault diagnostics. Every
+# changed runtime/test input is pinned to the reviewed product, not exempted.
+SKIN_STABILITY470_REFERENCE = '2e877872a919c119fb3d10f47699218cc1a34e96'
+SKIN_STABILITY470_RUN = 39071406998
+SKIN_STABILITY470_RECIPIENT = 'docs/delivery/recipients/neostation-470-skins-recipient.pem'
+SKIN_STABILITY470_RECIPIENT_SHA256 = '77d32cd61a7a2c3e91bd44e4f949c8382d19c0ee2910bf413564a36a3bdcf9b7'
+SKIN_STABILITY470_INPUTS = {
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCrashCapture.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroMetalPresenter.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroMetalPresenter.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSessionJournal.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSessionJournal.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroSkinRenderer.m',
+    'test/libretro_crash_capture_test.c',
+    'test/libretro_crash_capture_test.py',
+    'test/libretro_nestopia_skin_stability_probe.py',
+    'test/libretro_simulator/probe.m',
+    'test/libretro_simulator/skin_lifetime_probe.h',
+    'test/libretro_simulator_probe.py',
+}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(SKIN_STABILITY470_INPUTS, SKIN_STABILITY470_REFERENCE))
+DELTA |= SKIN_STABILITY470_INPUTS
+DELIVERY456_PINNED_INPUTS['.github/workflows/retroarch-delivery.yml'] = '18968851c52095aa2c94d57a60c3eed9a3301075'
 
 # Build 443 changes only the book/manga cover widget and its catalogue wiring.
 # Unlike the broad historical delta, this scope closes the entire tracked tree.
@@ -2375,7 +2402,20 @@ def verify_library_covers_evidence():
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignored=(), exact_inputs=()):
+TARGETED470_SOURCE = '6b1aaba9dd8b6e7cdb50de5730fbd6f51dd0a9eb'
+TARGETED470_REFERENCE = '2ca52ba233e5acaf3b8848dc3a21b78719a74e87'
+TARGETED470_RUN = 39077361583
+TARGETED470_MENU_PATH = 'packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'
+TARGETED470_RECIPES = {'.github/workflows/libretro-memory-ownership470.yml',
+    '.github/diagnostics/libretro_memory_probe.py', '.github/diagnostics/libretro_simulator_device.py'}
+TARGETED470_REVIEWED_SOURCE_REFS = dict.fromkeys(SKIN_STABILITY470_INPUTS, SKIN_STABILITY470_REFERENCE)
+TARGETED470_REVIEWED_SOURCE_REFS[TARGETED470_MENU_PATH] = TARGETED470_SOURCE
+DELIVERY456_PINNED_INPUTS[TARGETED470_MENU_PATH] = TARGETED470_SOURCE
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(TARGETED470_RECIPES, TARGETED470_REFERENCE))
+DELTA |= TARGETED470_RECIPES
+
+
+def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignored=(), exact_inputs=(), reviewed_overrides=()):
     """Close all source/dependency inputs of the already successful native job."""
     roots = INPUT_ROOTS + ('tools/',)
     exact = {'pubspec.yaml', 'pubspec.lock', '.github/workflows/libretro-checks.yml'} | set(exact_inputs)
@@ -2391,6 +2431,14 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         metadata, path = line.split('\t', 1)
         if selected(path):
             old[path] = metadata.split()
+    for path, reviewed in dict(reviewed_overrides).items():
+        if TARGETED470_REVIEWED_SOURCE_REFS.get(path) != reviewed or not selected(path):
+            raise ValueError('Unreviewed source override: ' + path)
+        entry = subprocess.check_output(['git','ls-tree',reviewed,'--',path],cwd=ROOT,text=True).strip()
+        metadata, actual_path = entry.split('\t',1)
+        if actual_path != path:
+            raise ValueError('Missing reviewed source override: ' + path)
+        old[path] = metadata.split()
     current = {p for p in subprocess.check_output(
         ['git', 'ls-files', '--cached', '--others', '--exclude-standard'], cwd=ROOT, text=True).splitlines() if selected(p)}
     hashes = {}
@@ -2406,11 +2454,23 @@ def verify_libretro_reuse_tree(reference=LIBRETRO_SKIN_PRESS_REFERENCE, *, ignor
         hashes[path] = sha(data)
     return hashes
 
-SKIN_SESSION_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
-SKIN_SESSION_RUN = 38887228314
+def verify_470_reuse_tree(reference, *, exact_inputs=()):
+    # Only the ARC ownership declaration differs from the successful common
+    # runtime. Its new bytes require separate successful targeted evidence.
+    return verify_libretro_reuse_tree(reference, exact_inputs=exact_inputs,
+        reviewed_overrides={TARGETED470_MENU_PATH: TARGETED470_SOURCE})
+
+
+SKIN_SESSION_REFERENCE = '2e877872a919c119fb3d10f47699218cc1a34e96'
+SKIN_SESSION_RUN = 39071406958
 
 CHEAT_CATALOG_REFERENCE = '6a7ddb54568e9048a7b66682c6fcdd9889f9f9ef'
 CHEAT_CATALOG_RUN = 38887218980
+CHEAT_RECIPE_REFERENCE = 'd11c92bcf50abe9cf55280238011f9828359e188'
+CHEAT_RECIPE_INPUTS = {'.github/workflows/libretro-cheats-checks.yml',
+                       '.github/diagnostics/libretro_simulator_device.py'}
+DELIVERY456_PINNED_INPUTS.update(dict.fromkeys(CHEAT_RECIPE_INPUTS, CHEAT_RECIPE_REFERENCE))
+DELTA |= CHEAT_RECIPE_INPUTS
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""
@@ -2526,6 +2586,75 @@ def verify_nestopia_skin_stability468_evidence():
             'physicalDeviceValidated':False}
 
 
+def validate_nestopia470_verdict(record, *, baseline=False, asan=False):
+    expected = (1, 0, 0, 3) if baseline else ((6, 3, 3, 38) if asan else (82, 10, 8, 38))
+    cold_count = 0 if baseline or asan else 10
+    cold = record.get('coldProcessEvidence', [])
+    if (record.get('coldProcesses') != cold_count or len(cold) != cold_count
+            or len({e.get('session') for e in cold}) != cold_count
+            or any(e.get('launch') != i+1 or not e.get('pid') or not e.get('session')
+                   or e.get('finished') is not True or e.get('failures') != [] for i, e in enumerate(cold))):
+        raise ValueError('Incomplete independent-process Nestopia 470 verdict')
+    actual = tuple(record.get(k) for k in ('attemptsOriginal', 'attemptsWithoutSkin',
+                                         'attemptsOtherCatalogue', 'checks'))
+    if (record.get('source') != SKIN_STABILITY470_REFERENCE or actual != expected
+            or record.get('failures') != [] or record.get('allSessionsClosed') is not True
+            or record.get('physicalDeviceValidated') is not False
+            or record.get('commercialROMUsed') is not False
+            or record.get('baseline469Bodies') is not baseline
+            or record.get('addressSanitizer') is not asan
+            or record.get('prebuiltCoreInstrumented') is not False):
+        raise ValueError('Incomplete, different-source or misclassified Nestopia 470 verdict')
+    return record
+
+
+def verify_nestopia_skin_stability470_evidence():
+    """Require both successful jobs AND their actual bounded verdict files."""
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_STABILITY470_RUN}'
+    run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
+    if (run.get('head_sha') != SKIN_STABILITY470_REFERENCE or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success'
+            or run.get('path') != '.github/workflows/libretro-nestopia-skin-stability.yml'):
+        raise ValueError('100-session Nestopia and sanitizer workflow is not successful at exact source')
+    jobs = json.loads(subprocess.check_output(['gh', 'api', endpoint + '/jobs?per_page=100']))['jobs']
+    required = {
+        'original-skin-on-real-nestopia': (
+            'Native fatal-signal capture behaviour',
+            'Reproduce 469 terminal-lifetime defects with unchanged renderer and view bodies',
+            'Real Nestopia — original NESThumbstick and 100 game sessions'),
+        'memory-sanitizers': (
+            'Concurrent journal writes under ThreadSanitizer',
+            'Real Nestopia — 12 bridge AddressSanitizer sessions'),
+    }
+    for name, steps in required.items():
+        matches = [job for job in jobs if job.get('name') == name]
+        if (len(matches) != 1 or matches[0].get('head_sha') != SKIN_STABILITY470_REFERENCE
+                or matches[0].get('conclusion') != 'success'
+                or any(s.get('conclusion') != 'success' for s in matches[0].get('steps', []))
+                or any(not any(s.get('name') == step and s.get('conclusion') == 'success'
+                               for s in matches[0].get('steps', [])) for step in steps)):
+            raise ValueError('Incomplete Nestopia proof job: ' + name)
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='nestopia-470-proof-') as temporary:
+        folder = Path(temporary)
+        for artifact, subfolder in (('nestopia-skin-stability-', 'normal'),
+                                   ('nestopia-memory-sanitizers-', 'asan')):
+            subprocess.run(['gh', 'run', 'download', str(SKIN_STABILITY470_RUN),
+                            '--repo', 'TarbleFR/neostation-ios', '--name', artifact + SKIN_STABILITY470_REFERENCE,
+                            '--dir', str(folder / subfolder)], check=True)
+        normal = validate_nestopia470_verdict(json.loads(
+            (folder / 'normal/skin-stability-verdict.json').read_text()))
+        baseline = validate_nestopia470_verdict(json.loads(
+            (folder / 'normal/baseline469/skin-stability-verdict.json').read_text()), baseline=True)
+        asan = validate_nestopia470_verdict(json.loads(
+            (folder / 'asan/skin-stability-verdict.json').read_text()), asan=True)
+    return {'run': SKIN_STABILITY470_RUN, 'testedSHA': SKIN_STABILITY470_REFERENCE,
+            'realNestopiaSessions': 100, 'originalSkinSessions': 82,
+            'independentProcessRestarts': 10,
+            'addressSanitizerSessions': 12, 'baseline469': baseline,
+            'normal': normal, 'asan': asan, 'physicalDeviceValidated': False}
+
+
 def verify_skin_session_evidence():
     """Require the complete shared session suite from the engine workflow."""
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_SESSION_RUN}'
@@ -2545,6 +2674,9 @@ def verify_skin_session_evidence():
     return {'run': SKIN_SESSION_RUN, 'testedSHA': SKIN_SESSION_REFERENCE,
             'successfulJob': 'skin-press', 'overallRunConclusion': run.get('conclusion'),
             'nativePortableTestsRequireSeparateSuccess': True}
+
+LIBRETRO_SKIN_PRESS_REFERENCE = SKIN_STABILITY470_REFERENCE
+LIBRETRO_SKIN_PRESS_RUN = 39071406958
 
 def verify_libretro_reuse_evidence():
     endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{LIBRETRO_SKIN_PRESS_RUN}'
@@ -2661,6 +2793,103 @@ def verify_tree():
             unchanged[path] = sha(data)
     return changed, unchanged
 
+def validate_targeted470_verdict(record, ownership):
+    if (record.get('source') != TARGETED470_REFERENCE or record.get('productionSource') != TARGETED470_SOURCE
+            or record.get('problems') != [] or record.get('physicalDeviceValidated') is not False
+            or record.get('outcome',{}).get('finished') is not True
+            or record.get('restartOutcome',{}).get('finished') is not True
+            or record.get('functionalCheatChecks') != 99 or record.get('persistenceCheatChecks') != 4):
+        raise ValueError('Incomplete or different targeted 470 verdict')
+    records = record.get('records',[])
+    owners = ('session','controller','presenter','audio','host','input','skinRenderer','overlay',
+              'cheatMenu','cheatCatalog','catalogDocument','cheatRootPage')
+    if (len(records) != 20 or [row.get('name') for row in records] != [f'memory-{i:02d}' for i in range(1,21)]
+            or any(row.get('taskInfoStatus') != 0 or row.get('footprint',0) <= 0
+                   or any(row.get('owners',{}).get(key) != 0 for key in owners) for row in records)):
+        raise ValueError('Retained or unmeasured targeted 470 owner')
+    if (ownership.get('baselineRootOwnership') != 'strong' or ownership.get('candidateRootOwnership') != 'weak'
+            or ownership.get('visibleOwnership') != ['weak','weak']
+            or ownership.get('actualSourcePath') != TARGETED470_MENU_PATH
+            or ownership.get('changedIPhoneSourceCompiled') is not True):
+        raise ValueError('Targeted 470 ARC/iPhone proof missing')
+    return record
+
+
+def verify_targeted470_evidence():
+    # Never reinterpret the older successful runs as coverage of new Menu bytes.
+    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{TARGETED470_RUN}'
+    run = json.loads(subprocess.check_output(['gh','api',endpoint]))
+    if (run.get('head_sha') != TARGETED470_REFERENCE or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success' or run.get('path') != '.github/workflows/libretro-memory-ownership470.yml'):
+        raise ValueError('Targeted 470 ownership and cheat evidence is different or incomplete')
+    jobs = json.loads(subprocess.check_output(['gh','api',endpoint+'/jobs?per_page=100']))['jobs']
+    required = {'Prove production and existing test source identity',
+                'Prove ARC ownership and compile only the changed iPhone file',
+                'Verify 20 closed-session owners and actual cheat activation and persistence'}
+    matches = [j for j in jobs if j.get('name') == 'targeted-cheat-lifetime']
+    if (len(matches) != 1 or matches[0].get('head_sha') != TARGETED470_REFERENCE
+            or matches[0].get('run_id') != TARGETED470_RUN or matches[0].get('conclusion') != 'success'
+            or not matches[0].get('steps') or any(step.get('conclusion') != 'success' for step in matches[0]['steps'])
+            or not required.issubset({step.get('name') for step in matches[0]['steps']})):
+        raise ValueError('Targeted 470 checks did not all pass')
+    # Close the ENTIRE actual product/test tree and the three diagnostic recipe
+    # files against this successful witness; no product input is excluded here.
+    closed = verify_libretro_reuse_tree(TARGETED470_REFERENCE, exact_inputs=TARGETED470_RECIPES)
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='targeted-470-proof-') as temporary:
+        folder = Path(temporary)
+        subprocess.run(['gh','run','download',str(TARGETED470_RUN),'--repo','TarbleFR/neostation-ios',
+                        '--name','libretro-targeted-lifetime-'+TARGETED470_REFERENCE,'--dir',str(folder)],check=True)
+        verdict = validate_targeted470_verdict(json.loads((folder/'memory-verdict.json').read_text()),
+                                               json.loads((folder/'ownership-proof.json').read_text()))
+        injection = json.loads((folder/'instrumentation.json').read_text())
+        if injection != {'compiledInstrumentedProbeCount':1,'weakOwnersAndMallocSnapshots':True}:
+            raise ValueError('Targeted ownership instrumentation was not compiled exactly once')
+    return {'run':TARGETED470_RUN,'testedSHA':TARGETED470_REFERENCE,'productFixSHA':TARGETED470_SOURCE,
+            'actualVerdict':verdict,'closedInputsSHA256':closed,'physicalDeviceValidated':False}
+
+
+def verify_unchanged_cheat_modules470():
+    paths = ['packages/libretro_internal_bridge/ios/Classes/'+name for name in
+             ('LibretroCheatCatalog.h','LibretroCheatCatalog.m','LibretroCheats.h','LibretroCheats.m','LibretroCheatMenu.h')]
+    paths += [p.relative_to(ROOT).as_posix() for p in
+              (ROOT/'packages/libretro_internal_bridge/ios/Resources/Cheats').rglob('*') if p.is_file()]
+    hashes = {}
+    for path in paths:
+        old = subprocess.check_output(['git','show',CHEAT_CATALOG_REFERENCE+':'+path],cwd=ROOT)
+        current = (ROOT/path).read_bytes()
+        if old != current:
+            raise ValueError('Previously validated cheat module changed: '+path)
+        hashes[path] = sha(current)
+    return hashes
+
+
+def verify_delivery470_dart_evidence():
+    # This is the original full Dart execution behind the accepted 469 cache.
+    # Its checks job passed completely before unrelated native/device jobs
+    # were cancelled. Never require those jobs to execute unchanged Dart again.
+    ref = 'fc1ef43a66b23a5e4c8be2cf790ba63b46e312a1'
+    endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/38962439914'
+    run = json.loads(subprocess.check_output(['gh','api',endpoint]))
+    if (run.get('head_sha') != ref or run.get('status') != 'completed'
+            or run.get('path') != '.github/workflows/retroarch-delivery.yml'):
+        raise ValueError('Original successful Dart phase provenance differs')
+    jobs = json.loads(subprocess.check_output(['gh','api',endpoint+'/jobs?per_page=100']))['jobs']
+    checks = [j for j in jobs if j.get('name') == 'checks']
+    required = {'Analyze the changed integration and its restored dependencies',
+                'Reproduce the seven-root registration defect on the unchanged 422 code',
+                'Validate changed library, callback, launch and restart behavior',
+                'Verify reused Dart evidence and changed pipeline guards'}
+    if (len(checks) != 1 or checks[0].get('head_sha') != ref or checks[0].get('conclusion') != 'success'
+            or any(not any(s.get('name') == name and s.get('conclusion') == 'success'
+                           for s in checks[0].get('steps',[])) for name in required)):
+        raise ValueError('Original full Dart checks did not pass')
+    engine = verify_libretro_reuse_evidence()
+    return {'originalDartRun':38962439914,'originalDartSHA':ref,'successfulJob':'checks',
+            'wholeRunConclusion':run.get('conclusion'),'currentEngineEvidence':engine,
+            'validationWasReused':True,'note':'Dart recipes and inputs unchanged; changed native bytes have independent exact witnesses.'}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--offline', action='store_true')
@@ -2678,29 +2907,37 @@ def main():
         # Freeze EVERY current libretro dependency, test and recipe to the
         # reviewed post-layout product commit. Delivery-only source/recipient
         # records have separate pinned checks and cannot change this product.
-        closed = verify_libretro_reuse_tree(SKIN_STABILITY468_REFERENCE, exact_inputs={
+        closed = verify_470_reuse_tree(SKIN_STABILITY470_REFERENCE, exact_inputs={
             '.github/workflows/libretro-nestopia-skin-stability.yml',
             '.github/workflows/libretro-skin-checks.yml',
-            '.github/workflows/libretro-cheats-checks.yml',
-            '.github/workflows/libretro-skin-loading-checks.yml',
             '.github/workflows/libretro-catalog-checks.yml'})
+        # This retry adds only an external process sampler to the installed-
+        # skin recipe. Close its recipe AND the entire product/test dependency
+        # tree against its own successful revision; no runtime input exemption.
+        loading_closed = verify_470_reuse_tree(SKIN_LOADING_REFERENCE, exact_inputs={
+            '.github/workflows/libretro-skin-loading-checks.yml'})
+        cheat_closed = verify_470_reuse_tree(CHEAT_RECIPE_REFERENCE, exact_inputs=CHEAT_RECIPE_INPUTS)
         evidence = verify_skin_session_evidence()
         cheats = verify_cheat_catalog_evidence()
         loading = verify_skin_loading_evidence()
         catalog = verify_catalog_audit_evidence()
         current_layout = verify_cheat_layout467_evidence()
-        stability = verify_nestopia_skin_stability468_evidence()
-        recipient = ROOT / SKIN_STABILITY468_RECIPIENT
+        targeted = verify_targeted470_evidence()
+        unchanged_cheats = verify_unchanged_cheat_modules470()
+        stability = verify_nestopia_skin_stability470_evidence()
+        recipient = ROOT / SKIN_STABILITY470_RECIPIENT
         if (not recipient.is_file() or recipient.is_symlink()
-                or sha(recipient.read_bytes()) != SKIN_STABILITY468_RECIPIENT_SHA256):
-            raise ValueError('Build 468 public delivery recipient differs from reviewed bytes')
+                or sha(recipient.read_bytes()) != SKIN_STABILITY470_RECIPIENT_SHA256):
+            raise ValueError('Build 470 public delivery recipient differs from reviewed bytes')
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps({'result':'passed', 'reviewedProductSHA':SKIN_STABILITY468_REFERENCE,
+        out.write_text(json.dumps({'result':'passed', 'reviewedProductSHA':SKIN_STABILITY470_REFERENCE,
             'closedSourceInputsSHA256':closed, 'currentLayoutEvidence':current_layout,
-            'nestopiaSkinStabilityEvidence':stability, 'deliveryPublicRecipientSha256':SKIN_STABILITY468_RECIPIENT_SHA256,
-            'historicalSkinEvidence':evidence, 'historicalCheatEvidence':cheats,
-            'historicalLoadingEvidence':loading, 'historicalCatalogueEvidence':catalog,
+            'targetedCheatOwnershipEvidence':targeted, 'unchangedCheatModulesSHA256':unchanged_cheats,
+            'nestopiaSkinStabilityEvidence':stability, 'deliveryPublicRecipientSha256':SKIN_STABILITY470_RECIPIENT_SHA256,
+            'skinSessionEvidence':evidence, 'cheatEvidence':cheats, 'cheatClosedInputsSHA256':cheat_closed,
+            'installedSkinEvidence':loading, 'installedSkinClosedInputsSHA256':loading_closed,
+            'catalogueEvidence':catalog,
             'deviceGameplayValidated':False}, indent=2) + '\n')
         print('Verified complete corrected libretro product input closure:', len(closed),
               '; successful real-core Simulator evidence:', current_layout)
@@ -2710,43 +2947,42 @@ def main():
         if args.offline:
             raise ValueError('Dart reuse requires online success of every named phase')
         verify_tree()
-        hashes = verify_libretro_reuse_tree(DELIVERY460_DART_REFERENCE)
+        hashes = verify_libretro_reuse_tree('fc1ef43a66b23a5e4c8be2cf790ba63b46e312a1',
+            reviewed_overrides=TARGETED470_REVIEWED_SOURCE_REFS)
         path = '.github/workflows/retroarch-delivery.yml'
-        old = subprocess.check_output(['git', 'show', DELIVERY460_DART_REFERENCE + ':' + path], cwd=ROOT, text=True)
-        current = (ROOT / path).read_text()
+        old = subprocess.check_output(['git','show','fc1ef43a66b23a5e4c8be2cf790ba63b46e312a1:' + path],cwd=ROOT,text=True)
+        current = (ROOT/path).read_text()
         start = '    - name: Analyze the changed integration and its restored dependencies\n'
         end = '    - name: Verify reused Dart evidence and changed pipeline guards\n'
-        if old.split(start, 1)[1].split(end, 1)[0] != current.split(start, 1)[1].split(end, 1)[0]:
-            raise ValueError('Dart validation recipe changed')
-        # Runner and pinned Flutter setup must also match the passed phases.
-        for start, end in (('  checks:\n', '    steps:\n'),
-                           ('    - uses: subosito/flutter-action@v2\n',
-                            '    - name: Verify closed validation input tree and previous CI success\n')):
-            if old.split(start, 1)[1].split(end, 1)[0] != current.split(start, 1)[1].split(end, 1)[0]:
-                raise ValueError('Dart runner or Flutter setup changed')
-        report = {'result': 'passed', 'testedSHA': DELIVERY460_DART_REFERENCE,
-                  'key': os.environ['DART_VALIDATION_KEY'], 'tool': 'Flutter 3.47.2, Ubuntu 24.04',
-                  'validationWasReused': True, 'evidence': verify_delivery460_dart_evidence(),
-                  'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}
+        if old.split(start,1)[1].split(end,1)[0] != current.split(start,1)[1].split(end,1)[0]:
+            raise ValueError('Dart validation recipe differs from delivered 469')
+        report = {'result':'passed','testedSHA':'fc1ef43a66b23a5e4c8be2cf790ba63b46e312a1',
+                  'key':os.environ['DART_VALIDATION_KEY'],'tool':'Flutter 3.47.2, Ubuntu 24.04',
+                  'validationWasReused':True, 'evidence':verify_delivery470_dart_evidence(),
+                  'targetedCheatOwnershipEvidence':verify_targeted470_evidence(),
+                  'unchangedInputsSHA256':hashes,'deviceGameplayValidated':False}
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2) + '\n')
-        print('Reused passed Dart phases from', DELIVERY460_DART_RUN,
+        print('Reused accepted 469 Dart phases and fresh 470 engine checks from', LIBRETRO_SKIN_PRESS_RUN,
               '; later Python contracts still require validation in this run')
         return
     if args.libretro_evidence:
         if args.offline:
             raise ValueError('Native reuse requires online CI success and the real Xcode toolchain')
         verify_tree()
-        hashes = verify_libretro_reuse_tree()
-        cheat_hashes = verify_libretro_reuse_tree(CHEAT_CATALOG_REFERENCE, exact_inputs={'.github/workflows/libretro-cheats-checks.yml'})
+        hashes = verify_470_reuse_tree(LIBRETRO_SKIN_PRESS_REFERENCE)
+        cheat_hashes = verify_470_reuse_tree(CHEAT_RECIPE_REFERENCE, exact_inputs=CHEAT_RECIPE_INPUTS)
         cheats = verify_cheat_catalog_evidence()
+        targeted = verify_targeted470_evidence()
+        unchanged_cheats = verify_unchanged_cheat_modules470()
         xcode = subprocess.check_output(['xcodebuild', '-version'], text=True).strip()
         sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip()
         if xcode != 'Xcode 26.3\nBuild version 17C529' or sdk != '26.2':
             raise ValueError('Libretro reuse toolchain differs from the successful native job')
         report = {'result': 'passed', 'validationWasReused': True,
-                  'evidence': verify_libretro_reuse_evidence(), 'xcode': xcode, 'iphoneSDK': sdk,
+                  'evidence': verify_libretro_reuse_evidence(), 'targetedCheatOwnershipEvidence':targeted,
+                  'unchangedCheatModulesSHA256':unchanged_cheats, 'xcode': xcode, 'iphoneSDK': sdk,
                   'unchangedInputsSHA256': hashes, 'deviceGameplayValidated': False}
         out = ROOT / args.output
         out.parent.mkdir(parents=True, exist_ok=True)

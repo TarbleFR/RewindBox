@@ -21,6 +21,76 @@ def module(name):
     return value
 
 class DeliveryPipeline(unittest.TestCase):
+    def test_targeted470_rejects_retention_incomplete_checks_and_wrong_source(self):
+        import copy
+        names = ('session','controller','presenter','audio','host','input','skinRenderer',
+                 'overlay','cheatMenu','cheatCatalog','catalogDocument','cheatRootPage')
+        good = {'source':reuse.TARGETED470_REFERENCE,'productionSource':reuse.TARGETED470_SOURCE,
+                'problems':[],'physicalDeviceValidated':False,'outcome':{'finished':True},
+                'restartOutcome':{'finished':True},'functionalCheatChecks':99,'persistenceCheatChecks':4,
+                'records':[{'name':f'memory-{i:02d}','taskInfoStatus':0,'footprint':100,
+                            'owners':dict.fromkeys(names,0)} for i in range(1,21)]}
+        proof = {'baselineRootOwnership':'strong','candidateRootOwnership':'weak',
+                 'visibleOwnership':['weak','weak'],'actualSourcePath':reuse.TARGETED470_MENU_PATH,
+                 'changedIPhoneSourceCompiled':True}
+        self.assertIs(reuse.validate_targeted470_verdict(good,proof),good)
+        for key,value in (('source','wrong'),('problems',['retained']),('functionalCheatChecks',98),
+                          ('persistenceCheatChecks',3),('physicalDeviceValidated',True)):
+            with self.assertRaisesRegex(ValueError,'targeted 470 verdict'):
+                reuse.validate_targeted470_verdict({**good,key:value},proof)
+        retained=copy.deepcopy(good);retained['records'][-1]['owners']['cheatMenu']=20
+        with self.assertRaisesRegex(ValueError,'Retained or unmeasured'):
+            reuse.validate_targeted470_verdict(retained,proof)
+        with self.assertRaisesRegex(ValueError,'ARC/iPhone proof missing'):
+            reuse.validate_targeted470_verdict(good,{**proof,'candidateRootOwnership':'strong'})
+        with self.assertRaisesRegex(ValueError,'Unreviewed source override'):
+            reuse.verify_libretro_reuse_tree('HEAD',reviewed_overrides={'native/unrelated.m':'HEAD'})
+
+        # A whole-run cancellation must not discard a completed successful
+        # Dart job. Missing or skipped Dart phases must still reject reuse.
+        from unittest.mock import patch
+        run = {'head_sha':'fc1ef43a66b23a5e4c8be2cf790ba63b46e312a1','status':'completed',
+               'conclusion':'cancelled','path':'.github/workflows/retroarch-delivery.yml'}
+        required = ['Analyze the changed integration and its restored dependencies',
+                    'Reproduce the seven-root registration defect on the unchanged 422 code',
+                    'Validate changed library, callback, launch and restart behavior',
+                    'Verify reused Dart evidence and changed pipeline guards']
+        job = {'name':'checks','head_sha':run['head_sha'],'conclusion':'success',
+               'steps':[{'name':name,'conclusion':'success'} for name in required]}
+        def verify_dart():
+            with patch.object(reuse.subprocess,'check_output',side_effect=[json.dumps(run),json.dumps({'jobs':[job]})]), \
+                 patch.object(reuse,'verify_libretro_reuse_evidence',return_value={'testedSHA':reuse.SKIN_STABILITY470_REFERENCE}):
+                return reuse.verify_delivery470_dart_evidence()
+        self.assertTrue(verify_dart()['validationWasReused'])
+        job['steps'][0]['conclusion']='skipped'
+        with self.assertRaisesRegex(ValueError,'Original full Dart checks'):
+            verify_dart()
+
+    def test_nestopia_470_verdict_rejects_partial_or_misclassified_runs(self):
+        for baseline, asan, counts in ((False, False, (82, 10, 8, 38)),
+                                       (True, False, (1, 0, 0, 3)),
+                                       (False, True, (6, 3, 3, 38))):
+            good = dict(zip(('attemptsOriginal', 'attemptsWithoutSkin',
+                             'attemptsOtherCatalogue', 'checks'), counts))
+            good.update(source=reuse.SKIN_STABILITY470_REFERENCE, failures=[], allSessionsClosed=True,
+                        physicalDeviceValidated=False, commercialROMUsed=False, baseline469Bodies=baseline,
+                        addressSanitizer=asan, prebuiltCoreInstrumented=False)
+            cold_count = 0 if baseline or asan else 10
+            good['coldProcesses'] = cold_count
+            good['coldProcessEvidence'] = [dict(launch=i+1, pid=str(i+100), session=f'process-session-{i}',
+                                                finished=True, failures=[]) for i in range(cold_count)]
+            self.assertIs(reuse.validate_nestopia470_verdict(good, baseline=baseline, asan=asan), good)
+            for key, value in [('source', 'another-source'), ('failures', ['one failed check']),
+                               ('allSessionsClosed', False), ('physicalDeviceValidated', True),
+                               ('commercialROMUsed', True), ('prebuiltCoreInstrumented', True),
+                               ('baseline469Bodies', not baseline), ('addressSanitizer', not asan),
+                               ('attemptsOriginal', counts[0]-1), ('checks', counts[3]-1)]:
+                with self.subTest(baseline=baseline, asan=asan, field=key):
+                    with self.assertRaisesRegex(ValueError, 'Nestopia 470 verdict'):
+                        reuse.validate_nestopia470_verdict({**good, key: value}, baseline=baseline, asan=asan)
+            with self.assertRaisesRegex(ValueError, 'Nestopia 470 verdict'):
+                reuse.validate_nestopia470_verdict({**good, 'coldProcesses': cold_count+1}, baseline=baseline, asan=asan)
+
     def test_catalogue_audit_gate_requires_real_native_and_transport_success(self):
         from unittest.mock import patch
         run = {'head_sha': reuse.CATALOG_AUDIT_REFERENCE, 'status': 'completed',
@@ -379,9 +449,13 @@ class DeliveryPipeline(unittest.TestCase):
         })
 
     def test_automatic_cheat_delivery_pins_runtime_data_and_packaged_validation(self):
-        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'], reuse.PS1_CHEATS467_REFERENCE)
+        self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Classes/LibretroCheatMenu.m'], reuse.TARGETED470_SOURCE)
         self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['packages/libretro_internal_bridge/ios/Resources/Cheats/manifest.json'], reuse.PS1_CHEATS467_REFERENCE)
-        self.assertEqual(reuse.CHEAT_CATALOG_REFERENCE, reuse.SKIN_SESSION_REFERENCE)
+        # External CI stack sampling can be added in a separate commit. Both
+        # successful witnesses must still close the exact same complete
+        # runtime, data, dependencies and test-source bytes.
+        self.assertEqual(reuse.verify_470_reuse_tree(reuse.CHEAT_RECIPE_REFERENCE),
+                         reuse.verify_470_reuse_tree(reuse.SKIN_SESSION_REFERENCE))
         self.assertEqual(reuse.DELIVERY456_PINNED_INPUTS['test/fixtures/libretro_cheats/ff7-usa-original.cht'], reuse.PS1_CHEATS467_REFERENCE)
         workflow=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
         self.assertEqual(workflow.count('python3 build-utils/validate_cheat_bootstrap_ipa.py'), 2)
