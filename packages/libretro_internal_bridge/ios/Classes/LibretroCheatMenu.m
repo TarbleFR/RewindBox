@@ -23,7 +23,8 @@ static NSString *GameKey(NSDictionary *game) {
   NSUInteger _pendingSources, _discoveryGeneration;
   NSMutableSet *_automaticKeys, *_confirmedGames;
   NSString *_cheatSearch, *_gameSearch, *_status;
-  __weak LibretroMenuPage *_visiblePage, *_rootPage;
+  __weak LibretroMenuPage *_visiblePage;
+  __weak LibretroMenuPage *_rootPage;
   dispatch_queue_t _queue;
 }
 @synthesize diagnostic = _diagnostic;
