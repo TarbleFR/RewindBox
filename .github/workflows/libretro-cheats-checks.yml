@@ -86,6 +86,33 @@ jobs:
           flutter test test/libretro_overlay_fixture_test.dart
       - name: Real Nestopia and Snes9x cheat effects, original Ignited on Nestopia
         run: |
+          # A pre-delegate stall can leave simctl's PID line buffered until
+          # termination. Observe the actual installed Simulator process rather
+          # than relying on that console line; preserve bounded stack samples.
+          python3 -u - <<'PY' &
+          import pathlib, subprocess, time
+          folder = pathlib.Path('evidence/cheats/diagnostics')
+          folder.mkdir(parents=True, exist_ok=True)
+          seen, sampled = {}, set()
+          while True:
+              listing = subprocess.check_output(['ps', '-axo', 'pid=,args='], text=True)
+              for line in listing.splitlines():
+                  if '/CoreSimulator/Devices/' not in line or '/Probe.app/Probe' not in line:
+                      continue
+                  pid, command = line.strip().split(None, 1)
+                  start = seen.setdefault(pid, time.monotonic())
+                  age = time.monotonic() - start
+                  for threshold in (90, 180):
+                      key = (pid, threshold)
+                      if age >= threshold and key not in sampled:
+                          sampled.add(key)
+                          (folder / f'process-{pid}.txt').write_text(command + '\n')
+                          subprocess.run(['sample', pid, '3', '-file', str(folder / f'probe-{pid}-{threshold}s.txt')],
+                                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              time.sleep(5)
+          PY
+          cheat_sampler_pid=$!
+          trap 'kill "$cheat_sampler_pid" 2>/dev/null || true' EXIT
           python3 test/libretro_cheat_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
             --evidence evidence/cheats --label "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
