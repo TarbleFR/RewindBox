@@ -361,6 +361,7 @@ static NSString *ReservationReport(void) {
   NSUInteger _index;
   LibretroSession *_session;
   NSUInteger _generation;
+  NSUInteger _orientationAttempts;
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
@@ -415,9 +416,44 @@ static NSString *ReservationReport(void) {
 #endif
   });
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-    [self runNext];
+    [self beginConfiguredScenarios];
   });
   return YES;
+}
+
+// didFinishLaunching can run before UIKit attaches the window to its scene.
+// A one-shot geometry request there can silently do nothing (scene == nil).
+// Establish the actual reported orientation before creating the first session;
+// this is test setup, not an emulation startup delay or a frame-size override.
+- (void)beginConfiguredScenarios {
+  if ([_config[@"forceLandscape"] boolValue]) {
+    UIWindowScene *scene = self.window.windowScene;
+    CGRect bounds = self.window.rootViewController.view.bounds;
+    if (scene == nil || !UIInterfaceOrientationIsLandscape(scene.interfaceOrientation) ||
+        bounds.size.width <= bounds.size.height) {
+      if (++_orientationAttempts > 200) {
+        Progress(@"FAIL: fixture landscape deadline scene=%@ orientation=%ld bounds=%@",
+                 scene, (long)scene.interfaceOrientation, NSStringFromCGRect(bounds));
+        [self writeResultsFinished:NO];
+        return;
+      }
+      [self.window.rootViewController setNeedsUpdateOfSupportedInterfaceOrientations];
+      if (scene != nil) {
+        UIWindowSceneGeometryPreferencesIOS *preferences =
+          [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskLandscape];
+        [scene requestGeometryUpdateWithPreferences:preferences errorHandler:^(NSError *error) {
+          Progress(@"fixture geometry request failed: %@", error.localizedDescription);
+        }];
+      }
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 50 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+        [self beginConfiguredScenarios];
+      });
+      return;
+    }
+    Progress(@"fixture landscape observed orientation=%ld bounds=%@", (long)scene.interfaceOrientation,
+             NSStringFromCGRect(bounds));
+  }
+  [self runNext];
 }
 
 /// The plugin's layout: Documents/Libretro/{System,Saves,States,Config,...},

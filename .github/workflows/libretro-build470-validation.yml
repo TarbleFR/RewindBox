@@ -21,7 +21,7 @@ jobs:
           test "$(gh api repos/TarbleFR/neostation-ios/branches/Claude --jq .commit.sha)" = "$GITHUB_SHA"
           # Preserve run history while releasing macOS slots held by our
           # superseded candidates. Do not cancel unrelated maintainer runs.
-          for run in 39068915352 39068915366 39068915383 39068915356 39069274170 39069274197 39069274165 39069274205 39069274297 39069354076 39069355850 39069418680 39069418690 39069418679 39069434569 39069436384 39069497371 39069498785 39069894814 39069894763 39069894772 39069914397 39069916399 39069918399 39069920029; do
+          for run in 39070603129 39070603080 39070603101 39070619413 39070620907 39070622348 39070603078; do
             state="$(gh api repos/TarbleFR/neostation-ios/actions/runs/$run --jq .status)"
             if test "$state" = in_progress; then
               gh api -X POST "repos/TarbleFR/neostation-ios/actions/runs/$run/force-cancel" || gh run cancel "$run"
