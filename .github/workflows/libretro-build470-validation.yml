@@ -1,0 +1,23 @@
+name: Dispatch integrated Build 470 regression checks
+on:
+  push:
+    branches: [Claude]
+    paths: [.github/workflows/libretro-build470-validation.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[libretro-validate-470]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: TarbleFR/neostation-ios
+    steps:
+      - name: Verify branch identity and dispatch the existing exact-source suites
+        run: |
+          test "$(gh api repos/TarbleFR/neostation-ios/branches/Claude --jq .commit.sha)" = "$GITHUB_SHA"
+          gh workflow run libretro-cheats-checks.yml --ref Claude
+          gh workflow run libretro-catalog-checks.yml --ref Claude
