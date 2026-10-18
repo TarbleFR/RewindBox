@@ -1,8 +1,11 @@
 #import "RPCS3GameInputController.h"
+#import "RPCS3TouchControls.h"
 #include "RPCS3EmbeddedMenuInput.h"
+#include "RPCS3PadMerge.h"
 
 #import <GameController/GameController.h>
 #import <QuartzCore/QuartzCore.h>
+#import <neo_touch_layout/NeoTouchLayout.h>
 #include <math.h>
 #include <stddef.h>
 
@@ -24,211 +27,84 @@ static inline void RPCS3SetBit(uint64_t* bits, uint64_t bit, BOOL pressed) {
   else *bits &= ~bit;
 }
 
-@interface RPCS3InputPassthroughView : UIView
-@end
-
-@implementation RPCS3InputPassthroughView
-- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent*)event {
-  if (self.hidden || self.alpha <= 0.01 || !self.userInteractionEnabled) return NO;
-  for (UIView* child in self.subviews.reverseObjectEnumerator) {
-    if (child.hidden || child.alpha <= 0.01 || !child.userInteractionEnabled) continue;
-    CGPoint childPoint = [self convertPoint:point toView:child];
-    if ([child pointInside:childPoint withEvent:event]) return YES;
-  }
-  return NO;
-}
-@end
-
-typedef void (^RPCS3StickChanged)(float x, float y);
-
-@interface RPCS3TouchStickView : UIView
-@property(nonatomic, copy) RPCS3StickChanged valueChanged;
-@property(nonatomic, strong) UIView* knob;
-@property(nonatomic, assign) BOOL trackingTouch;
-@end
-
-@implementation RPCS3TouchStickView
-- (instancetype)initWithFrame:(CGRect)frame {
-  self = [super initWithFrame:frame];
-  if (self) {
-    self.multipleTouchEnabled = NO;
-    self.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.34];
-    self.layer.borderWidth = 1.5;
-    self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.42].CGColor;
-    self.clipsToBounds = NO;
-
-    _knob = [[UIView alloc] initWithFrame:CGRectZero];
-    _knob.userInteractionEnabled = NO;
-    _knob.backgroundColor = [UIColor colorWithWhite:1 alpha:0.28];
-    _knob.layer.borderWidth = 1.0;
-    _knob.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.55].CGColor;
-    [self addSubview:_knob];
-  }
-  return self;
-}
-
-- (void)layoutSubviews {
-  [super layoutSubviews];
-  CGFloat side = MIN(self.bounds.size.width, self.bounds.size.height);
-  self.layer.cornerRadius = side * 0.5;
-  CGFloat knobSide = side * 0.43;
-  self.knob.bounds = CGRectMake(0, 0, knobSide, knobSide);
-  self.knob.layer.cornerRadius = knobSide * 0.5;
-  if (!self.trackingTouch) {
-    self.knob.center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-  }
-}
-
-- (void)updateFromPoint:(CGPoint)point {
-  CGPoint center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-  CGFloat side = MIN(self.bounds.size.width, self.bounds.size.height);
-  CGFloat radius = MAX(1.0, side * 0.36);
-  CGFloat dx = point.x - center.x;
-  CGFloat dy = point.y - center.y;
-  CGFloat distance = hypot(dx, dy);
-  if (distance > radius) {
-    dx = dx / distance * radius;
-    dy = dy / distance * radius;
-  }
-  self.knob.center = CGPointMake(center.x + dx, center.y + dy);
-  float x = RPCS3Clamp((float)(dx / radius), -1.0f, 1.0f);
-  // UIKit Y grows down. GameController/RPCS3 frontend convention is positive up.
-  float y = RPCS3Clamp((float)(-dy / radius), -1.0f, 1.0f);
-  if (self.valueChanged) self.valueChanged(x, y);
-}
-
-- (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  self.trackingTouch = YES;
-  UITouch* touch = touches.anyObject;
-  if (touch) [self updateFromPoint:[touch locationInView:self]];
-}
-
-- (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  UITouch* touch = touches.anyObject;
-  if (touch) [self updateFromPoint:[touch locationInView:self]];
-}
-
-- (void)endTracking {
-  self.trackingTouch = NO;
-  self.knob.center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-  if (self.valueChanged) self.valueChanged(0.0f, 0.0f);
-}
-
-- (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event { [self endTracking]; }
-- (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event { [self endTracking]; }
-@end
-
 @interface RPCS3GameInputController () {
   RPCS3EmbeddedMenuInput _menuInput;
+  rpcs3_ios_pad_state _touchState;
+  rpcs3_ios_pad_state _physicalState;
 }
 @property(nonatomic, weak) UIView* hostView;
 @property(nonatomic, assign) rpcs3_ios_api* api;
-@property(nonatomic, strong) RPCS3InputPassthroughView* touchOverlay;
+@property(nonatomic, strong) RPCS3TouchControlsView* touchOverlay;
 @property(nonatomic, strong, nullable) GCController* physicalController;
-@property(nonatomic, assign) rpcs3_ios_pad_state touchState;
+@property(nonatomic, strong, nullable) NeoTouchControllerMonitor* controllerMonitor;
 @property(nonatomic, assign) BOOL started;
-
-@property(nonatomic, strong) UIButton* dpadUp;
-@property(nonatomic, strong) UIButton* dpadDown;
-@property(nonatomic, strong) UIButton* dpadLeft;
-@property(nonatomic, strong) UIButton* dpadRight;
-@property(nonatomic, strong) UIButton* square;
-@property(nonatomic, strong) UIButton* cross;
-@property(nonatomic, strong) UIButton* circle;
-@property(nonatomic, strong) UIButton* triangle;
-@property(nonatomic, strong) UIButton* l1;
-@property(nonatomic, strong) UIButton* l2;
-@property(nonatomic, strong) UIButton* r1;
-@property(nonatomic, strong) UIButton* r2;
-@property(nonatomic, strong) UIButton* selectButton;
-@property(nonatomic, strong) UIButton* startButton;
-@property(nonatomic, strong) RPCS3TouchStickView* leftStick;
-@property(nonatomic, strong) RPCS3TouchStickView* rightStick;
+@property(nonatomic, assign, readwrite, getter=isEditingTouchLayout) BOOL editingTouchLayout;
+@property(nonatomic, weak, readwrite, nullable) UIView* activeEditor;
+@property(nonatomic, copy) NSString* locale;
 @end
 
 @implementation RPCS3GameInputController
 
 - (instancetype)initWithHostView:(UIView*)hostView api:(rpcs3_ios_api*)api {
+  return [self initWithHostView:hostView api:api locale:nil];
+}
+
+- (instancetype)initWithHostView:(UIView*)hostView api:(rpcs3_ios_api*)api locale:(NSString*)locale {
   self = [super init];
   if (self) {
     _hostView = hostView;
     _api = api;
+    _locale = [locale copy] ?: NSLocale.preferredLanguages.firstObject ?: @"en";
     memset(&_touchState, 0, sizeof(_touchState));
     _touchState.size = sizeof(_touchState);
     _touchState.connected = 1;
+    memset(&_physicalState, 0, sizeof(_physicalState));
+    _physicalState.size = sizeof(_physicalState);
     _touchControlsEnabled = YES;
     [self installTouchOverlay];
   }
   return self;
 }
 
-- (UIButton*)makeButton:(NSString*)title bit:(uint32_t)bit accessibility:(NSString*)accessibility {
-  UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
-  button.tag = (NSInteger)bit;
-  button.tintColor = UIColor.whiteColor;
-  button.titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightSemibold];
-  button.backgroundColor = [UIColor colorWithWhite:0.06 alpha:0.38];
-  button.layer.borderWidth = 1.0;
-  button.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.38].CGColor;
-  button.layer.cornerRadius = 22;
-  button.accessibilityLabel = accessibility;
-  [button setTitle:title forState:UIControlStateNormal];
-  [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
-  [button addTarget:self action:@selector(touchButtonDown:) forControlEvents:UIControlEventTouchDown];
-  [button addTarget:self action:@selector(touchButtonUp:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
-  [self.touchOverlay addSubview:button];
-  return button;
+- (RPCS3TouchControlsView*)touchControls {
+  return self.touchOverlay;
 }
 
 - (void)installTouchOverlay {
   UIView* host = self.hostView;
   if (!host) return;
 
-  self.touchOverlay = [[RPCS3InputPassthroughView alloc] initWithFrame:host.bounds];
+  // Build 484: the controls are the elements of the "ps3" touch layout
+  // (RPCS3TouchControls.mm); this controller keeps the pad state.
+  self.touchOverlay = [[RPCS3TouchControlsView alloc] initWithLocale:self.locale];
+  self.touchOverlay.frame = host.bounds;
   self.touchOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-  self.touchOverlay.backgroundColor = UIColor.clearColor;
-  self.touchOverlay.accessibilityIdentifier = @"rpcs3.touch.controls";
   [host addSubview:self.touchOverlay];
 
-  self.dpadUp = [self makeButton:@"▲" bit:rpcs3_ios_pad_up accessibility:@"D-pad Up"];
-  self.dpadDown = [self makeButton:@"▼" bit:rpcs3_ios_pad_down accessibility:@"D-pad Down"];
-  self.dpadLeft = [self makeButton:@"◀" bit:rpcs3_ios_pad_left accessibility:@"D-pad Left"];
-  self.dpadRight = [self makeButton:@"▶" bit:rpcs3_ios_pad_right accessibility:@"D-pad Right"];
-
-  self.square = [self makeButton:@"□" bit:rpcs3_ios_pad_square accessibility:@"Square"];
-  self.cross = [self makeButton:@"✕" bit:rpcs3_ios_pad_cross accessibility:@"Cross"];
-  self.circle = [self makeButton:@"○" bit:rpcs3_ios_pad_circle accessibility:@"Circle"];
-  self.triangle = [self makeButton:@"△" bit:rpcs3_ios_pad_triangle accessibility:@"Triangle"];
-
-  self.l1 = [self makeButton:@"L1" bit:rpcs3_ios_pad_l1 accessibility:@"L1"];
-  self.l2 = [self makeButton:@"L2" bit:rpcs3_ios_pad_l2 accessibility:@"L2"];
-  self.r1 = [self makeButton:@"R1" bit:rpcs3_ios_pad_r1 accessibility:@"R1"];
-  self.r2 = [self makeButton:@"R2" bit:rpcs3_ios_pad_r2 accessibility:@"R2"];
-  self.selectButton = [self makeButton:@"SELECT" bit:rpcs3_ios_pad_select accessibility:@"Select"];
-  self.startButton = [self makeButton:@"START" bit:rpcs3_ios_pad_start accessibility:@"Start"];
-
-  self.leftStick = [[RPCS3TouchStickView alloc] initWithFrame:CGRectZero];
-  self.leftStick.accessibilityLabel = @"Left analog stick";
-  [self.touchOverlay addSubview:self.leftStick];
-  self.rightStick = [[RPCS3TouchStickView alloc] initWithFrame:CGRectZero];
-  self.rightStick.accessibilityLabel = @"Right analog stick";
-  [self.touchOverlay addSubview:self.rightStick];
-
   __weak RPCS3GameInputController* weakSelf = self;
-  self.leftStick.valueChanged = ^(float x, float y) {
+  self.touchOverlay.buttonChanged = ^(uint64_t bit, BOOL pressed) {
     RPCS3GameInputController* strongSelf = weakSelf;
-    if (!strongSelf || strongSelf.physicalController) return;
-    strongSelf->_touchState.left_x = x;
-    strongSelf->_touchState.left_y = y;
+    if (!strongSelf) return;
+    if (pressed) [strongSelf touchButtonDown:bit];
+    else [strongSelf touchButtonUp:bit];
+  };
+  self.touchOverlay.stickChanged = ^(NSInteger stick, float x, float y) {
+    RPCS3GameInputController* strongSelf = weakSelf;
+    if (!strongSelf) return;
+    if (stick == 0) {
+      strongSelf->_touchState.left_x = x;
+      strongSelf->_touchState.left_y = y;
+    } else {
+      strongSelf->_touchState.right_x = x;
+      strongSelf->_touchState.right_y = y;
+    }
     [strongSelf sendTouchState];
   };
-  self.rightStick.valueChanged = ^(float x, float y) {
-    RPCS3GameInputController* strongSelf = weakSelf;
-    if (!strongSelf || strongSelf.physicalController) return;
-    strongSelf->_touchState.right_x = x;
-    strongSelf->_touchState.right_y = y;
-    [strongSelf sendTouchState];
-  };
+}
+
+- (void)setGameKey:(NSString*)gameKey {
+  _gameKey = [gameKey copy];
+  self.touchOverlay.gameKey = gameKey;
 }
 
 - (void)start {
@@ -238,6 +114,12 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
   [center addObserver:self selector:@selector(controllerDidConnect:) name:GCControllerDidConnectNotification object:nil];
   [center addObserver:self selector:@selector(controllerDidDisconnect:) name:GCControllerDidDisconnectNotification object:nil];
+  [center addObserver:self selector:@selector(touchPreferenceChanged:)
+                 name:NeoTouchControllerPreferenceDidChangeNotification object:nil];
+  __weak RPCS3GameInputController* weakSelf = self;
+  self.controllerMonitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(__unused BOOL connected) {
+    [weakSelf updateTouchVisibility];
+  }];
   [self selectFirstPhysicalController];
   [self updateTouchVisibility];
 }
@@ -247,7 +129,12 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   self.started = NO;
   [NSNotificationCenter.defaultCenter removeObserver:self name:GCControllerDidConnectNotification object:nil];
   [NSNotificationCenter.defaultCenter removeObserver:self name:GCControllerDidDisconnectNotification object:nil];
+  [NSNotificationCenter.defaultCenter removeObserver:self name:NeoTouchControllerPreferenceDidChangeNotification
+                                              object:nil];
+  [self.controllerMonitor invalidate];
+  self.controllerMonitor = nil;
   [self unbindPhysicalController];
+  [self releaseTouchInput];
   [self clearCorePadState];
   self.touchOverlay.hidden = YES;
 }
@@ -281,12 +168,17 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   [self updateTouchVisibility];
 }
 
+- (void)touchPreferenceChanged:(NSNotification*)notification {
+  NSString* console = notification.userInfo[@"console"];
+  if (!console || [console isEqualToString:@"ps3"]) [self updateTouchVisibility];
+}
+
 - (void)bindPhysicalController:(GCController*)controller {
   [self unbindPhysicalController];
   self.physicalController = controller;
-  memset(&_touchState, 0, sizeof(_touchState));
-  _touchState.size = sizeof(_touchState);
-  _touchState.connected = 1;
+  memset(&_physicalState, 0, sizeof(_physicalState));
+  _physicalState.size = sizeof(_physicalState);
+  _physicalState.connected = 1;
   [self clearCorePadState];
 
   __weak RPCS3GameInputController* weakSelf = self;
@@ -322,6 +214,8 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   if (controller.extendedGamepad) controller.extendedGamepad.valueChangedHandler = nil;
   if (controller.microGamepad) controller.microGamepad.valueChangedHandler = nil;
   self.physicalController = nil;
+  memset(&_physicalState, 0, sizeof(_physicalState));
+  _physicalState.size = sizeof(_physicalState);
 }
 
 - (GCControllerButtonInput*)optionalButtonOnProfile:(id)profile key:(NSString*)key {
@@ -371,7 +265,8 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   RPCS3SetBit(&state.buttons, rpcs3_ios_pad_start, menu.isPressed);
   RPCS3SetBit(&state.buttons, rpcs3_ios_pad_ps, home.isPressed);
 
-  [self sendState:&state];
+  _physicalState = state;
+  [self sendMergedState];
 }
 
 - (void)updateFromMicroGamepad:(GCMicroGamepad*)pad {
@@ -385,33 +280,47 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   RPCS3SetBit(&state.buttons, rpcs3_ios_pad_right, pad.dpad.right.isPressed);
   RPCS3SetBit(&state.buttons, rpcs3_ios_pad_cross, pad.buttonA.isPressed);
   RPCS3SetBit(&state.buttons, rpcs3_ios_pad_square, pad.buttonX.isPressed);
-  [self sendState:&state];
+  _physicalState = state;
+  [self sendMergedState];
 }
 
-- (void)touchButtonDown:(UIButton*)sender {
-  if (!self.started || self.physicalController) return;
-  uint32_t bit = (uint32_t)sender.tag;
+- (void)touchButtonDown:(uint64_t)bit {
+  if (!self.started || self.editingTouchLayout) return;
   _touchState.buttons |= bit;
   if (bit == rpcs3_ios_pad_l2) _touchState.l2 = 1.0f;
   if (bit == rpcs3_ios_pad_r2) _touchState.r2 = 1.0f;
-  sender.backgroundColor = [UIColor colorWithWhite:1 alpha:0.34];
   [self sendTouchState];
 }
 
-- (void)touchButtonUp:(UIButton*)sender {
-  uint32_t bit = (uint32_t)sender.tag;
+- (void)touchButtonUp:(uint64_t)bit {
   _touchState.buttons &= ~bit;
   if (bit == rpcs3_ios_pad_l2) _touchState.l2 = 0.0f;
   if (bit == rpcs3_ios_pad_r2) _touchState.r2 = 0.0f;
-  sender.backgroundColor = [UIColor colorWithWhite:0.06 alpha:0.38];
-  if (!self.physicalController) [self sendTouchState];
+  [self sendTouchState];
 }
 
 - (void)sendTouchState {
-  if (!self.started || self.physicalController) return;
   _touchState.size = sizeof(_touchState);
   _touchState.connected = 1;
-  [self sendState:&_touchState];
+  [self sendMergedState];
+}
+
+- (BOOL)touchActive {
+  return !self.touchOverlay.hidden && self.touchOverlay.userInteractionEnabled && !self.editingTouchLayout;
+}
+
+/// Touch and physical controller feed one pad (RPCS3PadMerge.h). While the
+/// editor is open the pad stays connected with nothing pressed.
+- (void)sendMergedState {
+  if (!self.started) return;
+  rpcs3_ios_pad_state gameplay = {};
+  gameplay.size = sizeof(gameplay);
+  gameplay.connected = 1;
+  if (!self.editingTouchLayout) {
+    gameplay = RPCS3MergePadStates(&_touchState, [self touchActive] ? 1 : 0,
+                                   &_physicalState, self.physicalController != nil ? 1 : 0);
+  }
+  [self sendState:&gameplay];
 }
 
 - (void)sendState:(const rpcs3_ios_pad_state*)state {
@@ -430,74 +339,64 @@ typedef void (^RPCS3StickChanged)(float x, float y);
   [self sendState:&state];
 }
 
+/// Every touch control released (visuals and pad state).
+- (void)releaseTouchInput {
+  [self.touchOverlay releaseAllInput];
+  memset(&_touchState, 0, sizeof(_touchState));
+  _touchState.size = sizeof(_touchState);
+  _touchState.connected = 1;
+}
+
 - (void)setTouchControlsEnabled:(BOOL)touchControlsEnabled {
   if (_touchControlsEnabled == touchControlsEnabled) return;
   _touchControlsEnabled = touchControlsEnabled;
   [self updateTouchVisibility];
 }
 
+// Build 484: hidden (and released) while a compatible controller is connected
+// if the PS3 preference says so (default), or when the Touch Controls switch
+// is off; always shown while the editor is open, without input.
 - (void)updateTouchVisibility {
-  BOOL showTouch = self.started && self.physicalController == nil && self.touchControlsEnabled;
+  const BOOL controllerHides = self.controllerMonitor.connected && NeoTouchHidesControlsWithController(@"ps3");
+  BOOL showTouch = self.started && self.touchControlsEnabled && !controllerHides;
+  if (self.editingTouchLayout) showTouch = YES;
+  if (!showTouch && !self.touchOverlay.hidden) [self releaseTouchInput];
   self.touchOverlay.hidden = !showTouch;
-  self.touchOverlay.userInteractionEnabled = showTouch;
-  if (showTouch) [self sendTouchState];
+  self.touchOverlay.userInteractionEnabled = showTouch && !self.editingTouchLayout;
+  [self sendMergedState];
 }
 
-- (void)setFrameForView:(UIView*)view center:(CGPoint)center size:(CGSize)size {
-  view.bounds = CGRectMake(0, 0, size.width, size.height);
-  view.center = center;
-  if ([view isKindOfClass:UIButton.class]) {
-    ((UIButton*)view).layer.cornerRadius = MIN(size.width, size.height) * 0.46;
+- (void)beginTouchLayoutEditingWithTitle:(NSString*)title completion:(dispatch_block_t)completion {
+  if (self.editingTouchLayout || !self.touchOverlay || !self.started) {
+    if (completion) completion();
+    return;
   }
+  self.editingTouchLayout = YES;
+  [self releaseTouchInput];
+  [self updateTouchVisibility];
+  NeoTouchLayoutEditor* editor = [[NeoTouchLayoutEditor alloc] initWithHost:self.touchOverlay
+      layoutKey:NeoTouchLayoutKeyPlayStation3 gameKey:self.touchOverlay.gameKey title:title
+      locale:self.locale store:NeoTouchLayoutStore.sharedStore];
+  editor.controllerConnected = self.controllerMonitor.connected;
+  __weak RPCS3GameInputController* weakSelf = self;
+  editor.finished = ^(__unused BOOL saved) {
+    RPCS3GameInputController* strongSelf = weakSelf;
+    if (!strongSelf) return;
+    strongSelf.editingTouchLayout = NO;
+    [strongSelf.touchOverlay endEditingOverride];
+    [strongSelf updateTouchVisibility];
+    if (completion) completion();
+  };
+  self.activeEditor = editor;
+  [editor presentOverCanvas];
 }
 
 - (void)layoutControlsInBounds:(CGRect)bounds safeAreaInsets:(UIEdgeInsets)insets {
   if (!self.touchOverlay) return;
+  // The overlay places the stock controls from its own safe area (the host's)
+  // and adds the stored layout.
   self.touchOverlay.frame = bounds;
-
-  CGFloat width = CGRectGetWidth(bounds);
-  CGFloat height = CGRectGetHeight(bounds);
-  if (width <= 0 || height <= 0) return;
-
-  CGFloat shortSide = MIN(width, height);
-  CGFloat button = MIN(56.0, MAX(42.0, shortSide * 0.12));
-  CGFloat miniWidth = MIN(74.0, MAX(58.0, button * 1.35));
-  CGFloat miniHeight = MIN(40.0, MAX(32.0, button * 0.72));
-  CGFloat stick = MIN(116.0, MAX(86.0, shortSide * 0.24));
-  CGFloat edge = 14.0;
-  CGFloat left = insets.left + edge;
-  CGFloat right = insets.right + edge;
-  CGFloat bottom = insets.bottom + edge;
-  CGFloat top = insets.top + edge;
-  CGFloat d = button * 0.88;
-
-  CGPoint dpadCenter = CGPointMake(left + button * 1.55, height - bottom - button * 1.55);
-  [self setFrameForView:self.dpadUp center:CGPointMake(dpadCenter.x, dpadCenter.y - d) size:CGSizeMake(button, button)];
-  [self setFrameForView:self.dpadDown center:CGPointMake(dpadCenter.x, dpadCenter.y + d) size:CGSizeMake(button, button)];
-  [self setFrameForView:self.dpadLeft center:CGPointMake(dpadCenter.x - d, dpadCenter.y) size:CGSizeMake(button, button)];
-  [self setFrameForView:self.dpadRight center:CGPointMake(dpadCenter.x + d, dpadCenter.y) size:CGSizeMake(button, button)];
-
-  CGPoint faceCenter = CGPointMake(width - right - button * 1.55, height - bottom - button * 1.55);
-  [self setFrameForView:self.triangle center:CGPointMake(faceCenter.x, faceCenter.y - d) size:CGSizeMake(button, button)];
-  [self setFrameForView:self.cross center:CGPointMake(faceCenter.x, faceCenter.y + d) size:CGSizeMake(button, button)];
-  [self setFrameForView:self.square center:CGPointMake(faceCenter.x - d, faceCenter.y) size:CGSizeMake(button, button)];
-  [self setFrameForView:self.circle center:CGPointMake(faceCenter.x + d, faceCenter.y) size:CGSizeMake(button, button)];
-
-  CGFloat stickY = height - bottom - stick * 0.58;
-  CGFloat leftStickX = MIN(width * 0.39, left + button * 4.35);
-  CGFloat rightStickX = MAX(width * 0.61, width - right - button * 4.35);
-  [self setFrameForView:self.leftStick center:CGPointMake(leftStickX, stickY) size:CGSizeMake(stick, stick)];
-  [self setFrameForView:self.rightStick center:CGPointMake(rightStickX, stickY) size:CGSizeMake(stick, stick)];
-
-  CGFloat shoulderY = top + miniHeight * 0.5;
-  [self setFrameForView:self.l2 center:CGPointMake(left + 82.0, shoulderY) size:CGSizeMake(miniWidth, miniHeight)];
-  [self setFrameForView:self.l1 center:CGPointMake(left + 82.0 + miniWidth + 8.0, shoulderY) size:CGSizeMake(miniWidth, miniHeight)];
-  [self setFrameForView:self.r2 center:CGPointMake(width - right - 82.0, shoulderY) size:CGSizeMake(miniWidth, miniHeight)];
-  [self setFrameForView:self.r1 center:CGPointMake(width - right - 82.0 - miniWidth - 8.0, shoulderY) size:CGSizeMake(miniWidth, miniHeight)];
-
-  CGFloat centerY = top + miniHeight * 0.5;
-  [self setFrameForView:self.selectButton center:CGPointMake(width * 0.5 - miniWidth - 12.0, centerY) size:CGSizeMake(miniWidth, miniHeight)];
-  [self setFrameForView:self.startButton center:CGPointMake(width * 0.5 + miniWidth + 12.0, centerY) size:CGSizeMake(miniWidth, miniHeight)];
+  [self.touchOverlay setNeedsLayout];
 }
 
 - (void)dealloc {

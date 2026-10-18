@@ -43,6 +43,7 @@ import '../widgets/tv_directory_picker.dart';
 import '../services/libretro_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import 'dolphin_wii_motion_panel.dart';
+import 'embedded_touch_controls_panel.dart';
 import 'libretro_engine_panel.dart';
 
 part 'system_emulator_settings_dialog/gamepad_nav.dart';

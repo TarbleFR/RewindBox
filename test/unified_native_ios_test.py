@@ -54,6 +54,9 @@ with tempfile.TemporaryDirectory(prefix='unified-native-') as tmp:
         staged=include/'neo_swap';staged.mkdir(exist_ok=True)
         for header in public_headers('neo_swap',ROOT/'packages/neo_swap/ios'):
             shutil.copyfile(header,staged/header.name)
+        # Build 484: the three menus and plugins import <neo_touch_layout/...>.
+        from touch_layout_support import stage_touch_layout
+        stage_touch_layout(include)
         # The plugin uses declarations exported by this unchanged Swift class.
         swift=include/'dolphin_internal_bridge';swift.mkdir()
         (swift/'dolphin_internal_bridge-Swift.h').write_text('''#import <UIKit/UIKit.h>
@@ -64,6 +67,17 @@ with tempfile.TemporaryDirectory(prefix='unified-native-') as tmp:
 @property(nonatomic,copy) NSString* shakeAccessibilityHint;
 - (void)refreshPhoneShakeRouting;
 - (void)updateExtension:(NSString*)name;
+// Build 484 touch layouts.
+@property(nonatomic,copy) void (^layoutPassHandler)(BOOL);
+@property(nonatomic) BOOL touchLayoutEditing;
+@property(nonatomic) BOOL shakeHiddenByLayout;
+@property(nonatomic,readonly) NSString* touchLayoutKey;
+@property(nonatomic,readonly) UIView* touchLayoutShakeControl;
+- (NSArray<UIView*>*)touchLayoutControls;
+- (NSString*)touchLayoutIdentifier:(UIView*)control;
+- (NSInteger)touchLayoutKind:(UIView*)control;
+- (NSString*)touchLayoutName:(UIView*)control;
+- (void)cancelTouchInteractions;
 @end
 ''')
     sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()

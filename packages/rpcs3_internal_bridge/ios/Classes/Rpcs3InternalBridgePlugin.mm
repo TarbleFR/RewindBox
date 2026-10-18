@@ -12,6 +12,8 @@
 #import "Rpcs3EarlyLoaderDiagnostics.h"
 #import "Rpcs3EarlyAddressSpaceEscrow.h"
 #import "RPCS3GameInputController.h"
+#import "RPCS3TouchControls.h"
+#import <neo_touch_layout/NeoTouchLayout.h>
 #import "RPCS3PerformanceOverlay.h"
 #include "RPCS3PerformanceSnapshot.h"
 #include "RPCS3FrameRateHold.h"
@@ -297,6 +299,9 @@ static UIViewController* RPCS3RootViewController(void) {
   [self.view bringSubviewToFront:self.performanceOverlay];
   [self.view bringSubviewToFront:self.menuButton];
   [self.view bringSubviewToFront:self.performanceButton];
+  // Build 484: the touch-layout editor covers the action rail while it is open.
+  UIView* editor = self.inputController.activeEditor;
+  if (editor.superview == self.view) [self.view bringSubviewToFront:editor];
 }
 - (void)viewDidDisappear:(BOOL)animated {
   [self.inputController stop];
@@ -405,6 +410,8 @@ static UIViewController* RPCS3RootViewController(void) {
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+  // Build 484: the PS3 controls for the editor opened from the settings.
+  RPCS3TouchControlsRegisterPreview();
   RPCS3RecoverEarlyLoaderLog();
   FlutterMethodChannel* channel = [FlutterMethodChannel methodChannelWithName:kRpcs3Channel
                                                               binaryMessenger:registrar.messenger];
@@ -1172,6 +1179,35 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     return;
   }
 
+  // Build 484: "Hide touch controls when a controller is connected" (PS3).
+  if ([command isEqual:@"touchHideWithController"]) {
+    NeoTouchSetHidesControlsWithController(@"ps3", [value boolValue]);
+    [controller.inputController updateTouchVisibility];
+    if (completion) completion(YES, @"");
+    return;
+  }
+
+  // Build 484: the menu closes and the touch-layout editor opens. RPCS3 has
+  // no pause entry point in its Core ABI: while the editor is open the game
+  // receives a connected pad with nothing pressed (no touch, no controller).
+  if ([command isEqual:@"editTouchLayout"]) {
+    if (completion) completion(YES, @"");
+    __weak RPCS3GameViewController* weakController = controller;
+    NSString* title = self.activeTitleId;
+    void (^open)(void) = ^{
+      RPCS3GameViewController* owner = weakController;
+      if (!owner || owner != self.gameController) return;
+      RPCS3Diagnostic(@"touch_layout", @"editor=opened input=released");
+      [owner.inputController beginTouchLayoutEditingWithTitle:title completion:^{
+        RPCS3Diagnostic(@"touch_layout", @"editor=closed");
+      }];
+      [owner.view setNeedsLayout];
+    };
+    if (controller.presentedViewController) [controller dismissViewControllerAnimated:YES completion:open];
+    else open();
+    return;
+  }
+
   NSString* setting = nil;
   NSString* settingValue = nil;
   if ([command isEqual:@"resolution"] && [value isKindOfClass:NSString.class]) {
@@ -1371,12 +1407,14 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
 - (void)showGameMenu {
   RPCS3GameViewController* controller = self.gameController;
   if (!controller || controller.presentedViewController) return;
+  if (controller.inputController.isEditingTouchLayout) return;
 
   Rpcs3SessionMenu* menu = [Rpcs3SessionMenu new];
   menu.localeIdentifier = self.activeUiLocale ?: controller.uiLocale ?: @"en";
   menu.gameTitle = self.activeTitleId.length ? self.activeTitleId : @"RPCS3";
   menu.performanceVisible = controller.showingPerformance;
   menu.touchControlsVisible = controller.inputController.isTouchControlsEnabled;
+  menu.touchHideWithController = NeoTouchHidesControlsWithController(@"ps3");
   menu.languageChoices = [self languageChoices];
 
   __weak Rpcs3InternalBridgePlugin* weakSelf = self;
@@ -1641,7 +1679,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       controller.menuHandler = ^{ [weakSelf showGameMenu]; };
       controller.performanceToggleHandler = ^(BOOL visible) { [weakSelf setPerformanceSamplingEnabled:visible]; };
       [controller loadViewIfNeeded];
-      controller.inputController = [[RPCS3GameInputController alloc] initWithHostView:controller.view api:&self->_api];
+      controller.inputController = [[RPCS3GameInputController alloc] initWithHostView:controller.view api:&self->_api
+                                                                                locale:controller.uiLocale];
+      // Build 484: the per-game touch layout key is the PS3 title ID.
+      controller.inputController.gameKey = titleId;
       controller.inputController.menuRequested = controller.menuHandler;
       [controller.inputController start];
       [controller.inputController layoutControlsInBounds:controller.view.bounds safeAreaInsets:controller.view.safeAreaInsets];

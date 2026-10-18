@@ -7,6 +7,7 @@
 #include "NeoCheatStore.h"
 #include "NeoUnifiedNativeImport.h"
 #import "ARMSX2InGameLocalization.h"
+#import "Armsx2TouchControls.h"
 // Build 447: the Core's render view is a NeoExternalRenderHost of the
 // external_display pod (docs/external-display-universal.md § 5, row ARMSX2).
 #import <external_display/NeoExternalDisplayCoordinator.h>
@@ -36,55 +37,8 @@ static UIViewController* ARMSX2RootViewController(void) {
 }
 
 
-@interface Armsx2VirtualStickView : UIView
-@property(nonatomic, copy) void (^valueChanged)(float x, float y);
-@property(nonatomic, strong) UIView* knob;
-@end
-
-@implementation Armsx2VirtualStickView
-- (instancetype)init {
-  self = [super initWithFrame:CGRectZero];
-  if (self) {
-    self.backgroundColor = [UIColor colorWithWhite:0 alpha:0.34];
-    self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.48].CGColor;
-    self.layer.borderWidth = 1.0;
-    self.knob = [[UIView alloc] initWithFrame:CGRectZero];
-    self.knob.backgroundColor = [UIColor colorWithWhite:1 alpha:0.38];
-    self.knob.userInteractionEnabled = NO;
-    [self addSubview:self.knob];
-    UIPanGestureRecognizer* pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
-    pan.maximumNumberOfTouches = 1;
-    [self addGestureRecognizer:pan];
-  }
-  return self;
-}
-- (void)layoutSubviews {
-  [super layoutSubviews];
-  self.layer.cornerRadius = MIN(self.bounds.size.width, self.bounds.size.height) * 0.5;
-  const CGFloat knobSize = MIN(self.bounds.size.width, self.bounds.size.height) * 0.42;
-  if (CGRectEqualToRect(self.knob.frame, CGRectZero)) {
-    self.knob.frame = CGRectMake(0, 0, knobSize, knobSize);
-    self.knob.center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-  }
-  self.knob.layer.cornerRadius = knobSize * 0.5;
-}
-- (void)handlePan:(UIPanGestureRecognizer*)pan {
-  const CGFloat radius = MAX(1.0, MIN(self.bounds.size.width, self.bounds.size.height) * 0.36);
-  CGPoint delta = [pan translationInView:self];
-  CGFloat x = delta.x / radius;
-  CGFloat y = delta.y / radius;
-  const CGFloat magnitude = hypot(x, y);
-  if (magnitude > 1.0) { x /= magnitude; y /= magnitude; }
-  const BOOL ended = pan.state == UIGestureRecognizerStateEnded ||
-      pan.state == UIGestureRecognizerStateCancelled ||
-      pan.state == UIGestureRecognizerStateFailed;
-  if (ended) { x = 0; y = 0; }
-  self.knob.center = CGPointMake(
-      CGRectGetMidX(self.bounds) + x * radius * 0.58,
-      CGRectGetMidY(self.bounds) + y * radius * 0.58);
-  if (self.valueChanged) self.valueChanged((float)x, (float)y);
-}
-@end
+// Build 484: the touch controls (and the virtual stick) live in
+// Armsx2TouchControls.mm as movable elements of the "ps2" layout.
 
 // NEOSTATION_ARMSX2_EXTERNAL_DISPLAY_V1: the bridge's NeoExternalRenderHost.
 // The render view is the view the Core created (`coreView`), the placeholder
@@ -137,15 +91,16 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, strong) Armsx2ExternalRenderHost* externalRenderHost;
 @property(nonatomic, copy) dispatch_block_t closeHandler;
 @property(nonatomic, copy) dispatch_block_t menuHandler;
-@property(nonatomic, strong) UIView* controlsView;
+@property(nonatomic, strong) Armsx2TouchControlsView* controlsView;
 @property(nonatomic, strong) UIButton* menuButton;
 @property(nonatomic, strong) UILabel* statusLabel;
+/// The Touch Controls switch of the in-game Controls page.
 @property(nonatomic, assign) BOOL touchControlsVisible;
+// Build 484: controller policy, stored layout and on-screen editor.
+@property(nonatomic, strong) NeoTouchControllerMonitor* controllerMonitor;
+@property(nonatomic, assign) BOOL touchEditing;
+@property(nonatomic, copy, nullable) NSString* touchGameKey;
 @property(nonatomic, assign) BOOL menuReady;
-@property(nonatomic, assign) float leftX;
-@property(nonatomic, assign) float leftY;
-@property(nonatomic, assign) float rightX;
-@property(nonatomic, assign) float rightY;
 @property(nonatomic, assign) float upscaleMultiplier;
 @property(nonatomic, assign) uint32_t aspectRatio;
 @property(nonatomic, assign) BOOL cheatsEnabled;
@@ -158,6 +113,8 @@ static UIViewController* ARMSX2RootViewController(void) {
                        saveStateMask:(uint32_t)mask;
 - (void)showStatus:(NSString*)message;
 - (void)resetInput;
+- (void)applyTouchVisibility;
+- (void)beginTouchLayoutEditing:(dispatch_block_t)completion;
 @end
 
 @implementation Armsx2GameViewController
@@ -173,65 +130,13 @@ static UIViewController* ARMSX2RootViewController(void) {
   return self;
 }
 
+- (void)dealloc {
+  [self.controllerMonitor invalidate];
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+}
+
 - (NSString*)en:(NSString*)english fr:(NSString*)french {
   return ARMSX2LocalizedText(english, french, self.uiLocale);
-}
-
-- (UIButton*)padButton:(NSString*)title tag:(NSInteger)tag {
-  UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
-  button.tag = tag;
-  button.backgroundColor = [UIColor colorWithWhite:0 alpha:0.48];
-  button.tintColor = UIColor.whiteColor;
-  [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
-  button.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
-  button.layer.borderWidth = 1.0;
-  button.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.42].CGColor;
-  button.layer.cornerRadius = 20;
-  [button setTitle:title forState:UIControlStateNormal];
-  [button addTarget:self action:@selector(padDown:) forControlEvents:UIControlEventTouchDown];
-  [button addTarget:self action:@selector(padUp:) forControlEvents:
-      UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
-  return button;
-}
-
-- (UIView*)buttonPair:(NSString*)first firstTag:(NSInteger)firstTag
-               second:(NSString*)second secondTag:(NSInteger)secondTag {
-  UIView* pair = [UIView new];
-  UIButton* a = [self padButton:first tag:firstTag];
-  UIButton* b = [self padButton:second tag:secondTag];
-  [pair addSubview:a]; [pair addSubview:b];
-  a.frame = CGRectMake(0, 0, 50, 40);
-  b.frame = CGRectMake(58, 0, 50, 40);
-  a.layer.cornerRadius = b.layer.cornerRadius = 12;
-  return pair;
-}
-
-- (UIView*)dpad {
-  UIView* pad = [UIView new];
-  UIButton* up = [self padButton:@"↑" tag:0];
-  UIButton* down = [self padButton:@"↓" tag:1];
-  UIButton* left = [self padButton:@"←" tag:2];
-  UIButton* right = [self padButton:@"→" tag:3];
-  for (UIButton* button in @[up,down,left,right]) [pad addSubview:button];
-  up.frame = CGRectMake(37, 0, 38, 38);
-  down.frame = CGRectMake(37, 74, 38, 38);
-  left.frame = CGRectMake(0, 37, 38, 38);
-  right.frame = CGRectMake(74, 37, 38, 38);
-  return pad;
-}
-
-- (UIView*)faceButtons {
-  UIView* pad = [UIView new];
-  UIButton* triangle = [self padButton:@"△" tag:7];
-  UIButton* cross = [self padButton:@"×" tag:4];
-  UIButton* square = [self padButton:@"□" tag:6];
-  UIButton* circle = [self padButton:@"○" tag:5];
-  for (UIButton* button in @[triangle,cross,square,circle]) [pad addSubview:button];
-  triangle.frame = CGRectMake(37, 0, 38, 38);
-  cross.frame = CGRectMake(37, 74, 38, 38);
-  square.frame = CGRectMake(0, 37, 38, 38);
-  circle.frame = CGRectMake(74, 37, 38, 38);
-  return pad;
 }
 
 - (void)loadView {
@@ -248,34 +153,29 @@ static UIViewController* ARMSX2RootViewController(void) {
     self.coreView = render;
   }
 
-  self.controlsView = [[UIView alloc] initWithFrame:root.bounds];
+  // Build 484: the same controls as before, each one a movable element of
+  // the "ps2" touch layout (Armsx2TouchControls.mm).
+  self.controlsView = [[Armsx2TouchControlsView alloc] initWithLocale:self.uiLocale];
+  self.controlsView.frame = root.bounds;
   self.controlsView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-  self.controlsView.backgroundColor = UIColor.clearColor;
   self.controlsView.accessibilityIdentifier = @"armsx2-touch-controls";
+  self.controlsView.gameKey = self.touchGameKey;
   [root addSubview:self.controlsView];
 
-  UIView* dpad = [self dpad]; dpad.tag = 1001;
-  UIView* face = [self faceButtons]; face.tag = 1002;
-  Armsx2VirtualStickView* leftStick = [Armsx2VirtualStickView new]; leftStick.tag = 1003;
-  Armsx2VirtualStickView* rightStick = [Armsx2VirtualStickView new]; rightStick.tag = 1004;
-  UIView* leftShoulders = [self buttonPair:@"L1" firstTag:8 second:@"L2" secondTag:10]; leftShoulders.tag = 1005;
-  UIView* rightShoulders = [self buttonPair:@"R1" firstTag:9 second:@"R2" secondTag:11]; rightShoulders.tag = 1006;
-  UIButton* start = [self padButton:@"START" tag:12]; start.accessibilityIdentifier = @"armsx2-start";
-  UIButton* select = [self padButton:@"SELECT" tag:13]; select.accessibilityIdentifier = @"armsx2-select";
-  start.titleLabel.font = select.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
-  for (UIView* v in @[dpad,face,leftStick,rightStick,leftShoulders,rightShoulders,start,select]) {
-    [self.controlsView addSubview:v];
-  }
-
   __weak Armsx2GameViewController* weakSelf = self;
-  leftStick.valueChanged = ^(float x,float y) {
-    Armsx2GameViewController* strongSelf=weakSelf; if(!strongSelf) return;
-    strongSelf.leftX=x; strongSelf.leftY=y; [strongSelf sendSticks];
+  self.controlsView.buttonChanged = ^(uint32_t button, BOOL pressed) {
+    Armsx2GameViewController* strongSelf = weakSelf;
+    if (strongSelf.api && strongSelf.api->set_button && button < 16) strongSelf.api->set_button(button, pressed ? 1 : 0);
   };
-  rightStick.valueChanged = ^(float x,float y) {
-    Armsx2GameViewController* strongSelf=weakSelf; if(!strongSelf) return;
-    strongSelf.rightX=x; strongSelf.rightY=y; [strongSelf sendSticks];
+  self.controlsView.sticksChanged = ^(float leftX, float leftY, float rightX, float rightY) {
+    Armsx2GameViewController* strongSelf = weakSelf;
+    if (strongSelf.api && strongSelf.api->set_sticks) strongSelf.api->set_sticks(leftX, leftY, rightX, rightY);
   };
+  self.controllerMonitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(__unused BOOL connected) {
+    [weakSelf applyTouchVisibility];
+  }];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(touchPreferenceChanged:)
+      name:NeoTouchControllerPreferenceDidChangeNotification object:nil];
 
   // Match Dolphin's entry point: one hamburger opens the full session
   // navigator. There is deliberately no direct-close X and no contextual
@@ -314,6 +214,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     [self.statusLabel.widthAnchor constraintLessThanOrEqualToAnchor:root.widthAnchor multiplier:0.62],
   ]];
   [self refreshMenu];
+  [self applyTouchVisibility];
 }
 
 - (void)viewDidLayoutSubviews {
@@ -324,56 +225,67 @@ static UIViewController* ARMSX2RootViewController(void) {
   // always follow the iPhone.
   if (!self.externalRenderHost.attached) self.coreView.frame = self.view.bounds;
   self.controlsView.frame = self.view.bounds;
-  const UIEdgeInsets safe = self.view.safeAreaInsets;
-  const CGFloat w = self.view.bounds.size.width;
-  const CGFloat h = self.view.bounds.size.height;
-  const BOOL portrait = h > w;
-  UIView* dpad = [self.controlsView viewWithTag:1001];
-  UIView* face = [self.controlsView viewWithTag:1002];
-  UIView* leftStick = [self.controlsView viewWithTag:1003];
-  UIView* rightStick = [self.controlsView viewWithTag:1004];
-  UIView* leftShoulders = [self.controlsView viewWithTag:1005];
-  UIView* rightShoulders = [self.controlsView viewWithTag:1006];
-  UIButton* start = (UIButton*)[self.controlsView viewWithTag:12];
-  UIButton* select = (UIButton*)[self.controlsView viewWithTag:13];
+}
 
-  const CGFloat bottom = safe.bottom + 14;
-  dpad.frame = CGRectMake(safe.left + 12, h - bottom - 112, 112, 112);
-  face.frame = CGRectMake(w - safe.right - 124, h - bottom - 112, 112, 112);
-  if (portrait) {
-    leftStick.frame = CGRectMake(safe.left + 24, h - bottom - 222, 92, 92);
-    rightStick.frame = CGRectMake(w - safe.right - 116, h - bottom - 222, 92, 92);
-    leftShoulders.frame = CGRectMake(safe.left + 12, h - bottom - 276, 108, 40);
-    rightShoulders.frame = CGRectMake(w - safe.right - 120, h - bottom - 276, 108, 40);
-  } else {
-    leftStick.frame = CGRectMake(safe.left + 136, h - bottom - 96, 88, 88);
-    rightStick.frame = CGRectMake(w - safe.right - 224, h - bottom - 96, 88, 88);
-    leftShoulders.frame = CGRectMake(safe.left + 12, h - bottom - 160, 108, 40);
-    rightShoulders.frame = CGRectMake(w - safe.right - 120, h - bottom - 160, 108, 40);
+- (void)setTouchGameKey:(NSString*)touchGameKey {
+  _touchGameKey = [touchGameKey copy];
+  self.controlsView.gameKey = touchGameKey;
+}
+
+- (void)touchPreferenceChanged:(NSNotification*)notification {
+  NSString* console = notification.userInfo[@"console"];
+  if (!console || [console isEqualToString:@"ps2"]) [self applyTouchVisibility];
+}
+
+// Build 484: the touch controls show when the Touch Controls switch is on
+// and, while the PS2 preference allows it (default), no compatible
+// controller is connected. Hiding releases every held control; the menu
+// button is not part of the controls and stays available. The editor shows
+// them whatever the controller or the switch.
+- (void)applyTouchVisibility {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self applyTouchVisibility]; });
+    return;
   }
-  const CGFloat centerY = h - bottom - 42;
-  select.frame = CGRectMake(w * 0.5 - 98, centerY, 78, 36);
-  start.frame = CGRectMake(w * 0.5 + 20, centerY, 78, 36);
-  select.layer.cornerRadius = start.layer.cornerRadius = 12;
+  if (!self.controlsView) return;
+  const BOOL controllerHides = self.controllerMonitor.connected && NeoTouchHidesControlsWithController(@"ps2");
+  const BOOL hidden = !self.touchEditing && (!self.touchControlsVisible || controllerHides || self.closing);
+  if (hidden && !self.controlsView.hidden) [self resetInput];
+  self.controlsView.hidden = hidden;
 }
 
-- (void)padDown:(UIButton*)sender {
-  if(self.api && self.api->set_button && sender.tag>=0 && sender.tag<16)
-    self.api->set_button((uint32_t)sender.tag,1);
+- (void)beginTouchLayoutEditing:(dispatch_block_t)completion {
+  if (self.touchEditing || !self.controlsView || self.closing) {
+    if (completion) completion();
+    return;
+  }
+  self.touchEditing = YES;
+  [self resetInput];
+  self.controlsView.userInteractionEnabled = NO;
+  self.controlsView.hidden = NO;
+  NeoTouchLayoutEditor* editor = [[NeoTouchLayoutEditor alloc] initWithHost:self.controlsView
+      layoutKey:NeoTouchLayoutKeyPlayStation2 gameKey:self.controlsView.gameKey title:self.title
+      locale:self.uiLocale store:NeoTouchLayoutStore.sharedStore];
+  editor.controllerConnected = self.controllerMonitor.connected;
+  __weak Armsx2GameViewController* weakSelf = self;
+  editor.finished = ^(__unused BOOL saved) {
+    Armsx2GameViewController* strongSelf = weakSelf;
+    if (!strongSelf) return;
+    strongSelf.touchEditing = NO;
+    [strongSelf.controlsView endEditingOverride];
+    [strongSelf applyTouchVisibility];
+    if (completion) completion();
+  };
+  [editor presentOverCanvas];
 }
-- (void)padUp:(UIButton*)sender {
-  if(self.api && self.api->set_button && sender.tag>=0 && sender.tag<16)
-    self.api->set_button((uint32_t)sender.tag,0);
-}
-- (void)sendSticks {
-  if(self.api && self.api->set_sticks)
-    self.api->set_sticks(self.leftX,self.leftY,self.rightX,self.rightY);
-}
+
 - (void)resetInput {
+  // Visuals first (sticks back to the centre, buttons released), then every
+  // ARMSX2 button up and both sticks neutral, as before.
+  [self.controlsView releaseAllInput];
   if(self.api && self.api->set_button)
     for(uint32_t i=0;i<16;i++) self.api->set_button(i,0);
-  self.leftX=self.leftY=self.rightX=self.rightY=0;
-  [self sendSticks];
+  if(self.api && self.api->set_sticks) self.api->set_sticks(0,0,0,0);
 }
 - (void)closePressed {
   if (self.closing) return;
@@ -382,7 +294,7 @@ static UIViewController* ARMSX2RootViewController(void) {
   if (self.closeHandler) self.closeHandler();
 }
 - (void)menuPressed {
-  if (self.closing || !self.menuReady) return;
+  if (self.closing || !self.menuReady || self.touchEditing) return;
   [self resetInput];
   if (self.menuHandler) self.menuHandler();
 }
@@ -436,6 +348,8 @@ static UIViewController* ARMSX2RootViewController(void) {
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+  // Build 484: the PS2 controls for the editor opened from the settings.
+  Armsx2TouchControlsRegisterPreview();
   FlutterMethodChannel* channel = [FlutterMethodChannel
       methodChannelWithName:kARMSX2Channel
             binaryMessenger:registrar.messenger];
@@ -874,6 +788,8 @@ static UIViewController* ARMSX2RootViewController(void) {
         @"cheats": @(cheats),
         @"saveStateMask": @(mask),
         @"touch": @(controller.touchControlsVisible),
+        @"touchHideWithController": @(NeoTouchHidesControlsWithController(@"ps2")),
+        @"touchLayoutEditable": @YES,
         @"graphicsAssets": assets ?: @{},
         @"blending": blending ?: @{},
       });
@@ -933,9 +849,37 @@ static UIViewController* ARMSX2RootViewController(void) {
       }
       controller.touchControlsVisible = [value boolValue];
       if (!controller.touchControlsVisible) [controller resetInput];
-      controller.controlsView.hidden = !controller.touchControlsVisible;
+      [controller applyTouchVisibility];
       if (completion) completion(YES,
           [controller en:@"Touch controls updated." fr:@"Commandes tactiles mises à jour."]);
+    });
+    return;
+  }
+
+  // Build 484: "Hide touch controls when a controller is connected" (PS2).
+  if ([command isEqualToString:@"touchHideWithController"]) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (self.gameController != controller || self.stopInProgress) {
+        if (completion) completion(NO, @"ARMSX2 session is no longer active.");
+        return;
+      }
+      NeoTouchSetHidesControlsWithController(@"ps2", [value boolValue]);
+      [controller applyTouchVisibility];
+      if (completion) completion(YES, @"");
+    });
+    return;
+  }
+
+  // Build 484: the touch-controls editor replaces the menu; the game stays
+  // paused until the editor closes.
+  if ([command isEqualToString:@"editTouchLayout"]) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (self.gameController != controller || self.stopInProgress || !self.sessionMenu || self.menuOpening) {
+        if (completion) completion(NO, @"ARMSX2 session is no longer active.");
+        return;
+      }
+      if (completion) completion(YES, @"");
+      [self openTouchEditorForController:controller];
     });
     return;
   }
@@ -1015,9 +959,34 @@ static UIViewController* ARMSX2RootViewController(void) {
   });
 }
 
+- (void)openTouchEditorForController:(Armsx2GameViewController*)controller {
+  UINavigationController* navigation = self.sessionMenu;
+  if (!navigation || self.menuOpening) return;
+  self.menuOpening = YES;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  [navigation dismissViewControllerAnimated:YES completion:^{
+    Armsx2InternalBridgePlugin* bridge = weakSelf;
+    if (!bridge) return;
+    bridge.sessionMenu = nil;
+    bridge.menuOpening = NO;
+    if (bridge.gameController != controller || bridge.stopInProgress) return;
+    NSLog(@"[ARMSX2] Touch controls editor opened; the game stays paused.");
+    [controller beginTouchLayoutEditing:^{
+      if (bridge.gameController != controller || bridge.stopInProgress) return;
+      controller.controlsView.userInteractionEnabled = YES;
+      [controller applyTouchVisibility];
+      NSLog(@"[ARMSX2] Touch controls editor closed; the game resumes.");
+      dispatch_async(bridge->_runtimeQueue, ^{
+        if (bridge.api && bridge.gameController == controller && !bridge.stopInProgress)
+          bridge.api->set_paused(0);
+      });
+    }];
+  }];
+}
+
 - (void)presentSessionMenuForController:(Armsx2GameViewController*)controller {
   if (!controller || self.gameController != controller || self.stopInProgress ||
-      self.menuOpening || self.sessionMenu) return;
+      self.menuOpening || self.sessionMenu || controller.touchEditing) return;
   self.menuOpening = YES;
   [controller resetInput];
   controller.controlsView.userInteractionEnabled = NO;
@@ -1258,6 +1227,8 @@ static UIViewController* ARMSX2RootViewController(void) {
       controller.uiLocale = uiLocale;
       controller.title = biosBoot ? [controller en:@"PS2 BIOS" fr:@"BIOS PS2"] :
           (gamePath.lastPathComponent.stringByDeletingPathExtension ?: @"ARMSX2");
+      // Build 484: per-game touch layout key (the game file; none for the BIOS).
+      controller.touchGameKey = biosBoot ? nil : gamePath.lastPathComponent;
       __weak Armsx2InternalBridgePlugin* weakSelf = self;
       __weak Armsx2GameViewController* weakController = controller;
       controller.closeHandler = ^{

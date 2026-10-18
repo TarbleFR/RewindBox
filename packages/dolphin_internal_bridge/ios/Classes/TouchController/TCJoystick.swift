@@ -64,13 +64,13 @@ class TCJoystick: UIView
     if (gesture.state == .ended || gesture.state == .cancelled || gesture.state == .failed)
     {
       // Reset to center
-      point = self.convert(self.center, from: self.superview)
+      point = boundsCenter
     }
     else
     {
       // Get points
       point = gesture.location(in: self)
-      let joystickCenter = self.convert(self.center, from: self.superview)
+      let joystickCenter = boundsCenter
       
       // Calculate differences
       let xDiff = point.x - joystickCenter.x
@@ -78,7 +78,7 @@ class TCJoystick: UIView
       
       // Calculate distance
       var distance = sqrt(pow(xDiff, 2) + pow(yDiff, 2))
-      let maxDistance = self.frame.width / 3
+      let maxDistance = self.bounds.width / 3
 
       if (distance > maxDistance)
       {
@@ -104,6 +104,32 @@ class TCJoystick: UIView
     
     gesture.view?.center = point
   }
-  
+
+  // NeoStation Build 484: the touch-layout editor may move and scale the
+  // joystick with a transform. The original frame/superview-centre maths
+  // included that transform; the centre and travel are measured in the
+  // joystick's own (untransformed) coordinates instead, which is identical
+  // without a transform.
+  private var boundsCenter: CGPoint
+  {
+    return CGPoint(x: bounds.midX, y: bounds.midY)
+  }
+
+  /// Releases the stick: neutral axes and the handle back in the centre.
+  @objc func resetToCenter()
+  {
+    for recognizer in subviews.flatMap({ $0.gestureRecognizers ?? [] }) where recognizer.isEnabled
+    {
+      // Ends a drag in progress so its next movement cannot press again.
+      recognizer.isEnabled = false
+      recognizer.isEnabled = true
+    }
+    for i in 0..<4
+    {
+      TCManagerInterface.setAxisValueFor(joystickType + i + 1, controller: port, value: 0)
+    }
+    subviews.last?.center = boundsCenter
+  }
+
 }
 

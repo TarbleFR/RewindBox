@@ -21,6 +21,8 @@ typedef void (^Rpcs3SessionStateCommand)(
 @property(nonatomic, copy) NSString* gameTitle;
 @property(nonatomic, assign) BOOL performanceVisible;
 @property(nonatomic, assign) BOOL touchControlsVisible;
+// Build 484: "Hide touch controls when a controller is connected" (PS3).
+@property(nonatomic, assign) BOOL touchHideWithController;
 @property(nonatomic, copy) NSArray<NSDictionary<NSString*, NSString*>*>* languageChoices;
 @property(nonatomic, copy) Rpcs3SessionCommand performCommand;
 @property(nonatomic, copy) Rpcs3SessionReadStates readStates;

@@ -4,6 +4,7 @@
 #import "RPCS3UnifiedCheatLabels.h"
 #import "RPCS3UnifiedCheats.h"
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
+#import <neo_touch_layout/NeoTouchLayoutStrings.h>
 
 typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuRoot,
@@ -14,6 +15,8 @@ typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuChoices,
   RPCS3MenuSaveStates,
   RPCS3MenuLoadStates,
+  // Build 484: editor and "hide with a controller" (texts: NeoTouchLayoutStrings).
+  RPCS3MenuTouchControls,
 };
 
 static void RPCS3MenuOnMain(dispatch_block_t block) {
@@ -96,8 +99,12 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
-  return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"cheatsMenu",
+  return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"touchControls", @"cheatsMenu",
            @"createState", @"loadState", @"resumeGame", @"quitGame"];
+}
+
+- (NSString*)touchText:(NSString*)key {
+  return NeoTouchLayoutText(key, self.localeIdentifier);
 }
 
 - (Rpcs3SessionMenu*)child:(RPCS3MenuPage)page title:(NSString*)title {
@@ -108,6 +115,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   child.gameTitle = self.gameTitle;
   child.performanceVisible = self.performanceVisible;
   child.touchControlsVisible = self.touchControlsVisible;
+  child.touchHideWithController = self.touchHideWithController;
   child.languageChoices = self.languageChoices;
   child.performCommand = self.performCommand;
   child.readStates = self.readStates;
@@ -236,6 +244,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     case RPCS3MenuGraphics: return 3;
     case RPCS3MenuSystem: return 1;
     case RPCS3MenuControls: return 1;
+    case RPCS3MenuTouchControls: return 2;
     case RPCS3MenuCheats: return 1 + [self.cheatSnapshot[@"items"] count];
     case RPCS3MenuChoices: return self.choices.count;
     case RPCS3MenuSaveStates:
@@ -249,6 +258,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuGraphics) return [self text:@"graphicsHelp"];
   if (self.page == RPCS3MenuSystem) return [self text:@"systemHelp"];
   if (self.page == RPCS3MenuControls) return [self text:@"controlsHelp"];
+  if (self.page == RPCS3MenuTouchControls) return [self touchText:@"hideWithControllerHelp"];
   if (self.page == RPCS3MenuCheats)
     return [self text:[self.cheatSnapshot[@"conflict"] boolValue] ? @"cheatConflict" :
         [self.cheatSnapshot[@"preparationFailed"] boolValue] ? @"cheatFailed" : @"cheatNextBoot"];
@@ -276,11 +286,16 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
   if (self.page == RPCS3MenuRoot) {
     NSString* key = self.rootKeys[row];
-    cell.textLabel.text = [self text:key];
+    cell.textLabel.text = [key isEqual:@"touchControls"] ? [self touchText:key] : [self text:key];
+    if ([key isEqual:@"touchControls"]) {
+      cell.detailTextLabel.text = [self touchText:@"touchControlsDetail"];
+      cell.accessibilityIdentifier = @"rpcs3.menu.touchControls";
+    }
     NSDictionary* symbols = @{
       @"graphicsMenu": @"display",
       @"systemMenu": @"gearshape.2",
       @"controlsMenu": @"gamecontroller",
+      @"touchControls": @"hand.tap",
       @"cheatsMenu": @"bolt.shield",
       @"createState": @"square.and.arrow.down",
       @"loadState": @"square.and.arrow.up",
@@ -339,6 +354,21 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     return cell;
   }
 
+  if (self.page == RPCS3MenuTouchControls) {
+    if (row == 0) {
+      cell.textLabel.text = [self touchText:@"editTouchControls"];
+      cell.detailTextLabel.text = [self touchText:@"editTouchControlsDetail"];
+      cell.imageView.image = [UIImage systemImageNamed:@"slider.horizontal.3"];
+      cell.accessibilityIdentifier = @"rpcs3.menu.editTouchControls";
+    } else {
+      cell.textLabel.text = [self touchText:@"hideWithController"];
+      cell.detailTextLabel.text = [self touchText:self.touchHideWithController ? @"on" : @"off"];
+      cell.accessoryType = UITableViewCellAccessoryNone;
+      cell.accessibilityIdentifier = @"rpcs3.menu.hideTouchWithController";
+    }
+    return cell;
+  }
+
   if (self.page == RPCS3MenuChoices) {
     NSDictionary* choice = self.choices[row];
     cell.textLabel.text = choice[@"title"];
@@ -393,6 +423,9 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
         } else if ([command isEqual:@"touchControls"]) {
           menu.touchControlsVisible = [value boolValue];
           menu.returnPage.touchControlsVisible = menu.touchControlsVisible;
+        } else if ([command isEqual:@"touchHideWithController"]) {
+          menu.touchHideWithController = [value boolValue];
+          menu.returnPage.touchHideWithController = menu.touchHideWithController;
         }
         [menu.tableView reloadData];
         if (menu.page == RPCS3MenuChoices) [menu.navigationController popViewControllerAnimated:YES];
@@ -453,6 +486,9 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       [self.navigationController pushViewController:[self child:RPCS3MenuSystem title:[self text:key]] animated:YES];
     } else if ([key isEqual:@"controlsMenu"]) {
       [self.navigationController pushViewController:[self child:RPCS3MenuControls title:[self text:key]] animated:YES];
+    } else if ([key isEqual:@"touchControls"]) {
+      [self.navigationController pushViewController:[self child:RPCS3MenuTouchControls title:[self touchText:key]]
+                                           animated:YES];
     } else if ([key isEqual:@"cheatsMenu"]) {
       [self.navigationController pushViewController:[self directCheats] animated:YES];
     } else if ([key isEqual:@"createState"]) {
@@ -515,6 +551,12 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
   if (self.page == RPCS3MenuControls) {
     [self performCommand:@"touchControls" value:@(!self.touchControlsVisible)];
+    return;
+  }
+
+  if (self.page == RPCS3MenuTouchControls) {
+    if (row == 0) [self performCommand:@"editTouchLayout" value:nil];
+    else [self performCommand:@"touchHideWithController" value:@(!self.touchHideWithController)];
     return;
   }
 

@@ -14,6 +14,7 @@
 #include "DolphinPhoneShakePreferences.h"
 #import "DolphinExternalDisplay.h"
 #import "DolphinRecordingController.h"
+#import "DOLTouchLayout.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
 
@@ -198,6 +199,12 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 @property(nonatomic, assign) NSUInteger performanceGeneration;
 @property(nonatomic, assign) BOOL wii;
 @property(nonatomic, strong) DOLTouchOverlay* touchOverlay;
+// Build 484: stored touch layout, controller policy and on-screen editor.
+@property(nonatomic, strong) DOLTouchLayout* touchLayout;
+@property(nonatomic, strong) NeoTouchControllerMonitor* controllerMonitor;
+@property(nonatomic, assign) BOOL touchEditing;
+@property(nonatomic, copy, nullable) NSString* touchGameKey;
+@property(nonatomic, copy, nullable) NSString* touchGameTitle;
 @property(nonatomic, assign) BOOL acceptsTouchInput;
 @property(nonatomic, strong) DolphinFramePacing* framePacing;
 @property(nonatomic, assign) NSUInteger controllerGeneration;
@@ -206,6 +213,8 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 @property(nonatomic, strong, nullable) DolphinExternalDisplay* externalDisplay;
 @property(nonatomic, strong) UILabel* externalHint;
 - (void)refreshTouchVisibility;
+- (void)applyTouchVisibility;
+- (void)beginTouchLayoutEditing:(dispatch_block_t)completion;
 - (void)suspendTouchInput;
 @end
 
@@ -263,6 +272,17 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   self.touchOverlay.frame = self.view.bounds;
   self.touchOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   [self.view addSubview:self.touchOverlay];
+  // Build 484: the stored layout (GameCube, Wii Remote + Nunchuk, Classic)
+  // places the original controls; a turn of the surface releases held ones.
+  self.touchLayout = [[DOLTouchLayout alloc] initWithOverlay:self.touchOverlay locale:self.labels[@"__locale"]];
+  self.touchLayout.gameKey = self.touchGameKey;
+  __weak DOLDolphinViewController* weakController = self;
+  self.touchLayout.orientationChanged = ^{ [weakController releaseTouchInput]; };
+  self.controllerMonitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(__unused BOOL connected) {
+    [weakController applyTouchVisibility];
+  }];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(touchPreferenceChanged:)
+      name:NeoTouchControllerPreferenceDidChangeNotification object:nil];
   self.acceptsTouchInput = YES;
   self.controllerGeneration = 1;
   for (NSString* name in @[GCKeyboardDidConnectNotification,GCKeyboardDidDisconnectNotification])
@@ -353,12 +373,76 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   if (!self.acceptsTouchInput) return;
   [self markControllersChanged];
   [self releaseTouchInput];
-  self.touchOverlay.hidden = self.presentedViewController != nil || GCController.controllers.count > 0;
+  [self.controllerMonitor refresh];
+  [self applyTouchVisibility];
+}
+
+- (void)setTouchGameKey:(NSString*)touchGameKey {
+  _touchGameKey = [touchGameKey copy];
+  self.touchLayout.gameKey = touchGameKey;
+}
+
+- (NSString*)touchConsole {
+  return self.wii ? @"wii" : @"gc";
+}
+
+- (void)touchPreferenceChanged:(NSNotification*)notification {
+  NSString* console = notification.userInfo[@"console"];
+  if (!console || [console isEqualToString:[self touchConsole]]) [self applyTouchVisibility];
+}
+
+// Build 484: the touch controls are hidden while a menu is presented and,
+// when the console's preference allows it (default), while a compatible
+// controller is connected. Hiding releases every held control first; the
+// menu button is not part of the overlay and stays available. The editor
+// shows them whatever the controller.
+- (void)applyTouchVisibility {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self applyTouchVisibility]; });
+    return;
+  }
+  if (!self.acceptsTouchInput) return;
+  const BOOL controllerHides = self.controllerMonitor.connected &&
+      NeoTouchHidesControlsWithController([self touchConsole]);
+  const BOOL hidden = !self.touchEditing && (self.presentedViewController != nil || controllerHides);
+  if (hidden && !self.touchOverlay.hidden) {
+    [self.touchOverlay cancelTouchInteractions];
+    [self releaseTouchInput];
+  }
+  self.touchOverlay.hidden = hidden;
+}
+
+- (void)beginTouchLayoutEditing:(dispatch_block_t)completion {
+  if (self.touchEditing || !self.touchLayout || !self.acceptsTouchInput) {
+    if (completion) completion();
+    return;
+  }
+  self.touchEditing = YES;
+  // Nothing held may survive into the editor, and nothing reaches the game.
+  [self.touchOverlay cancelTouchInteractions];
+  [self releaseTouchInput];
+  self.touchOverlay.userInteractionEnabled = NO;
+  self.touchOverlay.hidden = NO;
+  NeoTouchLayoutEditor* editor = [[NeoTouchLayoutEditor alloc] initWithHost:self.touchLayout
+      layoutKey:self.touchLayout.layoutKey gameKey:self.touchLayout.gameKey title:self.touchGameTitle
+      locale:self.labels[@"__locale"] store:NeoTouchLayoutStore.sharedStore];
+  editor.controllerConnected = self.controllerMonitor.connected;
+  __weak DOLDolphinViewController* weakSelf = self;
+  editor.finished = ^(__unused BOOL saved) {
+    DOLDolphinViewController* strongSelf = weakSelf;
+    if (!strongSelf) return;
+    strongSelf.touchEditing = NO;
+    [strongSelf.touchLayout endEditingOverride];
+    [strongSelf applyTouchVisibility];
+    if (completion) completion();
+  };
+  [editor presentOverCanvas];
 }
 
 - (void)dealloc {
   [self.externalDisplay stop];
   [self.framePacing stop];
+  [self.controllerMonitor invalidate];
   [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
@@ -791,6 +875,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+  // Build 484: Dolphin's controls for the editor opened from the settings.
+  DOLTouchLayoutRegisterPreviews();
   FlutterMethodChannel* channel = [FlutterMethodChannel methodChannelWithName:kDolphinChannel
                                                               binaryMessenger:registrar.messenger];
   DolphinInternalBridgePlugin* instance = [[DolphinInternalBridgePlugin alloc] init];
@@ -1127,6 +1213,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           ? arguments[@"menuLabels"] : @{};
       controller.menuLabel = self.menuLabels[@"menu"] ?: @"Dolphin";
       controller.labels = self.menuLabels;
+      // Build 484: per-game touch layout key (the disc's game ID, else the
+      // file name); the Wii System Menu only has the general layout.
+      controller.touchGameKey = wiiMenu ? nil
+          : (self.activeDisplayGameId.length ? self.activeDisplayGameId : gamePath.lastPathComponent);
+      controller.touchGameTitle = self.activeGameTitle;
       controller.framePacing = [DolphinFramePacing new];
       controller.framePacing.locale = self.menuLabels[@"__locale"] ?: @"en";
       controller.framePacing.activeProfile = self.activeDisplayProfile;
@@ -1261,6 +1352,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 
 - (void)presentSessionMenu {
   if (self.launchInProgress || self.stopInProgress || self.menuOpening || self.sessionMenu || !self.dolphinController) return;
+  if (self.dolphinController.touchEditing) return;
   self.menuOpening = YES;
   neostation_dolphin_release_touches();
   self.dolphinController.touchOverlay.userInteractionEnabled = NO;
@@ -1276,7 +1368,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       strongSelf.menuOpening = NO;
       if (!paused || strongSelf.stopInProgress || strongSelf.dolphinController != owner) {
         owner.touchOverlay.userInteractionEnabled = YES;
-          owner.touchOverlay.hidden = GCController.controllers.count > 0;
+          [owner applyTouchVisibility];
         return;
       }
       @try {
@@ -1285,6 +1377,36 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       menu.wii = strongSelf.wiiSession;
       menu.gameTitle = strongSelf.activeGameTitle;
       menu.stateActionsAvailable = !strongSelf.systemMenuSession;
+      // Build 484: Touch controls page. The editor replaces the menu while
+      // the game stays paused; closing it resumes the game like Resume.
+      if (owner.touchLayout) {
+        menu.openTouchEditor = ^{
+          DolphinInternalBridgePlugin* bridge = weakSelf;
+          if (!bridge || bridge.stopInProgress || bridge.menuOpening || !bridge.sessionMenu ||
+              bridge.dolphinController != owner) return;
+          bridge.menuOpening = YES;
+          [bridge.sessionMenu dismissViewControllerAnimated:YES completion:^{
+            bridge.sessionMenu = nil;
+            bridge.menuOpening = NO;
+            if (bridge.stopInProgress || bridge.dolphinController != owner) return;
+            DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"touch_layout.editor_opened",
+                             @"Touch controls editor opened; the game stays paused.",
+                             @{@"layout": owner.touchLayout.layoutKey ?: @""});
+            [owner beginTouchLayoutEditing:^{
+              if (bridge.stopInProgress || bridge.dolphinController != owner) return;
+              [owner refreshTouchVisibility];
+              owner.touchOverlay.userInteractionEnabled = YES;
+              [owner applyTouchVisibility];
+              DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"touch_layout.editor_closed",
+                               @"Touch controls editor closed; the game resumes.", nil);
+              dispatch_async(bridge->_runtimeQueue, ^{ neostation_dolphin_set_paused(0); });
+            }];
+          }];
+        };
+        NSString* touchConsole = owner.wii ? @"wii" : @"gc";
+        menu.readTouchHideWithController = ^BOOL { return NeoTouchHidesControlsWithController(touchConsole); };
+        menu.setTouchHideWithController = ^(BOOL hide) { NeoTouchSetHidesControlsWithController(touchConsole, hide); };
+      }
       menu.openDisplaySettings = ^{
         DolphinInternalBridgePlugin* bridge=weakSelf;
         if(!bridge || bridge.stopInProgress || bridge.dolphinController!=owner)return;
@@ -1591,7 +1713,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           if (bridge.stopInProgress || bridge.dolphinController != owner) return;
           [owner refreshTouchVisibility];
           owner.touchOverlay.userInteractionEnabled = YES;
-          owner.touchOverlay.hidden = GCController.controllers.count > 0;
+          [owner applyTouchVisibility];
           dispatch_async(bridge->_runtimeQueue, ^{ neostation_dolphin_set_paused(0); });
         }];
       };
@@ -1642,7 +1764,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
               bridge.launchInProgress = NO;
               [owner refreshTouchVisibility];
               owner.touchOverlay.userInteractionEnabled = YES;
-          owner.touchOverlay.hidden = GCController.controllers.count > 0;
+          [owner applyTouchVisibility];
             }];
           });
         });
@@ -1658,7 +1780,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       } @catch (NSException* exception) {
         strongSelf.sessionMenu = nil;
         owner.touchOverlay.userInteractionEnabled = YES;
-          owner.touchOverlay.hidden = GCController.controllers.count > 0;
+          [owner applyTouchVisibility];
         DOLAppendJSONLog(strongSelf.activeLogPath ?: @"", @"menu.presentation_failed", exception.reason ?: @"UIKit presentation failed.", nil);
         dispatch_async(strongSelf->_runtimeQueue, ^{ neostation_dolphin_set_paused(0); });
       }

@@ -12,7 +12,7 @@ legacy gate. It does not replace or modify other emulator integrations.
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
-  s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h'
+  s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h', 'Classes/DOLTouchLayout.h'
   s.resources        = 'TouchResources/*'
   s.vendored_frameworks = 'Frameworks/DolphinCore.framework'
   s.dependency 'Flutter'
@@ -26,6 +26,9 @@ legacy gate. It does not replace or modify other emulator integrations.
   # translates and compiles Dolphin post-processing shaders with the shared
   # shader kit, and reads its catalog of Dolphin's official shaders.
   s.dependency 'neo_shader_kit'
+  # Build 484: stored touch layouts, on-screen editor and controller policy
+  # shared with ARMSX2 and RPCS3 (DOLTouchLayout.mm).
+  s.dependency 'neo_touch_layout'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.swift_version = '5.0'

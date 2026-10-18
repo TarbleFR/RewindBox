@@ -5,6 +5,7 @@
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 #import "Armsx2RetroAchievementsMenu.h"
 #import "ARMSX2InGameLocalization.h"
+#import <neo_touch_layout/NeoTouchLayoutStrings.h>
 #include <cmath>
 
 typedef NS_ENUM(NSInteger, ARMSX2MenuPage) {
@@ -18,6 +19,8 @@ typedef NS_ENUM(NSInteger, ARMSX2MenuPage) {
   ARMSX2MenuControls,
   ARMSX2MenuSaveStates,
   ARMSX2MenuLoadStates,
+  // Build 484: editor and "hide with a controller" (texts: NeoTouchLayoutStrings).
+  ARMSX2MenuTouchControls,
 };
 
 #define ARMSX2MenuText(english, french) \
@@ -158,8 +161,12 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
-  return @[@"graphics", @"cheats", @"controls", @"retroachievements",
+  return @[@"graphics", @"cheats", @"controls", @"touchControls", @"retroachievements",
            @"save", @"load", @"resume", @"quit"];
+}
+
+- (NSString*)touchText:(NSString*)key {
+  return NeoTouchLayoutText(key, self.localeIdentifier);
 }
 
 - (void)importCheatFilePressed {[self openManualCheatEditor:YES];}
@@ -500,6 +507,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       return [self.patches[@"items"] isKindOfClass:NSArray.class]
           ? [self.patches[@"items"] count] : 0;
     case ARMSX2MenuControls: return self.snapshot.count ? 1 : 0;
+    case ARMSX2MenuTouchControls: return self.snapshot.count ? 2 : 0;
     case ARMSX2MenuSaveStates:
     case ARMSX2MenuLoadStates: return self.snapshot.count ? 5 : 0;
   }
@@ -565,6 +573,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   if (self.page == ARMSX2MenuControls)
     return ARMSX2MenuText(@"Choose whether NeoStation's PS2 touch overlay is visible.",
                           @"Choisissez si les commandes tactiles PS2 de NeoStation sont visibles.");
+  if (self.page == ARMSX2MenuTouchControls) return [self touchText:@"hideWithControllerHelp"];
   if ((self.page == ARMSX2MenuSaveStates || self.page == ARMSX2MenuLoadStates) &&
       self.stateMessage.length)
     return self.stateMessage;
@@ -595,6 +604,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       @"graphics": ARMSX2MenuText(@"Graphics", @"Graphismes"),
       @"cheats": ARMSX2MenuText(@"Compatibility / Cheats", @"Hacks / Cheats"),
       @"controls": ARMSX2MenuText(@"Controls", @"Commandes"),
+      @"touchControls": [self touchText:@"touchControls"],
       @"retroachievements": @"RetroAchievements",
       @"save": ARMSX2MenuText(@"Save State", @"Sauvegarder un état"),
       @"load": ARMSX2MenuText(@"Load State", @"Charger un état"),
@@ -605,6 +615,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       @"graphics": @"display",
       @"cheats": @"wrench.and.screwdriver",
       @"controls": @"gamecontroller",
+      @"touchControls": @"hand.tap",
       @"retroachievements": @"trophy",
       @"save": @"square.and.arrow.down",
       @"load": @"square.and.arrow.up",
@@ -615,6 +626,25 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     cell.imageView.image = [UIImage systemImageNamed:symbols[key] ?: @"circle"];
     cell.imageView.tintColor = [key isEqual:@"quit"] ? UIColor.systemRedColor : UIColor.systemIndigoColor;
     if ([key isEqual:@"quit"]) cell.textLabel.textColor = UIColor.systemRedColor;
+    if ([key isEqual:@"touchControls"]) {
+      cell.detailTextLabel.text = [self touchText:@"touchControlsDetail"];
+      cell.accessibilityIdentifier = @"armsx2.menu.touchControls";
+    }
+  } else if (self.page == ARMSX2MenuTouchControls) {
+    if (row == 0) {
+      cell.textLabel.text = [self touchText:@"editTouchControls"];
+      cell.detailTextLabel.text = [self touchText:@"editTouchControlsDetail"];
+      cell.imageView.image = [UIImage systemImageNamed:@"slider.horizontal.3"];
+      cell.imageView.tintColor = UIColor.systemIndigoColor;
+      cell.accessibilityIdentifier = @"armsx2.menu.editTouchControls";
+    } else {
+      const BOOL hide = ![self.snapshot[@"touchHideWithController"] isKindOfClass:NSNumber.class] ||
+          [self.snapshot[@"touchHideWithController"] boolValue];
+      cell.textLabel.text = [self touchText:@"hideWithController"];
+      cell.detailTextLabel.text = [self touchText:hide ? @"on" : @"off"];
+      cell.accessoryType = UITableViewCellAccessoryNone;
+      cell.accessibilityIdentifier = @"armsx2.menu.hideTouchWithController";
+    }
   } else if (self.page == ARMSX2MenuGraphics) {
     if (row == 0) {
       cell.textLabel.text = ARMSX2MenuText(@"Internal Resolution", @"Résolution interne");
@@ -843,6 +873,9 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     } else if ([key isEqual:@"controls"]) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuControls
           title:ARMSX2MenuText(@"Controls", @"Commandes")] animated:YES];
+    } else if ([key isEqual:@"touchControls"]) {
+      [self.navigationController pushViewController:[self child:ARMSX2MenuTouchControls
+          title:[self touchText:@"touchControls"]] animated:YES];
     } else if ([key isEqual:@"retroachievements"]) {
       Armsx2RetroAchievementsMenu* ra = [Armsx2RetroAchievementsMenu new];
       ra.readState = self.readRetroAchievements;
@@ -1030,6 +1063,16 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       sheet.popoverPresentationController.sourceRect=[tableView rectForRowAtIndexPath:indexPath];
     }
     [self presentViewController:sheet animated:YES completion:nil];
+  } else if (self.page == ARMSX2MenuTouchControls) {
+    if (!self.performCommand) return;
+    if (row == 0) {
+      // The bridge closes the menu and shows the editor; the game stays paused.
+      self.performCommand(@"editTouchLayout", nil, ^(__unused BOOL success, __unused NSString* message) {});
+    } else {
+      const BOOL hide = ![self.snapshot[@"touchHideWithController"] isKindOfClass:NSNumber.class] ||
+          [self.snapshot[@"touchHideWithController"] boolValue];
+      [self perform:@"touchHideWithController" value:@(!hide) successText:@""];
+    }
   } else if (self.page == ARMSX2MenuControls) {
     const BOOL enabled = [self.snapshot[@"touch"] boolValue];
     [self pushChoice:ARMSX2MenuText(@"Touch Controls", @"Commandes tactiles")

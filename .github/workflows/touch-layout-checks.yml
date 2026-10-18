@@ -1,0 +1,93 @@
+name: Touch controls editor (Build 484)
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - packages/neo_touch_layout/**
+      - packages/dolphin_internal_bridge/ios/Classes/**
+      - packages/armsx2_internal_bridge/ios/Classes/**
+      - packages/rpcs3_internal_bridge/ios/Classes/**
+      - lib/widgets/embedded_touch_controls_panel.dart
+      - lib/widgets/system_emulator_settings_dialog/tabs.dart
+      - lib/l10n/touch_layout_locale.dart
+      - lib/l10n/dolphin_import_locale.dart
+      - tools/touch_layout/**
+      - test/touch_layout*
+      - test/embedded_touch_controls_panel_test.dart
+      - test/native/touch_layout_geometry_test.c
+      - test/native/rpcs3_pad_merge_test.cpp
+      - .github/workflows/touch-layout-checks.yml
+  workflow_dispatch:
+    inputs:
+      ui:
+        description: Run the UIKit Simulator suite
+        type: boolean
+        default: true
+permissions: {contents: read}
+concurrency:
+  group: touch-layout-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Texts, geometry, pad merge, contracts and Flutter
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Native texts, portable geometry, PS3 pad merge and engine contracts
+        run: |
+          set -euo pipefail
+          python3 test/touch_layout_strings_test.py
+          python3 test/touch_layout_host_test.py
+          python3 test/rpcs3_input_bridge_test.py
+          python3 test/armsx2_external_display_test.py
+          python3 test/rpcs3_external_display_test.py
+          python3 test/dolphin_shake_wiring_test.py
+          python3 test/localization_12_locale_coverage_test.py
+      - name: Analyze changed Dart files
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/widgets/embedded_touch_controls_panel.dart
+          lib/l10n/touch_layout_locale.dart
+          lib/l10n/dolphin_import_locale.dart
+          lib/widgets/system_emulator_settings_dialog.dart
+          packages/neo_touch_layout/lib/neo_touch_layout.dart
+          test/embedded_touch_controls_panel_test.dart
+      - name: Flutter tests of the panel and the engine contracts
+        run: >-
+          flutter test
+          test/embedded_touch_controls_panel_test.dart
+          test/dolphin_wii_motion_panel_test.dart
+          test/dolphin_shake_locale_test.dart
+          test/armsx2_embedded_library_contract_test.dart
+          test/rpcs3_internal_integration_test.dart
+
+  ios:
+    name: iPhone SDK build and UIKit behaviour
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Compile and link every changed source for iPhone
+        run: python3 test/touch_layout_ios_build.py
+      - name: Existing menu consumers still compile (unified cheats)
+        run: python3 test/unified_native_ios_test.py --menus-only
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Editor, four layouts, orientations, multitouch, controller policy and persistence on UIKit
+        if: ${{ (github.event_name == 'push' || inputs.ui) && hashFiles('test/touch_layout_ui_test.py') != '' }}
+        run: python3 test/touch_layout_ui_test.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: touch-layout-${{ github.sha }}
+          path: build/touch-layout/
+          if-no-files-found: ignore
+          retention-days: 14

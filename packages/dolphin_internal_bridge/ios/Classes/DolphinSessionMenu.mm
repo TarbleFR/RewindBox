@@ -13,7 +13,8 @@
 #include "DolphinPhoneShakePreferences.h"
 
 typedef NS_ENUM(NSInteger, DOLMenuPage) {
-  DOLMenuRoot, DOLMenuGraphics, DOLMenuHacks, DOLMenuCheats, DOLMenuAchievements, DOLMenuControls, DOLMenuChoices, DOLMenuDevices, DOLMenuInputs, DOLMenuConsole, DOLMenuSaveStates, DOLMenuLoadStates, DOLMenuRecording
+  DOLMenuRoot, DOLMenuGraphics, DOLMenuHacks, DOLMenuCheats, DOLMenuAchievements, DOLMenuControls, DOLMenuChoices, DOLMenuDevices, DOLMenuInputs, DOLMenuConsole, DOLMenuSaveStates, DOLMenuLoadStates, DOLMenuRecording,
+  DOLMenuTouchControls
 };
 
 static void DOLMenuOnMain(dispatch_block_t block) {
@@ -48,6 +49,8 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 
 - (NSArray<NSString*>*)rootKeys {
   NSMutableArray* keys = [NSMutableArray arrayWithArray:@[@"graphics", @"hacks", @"cheats", @"controls", @"console", @"achievements"]];
+  // Build 484: the touch controls page follows Controls when the session offers the editor.
+  if (self.openTouchEditor) [keys insertObject:@"touchControls" atIndex:[keys indexOfObject:@"controls"] + 1];
   if (self.stateActionsAvailable) [keys addObjectsFromArray:@[@"saveState", @"loadState"]];
   if (self.readRecording) [keys addObject:@"recording"];
   [keys addObjectsFromArray:@[@"resume", @"quit"]];
@@ -56,6 +59,8 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 
 - (NSString*)text:(NSString*)key {
   if ([key isEqual:@"downloadGecko"]) return NeoCheatText(@"downloadCatalogs",self.labels[@"__locale"]);
+  // Build 484 texts come from TouchLayoutLocale (Dart), prefixed "touch.".
+  if ([key isEqual:@"touchControls"]) return self.labels[@"touch.touchControls"] ?: @"Touch controls";
   return self.labels[key] ?: key;
 }
 
@@ -491,6 +496,9 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   child.openDisplaySettings = self.openDisplaySettings;
   child.openShaderSettings = self.openShaderSettings;
   child.openTextureSettings = self.openTextureSettings;
+  child.openTouchEditor = self.openTouchEditor;
+  child.readTouchHideWithController = self.readTouchHideWithController;
+  child.setTouchHideWithController = self.setTouchHideWithController;
   child.readStates = self.readStates;
   child.performStateOperation = self.performStateOperation;
   child.readCheats = self.readCheats;
@@ -516,6 +524,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   switch (self.page) {
     case DOLMenuRoot: return self.rootKeys.count;
     case DOLMenuRecording: return 2;
+    case DOLMenuTouchControls: return 2;
     case DOLMenuSaveStates:
     case DOLMenuLoadStates: return [self.snapshot[@"slots"] count];
     case DOLMenuConsole: return self.snapshot ? 2 : 0;
@@ -567,6 +576,9 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     return self.stateMessage ? [NSString stringWithFormat:@"%@\n\n%@", [self text:self.stateMessage], help] : help;
   }
   if (self.page == DOLMenuConsole) return [self text:@"languageHelp"];
+  if (self.page == DOLMenuTouchControls)
+    return [NSString stringWithFormat:@"%@\n\n%@", self.labels[@"touch.hideWithControllerHelp"] ?: @"",
+        self.labels[@"touch.dolphinPlayerOneNote"] ?: @""];
   if (self.page == DOLMenuControls && section == 0 && self.wii)
     return [NSString stringWithFormat:@"%@\n\n%@", DOLPhoneShakeText(@"help",self.labels[@"__locale"]),
             [self text:@"shakeSensitivityHelp"]];
@@ -616,6 +628,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       @"hacks": @"wrench.and.screwdriver",
       @"cheats": @"bolt.shield",
       @"controls": @"gamecontroller",
+      @"touchControls": @"hand.tap",
       @"console": @"gearshape.2",
       @"achievements": @"trophy",
       @"saveState": @"square.and.arrow.down",
@@ -627,6 +640,23 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     cell.imageView.image = [UIImage systemImageNamed:symbols[key] ?: @"circle"];
     cell.imageView.tintColor = [key isEqual:@"quit"] ? UIColor.systemRedColor : UIColor.systemIndigoColor;
     if ([key isEqual:@"quit"]) cell.textLabel.textColor = UIColor.systemRedColor;
+    if ([key isEqual:@"touchControls"]) {
+      cell.detailTextLabel.text = self.labels[@"touch.touchControlsDetail"];
+      cell.accessibilityIdentifier = @"dolphin.menu.touchControls";
+    }
+  } else if (self.page == DOLMenuTouchControls) {
+    if (row == 0) {
+      cell.textLabel.text = self.labels[@"touch.editTouchControls"] ?: @"Edit touch controls";
+      cell.detailTextLabel.text = self.labels[@"touch.editTouchControlsDetail"];
+      cell.imageView.image = [UIImage systemImageNamed:@"slider.horizontal.3"];
+      cell.accessibilityIdentifier = @"dolphin.menu.editTouchControls";
+    } else {
+      const BOOL hide = self.readTouchHideWithController ? self.readTouchHideWithController() : YES;
+      cell.textLabel.text = self.labels[@"touch.hideWithController"] ?: @"Hide touch controls when a controller is connected";
+      cell.detailTextLabel.text = [self text:hide ? @"on" : @"off"];
+      cell.accessoryType = UITableViewCellAccessoryNone;
+      cell.accessibilityIdentifier = @"dolphin.menu.hideTouchWithController";
+    }
   } else if (self.page == DOLMenuCheats) {
     NSArray* gecko = [self.cheatsSnapshot[@"gecko"] isKindOfClass:NSArray.class]
         ? self.cheatsSnapshot[@"gecko"] : @[];
@@ -888,6 +918,10 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       return;
     }
     if([key isEqual:@"cheats"]){[self.navigationController pushViewController:[self directCheats] animated:YES];return;}
+    if ([key isEqual:@"touchControls"]) {
+      [self.navigationController pushViewController:[self child:DOLMenuTouchControls title:[self text:key]] animated:YES];
+      return;
+    }
     DOLMenuPage page = [key isEqual:@"graphics"] ? DOLMenuGraphics :
         [key isEqual:@"hacks"] ? DOLMenuHacks :
         [key isEqual:@"cheats"] ? DOLMenuCheats :
@@ -898,6 +932,14 @@ static void DOLMenuOnMain(dispatch_block_t block) {
         [key isEqual:@"loadState"] ? DOLMenuLoadStates : DOLMenuRecording;
     [self.navigationController pushViewController:[self child:page
         title:[self text:key]] animated:YES];
+  } else if (self.page == DOLMenuTouchControls) {
+    if (row == 0) {
+      if (self.openTouchEditor) self.openTouchEditor();
+    } else if (self.setTouchHideWithController) {
+      const BOOL hide = self.readTouchHideWithController ? self.readTouchHideWithController() : YES;
+      self.setTouchHideWithController(!hide);
+      [tableView reloadData];
+    }
   } else if (self.page == DOLMenuCheats) {
     if (!self.performCheatCommand || !self.cheatsSnapshot) return;
     if (row == 1) {[self openUnifiedCheatCatalogue];return;}

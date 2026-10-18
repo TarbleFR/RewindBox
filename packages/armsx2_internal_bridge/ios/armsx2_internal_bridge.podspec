@@ -11,7 +11,7 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
-  s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h'
+  s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/Armsx2TouchControls.h'
   s.dependency 'Flutter'
   s.dependency 'neo_cheat_catalog'
   # Build 447: the Core's render view is a NeoExternalRenderHost of the
@@ -19,9 +19,11 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   # NeoExternalDisplayCoordinator shows it on the TV with a transform only and
   # returns it to the iPhone before the Core stops. The Core is untouched.
   s.dependency 'external_display'
+  # Build 484: touch layouts, editor and controller policy (Armsx2TouchControls.mm).
+  s.dependency 'neo_touch_layout'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
-  s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security'
+  s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security', 'GameController'
   s.libraries = 'c++'
   s.preserve_paths = 'Frameworks/ARMSX2Core.framework'
   s.pod_target_xcconfig = {

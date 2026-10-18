@@ -45,12 +45,29 @@ class RPCS3InputBridgeTests(unittest.TestCase):
 
     def test_touch_is_connected_virtual_pad(self):
         text = INPUT.read_text()
-        # The existing touch toggle is also part of visibility policy.
-        self.assertIn('BOOL showTouch = self.started && self.physicalController == nil && self.touchControlsEnabled;', text)
-        self.assertIn('if (showTouch) [self sendTouchState];', text)
+        # Build 484 replaces "touch hidden whenever a controller is bound" by
+        # the user policy: hidden while a compatible controller is connected
+        # and the PS3 preference is on (default), and the existing Touch
+        # Controls switch still applies. With the preference off, touch and
+        # controller feed one merged pad (test_touch_and_controller_merge).
+        self.assertIn('NeoTouchHidesControlsWithController(@"ps3")', text)
+        self.assertIn('BOOL showTouch = self.started && self.touchControlsEnabled && !controllerHides;', text)
+        self.assertIn('if (!showTouch && !self.touchOverlay.hidden) [self releaseTouchInput];', text)
+        self.assertIn('RPCS3MergePadStates(&_touchState, [self touchActive] ? 1 : 0,', text)
         self.assertIn('_touchState.connected = 1;', text)
         self.assertIn('_touchState.l2 = 1.0f;', text)
         self.assertIn('_touchState.r2 = 1.0f;', text)
+
+    def test_touch_and_controller_merge(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / 'rpcs3_pad_merge_test'
+            subprocess.run([
+                os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
+                '-I', str(INPUT.parent),
+                str(ROOT / 'test/native/rpcs3_pad_merge_test.cpp'),
+                '-o', str(executable),
+            ], check=True)
+            subprocess.run([str(executable)], check=True, timeout=10)
 
     def test_layout_guards(self):
         text = INPUT.read_text()

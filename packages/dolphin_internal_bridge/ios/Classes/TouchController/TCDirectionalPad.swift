@@ -164,6 +164,31 @@ class TCDirectionalPad: UIView
       TCManagerInterface.setButtonStateFor(directionalPadType + i, controller: port, state: press)
     }
   }
-  
+
+  // NeoStation Build 484: releases all four directions and the pressed
+  // artwork, as when the finger leaves, before the controls are hidden or
+  // edited. A press in progress is cancelled so it cannot press again.
+  @objc func releaseAllDirections()
+  {
+    for view in subviews
+    {
+      for recognizer in view.gestureRecognizers ?? [] where recognizer.isEnabled
+      {
+        recognizer.isEnabled = false
+        recognizer.isEnabled = true
+      }
+      if let imageView = view as? UIImageView
+      {
+        imageView.image = dpadNoPressed
+        imageView.transform = .identity
+      }
+    }
+    isPressed = false
+    for i in 0..<4
+    {
+      TCManagerInterface.setButtonStateFor(directionalPadType + i, controller: port, state: false)
+    }
+  }
+
 }
 

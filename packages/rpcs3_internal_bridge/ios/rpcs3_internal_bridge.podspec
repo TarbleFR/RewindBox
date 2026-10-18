@@ -35,6 +35,8 @@ The standalone RPCS3 SwiftUI application is not embedded.
   # NeoExternalDisplayCoordinator shows it on the TV and returns it to the
   # iPhone before the Core stops. The Core, its ABI and NeoSwap are untouched.
   s.dependency 'external_display'
+  # Build 484: touch layouts, editor and controller policy (RPCS3TouchControls.mm).
+  s.dependency 'neo_touch_layout'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UIKit', 'GameController', 'Metal', 'QuartzCore', 'Security', 'CoreFoundation', 'AudioToolbox', 'AVFAudio', 'CoreGraphics', 'IOSurface', 'CoreServices', 'CoreAudio', 'CoreMIDI', 'Foundation', 'MetalFX'

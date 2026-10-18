@@ -15,6 +15,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'test'))
 from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
+from touch_layout_support import stage_touch_layout, CLASSES as TOUCH_CLASSES  # noqa: E402
+TOUCH_STRINGS = TOUCH_CLASSES / 'NeoTouchLayoutStrings.m'
 
 CLASSES = ROOT / 'packages/armsx2_internal_bridge/ios/Classes'
 CATALOGUE = ROOT / 'packages/neo_cheat_catalog/ios/Classes'
@@ -240,6 +242,8 @@ def native():
         (directory / 'ARMSX2GraphicsTests.mm').write_text(TESTS)
         # <neo_cheat_catalog/...> and <external_display/...> as the pods publish them.
         include = stage_dependency_headers(directory)
+        # Build 484: the menu's Touch controls page reads NeoTouchLayoutStrings.
+        stage_touch_layout(include)
         sdk_dependencies = [{'sdk': 'UIKit.framework'}, {'sdk': 'QuartzCore.framework'}, {'sdk': 'Foundation.framework'},
                             {'sdk': 'Security.framework'}, {'sdk': 'MetalKit.framework'}, {'sdk': 'Metal.framework'},
                             {'sdk': 'libz.tbd'}, {'sdk': 'UniformTypeIdentifiers.framework'}]
@@ -256,7 +260,8 @@ def native():
                 'ARMSX2GraphicsHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'Armsx2SessionMenu.mm'),
                                 str(CLASSES / 'Armsx2RetroAchievementsMenu.mm'), str(CLASSES / 'ARMSX2InGameLocalization.mm')]
-                               + [str(source) for source in catalogue],
+                               + [str(source) for source in catalogue]
+                               + [str(TOUCH_STRINGS)],
                     'dependencies': sdk_dependencies,
                     'settings': {'base': {'PRODUCT_BUNDLE_IDENTIFIER': 'org.neostation.armsx2graphics.host',
                         'INFOPLIST_KEY_UILaunchScreen_Generation': 'YES'}}},
