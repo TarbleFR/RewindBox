@@ -987,6 +987,63 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertEqual(self.catalog.lookups,reads);
 }
 
+- (void)test477InstalledCatalogueCannotBeDownloadedAgainInAnotherConsole {
+    self.catalog.summaryFixture=@{@"installation_state":@"complete",@"installed_packs":@2,@"total_packs":@2};
+    NeoUnifiedCheatList *ps3=[self directListWithItems:@[]];ps3.engine=@"rpcs3";
+    NSIndexPath *action=[NSIndexPath indexPathForRow:0 inSection:0];
+    UITableViewCell *cell=[ps3 tableView:ps3.tableView cellForRowAtIndexPath:action];
+    XCTAssertFalse(cell.userInteractionEnabled);
+    XCTAssertEqualObjects(cell.textLabel.text,[NeoUnifiedCheatBrowser localizedText:@"installedReady" locale:@"fr"]);
+    [ps3 tableView:ps3.tableView didSelectRowAtIndexPath:action];
+    NeoUnifiedCheatList *ps2=[self directListWithItems:@[]];ps2.engine=@"armsx2";
+    cell=[ps2 tableView:ps2.tableView cellForRowAtIndexPath:action];XCTAssertFalse(cell.userInteractionEnabled);
+    [ps2 tableView:ps2.tableView didSelectRowAtIndexPath:action];
+    XCTAssertEqual(self.catalog.installs,0U);
+}
+
+- (void)test477ReopenedConsoleShowsSharedProgressThenCompletedState {
+    self.catalog.summaryFixture=@{@"installation_state":@"installing",@"installed_packs":@1,@"total_packs":@3,
+        @"progress":@{@"completed_packs":@1,@"installed_packs":@1,@"total_packs":@3}};
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];
+    NSIndexPath *action=[NSIndexPath indexPathForRow:0 inSection:0];
+    UITableViewCell *cell=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertFalse(cell.userInteractionEnabled);XCTAssertNotNil(cell.accessoryView);
+    [list tableView:list.tableView didSelectRowAtIndexPath:action];XCTAssertEqual(self.catalog.installs,0U);
+    [NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogProgressNotification object:self.catalog
+        userInfo:@{@"installation_state":@"installing",@"completed_packs":@2,@"installed_packs":@2,@"total_packs":@3}];
+    XCTAssertTrue([[list valueForKey:@"downloading"] boolValue]);
+    self.catalog.summaryFixture=@{@"installation_state":@"complete",@"installed_packs":@3,@"total_packs":@3};
+    [NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogProgressNotification object:self.catalog userInfo:self.catalog.summaryFixture];
+    cell=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertFalse(cell.userInteractionEnabled);XCTAssertNil(cell.accessoryView);
+    XCTAssertEqualObjects(cell.textLabel.text,[NeoUnifiedCheatBrowser localizedText:@"installedReady" locale:@"fr"]);
+}
+
+- (void)test477PartialCatalogueOffersResumeAndBlocksAnotherRunningRequest {
+    self.catalog.summaryFixture=@{@"installation_state":@"partial",@"installed_packs":@1,@"total_packs":@3};
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];
+    NSIndexPath *action=[NSIndexPath indexPathForRow:0 inSection:0];
+    UITableViewCell *cell=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertTrue(cell.userInteractionEnabled);
+    XCTAssertEqualObjects(cell.textLabel.text,[NeoUnifiedCheatBrowser localizedText:@"retryDownloads" locale:@"fr"]);
+    [list tableView:list.tableView didSelectRowAtIndexPath:action];XCTAssertEqual(self.catalog.installs,1U);
+    self.catalog.summaryFixture=@{@"installation_state":@"installing",@"installed_packs":@1,@"total_packs":@3};
+    NeoUnifiedCheatList *other=[self directListWithItems:@[]];
+    [other tableView:other.tableView didSelectRowAtIndexPath:action];XCTAssertEqual(self.catalog.installs,1U);
+}
+
+- (void)test477AuthorizedCatalogueLoadsMissingGameWithoutAnotherBulkRequest {
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];
+    NSMutableDictionary *game=[[self game] mutableCopy];game[@"installed"]=@NO;game[@"download_requested"]=@NO;
+    self.catalog.rows=@[game];self.catalog.codes=@[[self program:@"money" dependencies:@[]]];
+    NSUInteger before=self.catalog.lookups;
+    [list reloadCheats];[self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    XCTAssertEqual(self.catalog.lookups,before);
+    game[@"download_requested"]=@YES;self.catalog.rows=@[game];
+    [list reloadCheats];[self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==1;}];
+    XCTAssertEqual(self.catalog.lookups,before+1);XCTAssertEqual(self.catalog.installs,0U);
+}
+
 - (void)testDirectRPCS3JSONReimportKeepsAStableDisabledProgramIdentity {
     NeoUnifiedCheatList* list=[self directListWithItems:@[]];list.engine=@"rpcs3";
     self.catalog.rows=@[];

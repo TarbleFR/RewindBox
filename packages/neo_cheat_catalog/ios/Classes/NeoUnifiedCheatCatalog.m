@@ -5,6 +5,7 @@
 
 NSString *const NeoUnifiedCheatCatalogErrorDomain = @"NeoUnifiedCheatCatalog";
 NSNotificationName const NeoUnifiedCheatCatalogDidInstallNotification = @"NeoUnifiedCheatCatalogDidInstallNotification";
+NSNotificationName const NeoUnifiedCheatCatalogProgressNotification = @"NeoUnifiedCheatCatalogProgressNotification";
 static const NSUInteger ManifestLimit = 64 * 1024 * 1024;
 static const NSUInteger ManifestCompressedLimit = 12 * 1024 * 1024;
 static const NSUInteger PackLimit = 8 * 1024 * 1024;
@@ -301,6 +302,13 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   NSDictionary *_snapshotCache;
   NSMutableDictionary *_installed;
   NSMutableArray *_loadWaiters;
+  NSMutableSet *_readyPacks;
+  NSMutableArray *_installWaiters;
+  NSMutableArray *_progressWaiters;
+  NSMutableDictionary *_packJobs;
+  BOOL _downloadRequested;
+  NSDictionary *_installationProgress;
+  NSTimeInterval _lastProgressNotification;
   BOOL _loading;
   BOOL _installing;
 }
@@ -327,6 +335,8 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     if ([bundle URLForResource:@"manifest" withExtension:@"json"] || [bundle URLForResource:@"manifest.json" withExtension:@"gz"]) { _bundledDirectory=bundle.resourcePath; break; }
   }
   _loadWaiters=[NSMutableArray array];
+  _installWaiters=[NSMutableArray array];_progressWaiters=[NSMutableArray array];
+  _packJobs=[NSMutableDictionary dictionary];
   return self;
 }
 + (BOOL)gameHasConflict:(NSDictionary *)game identity:(NSDictionary *)identity {
@@ -470,6 +480,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 }
 - (void)adoptManifest:(NSDictionary *)manifest {
   _manifest=manifest;
+  _readyPacks=nil;
   NSDictionary *canonical=[self gamesByID:manifest];
   // A persisted install index contains repeated metadata. Reuse matching
   // current records so it does not retain a second full catalogue tree.
@@ -484,6 +495,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   if (_installed) return;
   NSDictionary *json=JSON(ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"installed.json"],ManifestLimit));
   _installed=[NSMutableDictionary dictionary];
+  _downloadRequested=[JSON(ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"installation.json"],4096))[@"requested"] boolValue];
   NSDictionary *records=[json[@"games"] isKindOfClass:NSDictionary.class] ? json[@"games"] : @{};
   for (NSString *key in records) {
     id row=records[key];
@@ -493,6 +505,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       _installed[key]=@{@"game":canonical && [String(canonical[@"sha256"]) isEqualToString:String(saved[@"sha256"])] ? canonical : saved};
     }
   }
+  if(_installed.count)_downloadRequested=YES;
 }
 - (NSString *)chunkPath:(NSDictionary *)game {
   return [self.storageDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"files/%@.json",String(game[@"sha256"]).lowercaseString]];
@@ -540,6 +553,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 - (NSDictionary *)decoratedGame:(NSDictionary *)game {
   NSMutableDictionary *row=[game mutableCopy];
   row[@"installed"]=@([self hasChunk:game verify:NO]);
+  row[@"download_requested"]=@(_downloadRequested);
   NSDictionary *pack=_packsByID[String(game[@"pack_id"])];
   NSString *cached=[self.storageDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"packs/%@.gz",String(pack[@"sha256"]).lowercaseString]];
   NSDictionary *attributes=[NSFileManager.defaultManager attributesOfItemAtPath:cached error:nil];
@@ -549,8 +563,34 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   if([_archives containsObject:game[@"id"]])row[@"archived"]=@YES;
   return row;
 }
+// Recover the common installation from its content-addressed files, including
+// chunks committed before an interrupted bulk operation wrote installed.json.
+// Run once per index generation, on the catalogue I/O queue. SHA-256 is still
+// verified by the chunk reader before any program can reach an emulator.
+- (void)reconcileInstalledFiles {
+  if(_readyPacks)return;
+  [self readInstallIndex];
+  _readyPacks=[NSMutableSet set];
+  BOOL directory=NO;
+  if(![NSFileManager.defaultManager fileExistsAtPath:[self.storageDirectory stringByAppendingPathComponent:@"files"] isDirectory:&directory] || !directory)return;
+  BOOL changed=NO;
+  for(NSDictionary *pack in Array(_manifest[@"packs"])) {
+    BOOL ready=YES;
+    for(NSString *gameID in Array(pack[@"game_ids"])) {@autoreleasepool{
+      NSDictionary *game=_gamesByID[gameID];
+      if(!game || ![self hasChunk:game verify:NO]){ready=NO;continue;}
+      _downloadRequested=YES;
+      if(![String(_installed[gameID][@"game"][@"sha256"]) isEqualToString:String(game[@"sha256"])]) {
+        _installed[gameID]=@{@"game":game};changed=YES;
+      }
+    }}
+    if(ready)[_readyPacks addObject:pack[@"id"]];
+  }
+  if(changed)[self invalidateViews];
+}
 - (NSDictionary *)snapshot {
   if(_snapshotCache)return _snapshotCache;
+  [self reconcileInstalledFiles];
   [self effectiveGames];
   NSMutableDictionary *result=[_manifest mutableCopy] ?: [NSMutableDictionary dictionary];
   NSUInteger installed=0,installedPacks=0;unsigned long long bytes=0,installedBytes=0;
@@ -558,12 +598,13 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   // actual files and their chunk reader verifies SHA-256 before any import.
   for(NSDictionary *game in _effectiveGames){NSDictionary *record=_installed[game[@"id"]][@"game"];
     if([String(record[@"sha256"]) isEqualToString:String(game[@"sha256"])])installed++;}
-  for(NSDictionary *pack in _manifest[@"packs"]){BOOL ready=YES;bytes += [pack[@"size"] unsignedLongLongValue];
-    for(NSString *gameID in pack[@"game_ids"]){NSDictionary *game=_effectiveByID[gameID],*record=_installed[gameID][@"game"];
-      if(!game || ![String(record[@"sha256"]) isEqualToString:String(game[@"sha256"])]){ready=NO;break;}}
+  for(NSDictionary *pack in _manifest[@"packs"]){BOOL ready=[_readyPacks containsObject:pack[@"id"]];bytes += [pack[@"size"] unsignedLongLongValue];
     if(ready){installedPacks++;installedBytes += [pack[@"size"] unsignedLongLongValue];}}
   result[@"installed_games"]=@(installed);result[@"installed_packs"]=@(installedPacks);result[@"total_packs"]=@(Array(_manifest[@"packs"]).count);
   result[@"total_bytes"]=@(bytes);result[@"installed_bytes"]=@(installedBytes);
+  result[@"download_requested"]=@(_downloadRequested);
+  result[@"installation_state"]=_installing ? @"installing" : (installedPacks==Array(_manifest[@"packs"]).count && installedPacks ? @"complete" : (installed ? @"partial" : @"missing"));
+  if(_installationProgress)result[@"progress"]=_installationProgress;
   _snapshotCache=[result copy];return _snapshotCache;
 }
 - (void)loadWithCompletion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
@@ -662,6 +703,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       // Otherwise live search while 494 packs finish would rebuild it 494 times.
       if(!self->_installing)[self invalidateViews];
     }
+    if(!self->_installing)self->_readyPacks=nil;
     // The manifest already makes each committed chunk discoverable after an
     // interrupted bulk operation. Persist the metadata once at bulk completion.
     if(!self->_installing && games.count)
@@ -715,6 +757,29 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 - (void)installAllWithProgress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
   [self installRefreshingIndex:YES identity:nil progress:progress completion:completion];
 }
+// All bulk, in-game and repair requests for one immutable pack join one job.
+// A newly opened game raises the queued job's priority without another fetch.
+// Must be called on the catalogue I/O queue; completions return on that queue.
+- (void)enqueuePack:(NSDictionary *)pack manifest:(NSDictionary *)manifest priority:(NSOperationQueuePriority)priority completion:(void (^)(NSError *))completion {
+  NSString *key=String(pack[@"sha256"]);
+  NSDictionary *existing=_packJobs[key];
+  if(existing) {
+    [existing[@"callbacks"] addObject:[completion copy]];
+    NSOperation *operation=existing[@"operation"];
+    if(priority>operation.queuePriority)operation.queuePriority=priority;
+    return;
+  }
+  NSMutableArray *callbacks=[NSMutableArray arrayWithObject:[completion copy]];
+  NSBlockOperation *operation=[NSBlockOperation blockOperationWithBlock:^{
+    NSError *error=[self installPack:pack manifest:manifest];
+    dispatch_async(self->_queue,^{
+      NSArray *finished=[self->_packJobs[key][@"callbacks"] copy];[self->_packJobs removeObjectForKey:key];
+      for(void(^callback)(NSError*) in finished)callback(error);
+    });
+  }];
+  operation.queuePriority=priority;
+  _packJobs[key]=@{@"operation":operation,@"callbacks":callbacks};[_packQueue addOperation:operation];
+}
 - (void)installAllForIdentity:(NSDictionary *)identity progress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
   NSDictionary *requested=[identity copy];
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error) {
@@ -722,23 +787,64 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     [self installRefreshingIndex:NO identity:requested progress:progress completion:completion];
   }];
 }
+- (void)publishInstallationProgress:(NSDictionary *)progress {
+  _installationProgress=progress;_snapshotCache=nil;
+  NSArray *callbacks=[_progressWaiters copy];
+  NSTimeInterval now=NSDate.timeIntervalSinceReferenceDate;
+  BOOL notify=now-_lastProgressNotification>=0.2 || [progress[@"phase"] isEqual:@"preparing"] ||
+      [progress[@"completed_packs"] unsignedIntegerValue]==[progress[@"total_packs"] unsignedIntegerValue];
+  if(notify)_lastProgressNotification=now;
+  NSMutableDictionary *state=[progress mutableCopy];state[@"installation_state"]=@"installing";
+  dispatch_async(dispatch_get_main_queue(),^{
+    for(void(^callback)(NSDictionary*) in callbacks)callback(progress);
+    if(notify)[NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogProgressNotification object:self userInfo:state];
+  });
+}
+- (void)finishInstallation:(NSDictionary *)result error:(NSError *)error {
+  _installing=NO;_installationProgress=nil;_snapshotCache=nil;
+  NSArray *callbacks=[_installWaiters copy];[_installWaiters removeAllObjects];[_progressWaiters removeAllObjects];
+  NSDictionary *state=result ?: @{@"installation_state":@"missing"};
+  dispatch_async(dispatch_get_main_queue(),^{
+    for(void(^callback)(NSDictionary*,NSError*) in callbacks)callback(result,error);
+    [NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogProgressNotification object:self userInfo:state];
+    [NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogDidInstallNotification object:self userInfo:result];
+  });
+}
 - (void)installRefreshingIndex:(BOOL)refresh identity:(NSDictionary *)identity progress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
   dispatch_async(_queue,^{
-    if(self->_installing){dispatch_async(dispatch_get_main_queue(),^{completion(nil,Failure(9,@"A catalogue download is already running"));});return;}
+    [self->_installWaiters addObject:[completion copy]];
+    if(progress)[self->_progressWaiters addObject:[progress copy]];
+    if(self->_installing){
+      NSDictionary *current=self->_installationProgress;
+      if(progress && current)dispatch_async(dispatch_get_main_queue(),^{progress(current);});
+      return;
+    }
+    [self reconcileInstalledFiles];
+    // Opening another console or pressing the completed action cannot start a
+    // second pass, re-expand packs, write duplicate files or access the network.
+    if(!refresh && self->_manifest && self->_readyPacks.count==Array(self->_manifest[@"packs"]).count && self->_readyPacks.count) {
+      [self finishInstallation:[self snapshot] error:nil];return;
+    }
+    NSError *requestError=nil;
+    if(!WriteAtomic(JSONData(@{@"schema_version":@1,@"requested":@YES}),[self.storageDirectory stringByAppendingPathComponent:@"installation.json"],&requestError)) {
+      [self finishInstallation:nil error:requestError];return;
+    }
+    self->_downloadRequested=YES;
     self->_installing=YES;
-    if (progress) dispatch_async(dispatch_get_main_queue(),^{progress(@{@"phase":@"preparing",@"completed_packs":@0,@"total_packs":@0,@"installed_packs":@0,@"failed_packs":@0,@"completed_bytes":@0,@"total_bytes":@0});});
+    [self publishInstallationProgress:@{@"phase":@"preparing",@"completed_packs":@0,@"total_packs":@0,@"installed_packs":@0,@"failed_packs":@0,@"completed_bytes":@0,@"total_bytes":@0}];
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
       NSError *refreshError=nil;
       NSData *remote=refresh ? [self download:self.manifestURL limit:[self manifestDownloadLimit] error:&refreshError] : nil;
       NSDictionary *fresh=remote ? [self validatedManifest:remote error:&refreshError] : nil;
-      __block NSDictionary *manifest=nil;
+      __block NSDictionary *manifest=nil;__block NSSet *ready=nil;
       dispatch_sync(self->_queue,^{
         if(fresh){[self adoptManifest:fresh];WriteAtomic(JSONData(fresh),[self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],nil);[self rememberBundledIndex];}
         if(!self->_manifest){NSDictionary *local=[self localManifest];
           if(local)[self adoptManifest:local];}
         manifest=self->_manifest;
+        [self reconcileInstalledFiles];ready=[self->_readyPacks copy];
       });
-      if(!manifest){dispatch_async(self->_queue,^{self->_installing=NO;dispatch_async(dispatch_get_main_queue(),^{completion(nil,refreshError ?: Failure(1,@"No catalogue index is available"));});});return;}
+      if(!manifest){dispatch_async(self->_queue,^{[self finishInstallation:nil error:refreshError ?: Failure(1,@"No catalogue index is available")];});return;}
       NSMutableSet *priority=[NSMutableSet set];
       if (identity) for (NSDictionary *game in Array(manifest[@"games"])) {
         if ([System(game[@"system"]) isEqual:System(identity[@"system"])] && [self.class matchGame:game identity:identity])
@@ -748,19 +854,21 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
         BOOL first=[priority containsObject:a[@"id"]],second=[priority containsObject:b[@"id"]];
         return first==second ? NSOrderedSame : (first ? NSOrderedAscending : NSOrderedDescending);
       }];
-      unsigned long long totalBytes=0;for(NSDictionary *p in packs)totalBytes += [p[@"size"] unsignedLongLongValue];
-      __block NSUInteger completed=0,installed=0;__block unsigned long long completedBytes=0;
+      unsigned long long totalBytes=0,readyBytes=0;
+      for(NSDictionary *p in packs){totalBytes += [p[@"size"] unsignedLongLongValue];if([ready containsObject:p[@"id"]])readyBytes += [p[@"size"] unsignedLongLongValue];}
+      __block NSUInteger completed=ready.count,installed=ready.count;__block unsigned long long completedBytes=readyBytes;
       NSMutableArray *failed=[NSMutableArray array],*errors=[NSMutableArray array];
-      void(^report)(void)=^{if(progress){NSDictionary *p=@{@"total_packs":@(packs.count),@"completed_packs":@(completed),@"installed_packs":@(installed),@"failed_packs":@(failed.count),@"total_bytes":@(totalBytes),@"completed_bytes":@(completedBytes)};dispatch_async(dispatch_get_main_queue(),^{progress(p);});}};
+      void(^report)(void)=^{[self publishInstallationProgress:@{@"total_packs":@(packs.count),@"completed_packs":@(completed),@"installed_packs":@(installed),@"failed_packs":@(failed.count),@"total_bytes":@(totalBytes),@"completed_bytes":@(completedBytes)}];};
       dispatch_async(self->_queue,report);
       dispatch_group_t group=dispatch_group_create();
-      for(NSDictionary *pack in packs){dispatch_group_enter(group);[self->_packQueue addOperationWithBlock:^{NSError *error=[self installPack:pack manifest:manifest];
-        dispatch_async(self->_queue,^{completed++;if(error){[failed addObject:pack[@"id"]];[errors addObject:@{@"pack_id":pack[@"id"],@"message":error.localizedDescription ?: @"Pack failed"}];}else{installed++;completedBytes += [pack[@"size"] unsignedLongLongValue];}
+      for(NSDictionary *pack in packs){if([ready containsObject:pack[@"id"]])continue;
+        dispatch_group_enter(group);dispatch_async(self->_queue,^{[self enqueuePack:pack manifest:manifest priority:NSOperationQueuePriorityNormal completion:^(NSError *error){
+          completed++;if(error){[failed addObject:pack[@"id"]];[errors addObject:@{@"pack_id":pack[@"id"],@"message":error.localizedDescription ?: @"Pack failed"}];}else{installed++;completedBytes += [pack[@"size"] unsignedLongLongValue];[self->_readyPacks addObject:pack[@"id"]];}
           // Refresh only the current game's changed packs during this pass.
           // Other packs retain the shared frozen view until bulk completion.
           if ([priority containsObject:pack[@"id"]]) [self invalidateViews];
-          report();dispatch_group_leave(group);});}];}
-      dispatch_group_notify(group,self->_queue,^{self->_installing=NO;
+          report();dispatch_group_leave(group);}];});}
+      dispatch_group_notify(group,self->_queue,^{self->_installing=NO;self->_installationProgress=nil;
         [self invalidateViews];
         [self readInstallIndex];NSError *storageError=nil;
         WriteAtomic(JSONData(@{@"schema_version":@1,@"games":self->_installed}),[self.storageDirectory stringByAppendingPathComponent:@"installed.json"],&storageError);
@@ -768,10 +876,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
         if(!fresh && refreshError)result[@"refresh_error"]=refreshError.localizedDescription;
         if(storageError)result[@"storage_error"]=storageError.localizedDescription;
         NSError *failure=failed.count ? Failure(8,@"Some catalogue packs could not be installed; successful downloads were preserved") : storageError;
-        NSDictionary *final=[result copy];dispatch_async(dispatch_get_main_queue(),^{
-          completion(final,failure);
-          [NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogDidInstallNotification object:self userInfo:final];
-        });
+        [self finishInstallation:[result copy] error:failure];
       });
     });
   });
@@ -837,15 +942,18 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       if(!canonical){dispatch_async(dispatch_get_main_queue(),^{completion(@[],Failure(7,@"The selected game is no longer in this catalogue"));});return;}
       NSDictionary *chosen=canonical,*snapshot=self->_manifest;
       NSDictionary *pack=self->_packsByID[String(chosen[@"pack_id"] ?: chosen[@"pack"])];
-      NSBlockOperation *repair=[NSBlockOperation blockOperationWithBlock:^{NSError *problem=nil;
-        if(![self hasChunk:chosen verify:YES])problem=pack ? [self installPack:pack manifest:snapshot] : Failure(4,@"This game is not available offline");
-        NSData *data=ReadBounded([self chunkPath:chosen],ChunkLimit);
-        NSArray *cheats=nil;
-        if(data.length==[chosen[@"size"] unsignedIntegerValue] && [Digest(data) isEqualToString:String(chosen[@"sha256"]).lowercaseString])cheats=[self validatedCheats:data game:chosen error:&problem];
-        if(!cheats && !problem)problem=Failure(5,@"Cached game chunk failed verification");
-        dispatch_async(dispatch_get_main_queue(),^{completion(cheats ?: @[],cheats ? nil : problem);});
-      }];
-      repair.queuePriority=NSOperationQueuePriorityVeryHigh;
+      void(^readWithError)(NSError*)=^(NSError *previous) {
+        [self->_readQueue addOperationWithBlock:^{
+          NSError *problem=previous;NSData *data=ReadBounded([self chunkPath:chosen],ChunkLimit);NSArray *cheats=nil;
+          if(data.length==[chosen[@"size"] unsignedIntegerValue] && [Digest(data) isEqualToString:String(chosen[@"sha256"]).lowercaseString])cheats=[self validatedCheats:data game:chosen error:&problem];
+          if(!cheats && !problem)problem=Failure(5,@"Cached game chunk failed verification");
+          dispatch_async(dispatch_get_main_queue(),^{completion(cheats ?: @[],cheats ? nil : problem);});
+        }];
+      };
+      void(^repair)(void)=^{
+        if(pack)[self enqueuePack:pack manifest:snapshot priority:NSOperationQueuePriorityVeryHigh completion:readWithError];
+        else readWithError(Failure(4,@"This game is not available offline"));
+      };
       if ([self hasChunk:chosen verify:NO]) {
         // Ready codes must not wait behind every remaining bulk download.
         // These two bounded readers never fetch or expand packs. Corruption
@@ -856,9 +964,9 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
             NSError *error=nil;NSArray *programs=[self validatedCheats:data game:chosen error:&error];
             if (programs) {dispatch_async(dispatch_get_main_queue(),^{completion(programs,nil);});return;}
           }
-          [self->_packQueue addOperation:repair];
+          dispatch_async(self->_queue,repair);
         }];
-      } else [self->_packQueue addOperation:repair];
+      } else repair();
     });
   }];
 }

@@ -1,0 +1,15 @@
+# Build 477 — one shared installation and missing PS2/PS3 editions
+
+The maintainer confirms that 476 finds God of War III codes on the iPhone. Bladestorm and the PS2 library still have no codes; opening another console again offers a catalogue download. The maintainer requests a new private IPA and explicitly authorizes researching additional PS2/PS3 sources. Detection of GoW3 is confirmed, not its gameplay effects.
+
+The existing content-addressed storage is already common to all four hosts. The direct list nevertheless always offers a fresh download action, and the service schedules all packs again even when every chunk is present. That repeats verification/expansion work, rather than creating a separately named installation per console. A missing end-of-bulk metadata checkpoint also understates installed content after an interruption. Do not describe these source findings as evidence that the maintainer's phone contains duplicate installations.
+
+The correction reconciles the actual shared chunk files once per index generation, reports missing/partial/installing/complete state, makes a completed in-game installation a no-op, and schedules only missing packs on resume. The user's original download choice is persisted. Another console sees the same current progress and disables the completed/running action. Existing translations are reused.
+
+A newly opened game may need a different pack from the one prioritized when the bulk operation started. Previously the direct list skipped that uninstalled game and did not request its priority repair/read route. Once catalogue downloading has been authorized, matching game packs can now be requested directly. Bulk and per-game callers join one operation per immutable pack; opening a game raises the existing operation's priority. Already installed program reads retain their separate bounded readers.
+
+The targeted proof includes the actual delivered-476 repeated-work negative control; one installation across independent callers; no second fetch, expansion, file rewrite or file-count growth; relaunch without installed.json; one-pack partial repair; joined concurrent requests; new-game priority; and exact delivered Bladestorm and PS2 PNACH chunk bytes. Eleven UIKit cases cover the common status, blocked duplicate actions, authorized per-game retrieval and the existing mutation/lifecycle guards. Actual Apple execution is pending; no source-only check is presented as a native pass.
+
+Additional source review and any published edition additions will be recorded here before delivery. Keep known serial/CRC/region/version/PPU contradictions excluded; a missing source identity may require explicit confirmation, but a known different edition cannot be confirmed into compatibility. No unknown CRC, PPU or regional port is invented.
+
+All emulator cores, native helpers, protected library/NeoSwap and skin inputs remain unchanged. Their successful 476 checks are reused. Final source/run identities, actual test results, final IPA checksums and retained failures will be appended after execution. No physical iPhone gameplay validation or public release is claimed.

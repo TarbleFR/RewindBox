@@ -31,12 +31,16 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
 @property(nonatomic) BOOL busy;
 @property(nonatomic) BOOL discovering;
 @property(nonatomic) BOOL downloading;
+@property(nonatomic) BOOL catalogueInstalled;
+@property(nonatomic) BOOL cataloguePartial;
+@property(nonatomic) BOOL catalogueStateKnown;
 @property(nonatomic, copy) NSString *downloadStatus;
 @property(nonatomic, copy) NSString *catalogueStatus;
 @property(nonatomic) NSTimeInterval lastDownloadDiscovery;
 @property(nonatomic) NSTimeInterval lastDownloadStatusUpdate;
 @property(nonatomic) BOOL closed;
 @property(nonatomic, strong) id observer;
+@property(nonatomic, strong) id progressObserver;
 @end
 
 @implementation NeoUnifiedCheatList
@@ -66,14 +70,52 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   self.tableView.rowHeight=UITableViewAutomaticDimension; self.tableView.estimatedRowHeight=64;
   __weak typeof(self) weakSelf=self;
   self.observer=[NSNotificationCenter.defaultCenter addObserverForName:NeoUnifiedCheatCatalogDidInstallNotification
-      object:NeoUnifiedCheatCatalog.sharedCatalog queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { [weakSelf reloadCheats]; }];
+      object:NeoUnifiedCheatCatalog.sharedCatalog queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { [weakSelf refreshDownloadState]; [weakSelf reloadCheats]; }];
+  self.progressObserver=[NSNotificationCenter.defaultCenter addObserverForName:NeoUnifiedCheatCatalogProgressNotification
+      object:NeoUnifiedCheatCatalog.sharedCatalog queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+    if(!weakSelf.closed)[weakSelf applyInstallationState:note.userInfo];
+  }];
 }
-- (void)viewWillAppear:(BOOL)animated { [super viewWillAppear:animated]; self.closed=NO; [self reloadCheats]; }
+- (void)viewWillAppear:(BOOL)animated { [super viewWillAppear:animated]; self.closed=NO; [self refreshDownloadState]; [self reloadCheats]; }
 - (void)viewDidDisappear:(BOOL)animated {
   [super viewDidDisappear:animated];
   if (self.isMovingFromParentViewController || self.navigationController.isBeingDismissed) { self.closed=YES; self.generation++; }
 }
-- (void)dealloc { if (_observer) [NSNotificationCenter.defaultCenter removeObserver:_observer]; }
+- (void)dealloc {
+  if (_observer) [NSNotificationCenter.defaultCenter removeObserver:_observer];
+  if (_progressObserver) [NSNotificationCenter.defaultCenter removeObserver:_progressObserver];
+}
+- (void)refreshDownloadState {
+  __weak typeof(self) weakSelf=self;
+  [NeoUnifiedCheatCatalog.sharedCatalog loadWithCompletion:^(NSDictionary *state,NSError *error) {
+    NeoUnifiedCheatList *menu=weakSelf;if(!menu || menu.closed)return;
+    if(state)[menu applyInstallationState:state];
+    else {menu.catalogueStateKnown=YES;menu.downloadStatus=[menu text:@"loadFailed"];[menu.tableView reloadData];}
+  }];
+}
+- (void)applyInstallationState:(NSDictionary *)state {
+  NSString *phase=NCLString(state[@"installation_state"]);
+  NSUInteger total=[state[@"total_packs"] unsignedIntegerValue],ready=[state[@"installed_packs"] unsignedIntegerValue];
+  self.catalogueStateKnown=YES;
+  self.downloading=[phase isEqual:@"installing"];
+  self.catalogueInstalled=[phase isEqual:@"complete"] || (!phase.length && total && ready==total);
+  self.cataloguePartial=[phase isEqual:@"partial"] || (!phase.length && ready && ready<total);
+  NSDictionary *progress=[state[@"progress"] isKindOfClass:NSDictionary.class] ? state[@"progress"] : state;
+  if(self.downloading) {
+    NSString *status=[self text:[progress[@"phase"] isEqual:@"preparing"] ? @"loading" : @"progressPacks"];
+    status=[status stringByReplacingOccurrencesOfString:@"{done}" withString:[progress[@"completed_packs"] description] ?: @"0"];
+    self.downloadStatus=[status stringByReplacingOccurrencesOfString:@"{total}" withString:[progress[@"total_packs"] description] ?: @"0"];
+  } else if(self.catalogueInstalled) self.downloadStatus=[self text:@"installedReady"];
+  else if(self.cataloguePartial) self.downloadStatus=[self text:@"downloadExplanation"];
+  NSTimeInterval now=NSDate.timeIntervalSinceReferenceDate;
+  if(!self.downloading || now-self.lastDownloadStatusUpdate>=0.1) {
+    self.lastDownloadStatusUpdate=now;
+    [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:0 inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
+  }
+  if(self.downloading && ready && !self.discovering && !self.busy && now-self.lastDownloadDiscovery>=1) {
+    self.lastDownloadDiscovery=now;[self reloadCheats];
+  }
+}
 - (void)openRPCS3Import {
   if (self.busy || ![self.state[@"available"] boolValue]) return;
   UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeJSON] asCopy:YES];
@@ -164,7 +206,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
         NSMutableArray *pending=[NSMutableArray array];
         BOOL needsDownload=NO;
         for (NSDictionary *game in games) if (![game[@"archived"] boolValue]) {
-          if (([game[@"installed"] boolValue] || [game[@"cached_pack"] boolValue]) && ![game[@"update_available"] boolValue]) {
+          if (([game[@"installed"] boolValue] || [game[@"cached_pack"] boolValue] || [game[@"download_requested"] boolValue]) && ![game[@"update_available"] boolValue]) {
             if (pending.count<64) [pending addObject:game];
           } else needsDownload=YES;
         }
@@ -200,7 +242,8 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
   cell.textLabel.numberOfLines=0; cell.detailTextLabel.numberOfLines=0;
   if (path.section==0) {
-    cell.textLabel.text=[self text:path.row==0 ? (self.downloading ? @"downloading" : @"downloadAll") : @"directImport"];
+    NSString *downloadKey=!self.catalogueStateKnown ? @"loading" : self.downloading ? @"downloading" : self.catalogueInstalled ? @"installedReady" : self.cataloguePartial ? @"retryDownloads" : @"downloadAll";
+    cell.textLabel.text=[self text:path.row==0 ? downloadKey : @"directImport"];
     if (path.row==0) {
       cell.detailTextLabel.text=self.downloadStatus;
       if (self.downloading) { UIActivityIndicatorView *spinner=[[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium]; [spinner startAnimating]; cell.accessoryView=spinner; }
@@ -216,7 +259,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
     toggle.accessibilityLabel=row[@"name"]; toggle.accessibilityIdentifier=@"directCheats.toggle";
     [toggle addTarget:self action:@selector(toggle:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView=toggle;
   }
-  cell.userInteractionEnabled=!self.busy && !(path.section==0 && path.row==0 && self.downloading); return cell;
+  cell.userInteractionEnabled=!self.busy && !(path.section==0 && path.row==0 && (self.downloading || self.catalogueInstalled || !self.catalogueStateKnown)); return cell;
 }
 - (void)applyRow:(NSDictionary *)row enabled:(BOOL)enabled {
   if (self.busy || self.closed || !self.setEnabled || ![self.state[@"available"] boolValue] ||
@@ -259,25 +302,15 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
   [tableView deselectRowAtIndexPath:path animated:YES]; if (self.busy || path.section!=0) return;
   if (path.row==1) { if (self.importAction) self.importAction(self); return; }
-  if (self.downloading) return;
+  if (self.downloading || self.catalogueInstalled || !self.catalogueStateKnown) return;
   self.downloading=YES; self.downloadStatus=[self text:@"downloading"]; [self.tableView reloadData]; __weak typeof(self) weakSelf=self;
   [NeoUnifiedCheatCatalog.sharedCatalog installAllForIdentity:self.state[@"identity"] ?: @{} progress:^(NSDictionary *progress) {
     NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed) return;
-    NSString *status=[menu text:[progress[@"phase"] isEqual:@"preparing"] ? @"loading" : @"progressPacks"];
-    status=[status stringByReplacingOccurrencesOfString:@"{done}" withString:[progress[@"completed_packs"] description] ?: @"0"];
-    menu.downloadStatus=[status stringByReplacingOccurrencesOfString:@"{total}" withString:[progress[@"total_packs"] description] ?: @"0"];
-    NSTimeInterval now=NSDate.timeIntervalSinceReferenceDate;
-    if (now-menu.lastDownloadStatusUpdate>=0.1 ||
-        (![progress[@"phase"] isEqual:@"preparing"] && [progress[@"completed_packs"] unsignedIntegerValue]==[progress[@"total_packs"] unsignedIntegerValue])) {
-      menu.lastDownloadStatusUpdate=now;
-      [menu.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:0 inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
-    }
-    if ([progress[@"installed_packs"] unsignedIntegerValue] && !menu.discovering && !menu.busy && now-menu.lastDownloadDiscovery>=1) {
-      menu.lastDownloadDiscovery=now; [menu reloadCheats];
-    }
+    NSMutableDictionary *state=[progress mutableCopy];state[@"installation_state"]=@"installing";[menu applyInstallationState:state];
   } completion:^(NSDictionary *result,NSError *error) {
     NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed) return;
-    menu.downloading=NO; menu.downloadStatus=[menu text:error ? @"downloadFailed" : @"installedReady"]; [menu reloadCheats];
+    menu.downloading=NO;if(result)[menu applyInstallationState:result];
+    menu.downloadStatus=[menu text:error ? @"downloadFailed" : @"installedReady"];[menu refreshDownloadState];[menu reloadCheats];
   }];
 }
 @end

@@ -6,6 +6,8 @@ NS_ASSUME_NONNULL_BEGIN
 FOUNDATION_EXPORT NSString *const NeoUnifiedCheatCatalogErrorDomain;
 /// Posted on main after a bulk installation, including partial success.
 FOUNDATION_EXPORT NSNotificationName const NeoUnifiedCheatCatalogDidInstallNotification;
+/// Shared installation state/progress, posted on main for every console menu.
+FOUNDATION_EXPORT NSNotificationName const NeoUnifiedCheatCatalogProgressNotification;
 
 /// Injected transports must invoke completion once, on any queue, and respect
 /// maximumBytes. The manager independently verifies size and SHA-256 as well.
@@ -24,6 +26,8 @@ typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
 @property(nonatomic, copy, nullable) NeoUnifiedCheatFetch fetch;
 
 /// Reads a validated disk/bundle index; fetches only if no local index exists.
+/// Snapshot installation_state: missing/partial/installing/complete. Counts
+/// reflect the one shared on-disk installation, including interrupted installs.
 - (void)loadWithCompletion:(void (^)(NSDictionary *_Nullable, NSError *_Nullable))completion;
 /// Refreshes the index, then installs every eligible pack. At most two fetches
 /// are active. Good packs survive failures; another call retries missing ones.
@@ -34,6 +38,8 @@ typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
                    completion:(void (^)(NSDictionary *_Nullable, NSError *_Nullable))completion;
 /// In-game download: use the validated local/bundled index immediately and
 /// prioritize this game's packs. Existing verified files work without network.
+/// A completed installation is a no-op; a partial installation schedules only
+/// missing packs. Concurrent callers join the same installation.
 /// The separate update action above still refreshes the remote index.
 - (void)installAllForIdentity:(NSDictionary *)identity
                     progress:(void (^_Nullable)(NSDictionary *progress))progress
