@@ -54,6 +54,8 @@ exec(compile(source, str(origin), 'exec'), ns)
 # The host lists the pod sources itself (above): the harness's own pod
 # sources (Build 447, for the Dolphin adapter) would define them twice.
 ns['EXTERNAL_SOURCES'] = []
+# No Dolphin menu here, hence no cheat catalogue (Build 484 harness).
+ns['CATALOGUE_SOURCES'] = []
 
 ns['APP'] = r'''
 #import <UIKit/UIKit.h>

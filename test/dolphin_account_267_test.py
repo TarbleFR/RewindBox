@@ -4,6 +4,7 @@ from pathlib import Path
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,8 +20,17 @@ CLASSES = ROOT / 'packages/dolphin_internal_bridge/ios/Classes'
 EXTERNAL_CLASSES = ROOT / 'packages/external_display/ios/Classes'
 EXTERNAL_SOURCES = [EXTERNAL_CLASSES / 'NeoExternalDisplayCoordinator.m',
                     EXTERNAL_CLASSES / 'NeoExternalDisplayPreferences.m']
+# Build 474: DolphinSessionMenu.mm imports the unified cheat catalogue pod as
+# <neo_cheat_catalog/...> and shows its list and browser. The host compiles
+# the pod's Flutter-free sources (zlib, UniformTypeIdentifiers) and searches
+# the public headers of every pod the bridge depends on, staged as the pods
+# publish them. A derived harness that does not compile the menu empties
+# CATALOGUE_SOURCES.
+CATALOGUE_CLASSES = ROOT / 'packages/neo_cheat_catalog/ios/Classes'
+CATALOGUE_SOURCES = sorted(path for path in CATALOGUE_CLASSES.glob('*.m') if path.name != 'NeoCheatCatalogPlugin.m')
+CATALOGUE_SDKS = ('libz.tbd', 'UniformTypeIdentifiers.framework')
 sys.path.insert(0, str(ROOT / 'test'))
-from libretro_ios_syntax_test import stage_external_display  # noqa: E402
+from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 
 TESTS = r'''
 #import <XCTest/XCTest.h>
@@ -204,9 +214,11 @@ def native():
         directory = Path(folder)
         (directory / 'main.m').write_text(APP)
         (directory / 'DolphinAccountTests.mm').write_text(TESTS)
-        include = stage_external_display(directory)
+        include = stage_dependency_headers(directory)
         sdk_dependencies = [{'sdk': 'UIKit.framework'}, {'sdk': 'QuartzCore.framework'}, {'sdk': 'Foundation.framework'}, {'sdk': 'Security.framework'},
                             {'sdk': 'MetalKit.framework'}, {'sdk': 'Metal.framework'}]
+        if CATALOGUE_SOURCES:
+            sdk_dependencies += [{'sdk': name} for name in CATALOGUE_SDKS if {'sdk': name} not in sdk_dependencies]
         project = {
             'name': 'DolphinAccount267',
             'options': {'deploymentTarget': {'iOS': '17.4'}},
@@ -218,7 +230,8 @@ def native():
                 'DolphinAccountHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
                                 str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm')]
-                               + [str(source) for source in EXTERNAL_SOURCES],
+                               + [str(source) for source in EXTERNAL_SOURCES]
+                               + [str(source) for source in CATALOGUE_SOURCES],
                     'dependencies': sdk_dependencies,
                     'settings': {'base': {'PRODUCT_BUNDLE_IDENTIFIER': 'org.neostation.accounttests.host',
                         'INFOPLIST_KEY_UILaunchScreen_Generation': 'YES'}}},
@@ -237,6 +250,10 @@ def native():
         subprocess.run(['xcodegen', 'generate', '--spec', str(spec), '--project', str(directory)], check=True)
         result = ROOT / 'build/rpcs3-ci/DolphinAccount267.xcresult'
         result.parent.mkdir(parents=True, exist_ok=True)
+        # The derived harnesses share this bundle path: xcodebuild refuses an
+        # existing one, so a bundle left by an earlier harness is replaced.
+        if result.exists():
+            shutil.rmtree(result)
         subprocess.run(['xcodebuild', 'test', '-project', str(directory / 'DolphinAccount267.xcodeproj'),
             '-scheme', 'DolphinAccount267', '-destination', 'platform=iOS Simulator,id=' + device['udid'],
             '-destination-timeout', '60', '-parallel-testing-enabled', 'NO',
