@@ -2,6 +2,7 @@
 #import "NeoUnifiedCheatCatalog.h"
 #include "NeoUnifiedNativeImport.h"
 #import "RPCS3UnifiedCheats.h"
+#import "LibretroCheats.h"
 #include <cassert>
 static NSUInteger mutations=0;
 static rpcs3_ios_status Install(const char*,const char*,const void*,size_t){mutations++;return 0;}
@@ -33,7 +34,7 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
   NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   NeoUnifiedCheatCatalog *catalog=[NeoUnifiedCheatCatalog new];catalog.storageDirectory=[root stringByAppendingPathComponent:@"catalog"];
   catalog.bundledDirectory=[repo stringByAppendingPathComponent:@"packages/neo_cheat_catalog/ios/Resources"];
-  NSMutableSet *sources=[NSMutableSet set];NSUInteger ps2=0,ps3=0,discovered=0;
+  NSMutableSet *sources=[NSMutableSet set];NSUInteger ps2=0,ps3=0,nds=0,discovered=0;
   rpcs3_ios_patch_api api={Install,Enumerate,Toggle,nullptr};
   NSString *staging=[root stringByAppendingPathComponent:@"staging"];
   for(NSDictionary *chunk in chunks) {@autoreleasepool{
@@ -56,11 +57,18 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
       }];Wait(^BOOL{return done;});assert(found);discovered++;
     }
     BOOL isPS2=[game[@"system"] isEqual:@"ps2"];
+    BOOL isDS=[game[@"system"] isEqual:@"nds"];
     NSString *version=[game[@"version_scope"] isEqual:@"all"] ? @"01.00" : game[@"revision"];
     NSDictionary *snapshot=@{@"available":@YES,@"serial":serial,@"crc":crc,@"hardcore":@NO,@"items":@[]};
     for(NSDictionary *program in chunk[@"cheats"]) {@autoreleasepool{
       assert(![program[@"enabled"] boolValue]);
-      if(isPS2) {
+      if(isDS) {
+        NSArray *codes=[LibretroCheats codesForCheat:program core:@"desmume" console:@"nds"];
+        assert(codes.count==1);
+        assert([codes[0] isEqual:[program[@"code"] stringByReplacingOccurrencesOfString:@"\n" withString:@"+"]]);
+        assert([game[@"edition_confirmation_required"] boolValue] && [game[@"regions"] isEqual:@[@"USA"]]);
+        nds++;
+      } else if(isPS2) {
         auto original=NeoUnifiedNativeProgram(program,YES);assert(original);
         NSDictionary *request=NeoUnifiedNativeRequest(confirmed,@[program],snapshot,YES);
         if(![request[@"success"] boolValue]){fprintf(stderr,"PS2 request rejected %s\n",[program[@"name"] UTF8String]);return 2;}
@@ -93,12 +101,12 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
     }
   }}
   NSDictionary *receipt=[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:[repo stringByAppendingPathComponent:@"docs/evidence/cheats478-sources.json"]] options:0 error:nil];
-  assert(ps2+ps3==expected && sources.count==[receipt[@"sourceContributions"] count] && mutations==0);
+  assert(ps2+ps3+nds==expected && sources.count==[receipt[@"sourceContributions"] count] && mutations==0);
   // The already-published European Bladestorm source is still 01.00 only.
   NSDictionary *id00113=@{@"system":@"ps3",@"revision":@"01.01",@"identities":@[@{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLES00113"}]};
   __block BOOL done=NO;__block NSUInteger count=999;
   [catalog gamesForIdentity:id00113 completion:^(NSArray *rows,NSError *error){assert(!error);count=rows.count;done=YES;}];Wait(^BOOL{return done;});assert(count==0);
   [NSFileManager.defaultManager removeItemAtPath:root error:nil];
-  printf("PASS exact expansion native: ps2=%lu ps3=%lu total=%lu sources=%lu discovery=%lu; zero activation or Core mutation.\n",(unsigned long)ps2,(unsigned long)ps3,(unsigned long)(ps2+ps3),(unsigned long)sources.count,(unsigned long)discovered);
+  printf("PASS exact expansion native: ps2=%lu ps3=%lu nds=%lu total=%lu sources=%lu discovery=%lu; zero activation or Core mutation.\n",(unsigned long)ps2,(unsigned long)ps3,(unsigned long)nds,(unsigned long)(ps2+ps3+nds),(unsigned long)sources.count,(unsigned long)discovered);
   return 0;
 }}

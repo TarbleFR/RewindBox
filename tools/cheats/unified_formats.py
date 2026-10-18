@@ -10,6 +10,7 @@ from __future__ import annotations
 import configparser
 import io
 import json
+import math
 import re
 import struct
 import xml.etree.ElementTree as ET
@@ -651,7 +652,18 @@ def parse_rpcs3_yaml(data, options):
                 result.extend(native_rows(row[1], original[1], depth + 1))
             elif (len(row) == 3 and len(original) == 3 and re.fullmatch(r"0x[0-9a-fA-F]{1,64}", str(original[1]))
                   and int(str(original[1]), 16) <= 0xFFFFFFFF):
-                result.append([row[0], "0x" + format(int(str(original[1]), 16), "X"), row[2]])
+                value = row[2]
+                if isinstance(value,float) and not math.isfinite(value):
+                    raise FormatError("nonfinite-native-rpcs3-operand")
+                # Preserve authored numeric scalar text for floating writes
+                # and integers outside JSON's exact-double range. Foundation
+                # can otherwise round them while persisting a native patch.
+                # The Core accepts these YAML scalar strings directly.
+                if ((str(row[0]).lower() in {"lef32", "lef64", "bef32", "bef64"}
+                        and isinstance(value, (int, float)) and not isinstance(value, bool))
+                        or (isinstance(value, int) and not isinstance(value, bool) and abs(value) > 2**53 - 1)):
+                    value = str(original[2])
+                result.append([row[0], "0x" + format(int(str(original[1]), 16), "X"), value])
             else:
                 raise FormatError("unsupported-rpcs3-load-or-address")
         return result

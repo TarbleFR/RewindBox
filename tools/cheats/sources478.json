@@ -249,5 +249,26 @@
     "publication": {
       "enabled": true
     }
+  },
+  {
+    "id": "nds_fps478",
+    "name": "TheYearOfWaluigi Gen IV battle framerate codes",
+    "url": "https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/",
+    "local_path": "snapshots/nds-fps-478.json",
+    "revision": "reviewed-2026-10-18",
+    "sha256": "1dd60e092573f71e91175abc707caedcc9200b2ea7fa0e71a1914e4750801ff2",
+    "format": "reviewed-ds-fps",
+    "research_id": 85,
+    "status": "available",
+    "license": "Original author rights and attribution retained",
+    "import_scope": "Five complete eight-line original author USA Gen IV battle-only programs; unknown revision/checksum requires explicit edition confirmation; no identity or regional port invented",
+    "options": {
+      "source_id": "nds_fps478",
+      "revision": "reviewed-2026-10-18",
+      "license": "Original author rights and attribution retained"
+    },
+    "publication": {
+      "enabled": true
+    }
   }
 ]

@@ -63,6 +63,7 @@ def signature(program):
             rows.append(re.sub(r'\s+','',body).upper())
         if not rows:return None
     elif dialect=='ps3-static-be32':rows=program['code'].upper().splitlines()
+    elif dialect=='ds-actionreplay':rows=program['code'].upper().splitlines()
     elif dialect=='rpcs3-yaml':
         # Preserve the complete native scope and metadata. Only exact authored
         # documents are deduplicated; no equivalence of arbitrary YAML opcodes.
@@ -105,7 +106,10 @@ def publish(cache,offline=False):
     (ROOT/'tools/cheats/unified-sources.json').write_text(json.dumps(lock,ensure_ascii=False,indent=2)+'\n')
     cache.mkdir(parents=True,exist_ok=True)
     # Use the retained builder's complete-program gates on these sources only.
-    spec=cache/'sources478-build.json';spec.write_bytes(canonical({**lock,'sources':sources}))
+    build_sources=copy.deepcopy(sources)
+    for source in build_sources:
+        if source.get('local_path'):source['local_path']=str(ROOT/'tools/cheats'/source['local_path'])
+    spec=cache/'sources478-build.json';spec.write_bytes(canonical({**lock,'sources':build_sources}))
     mini=cache/'normalised478';args=[sys.executable,str(ROOT/'tools/cheats/unified_catalogue.py'),'build','--sources',str(spec),'--output',str(mini),'--cache',str(cache),'--bundle-index',str(cache/'mini-manifest.json.gz')]
     if offline:args.append('--offline')
     subprocess.run(args,check=True,cwd=ROOT)
@@ -191,6 +195,12 @@ def publish(cache,offline=False):
             if current and weight+next_weight>PACK_TARGET:flush()
             current.append((row,body));weight+=next_weight;new_rows.append(row)
     flush()
+    # Draft 478 generations have not been delivered. Drop only superseded
+    # draft packs, preserving every pack path present in the frozen 477 tree.
+    frozen=set(subprocess.check_output(['git','ls-tree','-r','--name-only',BASE,'--','native/cheats/catalogue/packs'],cwd=ROOT,text=True).splitlines())
+    active={str((DIRECTORY/p['path']).relative_to(ROOT)) for p in new_packs}
+    for file in (DIRECTORY/'packs').glob('*.json.gz'):
+        if str(file.relative_to(ROOT)) not in frozen|active:file.unlink()
     retained=[]
     for row in previous['games']:
         retained.append({**row,'parts':part_updates[row['identity_group']]} if row['identity_group'] in part_updates else row)
