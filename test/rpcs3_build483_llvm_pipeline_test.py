@@ -3,8 +3,9 @@
 
 1. Harness (when an LLVM 22 toolchain is available: --llvm-config, $LLVM_CONFIG, $HOST_LLVM_ROOT,
    Homebrew llvm@22 or PATH): compiles test/native/rpcs3_llvm_pipeline_harness.cpp and runs
-     cc-hazard   InstCombine turns a direct call whose convention differs from its defined
-                 callee into unreachable; the matched call survives. The Core therefore sets
+     cc-hazard   InstCombine erases a direct call whose convention differs from its defined
+                 callee (a non-terminator unreachable takes its place and the rest of the
+                 pipeline leaves no call); the matched call survives. The Core therefore sets
                  the callee convention on both m_test_state calls before adding InstCombine
                  (upstream eda7621f / ARMSX3 ab53473f7).
      kernels     the five pipelines of the Core (PPU none/EarlyCSE/Extended, SPU Reference
@@ -121,7 +122,7 @@ if not args.skip_native:
             run(command, env=env, timeout=600)
             hazard = run([exe, 'cc-hazard'], env=env, timeout=120, capture_output=True, text=True)
             print(hazard.stdout, end='')
-            require('PASS: InstCombine turns a direct call with a mismatched convention into unreachable' in hazard.stdout, 'calling-convention hazard proof missing')
+            require('PASS: InstCombine erases a direct call with a mismatched convention (non-terminator unreachable)' in hazard.stdout, 'calling-convention hazard proof missing')
             report = work / 'llvm-pipeline-kernels.json'
             kernels = run([exe, 'kernels', report], env=env, timeout=300, capture_output=True, text=True)
             print(kernels.stdout, end='')

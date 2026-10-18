@@ -98,7 +98,7 @@ def evidence():
     for needle in ('PASS: relocated external data, external call, rodata and pointer table across processes',
                    'PASS: truncated and foreign objects are rejected before MCJIT'):
         if needle not in cache_proof:raise ValueError('Build 481 preflight proof missing: '+needle)
-    for needle in ('PASS: InstCombine turns a direct call with a mismatched convention into unreachable',
+    for needle in ('PASS: InstCombine erases a direct call with a mismatched convention (non-terminator unreachable)',
                    'PASS: 7 kernels x 5 pipelines verified','PASS: Build 483 LLVM pipelines (harness executed with 22.'):
         if needle not in pipeline_proof:raise ValueError('Build 483 preflight proof missing: '+needle)
     if kernels['all_variants_bit_exact'] is not True or len(kernels['kernels'])!=7:raise ValueError('Kernel report incomplete')

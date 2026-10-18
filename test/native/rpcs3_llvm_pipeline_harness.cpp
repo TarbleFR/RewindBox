@@ -8,9 +8,11 @@
 //
 //   cc-hazard            An internal function with preserve_mostcc (the SPU
 //                        m_test_state helper) called once with the plain C
-//                        convention and once with its own: InstCombine turns the
-//                        mismatched call into unreachable and keeps the matched
-//                        one. This is the defect ARMSX3 ab53473f7 / upstream
+//                        convention and once with its own: InstCombine erases the
+//                        mismatched call (a store to poison, LLVM's non-terminator
+//                        unreachable, takes its place and later passes may drop
+//                        even that) and keeps the matched one. This is the
+//                        defect ARMSX3 ab53473f7 / upstream
 //                        eda7621f fixed before enabling InstCombine, and why the
 //                        Core sets the callee convention on both m_test_state
 //                        calls.
@@ -31,6 +33,8 @@
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
@@ -80,6 +84,7 @@ namespace
 		ppu_extended,  // PPU Extended: EarlyCSE(memssa), SimplifyCFG, InstCombine, DSE, LICM, ADCE
 		spu_reference, // SPU Reference 481: EarlyCSE(memssa), SimplifyCFG, DSE, LICM, ADCE
 		spu_upstream,  // SPU Upstream InstCombine: EarlyCSE(memssa), SimplifyCFG, InstCombine, DSE, LICM, ADCE
+		instcombine_only, // cc-hazard stage 1 only: InstCombine alone, to show its mechanism
 	};
 
 	const char* pipeline_name(pipeline p)
@@ -91,6 +96,7 @@ namespace
 		case pipeline::ppu_extended: return "ppu_extended";
 		case pipeline::spu_reference: return "spu_reference";
 		case pipeline::spu_upstream: return "spu_upstream";
+		case pipeline::instcombine_only: return "instcombine_only";
 		}
 		return "?";
 	}
@@ -127,6 +133,9 @@ namespace
 				fpm.addPass(llvm::DSEPass());
 				fpm.addPass(llvm::createFunctionToLoopPassAdaptor(llvm::LICMPass(llvm::LICMOptions()), true));
 				fpm.addPass(llvm::ADCEPass());
+				break;
+			case pipeline::instcombine_only:
+				fpm.addPass(llvm::InstCombinePass());
 				break;
 			case pipeline::spu_reference:
 				fpm.addPass(llvm::EarlyCSEPass(true));
@@ -544,13 +553,36 @@ entry:
 }
 )IR", "cc-hazard");
 		verify(*m, "cc-hazard input");
-		pass_setup setup(pipeline::spu_upstream);
-		setup.run(*m);
-		verify(*m, "cc-hazard output");
 
-		const auto has_unreachable = [&](const char* name)
+		// Stage 1: InstCombine alone shows the mechanism (LLVM 22.1.8: the call
+		// is erased and a non-terminator unreachable, `store i1 true, ptr poison`,
+		// takes its place). Stage 2: the Core's Upstream SPU pipeline shows what
+		// reaches the backend (DSE/ADCE may remove even that store, or SimplifyCFG
+		// may turn it into `unreachable`): in every form the state check is gone.
+		std::unique_ptr<llvm::Module> after_instcombine = llvm::CloneModule(*m);
 		{
-			llvm::Function* f = m->getFunction(name);
+			pass_setup setup(pipeline::instcombine_only);
+			setup.run(*after_instcombine);
+		}
+		verify(*after_instcombine, "cc-hazard after InstCombine");
+		{
+			pass_setup setup(pipeline::spu_upstream);
+			setup.run(*m);
+		}
+		verify(*m, "cc-hazard after the Upstream SPU pipeline");
+
+		struct shape
+		{
+			bool call = false;
+			bool matched_cc = false;
+			bool unreachable = false;
+			bool poison_store = false;
+		};
+
+		const auto inspect = [](llvm::Module& module, const char* name)
+		{
+			shape s;
+			llvm::Function* f = module.getFunction(name);
 
 			if (!f)
 			{
@@ -562,46 +594,67 @@ entry:
 			{
 				for (llvm::Instruction& i : b)
 				{
-					if (llvm::isa<llvm::UnreachableInst>(&i))
+					if (auto* call = llvm::dyn_cast<llvm::CallInst>(&i))
 					{
-						return true;
+						llvm::Function* callee = call->getCalledFunction();
+
+						if (callee && callee->getName() == "spu_test_state")
+						{
+							s.call = true;
+							s.matched_cc = call->getCallingConv() == callee->getCallingConv();
+						}
+					}
+					else if (llvm::isa<llvm::UnreachableInst>(&i))
+					{
+						s.unreachable = true;
+					}
+					else if (auto* store = llvm::dyn_cast<llvm::StoreInst>(&i))
+					{
+						// PoisonValue derives from UndefValue.
+						if (llvm::isa<llvm::UndefValue>(store->getPointerOperand()))
+						{
+							s.poison_store = true;
+						}
 					}
 				}
 			}
 
-			return false;
+			return s;
 		};
 
-		const auto has_call = [&](const char* name)
+		const auto describe = [](const shape& s)
 		{
-			llvm::Function* f = m->getFunction(name);
-
-			for (llvm::BasicBlock& b : *f)
+			if (s.call)
 			{
-				for (llvm::Instruction& i : b)
-				{
-					if (llvm::isa<llvm::CallInst>(&i))
-					{
-						return true;
-					}
-				}
+				return s.matched_cc ? "call kept with the callee's convention" : "call kept with a mismatched convention";
 			}
 
-			return false;
+			if (s.poison_store)
+			{
+				return "call erased, store to poison left (non-terminator unreachable)";
+			}
+
+			return s.unreachable ? "call erased, unreachable left" : "call erased, nothing left";
 		};
 
-		const bool mismatched_trapped = has_unreachable("caller_mismatched") && !has_call("caller_mismatched");
-		const bool matched_kept = has_call("caller_matched") && !has_unreachable("caller_matched");
-		std::printf("cc-hazard: mismatched convention -> %s; matched convention -> %s\n",
-			mismatched_trapped ? "unreachable (call removed)" : "call kept", matched_kept ? "call kept" : "call removed");
+		const shape ic_mismatched = inspect(*after_instcombine, "caller_mismatched");
+		const shape ic_matched = inspect(*after_instcombine, "caller_matched");
+		const shape up_mismatched = inspect(*m, "caller_mismatched");
+		const shape up_matched = inspect(*m, "caller_matched");
+		std::printf("cc-hazard after InstCombine alone: mismatched -> %s; matched -> %s\n", describe(ic_mismatched), describe(ic_matched));
+		std::printf("cc-hazard after the Upstream SPU pipeline: mismatched -> %s; matched -> %s\n", describe(up_mismatched), describe(up_matched));
 
-		if (!mismatched_trapped || !matched_kept)
+		const bool mechanism = !ic_mismatched.call && (ic_mismatched.poison_store || ic_mismatched.unreachable);
+		const bool erased = !up_mismatched.call;
+		const bool matched_kept = ic_matched.call && ic_matched.matched_cc && up_matched.call && up_matched.matched_cc;
+
+		if (!mechanism || !erased || !matched_kept)
 		{
 			std::fprintf(stderr, "FAIL: InstCombine calling-convention behaviour differs from the documented hazard\n");
 			return 8;
 		}
 
-		std::printf("PASS: InstCombine turns a direct call with a mismatched convention into unreachable; the Core's m_test_state calls carry their callee's convention\n");
+		std::printf("PASS: InstCombine erases a direct call with a mismatched convention (non-terminator unreachable) and the Upstream SPU pipeline leaves no call; the matched call survives; the Core's m_test_state calls carry their callee's convention\n");
 		return 0;
 	}
 
