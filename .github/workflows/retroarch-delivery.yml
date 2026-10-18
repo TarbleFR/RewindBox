@@ -1,15 +1,17 @@
-name: NeoStation RetroArch • Build 470 • SideStore
-run-name: NeoStation Build ${{ inputs.build_number || '470' }} • ${{ github.sha }} • embedded libretro
+name: NeoStation RetroArch • Build 471 • SideStore
+run-name: NeoStation Build ${{ inputs.build_number || '471' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
     - Claude
+    paths:
+    - .github/workflows/retroarch-delivery.yml
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '470'
+        default: '471'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -70,11 +72,9 @@ jobs:
       run: |
         if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
-        elif python3 build-utils/verify_delivery_reuse.py --dart-evidence --output build/delivery/dart-validation.json; then
-          echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         else
-          echo 'Dart phase reuse unavailable; the complete validation runs below.'
-          echo 'cache-hit=false' >> "$GITHUB_OUTPUT"
+          python3 .github/diagnostics/nestopia_delivery.py --dart-evidence --output build/delivery/dart-validation.json
+          echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         fi
     - uses: subosito/flutter-action@v2
       with:
@@ -83,7 +83,7 @@ jobs:
         cache: true
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify closed validation input tree and previous CI success
-      run: python3 build-utils/verify_delivery_reuse.py --scope "${{ inputs.validation_scope || 'full' }}"
+      run: python3 .github/diagnostics/nestopia_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
@@ -160,7 +160,7 @@ jobs:
         # The successful full Dart/source-contract checks are reused only
         # after their inputs and the independent native witnesses are closed
         # by --dart-evidence. Run just the changed delivery-guard tests here.
-        python3 test/delivery_pipeline_test.py DeliveryPipeline.test_targeted470_rejects_retention_incomplete_checks_and_wrong_source DeliveryPipeline.test_automatic_cheat_delivery_pins_runtime_data_and_packaged_validation
+        python3 .github/diagnostics/nestopia_delivery_test.py
     - name: Validate only changed RPCS3 and NeoSwap contracts
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
       shell: bash
@@ -210,7 +210,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '470' }}-validation-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '471' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -268,7 +268,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '470' }}-native-reuse-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '471' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -444,7 +444,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '470' }}-neoswap-native-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '471' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -483,27 +483,23 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        if python3 build-utils/verify_delivery_reuse.py --libretro-evidence --output build/delivery/libretro-native-reuse.json; then
-          echo 'reused=true' >> "$GITHUB_OUTPUT"
-        else
-          echo 'Reuse unavailable; all native libretro checks will run below.'
-          echo 'reused=false' >> "$GITHUB_OUTPUT"
-        fi
+        python3 .github/diagnostics/nestopia_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
+        echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Run the embedded libretro host against a test core
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
+      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       run: python3 test/libretro_host_test.py
     - name: Run the portable libretro frontend modules (geometry, controls, settings, skins)
       # Runs even when an earlier native check failed, so one round reports
       # every native problem; the job still fails and blocks the IPA.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: python3 build-utils/reuse_skin_frontend.py
     - name: Compile and render every libretro shader preset with Metal
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       run: python3 test/libretro_shader_test.py
     - name: Compile and link every libretro bridge source for iPhone
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: python3 build-utils/reuse_skin_frontend.py --iphone
@@ -511,14 +507,14 @@ jobs:
       # Build 447: the plugin uses engine groups, event and message channels that
       # the libretro declaration stub does not cover, so the real Flutter.xcframework
       # of the pinned SDK is used (external-display-check.yml does the same).
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
     - name: Compile every external display plugin source for iPhone
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -551,7 +547,7 @@ jobs:
       # and the 3DS system data import refused to run. Built with the real
       # Flutter.framework of the pinned SDK (precached above) and run in the
       # iOS Simulator; the bytes must be those the Dart tests use.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused != 'true' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       run: python3 test/libretro_channel_codec_test.py --evidence build/delivery/libretro-channel-codec --label "${GITHUB_SHA}"
   cold:
     name: Release device build • cold
@@ -561,10 +557,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '470' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '471' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'docs/delivery/recipients/neostation-470-skins-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '470' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '471' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -576,8 +572,9 @@ jobs:
       RPCS3_CORE_RUN_ID: '38178247609'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
       DUSKLIGHT_CORE_RUN_ID: '37641472546'
-      LIBRETRO_CORES_HOST_SHA: fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
-      LIBRETRO_CORES_RUN_ID: '38638115521'
+      LIBRETRO_CORES_HOST_SHA: c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
+      LIBRETRO_CORES_VALIDATED_SHA: a518034e826258b1e2aa20f7abddb00d750411b4
+      LIBRETRO_CORES_RUN_ID: '39081741396'
       HOMEBREW_NO_AUTO_UPDATE: '1'
       BUNDLE_GEMFILE: ${{ github.workspace }}/build-utils/Gemfile.dolphin
       SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
@@ -594,7 +591,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 build-utils/verify_delivery_reuse.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/nestopia_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -611,7 +608,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 build-utils/verify_delivery_reuse.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/nestopia_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -1070,13 +1067,14 @@ jobs:
         import json, os, shutil, subprocess
         endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/' + os.environ['LIBRETRO_CORES_RUN_ID']
         result = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
-        assert result['head_sha'] == os.environ['LIBRETRO_CORES_HOST_SHA'], result
-        assert result['path'] == '.github/workflows/libretro-cores.yml', result
+        assert result['head_sha'] == os.environ['LIBRETRO_CORES_VALIDATED_SHA'], result
+        assert result['path'] == '.github/workflows/nestopia-bgcolor.yml', result
         assert result['status'] == 'completed' and result['conclusion'] == 'success', result
         shutil.rmtree('dist/libretro', ignore_errors=True)
         PY
         # A core artifact built from different packaging inputs is refused.
-        git diff --exit-code "$LIBRETRO_CORES_HOST_SHA" "$GITHUB_SHA" -- build-utils/libretro
+        git diff --exit-code "$LIBRETRO_CORES_HOST_SHA" "$GITHUB_SHA" -- build-utils/libretro native/nestopia .github/diagnostics/nestopia_bgcolor/build.py
+        git diff --exit-code "$LIBRETRO_CORES_VALIDATED_SHA" "$GITHUB_SHA" -- .github/diagnostics/nestopia_bgcolor .github/workflows/nestopia-bgcolor.yml
     - name: Download pinned libretro cores
       uses: actions/download-artifact@v4
       with:
@@ -1464,10 +1462,10 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '470' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '471' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'docs/delivery/recipients/neostation-470-skins-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '470' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '471' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -1479,8 +1477,9 @@ jobs:
       RPCS3_CORE_RUN_ID: '38178247609'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
       DUSKLIGHT_CORE_RUN_ID: '37641472546'
-      LIBRETRO_CORES_HOST_SHA: fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
-      LIBRETRO_CORES_RUN_ID: '38638115521'
+      LIBRETRO_CORES_HOST_SHA: c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
+      LIBRETRO_CORES_VALIDATED_SHA: a518034e826258b1e2aa20f7abddb00d750411b4
+      LIBRETRO_CORES_RUN_ID: '39081741396'
       HOMEBREW_NO_AUTO_UPDATE: '1'
       BUNDLE_GEMFILE: ${{ github.workspace }}/build-utils/Gemfile.dolphin
       SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
@@ -1512,7 +1511,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 build-utils/verify_delivery_reuse.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/nestopia_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4
