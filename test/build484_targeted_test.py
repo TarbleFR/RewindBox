@@ -68,8 +68,8 @@ PRODUCT = sorted({
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3SessionMenu.h',
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3SessionMenu.mm',
     'packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec',
-} | {str(path.relative_to(ROOT)) for path in (ROOT / 'packages/neo_touch_layout').rglob('*') if path.is_file()}
-  | {str(path.relative_to(ROOT)) for path in (ROOT / 'tools/touch_layout').rglob('*') if path.is_file()})
+} | set(subprocess.check_output(['git', 'ls-files', 'packages/neo_touch_layout', 'tools/touch_layout'], cwd=ROOT,
+                               text=True).split()))
 
 HOST_PYTHON = [
     'test/touch_layout_strings_test.py',

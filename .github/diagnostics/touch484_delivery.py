@@ -15,11 +15,12 @@ from pathlib import Path
 import llvmpipe483_delivery as previous
 base=previous.base  # unified_cheats_delivery: command, api, successful_run, ROOT
 
-# Branch head before this cycle: the Build 483 delivery record.
-BASE='0000000000000000000000000000000000000000'
-# Build 483 source and delivery run (checks/native/cold Release).
-DELIVERED='0000000000000000000000000000000000000000'
-DELIVERED_RUN=0
+# Build 483 source (tag build-483) and delivery run 39169474336 (checks/native
+# reused, cold Release). Its pin commit is on Claude as 3eae482c (same diff) and
+# its record as 65527d78: changed paths are measured from the delivered tree.
+DELIVERED='2c0e022f8cf0f95f732cc749d7a47444eb28d3f9'
+DELIVERED_RUN=39169474336
+BASE=DELIVERED
 # Build 484 source tested by touch-layout-checks.yml (three parts).
 TESTED_SOURCE='0000000000000000000000000000000000000000'
 TESTED_RUN=0
@@ -39,7 +40,10 @@ TESTED=(PRODUCT|set(targeted.SUPPORT)|set(targeted.HOST_PYTHON)|set(targeted.DAR
 # Delivery wiring, records and pins: no product or Core input.
 DELIVERY_ONLY={'AGENTS.md','docs/build484-touch-controls.md','docs/evidence/touch484-delivery.json',
     '.github/diagnostics/touch484_delivery.py','.github/workflows/retroarch-delivery.yml',
-    '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py'}
+    '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py',
+    # Build 483 delivery record (other session, 65527d78).
+    'docs/build483-llvm-pipelines.md','docs/evidence/llvm-pipeline-kernels-483.json',
+    'docs/evidence/llvmpipe483-delivery.json'}
 PRODUCT_PATHS=previous.PRODUCT_PATHS
 ARMSX2_CORE_INPUTS=previous.ARMSX2_CORE_INPUTS
 
