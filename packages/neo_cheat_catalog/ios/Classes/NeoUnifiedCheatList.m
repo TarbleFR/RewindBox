@@ -3,6 +3,7 @@
 #import "Public/NeoUnifiedCheatCatalog.h"
 #import "NeoUnifiedCheatBrowser.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import <CommonCrypto/CommonDigest.h>
 
 static NSString *NCLString(id value) { return [value isKindOfClass:NSString.class] ? value : @""; }
 static NSArray *NCLArray(id value) { return [value isKindOfClass:NSArray.class] ? value : @[]; }
@@ -98,7 +99,11 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
       }
       if (!title) continue; // a multi-game document never targets other titles.
       NSDictionary *document=@{@"Version":@"1.2",hash:@{name:patch}};
-      NSDictionary *program=@{@"id":NSUUID.UUID.UUIDString,@"name":name,@"code":@"JSON",@"dialect":@"rpcs3-yaml",@"status":@"available",@"enabled":@NO,@"native_document":document,@"parameters":@[],@"dependencies":@[]};
+      NSData *canonical=[NSJSONSerialization dataWithJSONObject:document options:NSJSONWritingSortedKeys error:nil];
+      unsigned char digest[CC_SHA256_DIGEST_LENGTH];CC_SHA256(canonical.bytes,(CC_LONG)canonical.length,digest);
+      NSMutableString *identifier=[NSMutableString string];for(NSUInteger i=0;i<sizeof(digest);i++)[identifier appendFormat:@"%02x",digest[i]];
+      NSString *body=[[NSString alloc] initWithData:canonical encoding:NSUTF8StringEncoding];
+      NSDictionary *program=@{@"id":identifier,@"name":name,@"code":body,@"dialect":@"rpcs3-yaml",@"status":@"available",@"enabled":@NO,@"native_document":document,@"parameters":@[],@"dependencies":@[]};
       if (!self.accepts(program) || imports.count>=512) { [self showFailure]; return; }
       NSDictionary *game=@{@"system":@"ps3",@"title":title,@"revision":all?@"":version,@"version_scope":all?@"all":@"",@"edition_confirmed":@YES,
           @"identities":@[@{@"type":@"serial",@"value":serial,@"scheme":@"ps3-title-id"},@{@"type":@"ppu_hash",@"value":[hash substringFromIndex:4],@"scheme":@"rpcs3-ppu-hash"}]};

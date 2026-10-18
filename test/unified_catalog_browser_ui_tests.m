@@ -10,6 +10,9 @@
 #import "LibretroSessionMenu.h"
 
 static NeoUnifiedCheatCatalog *NUCBInjectedShared;
+@interface NeoUnifiedCheatList (ManualImportTest)
+- (void)documentPicker:(UIDocumentPickerViewController*)picker didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls;
+@end
 @interface NeoUnifiedCheatCatalog (UITestSingleton)
 + (instancetype)nucbTestSharedCatalog;
 @end
@@ -914,5 +917,30 @@ static void NUCBExchangeSingleton(void) {
     self.catalog.rows=@[game];[list reloadCheats];
     [self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==0;}];
     XCTAssertEqual(self.catalog.lookups,reads);
+}
+
+- (void)testDirectRPCS3JSONReimportKeepsAStableDisabledProgramIdentity {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];list.engine=@"rpcs3";
+    self.catalog.rows=@[];
+    NSDictionary* identity=@{@"system":@"ps3",@"revision":@"01.00",@"identities":@[@{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLES00113"}]};
+    list.readState=^(void (^done)(NSDictionary*)){done(@{@"available":@YES,@"identity":identity,@"items":@[]});};
+    [list reloadCheats];[self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    NSString* folder=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+    [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];[self.temporaryFolders addObject:folder];
+    NSString* file=[folder stringByAppendingPathComponent:@"patch.json"];
+    NSDictionary* document=@{@"Version":@"1.2",@"PPU-0123456789012345678901234567890123456789":@{@"Money":@{@"Games":@{@"Probe":@{@"BLES00113":@[@"01.00"]}},@"Patch":@[@[@"be32",@"0x00072A18",@"0x409D0008"]]}}};
+    [[NSJSONSerialization dataWithJSONObject:document options:0 error:nil] writeToFile:file atomically:YES];
+    NSMutableArray* identifiers=[NSMutableArray array];__block NSUInteger activations=0;
+    list.install=^(NSDictionary* game,NSArray* programs,void (^done)(NSDictionary*,NSError*)){
+        NSDictionary* program=programs.lastObject;[identifiers addObject:program[@"id"]];
+        XCTAssertEqualObjects(program[@"enabled"],@NO);XCTAssertTrue([program[@"code"] containsString:@"00072A18"]);
+        done(@{@"key":program[@"id"]},nil);
+    };
+    list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){activations++;done(YES);};
+    for(NSUInteger i=0;i<2;i++){
+        [list documentPicker:nil didPickDocumentsAtURLs:@[[NSURL fileURLWithPath:file]]];
+        [self waitFor:^BOOL{return identifiers.count==i+1 && ![[list valueForKey:@"busy"] boolValue];}];
+    }
+    XCTAssertEqualObjects(identifiers[0],identifiers[1]);XCTAssertEqual(((NSString*)identifiers[0]).length,64U);XCTAssertEqual(activations,0U);
 }
 @end
