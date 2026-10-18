@@ -862,6 +862,14 @@ jobs:
             addition='@property(nonatomic, copy, nullable) dispatch_block_t '+callback+';\n'
             assert current.count(addition)==1
             current=current.replace(addition,'')
+        # Build 484: the Touch controls page callbacks (UIKit host only).
+        touch=('// Build 484: Touch controls page (editor and "hide with a controller").\n'
+               '// Without openTouchEditor the root page has no Touch controls row.\n'
+               '@property(nonatomic, copy, nullable) dispatch_block_t openTouchEditor;\n'
+               '@property(nonatomic, copy, nullable) BOOL (^readTouchHideWithController)(void);\n'
+               '@property(nonatomic, copy, nullable) void (^setTouchHideWithController)(BOOL hide);\n')
+        assert current.count(touch)==1
+        current=current.replace(touch,'')
         assert current==original, 'Unexpected UIKit menu interface change'
 
         core = Path(
