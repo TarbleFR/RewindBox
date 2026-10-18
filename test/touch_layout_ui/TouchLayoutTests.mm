@@ -685,6 +685,12 @@ static rpcs3_ios_status TLSetPad(uint32_t port, const rpcs3_ios_pad_state* state
 - (void)tearDown {
   [self.fixture remove];
   self.fixture = nil;
+  // A failed settings-editor test must not leave its controller presented.
+  UIViewController* root = TLWindow().rootViewController;
+  if (root.presentedViewController) {
+    [root dismissViewControllerAnimated:NO completion:nil];
+    for (NSInteger step = 0; step < 100 && root.presentedViewController; step++) TLSpin(0.02);
+  }
   NeoTouchControllerMonitorSetTestingCount(-1);
   TLResetStore();
   [super tearDown];
@@ -1130,8 +1136,14 @@ static rpcs3_ios_status TLSetPad(uint32_t port, const rpcs3_ios_pad_state* state
   NSArray<NeoTouchElement*>* elements = [editor valueForKey:@"elements"];
   XCTAssertGreaterThan(elements.count, 4U);
   for (NeoTouchElement* element in elements) {
-    UIView* hit = [rootView hitTest:[element.view convertPoint:TLMid(element.view.bounds) toView:rootView] withEvent:nil];
-    XCTAssertTrue([hit isDescendantOfView:editor], @"%@ preview control %@ reachable", key, element.identifier);
+    const CGPoint point = [element.view convertPoint:TLMid(element.view.bounds) toView:rootView];
+    UIView* hit = [rootView hitTest:point withEvent:nil];
+    XCTAssertTrue([hit isDescendantOfView:editor], @"%@ preview control %@ reachable: point %@, hit %@, editor %@, root %@, "
+                  "canvas %@, window %@", key, element.identifier, NSStringFromCGPoint(point), hit,
+                  NSStringFromCGRect([editor convertRect:editor.bounds toView:rootView]),
+                  NSStringFromCGRect(rootView.bounds),
+                  NSStringFromCGRect([editor.superview convertRect:editor.superview.bounds toView:rootView]),
+                  NSStringFromCGRect(TLWindow().bounds));
   }
   NeoTouchElement* button = TLFirstOfKind(elements, NeoTouchElementKindButton, @[]);
   [editor setScale:1.4 forElement:button.identifier];
