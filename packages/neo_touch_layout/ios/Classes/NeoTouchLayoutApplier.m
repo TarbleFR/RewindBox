@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import "Public/NeoTouchLayoutApplier.h"
+#include <math.h>
 #import "Public/NeoTouchLayoutGeometry.h"
 
 static NeoTouchRect NeoTouchRectFromCG(CGRect rect) {
@@ -21,6 +22,10 @@ static const CGFloat kNeoTouchHiddenEditingAlpha = 0.3;
 + (CGPoint)centerOfElement:(NeoTouchElement*)element layout:(NeoTouchLayout*)layout canvas:(UIView*)canvas {
   NeoTouchControlState* state = [layout stateForIdentifier:element.identifier] ?: [NeoTouchControlState new];
   const double scale = NeoTouchClampScale(state.scale);
+  // A control neither moved nor resized keeps exactly the engine's placement:
+  // the stock layout is never adjusted, even where the engine draws a control
+  // partly off the canvas.
+  if (!state.hasPosition && fabs(scale - 1.0) < 1e-9) return element.defaultCenter;
   NeoTouchPoint center = {element.defaultCenter.x, element.defaultCenter.y};
   if (state.hasPosition) {
     NeoTouchPoint normalized = {state.x, state.y};

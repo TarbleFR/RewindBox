@@ -20,6 +20,8 @@ static const CGFloat kNeoTouchHandleRadius = 26.0;
 static const CGFloat kNeoTouchHitSlop = 6.0;
 static const NSUInteger kNeoTouchUndoLimit = 64;
 
+NSNotificationName const NeoTouchLayoutHostDidRelayoutNotification = @"NeoTouchLayoutHostDidRelayout";
+
 #pragma mark - Undo entries and outlines
 
 @interface NeoTouchUndoEntry : NSObject
@@ -433,6 +435,8 @@ static const NSUInteger kNeoTouchUndoLimit = 64;
   self.frame = parent == canvas ? canvas.bounds : [parent convertRect:canvas.bounds fromView:canvas];
   self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   [parent addSubview:self];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(hostDidRelayout:)
+                                             name:NeoTouchLayoutHostDidRelayoutNotification object:canvas];
   [canvas layoutIfNeeded];
   _orientation = NeoTouchLayoutOrientationForSize(canvas.bounds.size);
   [self applyDraft];
@@ -759,10 +763,17 @@ static const NSUInteger kNeoTouchUndoLimit = 64;
   if (_finishedCalled) return;
   _finishedCalled = YES;
   [_touches removeAllObjects];
+  [NSNotificationCenter.defaultCenter removeObserver:self name:NeoTouchLayoutHostDidRelayoutNotification object:nil];
   [self removeFromSuperview];
   void (^finished)(BOOL) = self.finished;
   self.finished = nil;
   if (finished) finished(saved);
+}
+
+- (void)hostDidRelayout:(NSNotification*)notification {
+  // The controls were placed again: their stock geometry and outlines follow.
+  [self setNeedsLayout];
+  [self layoutIfNeeded];
 }
 
 - (void)cancelPressed { [self cancel]; }

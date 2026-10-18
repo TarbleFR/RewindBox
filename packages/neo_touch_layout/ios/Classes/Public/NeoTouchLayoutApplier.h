@@ -10,7 +10,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// placement); the layout adds a single transform (scale about the centre,
 /// then translation to the stored position). UIKit draws and hit-tests a view
 /// through its transform, so the visible control and its touch area stay the
-/// same rectangle after any move or resize. A control never leaves the canvas.
+/// same rectangle after any move or resize. A moved or resized control never
+/// leaves the canvas; an untouched control keeps the engine's exact placement.
 @interface NeoTouchLayoutApplier : NSObject
 /// Canvas bounds inset by its safe area (the reference of stored positions).
 + (CGRect)safeRectOfCanvas:(UIView*)canvas;

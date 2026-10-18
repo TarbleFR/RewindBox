@@ -1157,6 +1157,11 @@ static rpcs3_ios_status TLSetPad(uint32_t port, const rpcs3_ios_pad_state* state
     XCTAssertTrue([hit isDescendantOfView:editor], @"%@ preview control reachable: point %@, hit %@, editor %@, root %@; %@",
                   key, NSStringFromCGPoint(point), hit, NSStringFromCGRect([editor convertRect:editor.bounds toView:rootView]),
                   NSStringFromCGRect(rootView.bounds), TLDescribe(element, editor.superview));
+    // The editor's outline (where it picks the control) is the control itself.
+    const CGPoint drawn = TLMid([element.view convertRect:element.view.bounds toView:editor]);
+    const CGPoint picked = TLMid([editor frameOfElement:element.identifier]);
+    XCTAssertTrue(TLNear(drawn.x, picked.x, 1.0) && TLNear(drawn.y, picked.y, 1.0), @"%@ %@ outline %@ control %@", key,
+                  element.identifier, NSStringFromCGPoint(picked), NSStringFromCGPoint(drawn));
   }
   NeoTouchElement* button = TLFirstOfKind(elements, NeoTouchElementKindButton, @[]);
   [editor setScale:1.4 forElement:button.identifier];

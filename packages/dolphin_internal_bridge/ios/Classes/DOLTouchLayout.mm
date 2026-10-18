@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import "DOLTouchLayout.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
+#include <cmath>
 
 @implementation DOLTouchLayout {
   NSString* _locale;
@@ -14,6 +15,12 @@
   NSArray<NeoTouchElement*>* _controls;
   NeoTouchElement* _shake;
   BOOL _hasLaidOut;
+  // The nibs place the controls with Auto Layout, which can settle a control
+  // after the overlay's layout pass (intrinsic sizes, safe area). A placement
+  // check on the next turn of the run loop lays the overlay out again when a
+  // control moved since it was measured, a bounded number of times in a row.
+  BOOL _checkScheduled;
+  NSUInteger _corrections;
 }
 
 - (instancetype)initWithOverlay:(DOLTouchOverlay*)overlay locale:(NSString*)locale {
@@ -104,6 +111,7 @@
     for (UIView* control in [overlay touchLayoutControls]) [controls addObject:[self elementForControl:control]];
     _controls = controls;
     [NeoTouchLayoutApplier applyLayout:[self currentLayout] elements:controls canvas:overlay editing:_ghostHidden];
+    [self schedulePlacementCheck];
     return;
   }
   UIView* shake = overlay.touchLayoutShakeControl;
@@ -117,6 +125,40 @@
   // The automatic placement just computed (identity transform) is its stock place.
   _shake = [self elementForControl:shake];
   [NeoTouchLayoutApplier applyLayout:layout elements:@[_shake] canvas:overlay editing:_ghostHidden];
+}
+
+- (void)schedulePlacementCheck {
+  if (_checkScheduled) return;
+  _checkScheduled = YES;
+  __weak DOLTouchLayout* weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf checkPlacement]; });
+}
+
+- (void)checkPlacement {
+  _checkScheduled = NO;
+  DOLTouchOverlay* overlay = self.overlay;
+  if (!overlay) return;
+  BOOL moved = NO;
+  for (NeoTouchElement* element in _controls) {
+    UIView* view = element.view;
+    if (!view) continue;
+    UIView* parent = view.superview ?: overlay;
+    const CGPoint center = parent == overlay ? view.center : [parent convertPoint:view.center toView:overlay];
+    if (fabs(center.x - element.defaultCenter.x) > 0.5 || fabs(center.y - element.defaultCenter.y) > 0.5 ||
+        fabs(view.bounds.size.width - element.defaultSize.width) > 0.5 ||
+        fabs(view.bounds.size.height - element.defaultSize.height) > 0.5) {
+      moved = YES;
+      break;
+    }
+  }
+  if (!moved) {
+    _corrections = 0;
+    return;
+  }
+  if (++_corrections > 3) return;
+  [overlay setNeedsLayout];
+  [overlay layoutIfNeeded];
+  [NSNotificationCenter.defaultCenter postNotificationName:NeoTouchLayoutHostDidRelayoutNotification object:overlay];
 }
 
 - (void)endEditingOverride {

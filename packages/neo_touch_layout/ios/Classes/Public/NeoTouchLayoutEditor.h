@@ -23,6 +23,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (UIInterfaceOrientationMask)touchLayoutSupportedInterfaceOrientations;
 @end
 
+/// Posted by a host, with its canvas as the object, when it placed its
+/// controls again on its own (for example once the engine's layout settled).
+/// An editor shown over that canvas reads the controls again.
+FOUNDATION_EXPORT NSNotificationName const NeoTouchLayoutHostDidRelayoutNotification;
+
 typedef NS_ENUM(NSInteger, NeoTouchLayoutScope) {
   NeoTouchLayoutScopeGeneral = 0,
   NeoTouchLayoutScopeGame = 1,
