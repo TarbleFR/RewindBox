@@ -1,6 +1,7 @@
 import 'dart:isolate';
 
 import 'package:neostation/services/logger_service.dart';
+import 'package:path/path.dart' as path;
 import '../../repositories/system_repository.dart';
 import '../../utils/optimized_md5_utils.dart';
 
@@ -8,8 +9,8 @@ import '../../utils/optimized_md5_utils.dart';
 ///
 /// Computes the file MD5 (off the UI isolate) used to fingerprint a ROM and
 /// strips system-specific extensions from a ROM filename before a name-based
-/// search. Extracted verbatim from [ScreenScraperService]; behaviour is
-/// unchanged. Stateless — holds only the shared logger.
+/// search. Hash input is streamed; session diagnostics stay on the caller's
+/// isolate so they reach the initialized app.log output.
 class ScreenscraperRomHasher {
   ScreenscraperRomHasher._();
 
@@ -17,9 +18,27 @@ class ScreenscraperRomHasher {
 
   /// Computes the file MD5 hash in a background isolate to keep the UI responsive.
   static Future<String> calculateMd5InIsolate(String filePath) async {
-    return await Isolate.run(() async {
-      return await OptimizedMd5Utils.calculateFileMd5(filePath);
-    });
+    final name = path.basename(filePath).replaceAll(RegExp(r'[\r\n]'), ' ');
+    final watch = Stopwatch()..start();
+    try {
+      final size = await OptimizedMd5Utils.getFileSize(filePath);
+      _log.i('[ScrapingMD5] start file=$name bytes=$size mode=stream');
+      final digest = await Isolate.run(() async {
+        return await OptimizedMd5Utils.calculateFileMd5(filePath);
+      });
+      _log.i(
+        '[ScrapingMD5] completed file=$name bytes=$size '
+        'elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      return digest;
+    } catch (error, stack) {
+      _log.e(
+        '[ScrapingMD5] failed file=$name elapsedMs=${watch.elapsedMilliseconds}',
+        error: error,
+        stackTrace: stack,
+      );
+      rethrow;
+    }
   }
 
   /// Sanitizes a ROM filename by removing system-specific extensions.

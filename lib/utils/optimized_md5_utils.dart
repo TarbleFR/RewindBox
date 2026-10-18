@@ -203,15 +203,19 @@ class OptimizedMd5Utils {
         (bytes[offset + 3] << 24);
   }
 
-  /// Calculates a standard MD5 hash for the given file.
+  /// Calculates the complete native-file MD5 with bounded streaming memory.
   static Future<String> calculateFileMd5(String filePath) async {
     try {
       if (!await fileExists(filePath)) {
         throw Exception('File does not exist: $filePath');
       }
 
-      final bytes = await readAllBytes(filePath);
-      return crypto.md5.convert(bytes).toString();
+      if (Platform.isAndroid && filePath.startsWith('content://')) {
+        // Keep the existing SAF provider contract; iOS uses native file paths.
+        final bytes = await readAllBytes(filePath);
+        return crypto.md5.convert(bytes).toString();
+      }
+      return (await crypto.md5.bind(File(filePath).openRead()).first).toString();
     } catch (e) {
       _log.e('Error calculating MD5 for $filePath: $e');
       rethrow;
