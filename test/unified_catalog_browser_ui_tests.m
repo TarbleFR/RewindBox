@@ -262,8 +262,10 @@ static void NUCBExchangeSingleton(void) {
     [self selectSection:0 row:0]; [self selectSection:0 row:0]; XCTAssertEqual(self.catalog.installs, 1U);
     self.catalog.installProgress(@{@"total_packs": @2, @"completed_packs": @1, @"failed_packs": @0, @"total_bytes": @1000, @"completed_bytes": @250});
     UITableViewCell *progress = [self.browser tableView:self.browser.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:0]];
-    XCTAssertEqualWithAccuracy([[progress valueForKey:@"progressView"] progress], 0.25, 0.001);
-    XCTAssertTrue([[[progress valueForKey:@"progressLabel"] text] containsString:@"1 / 2"]);
+    UIProgressView *progressView = [progress valueForKey:@"progressView"];
+    UILabel *progressLabel = [progress valueForKey:@"progressLabel"];
+    XCTAssertEqualWithAccuracy(progressView.progress, 0.25, 0.001);
+    XCTAssertTrue([progressLabel.text containsString:@"1 / 2"]);
     NSError *failure = [NSError errorWithDomain:@"ProbeDownload" code:17 userInfo:@{NSLocalizedDescriptionKey:@"raw technical failure"}];
     self.catalog.installCompletion(@{@"installed_games": @3, @"total_packs": @2, @"completed_packs": @2, @"failed_packs": @[@"failed"], @"total_bytes": @1000, @"completed_bytes": @500}, failure);
     XCTAssertEqual([self.browser tableView:self.browser.tableView numberOfRowsInSection:0], 4);
