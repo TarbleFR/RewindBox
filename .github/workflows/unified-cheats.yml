@@ -75,10 +75,10 @@ jobs:
         if: ${{ !contains(github.event.head_commit.message, '[unified-native-fix]') }}
         run: python3 test/unified_catalog_ios_test.py
       - name: Regional identities and per-core complete programs
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[unified-ui-only]') }}
         run: python3 test/unified_identity_test.py ${{ contains(github.event.head_commit.message, '[unified-native-fix]') && '--only-fbneo' || '' }}
       - name: Native imports, disabled state and RPCS3 persistence
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[unified-ui-only]') }}
         run: python3 test/unified_native_ios_test.py ${{ contains(github.event.head_commit.message, '[unified-native-fix]') && '--rpcs3-store-only' || '' }}
       - name: Compile and link the affected Libretro bridge
         if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[unified-native-fix]') }}

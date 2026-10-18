@@ -65,7 +65,8 @@ def contracts():
     # These focused assertions have no optional message argument. Verify their
     # real C macro arity before booting a Simulator: Objective-C dictionary and
     # array commas must be protected by parentheses at assertion boundaries.
-    preprocessor = shutil.which("cpp")
+    compiler = shutil.which("clang") or shutil.which("cc")
+    preprocessor = ["xcrun", "clang"] if platform.system() == "Darwin" else [compiler] if compiler else []
     if preprocessor:
         tests = (ROOT / "test/unified_catalog_browser_ui_tests.m").read_text()
         tests = re.sub(r"^#import.*$", "", tests, flags=re.MULTILINE)
@@ -77,12 +78,12 @@ def contracts():
             } else 1
             arguments = ",".join(f"arg{index}" for index in range(count))
             definitions.append(f"#define {name}({arguments}) ((void)0)")
-        # Apple's cpp wrapper does not reliably forward '-' as a stdin input.
-        # A named C input works with both that wrapper and GNU cpp.
+        # Invoke the compiler's preprocessing mode directly. Apple's standalone
+        # cpp wrapper can drop its input before invoking cc.
         with tempfile.TemporaryDirectory(prefix="neo-unified-xctest-macros-") as folder:
             input_path = Path(folder) / "assertions.c"
             input_path.write_text("\n".join(definitions) + "\n" + tests)
-            subprocess.run([preprocessor, "-P", "-x", "c", str(input_path)],
+            subprocess.run(preprocessor + ["-E", "-P", "-x", "c", str(input_path)],
                            text=True, stdout=subprocess.DEVNULL, check=True)
     print(f"Shared catalogue: {len(keys)} complete keys in all twelve languages; placeholders preserved.", flush=True)
 
