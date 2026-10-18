@@ -362,6 +362,21 @@ DIRECT_LABELS = {
  "ja": ("チートをインポート", "パッチ"), "ko": ("치트 가져오기", "패치"),
 }
 
+FBNEO_AUTOMATIC_LABELS = {
+ "en": "Download the catalogue, then reopen this game to load its cheats. New codes start off.",
+ "fr": "Téléchargez le catalogue, puis rouvrez ce jeu pour charger ses cheats. Les nouveaux codes sont désactivés.",
+ "de": "Lade den Katalog herunter und öffne dieses Spiel erneut, um seine Cheats zu laden. Neue Codes sind deaktiviert.",
+ "es": "Descarga el catálogo y vuelve a abrir este juego para cargar sus trucos. Los códigos nuevos están desactivados.",
+ "it": "Scarica il catalogo e riapri questo gioco per caricare i trucchi. I nuovi codici sono disattivati.",
+ "pt": "Baixe o catálogo e abra este jogo novamente para carregar os cheats. Os novos códigos ficam desativados.",
+ "ru": "Скачайте каталог и снова откройте эту игру, чтобы загрузить читы. Новые коды выключены.",
+ "id": "Unduh katalog, lalu buka kembali game ini untuk memuat cheat. Kode baru dinonaktifkan.",
+ "zh": "下载目录后重新打开此游戏，即可加载金手指。新代码默认关闭。",
+ "zh_Hant": "下載目錄後重新開啟此遊戲，即可載入金手指。新代碼預設關閉。",
+ "ja": "カタログをダウンロードしてからゲームを開き直すと、チートが読み込まれます。新しいコードは無効になっています。",
+ "ko": "카탈로그를 다운로드한 다음 게임을 다시 열면 치트를 불러옵니다. 새 코드는 꺼져 있습니다.",
+}
+
 def resource():
     result = {}
     for locale, values in STRINGS.items():
@@ -378,6 +393,7 @@ def resource():
         if len(FBNEO_LABELS[locale]) != len(FBNEO_KEYS):
             raise ValueError(f"{locale}: incomplete FBNeo translations")
         result[locale].update(zip(FBNEO_KEYS, FBNEO_LABELS[locale]))
+        result[locale]["fbneoSessionHelp"] = FBNEO_AUTOMATIC_LABELS[locale]
         result[locale]["exclusiveConflict"], result[locale]["mgbaIsolationConflict"] = ACTIVATION_CONFLICT_LABELS[locale]
         result[locale]["fbneoUnsafeDefault"], result[locale]["fbneoUnmanagedOption"] = FBNEO_UNAVAILABLE_LABELS[locale]
     return result

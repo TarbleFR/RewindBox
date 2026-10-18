@@ -32,3 +32,7 @@ Les MD5 XML dont le domaine n’est pas attesté conservent le schéma `openemu-
 `activation_profiles` impose un core précis quand un programme utilise une voie particulière, par exemple PicoDrive. `mgba_auto_isolated` interdit la coactivation avec un autre enregistrement GBA hors canal VBA : les preuves du décodeur AUTO portent sur une fermeture entière isolée, ses états de chiffrement étant partagés. Les groupes exclusifs restent des contraintes d’exécution.
 
 Le statut publié `available` signifie programme complet accepté par un adaptateur documenté et ses limites. Il ne signifie pas que chaque effet a été joué et vérifié sur un appareil physique. Les preuves de parseur, de mémoire et de décodeur restent décrites séparément.
+
+## Build 475 update
+
+The inventory now includes the additional GoW3 01.00 source and two narrow adaptations of existing Artemis inputs. Exact scopes and counts: [`docs/unified-cheats-direct-build475.md`](../../../docs/unified-cheats-direct-build475.md). After regeneration, run `tools/cheats/unified_stable_packs.py` with the documented Build 474 baseline to retain immutable transport packs. Explicit `retired` members are checked by size/hash and excluded from current games and program totals. The native reader installs only each pack's assigned `game_ids`; superseded payloads are never offered as current cheats.

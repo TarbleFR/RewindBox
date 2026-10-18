@@ -88,7 +88,7 @@ def contracts():
     print(f"Shared catalogue: {len(keys)} complete keys in all twelve languages; placeholders preserved.", flush=True)
 
 
-def native(result_path: Path | None, regional_only: bool = False, direct_only: bool = False, direct_fix_only: bool = False):
+def native(result_path: Path | None, regional_only: bool = False, direct_only: bool = False, direct_fix_only: bool = False, direct_toggle_only: bool = False):
     if platform.system() != "Darwin":
         raise RuntimeError("UIKit execution requires macOS with Xcode; no native pass is claimed on this host")
     sdk = subprocess.check_output(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"], text=True).strip()
@@ -151,9 +151,17 @@ def native(result_path: Path | None, regional_only: bool = False, direct_only: b
                    "-scheme", "UnifiedCatalogueBrowser", "-destination", "platform=iOS Simulator,id=" + device["udid"],
                    "-destination-timeout", "60", "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES",
                    "-default-test-execution-time-allowance", "60", "-maximum-test-execution-time-allowance", "120"]
+        if direct_toggle_only:
+            command += ["-only-testing:UnifiedCatalogueTests/UnifiedCatalogueBrowserTests/" + name for name in (
+                "testDirectListNeverOffersRetiredCataloguesAfterUpdate",
+                "testDirectListConfirmsAnUnknownEditionOncePerDetectedGame",
+                "testDirectListDisplaysInstalledCodesWithoutImportingAndOneSwitchActivates",
+                "testDirectListLateImportAfterPopCannotEnableACode",
+            )]
         if direct_fix_only:
             command += ["-only-testing:UnifiedCatalogueTests/UnifiedCatalogueBrowserTests/" + name for name in (
                 "testDirectListDependencyClosureStartsDisabledAndRejectsPartialPrograms",
+                "testDirectListConfirmsAnUnknownEditionOncePerDetectedGame",
                 "testDirectListDisplaysInstalledCodesWithoutImportingAndOneSwitchActivates",
                 "testDirectListLateImportAfterPopCannotEnableACode",
                 "testDirectListDownloadButtonInstallsAllWithoutImportOrActivation",
@@ -163,6 +171,7 @@ def native(result_path: Path | None, regional_only: bool = False, direct_only: b
         if direct_only:
             command += ["-only-testing:UnifiedCatalogueTests/UnifiedCatalogueBrowserTests/" + name for name in (
                 "testDirectListDependencyClosureStartsDisabledAndRejectsPartialPrograms",
+                "testDirectListConfirmsAnUnknownEditionOncePerDetectedGame",
                 "testDirectListDisplaysInstalledCodesWithoutImportingAndOneSwitchActivates",
                 "testDirectListLateImportAfterPopCannotEnableACode",
                 "testDirectListDownloadButtonInstallsAllWithoutImportOrActivation",
@@ -187,7 +196,8 @@ if __name__ == "__main__":
     parser.add_argument("--regional-only", action="store_true", help="Run only the two regional edition UIKit tests; reuse the other recorded results")
     parser.add_argument("--direct-only", action="store_true")
     parser.add_argument("--direct-fix-only", action="store_true")
+    parser.add_argument("--direct-toggle-only", action="store_true")
     arguments = parser.parse_args()
     contracts()
     if arguments.native:
-        native(arguments.result, arguments.regional_only, arguments.direct_only, arguments.direct_fix_only)
+        native(arguments.result, arguments.regional_only, arguments.direct_only, arguments.direct_fix_only, arguments.direct_toggle_only)

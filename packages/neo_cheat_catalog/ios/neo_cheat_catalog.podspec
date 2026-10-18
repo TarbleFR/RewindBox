@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.source_files = 'Classes/**/*.{h,m}'
   s.public_header_files = 'Classes/Public/*.h', 'Classes/NeoUnifiedCheatBrowser.h'
-  s.resource_bundles = { 'NeoCheatCatalog' => ['Resources/*.json', 'Resources/*.gz'] }
+  s.resource_bundles = { 'NeoCheatCatalog' => ['Resources/*.json', 'Resources/*.gz', 'Resources/*.txt'] }
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'

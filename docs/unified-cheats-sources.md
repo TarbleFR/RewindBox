@@ -270,3 +270,7 @@ python3 tools/cheats/unified_sources_document.py --final
 ```
 
 SHA256 du manifeste compressé figé : `cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57`.
+
+## Build 475 follow-up: one source and two executable adaptations
+
+The complete follow-up, exact pins, serial/version/PPU constraints, conversion limits and frozen counts are in [Direct per-game cheats — Build 475](unified-cheats-direct-build475.md). Source 71 is Luckysugar's MIT GoW3 01.00 native publication at `d8437d9d4a1fd10ab2b820e6acc6aaf94c7dc665`. The Bladestorm static and GoW3 01.03 same-PPU profiles adapt existing Artemis inputs; they are not two additional independent upstream catalogues. Raw NCL pointer/freeze execution remains unsupported. The earlier 70-source inventory and fourteen complements are retained with those scoped updates.

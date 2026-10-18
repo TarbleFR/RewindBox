@@ -1,0 +1,258 @@
+Version: 1.2
+
+# God of War III app version 01.00
+# PPU-4d5c51503a81a327c2a99427390a395b8dcb3767
+# Serials that share this executable: BCUS98111, BCES00510, BCES00799, BCJS37001
+# App version 01.03 is a different executable. These patches do not apply to it.
+PPU-4d5c51503a81a327c2a99427390a395b8dcb3767:
+  "Infinite Health":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Fills Kratos's health only. Other characters are unchanged. Restart the game after enabling."
+    Patch Version: 1.2
+    Patch:
+      - [ be32, 0x000EA314, 0x483A9DEC ]
+      - [ be32, 0x00494100, 0x816280D0 ]
+      - [ be32, 0x00494104, 0x2C8B0000 ]
+      - [ be32, 0x00494108, 0x4186002C ]
+      - [ be32, 0x0049410C, 0x816B8008 ]
+      - [ be32, 0x00494110, 0x2C8B0000 ]
+      - [ be32, 0x00494114, 0x41860020 ]
+      - [ be32, 0x00494118, 0x816B0404 ]
+      - [ be32, 0x0049411C, 0x2C8B0000 ]
+      - [ be32, 0x00494120, 0x41860014 ]
+      - [ be32, 0x00494124, 0x816B0004 ]
+      - [ be32, 0x00494128, 0x7C8B4800 ]
+      - [ be32, 0x0049412C, 0x40860008 ]
+      - [ be32, 0x00494130, 0xD1A901BC ]
+      - [ be32, 0x00494134, 0xEF6C0032 ]
+      - [ be32, 0x00494138, 0x4BC561E0 ]
+
+  "Infinite Magic":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Skips Kratos's magic spend, including the God of War II magic in the Poseidon opening. Orb refills still apply. Restart the game after enabling."
+    Patch Version: 1.3
+    Patch:
+      - [ be32, 0x0009654C, 0x483FDC2C ]
+      - [ be32, 0x00494178, 0x816280D0 ]
+      - [ be32, 0x0049417C, 0x2C8B0000 ]
+      - [ be32, 0x00494180, 0x41860028 ]
+      - [ be32, 0x00494184, 0x816B8008 ]
+      - [ be32, 0x00494188, 0x2C8B0000 ]
+      - [ be32, 0x0049418C, 0x4186001C ]
+      - [ be32, 0x00494190, 0x816B0404 ]
+      - [ be32, 0x00494194, 0x2C8B0000 ]
+      - [ be32, 0x00494198, 0x41860010 ]
+      - [ be32, 0x0049419C, 0x60000000 ]
+      - [ be32, 0x004941A0, 0x7C8BF800 ]
+      - [ be32, 0x004941A4, 0x41860008 ]
+      - [ be32, 0x004941A8, 0xD01F01B0 ]
+      - [ be32, 0x004941AC, 0x4BC023A4 ]
+      - [ be32, 0x00099F24, 0x483FA2FC ]
+      - [ be32, 0x00494220, 0x39600000 ]
+      - [ be32, 0x00494224, 0x9161FFF8 ]
+      - [ be32, 0x00494228, 0xC181FFF8 ]
+      - [ be32, 0x0049422C, 0xFC8D6000 ]
+      - [ be32, 0x00494230, 0x40840038 ]
+      - [ be32, 0x00494234, 0x816280D0 ]
+      - [ be32, 0x00494238, 0x2C8B0000 ]
+      - [ be32, 0x0049423C, 0x4186002C ]
+      - [ be32, 0x00494240, 0x816B8008 ]
+      - [ be32, 0x00494244, 0x2C8B0000 ]
+      - [ be32, 0x00494248, 0x41860020 ]
+      - [ be32, 0x0049424C, 0x816B0404 ]
+      - [ be32, 0x00494250, 0x2C8B0000 ]
+      - [ be32, 0x00494254, 0x41860014 ]
+      - [ be32, 0x00494258, 0x60000000 ]
+      - [ be32, 0x0049425C, 0x7C8BF800 ]
+      - [ be32, 0x00494260, 0x40860008 ]
+      - [ be32, 0x00494264, 0x4BC05CC4 ]
+      - [ be32, 0x00494268, 0xEC00682A ]
+      - [ be32, 0x0049426C, 0x4BC05CBC ]
+
+  "Lifesteal":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "When an enemy's health is written lower, Kratos gains that difference, capped at his own maximum. Restart the game after enabling. With Infinite Health on, the bar is already full, so this heal is hidden."
+    Patch Version: 1.2
+    Patch:
+      - [ be32, 0x000723B8, 0x48421EB8 ]
+      - [ be32, 0x00494270, 0xC04301BC ]
+      - [ be32, 0x00494274, 0xFC811000 ]
+      - [ be32, 0x00494278, 0x4084005C ]
+      - [ be32, 0x0049427C, 0x816280D0 ]
+      - [ be32, 0x00494280, 0x2C8B0000 ]
+      - [ be32, 0x00494284, 0x41860050 ]
+      - [ be32, 0x00494288, 0x816B8008 ]
+      - [ be32, 0x0049428C, 0x2C8B0000 ]
+      - [ be32, 0x00494290, 0x41860044 ]
+      - [ be32, 0x00494294, 0x816B0404 ]
+      - [ be32, 0x00494298, 0x2C8B0000 ]
+      - [ be32, 0x0049429C, 0x41860038 ]
+      - [ be32, 0x004942A0, 0x816B0004 ]
+      - [ be32, 0x004942A4, 0x2C8B0000 ]
+      - [ be32, 0x004942A8, 0x4186002C ]
+      - [ be32, 0x004942AC, 0x7C8B1800 ]
+      - [ be32, 0x004942B0, 0x41860024 ]
+      - [ be32, 0x004942B4, 0xEC420828 ]
+      - [ be32, 0x004942B8, 0xC06B01BC ]
+      - [ be32, 0x004942BC, 0xC08B01C0 ]
+      - [ be32, 0x004942C0, 0xEC63102A ]
+      - [ be32, 0x004942C4, 0xFC832000 ]
+      - [ be32, 0x004942C8, 0x40850008 ]
+      - [ be32, 0x004942CC, 0xFC602090 ]
+      - [ be32, 0x004942D0, 0xD06B01BC ]
+      - [ be32, 0x004942D4, 0xD02301BC ]
+      - [ be32, 0x004942D8, 0x4BBDE0E4 ]
+
+  "Unlimited Rage of Sparta":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Skips both rage writes for Kratos only."
+    Patch Version: 1.1
+    Patch:
+      - [ be32, 0x0009C528, 0x483F7C88 ]
+      - [ be32, 0x004941B0, 0x816280D0 ]
+      - [ be32, 0x004941B4, 0x2C8B0000 ]
+      - [ be32, 0x004941B8, 0x41860028 ]
+      - [ be32, 0x004941BC, 0x816B8008 ]
+      - [ be32, 0x004941C0, 0x2C8B0000 ]
+      - [ be32, 0x004941C4, 0x4186001C ]
+      - [ be32, 0x004941C8, 0x816B0404 ]
+      - [ be32, 0x004941CC, 0x2C8B0000 ]
+      - [ be32, 0x004941D0, 0x41860010 ]
+      - [ be32, 0x004941D4, 0x816B0004 ]
+      - [ be32, 0x004941D8, 0x7C8BF800 ]
+      - [ be32, 0x004941DC, 0x41860008 ]
+      - [ be32, 0x004941E0, 0xD19F01B8 ]
+      - [ be32, 0x004941E4, 0x4BC08348 ]
+      - [ be32, 0x0009F618, 0x483F4BD0 ]
+      - [ be32, 0x004941E8, 0x816280D0 ]
+      - [ be32, 0x004941EC, 0x2C8B0000 ]
+      - [ be32, 0x004941F0, 0x41860028 ]
+      - [ be32, 0x004941F4, 0x816B8008 ]
+      - [ be32, 0x004941F8, 0x2C8B0000 ]
+      - [ be32, 0x004941FC, 0x4186001C ]
+      - [ be32, 0x00494200, 0x816B0404 ]
+      - [ be32, 0x00494204, 0x2C8B0000 ]
+      - [ be32, 0x00494208, 0x41860010 ]
+      - [ be32, 0x0049420C, 0x816B0004 ]
+      - [ be32, 0x00494210, 0x7C8BF800 ]
+      - [ be32, 0x00494214, 0x41860008 ]
+      - [ be32, 0x00494218, 0xD01F01B8 ]
+      - [ be32, 0x0049421C, 0x4BC0B400 ]
+
+  "Infinite Item Meter":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Kratos's orange item meter does not drop. Covers the Bow of Apollo, the Head of Helios, and the Boots of Hermes. Other characters still spend their own meter."
+    Patch Version: 1.1
+    Patch:
+      - [ be32, 0x00096618, 0x483FDB28 ]
+      - [ be32, 0x00494140, 0x816280D0 ]
+      - [ be32, 0x00494144, 0x2C8B0000 ]
+      - [ be32, 0x00494148, 0x41860028 ]
+      - [ be32, 0x0049414C, 0x816B8008 ]
+      - [ be32, 0x00494150, 0x2C8B0000 ]
+      - [ be32, 0x00494154, 0x4186001C ]
+      - [ be32, 0x00494158, 0x816B0404 ]
+      - [ be32, 0x0049415C, 0x2C8B0000 ]
+      - [ be32, 0x00494160, 0x41860010 ]
+      - [ be32, 0x00494164, 0x816B0004 ]
+      - [ be32, 0x00494168, 0x7C8B1800 ]
+      - [ be32, 0x0049416C, 0x41860008 ]
+      - [ be32, 0x00494170, 0xD00301B4 ]
+      - [ be32, 0x00494174, 0x4BC024A8 ]
+
+  "Infinite Double Jump":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Skips the flag that marks a double jump as used, so Kratos can keep jumping in the air."
+    Patch Version: 1.0
+    Patch:
+      - [ be32, 0x000CCB94, 0x60000000 ]
+
+  "2x Damage":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Doubles health lost from a hit. Healing is unchanged. Kratos takes double damage too, so pair this with Infinite Health."
+    Group: "Damage multiplier"
+    Patch Version: 1.1
+    Patch:
+      - [ be32, 0x000723E0, 0x48421CAC ]
+      - [ be32, 0x0049408C, 0xD001FFE4 ]
+      - [ be32, 0x00494090, 0x39600000 ]
+      - [ be32, 0x00494094, 0x9161FFE8 ]
+      - [ be32, 0x00494098, 0xC041FFE8 ]
+      - [ be32, 0x0049409C, 0xFF811000 ]
+      - [ be32, 0x004940A0, 0x409C0014 ]
+      - [ be32, 0x004940A4, 0x3D604000 ]
+      - [ be32, 0x004940A8, 0x9161FFE8 ]
+      - [ be32, 0x004940AC, 0xC041FFE8 ]
+      - [ be32, 0x004940B0, 0xEC211032 ]
+      - [ be32, 0x004940B4, 0xC001FFE4 ]
+      - [ be32, 0x004940B8, 0xEC21002A ]
+      - [ be32, 0x004940BC, 0x4BBDE328 ]
+
+  "5x Damage":
+    Games:
+      "God of War 3 (God of War III)":
+        BCES00510: [ 01.00 ]
+        BCES00799: [ 01.00 ]
+        BCUS98111: [ 01.00 ]
+        BCJS37001: [ 01.00 ]
+    Author: "Luckysugar"
+    Notes: "Multiplies health lost from a hit by 5. Healing is unchanged. Kratos takes the multiplier too, so pair this with Infinite Health."
+    Group: "Damage multiplier"
+    Patch Version: 1.1
+    Patch:
+      - [ be32, 0x000723E0, 0x48421CE0 ]
+      - [ be32, 0x004940C0, 0xD001FFE4 ]
+      - [ be32, 0x004940C4, 0x39600000 ]
+      - [ be32, 0x004940C8, 0x9161FFE8 ]
+      - [ be32, 0x004940CC, 0xC041FFE8 ]
+      - [ be32, 0x004940D0, 0xFF811000 ]
+      - [ be32, 0x004940D4, 0x409C0014 ]
+      - [ be32, 0x004940D8, 0x3D6040A0 ]
+      - [ be32, 0x004940DC, 0x9161FFE8 ]
+      - [ be32, 0x004940E0, 0xC041FFE8 ]
+      - [ be32, 0x004940E4, 0xEC211032 ]
+      - [ be32, 0x004940E8, 0xC001FFE4 ]
+      - [ be32, 0x004940EC, 0xEC21002A ]
+      - [ be32, 0x004940F0, 0x4BBDE2F4 ]

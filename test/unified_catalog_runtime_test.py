@@ -59,6 +59,12 @@ class PackContractTests(unittest.TestCase):
             self.assertEqual(contents['schema_version'], 1)
             self.assertEqual({row['game_id'] for row in contents['files']}, set(pack['game_ids']))
             for row in contents['files']:
+                retired = {item['game_id']: item for item in pack.get('retired', [])}
+                if row['game_id'] in retired:
+                    raw = base64.b64decode(row['data'], validate=True)
+                    self.assertEqual(hashlib.sha256(raw).hexdigest(), retired[row['game_id']]['sha256'])
+                    self.assertEqual(len(raw), retired[row['game_id']]['size'])
+                    continue
                 game = by_id[row['game_id']]
                 raw = base64.b64decode(row['data'], validate=True)
                 self.assertEqual(len(raw), game['size'])

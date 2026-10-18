@@ -24,9 +24,10 @@
     "nes-gamegenie": 34281,
     "nes-raw": 45517,
     "pce-raw": 1421,
-    "pnach": 816,
+    "pnach": 12609,
     "ps1-gameshark": 368214,
-    "rpcs3-yaml": 1829,
+    "ps3-static-be32": 8,
+    "rpcs3-yaml": 1956,
     "sega8-gamegenie": 4748,
     "sega8-raw": 2,
     "snes-gamegenie": 31580,
@@ -36,6 +37,7 @@
   "counts_by_source_provenance": {
     "artemis": 713,
     "artemisrpcs3": 1829,
+    "bladestorm_static": 8,
     "cwcheat": 77010,
     "delta_workbook": 871,
     "dillonhafer_xml": 477,
@@ -49,6 +51,8 @@
     "gamehacking": 1,
     "gameshark_event_islands": 1,
     "geckoarchive": 44293,
+    "gow3_0100": 32,
+    "gow3_0103_ppu": 95,
     "kodewerx_codes": 3,
     "libretro": 1007827,
     "lunamoo": 191,
@@ -60,13 +64,13 @@
     "pj64": 8516,
     "pokebip_contributions": 3,
     "pokemonfrance": 8,
-    "ps2pnach": 561,
+    "ps2pnach": 12353,
     "psxdatacenter": 2,
     "snes9x": 13121,
     "squarepalace": 8,
     "tabdiukov": 236,
     "tyler_shiny": 1,
-    "weed_sheet": 255,
+    "weed_sheet": 256,
     "xoevoox_firered": 6
   },
   "counts_by_system": {
@@ -177,17 +181,18 @@
     },
     "ps2": {
       "dialects": {
-        "pnach": 816
+        "pnach": 12609
       },
-      "game_records": 595,
-      "programs": 816
+      "game_records": 418,
+      "programs": 12609
     },
     "ps3": {
       "dialects": {
-        "rpcs3-yaml": 1829
+        "ps3-static-be32": 8,
+        "rpcs3-yaml": 1956
       },
-      "game_records": 235,
-      "programs": 1829
+      "game_records": 246,
+      "programs": 1964
     },
     "psp": {
       "dialects": {
@@ -238,13 +243,13 @@
   "input": {
     "catalogue_id": "neostation-unified",
     "fbneo_driver_table_sha256": "7a17dd0a0f0f5a62ca11c69ac26435265a23261692430e407895a38c94aa6259",
-    "final_build_log": "build-final-identity-domain.log",
-    "final_build_log_sha256": "ef7cc893fe7f7e3157cef8f0f5bfa2e534e434eaba8fdbdbaa48618c865e6dd2",
-    "manifest_gzip_sha256": "cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57",
-    "manifest_json_sha256": "b437555a8438fc9891e7d3af3aff5890578dbf8546df4d652a3b049de5f13c81",
-    "revision": "bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4",
-    "sources_lock_sha256": "745361b10903604fac9b3ab81b236576826bb4e57fdb6b24fd0c6288a957c82c",
-    "validator_sha256": "efe5bee4234387f7f55e1d67168cd27de000ae9f3de0f223f7fb7305419f9723"
+    "final_build_log": "build475-published.log",
+    "final_build_log_sha256": "0b5f92f2a7344ed1afb996039c6ecc831f0dac522a6d7065797ce33ba5c55402",
+    "manifest_gzip_sha256": "ff64b3b92225f5ab6960e1931fadaf4509665864a4470fb36908cc2faf22d792",
+    "manifest_json_sha256": "25f4e1dec66f1daae5b5c1d34f9ab9c5464af079cb606fde4241b6b37a840966",
+    "revision": "c7f13fe845981a4fa56fa4bdd28ae03873fdc1670fee19c2307b91e16e586b82",
+    "sources_lock_sha256": "35228f2c75af1fc23caddb8f0c0f2c2c944f233a01ad97fd85291f49e05f86ce",
+    "validator_sha256": "91f35f369e089fc4c9e2cb5ac0c59dce66aceb0dbaeed2d685744666fd094436"
   },
   "limit_exceedances": {
     "code_characters_gt_131072": 0,
@@ -253,65 +258,65 @@
     "stored_lines_gt_4096": 0
   },
   "manifest_totals": {
-    "available": 2341355,
-    "cheats": 2341355,
-    "download_bytes": 274318367,
-    "games": 44955,
-    "identity_groups": 43813,
-    "programs": 2341355,
-    "sources": 34
+    "available": 2353283,
+    "cheats": 2353283,
+    "download_bytes": 276552040,
+    "games": 44789,
+    "identity_groups": 43647,
+    "programs": 2353283,
+    "sources": 37
   },
   "maximum_program_sizes": {
     "code_characters": {
-      "cheat_id": "d8217a9b4514f9967dc2819025ff1945",
+      "cheat_id": "bdcff76f0b6f1c4990daff79a91604b6",
       "dialect": "pnach",
-      "game_id": "3b7195427ac2ec4ac212c5d3c485f952",
-      "name": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
+      "game_id": "56e710098e1cccbfe788669b5ff3a0dd",
+      "name": "07652DD9.mental_gymnastics.pnach",
       "system": "ps2",
-      "title": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
-      "value": 127508
+      "title": "07652DD9.beta_pickpocket.pnach",
+      "value": 93463
     },
     "code_utf8_bytes": {
-      "cheat_id": "d8217a9b4514f9967dc2819025ff1945",
+      "cheat_id": "bdcff76f0b6f1c4990daff79a91604b6",
       "dialect": "pnach",
-      "game_id": "3b7195427ac2ec4ac212c5d3c485f952",
-      "name": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
+      "game_id": "56e710098e1cccbfe788669b5ff3a0dd",
+      "name": "07652DD9.mental_gymnastics.pnach",
       "system": "ps2",
-      "title": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
-      "value": 127508
+      "title": "07652DD9.beta_pickpocket.pnach",
+      "value": 93463
     },
     "physical_code_lines": {
-      "cheat_id": "2f881c76e585d87968c7cdaccf9a0d8d",
+      "cheat_id": "bdcff76f0b6f1c4990daff79a91604b6",
       "dialect": "pnach",
-      "game_id": "adda1f496d0559f85e70bf95045233d1",
-      "name": "Suikoden III [SLUS-20387] [5F3DD929]",
+      "game_id": "56e710098e1cccbfe788669b5ff3a0dd",
+      "name": "07652DD9.mental_gymnastics.pnach",
       "system": "ps2",
-      "title": "Suikoden III [SLUS-20387] [5F3DD929]",
-      "value": 4015
+      "title": "07652DD9.beta_pickpocket.pnach",
+      "value": 2397
     },
     "stored_lines": {
-      "cheat_id": "2f881c76e585d87968c7cdaccf9a0d8d",
+      "cheat_id": "bdcff76f0b6f1c4990daff79a91604b6",
       "dialect": "pnach",
-      "game_id": "adda1f496d0559f85e70bf95045233d1",
-      "name": "Suikoden III [SLUS-20387] [5F3DD929]",
+      "game_id": "56e710098e1cccbfe788669b5ff3a0dd",
+      "name": "07652DD9.mental_gymnastics.pnach",
       "system": "ps2",
-      "title": "Suikoden III [SLUS-20387] [5F3DD929]",
-      "value": 4015
+      "title": "07652DD9.beta_pickpocket.pnach",
+      "value": 2397
     }
   },
   "observed": {
-    "disabled_programs": 2341355,
-    "download_bytes": 274318367,
+    "disabled_programs": 2353283,
+    "download_bytes": 276552040,
     "enabled_programs": 0,
-    "game_records": 44955,
+    "game_records": 44789,
     "max_uncompressed_game_bytes": 1436045,
     "max_uncompressed_pack_bytes": 4194194,
-    "packs": 851,
+    "packs": 858,
     "parameter_entries": 0,
     "parameter_programs": 0,
-    "programs": 2341355,
+    "programs": 2353283,
     "statuses": {
-      "available": 2341355
+      "available": 2353283
     }
   },
   "schema_version": 1,

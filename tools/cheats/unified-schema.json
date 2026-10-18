@@ -204,6 +204,33 @@
           "items": {
             "type": "string"
           }
+        },
+        "retired": {
+          "description": "Immutable old pack members excluded from the current game index and never offered or installed. Every byte remains size/SHA-256 checked.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "game_id",
+              "size",
+              "sha256"
+            ],
+            "properties": {
+              "game_id": {
+                "type": "string"
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2097152
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "additionalProperties": false
+          }
         }
       }
     },

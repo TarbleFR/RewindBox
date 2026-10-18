@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import io
+import json
 from pathlib import PurePosixPath
 import re
 import struct
@@ -272,5 +273,21 @@ def parse_cheatdevice_pnach(data: bytes, options: dict) -> list[dict]:
     return result
 
 
-PARSERS = {"mister-adapted-zip": parse_mister_adapted_zip,
+def parse_reviewed_ps3_json(data, options):
+    if len(data)>4*1024*1024:
+        raise FormatError("reviewed-ps3-input-too-large")
+    rows=json.loads(data)
+    if not isinstance(rows,list) or len(rows)>4096:
+        raise FormatError("reviewed-ps3-games-list-required")
+    for row in rows:
+        if not isinstance(row,dict) or row.get("system")!="ps3" or not isinstance(row.get("cheats"),list):
+            raise FormatError("reviewed-ps3-game-required")
+        for program in row["cheats"]:
+            if program.get("dialect") not in {"ps3-static-be32","rpcs3-yaml"}:
+                raise FormatError("reviewed-ps3-dialect-required")
+            program["enabled"]=False
+    return rows
+
+
+PARSERS = {"ps3-static-json":parse_reviewed_ps3_json,"reviewed-native-json":parse_reviewed_ps3_json,"mister-adapted-zip": parse_mister_adapted_zip,
            "cheatdevice-pnach": parse_cheatdevice_pnach}

@@ -152,7 +152,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
       [NeoUnifiedCheatCatalog.sharedCatalog gamesForIdentity:state[@"identity"] ?: @{} completion:^(NSArray *games,NSError *error) {
         NeoUnifiedCheatList *owner=weakSelf; if (!owner || owner.closed || owner.generation!=generation) return;
         NSMutableArray *pending=[NSMutableArray array];
-        for (NSDictionary *game in games) if ([game[@"installed"] boolValue] && pending.count<64) [pending addObject:game];
+        for (NSDictionary *game in games) if ([game[@"installed"] boolValue] && ![game[@"archived"] boolValue] && ![game[@"update_available"] boolValue] && pending.count<64) [pending addObject:game];
         if (!pending.count) { owner.discovering=NO; [owner rebuild]; return; }
         __block NSUInteger remaining=pending.count; NSMutableArray *choices=[NSMutableArray array];
         // Serial catalogue queue/worker bounds remain owned by the service.
@@ -217,13 +217,14 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
 - (void)toggle:(UISwitch *)sender {
   if (sender.tag<0 || sender.tag>=(NSInteger)self.rows.count || self.busy) return;
   NSDictionary *row=self.rows[sender.tag]; BOOL enabled=sender.on;
-  if (!row[@"native"] && ![row[@"game"][@"match"] isEqual:@"exact"]) {
+  NSString *editionKey=[@"edition|" stringByAppendingString:NCLString(row[@"game"][@"identity_group"] ?: row[@"game"][@"id"])];
+  if (!row[@"native"] && ![row[@"game"][@"match"] isEqual:@"exact"] && ![self.links[editionKey] isEqual:@"confirmed"]) {
     sender.on=NO;
     UIAlertController *alert=[UIAlertController alertControllerWithTitle:[self text:@"editionConfirmTitle"]
         message:[NSString stringWithFormat:@"%@\n%@",NCLString(row[@"game"][@"title"]),NCLString(row[@"game"][@"revision"])] preferredStyle:UIAlertControllerStyleAlert];
     __weak typeof(self) weakSelf=self;
     [alert addAction:[UIAlertAction actionWithTitle:[self text:@"cancel"] style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:[self text:@"chooseEdition"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf applyRow:row enabled:enabled]; }]];
+    [alert addAction:[UIAlertAction actionWithTitle:[self text:@"chooseEdition"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { weakSelf.links[editionKey]=@"confirmed"; [weakSelf applyRow:row enabled:enabled]; }]];
     [self presentViewController:alert animated:YES completion:nil];
   } else [self applyRow:row enabled:enabled];
 }

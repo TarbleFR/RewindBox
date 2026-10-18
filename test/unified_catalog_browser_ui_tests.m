@@ -889,4 +889,30 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertEqual(self.catalog.installs,1U);XCTAssertEqual(mutations,0U);
     self.catalog.installCompletion(@{},nil);[self waitFor:^BOOL{return ![[list valueForKey:@"busy"] boolValue];}];XCTAssertEqual(mutations,0U);
 }
+
+- (void)testDirectListConfirmsAnUnknownEditionOncePerDetectedGame {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];
+    NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@YES;game[@"match"]=@"candidate";
+    self.catalog.rows=@[game];self.catalog.codes=@[[self program:@"a" dependencies:@[]],[self program:@"b" dependencies:@[]]];
+    __block NSUInteger sets=0;
+    list.install=^(NSDictionary* g,NSArray* p,void (^done)(NSDictionary*,NSError*)){XCTAssertEqualObjects(g[@"edition_confirmed"],@YES);done(@{@"key":p.lastObject[@"id"]},nil);};
+    list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){sets++;done(YES);};
+    [list reloadCheats];[self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==2;}];
+    UITableViewCell* cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    UISwitch* first=(id)cell.accessoryView;first.on=YES;[first sendActionsForControlEvents:UIControlEventValueChanged];
+    UIAlertController* alert=(id)list.presentedViewController;XCTAssertTrue([alert isKindOfClass:UIAlertController.class]);XCTAssertEqual(sets,0U);
+    [self dismissAlert:alert action:alert.actions.lastObject];[self waitFor:^BOOL{return sets==1 && ![[list valueForKey:@"busy"] boolValue];}];
+    [self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==2;}];
+    cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:1]];
+    UISwitch* second=(id)cell.accessoryView;second.on=YES;[second sendActionsForControlEvents:UIControlEventValueChanged];
+    [self waitFor:^BOOL{return sets==2;}];XCTAssertNil(list.presentedViewController);
+}
+
+- (void)testDirectListNeverOffersRetiredCataloguesAfterUpdate {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];NSUInteger reads=self.catalog.lookups;
+    NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@YES;game[@"archived"]=@YES;
+    self.catalog.rows=@[game];[list reloadCheats];
+    [self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==0;}];
+    XCTAssertEqual(self.catalog.lookups,reads);
+}
 @end

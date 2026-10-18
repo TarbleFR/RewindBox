@@ -239,7 +239,7 @@ def struct_error():
 
 
 def program_lines(code, dialect):
-    if dialect in {"pnach", "rpcs3-yaml"}:
+    if dialect in {"pnach", "rpcs3-yaml", "ps3-static-be32"}:
         return code.splitlines()
     if dialect in SIMPLE_PATTERNS:
         return [p.upper() for p in re.split(r"[+;,\s]+", code) if p]
@@ -428,6 +428,11 @@ def review_program(item, system, engines):
         if dialect == "cwcheat" and item["code"] != "\n".join(lines):
             item["source_code"] = item["code"]
             item["code"] = "\n".join(lines)
+    elif dialect == "ps3-static-be32":
+        if system!="ps3" or not lines or len(lines)>64 or any(not re.fullmatch(r"[0-9A-Fa-f]{8} [0-9A-Fa-f]{8}",line) or not 0x10000<=int(line[:8],16)<0x02000000 or int(line[:8],16)%4 for line in lines):
+            status, reason = "invalid", "unsupported-static-ppu-instruction-write"
+        if item.get("dependencies") or item.get("parameters"):
+            status, reason = "requires_engine", "static-ppu-adapter-is-standalone-only"
     elif dialect == "pnach":
         patches = [p.split("//", 1)[0].strip() for p in lines if re.match(r"\s*patch\s*=", p)]
         pattern = r"patch\s*=\s*[01]\s*,\s*(?:EE|IOP)\s*,\s*[0-9a-fA-F]{8}\s*,\s*(?:byte|short|word|double|extended)\s*,\s*[0-9a-fA-F]{1,16}"
@@ -895,8 +900,19 @@ def validate(directory):
         if payload.get("schema_version") != SCHEMA:
             raise FormatError("pack schema mismatch")
         actual = []
+        retired = {row["game_id"]: row for row in pack.get("retired", [])}
+        if len(retired) != len(pack.get("retired", [])) or set(retired).intersection(pack["game_ids"]):
+            raise FormatError("invalid retired pack members")
+        retired_seen = set()
         for f in payload["files"]:
             gid = f["game_id"]
+            if gid in retired:
+                encoded = base64.b64decode(f["data"], validate=True)
+                record = retired[gid]
+                if gid in retired_seen or len(encoded) != record["size"] or len(encoded) > MAX_CHUNK or sha(encoded) != record["sha256"]:
+                    raise FormatError("retired member size/hash/duplicate mismatch")
+                retired_seen.add(gid)
+                continue
             if gid in seen or gid not in games:
                 raise FormatError("duplicate/unknown game in pack")
             encoded = base64.b64decode(f["data"], validate=True)
@@ -914,7 +930,7 @@ def validate(directory):
             if len(by_id) != len(chunk["cheats"]) or any(c.get("status") != "available" or c.get("parameters") or any(d not in by_id for d in c.get("dependencies", [])) for c in chunk["cheats"]):
                 raise FormatError("active chunk includes an unavailable or incomplete program")
             seen.add(gid); actual.append(gid)
-        if actual != pack["game_ids"]:
+        if actual != pack["game_ids"] or retired_seen != set(retired):
             raise FormatError("pack game list mismatch")
     if seen != set(games):
         raise FormatError("missing game packs")

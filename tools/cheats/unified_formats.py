@@ -423,15 +423,66 @@ def parse_duckstation(data, options):
 def parse_pnach(data, options):
     raw = text(data)
     stem = PurePosixPath(options.get("path", "")).name
-    match = re.match(r"([A-Fa-f0-9]{8})(?:[._-]|$)", stem)
-    ids = [{"type": "ps2_crc", "value": match[1].upper(), "scheme": "pcsx2-executable-crc"}] if match else []
     gm = re.search(r"(?im)^\s*gametitle\s*=\s*(.+)$", raw)
-    g = game(options.get("title", gm[1].strip() if gm else stem), "ps2", options, ids)
-    # PNACH files can use conditions spanning several patch lines. Preserve the
-    # complete file as one toggle; splitting on comments/sections is unsound.
-    if re.search(r"(?im)^\s*patch\s*=", raw):
-        g["cheats"].append(cheat(options.get("cheat_name", g["title"]), raw, "pnach",
-                                 kind=options.get("kind", "gameplay")))
+    title = gm[1].strip() if gm else options.get("title", stem)
+    # PNACH publications explicitly print executable CRCs in a leading filename
+    # token or final [CRC] gametitle token. These are typed source identifiers,
+    # not hashes derived from the displayed title or a different region.
+    prefix = re.match(r"([A-Fa-f0-9]{8})(?:[._-]|$)", stem)
+    suffix = re.search(r"\[([A-Fa-f0-9]{8})\]\s*$", title)
+    crcs = {m[1].upper() for m in (prefix, suffix) if m}
+    if len(crcs) > 1:
+        raise FormatError("pnach-conflicting-executable-crc")
+    ids = [{"type": "ps2_crc", "value": crc, "scheme": "pcsx2-executable-crc"} for crc in sorted(crcs) if crc != "00000000"]
+    serials = set(re.findall(r"\[([A-Z]{4}-[0-9]{5})\]", title))
+    if len(serials) > 1:
+        raise FormatError("pnach-conflicting-disc-serial")
+    ids += [{"type": "serial", "value": serial.replace("-", ""), "scheme": "ps2-disc-serial"} for serial in sorted(serials)]
+    g = game(title, "ps2", options, ids)
+    # Native PCSX2 [group] names delimit independent selections. The source
+    # often repeats the same header before EVERY line: merge all occurrences
+    # with the same name, keeping order and complete conditional sequences.
+    groups, current, prefix_lines = {}, None, []
+    for line in raw.splitlines():
+        match = re.fullmatch(r"\s*\[([^\]\r\n]+)\]\s*", line)
+        if match:
+            current = match[1].strip()
+            groups.setdefault(current, []).append(line)
+        elif current is None:
+            prefix_lines.append(line)
+        else:
+            groups[current].append(line)
+    safe_groups = bool(groups) and not any(re.match(r"\s*patch\s*=", line, re.I) for line in prefix_lines)
+    # A condition cannot end in the next independently selectable group. Some
+    # old files use headings merely to annotate a single compound program.
+    commands, current_name = [], None
+    for line in raw.splitlines():
+        header = re.fullmatch(r"\s*\[([^\]\r\n]+)\]\s*", line)
+        if header:
+            current_name = header[1].strip()
+        command = re.match(r"\s*patch\s*=\s*[01]\s*,\s*(?:EE|IOP)\s*,\s*([0-9A-F]{8})\s*,\s*extended\s*,", line, re.I)
+        if command:
+            commands.append((int(command[1], 16), current_name))
+    for i, (word, group_name) in enumerate(commands):
+        op = word >> 28
+        # Pointer/copy/slide payload counts need a separate interpreter proof.
+        if op in {4, 5, 6}:
+            safe_groups = False
+        skip = ((word >> 16) & 255) if op == 14 else 1 if op == 13 else 0
+        if skip and (i + skip >= len(commands) or any(name != group_name for _, name in commands[i+1:i+skip+1])):
+            safe_groups = False
+    if safe_groups:
+        for name, lines in groups.items():
+            body = "\n".join(prefix_lines + lines) + "\n"
+            if not re.search(r"(?im)^\s*patch\s*=", body):
+                continue
+            kind = "graphics" if re.search(r"(?i)wide.?screen|(?:^|\b)(?:60|120)\s*fps|aspect.?ratio", name) else options.get("kind", "gameplay")
+            g["cheats"].append(cheat(name, body, "pnach", kind=kind))
+    elif re.search(r"(?im)^\s*patch\s*=", raw):
+        entry = cheat(options.get("cheat_name", g["title"]), raw, "pnach", kind=options.get("kind", "gameplay"))
+        if len(groups) > 1:
+            entry.update(status="requires_engine", reason="pnach-group-control-flow-not-proven")
+        g["cheats"].append(entry)
     return [g]
 
 

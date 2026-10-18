@@ -117,6 +117,59 @@ class Importers(unittest.TestCase):
         self.assertEqual(len(g["cheats"]), 1)
         self.assertEqual(g["identities"][0]["scheme"], "pcsx2-executable-crc")
         self.assertIn('[Part Two]', g["cheats"][0]["code"])
+        self.assertEqual(g['cheats'][0]['status'], 'requires_engine')
+
+    def test_pnach_explicit_crc_serial_and_repeated_native_groups(self):
+        data = b'gametitle=Probe [SLES-12345] [F14DFE0A]\n[Infinite Health]\npatch=1,EE,20100000,extended,00000001\n[Infinite Health]\npatch=1,EE,20100004,extended,00000002\n[Infinite Money]\npatch=1,EE,20100008,extended,00000063\n'
+        g = parse_pnach(data, {"path": "Probe [SLES-12345] [F14DFE0A].pnach"})[0]
+        self.assertEqual(g['identities'], [{'type':'ps2_crc','value':'F14DFE0A','scheme':'pcsx2-executable-crc'}, {'type':'serial','value':'SLES12345','scheme':'ps2-disc-serial'}])
+        self.assertEqual([c['name'] for c in g['cheats']], ['Infinite Health','Infinite Money'])
+        self.assertEqual(g['cheats'][0]['code'].count('patch='), 2)
+        self.assertNotIn('20100008', g['cheats'][0]['code'])
+        self.assertTrue(all(review_program(c, 'ps2', {'ps2'})['enabled'] is False for c in g['cheats']))
+        with self.assertRaises(ValueError):
+            parse_pnach(data, {"path":"12345678.pnach"})
+
+    def test_gow3_0100_authored_serials_hash_and_mutually_exclusive_damage(self):
+        data = (Path(__file__).resolve().parents[1]/'tools/cheats/snapshots/gow3-0100.yml').read_bytes()
+        records = parse_rpcs3_yaml(data, {})
+        self.assertEqual(len(records), 32)
+        self.assertEqual({g['revision'] for g in records}, {'01.00'})
+        self.assertEqual({i['value'] for g in records for i in g['identities'] if i['type']=='serial'}, {'BCES00510','BCES00799','BCUS98111','BCJS37001'})
+        self.assertEqual({i['value'] for g in records for i in g['identities'] if i['type']=='ppu_hash'}, {'4d5c51503a81a327c2a99427390a395b8dcb3767'})
+        self.assertEqual({c['exclusive_group'] for g in records for c in g['cheats'] if c['name'] in {'2x Damage','5x Damage'}}, {'Damage multiplier'})
+
+    def test_bladestorm_static_profile_preserves_authored_words_and_rejects_other_opcodes(self):
+        root=Path(__file__).resolve().parents[1]
+        original=(root/'tools/cheats/snapshots/bladestorm-0100.ncl').read_bytes()
+        rows=json.loads((root/'tools/cheats/snapshots/bladestorm-static.json').read_bytes())
+        self.assertEqual({g['identities'][0]['value'] for g in rows},{'BLES00113','BLUS30070'})
+        for g in rows:
+            self.assertEqual(g['revision'],'01.00')
+            self.assertEqual(len(g['cheats']),4)
+            for program in g['cheats']:
+                self.assertIn(('0 '+program['code']).encode(),original)
+                self.assertEqual(program['conversion']['source_file_sha256'],hashlib.sha256(original).hexdigest())
+                self.assertTrue(program['conversion']['runtime_ppu_binding_required'])
+                self.assertEqual(review_program(program,'ps3',{'ps3'})['status'],'available')
+        for code in ['00072A19 409D0008','39694C88 497423F0','6 00072A18 409D0008','00000000 00000000']:
+            self.assertNotEqual(review_program({'name':'Invalid','dialect':'ps3-static-be32','code':code},'ps3',{'ps3'})['status'],'available')
+
+    def test_gow3_ports_keep_the_same_complete_native_instruction_sequence(self):
+        root=Path(__file__).resolve().parents[1]
+        rows=json.loads((root/'tools/cheats/snapshots/gow3-0103-identical-ppu.json').read_bytes())
+        self.assertEqual(len(rows),95)
+        self.assertEqual({g['revision'] for g in rows},{'01.03'})
+        for g in rows:
+            for c in g['cheats']:
+                original=parse_rpcs3_yaml(c['source_code'].encode(),{})[0]['cheats'][0]['native_document']
+                ppu='PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962'
+                before=next(iter(original[ppu].values()))
+                after=next(iter(c['native_document'][ppu].values()))
+                self.assertEqual({k:v for k,v in before.items() if k!='Games'},{k:v for k,v in after.items() if k!='Games'})
+                self.assertTrue(all(row[0]=='be32' and int(row[1],16)<0x02000000 for row in after['Patch']))
+                self.assertEqual(c['conversion']['original_serial'],'BCUS98111')
+                self.assertEqual(c['conversion']['required_ppu_hash'],ppu)
 
     def test_dolphin_never_imports_enabled_sections_or_settings(self):
         data = b'[Core]\nCPUThread=True\n[Gecko]\n$Money [Author]\n04000000 00000063\n[Gecko_Enabled]\n$Money\n'
@@ -272,6 +325,23 @@ class Publication(unittest.TestCase):
             audit=json.loads(gzip.decompress((root/'out'/'audit.json.gz').read_bytes()))
             self.assertEqual(audit['sources'][0]['rejected_programs']['malformed-instruction'],1)
             self.assertEqual(audit['rejected_games'][0]['rejected_programs']['missing-or-ambiguous-program-dependency'],1)
+
+    def test_retired_pack_member_is_inert_and_requires_exact_hash(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);(root/'source').write_bytes(b'fixture');lock=root/'lock.json'
+            lock.write_text(json.dumps({'available_systems':['nes'],'sources':[{'id':'one','name':'One','local_path':'source','format':'fixture'}]}))
+            rows=[{'system':'nes','title':'Active','identities':[],'cheats':[{'name':'Lives','dialect':'nes-gamegenie','code':'AAAAAA'}]}]
+            with patch('unified_catalogue.parse_source',return_value=(rows,[])):
+                manifest=build(lock,root/'out',root/'cache',True)
+            pack=manifest['packs'][0];path=root/'out'/pack['path'];payload=json.loads(gzip.decompress(path.read_bytes()))
+            old=b'{"not-a-current-game":true}';payload['files'].append({'game_id':'retired-id','data':base64.b64encode(old).decode()})
+            pack['retired']=[{'game_id':'retired-id','size':len(old),'sha256':hashlib.sha256(old).hexdigest()}]
+            raw=canonical(payload);compressed=gzip.compress(raw,mtime=0);path.write_bytes(compressed)
+            pack.update(size=len(compressed),uncompressed_size=len(raw),sha256=hashlib.sha256(compressed).hexdigest())
+            index=root/'out/manifest.json.gz';index.write_bytes(gzip.compress(canonical(manifest),mtime=0))
+            self.assertEqual(validate(root/'out')['totals']['programs'],1)
+            pack['retired'][0]['sha256']='0'*64;index.write_bytes(gzip.compress(canonical(manifest),mtime=0))
+            with self.assertRaises(FormatError):validate(root/'out')
 
     def test_disabled_source_not_fetched_and_not_in_active_index(self):
         with tempfile.TemporaryDirectory() as temp:

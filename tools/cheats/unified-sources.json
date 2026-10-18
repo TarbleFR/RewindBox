@@ -42435,6 +42435,56 @@
         "reason": "Structured executable export not retrieved for this integration; no program bytes are invented. Certains codes à 12 chiffres sont désignés AR V3/GS SP de manière ambiguë. Ne pas sélectionner le moteur d'après cette seule étiquette. La version française du site ne prouve pas la région FR du jeu.",
         "adaptation_status": "unavailable-input"
       }
+    },
+    {
+      "id": "gow3_0100",
+      "name": "Luckysugar God of War III 01.00",
+      "url": "https://github.com/Luckisugar/rpcs3-gow3-patches",
+      "research_id": 71,
+      "license": "MIT; Copyright (c) 2026 Luckysugar",
+      "status": "available",
+      "reason": "",
+      "revision": "d8437d9d4a1fd10ab2b820e6acc6aaf94c7dc665",
+      "sha256": "58e29df4456759739910de344ffbbcef99335cd5277745b28bef6649867326b3",
+      "local_path": "snapshots/gow3-0100.yml",
+      "format": "rpcs3-yaml",
+      "import_scope": "Complete pinned imported_patch.yml: eight programs for four explicitly authored serials. No 01.03 or other hash projection.",
+      "publication": {
+        "enabled": true,
+        "reason": "Native RPCS3 YAML with explicit serial, APP_VER and PPU hash; disabled by default"
+      }
+    },
+    {
+      "id": "bladestorm_static",
+      "name": "Artemis Bladestorm static instruction adapter",
+      "research_id": 20,
+      "url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20The%20Hundred%20Years%27%20War%20BLES00113%20BLUS30070%2001.00.ncl",
+      "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+      "license": "Unspecified; CodeFreak/PS3UserCheat author rights retained",
+      "status": "available",
+      "sha256": "207072c0f42fe99e0d9949d703d611918142d52cc5ad6c3a13c3b511133995d8",
+      "local_path": "snapshots/bladestorm-static.json",
+      "format": "ps3-static-json",
+      "publication": {
+        "enabled": true,
+        "reason": "Four source type-0 instruction writes for explicit serial/01.00; bind only to observed current PPU and confirm candidate; no NCL pointer/freeze interpreter"
+      }
+    },
+    {
+      "id": "gow3_0103_ppu",
+      "name": "Artemis GoW3 identical-PPU static instruction ports",
+      "research_id": 21,
+      "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
+      "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
+      "license": "Unspecified; original authors preserved in each native patch",
+      "status": "available",
+      "sha256": "1d719e394e29d8f98bd505df4c56ee58cda0aba7cd0fd05a04e292941a2dd6de",
+      "local_path": "snapshots/gow3-0103-identical-ppu.json",
+      "format": "reviewed-native-json",
+      "publication": {
+        "enabled": true,
+        "reason": "Instruction writes only, same explicit PPU hash and APP_VER; require observed current PPU through host identity, no arbitrary title/region projection"
+      }
     }
   ],
   "publication_policy": "Only available programs for reviewed current adapters; incomplete identities are edition candidates requiring confirmation. Historical references and failed/pending adaptations stay in the audit, not the active download."

@@ -1,0 +1,150 @@
+[
+  {
+    "system": "ps3",
+    "title": "Bladestorm: The Hundred Years' War",
+    "revision": "01.00",
+    "identities": [
+      {
+        "type": "serial",
+        "value": "BLES00113",
+        "scheme": "ps3-title-id"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "Money",
+        "code": "00072A18 409D0008",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 00072A18 409D0008",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      },
+      {
+        "name": "AP",
+        "code": "000F05F8 409D0134",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 000F05F8 409D0134",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      },
+      {
+        "name": "Exp",
+        "code": "001D8348 409D007C",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 001D8348 409D007C",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      },
+      {
+        "name": "Combo",
+        "code": "000FC334 3940270F",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 000FC334 3940270F",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      }
+    ]
+  },
+  {
+    "system": "ps3",
+    "title": "Bladestorm: The Hundred Years' War",
+    "revision": "01.00",
+    "identities": [
+      {
+        "type": "serial",
+        "value": "BLUS30070",
+        "scheme": "ps3-title-id"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "Money",
+        "code": "00072A18 409D0008",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 00072A18 409D0008",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      },
+      {
+        "name": "AP",
+        "code": "000F05F8 409D0134",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 000F05F8 409D0134",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      },
+      {
+        "name": "Exp",
+        "code": "001D8348 409D007C",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 001D8348 409D007C",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      },
+      {
+        "name": "Combo",
+        "code": "000FC334 3940270F",
+        "dialect": "ps3-static-be32",
+        "source_code": "0 000FC334 3940270F",
+        "source_dialect": "artemis-ncl",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_sha256": "2c4611315c020596fbde86406b77312fc2074f7148692842230f65ed60ee816c",
+          "runtime_ppu_binding_required": true,
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956"
+        },
+        "enabled": false
+      }
+    ]
+  }
+]
