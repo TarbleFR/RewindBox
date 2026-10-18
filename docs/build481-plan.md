@@ -247,7 +247,39 @@ construction du Core, validation des exports. Résultats en § 7.
     (PPU `a58328ba0a0e9be6`), artefact `RPCS3Core-5919be61…` (28 324 684 octets,
     conservé jusqu'au 17 novembre 2026), diagnostics conservés jusqu'au
     1er novembre 2026. Épinglé dans `retroarch-delivery.yml` et `neoswap-ipa.yml`.
-- Livraison : *à compléter* (source, run, artefact, IPA, SHA-256, taille).
+- Livraison `retroarch-delivery.yml` run `39148545918` sur
+  `839d114763e80a9945d162369e8d8f258bb82485` (périmètre `full`, recette
+  `build-utils/delivery-424-recipient.pem`) : `checks` et `native` réutilisent
+  l'évidence 0.0.8 inchangée par `.github/diagnostics/spucache481_delivery.py`
+  (fermeture : produit = 0.0.8, entrées changées = entrées du Core identiques à
+  `5919be61`, preuve du préflight Core exigée), `cold` Release iPhone réussi en
+  13 min (17:14–17:27 UTC) ; `warm` ignoré. Garde des entrées du Core :
+  « PASS all authentic RPCS3 Core inputs of the Build 481 pin ».
+- Artefact chiffré `12144109952` (226 790 301 octets, conservé jusqu'au
+  1er novembre 2026), déchiffré sur ce poste avec la clé privée 424.
+- **IPA `NeoStation-Build481-839d1147.ipa` : 226 578 252 octets, SHA-256
+  `342f3c02d8bb0902008c6b4cd23d8312706b08860f976c17cd489f97ceac489f`**
+  (identique dans `SHA256SUMS`, `signed-payload-identity.json` et la copie du
+  dossier Téléchargements de ce poste). Version **0.0.8 (481)** pour l'hôte et
+  les cinq extensions. 80 signatures ad hoc vérifiées par la CI ; re-signature
+  Apple par SideStore requise (`directAppleInstallationReady: false`). Ne pas
+  réutiliser le numéro 481.
+- Inspection indépendante de l'IPA sur ce poste (Python, sans Xcode) : ZIP
+  intègre ; 80 images Mach-O ; le Core `libRPCS3Core.dylib` de l'IPA
+  (76 051 456 octets, SHA-256 `2269686b86ac1a52b8993642091fdfd8a72d31c8fbe61668446e13638344cc93`)
+  a ses **31 sections de code et de données identiques** à celles du Core de
+  l'artefact `RPCS3Core-5919be61…` (`b2495234…ef01d`), les seules différences
+  étant la signature ad hoc (`LC_CODE_SIGNATURE` ajouté, `__LINKEDIT` agrandi)
+  et une commande de chargement ajustée par l'empaquetage ; il contient les
+  chaînes du cache (`spuobj-v%u-%s/`, éviction, `obj_hits=`, `spu_object_load`,
+  `spu_timebase_offs`, garde, validation, texte du réglage) et aucune chaîne de
+  l'ancien comportement ; il diffère du Core 0.0.8 (7 sections communes sur 32).
+  Par rapport à l'IPA publique 0.0.8 : 72 images identiques octet pour octet
+  (dont les 34 cœurs libretro, `App.framework` — code Dart AOT — et Flutter) ;
+  `DolphinCore` et les cinq extensions ont leurs sections compilées identiques
+  (seule la signature change avec le numéro de build) ; `Runner` est recompilé
+  (3 sections sur 49 diffèrent : `__const`, `__stubs`, `__objc_stubs`, tailles
+  égales). Aucune validation iPhone.
 
 ## 8. Protocole d'essai sur l'iPhone 16 Pro Max
 
