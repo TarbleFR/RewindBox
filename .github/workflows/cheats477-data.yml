@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[editions477]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[editions477]') || contains(github.event.head_commit.message, '[editions477-native]') }}
     permissions: {contents: write}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -20,6 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
       - name: Generate only reviewed immutable additions and preserve delivered packs
+        if: ${{ !contains(github.event.head_commit.message, '[editions477-native]') }}
         run: |
           python3 tools/cheats/unified477.py
           python3 test/cheats477_editions.py
@@ -35,8 +36,10 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tools/cheats/unified-sources.json packages/neo_cheat_catalog/ios/Resources/labels.json native/cheats/catalogue/manifest.json.gz native/cheats/catalogue/audit.json.gz native/cheats/catalogue/packs/pack-2e1b142f0a03297148b4160e.json.gz packages/neo_cheat_catalog/ios/Resources/manifest.json.gz docs/evidence/cheats477-editions.json
           git diff --exit-code -- packages/neo_cheat_catalog/ios/Resources/labels.json
-          git commit -m '[direct-followup] Publish pinned edition supplement for Build 477 [skip ci]'
-          git push origin HEAD:refs/heads/Claude
+          if ! git diff --cached --quiet; then
+            git commit -m '[direct-followup] Publish pinned edition supplement for Build 477 [skip ci]'
+            git push origin HEAD:refs/heads/Claude
+          fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   apple:
     needs: publish
@@ -53,7 +56,7 @@ jobs:
       - name: Actual appended programs, discovery, staging and full index memory
         run: |
           git rev-parse HEAD
-          python3 test/cheats477_editions.py --native
+          python3 test/cheats477_editions.py --native --reuse-manifest-proof
       - name: Compile and link the changed shared list with the iPhone SDK
         run: python3 test/unified_catalog_ios_test.py IPhoneCatalogTests
       - run: command -v xcodegen >/dev/null || brew install xcodegen

@@ -44,10 +44,15 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
     if([game[@"system"] isEqual:@"ps2"]){
       NSDictionary *snapshot=@{@"available":@YES,@"serial":serial,@"crc":@"1234ABCD",@"hardcore":@NO,@"items":@[]};
       assert(![NeoUnifiedNativeRequest(found,codes,snapshot,YES)[@"success"] boolValue]);
-      NSDictionary *request=NeoUnifiedNativeRequest(confirmed,codes,snapshot,YES);
-      assert([request[@"success"] boolValue]);
-      auto parsed=NeoCheat::parse(NeoUTF8(request[@"content"]),"pnach","Fallback");
-      assert(parsed && parsed.entries.size()==codes.count);
+      // Direct switches import one whole selected program at a time. The
+      // multi-program helper intentionally combines a dependency closure.
+      for(NSDictionary *program in codes){
+        NSDictionary *request=NeoUnifiedNativeRequest(confirmed,@[program],snapshot,YES);
+        assert([request[@"success"] boolValue]);
+        auto parsed=NeoCheat::parse(NeoUTF8(request[@"content"]),"pnach","Fallback");
+        assert(parsed && parsed.entries.size()==1 && parsed.entries[0].lines.size()==1);
+        assert(parsed.entries[0].lines[0]==NeoUTF8(program[@"code"]));
+      }
       NSDictionary *wrong=@{@"available":@YES,@"serial":@"SLES00000",@"crc":@"1234ABCD",@"hardcore":@NO,@"items":@[]};
       assert(![NeoUnifiedNativeRequest(confirmed,codes,wrong,YES)[@"success"] boolValue]);
     }else{

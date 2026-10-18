@@ -22,6 +22,7 @@ def digest(data):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--native',action='store_true')
+    parser.add_argument('--reuse-manifest-proof',action='store_true')
     args=parser.parse_args()
     receipt=json.loads((ROOT/'docs/evidence/cheats477-editions.json').read_bytes())
     index=(ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()
@@ -76,9 +77,10 @@ def main():
         work=Path(folder);fixture=work/'chunks.json';fixture.write_bytes(canonical(chunks))
         obj=work/'catalog.o'
         run(['xcrun','clang','-fobjc-arc','-fblocks','-I',classes/'Public','-c',classes/'NeoUnifiedCheatCatalog.m','-o',obj])
-        memory=work/'memory'
-        run(['xcrun','clang','-fobjc-arc','-fblocks','-I',classes/'Public',ROOT/'test/unified_catalog_runtime_native.m',obj,'-framework','Foundation','-lz','-o',memory])
-        run([memory,'--manifest',ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz','--games','44794','--packs','859'])
+        if not args.reuse_manifest_proof:
+            memory=work/'memory'
+            run(['xcrun','clang','-fobjc-arc','-fblocks','-I',classes/'Public',ROOT/'test/unified_catalog_runtime_native.m',obj,'-framework','Foundation','-lz','-o',memory])
+            run([memory,'--manifest',ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz','--games','44794','--packs','859'])
         native=work/'native'
         run(['xcrun','clang++','-std=c++20','-fobjc-arc','-fblocks','-I',arms,'-I',rpc,'-I',classes/'Public',ROOT/'test/cheats477_editions.mm',rpc/'RPCS3UnifiedCheats.mm',obj,'-framework','Foundation','-lz','-o',native])
         run([native,ROOT,fixture])
