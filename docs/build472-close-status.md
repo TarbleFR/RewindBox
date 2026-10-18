@@ -25,7 +25,7 @@ route-removal timing remain governed by the existing lifecycle. There is no
 extra delay and no premature `endGameSession` call. All twelve existing
 translations are reused.
 
-Targeted evidence (pending CI): `test/game_close_status_test.py` compiles the
+Targeted evidence (passed CI): `test/game_close_status_test.py` compiles the
 actual manager and dialog listener/cleanup/route-removal methods with Flutter.
 It removes a covering native-style route before a terminal event, verifies the
 very first revealed label, keeps cleanup blocked until confirmed end, and
@@ -44,3 +44,18 @@ reduced to two minutes. The product file is byte-identical to `9b6d120e`.
 Build 471's corrected Nestopia and all other native inputs must be reused by
 identity. Successful unchanged tests must not be repeated. Delivery commit,
 actual CI results and final IPA verification are recorded after production.
+
+
+The corrected harness source `a5e8fe6ee42c53bd20a2ce6f8b96a763f59a262e`
+passed run `39086239948`, job `117553304499`. All thirteen cases completed in
+one Flutter clock: six exact old-label reproductions, six corrected first-frame
+returns, and one external desktop return. Every case also verified deferred
+single cleanup, no early music, controller/back protection and owned-route
+removal. Twelve locale catalogues contain the three existing session labels.
+Two new delivery-composition guard tests passed locally once; previous tests
+are reused, not rerun.
+
+The next available delivery number is 472 (the latest completed IPA is 471).
+The delivery recipe pins this new UI source and successful run, preserves the
+471 Nestopia proof and all unchanged native inputs, and rejects any other
+product or core edit. No public GitHub release is requested or created.
