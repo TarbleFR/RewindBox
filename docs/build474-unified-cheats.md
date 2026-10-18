@@ -30,3 +30,11 @@ Build 474 is reserved for this delivery. The new public RSA recipient is
 `build-utils/delivery-474-recipient.pem`; its private key stays outside Git.
 No public release or installation on a physical phone is claimed. The final
 IPA and CI identities will be recorded after compilation and verification.
+
+## Preparation failure retained
+
+Run `39096704203`, source `22cfddc6cad9d84e3db0ea47806fd3d8d3248973`,
+stopped in evidence collection before any IPA compilation. The installed
+GitHub CLI rejected historical ANSI-bearing logs without its explicit
+`--allow-escape-sequences` flag. The reader now captures those log bytes
+privately with that flag. No product, core or prior test assertion changed.

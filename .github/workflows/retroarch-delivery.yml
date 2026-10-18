@@ -1,4 +1,5 @@
 name: NeoStation RetroArch • Build 474 • SideStore
+# The closed evidence reader captures historical ANSI-bearing logs privately.
 run-name: NeoStation Build ${{ inputs.build_number || '474' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:

@@ -29,7 +29,12 @@ def command(args):
 
 
 def api(path, raw=False):
-    data = command(['gh', 'api', 'repos/TarbleFR/neostation-ios/' + path])
+    args = ['gh', 'api', 'repos/TarbleFR/neostation-ios/' + path]
+    if raw:
+        # Recent gh versions reject ANSI-bearing job logs by default. The
+        # bytes are captured privately for exact evidence checks, not emitted.
+        args.append('--allow-escape-sequences')
+    data = command(args)
     return data if raw else json.loads(data)
 
 
