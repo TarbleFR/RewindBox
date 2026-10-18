@@ -36,6 +36,7 @@ BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
 DEPENDENCY_PODS = {
     'external_display': ROOT / 'packages/external_display/ios',
     'neo_shader_kit': ROOT / 'packages/neo_shader_kit/ios',
+    'neo_cheat_catalog': ROOT / 'packages/neo_cheat_catalog/ios',
 }
 TARGET = 'arm64-apple-ios17.4'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
@@ -49,7 +50,8 @@ BRIDGE_SYMBOL = 'Libretro'
 
 def object_name(source):
     """One object per source, distinct even for equal file names in different folders."""
-    return '_'.join(source.relative_to(BRIDGE).with_suffix('.o').parts)
+    base = BRIDGE if source.is_relative_to(BRIDGE) else ROOT
+    return '_'.join(source.relative_to(base).with_suffix('.o').parts)
 
 
 def public_headers(pod, folder):
@@ -172,6 +174,8 @@ def main():
     sdk = subprocess.run(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], check=True,
                          capture_output=True, text=True).stdout.strip()
     sources = sorted((BRIDGE / 'Classes').glob('*.m')) + sorted((BRIDGE / 'ThirdParty/rcheevos/src').rglob('*.c'))
+    sources += sorted(path for path in (DEPENDENCY_PODS['neo_cheat_catalog'] / 'Classes').glob('*.m')
+                      if path.name != 'NeoCheatCatalogPlugin.m')
     with tempfile.TemporaryDirectory(prefix='libretro-ios-') as temporary:
         directory = Path(temporary)
         include = stage_dependency_headers(directory)
@@ -182,7 +186,7 @@ def main():
         library = directory / 'liblibretro_internal_bridge.dylib'
         link(sdk, objects, library)
         undefined = undefined_symbols(library)
-    missing = sorted(name for name in undefined if BRIDGE_SYMBOL in name)
+    missing = sorted(name for name in undefined if BRIDGE_SYMBOL in name or 'NeoUnifiedCheat' in name)
     if missing:
         print('Bridge symbols used but defined by no source:', flush=True)
         for name in missing:

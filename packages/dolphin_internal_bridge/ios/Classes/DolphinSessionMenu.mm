@@ -1,6 +1,8 @@
 #import "DolphinSessionMenu.h"
 #import "DolphinRetroAchievementsAccount.h"
 #include "DOLManualCheatEditor.h"
+#include "NeoUnifiedNativeImport.h"
+#import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 #import "DolphinFramePacing.h"
 #include "DolphinPhoneShakeLabels.h"
 #include "TouchController/TCManagerInterface.h"
@@ -54,6 +56,43 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 - (NSString*)text:(NSString*)key {
   if ([key isEqual:@"downloadGecko"]) return NeoCheatText(@"downloadCatalogs",self.labels[@"__locale"]);
   return self.labels[key] ?: key;
+}
+
+- (void)openUnifiedCheatCatalogue {
+  if (self.loading || !self.readCheats || !self.performCheatCommand) return;
+  self.loading = YES;
+  __weak DolphinSessionMenu* weakSelf = self;
+  self.readCheats(^(NSDictionary* state) { DOLMenuOnMain(^{
+    DolphinSessionMenu* menu = weakSelf;
+    if (!menu) return;
+    menu.loading = NO;
+    NSString* locale = menu.labels[@"__locale"] ?: @"en";
+    if (![state[@"available"] boolValue] || [state[@"hardcore"] boolValue]) {
+      menu.navigationItem.prompt = NeoCheatText([state[@"hardcore"] boolValue] ? @"hardcore" : @"sessionChanged",locale);
+      return;
+    }
+    NSMutableDictionary* snapshot = [state mutableCopy]; snapshot[@"wii"] = @(menu.wii);
+    [NeoUnifiedCheatBrowser presentFrom:menu identity:NeoUnifiedEngineIdentity(snapshot,NO)
+        engine:@"dolphin" locale:locale
+        accepts:^BOOL(NSDictionary* program) { return bool(NeoUnifiedNativeProgram(program,NO)); }
+        importHandler:^(NSDictionary* game, NSArray* programs, void (^finished)(NSError*)) {
+      DolphinSessionMenu* owner = weakSelf;
+      if (!owner || !owner.readCheats || !owner.performCheatCommand) {
+        finished(NeoUnifiedNativeError(NeoCheatFailure(@"sessionChanged"),locale)); return;
+      }
+      owner.readCheats(^(NSDictionary* current) {
+        if (!NeoIdentityMatches(state,current,NO)) {
+          finished(NeoUnifiedNativeError(NeoCheatFailure(@"sessionChanged"),locale)); return;
+        }
+        NSDictionary* request = NeoUnifiedNativeRequest(game,programs,current,NO);
+        if (![request[@"success"] boolValue]) { finished(NeoUnifiedNativeError(request,locale)); return; }
+        owner.performCheatCommand(request,^(BOOL success, NSDictionary* result) {
+          finished(NeoUnifiedNativeError(result ?: NeoCheatFailure(@"writeFailed"),locale));
+          DOLMenuOnMain(^{ [weakSelf reloadCheats]; });
+        });
+      });
+    }];
+  }); });
 }
 
 // Controls page of a Wii game: section 1 is the composite Shake row, so the
@@ -524,14 +563,8 @@ static void DOLMenuOnMain(dispatch_block_t block) {
           [self.cheatsSnapshot[@"masterEnabled"] boolValue] ? @"on" : @"off"];
     } else if (row == 1) {
       cell.textLabel.text = [self text:@"downloadGecko"];
-      NSString* gameTdbId = [self.cheatsSnapshot[@"gameTdbId"] isKindOfClass:NSString.class]
-          ? self.cheatsSnapshot[@"gameTdbId"] : @"";
-      cell.detailTextLabel.text = gameTdbId.length ? gameTdbId : [self text:@"noCheats"];
-      cell.accessoryType = UITableViewCellAccessoryNone;
-      if (!gameTdbId.length) {
-        cell.textLabel.textColor = UIColor.secondaryLabelColor;
-        cell.selectionStyle = UITableViewCellSelectionStyleNone;
-      }
+      cell.detailTextLabel.text = @"NeoStation · Gecko · Action Replay";
+      cell.accessibilityIdentifier = @"unifiedCheatCatalogue";
     } else if (row == 2) {
       cell.textLabel.text = NeoCheatText(@"addCheat",self.labels[@"__locale"]);
       cell.detailTextLabel.text = @"Gecko · Action Replay · INI";
@@ -791,6 +824,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
         title:[self text:key]] animated:YES];
   } else if (self.page == DOLMenuCheats) {
     if (!self.performCheatCommand || !self.cheatsSnapshot) return;
+    if (row == 1) {[self openUnifiedCheatCatalogue];return;}
     if (row == 2) {[self openManualCheatEditor:NO];return;}
     if (row == 4) {[self openManualCheatEditor:YES];return;}
     if (row == 3) {

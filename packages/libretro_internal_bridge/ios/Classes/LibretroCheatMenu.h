@@ -9,6 +9,7 @@ NS_ASSUME_NONNULL_BEGIN
                      contentPath:(NSString *)contentPath legacy:(NSArray<NSDictionary *> *)legacy
                             text:(NSString *(^)(NSString *key))text apply:(void (^)(NSArray<NSString *> *codes))apply;
 @property(nonatomic, readonly) NSUInteger enabledCount;
+@property(nonatomic, copy) NSString *uiLocale;
 @property(nonatomic, copy, nullable) void (^diagnostic)(NSString *message);
 - (LibretroMenuPage *)rootPage;
 @end

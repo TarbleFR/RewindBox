@@ -43,7 +43,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   probe:
-    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') }}
+    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -82,7 +82,7 @@ jobs:
   # cores refuse content they cannot run. On a runner of its own, so its
   # verdict does not depend on the main job's scenarios.
   lot1:
-    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') }}
+    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -117,7 +117,7 @@ jobs:
   # Beetle PC-FX, each launched twice, run and closed; O2EM and Beetle PC-FX
   # boot stand-in BIOS images the probe writes (a single jump to itself).
   lot2:
-    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') }}
+    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -153,7 +153,7 @@ jobs:
   # never started). Informational: it records whether closing the game ends
   # the process; it does not fail the run.
   shaders:
-    if: ${{ !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') }}
+    if: ${{ !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -186,7 +186,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   official-shaders:
-    if: ${{ !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') }}
+    if: ${{ !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -219,7 +219,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   before-fix:
-    if: ${{ !inputs.shaders_only }}
+    if: ${{ !inputs.shaders_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -268,7 +268,7 @@ jobs:
   # whether PPSSPP finds no memory base, as on the iPhone; it does not fail
   # the run.
   before-reservation:
-    if: ${{ !inputs.shaders_only }}
+    if: ${{ !inputs.shaders_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:

@@ -11,8 +11,9 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
-  s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/*ManualCheatEditor.h'
+  s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h'
   s.dependency 'Flutter'
+  s.dependency 'neo_cheat_catalog'
   # Build 447: the Core's render view is a NeoExternalRenderHost of the
   # external_display pod (docs/external-display-universal.md § 5, row ARMSX2):
   # NeoExternalDisplayCoordinator shows it on the TV with a transform only and

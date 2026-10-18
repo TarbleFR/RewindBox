@@ -5,6 +5,7 @@
 #import "Armsx2RetroAchievementsMenu.h"
 #import "Armsx2SessionMenu.h"
 #include "NeoCheatStore.h"
+#include "NeoUnifiedNativeImport.h"
 #import "ARMSX2InGameLocalization.h"
 // Build 447: the Core's render view is a NeoExternalRenderHost of the
 // external_display pod (docs/external-display-universal.md § 5, row ARMSX2).
@@ -1104,7 +1105,9 @@ static UIViewController* ARMSX2RootViewController(void) {
                   }
                   dispatch_async(dispatch_get_main_queue(),^{completion(result);});return;
                 }
-                result=NeoPnachImport(bridge.activeDataDirectory,request,state);
+                NSDictionary* prepared=NeoUnifiedResolveNativeName(bridge.activeDataDirectory,request,state,YES);
+                result=NeoIdentityMatches(prepared,state,YES) && NeoUnifiedNativeReceipt(bridge.activeDataDirectory,prepared)
+                    ? NeoPnachImport(bridge.activeDataDirectory,prepared,state) : NeoCheatFailure(@"writeFailed");
                 if([result[@"success"] boolValue] && [result[@"added"] integerValue]>0) {
                   char error[512]={};
                   if(!bridge.api->reload_cheats(error,sizeof(error))) {

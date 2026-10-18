@@ -1,0 +1,123 @@
+name: Unified cheats data, four engines and UIKit
+run-name: Unified cheats • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/unified-cheats.yml
+      - packages/neo_cheat_catalog/**
+      - native/cheats/catalogue/**
+      - tools/cheats/unified*
+      - test/*unified*
+      - test/fixtures/unified_cheats/**
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCheat*
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroSession.m
+      - packages/armsx2_internal_bridge/ios/Classes/*Unified*
+      - packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm
+      - packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm
+      - packages/dolphin_internal_bridge/ios/Classes/*Unified*
+      - packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.mm
+      - packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm
+      - packages/rpcs3_internal_bridge/ios/Classes/*Unified*
+      - packages/rpcs3_internal_bridge/ios/Classes/Rpcs3SessionMenu.*
+      - packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm
+      - packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: unified-cheats-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  data:
+    if: ${{ !contains(github.event.head_commit.message, '[unified-code-only]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Importers, dependency preservation and deterministic data
+        run: |
+          python3 -m unittest discover -s test -p 'test_unified_*.py' -v
+          python3 tools/cheats/unified_catalogue.py validate --input native/cheats/catalogue
+          python3 test/unified_catalog_runtime_test.py
+          python3 test/unified_catalog_browser_ui_test.py
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Resolve the new shared plugin in the locked workspace
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter analyze packages/neo_cheat_catalog --no-fatal-infos
+  native:
+    if: ${{ !contains(github.event.head_commit.message, '[unified-data-only]') }}
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Shared Foundation behavior and actual iPhone SDK
+        run: python3 test/unified_catalog_ios_test.py
+      - name: Regional identities and per-core complete programs
+        run: python3 test/unified_identity_test.py
+      - name: Native imports, disabled state and RPCS3 persistence
+        run: python3 test/unified_native_ios_test.py
+      - name: Compile and link the affected Libretro bridge
+        run: python3 test/libretro_ios_syntax_test.py
+      - name: Install targeted UIKit project generator
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Actual UIKit download, edition confirmation, imports and lifecycle
+        run: python3 test/unified_catalog_browser_ui_test.py --native --result evidence/unified-cheat-browser.xcresult
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unified-cheats-native-${{ github.sha }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
+  core-effects:
+    if: ${{ !contains(github.event.head_commit.message, '[unified-data-only]') }}
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ github.token }}
+          path: dist/libretro
+      - name: Fetch the existing pinned PSP test fixture
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      - name: Real PPSSPP and Mupen RAM enable, repeat and disable
+        run: >-
+          python3 test/unified_identity_core_probe.py
+          --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs"
+          --evidence evidence/unified-core-effects --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unified-cheats-effects-${{ github.sha }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
+  published-index:
+    if: ${{ !contains(github.event.head_commit.message, '[unified-code-only]') }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Load the entire published index in the real Foundation runtime
+        run: python3 test/unified_catalog_published_index_test.py

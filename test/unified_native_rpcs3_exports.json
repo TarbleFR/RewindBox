@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "repository": "TarbleFR/neostation-ios",
+  "host_commit": "dcf0df67b3edf923d5dd54071f5228e6cf6882b6",
+  "source_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "workflow_run": 38178247609,
+  "artifact_id": 11717558908,
+  "archive_sha256": "7e435c21b61d905c5aeabd90dae8449f420fcc2e3f8d915d6303dc604dece48a",
+  "binary_sha256": "19718c30d3055dea049c5807e7ce0d5c7663fab4968362d2426562e9f85ba93d",
+  "binary_bytes": 75407672,
+  "export_verification": "Defined external symbols parsed from LC_SYMTAB in the original arm64 Mach-O; not a strings search.",
+  "required_exports": [
+    "_rpcs3_ios_install_patch_repository",
+    "_rpcs3_ios_enumerate_runtime_patches",
+    "_rpcs3_ios_set_runtime_patch_enabled",
+    "_rpcs3_ios_enumerate_games"
+  ],
+  "implementation_source_sha256": {
+    "Utilities_bin_patch.cpp": "1d010203e4ea3d3e1d53f8a1d568e9befd9a655f209e8100714d3225b32d9b1c",
+    "rpcs3_ios_RPCS3IOS.cpp": "9a9d823e268929339500407a29069d84ae7a6e90c31b8b39423fea18df48e40b",
+    "rpcs3_ios_RPCS3IOSRuntimePatches.cpp": "835f12d15c6cbce26bc9f161af8b536cb9ec4cecfd89945c77b2ba1b9f73b43a"
+  },
+  "limits": [
+    "All four functions are existing exports of ABI 30.",
+    "Patch management requires emulation stopped.",
+    "Hash, serial and application version are rechecked by patch_engine::apply at the next boot.",
+    "Enumeration returns metadata, not code lines; arbitrary personal YAML cannot be merged through these exports.",
+    "SDK checks and mocked transport tests do not prove commercial game RAM effects."
+  ]
+}

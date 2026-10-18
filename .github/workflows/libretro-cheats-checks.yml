@@ -36,6 +36,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   catalogues-and-cores:
+    # The unified-cheats workflow checks the changed cheat inputs; reuse the
+    # recorded successful evidence for the unchanged skins/shaders/gameplay.
+    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:

@@ -48,7 +48,7 @@ ENVELOPES = ROOT / 'test/libretro_session_envelopes.dart'
 sys.path.insert(0, str(ROOT / 'test'))
 from libretro_simulator_probe import (  # noqa: E402
     DEFINES, EXTERNAL_DISPLAY, EXTERNAL_DISPLAY_SOURCES, FRAMEWORKS, TARGET, imports_shader_kit, pick_device,
-    sdk_path)
+    sdk_path, cheat_catalog_units)
 from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 from neo_shader_kit_ios_build import compile_kit, podspec_frameworks  # noqa: E402
 
@@ -115,6 +115,7 @@ def build(sources, flutter_slice, sdk, work, log):
     # Every bridge source, the plugin included (the probe leaves it out: it
     # has no Flutter.framework).
     units = sorted((sources / 'Classes').glob('*.m'))
+    units += cheat_catalog_units(sources)
     if not any(unit.name == 'LibretroInternalBridgePlugin.m' for unit in units):
         raise SystemExit(f'{sources}: no LibretroInternalBridgePlugin.m')
     units += [EXTERNAL_DISPLAY / name for name in EXTERNAL_DISPLAY_SOURCES]

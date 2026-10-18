@@ -324,3 +324,7 @@ __pycache__/
 
 # Canonical storage host copies, generated before CocoaPods.
 packages/neo_swap/ios/Classes/Storage/
+
+# The published/bundled unified index uses bounded gzip; JSON is a build intermediate.
+/native/cheats/catalogue/manifest.json
+/packages/neo_cheat_catalog/ios/Resources/manifest.json

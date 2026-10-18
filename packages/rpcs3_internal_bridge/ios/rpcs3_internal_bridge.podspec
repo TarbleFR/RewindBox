@@ -28,6 +28,7 @@ The standalone RPCS3 SwiftUI application is not embedded.
   # the host, and Rpcs3InternalBridgePlugin opens it later with dlopen().
   s.preserve_paths   = 'Frameworks/libRPCS3Core.dylib'
   s.dependency 'Flutter'
+  s.dependency 'neo_cheat_catalog'
   s.dependency 'neo_swap'
   # Build 447: the game's Metal view is a NeoExternalRenderHost of the
   # external_display pod (docs/external-display-universal.md § 5, row RPCS3):

@@ -1,5 +1,7 @@
 #import "Armsx2SessionMenu.h"
 #include "ARMSX2ManualCheatEditor.h"
+#include "NeoUnifiedNativeImport.h"
+#import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 #import "Armsx2RetroAchievementsMenu.h"
 #import "ARMSX2InGameLocalization.h"
 #include <cmath>
@@ -154,6 +156,43 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 }
 
 - (void)importCheatFilePressed {[self openManualCheatEditor:YES];}
+- (void)openUnifiedCheatCatalogue {
+  if (self.loading || !self.readPatches || !self.importCheats) return;
+  self.loading = YES;
+  __weak Armsx2SessionMenu* weakSelf = self;
+  self.readPatches(^(NSDictionary* state) { ARMSX2MenuOnMain(^{
+    Armsx2SessionMenu* menu = weakSelf;
+    if (!menu) return;
+    menu.loading = NO;
+    if (![state[@"available"] boolValue] || [state[@"hardcore"] boolValue]) {
+      menu.navigationItem.prompt = NeoCheatText([state[@"hardcore"] boolValue] ? @"hardcore" : @"sessionChanged", menu.localeIdentifier);
+      return;
+    }
+    NSString* locale = menu.localeIdentifier ?: @"en";
+    [NeoUnifiedCheatBrowser presentFrom:menu identity:NeoUnifiedEngineIdentity(state,YES)
+        engine:@"armsx2" locale:locale
+        accepts:^BOOL(NSDictionary* program) { return bool(NeoUnifiedNativeProgram(program,YES)); }
+        importHandler:^(NSDictionary* game, NSArray* programs, void (^finished)(NSError*)) {
+      Armsx2SessionMenu* owner = weakSelf;
+      if (!owner || !owner.readPatches || !owner.importCheats) {
+        finished(NeoUnifiedNativeError(NeoCheatFailure(@"sessionChanged"),locale)); return;
+      }
+      // Re-read the live executable CRC after browsing/downloading. A menu
+      // from a closed or replaced session cannot target a different game.
+      owner.readPatches(^(NSDictionary* current) {
+        if (!NeoIdentityMatches(state,current,YES)) {
+          finished(NeoUnifiedNativeError(NeoCheatFailure(@"sessionChanged"),owner.localeIdentifier)); return;
+        }
+        NSDictionary* request = NeoUnifiedNativeRequest(game,programs,current,YES);
+        if (![request[@"success"] boolValue]) { finished(NeoUnifiedNativeError(request,owner.localeIdentifier)); return; }
+        owner.importCheats(request,^(NSDictionary* result) {
+          finished(NeoUnifiedNativeError(result,owner.localeIdentifier));
+          ARMSX2MenuOnMain(^{ [weakSelf reloadPatches]; });
+        });
+      });
+    }];
+  }); });
+}
 - (void)openManualCheatEditor:(BOOL)importFile {
   if(self.navigationController.topViewController!=self)return;
       if(!self.readPatches || !self.importCheats || self.loading)return;
@@ -322,7 +361,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     case ARMSX2MenuGraphicsHacks:
       return [self.graphicsHacks[@"items"] isKindOfClass:NSArray.class]
           ? [self.graphicsHacks[@"items"] count] : 0;
-    case ARMSX2MenuCheats: return self.snapshot.count ? 4 : 0;
+    case ARMSX2MenuCheats: return self.snapshot.count ? 5 : 0;
     case ARMSX2MenuPatches:
       return [self.patches[@"items"] isKindOfClass:NSArray.class]
           ? [self.patches[@"items"] count] : 0;
@@ -483,6 +522,10 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
           ? [NSString stringWithFormat:@"%lu %@", (unsigned long)items.count,
               ARMSX2MenuText(@"for this game revision", @"pour cette révision du jeu")]
           : ARMSX2MenuText(@"Open to scan patches and imported cheats", @"Ouvrir pour lire les patches et cheats importés");
+    } else if (row == 4) {
+      cell.textLabel.text = NeoCheatText(@"downloadCatalogs",self.localeIdentifier);
+      cell.detailTextLabel.text = @"NeoStation · PNACH · CRC";
+      cell.accessibilityIdentifier = @"unifiedCheatCatalogue";
     } else if (row == 3) {
       cell.textLabel.text=NeoCheatText(@"addCheat",self.localeIdentifier);
       cell.detailTextLabel.text=@"PNACH · CRC";
@@ -725,6 +768,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     }
     [self presentViewController:sheet animated:YES completion:nil];
   } else if (self.page == ARMSX2MenuCheats) {
+    if (row == 4) {[self openUnifiedCheatCatalogue];return;}
     if (row == 3) {[self openManualCheatEditor:NO];return;}
     if (row == 0) {
       const BOOL enabled = [self.snapshot[@"cheats"] boolValue];

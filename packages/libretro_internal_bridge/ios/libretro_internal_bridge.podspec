@@ -24,6 +24,7 @@ starts; no external RetroArch application is involved.
   # RetroArch slang presets (Build 450): the shader kit's Metal runtime,
   # catalog and verified storage, shared with the Dolphin bridge.
   s.dependency 'neo_shader_kit'
+  s.dependency 'neo_cheat_catalog'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController',

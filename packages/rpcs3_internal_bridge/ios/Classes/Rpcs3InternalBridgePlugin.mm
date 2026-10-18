@@ -18,6 +18,7 @@
 #include "NeoSwapUsagePolicy.h"
 #import "RPCS3InGameLocalization.h"
 #import "Rpcs3SessionMenu.h"
+#import "RPCS3UnifiedCheats.h"
 // NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the game's Metal view can be shown on
 // NeoStation's window on the TV (docs/external-display-universal.md § 5).
 #import <external_display/NeoExternalDisplayCoordinator.h>
@@ -365,6 +366,8 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, assign) BOOL operationBusy;
 @property(nonatomic, assign) BOOL llvmSelfTestPassed;
 @property(nonatomic, copy) NSString* activeTitleId;
+@property(nonatomic, copy) NSString* activeGameVersion;
+@property(nonatomic, strong) RPCS3UnifiedCheats* unifiedCheats;
 @property(nonatomic, copy) NSString* activeUiLocale;
 @property(nonatomic, assign) BOOL audioSessionActive;
 @property(nonatomic, copy) NSString* previousAudioCategory;
@@ -1048,8 +1051,17 @@ static void RPCS3Progress(void* context,
 }
 
 - (rpcs3_ios_status)bootTitleForCore:(const char*)title savestate:(const char*)identifier {
-  [self invalidatePerformanceSnapshotForBoot];
   NSString* guestTitle = title ? [NSString stringWithUTF8String:title] : @"";
+  // Existing Core APIs require emulation stopped. All boot/restart paths
+  // converge here, so deferred selections never become a live memory patch.
+  if (self.unifiedCheats && ![self.unifiedCheats applyPendingWhileStoppedForTitle:guestTitle]) {
+    RPCS3Diagnostic(@"cheats.prepare_failed",self.unifiedCheats.bootSafe
+        ? @"The pending catalogue was retained; existing patch files were preserved. Normal boot continues."
+        : @"Original patch transaction recovery failed; boot is withheld until recovery succeeds.");
+    if (!self.unifiedCheats.bootSafe) return -1;
+  }
+  self.activeGameVersion=[self.unifiedCheats installedVersionForTitle:guestTitle] ?: @"";
+  [self invalidatePerformanceSnapshotForBoot];
   RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "before_boot");
   RPCS3SampleNeoSwapGuestStatsExt(_neoSwapRelayClientStatsExt, guestTitle, _performanceEpoch, "before_boot");
   const rpcs3_ios_status status = _api.boot_game(title, identifier);
@@ -1367,6 +1379,34 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (!bridge) { if (completion) completion(nil); return; }
     [bridge readSessionStates:completion];
   };
+  menu.readCheats = ^(void (^completion)(NSDictionary* state)) {
+    Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
+    if (!bridge || !owner) { completion(nil); return; }
+    dispatch_async(bridge->_runtimeQueue,^{
+      NSDictionary* snapshot=bridge.gameController==owner
+          ? [bridge.unifiedCheats snapshotForTitle:bridge.activeTitleId ?: @"" version:bridge.activeGameVersion ?: @""] : nil;
+      dispatch_async(dispatch_get_main_queue(),^{ completion(snapshot); });
+    });
+  };
+  NSString* cheatSerial=self.activeTitleId ?: @"",*cheatVersion=self.activeGameVersion ?: @"";
+  menu.importCheats = ^(NSDictionary* game,NSArray* programs,void (^completion)(BOOL)) {
+    Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
+    if (!bridge || !owner) { completion(NO); return; }
+    dispatch_async(bridge->_runtimeQueue,^{
+      BOOL current=bridge.gameController==owner && [bridge.activeTitleId isEqual:cheatSerial] && [bridge.activeGameVersion isEqual:cheatVersion];
+      BOOL success=current && [bridge.unifiedCheats stageGame:game programs:programs serial:cheatSerial version:cheatVersion];
+      dispatch_async(dispatch_get_main_queue(),^{ completion(success); });
+    });
+  };
+  menu.setCheat = ^(NSString* identifier,BOOL enabled,void (^completion)(BOOL)) {
+    Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
+    if (!bridge || !owner) { completion(NO); return; }
+    dispatch_async(bridge->_runtimeQueue,^{
+      BOOL current=bridge.gameController==owner && [bridge.activeTitleId isEqual:cheatSerial] && [bridge.activeGameVersion isEqual:cheatVersion];
+      BOOL success=current && [bridge.unifiedCheats setIdentifier:identifier enabled:enabled serial:cheatSerial];
+      dispatch_async(dispatch_get_main_queue(),^{ completion(success); });
+    });
+  };
   menu.performStateOperation = ^(NSInteger slot, BOOL load, NSString* identifier,
                                  void (^completion)(BOOL success, NSString* message)) {
     Rpcs3InternalBridgePlugin* bridge = weakSelf;
@@ -1484,6 +1524,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
         RPCS3Milestone(@"rpcs3_initialize_end", @"status=0");
         self.initialized = YES;
         self.initializedWithExpandedJit = expanded;
+        rpcs3_ios_patch_api patches={};
+        patches.install_repository=reinterpret_cast<decltype(patches.install_repository)>(dlsym(self->_api.handle,"rpcs3_ios_install_patch_repository"));
+        patches.enumerate_patches=reinterpret_cast<decltype(patches.enumerate_patches)>(dlsym(self->_api.handle,"rpcs3_ios_enumerate_runtime_patches"));
+        patches.set_enabled=reinterpret_cast<decltype(patches.set_enabled)>(dlsym(self->_api.handle,"rpcs3_ios_set_runtime_patch_enabled"));
+        patches.enumerate_games=reinterpret_cast<decltype(patches.enumerate_games)>(dlsym(self->_api.handle,"rpcs3_ios_enumerate_games"));
+        self.unifiedCheats=[[RPCS3UnifiedCheats alloc] initWithRoot:support api:patches];
       } else {
         RPCS3Milestone(@"rpcs3_initialize_failed",
                        [NSString stringWithFormat:@"status=%d error=%@",
@@ -1752,6 +1798,9 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       });
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
+    if (self.activeTitleId.length && self.unifiedCheats &&
+        ![self.unifiedCheats applyPendingWhileStoppedForTitle:self.activeTitleId])
+      RPCS3Diagnostic(@"cheats.pending",@"Catalogue changes remain pending; no personal patch was replaced.");
     if (self.activeTitleId.length) {
       RPCS3SampleNeoSwapGuestStats(self->_neoSwapRelayClientStats, self.activeTitleId,
                                  self->_performanceEpoch, "session_end");
@@ -1769,6 +1818,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (self.initialized && self->_api.set_display_surface) self->_api.set_display_surface(NULL);
     [self deactivateRPCS3AudioSession];
     self.activeTitleId = nil;
+    self.activeGameVersion = nil;
     self.activeUiLocale = nil;
     dispatch_async(dispatch_get_main_queue(), ^{
       RPCS3GameViewController* controller = self.gameController;

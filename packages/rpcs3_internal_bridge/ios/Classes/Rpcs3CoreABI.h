@@ -101,6 +101,41 @@ typedef void (*rpcs3_ios_savestate_callback)(
     void* context,
     const rpcs3_ios_savestate_info* savestate);
 
+// Optional functions already exported by the pinned ABI-30 Core. These are
+// deliberately separate from the immutable main API layout. Patch management
+// is legal only while emulation is stopped and takes effect on the next boot.
+typedef struct rpcs3_ios_runtime_patch_info {
+  uint32_t struct_size, enabled, configurable_count, reserved;
+  const char* hash;
+  const char* title;
+  const char* description;
+  const char* patch_version;
+  const char* author;
+  const char* notes;
+  const char* patch_group;
+  const char* app_version;
+} rpcs3_ios_runtime_patch_info;
+typedef void (*rpcs3_ios_runtime_patch_callback)(void*, const rpcs3_ios_runtime_patch_info*);
+typedef struct rpcs3_ios_catalogue_game_info {
+  uint32_t struct_size;
+  const char* title_id;
+  const char* title;
+  const char* version;
+  const char* category;
+  const char* icon_path;
+  const char* firmware_version;
+  const char* path;
+  uint32_t attribute, bootable, parental_level, sound_format, resolution, reserved;
+  uint64_t size_on_disk;
+} rpcs3_ios_catalogue_game_info;
+typedef void (*rpcs3_ios_catalogue_game_callback)(void*,const rpcs3_ios_catalogue_game_info*);
+typedef struct rpcs3_ios_patch_api {
+  rpcs3_ios_status (*install_repository)(const char*,const char*,const void*,size_t);
+  rpcs3_ios_status (*enumerate_patches)(const char*,const char*,rpcs3_ios_runtime_patch_callback,void*);
+  rpcs3_ios_status (*set_enabled)(const char*,const char*,const char*,const char*,const char*,uint32_t);
+  rpcs3_ios_status (*enumerate_games)(rpcs3_ios_catalogue_game_callback,void*);
+} rpcs3_ios_patch_api;
+
 typedef enum rpcs3_ios_performance_metric_bits {
   rpcs3_ios_performance_fps = 1u << 0,
   rpcs3_ios_performance_cpu = 1u << 1,

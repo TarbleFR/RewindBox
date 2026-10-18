@@ -1,11 +1,15 @@
 #import "Rpcs3SessionMenu.h"
 #import "RPCS3InGameLocalization.h"
+#import "RPCS3UnifiedCheatLabels.h"
+#import "RPCS3UnifiedCheats.h"
+#import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 
 typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuRoot,
   RPCS3MenuGraphics,
   RPCS3MenuSystem,
   RPCS3MenuControls,
+  RPCS3MenuCheats,
   RPCS3MenuChoices,
   RPCS3MenuSaveStates,
   RPCS3MenuLoadStates,
@@ -21,6 +25,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 @property(nonatomic, copy) NSArray<NSDictionary*>* choices;
 @property(nonatomic, copy) NSString* choiceCommand;
 @property(nonatomic, copy) NSDictionary<NSString*, id>* stateSnapshot;
+@property(nonatomic, copy) NSDictionary* cheatSnapshot;
 @property(nonatomic, assign) BOOL loading;
 @property(nonatomic, assign) BOOL suppressNextStateReload;
 @property(nonatomic, weak) Rpcs3SessionMenu* returnPage;
@@ -34,7 +39,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 }
 
 - (NSString*)text:(NSString*)key {
-  return RPCS3LocalizedString(key, self.localeIdentifier ?: @"en");
+  return RPCS3UnifiedCheatText(key,self.localeIdentifier) ?: RPCS3LocalizedString(key, self.localeIdentifier ?: @"en");
 }
 
 - (UINavigationBarAppearance*)modernNavigationAppearance {
@@ -75,6 +80,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
+  if (self.page == RPCS3MenuCheats) [self reloadCheats];
   if (self.page == RPCS3MenuSaveStates || self.page == RPCS3MenuLoadStates) {
     // UIAlertController dismissal can make this page appear again before its
     // action handler runs. A refresh would set `loading` and make the confirmed
@@ -89,7 +95,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
-  return @[@"graphicsMenu", @"systemMenu", @"controlsMenu",
+  return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"cheatsMenu",
            @"createState", @"loadState", @"resumeGame", @"quitGame"];
 }
 
@@ -104,6 +110,9 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   child.languageChoices = self.languageChoices;
   child.performCommand = self.performCommand;
   child.readStates = self.readStates;
+  child.readCheats = self.readCheats;
+  child.importCheats = self.importCheats;
+  child.setCheat = self.setCheat;
   child.performStateOperation = self.performStateOperation;
   child.resumeGame = self.resumeGame;
   child.quitGame = self.quitGame;
@@ -139,6 +148,39 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   });
 }
 
+- (void)reloadCheats {
+  if (self.loading || !self.readCheats) return;
+  self.loading=YES;
+  __weak Rpcs3SessionMenu* weakSelf=self;
+  self.readCheats(^(NSDictionary* snapshot) { RPCS3MenuOnMain(^{
+    Rpcs3SessionMenu* menu=weakSelf; if (!menu) return;
+    menu.loading=NO; menu.cheatSnapshot=snapshot ?: @{}; [menu.tableView reloadData];
+  }); });
+}
+- (void)openUnifiedCheats {
+  NSString* serial=self.cheatSnapshot[@"serial"] ?: @"",*version=self.cheatSnapshot[@"revision"] ?: @"";
+  if ([self.cheatSnapshot[@"conflict"] boolValue]) { [self showMessage:[self text:@"cheatConflict"]]; return; }
+  if (![self.cheatSnapshot[@"available"] boolValue] || !serial.length || !version.length || !self.importCheats) {
+    [self showMessage:[self text:@"cheatFailed"]]; return;
+  }
+  NSDictionary* identity=@{@"system":@"ps3",@"title":self.gameTitle ?: @"",@"revision":version,
+      @"regions":@[],@"languages":@[],@"identities":@[@{@"type":@"serial",@"value":serial,@"scheme":@"ps3-title-id"}]};
+  __weak Rpcs3SessionMenu* weakSelf=self;
+  NSString* locale=self.localeIdentifier ?: @"en";
+  [NeoUnifiedCheatBrowser presentFrom:self identity:identity engine:@"rpcs3" locale:locale
+      accepts:^BOOL(NSDictionary* program) { return [RPCS3UnifiedCheats acceptsProgram:program]; }
+      importHandler:^(NSDictionary* game,NSArray* programs,void (^finished)(NSError*)) {
+    Rpcs3SessionMenu* menu=weakSelf;
+    if (!menu || !menu.importCheats) {
+      finished([NSError errorWithDomain:@"NeoStation.UnifiedCheats.RPCS3" code:1 userInfo:@{NSLocalizedDescriptionKey:RPCS3UnifiedCheatText(@"cheatFailed",locale)}]); return;
+    }
+    menu.importCheats(game,programs,^(BOOL success) {
+      finished(success ? nil : [NSError errorWithDomain:@"NeoStation.UnifiedCheats.RPCS3" code:1 userInfo:@{NSLocalizedDescriptionKey:RPCS3UnifiedCheatText(@"cheatFailed",locale)}]);
+      RPCS3MenuOnMain(^{ [weakSelf reloadCheats]; });
+    });
+  }];
+}
+
 - (void)pushChoiceWithTitle:(NSString*)title
                     command:(NSString*)command
                      values:(NSArray*)values
@@ -158,6 +200,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     case RPCS3MenuGraphics: return 3;
     case RPCS3MenuSystem: return 1;
     case RPCS3MenuControls: return 1;
+    case RPCS3MenuCheats: return 1 + [self.cheatSnapshot[@"items"] count];
     case RPCS3MenuChoices: return self.choices.count;
     case RPCS3MenuSaveStates:
     case RPCS3MenuLoadStates:
@@ -170,6 +213,9 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuGraphics) return [self text:@"graphicsHelp"];
   if (self.page == RPCS3MenuSystem) return [self text:@"systemHelp"];
   if (self.page == RPCS3MenuControls) return [self text:@"controlsHelp"];
+  if (self.page == RPCS3MenuCheats)
+    return [self text:[self.cheatSnapshot[@"conflict"] boolValue] ? @"cheatConflict" :
+        [self.cheatSnapshot[@"preparationFailed"] boolValue] ? @"cheatFailed" : @"cheatNextBoot"];
   if (self.page == RPCS3MenuSaveStates || self.page == RPCS3MenuLoadStates)
     return self.statusMessage;
   return nil;
@@ -199,6 +245,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       @"graphicsMenu": @"display",
       @"systemMenu": @"gearshape.2",
       @"controlsMenu": @"gamecontroller",
+      @"cheatsMenu": @"bolt.shield",
       @"createState": @"square.and.arrow.down",
       @"loadState": @"square.and.arrow.up",
       @"resumeGame": @"play.fill",
@@ -225,6 +272,20 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       cell.textLabel.text = [self text:@"performanceOverlay"];
       cell.detailTextLabel.text = [self text:(self.performanceVisible ? @"enabled" : @"disabled")];
       cell.accessoryType = UITableViewCellAccessoryNone;
+    }
+    return cell;
+  }
+
+  if (self.page == RPCS3MenuCheats) {
+    if (row==0) {
+      cell.textLabel.text=[self text:@"cheatCatalogue"];
+      cell.detailTextLabel.text=@"NeoStation · RPCS3 YAML";
+      cell.accessibilityIdentifier=@"unifiedCheatCatalogue";
+    } else {
+      NSDictionary* item=self.cheatSnapshot[@"items"][row-1];
+      cell.textLabel.text=item[@"name"] ?: @"";
+      cell.detailTextLabel.text=[self text:[item[@"enabled"] boolValue] ? @"enabled" : @"disabled"];
+      cell.accessoryType=[item[@"enabled"] boolValue] ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
     }
     return cell;
   }
@@ -356,6 +417,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       [self.navigationController pushViewController:[self child:RPCS3MenuSystem title:[self text:key]] animated:YES];
     } else if ([key isEqual:@"controlsMenu"]) {
       [self.navigationController pushViewController:[self child:RPCS3MenuControls title:[self text:key]] animated:YES];
+    } else if ([key isEqual:@"cheatsMenu"]) {
+      [self.navigationController pushViewController:[self child:RPCS3MenuCheats title:[self text:key]] animated:YES];
     } else if ([key isEqual:@"createState"]) {
       Rpcs3SessionMenu* child = [self child:RPCS3MenuSaveStates title:[self text:key]];
       [self.navigationController pushViewController:child animated:YES];
@@ -367,6 +430,19 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     } else if ([key isEqual:@"quitGame"]) {
       [self confirmQuit];
     }
+    return;
+  }
+
+  if (self.page == RPCS3MenuCheats) {
+    if (row==0) { [self openUnifiedCheats]; return; }
+    NSArray* items=self.cheatSnapshot[@"items"] ?: @[];
+    if (row<1 || row>(NSInteger)items.count || !self.setCheat) return;
+    NSDictionary* item=items[row-1]; self.loading=YES;
+    __weak Rpcs3SessionMenu* weakSelf=self;
+    self.setCheat(item[@"id"],![item[@"enabled"] boolValue],^(BOOL success) { RPCS3MenuOnMain(^{
+      Rpcs3SessionMenu* menu=weakSelf; if (!menu) return; menu.loading=NO;
+      if (success) [menu reloadCheats]; else [menu showMessage:[menu text:@"cheatFailed"]];
+    }); });
     return;
   }
 

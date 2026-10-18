@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/libretro_internal_bridge/ios/Classes'
 LIBRETRO = ROOT / 'packages/libretro_internal_bridge/ios/ThirdParty/include/libretro'
-PORTABLE = ('LibretroCoreHost.m', 'LibretroCoreOptions.m', 'LibretroResolution.m', 'LibretroStateCodec.m',
+PORTABLE = ('LibretroCoreHost.m', 'LibretroCheats.m', 'LibretroCoreOptions.m', 'LibretroResolution.m', 'LibretroStateCodec.m',
             'LibretroZipReader.m')
 # Value cases and rules shared with Dart's LibretroResolution (Build 455).
 RESOLUTION_FIXTURES = ROOT / 'test/fixtures/libretro_resolution'

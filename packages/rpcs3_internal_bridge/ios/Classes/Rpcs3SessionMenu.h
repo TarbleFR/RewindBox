@@ -24,6 +24,9 @@ typedef void (^Rpcs3SessionStateCommand)(
 @property(nonatomic, copy) NSArray<NSDictionary<NSString*, NSString*>*>* languageChoices;
 @property(nonatomic, copy) Rpcs3SessionCommand performCommand;
 @property(nonatomic, copy) Rpcs3SessionReadStates readStates;
+@property(nonatomic, copy) Rpcs3SessionReadStates readCheats;
+@property(nonatomic, copy) void (^importCheats)(NSDictionary*,NSArray*,void (^)(BOOL));
+@property(nonatomic, copy) void (^setCheat)(NSString*,BOOL,void (^)(BOOL));
 @property(nonatomic, copy) Rpcs3SessionStateCommand performStateOperation;
 @property(nonatomic, copy) dispatch_block_t resumeGame;
 @property(nonatomic, copy) dispatch_block_t quitGame;

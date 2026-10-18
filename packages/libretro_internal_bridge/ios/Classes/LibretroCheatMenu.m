@@ -3,6 +3,8 @@
 #import "LibretroCheats.h"
 #import "LibretroSessionMenu.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import <neo_cheat_catalog/NeoUnifiedCheatCatalog.h>
+#import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 
 static NSString *String(id value) { return [value isKindOfClass:NSString.class] ? value : @""; }
 static NSString *GameKey(NSDictionary *game) {
@@ -20,12 +22,14 @@ static NSString *GameKey(NSDictionary *game) {
   NSMutableDictionary<NSString *, NSString *> *_updates;
   NSDictionary *_identity, *_matchKinds;
   BOOL _ready, _busy, _remember, _warned, _discovering;
+  BOOL _unifiedDiscovering;
   NSUInteger _pendingSources, _discoveryGeneration;
   NSMutableSet *_automaticKeys, *_confirmedGames;
   NSString *_cheatSearch, *_gameSearch, *_status;
   __weak LibretroMenuPage *_visiblePage;
   __weak LibretroMenuPage *_rootPage;
   dispatch_queue_t _queue;
+  id _unifiedObserver;
 }
 @synthesize diagnostic = _diagnostic;
 - (void)setDiagnostic:(void (^)(NSString *))diagnostic {
@@ -40,7 +44,7 @@ static NSString *GameKey(NSDictionary *game) {
                      contentPath:(NSString *)contentPath gameTitle:(NSString *)gameTitle legacy:(NSArray<NSDictionary *> *)legacy
                             text:(NSString *(^)(NSString *))text apply:(void (^)(NSArray<NSString *> *))apply {
   if ((self = [super init])) {
-    _directory = directory; _console = console; _core = core; _text = [text copy]; _apply = [apply copy];
+    _directory = directory; _console = console; _core = core; _text = [text copy]; _apply = [apply copy]; _uiLocale = @"en";
     _catalog = [[LibretroCheatCatalog alloc] initWithDirectory:[directory stringByAppendingPathComponent:@"Catalogs"]];
     _records = [NSMutableArray array]; _installed = [NSMutableDictionary dictionary]; _updates = [NSMutableDictionary dictionary];
     _automaticKeys = [NSMutableSet set]; _confirmedGames = [NSMutableSet set];
@@ -49,12 +53,16 @@ static NSString *GameKey(NSDictionary *game) {
     // user-interactive emulation thread even with tiny local indices.
     _queue = dispatch_queue_create("neostation.cheat-preferences", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
     __weak LibretroCheatMenu *weakSelf = self;
+    _unifiedObserver = [NSNotificationCenter.defaultCenter addObserverForName:NeoUnifiedCheatCatalogDidInstallNotification
+      object:NeoUnifiedCheatCatalog.sharedCatalog queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+        LibretroCheatMenu *menu = weakSelf; if (menu && menu->_ready) [menu discoverUnified];
+      }];
     dispatch_async(_queue, ^{
       // Cache only an unchanged regular file. Changed content, inode or modification
       // time invalidates it; no hashing or index traversal blocks the launch queue.
       NSString *identityPath = [LibretroCheats identityContentPath:contentPath];
       NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:identityPath error:nil];
-      NSString *fingerprint = [NSString stringWithFormat:@"5|%@|%@|%@|%@|%@|%@", identityPath, console, core,
+      NSString *fingerprint = [NSString stringWithFormat:@"6|%@|%@|%@|%@|%@|%@", identityPath, console, core,
         attributes[NSFileSize], @([attributes[NSFileModificationDate] timeIntervalSince1970]), attributes[NSFileSystemFileNumber]];
       NSString *cacheKey = [LibretroCheats digest:[fingerprint dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *cacheFile = [[directory stringByAppendingPathComponent:@"Identity"] stringByAppendingPathComponent:[cacheKey stringByAppendingPathExtension:@"json"]];
@@ -129,9 +137,13 @@ static NSString *GameKey(NSDictionary *game) {
   }
   return self;
 }
+- (void)dealloc {
+  if (_unifiedObserver) [NSNotificationCenter.defaultCenter removeObserver:_unifiedObserver];
+}
 // Called after both identity and all source indices are ready, and after install/update.
 // Only this worker traverses indices. All UI/model mutations stay on the main queue.
 - (void)discover {
+  if (_ready) [self discoverUnified];
   if (!_ready || _pendingSources) return;
   NSUInteger generation = ++_discoveryGeneration; _discovering = YES; _status = nil;
   NSArray *catalogs = [_installed.allValues sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
@@ -183,19 +195,135 @@ static NSString *GameKey(NSDictionary *game) {
     });
   });
 }
+- (NSDictionary *)unifiedIdentity {
+  NSMutableDictionary *identity = [_identity mutableCopy] ?: [NSMutableDictionary dictionary];
+  identity[@"system"] = _console;
+  id revision = identity[@"gameRevision"] ?: identity[@"pspDiscVersion"];
+  if ([revision isKindOfClass:NSString.class] || [revision isKindOfClass:NSNumber.class]) identity[@"revision"] = [revision description];
+  return identity;
+}
+- (BOOL)acceptsUnifiedProgram:(NSDictionary *)program {
+  if (![program[@"status"] isEqual:@"available"] ||
+      (program[@"parameters"] && ![program[@"parameters"] isKindOfClass:NSArray.class]) ||
+      (program[@"dependencies"] && ![program[@"dependencies"] isKindOfClass:NSArray.class]) ||
+      [program[@"parameters"] count]) return NO;
+  NSDictionary *dialects = @{
+    @"nes": @[@"nes-gamegenie", @"nes-raw"], @"snes": @[@"snes-gamegenie", @"snes-par"],
+    @"gb": @[@"gb-gamegenie", @"gb-gameshark"], @"gbc": @[@"gb-gamegenie", @"gb-gameshark"],
+    @"gba": @[@"gba-gameshark-v1", @"gba-gameshark-v3", @"gba-codebreaker", @"gba-auto", @"gba-unknown"],
+    @"nds": @[@"ds-actionreplay"], @"psx": @[@"ps1-gameshark"],
+    @"psp": @[@"cwcheat"], @"n64": @[@"n64-gameshark"],
+    @"md": @[@"md-gamegenie", @"md-raw"], @"mcd": @[@"md-gamegenie", @"md-raw"],
+    @"sms": @[@"sega8-gamegenie", @"sega8-raw"], @"gg": @[@"sega8-gamegenie", @"sega8-raw"]};
+  if (![dialects[_console] containsObject:String(program[@"dialect"])]) return NO;
+  NSArray *parts = [LibretroCheats codesForCheat:program core:_core console:_console];
+  return parts.count && parts.count <= 99;
+}
+// Resolve a complete program before creating one toggle: a master/condition
+// cannot be silently omitted or activated separately from its dependent code.
+- (BOOL)appendUnifiedProgram:(NSDictionary *)program index:(NSDictionary *)index
+                     visited:(NSMutableSet *)visited visiting:(NSMutableSet *)visiting
+                      result:(NSMutableArray *)result depth:(NSUInteger)depth {
+  NSString *identifier = String(program[@"id"]);
+  if (!identifier.length || depth > 128 || result.count >= 512 || [visiting containsObject:identifier]) return NO;
+  if ([visited containsObject:identifier]) return YES;
+  if (![self acceptsUnifiedProgram:program]) return NO;
+  [visiting addObject:identifier];
+  for (id dependency in program[@"dependencies"] ?: @[]) {
+    if (![dependency isKindOfClass:NSString.class] || !index[dependency] ||
+        ![self appendUnifiedProgram:index[dependency] index:index visited:visited visiting:visiting result:result depth:depth + 1]) return NO;
+  }
+  NSString *exclusive = String(program[@"exclusive_group"]);
+  for (NSDictionary *previous in result) if (exclusive.length && [exclusive isEqual:String(previous[@"exclusive_group"])]) return NO;
+  [visiting removeObject:identifier]; [visited addObject:identifier]; [result addObject:program]; return YES;
+}
+- (NSDictionary *)unifiedRecordForGame:(NSDictionary *)game programs:(NSArray *)programs {
+  if (!programs.count || [NeoUnifiedCheatCatalog gameHasConflict:game identity:[self unifiedIdentity]]) return nil;
+  NSMutableArray *codes = [NSMutableArray array], *provenance = [NSMutableArray array];
+  for (NSDictionary *program in programs) {
+    if (![self acceptsUnifiedProgram:program]) return nil;
+    [codes addObject:String(program[@"code"])];
+    for (NSDictionary *origin in program[@"provenance"] ?: @[]) if (![provenance containsObject:origin]) [provenance addObject:origin];
+  }
+  NSDictionary *selected = programs.lastObject;
+  NSMutableDictionary *record = [selected mutableCopy];
+  record[@"code"] = [codes componentsJoinedByString:@"+"];
+  record[@"handler"] = @0; record[@"enabled"] = @NO; record[@"selected"] = @NO;
+  record[@"source"] = @"NeoStation Unified"; record[@"provenance"] = provenance;
+  record[@"game"] = String(game[@"title"]); record[@"unifiedGameID"] = String(game[@"id"]);
+  record[@"gameRevision"] = String(game[@"revision"]); record[@"regions"] = game[@"regions"] ?: @[];
+  record[@"languages"] = game[@"languages"] ?: @[];
+  record[@"uncertain"] = @(![[NeoUnifiedCheatCatalog matchGame:game identity:[self unifiedIdentity]] isEqual:@"exact"]);
+  record[@"automaticExact"] = @(![record[@"uncertain"] boolValue]);
+  record[@"programs"] = programs; // Original ordered programs retain formats, authors and dependencies.
+  NSArray *prepared = [LibretroCheats codesForCheat:record core:_core console:_console];
+  return prepared.count && prepared.count <= 99 ? record : nil;
+}
+- (void)presentUnifiedFrom:(UIViewController *)page {
+  __weak LibretroCheatMenu *weakSelf = self;
+  [NeoUnifiedCheatBrowser presentFrom:page identity:[self unifiedIdentity] engine:@"libretro" locale:self.uiLocale
+    accepts:^BOOL(NSDictionary *program) { return [weakSelf acceptsUnifiedProgram:program]; }
+    importHandler:^(NSDictionary *game, NSArray *programs, void (^completion)(NSError *)) {
+      LibretroCheatMenu *menu = weakSelf;
+      NSDictionary *record = [menu unifiedRecordForGame:game programs:programs];
+      if (!menu || !record || menu->_records.count >= 4096) {
+        NSString *reason = menu ? [menu t:menu->_records.count >= 4096 ? @"cheatResultsLimited" : @"cheatCodeUnsupported"] : @"";
+        completion([NSError errorWithDomain:NeoUnifiedCheatCatalogErrorDomain code:10 userInfo:@{NSLocalizedDescriptionKey:reason}]); return;
+      }
+      if ([game[@"edition_confirmed"] boolValue]) [menu->_confirmedGames addObject:String(game[@"id"])];
+      [menu merge:@[record]]; [menu save]; [menu refresh]; completion(nil);
+    }];
+}
+- (void)discoverUnified {
+  if (_unifiedDiscovering) return;
+  _unifiedDiscovering = YES; __weak LibretroCheatMenu *weakSelf = self;
+  [NeoUnifiedCheatCatalog.sharedCatalog gamesForIdentity:[self unifiedIdentity] completion:^(NSArray *games, NSError *error) {
+    LibretroCheatMenu *menu = weakSelf; if (!menu) return;
+    NSMutableArray *pending = [NSMutableArray array];
+    for (NSDictionary *game in games) {
+      NSString *key = [@"unified|" stringByAppendingFormat:@"%@|%@", game[@"id"], game[@"sha256"]];
+      // Automatic discovery reads installed data only. A download requires the
+      // catalogue action, and an imported program always starts disabled.
+      if (![game[@"installed"] boolValue] || [menu->_automaticKeys containsObject:key]) continue;
+      if (pending.count >= 64 || menu->_records.count >= 4096) { menu->_status = [menu t:@"cheatResultsLimited"]; break; }
+      [menu->_automaticKeys addObject:key]; [pending addObject:game];
+    }
+    if (!pending.count) { menu->_unifiedDiscovering = NO; [menu refresh]; return; }
+    __block NSUInteger remaining = pending.count;
+    for (NSDictionary *game in pending) [NeoUnifiedCheatCatalog.sharedCatalog cheatsForGame:game completion:^(NSArray *programs, NSError *problem) {
+      LibretroCheatMenu *current = weakSelf; if (!current) return;
+      if (problem) [current->_automaticKeys removeObject:[@"unified|" stringByAppendingFormat:@"%@|%@", game[@"id"], game[@"sha256"]]];
+      else {
+        NSMutableDictionary *index = [NSMutableDictionary dictionary];
+        for (NSDictionary *program in programs) if (String(program[@"id"]).length) index[program[@"id"]] = program;
+        NSMutableArray *records = [NSMutableArray array];
+        for (NSDictionary *program in programs) {
+          if (current->_records.count + records.count >= 4096) { current->_status = [current t:@"cheatResultsLimited"]; break; }
+          NSMutableArray *ordered = [NSMutableArray array];
+          if ([current appendUnifiedProgram:program index:index visited:[NSMutableSet set] visiting:[NSMutableSet set] result:ordered depth:0]) {
+            NSDictionary *record = [current unifiedRecordForGame:game programs:ordered]; if (record) [records addObject:record];
+          }
+        }
+        [current merge:records]; [current save];
+      }
+      if (--remaining == 0) current->_unifiedDiscovering = NO;
+      [current refresh];
+    }];
+  }];
+}
 - (NSUInteger)enabledCount {
   NSUInteger count = 0; for (NSDictionary *record in _records) if ([record[@"enabled"] boolValue]) count++;
   return count;
 }
 - (BOOL)verified:(NSDictionary *)record {
-  return ![record[@"uncertain"] boolValue] || [_confirmedGames containsObject:String(record[@"game"])];
+  return ![record[@"uncertain"] boolValue] || [_confirmedGames containsObject:String(record[@"unifiedGameID"] ?: record[@"game"])];
 }
 - (void)activate:(NSDictionary *)record page:(LibretroMenuPage *)page action:(dispatch_block_t)action {
   if ([self verified:record]) { [self warnOnPage:page action:action]; return; }
   [page rebuild];
   [page confirmWithTitle:String(record[@"game"]) message:[NSString stringWithFormat:@"%@\n%@", [self t:@"cheatVersionUncertain"], [self t:@"cheatSaveWarning"]]
     action:[self t:@"cheatActivate"] cancelTitle:[self t:@"cancel"] destructive:NO handler:^{
-      [self->_confirmedGames addObject:String(record[@"game"])]; self->_warned = YES; action();
+      [self->_confirmedGames addObject:String(record[@"unifiedGameID"] ?: record[@"game"])]; self->_warned = YES; action();
     }];
 }
 // Nested pages can be popped before a transfer finishes. Keep the actual root
@@ -207,7 +335,7 @@ static NSString *GameKey(NSDictionary *game) {
 - (NSString *)t:(NSString *)key { return _text(key); }
 - (void)merge:(NSArray *)records {
   for (id raw in records) {
-    if (![raw isKindOfClass:NSDictionary.class] || _records.count >= 4096) continue;
+    if (![raw isKindOfClass:NSDictionary.class]) continue;
     NSString *code = String(raw[@"code"]), *name = String(raw[@"name"]);
     if (name.length == 0 || name.length > 2048 || code.length > 65536) continue;
     // Same session/game and exact code semantics: keep one toggle, retain every attribution.
@@ -221,7 +349,7 @@ static NSString *GameKey(NSDictionary *game) {
       NSData *fields = [NSJSONSerialization dataWithJSONObject:memoryFields options:NSJSONWritingSortedKeys error:nil];
       semanticCode = [LibretroCheats digest:fields ?: [NSData data]];
     }
-    NSString *scope = [raw[@"uncertain"] boolValue] ? String(raw[@"game"]) : @"";
+    NSString *scope = [raw[@"uncertain"] boolValue] ? String(raw[@"unifiedGameID"] ?: raw[@"game"]) : @"";
     NSString *key = [NSString stringWithFormat:@"%@|%@|%@", handler, semanticCode, scope];
     NSMutableDictionary *existing = nil;
     for (NSMutableDictionary *record in _records) if ([record[@"dedup"] isEqual:key]) { existing = record; break; }
@@ -247,8 +375,14 @@ static NSString *GameKey(NSDictionary *game) {
       NSMutableOrderedSet *sources = [NSMutableOrderedSet orderedSetWithArray:existing[@"attributions"] ?: @[]];
       [sources addObject:attribution]; existing[@"attributions"] = sources.array;
       NSMutableOrderedSet *allOrigins = [NSMutableOrderedSet orderedSetWithArray:existing[@"origins"] ?: @[]];
-      [allOrigins addObjectsFromArray:origins]; existing[@"origins"] = allOrigins.array; continue;
+      [allOrigins addObjectsFromArray:origins]; existing[@"origins"] = allOrigins.array;
+      NSMutableOrderedSet *provenance = [NSMutableOrderedSet orderedSetWithArray:
+        [existing[@"provenance"] isKindOfClass:NSArray.class] ? existing[@"provenance"] : @[]];
+      if ([raw[@"provenance"] isKindOfClass:NSArray.class]) [provenance addObjectsFromArray:raw[@"provenance"]];
+      if (provenance.count) existing[@"provenance"] = provenance.array;
+      continue;
     }
+    if (_records.count >= 4096) { _status = [self t:@"cheatResultsLimited"]; continue; }
     NSMutableDictionary *record = [raw mutableCopy]; record[@"enabled"] = @NO; record[@"dedup"] = key;
     record[@"handler"] = [raw[@"handler"] isKindOfClass:NSNumber.class] ? raw[@"handler"] : @0;
     record[@"selected"] = @([raw[@"selected"] isKindOfClass:NSNumber.class] && [raw[@"selected"] boolValue]);
@@ -273,7 +407,16 @@ static NSString *GameKey(NSDictionary *game) {
   if (!_ready || _preferencesPath == nil) return;
   NSMutableArray *records = [NSMutableArray array];
   if (_remember) for (NSDictionary *record in _records) {
-    NSMutableDictionary *copy = [record mutableCopy]; copy[@"enabled"] = @NO; [records addObject:copy];
+    NSMutableDictionary *copy = [record mutableCopy]; copy[@"enabled"] = @NO;
+    // Exact source programs remain in the verified offline catalogue. Keep
+    // their IDs and the combined executable code here without duplicating the
+    // entire source/provenance document in the per-game preferences.
+    if ([copy[@"programs"] isKindOfClass:NSArray.class]) {
+      NSMutableArray *ids = [NSMutableArray array];
+      for (NSDictionary *program in copy[@"programs"]) if (String(program[@"id"]).length) [ids addObject:program[@"id"]];
+      copy[@"programIDs"] = ids; [copy removeObjectForKey:@"programs"];
+    }
+    [records addObject:copy];
   }
   NSDictionary *saved = @{@"version": @2, @"remember": @(_remember), @"identity": _identity, @"cheats": records, @"confirmedGames": _confirmedGames.allObjects};
   NSString *file = _preferencesPath; __weak LibretroCheatMenu *weakSelf = self;
@@ -281,6 +424,7 @@ static NSString *GameKey(NSDictionary *game) {
     NSError *error = nil;
     [[NSFileManager defaultManager] createDirectoryAtPath:file.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:&error];
     NSData *data = [NSJSONSerialization dataWithJSONObject:saved options:0 error:&error];
+    if (data.length > 8u * 1024u * 1024u) error = [NSError errorWithDomain:NeoUnifiedCheatCatalogErrorDomain code:11 userInfo:nil];
     if (data && !error) [data writeToFile:file options:NSDataWritingAtomic error:&error];
     if (error) dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf failed]; });
   });
@@ -355,6 +499,9 @@ static NSString *GameKey(NSDictionary *game) {
   LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
     LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
     NSMutableArray *actions = [NSMutableArray array];
+    LibretroMenuRow *unified = [LibretroMenuRow rowWithTitle:[NeoUnifiedCheatBrowser localizedText:@"unifiedCatalogue" locale:menu.uiLocale]
+      action:^(LibretroMenuPage *page) { [menu presentUnifiedFrom:page]; }];
+    unified.enabled = menu->_ready; [actions addObject:unified];
     LibretroMenuRow *find = [LibretroMenuRow rowWithTitle:[menu t:@"cheatFind"] action:^(LibretroMenuPage *page) {
       [menu discover];
       if (!menu->_records.count) {

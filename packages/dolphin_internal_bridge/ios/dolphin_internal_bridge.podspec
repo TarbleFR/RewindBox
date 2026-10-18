@@ -12,10 +12,11 @@ legacy gate. It does not replace or modify other emulator integrations.
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
-  s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h'
+  s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h'
   s.resources        = 'TouchResources/*'
   s.vendored_frameworks = 'Frameworks/DolphinCore.framework'
   s.dependency 'Flutter'
+  s.dependency 'neo_cheat_catalog'
   s.dependency 'stikjit_bridge'
   # Build 447: the session's Metal view is a NeoExternalRenderHost of the
   # external-display coordinator (AirPlay / adapter window), and the in-game

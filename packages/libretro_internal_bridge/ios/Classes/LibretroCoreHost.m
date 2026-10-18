@@ -1,6 +1,7 @@
 #import "LibretroCoreHost.h"
 
 #import "LibretroCoreOptions.h"
+#import "LibretroCheats.h"
 #import "LibretroStateCodec.h"
 #import "LibretroZipReader.h"
 
@@ -726,6 +727,14 @@ static bool HostEnvironment(unsigned command, void *data) {
   if (initialDefaults.count > 0) [_options applyDefaults:initialDefaults];
   if (initialOverrides.count > 0) [_options applySessionOverrides:initialOverrides];
   if (lockedOverrides.count > 0) [_options lockSessionOverrides:lockedOverrides];
+  NSString *loadedCoreID = _corePath.lastPathComponent.stringByDeletingPathExtension;
+  BOOL managesPSPCheats = [loadedCoreID isEqual:@"ppsspp"] || [loadedCoreID isEqual:@"ppsspp_libretro"];
+  if (managesPSPCheats) {
+    // A previous PPSSPP .ini and a stored core/game option may both say
+    // enabled. Every session starts off before the core can read either one.
+    // Only the explicit validated-code path below may change this override.
+    [_options lockSessionOverrides:@{@"ppsspp_cheats":@"disabled"}];
+  }
 
   gActiveHost = self;
   _symbols.retro_set_environment(HostEnvironment);
@@ -736,6 +745,7 @@ static bool HostEnvironment(unsigned command, void *data) {
   _symbols.retro_set_input_state(HostInputState);
   void (^optionsDeclared)(LibretroCoreOptions *) = self.optionsDeclared;
   if (optionsDeclared != nil) optionsDeclared(_options);
+  if (managesPSPCheats) [_options applySessionOverrides:@{@"ppsspp_cheats":@"disabled"}];
   _symbols.retro_init();
   _coreInitialized = YES;
   [self appendLog:[NSString stringWithFormat:@"[HOST] loaded %@ %@", _libraryName, _libraryVersion]];
@@ -1085,16 +1095,25 @@ static bool HostEnvironment(unsigned command, void *data) {
   if (!_contentLoaded) return;
   _symbols.retro_cheat_reset();
   unsigned index = 0;
-  BOOL mgba = [_corePath.lastPathComponent hasPrefix:@"mgba"];
+  NSString *core = [_corePath.lastPathComponent stringByDeletingPathExtension];
+  NSUInteger maximumBytes = [LibretroCheats maximumCodeBytesForCore:core];
   for (id raw in codes) {
     if (![raw isKindOfClass:NSString.class] || index >= 99) continue;
     NSString *code = raw;
     NSData *ascii = [code dataUsingEncoding:NSASCIIStringEncoding allowLossyConversion:NO];
     // Nestopia/Snes9x use strcpy into 256-byte stack buffers. The shared
     // adapter splits independent lines before this final ABI boundary.
-    if (ascii.length == 0 || ascii.length > (mgba ? 4096u : 255u) ||
+    if (ascii.length == 0 || ascii.length > maximumBytes ||
         [code rangeOfString:[NSString stringWithFormat:@"%C", (unichar)0]].location != NSNotFound) continue;
     _symbols.retro_cheat_set(index++, true, code.UTF8String);
+  }
+  if ([core isEqual:@"ppsspp"] || [core isEqual:@"ppsspp_libretro"]) {
+    // The delivered PPSSPP queues cheat changes and drains them on EmuFrame.
+    // Its interpreter also requires this session option. Never persist it or
+    // enable it merely because a catalogue was downloaded or imported.
+    // setValue:persist:NO still changes the in-memory persistent layer, which
+    // a later unrelated save would write. Keep activation in the session layer.
+    [_options applySessionOverrides:@{@"ppsspp_cheats": index ? @"enabled" : @"disabled"}];
   }
 }
 

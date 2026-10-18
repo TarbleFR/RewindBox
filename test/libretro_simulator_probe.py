@@ -744,6 +744,18 @@ def imports_shader_kit(sources):
                for path in (sources / 'Classes').glob('*.m'))
 
 
+def imports_cheat_catalog(sources):
+    return any('<neo_cheat_catalog/' in path.read_text(encoding='utf-8', errors='replace')
+               for path in (sources / 'Classes').glob('*.m'))
+
+
+def cheat_catalog_units(sources):
+    if not imports_cheat_catalog(sources):
+        return []
+    return sorted(path for path in (ROOT / 'packages/neo_cheat_catalog/ios/Classes').glob('*.m')
+                  if path.name != 'NeoCheatCatalogPlugin.m')
+
+
 def build_shader_fixtures(app, official=False):
     """Pinned fixture catalogue consumed by the real menu/storage/compiler.
 
@@ -801,6 +813,7 @@ def compile_probe(sources, sdk, work, app):
     if imports_shader_kit(sources):
         base += ['-DNEOSTATION_SHADER_SESSION_PROBE=1']
     units = [path for path in sorted((sources / 'Classes').glob('*.m')) if path.name != 'LibretroInternalBridgePlugin.m']
+    units += cheat_catalog_units(sources)
     units += [EXTERNAL_DISPLAY / name for name in EXTERNAL_DISPLAY_SOURCES]
     units += sorted((sources / 'ThirdParty/rcheevos/src').rglob('*.c'))
     units.append(ROOT / 'test/libretro_simulator/probe.m')
@@ -944,6 +957,8 @@ def assemble(args, sources, work):
         build_lot2_content(content, app / 'LibretroSystem')
     if imports_shader_kit(sources):
         build_shader_fixtures(app, args.official_shaders)
+    if imports_cheat_catalog(sources):
+        shutil.copytree(ROOT / 'packages/neo_cheat_catalog/ios/Resources', app / 'NeoCheatCatalog.bundle')
     catalog = CATALOG.read_text(encoding='utf-8')
     geometry = {}
     names = {}

@@ -2,6 +2,7 @@
 #import "DolphinSessionMenu.h"
 #import "DolphinRetroAchievementsAccount.h"
 #include "DOLCheatCatalogue.h"
+#include "NeoUnifiedNativeImport.h"
 #import "DolphinFramePacing.h"
 #include "DolphinDisplayTrial.h"
 #include "DOLShaderStore.h"
@@ -1495,7 +1496,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
               }
               success=[payload[@"success"] boolValue];
             } else if ([kind isEqual:@"import"]) {
-              payload=NeoDolphinImport(bridge.activeUserDirectory,request,DOLReadCheatSnapshot(),NO);
+              NSDictionary* current = DOLReadCheatSnapshot();
+              NSDictionary* prepared=NeoUnifiedResolveNativeName(bridge.activeUserDirectory,request,current,NO);
+              payload = NeoIdentityMatches(prepared,current,NO) && NeoUnifiedNativeReceipt(bridge.activeUserDirectory,prepared)
+                  ? NeoDolphinImport(bridge.activeUserDirectory,prepared,current,NO) : NeoCheatFailure(@"writeFailed");
               success=[payload[@"success"] boolValue];
             } else if ([kind isEqual:@"download"]) {
               NSDictionary* identity=DOLReadCheatSnapshot();

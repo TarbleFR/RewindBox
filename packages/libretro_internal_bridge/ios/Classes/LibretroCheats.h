@@ -7,6 +7,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (nullable NSArray<NSDictionary *> *)parseCHT:(NSData *)data error:(NSError **)error;
 + (nullable NSArray<NSDictionary *> *)parseOpenEmu:(NSData *)data error:(NSError **)error;
 + (NSArray<NSString *> *)supportedCoreIDs;
+/// Maximum ASCII bytes accepted by the audited core entry point, excluding its NUL.
++ (NSUInteger)maximumCodeBytesForCore:(NSString *)core;
 + (nullable NSArray<NSString *> *)codesForCheat:(NSDictionary *)cheat core:(NSString *)core console:(NSString *)console;
 + (NSString *)digest:(NSData *)data;
 + (NSString *)gitBlobSHA:(NSData *)data;
@@ -15,9 +17,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Read SYSTEM.CNF from a bounded ISO9660 data track; never infer serial from its filename.
 + (nullable NSString *)playStationSerialAtPath:(NSString *)path;
 + (nullable NSDictionary *)identityAtPath:(NSString *)path console:(NSString *)console core:(NSString *)core;
+/// `identities` holds {type,value,scheme}; hash scopes are never interchangeable.
 /// A hash mismatch is never promoted by a similar name. Title matches are candidates only.
 + (NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity;
 + (NSString *)versionTitle:(NSString *)title;
 + (NSString *)searchTitle:(NSString *)title;
++ (NSDictionary *)metadataForTitle:(NSString *)title;
 @end
 NS_ASSUME_NONNULL_END
