@@ -123,6 +123,9 @@ namespace
 	{
 		std::string dir;
 		bool allow_compile;
+		// Entry symbol of the module being compiled, like m_hash in the Core:
+		// a cached file under this name must define it or it is a foreign object.
+		const char* entry = k_entry;
 		bool compiled = false;
 		bool loaded = false;
 		bool rejected = false;
@@ -162,7 +165,7 @@ namespace
 				return nullptr;
 			}
 
-			if (!validate(**buffer, k_entry))
+			if (!validate(**buffer, entry))
 			{
 				rejected = true;
 				std::printf("validation rejected the cached object (%zu bytes); compiling instead\n", (*buffer)->getBufferSize());
@@ -285,6 +288,7 @@ namespace
 	{
 		llvm::LLVMContext context;
 		engine e = create(build(context, entry_name));
+		cache.entry = entry_name;
 		*cell = cell_value;
 		e.ee->updateGlobalMapping(k_data_symbol, reinterpret_cast<std::uint64_t>(cell));
 		e.ee->updateGlobalMapping(k_helper_symbol, reinterpret_cast<std::uint64_t>(&reloc_helper));

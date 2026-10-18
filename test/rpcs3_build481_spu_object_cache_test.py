@@ -54,7 +54,15 @@ def require(condition: bool, message: str) -> None:
 
 def run(command, **kwargs):
     print('+', ' '.join(shlex.quote(str(part)) for part in command), flush=True)
-    return subprocess.run([str(part) for part in command], check=True, **kwargs)
+    try:
+        return subprocess.run([str(part) for part in command], check=True, **kwargs)
+    except subprocess.CalledProcessError as error:
+        # Captured output is the only trace of a failed proof process: show it.
+        if error.stdout:
+            print(error.stdout, end='', flush=True)
+        if error.stderr:
+            print(error.stderr, end='', file=sys.stderr, flush=True)
+        raise
 
 
 compiler = shlex.split(os.environ.get('CXX', 'clang++'))
