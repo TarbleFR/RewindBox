@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "repository": "TarbleFR/neostation-ios",
+  "source_sha": "a302af0d8c79cd521e712aa50c7f25ac99fa2a8b",
+  "run_id": 39095481129,
+  "job_id": 117580920670,
+  "job_conclusion": "success",
+  "run_url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39095481129",
+  "job_url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39095481129/job/117580920670",
+  "artifact_id": 12124910042,
+  "artifact_name": "unified-cheats-native-a302af0d8c79cd521e712aa50c7f25ac99fa2a8b",
+  "artifact_url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39095481129/artifacts/12124910042",
+  "artifact_zip_bytes": 49434,
+  "artifact_zip_sha256": "1b80090de3ad4d3ab2d39a17a1b2b485e01c4b1f845f2fd4a8720384aa279f5d",
+  "artifact_sha256_verified_from_download": true,
+  "artifact_sha256_matches_github_digest": true,
+  "execution": {
+    "environment": "Apple Silicon macOS GitHub runner, Xcode 26.3",
+    "destination": "iPhone 17 Pro Simulator, iOS 26.2",
+    "gameplay_validated": false,
+    "physical_device_validated": false,
+    "tests_executed": 2,
+    "failures": 0,
+    "duration_seconds": 8.036
+  },
+  "passed": [
+    "testCandidateCannotDownloadProgramsBeforeExplicitEditionConfirmation",
+    "testKnownTypedHashConflictIsReadOnlyAndCannotBeConfirmedOrImported"
+  ],
+  "reused_evidence": {
+    "path": "docs/evidence/unified-cheats-ui-e813.json",
+    "url": "https://github.com/TarbleFR/neostation-ios/blob/a302af0d8c79cd521e712aa50c7f25ac99fa2a8b/docs/evidence/unified-cheats-ui-e813.json",
+    "source_sha": "e813d226dc1cd0b9d6e9b204d9de692621b9a62c",
+    "run_id": 39094836721,
+    "job_id": 117579007774,
+    "artifact_id": 12124581237,
+    "passed_tests": 28,
+    "note": "The earlier suite compiled and executed all 30 cases: 28 passed and these two regional cases failed in the fixture. This targeted rerun adds their two passes; it does not claim a new full-suite run."
+  },
+  "source_comparison": {
+    "base_sha": "e813d226dc1cd0b9d6e9b204d9de692621b9a62c",
+    "head_sha": "a302af0d8c79cd521e712aa50c7f25ac99fa2a8b",
+    "product_files_changed": false,
+    "all_changed_files": [
+      ".github/workflows/unified-cheats.yml",
+      "docs/evidence/unified-cheats-ui-e813.json",
+      "test/unified_catalog_browser_ui_test.py",
+      "test/unified_catalog_browser_ui_tests.m"
+    ],
+    "fixture_fix": "Wait for actual UIKit modal presentation/dismissal completion and navigation transition completion before the next fixture interaction; all product assertions are preserved."
+  }
+}

@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TarbleFR/neostation-ios/tools/cheats/unified-schema.json",
+  "title": "NeoStation unified cheat catalogue transport v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "catalogue_id",
+    "revision",
+    "sources",
+    "games",
+    "packs",
+    "totals"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "catalogue_id": {
+      "const": "neostation-unified"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ]
+      }
+    },
+    "games": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/game"
+      }
+    },
+    "packs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pack"
+      }
+    },
+    "totals": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "required": [
+        "type",
+        "value",
+        "scheme"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "game": {
+      "type": "object",
+      "required": [
+        "id",
+        "system",
+        "title",
+        "identities",
+        "regions",
+        "languages",
+        "revision",
+        "path",
+        "sha256",
+        "size",
+        "pack_id",
+        "cheat_count",
+        "available_count"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "system": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]{1,160}$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "identities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identity"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "revision": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^games/[a-f0-9]{32}\\.json$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "size": {
+          "type": "integer",
+          "maximum": 2097152
+        },
+        "pack_id": {
+          "type": "string"
+        },
+        "cheat_count": {
+          "type": "integer"
+        },
+        "available_count": {
+          "type": "integer"
+        },
+        "edition_confirmation_required": {
+          "type": "boolean"
+        },
+        "version_scope": {
+          "type": "string"
+        },
+        "identity_group": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "part": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "parts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_identities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identity"
+          },
+          "description": "Source-only discriminators such as mister-source-crc with unattested byte range. These are never runtime ROM identities and never justify an exact edition match."
+        }
+      }
+    },
+    "pack": {
+      "type": "object",
+      "required": [
+        "id",
+        "path",
+        "sha256",
+        "size",
+        "uncompressed_size",
+        "game_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^packs/pack-[a-f0-9]{24}\\.json\\.gz$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "size": {
+          "type": "integer",
+          "maximum": 8388608
+        },
+        "uncompressed_size": {
+          "type": "integer",
+          "maximum": 16777216
+        },
+        "game_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cheat": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "code",
+        "lines",
+        "dialect",
+        "handler",
+        "enabled",
+        "provenance",
+        "dependencies",
+        "parameters",
+        "status",
+        "kind"
+      ],
+      "properties": {
+        "enabled": {
+          "const": false
+        },
+        "code": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "const": "available"
+        },
+        "activation_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "description": "If present, all programs in the dependency closure must accept the normalized running core ID. Never silently activate under another core."
+        },
+        "mgba_auto_isolated": {
+          "type": "boolean",
+          "description": "Individually proved mGBA AUTO closure; cannot coactivate with another non-VBA GBA record because decoder seeds are shared."
+        }
+      }
+    }
+  },
+  "description": "Active systems use reviewed NeoStation console IDs: gb, gbc, gba, nes, snes, md, sms, gg, mcd, nds, psx, ps2, ps3, gc, wii, psp, n64, arcade, 32x, pico, pce, pccd, tg16, tgcd, ws, wsc. Hash identities only compare within the same scheme. A title-only entry requires explicit edition confirmation and never autoactivates. Pack gzip expands to {schema_version:1,files:[{game_id,data:base64(exact chunk JSON bytes)}]}. Chunk {schema_version:1,game:game metadata without transport fields,cheats:[cheat],sources:[source IDs]}. Only complete available programs are in the downloadable manifest; historical inputs, unavailable sources and adaptation diagnostics are recorded separately in audit.json.gz. No game code is enabled by import/download."
+}

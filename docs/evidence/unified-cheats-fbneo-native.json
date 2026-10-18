@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "repository": "TarbleFR/neostation-ios",
+  "source_commit": "d254ece2317a879dc821b7ca639c0d01a6874993",
+  "run_id": 39094644017,
+  "job_id": 117578438988,
+  "job_conclusion": "success",
+  "run_url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39094644017",
+  "artifact_id": 12123674148,
+  "artifact_name": "unified-cheats-effects-d254ece2317a879dc821b7ca639c0d01a6874993",
+  "artifact_zip_bytes": 2454,
+  "artifact_zip_sha256": "a08327544d6fe4cde1427bae7aaa94d71f4f2a175a61df1214ee35372ce5e149",
+  "artifact_sha256_matches_github_digest": true,
+  "probe_report_sha256": "43129188d1da47e279c6b819beb701ae9f516ead74720df88b618c50d291fb0a",
+  "artifact_member_sha256": {
+    "fbneo-native/fbneo-native-engine.stderr": "9a9750af260b563a53eaec2e583ff0da61715c74f61e4f908a2f37acbe49ab2f",
+    "fbneo-native/fbneo-native-engine.stdout": "911ae0ff27f29ee93f1ed9c024b11e38fe578993c4db31899a75c86b0b9705dd",
+    "fbneo-native/fbneo-native-isolation.stderr": "4bcd66805f95f835a9ca75c84d842fec9fcceb82e69630f6f19d8a7e2f75b04a",
+    "fbneo-native/fbneo-native-isolation.stdout": "fac00aae84dd60612ec85f27a90882197ac683b91e4ecb35af8c03b0cd074333",
+    "fbneo-native/fbneo-native.json": "43129188d1da47e279c6b819beb701ae9f516ead74720df88b618c50d291fb0a",
+    "fbneo-native/fbneo-native.stderr": "2109df3f1966e66a29ae583353d3ba9788103da935b7b08a17ab6063b2d597d9",
+    "fbneo-native/fbneo-native.stdout": "12ff1d3d27e03be5d72bef881c327d727721889765979adc38a92be41c1e7a22"
+  },
+  "probe_source_sha256": {
+    "test/unified_identity_fbneo_native.c": "f562f22e764cdaaf82c9c51f9b6e84018d8625826c04338aa047837129c8c150",
+    "test/unified_identity_fbneo_native.py": "2523efeb063a2707fdc89b3c5c0ea7b2f2d41a86d5b0375a8477d9d30013b910"
+  },
+  "delivered_core": {
+    "core": "fbneo",
+    "binary_path": "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+    "binary_sha256": "737bd97038db59e17d2ede4e68249be238c49bb31e3e93eced03a6e10e486625",
+    "source_artifact_id": 11928513314,
+    "source_artifact_name": "LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258",
+    "source_run_id": 38638115521,
+    "source_artifact_zip_sha256": "6e4795169c17d115bf5a8a71cfab807adcb66bcee536b73758ab2ed326188b80"
+  },
+  "execution": {
+    "environment": "Apple Silicon macOS 15 GitHub runner, native arm64 processes",
+    "independent_processes": 2,
+    "core_rebuilt": false,
+    "core_instruction_bytes_modified": false,
+    "temporary_binary_changes": "Only LC_BUILD_VERSION platform metadata iOS to macOS and ad-hoc code signature; the shipped production binary is untouched.",
+    "game_rom_used": false,
+    "gameplay_validated": false,
+    "emulated_game_cpu_validated": false,
+    "physical_device_validated": false
+  },
+  "scope": {
+    "engine": "The delivered native ConfigCheatLoad/CheatEnable/CheatApply/CheatUpdate execute against original fixture CPU callbacks backed by a 256-byte RAM array. This validates the real parser and cheat engine, not an emulated arcade CPU or game.",
+    "engine_behaviors": [
+      "INI starts disabled",
+      "explicit native choice writes RAM",
+      "write repeats after RAM overwrite",
+      "master Off plus CheatUpdate stops cached writes immediately",
+      "second choice retains its value",
+      "Off stops future writes"
+    ],
+    "early_parser_isolation": "The real retro_init and retro_load_game paths run with an empty 1942.zip. Missing game ROMs are expected. The native early parser exposes one staged private option, exposes no personal INI option, and leaves the personal INI byte-for-byte unchanged.",
+    "nonzero_default_diagnostic": "A personal INI with default1 loads disabled but cannot be disabled again after activating that default in the delivered engine. This is diagnostic evidence for allowing only validated managed default0 INI files in the isolated native directory.",
+    "lifecycle": "Engine and libretro isolation fixtures start in separate fresh processes, each with exactly one initialisation/exit lifecycle."
+  },
+  "results": [
+    {
+      "name": "engine",
+      "returncode": 0,
+      "native": {
+        "checks": 15,
+        "failures": 0,
+        "writes": 5,
+        "nonzeroDefaultLoadedOff": true,
+        "nonzeroDefaultCanDisable": false,
+        "rebuiltCore": false,
+        "gameROMUsed": false,
+        "physicalDeviceValidated": false
+      }
+    },
+    {
+      "name": "isolation",
+      "returncode": 0,
+      "native": {
+        "checks": 3,
+        "failures": 0,
+        "privateOptions": 1,
+        "personalOptions": 0,
+        "rebuiltCore": false,
+        "gameROMUsed": false,
+        "physicalDeviceValidated": false
+      }
+    }
+  ],
+  "total_checks": 18,
+  "total_failures": 0,
+  "total_fixture_ram_writes": 5,
+  "native_report": {
+    "checks": 18,
+    "failures": 0,
+    "writes": 5,
+    "nonzeroDefaultLoadedOff": true,
+    "nonzeroDefaultCanDisable": false,
+    "rebuiltCore": false,
+    "gameROMUsed": false,
+    "physicalDeviceValidated": false,
+    "privateOptions": 1,
+    "personalOptions": 0
+  }
+}

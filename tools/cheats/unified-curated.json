@@ -1,0 +1,1504 @@
+{
+  "schema_version": 1,
+  "document": "Reviewed functional-code excerpts; runtime execution remains separately gated",
+  "reviewed_on": "2026-10-18",
+  "games": [
+    {
+      "title": "Final Fantasy VII (France) (Disc 1)",
+      "system": "psx",
+      "identities": [
+        {
+          "type": "serial",
+          "value": "SCES-00868",
+          "scheme": "ps1-disc-serial"
+        },
+        {
+          "type": "md5",
+          "value": "cb1dfccc75154da5cf08994130139216",
+          "scheme": "redump-disc"
+        },
+        {
+          "type": "sha1",
+          "value": "0614c76919e8b544351613ce25056608601c3f9f",
+          "scheme": "redump-disc"
+        }
+      ],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Mettre Clad à 9999/9999 HP",
+          "code": "8009C878 270F\n8009C87A 270F",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=1",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "6d9d94895fc4c315edd43f25b3c323f15c70a1d460c0f51f20db734dea456a55",
+              "program_sha256": "2f9740407b5fa5876dc9572aa465077e9b556f5ca5f8e44b729b32e0649b856b",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "Mettre Cait Sith à 7777/7777 HP",
+          "code": "8009CB90 1E61\n8009CB92 1E61",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=1",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "6d9d94895fc4c315edd43f25b3c323f15c70a1d460c0f51f20db734dea456a55",
+              "program_sha256": "90f5b208faa23e0bb5e31dca10d5bc586d6243230e06a84f7b0703214b71e187",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "Mettre Youfie à 1/999 HP",
+          "code": "8009CB0C 0001\n8009CB0E 03E7",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=1",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "6d9d94895fc4c315edd43f25b3c323f15c70a1d460c0f51f20db734dea456a55",
+              "program_sha256": "af43f730a7e50e2ec4181bb493f3fd9936969b125c5112180c1bc275c395a5f0",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "Mettre Nanaki à 0/7777 HP",
+          "code": "8009CA88 0000\n8009CA8A 1E61",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=1",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "6d9d94895fc4c315edd43f25b3c323f15c70a1d460c0f51f20db734dea456a55",
+              "program_sha256": "9e41414e2a9cfe0cb4b91da92062f7ac1b3b513e515daf250a225438da5f461b",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "1h pile de jeu",
+          "code": "8009D37A 0000\n8009D378 0E10",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=9",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "286f4a73b37fdc5e6541fa35a68530ba17ff267330772012adb07e869310eaac",
+              "program_sha256": "c5b4d95babeef4175f8d1ad895cde97eb93d667a817211410453615d25821d43",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "99:59:59",
+          "code": "8009D37A 0005\n8009D378 7E3F",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=9",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "286f4a73b37fdc5e6541fa35a68530ba17ff267330772012adb07e869310eaac",
+              "program_sha256": "07879fe42b6216a28c8f6824bd882ee267d2f29dd4c2a7321fe27709a4d37c0a",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "7777777 Gils",
+          "code": "8009D376 0076\n8009D374 ADF1",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=9",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "286f4a73b37fdc5e6541fa35a68530ba17ff267330772012adb07e869310eaac",
+              "program_sha256": "84d01878de58730b8332edd6c8ac1bfdd0df2307279457e5273ba893bd686050",
+              "source_id": "ff7_fr"
+            }
+          ]
+        },
+        {
+          "name": "4294967295 Gils",
+          "code": "8009D376 FFFF\n8009D374 FFFF",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.ff7.fr/action_replay.php?p=9",
+              "author": "Léonard Neveu / FF7.fr",
+              "retrieved_on": "2026-10-18",
+              "source_sha256": "286f4a73b37fdc5e6541fa35a68530ba17ff267330772012adb07e869310eaac",
+              "program_sha256": "50c11f4fe768cac96007b72323760a31cdca548e218af6b0ea7bdc16c9ed81e9",
+              "source_id": "ff7_fr"
+            }
+          ]
+        }
+      ],
+      "identity_provenance": {
+        "path": "packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-psx.json",
+        "sha256": "baf1c6af157472b6191f49465ed5bd871f729e64d5d9ffe1b16e98ab06286680",
+        "repository_revision": "4f7a3e35ac59755d5d560d3cff2cdad7ba3bcf76"
+      },
+      "compatibility": {
+        "identity_scope": "France Disc 1 only; Disc 2 and Disc 3 deliberately not inferred",
+        "code_scope": "French PlayStation edition declared by the author",
+        "gameplay_tested": false
+      },
+      "source_id": "ff7_fr"
+    },
+    {
+      "title": "Pokemon - Version Rouge (France) (SGB Enhanced)",
+      "system": "gb",
+      "identities": [
+        {
+          "type": "crc32",
+          "value": "337FCE11",
+          "scheme": "rom-full"
+        }
+      ],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "status": "unresolved",
+      "reason": "source-region-and-revision-not-explicit",
+      "identity_provenance": {
+        "url": "https://gamehacking.org/game/774",
+        "retrieved_on": "2026-10-18"
+      },
+      "compatibility": {
+        "identity_scope": "Candidate French Red identity only; page also names Blue and Yellow without edition fingerprints",
+        "gameplay_tested": false
+      },
+      "cheats": [
+        {
+          "name": "Combattre Mew pour le capturer",
+          "code": "0115DDCF",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "source-region-and-revision-not-explicit",
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "490e723c4efb5791d691837676b43aee12e9a02bb734c810dc424bf48e90e4c4",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            }
+          ]
+        },
+        {
+          "name": "Affronter Régis à la place d’un Pokémon",
+          "code": "01F3DDCF",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "source-region-and-revision-not-explicit",
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "8f4e84729f7a8788fb09c71fb8623a188532858dc1b060ad337a360a4ecfcadd",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            }
+          ]
+        },
+        {
+          "name": "Pas de combat aléatoires",
+          "code": "010340D1",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "source-region-and-revision-not-explicit",
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "2202e63bf2612b2a2c4133ed2b759ade4a87792ab091c955f15c408742142c61",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            }
+          ]
+        },
+        {
+          "name": "MasterBalls gratuites dans tous les magasins",
+          "code": "010181CF",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "source-region-and-revision-not-explicit",
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "65c43424bb2c3a000ac3b38eba5c2c49299482affa7207bb7bd6e341ca455f3e",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            }
+          ]
+        }
+      ],
+      "source_id": "pokemonfrance"
+    },
+    {
+      "title": "Pokemon - Version Rouge (France) (SGB Enhanced)",
+      "system": "gb",
+      "identities": [
+        {
+          "type": "crc32",
+          "value": "337FCE11",
+          "scheme": "rom-full"
+        },
+        {
+          "type": "serial",
+          "value": "DMG-APAF-FRA",
+          "scheme": "gb-product-serial"
+        }
+      ],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Debug Mode Enabled",
+          "code": "CED-E4A-D50",
+          "dialect": "gb-gamegenie",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://gamehacking.org/game/774",
+              "author": "Mezmorize",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "5b631fd0594fe518462519cf780025468d24e9ace41914c224f5d58d60113e7e",
+              "source_id": "gamehacking"
+            }
+          ]
+        }
+      ],
+      "compatibility": {
+        "source_identity": "Exact French Red entry 774",
+        "gameplay_tested": false,
+        "deduplication_note": "Already present in Libretro; retain attribution without counting as an additional unique program."
+      },
+      "source_id": "gamehacking"
+    },
+    {
+      "source_id": "psxdatacenter",
+      "title": "Digimon World (Japan)",
+      "system": "psx",
+      "identities": [
+        {
+          "type": "serial",
+          "value": "SLPS-01797",
+          "scheme": "ps1-disc-serial"
+        }
+      ],
+      "regions": [
+        "Japan"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Infinite HP",
+          "code": "80141130 0008",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "psxdatacenter",
+              "url": "https://www.psxdatacenter.com/games/J/D/SLPS-01797.html",
+              "author": "PSX Data Center; individual code author not listed",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "d80bf7f66cdef0802a0784d2ec5c819aec0dee2912f75dd9ab82cd7ed882488f",
+              "source_sha256": "434c70d11e0436034cac920873cc73dc6cfee764eafb185b4c58652e9ca256be"
+            }
+          ]
+        },
+        {
+          "name": "Infinite Money",
+          "code": "8013E294 967F\n8013E296 0098",
+          "dialect": "ps1-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "psxdatacenter",
+              "url": "https://www.psxdatacenter.com/games/J/D/SLPS-01797.html",
+              "author": "PSX Data Center; individual code author not listed",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "63c1992873462581d6c4756be59d6d88233da72018c6874cc8e4cab5afd5ccc0",
+              "source_sha256": "434c70d11e0436034cac920873cc73dc6cfee764eafb185b4c58652e9ca256be"
+            }
+          ]
+        }
+      ],
+      "gameplay_tested": false,
+      "identity_provenance": {
+        "url": "https://www.psxdatacenter.com/games/J/D/SLPS-01797.html",
+        "section": "Game ID table: Serial Number(s), Region and Language"
+      },
+      "compatibility": {
+        "edition_scope": "SLPS-01797 only; other-region links are not aliases for these codes",
+        "revision_scope": "Source does not attest a binary revision; serial candidate must be confirmed when no exact hash matches."
+      }
+    },
+    {
+      "source_id": "pokebip_contributions",
+      "title": "Pokemon Platine (France)",
+      "system": "nds",
+      "identities": [
+        {
+          "type": "ds_game_code",
+          "value": "CPUF",
+          "scheme": "nds-header-gamecode"
+        },
+        {
+          "type": "ds_crc",
+          "value": "D8380D9F",
+          "scheme": "r4-header512-crc32-inverted"
+        }
+      ],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Maximum d'argent (Presser L et R)",
+          "code": "94000130 FCFF0000\n62101F20 00000000\nB2101F20 00000000\n00000090 000F423F\nD2000000 00000000",
+          "dialect": "ds-actionreplay",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "pokebip_contributions",
+              "url": "https://www.pokebip.com/espace-membre/blogs/129214/article/84411",
+              "author": "Pokébip blog contributor; excerpt credits Pokémon Espace",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "2157b75a6a6f243b4043904b73bff442029e1f803526b0b907955f2c8a9c792c",
+              "source_sha256": "169273c855bcbf4e8eb7ec98333294d16c0fe19a0c24547bfe135a5669b71fa5"
+            }
+          ]
+        },
+        {
+          "name": "Capturer les Pokémon des dresseurs",
+          "code": "94800004 00000000\n92249FDC 00002019\n12249FDC 0000E00A\nD2000000 00000000",
+          "dialect": "ds-actionreplay",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "pokebip_contributions",
+              "url": "https://www.pokebip.com/espace-membre/blogs/129214/article/84411",
+              "author": "Pokébip blog contributor; excerpt credits Pokémon Espace",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "225dd489212c4200a2762bc201aeb0bfffbbf707ffbf901f9b71d634993a1ff7",
+              "source_sha256": "169273c855bcbf4e8eb7ec98333294d16c0fe19a0c24547bfe135a5669b71fa5"
+            }
+          ]
+        },
+        {
+          "name": "Pokéballs infaillibles",
+          "code": "5224AA44 4A7E497D\n1224AA5C 0000E005\n1224AA6A 00002001\n0224AA6C 38010400\nD2000000 00000000",
+          "dialect": "ds-actionreplay",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "pokebip_contributions",
+              "url": "https://www.pokebip.com/espace-membre/blogs/129214/article/84411",
+              "author": "Pokébip blog contributor; excerpt credits Pokémon Espace",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "4ab160501590d494f7254ec51f6c8cf34d0c79f9e7662ad7a0ba5daa2d9ca6bb",
+              "source_sha256": "169273c855bcbf4e8eb7ec98333294d16c0fe19a0c24547bfe135a5669b71fa5"
+            }
+          ]
+        }
+      ],
+      "gameplay_tested": false,
+      "identity_provenance": {
+        "url": "https://www.pokebip.com/espace-membre/blogs/129214/article/84411",
+        "section": "First explicitly labelled VERSION FRANÇAISE / CPUF-D8380D9F section only"
+      },
+      "excluded_sections": [
+        "Later B2101140 family without independent edition identity",
+        "Parameterized event/species templates",
+        "Long E payload blocks exceeding the current DS limit"
+      ],
+      "source_scope": "Only the first VERSION FRANÇAISE section, explicitly labelled GameID CPUF-D8380D9F; ends before VERSION JAPONAISE. No identity inherited by later sections."
+    },
+    {
+      "source_id": "ethereal",
+      "title": "McDonaldland (Europe)",
+      "system": "gb",
+      "identities": [],
+      "regions": [
+        "Europe"
+      ],
+      "languages": [],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Infinite Energy",
+          "code": "0105D0D3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "ethereal",
+              "url": "https://etherealgames.com/nintendo-game-boy/m/mcdonaldland/action-replay-codes-eu/",
+              "author": "Ethereal Games; collected codes credited to original posters",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "c4b780695921d9ff6dd49f699c441bd371cd407fe3364c29134d51b851e81bdc"
+            }
+          ]
+        },
+        {
+          "name": "Infinite Lives",
+          "code": "010479D3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "ethereal",
+              "url": "https://etherealgames.com/nintendo-game-boy/m/mcdonaldland/action-replay-codes-eu/",
+              "author": "Ethereal Games; collected codes credited to original posters",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "039c01bc24ac8b3327eadd407058ef4fe280036ce56105b216988a22a663fe26"
+            }
+          ]
+        }
+      ],
+      "gameplay_tested": false,
+      "source_scope": "EU is explicit in the source; no ROM hash or revision is supplied.",
+      "matching_policy": "title-edition-candidate",
+      "edition_confirmation_required": true
+    },
+    {
+      "source_id": "squarepalace",
+      "title": "Secret of Mana",
+      "system": "snes",
+      "identities": [],
+      "regions": [],
+      "languages": [],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Magie Gnome — Fille",
+          "code": "7EE3C838",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "5a5e09c981487ca00a5364ec5f16e9b0716b01b234eedbd4c05d37f3c18e7fa9"
+            }
+          ]
+        },
+        {
+          "name": "Magie Ondine — Fille",
+          "code": "7EE3C938",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "a73c3b329766ef823ddee73137f4959c84a3262696b4dfc66af791f96f9a2c59"
+            }
+          ]
+        },
+        {
+          "name": "Magie Gnome — Elfe",
+          "code": "7EE5C807",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "8ea5c29ea516ec025e48b6f88c9da56d84dd368a20f49e2edfcce400b8084824"
+            }
+          ]
+        },
+        {
+          "name": "Charge immédiate — Garçon",
+          "code": "7EE1ED00",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "b4e1f5437d0bdc6f76e4db39fbe3b42c286fe1dd6e2af3b326817c9ca8f83120"
+            }
+          ]
+        },
+        {
+          "name": "Coups critiques — Garçon",
+          "code": "7EE1AE90",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "e7f1695a0a78b5ec4d839ec930b89beeebf27819eb54bcd7bb5d9aed35a3850f"
+            }
+          ]
+        },
+        {
+          "name": "Traverser les murs — Garçon",
+          "code": "7EE00BFF",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "4d5711cf55a20bf73fcf43ca48e4fa08406437b729c17c00930d47e9c13238a5"
+            }
+          ]
+        },
+        {
+          "name": "Traverser les murs — Fille",
+          "code": "7EE20BFF",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "347a0abe0b702b6d9e98d75c7cca86541a7e67b8f33e4781cc8f1819238d8541"
+            }
+          ]
+        },
+        {
+          "name": "Traverser les murs — Elfe",
+          "code": "7EE40BFF",
+          "dialect": "snes-par",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "squarepalace",
+              "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+              "author": "Square Palace; page thanks No Secret For Me for its code list",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "c05bcc3be1a7753b9ccb8b672cb761bc63f1634f64030ba3503d2cdcd54a4178"
+            }
+          ]
+        }
+      ],
+      "gameplay_tested": false,
+      "source_scope": "Reviewed complete SNES PAR excerpt. Edition, region, language and revision remain unknown; explicit candidate confirmation is required. Page language does not establish game region. No gameplay test is claimed.",
+      "matching_policy": "title-edition-candidate",
+      "edition_confirmation_required": true
+    },
+    {
+      "source_id": "gameshark_event_islands",
+      "title": "Pokemon Emeraude (France)",
+      "system": "gba",
+      "identities": [],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Master Code — Français Émeraude",
+          "code": "00004B8C 000A\n100005E6 0007",
+          "dialect": "gba-codebreaker",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "gameshark_event_islands",
+              "url": "https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/",
+              "author": "u/SoggyMinimum8386",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "8201ed8453bf3d6766e6ee048b9873f7b9cfb6676cb4688a656525bd0cdba01c"
+            }
+          ],
+          "id": "emerald-fr-event-master",
+          "status": "unresolved",
+          "reason": "french-effect-and-core-dialect-not-executed"
+        },
+        {
+          "name": "Teleport — Southern Island",
+          "code": "820322E4 0A1A",
+          "dialect": "gba-codebreaker",
+          "dependencies": [
+            "emerald-fr-event-master"
+          ],
+          "parameters": [
+            {
+              "name": "destination",
+              "value": "0A1A",
+              "resolved": true
+            }
+          ],
+          "provenance": [
+            {
+              "source_id": "gameshark_event_islands",
+              "url": "https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/",
+              "author": "u/SoggyMinimum8386",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "813d9a818201075533e28962bdd2544e505995a20811ec8d5948942ec1f4d76e"
+            }
+          ],
+          "notes": "Source requires the French master code. Walk through a door to teleport. Southern Island additionally requires an event flag not supplied here.",
+          "status": "unresolved",
+          "reason": "french-effect-and-core-dialect-not-executed"
+        },
+        {
+          "name": "Teleport — Naval Rock",
+          "code": "820322E4 421A",
+          "dialect": "gba-codebreaker",
+          "dependencies": [
+            "emerald-fr-event-master"
+          ],
+          "parameters": [
+            {
+              "name": "destination",
+              "value": "421A",
+              "resolved": true
+            }
+          ],
+          "provenance": [
+            {
+              "source_id": "gameshark_event_islands",
+              "url": "https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/",
+              "author": "u/SoggyMinimum8386",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "ea238efa15aa1cb1da8d18c956f80c573dae597925f1e83995de7ab66629374e"
+            }
+          ],
+          "notes": "Source requires the French master code. Walk through a door to teleport. Southern Island additionally requires an event flag not supplied here.",
+          "status": "unresolved",
+          "reason": "french-effect-and-core-dialect-not-executed"
+        },
+        {
+          "name": "Teleport — Birth Island",
+          "code": "820322E4 3A1A",
+          "dialect": "gba-codebreaker",
+          "dependencies": [
+            "emerald-fr-event-master"
+          ],
+          "parameters": [
+            {
+              "name": "destination",
+              "value": "3A1A",
+              "resolved": true
+            }
+          ],
+          "provenance": [
+            {
+              "source_id": "gameshark_event_islands",
+              "url": "https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/",
+              "author": "u/SoggyMinimum8386",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "df2c2fde640c7f88f2afd78796608d2a80f62dd5b5c31838c102942d64909b0c"
+            }
+          ],
+          "notes": "Source requires the French master code. Walk through a door to teleport. Southern Island additionally requires an event flag not supplied here.",
+          "status": "unresolved",
+          "reason": "french-effect-and-core-dialect-not-executed"
+        },
+        {
+          "name": "Teleport — Faraway Island",
+          "code": "820322E4 381A",
+          "dialect": "gba-codebreaker",
+          "dependencies": [
+            "emerald-fr-event-master"
+          ],
+          "parameters": [
+            {
+              "name": "destination",
+              "value": "381A",
+              "resolved": true
+            }
+          ],
+          "provenance": [
+            {
+              "source_id": "gameshark_event_islands",
+              "url": "https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/",
+              "author": "u/SoggyMinimum8386",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "36d6baed0007affd91239d4c7c19a2f19ad92b4c6eca581ddd89b58b7d09985e"
+            }
+          ],
+          "notes": "Source requires the French master code. Walk through a door to teleport. Southern Island additionally requires an event flag not supplied here.",
+          "status": "unresolved",
+          "reason": "french-effect-and-core-dialect-not-executed"
+        }
+      ],
+      "gameplay_tested": false,
+      "source_scope": "Author publishes a French master code but reports physical tests only on English and Spanish games; the source states CodeBreaker/GameShark SP 12-digit compatibility. No ROM hack compatibility is inherited.",
+      "status": "unresolved",
+      "reason": "french-effect-and-core-dialect-not-executed"
+    },
+    {
+      "source_id": "cemu_gameplay_packs",
+      "title": "The Legend of Zelda: Breath of the Wild",
+      "system": "wiiu",
+      "identities": [
+        {
+          "type": "titleid",
+          "value": "00050000101C9300",
+          "scheme": "wiiu-title-id"
+        },
+        {
+          "type": "titleid",
+          "value": "00050000101C9400",
+          "scheme": "wiiu-title-id"
+        },
+        {
+          "type": "titleid",
+          "value": "00050000101C9500",
+          "scheme": "wiiu-title-id"
+        }
+      ],
+      "regions": [],
+      "languages": [],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Infinite Stamina",
+          "code": "[BotW_InfiniteStamina_V208]\nmoduleMatches = 0x6267BFD0\n\n0x02D90CC0 = fmr f29, f1\n\n\n[BotW_InfiniteStamina_V176V192]\nmoduleMatches = 0xFD091F9F,0xD472D8A5\n\n0x02D90724 = fmr f29, f1\n",
+          "dialect": "cemu-patch",
+          "dependencies": [],
+          "parameters": [],
+          "status": "requires_engine",
+          "reason": "cemu-rpx-patch-engine-not-integrated",
+          "provenance": [
+            {
+              "source_id": "cemu_gameplay_packs",
+              "url": "https://github.com/cemu-project/cemu_graphic_packs/tree/master/src/BreathOfTheWild/Cheats/InfiniteStamina",
+              "author": "C313571N and Xalphenos",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "87bf61aae04ec73c95e00fdab171e4be9ea61fee801edcdc6d799daa62420865",
+              "rules_sha256": "c96f0003a8503b58cb7530e7cabb5301ddaf15e7a874bd2c2d0cc9b39f340246",
+              "patch_sha256": "87bf61aae04ec73c95e00fdab171e4be9ea61fee801edcdc6d799daa62420865"
+            }
+          ],
+          "rules_text": "[Definition]\ntitleIds = 00050000101C9300,00050000101C9400,00050000101C9500\nname = Infinite Stamina\npath = \"The Legend of Zelda: Breath of the Wild/Cheats/Infinite Stamina\"\ndescription = Gives you infinite stamina. Doesn't affect your save file.||Made by C313571N and Xalphenos.\nversion = 6\n",
+          "requirements": {
+            "title_ids": [
+              "00050000101C9300",
+              "00050000101C9400",
+              "00050000101C9500"
+            ],
+            "module_variants": [
+              {
+                "section": "BotW_InfiniteStamina_V208",
+                "module_matches": [
+                  "6267BFD0"
+                ],
+                "writes": [
+                  {
+                    "address": "02D90CC0",
+                    "instruction": "fmr f29, f1"
+                  }
+                ]
+              },
+              {
+                "section": "BotW_InfiniteStamina_V176V192",
+                "module_matches": [
+                  "FD091F9F",
+                  "D472D8A5"
+                ],
+                "writes": [
+                  {
+                    "address": "02D90724",
+                    "instruction": "fmr f29, f1"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "status": "requires_engine",
+      "reason": "cemu-rpx-patch-engine-not-integrated",
+      "gameplay_tested": false,
+      "requirements": {
+        "title_ids": [
+          "00050000101C9300",
+          "00050000101C9400",
+          "00050000101C9500"
+        ],
+        "module_variants": [
+          {
+            "section": "BotW_InfiniteStamina_V208",
+            "module_matches": [
+              "6267BFD0"
+            ],
+            "writes": [
+              {
+                "address": "02D90CC0",
+                "instruction": "fmr f29, f1"
+              }
+            ]
+          },
+          {
+            "section": "BotW_InfiniteStamina_V176V192",
+            "module_matches": [
+              "FD091F9F",
+              "D472D8A5"
+            ],
+            "writes": [
+              {
+                "address": "02D90724",
+                "instruction": "fmr f29, f1"
+              }
+            ]
+          }
+        ]
+      },
+      "source_scope": "Title IDs and module hashes are conjunctions from the actual rules/patches. The module variants are alternatives, not unconditional writes."
+    },
+    {
+      "source_id": "xoevoox_firered",
+      "title": "Pokemon FireRed (USA)",
+      "system": "gba",
+      "identities": [],
+      "regions": [
+        "USA"
+      ],
+      "languages": [
+        "en"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Master Code — FireRed USA",
+          "code": "72BC6DFB E9CA5465\nA47FB2DC 1AF3CA86",
+          "dialect": "gba-unknown",
+          "dependencies": [],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "action-replay-version-and-rom-revision-not-attested",
+          "provenance": [
+            {
+              "source_id": "xoevoox_firered",
+              "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+              "author": "XoEVOoX repository contributors",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "5bc1e888ae634d9516eadbc08ca37c00394aba8713805c739a759e0db50f3ceb",
+              "source_sha256": "ebf754fc8a332730bbb9603a578a01a11a6374588b71629bc9da1b244b1e3e66"
+            }
+          ],
+          "id": "firered-usa-master"
+        },
+        {
+          "name": "Encounter Bulbasaur — FireRed USA",
+          "code": "17543C48 E65E0B97\nAD86124F 2823D8DA",
+          "dialect": "gba-unknown",
+          "dependencies": [
+            "firered-usa-master"
+          ],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "action-replay-version-and-rom-revision-not-attested",
+          "provenance": [
+            {
+              "source_id": "xoevoox_firered",
+              "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+              "author": "XoEVOoX repository contributors",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "be991f34ad77515f4611eb75cb86318f348b9672ec5279df636e415af53462db",
+              "source_sha256": "ebf754fc8a332730bbb9603a578a01a11a6374588b71629bc9da1b244b1e3e66"
+            }
+          ],
+          "requirements": {
+            "master_code_id": "firered-usa-master",
+            "encounter_prefix": "17543C48 E65E0B97"
+          }
+        },
+        {
+          "name": "Encounter Pikachu — FireRed USA",
+          "code": "17543C48 E65E0B97\n9D4A1BFF 05120D39",
+          "dialect": "gba-unknown",
+          "dependencies": [
+            "firered-usa-master"
+          ],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "action-replay-version-and-rom-revision-not-attested",
+          "provenance": [
+            {
+              "source_id": "xoevoox_firered",
+              "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+              "author": "XoEVOoX repository contributors",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "1a34d80c042c97e70807b7dcc20a26c493758e158ffaf64b90192f4ad0817947",
+              "source_sha256": "ebf754fc8a332730bbb9603a578a01a11a6374588b71629bc9da1b244b1e3e66"
+            }
+          ],
+          "requirements": {
+            "master_code_id": "firered-usa-master",
+            "encounter_prefix": "17543C48 E65E0B97"
+          }
+        }
+      ],
+      "status": "unresolved",
+      "reason": "action-replay-version-and-rom-revision-not-attested",
+      "gameplay_tested": false,
+      "excluded_entries": [
+        {
+          "name": "Squirtle",
+          "source_code": "BCDC8C406 2F2FD763",
+          "reason": "Nine hex digits in the first word; no automatic repair."
+        }
+      ],
+      "source_scope": "General master and game/region-specific encounter prefix retained separately. Never extend US/JP codes to the French edition."
+    },
+    {
+      "source_id": "xoevoox_firered",
+      "title": "Pokemon FireRed (Japan)",
+      "system": "gba",
+      "identities": [],
+      "regions": [
+        "Japan"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Master Code — FireRed Japan",
+          "code": "8FA79C07 CABE13C8\nF0826040 FE465C57",
+          "dialect": "gba-unknown",
+          "dependencies": [],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "action-replay-version-and-rom-revision-not-attested",
+          "provenance": [
+            {
+              "source_id": "xoevoox_firered",
+              "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+              "author": "XoEVOoX repository contributors",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "044a07053cb398d0da4a03f3a1fcdfa8b89ced28dd4b324d2621c1be47501ca5",
+              "source_sha256": "ebf754fc8a332730bbb9603a578a01a11a6374588b71629bc9da1b244b1e3e66"
+            }
+          ],
+          "id": "firered-japan-master"
+        },
+        {
+          "name": "Encounter Bulbasaur — FireRed Japan",
+          "code": "8ED19163 3579E69D\nAD86124F 2823D8DA",
+          "dialect": "gba-unknown",
+          "dependencies": [
+            "firered-japan-master"
+          ],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "action-replay-version-and-rom-revision-not-attested",
+          "provenance": [
+            {
+              "source_id": "xoevoox_firered",
+              "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+              "author": "XoEVOoX repository contributors",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "cc9aaffb6c21f40f6deaabf0e0a7ac645b96894227769ec70c5c4b9fa33c7669",
+              "source_sha256": "ebf754fc8a332730bbb9603a578a01a11a6374588b71629bc9da1b244b1e3e66"
+            }
+          ],
+          "requirements": {
+            "master_code_id": "firered-japan-master",
+            "encounter_prefix": "8ED19163 3579E69D"
+          }
+        },
+        {
+          "name": "Encounter Pikachu — FireRed Japan",
+          "code": "8ED19163 3579E69D\n9D4A1BFF 05120D39",
+          "dialect": "gba-unknown",
+          "dependencies": [
+            "firered-japan-master"
+          ],
+          "parameters": [],
+          "status": "unresolved",
+          "reason": "action-replay-version-and-rom-revision-not-attested",
+          "provenance": [
+            {
+              "source_id": "xoevoox_firered",
+              "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+              "author": "XoEVOoX repository contributors",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "83d48c15a08a9b2156f6ec185883319afdaa23922b62468b653edcbe9a4b36c9",
+              "source_sha256": "ebf754fc8a332730bbb9603a578a01a11a6374588b71629bc9da1b244b1e3e66"
+            }
+          ],
+          "requirements": {
+            "master_code_id": "firered-japan-master",
+            "encounter_prefix": "8ED19163 3579E69D"
+          }
+        }
+      ],
+      "status": "unresolved",
+      "reason": "action-replay-version-and-rom-revision-not-attested",
+      "gameplay_tested": false,
+      "excluded_entries": [
+        {
+          "name": "Squirtle",
+          "source_code": "BCDC8C406 2F2FD763",
+          "reason": "Nine hex digits in the first word; no automatic repair."
+        }
+      ],
+      "source_scope": "General master and game/region-specific encounter prefix retained separately. Never extend US/JP codes to the French edition."
+    },
+    {
+      "source_id": "tyler_shiny",
+      "title": "Pokemon Emerald (USA)",
+      "system": "gba",
+      "identities": [],
+      "regions": [
+        "USA"
+      ],
+      "languages": [
+        "en"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Shiny stationary/starters/roaming/fossil/gift Pokémon — complete RAW program",
+          "code": "08067bf8:fc02f317\n08067bfe:fba7f317\n080007ba:fdb9f37e\n0837f330:f000b580\n0837f334:687ff965\n0837f338:2f00683f\n0837f33c:f4f0d101\n0837f340:bd80f945\n0837f350:f4f0b5c0\n0837f354:f000f93b\n0837f358:687ff953\n0837f35c:603e2600\n0837f360:0000bdc0\n0837f400:b08cb5f0\n0837f404:f8fcf000\n0837f408:21016878\n0837f40c:68b86001\n0837f410:6800210a\n0837f414:88011840\n0837f418:88419100\n0837f41c:68f89101\n0837f420:91026801\n0837f424:9e019d00\n0837f428:990268f8\n0837f42c:0c086001\n0837f430:f4f01c04\n0837f434:1c01f8cb\n0837f438:40694061\n0837f43c:29084071\n0837f440:68f8daf6\n0837f444:91026801\n0837f448:f8e2f000\n0837f44c:bdf0b00c\n0837f600:47704f00\n0837f604:0837f700\n0837f610:480668f9\n0837f614:1c13680a\n0837f618:48054343\n0837f61c:600818c0\n0837f620:68114a04\n0837f624:60113901\n0837f628:47700c00\n0837f62c:eeb9eb65\n0837f630:0a3561a1\n0837f634:020249c0\n0837f700:03005550\n0837f704:0300554c\n0837f708:03005d90\n0837f70c:03005d80",
+          "dialect": "vba-raw",
+          "dependencies": [],
+          "parameters": [],
+          "status": "requires_engine",
+          "reason": "vba-m-unbounded-raw-rom-patch-engine-required",
+          "provenance": [
+            {
+              "source_id": "tyler_shiny",
+              "url": "https://raw.githubusercontent.com/TylerD007/The_Shiny_Pokemon_Code_Repository/main/EMERALD.txt",
+              "author": "Ciro Bogea Fernandes / TylerD007",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "71cb0bc4e01a9f808862bf738ccf0b2cf7734e26529475589f3eb30a8021783f",
+              "source_sha256": "5a46ed1ffc051f7b962f940402a6918c740321ca0e217623a2a0742ac7cfd890"
+            }
+          ],
+          "license": "GPL-3.0 (repository)",
+          "copyright": "Copyright (C) 2023 Ciro Bogea Fernandes.",
+          "restrictions": [
+            "USA Emerald; no translation or ROM-hack compatibility inferred.",
+            "VBA-M 2.1.5 Generic Code with ROM writes required.",
+            "Reopen ROM after removing or changing this program.",
+            "Mutually exclusive with other shiny routines."
+          ],
+          "exclusive_group": "tyler-emerald-shiny-routine",
+          "license_notice": "Permission to use these codes and its documentation *AS IT IS* for any purpose is hereby granted without fee, provided that the above copyright notice appear in all copies and that both that copyright notice and this permission notice appear in supporting documentation. It is provided \"as is\" without express or implied warranty."
+        }
+      ],
+      "status": "requires_engine",
+      "reason": "vba-m-unbounded-raw-rom-patch-engine-required",
+      "gameplay_tested": false,
+      "source_scope": "Entire second RAW routine retained; never rename as GameShark/CodeBreaker or truncate ROM writes."
+    },
+    {
+      "source_id": "kodewerx_codes",
+      "title": "Mario Kart 64 (USA)",
+      "system": "n64",
+      "identities": [],
+      "regions": [
+        "USA"
+      ],
+      "languages": [],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Super Acceleration From A Standing Start",
+          "code": "810E2ED0 4500",
+          "dialect": "n64-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "kodewerx_codes",
+              "url": "https://www.kodewerx.org/forum/viewtopic.php?f=18&t=2763&view=print",
+              "author": "Posted by dlong; first post credits Viper for most codes and Viper/HyperHacker for maximum-speed modifiers",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "e958b9da61f23011e3ef4ac72faca0c23caa26362e95412918720099cc61b7df"
+            }
+          ],
+          "notes": "Source says to press A from a standstill; optional ASM modifiers are separate programs and are not required here."
+        },
+        {
+          "name": "Item Boxes Don't Spin",
+          "code": "812A16A8 2400\n812A16AC 2400\n812A16B4 2400",
+          "dialect": "n64-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "kodewerx_codes",
+              "url": "https://www.kodewerx.org/forum/viewtopic.php?f=18&t=2763&view=print",
+              "author": "Posted by dlong; first post credits Viper for most codes and Viper/HyperHacker for maximum-speed modifiers",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "92a89322ede98612a890a12f6c49a24aacc2d020b3905e1e365809fa5c4dc9fc"
+            }
+          ]
+        },
+        {
+          "name": "CPU Racers Just Sit There",
+          "code": "81039658 340C\n8103965A C200",
+          "dialect": "n64-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "source_id": "kodewerx_codes",
+              "url": "https://www.kodewerx.org/forum/viewtopic.php?f=18&t=2763&view=print",
+              "author": "Posted by dlong; first post credits Viper for most codes and Viper/HyperHacker for maximum-speed modifiers",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "ada5b1a499bc5cdf77897497cbe9c2f0552d570696b0525244ab1608f9f724bf"
+            }
+          ]
+        }
+      ],
+      "gameplay_tested": false,
+      "source_scope": "Exact topic is [N64] Mario Kart 64 [U] [GS], first post by dlong dated 2007-06-11. No PAL/Japan scope, ROM hash or revision inferred. Placeholder activators and long ASM routines omitted.",
+      "matching_policy": "title-edition-candidate",
+      "edition_confirmation_required": true
+    },
+    {
+      "title": "Pokemon - Version Rouge (France) (SGB Enhanced)",
+      "source_id": "pokemonfrance",
+      "system": "gb",
+      "identities": [
+        {
+          "type": "sha1",
+          "value": "47a7622fa30e6402a3891fe65b3a930bf9bd7aec",
+          "scheme": "rom-full"
+        }
+      ],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Argent Infini",
+          "code": "01994CD3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "a015a01f168ff8ac73ccdae3b1ec51b9614becc0b20a7540157fec0b9677d7ec",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test."
+        },
+        {
+          "name": "Avoir le 1er objet de l’inventaire à l’infini",
+          "code": "016324D3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "550f1cebfacfec357b614b75d661ee58bccae8afd60be7d19361f8b2e12b534d",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test. Requires an existing first bag item; writes its quantity, does not create a valid item."
+        },
+        {
+          "name": "Avoir tous les badges",
+          "code": "01FF5BD3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "f67dbe91cd5a59b8a432fc5091477e5390dd6a777c9c309569420f2711b49b1e",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test."
+        },
+        {
+          "name": "Jetons de casino inépuisables",
+          "code": "0199A9D5\n0199AAD5",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "23f43b74a56de46dd9134ed144c4cb4633b4fc42679803057951a87450c2569f",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test. Requires the Coin Case; preserves both BCD bytes as one program."
+        }
+      ],
+      "compatibility": {
+        "identity_scope": "Original French Red/Blue supported by matching disassembly SHA1 and source RAM map; Yellow/other revisions excluded",
+        "gameplay_tested": false
+      }
+    },
+    {
+      "title": "Pokemon - Version Bleue (France) (SGB Enhanced)",
+      "source_id": "pokemonfrance",
+      "system": "gb",
+      "identities": [
+        {
+          "type": "sha1",
+          "value": "47faa910d0e073c600665bf9c83b6bd17babdf8a",
+          "scheme": "rom-full"
+        }
+      ],
+      "regions": [
+        "France"
+      ],
+      "languages": [
+        "fr"
+      ],
+      "revision": "",
+      "cheats": [
+        {
+          "name": "Argent Infini",
+          "code": "01994CD3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "a015a01f168ff8ac73ccdae3b1ec51b9614becc0b20a7540157fec0b9677d7ec",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test."
+        },
+        {
+          "name": "Avoir le 1er objet de l’inventaire à l’infini",
+          "code": "016324D3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "550f1cebfacfec357b614b75d661ee58bccae8afd60be7d19361f8b2e12b534d",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test. Requires an existing first bag item; writes its quantity, does not create a valid item."
+        },
+        {
+          "name": "Avoir tous les badges",
+          "code": "01FF5BD3",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "f67dbe91cd5a59b8a432fc5091477e5390dd6a777c9c309569420f2711b49b1e",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test."
+        },
+        {
+          "name": "Jetons de casino inépuisables",
+          "code": "0199A9D5\n0199AAD5",
+          "dialect": "gb-gameshark",
+          "dependencies": [],
+          "parameters": [],
+          "provenance": [
+            {
+              "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+              "author": "PokéLord / Pokémon France (archive)",
+              "retrieved_on": "2026-10-18",
+              "program_sha256": "23f43b74a56de46dd9134ed144c4cb4633b4fc42679803057951a87450c2569f",
+              "source_snapshot_note": "Public page reviewed through search retrieval; direct byte retrieval returned HTTP 403, no whole-page SHA claimed.",
+              "source_id": "pokemonfrance"
+            },
+            {
+              "source_id": "pokemonfrance",
+              "url": "https://github.com/einstein95/pokered-fr/tree/7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "author": "einstein95/pokered-fr contributors",
+              "revision": "7ddc547e22e4c84f3e492a3c04a92c26f7f2e877",
+              "validation": "Static byte accounting of RAM declarations and layout only; no commercial ROM or physical game execution"
+            }
+          ],
+          "notes": "RAM address matched to the exact original French ROM SHA1. No physical-device gameplay test. Requires the Coin Case; preserves both BCD bytes as one program."
+        }
+      ],
+      "compatibility": {
+        "identity_scope": "Original French Red/Blue supported by matching disassembly SHA1 and source RAM map; Yellow/other revisions excluded",
+        "gameplay_tested": false
+      }
+    }
+  ]
+}

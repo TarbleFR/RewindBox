@@ -1,0 +1,792 @@
+{
+  "anomalies": [],
+  "checks": {
+    "all_game_hashes_and_sizes": true,
+    "all_pack_hashes_and_sizes": true,
+    "all_programs_disabled": true,
+    "all_programs_have_no_unresolved_parameters": true,
+    "bundled_manifest_identical": true,
+    "input_stable_during_read": true
+  },
+  "counts_by_dialect": {
+    "actionReplay": 3814,
+    "cwcheat": 77142,
+    "ds-actionreplay": 1233591,
+    "fbneo-ini": 59087,
+    "gb-gamegenie": 7340,
+    "gb-gameshark": 15510,
+    "gba-auto": 7583,
+    "gba-vba-raw": 119716,
+    "gecko": 45388,
+    "md-gamegenie": 24186,
+    "md-raw": 9721,
+    "n64-gameshark": 195679,
+    "nes-gamegenie": 34281,
+    "nes-raw": 45517,
+    "pce-raw": 1421,
+    "pnach": 816,
+    "ps1-gameshark": 368214,
+    "rpcs3-yaml": 1829,
+    "sega8-gamegenie": 4748,
+    "sega8-raw": 2,
+    "snes-gamegenie": 31580,
+    "snes-par": 54189,
+    "wswan-raw": 1
+  },
+  "counts_by_source_provenance": {
+    "artemis": 713,
+    "artemisrpcs3": 1829,
+    "cwcheat": 77010,
+    "delta_workbook": 871,
+    "dillonhafer_xml": 477,
+    "dolphin": 4119,
+    "dsj": 590953,
+    "duckstation": 44029,
+    "enhancement": 848,
+    "ethereal": 2,
+    "fbneo": 59087,
+    "ff7_fr": 8,
+    "gamehacking": 1,
+    "gameshark_event_islands": 1,
+    "geckoarchive": 44293,
+    "kodewerx_codes": 3,
+    "libretro": 1007827,
+    "lunamoo": 191,
+    "mesen": 22615,
+    "mighty_mo": 10244,
+    "mister": 455353,
+    "mupen": 7567,
+    "openemu_personal": 241,
+    "pj64": 8516,
+    "pokebip_contributions": 3,
+    "pokemonfrance": 8,
+    "ps2pnach": 561,
+    "psxdatacenter": 2,
+    "snes9x": 13121,
+    "squarepalace": 8,
+    "tabdiukov": 236,
+    "tyler_shiny": 1,
+    "weed_sheet": 255,
+    "xoevoox_firered": 6
+  },
+  "counts_by_system": {
+    "32x": {
+      "dialects": {
+        "md-gamegenie": 355,
+        "md-raw": 166
+      },
+      "game_records": 27,
+      "programs": 521
+    },
+    "arcade": {
+      "dialects": {
+        "fbneo-ini": 59087
+      },
+      "game_records": 3299,
+      "programs": 59087
+    },
+    "gb": {
+      "dialects": {
+        "gb-gamegenie": 6068,
+        "gb-gameshark": 9028
+      },
+      "game_records": 1104,
+      "programs": 15096
+    },
+    "gba": {
+      "dialects": {
+        "gba-auto": 7583,
+        "gba-vba-raw": 119716
+      },
+      "game_records": 2091,
+      "programs": 127299
+    },
+    "gbc": {
+      "dialects": {
+        "gb-gamegenie": 1272,
+        "gb-gameshark": 6482
+      },
+      "game_records": 673,
+      "programs": 7754
+    },
+    "gc": {
+      "dialects": {
+        "actionReplay": 2953,
+        "gecko": 2850
+      },
+      "game_records": 286,
+      "programs": 5803
+    },
+    "gg": {
+      "dialects": {
+        "sega8-gamegenie": 3571
+      },
+      "game_records": 428,
+      "programs": 3571
+    },
+    "mcd": {
+      "dialects": {
+        "md-raw": 159
+      },
+      "game_records": 14,
+      "programs": 159
+    },
+    "md": {
+      "dialects": {
+        "md-gamegenie": 23831,
+        "md-raw": 9396
+      },
+      "game_records": 1366,
+      "programs": 33227
+    },
+    "n64": {
+      "dialects": {
+        "n64-gameshark": 195679
+      },
+      "game_records": 1953,
+      "programs": 195679
+    },
+    "nds": {
+      "dialects": {
+        "ds-actionreplay": 1233591
+      },
+      "game_records": 8706,
+      "programs": 1233591
+    },
+    "nes": {
+      "dialects": {
+        "nes-gamegenie": 34281,
+        "nes-raw": 45517
+      },
+      "game_records": 5002,
+      "programs": 79798
+    },
+    "pccd": {
+      "dialects": {
+        "pce-raw": 529
+      },
+      "game_records": 137,
+      "programs": 529
+    },
+    "pce": {
+      "dialects": {
+        "pce-raw": 892
+      },
+      "game_records": 244,
+      "programs": 892
+    },
+    "ps2": {
+      "dialects": {
+        "pnach": 816
+      },
+      "game_records": 595,
+      "programs": 816
+    },
+    "ps3": {
+      "dialects": {
+        "rpcs3-yaml": 1829
+      },
+      "game_records": 235,
+      "programs": 1829
+    },
+    "psp": {
+      "dialects": {
+        "cwcheat": 77142
+      },
+      "game_records": 2686,
+      "programs": 77142
+    },
+    "psx": {
+      "dialects": {
+        "ps1-gameshark": 368214
+      },
+      "game_records": 10056,
+      "programs": 368214
+    },
+    "sms": {
+      "dialects": {
+        "sega8-gamegenie": 1177,
+        "sega8-raw": 2
+      },
+      "game_records": 276,
+      "programs": 1179
+    },
+    "snes": {
+      "dialects": {
+        "snes-gamegenie": 31580,
+        "snes-par": 54189
+      },
+      "game_records": 3278,
+      "programs": 85769
+    },
+    "wii": {
+      "dialects": {
+        "actionReplay": 861,
+        "gecko": 42538
+      },
+      "game_records": 2498,
+      "programs": 43399
+    },
+    "ws": {
+      "dialects": {
+        "wswan-raw": 1
+      },
+      "game_records": 1,
+      "programs": 1
+    }
+  },
+  "input": {
+    "catalogue_id": "neostation-unified",
+    "fbneo_driver_table_sha256": "7a17dd0a0f0f5a62ca11c69ac26435265a23261692430e407895a38c94aa6259",
+    "final_build_log": "build-final-identity-domain.log",
+    "final_build_log_sha256": "ef7cc893fe7f7e3157cef8f0f5bfa2e534e434eaba8fdbdbaa48618c865e6dd2",
+    "manifest_gzip_sha256": "cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57",
+    "manifest_json_sha256": "b437555a8438fc9891e7d3af3aff5890578dbf8546df4d652a3b049de5f13c81",
+    "revision": "bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4",
+    "sources_lock_sha256": "745361b10903604fac9b3ab81b236576826bb4e57fdb6b24fd0c6288a957c82c",
+    "validator_sha256": "efe5bee4234387f7f55e1d67168cd27de000ae9f3de0f223f7fb7305419f9723"
+  },
+  "limit_exceedances": {
+    "code_characters_gt_131072": 0,
+    "code_utf8_bytes_gt_131072": 0,
+    "physical_code_lines_gt_4096": 0,
+    "stored_lines_gt_4096": 0
+  },
+  "manifest_totals": {
+    "available": 2341355,
+    "cheats": 2341355,
+    "download_bytes": 274318367,
+    "games": 44955,
+    "identity_groups": 43813,
+    "programs": 2341355,
+    "sources": 34
+  },
+  "maximum_program_sizes": {
+    "code_characters": {
+      "cheat_id": "d8217a9b4514f9967dc2819025ff1945",
+      "dialect": "pnach",
+      "game_id": "3b7195427ac2ec4ac212c5d3c485f952",
+      "name": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
+      "system": "ps2",
+      "title": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
+      "value": 127508
+    },
+    "code_utf8_bytes": {
+      "cheat_id": "d8217a9b4514f9967dc2819025ff1945",
+      "dialect": "pnach",
+      "game_id": "3b7195427ac2ec4ac212c5d3c485f952",
+      "name": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
+      "system": "ps2",
+      "title": "Sonic Heroes [SLUS-20718] [78FF4E3B]",
+      "value": 127508
+    },
+    "physical_code_lines": {
+      "cheat_id": "2f881c76e585d87968c7cdaccf9a0d8d",
+      "dialect": "pnach",
+      "game_id": "adda1f496d0559f85e70bf95045233d1",
+      "name": "Suikoden III [SLUS-20387] [5F3DD929]",
+      "system": "ps2",
+      "title": "Suikoden III [SLUS-20387] [5F3DD929]",
+      "value": 4015
+    },
+    "stored_lines": {
+      "cheat_id": "2f881c76e585d87968c7cdaccf9a0d8d",
+      "dialect": "pnach",
+      "game_id": "adda1f496d0559f85e70bf95045233d1",
+      "name": "Suikoden III [SLUS-20387] [5F3DD929]",
+      "system": "ps2",
+      "title": "Suikoden III [SLUS-20387] [5F3DD929]",
+      "value": 4015
+    }
+  },
+  "observed": {
+    "disabled_programs": 2341355,
+    "download_bytes": 274318367,
+    "enabled_programs": 0,
+    "game_records": 44955,
+    "max_uncompressed_game_bytes": 1436045,
+    "max_uncompressed_pack_bytes": 4194194,
+    "packs": 851,
+    "parameter_entries": 0,
+    "parameter_programs": 0,
+    "programs": 2341355,
+    "statuses": {
+      "available": 2341355
+    }
+  },
+  "schema_version": 1,
+  "scope": "Pinned final generated packs and bundled manifest, checked one compressed pack at a time; structural/runtime-profile validation, not gameplay verification or an exhaustive crawl of reference portals.",
+  "status": "passed",
+  "targeted_checks": {
+    "dillonhafer_md": {
+      "complete_candidates": [
+        {
+          "cheat_id": "1fd94fd47261f76d7763d9f1246657df",
+          "dialect": "md-raw",
+          "game_id": "60b291ded11a20f0fb384b16fc4b2728",
+          "name": "Always have 50 rings",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World) (Rev A)"
+        },
+        {
+          "cheat_id": "23f49359b3f894273f6a7a36d35bbd9d",
+          "dialect": "md-raw",
+          "game_id": "60b291ded11a20f0fb384b16fc4b2728",
+          "name": "Invincibility",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World) (Rev A)"
+        },
+        {
+          "cheat_id": "96b6b5bc643402cd082081b9e26b9b0c",
+          "dialect": "md-gamegenie",
+          "game_id": "60b291ded11a20f0fb384b16fc4b2728",
+          "name": "Jump in midair (Sonic)",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World) (Rev A)"
+        },
+        {
+          "cheat_id": "3005f57ed6eb7651050dfe28b4888ad8",
+          "dialect": "md-gamegenie",
+          "game_id": "60b291ded11a20f0fb384b16fc4b2728",
+          "name": "Need 0 chaos emeralds to become Super Sonic (Still need 50 rings)",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World) (Rev A)"
+        },
+        {
+          "cheat_id": "c088c1341405e81aa194ceaf65b9d805",
+          "dialect": "md-gamegenie",
+          "game_id": "60b291ded11a20f0fb384b16fc4b2728",
+          "name": "Start with 99 lives (player 1)",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World) (Rev A)"
+        },
+        {
+          "cheat_id": "1fd94fd47261f76d7763d9f1246657df",
+          "dialect": "md-raw",
+          "game_id": "96be89f23d02a28121dbf99e97e96645",
+          "name": "Always have 50 rings",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World)"
+        },
+        {
+          "cheat_id": "23f49359b3f894273f6a7a36d35bbd9d",
+          "dialect": "md-raw",
+          "game_id": "96be89f23d02a28121dbf99e97e96645",
+          "name": "Invincibility",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World)"
+        },
+        {
+          "cheat_id": "77afcd822d07ebf004bf0186850730c0",
+          "dialect": "md-gamegenie",
+          "game_id": "96be89f23d02a28121dbf99e97e96645",
+          "name": "Need 0 chaos emeralds to become Super Sonic (Still need 50 rings)",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World)"
+        },
+        {
+          "cheat_id": "632098ec107cb1a824fb211166e673cc",
+          "dialect": "md-gamegenie",
+          "game_id": "96be89f23d02a28121dbf99e97e96645",
+          "name": "Start with 99 lives (player 1)",
+          "system": "md",
+          "title": "Sonic The Hedgehog 2 (World)"
+        }
+      ],
+      "expected_programs": 9,
+      "published_programs": 9
+    },
+    "dillonhafer_sms_gg_ar": {
+      "pinned_source_programs": 16,
+      "published_programs": 0,
+      "reason": "No equivalence from the source 4-4 Action Replay encoding to the reviewed delivered native channel was proved."
+    },
+    "fbneo": {
+      "delivered_binary_driver_records": 29173,
+      "delivered_binary_unique_driver_names": 29172,
+      "lock_allowlist_names": 23323,
+      "programs": 59087,
+      "published_romsets_missing_from_allowlist": [],
+      "published_romsets_missing_from_binary": [],
+      "unique_romsets": 3299
+    },
+    "french_pokemon_exact_sha1": {
+      "bleue_fr": {
+        "all_exact_sha1_programs": 5,
+        "existing_libretro_programs": 1,
+        "game_records": [
+          {
+            "id": "53526e54a0c13c262e65955f6dfb8112",
+            "languages": [],
+            "regions": [
+              "France"
+            ],
+            "source_ids": [
+              "libretro"
+            ],
+            "system": "gb",
+            "title": "Pokemon - Version Bleue (France) (SGB Enhanced)"
+          },
+          {
+            "id": "60d89cf805c614b7c3b08e4b53ee5b48",
+            "languages": [
+              "fr"
+            ],
+            "regions": [
+              "France"
+            ],
+            "source_ids": [
+              "pokemonfrance"
+            ],
+            "system": "gb",
+            "title": "Pokemon - Version Bleue (France) (SGB Enhanced)"
+          }
+        ],
+        "new_pokemonfrance_programs": 4,
+        "programs": [
+          {
+            "code_sha256": "5b631fd0594fe518462519cf780025468d24e9ace41914c224f5d58d60113e7e",
+            "dialect": "gb-gamegenie",
+            "game_id": "53526e54a0c13c262e65955f6dfb8112",
+            "id": "05d4aa0b6e9cc729277770bcda9e70a0",
+            "name": "Debug Mode Enabled",
+            "source_ids": [
+              "libretro"
+            ]
+          },
+          {
+            "code_sha256": "a015a01f168ff8ac73ccdae3b1ec51b9614becc0b20a7540157fec0b9677d7ec",
+            "dialect": "gb-gameshark",
+            "game_id": "60d89cf805c614b7c3b08e4b53ee5b48",
+            "id": "672ebd08ac0a44bad0ec53b044d539ef",
+            "name": "Argent Infini",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          },
+          {
+            "code_sha256": "550f1cebfacfec357b614b75d661ee58bccae8afd60be7d19361f8b2e12b534d",
+            "dialect": "gb-gameshark",
+            "game_id": "60d89cf805c614b7c3b08e4b53ee5b48",
+            "id": "55447d0762395fe9855db22d9778f5ba",
+            "name": "Avoir le 1er objet de l’inventaire à l’infini",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          },
+          {
+            "code_sha256": "f67dbe91cd5a59b8a432fc5091477e5390dd6a777c9c309569420f2711b49b1e",
+            "dialect": "gb-gameshark",
+            "game_id": "60d89cf805c614b7c3b08e4b53ee5b48",
+            "id": "37384b734c962ac4804c16e8f9958c6c",
+            "name": "Avoir tous les badges",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          },
+          {
+            "code_sha256": "23f43b74a56de46dd9134ed144c4cb4633b4fc42679803057951a87450c2569f",
+            "dialect": "gb-gameshark",
+            "game_id": "60d89cf805c614b7c3b08e4b53ee5b48",
+            "id": "fd603d053d10e4b4b292e896782c52eb",
+            "name": "Jetons de casino inépuisables",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          }
+        ],
+        "scheme": "rom-full",
+        "sha1": "47faa910d0e073c600665bf9c83b6bd17babdf8a"
+      },
+      "rouge_fr": {
+        "all_exact_sha1_programs": 5,
+        "existing_libretro_programs": 1,
+        "game_records": [
+          {
+            "id": "286066645fdb829bc5c01de746b94753",
+            "languages": [],
+            "regions": [
+              "France"
+            ],
+            "source_ids": [
+              "libretro"
+            ],
+            "system": "gb",
+            "title": "Pokemon - Version Rouge (France) (SGB Enhanced)"
+          },
+          {
+            "id": "533635c085f971e8a5e3e0f854348c69",
+            "languages": [
+              "fr"
+            ],
+            "regions": [
+              "France"
+            ],
+            "source_ids": [
+              "pokemonfrance"
+            ],
+            "system": "gb",
+            "title": "Pokemon - Version Rouge (France) (SGB Enhanced)"
+          }
+        ],
+        "new_pokemonfrance_programs": 4,
+        "programs": [
+          {
+            "code_sha256": "5b631fd0594fe518462519cf780025468d24e9ace41914c224f5d58d60113e7e",
+            "dialect": "gb-gamegenie",
+            "game_id": "286066645fdb829bc5c01de746b94753",
+            "id": "05d4aa0b6e9cc729277770bcda9e70a0",
+            "name": "Debug Mode Enabled",
+            "source_ids": [
+              "libretro"
+            ]
+          },
+          {
+            "code_sha256": "a015a01f168ff8ac73ccdae3b1ec51b9614becc0b20a7540157fec0b9677d7ec",
+            "dialect": "gb-gameshark",
+            "game_id": "533635c085f971e8a5e3e0f854348c69",
+            "id": "672ebd08ac0a44bad0ec53b044d539ef",
+            "name": "Argent Infini",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          },
+          {
+            "code_sha256": "550f1cebfacfec357b614b75d661ee58bccae8afd60be7d19361f8b2e12b534d",
+            "dialect": "gb-gameshark",
+            "game_id": "533635c085f971e8a5e3e0f854348c69",
+            "id": "55447d0762395fe9855db22d9778f5ba",
+            "name": "Avoir le 1er objet de l’inventaire à l’infini",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          },
+          {
+            "code_sha256": "f67dbe91cd5a59b8a432fc5091477e5390dd6a777c9c309569420f2711b49b1e",
+            "dialect": "gb-gameshark",
+            "game_id": "533635c085f971e8a5e3e0f854348c69",
+            "id": "37384b734c962ac4804c16e8f9958c6c",
+            "name": "Avoir tous les badges",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          },
+          {
+            "code_sha256": "23f43b74a56de46dd9134ed144c4cb4633b4fc42679803057951a87450c2569f",
+            "dialect": "gb-gameshark",
+            "game_id": "533635c085f971e8a5e3e0f854348c69",
+            "id": "fd603d053d10e4b4b292e896782c52eb",
+            "name": "Jetons de casino inépuisables",
+            "source_ids": [
+              "pokemonfrance"
+            ]
+          }
+        ],
+        "scheme": "rom-full",
+        "sha1": "47a7622fa30e6402a3891fe65b3a930bf9bd7aec"
+      }
+    },
+    "openemu_md5_domain": {
+      "dillonhafer_xml": {
+        "game_records": 13,
+        "md5_identities": [
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "165a9558b7539507e73e7afecffb200c"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "1fd75c2b798c04acd4b99ad2f1006280"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "20b854b239203baf6c961b850a4a51a2"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "2a0a8acb61538235bc1094d297fb6556"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "2ac166169354e84d0e2d7cf4cb40b312"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "301899b8087289a6436b0a241fbbb474"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "5bd1fe107bf8106b2ab6650abecd54d6"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "81e326e2abbd65ec4c4c20f4364f7e48"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "8e2c29a1e65111fe2078359e685e7943"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "9f2922b235a5eeb78d65594e82ef5dde"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "9feeb724052c39982d432a7851c98d3e"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "a2ddba012e5c3c2096d0be57cc273be5"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "b5a71128227f5bc953fd55cb0025807f"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "cdd3c8c37322978ca8669b34bc89c804"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "dbe1f3c8f3a0b2db52b7d59417891117"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "e5f71b547f6a8c6166c55b1baa7d21c5"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "ec764e03228d212ca794ac0b9df62857"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "ff6b0c48065389b888c7a78731d4b58d"
+          }
+        ],
+        "programs": 477
+      },
+      "openemu_personal": {
+        "game_records": 10,
+        "md5_identities": [
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "1574f4289f369471ee0e02d7c7cc39ec"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "165a9558b7539507e73e7afecffb200c"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "1a74468291b02729329dd1357afb45af"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "20b854b239203baf6c961b850a4a51a2"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "27d02a4f03e172e029c9b82ac3db79f7"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "395bf4d0a75717b03c0c2131495faf7a"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "3a67d9986f54eb282924fca4cd5f6dff"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "57a9719ad547c516342e1a15d5c28c3d"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "608c22b8ff930c62dc2de54bcd6eba72"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "6ea5fc0e4b56a232ac3cbdab4b4a6bcd"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "a722f8161ff489943191330bf8416496"
+          },
+          {
+            "scheme": "openemu-md5-unspecified",
+            "value": "aaffeb638f1ac98ed3a954264ad1bf2e"
+          }
+        ],
+        "programs": 241
+      }
+    },
+    "squarepalace": {
+      "game_records": [
+        {
+          "edition_confirmation_required": true,
+          "id": "eb388c3971877e8297eb0aa083f68508",
+          "identities": [],
+          "identity_group": "eb388c3971877e8297eb0aa083f68508",
+          "languages": [],
+          "part": 1,
+          "parts": 1,
+          "regions": [],
+          "revision": "",
+          "system": "snes",
+          "title": "Secret of Mana",
+          "version_scope": ""
+        }
+      ],
+      "programs": [
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "893d246f2d61ecc6c4ffbd11003067f4",
+          "name": "Charge immédiate — Garçon"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "759a3391ebf07b5d727296174ae76eab",
+          "name": "Coups critiques — Garçon"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "e7a67738550a295bf462dd0a40397679",
+          "name": "Magie Gnome — Elfe"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "8c992f085c1a33e422becbade861d3e5",
+          "name": "Magie Gnome — Fille"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "16138313c10840deb08f330042b8a349",
+          "name": "Magie Ondine — Fille"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "a2889067a0ebf71f6fa31f6b710bff0e",
+          "name": "Traverser les murs — Elfe"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "66cce672fec4974332d8cfa8d679bdf3",
+          "name": "Traverser les murs — Fille"
+        },
+        {
+          "dialect": "snes-par",
+          "game_id": "eb388c3971877e8297eb0aa083f68508",
+          "id": "f07de4db2956ead2286dd274ff966a1d",
+          "name": "Traverser les murs — Garçon"
+        }
+      ]
+    }
+  }
+}

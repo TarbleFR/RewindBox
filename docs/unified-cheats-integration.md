@@ -33,18 +33,23 @@ ou incompatibles, puis de tenter leur adaptation avant d'écarter les formats
 incompatibles. Le téléchargement actif est donc filtré sur le contenu
 exploitable par les moteurs actuels ; les parties valides des sources partielles
 sont conservées. L'inventaire historique de recherche et les exclusions restent
-séparés de cette publication active. L'assemblage final est encore en cours à
-ce stade du commit de validation du code.
+séparés de cette publication active. Les données sont figées à la révision
+`bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4` :
+34 attributions de sources figurent dans le manifeste, dont ArtemisPS3 comme
+provenance seule de programmes RPCS3 existants. L'inventaire complet est dans
+[Sources de cheats NeoStation](unified-cheats-sources.md).
 
 ## Adaptations avant exclusion
 
 La vérification ne se limite pas aux extensions de fichiers. Les travaux
 supplémentaires portent sur les INI natifs FBNeo et leurs options de session,
-les programmes PS2 RAW réellement compatibles avec le moteur PNACH, les
-lectures ROM MiSTer NES comparables au mécanisme de patch du cœur, les quatre
-blocs Action Replay chiffrés Dolphin validés par son décodeur, et les limites
-réelles DeSmuME/PS1. Ces ajouts restent candidats tant que leurs contrôles
-ciblés ne sont pas terminés.
+la possibilité de conversion PS2 RAW vers PNACH et son blocage sur l'identité
+des éditions, les lectures ROM MiSTer NES comparables au mécanisme de patch
+du cœur, les écritures RAM MiSTer PS1/GBA, les blocs Action Replay chiffrés
+Dolphin vérifiés par son décodeur, les limites réelles DeSmuME/PS1 et les voies
+PicoDrive/PCE Fast/WonderSwan. Les programmes retenus dans les packs sont ceux
+qui passent les contraintes de format, de dépendances et d'adaptation ; les
+autres restent des diagnostics d'audit.
 
 Pour PS3, un rapprochement strict associe les programmes Artemis NCL aux
 patchs YAML existants seulement lorsque le serial, la version explicite, le
@@ -52,11 +57,18 @@ PPU, le nom et toutes les écritures ordonnées correspondent. Une seconde
 provenance ne crée pas un programme unique supplémentaire. Les adresses YAML
 sont conservées sous la forme hexadécimale attendue par le véritable parseur.
 
-Les 892 entrées handler 1 du snapshot Libretro examiné sont des observateurs
-mémoire de vibrations avec un type de cheat désactivé ; elles ne définissent
-aucune écriture de triche à transposer. Les convertir arbitrairement en
-GameShark ou PAR changerait leur sens. Les autres exclusions doivent, elles
-aussi, indiquer l'essai effectué et le blocage concret dans l'audit final.
+L'audit ciblé des familles GB/GBC/GBA/N64/SNES/Mega Drive a trouvé 892 entrées
+handler 1, toutes dans SNES et Mega Drive : ce sont des observateurs mémoire
+de vibrations avec un type de cheat désactivé, sans écriture de triche à
+transposer. Ce nombre ne couvre pas tous les handlers mémoire des autres
+familles. Une conversion arbitraire en GameShark ou PAR changerait leur sens.
+Les autres exclusions indiquent elles aussi l'essai effectué et le blocage
+concret dans l'audit final.
+
+La liste exacte des drivers du binaire FBNeo livré a également été comparée
+aux INI : 107 romsets absents et leurs 1 344 programmes sont retirés ;
+59 087 programmes restent publiés dans cette source. Aucun alias de driver
+n'est inventé à partir du titre ou du nom d'un parent.
 
 ## Les 70 références et les 14 compléments
 
@@ -114,6 +126,17 @@ adaptateurs d'identité ; la langue de l'interface n'est pas utilisée comme
 preuve de la langue du jeu. Le complément d'identité Pokémon Rouge français
 est documenté dans `tools/cheats/unified_pokered_fr_identity.py`.
 
+Pour chacune des empreintes SHA1 originales Rouge et Bleu FR, la publication
+contient cinq programmes : quatre programmes Pokémon France nouvellement
+attestés pour ces éditions, plus un programme Libretro déjà existant. Ce sont
+cinq programmes par édition, pas cinq nouveautés. Une ROM modifiée ou une
+autre révision ne reçoit pas une correspondance exacte par son titre seul.
+
+Les MD5 des XML OpenEmu dont le domaine n'est pas attesté restent dans le
+schéma `openemu-md5-unspecified` : ils ne sont pas rebaptisés empreintes de
+ROM complète. Ces fiches restent des candidats à confirmer ; les
+contradictions explicites d'identité, de région ou de révision restent bloquées.
+
 ## Formats et activation des quatre moteurs
 
 ### Libretro
@@ -124,12 +147,14 @@ obligatoire `retro_cheat_set` n'établit pas à elle seule une implémentation
 fonctionnelle : le cœur Azahar examiné possède notamment un chemin de cheats
 sans effet. Aucun support 3DS n'est déclaré sur cette seule base.
 
-Les neuf adaptateurs existants sont conservés ; PPSSPP et Mupen64Plus Next
-disposent d'un raccordement supplémentaire spécifique, dont les effets RAM
-doivent être vérifiés par les sondes ciblées avec les cœurs déjà compilés.
-Les programmes PS1 ne sont admis que pour les opcodes actuellement pris en
-charge. Les opérations mémoire handler 1 ne sont pas rendues exécutables par
-une simple conversion de fichier.
+Le lot comprend 14 profils ABI explicites : Nestopia, Snes9x, Gambatte,
+mGBA, Genesis Plus GX, Genesis Plus GX Wide, DeSmuME, Beetle PSX HW,
+Beetle PSX, PPSSPP, Mupen64Plus Next, PicoDrive, Beetle PCE Fast et
+Beetle WonderSwan. FBNeo utilise une quinzième voie distincte, son import
+INI natif désactivé ; il n'est pas présenté comme un callback ABI fonctionnel.
+Cela ne constitue pas un support cheats des 34 cores livrés. Les variantes
+de console et les opcodes réellement pris en charge sont indiqués dans
+[la matrice de compatibilité](unified-cheats-compatibility.md).
 
 Les limites sont celles des vrais buffers et des adaptateurs revus : notamment
 DeSmuME 1 023 octets pour un programme, mGBA 128 lignes / 4 096 octets,
@@ -137,6 +162,16 @@ PPSSPP 4 096 octets, Mupen64Plus Next 128 paires / 1 791 octets, et les autres
 limites explicites du code. Un programme trop long est rejeté en entier, jamais
 tronqué pour le faire passer. Les dépendances doivent tenir ensemble dans les
 limites du cœur.
+
+Le programme complet est prévalidé avant tout regroupement d'appels. Les
+écritures indépendantes PS1 ou PCE peuvent être réparties en appels bornés
+lorsque l'append et l'ordre des écritures ont été démontrés ; le choix reste un
+seul interrupteur. Les programmes PS1 conditionnels restent atomiques à
+255 octets. PCE est borné à 8 192 octets au total et 255 octets par appel ;
+WonderSwan à 128 écritures RAM / 1 023 octets dans un seul appel. PicoDrive
+conserve sa limite de 8 192 octets et de 99 appels. Les groupes de dépendances
+doivent eux aussi respecter ces bornes, sans tronquer une instruction ou une
+routine pour tenir dans un tampon.
 
 ### ARMSX2
 
@@ -258,12 +293,39 @@ python3 tools/cheats/unified_catalogue.py validate --input native/cheats/catalog
 
 ## Métriques et validation
 
-**À compléter après gel des données.** Les totaux de la génération provisoire
-ne sont pas des résultats finaux. Copier la révision, les octets de packs, le
-nombre de chunks et les statuts depuis le `manifest.json` final validé. Ne pas
-présenter `totals.available` comme un nombre de codes distincts testés en jeu :
-les entrées contiennent aussi des variantes, des éditions et des enregistrements
-en réserve. Le nombre de références de recherche reste 70.
+Données figées à la révision
+`bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4`.
+Le manifeste et son exemplaire embarqué sont identiques. L'index référence
+34 attributions de sources, dont ArtemisPS3 comme provenance seule,
+2 341 355 programmes dédupliqués dans leurs groupes d'identité,
+43 813 groupes et 44 955 fiches de transport, parties comprises.
+Ces comptes ne sont ni un nombre d'effets uniques ni un nombre de jeux
+commerciaux uniques. Les contributions des sources se recouvrent et ne
+s'additionnent pas. `totals.cheats` compte 2 341 355 enregistrements de
+programmes dans les packs, duplications éventuelles de dépendances comprises.
+
+| Élément figé | Taille ou quantité |
+|---|---:|
+| Index gzip embarqué et distant | 6 574 067 octets (6,27 Mio) |
+| Index JSON décompressé | 29 376 532 octets (28,02 Mio) |
+| Packs référencés | 851 |
+| Packs compressés, somme | 274 318 367 octets (261,61 Mio) |
+| Réseau initial, index + packs | 280 892 434 octets (267,88 Mio) |
+| Packs décompressés, somme des enveloppes temporaires | 3 226 101 652 octets (3076,65 Mio) |
+| Chunks de jeux installables, hors index et métadonnées locales | 2 417 589 667 octets (2305,59 Mio) |
+
+Les tailles décompressées sont des sommes sur le catalogue ; les packs sont
+traités dans les limites de concurrence et de mémoire du service partagé.
+L'IPA embarque l'index, pas les 851 packs.
+
+SHA256 de `manifest.json.gz` :
+`cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57`.
+Le scan indépendant de `native/cheats/catalogue/VALIDATION.json` a parcouru les
+851 packs et les 2 341 355 programmes sans anomalie réelle. Ce
+contrôle de données reste distinct des résultats Apple ci-dessous et ne
+constitue pas une vérification gameplay de chaque programme. L'inventaire des
+70 références, leurs contributions et les 14 compléments 53–66 est dans
+[la liste des sources](unified-cheats-sources.md).
 
 La CI ciblée est `.github/workflows/unified-cheats.yml`. Les nouveaux contrôles
 incluent les adaptateurs de données, la persistance/hors-ligne du service,
@@ -302,9 +364,9 @@ réexécutés pour ce catalogue.
 - Les formats réservés à des plugins de console réelle, les NCL non convertis,
   les programmes dépassant les limites et les paramètres non résolus restent
   indisponibles pour l'activation tant qu'un adaptateur réel ne les couvre pas.
-- Le support futur Switch, Vita, arcade ou Wii U ne découle pas de la présence
-  de leurs données dans l'inventaire. Le moteur et les opcodes doivent être
-  effectivement raccordés et vérifiés.
+- Le support futur Switch, Vita, Wii U ou MAME XML ne découle pas de la présence
+  de leurs données dans l'inventaire. La voie arcade FBNeo INI déjà raccordée
+  n'est pas un interpréteur universel des autres formats arcade.
 - Aucun test sur iPhone physique, aucune IPA de ce chantier et aucune
   publication publique ne sont affirmés ici.
 
