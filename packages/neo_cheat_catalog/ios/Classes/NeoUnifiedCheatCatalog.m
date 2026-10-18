@@ -287,6 +287,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   dispatch_queue_t _queue;
   NSOperationQueue *_transportQueue;
   NSOperationQueue *_packQueue;
+  NSOperationQueue *_readQueue;
   NSDictionary *_manifest;
   NSDictionary *_indexedManifest;
   NSDictionary *_gamesByID;
@@ -314,6 +315,8 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   _transportQueue.qualityOfService=NSQualityOfServiceUtility;
   _packQueue=[NSOperationQueue new]; _packQueue.maxConcurrentOperationCount=2;
   _packQueue.qualityOfService=NSQualityOfServiceUtility;
+  _readQueue=[NSOperationQueue new]; _readQueue.maxConcurrentOperationCount=2;
+  _readQueue.qualityOfService=NSQualityOfServiceUtility;
   _manifestURL=[NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/neostation-ios/Claude/native/cheats/catalogue/manifest.json.gz"];
   NSString *documents=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject ?: NSTemporaryDirectory();
   _storageDirectory=[documents stringByAppendingPathComponent:@"NeoStation/Cheats/Unified"];
@@ -830,7 +833,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       if(!canonical){dispatch_async(dispatch_get_main_queue(),^{completion(@[],Failure(7,@"The selected game is no longer in this catalogue"));});return;}
       NSDictionary *chosen=canonical,*snapshot=self->_manifest;
       NSDictionary *pack=self->_packsByID[String(chosen[@"pack_id"] ?: chosen[@"pack"])];
-      [self->_packQueue addOperationWithBlock:^{NSError *problem=nil;
+      NSBlockOperation *repair=[NSBlockOperation blockOperationWithBlock:^{NSError *problem=nil;
         if(![self hasChunk:chosen verify:YES])problem=pack ? [self installPack:pack manifest:snapshot] : Failure(4,@"This game is not available offline");
         NSData *data=ReadBounded([self chunkPath:chosen],ChunkLimit);
         NSArray *cheats=nil;
@@ -838,6 +841,20 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
         if(!cheats && !problem)problem=Failure(5,@"Cached game chunk failed verification");
         dispatch_async(dispatch_get_main_queue(),^{completion(cheats ?: @[],cheats ? nil : problem);});
       }];
+      repair.queuePriority=NSOperationQueuePriorityVeryHigh;
+      if ([self hasChunk:chosen verify:NO]) {
+        // Ready codes must not wait behind every remaining bulk download.
+        // These two bounded readers never fetch or expand packs. Corruption
+        // is repaired only by the existing two pack workers below.
+        [self->_readQueue addOperationWithBlock:^{
+          NSData *data=ReadBounded([self chunkPath:chosen],ChunkLimit);
+          if (data.length==[chosen[@"size"] unsignedIntegerValue] && [Digest(data) isEqualToString:String(chosen[@"sha256"]).lowercaseString]) {
+            NSError *error=nil;NSArray *programs=[self validatedCheats:data game:chosen error:&error];
+            if (programs) {dispatch_async(dispatch_get_main_queue(),^{completion(programs,nil);});return;}
+          }
+          [self->_packQueue addOperation:repair];
+        }];
+      } else [self->_packQueue addOperation:repair];
     });
   }];
 }

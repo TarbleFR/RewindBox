@@ -302,6 +302,21 @@ static void InGameDownloadChecks(NSString *root) {
   CHECK(fetched==2 && progressCount>=3,"one request per pack with immediate and completion progress");
   CHECK(Codes(catalog,games[1],YES).count==1,"downloaded PS3 program is readable");
   CHECK(![Codes(catalog,games[0],YES)[0][@"enabled"] boolValue],"download never activates PS2 programs");
+  NSOperationQueue *workers=[catalog valueForKey:@"packQueue"];
+  dispatch_semaphore_t releaseWorkers=dispatch_semaphore_create(0);
+  __block NSUInteger occupied=0;
+  for (NSUInteger i=0;i<2;i++) [workers addOperationWithBlock:^{
+    @synchronized(lock){occupied++;}
+    dispatch_semaphore_wait(releaseWorkers,DISPATCH_TIME_FOREVER);
+  }];
+  Spin(^BOOL{@synchronized(lock){return occupied==2;}});
+  done=NO;__block NSArray *ready=nil;
+  [catalog cheatsForGame:games[1] completion:^(NSArray *programs,NSError *error){CHECK(!error,"ready PS3 read succeeds while bulk workers are occupied");ready=programs;done=YES;}];
+  NSDate *deadline=[NSDate dateWithTimeIntervalSinceNow:15];
+  while (!done && deadline.timeIntervalSinceNow>0) [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.005]];
+  CHECK(done && ready.count==1,"ready cached PS3 programs must bypass occupied download workers");
+  dispatch_semaphore_signal(releaseWorkers);dispatch_semaphore_signal(releaseWorkers);
+  [workers waitUntilAllOperationsAreFinished];
   catalog.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)){CHECK(NO,"installed in-game catalogues must work without network");};
   done=NO;[catalog installAllForIdentity:nativePS2 progress:nil completion:^(NSDictionary *result,NSError *error){CHECK(!error && [result[@"installed_games"] unsignedIntegerValue]==2,"already downloaded button completes offline");done=YES;}];Spin(^BOOL{return done;});
   NSString *chunk=[catalog.storageDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"files/%@.json",games[0][@"sha256"]]];
