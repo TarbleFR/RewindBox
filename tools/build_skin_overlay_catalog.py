@@ -38,6 +38,7 @@ SOURCES = {
         'repository': 'libretro/common-overlays',
         'commit': '42c21b99889468a8e77fd7f002229ec16e2f9fa2',
         'license': 'CC BY 4.0',
+        'license_uri': 'https://creativecommons.org/licenses/by/4.0/',
         'author': 'libretro contributors',
         'url': 'https://github.com/libretro/common-overlays',
     },
@@ -46,6 +47,7 @@ SOURCES = {
         'repository': 'stunrelay/PocketArch',
         'commit': '33dc23be7ea5938956bbe686c1c9494ef5628e30',
         'license': 'MIT',
+        'license_uri': 'https://opensource.org/license/mit/',
         'author': 'stunrelay',
         'url': 'https://github.com/stunrelay/PocketArch',
     },
@@ -97,6 +99,32 @@ def git(repo, *args):
 
 def entry_id(source, cfg_path):
     return source[:2] + '-' + hashlib.sha256(f'{source}:{cfg_path}'.encode()).hexdigest()[:12]
+
+
+def attribution(repo, cfg_path, tree):
+    """Retain supplied header credits and ancestor notices; do not invent authors."""
+    text = (repo / cfg_path).read_text(encoding='utf-8', errors='replace')
+    header = []
+    for line in text.splitlines():
+        if line.lstrip().startswith('#'):
+            header.append(line)
+        elif line.strip():
+            break
+    result = {}
+    if header:
+        result['original_header'] = '\n'.join(header)
+        for line in header:
+            match = re.search(r'\b(?:by|author\s*:)\s+(.+)', line, re.I)
+            if match:
+                result['author'] = match.group(1).strip().rstrip('#').strip()
+                break
+    ancestors = {'.'}
+    parent = Path(cfg_path).parent
+    ancestors.update(p.as_posix() for p in (parent, *parent.parents))
+    result['notice_files'] = sorted(p for p in tree if posixpath.dirname(p) in ancestors or
+        (not posixpath.dirname(p) and '.' in ancestors)
+        if re.fullmatch(r'(?:readme|copying|licen[sc]e|notice|authors|credits)(?:[._-].*)?', posixpath.basename(p), re.I))
+    return result
 
 
 def images(repo, cfg_path, tree):
@@ -167,6 +195,7 @@ def build(common, pocketarch):
                 'path': cfg_path,
                 'name': name,
                 'consoles': consoles,
+                **attribution(repo, cfg_path, tree),
             }
             if excluded:
                 entry['excluded'] = excluded
@@ -178,10 +207,23 @@ def build(common, pocketarch):
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != '--attribution-only'):
         raise SystemExit(__doc__)
     catalog = build(Path(sys.argv[1]), Path(sys.argv[2]))
     output = Path(sys.argv[3])
+    if len(sys.argv) == 5:
+        previous = json.loads(output.read_text())
+        by_id = {e['id']: e for e in catalog['entries']}
+        for entry in previous['entries']:
+            reviewed = by_id[entry['id']]
+            assert entry['path'] == reviewed['path'] and entry['source'] == reviewed['source']
+            for field in ('author', 'original_header', 'notice_files'):
+                if field in reviewed:
+                    entry[field] = reviewed[field]
+        for source, description in catalog['sources'].items():
+            assert previous['sources'][source]['commit'] == description['commit']
+            previous['sources'][source]['license_uri'] = description['license_uri']
+        catalog = previous
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(catalog, ensure_ascii=False, separators=(',', ':'), sort_keys=True) + '\n',
                       encoding='utf-8')

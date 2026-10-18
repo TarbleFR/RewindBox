@@ -756,9 +756,9 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       const cfgPath = 'Touch Overlays/Phone Taller (9x20)/GBA/GBA.cfg';
       const index = '''
 {"version": 1,
- "sources": {"pocketarch": {"repository": "stunrelay/PocketArch", "commit": "$commit", "license": "MIT", "author": "stunrelay"}},
+ "sources": {"pocketarch": {"repository": "stunrelay/PocketArch", "commit": "$commit", "license": "MIT", "license_uri": "https://opensource.org/license/mit/", "author": "stunrelay"}},
  "entries": [
-  {"id": "po-1", "source": "pocketarch", "path": "$cfgPath", "name": "GBA", "consoles": ["gba"], "device": "iphone",
+  {"id": "po-1", "source": "pocketarch", "path": "$cfgPath", "name": "GBA", "consoles": ["gba"], "device": "iphone", "author": "Original overlay artist", "notice_files": ["LICENSE", "README.md"],
    "files": ["Touch Overlays/Phone Taller (9x20)/GBA/img/bg.png", "Touch Overlays/Phone Taller (9x20)/GBA/img/dpad.png",
              "Touch Overlays/Phone Taller (9x20)/GBA/img/a.png", "Touch Overlays/Phone Taller (9x20)/GBA/img/b.png"]},
   {"id": "po-2", "source": "pocketarch", "path": "Touch Overlays/Phone Taller (9x20)/GBA/windowed.cfg", "name": "Windowed",
@@ -769,6 +769,7 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
 ''';
       final png = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..._noise(24)];
       final requested = <String>[];
+      var noticesAvailable = true;
       final client = MockClient((request) async {
         final url = request.url;
         if (url.host != 'raw.githubusercontent.com') return http.Response('offline', 503);
@@ -778,6 +779,8 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
         if (file.endsWith('/GBA.cfg')) return http.Response(_gbaOverlay, 200);
         if (file.endsWith('/windowed.cfg')) return http.Response('overlays = 1\noverlay0_descs = 0\n', 200);
         if (file.endsWith('.png')) return http.Response.bytes(png, 200);
+        if (file.endsWith('/LICENSE')) return http.Response('Copyright original artist\nMIT notice', noticesAvailable ? 200 : 503);
+        if (file.endsWith('/README.md')) return http.Response('Original credits and source links', 200);
         return http.Response('missing', 404);
       });
       final unified = catalogs(client, overlayIndex: index);
@@ -799,14 +802,23 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
       final installed = (result as LibretroSkinImported).skin;
       expect(installed.consoles, <String>['gba']);
       expect(installed.license, 'MIT');
-      expect(installed.author, 'stunrelay');
+      expect(installed.author, 'Original overlay artist');
       expect(installed.source, 'https://github.com/stunrelay/PocketArch/blob/$commit/Touch%20Overlays/Phone%20Taller%20(9x20)/GBA/GBA.cfg');
       expect(installed.compatibility['gba']?.verdict, LibretroSkinVerdict.compatible);
       final infoJson = jsonDecode(File(path.join(installed.directory, 'info.json')).readAsStringSync()) as Map;
       expect(infoJson['gameTypeIdentifier'], 'com.rileytestut.delta.game.gba');
+      expect(infoJson['author'], 'Original overlay artist');
+      expect(infoJson['sourceAttribution']['licenseURI'], 'https://opensource.org/license/mit/');
+      expect(infoJson['sourceAttribution']['url'], installed.source);
+      expect(File(path.join(installed.directory, 'source/original.cfg')).readAsStringSync(), _gbaOverlay);
+      expect(File(path.join(installed.directory, 'source/notices/0-LICENSE')).readAsStringSync(), 'Copyright original artist\nMIT notice');
+      expect(File(path.join(installed.directory, 'source/notices/1-README.md')).readAsStringSync(), 'Original credits and source links');
       final images = Directory(path.join(installed.directory, 'images')).listSync().whereType<File>().toList();
       expect(images.length, 4);
       expect(images.every((file) => file.readAsBytesSync().length == png.length), isTrue);
+      noticesAvailable = false;
+      expect(await unified.install(overlay, 'gba'), isA<LibretroSkinImportFailed>());
+      expect((await skins.installedSkins()).length, 1);
 
       // An overlay that cannot be converted is refused with its reason.
       final refused = await unified.install(entries[1], 'gba');

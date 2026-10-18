@@ -152,15 +152,18 @@ The catalog identifies skins; it does not transfer ownership of their artwork.
 The embedded Libretro frontend supplies NeoStation default skins and installs
 community skins only at the user's request. Third-party skin packs are not
 bundled. Imports retain available catalogue-level fields and the original
-download URL, or identify a local file import. Overlay conversion does not yet
-preserve every individual CFG creator credit and notice in the installed copy.
+download URL, or identify a local file import. Overlay conversion now preserves
+the original CFG, specific creator metadata, license URI and applicable ancestor
+notices with a new installation. Existing copies require reimport/replacement.
 **RGPAD 1.5 is by DJM**, as stated in the original input:
 https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg
 The collection declares CC BY 4.0:
 https://creativecommons.org/licenses/by/4.0/
 NeoStation converts the layout and packages selected images; supplied creator
 and license notices must be preserved with these conversions. The import
-preservation finding remains open. A missing author or license
+preservation correction applies to subsequent app builds. Full overlay credits:
+https://github.com/TarbleFR/neostation-ios/blob/main/docs/OVERLAY_SOURCES_AND_CREDITS.md
+A missing author or license
 must not be interpreted as a grant of redistribution rights; the application's
 license does not relicense downloaded artwork.
 

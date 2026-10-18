@@ -1,0 +1,31 @@
+name: Source rights and overlay notices
+on:
+  workflow_dispatch:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/source-rights.yml
+      - test/source_rights*
+      - tools/cheats/withdraw_pokemonfrance.py
+permissions:
+  contents: read
+jobs:
+  overlays:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter test test/libretro_skin_catalogs_test.dart test/libretro_overlay_fixture_test.dart
+      - run: git fetch --filter=blob:none origin 8308865b873879f74768aff10a9d336d074cb8f7
+      - run: python3 test/source_rights_test.py
+  native:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: python3 test/source_rights_native.py

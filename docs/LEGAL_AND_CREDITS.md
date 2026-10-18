@@ -7,6 +7,12 @@ headers and the license files shipped by each upstream project.
 Attribution does **not** imply endorsement by any upstream project, creator,
 console manufacturer or trademark holder.
 
+The [implementation follow-up](SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md) withholds
+Pokémon France pending permission and preserves overlay notices on new imports.
+See [every engine and core's source evidence](EMBEDDED_RUNTIME_PROVENANCE.md)
+and the [overlay creators and pinned sources](OVERLAY_SOURCES_AND_CREDITS.md).
+Binary-source, funding and combined-license findings remain open.
+
 ## Current release and license review
 
 The current published GitHub release is
@@ -304,8 +310,8 @@ The embedded Libretro frontend supplies NeoStation default skins and installs
 community skins only at the user's request. Third-party skin packs are not
 bundled. Imports retain available catalogue-level author/license fields and the
 download URL, or identify a local file import. The Libretro overlay conversion
-does not yet preserve all creator credits and original notices from its CFG
-input in the installed copy; this remains an open implementation finding.
+now preserves the original CFG and applicable ancestor notices with a new
+installation; existing imported copies require reimport/replacement.
 In particular, **RGPAD 1.5 is by DJM**, as stated in the
 [pinned original CFG](https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg).
 The collection declares [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

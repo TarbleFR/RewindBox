@@ -46,6 +46,13 @@ the previously published signed/distributed IPA.
 
 SECOND SOURCE-RIGHTS REVIEW — 18 OCTOBER 2026
 
+Implementation follow-up: docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md.
+The current catalogue withholds the eight Pokemon France programs pending
+permission (50 active profiles; 51 historical). Newly converted overlays retain
+their original CFG and notices. Creator inventory: docs/OVERLAY_SOURCES_AND_CREDITS.md.
+Exact source evidence and remaining gaps for every embedded core:
+docs/EMBEDDED_RUNTIME_PROVENANCE.md. Existing IPAs are unchanged.
+
 docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md records unresolved data permissions,
 the FBNeo donation restriction alongside Patreon solicitations, exact binary
 source correspondence, and preservation of individual overlay notices.

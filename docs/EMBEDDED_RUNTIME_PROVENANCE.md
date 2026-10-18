@@ -1,0 +1,63 @@
+# Embedded runtime provenance — inspected private Build 479
+
+The runtime payloads in the current source tree remain those delivered in private Build 479. This record distinguishes an upstream license snapshot, the identity of a precompiled binary and the source revision actually attested for that binary. It is not a claim of complete Corresponding Source or license compatibility. Official release 0.0.7 / Build 455 has its [separate review](RELEASE_0.0.7_LICENSE_REVIEW.md).
+
+Inspected IPA: `a1c44f59c80fa98f4d5a0fa7a59885e2b8269fc3666f40b23a805a0528f1b742`, source `ff28cf2a63695400ad09d1c61538059d96992cc1`. The actual [Libretro identity](evidence/build479-libretro-source-identity.json) is preserved verbatim; its SHA-256 is `0bdf81b605c550ef7f5c47c49abaecdc46dbeabeb1602a124b41d6a0537d93b5`. The separate [runtime record](evidence/build479-runtime-source-identity.json) is extracted from `Legal/BUILD_SOURCE_IDENTITY.json`. StikJIT additionally has a precise framework-local source identity.
+
+## Main runtimes and support component
+
+| Component | Attested upstream source | Local integration and remaining boundary |
+| --- | --- | --- |
+| Dolphin / DolphiniOS | `7cac54161659421ed95c2cd1c0b0746539a4cd38` — OatmealDome/dolphin-ios | GPL-2.0-or-later per-file; fork aggregate describes GPLv3 compatibility. Keep integration sources and dependency notices; [credits](LEGAL_AND_CREDITS.md). |
+| RPCS3 / XITRIX | `22f1152783cef1f7e04af7b1c895173e28fd5b03` | GPL-2.0-only for most files. NeoStation changes and their hashes are in [canonical-source.json](../build-utils/rpcs3/canonical-source.json); packaging commits and this upstream base are different identities. GPLv3 host/combined-work compatibility remains unresolved. |
+| ARMSX2 / PCSX2 | `9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe`, `iOSv2.6.0` | GPLv3 material and separately licensed dependencies, including librashader. [Source pin](../build-utils/armsx2/source.json). |
+| Dusklight | `40457c6adb381928e4b5fef6ed459ed291edd5e2`, v2.0.3 | Root CC0; Aurora, Borealis, SDL and other dependencies retain their own terms. Exact submodule pins in [source.json](../build-utils/dusklight/source.json). |
+| KartPad / WiiCompiled | Compiled source `67c7e2f942c1226af149e6a9cc571f647528e25e`; iOS runtime `d0b8dec62a8c98dd45736a996ae18327ada8fe3f` | GPL-covered software and separate game-derived logic rights. Public translated/profile inputs are incomplete; the pin is not proof of full rebuildability. [Source limitation](../build-utils/kartpad/source.json). |
+| StikJIT, JIT support rather than an emulator | `32287268fa5824f9edce4cb359f5833ce0cf7b00`, 1.9.0 | MPL-2.0; exact [source record](../build-utils/stikjit/source.json) also present in its framework. |
+
+## Every embedded Libretro core
+
+The hash column identifies the pre-signing core artifact recorded by the actual delivery. Signing may change executable bytes; it is not a source commit. All complete hashes, archive URLs/hashes and dependency names are retained in the JSON evidence above. “Not attested” must never be replaced with a guessed current HEAD or a license-reference revision.
+
+| Core | Recorded license | Exact source revision for this binary | Recorded pre-signing SHA-256 |
+| --- | --- | --- | --- |
+| [nestopia](https://github.com/libretro/nestopia/tree/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3) | GPLv2 | `135dfa6dfda5e7603d61e751b9ddd0cc42546bc3` | `1a04f99e5ae2c10aa5b3c75b002e212e894c2e7934cc46232deb50da62c0e16d` |
+| [snes9x](https://github.com/libretro/snes9x) | Non-commercial | **Not attested** (buildbot binary) | `aeab4b70a4d572492409150928bbdfe0eb4d2ec1c851f30d33949175ce249dad` |
+| [gambatte](https://github.com/libretro/gambatte-libretro) | GPLv2 | **Not attested** (buildbot binary) | `d99a9b26e6d73b91249b1cc8abdb90d6782c82d12598cb033be12babdb1ca713` |
+| [mgba](https://github.com/libretro/mgba) | MPLv2.0 | **Not attested** (buildbot binary) | `c7026dc4d8a799be2d991faa3d4e2286011d97f9b11fb1e2ef6ba77ebca66218` |
+| [genesis_plus_gx](https://github.com/libretro/Genesis-Plus-GX) | Non-commercial | **Not attested** (buildbot binary) | `290bf5499b896cdd82b47dd3f2c8e8dae808859ded30aa1c17502a7c9129f988` |
+| [genesis_plus_gx_wide](https://github.com/libretro/Genesis-Plus-GX-Wide) | Non-commercial | **Not attested** (buildbot binary) | `198a26556fdb8c1ef9897a3db359f27793cc3e695f23f38acc1f8a29d40a876e` |
+| [picodrive](https://github.com/libretro/picodrive) | MAME | **Not attested** (buildbot binary) | `3c5d6181904d4d644cad530008a202931237ab038ab6a064e4b4f68ecbc4592b` |
+| [fbneo](https://github.com/libretro/FBNeo) | Non-commercial | **Not attested** (buildbot binary) | `737bd97038db59e17d2ede4e68249be238c49bb31e3e93eced03a6e10e486625` |
+| [desmume](https://github.com/libretro/desmume) | GPLv2 | **Not attested** (buildbot binary) | `52c2c2bb92a8647a67afd6cfdb333420065f8bd77be6245f74c3fb8e7cf3005f` |
+| [mupen64plus_next](https://github.com/libretro/mupen64plus-libretro-nx) | GPLv2 | **Not attested** (buildbot binary) | `afdaff358796de530fa005eb037af68f3e05936442cf07f5f7dde86803f8f115` |
+| [mednafen_psx_hw](https://github.com/libretro/beetle-psx-libretro) | GPLv2 | **Not attested** (buildbot binary) | `2bb7819a8f4fd790b8dd327599075152a460079e7cf72d5a86d19af07423c437` |
+| [mednafen_psx](https://github.com/libretro/beetle-psx-libretro) | GPLv2 | **Not attested** (buildbot binary) | `19e263e0968b24b750b74d32ee8e88ded866e16f170012e1ecf2b42e4041bc87` |
+| [ppsspp](https://github.com/hrydgard/ppsspp) | GPLv2 | **Not attested** (buildbot binary) | `40d3b6f81a726ff82a89f87df5332f20a5dcdecd9f6473fcae7cade60bcb0cf0` |
+| [azahar](https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6) | GPLv3+ | `5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6` | `a646ee8f804327e2d33cbacf4d4f64b6725d25c7d7ece1ccc13698b16f3bf1d8` |
+| [mednafen_pce_fast](https://github.com/libretro/beetle-pce-fast-libretro) | GPLv2 | **Not attested** (buildbot binary) | `97aed349a4b523b2c5ae3e55f75810f5c6de5403cea41fccae55368c6b89cb6d` |
+| [mednafen_wswan](https://github.com/libretro/beetle-wswan-libretro) | GPLv2 | **Not attested** (buildbot binary) | `0f3a7249303cbe3be71ac9e99f425a4cc05034abb7615baedfa95d17e8155117` |
+| [mednafen_ngp](https://github.com/libretro/beetle-ngp-libretro) | GPLv2 | **Not attested** (buildbot binary) | `0d9932e1ee9a198918a05386071dd6c58ff4aff78f6c85dcdc5098f8e976fa0b` |
+| [handy](https://github.com/libretro/libretro-handy) | Zlib | **Not attested** (buildbot binary) | `b2d2c86e03fe3c6fd49ba9dac73a59dded85628077abd2e015659c7611604f06` |
+| [mednafen_vb](https://github.com/libretro/beetle-vb-libretro) | GPLv2 | **Not attested** (buildbot binary) | `2ee0c2c8e4c77073045ac8e135886f628c5ae93b962256e2ffa8db39f8147bad` |
+| [stella](https://github.com/stella-emu/stella) | GPLv2 | **Not attested** (buildbot binary) | `70efdf7e7c18f51396605a51a3f823d4c59392a60f875d83b01feff95a464934` |
+| [prosystem](https://github.com/libretro/prosystem-libretro) | GPLv2 | **Not attested** (buildbot binary) | `69ff2105f2f94e28ffda83ca60a93c83b169fedcb32158faf69f17e165624601` |
+| [a5200](https://github.com/libretro/a5200) | GPLv2 | **Not attested** (buildbot binary) | `3c1661671225181d16ec39c4a663fd4bc4cfead9d0d48addccff921f8be51002` |
+| [gearcoleco](https://github.com/drhelius/Gearcoleco) | GPLv3 | **Not attested** (buildbot binary) | `dbeaa8c4e934ec7bdf1b4f875ab8d75b3e714ced4d7a92b2b787e70bfe05fb66` |
+| [pokemini](https://github.com/libretro/PokeMini) | GPLv3+ | **Not attested** (buildbot binary) | `ea44fd3e06a0fb0fa74c7c10b632934d1a5ad708068598ec5ad2a71bfe641757` |
+| [gw](https://github.com/libretro/gw-libretro) | Zlib | **Not attested** (buildbot binary) | `cbf9a62ddb0b39057f30bf9e1b19589840c5c7f667dee5c679d1d967b2e068b8` |
+| [sameduck](https://github.com/LIJI32/SameBoy/tree/SameDuck) | MIT | **Not attested** (buildbot binary) | `daa85d8d787bf32cf286901046ea0fd1bd495c6182d889de696ac192cb4f4b1c` |
+| [potator](https://github.com/libretro/potator) | Unlicense (public domain) | **Not attested** (buildbot binary) | `9686d66a7bfec0fb4fc16e57ed87d0fd41e846862a3e0113eb5d3459bd616301` |
+| [ardens](https://github.com/tiberiusbrown/Ardens) | MIT | **Not attested** (buildbot binary) | `afa1c8b621fe4273d3cd8c7652d3230ae83e7e077afd1d44b753dc6c39a780a1` |
+| [wasm4](https://github.com/aduros/wasm4) | ISC | **Not attested** (buildbot binary) | `6bad181d5f14595e076a0a44fb8bbaf5d8c74b5381cc18262ef67735e7503aab` |
+| [uzem](https://github.com/libretro/libretro-uzem) | MIT | **Not attested** (buildbot binary) | `a3721746f8f2556024a96b716258c6b851d2a47d7feff641b1325eb9ec6ee4ee` |
+| [freechaf](https://github.com/libretro/FreeChaF) | GPLv3 | **Not attested** (buildbot binary) | `6e76af01f852f74600c843b65e716ab760d0519a0d36964c79bb9ad94510fc84` |
+| [freeintv](https://github.com/libretro/FreeIntv) | GPLv2+ | **Not attested** (buildbot binary) | `9efbe6c1f5329eeaf5085e6c0eefa28952fe6d0480d73b60c55674dbea6aefff` |
+| [o2em](https://github.com/libretro/libretro-o2em) | Artistic-2.0 | **Not attested** (buildbot binary) | `6f18b3072bcca30c3d7251e20a8bd03d8f2819d3531d70d93064170991518afd` |
+| [mednafen_pcfx](https://github.com/libretro/beetle-pcfx-libretro) | GPLv2 | **Not attested** (buildbot binary) | `8503b85fafd9f6b624501d5b1c1ff6da31f8630be5ead2e9000d9670c40b1a20` |
+
+Nestopia also needs its recorded NeoStation patch (`53847d26b0f914e6fe7ae00415a91f93a5d9573a78453b4947b752b0f9e10d59`); Azahar is the official 2127.0-alpha1 artifact. Only these **two of 34 cores** have exact source revision evidence in this delivery. The remaining **32** have artifact hashes and source repositories, but not an attested source commit; **19** are labelled GPL/MPL. To close that gap, obtain each artifact’s matching source and build inputs or replace it with a reproducibly built core from recorded sources. This documentation does not perform or claim that replacement.
+
+The [45 preserved core notice files](../assets/legal/libretro/LIBRETRO_CORES.md) are present in the actual 479 IPA. Their [reference revisions](../assets/legal/libretro/license-sources.json) prove where the license texts were retrieved, not which source built an unrelated buildbot artifact.
+
+**Funding remains a concrete open finding:** FBNeo’s notice prohibits donation solicitation for a project using its source, while the repository and app solicit Patreon support. [Preserved restriction](../assets/legal/libretro/fbneo-src-license.txt). Resolve the solicitation, obtain applicable permission or change the component; source credits do not resolve this condition. Other non-commercial core terms also remain applicable.

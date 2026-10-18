@@ -13,6 +13,12 @@ distinct commercial games.
 
 Index SHA-256: `a475a740a2e6251a5638077ffcce53c81afc125acd6fbcfaf97ff28d7602d1a1`.
 
+## Current publication after the second review
+
+The historical Build 478–479 inventory below contains 51 profiles. The current source publication withholds `pokemonfrance` pending written permission: **50 active profiles**, **2,395,541 programs**, **50,282 identity groups**, **51,650 transport records**, **874 packs**. The eight withdrawn programs are absent from the active index and replacement packs. Their source credit remains in this historical record and the index's excluded-source metadata.
+
+Current index SHA-256: `095cf728487a7b10d0516b88895d64f1eac43ad5df65eb4aabe5f1796e79270c`. [Withdrawal receipt](evidence/source-rights-withdrawal.json); [implementation and limits](SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md). An existing IPA does not acquire the new runtime guard without an app update.
+
 ## Authorship and reuse
 
 - Each collection and each original code/patch author retains their rights.
@@ -253,7 +259,7 @@ remain implementation follow-ups.
 - **Source:** [Pokémon France / PokéLord](https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/).
 - **Credit:** PokéLord / Pokémon France; einstein95/pokered-fr identity research.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
-- **Verified review, 18 October 2026:** The [site’s legal notice](https://www.pokemon-france.com/mentions-legales/), checked 18 October 2026, restricts reuse of compiled data to prior written authorization except short quotations with a source link. This profile contributes eight executable programs; no authorization was established in this review. Credit alone does not establish that the import qualifies for the quotation exception. Permission or exclusion requires resolution before a clearance claim.
+- **Verified review, 18 October 2026:** The [site’s legal notice](https://www.pokemon-france.com/mentions-legales/), checked 18 October 2026, restricts reuse of compiled data to prior written authorization except short quotations with a source link. This profile contributed eight executable programs to Build 479; it is now withheld from the active publication and blocked by the updated loader. No authorization was established in this review. Credit alone does not establish that the import qualifies for the quotation exception. Permission or exclusion requires resolution before a clearance claim.
 - **Pinned input revision:** `e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e`.
 - **Pinned input SHA-256:** `e1ec39b8e18292ed7a556609e52a0188b86caf964f963a10c6bdcfec728b4601`.
 - **Imported scope:** Reviewed complete program excerpts only; source website/forum is NOT claimed exhaustively downloaded

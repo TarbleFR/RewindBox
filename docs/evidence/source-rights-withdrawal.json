@@ -1,0 +1,33 @@
+{
+  "baselineIndexSHA256": "a475a740a2e6251a5638077ffcce53c81afc125acd6fbcfaf97ff28d7602d1a1",
+  "manifestSHA256": "095cf728487a7b10d0516b88895d64f1eac43ad5df65eb4aabe5f1796e79270c",
+  "removedPrograms": 8,
+  "removedTransportRecords": [
+    "533635c085f971e8a5e3e0f854348c69",
+    "60d89cf805c614b7c3b08e4b53ee5b48"
+  ],
+  "preservedPacks": 872,
+  "replacedPacks": [
+    {
+      "old": "packs/pack-cdbe34c7759fc24c4051e06a.json.gz",
+      "new": "packs/pack-3d2c4e9572d2f91c230dc571.json.gz",
+      "sha256": "3d2c4e9572d2f91c230dc571d930ade4811443d07cf506988f0598c5f48f3917"
+    },
+    {
+      "old": "packs/pack-a0a577560bb7fc62f92b9b52.json.gz",
+      "new": "packs/pack-e13ef8ccd4892dd04e451d35.json.gz",
+      "sha256": "e13ef8ccd4892dd04e451d35477a31092de81bfe61a69a10cafac3865dfdeced"
+    }
+  ],
+  "totals": {
+    "available": 2395541,
+    "cheats": 2395541,
+    "download_bytes": 284722324,
+    "games": 51650,
+    "identity_groups": 50282,
+    "programs": 2395541,
+    "sources": 50
+  },
+  "reason": "Withheld pending written reuse permission; source credits retained in historical records.",
+  "existingIPAsChanged": false
+}

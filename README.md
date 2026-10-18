@@ -43,8 +43,8 @@ The release contains the **Build 455 IPA** and its SHA-256 checksum.
 
 ## Unified cheats and patches — development snapshot
 
-The current source tree includes the catalogue delivered in private **Build 479**:
-**51 contributing source entries**, **2,395,549 programs and edition variants**,
+The current source tree starts from private **Build 479** and withholds the eight Pokémon France programs pending permission:
+**50 active contributing source entries**, **2,395,541 programs and edition variants**,
 and **1,926 source-backed 60 FPS selections** for supported native adapters.
 One common installation serves the embedded engines. Matching uses the detected
 game identity, region and revision; compatible codes appear as named switches.
@@ -59,7 +59,7 @@ credit the collections and original authors. Their data keeps its own terms;
 NeoStation’s frontend license does not relicense third-party codes.
 
 <details>
-<summary>All 51 contributing cheat and patch sources</summary>
+<summary>51 historical source profiles (50 currently active)</summary>
 
 | Source / import profile | Maintainers and original contributors |
 | --- | --- |
@@ -78,7 +78,7 @@ NeoStation’s frontend license does not relicense third-party codes.
 | [Snes9x cheats.bml](https://github.com/snes9xgit/snes9x/blob/master/data/cheats.bml) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-snes9x) | snes9xgit and collection contributors; original code authors |
 | [ArtemisPS3](https://github.com/bucanero/ArtemisPS3/tree/master/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis) | Daniel Gerendasy (Copyright 2020), bucanero and original code authors |
 | [Artemis Patch Collection RPCS3](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemisrpcs3) | chidreams (Copyright 2023); Aldo’s PS3 Cheat Database; original code authors |
-| [Pokémon France / PokéLord](https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pokemonfrance) | PokéLord / Pokémon France; einstein95/pokered-fr identity research |
+| [Pokémon France / PokéLord](https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pokemonfrance) | PokéLord / Pokémon France; einstein95/pokered-fr identity research — **withheld pending permission** |
 | [MiSTer Cheats](https://github.com/MiSTer-devel/Cheats_MiSTer) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mister) | MiSTer-devel; GameHacking.org (credited upstream for the cheats); original code authors |
 | [LunaMoo PPSSPP workarounds](https://github.com/LunaMoo/PPSSPP_workarounds) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-lunamoo) | LunaMoo and collection contributors; original code authors |
 | [TAbdiukov PPSSPP patches](https://github.com/TAbdiukov/PPSSPP-patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-tabdiukov) | Tim Abdiukov / TAbdiukov (Copyright 2019), collection contributors and original code authors |
@@ -248,7 +248,7 @@ Thanks to the emulator, port, Libretro, StikJIT, RetroAchievements, ScreenScrape
 GameDB, skin, shader, reading-library and memory-research contributors.
 **[Full credits and source records](docs/LEGAL_AND_CREDITS.md)** include the
 individual authors, **[all 34 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**
-and **[all 51 contributing cheat source entries](docs/CHEAT_CATALOG_SOURCES.md)**.
+and **[all 51 historical cheat source entries, 50 active](docs/CHEAT_CATALOG_SOURCES.md)**.
 
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and
@@ -260,7 +260,7 @@ The review distinguishes the published IPA from subsequent packaging fixes.
 full redistribution clearance has not been established. Open findings include
 FBNeo's donation restriction alongside the project's Patreon solicitations,
 permission for some imported cheat data, exact source correspondence for
-bundled binaries, and preservation of individual overlay notices. Verified
+bundled binaries, and [overlay credits and notice preservation](docs/OVERLAY_SOURCES_AND_CREDITS.md). See the [implemented follow-up](docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md) and [per-engine provenance](docs/EMBEDDED_RUNTIME_PROVENANCE.md). Verified
 upstream declarations supplement the frozen catalogue metadata in the source
 register; credits alone do not resolve these findings.
 

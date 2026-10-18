@@ -543,6 +543,7 @@ class LibretroOverlayConversion {
     required this.problems,
     required this.droppedCommands,
     required this.orientations,
+    this.sourceFiles = const <String, List<int>>{},
   });
 
   /// The Delta skin description (info.json).
@@ -559,6 +560,9 @@ class LibretroOverlayConversion {
 
   /// "portrait", "landscape" layouts produced.
   final List<String> orientations;
+
+  /// Original input bytes and notices retained beside the adapted layout.
+  final Map<String, List<int>> sourceFiles;
 
   bool get converted => problems.isEmpty && orientations.isNotEmpty;
 }

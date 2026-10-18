@@ -748,6 +748,15 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     if(![row isKindOfClass:NSDictionary.class] || !SafeID(row[@"id"]) || [ids containsObject:row[@"id"]] ||
        !String(row[@"name"]).length || String(row[@"name"]).length>1024 || String(row[@"code"]).length>ChunkLimit ||
        ![statuses containsObject:String(row[@"status"])] || Array(row[@"lines"]).count>100000)continue;
+    // A cached/downloaded old index cannot restore a withheld contribution.
+    // Keep the original attribution in history; never relabel these programs.
+    BOOL withheld=NO;
+    for(id p in Array(row[@"provenance"])) {
+      if([p isKindOfClass:NSDictionary.class] &&
+         ([String(p[@"source_id"]) isEqualToString:@"pokemonfrance"] ||
+          [String(p[@"import_source_id"]) isEqualToString:@"pokemonfrance"])) {withheld=YES;break;}
+    }
+    if(withheld)continue;
     NSMutableDictionary *copy=[row mutableCopy];copy[@"enabled"]=@NO;
     BOOL malformed=NO;
     for(NSString *field in @[@"dependencies",@"parameters",@"lines"])

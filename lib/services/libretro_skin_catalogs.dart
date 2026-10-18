@@ -119,6 +119,10 @@ class LibretroOverlayEntry {
     required this.commit,
     required this.device,
     required this.files,
+    this.author,
+    this.license,
+    this.licenseURI,
+    this.noticeFiles = const <String>[],
   });
 
   final String id;
@@ -134,6 +138,10 @@ class LibretroOverlayEntry {
 
   /// Repository paths of the images the overlay uses.
   final List<String> files;
+  final String? author;
+  final String? license;
+  final String? licenseURI;
+  final List<String> noticeFiles;
 
   /// Immutable download link of a repository file at the pinned commit.
   Uri fileUri(String file) => Uri(
@@ -193,7 +201,7 @@ class LibretroSkinCatalogs {
   static const String inspectionFolderName = 'SkinInspection';
 
   /// Bump when the native or Dart rules change: cached verdicts are redone.
-  static const int rulesVersion = 3;
+  static const int rulesVersion = 4;
   static const Duration verdictLifetime = Duration(days: 30);
   static const Duration unreachableLifetime = Duration(hours: 6);
 
@@ -463,7 +471,7 @@ class LibretroSkinCatalogs {
         source: source,
         name: raw['name'] is String ? raw['name'] as String : path.basenameWithoutExtension(cfgPath),
         consoles: <String>[for (final console in (raw['consoles'] as List? ?? const <Object?>[])) if (console is String) console],
-        author: description['author'] is String ? description['author'] as String : null,
+        author: raw['author'] is String ? raw['author'] as String : (description['author'] is String ? description['author'] as String : null),
         origin: repository,
         license: description['license'] is String ? description['license'] as String : null,
         overlay: LibretroOverlayEntry(
@@ -473,6 +481,10 @@ class LibretroSkinCatalogs {
           repository: repository,
           commit: commit,
           device: raw['device'] == 'ipad' ? 'ipad' : 'iphone',
+          author: raw['author'] is String ? raw['author'] as String : (description['author'] is String ? description['author'] as String : null),
+          license: description['license'] is String ? description['license'] as String : null,
+          licenseURI: description['license_uri'] is String ? description['license_uri'] as String : null,
+          noticeFiles: <String>[for (final file in (raw['notice_files'] is List ? raw['notice_files'] as List : const <Object?>[])) if (file is String) file],
           files: <String>[for (final file in (files is List ? files : const <Object?>[])) if (file is String) file],
         ),
         excludedReason: excluded is String ? excluded : null,
@@ -692,7 +704,15 @@ class LibretroSkinCatalogs {
     for (final file in conversion.files.values) {
       if (!overlay.files.contains(file)) conversion.problems.add('missing indexed resource: $file');
     }
-    return conversion;
+    conversion.info['author'] = overlay.author;
+    conversion.info['sourceAttribution'] = <String, Object?>{
+      'url': overlay.webURL, 'revision': overlay.commit, 'author': overlay.author,
+      'license': overlay.license, 'licenseURI': overlay.licenseURI,
+      'modifications': 'Layout converted for NeoStation; selected images packaged. Original CFG and notices retained in source/.',
+    };
+    return LibretroOverlayConversion(info: conversion.info, files: conversion.files,
+      problems: conversion.problems, droppedCommands: conversion.droppedCommands,
+      orientations: conversion.orientations, sourceFiles: <String, List<int>>{'source/original.cfg': bytes});
   }
 
   Future<LibretroSkinCompatibility> _nativeVerdict(Directory inspection, String console) async {
@@ -786,7 +806,17 @@ class LibretroSkinCatalogs {
       final bundle = Archive();
       final info = utf8.encode(jsonEncode(conversion.info));
       bundle.addFile(ArchiveFile('info.json', info.length, info));
-      var total = info.length;
+      var total = info.length + conversion.sourceFiles.values.fold<int>(0, (n, bytes) => n + bytes.length);
+      final sourceFiles = <String, List<int>>{...conversion.sourceFiles};
+      for (var i = 0; i < overlay.noticeFiles.length; i++) {
+        final file = overlay.noticeFiles[i];
+        sourceFiles['source/notices/$i-${path.posix.basename(file)}'] = await _readOverlayFile(
+          overlay, file, min(1024 * 1024, LibretroSkinService.maxArchiveBytes - total));
+        total += sourceFiles['source/notices/$i-${path.posix.basename(file)}']!.length;
+      }
+      for (final file in sourceFiles.entries) {
+        bundle.addFile(ArchiveFile(file.key, file.value.length, file.value));
+      }
       for (final file in conversion.files.entries) {
         final bytes = await _readOverlayFile(overlay, file.value,
             min(16 * 1024 * 1024, LibretroSkinService.maxArchiveBytes - total));
@@ -798,7 +828,7 @@ class LibretroSkinCatalogs {
       return await skins.importFromFile(
         zip.path,
         source: overlay.webURL,
-        author: entry.author,
+        author: overlay.author ?? entry.author,
         license: entry.license,
         targetConsole: console,
       );

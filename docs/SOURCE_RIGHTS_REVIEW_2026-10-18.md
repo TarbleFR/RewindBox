@@ -14,6 +14,9 @@ This documentary correction changes no executable code, catalogue data, pack,
 manifest, existing IPA, release tag or release asset. It publishes no official
 release and does not make old binaries contain newly added documentation.
 
+
+**Follow-up requested by the maintainer:** the source tree now withholds the eight Pokémon France programs, removes that contribution from the active download and denies it when loading older cached catalogue programs. The current publication has 50 contributing profiles; the 51-profile Build 479 record below remains historical. Overlay imports now preserve their original CFG and notices. See [the implemented follow-up](SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md), [complete runtime provenance](EMBEDDED_RUNTIME_PROVENANCE.md) and [overlay credits](OVERLAY_SOURCES_AND_CREDITS.md). Existing IPAs remain unchanged.
+
 ## Description and counting
 
 The [README](../README.md), [central credits](LEGAL_AND_CREDITS.md) and
