@@ -30,6 +30,11 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
 @property(nonatomic) NSUInteger generation;
 @property(nonatomic) BOOL busy;
 @property(nonatomic) BOOL discovering;
+@property(nonatomic) BOOL downloading;
+@property(nonatomic, copy) NSString *downloadStatus;
+@property(nonatomic, copy) NSString *catalogueStatus;
+@property(nonatomic) NSTimeInterval lastDownloadDiscovery;
+@property(nonatomic) NSTimeInterval lastDownloadStatusUpdate;
 @property(nonatomic) BOOL closed;
 @property(nonatomic, strong) id observer;
 @end
@@ -152,23 +157,31 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
           options:NSJSONWritingSortedKeys error:nil];
       menu.scope=[@"NeoStation.DirectCheats." stringByAppendingString:[scope base64EncodedStringWithOptions:0] ?: @""];
       menu.links=[[NSUserDefaults.standardUserDefaults dictionaryForKey:menu.scope] mutableCopy] ?: [NSMutableDictionary dictionary];
-      menu.selections=@[]; [menu rebuild];
-      if (![state[@"available"] boolValue]) { menu.discovering=NO; return; }
+      menu.selections=@[]; menu.catalogueStatus=nil; [menu rebuild];
       [NeoUnifiedCheatCatalog.sharedCatalog gamesForIdentity:state[@"identity"] ?: @{} completion:^(NSArray *games,NSError *error) {
         NeoUnifiedCheatList *owner=weakSelf; if (!owner || owner.closed || owner.generation!=generation) return;
+        if (error) { owner.catalogueStatus=[owner text:@"lookupFailed"]; owner.discovering=NO; [owner rebuild]; return; }
         NSMutableArray *pending=[NSMutableArray array];
-        for (NSDictionary *game in games) if ([game[@"installed"] boolValue] && ![game[@"archived"] boolValue] && ![game[@"update_available"] boolValue] && pending.count<64) [pending addObject:game];
-        if (!pending.count) { owner.discovering=NO; [owner rebuild]; return; }
+        BOOL needsDownload=NO;
+        for (NSDictionary *game in games) if (![game[@"archived"] boolValue]) {
+          if (([game[@"installed"] boolValue] || [game[@"cached_pack"] boolValue]) && ![game[@"update_available"] boolValue]) {
+            if (pending.count<64) [pending addObject:game];
+          } else needsDownload=YES;
+        }
+        if (!pending.count) { owner.catalogueStatus=[owner text:needsDownload ? @"notInstalled" : @"noMatches"]; owner.discovering=NO; [owner rebuild]; return; }
         __block NSUInteger remaining=pending.count; NSMutableArray *choices=[NSMutableArray array];
         // Serial catalogue queue/worker bounds remain owned by the service.
         for (NSDictionary *game in pending) [NeoUnifiedCheatCatalog.sharedCatalog cheatsForGame:game completion:^(NSArray *programs,NSError *problem) {
           NeoUnifiedCheatList *current=weakSelf; if (!current || current.closed || current.generation!=generation) return;
+          if (problem) current.catalogueStatus=[current text:@"loadFailed"];
           if (!problem) for (NSDictionary *selection in [NeoUnifiedCheatList selectionsForGame:game programs:programs accepts:current.accepts]) {
             if (choices.count>=4096) break; [choices addObject:selection];
           }
           if (--remaining==0) {
             [choices sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b) { return [a[@"name"] localizedStandardCompare:b[@"name"]]; }];
-            current.selections=choices; current.discovering=NO; [current rebuild];
+            current.selections=choices; current.discovering=NO;
+            if (!choices.count && !current.catalogueStatus) current.catalogueStatus=[current text:@"noCompatible"];
+            [current rebuild];
           }
         }];
       }];
@@ -181,13 +194,17 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   if (section==0) return nil;
   if (self.discovering) return [self text:@"loading"];
   NSString *help=NCLString(self.state[@"help"]);
-  return self.rows.count ? help : [NSString stringWithFormat:@"%@%@%@",[self text:@"noMatches"],help.length ? @"\n" : @"",help];
+  return self.rows.count ? help : [NSString stringWithFormat:@"%@%@%@",self.catalogueStatus ?: [self text:@"noMatches"],help.length ? @"\n" : @"",help];
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
   UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
   cell.textLabel.numberOfLines=0; cell.detailTextLabel.numberOfLines=0;
   if (path.section==0) {
-    cell.textLabel.text=[self text:path.row==0 ? @"downloadAll" : @"directImport"];
+    cell.textLabel.text=[self text:path.row==0 ? (self.downloading ? @"downloading" : @"downloadAll") : @"directImport"];
+    if (path.row==0) {
+      cell.detailTextLabel.text=self.downloadStatus;
+      if (self.downloading) { UIActivityIndicatorView *spinner=[[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium]; [spinner startAnimating]; cell.accessoryView=spinner; }
+    }
     cell.accessibilityIdentifier=path.row==0 ? @"directCheats.downloadAll" : @"directCheats.import";
     if(path.row==1 && [self.engine isEqual:@"rpcs3"])cell.detailTextLabel.text=@"RPCS3 · JSON";
   } else {
@@ -199,7 +216,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
     toggle.accessibilityLabel=row[@"name"]; toggle.accessibilityIdentifier=@"directCheats.toggle";
     [toggle addTarget:self action:@selector(toggle:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView=toggle;
   }
-  cell.userInteractionEnabled=!self.busy; return cell;
+  cell.userInteractionEnabled=!self.busy && !(path.section==0 && path.row==0 && self.downloading); return cell;
 }
 - (void)applyRow:(NSDictionary *)row enabled:(BOOL)enabled {
   if (self.busy || !self.setEnabled) return; self.busy=YES; [self.tableView reloadData];
@@ -236,13 +253,25 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
   [tableView deselectRowAtIndexPath:path animated:YES]; if (self.busy || path.section!=0) return;
   if (path.row==1) { if (self.importAction) self.importAction(self); return; }
-  self.busy=YES; [self.tableView reloadData]; __weak typeof(self) weakSelf=self;
-  [NeoUnifiedCheatCatalog.sharedCatalog installAllWithProgress:^(NSDictionary *progress) {
+  if (self.downloading) return;
+  self.downloading=YES; self.downloadStatus=[self text:@"downloading"]; [self.tableView reloadData]; __weak typeof(self) weakSelf=self;
+  [NeoUnifiedCheatCatalog.sharedCatalog installAllForIdentity:self.state[@"identity"] ?: @{} progress:^(NSDictionary *progress) {
     NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed) return;
-    menu.navigationItem.prompt=[NSString stringWithFormat:@"%@ / %@",progress[@"completed_packs"],progress[@"total_packs"]];
+    NSString *status=[menu text:[progress[@"phase"] isEqual:@"preparing"] ? @"loading" : @"progressPacks"];
+    status=[status stringByReplacingOccurrencesOfString:@"{done}" withString:[progress[@"completed_packs"] description] ?: @"0"];
+    menu.downloadStatus=[status stringByReplacingOccurrencesOfString:@"{total}" withString:[progress[@"total_packs"] description] ?: @"0"];
+    NSTimeInterval now=NSDate.timeIntervalSinceReferenceDate;
+    if (now-menu.lastDownloadStatusUpdate>=0.1 ||
+        (![progress[@"phase"] isEqual:@"preparing"] && [progress[@"completed_packs"] unsignedIntegerValue]==[progress[@"total_packs"] unsignedIntegerValue])) {
+      menu.lastDownloadStatusUpdate=now;
+      [menu.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:0 inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
+    }
+    if ([progress[@"installed_packs"] unsignedIntegerValue] && !menu.discovering && !menu.busy && now-menu.lastDownloadDiscovery>=1) {
+      menu.lastDownloadDiscovery=now; [menu reloadCheats];
+    }
   } completion:^(NSDictionary *result,NSError *error) {
     NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed) return;
-    menu.busy=NO; menu.navigationItem.prompt=[menu text:error ? @"downloadFailed" : @"ready"]; [menu reloadCheats];
+    menu.downloading=NO; menu.downloadStatus=[menu text:error ? @"downloadFailed" : @"installedReady"]; [menu reloadCheats];
   }];
 }
 @end

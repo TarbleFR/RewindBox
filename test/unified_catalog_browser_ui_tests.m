@@ -75,6 +75,9 @@ static void NUCBExchangeSingleton(void) {
     self.installProgress = progress;
     self.installCompletion = completion;
 }
+- (void)installAllForIdentity:(NSDictionary *)identity progress:(void (^)(NSDictionary *))progress completion:(void (^)(NSDictionary *, NSError *))completion {
+    [self installAllWithProgress:progress completion:completion];
+}
 - (void)cheatsForGame:(NSDictionary *)game completion:(void (^)(NSArray *, NSError *))completion {
     self.lookups++;
     self.chosenGame = game;
@@ -891,6 +894,66 @@ static void NUCBExchangeSingleton(void) {
     [list tableView:list.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
     XCTAssertEqual(self.catalog.installs,1U);XCTAssertEqual(mutations,0U);
     self.catalog.installCompletion(@{},nil);[self waitFor:^BOOL{return ![[list valueForKey:@"busy"] boolValue];}];XCTAssertEqual(mutations,0U);
+}
+
+- (void)test476DownloadStatusIsVisibleAndInstalledCodesRemainUsableDuringDownload {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];
+    [self.navigation setNavigationBarHidden:YES];
+    NSIndexPath* action=[NSIndexPath indexPathForRow:0 inSection:0];
+    [list tableView:list.tableView didSelectRowAtIndexPath:action];
+    UITableViewCell* button=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertEqualObjects(button.textLabel.text,[NeoUnifiedCheatBrowser localizedText:@"downloading" locale:@"fr"]);
+    XCTAssertTrue(button.detailTextLabel.text.length>0);XCTAssertNotNil(button.accessoryView);
+    XCTAssertFalse(button.userInteractionEnabled);
+    [list tableView:list.tableView didSelectRowAtIndexPath:action];XCTAssertEqual(self.catalog.installs,1U);
+    self.catalog.installProgress(@{@"completed_packs":@3,@"total_packs":@858,@"installed_packs":@0});
+    button=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertTrue([button.detailTextLabel.text containsString:@"3 / 858"]);
+    UITableViewCell* code=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    XCTAssertTrue(((UISwitch*)code.accessoryView).enabled);
+    self.catalog.installCompletion(@{},nil);
+    [self waitFor:^BOOL{return ![[list valueForKey:@"downloading"] boolValue];}];
+    button=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertEqualObjects(button.detailTextLabel.text,[NeoUnifiedCheatBrowser localizedText:@"installedReady" locale:@"fr"]);
+}
+
+- (void)test476PartialDownloadRefreshesThisGameBeforeAllCataloguesFinish {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];
+    self.catalog.rows=@[];[list reloadCheats];
+    [self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    [list tableView:list.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+    NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@YES;game[@"match"]=@"exact";
+    self.catalog.rows=@[game];
+    self.catalog.installProgress(@{@"completed_packs":@1,@"total_packs":@858,@"installed_packs":@1});
+    [self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==1;}];
+    XCTAssertTrue([[list valueForKey:@"downloading"] boolValue]);
+    self.catalog.installCompletion(@{},nil);
+}
+
+- (void)test476OfflinePackIsRecoveredAndBlockedEngineDoesNotHideMatchingCodes {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];
+    NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@NO;game[@"cached_pack"]=@YES;
+    self.catalog.rows=@[game];
+    list.readState=^(void (^done)(NSDictionary*)){done(@{@"identity":[self identity],@"available":@NO,@"help":@"Protected native patch file",@"items":@[]});};
+    [list reloadCheats];[self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    XCTAssertEqual([list tableView:list.tableView numberOfRowsInSection:1],1U);
+    UITableViewCell* cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    XCTAssertFalse(((UISwitch*)cell.accessoryView).enabled);
+    XCTAssertEqualObjects([list tableView:list.tableView titleForFooterInSection:1],@"Protected native patch file");
+}
+
+- (void)test476MissingDownloadIsDistinctFromNoEditionAndFailuresStayVisible {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];
+    NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@NO;self.catalog.rows=@[game];
+    [list reloadCheats];[self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    XCTAssertEqualObjects([list tableView:list.tableView titleForFooterInSection:1],[NeoUnifiedCheatBrowser localizedText:@"notInstalled" locale:@"fr"]);
+    NSIndexPath* action=[NSIndexPath indexPathForRow:0 inSection:0];
+    [list tableView:list.tableView didSelectRowAtIndexPath:action];
+    self.catalog.installCompletion(@{},[NSError errorWithDomain:@"fixture" code:1 userInfo:nil]);
+    [self waitFor:^BOOL{return ![[list valueForKey:@"downloading"] boolValue];}];
+    UITableViewCell* button=[list tableView:list.tableView cellForRowAtIndexPath:action];
+    XCTAssertEqualObjects(button.detailTextLabel.text,[NeoUnifiedCheatBrowser localizedText:@"downloadFailed" locale:@"fr"]);
+    XCTAssertTrue(button.userInteractionEnabled);
 }
 
 - (void)testDirectListConfirmsAnUnknownEditionOncePerDetectedGame {

@@ -65,6 +65,13 @@ static void IdentityChecks(void) {
   serialRight[@"identities"]=[ps2[@"identities"] arrayByAddingObject:ID(@"serial",@"SLUS-54321",@"ps2-disc-serial")];
   CHECK(![NeoUnifiedCheatCatalog matchGame:serialLeft identity:serialRight],"conflicting serial defeats matching executable CRC");
   CHECK([[NeoUnifiedCheatCatalog matchGame:serialLeft identity:ps2] isEqual:@"candidate"],"missing expected serial cannot confirm CRC alone");
+  serialLeft[@"identities"]=[ps2[@"identities"] arrayByAddingObject:ID(@"serial",@"SLUS20655",@"ps2-disc-serial")];
+  for (NSString *spelling in @[@"SLUS-20655",@"SLUS_206.55",@"slus20655"]) {
+    serialRight[@"identities"]=[ps2[@"identities"] arrayByAddingObject:ID(@"serial",spelling,@"ps2-disc-serial")];
+    CHECK([[NeoUnifiedCheatCatalog matchGame:serialLeft identity:serialRight] isEqual:@"exact"],"PS2 native serial spelling must match the published catalogue");
+  }
+  serialRight[@"identities"]=[ps2[@"identities"] arrayByAddingObject:ID(@"serial",@"SLUS-20656",@"ps2-disc-serial")];
+  CHECK(![NeoUnifiedCheatCatalog matchGame:serialLeft identity:serialRight],"normalization cannot accept a different PS2 disc");
   NSMutableDictionary *multipleHashes=[game mutableCopy];
   multipleHashes[@"identities"]=[game[@"identities"] arrayByAddingObject:ID(@"sha1",@"sha-nes",@"nes-prg")];
   CHECK([[NeoUnifiedCheatCatalog matchGame:multipleHashes identity:game] isEqual:@"candidate"],"all expected identity groups must be verified");
@@ -253,6 +260,53 @@ static uint64_t Footprint(void) {
   task_vm_info_data_t info={0};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
   return task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count)==KERN_SUCCESS ? info.phys_footprint : 0;
 }
+static void InGameDownloadChecks(NSString *root) {
+  NSMutableArray *games=[NSMutableArray array],*packs=[NSMutableArray array];
+  NSMutableDictionary *responses=[NSMutableDictionary dictionary];
+  NSArray *identities=@[
+    @{@"system":@"ps2",@"title":@"Hobbit, The",@"revision":@"",@"identities":@[ID(@"serial",@"SLUS20655",@"ps2-disc-serial"),ID(@"ps2_crc",@"2D29C32F",@"pcsx2-executable-crc")]},
+    @{@"system":@"ps3",@"title":@"Bladestorm: The Hundred Years' War",@"revision":@"01.00",@"identities":@[ID(@"serial",@"BLES00113",@"ps3-title-id")]}
+  ];
+  for (NSUInteger index=0;index<identities.count;index++) {
+    NSString *gid=[NSString stringWithFormat:@"target-%lu",(unsigned long)index];
+    NSMutableDictionary *game=[identities[index] mutableCopy];game[@"id"]=gid;
+    NSDictionary *program=@{@"id":@"money",@"name":@"Test money",@"code":@"20000000 00000001",@"handler":@0,@"dialect":index ? @"ps3-static-be32" : @"pnach",@"status":@"available",@"enabled":@NO,@"dependencies":@[],@"parameters":@[]};
+    NSData *chunk=Bytes(@{@"schema_version":@1,@"game":game,@"cheats":@[program]});
+    NSData *expanded=Bytes(@{@"schema_version":@1,@"files":@[@{@"game_id":gid,@"data":[chunk base64EncodedStringWithOptions:0]}]});
+    NSData *compressed=Gzip(expanded);NSString *path=[NSString stringWithFormat:@"packs/%@.json.gz",gid];
+    game[@"pack_id"]=gid;game[@"path"]=[NSString stringWithFormat:@"games/%@.json",gid];game[@"sha256"]=Hash(chunk);game[@"size"]=@(chunk.length);
+    [games addObject:game];[packs addObject:@{@"id":gid,@"path":path,@"sha256":Hash(compressed),@"size":@(compressed.length),@"uncompressed_size":@(expanded.length),@"game_ids":@[gid]}];responses[path]=compressed;
+  }
+  NSString *bundle=[root stringByAppendingPathComponent:@"target-bundle"];
+  [NSFileManager.defaultManager createDirectoryAtPath:bundle withIntermediateDirectories:YES attributes:nil error:NULL];
+  [Bytes(@{@"schema_version":@1,@"catalogue_id":@"targets",@"revision":@"475",@"games":games,@"packs":packs}) writeToFile:[bundle stringByAppendingPathComponent:@"manifest.json"] atomically:YES];
+  NeoUnifiedCheatCatalog *catalog=[NeoUnifiedCheatCatalog new];catalog.storageDirectory=[root stringByAppendingPathComponent:@"target-cache"];catalog.bundledDirectory=bundle;
+  catalog.manifestURL=[NSURL URLWithString:@"https://catalogue.invalid/targets/manifest.json"];
+  NSObject *lock=[NSObject new];__block NSUInteger fetched=0;
+  catalog.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)) {
+    NSString *path=[url.path substringFromIndex:@"/targets/".length];
+    CHECK(![path isEqual:@"manifest.json"],"in-game install must use the verified local index before network refresh");
+    @synchronized(lock){fetched++;}NSData *data=responses[path];CHECK(data && data.length<=limit,"real service requests an indexed bounded pack");completion(data,nil);
+  };
+  Load(catalog);
+  NSMutableDictionary *nativePS2=[identities[0] mutableCopy];nativePS2[@"title"]=@"";
+  nativePS2[@"identities"]=@[ID(@"serial",@"SLUS-20655",@"ps2-disc-serial"),ID(@"ps2_crc",@"2D29C32F",@"pcsx2-executable-crc")];
+  __block BOOL done=NO;
+  [catalog gamesForIdentity:nativePS2 completion:^(NSArray *matches,NSError *error){CHECK(!error && matches.count==1,"actual discovery prefilter accepts formatted native PS2 serial");CHECK(![matches[0][@"installed"] boolValue],"matching index is not confused with downloaded codes");done=YES;}];Spin(^BOOL{return done;});
+  done=NO;__block NSUInteger progressCount=0;
+  [catalog installAllForIdentity:identities[1] progress:^(NSDictionary *progress){CHECK(NSThread.isMainThread,"in-game progress is on main");progressCount++;}
+      completion:^(NSDictionary *result,NSError *error){CHECK(!error && [result[@"installed_games"] unsignedIntegerValue]==2,"in-game button installs PS2 and PS3 through the real service");done=YES;}];Spin(^BOOL{return done;});
+  CHECK(fetched==2 && progressCount>=3,"one request per pack with immediate and completion progress");
+  CHECK(Codes(catalog,games[1],YES).count==1,"downloaded PS3 program is readable");
+  CHECK(![Codes(catalog,games[0],YES)[0][@"enabled"] boolValue],"download never activates PS2 programs");
+  catalog.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)){CHECK(NO,"installed in-game catalogues must work without network");};
+  done=NO;[catalog installAllForIdentity:nativePS2 progress:nil completion:^(NSDictionary *result,NSError *error){CHECK(!error && [result[@"installed_games"] unsignedIntegerValue]==2,"already downloaded button completes offline");done=YES;}];Spin(^BOOL{return done;});
+  NSString *chunk=[catalog.storageDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"files/%@.json",games[0][@"sha256"]]];
+  [NSFileManager.defaultManager removeItemAtPath:chunk error:NULL];
+  done=NO;[catalog gamesForIdentity:nativePS2 completion:^(NSArray *matches,NSError *error){CHECK(!error && matches.count==1 && ![matches[0][@"installed"] boolValue] && [matches[0][@"cached_pack"] boolValue],"cached pack remains discoverable after an extracted file is missing");done=YES;}];Spin(^BOOL{return done;});
+  CHECK(Codes(catalog,games[0],YES).count==1,"missing extracted PS2 codes recover from the verified offline pack");
+  done=NO;[catalog gamesForIdentity:identities[1] completion:^(NSArray *matches,NSError *error){CHECK(!error && matches.count==1 && [matches[0][@"installed"] boolValue],"installed PS3 serial/version returns its cheat edition");done=YES;}];Spin(^BOOL{return done;});
+}
 static void FullManifestMemoryProbe(NSString *path,NSUInteger expectedGames,NSUInteger expectedPacks) {
   NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   uint64_t before=Footprint();
@@ -296,6 +350,6 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
   }
   IdentityChecks();NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:NULL];
-  RuntimeChecks(root);RejectionChecks(root);[NSFileManager.defaultManager removeItemAtPath:root error:NULL];
+  RuntimeChecks(root);RejectionChecks(root);InGameDownloadChecks(root);[NSFileManager.defaultManager removeItemAtPath:root error:NULL];
   printf("Foundation unified catalogue: %lu behavioral checks passed\n",(unsigned long)checks);return 0;
 }}

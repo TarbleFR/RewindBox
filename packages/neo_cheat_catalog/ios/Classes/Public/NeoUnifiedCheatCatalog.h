@@ -32,6 +32,12 @@ typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
 /// Partial success returns a result AND an error, never discards good files.
 - (void)installAllWithProgress:(void (^_Nullable)(NSDictionary *progress))progress
                    completion:(void (^)(NSDictionary *_Nullable, NSError *_Nullable))completion;
+/// In-game download: use the validated local/bundled index immediately and
+/// prioritize this game's packs. Existing verified files work without network.
+/// The separate update action above still refreshes the remote index.
+- (void)installAllForIdentity:(NSDictionary *)identity
+                    progress:(void (^_Nullable)(NSDictionary *progress))progress
+                  completion:(void (^)(NSDictionary *_Nullable, NSError *_Nullable))completion;
 
 /// identity: {system,title,regions,languages,revision,identities:[{type,value,scheme}]}
 /// Returned rows add match (exact/candidate) and installed. A title alone is

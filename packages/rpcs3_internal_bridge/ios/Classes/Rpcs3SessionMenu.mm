@@ -166,7 +166,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   NSString* ppu=raw[@"ppuHash"];if([ppu hasPrefix:@"PPU-"] && ppu.length==44)[identities addObject:@{@"type":@"ppu_hash",@"value":[ppu substringFromIndex:4],@"scheme":@"rpcs3-ppu-hash"}];
   return @{@"identity":@{@"system":@"ps3",@"title":self.gameTitle ?: @"",@"revision":version,@"regions":@[],@"languages":@[],
       @"identities":identities},@"items":items,
-      @"available":@([raw[@"available"] boolValue] && ![raw[@"conflict"] boolValue]),@"help":[self text:@"cheatNextBoot"]};
+      @"available":@([raw[@"available"] boolValue] && ![raw[@"conflict"] boolValue]),
+      @"help":[self text:[raw[@"conflict"] boolValue] ? @"cheatConflict" : (![raw[@"available"] boolValue] ? @"cheatFailed" : @"cheatNextBoot")]};
 }
 - (UIViewController*)directCheats {
   NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=self.localeIdentifier;list.engine=@"rpcs3";

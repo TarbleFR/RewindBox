@@ -116,6 +116,19 @@ static NSString *Fold(NSString *s) {
   return [[s stringByFoldingWithOptions:NSDiacriticInsensitiveSearch|NSCaseInsensitiveSearch locale:
     locale] lowercaseString];
 }
+static NSString *IdentityValue(NSDictionary *identity) {
+  NSString *value=String(identity[@"value"]).lowercaseString;
+  if ([Fold(String(identity[@"type"])) isEqual:@"serial"] &&
+      [Fold(String(identity[@"scheme"])) isEqual:@"ps2-disc-serial"]) {
+    // PCSX2 reports SLUS-20655; the reviewed PNACH index stores SLUS20655.
+    // Normalize only the documented disc-serial spelling, never hash values.
+    static NSRegularExpression *serial; static dispatch_once_t once;
+    dispatch_once(&once,^{serial=[NSRegularExpression regularExpressionWithPattern:@"^[a-z]{4}[-_.]?[0-9]{3}\\.?[0-9]{2}$" options:0 error:nil];});
+    if ([serial firstMatchInString:value options:0 range:NSMakeRange(0,value.length)])
+      for (NSString *separator in @[@"-",@"_",@"."]) value=[value stringByReplacingOccurrencesOfString:separator withString:@""];
+  }
+  return value;
+}
 static BOOL TitleContains(NSString *title, NSString *query) {
   NSString *haystack=Fold(title);
   NSArray *words=[Fold(query) componentsSeparatedByCharactersInSet:NSCharacterSet.alphanumericCharacterSet.invertedSet];
@@ -143,8 +156,7 @@ static BOOL RawIdentityOverlap(NSDictionary *game,NSArray *requested) {
       if(![right isKindOfClass:NSDictionary.class])continue;
       if([String(left[@"type"]) caseInsensitiveCompare:String(right[@"type"])]==NSOrderedSame &&
          [String(left[@"scheme"]) caseInsensitiveCompare:String(right[@"scheme"])]==NSOrderedSame &&
-         String(left[@"value"]).length &&
-         [String(left[@"value"]) caseInsensitiveCompare:String(right[@"value"])]==NSOrderedSame)return YES;
+         IdentityValue(left).length && [IdentityValue(left) isEqual:IdentityValue(right)])return YES;
     }
   }
   return NO;
@@ -196,7 +208,7 @@ static NSDictionary *Identities(id value) {
   for (id row in Array(value)) {
     if (![row isKindOfClass:NSDictionary.class]) continue;
     NSString *type = Fold(String(row[@"type"])), *scheme = Fold(String(row[@"scheme"]));
-    NSString *v = [String(row[@"value"]) lowercaseString];
+    NSString *v = IdentityValue(row);
     if (!type.length || !scheme.length || !v.length || type.length>64 || scheme.length>100 || v.length>256) continue;
     NSString *key = [NSString stringWithFormat:@"%@|%@",type,scheme];
     if (!result[key]) result[key] = [NSMutableSet set];
@@ -493,6 +505,11 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 - (NSDictionary *)decoratedGame:(NSDictionary *)game {
   NSMutableDictionary *row=[game mutableCopy];
   row[@"installed"]=@([self hasChunk:game verify:NO]);
+  NSDictionary *pack=_packsByID[String(game[@"pack_id"])];
+  NSString *cached=[self.storageDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"packs/%@.gz",String(pack[@"sha256"]).lowercaseString]];
+  NSDictionary *attributes=[NSFileManager.defaultManager attributesOfItemAtPath:cached error:nil];
+  row[@"cached_pack"]=@([attributes.fileType isEqual:NSFileTypeRegular] &&
+      pack && attributes.fileSize==[pack[@"size"] unsignedLongLongValue]);
   if([_updates containsObject:game[@"id"]])row[@"update_available"]=@YES;
   if([_archives containsObject:game[@"id"]])row[@"archived"]=@YES;
   return row;
@@ -665,12 +682,24 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   }
 }
 - (void)installAllWithProgress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
+  [self installRefreshingIndex:YES identity:nil progress:progress completion:completion];
+}
+- (void)installAllForIdentity:(NSDictionary *)identity progress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
+  NSDictionary *requested=[identity copy];
+  [self loadWithCompletion:^(NSDictionary *manifest,NSError *error) {
+    if (!manifest) { completion(nil,error); return; }
+    [self installRefreshingIndex:NO identity:requested progress:progress completion:completion];
+  }];
+}
+- (void)installRefreshingIndex:(BOOL)refresh identity:(NSDictionary *)identity progress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
   dispatch_async(_queue,^{
     if(self->_installing){dispatch_async(dispatch_get_main_queue(),^{completion(nil,Failure(9,@"A catalogue download is already running"));});return;}
     self->_installing=YES;
+    if (progress) dispatch_async(dispatch_get_main_queue(),^{progress(@{@"phase":@"preparing",@"completed_packs":@0,@"total_packs":@0,@"installed_packs":@0,@"failed_packs":@0,@"completed_bytes":@0,@"total_bytes":@0});});
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
-      NSError *refreshError=nil;NSData *remote=[self download:self.manifestURL limit:[self manifestDownloadLimit] error:&refreshError];
-      NSDictionary *fresh=[self validatedManifest:remote error:&refreshError];
+      NSError *refreshError=nil;
+      NSData *remote=refresh ? [self download:self.manifestURL limit:[self manifestDownloadLimit] error:&refreshError] : nil;
+      NSDictionary *fresh=remote ? [self validatedManifest:remote error:&refreshError] : nil;
       __block NSDictionary *manifest=nil;
       dispatch_sync(self->_queue,^{
         if(fresh){[self adoptManifest:fresh];WriteAtomic(JSONData(fresh),[self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],nil);}
@@ -680,7 +709,16 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
         manifest=self->_manifest;
       });
       if(!manifest){dispatch_async(self->_queue,^{self->_installing=NO;dispatch_async(dispatch_get_main_queue(),^{completion(nil,refreshError ?: Failure(1,@"No catalogue index is available"));});});return;}
-      NSArray *packs=Array(manifest[@"packs"]);unsigned long long totalBytes=0;for(NSDictionary *p in packs)totalBytes += [p[@"size"] unsignedLongLongValue];
+      NSMutableSet *priority=[NSMutableSet set];
+      if (identity) for (NSDictionary *game in Array(manifest[@"games"])) {
+        if ([System(game[@"system"]) isEqual:System(identity[@"system"])] && [self.class matchGame:game identity:identity])
+          [priority addObject:game[@"pack_id"]];
+      }
+      NSArray *packs=[Array(manifest[@"packs"]) sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b) {
+        BOOL first=[priority containsObject:a[@"id"]],second=[priority containsObject:b[@"id"]];
+        return first==second ? NSOrderedSame : (first ? NSOrderedAscending : NSOrderedDescending);
+      }];
+      unsigned long long totalBytes=0;for(NSDictionary *p in packs)totalBytes += [p[@"size"] unsignedLongLongValue];
       __block NSUInteger completed=0,installed=0;__block unsigned long long completedBytes=0;
       NSMutableArray *failed=[NSMutableArray array],*errors=[NSMutableArray array];
       void(^report)(void)=^{if(progress){NSDictionary *p=@{@"total_packs":@(packs.count),@"completed_packs":@(completed),@"installed_packs":@(installed),@"failed_packs":@(failed.count),@"total_bytes":@(totalBytes),@"completed_bytes":@(completedBytes)};dispatch_async(dispatch_get_main_queue(),^{progress(p);});}};
