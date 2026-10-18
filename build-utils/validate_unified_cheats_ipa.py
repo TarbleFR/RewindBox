@@ -28,7 +28,8 @@ def validate(ipa, build):
         if data != expected:
             raise ValueError('Packaged index differs from the Apple-tested final index')
         manifest = json.loads(gzip.decompress(data))
-        if len(manifest['games']) != 44789 or len(manifest['packs']) != 858:
+        counts=(44794,859,2353299) if build >= 477 else (44789,858,2353283)
+        if (len(manifest['games']),len(manifest['packs']),manifest['totals']['programs']) != counts:
             raise ValueError('Wrong final publication counts')
         notice=matches[0].rsplit('/',1)[0]+'/gow3-0100-LICENSE.txt'
         if z.read(notice)!=(ROOT/'packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt').read_bytes():
@@ -51,12 +52,16 @@ def validate(ipa, build):
                 for marker in (b'installAllForIdentity:progress:completion:',b'bundled-index.json',b'cached_pack',b'progressPacks'):
                     if marker not in binary:
                         raise ValueError('Packaged PS2/PS3 follow-up is missing '+marker.decode())
+            if name == 'neo_cheat_catalog' and build >= 477:
+                for marker in (b'NeoUnifiedCheatCatalogProgressNotification',b'installation.json',b'enqueuePack:manifest:priority:completion:',b'resumeDownload'):
+                    if marker not in binary:
+                        raise ValueError('Packaged common installation fix is missing '+marker.decode())
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')
     return {'result': 'passed', 'build': build, 'manifestSHA256': hashlib.sha256(data).hexdigest(),
-            'manifestBytes': len(data), 'transportParts': 44789, 'packs': 858,
-            'programs': 2353283, 'frameworksSHA256': binaries,
+            'manifestBytes': len(data), 'transportParts': counts[0], 'packs': counts[1],
+            'programs': counts[2], 'frameworksSHA256': binaries,
             'indexBundled': True, 'packsBundled': False,
             'ipaSHA256': hashlib.sha256(ipa.read_bytes()).hexdigest(),
             'physicalDeviceValidated': False}
