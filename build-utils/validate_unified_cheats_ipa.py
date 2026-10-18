@@ -28,7 +28,15 @@ def validate(ipa, build):
         if data != expected:
             raise ValueError('Packaged index differs from the Apple-tested final index')
         manifest = json.loads(gzip.decompress(data))
-        if build >= 478:
+        if build >= 480:
+            receipt=json.loads((ROOT/'docs/evidence/source-rights-withdrawal.json').read_bytes())
+            counts=(receipt['totals']['games'],receipt['preservedPacks']+len(receipt['replacedPacks']),receipt['totals']['programs'])
+            if hashlib.sha256(data).hexdigest()!=receipt['manifestSHA256']:
+                raise ValueError('Packaged index differs from exact source-rights proof')
+            aot=z.read(root+'Frameworks/App.framework/App')
+            for marker in (b'[ScrapingMD5] start file=',b'[ScrapingMD5] completed file=',b'[ScrapingMD5] failed file='):
+                if marker not in aot:raise ValueError('Scraping diagnostics missing from actual AOT')
+        elif build >= 478:
             receipt=json.loads((ROOT/'docs/evidence/cheats478-sources.json').read_bytes())
             counts=(receipt['totals']['games'],receipt['preservedPackCount']+len(receipt['newPacks']),receipt['totals']['programs'])
             if hashlib.sha256(data).hexdigest()!=receipt['manifestSHA256']:
@@ -72,6 +80,8 @@ def validate(ipa, build):
                 for marker in (b'getattrlistbulk', b'poolForIdentity:', b'distinctSelections:identity:links:', b'loadGames:context:index:generation:', b'execution_key'):
                     if marker not in binary:
                         raise ValueError('Packaged compatible discovery/streaming fix is missing '+marker.decode())
+            if name == 'neo_cheat_catalog' and build >= 480 and b'pokemonfrance' not in binary:
+                raise ValueError('Withheld-source cache guard missing')
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')
