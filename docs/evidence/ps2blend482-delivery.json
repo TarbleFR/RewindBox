@@ -1,0 +1,92 @@
+{
+  "result": "passed",
+  "testedSHA": "da091fa7483279844d5a7406dfafd0f447ab3099",
+  "candidateSHA": "c676b31710c50cfc60ca3e356aecd49995fe0a76",
+  "validationWasReused": true,
+  "sourceClosure": {
+    "deliveredBaseline": "839d114763e80a9945d162369e8d8f258bb82485",
+    "baselineRecord": "42c781c52bbb0811ca7c61786b843930b0c217b7",
+    "testedSource": "da091fa7483279844d5a7406dfafd0f447ab3099",
+    "armsx2CoreRun": 39155495662,
+    "targetedRun": 39155497540,
+    "rpcs3CorePin": "5919be61269f67542c4f8c905c30555cbe09bdf0",
+    "rpcs3CanonicalPatchSHA256": "bc63c5da2dc97dca0f205b132dfb078d53da3d87c6fcf546810468512dd37a33",
+    "changedProductPaths": [
+      "build-utils/armsx2/source.json",
+      "lib/l10n/rpcs3_firmware_locale.dart",
+      "lib/screens/rpcs3_manager_screen.dart",
+      "lib/widgets/rpcs3_firmware_preflight_dialog.dart",
+      "lib/widgets/rpcs3_internal_playlist_actions.dart",
+      "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.h",
+      "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc",
+      "packages/armsx2_internal_bridge/core/ARMSX2Core.mm",
+      "packages/armsx2_internal_bridge/ios/Classes/ARMSX2CoreABI.h",
+      "packages/armsx2_internal_bridge/ios/Classes/ARMSX2InGameLocalization.mm",
+      "packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm",
+      "packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm"
+    ],
+    "armsx2CoreChanged": true,
+    "rpcs3CoreChanged": false,
+    "otherEnginesCataloguesSkinsHelpersUnchanged": true
+  },
+  "reusedEvidence": [
+    {
+      "run": 39148545918,
+      "source": "839d114763e80a9945d162369e8d8f258bb82485",
+      "jobs": [
+        "checks",
+        "native",
+        "Release device build \u2022 cold"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "run": 39155495662,
+      "source": "da091fa7483279844d5a7406dfafd0f447ab3099",
+      "jobs": [
+        "Compile pinned ARMSX2 iOS framework",
+        "Verify ARMSX2 Graphics menu and host ABI"
+      ],
+      "conclusion": "success",
+      "armsx2Revision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "abi": 7,
+      "identitySHA256": "86f1748a8d96cc138dd5f0ed2241e7a69f3af9f44838a024f7da551c03bd96db"
+    },
+    {
+      "run": 39155497540,
+      "source": "da091fa7483279844d5a7406dfafd0f447ab3099",
+      "jobs": [
+        "targeted"
+      ],
+      "conclusion": "success",
+      "verdictSHA256": "0f58eed56e368254acd52df3fd60b1349306d500eb973c9d43c5c104473532c1",
+      "dartTests": [
+        "test/rpcs3_firmware_preflight_test.dart",
+        "test/rpcs3_firmware_library_test.dart",
+        "test/rpcs3_rap_import_menu_test.dart",
+        "test/rpcs3_internal_integration_test.dart",
+        "test/armsx2_embedded_library_contract_test.dart",
+        "test/armsx2_in_game_localization_test.dart"
+      ],
+      "pythonChecks": [
+        "test/localization_12_locale_coverage_test.py",
+        "test/armsx2_bios_hacks_test.py",
+        "test/armsx2_graphics_test.py"
+      ],
+      "timingsSeconds": {
+        "analyze": 20.042,
+        "dartTests": 47.448,
+        "twelveLocales": 0.253,
+        "armsx2Contracts": 3.545,
+        "armsx2GraphicsKeys": 0.033
+      }
+    }
+  ],
+  "receiptSHA256": {
+    "docs/evidence/spucache481-delivery.json": "33005eb275ab999fe315f01a3fa0ed08cc82de20f890fcab71219b92481bc513"
+  },
+  "deviceGameplayValidated": false,
+  "coreRebuilt": true,
+  "coreRun": 39155495662,
+  "rebuiltCore": "ARMSX2 (ABI 7)"
+}
