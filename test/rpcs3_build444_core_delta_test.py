@@ -119,10 +119,13 @@ require('cfg::_bool ppu_llvm_ir_passes{ this, "PPU LLVM IR Passes", false };' in
 require('SETTING("emulator.ppu_llvm_ir_passes", "Emulator", "Compilation", "PPU LLVM IR passes (ARM64)"' in settings,
         'the option must be exposed next to the compile-thread limit')
 require('kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.ppu_llvm_ir_passes, 0, 1, 1)' in settings, 'option kind/range')
-require('\t\t\t\tarm64_ir_passes,\n\n\t\t\t\t__bitset_enum_max' in ppu, 'settings bit must be appended last')
-require('if (g_cfg.core.ppu_llvm_ir_passes)\n\t\t\t\tsettings += ppu_settings::arm64_ir_passes;' in ppu,
+# Build 483: the pipeline selector keeps the Build 444 bit and appends the Extended bit after it.
+require('\t\t\t\tarm64_ir_passes,\n\t\t\t\tarm64_ir_passes_extended,\n\n\t\t\t\t__bitset_enum_max' in ppu,
+        'settings bits must be appended last')
+require('case ppu_llvm_pipeline_type::early_cse:\n\t\t\t\tsettings += ppu_settings::arm64_ir_passes;' in ppu,
         'objects built with/without the passes must not share a name')
-require('const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes.get();' in ppu, 'pass gate must read the option once')
+require('const bool run_ir_passes = ppu_pipeline != ppu_llvm_pipeline_type::upstream;' in ppu and
+        'const ppu_llvm_pipeline_type ppu_pipeline = ppu_effective_pipeline();' in ppu, 'pass gate must read the effective pipeline once')
 require(ppu.count('#elif defined(RPCS3_IOS)\n\t\t\t\t\tif (run_ir_passes)\n') == 1 and
         ppu.count('#elif defined(RPCS3_IOS)\n\t\t\t\tif (run_ir_passes)\n') == 1,
         'both x86-64 pass sites must gate the ARM64 passes on the option')

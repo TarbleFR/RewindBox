@@ -36,6 +36,8 @@ on:
       - 'test/rpcs3_build481_spu_object_cache_test.py'
       - 'test/native/rpcs3_build481_spu_object_cache_test.cpp'
       - 'test/native/rpcs3_spu_object_relocation_test.cpp'
+      - 'test/rpcs3_build483_llvm_pipeline_test.py'
+      - 'test/native/rpcs3_llvm_pipeline_harness.cpp'
       - 'test/native/rpcs3_vk_*'
       - 'test/native/rpcs3_neoswap_stats_getter_test.cpp'
       - 'test/rpcs3_neoswap_vulkan_buffer_test.py'
@@ -134,6 +136,11 @@ jobs:
           # here, before the expensive dependency and Core builds.
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
             python3 test/rpcs3_build481_spu_object_cache_test.py "$STORAGE_SRC" --sanitize --require-llvm 2>&1 | tee build/rpcs3-core-diagnostics/spu-object-cache-proof.txt
+          # NEOSTATION_BUILD483_LLVM_PIPELINES_V1: calling-convention hazard proof and the
+          # five Core pipelines on synthetic kernels (verification, IR/AArch64 counts,
+          # bit-exact host execution), then the pipeline wiring of the translators.
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+            python3 test/rpcs3_build483_llvm_pipeline_test.py "$STORAGE_SRC" --require-llvm --report build/rpcs3-core-diagnostics/llvm-pipeline-kernels.json 2>&1 | tee build/rpcs3-core-diagnostics/llvm-pipeline-proof.txt
       - name: Build Core from the single reviewed source delta
         shell: bash
         run: |

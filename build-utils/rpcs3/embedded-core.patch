@@ -2156,10 +2156,10 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea11d..7cd879844 100644
+index 9bb3ea11d..e6398e948 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -25,6 +25,77 @@ if(USE_LTO)
+@@ -25,6 +25,78 @@ if(USE_LTO)
      set_target_properties(rpcs3_emu PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
  endif()
  
@@ -2179,6 +2179,7 @@ index 9bb3ea11d..7cd879844 100644
 +    foreach(NEOSTATION_PPU_CODEGEN_SOURCE IN ITEMS
 +        Cell/PPUTranslator.cpp
 +        Cell/PPUTranslator.h
++        Cell/PPUThread.cpp
 +        Cell/PPUThread.h
 +        Cell/PPUFunction.h
 +        Cell/PPUOpcodes.h
@@ -2237,7 +2238,7 @@ index 9bb3ea11d..7cd879844 100644
  if(USE_ASAN)
      set_source_files_properties(../../Utilities/Thread.cpp PROPERTIES COMPILE_DEFINITIONS USE_ASAN)
  endif()
-@@ -100,7 +171,12 @@ if(APPLE)
+@@ -100,7 +172,12 @@ if(APPLE)
  endif()
  
  if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -2250,7 +2251,7 @@ index 9bb3ea11d..7cd879844 100644
          Io/IOS/IOSPadHandler.cpp
          Io/IOS/IOSPadHandler.h
          ../../Utilities/JITArenaAllocator.h
-@@ -721,9 +797,14 @@ if(TARGET 3rdparty_vulkan)
+@@ -721,9 +798,14 @@ if(TARGET 3rdparty_vulkan)
  
      if(RPCS3_FRONTEND STREQUAL "IOS")
          target_sources(rpcs3_emu PRIVATE
@@ -3271,7 +3272,7 @@ index 0000000..76893b1
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a749b..827126c1b 100644
+index b1f1a749b..cda649fa9 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -1,5 +1,6 @@
@@ -3281,7 +3282,20 @@ index b1f1a749b..827126c1b 100644
  #ifdef RPCS3_IOS
  #include "Utilities/JITIOSLayoutPolicy.h"
  #include "ios/IOSMemoryPressurePolicy.h"
-@@ -62,6 +63,7 @@
+@@ -49,6 +50,12 @@
+ #include <llvm/Analysis/LoopAnalysisManager.h>
+ #include <llvm/Passes/PassBuilder.h>
+ #include <llvm/Transforms/Scalar/EarlyCSE.h>
++#include <llvm/Transforms/Scalar/SimplifyCFG.h>
++#include <llvm/Transforms/Scalar/DeadStoreElimination.h>
++#include <llvm/Transforms/Scalar/LICM.h>
++#include <llvm/Transforms/Scalar/LoopPassManager.h>
++#include <llvm/Transforms/Scalar/ADCE.h>
++#include <llvm/Transforms/InstCombine/InstCombine.h>
+ #ifdef _MSC_VER
+ #pragma warning(pop)
+ #else
+@@ -62,6 +69,7 @@
  #include <cctype>
  #include <span>
  #include <optional>
@@ -3289,7 +3303,31 @@ index b1f1a749b..827126c1b 100644
  #include <charconv>
  
  #include "util/asm.hpp"
-@@ -186,7 +188,17 @@ static void ppu_break(ppu_thread&, ppu_opcode_t, be_t<u32>*, ppu_intrp_func*);
+@@ -176,6 +184,23 @@ bool serialize<ppu_thread::cr_bits>(utils::serial& ar, typename ppu_thread::cr_b
+ extern void ppu_initialize();
+ extern void ppu_finalize(const ppu_module<lv2_obj>& info, bool force_mem_release = false);
+ extern bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only = false, u64 file_size = 0);
++#ifdef RPCS3_IOS
++// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: the Build 444 boolean keeps its meaning
++// (EarlyCSE) and the enum selects beyond it; the stronger request wins. Both the
++// object name (settings bits) and the pass run read this one function.
++static ppu_llvm_pipeline_type ppu_effective_pipeline()
++{
++	const ppu_llvm_pipeline_type selected = g_cfg.core.ppu_llvm_pipeline.get();
++
++	if (selected == ppu_llvm_pipeline_type::upstream && g_cfg.core.ppu_llvm_ir_passes)
++	{
++		return ppu_llvm_pipeline_type::early_cse;
++	}
++
++	return selected;
++}
++#endif
++
+ static void ppu_initialize2(class jit_compiler& jit, const ppu_module<lv2_obj>& module_part, const std::string& cache_path, const std::string& obj_name);
+ extern bool ppu_load_exec(const ppu_exec_object&, bool virtual_load, const std::string&, utils::serial* = nullptr);
+ extern std::pair<shared_ptr<lv2_overlay>, CellError> ppu_load_overlay(const ppu_exec_object&, bool virtual_load, const std::string& path, s64 file_offset, utils::serial* = nullptr);
+@@ -186,7 +211,17 @@ static void ppu_break(ppu_thread&, ppu_opcode_t, be_t<u32>*, ppu_intrp_func*);
  
  extern void do_cell_atomic_128_store(u32 addr, const void* to_write);
  
@@ -3308,7 +3346,7 @@ index b1f1a749b..827126c1b 100644
  {
  	// Gateway for PPU, converts from native to GHC calling convention, also saves RSP value for escape
  	using namespace asmjit;
-@@ -412,8 +424,11 @@ const auto ppu_gateway = build_function_asm<void(*)(ppu_thread*)>("ppu_gateway",
+@@ -412,8 +447,11 @@ const auto ppu_gateway = build_function_asm<void(*)(ppu_thread*)>("ppu_gateway",
  	c.ret(a64::x30);
  #endif
  });
@@ -3321,7 +3359,7 @@ index b1f1a749b..827126c1b 100644
  {
  	using namespace asmjit;
  
-@@ -435,19 +450,26 @@ const extern auto ppu_escape = build_function_asm<void(*)(ppu_thread*)>("ppu_esc
+@@ -435,19 +473,26 @@ const extern auto ppu_escape = build_function_asm<void(*)(ppu_thread*)>("ppu_esc
  	c.ret(a64::x30);
  #endif
  });
@@ -3350,7 +3388,7 @@ index b1f1a749b..827126c1b 100644
  {
  	using namespace asmjit;
  
-@@ -468,10 +490,54 @@ const auto ppu_recompiler_fallback_ghc = build_function_asm<void(*)(ppu_thread&
+@@ -468,10 +513,54 @@ const auto ppu_recompiler_fallback_ghc = build_function_asm<void(*)(ppu_thread&
  	c.bind(fallback_fn);
  	c.embedUInt64(reinterpret_cast<u64>(ppu_recompiler_fallback));
  	c.bind(escape_fn);
@@ -3406,7 +3444,7 @@ index b1f1a749b..827126c1b 100644
  // Get pointer to executable cache
  static inline u8* ppu_ptr(u32 addr)
  {
-@@ -3643,6 +3709,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3643,6 +3732,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  				{
  					// Full lock (heavyweight)
  					// TODO: vm::check_addr
@@ -3424,7 +3462,7 @@ index b1f1a749b..827126c1b 100644
  					vm::writer_lock lock(addr, range_lock);
  
  					if (cmp_rdata(ppu.rdata, super_data))
-@@ -4315,7 +4392,17 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4315,7 +4415,17 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  	// The growth in memory requirements of LLVM is not linear with file size of course
  	// But these estimates should hopefully protect RPCS3 in the coming years
  	// Especially when thread count is on the rise with each CPU generation
@@ -3442,7 +3480,7 @@ index b1f1a749b..827126c1b 100644
  
  	const u32 software_thread_limit = std::min<u32>(rpcs3::utils::get_max_threads(), ::size32(file_queue));
  	const u32 cpu_thread_limit = utils::get_thread_count() > 8u ? std::max<u32>(utils::get_thread_count(), 2) - 1 : utils::get_thread_count(); // One LLVM thread less
-@@ -5540,6 +5627,12 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5540,6 +5650,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				daz_and_ftz,
  				arm64_codegen_v2,
  				arm64_codegen_v3,
@@ -3452,10 +3490,11 @@ index b1f1a749b..827126c1b 100644
 +				arm64_codegen_v6,
 +				arithmetic_codegen_v4,
 +				arm64_ir_passes,
++				arm64_ir_passes_extended,
  
  				__bitset_enum_max
  			};
-@@ -5547,6 +5640,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5547,6 +5664,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			be_t<bs_t<ppu_settings>> settings{};
  
  			settings += ppu_settings::_reserved_for_backwards_compatibility;
@@ -3466,7 +3505,7 @@ index b1f1a749b..827126c1b 100644
  #if !defined(_WIN32) && !defined(__APPLE__)
  			settings += ppu_settings::platform_bit;
  #endif
-@@ -5573,10 +5670,27 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5573,10 +5694,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  #if defined(ARCH_ARM64)
  			settings += ppu_settings::arm64_codegen_v2;
  			settings += ppu_settings::arm64_codegen_v3;
@@ -3475,10 +3514,20 @@ index b1f1a749b..827126c1b 100644
 +			settings += ppu_settings::arm64_codegen_v4;
 +			settings += ppu_settings::arm64_codegen_v5;
 +			settings += ppu_settings::arm64_codegen_v6;
-+			// NEOSTATION_BUILD444_PPU_IR_PASSES_V1: objects built with the
-+			// opt-in ARM64 IR passes never mix with objects built without.
-+			if (g_cfg.core.ppu_llvm_ir_passes)
++			// NEOSTATION_BUILD444_PPU_IR_PASSES_V1 / NEOSTATION_BUILD483_LLVM_PIPELINES_V1:
++			// objects built by each ARM64 pipeline level never mix with the others.
++			switch (ppu_effective_pipeline())
++			{
++			case ppu_llvm_pipeline_type::upstream:
++				break;
++			case ppu_llvm_pipeline_type::early_cse:
 +				settings += ppu_settings::arm64_ir_passes;
++				break;
++			case ppu_llvm_pipeline_type::extended:
++				settings += ppu_settings::arm64_ir_passes;
++				settings += ppu_settings::arm64_ir_passes_extended;
++				break;
++			}
 +#endif
  #endif
  
@@ -3494,7 +3543,7 @@ index b1f1a749b..827126c1b 100644
  		}
  
  		if (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped())
-@@ -5591,8 +5705,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5591,8 +5739,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			link_workload.emplace_back(obj_name, false);
  		}
  
@@ -3510,7 +3559,7 @@ index b1f1a749b..827126c1b 100644
  		{
  			if (!is_being_used_in_emulation && !check_only)
  			{
-@@ -5717,6 +5836,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5717,6 +5870,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  						ppu_initialize2(jit2, part, cache_path, obj_name);
  					}
  
@@ -3522,7 +3571,7 @@ index b1f1a749b..827126c1b 100644
  					ppu_log.success("LLVM: Compiled module %s", obj_name);
  				}
  
-@@ -5824,6 +5948,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5824,6 +5982,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				break;
  			}
  
@@ -3532,7 +3581,7 @@ index b1f1a749b..827126c1b 100644
  			if (!failed_to_load && !jits[mod_index / c_modules_per_jit]->add(cache_path + obj_name))
  			{
  				ppu_log.error("LLVM: Failed to load module %s", obj_name);
-@@ -5877,7 +6004,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5877,7 +6038,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  	{
  		for (auto& jit : jits)
  		{
@@ -3550,7 +3599,7 @@ index b1f1a749b..827126c1b 100644
  		}
  	}
  
-@@ -5901,7 +6037,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5901,7 +6071,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					index++;
  
  					ensure(!sim);
@@ -3562,20 +3611,32 @@ index b1f1a749b..827126c1b 100644
  
  					ppu_log.notice("Resolved symbol resolver function #%u", index);
  				}
-@@ -6052,6 +6191,12 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6052,6 +6225,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  		FunctionPassManager fpm;
  		// Basic optimizations
  		fpm.addPass(EarlyCSEPass());
 +#ifdef RPCS3_IOS
-+		// NEOSTATION_BUILD444_PPU_IR_PASSES_V1: upstream runs this pipeline on
-+		// x86-64 only. On ARM64 it is an opt-in measured through JITPROF; off
-+		// keeps the upstream behavior of translating straight to the backend.
-+		const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes.get();
++		// NEOSTATION_BUILD444_PPU_IR_PASSES_V1 / NEOSTATION_BUILD483_LLVM_PIPELINES_V1:
++		// upstream runs EarlyCSE on x86-64 only and nothing on ARM64 (kd-11's
++		// initial aarch64 port left it as a TODO). On ARM64 the level is an
++		// opt-in measured through JITPROF ppu_opt/ppu_codegen: Upstream ARM64
++		// translates straight to the backend, EarlyCSE is the x86-64 pipeline,
++		// Extended runs the SPU-style pipeline. Each level names its objects.
++		const ppu_llvm_pipeline_type ppu_pipeline = ppu_effective_pipeline();
++		const bool run_ir_passes = ppu_pipeline != ppu_llvm_pipeline_type::upstream;
++		FunctionPassManager fpm_extended;
++		fpm_extended.addPass(EarlyCSEPass(true));
++		fpm_extended.addPass(SimplifyCFGPass());
++		fpm_extended.addPass(InstCombinePass());
++		fpm_extended.addPass(DSEPass());
++		fpm_extended.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
++		fpm_extended.addPass(ADCEPass());
++		FunctionPassManager& fpm_selected = ppu_pipeline == ppu_llvm_pipeline_type::extended ? fpm_extended : fpm;
 +#endif
  
  		u32 guest_code_size = 0;
  		u32 min_addr = umax;
-@@ -6081,11 +6226,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6081,11 +6272,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  				min_addr = std::min<u32>(min_addr, mod_func.addr);
  
  				// Translate
@@ -3593,13 +3654,13 @@ index b1f1a749b..827126c1b 100644
 +					if (run_ir_passes)
 +					{
 +						const u64 opt_started = utils::get_tsc();
-+						fpm.run(*func, fam);
++						fpm_selected.run(*func, fam);
 +						jit_phase::g_counters.add(jit_phase::ppu_opt, utils::get_tsc() - opt_started, mod_func.size);
 +					}
  #endif // ARCH_X64
  				}
  				else
-@@ -6104,6 +6260,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6104,6 +6306,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  #ifdef ARCH_X64 // TODO
  				// Run optimization passes
  				fpm.run(*func, fam);
@@ -3607,13 +3668,13 @@ index b1f1a749b..827126c1b 100644
 +				if (run_ir_passes)
 +				{
 +					const u64 opt_started = utils::get_tsc();
-+					fpm.run(*func, fam);
++					fpm_selected.run(*func, fam);
 +					jit_phase::g_counters.add(jit_phase::ppu_opt, utils::get_tsc() - opt_started);
 +				}
  #endif // ARCH_X64
  			}
  			else
-@@ -6131,7 +6294,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6131,7 +6340,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  			result.clear();
  		}
  
@@ -4622,7 +4683,7 @@ index 0000000..665988a
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
-index d451a943a..6ccf2a4b7 100644
+index d451a943a..bf5732cbd 100644
 --- a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 @@ -1,5 +1,6 @@
@@ -5533,7 +5594,7 @@ index d451a943a..6ccf2a4b7 100644
  		sha1_context ctx;
  		u8 key[20];
  		sha1_starts(&ctx);
-@@ -1511,7 +2000,12 @@ spu_runtime::spu_runtime()
+@@ -1511,7 +2000,16 @@ spu_runtime::spu_runtime()
  			sha1_update(&ctx, reinterpret_cast<const u8*>(&value), sizeof(value));
  		};
  
@@ -5544,10 +5605,14 @@ index d451a943a..6ccf2a4b7 100644
 +		};
 +
 +		fold(object_cache::format_version);
++		// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: objects of each SPU pipeline live
++		// in their own directory.
++		const u32 spu_pipeline = static_cast<u32>(g_cfg.core.spu_llvm_pipeline.get());
++		fold(spu_pipeline);
  		const u32 xfloat = static_cast<u32>(g_cfg.core.spu_xfloat_accuracy.get());
  		const u32 block_size = static_cast<u32>(g_cfg.core.spu_block_size.get());
  		const u32 clocks_scale = static_cast<u32>(g_cfg.core.clocks_scale.get());
-@@ -1540,40 +2034,73 @@ spu_runtime::spu_runtime()
+@@ -1540,40 +2038,73 @@ spu_runtime::spu_runtime()
  		fold(hw);
  		fold(tsc_freq);
  
@@ -5627,7 +5692,7 @@ index d451a943a..6ccf2a4b7 100644
 +				rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::evicted, plan.remove.size());
 +			}
 +
-+			spu_log.notice("SPU object cache: %s (%u files, %u KiB)", m_obj_cache_path, plan.kept_files, plan.kept_bytes / 1024);
++			spu_log.notice("SPU object cache: %s (%u files, %u KiB, pipeline %s)", m_obj_cache_path, plan.kept_files, plan.kept_bytes / 1024, g_cfg.core.spu_llvm_pipeline.get());
  		}
  	}
 +	else
@@ -5637,7 +5702,7 @@ index d451a943a..6ccf2a4b7 100644
  #endif
  }
  
-@@ -1889,7 +2416,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1889,7 +2420,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  			if (w.level >= w.beg->first.size() || w.level >= it->first.size())
  			{
  				// If functions cannot be compared, assume smallest function
@@ -5651,7 +5716,7 @@ index d451a943a..6ccf2a4b7 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -1928,7 +2460,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1928,7 +2464,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  
  			if (it == m_flat_list.end())
  			{
@@ -5660,7 +5725,7 @@ index d451a943a..6ccf2a4b7 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -2414,6 +2946,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
+@@ -2414,6 +2950,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
  		return;
  	}
  
@@ -5674,7 +5739,7 @@ index d451a943a..6ccf2a4b7 100644
  	const auto func = compile_spu_llvm_with_retry(spu.jit, program);
  #else
  	const auto func = spu.jit->compile(std::move(program));
-@@ -2564,6 +3103,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2564,6 +3107,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  
  	// LS pointer
  	const auto base = static_cast<const u8*>(ls);
@@ -5682,7 +5747,7 @@ index d451a943a..6ccf2a4b7 100644
  
  	while (true)
  	{
-@@ -2577,12 +3117,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2577,12 +3121,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  			(spu.pc < spu.interp_fallback_begin || spu.pc >= spu.interp_fallback_end)) [[unlikely]]
  		{
  			spu.interp_fallback = false;
@@ -5718,7 +5783,7 @@ index d451a943a..6ccf2a4b7 100644
  	}
  }
  
-@@ -3174,6 +3736,55 @@ struct block_reg_info
+@@ -3174,6 +3740,55 @@ struct block_reg_info
  	}
  };
  
@@ -5774,7 +5839,7 @@ index d451a943a..6ccf2a4b7 100644
  spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, std::map<u32, std::vector<u32>>* out_target_list)
  {
  	// Result: addr + raw instruction data
-@@ -3401,11 +4012,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -3401,11 +4016,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const u32 target = spu_branch_target(av);
  
@@ -5799,7 +5864,7 @@ index d451a943a..6ccf2a4b7 100644
  					break;
  				}
  
-@@ -5789,7 +6412,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5789,7 +6416,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				getllar_starts[previous.lsa_pc] = true;
  				g_fxo->get<putllc16_statistics_t>().breaking_reason[cause]++;
  
@@ -5808,7 +5873,7 @@ index d451a943a..6ccf2a4b7 100644
  				{
  					return;
  				}
-@@ -5829,7 +6452,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5829,7 +6456,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -5817,7 +5882,7 @@ index d451a943a..6ccf2a4b7 100644
  			}
  		};
  
-@@ -5846,7 +6469,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5846,7 +6473,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  				g_fxo->get<rchcnt_statistics_t>().breaking_reason[cause]++;
  
@@ -5826,7 +5891,7 @@ index d451a943a..6ccf2a4b7 100644
  				{
  					return;
  				}
-@@ -5886,7 +6509,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5886,7 +6513,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -5835,7 +5900,7 @@ index d451a943a..6ccf2a4b7 100644
  			}
  		};
  
-@@ -5896,7 +6519,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5896,7 +6523,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				g_fxo->get<reduced_statistics_t>().breaking_reason[cause]++;
  
@@ -5844,7 +5909,7 @@ index d451a943a..6ccf2a4b7 100644
  				{
  					return;
  				}
-@@ -5941,12 +6564,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5941,12 +6568,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -5859,7 +5924,7 @@ index d451a943a..6ccf2a4b7 100644
  			}
  		};
  
-@@ -6157,7 +6780,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6157,7 +6784,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  						{
  							if (!std::exchange(logged_block[target_pc / 4], true))
  							{
@@ -5868,7 +5933,7 @@ index d451a943a..6ccf2a4b7 100644
  							}
  
  							state_it->parent_target_index++;
-@@ -6830,7 +7453,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6830,7 +7457,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const reg_state_t& rt = vregs[op.rt];
  
@@ -5884,7 +5949,7 @@ index d451a943a..6ccf2a4b7 100644
  				{
  					if (rchcnt_loop->conditioned)
  					{
-@@ -6841,7 +7471,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6841,7 +7475,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  					rchcnt_loop->conditioned = true;
  					rchcnt_loop->branch_pc = pos;
@@ -5897,7 +5962,7 @@ index d451a943a..6ccf2a4b7 100644
  				}
  
  				break;
-@@ -7679,7 +8313,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -7679,7 +8317,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  							if (getllar_starts.emplace(atomic16->lsa_pc, false).second)
  							{
  								g_fxo->get<putllc16_statistics_t>().all++;
@@ -5906,7 +5971,7 @@ index d451a943a..6ccf2a4b7 100644
  							}
  						}
  
-@@ -8745,7 +9379,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8745,7 +9383,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  			if (rchcnt_loop->active)
  			{
@@ -5915,7 +5980,7 @@ index d451a943a..6ccf2a4b7 100644
  				{
  					if (op.si10 != 0 && op.si10 != 1)
  					{
-@@ -8754,7 +9388,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8754,7 +9392,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  					}
  
  					rchcnt_loop->ch_product = vregs[op.rt];
@@ -5926,7 +5991,7 @@ index d451a943a..6ccf2a4b7 100644
  				}
  			}
  
-@@ -9007,7 +9643,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9007,7 +9647,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			add_pattern(inst_attr::putllc16, pattern.put_pc - result.entry_point, value.data);
  		}
  
@@ -5935,7 +6000,7 @@ index d451a943a..6ccf2a4b7 100644
  			, pattern.mem_count, pattern.put_pc, value.type == v_relative, value.off18, value.type == v_const, value.type == v_reg2, value.reg, value.runtime16_select, entry_point, func_hash, pattern_hash, +stats.nowrite, ++stats.single, +stats.all);
  	}
  
-@@ -9024,6 +9660,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9024,6 +9664,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			continue;
  		}
  
@@ -5947,7 +6012,7 @@ index d451a943a..6ccf2a4b7 100644
  		if (inst_attr attr = m_inst_attrs[(read_pc - entry_point) / 4]; attr == inst_attr::none)
  		{
  			add_pattern(inst_attr::rchcnt_loop, read_pc - result.entry_point, 0);
-@@ -9113,7 +9754,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9113,7 +9758,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  	if (likely_putllc_loop && !had_putllc_evaluation)
  	{
@@ -5956,7 +6021,7 @@ index d451a943a..6ccf2a4b7 100644
  	}
  
  	if (result.data.empty())
-@@ -9359,7 +10000,7 @@ struct spu_llvm_worker
+@@ -9359,7 +10004,7 @@ struct spu_llvm_worker
  			}
  
  			// Clear fake LS
@@ -6357,7 +6422,7 @@ index 0000000..9d19266
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c790..08db84eef 100644
+index 9a1e4c790..04cb94b6c 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,9 @@
@@ -6405,7 +6470,15 @@ index 9a1e4c790..08db84eef 100644
  #include "Emu/CPU/CPUTranslator.h"
  
  #ifdef _MSC_VER
-@@ -61,9 +84,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+@@ -54,6 +77,7 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+ #include <llvm/Transforms/Scalar/LICM.h>
+ #include <llvm/Transforms/Scalar/LoopPassManager.h>
+ #include <llvm/Transforms/Scalar/SimplifyCFG.h>
++#include <llvm/Transforms/InstCombine/InstCombine.h>
+ #ifdef _MSC_VER
+ #pragma warning(pop)
+ #else
+@@ -61,9 +85,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
  #endif
  
  #ifdef ARCH_ARM64
@@ -6418,7 +6491,7 @@ index 9a1e4c790..08db84eef 100644
  
  namespace
  {
-@@ -76,6 +102,92 @@ void spu_llvm_set_compile_context(spu_llvm_compile_context* context) noexcept
+@@ -76,6 +103,92 @@ void spu_llvm_set_compile_context(spu_llvm_compile_context* context) noexcept
  }
  #endif
  
@@ -6511,7 +6584,7 @@ index 9a1e4c790..08db84eef 100644
  class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  {
  	// JIT Instance
-@@ -706,19 +818,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -706,19 +819,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -6556,7 +6629,7 @@ index 9a1e4c790..08db84eef 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -728,6 +865,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -728,6 +866,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto e = m_ir->CreateAnd(val, 0x7f800000);
  			return uint64_as_double(m_ir->CreateSelect(m_ir->CreateIsNotNull(e), f, s));
  		}
@@ -6564,7 +6637,7 @@ index 9a1e4c790..08db84eef 100644
  
  		const auto s = m_ir->CreateShl(m_ir->CreateAnd(x, 0x80000000), 32);
  		const auto a = m_ir->CreateAnd(x, 0x7fffffff);
-@@ -735,6 +873,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -735,6 +874,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		const auto r = m_ir->CreateSelect(m_ir->CreateICmpSGT(a, splat<u64[4]>(0x7fffff).eval(m_ir)), m, splat<u64[4]>(0).eval(m_ir));
  		const auto f = m_ir->CreateOr(s, r);
  		return uint64_as_double(f);
@@ -6572,7 +6645,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	// Clamp double values to ±Smax, flush values smaller than ±Smin to positive zero
-@@ -742,6 +881,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -742,6 +882,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -6580,7 +6653,7 @@ index 9a1e4c790..08db84eef 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -754,6 +894,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -754,6 +895,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto r = m_ir->CreateOr(c, m_ir->CreateAnd(d, 0x8000000000000000));
  			return uint64_as_double(m_ir->CreateSelect(n, r, splat<u64[4]>(0).eval(m_ir)));
  		}
@@ -6588,7 +6661,7 @@ index 9a1e4c790..08db84eef 100644
  
  		const auto smax = uint64_as_double(splat<u64[4]>(0x47ffffffe0000000).eval(m_ir));
  		const auto smin = uint64_as_double(splat<u64[4]>(0x3810000000000000).eval(m_ir));
-@@ -770,10 +911,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -770,10 +912,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	// Expand 32-bit mask for xfloat values to 64-bit, 29 least significant bits are always zero
  	llvm::Value* conv_xfloat_mask(llvm::Value* val)
  	{
@@ -6868,7 +6941,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	llvm::Value* get_reg_raw(u32 index)
-@@ -1160,10 +1570,27 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -1160,17 +1571,34 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		m_ir->SetInsertPoint(check);
  		update_pc(addr);
  
@@ -6897,7 +6970,15 @@ index 9a1e4c790..08db84eef 100644
  
  		if (may_be_unsafe_for_savestate)
  		{
-@@ -1602,6 +2029,11 @@ public:
+ 			spu_context_attr(m_ir->CreateStore(m_ir->getInt8(1), spu_ptr(&spu_thread::unsavable)))->setVolatile(true);
+ 		}
+ 
+-		m_ir->CreateCall(m_test_state, {m_thread});
++		m_ir->CreateCall(m_test_state, {m_thread})->setCallingConv(m_test_state->getCallingConv());
+ 
+ 		if (may_be_unsafe_for_savestate)
+ 		{
+@@ -1602,6 +2030,11 @@ public:
  			m_spurt = &g_fxo->get<spu_runtime>();
  			cpu_translator::initialize(m_jit.get_context(), m_jit.get_engine());
  
@@ -6909,7 +6990,7 @@ index 9a1e4c790..08db84eef 100644
  			const auto md_name = llvm::MDString::get(m_context, "branch_weights");
  			const auto md_low = llvm::ValueAsMetadata::get(llvm::ConstantInt::get(GetType<u32>(), 1));
  			const auto md_high = llvm::ValueAsMetadata::get(llvm::ConstantInt::get(GetType<u32>(), 999));
-@@ -1674,6 +2106,12 @@ public:
+@@ -1674,6 +2107,12 @@ public:
  			return nullptr;
  		}
  
@@ -6922,7 +7003,7 @@ index 9a1e4c790..08db84eef 100644
  		const spu_program& func = add_loc->data;
  
  		if (func.entry_point != start0)
-@@ -1689,6 +2127,10 @@ public:
+@@ -1689,6 +2128,10 @@ public:
  				add_loc->compiled.wait(nullptr, atomic_wait_timeout{10'000'000});
  			}
  
@@ -6933,7 +7014,7 @@ index 9a1e4c790..08db84eef 100644
  			return add_loc->compiled;
  		}
  
-@@ -1702,6 +2144,10 @@ public:
+@@ -1702,6 +2145,10 @@ public:
  				add_loc->llvm_compile_state.wait(1, atomic_wait_timeout{10'000'000});
  			}
  
@@ -6944,7 +7025,7 @@ index 9a1e4c790..08db84eef 100644
  			return add_loc->llvm_compile_state == 2 ? add_loc->compiled.load() : nullptr;
  		}
  
-@@ -1722,11 +2168,25 @@ public:
+@@ -1722,11 +2169,25 @@ public:
  
  		bool add_to_file = false;
  
@@ -6971,7 +7052,7 @@ index 9a1e4c790..08db84eef 100644
  		{
  			sha1_context ctx;
  			u8 output[20];
-@@ -1751,6 +2211,34 @@ public:
+@@ -1751,6 +2212,34 @@ public:
  		{
  			g_spu_llvm_compile_context->llvm_error.clear();
  		}
@@ -7006,7 +7087,7 @@ index 9a1e4c790..08db84eef 100644
  #endif
  
  		spu_log.notice("Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
-@@ -1764,13 +2252,21 @@ public:
+@@ -1764,13 +2253,21 @@ public:
  		m_pp_id = 0;
  
  		std::string function_log;
@@ -7032,7 +7113,7 @@ index 9a1e4c790..08db84eef 100644
  			{
  				// Fallback: write to main log
  				to_log_func = true;
-@@ -1786,11 +2282,13 @@ public:
+@@ -1786,11 +2283,13 @@ public:
  			if (itype == spu_itype::RDCH && op.ra == SPU_RdDec)
  			{
  				to_log_func = true;
@@ -7046,7 +7127,7 @@ index 9a1e4c790..08db84eef 100644
  			spu_log.notice("Function %s dump:\n%s", m_hash, function_log);
  		}
  
-@@ -1875,6 +2373,7 @@ public:
+@@ -1875,6 +2374,7 @@ public:
  			[[maybe_unused]] u32 elements;
  			[[maybe_unused]] u32 dwords;
  
@@ -7054,7 +7135,7 @@ index 9a1e4c790..08db84eef 100644
  			if (m_use_avx512)
  			{
  				stride = 64;
-@@ -1888,6 +2387,7 @@ public:
+@@ -1888,6 +2388,7 @@ public:
  				dwords = 4;
  			}
  			else
@@ -7062,7 +7143,7 @@ index 9a1e4c790..08db84eef 100644
  			{
  				stride = 16;
  				elements = 4;
-@@ -3853,6 +4353,13 @@ public:
+@@ -3853,6 +4354,13 @@ public:
  			m_function_table->eraseFromParent();
  		}
  
@@ -7076,7 +7157,20 @@ index 9a1e4c790..08db84eef 100644
  		// Create the analysis managers.
  		// These must be declared in this order so that they are destroyed in the
  		// correct order due to inter-analysis-manager references.
-@@ -3882,15 +4389,49 @@ public:
+@@ -3878,19 +4386,62 @@ public:
+ 		// Basic optimizations
+ 		fpm.addPass(EarlyCSEPass(true));
+ 		fpm.addPass(SimplifyCFGPass());
++		// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: upstream RPCS3 (x86-64) and
++		// ARMSX3 (ARM64) run InstCombine here. Every direct call to a function
++		// defined in the module carries its callee's calling convention (see
++		// m_test_state), which InstCombine requires: a mismatch becomes
++		// unreachable. "Reference 481" keeps the previous pipeline to compare.
++		if (g_cfg.core.spu_llvm_pipeline == spu_llvm_pipeline_type::upstream)
++		{
++			fpm.addPass(InstCombinePass());
++		}
+ 		fpm.addPass(DSEPass());
  		fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
  		fpm.addPass(ADCEPass());
  
@@ -7131,7 +7225,7 @@ index 9a1e4c790..08db84eef 100644
  		}
  
  		// Clear context (TODO)
-@@ -3904,12 +4445,33 @@ public:
+@@ -3904,12 +4455,33 @@ public:
  		std::string& llvm_log = function_log;
  		raw_string_ostream out(llvm_log);
  
@@ -7152,7 +7246,7 @@ index 9a1e4c790..08db84eef 100644
 +			}
 +		};
 +		if (g_cfg.core.spu_debug)
-+		{
+ 		{
 +			append_llvm_ir();
 +		}
 +		std::string verification_log;
@@ -7163,14 +7257,14 @@ index 9a1e4c790..08db84eef 100644
 +		constexpr bool verify_ir = true;
 +#endif
 +		if (verify_ir && verifyModule(*_module, &verification_out))
- 		{
++		{
 +			verification_out.flush();
 +			append_llvm_ir();
 +			out << verification_log;
  			out.flush();
  			spu_log.error("LLVM: Verification failed at 0x%x:\n%s", func.entry_point, llvm_log);
  
-@@ -3951,22 +4513,39 @@ public:
+@@ -3951,22 +4523,39 @@ public:
  
  			if (recoverable)
  			{
@@ -7179,6 +7273,11 @@ index 9a1e4c790..08db84eef 100644
 +				bool added = false;
  
 -				if (g_cfg.core.spu_debug)
+-				{
+-					// Testing only
+-					added = m_jit.try_add(std::move(_module), m_spurt->get_cache_path() + "llvm/", llvm_error);
+-				}
+-				else if (!m_spurt->get_obj_cache_path().empty())
 +#ifdef RPCS3_IOS
 +				// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: a hit links the cached
 +				// object; a miss generates code and persists it, but only when the
@@ -7187,11 +7286,6 @@ index 9a1e4c790..08db84eef 100644
 +				// a future translator change can never poison the cache again.
 +				if (use_spu_obj_cache)
  				{
--					// Testing only
--					added = m_jit.try_add(std::move(_module), m_spurt->get_cache_path() + "llvm/", llvm_error);
--				}
--				else if (!m_spurt->get_obj_cache_path().empty())
--				{
 -					// ARM64 objects embed process-specific host addresses as
 -					// immediates without relocations. Compile into the current
 -					// process only until every such address is symbolic.
@@ -7221,7 +7315,7 @@ index 9a1e4c790..08db84eef 100644
  				{
  					added = m_jit.try_add(std::move(_module), llvm_error);
  				}
-@@ -3983,19 +4562,7 @@ public:
+@@ -3983,19 +4572,7 @@ public:
  			}
  			else
  			{
@@ -7242,7 +7336,7 @@ index 9a1e4c790..08db84eef 100644
  
  				m_jit.fin();
  			}
-@@ -4018,11 +4585,60 @@ public:
+@@ -4018,11 +4595,60 @@ public:
  #endif
  		}
  
@@ -7303,7 +7397,7 @@ index 9a1e4c790..08db84eef 100644
  
  		// Rebuild trampoline if necessary
  		if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
-@@ -4069,7 +4685,7 @@ public:
+@@ -4069,7 +4695,7 @@ public:
  				cache.add(func);
  			}
  
@@ -7312,7 +7406,7 @@ index 9a1e4c790..08db84eef 100644
  		}
  
  		return fn;
-@@ -4159,14 +4775,13 @@ public:
+@@ -4159,14 +4785,13 @@ public:
  		// Pinned constant, address of first register
  		m_interp_regs = _ptr(m_thread, get_reg_offset(0));
  
@@ -7331,7 +7425,7 @@ index 9a1e4c790..08db84eef 100644
  
  		// Decode (shift) and load function pointer
  		const auto first = m_ir->CreateLoad(get_type<u8*>(), m_ir->CreateGEP(get_type<u8*>(), m_interp_table, m_ir->CreateLShr(m_interp_op, 32u - m_interp_magn)));
-@@ -4444,17 +5059,34 @@ public:
+@@ -4444,17 +5069,34 @@ public:
  		for (auto& f : *_module)
  		{
  			run_transforms(f);
@@ -7371,7 +7465,7 @@ index 9a1e4c790..08db84eef 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed:\n%s", llvm_log);
  
-@@ -4466,6 +5098,11 @@ public:
+@@ -4466,6 +5108,11 @@ public:
  			fmt::throw_exception("Compilation failed");
  		}
  
@@ -7383,7 +7477,7 @@ index 9a1e4c790..08db84eef 100644
  		if (g_cfg.core.spu_debug)
  		{
  			// Testing only
-@@ -4479,11 +5116,22 @@ public:
+@@ -4479,11 +5126,22 @@ public:
  		{
  			m_jit.add(std::move(_module));
  		}
@@ -7406,7 +7500,7 @@ index 9a1e4c790..08db84eef 100644
  
  		for (u32 i = 0; i < spu_runtime::g_interpreter_table.size(); i++)
  		{
-@@ -4507,7 +5155,7 @@ public:
+@@ -4507,7 +5165,7 @@ public:
  
  	static bool exec_check_state(spu_thread* _spu)
  	{
@@ -7415,7 +7509,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	template <spu_intrp_func_t F>
-@@ -4747,7 +5395,9 @@ public:
+@@ -4747,7 +5405,9 @@ public:
  #if defined(ARCH_X64) || defined(ARCH_ARM64)
  			if (utils::get_tsc_freq() && !(g_cfg.core.spu_loop_detection) && (g_cfg.core.clocks_scale == 100))
  			{
@@ -7426,7 +7520,7 @@ index 9a1e4c790..08db84eef 100644
  				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
  				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));
  				const auto tsc = m_ir->CreateCall(get_intrinsic(llvm::Intrinsic::readcyclecounter));
-@@ -4924,9 +5574,25 @@ public:
+@@ -4924,9 +5584,25 @@ public:
  			{
  				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
  				{
@@ -7453,7 +7547,7 @@ index 9a1e4c790..08db84eef 100644
  				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
  				break;
  			}
-@@ -5200,7 +5866,7 @@ public:
+@@ -5200,7 +5876,7 @@ public:
  				}
  			}
  
@@ -7462,7 +7556,7 @@ index 9a1e4c790..08db84eef 100644
  			//m_ir->CreateStore(val.value, spu_ptr(&spu_thread::ch_mfc_cmd, &spu_mfc_cmd::eah));
  			return;
  		}
-@@ -5403,6 +6069,16 @@ public:
+@@ -5403,6 +6079,16 @@ public:
  					}
  					}
  
@@ -7479,7 +7573,7 @@ index 9a1e4c790..08db84eef 100644
  					// Check if the LS address is constant and 256 bit aligned
  					u64 clsa = umax;
  
-@@ -5411,20 +6087,19 @@ public:
+@@ -5411,20 +6097,19 @@ public:
  						clsa = ci->getZExtValue();
  					}
  
@@ -7502,7 +7596,7 @@ index 9a1e4c790..08db84eef 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5558,7 +6233,7 @@ public:
+@@ -5558,7 +6243,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -7511,7 +7605,7 @@ index 9a1e4c790..08db84eef 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6255,8 @@ public:
+@@ -5580,29 +6265,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -7543,7 +7637,7 @@ index 9a1e4c790..08db84eef 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6356,34 @@ public:
+@@ -5702,14 +6366,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -7578,7 +7672,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6421,13 @@ public:
+@@ -5747,7 +6431,13 @@ public:
  			return;
  		}
  
@@ -7592,7 +7686,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6446,13 @@ public:
+@@ -5766,7 +6456,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -7606,7 +7700,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6490,13 @@ public:
+@@ -5804,7 +6500,13 @@ public:
  			return;
  		}
  
@@ -7620,7 +7714,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +6950,12 @@ public:
+@@ -6258,13 +6960,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -7638,7 +7732,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +6964,17 @@ public:
+@@ -6273,7 +6974,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -7656,7 +7750,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +7035,24 @@ public:
+@@ -6334,20 +7045,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -7681,7 +7775,7 @@ index 9a1e4c790..08db84eef 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +7209,14 @@ public:
+@@ -6504,8 +7219,14 @@ public:
  			}
  		}
  
@@ -7696,7 +7790,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7229,27 @@ public:
+@@ -6518,15 +7239,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -7724,7 +7818,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7284,13 @@ public:
+@@ -6561,11 +7294,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -7738,7 +7832,7 @@ index 9a1e4c790..08db84eef 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7299,13 @@ public:
+@@ -6574,11 +7309,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -7752,7 +7846,7 @@ index 9a1e4c790..08db84eef 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7451,16 @@ public:
+@@ -6724,6 +7461,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -7769,7 +7863,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7469,16 @@ public:
+@@ -6732,6 +7479,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -7786,7 +7880,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7488,16 @@ public:
+@@ -6741,6 +7498,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -7803,7 +7897,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7530,7 @@ public:
+@@ -6773,6 +7540,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -7811,7 +7905,7 @@ index 9a1e4c790..08db84eef 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7547,7 @@ public:
+@@ -6789,6 +7557,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -7819,7 +7913,7 @@ index 9a1e4c790..08db84eef 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7571,17 @@ public:
+@@ -6812,6 +7581,17 @@ public:
  			return;
  		}
  
@@ -7837,7 +7931,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7620,31 @@ public:
+@@ -6850,11 +7630,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -7869,7 +7963,7 @@ index 9a1e4c790..08db84eef 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7655,16 @@ public:
+@@ -6865,6 +7665,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -7886,7 +7980,7 @@ index 9a1e4c790..08db84eef 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7725,28 @@ public:
+@@ -6925,16 +7735,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -7915,7 +8009,7 @@ index 9a1e4c790..08db84eef 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8229,32 @@ public:
+@@ -7417,6 +8239,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -7948,7 +8042,7 @@ index 9a1e4c790..08db84eef 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8289,18 @@ public:
+@@ -7451,6 +8299,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -7967,7 +8061,7 @@ index 9a1e4c790..08db84eef 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8311,21 @@ public:
+@@ -7461,6 +8321,21 @@ public:
  			return;
  		}
  
@@ -7989,7 +8083,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7568,6 +8433,28 @@ public:
+@@ -7568,6 +8443,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -8018,7 +8112,7 @@ index 9a1e4c790..08db84eef 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8514,12 @@ public:
+@@ -7627,12 +8524,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -8036,7 +8130,7 @@ index 9a1e4c790..08db84eef 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8562,14 @@ public:
+@@ -7675,6 +8572,14 @@ public:
  				return;
  			}
  
@@ -8051,7 +8145,7 @@ index 9a1e4c790..08db84eef 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8589,15 @@ public:
+@@ -7694,6 +8599,15 @@ public:
  			return;
  		}
  
@@ -8067,7 +8161,7 @@ index 9a1e4c790..08db84eef 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8605,14 @@ public:
+@@ -7701,6 +8615,14 @@ public:
  			return;
  		}
  
@@ -8082,7 +8176,7 @@ index 9a1e4c790..08db84eef 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8865,7 @@ public:
+@@ -7953,6 +8875,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -8090,7 +8184,7 @@ index 9a1e4c790..08db84eef 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8873,7 @@ public:
+@@ -7960,6 +8883,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -8098,7 +8192,7 @@ index 9a1e4c790..08db84eef 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8907,7 @@ public:
+@@ -7993,6 +8917,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -8106,7 +8200,7 @@ index 9a1e4c790..08db84eef 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8918,7 @@ public:
+@@ -8003,6 +8928,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -8114,7 +8208,7 @@ index 9a1e4c790..08db84eef 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +8974,15 @@ public:
+@@ -8058,6 +8984,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -8130,7 +8224,7 @@ index 9a1e4c790..08db84eef 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +9079,15 @@ public:
+@@ -8154,6 +9089,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -8146,7 +8240,7 @@ index 9a1e4c790..08db84eef 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9366,15 @@ public:
+@@ -8432,6 +9376,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -8162,7 +8256,7 @@ index 9a1e4c790..08db84eef 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9424,15 @@ public:
+@@ -8481,6 +9434,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -8178,7 +8272,7 @@ index 9a1e4c790..08db84eef 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9621,7 @@ public:
+@@ -8669,6 +9631,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -8186,7 +8280,7 @@ index 9a1e4c790..08db84eef 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9630,7 @@ public:
+@@ -8677,6 +9640,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -8194,7 +8288,7 @@ index 9a1e4c790..08db84eef 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9643,7 @@ public:
+@@ -8689,6 +9653,7 @@ public:
  			}
  		});
  
@@ -8202,7 +8296,7 @@ index 9a1e4c790..08db84eef 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9657,7 @@ public:
+@@ -8702,6 +9667,7 @@ public:
  			});
  		}
  		else
@@ -8210,7 +8304,7 @@ index 9a1e4c790..08db84eef 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9866,38 @@ public:
+@@ -8910,17 +9876,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -8249,7 +8343,7 @@ index 9a1e4c790..08db84eef 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +10023,7 @@ public:
+@@ -9046,6 +10033,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -8257,7 +8351,7 @@ index 9a1e4c790..08db84eef 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +10034,7 @@ public:
+@@ -9056,6 +10044,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -8265,7 +8359,7 @@ index 9a1e4c790..08db84eef 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10290,7 @@ public:
+@@ -9311,6 +10300,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -8273,7 +8367,7 @@ index 9a1e4c790..08db84eef 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10298,7 @@ public:
+@@ -9318,6 +10308,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -8281,7 +8375,7 @@ index 9a1e4c790..08db84eef 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10631,7 @@ public:
+@@ -9650,7 +10641,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -8290,7 +8384,7 @@ index 9a1e4c790..08db84eef 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10648,13 @@ public:
+@@ -9667,6 +10658,13 @@ public:
  		return addr;
  	}
  
@@ -8304,7 +8398,7 @@ index 9a1e4c790..08db84eef 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10678,7 @@ public:
+@@ -9690,7 +10688,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -8313,7 +8407,7 @@ index 9a1e4c790..08db84eef 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10737,7 @@ public:
+@@ -9749,7 +10747,7 @@ public:
  
  		if (op.d)
  		{
@@ -8322,7 +8416,7 @@ index 9a1e4c790..08db84eef 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +11024,7 @@ public:
+@@ -10036,7 +11034,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -8331,6 +8425,15 @@ index 9a1e4c790..08db84eef 100644
  			return;
  		}
  
+@@ -10102,7 +11100,7 @@ public:
+ 			{
+ 				// Can't afford external tail call in true functions
+ 				m_ir->CreateStore(m_ir->getInt32("BIJT"_u32), _ptr(m_memptr, 0xffdead20));
+-				m_ir->CreateCall(m_test_state, {m_thread});
++				m_ir->CreateCall(m_test_state, {m_thread})->setCallingConv(m_test_state->getCallingConv());
+ 				m_ir->CreateBr(sw->getDefaultDest());
+ 			}
+ 			else
 diff --git a/rpcs3/Emu/Cell/SPUObjectCachePolicy.h b/rpcs3/Emu/Cell/SPUObjectCachePolicy.h
 new file mode 100644
 index 000000000..9d8738321
@@ -14280,18 +14383,20 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..eea0b6aa3 100644
+index 7072922d2..b73d26fdf 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -26,6 +26,7 @@ struct cfg_root : cfg::node
+@@ -26,6 +26,9 @@ struct cfg_root : cfg::node
  		cfg::string llvm_cpu{ this, "Use LLVM CPU" };
  		cfg::_int<0, 1024> llvm_threads{ this, "Max LLVM Compile Threads", 0 };
  		cfg::_bool llvm_precompilation{ this, "LLVM Precompilation", true };
 +		cfg::_bool ppu_llvm_ir_passes{ this, "PPU LLVM IR Passes", false }; // NEOSTATION_BUILD444: ARM64 opt-in EarlyCSE, measured via JITPROF
++		cfg::_enum<ppu_llvm_pipeline_type> ppu_llvm_pipeline{ this, "PPU LLVM Pipeline", ppu_llvm_pipeline_type::upstream }; // NEOSTATION_BUILD483: ARM64 pipeline level, hashed into the object name; the boolean above still means EarlyCSE
++		cfg::_enum<spu_llvm_pipeline_type> spu_llvm_pipeline{ this, "SPU LLVM Pipeline", spu_llvm_pipeline_type::upstream }; // NEOSTATION_BUILD483: upstream InstCombine by default, Reference 481 to compare; folded into the SPU object-cache key
  		cfg::_enum<thread_scheduler_mode> thread_scheduler{this, "Thread Scheduler Mode", thread_scheduler_mode::os};
  		cfg::_bool set_daz_and_ftz{ this, "Set DAZ and FTZ", false };
  		cfg::_enum<spu_decoder_type> spu_decoder{ this, "SPU Decoder", spu_decoder_type::llvm };
-@@ -107,8 +108,16 @@ struct cfg_root : cfg::node
+@@ -107,8 +110,16 @@ struct cfg_root : cfg::node
  		cfg::_bool host_root{ this, "Enable /host_root/" };
  		cfg::_bool init_dirs{ this, "Initialize Directories", true };
  
@@ -14308,7 +14413,7 @@ index 7072922d2..eea0b6aa3 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -134,6 +143,7 @@ struct cfg_root : cfg::node
+@@ -134,6 +145,7 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -14316,6 +14421,75 @@ index 7072922d2..eea0b6aa3 100644
  	} ios_experimental{ this };
  #endif
  
+diff --git a/rpcs3/Emu/system_config_types.cpp b/rpcs3/Emu/system_config_types.cpp
+index 0fcfeb78e..7c78e134d 100644
+--- a/rpcs3/Emu/system_config_types.cpp
++++ b/rpcs3/Emu/system_config_types.cpp
+@@ -308,6 +308,37 @@ void fmt_class_string<spu_decoder_type>::format(std::string& out, u64 arg)
+ 	});
+ }
+ 
++template <>
++void fmt_class_string<ppu_llvm_pipeline_type>::format(std::string& out, u64 arg)
++{
++	format_enum(out, arg, [](ppu_llvm_pipeline_type type)
++	{
++		switch (type)
++		{
++		case ppu_llvm_pipeline_type::upstream: return "Upstream ARM64";
++		case ppu_llvm_pipeline_type::early_cse: return "EarlyCSE";
++		case ppu_llvm_pipeline_type::extended: return "Extended";
++		}
++
++		return unknown;
++	});
++}
++
++template <>
++void fmt_class_string<spu_llvm_pipeline_type>::format(std::string& out, u64 arg)
++{
++	format_enum(out, arg, [](spu_llvm_pipeline_type type)
++	{
++		switch (type)
++		{
++		case spu_llvm_pipeline_type::reference: return "Reference 481";
++		case spu_llvm_pipeline_type::upstream: return "Upstream InstCombine";
++		}
++
++		return unknown;
++	});
++}
++
+ template <>
+ void fmt_class_string<spu_block_size_type>::format(std::string& out, u64 arg)
+ {
+diff --git a/rpcs3/Emu/system_config_types.h b/rpcs3/Emu/system_config_types.h
+index c1be7dd72..98e1fe9c9 100644
+--- a/rpcs3/Emu/system_config_types.h
++++ b/rpcs3/Emu/system_config_types.h
+@@ -21,6 +21,22 @@ enum class spu_block_size_type
+ 	giga,
+ };
+ 
++// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: IR pipelines of the recompilers on
++// ARM64. Every value names its objects separately (PPU settings bits, SPU
++// object-cache key), so variants never share generated code.
++enum class ppu_llvm_pipeline_type
++{
++	upstream,  // no IR pass on ARM64 (upstream RPCS3 and ARMSX3 behaviour)
++	early_cse, // EarlyCSE, the x86-64 pipeline of upstream RPCS3 (Build 444 option)
++	extended,  // EarlyCSE, SimplifyCFG, InstCombine, DSE, LICM, ADCE
++};
++
++enum class spu_llvm_pipeline_type
++{
++	reference, // Build 481: EarlyCSE, SimplifyCFG, DSE, LICM, ADCE
++	upstream,  // adds InstCombine after SimplifyCFG (upstream RPCS3 x86-64, ARMSX3 ARM64)
++};
++
+ enum class sleep_timers_accuracy_level
+ {
+ 	_as_host,
 diff --git a/rpcs3/Emu/system_progress.cpp b/rpcs3/Emu/system_progress.cpp
 index 52e4951..580947d 100644
 --- a/rpcs3/Emu/system_progress.cpp
@@ -17594,13 +17768,14 @@ index 8fba197..8aa46a0 100644
  
  // Replaced only while boot is serialized and before emulation workers exist.
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..798d71e85 100644
+index d8005424b..2dd5a35d4 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,129 @@
+@@ -1,26 +1,130 @@
  #include "stdafx.h"
  #include "RPCS3IOSPerformance.h"
 +#include "Emu/Cell/SPUWarmupPolicy.h"
++#include "Emu/system_config.h"
 +#include "Utilities/JITPhaseProfile.h"
  
  #include "util/cpu_stats.hpp"
@@ -17727,7 +17902,7 @@ index d8005424b..798d71e85 100644
  
  u64 process_memory_footprint()
  {
-@@ -41,23 +144,303 @@ u64 process_memory_footprint()
+@@ -41,23 +145,303 @@ u64 process_memory_footprint()
  class performance_registry final
  {
  public:
@@ -18040,7 +18215,7 @@ index d8005424b..798d71e85 100644
  	}
  
  	rpcs3_ios_status snapshot(rpcs3_ios_performance_metrics* metrics)
-@@ -72,7 +455,7 @@ public:
+@@ -72,7 +456,7 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -18049,7 +18224,7 @@ index d8005424b..798d71e85 100644
  		const bool presented_since_last_sample = !m_has_fps_baseline || frame_count > m_last_frame_count;
  		rpcs3_ios_performance_metrics result{};
  		result.struct_size = sizeof(result);
-@@ -113,7 +496,308 @@ public:
+@@ -113,7 +497,314 @@ public:
  	}
  
  private:
@@ -18216,6 +18391,12 @@ index d8005424b..798d71e85 100644
 +
 +			fmt::append(jit_line, " headroom_samples=%llu headroom_min_mib=%.3f", jit.headroom_samples,
 +				jit.headroom_samples ? static_cast<double>(jit.headroom_min_bytes) / 0x100000 : 0.0);
++			// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: the selected pipelines, so a
++			// JITPROF/COREPROF comparison names its variant (enum ordinals; the
++			// Build 444 boolean still means PPU EarlyCSE when the enum is Upstream).
++			fmt::append(jit_line, " ppu_pipeline=%u ppu_ir_passes=%u spu_pipeline=%u",
++				static_cast<u32>(g_cfg.core.ppu_llvm_pipeline.get()), g_cfg.core.ppu_llvm_ir_passes.get() ? 1u : 0u,
++				static_cast<u32>(g_cfg.core.spu_llvm_pipeline.get()));
 +			ios_core_profiler.notice("%s", jit_line);
 +		}
 +
@@ -18358,7 +18539,7 @@ index d8005424b..798d71e85 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +805,76 @@ private:
+@@ -121,6 +812,76 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -18435,7 +18616,7 @@ index d8005424b..798d71e85 100644
  };
  
  performance_registry g_performance_registry;
-@@ -138,6 +892,116 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +899,116 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -18552,7 +18733,7 @@ index d8005424b..798d71e85 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1011,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1018,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -18670,7 +18851,7 @@ index 88392e05f..fff82b576 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..1bad2263a 100644
+index b7b047471..925ab51b2 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -18698,7 +18879,7 @@ index b7b047471..1bad2263a 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -133,10 +137,12 @@ const std::array catalog{
+@@ -133,10 +137,14 @@ const std::array catalog{
  	SETTING("experimental.rsx_dma_wait_parking", "Experimental", "RSX", "Park RSX DMA waits", "After a short spin, parks the RSX thread while its offloader drains work. Disable to restore RPCS3's continuous spin. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_dma_wait_parking, 0, 0, 0),
  	SETTING("experimental.vulkan_command_buffer_reclamation", "Experimental", "Vulkan Memory", "Per-command-buffer ring reclamation", "Returns completed Vulkan ring allocations after each command buffer, including loads with no presentation. Disable to restore frame-only reclamation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.vulkan_command_buffer_reclamation, 0, 0, 0),
  	SETTING("experimental.expanded_spu_scratch", "Experimental", "SPU", "Expanded ARM64 SPU scratch", "Reserves 256 KiB instead of RPCS3's 8 KiB for generated ARM64 SPU spills. Disable to restore the original reservation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.expanded_spu_scratch, 0, 0, 0),
@@ -18709,10 +18890,12 @@ index b7b047471..1bad2263a 100644
  	// Emulator
  	SETTING("emulator.max_llvm_threads", "Emulator", "Compilation", "Max LLVM Compile Threads", "Limits concurrent LLVM compilation threads; zero uses the iOS memory-safe automatic limit.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.core.llvm_threads, 0, 64, 1),
 +	SETTING("emulator.ppu_llvm_ir_passes", "Emulator", "Compilation", "PPU LLVM IR passes (ARM64)", "Runs LLVM's EarlyCSE on translated PPU functions before ARM64 code generation, as RPCS3 does on x86-64. Off keeps the upstream ARM64 behavior. Objects compiled with each setting are cached separately; compare JITPROF and COREPROF before enabling it by default. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.ppu_llvm_ir_passes, 0, 1, 1),
++	SETTING("emulator.ppu_llvm_pipeline", "Emulator", "Compilation", "PPU LLVM pipeline (ARM64)", "Selects the IR optimization level of recompiled PPU code on ARM64. Upstream ARM64 translates straight to the backend, as RPCS3 and ARMSX3 do; EarlyCSE is the x86-64 pipeline of RPCS3; Extended adds SimplifyCFG, InstCombine, DSE, LICM and ADCE. A higher level costs compile time at the first boot after a change and its objects are cached separately. Compare JITPROF ppu_opt/ppu_codegen and COREPROF ppu_ms before keeping a level. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.core.ppu_llvm_pipeline, 0, 0, 0),
++	SETTING("emulator.spu_llvm_pipeline", "Emulator", "Compilation", "SPU LLVM pipeline", "Upstream InstCombine is the pipeline of RPCS3 x86-64 and ARMSX3 (EarlyCSE, SimplifyCFG, InstCombine, DSE, LICM, ADCE); Reference 481 is the previous NeoStation pipeline without InstCombine, kept to compare. Objects of each pipeline are cached separately. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.core.spu_llvm_pipeline, 0, 0, 0),
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +211,89 @@ const std::array catalog{
+@@ -205,6 +213,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -18802,7 +18985,7 @@ index b7b047471..1bad2263a 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +662,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +664,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

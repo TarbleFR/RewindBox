@@ -926,6 +926,13 @@ BUILD481_DELTA = {
     'test/rpcs3_build481_spu_object_cache_test.py',
 }
 DELTA |= BUILD481_DELTA
+# Build 483 (18 October 2026): selectable LLVM pipelines of the RPCS3 recompilers;
+# host evidence files of the Core delta.
+BUILD483_DELTA = {
+    'test/native/rpcs3_llvm_pipeline_harness.cpp',
+    'test/rpcs3_build483_llvm_pipeline_test.py',
+}
+DELTA |= BUILD483_DELTA
 # Build 482 (18 October 2026): ARMSX2 blending accuracy (Core ABI 7, in-game menu)
 # and the Get More RAM information before a PS3 firmware installation.
 BUILD482_DELTA = {
