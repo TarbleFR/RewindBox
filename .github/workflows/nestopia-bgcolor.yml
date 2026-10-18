@@ -30,21 +30,38 @@ jobs:
           run-id: '38638115521'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: dist/libretro-base
-      - name: Compile only Nestopia with the one-line reset correction
-        run: python3 .github/diagnostics/nestopia_bgcolor/build.py --base dist/libretro-base --output dist/libretro --work "$RUNNER_TEMP/nestopia-reset"
-      - name: Preserve the compiled core before running the regression probes
-        uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: LibretroCores-${{ github.sha }}
-          path: dist/libretro/
-          retention-days: 14
-          if-no-files-found: error
+          name: LibretroCores-c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
+          run-id: '39080789997'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Verify and reuse the already compiled Nestopia correction
+        run: |
+          git diff --exit-code c3408821b2b9c47c6e31ae25b45c113aa9fd3f74 HEAD -- native/nestopia .github/diagnostics/nestopia_bgcolor/build.py build-utils/libretro
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          root=Path('dist/libretro');identity=json.loads((root/'identity.json').read_text())
+          assert identity['host_commit']=='c3408821b2b9c47c6e31ae25b45c113aa9fd3f74'
+          assert identity['nestopiaResetFix']['source']==json.loads(Path('native/nestopia/source.json').read_text())
+          assert identity['nestopiaResetFix']['compiledCoreSHA256']=='1a04f99e5ae2c10aa5b3c75b002e212e894c2e7934cc46232deb50da62c0e16d'
+          for name,sha in identity['files'].items():assert hashlib.sha256((root/name).read_bytes()).hexdigest()==sha,name
+          print('Reused the compiled correction unchanged; no core rebuilt.')
+          PY
       - name: Reproduce the exact old iPhone fault and exercise corrected NTSC modes
         run: python3 .github/diagnostics/nestopia_bgcolor/probe.py --base dist/libretro-base --fixed dist/libretro --evidence evidence/nestopia-core
       - name: Fetch existing integration fixtures
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
       - name: Run corrected core with original skin and nonzero heap initialization
         run: python3 .github/diagnostics/nestopia_bgcolor/skin.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/nestopia-skin --label "$GITHUB_SHA"
+      - name: Preserve the verified original compiled-core artifact identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibretroCores-c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
+          path: dist/libretro/
+          retention-days: 14
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:

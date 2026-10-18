@@ -11,6 +11,9 @@
 #include <ucontext.h>
 #endif
 #include "libretro.h"
+#ifdef __APPLE__
+extern unsigned nestopia_poisoned_allocations(void);
+#endif
 static const char *filter;
 static unsigned frames;
 static bool environment(unsigned cmd, void *data) {
@@ -53,6 +56,10 @@ int core_probe_main(int argc,char **argv){
  struct sigaction a={0};a.sa_sigaction=fault;a.sa_flags=SA_SIGINFO;sigaction(SIGSEGV,&a,NULL);
 #endif
  void *handle=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);if(!handle){puts(dlerror());return 2;}
+#ifdef __APPLE__
+ unsigned poisoned=nestopia_poisoned_allocations();printf("POISONED_CPP_ALLOCATIONS=%u\n",poisoned);
+ if(!poisoned){puts("CORE_ALLOCATION_POISONING_NOT_ACTIVE");return 7;}
+#endif
  LOAD(retro_set_environment);LOAD(retro_set_video_refresh);LOAD(retro_set_audio_sample);LOAD(retro_set_audio_sample_batch);LOAD(retro_set_input_poll);LOAD(retro_set_input_state);LOAD(retro_init);LOAD(retro_load_game);LOAD(retro_run);LOAD(retro_reset);LOAD(retro_unload_game);LOAD(retro_deinit);
  Dl_info image={0};dladdr((void*)f_retro_run,&image);printf("CORE_BASE=%p\n",image.dli_fbase);
  f_retro_set_environment(environment);f_retro_set_video_refresh(video);f_retro_set_audio_sample(audio);f_retro_set_audio_sample_batch(audio_batch);f_retro_set_input_poll(poll);f_retro_set_input_state(input);f_retro_init();

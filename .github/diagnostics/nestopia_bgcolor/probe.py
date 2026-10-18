@@ -15,7 +15,8 @@ def main():
  flags=['xcrun','--sdk','iphonesimulator','clang','-target','arm64-apple-ios17.4-simulator','-isysroot',sdk,'-g','-O1']
  here=Path(__file__).parent;classes=ROOT/'packages/libretro_internal_bridge/ios/Classes'
  run(flags+['-I',ROOT/'packages/libretro_internal_bridge/ios/ThirdParty/include/libretro','-c',here/'core_probe.c','-o',evidence/'core_probe.o'])
- run(flags+['-fobjc-arc','-I',classes,here/'app.m',evidence/'core_probe.o','-framework','UIKit','-framework','Foundation','-o',app/'Probe'])
+ run(flags+['-std=c++17','-c',here/'poison.cpp','-o',evidence/'poison.o'])
+ run(flags+['-fobjc-arc','-I',classes,here/'app.m',evidence/'core_probe.o',evidence/'poison.o','-lc++','-framework','UIKit','-framework','Foundation','-o',app/'Probe'])
  plist={'CFBundleIdentifier':bundle,'CFBundleExecutable':'Probe','CFBundleName':'Nestopia reset regression','CFBundlePackageType':'APPL',
         'CFBundleVersion':'1','CFBundleShortVersionString':'1.0','MinimumOSVersion':'17.4','LSRequiresIPhoneOS':True,
         'UIDeviceFamily':[1,2],'UILaunchScreen':{}}
@@ -49,7 +50,9 @@ def main():
     if 'EXIT=' in log or 'fatal signal=' in fault:break
     time.sleep(.25)
    for f in container.glob('*.log'):shutil.copy2(f,case/f.name)
-   result={'label':label,'filter':filter,'mallocPreScribble':True,'log':log,'fault':fault}
+   count=re.search(r'POISONED_CPP_ALLOCATIONS=(\d+)',log)
+   result={'label':label,'filter':filter,'cppAllocationsPoisoned':int(count[1]) if count else 0,'log':log,'fault':fault}
+   assert result['cppAllocationsPoisoned']>0,result
    if label=='baseline':
     base=re.search(r'CORE_BASE=(0x[0-9a-fA-F]+)',log);pc=re.search(r'pc=(0x[0-9a-fA-F]+)',fault)
     assert base and pc and 'FIRST_FRAME' not in log,result
