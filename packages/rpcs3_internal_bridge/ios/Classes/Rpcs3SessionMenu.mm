@@ -162,8 +162,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   NSMutableArray* items=[NSMutableArray array];
   for(NSDictionary* entry in raw[@"items"]){NSMutableDictionary* item=[entry mutableCopy];item[@"key"]=entry[@"id"];[items addObject:item];}
   NSString* serial=raw[@"serial"] ?: @"",*version=raw[@"revision"] ?: @"";
+  NSMutableArray* identities=[NSMutableArray arrayWithObject:@{@"type":@"serial",@"value":serial,@"scheme":@"ps3-title-id"}];
+  NSString* ppu=raw[@"ppuHash"];if([ppu hasPrefix:@"PPU-"] && ppu.length==44)[identities addObject:@{@"type":@"ppu_hash",@"value":[ppu substringFromIndex:4],@"scheme":@"rpcs3-ppu-hash"}];
   return @{@"identity":@{@"system":@"ps3",@"title":self.gameTitle ?: @"",@"revision":version,@"regions":@[],@"languages":@[],
-      @"identities":@[@{@"type":@"serial",@"value":serial,@"scheme":@"ps3-title-id"}]},@"items":items,
+      @"identities":identities},@"items":items,
       @"available":@([raw[@"available"] boolValue] && ![raw[@"conflict"] boolValue]),@"help":[self text:@"cheatNextBoot"]};
 }
 - (UIViewController*)directCheats {

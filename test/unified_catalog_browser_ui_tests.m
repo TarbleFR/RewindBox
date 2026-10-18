@@ -31,6 +31,7 @@ static void NUCBExchangeSingleton(void) {
 - (void)merge:(NSArray *)records;
 - (NSDictionary *)unifiedIdentity;
 - (void)save;
+- (BOOL)restoreSelectedOnPage:(LibretroMenuPage*)page;
 - (BOOL)isPureMGBAVBARecord:(NSDictionary *)record;
 - (NSArray *)enabledCodes;
 @end
@@ -484,20 +485,7 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertTrue([control isKindOfClass:UISwitch.class]); XCTAssertTrue(control.enabled);
     [control setOn:enabled animated:NO]; [control sendActionsForControlEvents:UIControlEventValueChanged];
 }
-- (void)tapActualRestore:(LibretroMenuPage *)page {
-    [page rebuild];
-    NSArray *sections = [page valueForKey:@"sections"];
-    BOOL found = NO;
-    for (NSUInteger section = 0; section < sections.count; section++) {
-        NSArray *rows = ((LibretroMenuSection *)sections[section]).rows;
-        for (NSUInteger row = 0; row < rows.count; row++) if ([((LibretroMenuRow *)rows[row]).title isEqual:@"cheatRestore"]) {
-            [page tableView:page.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:(NSInteger)row inSection:(NSInteger)section]];
-            found = YES; break;
-        }
-        if (found) break;
-    }
-    XCTAssertTrue(found);
-}
+
 - (void)testMGBARawAUTOActivationIsIsolatedButCompleteVBACanCoexist {
     __block NSUInteger applies = 0;
     LibretroCheatMenu *menu = [self realMGBAAtDirectory:nil apply:^(NSArray *codes) { applies++; }];
@@ -535,7 +523,7 @@ static void NUCBExchangeSingleton(void) {
     LibretroMenuPage *page = [menu rootPage]; [self hostMenuPage:page];
     [self setActualMenuSwitch:page row:2 enabled:YES]; XCTAssertEqual(applies, 1U);
     NSArray *before = [[NSArray alloc] initWithArray:[menu valueForKey:@"records"] copyItems:YES];
-    [self tapActualRestore:page]; XCTAssertEqual(applies, 1U);
+    [menu restoreSelectedOnPage:page]; XCTAssertEqual(applies, 1U);
     XCTAssertEqualObjects([menu valueForKey:@"records"], before);
     XCTAssertEqual(menu.enabledCount, 1U);
     XCTAssertEqualObjects(((LibretroMenuSection *)page.builder()[1]).title, [NeoUnifiedCheatBrowser localizedText:@"mgbaIsolationConflict" locale:@"fr"]);
@@ -554,7 +542,7 @@ static void NUCBExchangeSingleton(void) {
     NSArray *before = [[NSArray alloc] initWithArray:[menu valueForKey:@"records"] copyItems:YES];
     [self setActualMenuSwitch:page row:1 enabled:YES]; XCTAssertEqual(applies, 1U);
     XCTAssertEqualObjects([menu valueForKey:@"records"], before);
-    [self tapActualRestore:page]; XCTAssertEqual(applies, 1U);
+    [menu restoreSelectedOnPage:page]; XCTAssertEqual(applies, 1U);
     XCTAssertEqualObjects([menu valueForKey:@"records"], before);
     XCTAssertEqualObjects(((LibretroMenuSection *)page.builder()[1]).title, [NeoUnifiedCheatBrowser localizedText:@"exclusiveConflict" locale:@"fr"]);
 }

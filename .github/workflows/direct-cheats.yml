@@ -63,3 +63,30 @@ jobs:
         with: {xcode-version: '26.3'}
       - name: Actual Foundation full index and menu allocation
         run: python3 test/unified_catalog_published_index_test.py
+
+  additional-proofs:
+    if: ${{ contains(github.event.head_commit.message, '[direct-proofs]') }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Final three-engine menu SDK adapters
+        run: python3 test/unified_native_ios_test.py --menus-only
+      - name: Actual RPCS3 binding store SDK and Foundation
+        run: python3 test/unified_native_ios_test.py --rpcs3-store-only
+      - name: Pinned Core executable identity log parser
+        run: |
+          clang++ -std=c++20 -Wall -Wextra -Werror -I packages/rpcs3_internal_bridge/ios/Classes test/unified_rpcs3_ppu_identity_test.cpp -o /tmp/ppu-identity
+          /tmp/ppu-identity
+      - name: Final shared iPhone SDK and Foundation
+        run: python3 test/unified_catalog_ios_test.py
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Direct switches, late callbacks and retained restore guards
+        run: python3 test/unified_catalog_browser_ui_test.py --native --direct-fix-only --result evidence/direct-fix.xcresult
+      - name: New boot adapter Foundation cases
+        run: python3 -m unittest discover -s test -p unified_catalog_runtime_test.py -k actual_foundation -v
+      - name: Automatic arcade startup regression
+        run: python3 test/unified_identity_test.py --only-fbneo

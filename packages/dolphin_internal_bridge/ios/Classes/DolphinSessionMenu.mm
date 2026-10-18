@@ -70,6 +70,13 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   return @{@"identity":NeoUnifiedEngineIdentity(identity,NO),@"items":items,
       @"available":raw[@"available"] ?: @NO,@"hardcore":raw[@"hardcore"] ?: @NO};
 }
+- (void)clearDormantCheats:(NSArray*)items index:(NSUInteger)index completion:(void (^)(BOOL))done {
+  if(index>=items.count){done(YES);return;}
+  NSDictionary* item=items[index];__weak DolphinSessionMenu* weakSelf=self;
+  self.performCheatCommand(@{@"kind":@"toggle",@"type":item[@"type"],@"index":item[@"index"],@"enabled":@NO},^(BOOL ok,NSDictionary* result){
+    if(!ok){done(NO);return;}[weakSelf clearDormantCheats:items index:index+1 completion:done];
+  });
+}
 - (UIViewController*)directCheats {
   NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=self.labels[@"__locale"];list.engine=@"dolphin";
   NSString* locale=list.locale;
@@ -103,7 +110,15 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       if(!found){done(NO);return;}
       NSDictionary* request=@{@"kind":@"toggle",@"type":found[@"type"],@"index":found[@"index"],@"enabled":@(enabled)};
       void (^change)(void)=^{menu.performCheatCommand(request,^(BOOL ok,NSDictionary* result){done(ok);});};
-      if(enabled)menu.performCheatCommand(@{@"kind":@"master",@"enabled":@YES},^(BOOL ok,NSDictionary* result){if(ok)change();else done(NO);});else change();
+      if(enabled){
+        NSMutableArray* dormant=[NSMutableArray array];
+        if(![current[@"masterEnabled"] boolValue])for(NSString* type in @[@"gecko",@"actionReplay"])for(NSDictionary* entry in current[type])
+          if([entry[@"enabled"] boolValue]){NSMutableDictionary* off=[entry mutableCopy];off[@"type"]=type;[dormant addObject:off];}
+        [menu clearDormantCheats:dormant index:0 completion:^(BOOL cleared){
+          if(!cleared){done(NO);return;}
+          menu.performCheatCommand(@{@"kind":@"master",@"enabled":@YES},^(BOOL ok,NSDictionary* result){if(ok)change();else done(NO);});
+        }];
+      }else change();
     });
   };
   list.importAction=^(UIViewController* presenter){

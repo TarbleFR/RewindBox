@@ -62,6 +62,24 @@ static NSDictionary* RPCheatDocument(NSDictionary* program) {
   return document;
 }
 
+// Reviewed NCL type-0 instruction writes only. No pointers, conditions,
+// RAM freeze, repeats, arithmetic or string opcodes can enter this adapter.
+static NSArray* RPCheatStaticRows(NSDictionary* program) {
+  if(![program isKindOfClass:NSDictionary.class] || ![program[@"dialect"] isEqual:@"ps3-static-be32"] ||
+      ![program[@"status"] isEqual:@"available"] || !RPCheatString(program[@"id"]).length || !RPCheatString(program[@"name"]).length) return nil;
+  for(NSString* field in @[@"parameters",@"dependencies"])
+    if(program[field] && (![program[field] isKindOfClass:NSArray.class] || [program[field] count]))return nil;
+  NSString* code=RPCheatString(program[@"code"]);if(!code.length || code.length>4096)return nil;
+  NSMutableArray* rows=[NSMutableArray array];
+  for(NSString* line in [code componentsSeparatedByString:@"\n"]) {
+    if(!RPCheatMatch(line,@"^[0-9A-Fa-f]{8} [0-9A-Fa-f]{8}$"))return nil;
+    unsigned address=0;[[NSScanner scannerWithString:[line substringToIndex:8]] scanHexInt:&address];
+    if(address<0x10000 || address>=0x02000000 || (address&3))return nil;
+    [rows addObject:@[@"be32",[@"0x" stringByAppendingString:[line substringToIndex:8]],[@"0x" stringByAppendingString:[line substringFromIndex:9]]]];
+    if(rows.count>64)return nil;
+  }
+  return rows.count ? rows : nil;
+}
 @interface RPCS3UnifiedCheats ()
 @property(nonatomic,copy) NSString* root;
 @property(nonatomic,assign) rpcs3_ios_patch_api api;
@@ -76,7 +94,7 @@ static NSDictionary* RPCheatDocument(NSDictionary* program) {
   if ((self=[super init])) { _root=[root copy]; _api=api; }
   return self;
 }
-+ (BOOL)acceptsProgram:(NSDictionary*)program { return RPCheatDocument(program) != nil; }
++ (BOOL)acceptsProgram:(NSDictionary*)program { return RPCheatDocument(program) != nil || RPCheatStaticRows(program) != nil; }
 - (NSString*)folder { return [self.root stringByAppendingPathComponent:@"NeoStationUnifiedCheats"]; }
 - (NSString*)statePath { return [self.folder stringByAppendingPathComponent:@"state.json"]; }
 - (NSMutableDictionary*)state {
@@ -131,10 +149,11 @@ static void RPCheatGame(void* context,const rpcs3_ios_catalogue_game_info* game)
   NSMutableArray* rows=[NSMutableArray array];
   NSDictionary* state=[self state];
   for (NSDictionary* record in state[@"programs"])
-    if ([RPCheatString(record[@"serial"]) isEqual:serial] && [RPCheatString(record[@"version"]) isEqual:version])
+    if ([RPCheatString(record[@"serial"]) isEqual:serial] && [RPCheatString(record[@"version"]) isEqual:version] &&
+        (!self.runtimePPUHash.length || [record[@"hash"] isEqual:self.runtimePPUHash]))
       [rows addObject:record];
   return @{@"available":@(self.api.install_repository && self.api.set_enabled && self.api.enumerate_patches),
-      @"serial":serial ?: @"", @"revision":version ?: @"", @"items":rows,
+      @"serial":serial ?: @"", @"revision":version ?: @"", @"ppuHash":self.runtimePPUHash ?: @"", @"items":rows,
       @"conflict":@(state && ![self managedTitleFile:serial state:state]),
       @"preparationFailed":@(self.preparationFailed && [self.preparationTitle isEqual:serial])};
 }
@@ -183,9 +202,15 @@ static void RPCheatGame(void* context,const rpcs3_ios_catalogue_game_info* game)
   NSMutableDictionary* state=[self state]; if (!state || ![self managedTitleFile:serial state:state]) return NO;
   NSMutableArray* ids=[NSMutableArray array],*lines=[NSMutableArray array],*authors=[NSMutableArray array],*notes=[NSMutableArray array];
   NSMutableSet* groups=[NSMutableSet set];
-  NSString* commonHash=nil; NSString* title=nil;
+  NSString* commonHash=nil; NSString* title=nil; BOOL runtimeBinding=NO;
   for (NSDictionary* program in programs) {
-    NSDictionary* document=RPCheatDocument(program); if (!document) return NO;
+    NSDictionary* document=RPCheatDocument(program);
+    if(!document && RPCheatStaticRows(program)) {
+      if(!RPCheatMatch(self.runtimePPUHash,@"^PPU-[0-9a-f]{40}$") || allVersions || !RPCheatString(game[@"title"]).length)return NO;
+      runtimeBinding=YES;
+      document=@{@"Version":@"1.2",self.runtimePPUHash:@{program[@"name"]:@{@"Games":@{game[@"title"]:@{serial:@[version]}},@"Patch":RPCheatStaticRows(program),@"Author":@"CodeFreak/PS3UserCheat"}}};
+    }
+    if (!document) return NO;
     [ids addObject:RPCheatString(program[@"id"])];
     for (NSString* hash in document) if (![hash isEqual:@"Version"]) {
       if (commonHash && ![commonHash isEqual:hash]) return NO; commonHash=hash;
@@ -215,7 +240,8 @@ static void RPCheatGame(void* context,const rpcs3_ios_catalogue_game_info* game)
   for (NSDictionary* identity in game[@"identities"])
     if ([RPCheatString(identity[@"type"]) isEqual:@"ppu_hash"] && [RPCheatString(identity[@"scheme"]) isEqual:@"rpcs3-ppu-hash"])
       matchedHash|=[RPCheatString(identity[@"value"]).lowercaseString isEqual:[[commonHash substringFromIndex:4] lowercaseString]];
-  if (!matchedHash) return NO;
+  if (!matchedHash && !runtimeBinding) return NO;
+  if(self.runtimePPUHash.length && ![commonHash isEqual:self.runtimePPUHash])return NO;
   NSString* originalName=RPCheatString([programs lastObject][@"name"]);
   NSString* key=RPCheatDigest(RPCheatJSON(@{@"serial":serial,@"version":version,@"hash":commonHash,
       @"name":originalName,@"lines":lines,@"group":groups.anyObject ?: @""}));
@@ -233,7 +259,8 @@ static void RPCheatGame(void* context,const rpcs3_ios_catalogue_game_info* game)
   if (groups.count) patch[@"Group"]=groups.anyObject;
   [state[@"programs"] addObject:@{@"id":key,@"name":name,@"source_name":originalName,@"serial":serial,@"version":version,
       @"hash":commonHash,@"title":title,@"description":description,@"patch":patch,
-      @"enabled":@NO,@"pending":@YES,@"game":game,@"sources":programs}];
+      @"enabled":@NO,@"pending":@YES,@"game":game,@"sources":programs,
+      @"runtimeBound":@(runtimeBinding),@"mappedPPUHash":self.runtimePPUHash ?: @""}];
   state[@"pending"]=@YES;
   return [self save:state];
 }

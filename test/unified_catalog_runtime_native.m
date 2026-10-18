@@ -35,6 +35,9 @@ static NSDictionary *Game(NSString *system,NSArray *ids,NSString *revision,NSStr
   return @{@"system":system,@"title":@"Pokémon Rouge",@"identities":ids,@"revision":revision,@"regions":@[region],@"languages":@[@"fr"]};
 }
 static void IdentityChecks(void) {
+  NSDictionary *fb=@{@"system":@"arcade",@"identities":@[ID(@"romset",@"neotest",@"fbneo-driver-name")]};
+  CHECK([[NeoUnifiedCheatCatalog matchGame:fb identity:fb] isEqual:@"exact"],"native running driver is an exact arcade identity");
+  CHECK((![NeoUnifiedCheatCatalog matchGame:fb identity:@{@"system":@"arcade",@"identities":@[ID(@"romset",@"neotestj",@"fbneo-driver-name")]}]),"arcade clone never inherits parent codes");
   NSDictionary *md5=ID(@"md5",@"123456",@"rom-full");
   NSDictionary *game=Game(@"gb",@[md5],@"0",@"France");
   CHECK([[NeoUnifiedCheatCatalog matchGame:game identity:game] isEqual:@"exact"],"full hash exact");
@@ -215,6 +218,12 @@ static void RuntimeChecks(NSString *root) {
   NSUInteger firstRequests=[requests[@"packs/pack-0.json.gz"] unsignedIntegerValue];
   failThird=NO;NSDictionary *complete=Install(catalog,NO);
   CHECK([complete[@"installed_games"] unsignedIntegerValue]==3,"retry installs missing pack");
+  __block NSArray *native=nil;__block BOOL nativeDone=NO;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{native=[catalog installedProgramsForIdentity:games[0]];nativeDone=YES;});
+  Spin(^BOOL{return nativeDone;});CHECK(native.count==1,"boot adapter reads exact installed chunk without network");
+  CHECK(![native[0][@"programs"][0][@"enabled"] boolValue],"boot catalogue programs remain disabled");
+  CHECK([catalog installedProgramsForIdentity:games[0]].count==0,"boot disk adapter refuses main thread blocking");
+
   CHECK([requests[@"packs/pack-0.json.gz"] unsignedIntegerValue]==firstRequests,"retry skips verified success");
   CHECK([requests[@"packs/pack-2.json.gz"] unsignedIntegerValue]==2,"retry fetches failed pack");
   // A same-size corrupted chunk must not be trusted, even with installed.json.

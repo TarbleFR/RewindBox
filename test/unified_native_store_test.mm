@@ -237,6 +237,33 @@ int main() { @autoreleasepool {
   assert(![store applyPendingWhileStoppedForTitle:@"BLES99999"] && !store.bootSafe);
   [original writeToFile:[staging stringByAppendingPathComponent:@"patch.yml.before-unified"] atomically:YES];
   assert([store applyPendingWhileStoppedForTitle:@"BLES99999"] && store.bootSafe);
+  NSString* previousMockRoot=mockRoot;mockRoot=[root stringByAppendingPathComponent:@"runtime-ppu-binding"];
+  [fm createDirectoryAtPath:[mockRoot stringByAppendingPathComponent:@"patches"] withIntermediateDirectories:YES attributes:nil error:nil];
+  RPCS3UnifiedCheats* bound=[[RPCS3UnifiedCheats alloc] initWithRoot:mockRoot api:api];
+  NSDictionary* serialOnly=@{@"system":@"ps3",@"title":@"Bladestorm: The Hundred Years' War",@"revision":@"01.00",@"edition_confirmed":@YES,
+    @"identities":@[@{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLES00113"}]};
+  NSDictionary* staticProgram=@{@"id":@"money",@"name":@"Money",@"code":@"00072A18 409D0008",@"dialect":@"ps3-static-be32",@"status":@"available",@"parameters":@[],@"dependencies":@[]};
+  assert([RPCS3UnifiedCheats acceptsProgram:staticProgram]);
+  assert(![bound stageGame:serialOnly programs:@[staticProgram] serial:@"BLES00113" version:@"01.00"]);
+  bound.runtimePPUHash=@"PPU-0123456789012345678901234567890123456789";
+  assert(![bound stageGame:serialOnly programs:@[staticProgram] serial:@"BLUS30070" version:@"01.00"]);
+  assert(![bound stageGame:serialOnly programs:@[staticProgram] serial:@"BLES00113" version:@"01.01"]);
+  assert([bound stageGame:serialOnly programs:@[staticProgram] serial:@"BLES00113" version:@"01.00"]);
+  NSDictionary* boundItem=[bound snapshotForTitle:@"BLES00113" version:@"01.00"][@"items"][0];
+  assert(![boundItem[@"enabled"] boolValue] && [boundItem[@"runtimeBound"] boolValue]);
+  assert([boundItem[@"mappedPPUHash"] isEqual:bound.runtimePPUHash]);
+  assert([boundItem[@"patch"][@"Patch"][0][0] isEqual:@"be32"]);
+  assert([boundItem[@"patch"][@"Patch"][0][1] isEqual:@"0x00072A18"]);
+  assert([boundItem[@"patch"][@"Patch"][0][2] isEqual:@"0x409D0008"]);
+  assert([bound setIdentifier:boundItem[@"id"] enabled:YES serial:@"BLES00113"]);
+  assert([bound applyPendingWhileStoppedForTitle:@"BLES00113"] && bound.bootSafe);
+  assert([toggles.lastObject[@"hash"] isEqual:bound.runtimePPUHash]);
+  bound.runtimePPUHash=@"PPU-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  assert([[bound snapshotForTitle:@"BLES00113" version:@"01.00"][@"items"] count]==0);
+  for(NSString* code in @[@"00072A19 409D0008",@"39694C88 497423F0",@"6 00072A18 409D0008",@"00000000 00000000"]){
+    NSMutableDictionary* invalid=[staticProgram mutableCopy];invalid[@"code"]=code;assert(![RPCS3UnifiedCheats acceptsProgram:invalid]);
+  }
+  mockRoot=previousMockRoot;
   [fm removeItemAtPath:root error:nil];
   NSLog(@"PASS: native imports, single dependency toggle, disabled states, RPCS3 staging/transaction recovery, personal-file preservation and isolated conflicts (Core transport mocked)");
 } return 0; }

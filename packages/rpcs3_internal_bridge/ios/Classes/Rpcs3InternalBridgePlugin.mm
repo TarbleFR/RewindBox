@@ -1,3 +1,4 @@
+#include "RPCS3PPUIdentity.h"
 #import <string.h>
 #import "Rpcs3InternalBridgePlugin.h"
 #import "Rpcs3JitBridgePlugin.h"
@@ -367,6 +368,9 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, assign) BOOL llvmSelfTestPassed;
 @property(nonatomic, copy) NSString* activeTitleId;
 @property(nonatomic, copy) NSString* activeGameVersion;
+@property(nonatomic, copy) NSString* observedPPUHash;
+@property(nonatomic, assign) BOOL ppuIdentityConflict;
+@property(nonatomic, assign) BOOL observePPUIdentity;
 @property(nonatomic, strong) RPCS3UnifiedCheats* unifiedCheats;
 @property(nonatomic, copy) NSString* activeUiLocale;
 @property(nonatomic, assign) BOOL audioSessionActive;
@@ -460,6 +464,14 @@ static NSString* RPCS3HostCPUTopology(void) {
 static void RPCS3Log(void* context, int32_t level, const char* message) {
   Rpcs3InternalBridgePlugin* bridge = (__bridge Rpcs3InternalBridgePlugin*)context;
   if (!bridge || !message) return;
+  const std::string executable=RPCS3PPUIdentityFromLog(message);
+  if(!executable.empty()) { @synchronized(bridge) {
+    if(bridge.observePPUIdentity && !bridge.ppuIdentityConflict) {
+      NSString* hash=@(executable.c_str());
+      if(bridge.observedPPUHash.length && ![bridge.observedPPUHash isEqual:hash]) { bridge.observedPPUHash=nil;bridge.ppuIdentityConflict=YES; }
+      else bridge.observedPPUHash=hash;
+    }
+  } }
 
   // NEOSTATION_BUILD283_BOUNDED_CORE_LOG
   // One-time boot facts that every device log must keep whatever the budget
@@ -1064,6 +1076,7 @@ static void RPCS3Progress(void* context,
   [self invalidatePerformanceSnapshotForBoot];
   RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "before_boot");
   RPCS3SampleNeoSwapGuestStatsExt(_neoSwapRelayClientStatsExt, guestTitle, _performanceEpoch, "before_boot");
+  @synchronized(self){self.observedPPUHash=nil;self.ppuIdentityConflict=NO;self.observePPUIdentity=YES;}
   const rpcs3_ios_status status = _api.boot_game(title, identifier);
   RPCS3SampleNeoSwapGuestStats(_neoSwapRelayClientStats, guestTitle, _performanceEpoch, "boot_return");
   RPCS3SampleNeoSwapGuestStatsExt(_neoSwapRelayClientStatsExt, guestTitle, _performanceEpoch, "boot_return");
@@ -1383,6 +1396,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
     if (!bridge || !owner) { completion(nil); return; }
     dispatch_async(bridge->_runtimeQueue,^{
+      @synchronized(bridge){bridge.unifiedCheats.runtimePPUHash=bridge.observedPPUHash ?: @"";}
       NSDictionary* snapshot=bridge.gameController==owner
           ? [bridge.unifiedCheats snapshotForTitle:bridge.activeTitleId ?: @"" version:bridge.activeGameVersion ?: @""] : nil;
       dispatch_async(dispatch_get_main_queue(),^{ completion(snapshot); });
@@ -1394,6 +1408,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (!bridge || !owner) { completion(NO); return; }
     dispatch_async(bridge->_runtimeQueue,^{
       BOOL current=bridge.gameController==owner && [bridge.activeTitleId isEqual:cheatSerial] && [bridge.activeGameVersion isEqual:cheatVersion];
+      @synchronized(bridge){bridge.unifiedCheats.runtimePPUHash=bridge.observedPPUHash ?: @"";}
       BOOL success=current && [bridge.unifiedCheats stageGame:game programs:programs serial:cheatSerial version:cheatVersion];
       dispatch_async(dispatch_get_main_queue(),^{ completion(success); });
     });
@@ -1644,6 +1659,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       [controller dismissViewControllerAnimated:NO completion:nil];
       self.gameController = nil;
       self.activeTitleId = nil;
+      @synchronized(self){self.observePPUIdentity=NO;self.observedPPUHash=nil;}
       self.activeUiLocale = nil;
       NeoSwapStorage_EndSession();
       NeoSwap_SetOwnerSessionActive(NEOSWAP_RPCS3, 0);
@@ -1818,6 +1834,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (self.initialized && self->_api.set_display_surface) self->_api.set_display_surface(NULL);
     [self deactivateRPCS3AudioSession];
     self.activeTitleId = nil;
+      @synchronized(self){self.observePPUIdentity=NO;self.observedPPUHash=nil;}
     self.activeGameVersion = nil;
     self.activeUiLocale = nil;
     dispatch_async(dispatch_get_main_queue(), ^{

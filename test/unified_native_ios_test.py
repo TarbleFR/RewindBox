@@ -19,11 +19,12 @@ def run(command):
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--rpcs3-store-only',action='store_true',
                     help='Check only the changed RPCS3 store with the iPhone SDK, then execute the Foundation store regression tests.')
+parser.add_argument('--menus-only',action='store_true',help='Compile only the two changed direct PS2/Dolphin menu adapters.')
 args=parser.parse_args()
 
 with tempfile.TemporaryDirectory(prefix='unified-native-') as tmp:
     work=Path(tmp)
-    if not args.rpcs3_store_only:
+    if not args.rpcs3_store_only and not args.menus_only:
         compiler=shutil.which('clang++') or shutil.which('g++')
         assert compiler,'A C++ compiler is required'
         exe=work/'programs'
@@ -73,8 +74,12 @@ with tempfile.TemporaryDirectory(prefix='unified-native-') as tmp:
         ARMS/'Armsx2SessionMenu.mm',ARMS/'Armsx2InternalBridgePlugin.mm',
         DOL/'DolphinSessionMenu.mm',DOL/'DolphinInternalBridgePlugin.mm',
         RPC/'Rpcs3SessionMenu.mm',RPC/'Rpcs3InternalBridgePlugin.mm',RPC/'RPCS3UnifiedCheats.mm']
+    if args.menus_only: sources=[ARMS/'Armsx2SessionMenu.mm',DOL/'DolphinSessionMenu.mm',RPC/'Rpcs3SessionMenu.mm',RPC/'Rpcs3InternalBridgePlugin.mm']
     for source in sources:
         run([*base,source]);print('PASS iPhone SDK syntax:',source.relative_to(ROOT),flush=True)
+    if args.menus_only:
+        print('PASS: both changed direct menu adapters compile with the actual iPhone SDK.',flush=True)
+        sys.exit(0)
     host_sdk=subprocess.check_output(['xcrun','--sdk','macosx','--show-sdk-path'],text=True).strip()
     store=work/'store'
     run(['xcrun','--sdk','macosx','clang++','-std=c++20','-fobjc-arc','-fblocks','-isysroot',host_sdk,

@@ -167,11 +167,24 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   return @{@"identity":NeoUnifiedEngineIdentity(raw,YES),@"items":items,
       @"available":raw[@"available"] ?: @NO,@"hardcore":raw[@"hardcore"] ?: @NO};
 }
+- (void)clearDormantCheats:(NSArray*)items index:(NSUInteger)index completion:(void (^)(BOOL))done {
+  if(index>=items.count){done(YES);return;}
+  NSDictionary* item=items[index];__weak Armsx2SessionMenu* weakSelf=self;
+  self.performPatchCommand(item[@"id"] ?: item[@"name"],0,^(BOOL ok,NSString* message){
+    if(!ok){done(NO);return;}[weakSelf clearDormantCheats:items index:index+1 completion:done];
+  });
+}
 - (UIViewController*)directCheats {
   NeoUnifiedCheatList* list=[NeoUnifiedCheatList new]; list.locale=self.localeIdentifier; list.engine=@"armsx2";
   NSString* locale=list.locale;
   __weak Armsx2SessionMenu* weakSelf=self;
-  list.readState=^(void (^done)(NSDictionary*)) { weakSelf.readPatches(^(NSDictionary* state){done([weakSelf directCheatState:state]);}); };
+  list.readState=^(void (^done)(NSDictionary*)) { weakSelf.readSnapshot(^(NSDictionary* settings){
+    weakSelf.readPatches(^(NSDictionary* state){
+      NSMutableDictionary* visible=[[weakSelf directCheatState:state] mutableCopy];NSMutableArray* items=[NSMutableArray array];
+      for(NSDictionary* entry in visible[@"items"]){NSMutableDictionary* item=[entry mutableCopy];item[@"enabled"]=@([entry[@"enabled"] boolValue] && [settings[@"cheats"] boolValue]);[items addObject:item];}
+      visible[@"items"]=items;done(visible);
+    });
+  }); };
   list.accepts=^BOOL(NSDictionary* program){return ![program[@"kind"] isEqual:@"graphics"] && bool(NeoUnifiedNativeProgram(program,YES));};
   list.install=^(NSDictionary* game,NSArray* programs,void (^done)(NSDictionary*,NSError*)) {
     Armsx2SessionMenu* menu=weakSelf; if(!menu){done(nil,NeoUnifiedNativeError(nil,locale));return;}
@@ -192,7 +205,17 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)) {
     Armsx2SessionMenu* menu=weakSelf;if(!menu){done(NO);return;}
     void (^change)(void)=^{menu.performPatchCommand(item[@"key"],enabled?1:0,^(BOOL ok,NSString* message){done(ok);});};
-    if(enabled)menu.performCommand(@"cheats",@YES,^(BOOL ok,NSString* message){if(ok)change();else done(NO);});else change();
+    if(enabled)menu.readSnapshot(^(NSDictionary* settings){
+      menu.readPatches(^(NSDictionary* current){
+        NSMutableArray* dormant=[NSMutableArray array];
+        if(![settings[@"cheats"] boolValue])for(NSDictionary* entry in current[@"items"])
+          if([entry[@"cheat"] boolValue] && [entry[@"value"] integerValue]==1)[dormant addObject:entry];
+        [menu clearDormantCheats:dormant index:0 completion:^(BOOL cleared){
+          if(!cleared){done(NO);return;}
+          menu.performCommand(@"cheats",@YES,^(BOOL ok,NSString* message){if(ok)change();else done(NO);});
+        }];
+      });
+    });else change();
   };
   list.importAction=^(UIViewController* presenter){
     Armsx2SessionMenu* menu=weakSelf; menu.readPatches(^(NSDictionary* state){ARMSX2MenuOnMain(^{

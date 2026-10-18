@@ -184,6 +184,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   if (path.section==0) {
     cell.textLabel.text=[self text:path.row==0 ? @"downloadAll" : @"directImport"];
     cell.accessibilityIdentifier=path.row==0 ? @"directCheats.downloadAll" : @"directCheats.import";
+    if(path.row==1 && [self.engine isEqual:@"rpcs3"])cell.detailTextLabel.text=@"RPCS3 · JSON";
   } else {
     NSDictionary *row=self.rows[path.row],*item=row[@"native"];
     cell.textLabel.text=row[@"name"];
@@ -199,7 +200,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   if (self.busy || !self.setEnabled) return; self.busy=YES; [self.tableView reloadData];
   NSUInteger generation=self.generation; __weak typeof(self) weakSelf=self;
   void (^activate)(NSDictionary *,NSError *)=^(NSDictionary *item,NSError *error) {
-    NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed || menu.generation!=generation) return;
+    NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed || menu.generation!=generation || menu.navigationController.topViewController!=menu || !menu.viewIfLoaded.window || menu.navigationController.isBeingDismissed) return;
     if (!item || error) { menu.busy=NO; [menu showFailure]; [menu reloadCheats]; return; }
     if (row[@"game"]) { menu.links[row[@"key"]]=item[@"key"]; [NSUserDefaults.standardUserDefaults setObject:menu.links forKey:menu.scope]; }
     menu.setEnabled(item,enabled,^(BOOL success) { dispatch_async(dispatch_get_main_queue(),^{

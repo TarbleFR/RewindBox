@@ -1,3 +1,5 @@
+#import <neo_cheat_catalog/NeoUnifiedCheatCatalog.h>
+#import <objc/runtime.h>
 #import <Foundation/Foundation.h>
 #import "LibretroCheats.h"
 #import "LibretroCoreHost.h"
@@ -10,6 +12,17 @@ static NSString *Block(NSString *name) { return [NSString stringWithFormat:@"che
 static void WriteJSON(NSString *path,id object) { [NSFileManager.defaultManager createDirectoryAtPath:path.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:nil];[[NSJSONSerialization dataWithJSONObject:object options:0 error:nil] writeToFile:path atomically:YES]; }
 static NSDictionary *ReadJSON(NSString *path) { NSData *data=[NSData dataWithContentsOfFile:path];return data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil; }
 static LibretroCoreHost *Host(NSString *core,NSString *folder) { return [[LibretroCoreHost alloc] initWithCorePath:core systemDirectory:[folder stringByAppendingPathComponent:@"System"] saveDirectory:[folder stringByAppendingPathComponent:@"Saves"] stateDirectory:[folder stringByAppendingPathComponent:@"States"] optionsDirectory:[folder stringByAppendingPathComponent:@"Config"] cacheDirectory:[folder stringByAppendingPathComponent:@"Cache"] language:RETRO_LANGUAGE_FRENCH jitCapable:NO]; }
+static NSUInteger catalogueReads;
+@interface NeoUnifiedCheatCatalog (FBNeoBootFixture)
+- (NSArray*)fixtureInstalledPrograms:(NSDictionary*)identity;
+@end
+@implementation NeoUnifiedCheatCatalog (FBNeoBootFixture)
+- (NSArray*)fixtureInstalledPrograms:(NSDictionary*)identity {
+  catalogueReads++;
+  CHECK([identity[@"identities"][0][@"value"] isEqual:@"neotest"],"boot requests actual exported native driver");
+  return @[@{@"game":Game(),@"programs":@[Program(Block(@"Seed"))]}];
+}
+@end
 int main(int argc,const char **argv) { @autoreleasepool {
  if(argc!=3)return 2;NSString *core=@(argv[1]),*folder=@(argv[2]);NSFileManager *files=NSFileManager.defaultManager;NSError *error=nil;
  NSDictionary *program=Program(Block(@"Jinrei's move \"A+down\""));
@@ -40,12 +53,15 @@ int main(int argc,const char **argv) { @autoreleasepool {
  WriteJSON(config,@{@"values":@{key:on,@"other":@"one"}});WriteJSON(games,@{@"games":@{@"game":@{key:on}}});
  NSString *content=[folder stringByAppendingPathComponent:@"test.ntc"];[[NSData dataWithBytes:"x" length:1] writeToFile:content atomically:YES];
  NSString *hostSystem=[folder stringByAppendingPathComponent:@"System"];
- CHECK(([LibretroCheats installFBNeoPrograms:@[Program(Block(@"Seed"))] game:Game() systemDirectory:hostSystem error:&error]!=nil),"managed source seeded for next clean game launch");
+ method_exchangeImplementations(class_getInstanceMethod(NeoUnifiedCheatCatalog.class,@selector(installedProgramsForIdentity:)),class_getInstanceMethod(NeoUnifiedCheatCatalog.class,@selector(fixtureInstalledPrograms:)));
  LibretroCoreHost *host=Host(core,folder);host.optionsGameKey=@"game";host.initialSessionOverrides=@{key:on};
  CHECK(([host loadCore:&error]&&[host loadContentAtPath:content error:&error]),"FBNeo measurement core/content load");size_t size=0;uint8_t *ram=[host memoryDataForIdentifier:RETRO_MEMORY_SYSTEM_RAM size:&size];
  CHECK((ram&&size==256&&ram[0]&&ram[6]),"stored undeclared driver preferences cannot activate the native engine before init");
  CHECK((ram&&ram[1]),"declared driver cheat options are Off before the load-time native read");
  CHECK((ram&&ram[5]),"native path overwrite is restored before cheat parsing");
+ CHECK(catalogueReads==1,"installed catalogue resolved once before native cheat options are declared");
+ NSString *bootINI=[hostSystem stringByAppendingPathComponent:@"NeoStationFBNeo/fbneo/cheats/neotest.ini"];
+ CHECK([[NSString stringWithContentsOfFile:bootINI encoding:NSUTF8StringEncoding error:nil] containsString:@"Seed"],"native startup imports only the matched driver source before its first load");
  NSDictionary *snapshot=[host performFBNeoCheatCommand:@{@"action":@"snapshot"} error:&error];
  CHECK(([snapshot[@"driver"] isEqual:@"neotest"]&&[snapshot[@"options"] count]==1&&[snapshot[@"enabled_count"] integerValue]==0),"snapshot uses exported actual driver and filters foreign-driver options");
  CHECK((![host.options setValue:on forKey:key persist:YES]),"generic option cannot bypass explicit native cheat channel");

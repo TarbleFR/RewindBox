@@ -8,6 +8,9 @@ NS_ASSUME_NONNULL_BEGIN
 @interface RPCS3UnifiedCheats : NSObject
 /// NO only if a transaction could not restore the original global patch files.
 @property(nonatomic,readonly) BOOL bootSafe;
+/// Observed from the retained Core's current ppu_load_exec log, never inferred
+/// from a source title/serial. Accessed on the serialized runtime queue.
+@property(nonatomic,copy) NSString* runtimePPUHash;
 - (instancetype)initWithRoot:(NSString*)root api:(rpcs3_ios_patch_api)api;
 + (BOOL)acceptsProgram:(NSDictionary*)program;
 - (NSString*)installedVersionForTitle:(NSString*)serial;
