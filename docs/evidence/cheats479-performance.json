@@ -1,0 +1,29 @@
+{
+  "baselineSource": "d0107bcdf15d08eaa2b3f72c5d97a87ef204f047",
+  "candidateSource": "ce585c6bef0f3f714a7dc0f5c005191f74df4c9a",
+  "run": 39125808369,
+  "job": 117670567809,
+  "scope": "successful unchanged service benchmark only; this run's UIKit failures are retained and corrected separately",
+  "fixture": "exact 478 index; 51,652 real-size sparse metadata files; actual two published target chunks",
+  "results": {
+    "baseline": {
+      "baseline": true,
+      "coldLoadSeconds": 6.336123943328857,
+      "initialPerFileChecks": 51652,
+      "manifestRows": 51652,
+      "matchedRowsAcross12Queries": 18,
+      "totalPerFileChecks": 51675,
+      "warm12QueriesSeconds": 0.6956850290298462
+    },
+    "candidate": {
+      "baseline": false,
+      "coldLoadSeconds": 2.7864679098129272,
+      "initialPerFileChecks": 0,
+      "manifestRows": 51652,
+      "matchedRowsAcross12Queries": 18,
+      "totalPerFileChecks": 23,
+      "warm12QueriesSeconds": 0.22242498397827148
+    }
+  },
+  "physicalDeviceValidated": false
+}

@@ -68,6 +68,10 @@ def validate(ipa, build):
                 for marker in (b'detectedEdition',b'otherRevisions',b'explainMissingRevision:generation:',b'60fps'):
                     if marker not in binary:
                         raise ValueError('Packaged version/FPS source-note UI is missing '+marker.decode())
+            if name == 'neo_cheat_catalog' and build >= 479:
+                for marker in (b'getattrlistbulk', b'poolForIdentity:', b'distinctSelections:identity:links:', b'loadGames:context:index:generation:', b'execution_key'):
+                    if marker not in binary:
+                        raise ValueError('Packaged compatible discovery/streaming fix is missing '+marker.decode())
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')
