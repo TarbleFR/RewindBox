@@ -62,7 +62,8 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
       store.runtimePPUHash=@"PPU-0123456789012345678901234567890123456789";
       assert(![store stageGame:confirmed programs:codes serial:serial version:@"01.02"]);
       assert(![store stageGame:confirmed programs:codes serial:@"BLES00113" version:@"01.00"]);
-      assert([store stageGame:confirmed programs:codes serial:serial version:@"01.00"]);
+      for(NSDictionary *program in codes)
+        assert([store stageGame:confirmed programs:@[program] serial:serial version:@"01.00"]);
       NSArray *items=[store snapshotForTitle:serial version:@"01.00"][@"items"];assert(items.count==5);
       for(NSDictionary *item in items)assert(![item[@"enabled"] boolValue] && [item[@"runtimeBound"] boolValue]);
     }
