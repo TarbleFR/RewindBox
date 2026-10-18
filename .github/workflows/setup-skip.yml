@@ -1,0 +1,35 @@
+name: Optional iOS first-run library
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - lib/widgets/setup_wizard.dart
+      - test/setup_skip_test.py
+      - .github/workflows/setup-skip.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  setup-skip:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Exercise optional library navigation and pending operations
+        run: python3 test/setup_skip_test.py
+      - name: Preserve targeted evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: setup-skip-${{ github.sha }}
+          path: build/setup-skip/
+          if-no-files-found: warn
+          retention-days: 14

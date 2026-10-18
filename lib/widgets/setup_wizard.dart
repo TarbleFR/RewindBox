@@ -252,7 +252,17 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
     );
   }
 
+  bool get _skipBlocked =>
+      _isSelectingFolder ||
+      _isSelectingUserDataFolder ||
+      _isImportingEsde ||
+      _isDownloadingArt ||
+      _finishing;
+
   void _handleSkip() {
+    // A pending picker/import must finish before either touch or gamepad can
+    // advance: its callback still belongs to the current setup step.
+    if (!mounted || _skipBlocked) return;
     // Permissions step: the accessibility grant is optional, so once storage
     // is granted the user can skip past it to folder selection.
     if (_currentStep == _stepPermissions &&
@@ -273,7 +283,7 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
         listen: false,
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        provider.scanSystems();
+        if (mounted) provider.scanSystems();
       });
       return;
     }
@@ -1727,15 +1737,15 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
     }
 
     // For other steps, use normal logic.
-    // Skip is offered on the optional steps: the folder step and the
-    // permissions step once storage is granted (Android only), plus the two
-    // trailing optional steps (ES-DE import, art pack) on every platform.
+    // Linking an existing library is optional on iOS too: first-time users
+    // without RetroArch can continue without picking an unrelated folder.
     final showSkip =
         _currentStep == _stepEsde ||
         _currentStep == _stepArtPack ||
-        (Platform.isAndroid &&
+        ((Platform.isAndroid || Platform.isIOS) &&
             (_currentStep == _stepFolder ||
-                (_currentStep == _stepPermissions &&
+                (Platform.isAndroid &&
+                    _currentStep == _stepPermissions &&
                     _storageGranted &&
                     _needsAccessibility &&
                     !_accessibilityGranted)));
@@ -1765,7 +1775,7 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
                   ? Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
-                        onPressed: () => _handleSkip(),
+                        onPressed: _skipBlocked ? null : _handleSkip,
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.symmetric(
                             horizontal: 16.r,
