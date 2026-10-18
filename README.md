@@ -65,24 +65,24 @@ NeoStation’s frontend license does not relicense third-party codes.
 | --- | --- |
 | [Libretro Database](https://github.com/libretro/libretro-database) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-libretro) | Libretro Database contributors and original code authors |
 | [GameHacking.org](https://gamehacking.org/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gamehacking) | Mezmorize / GameHacking.org |
-| [DeadSkullzJr NDS(i) Cheat Databases](https://gbatemp.net/threads/deadskullzjrs-nds-i-cheat-databases.488711/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dsj) | DeadSkullzJr and the original code contributors; verified historical mirror |
+| [DeadSkullzJr NDS(i) Cheat Databases](https://gbatemp.net/threads/deadskullzjrs-nds-i-cheat-databases.488711/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dsj) | DeadSkullzJr and the original code contributors; szTheory historical mirror |
 | [CWCheat Database Plus](https://github.com/Saramagrean/CWCheat-Database-Plus-) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-cwcheat) | Saramagrean and collection contributors; original code authors |
 | [DuckStation chtdb](https://github.com/duckstation/chtdb) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-duckstation) | duckstation and collection contributors; original code authors |
-| [pcsx2_cheats_collection](https://github.com/xs1l3n7x/pcsx2_cheats_collection) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-ps2pnach) | xs1l3n7x and collection contributors; original code authors |
+| [pcsx2_cheats_collection](https://github.com/xs1l3n7x/pcsx2_cheats_collection) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-ps2pnach) | xs1l3n7x; Ultimate PCSX2 Cheater; root670/CheatDevicePS2; original code authors |
 | [Dolphin GameSettings](https://github.com/dolphin-emu/dolphin/tree/master/Data/Sys/GameSettings) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dolphin) | dolphin-emu and collection contributors; original code authors |
-| [GeckoArchive](https://github.com/SpaceXCheeseWheel/GeckoArchive) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-geckoarchive) | SpaceXCheeseWheel and collection contributors; original code authors |
+| [GeckoArchive](https://github.com/SpaceXCheeseWheel/GeckoArchive) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-geckoarchive) | SpaceXCheeseWheel; geckocodes.org and its Archive.org preservation; original code authors |
 | [FBNeo cheats](https://github.com/finalburnneo/FBNeo-cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-fbneo) | finalburnneo and collection contributors; original code authors |
 | [Project64 Cheats](https://github.com/project64/project64/tree/develop/Config/Cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pj64) | project64 and collection contributors; original code authors |
-| [Mupen64Plus database](https://github.com/mupen64plus/mupen64plus-core/blob/master/data/mupencheat.txt) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mupen) | mupen64plus and collection contributors; original code authors |
+| [Mupen64Plus database](https://github.com/mupen64plus/mupen64plus-core/blob/master/data/mupencheat.txt) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mupen) | Gent (Copyright 2008), Mupen64Plus contributors and original code authors |
 | [Mesen2 CheatDb](https://github.com/SourMesen/Mesen2/tree/master/UI/Dependencies/Internal) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mesen) | SourMesen and collection contributors; original code authors |
 | [Snes9x cheats.bml](https://github.com/snes9xgit/snes9x/blob/master/data/cheats.bml) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-snes9x) | snes9xgit and collection contributors; original code authors |
-| [ArtemisPS3](https://github.com/bucanero/ArtemisPS3/tree/master/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis) | bucanero and collection contributors; original code authors |
-| [Artemis Patch Collection RPCS3](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemisrpcs3) | chidreams and collection contributors; original code authors |
+| [ArtemisPS3](https://github.com/bucanero/ArtemisPS3/tree/master/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis) | Daniel Gerendasy (Copyright 2020), bucanero and original code authors |
+| [Artemis Patch Collection RPCS3](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemisrpcs3) | chidreams (Copyright 2023); Aldo’s PS3 Cheat Database; original code authors |
 | [Pokémon France / PokéLord](https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pokemonfrance) | PokéLord / Pokémon France; einstein95/pokered-fr identity research |
-| [MiSTer Cheats](https://github.com/MiSTer-devel/Cheats_MiSTer) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mister) | MiSTer-devel and collection contributors; original code authors |
+| [MiSTer Cheats](https://github.com/MiSTer-devel/Cheats_MiSTer) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mister) | MiSTer-devel; GameHacking.org (credited upstream for the cheats); original code authors |
 | [LunaMoo PPSSPP workarounds](https://github.com/LunaMoo/PPSSPP_workarounds) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-lunamoo) | LunaMoo and collection contributors; original code authors |
-| [TAbdiukov PPSSPP patches](https://github.com/TAbdiukov/PPSSPP-patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-tabdiukov) | TAbdiukov and collection contributors; original code authors |
-| [Admentus Enhancement Codes](https://github.com/Admentus64/Enhancement-Codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-enhancement) | Admentus64 and collection contributors; original code authors |
+| [TAbdiukov PPSSPP patches](https://github.com/TAbdiukov/PPSSPP-patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-tabdiukov) | Tim Abdiukov / TAbdiukov (Copyright 2019), collection contributors and original code authors |
+| [Admentus Enhancement Codes](https://github.com/Admentus64/Enhancement-Codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-enhancement) | Admentus; darkludx; gamemasterplc; retroben; Bighead; BrianMp16 and the contributors in Credits.txt |
 | [skyzyx OpenEmu cheat database](https://github.com/skyzyx/openemu-cheat-database) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-openemu_personal) | skyzyx and collection contributors; original code authors |
 | [Mighty Mo's Cheat Code Pack](https://github.com/mightymo77/MightyMos-Cheat-Code-Pack) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mighty_mo) | mightymo77 and collection contributors; original code authors |
 | [dillonhafer OpenEmu cheats-database.xml](https://gist.github.com/dillonhafer/8399eb1926e2af9164470ad45da67a57) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dillonhafer_xml) | dillonhafer OpenEmu cheats-database.xml contributors and original code authors |
@@ -98,16 +98,16 @@ NeoStation’s frontend license does not relicense third-party codes.
 | [r/Gameshark — Pokémon Emerald event islands (12-digit codes)](https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gameshark_event_islands) | u/SoggyMinimum8386 |
 | [DeltaCore — All Cheat Codes public workbook](https://github.com/rileytestut/DeltaCore/wiki/Cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-delta_workbook) | DeltaCore community and the original workbook/code contributors |
 | [Luckysugar God of War III 01.00](https://github.com/Luckisugar/rpcs3-gow3-patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gow3_0100) | Luckysugar (repository: Luckisugar) |
-| [Artemis Bladestorm static instruction adapter](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20The%20Hundred%20Years%27%20War%20BLES00113%20BLUS30070%2001.00.ncl) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-bladestorm_static) | ArtemisPS3 contributors; CodeFreak / PS3UserCheat source credits |
+| [Artemis Bladestorm static instruction adapter](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20The%20Hundred%20Years%27%20War%20BLES00113%20BLUS30070%2001.00.ncl) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-bladestorm_static) | Daniel Gerendasy / ArtemisPS3 contributors; CodeFreak / PS3UserCheat source credits |
 | [Artemis GoW3 identical-PPU static instruction ports](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gow3_0103_ppu) | chidreams and the original patch authors named in each native document |
 | [PSX Data Center reviewed PAL PS2 RAW](https://psxdatacenter.com/psx2/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-psxdatacenter_pal477) | PSX Data Center and the original code authors |
-| [Artemis Bladestorm Japan static instruction supplement](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-bladestorm_jp477) | ArtemisPS3 contributors and the original authors named in the NCL source |
+| [Artemis Bladestorm Japan static instruction supplement](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-bladestorm_jp477) | Daniel Gerendasy / ArtemisPS3 contributors and the original authors named in the NCL source |
 | [PSX Data Center PNACH v2.0](https://psxdatacenter.com/psx2/down2.html) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-psxdatacenter_v2_478) | PSX Data Center and the original PNACH authors |
 | [European PNACH collection](https://github.com/complicatiion/pcsx2_europe_cheats_collection) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pal_pnach478) | complicatiion and collection contributors; original code authors |
 | [ShadowNinja PNACH collection](https://github.com/shadowninja826/pcsx2_pnach_cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-shadow_pnach478) | shadowninja826 and collection contributors; original code authors |
 | [YukiXXL retail PNACH programs](https://github.com/YukiXXL/PS2-modding) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-yuki_pnach478) | YukiXXL and collection contributors; original code authors |
 | [xGamingDragon93x PNACH collection](https://github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dragon_pnach478) | xGamingDragon93x and collection contributors; original code authors |
-| [ArtemisPS3 complete static PPU programs](https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_static478) | bucanero / ArtemisPS3 contributors and the original code authors |
+| [ArtemisPS3 complete static PPU programs](https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_static478) | Daniel Gerendasy, bucanero / ArtemisPS3 contributors and the original code authors |
 | [Artemis RPCS3 authored PKG collection](https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_pkg478) | PaauloSilva collection; chidreams (MIT notice); original patch authors |
 | [PCSX2/pcsx2_patches explicit 60 FPS patches](https://github.com/PCSX2/pcsx2_patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pcsx2_fps478) | PCSX2 and collection contributors; original code authors |
 | [Gabominated/PCSX2 explicit 60 FPS patches](https://github.com/Gabominated/PCSX2) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gabominated_fps478) | Gabominated and collection contributors; original code authors |
@@ -241,8 +241,8 @@ signing material out of Git.
 
 The original frontend is by **Miguel Soto / misobadev**, with **androosio,
 ItsRetroPup** and upstream contributors. The iOS fork is independently
-maintained by **TarbleFR**. Original authorship and notices are preserved;
-attribution does not imply endorsement.
+maintained by **TarbleFR**. Upstream authorship is credited; known notice and
+source-availability gaps are recorded below. Attribution does not imply endorsement.
 
 Thanks to the emulator, port, Libretro, StikJIT, RetroAchievements, ScreenScraper,
 GameDB, skin, shader, reading-library and memory-research contributors.
@@ -255,6 +255,14 @@ Some cores have non-commercial restrictions; exact source correspondence and
 combined-license questions remain documented in the
 **[0.0.7 license and packaging review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
 The review distinguishes the published IPA from subsequent packaging fixes.
+
+**[Second source-rights review — 18 October 2026](docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md):**
+full redistribution clearance has not been established. Open findings include
+FBNeo's donation restriction alongside the project's Patreon solicitations,
+permission for some imported cheat data, exact source correspondence for
+bundled binaries, and preservation of individual overlay notices. Verified
+upstream declarations supplement the frozen catalogue metadata in the source
+register; credits alone do not resolve these findings.
 
 See **[LICENSE.md](LICENSE.md)** and **[NOTICE.md](NOTICE.md)**. All trademarks
 and third-party artwork remain the property of their respective owners.

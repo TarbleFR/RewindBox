@@ -1,0 +1,216 @@
+====================
+=== ALL PROJECTS ===
+====================
+
+--- Thanks to my Patreons ---
+Amara
+Colby Bertrand
+Craig
+Gagrecco
+Tommy Naugle
+Yang
+
+--- Thanks to my past Patreons --
+Crypto Logiq
+David Pyne
+Gicrax
+Leigh Pierce
+Moons Moons
+Raim
+Richard Moser
+
+--- Textures Dolphin ---
+Admentus (Project Author)
+Bighead (Ported skyboxes for Zelda 64 and SM64, made porting backgrounds a realization thanks to his Custom Texture Tool)
+masterotaku (Ported most of OoT, Disc Menu, HD icons, 2D Backgrounds, HUD and provided assistance for SM64 and MK64)
+
+--- Textures GlideN64 ---
+GhostlyDark (Fonts in each language, upscales, various textures, doublechecking, etc)
+
+--- AR / Gecko Coding ---
+Admentus
+darkludx
+gamemasterplc
+retroben
+Bighead (Initial SM64 VC Patcher for the 60 FPS Patch and the re-used code for the Zelda 64 VC Patcher)
+BrianMp16 (30 FPS Hover Boots improvement)
+
+--- Tools ---
+Admentus (Mods Assemblage, Coding & Testing for Patcher64+)
+Bighead (Custom Texture Tool and Initial Super Mario 64 - 60 FPS V2 Patcher)
+GhostlyDark (Testing & Assistance)
+
+--- Special Thanks ---
+Nintendo for making the Nintendo 64 classics!
+All fans of the Nintendo 64 Classics!
+All developers of Dolphin
+The Dolphin Community
+The Project64 / Mupen64Plus Community
+
+--- Extra Special Thanks ---
+Bighead for his amazing Custom Texture Tool, this wouldn't be possible otherwise, especially for the backgrounds
+GhostlyDark for his immense support on modding and retexturing Ocarina of Time, Master Quest, Majora's Mask, Super Mario 64 and Super Smash Bros.
+Nerrel for his dedication for retexturing Majora's Mask and his permission to port his texture pack
+masterotaku for first starting the Zelda 64 HD project with Ocarina of Time
+The Ocarina of Time Rexture Community on which my HD projects were initially founded upon
+
+
+
+====================
+=== ZELDA 64 UHD ===
+====================
+
+--- Primary Sources ---
+Art-Does-Not-Compute's Link Skin Pack
+BLUEamnesiac's Artwork
+bluedart's Hi-Res Majora's Mask
+Djipi's OoT 3DS
+Djipi's OoT Celda
+Djipi's MM Celda
+Federelli's OoT Pack
+GhostlyDark's MM N64HD MLE
+GhostlyDark's OoT Reloaded
+Nerrel's MM N64HD
+OoT Community Retexture
+p3st's Mario 64 HD Texture Project
+Phantom7's OoT Pack
+Poke Headroom's Render96 HD
+tao's Zelda Games Japanese HD Fonts for Dolphin
+Toon-Link's Twilight Retexture Majora's Mask
+Velgasor's OoT 3D Pack
+Zeth Alkar's Pack
+
+--- Other sources ---
+Community: /r/ChineseLanguage Discord
+Icon: Fire Medallion Vector
+Icon: Old Gerudo Symbol
+Icon: Spirit Stones
+Logo: Nintendo
+Font: Chiaro Std B
+Font: KokinEdo Std EB
+Font: RocknRoll Std Semi-Bold
+Font: RodinPro B
+Font: Source Han Sans
+Font: Source Han Serif
+Texture: Custom Shields by SanguinettiMods
+Texture: Gerudo Training Ground door by YaBoiMikey
+Texture: Gerudo Training Ground wall symbol by Christopher
+Texture: Hookshot by CheeseEnthusiast
+Texture: HUD Buttons and text box background by azred
+Texture: Hylian Shield, Amara Shield and Master Sword by Skilar
+Texture: Kokiri Sword handle and sheath by Kooloo-Limpah!
+Texture: Various Overworld Minimaps for the Swamp by yonato
+Texture: Various icons by CYB3RTR0N
+Texture: Widescreen backgrounds (vanilla) by CYB3RTR0N and ShadowOne333
+
+--- AR / Gecko Coding ---
+CloudModding (https://cloudmodding.com)
+
+--- Zelda Ocarina of Time Community Retexture ---
+mode7
+Chieftain459
+DCS78 
+Death-Droid
+Driscol
+Djipi
+Mdtauk
+Rice
+Kalzenith
+Necromagician
+sick deal
+Elratauru
+Zeckron
+Railroads
+Lewa
+chaoszerox
+IanSkelskey
+blooped out
+Amon
+TallgeeseIII
+Federelli
+steftheserb
+AaronLite
+missingno.
+dutchMasta
+stwstl5926
+turpinator
+Donbero
+hyperion86
+Emarian
+nintendoknight
+Phantom7
+
+--- Patcher64+ Tool ---
+Admentus (author)
+Bighead (intial patcher concept)
+CYB3RTR0N (backgrounds, icons)
+GhostlyDark (quality control, testing)
+ShadowOne333 (Redux, various options)
+
+-- Special Thanks --
+GhostlyDark: Providing textures and quality control
+Nerrel: Providing textures
+
+
+
+=====================
+=== SM64 RELOADED ===
+=====================
+
+--- Maintainer ---
+GhostlyDark
+
+--- Sources & Credits ---
+Admentus
+Fanfreluche's Fan Font
+Hypatia's Mario Craft 64
+JappaWakka's Mario64HDTexturePack_PC
+Mollymutt's Super Mario 64
+MU-TH-UR's Super Mario 64
+p3st's Texture Pack
+Poke Headroom's Render96 HD Texture Pack
+Painting: Jolly Roger Bay
+Icon: 1-UP
+Icon: Dog Face
+SM64 Redrawn
+Super Mario 64 - Plumbers Unite Edition by Roovahlees & Teaufou (https://www.emutalk.net/threads/super-mario-64-plumbers-unite-edition.57431)
+
+--- AR / Gecko Coding ---
+Kaze Emanuar (60 FPS v2 patch / Analog Camera patch)
+Skelux (Multiplayer v1.4.2 patch)
+
+--- Extra Special Thanks ---
+Razius for his support and permission to port his textures for Dolphin
+
+
+
+============================
+=== SUPER SMASH BROS. HD ===
+============================
+
+--- Contributions Dolphin ---
+ea4492 (Metal Mario)
+GhostlyDark
+
+--- Textures Project64 / Mupen64Plus ---
+Pietschie
+Bad Randolphs
+
+
+
+========================
+=== MARIO KART 64 HD ===
+========================
+
+Andrat
+GhostlyDark
+
+
+
+======================
+=== STAR FOX 64 HD ===
+======================
+
+--- Textures Project64 / Mupen64Plus ---
+razius
+UnaidedCoders

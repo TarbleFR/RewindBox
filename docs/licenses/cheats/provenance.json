@@ -1,0 +1,106 @@
+{
+  "reviewed_at_utc": "2026-10-18T13:11:49.385530+00:00",
+  "purpose": "Primary-source notice evidence only; repository license declarations do not establish third-party author licensing authority",
+  "files": [
+    {
+      "source_id": "tabdiukov",
+      "upstream_revision": "a38b2aba3e0e24935392d2617b14b35d73ab0f27",
+      "url": "https://raw.githubusercontent.com/TAbdiukov/PPSSPP-patches/a38b2aba3e0e24935392d2617b14b35d73ab0f27/LICENCE",
+      "local_file": "TAbdiukov-PPSSPP-patches-LICENCE.txt",
+      "bytes": 11341,
+      "sha256": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "scope": "complete original notice bytes",
+      "preserved_sha256": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987"
+    },
+    {
+      "source_id": "enhancement",
+      "upstream_revision": "f8e9ad12d90460e316b552fdf73052eb308e9ab9",
+      "url": "https://raw.githubusercontent.com/Admentus64/Enhancement-Codes/f8e9ad12d90460e316b552fdf73052eb308e9ab9/LICENSE",
+      "local_file": "Admentus-Enhancement-Codes-LICENSE.txt",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "scope": "complete original notice bytes",
+      "preserved_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "source_id": "enhancement",
+      "upstream_revision": "f8e9ad12d90460e316b552fdf73052eb308e9ab9",
+      "url": "https://raw.githubusercontent.com/Admentus64/Enhancement-Codes/f8e9ad12d90460e316b552fdf73052eb308e9ab9/Credits.txt",
+      "local_file": "Admentus-Enhancement-Codes-Credits.txt",
+      "bytes": 10676,
+      "sha256": "52adf3905bc3b42deb10b90eb99322eaf50bfc7492d8b39367e5d0b0fdafe62a",
+      "scope": "complete original notice bytes",
+      "transformation": "UTF-16LE with BOM decoded to UTF-8 for readable supporting documentation; text unchanged",
+      "preserved_sha256": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b"
+    },
+    {
+      "source_id": "dsj",
+      "upstream_revision": "0173af14d33e2c045e7c5e30c71d369624a33020",
+      "url": "https://raw.githubusercontent.com/szTheory/NDS-Cheat-Databases/0173af14d33e2c045e7c5e30c71d369624a33020/LICENSE",
+      "local_file": "szTheory-NDS-Cheat-Databases-LICENSE.txt",
+      "bytes": 34522,
+      "sha256": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "scope": "complete original notice bytes",
+      "preserved_sha256": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf"
+    },
+    {
+      "source_id": "mupen",
+      "upstream_revision": "934a72cbcb0ad5ffe76d200736e8a9944c11ec19",
+      "url": "https://raw.githubusercontent.com/mupen64plus/mupen64plus-core/934a72cbcb0ad5ffe76d200736e8a9944c11ec19/data/mupencheat.txt",
+      "local_file": "Mupen64Plus-mupencheat-header.txt",
+      "bytes": 2250,
+      "sha256": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "scope": "exact contiguous initial // comment block; no game records",
+      "preserved_sha256": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5"
+    },
+    {
+      "source_id": "mupen",
+      "upstream_revision": "934a72cbcb0ad5ffe76d200736e8a9944c11ec19",
+      "url": "https://raw.githubusercontent.com/mupen64plus/mupen64plus-core/934a72cbcb0ad5ffe76d200736e8a9944c11ec19/doc/gpl-license",
+      "local_file": "Mupen64Plus-GPL-2.0.txt",
+      "bytes": 18646,
+      "sha256": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "scope": "complete original GPL version2 text; mupencheat.txt header separately grants version2 or later",
+      "preserved_sha256": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd"
+    },
+    {
+      "source_id": [
+        "artemis",
+        "bladestorm_static",
+        "bladestorm_jp477",
+        "artemis_static478"
+      ],
+      "upstream_revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+      "url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/LICENSE",
+      "local_file": "artemis-LICENSE.txt",
+      "bytes": 1073,
+      "sha256": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "preserved_sha256": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "scope": "complete original notice bytes"
+    },
+    {
+      "source_id": [
+        "tyler_shiny"
+      ],
+      "upstream_revision": "e4ea02327e8f4e2002598d4b1b491ee7e6bc72e1",
+      "url": "https://github.com/TylerD007/The_Shiny_Pokemon_Code_Repository/blob/e4ea02327e8f4e2002598d4b1b491ee7e6bc72e1/LICENSE",
+      "local_file": "tyler-GPL-3.0-LICENSE.txt",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "preserved_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "scope": "complete original notice bytes"
+    },
+    {
+      "source_id": [
+        "tyler_shiny"
+      ],
+      "upstream_revision": "e4ea02327e8f4e2002598d4b1b491ee7e6bc72e1",
+      "url": "https://github.com/TylerD007/The_Shiny_Pokemon_Code_Repository/blob/e4ea02327e8f4e2002598d4b1b491ee7e6bc72e1/EMERALD.txt",
+      "local_file": "tyler-EMERALD-NOTICE.txt",
+      "bytes": 1335,
+      "sha256": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "preserved_sha256": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "scope": "exact contiguous notice before INTRODUCTION, no cheat payload"
+    }
+  ]
+}

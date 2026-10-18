@@ -39,6 +39,22 @@ and [chidreams notice carried by the authored PKG collection — MIT](../package
 DuckStation’s manifest explicitly distinguishes MIT-licensed scripts from the
 original authors’ cheat-code rights. Per-file and per-program notices remain authoritative.
 
+## Second review — 18 October 2026
+
+The [source-rights review](SOURCE_RIGHTS_REVIEW_2026-10-18.md) records open
+permission, notice-delivery and binary-source findings. The 51 entries below
+remain the complete contribution inventory; they are **not 51 licensing clearances**.
+Forty frozen source-level notices say “Unspecified”; this describes incomplete
+metadata, not forty independently unlicensed projects. Where primary evidence
+was found, a separate **Verified review** field corrects that impression without
+rewriting Build 479’s index, source pins or packs.
+
+[Additional full notices, original credits and exact provenance](licenses/cheats/README.md)
+are preserved as supporting repository documentation. That archival step does
+not establish missing third-party permissions or attest to their inclusion in
+already distributed IPAs. Mupen header retention and catalogue notice delivery
+remain implementation follow-ups.
+
 ## All 51 contributing source entries
 
 <a id="source-libretro"></a>
@@ -71,8 +87,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `dsj`.
 - **Source:** [DeadSkullzJr NDS(i) Cheat Databases](https://gbatemp.net/threads/deadskullzjrs-nds-i-cheat-databases.488711/).
-- **Credit:** DeadSkullzJr and the original code contributors; verified historical mirror.
+- **Credit:** DeadSkullzJr and the original code contributors; szTheory historical mirror.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [verified historical mirror LICENSE](https://github.com/szTheory/NDS-Cheat-Databases/blob/0173af14d33e2c045e7c5e30c71d369624a33020/LICENSE) declares AGPLv3; its exact binary matches the input hash above. [Full text](licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt). This is a mirror declaration; authority to license DeadSkullzJr’s and the original code authors’ material is not established.
 - **Pinned input revision:** `28ad3272d3578ba2f493e78990a3d6defe9dfebe37d9f53501679be9498eafae`.
 - **Pinned input SHA-256:** `28ad3272d3578ba2f493e78990a3d6defe9dfebe37d9f53501679be9498eafae`.
 - **Imported scope:** Complete verified historical mirror (last repository update 2022-04-29), NOT the author current 2026 edition
@@ -107,8 +124,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `ps2pnach`.
 - **Source:** [pcsx2_cheats_collection](https://github.com/xs1l3n7x/pcsx2_cheats_collection).
-- **Credit:** xs1l3n7x and collection contributors; original code authors.
+- **Credit:** xs1l3n7x; Ultimate PCSX2 Cheater; root670/CheatDevicePS2; original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned README](https://github.com/xs1l3n7x/pcsx2_cheats_collection/blob/6cb57b55939f47dd91a157bfb6cdc7fd157a780c/README.md) also credits [Ultimate PCSX2 Cheater](https://upc.alwaysdata.net/) and [root670/CheatDevicePS2](https://github.com/root670/CheatDevicePS2). These lineage credits are not a data-redistribution grant.
 - **Pinned input revision:** `6cb57b55939f47dd91a157bfb6cdc7fd157a780c`.
 - **Pinned input SHA-256:** `418b1381eb0b9f11698abc6d43835a09a5d61cf1141624c4d0a0b10179070678`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -131,8 +149,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `geckoarchive`.
 - **Source:** [GeckoArchive](https://github.com/SpaceXCheeseWheel/GeckoArchive).
-- **Credit:** SpaceXCheeseWheel and collection contributors; original code authors.
+- **Credit:** SpaceXCheeseWheel; geckocodes.org and its Archive.org preservation; original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned README](https://github.com/SpaceXCheeseWheel/GeckoArchive/blob/d465c2190d32f954056dd1e6ba68a2ec3fc588ff/README.md) credits geckocodes.org and [its historical archive](https://archive.org/details/geckocodes.org_201909). Archiving does not itself establish redistribution rights.
 - **Pinned input revision:** `d465c2190d32f954056dd1e6ba68a2ec3fc588ff`.
 - **Pinned input SHA-256:** `c8de094d1f13673ce8acc06fd1f33c2e7871c5d8d985548f119239f9cd81777e`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -167,8 +186,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `mupen`.
 - **Source:** [Mupen64Plus database](https://github.com/mupen64plus/mupen64plus-core/blob/master/data/mupencheat.txt).
-- **Credit:** mupen64plus and collection contributors; original code authors.
+- **Credit:** Gent (Copyright 2008), Mupen64Plus contributors and original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [exact imported file](https://github.com/mupen64plus/mupen64plus-core/blob/934a72cbcb0ad5ffe76d200736e8a9944c11ec19/data/mupencheat.txt) declares GPL-2.0-or-later, Copyright 2008 Gent, with explicit relicensing permission from Gent. [Original header](licenses/cheats/Mupen64Plus-mupencheat-header.txt) and [GPLv2 text](licenses/cheats/Mupen64Plus-GPL-2.0.txt). NeoStation converts the source into its catalogue format. The parser drops this header from generated program records; preserving it here does not repair the existing IPA or generated-data notice delivery.
 - **Pinned input revision:** `d3206c3f5cf57a8ebcc29729837fb9f5c1645a6c571e68aa08a178db2e950b36`.
 - **Pinned input SHA-256:** `d3206c3f5cf57a8ebcc29729837fb9f5c1645a6c571e68aa08a178db2e950b36`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -204,8 +224,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `artemis`.
 - **Source:** [ArtemisPS3](https://github.com/bucanero/ArtemisPS3/tree/master/docs/codes).
-- **Credit:** bucanero and collection contributors; original code authors.
+- **Credit:** Daniel Gerendasy (Copyright 2020), bucanero and original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned project LICENSE](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/LICENSE) declares MIT, Copyright 2020 Daniel Gerendasy. [Full text](licenses/cheats/artemis-LICENSE.txt). This project/software notice is distinct from the rights of the original hackers whose codes the collection reproduces; it is not a blanket clearance of all collected codes.
 - **Pinned input revision:** `d79b41e525e20251bd0d919100039ac0a6433956`.
 - **Pinned input SHA-256:** `2cc8948b08184c097fada692a5c497428d6cb48d11f289d6e92665ec1177dd15`.
 - **Imported scope:** Only exact static-write crosswalk excerpts with source serial+APP_VER and author-provided PPU YAML; not a general NCL interpreter
@@ -217,8 +238,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `artemisrpcs3`.
 - **Source:** [Artemis Patch Collection RPCS3](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3).
-- **Credit:** chidreams and collection contributors; original code authors.
+- **Credit:** chidreams (Copyright 2023); Aldo’s PS3 Cheat Database; original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned upstream LICENSE](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3/blob/21fc0ee86578f1452e42da01187eb852ab034b28/LICENSE) declares MIT, Copyright 2023 chidreams. The [full text already preserved](../packages/neo_cheat_catalog/ios/Resources/artemis-rpcs3-LICENSE.txt) matches the PKG mirror notice. The [pinned README](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3/blob/21fc0ee86578f1452e42da01187eb852ab034b28/README.md) credits Aldo’s PS3 Cheat Database. Original third-party code rights still require their own basis.
 - **Pinned input revision:** `21fc0ee86578f1452e42da01187eb852ab034b28`.
 - **Pinned input SHA-256:** `385cc2726bb775f952790ff5ee80f1683c2c36dc96e52651366609a01000e9f1`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -231,6 +253,7 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 - **Source:** [Pokémon France / PokéLord](https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/).
 - **Credit:** PokéLord / Pokémon France; einstein95/pokered-fr identity research.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [site’s legal notice](https://www.pokemon-france.com/mentions-legales/), checked 18 October 2026, restricts reuse of compiled data to prior written authorization except short quotations with a source link. This profile contributes eight executable programs; no authorization was established in this review. Credit alone does not establish that the import qualifies for the quotation exception. Permission or exclusion requires resolution before a clearance claim.
 - **Pinned input revision:** `e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e`.
 - **Pinned input SHA-256:** `e1ec39b8e18292ed7a556609e52a0188b86caf964f963a10c6bdcfec728b4601`.
 - **Imported scope:** Reviewed complete program excerpts only; source website/forum is NOT claimed exhaustively downloaded
@@ -241,8 +264,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `mister`.
 - **Source:** [MiSTer Cheats](https://github.com/MiSTer-devel/Cheats_MiSTer).
-- **Credit:** MiSTer-devel and collection contributors; original code authors.
+- **Credit:** MiSTer-devel; GameHacking.org (credited upstream for the cheats); original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned README](https://github.com/MiSTer-devel/Cheats_MiSTer/blob/56eb5194c6a6c4a718ac0f67a93c498a7a7a4760/README.md) credits GameHacking.org as provider of all cheats. This original lineage is retained here; no blanket data license is inferred.
 - **Pinned input revision:** `56eb5194c6a6c4a718ac0f67a93c498a7a7a4760`.
 - **Pinned input SHA-256:** `d410059c80dc60296bdf12aa825339438a464fb000d97204938fcd2bc93e101d`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -265,8 +289,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `tabdiukov`.
 - **Source:** [TAbdiukov PPSSPP patches](https://github.com/TAbdiukov/PPSSPP-patches).
-- **Credit:** TAbdiukov and collection contributors; original code authors.
+- **Credit:** Tim Abdiukov / TAbdiukov (Copyright 2019), collection contributors and original code authors.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned LICENCE](https://github.com/TAbdiukov/PPSSPP-patches/blob/a38b2aba3e0e24935392d2617b14b35d73ab0f27/LICENCE) declares Apache-2.0, Copyright 2019 Tim Abdiukov. [Full notice](licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt). NeoStation converts the format and selects supported complete programs. Third-party patch credits and terms remain applicable.
 - **Pinned input revision:** `a38b2aba3e0e24935392d2617b14b35d73ab0f27`.
 - **Pinned input SHA-256:** `16fccc72579db5d755f5ad3696d2be46fd3b716e698d9f2f51abd2003fe8bf95`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -277,8 +302,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `enhancement`.
 - **Source:** [Admentus Enhancement Codes](https://github.com/Admentus64/Enhancement-Codes).
-- **Credit:** Admentus64 and collection contributors; original code authors.
+- **Credit:** Admentus; darkludx; gamemasterplc; retroben; Bighead; BrianMp16 and the contributors in Credits.txt.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [pinned LICENSE](https://github.com/Admentus64/Enhancement-Codes/blob/f8e9ad12d90460e316b552fdf73052eb308e9ab9/LICENSE) declares GPLv3. [Full text](licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt) and [upstream contributor credits](licenses/cheats/Admentus-Enhancement-Codes-Credits.txt) are preserved. The credits were decoded from UTF-16LE to UTF-8 without changing their text. NeoStation converts the source format; the repository declaration does not independently prove every third-party contributor’s licensing authority.
 - **Pinned input revision:** `f8e9ad12d90460e316b552fdf73052eb308e9ab9`.
 - **Pinned input SHA-256:** `bc30e48ef9fdae09df1534b9c4d3cd5c4abce1114eb09b9b9546b4d69f192171`.
 - **Imported scope:** complete pinned machine-readable publication
@@ -411,6 +437,7 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 - **Source:** [TylerD007 — The Shiny Pokémon Code Repository](https://github.com/TylerD007/The_Shiny_Pokemon_Code_Repository).
 - **Credit:** Ciro Bogea Fernandes / TylerD007.
 - **Recorded rights notice:** Unspecified; preserve original author rights and source notices.
+- **Verified review, 18 October 2026:** The [exact imported EMERALD.txt](https://github.com/TylerD007/The_Shiny_Pokemon_Code_Repository/blob/e4ea02327e8f4e2002598d4b1b491ee7e6bc72e1/EMERALD.txt) contains Copyright 2023 Ciro Bogea Fernandes, GPL wording and an AS-IS permission conditioned on retaining the copyright and permission in copies and supporting documentation. The repository declares GPL-3.0. [Original file notice](licenses/cheats/tyler-EMERALD-NOTICE.txt) and [GPL text](licenses/cheats/tyler-GPL-3.0-LICENSE.txt). The published program already retains these fields; the frozen source summary is less specific.
 - **Pinned input revision:** `e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e`.
 - **Pinned input SHA-256:** `e1ec39b8e18292ed7a556609e52a0188b86caf964f963a10c6bdcfec728b4601`.
 - **Imported scope:** Reviewed complete program excerpts only; source website/forum is NOT claimed exhaustively downloaded
@@ -469,8 +496,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `bladestorm_static`.
 - **Source:** [Artemis Bladestorm static instruction adapter](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20The%20Hundred%20Years%27%20War%20BLES00113%20BLUS30070%2001.00.ncl).
-- **Credit:** ArtemisPS3 contributors; CodeFreak / PS3UserCheat source credits.
+- **Credit:** Daniel Gerendasy / ArtemisPS3 contributors; CodeFreak / PS3UserCheat source credits.
 - **Recorded rights notice:** Unspecified; CodeFreak/PS3UserCheat author rights retained.
+- **Verified review, 18 October 2026:** The [pinned project LICENSE](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/LICENSE) declares MIT, Copyright 2020 Daniel Gerendasy. [Full text](licenses/cheats/artemis-LICENSE.txt). This project/software notice is distinct from the rights of the original hackers whose codes the collection reproduces; it is not a blanket clearance of all collected codes.
 - **Pinned input revision:** `d79b41e525e20251bd0d919100039ac0a6433956`.
 - **Pinned input SHA-256:** `207072c0f42fe99e0d9949d703d611918142d52cc5ad6c3a13c3b511133995d8`.
 - **Imported scope:** Only complete compatible programs from the documented pinned input; reference portals are not claimed exhaustively downloaded.
@@ -483,6 +511,7 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 - **Source:** [Artemis GoW3 identical-PPU static instruction ports](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3).
 - **Credit:** chidreams and the original patch authors named in each native document.
 - **Recorded rights notice:** Unspecified; original authors preserved in each native patch.
+- **Verified review, 18 October 2026:** The chidreams input carries [MIT, Copyright 2023 chidreams](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3/blob/21fc0ee86578f1452e42da01187eb852ab034b28/LICENSE); the [full notice](../packages/neo_cheat_catalog/ios/Resources/artemis-rpcs3-LICENSE.txt) is already preserved. Original patch-author rights remain separate.
 - **Pinned input revision:** `21fc0ee86578f1452e42da01187eb852ab034b28`.
 - **Pinned input SHA-256:** `1d719e394e29d8f98bd505df4c56ee58cda0aba7cd0fd05a04e292941a2dd6de`.
 - **Imported scope:** Only complete compatible programs from the documented pinned input; reference portals are not claimed exhaustively downloaded.
@@ -505,8 +534,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `bladestorm_jp477`.
 - **Source:** [Artemis Bladestorm Japan static instruction supplement](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl).
-- **Credit:** ArtemisPS3 contributors and the original authors named in the NCL source.
+- **Credit:** Daniel Gerendasy / ArtemisPS3 contributors and the original authors named in the NCL source.
 - **Recorded rights notice:** Unspecified; original source and hacker rights retained.
+- **Verified review, 18 October 2026:** The [pinned project LICENSE](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/LICENSE) declares MIT, Copyright 2020 Daniel Gerendasy. [Full text](licenses/cheats/artemis-LICENSE.txt). This project/software notice is distinct from the rights of the original hackers whose codes the collection reproduces; it is not a blanket clearance of all collected codes.
 - **Pinned input revision:** `d79b41e525e20251bd0d919100039ac0a6433956`.
 - **Pinned input SHA-256:** `d8725f019292ca97c10b774892c900d3d9e0bafd38b7f15ee0d5dca6dbda4f87`.
 - **Imported scope:** Five complete static instruction programs for BLJM60009 01.00 only; observed PPU binding and confirmation required
@@ -577,8 +607,9 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 
 - **Source entry:** `artemis_static478`.
 - **Source:** [ArtemisPS3 complete static PPU programs](https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes).
-- **Credit:** bucanero / ArtemisPS3 contributors and the original code authors.
+- **Credit:** Daniel Gerendasy, bucanero / ArtemisPS3 contributors and the original code authors.
 - **Recorded rights notice:** Unspecified; original authors retain rights; preserve source notices and attribution.
+- **Verified review, 18 October 2026:** The [pinned project LICENSE](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/LICENSE) declares MIT, Copyright 2020 Daniel Gerendasy. [Full text](licenses/cheats/artemis-LICENSE.txt). This project/software notice is distinct from the rights of the original hackers whose codes the collection reproduces; it is not a blanket clearance of all collected codes.
 - **Pinned input revision:** `d79b41e525e20251bd0d919100039ac0a6433956`.
 - **Pinned input SHA-256:** `2cc8948b08184c097fada692a5c497428d6cb48d11f289d6e92665ec1177dd15`.
 - **Imported scope:** Only complete mode-0 aligned 32-bit static text writes below 0x02000000, explicit source serial/version, observed runtime PPU binding and edition confirmation; no scan/pointer/freeze/partial program conversion
@@ -639,6 +670,7 @@ original authors’ cheat-code rights. Per-file and per-program notices remain a
 - **Source:** [RPCS3 native 60 FPS patches, pinned illusion mirror](https://github.com/illusion0001/rpcs3-game-patch).
 - **Credit:** illusion0001 mirror, RPCS3 patch contributors and original patch authors.
 - **Recorded rights notice:** Original patch authors retain rights; preserve attribution and source requirements.
+- **Verified review, 18 October 2026:** The original repository URL now redirects to [illusionyy/rpcs3-game-patch](https://github.com/illusionyy/rpcs3-game-patch/tree/16be3d817e9aedc4685389c8327f3d8a925df862), retaining the pinned revision. It describes a mirror, not a general license grant for third-party patches.
 - **Pinned input revision:** `16be3d817e9aedc4685389c8327f3d8a925df862`.
 - **Pinned input SHA-256:** `833d87e96c23575927783589329be71d5fce13c2f3391f6c124ecbed8ae2127a`.
 - **Imported scope:** Complete author-published native PPU documents explicitly labeled 60 FPS, keeping exact serial/version/hash, notes and exclusive groups; configurable/unsupported programs stay excluded

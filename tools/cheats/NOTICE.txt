@@ -41,3 +41,14 @@ is a count of unique projects, unique effects or distinct commercial games.
 NeoStation's conversion/integration work does not claim authorship of codes
 created by others. Existing licenses and author notices must be preserved.
 This source-tree update does not alter the published 0.0.7 / Build 455 IPA.
+
+Second review (18 October 2026):
+https://github.com/TarbleFR/neostation-ios/blob/main/docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md
+Verified upstream declarations for Mupen/Gent, TAbdiukov, Admentus, the DSJ
+mirror, Artemis/Daniel Gerendasy, chidreams and Tyler/Ciro Bogea Fernandes
+supplement the frozen source metadata. Full notices and provenance are
+preserved in docs/licenses/cheats/ and linked from each source record.
+Some data permissions remain unestablished; Pokemon France's published reuse
+restriction is specifically recorded. Do not describe the catalogue as cleared
+merely because all 51 profiles have source credits. Repository notice archival
+does not correct notices or source metadata in an already delivered IPA.

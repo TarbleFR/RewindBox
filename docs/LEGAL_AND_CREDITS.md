@@ -17,6 +17,12 @@ license-compatibility questions. Credits and license-text presence do not alone
 certify full compliance or provide exact Corresponding Source for every bundled
 binary.
 
+The [second source-rights review, 18 October 2026](SOURCE_RIGHTS_REVIEW_2026-10-18.md)
+also examines the development catalogue and the actual private Build 479 IPA.
+It records unresolved permission, fundraising, source-correspondence and notice
+preservation findings. This attribution record is not a statement that all
+included material is cleared for redistribution.
+
 **NeoSwap** is NeoStation's experimental memory-management integration for
 the embedded RPCS3 workflow. Its guest-memory relay adapts a MIT-licensed
 Guest Page Relay prototype (see [the preserved notice](../assets/legal/Guest-Page-Relay-MIT.txt)). Its relay, donor, file-backed and cold-data
@@ -217,6 +223,15 @@ Attribution alone is not permission to relicense unspecified material under
 NeoStation’s frontend GPL. Full license texts and per-program provenance remain
 part of the source records.
 
+The second review supplements incomplete frozen labels with verified upstream
+notices for Gent/Mupen, Tim Abdiukov, Admentus, the DSJ mirror,
+Daniel Gerendasy/Artemis, chidreams and Ciro Bogea Fernandes/Tyler.
+[Full notices and provenance](licenses/cheats/README.md) are archived in this
+repository. Their inclusion here neither supplies missing third-party
+permissions nor repairs notice delivery in the existing IPA. In particular,
+Pokémon France's published reuse restriction and the mirror-authority questions
+remain open in the [review](SOURCE_RIGHTS_REVIEW_2026-10-18.md).
+
 The publication has 2,395,549 programs/edition variants in 50,284 typed identity
 groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lists
 excluded references, which are not counted among the 51 contributing entries.
@@ -287,8 +302,16 @@ The catalog identifies skins; it does not transfer ownership of their artwork.
 
 The embedded Libretro frontend supplies NeoStation default skins and installs
 community skins only at the user's request. Third-party skin packs are not
-bundled. Imported metadata retains the author when supplied and the original
-download URL, or identifies a local file import. A missing author or license
+bundled. Imports retain available catalogue-level author/license fields and the
+download URL, or identify a local file import. The Libretro overlay conversion
+does not yet preserve all creator credits and original notices from its CFG
+input in the installed copy; this remains an open implementation finding.
+In particular, **RGPAD 1.5 is by DJM**, as stated in the
+[pinned original CFG](https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg).
+The collection declares [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+NeoStation converts its layout format and packages selected images; these
+adaptations do not erase the supplied creator credit or license conditions.
+A missing author or license
 must not be interpreted as a grant of redistribution rights; the application's
 license does not relicense downloaded artwork.
 

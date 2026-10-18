@@ -44,6 +44,22 @@ The source and license observations for this release are recorded in
 docs/RELEASE_0.0.7_LICENSE_REVIEW.md. Updating this notice does not change
 the previously published signed/distributed IPA.
 
+SECOND SOURCE-RIGHTS REVIEW — 18 OCTOBER 2026
+
+docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md records unresolved data permissions,
+the FBNeo donation restriction alongside Patreon solicitations, exact binary
+source correspondence, and preservation of individual overlay notices.
+Credits are not a clearance of these findings. Verified upstream cheat
+notices supplement the frozen catalogue metadata and are archived under
+docs/licenses/cheats/. This documentation does not change existing IPAs.
+
+RGPAD 1.5 overlay: DJM; Libretro common-overlays collection, CC BY 4.0.
+Original input:
+https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg
+License: https://creativecommons.org/licenses/by/4.0/
+NeoStation converts the layout format and packages selected images. Installed
+conversion notice preservation remains an open finding in the review above.
+
 ---
 
 HISTORICAL VERIFIED IOS BASELINE — BUILD 350 / GITHUB RELEASE 0.0.1
