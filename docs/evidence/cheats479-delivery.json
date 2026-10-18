@@ -1,0 +1,372 @@
+{
+  "source": "ff28cf2a63695400ad09d1c61538059d96992cc1",
+  "filename": "NeoStation-Build479-ff28cf2a.ipa",
+  "bytes": 226564742,
+  "sha256": "a1c44f59c80fa98f4d5a0fa7a59885e2b8269fc3666f40b23a805a0528f1b742",
+  "zipIntegrity": true,
+  "bothChecksumRecordsMatch": true,
+  "packagedSourceStampsMatch": true,
+  "sourceStampFiles": [
+    "NeoPlay-build-identity.json",
+    "Legal/BUILD_SOURCE_IDENTITY.json"
+  ],
+  "versions": {
+    "com.neogamelab.neostation.dolphinjithelper": "0.0.7 (479)",
+    "com.neogamelab.neostation.NeoSwapPageRelay": "0.0.7 (479)",
+    "com.neogamelab.neostation.neoswapdonor": "0.0.7 (479)",
+    "com.neogamelab.neostation.armsx2jithelper": "0.0.7 (479)",
+    "com.neogamelab.neostation.rpcs3jithelper": "0.0.7 (479)",
+    "com.neogamelab.neostation": "0.0.7 (479)"
+  },
+  "sealedThinImageCount": 77,
+  "allSealedCodeDataABIFingerprintsMatch": true,
+  "unchangedLibretroCores": 34,
+  "unchangedPrecompiledEngineImages": 40,
+  "changedImageFingerprintsComparedTo478": [
+    "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+    "Runner"
+  ],
+  "ciVerifiedAdHocSignatures": 80,
+  "catalogue": {
+    "result": "passed",
+    "build": 479,
+    "manifestSHA256": "a475a740a2e6251a5638077ffcce53c81afc125acd6fbcfaf97ff28d7602d1a1",
+    "manifestBytes": 7678748,
+    "transportParts": 51652,
+    "packs": 874,
+    "programs": 2395549,
+    "frameworksSHA256": {
+      "neo_cheat_catalog": "0a78c60facfcc061d541242c416b81cb179adfdfcfcae62ad52762b923e7ddf4",
+      "libretro_internal_bridge": "71fbf11a673d9fc1b5d1b123ff0b1753902fcdbac63439657dd83d8c5d09c751",
+      "armsx2_internal_bridge": "bee8720e2d5d9977e074198266cade4f0c856f58a51ed37e465e5e57d613c49b",
+      "dolphin_internal_bridge": "932474fe3874f865f786e9532d97cff1550faa0e189f66624b9568badb6c1d8b",
+      "rpcs3_internal_bridge": "8955278f662bb818629902bb3eb74a2a385c6e4742f40be1c175f37fb6fd8671"
+    },
+    "indexBundled": true,
+    "packsBundled": false,
+    "ipaSHA256": "a1c44f59c80fa98f4d5a0fa7a59885e2b8269fc3666f40b23a805a0528f1b742",
+    "physicalDeviceValidated": false
+  },
+  "signedPayloadFingerprints": {
+    "PlugIns/DolphinJITHelper.appex/DolphinJITHelper": "5b9a1ce77f53f4527c91912e2d8839748878163ceea454c58b33b1b99614c828",
+    "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay": "5080e7987821d08131c9e86b362b0426230048fdb98147ce9b7df3cd61431f57",
+    "PlugIns/NeoSwapDonor.appex/NeoSwapDonor": "8c9c7a6228b4e8f6e64bcb3b493d4caadedf3c77a4455a8b93b0ce3ea50dc8aa",
+    "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper": "3578854229f11f67d7b1fb0e94ac8396b0dc4ae32cbbf56cbfe0c0599c3e26a9",
+    "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper": "19658a7e78f220b622115f6cf5398946d7bf2fd55e35fd423e1f675ed62b2581",
+    "Runner": "14fe092c058ffea716c296629f6a01f66c5c57bce4b7a436930b81b61ba8104a",
+    "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+    "Frameworks/wakelock_plus.framework/wakelock_plus": "d80050230bafdff7725a634cb9e7dc8e24907f05bddd8c37d1cc2ad1e1892389",
+    "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+    "Frameworks/kartpad_internal_bridge.framework/kartpad_internal_bridge": "7cfd5553f7c995fdfced6503b461724193ec662192e2e7b4c4b8eb674f269dcd",
+    "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+    "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+    "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+    "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog": "bf31a48f320d9862cbcab7d8e534a0245e148f0e0439ec4b6b666a82e4501a7f",
+    "Frameworks/neo_shader_kit.framework/neo_shader_kit": "1a3e84cc227507a89ffafdf7c517e57fdd8816c4e5f2eec1388c55c27f5842a5",
+    "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+    "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher": "02339ef6854598cf072ddace06510150fe6ee060e116416cf76ec5f6c016bad9",
+    "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+    "Frameworks/pdfium_flutter.framework/pdfium_flutter": "f8b69b0c5db6615cb7eb409169d238a7bf7be5b89aa2759a6f0b4668c404c0fe",
+    "Frameworks/video_player_avfoundation.framework/video_player_avfoundation": "19d020b4ef646c50e78fd98c18ff41497c4164ad2dbc76857de6251e885a1aa2",
+    "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+    "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "20febed54a2e7e53db2652fadcdf4fd7294c057f313225f9c89b01a7f1d8f5fb",
+    "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+    "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+    "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+    "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+    "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "21e108a787d92761ea6b49dbed20ae098b0e5dd94692e21377e19d866d3853b3",
+    "Frameworks/Flutter.framework/Flutter": "e2e4e0b9b6a52e5076e5596d65ff99df3ac654938d4dbcb47f69bbdc0dbf7194",
+    "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+    "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+    "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+    "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+    "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge": "0dfb0dd61b16dd2f99868e3cd0d5c8ffd98c2ef76fb99e8a62461df583554394",
+    "Frameworks/DolphinCore.framework/DolphinCore": "4c9573a7de3d97683d5d4e4f075d7a84b273343aee4452ad01718c41a795fba0",
+    "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+    "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin": "5b4e6c00ca523f3386850f266136eb53e1b538a6627b9f9afb6fdcfce1144666",
+    "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+    "Frameworks/url_launcher_ios.framework/url_launcher_ios": "30c6a3196045d9f26a033a5ce34de897379672e6b42b245c3b4c3f0cd57124e3",
+    "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+    "Frameworks/dusklight_internal_bridge.framework/dusklight_internal_bridge": "4e14034b08d1b15ffdf5a878c12b2f8c74225954b128c03545b7a75279b1fd2a",
+    "Frameworks/battery_plus.framework/battery_plus": "d1cf2c07f366d9bed11bdf691e43b63777386628b4d04626b258b9055b5134c8",
+    "Frameworks/device_info_plus.framework/device_info_plus": "1fed69ccf6856da70c0a22d66192f76c3556b15afccac3a640f94b50c0943d3c",
+    "Frameworks/PDFium.framework/PDFium": "5f41c44f13da07f6705ab25f1336b9c8f6ae1dd02f99210cbb7fb66a7d7717f5",
+    "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+    "Frameworks/flutter_localization.framework/flutter_localization": "d0e101cc9c513614e319fca07b30d869be7bbb9ca39daf6f509611966e05534f",
+    "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+    "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+    "Frameworks/StikJIT.framework/StikJIT": "57e75fbd4ee836e209772cb3a0f732626b1e7becdf7654d4f0f05111926542f6",
+    "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde",
+    "Frameworks/KartPadCore.framework/KartPadCore": "b3857da6839d586dbf2e873b494a94c4fccd656c5d8de062eca4a3bfb4a828aa",
+    "Frameworks/share_plus.framework/share_plus": "61c249aab903a51c4589eb9b9e5d84f51187fb87cba80ec7ae581ca6ec6607bb",
+    "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+    "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "ada78a039631ba27a4731e33a451797f0d2169761e8f7884281d66b3db6f979c",
+    "Frameworks/libRPCS3Core.dylib": "416924d5da2895e888667578d773117f219ade8cfecb858e0db08790fd1d94a4",
+    "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": "cf752a7ef343a904d3c203515301bfd10b59997f1e2eca89019ce93673229e4a",
+    "Frameworks/stikjit_bridge.framework/stikjit_bridge": "026a45208e08511ae5b3d0e191b7ef98274f0f62a815bdeb2ad1aa1eef564bd2",
+    "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+    "Frameworks/package_info_plus.framework/package_info_plus": "226edc0cfc9e2bc475a10410b7c0ce7a1146472b6d08e36c3ce280eb58f77b4b",
+    "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation": "9454e9308d59d4af6675e2a5473fddab6c72a560ccafa558520f3decf0f5d0b5",
+    "Frameworks/flutter_7zip.framework/flutter_7zip": "a23619efbff2d9c1c9411ef39a35ead40154e488a1905df28c2324ad18105e7e",
+    "Frameworks/external_folder_access.framework/external_folder_access": "2ca6e717f1e76454944a8bf52f3fb1ed250c2ba9bbaaaf6697e1a9a999b94fa5",
+    "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge": "fc1fe1f3045bf5a06598fe56bedfa9472d923a58eb206f30bfbb8080a9bb129b",
+    "Frameworks/external_display.framework/external_display": "452bc96b9543ee4e531e0368869fffdfb08723584f1f1d203a507be1052ae470",
+    "Frameworks/gamepads_darwin.framework/gamepads_darwin": "db696938860db88aa87680935052469824c6d786b343d8a66e89e3f94ce0b368",
+    "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+    "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
+    "Frameworks/file_picker.framework/file_picker": "92ccfe734b09f99e8d4aa0c2de5e95a4987ac0a1655f56c59453606b42e05b92",
+    "Frameworks/neo_swap.framework/neo_swap": "61f51b14584672ea89efe9eaec07bae6cae01fd87352ae4bd78285c0a8012b5d",
+    "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+    "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge": "e3ddee34ce5d42f0aaee341ece83fff860fddcd98f6b6d2d1901332dffb10a0b",
+    "Frameworks/KartPadRuntime.framework/KartPadRuntime": "126199be5a77d5465bbed62a73837c96e4cb4c0d81497a291528cafbc231dd99",
+    "Frameworks/ARMSX2Core.framework/ARMSX2Core": "fb16a28d7807d7e1442fb3ce03546ff488b1d8974ba6356ff17d1b9152c8bb8c",
+    "Frameworks/desmume_libretro.framework/desmume_libretro": "bd20ed434cc857b52dfdc9c3a5cdbd001bf15b4854c5ccdc162a653bbef5d12c",
+    "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+    "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+    "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+    "Frameworks/DusklightCore.framework/DusklightCore": "4463d7f48939218fea92352135c82a700b144034b873fae82c367d7ffa784655"
+  },
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceValidated": false,
+  "publicRelease": false,
+  "coreRebuilt": false,
+  "delivery": {
+    "run": 39127133775,
+    "source": "ff28cf2a63695400ad09d1c61538059d96992cc1",
+    "artifact": 12136797752,
+    "encryptedZIPBytes": 226779037,
+    "encryptedZIPSHA256": "d0128803610876e153e71894c2acad029b1c20ce803d0de51141a4867ca36261",
+    "checks": "success",
+    "native": "success",
+    "cold": "success",
+    "optionalWarm": "skipped",
+    "coreRebuilt": false
+  },
+  "downloadableFileSaved": true,
+  "windowsDelivery": {
+    "sha256": "a1c44f59c80fa98f4d5a0fa7a59885e2b8269fc3666f40b23a805a0528f1b742",
+    "olderIPAsPreserved": true,
+    "bytes": 226564742,
+    "taskFilesRemoved": true,
+    "path": "C:\\Users\\Coren\\Downloads\\NeoStation-Build479-ff28cf2a.ipa",
+    "verified": true
+  },
+  "privateTaskKeyRemoved": true,
+  "performance": {
+    "baselineSource": "d0107bcdf15d08eaa2b3f72c5d97a87ef204f047",
+    "candidateSource": "ce585c6bef0f3f714a7dc0f5c005191f74df4c9a",
+    "run": 39125808369,
+    "job": 117670567809,
+    "scope": "successful unchanged service benchmark only; this run's UIKit failures are retained and corrected separately",
+    "fixture": "exact 478 index; 51,652 real-size sparse metadata files; actual two published target chunks",
+    "results": {
+      "baseline": {
+        "baseline": true,
+        "coldLoadSeconds": 6.336123943328857,
+        "initialPerFileChecks": 51652,
+        "manifestRows": 51652,
+        "matchedRowsAcross12Queries": 18,
+        "totalPerFileChecks": 51675,
+        "warm12QueriesSeconds": 0.6956850290298462
+      },
+      "candidate": {
+        "baseline": false,
+        "coldLoadSeconds": 2.7864679098129272,
+        "initialPerFileChecks": 0,
+        "manifestRows": 51652,
+        "matchedRowsAcross12Queries": 18,
+        "totalPerFileChecks": 23,
+        "warm12QueriesSeconds": 0.22242498397827148
+      }
+    },
+    "physicalDeviceValidated": false
+  },
+  "remainingCoverageGaps": [
+    {
+      "system": "ps3",
+      "serial": "BLES00113",
+      "revision": "01.01",
+      "reason": "No source-attested supported runtime program found; published 01.00 static addresses remain excluded. Versionless AoB and PLAYDATA save edits are not represented as runtime 01.01 compatibility."
+    }
+  ],
+  "validation": {
+    "result": "passed",
+    "testedSHA": "302f019e949e023fa23b5f94f30d2112c0feaaea",
+    "candidateSHA": "ff28cf2a63695400ad09d1c61538059d96992cc1",
+    "validationWasReused": true,
+    "sourceClosure": {
+      "baselineDelivery": "d0107bcdf15d08eaa2b3f72c5d97a87ef204f047",
+      "baselineReceipt": "ea5e20d7a6fa00bf28dd475ca5936103adb955d0",
+      "testedLookupAndFinalUIKit": "302f019e949e023fa23b5f94f30d2112c0feaaea",
+      "manifestSHA256": "a475a740a2e6251a5638077ffcce53c81afc125acd6fbcfaf97ff28d7602d1a1",
+      "allSourcePacksAndOtherProductCoreInputsUnchanged": true
+    },
+    "reusedEvidence": [
+      {
+        "run": 39120442661,
+        "source": "d0107bcdf15d08eaa2b3f72c5d97a87ef204f047",
+        "jobs": [
+          "checks",
+          "native",
+          "Release device build \u2022 cold"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39125808369,
+        "source": "ce585c6bef0f3f714a7dc0f5c005191f74df4c9a",
+        "overallConclusion": "failure",
+        "successfulSteps": [
+          "Actual 478 negative control and 51652-file candidate benchmark",
+          "Changed shared installation and integrity behaviour",
+          "Changed full-index memory and iPhone SDK"
+        ],
+        "job": 117670567809,
+        "performance": {
+          "baseline": {
+            "baseline": true,
+            "coldLoadSeconds": 6.336123943328857,
+            "initialPerFileChecks": 51652,
+            "manifestRows": 51652,
+            "matchedRowsAcross12Queries": 18,
+            "totalPerFileChecks": 51675,
+            "warm12QueriesSeconds": 0.6956850290298462
+          },
+          "candidate": {
+            "baseline": false,
+            "coldLoadSeconds": 2.7864679098129272,
+            "initialPerFileChecks": 0,
+            "manifestRows": 51652,
+            "matchedRowsAcross12Queries": 18,
+            "totalPerFileChecks": 23,
+            "warm12QueriesSeconds": 0.22242498397827148
+          }
+        },
+        "logSHA256": "523d147a8990f8292ee7c0e951225d4e3f0255e54aa79ae5ceabaf29935967e4",
+        "scope": "successful unchanged service benchmark, 352 checks and full-index memory only; earlier SDK passed but final changed SDK/UI execute in the final source"
+      },
+      {
+        "run": 39126577930,
+        "source": "302f019e949e023fa23b5f94f30d2112c0feaaea",
+        "jobs": [
+          "targeted"
+        ],
+        "conclusion": "success",
+        "job": 117672864750,
+        "logSHA256": "2ebb999c33ee8c836c4a7fc64909455b74a9f8d6ec37ade8e5f8ee0a03cc9fd7",
+        "distinctUIKitScenarios": 19,
+        "sourceAndEngineAcceptance": "unchanged source programs and native engine adapters reuse delivered 478; changed lookup/integrity/UI have exact component proofs"
+      }
+    ],
+    "receiptSHA256": {
+      "docs/evidence/cheats478-delivery.json": "9293a059274a475e87904add169c1727325d4532f53727e3f3f1ed816076a9e6",
+      "docs/evidence/cheats478-sources.json": "da2b3040c421e86e43dbff1c4fc32340a0220f52a7a897bbcdae85c83e1fdcaf",
+      "docs/evidence/cheats478-fps.json": "92b5815191e72257e05f97cb76994ec292bdfe16c050c0effa1b9d01a6bdc338"
+    },
+    "deviceGameplayValidated": false,
+    "coreRebuilt": false
+  },
+  "observedTimings": {
+    "mode": "cold",
+    "commit": "ff28cf2a63695400ad09d1c61538059d96992cc1",
+    "phases": [
+      {
+        "phase": "dart_dependencies",
+        "seconds": 1.8214923749999912,
+        "exitCode": 0
+      },
+      {
+        "phase": "ruby_dependencies",
+        "seconds": 1.4049898749999556,
+        "exitCode": 0
+      },
+      {
+        "phase": "host_scaffold_and_registrant",
+        "seconds": 1.7253515830000197,
+        "exitCode": 0
+      },
+      {
+        "phase": "flutter_configuration_and_first_pods",
+        "seconds": 27.291275916000018,
+        "exitCode": 0
+      },
+      {
+        "phase": "cocoa_pods",
+        "seconds": 3.9354890409999825,
+        "exitCode": 0
+      },
+      {
+        "phase": "xcode_build",
+        "seconds": 318.39141437500007,
+        "exitCode": 0
+      },
+      {
+        "phase": "signature_and_ipa_export",
+        "seconds": 61.98779904100002,
+        "exitCode": 0
+      }
+    ],
+    "flutterTargets": {
+      "targets": [
+        {
+          "name": "gen_localizations",
+          "skipped": true,
+          "succeeded": true,
+          "elapsedMilliseconds": 18
+        },
+        {
+          "name": "gen_dart_plugin_registrant",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 710
+        },
+        {
+          "name": "release_unpack_ios",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 3219
+        },
+        {
+          "name": "build_hooks",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 19092
+        },
+        {
+          "name": "kernel_snapshot_program",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 52976
+        },
+        {
+          "name": "link_hooks",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 2323
+        },
+        {
+          "name": "install_code_assets",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 7949
+        },
+        {
+          "name": "ios_aot",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 32434
+        },
+        {
+          "name": "release_ios_bundle_flutter_assets",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 5301
+        }
+      ]
+    },
+    "xcodeTaskTimingSummary": "\n\nCompileC (320 tasks) | 313.217 seconds\n\nPhaseScriptExecution (15 tasks) | 110.931 seconds\n\nSwiftCompile (19 tasks) | 43.050 seconds\n\nSwiftDriver (19 tasks) | 31.760 seconds\n\nScanDependencies (209 tasks) | 24.360 seconds\n\nCompileStoryboard (2 tasks) | 19.203 seconds\n\nLd (33 tasks) | 15.367 seconds\n\nCompileAssetCatalogVariant (1 task) | 10.682 seconds\n\nGenerateDSYMFile (33 tasks) | 9.283 seconds\n\nValidateEmbeddedBinary (5 tasks) | 9.113 seconds\n\nGenerateAssetSymbols (1 task) | 5.718 seconds\n\nCopyPNGFile (63 tasks) | 3.801 seconds\n\nCpResource (77 tasks) | 2.367 seconds\n\nExtractAppIntentsMetadata (19 tasks) | 2.222 seconds\n\nProcessInfoPlistFile (59 tasks) | 0.653 seconds\n\nAppIntentsSSUTraining (15 tasks) | 0.623 seconds\n\nCpHeader (190 tasks) | 0.459 seconds\n\nCopySwiftLibs (1 task) | 0.424 seconds\n\nWriteAuxiliaryFile (793 tasks) | 0.413 seconds\n\nTouch (59 tasks) | 0.305 seconds\n\nGenerateTAPI (27 tasks) | 0.295 seconds\n\nCopy (140 tasks) | 0.266 seconds\n\nRegisterExecutionPolicyException (59 tasks) | 0.249 seconds\n\nLibtool (10 tasks) | 0.109 seconds\n\nSwiftGeneratePch (1 task) | 0.099 seconds\n\nCopyStringsFile (12 tasks) | 0.071 seconds\n\nLinkStoryboards (1 task) | 0.066 seconds\n\nValidate (1 task) | 0.059 seconds\n\nConcatenate (30 tasks) | 0.026 seconds\n\nSwiftDriver Compilation Requirements (19 tasks) | 0.022 seconds\n\nSwiftDriver Compilation (19 tasks) | 0.021 seconds\n\nSwiftMergeGeneratedHeaders (19 tasks) | 0.010 seconds\n\nLinkAssetCatalog (1 task) | 0.002 seconds\n\nCopyPlistFile (1 task) | 0.001 seconds\n\nnote: Run script build phase 'Run Script' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'Runner' from project 'Runner')\nnote: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'Runner' from project 'Runner')\nwarning: Run script build phase '[CP-User] Prepare StikJIT framework' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking \"Based on dependency analysis\" in the script phase. (in target 'stikjit_bridge' from project 'Pods')\n** BUILD SUCCEEDED **\n\n",
+    "archive": "SideStore exports the one sealed Payload directly; no Apple exportArchive without profiles",
+    "deviceInstallationTested": false,
+    "retroArchGameplayTested": false
+  }
+}
