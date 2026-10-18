@@ -1,8 +1,8 @@
 # NeoStation cheat source inventory
 
-Current index SHA-256: `100c927093071c27a56de41145779c23f8c0e91f6711266db52b70f14c23120e`.
+Current index SHA-256: `a475a740a2e6251a5638077ffcce53c81afc125acd6fbcfaf97ff28d7602d1a1`.
 
-50 contributing source groups; 2,395,543 programs in 50,279 typed identity groups; 51,646 transport records. These are not counts of distinct commercial games.
+51 contributing source groups; 2,395,549 programs in 50,284 typed identity groups; 51,652 transport records. These are not counts of distinct commercial games.
 
 Build 478 appends only missing complete programs and preserves every delivered 477 pack and chunk hash. Source contributions can overlap and must not be summed. All imports start disabled. Names, source requirements, authorship and edition conflicts are retained. Native import/staging validation is not physical gameplay proof.
 
@@ -91,8 +91,9 @@ Build 478 appends only missing complete programs and preserves every delivered 4
 | [YukiXXL retail PNACH programs](https://github.com/YukiXXL/PS2-modding) | 204 | bf079d98cc6a820643ab08598b1c3d3df6a9d960 | Complete source-attested PNACH programs only; source default activation is not imported |
 | [xGamingDragon93x PNACH collection](https://github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH) | 785 | ec43b3324d7ee371af550afea006c2834e76d934 | Complete source-attested PNACH programs only; source default activation is not imported |
 | [ArtemisPS3 complete static PPU programs](https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes) | 11525 | d79b41e525e20251bd0d919100039ac0a6433956 | Only complete mode-0 aligned 32-bit static text writes below 0x02000000, explicit source serial/version, observed runtime PPU binding and edition confirmation; no scan/pointer/freeze/partial program conversion |
-| [Artemis RPCS3 authored PKG collection](https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG) | 65 | 471bde6f857fe1ed9a717f7468e9dc91bc53a500 | Existing authored native PPU documents only; complete programs, serial/version/hash constraints and exclusive groups retained |
+| [Artemis RPCS3 authored PKG collection](https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG) | 66 | 471bde6f857fe1ed9a717f7468e9dc91bc53a500 | Existing authored native PPU documents only; complete programs, serial/version/hash constraints and exclusive groups retained |
 | [PCSX2/pcsx2_patches explicit 60 FPS patches](https://github.com/PCSX2/pcsx2_patches) | 125 | 3ef626fda330ed78a1d8d6d54976e7a4e5e7d92c | Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes |
 | [Gabominated/PCSX2 explicit 60 FPS patches](https://github.com/Gabominated/PCSX2) | 291 | 69f9ff7a7edc61ac887f950ec640417315babf57 | Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes |
 | [Saramagrean/NetherSX2-cheats explicit 60 FPS patches](https://github.com/Saramagrean/NetherSX2-cheats) | 486 | 52187122e0adf73a50869b52ce9143e878ab4129 | Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes |
 | [RPCS3 native 60 FPS patches, pinned illusion mirror](https://github.com/illusion0001/rpcs3-game-patch) | 283 | 16be3d817e9aedc4685389c8327f3d8a925df862 | Complete author-published native PPU documents explicitly labeled 60 FPS, keeping exact serial/version/hash, notes and exclusive groups; configurable/unsupported programs stay excluded |
+| [TheYearOfWaluigi Gen IV battle framerate codes](https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/) | 5 | reviewed-2026-10-18 | Five complete eight-line original author USA Gen IV battle-only programs; unknown revision/checksum requires explicit edition confirmation; no identity or regional port invented |
