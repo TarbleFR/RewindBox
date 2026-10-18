@@ -158,6 +158,17 @@ static void RejectionChecks(NSString *root) {
     CHECK([result[@"installed_games"] unsignedIntegerValue]==2,"bad hash/expansion isolated to one pack");
     CHECK([result[@"failed_packs"] count]==1,"corrupt pack reported");
   }
+  // Supporting Apple's /var root link must not permit a link inside the cache.
+  NSString *outside=[root stringByAppendingPathComponent:@"outside-cache"];
+  NSString *blocked=[root stringByAppendingPathComponent:@"linked-cache"];
+  CHECK([NSFileManager.defaultManager createDirectoryAtPath:outside withIntermediateDirectories:YES attributes:nil error:NULL],"create symlink test destination");
+  CHECK([NSFileManager.defaultManager createDirectoryAtPath:blocked withIntermediateDirectories:YES attributes:nil error:NULL],"create symlink test cache");
+  CHECK([NSFileManager.defaultManager createSymbolicLinkAtPath:[blocked stringByAppendingPathComponent:@"files"] withDestinationPath:outside error:NULL],"create internal cache link");
+  NeoUnifiedCheatCatalog *linked=[NeoUnifiedCheatCatalog new];linked.bundledDirectory=nil;linked.storageDirectory=blocked;
+  linked.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)){NSString *key=[url.path componentsSeparatedByString:@"/catalogue/"].lastObject;completion([url.lastPathComponent hasPrefix:@"manifest.json"] ? Bytes(fixture[@"manifest"]) : fixture[@"responses"][key],nil);};
+  NSDictionary *blockedResult=Install(linked,YES);
+  CHECK([blockedResult[@"installed_games"] unsignedIntegerValue]==0,"internal cache link cannot receive an installation");
+  CHECK([NSFileManager.defaultManager contentsOfDirectoryAtPath:outside error:NULL].count==0,"internal link writes nothing outside cache");
   NeoUnifiedCheatCatalog *malformed=[NeoUnifiedCheatCatalog new];malformed.bundledDirectory=nil;
   malformed.storageDirectory=[root stringByAppendingPathComponent:@"malformed-schema"];
   malformed.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)) {completion(Bytes(@{@"schema_version":@{}}),nil);};
@@ -191,6 +202,10 @@ static void RuntimeChecks(NSString *root) {
   NSDictionary *loaded=Load(catalog);CHECK([loaded[@"games"] count]==3,"invalid path row isolated");
   CHECK([loaded[@"rejected_entries"] unsignedIntegerValue]==1,"malformed entry reported");
   NSDictionary *partial=Install(catalog,YES);
+  if([partial[@"installed_games"] unsignedIntegerValue]!=2){
+    NSDictionary *details=@{@"installed_games":partial[@"installed_games"] ?: @0,@"failed_packs":partial[@"failed_packs"] ?: @[],@"errors":partial[@"errors"] ?: @[],@"storage_error":partial[@"storage_error"] ?: @""};
+    fprintf(stderr,"Partial installation diagnostic: %s\n",[[[NSString alloc] initWithData:Bytes(details) encoding:NSUTF8StringEncoding] UTF8String]);
+  }
   CHECK([partial[@"installed_games"] unsignedIntegerValue]==2,"partial success kept");
   CHECK([partial[@"failed_packs"] count]==1,"failed pack recorded");
   CHECK(maximum<=2 && maximum==2,"at most two simultaneous transports");

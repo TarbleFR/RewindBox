@@ -65,14 +65,19 @@ jobs:
       - name: Shared Foundation behavior and actual iPhone SDK
         run: python3 test/unified_catalog_ios_test.py
       - name: Regional identities and per-core complete programs
+        if: ${{ !cancelled() }}
         run: python3 test/unified_identity_test.py
       - name: Native imports, disabled state and RPCS3 persistence
+        if: ${{ !cancelled() }}
         run: python3 test/unified_native_ios_test.py
       - name: Compile and link the affected Libretro bridge
+        if: ${{ !cancelled() }}
         run: python3 test/libretro_ios_syntax_test.py
       - name: Install targeted UIKit project generator
+        if: ${{ !cancelled() }}
         run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Actual UIKit download, edition confirmation, imports and lifecycle
+        if: ${{ !cancelled() }}
         run: python3 test/unified_catalog_browser_ui_test.py --native --result evidence/unified-cheat-browser.xcresult
       - uses: actions/upload-artifact@v4
         if: always()

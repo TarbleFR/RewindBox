@@ -76,9 +76,12 @@ static BOOL EnsureDirectory(NSString *root) {
     if (attrs && ![attrs.fileType isEqualToString:NSFileTypeDirectory]) {
       // Apple's /var and /tmp are system links on macOS/iOS. Never permit
       // links inside the application-controlled catalogue tree.
-      BOOL systemLink = [attrs.fileType isEqualToString:NSFileTypeSymbolicLink] &&
-        (([current isEqualToString:@"/var"] && [current.stringByResolvingSymlinksInPath isEqualToString:@"/private/var"]) ||
-         ([current isEqualToString:@"/tmp"] && [current.stringByResolvingSymlinksInPath isEqualToString:@"/private/tmp"]));
+      // Foundation path resolution may strip /private again, so inspect the
+      // actual link text rather than comparing standardized/resolved paths.
+      NSString *destination=[NSFileManager.defaultManager destinationOfSymbolicLinkAtPath:current error:nil];
+      BOOL systemLink = destination.length && [attrs.fileType isEqualToString:NSFileTypeSymbolicLink] &&
+        (([current isEqualToString:@"/var"] && ([@[@"private/var",@"/private/var"] containsObject:destination])) ||
+         ([current isEqualToString:@"/tmp"] && ([@[@"private/tmp",@"/private/tmp"] containsObject:destination])));
       if (!systemLink) return NO;
     }
     if (!attrs && ![NSFileManager.defaultManager createDirectoryAtPath:current withIntermediateDirectories:NO attributes:nil error:nil]) {

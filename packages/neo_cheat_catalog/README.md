@@ -28,8 +28,8 @@ is sent after a bulk completion, including partial successes.
 Limits are 12 MiB compressed/64 MiB expanded for an index, 8 MiB compressed/16 MiB expanded per pack and
 2 MiB per game chunk. Large games are represented as multiple complete parts;
 the metadata fields `identity_group`, `part` and `parts` are retained. No runtime
-request eagerly loads all code chunks. Source metadata, including conditional
-sources without importable packs, remains in the manifest.
+request eagerly loads all code chunks. The active manifest lists sources actually used by its programs. The separate
+research audit records unavailable sources and adaptation attempts.
 
 `installAllWithProgress:completion:` progress reports `total_packs`,
 `completed_packs` (processed attempts), `installed_packs`, `failed_packs`
