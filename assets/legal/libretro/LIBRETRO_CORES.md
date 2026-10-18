@@ -36,7 +36,7 @@ All original authors retain their rights. No endorsement or relicensing is impli
 | Gearcoleco | ColecoVision | Ignacio Sanchez (drhelius) | [GPLv3](gearcoleco-LICENSE) |
 | PokeMini | Pokémon mini | JustBurn and libretro contributors | [GPLv3 or later](pokemini-LICENSE) |
 | GW | Game & Watch | Andre Leiradella | [zlib](gw-LICENSE) |
-| SameDuck | Mega Duck | Lior Halphon (LIJI32) | [MIT](sameduck-LICENSE) |
+| SameDuck | Mega Duck | Lior Halphon (LIJI32), [libretro/sameduck fork](https://github.com/libretro/sameduck) contributors | [MIT](sameduck-LICENSE) |
 | Potator | Watara Supervision | Normmatt, Cal2, infval, Alekmaul | [Unlicense (public domain)](potator-LICENSE) |
 | Ardens | Arduboy | Peter Brown; embedded Arduboy bootloaders: Mr.Blinky (Cathy3K) | [MIT](ardens-LICENSE.txt); [bootloader MIT](ardens-cathy3k-LICENSE) |
 | WASM-4 | WASM-4 | Bruno Garcia and WASM-4 contributors | [ISC](wasm4-LICENSE.txt) |
@@ -100,3 +100,7 @@ Corresponding Source package for each binary. This release preserves that
 limitation explicitly; the reference snapshots must not be represented as a
 complete Corresponding Source delivery for all cores. Obtain the matching buildbot sources
 and build inputs before making such a claim.
+
+## Actual binary source evidence
+
+The [34-core provenance inventory](../../../docs/EMBEDDED_RUNTIME_PROVENANCE.md) distinguishes the two delivery source pins, 23 upstream commit candidates resolved from binary version strings, and nine remaining cores without a resolved candidate. None of those version candidates is presented as complete Corresponding Source. The exact delivered identity JSON and primary commit lookups are preserved there; license-reference snapshots alone do not identify the source that produced a binary.

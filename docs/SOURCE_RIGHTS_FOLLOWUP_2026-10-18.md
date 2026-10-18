@@ -52,8 +52,10 @@ are not rewritten. Preserving notices does not invent missing upstream rights.
 
 The [per-engine and 34-core inventory](EMBEDDED_RUNTIME_PROVENANCE.md) preserves
 actual Build 479 identity records, separating source revisions, binary hashes
-and license-reference snapshots. **Two cores have exact source revision evidence;
-32 do not.** A guessed current HEAD or a copied license text does not close that
+and license-reference snapshots. **Two cores have source revision attestations in the delivery manifest.
+Binary version inspection additionally resolved 23 upstream commit candidates;
+nine cores still lack a resolved candidate.** The 32 buildbot source-build
+attestations and complete build inputs remain a separate unresolved issue. A guessed current HEAD or a copied license text does not close that
 gap. No emulator core is rebuilt or replaced by this change.
 
 KartPad's missing public translation inputs, RPCS3/host license compatibility
@@ -68,3 +70,7 @@ checks cover rejection of old source-tagged programs and cache reads; Flutter
 checks cover preservation of notices and refusal when a required notice cannot
 download. Actual CI results are recorded after execution. No new IPA, physical
 iPhone gameplay validation, official release, tag or release asset is claimed.
+
+## Successful focused validation
+
+Source/data/runtime/UI changes at `4c5eeba0f4c2abb587806ceb620ea105f14abdf8` passed [run 39131701581](https://github.com/TarbleFR/neostation-ios/actions/runs/39131701581). Job `117688032408` executed the actual Apple Foundation old-source/cache/default-off checks and compiled the changed service for iPhone arm64. Job `117688032612` passed the affected Flutter catalogue/overlay fixture tests and all six real-publication comparison tests. Six existing legal-bundle preflight tests also passed locally. Later inventory/evidence/receipt edits preserve those tested product and test inputs byte for byte; they are not claimed as reruns.
