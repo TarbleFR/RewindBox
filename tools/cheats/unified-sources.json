@@ -42485,6 +42485,50 @@
         "enabled": true,
         "reason": "Instruction writes only, same explicit PPU hash and APP_VER; require observed current PPU through host identity, no arbitrary title/region projection"
       }
+    },
+    {
+      "id": "psxdatacenter_pal477",
+      "name": "PSX Data Center reviewed PAL PS2 RAW",
+      "url": "https://psxdatacenter.com/psx2/",
+      "local_path": "snapshots/ps2-pal-477.json",
+      "revision": "reviewed-2026-10-18",
+      "license": "Unspecified; original source and hacker rights retained",
+      "research_id": 72,
+      "status": "available",
+      "sha256": "1801f912a1401deb37242cc0add0ec63c6e3911bb65bb553c710a26c78c6bbe6",
+      "format": "reviewed-editions-json",
+      "import_scope": "Eleven declared RAW constant writes for four explicit PAL serials; no full-site import",
+      "options": {
+        "source_id": "psxdatacenter_pal477",
+        "revision": "reviewed-2026-10-18",
+        "license": "Unspecified; original source and hacker rights retained"
+      },
+      "publication": {
+        "enabled": true,
+        "reason": "Eleven declared RAW constant writes for four explicit PAL serials; no full-site import"
+      }
+    },
+    {
+      "id": "bladestorm_jp477",
+      "name": "Artemis Bladestorm Japan static instruction supplement",
+      "url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+      "local_path": "snapshots/bladestorm-jp-477.json",
+      "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+      "license": "Unspecified; original source and hacker rights retained",
+      "research_id": 73,
+      "status": "available",
+      "sha256": "d8725f019292ca97c10b774892c900d3d9e0bafd38b7f15ee0d5dca6dbda4f87",
+      "format": "reviewed-editions-json",
+      "import_scope": "Five complete static instruction programs for BLJM60009 01.00 only; observed PPU binding and confirmation required",
+      "options": {
+        "source_id": "bladestorm_jp477",
+        "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+        "license": "Unspecified; original source and hacker rights retained"
+      },
+      "publication": {
+        "enabled": true,
+        "reason": "Five complete static instruction programs for BLJM60009 01.00 only; observed PPU binding and confirmation required"
+      }
     }
   ],
   "publication_policy": "Only available programs for reviewed current adapters; incomplete identities are edition candidates requiring confirmation. Historical references and failed/pending adaptations stay in the audit, not the active download."
