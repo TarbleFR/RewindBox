@@ -1,3 +1,4 @@
+#import "Public/NeoUnifiedCheatList.h"
 // Targeted UIKit tests. No emulator core, ROM, BIOS, network or IPA is used.
 #import <XCTest/XCTest.h>
 #import <UIKit/UIKit.h>
@@ -728,31 +729,20 @@ static void NUCBExchangeSingleton(void) {
         @"values": @[@"0 - Disabled", @"1 - Enabled"], @"labels": @[@"Disabled", @"Enabled"], @"off_value": @"0 - Disabled",
         @"available": @YES, @"reason_code": @""};
 }
-- (void)testFBNeoFirstLaunchWithoutINIStillOffersCatalogueAndDisabledImport {
-    __block NSDictionary *imported = nil;
-    LibretroCheatMenu *menu = [self realFBNeoMenu:nil];
-    menu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
-        if ([request[@"action"] isEqual:@"import"]) imported = request;
-        completion(@{@"driver": @"probe", @"options": @[], @"imported_path": @"", @"restart_required": @NO}, nil);
+- (void)testFBNeoFirstLaunchOffersOneBulkDownloadWithoutImportOrActivation {
+    __block NSUInteger mutations=0;
+    LibretroCheatMenu *menu=[self realFBNeoMenu:nil];
+    menu.fbneoCommand=^(NSDictionary *request,void (^completion)(NSDictionary*,NSError*)) {
+        if(![request[@"action"] isEqual:@"snapshot"])mutations++;
+        completion(@{@"driver":@"probe",@"options":@[],@"restart_required":@NO},nil);
     };
-    LibretroMenuPage *page = [menu rootPage];
-    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
-    [self hostMenuPage:page];
-    NSArray *sections = page.builder();
-    LibretroMenuRow *catalogue = ((LibretroMenuSection *)sections[0]).rows[0];
-    XCTAssertTrue(catalogue.enabled); XCTAssertEqual(((LibretroMenuSection *)sections[1]).rows.count, 0U);
-    XCTAssertEqual(menu.enabledCount, 0U); XCTAssertTrue([menu acceptsUnifiedProgram:[self fbneoProgram]]);
-    catalogue.action(page);
-    [self waitFor:^BOOL { return page.presentedViewController != nil; }];
-    NeoUnifiedCheatBrowser *browser = (id)((UINavigationController *)page.presentedViewController).topViewController;
-    XCTAssertEqualObjects([browser valueForKey:@"engine"], @"fbneo");
-    void (^handler)(NSDictionary *, NSArray *, void (^)(NSError *)) = [browser valueForKey:@"importHandler"];
-    __block BOOL finished = NO;
-    handler([self fbneoGame], @[[self fbneoProgram]], ^(NSError *error) { XCTAssertNil(error); finished = YES; });
-    [self waitFor:^BOOL { return finished; }];
-    XCTAssertEqualObjects(imported[@"action"], @"import");
-    XCTAssertEqualObjects(imported[@"programs"][0][@"enabled"], @NO); XCTAssertEqual(menu.enabledCount, 0U);
+    LibretroMenuPage *page=[menu rootPage];[self waitFor:^BOOL{return ![[menu valueForKey:@"fbneoLoading"] boolValue];}];
+    NSArray *sections=page.builder();NSArray *actions=((LibretroMenuSection*)sections[0]).rows;
+    XCTAssertEqual(actions.count,2U);XCTAssertEqualObjects(((LibretroMenuRow*)actions[0]).title,[NeoUnifiedCheatBrowser localizedText:@"downloadAll" locale:@"fr"]);
+    ((LibretroMenuRow*)actions[0]).action(page);XCTAssertEqual(self.catalog.installs,1U);XCTAssertEqual(mutations,0U);
+    self.catalog.installCompletion(@{},nil);XCTAssertEqual(mutations,0U);
 }
+
 - (void)testFBNeoUnavailableNativeOptionsStayVisibleAndCannotSendActivation {
     LibretroCheatMenu *menu = [self realFBNeoMenu:nil];
     NSMutableArray *requests = [NSMutableArray array];
@@ -820,10 +810,11 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertEqualObjects(requests.lastObject[@"action"], @"set");
     XCTAssertEqualObjects(requests.lastObject[@"key"], @"fbneo-cheat-0-probe-Infinite Credits");
     XCTAssertEqualObjects(requests.lastObject[@"value"], @"1 - Enabled");
-    LibretroMenuRow *disable = ((LibretroMenuSection *)page.builder()[0]).rows[2];
-    disable.action(page);
+    LibretroMenuRow *disable = ((LibretroMenuSection *)page.builder()[1]).rows.firstObject;
+    disable.toggle(page, NO);
     [self waitFor:^BOOL { return menu.enabledCount == 0; }];
-    XCTAssertEqualObjects(requests.lastObject[@"action"], @"disableAll");
+    XCTAssertEqualObjects(requests.lastObject[@"action"], @"set");
+    XCTAssertEqualObjects(requests.lastObject[@"value"], @"0 - Disabled");
     XCTAssertEqual(genericApply, 0U);
     XCTAssertEqual([[menu valueForKey:@"records"] count], 0U);
 }
@@ -861,5 +852,53 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertFalse(((LibretroMenuRow *)((LibretroMenuSection *)sections[1]).rows.firstObject).enabled);
     LibretroMenuRow *restart = ((LibretroMenuSection *)sections[2]).rows.firstObject;
     XCTAssertEqualObjects(restart.title, [NeoUnifiedCheatBrowser localizedText:@"fbneoRestartRequired" locale:@"fr"]);
+}
+
+- (NeoUnifiedCheatList*)directListWithItems:(NSArray*)items {
+    NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=@"fr";list.engine=NSUUID.UUID.UUIDString;
+    list.accepts=^BOOL(NSDictionary* program){return YES;};
+    list.readState=^(void (^done)(NSDictionary*)){done(@{@"identity":[self identity],@"available":@YES,@"items":items});};
+    self.catalog.rows=@[({NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@YES;game[@"match"]=@"exact";game;})];
+    self.catalog.codes=@[[self program:@"body" dependencies:@[]]];
+    UIViewController* root=[UIViewController new];self.navigation=[[UINavigationController alloc] initWithRootViewController:root];
+    self.window.rootViewController=self.navigation;[self.window makeKeyAndVisible];
+    [self.navigation pushViewController:list animated:NO];[list loadViewIfNeeded];
+    [self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==1;}];
+    return list;
+}
+- (void)testDirectListDependencyClosureStartsDisabledAndRejectsPartialPrograms {
+    NSDictionary* game=[self game];NSDictionary* a=[self program:@"a" dependencies:@[]],*b=[self program:@"b" dependencies:@[@"a"]];
+    NSArray* selections=[NeoUnifiedCheatList selectionsForGame:game programs:@[a,b] accepts:^BOOL(NSDictionary* p){return YES;}];
+    XCTAssertEqual(selections.count,2U);NSArray* closure=selections.lastObject[@"programs"];
+    XCTAssertEqual(closure.count,2U);XCTAssertEqualObjects(closure[0][@"id"],@"a");XCTAssertEqualObjects(closure[1][@"id"],@"b");
+    XCTAssertEqualObjects(closure[0][@"enabled"],@NO);XCTAssertEqualObjects(closure[1][@"enabled"],@NO);
+    XCTAssertEqualObjects(a[@"enabled"],@YES);
+    NSArray* missing=[NeoUnifiedCheatList selectionsForGame:game programs:@[b] accepts:^BOOL(NSDictionary* p){return YES;}];XCTAssertEqual(missing.count,0U);
+    NSArray* unsupported=[NeoUnifiedCheatList selectionsForGame:game programs:@[a,b] accepts:^BOOL(NSDictionary* p){return ![p[@"id"] isEqual:@"a"];}];XCTAssertEqual(unsupported.count,0U);
+}
+- (void)testDirectListDisplaysInstalledCodesWithoutImportingAndOneSwitchActivates {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];__block NSUInteger imports=0,sets=0;
+    list.install=^(NSDictionary* g,NSArray* p,void (^done)(NSDictionary*,NSError*)){imports++;XCTAssertEqual(p.count,1U);XCTAssertEqualObjects(p[0][@"enabled"],@NO);done(@{@"key":@"native-one",@"name":@"body"},nil);};
+    list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){sets++;XCTAssertTrue(enabled);XCTAssertEqualObjects(item[@"key"],@"native-one");done(YES);};
+    UITableViewCell* cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    XCTAssertEqualObjects(cell.textLabel.text,@"body");UISwitch* toggle=(id)cell.accessoryView;XCTAssertFalse(toggle.on);
+    XCTAssertEqual(imports,0U);XCTAssertEqual(sets,0U);toggle.on=YES;[toggle sendActionsForControlEvents:UIControlEventValueChanged];
+    [self waitFor:^BOOL{return sets==1;}];XCTAssertEqual(imports,1U);
+}
+- (void)testDirectListLateImportAfterPopCannotEnableACode {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];__block void (^late)(NSDictionary*,NSError*);__block NSUInteger sets=0;
+    list.install=^(NSDictionary* g,NSArray* p,void (^done)(NSDictionary*,NSError*)){late=done;};
+    list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){sets++;done(YES);};
+    UITableViewCell* cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    UISwitch* toggle=(id)cell.accessoryView;toggle.on=YES;[toggle sendActionsForControlEvents:UIControlEventValueChanged];XCTAssertNotNil(late);
+    [self.navigation popViewControllerAnimated:NO];late(@{@"key":@"native-one"},nil);XCTAssertEqual(sets,0U);
+}
+- (void)testDirectListDownloadButtonInstallsAllWithoutImportOrActivation {
+    NeoUnifiedCheatList* list=[self directListWithItems:@[]];__block NSUInteger mutations=0;
+    list.install=^(NSDictionary* g,NSArray* p,void (^done)(NSDictionary*,NSError*)){mutations++;};
+    list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){mutations++;};
+    [list tableView:list.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+    XCTAssertEqual(self.catalog.installs,1U);XCTAssertEqual(mutations,0U);
+    self.catalog.installCompletion(@{},nil);[self waitFor:^BOOL{return ![[list valueForKey:@"busy"] boolValue];}];XCTAssertEqual(mutations,0U);
 }
 @end

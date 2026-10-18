@@ -592,26 +592,36 @@ static NSString *GameKey(NSDictionary *game) {
   }];
   _visiblePage = page; return page;
 }
+- (void)downloadUnifiedFrom:(LibretroMenuPage*)page {
+  if (_busy) return; _busy=YES; __weak LibretroCheatMenu* weakSelf=self;
+  [NeoUnifiedCheatCatalog.sharedCatalog installAllWithProgress:^(NSDictionary* progress) {
+    LibretroCheatMenu* menu=weakSelf;if(!menu)return;
+    menu->_status=[NSString stringWithFormat:@"%@ / %@",progress[@"completed_packs"],progress[@"total_packs"]];[menu refresh];
+  } completion:^(NSDictionary* result,NSError* error) {
+    LibretroCheatMenu* menu=weakSelf;if(!menu)return;menu->_busy=NO;
+    menu->_status=[NeoUnifiedCheatBrowser localizedText:error?@"downloadFailed":@"ready" locale:menu.uiLocale];
+    [menu discover];[menu refresh];
+  }];
+}
+- (void)importFrom:(LibretroMenuPage*)page {
+  _visiblePage=page;
+  NSString* extension=[self usesFBNeoNativeCheats]?@"ini":@"cht";
+  UTType* type=[UTType typeWithFilenameExtension:extension] ?: UTTypeData;
+  UIDocumentPickerViewController* picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[type] asCopy:YES];
+  picker.delegate=self;picker.allowsMultipleSelection=![self usesFBNeoNativeCheats];[page presentViewController:picker animated:YES completion:nil];
+}
 - (LibretroMenuPage *)fbneoRootPage {
   [self refreshFBNeoSnapshot];
   __weak LibretroCheatMenu *weakSelf = self;
   LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
     LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
     NSMutableArray *actions = [NSMutableArray array];
-    LibretroMenuRow *catalogue = [LibretroMenuRow rowWithTitle:[menu fbneoText:@"unifiedCatalogue"]
-      action:^(LibretroMenuPage *page) { [weakSelf presentUnifiedFrom:page]; }];
-    catalogue.enabled = menu->_ready && menu.fbneoCommand != nil && !menu->_busy && !menu->_fbneoLoading;
-    [actions addObject:catalogue];
-    LibretroMenuRow *refresh = [LibretroMenuRow rowWithTitle:[menu fbneoText:@"fbneoRefresh"]
-      action:^(LibretroMenuPage *page) { [weakSelf refreshFBNeoSnapshot]; [page rebuild]; }];
-    refresh.enabled = menu.fbneoCommand != nil && !menu->_busy && !menu->_fbneoLoading; [actions addObject:refresh];
-    LibretroMenuRow *disableAll = [LibretroMenuRow rowWithTitle:[menu t:@"cheatDisableAll"] action:^(LibretroMenuPage *page) {
-      __weak LibretroMenuPage *weakPage = page;
-      [weakSelf runFBNeoCommand:@{@"action": @"disableAll"} completion:^(NSDictionary *result, NSError *error) {
-        if (error) [weakSelf showFBNeoError:error page:weakPage];
-      }];
-    }];
-    disableAll.enabled = menu.enabledCount > 0 && !menu->_busy && !menu->_fbneoLoading; [actions addObject:disableAll];
+    LibretroMenuRow *catalogue = [LibretroMenuRow rowWithTitle:[NeoUnifiedCheatBrowser localizedText:@"downloadAll" locale:menu.uiLocale]
+      action:^(LibretroMenuPage *page) { [weakSelf downloadUnifiedFrom:page]; }];
+    catalogue.enabled = menu->_ready && !menu->_busy; [actions addObject:catalogue];
+    LibretroMenuRow *import = [LibretroMenuRow rowWithTitle:[NeoUnifiedCheatBrowser localizedText:@"directImport" locale:menu.uiLocale]
+      action:^(LibretroMenuPage *page) { [weakSelf importFrom:page]; }];
+    import.enabled = menu->_ready && !menu->_busy && !menu->_fbneoLoading; [actions addObject:import];
     NSMutableArray *rows = [NSMutableArray array];
     for (NSDictionary *option in [menu fbneoOptions]) {
       NSArray *values = option[@"values"];
@@ -822,53 +832,12 @@ static NSString *GameKey(NSDictionary *game) {
   LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
     LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
     NSMutableArray *actions = [NSMutableArray array];
-    LibretroMenuRow *unified = [LibretroMenuRow rowWithTitle:[NeoUnifiedCheatBrowser localizedText:@"unifiedCatalogue" locale:menu.uiLocale]
-      action:^(LibretroMenuPage *page) { [menu presentUnifiedFrom:page]; }];
-    unified.enabled = menu->_ready; [actions addObject:unified];
-    LibretroMenuRow *find = [LibretroMenuRow rowWithTitle:[menu t:@"cheatFind"] action:^(LibretroMenuPage *page) {
-      [menu discover];
-      if (!menu->_records.count) {
-        // One entry searches every source. The library title is a hint for
-        // CHD/renamed files, never a claim of exact regional compatibility.
-        NSString *title = [menu->_identity[@"titles"] firstObject] ?: [menu->_identity[@"serialTitles"] firstObject] ?: String(menu->_identity[@"title"]);
-        menu->_gameSearch = [LibretroCheats searchTitle:title];
-        [page push:[menu catalogPage]];
-      } else [page rebuild];
-    }];
-    find.enabled = menu->_ready && !menu->_busy && !menu->_pendingSources;
-    NSMutableArray *sourceNames = [NSMutableArray array];
-    for (NSDictionary *source in LibretroCheatCatalog.sources) if ([menu->_installed[source[@"id"]][@"games"] count]) [sourceNames addObject:source[@"name"]];
-    find.detail = menu->_pendingSources ? [menu t:@"cheatBusy"] : sourceNames.count ? [sourceNames componentsJoinedByString:@" · "] : [menu t:@"cheatNoSources"];
-    [actions addObject:find];
-    [actions addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatDisableAll"] action:^(LibretroMenuPage *page) {
-      for (NSMutableDictionary *record in menu->_records) { record[@"enabled"] = @NO; record[@"selected"] = @NO; }
-      [menu applyAndSave]; [page rebuild];
-    }]];
-    NSMutableArray *tools = [NSMutableArray array];
-    LibretroMenuRow *import = [LibretroMenuRow rowWithTitle:[menu t:@"cheatImport"] action:^(LibretroMenuPage *page) {
-      menu->_visiblePage = page;
-      UTType *type = [UTType typeWithFilenameExtension:@"cht"] ?: UTTypeData;
-      UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[type] asCopy:YES];
-      picker.delegate = menu; picker.allowsMultipleSelection = YES; [page presentViewController:picker animated:YES completion:nil];
-    }]; import.enabled = menu->_ready && !menu->_busy; [tools addObject:import];
-    LibretroMenuRow *add = [LibretroMenuRow rowWithTitle:[menu t:@"addCheat"] action:^(LibretroMenuPage *page) {
-      [page askWithTitle:[menu t:@"addCheat"] fields:@[[menu t:@"cheatName"], [menu t:@"cheatCode"]] secure:@[@NO,@NO]
-        action:[menu t:@"add"] cancelTitle:[menu t:@"cancel"] handler:^(NSArray<NSString *> *values) {
-          [menu merge:@[@{@"name": values.firstObject.length ? values.firstObject : values.lastObject,
-            @"code": values.lastObject, @"handler": @0, @"source": [menu t:@"cheatManual"]}]];
-          [menu save]; [page rebuild];
-        }];
-    }]; add.enabled = menu->_ready; [tools addObject:add];
-    LibretroMenuRow *remember = [LibretroMenuRow toggleWithTitle:[menu t:@"cheatRemember"] on:menu->_remember toggle:^(LibretroMenuPage *page, BOOL on) {
-      menu->_remember = on; [menu save]; [page rebuild];
-    }]; remember.enabled = menu->_ready && menu->_preferencesPath != nil; [tools addObject:remember];
-    if (menu->_remember) [tools addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRestore"] action:^(LibretroMenuPage *page) {
-      [menu warnOnPage:page action:^{
-        [menu restoreSelectedOnPage:page];
-      }];
-    }]];
-    [tools addObject:[menu searchRow:NO]];
-    [tools addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatCatalog"] action:^(LibretroMenuPage *page) { [page push:[menu catalogPage]]; }]];
+    LibretroMenuRow *unified = [LibretroMenuRow rowWithTitle:[NeoUnifiedCheatBrowser localizedText:@"downloadAll" locale:menu.uiLocale]
+      action:^(LibretroMenuPage *page) { [weakSelf downloadUnifiedFrom:page]; }];
+    unified.enabled = menu->_ready && !menu->_busy; [actions addObject:unified];
+    LibretroMenuRow *import = [LibretroMenuRow rowWithTitle:[NeoUnifiedCheatBrowser localizedText:@"directImport" locale:menu.uiLocale]
+      action:^(LibretroMenuPage *page) { [weakSelf importFrom:page]; }];
+    import.enabled = menu->_ready && !menu->_busy; [actions addObject:import];
     NSMutableArray *rows = [NSMutableArray array];
     for (NSMutableDictionary *record in menu->_records) {
       if (menu->_cheatSearch.length && [String(record[@"name"]) rangeOfString:menu->_cheatSearch options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location == NSNotFound) continue;
@@ -899,8 +868,7 @@ static NSString *GameKey(NSDictionary *game) {
     // Keep the search and switches together on a phone. Import, editing and
     // preferences remain available after the results instead of hiding them
     // below a screenful of tools.
-    return @[[LibretroMenuSection sectionWithTitle:nil rows:actions], list,
-      [LibretroMenuSection sectionWithTitle:nil rows:tools]];
+    return @[[LibretroMenuSection sectionWithTitle:nil rows:actions], list];
   }];
   _rootPage = root; _visiblePage = root; return root;
 }
@@ -990,8 +958,37 @@ static NSString *GameKey(NSDictionary *game) {
   }];
   _visiblePage = page; return page;
 }
+- (void)importFBNeoPrograms:(NSArray*)programs game:(NSDictionary*)game index:(NSUInteger)index {
+  if(index>=programs.count){[self refreshFBNeoSnapshot];return;}
+  __weak LibretroCheatMenu* weakSelf=self;
+  [self runFBNeoCommand:@{@"action":@"import",@"game":game,@"programs":@[programs[index]]} completion:^(NSDictionary* result,NSError* error){
+    if(error){[weakSelf failed];return;}[weakSelf importFBNeoPrograms:programs game:game index:index+1];
+  }];
+}
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
   if (!_ready || _busy || urls.count > 16) return;
+  if ([self usesFBNeoNativeCheats]) {
+    NSURL* url=urls.firstObject;NSString* driver=String(_fbneoSnapshot[@"driver"]);
+    BOOL access=[url startAccessingSecurityScopedResource];
+    NSDictionary* attrs=[NSFileManager.defaultManager attributesOfItemAtPath:url.path error:nil];
+    NSData* data=attrs.fileSize<=1024*1024 ? [NSData dataWithContentsOfURL:url] : nil;
+    if(access)[url stopAccessingSecurityScopedResource];
+    NSString* text=data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
+    if(urls.count!=1 || !driver.length || ![url.lastPathComponent.stringByDeletingPathExtension isEqual:driver] || !text){[self failed];return;}
+    NSMutableArray* blocks=[NSMutableArray array];NSMutableString* block=nil;
+    for(NSString* raw in [text componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]){
+      NSString* line=[raw stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
+      if([line hasPrefix:@"cheat "]){block=[NSMutableString string];[blocks addObject:block];}
+      if(block)[block appendFormat:@"%@\n",raw];
+      else if(line.length && ![line hasPrefix:@"//"] && ![line hasPrefix:@";"] && ![line hasPrefix:@"#"]){[self failed];return;}
+    }
+    NSDictionary* game=@{@"system":@"arcade",@"identities":@[@{@"type":@"romset",@"value":driver,@"scheme":@"fbneo-driver-name"}]};
+    NSMutableArray* programs=[NSMutableArray array];
+    for(NSString* code in blocks){NSDictionary* program=@{@"code":code,@"dialect":@"fbneo-ini",@"status":@"available",@"enabled":@NO};
+      if(![LibretroCheats canInstallFBNeoPrograms:@[program] game:game]){[self failed];return;}[programs addObject:program];}
+    if(!programs.count || programs.count>4096){[self failed];return;}
+    [self importFBNeoPrograms:programs game:game index:0];return;
+  }
   _busy = YES; __weak LibretroCheatMenu *weakSelf = self;
   dispatch_async(_queue, ^{
     NSMutableArray *records = [NSMutableArray array]; BOOL failed = NO;

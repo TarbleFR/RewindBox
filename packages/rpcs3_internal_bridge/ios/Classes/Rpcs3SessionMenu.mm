@@ -1,3 +1,4 @@
+#import <neo_cheat_catalog/NeoUnifiedCheatList.h>
 #import "Rpcs3SessionMenu.h"
 #import "RPCS3InGameLocalization.h"
 #import "RPCS3UnifiedCheatLabels.h"
@@ -157,6 +158,38 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     menu.loading=NO; menu.cheatSnapshot=snapshot ?: @{}; [menu.tableView reloadData];
   }); });
 }
+- (NSDictionary*)directCheatState:(NSDictionary*)raw {
+  NSMutableArray* items=[NSMutableArray array];
+  for(NSDictionary* entry in raw[@"items"]){NSMutableDictionary* item=[entry mutableCopy];item[@"key"]=entry[@"id"];[items addObject:item];}
+  NSString* serial=raw[@"serial"] ?: @"",*version=raw[@"revision"] ?: @"";
+  return @{@"identity":@{@"system":@"ps3",@"title":self.gameTitle ?: @"",@"revision":version,@"regions":@[],@"languages":@[],
+      @"identities":@[@{@"type":@"serial",@"value":serial,@"scheme":@"ps3-title-id"}]},@"items":items,
+      @"available":@([raw[@"available"] boolValue] && ![raw[@"conflict"] boolValue]),@"help":[self text:@"cheatNextBoot"]};
+}
+- (UIViewController*)directCheats {
+  NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=self.localeIdentifier;list.engine=@"rpcs3";
+  NSString* locale=list.locale;
+  __weak Rpcs3SessionMenu* weakSelf=self;
+  list.readState=^(void (^done)(NSDictionary*)){weakSelf.readCheats(^(NSDictionary* state){done([weakSelf directCheatState:state]);});};
+  list.accepts=^BOOL(NSDictionary* program){return [RPCS3UnifiedCheats acceptsProgram:program];};
+  list.install=^(NSDictionary* game,NSArray* programs,void (^done)(NSDictionary*,NSError*)) {
+    Rpcs3SessionMenu* menu=weakSelf;if(!menu){done(nil,[NSError errorWithDomain:@"NeoStation.Cheats" code:1 userInfo:nil]);return;}
+    menu.importCheats(game,programs,^(BOOL ok){
+      if(!ok){done(nil,[NSError errorWithDomain:@"NeoStation.Cheats" code:1 userInfo:nil]);return;}
+      menu.readCheats(^(NSDictionary* after){
+        NSDictionary* found=nil;
+        for(NSDictionary* item in [menu directCheatState:after][@"items"])
+          for(NSDictionary* source in item[@"sources"])if([source[@"id"] isEqual:programs.lastObject[@"id"]]){found=item;break;}
+        done(found,found?nil:[NSError errorWithDomain:@"NeoStation.Cheats" code:1 userInfo:nil]);
+      });
+    });
+  };
+  list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){weakSelf.setCheat(item[@"key"],enabled,done);};
+  __weak NeoUnifiedCheatList* weakList=list;
+  list.importAction=^(UIViewController* presenter){[weakList openRPCS3Import];};
+  return list;
+}
+
 - (void)openUnifiedCheats {
   NSString* serial=self.cheatSnapshot[@"serial"] ?: @"",*version=self.cheatSnapshot[@"revision"] ?: @"";
   if ([self.cheatSnapshot[@"conflict"] boolValue]) { [self showMessage:[self text:@"cheatConflict"]]; return; }
@@ -418,7 +451,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     } else if ([key isEqual:@"controlsMenu"]) {
       [self.navigationController pushViewController:[self child:RPCS3MenuControls title:[self text:key]] animated:YES];
     } else if ([key isEqual:@"cheatsMenu"]) {
-      [self.navigationController pushViewController:[self child:RPCS3MenuCheats title:[self text:key]] animated:YES];
+      [self.navigationController pushViewController:[self directCheats] animated:YES];
     } else if ([key isEqual:@"createState"]) {
       Rpcs3SessionMenu* child = [self child:RPCS3MenuSaveStates title:[self text:key]];
       [self.navigationController pushViewController:child animated:YES];

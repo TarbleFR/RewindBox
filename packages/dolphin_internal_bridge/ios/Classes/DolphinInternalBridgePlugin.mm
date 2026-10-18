@@ -1500,6 +1500,9 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
               NSDictionary* prepared=NeoUnifiedResolveNativeName(bridge.activeUserDirectory,request,current,NO);
               payload = NeoIdentityMatches(prepared,current,NO) && NeoUnifiedNativeReceipt(bridge.activeUserDirectory,prepared)
                   ? NeoDolphinImport(bridge.activeUserDirectory,prepared,current,NO) : NeoCheatFailure(@"writeFailed");
+              if ([payload[@"success"] boolValue] && prepared[@"unifiedDisplayName"]) {
+                NSMutableDictionary* named=[payload mutableCopy]; named[@"unifiedDisplayName"]=prepared[@"unifiedDisplayName"]; payload=named;
+              }
               success=[payload[@"success"] boolValue];
             } else if ([kind isEqual:@"download"]) {
               NSDictionary* identity=DOLReadCheatSnapshot();

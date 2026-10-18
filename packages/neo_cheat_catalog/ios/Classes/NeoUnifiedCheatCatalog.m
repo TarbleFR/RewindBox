@@ -343,7 +343,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
         [key isEqualToString:@"game_id|dolphin-disc-game-id"] || [key isEqualToString:@"game_id|psp-param-sfo-disc-id"] ||
         [key isEqualToString:@"title_id|3ds-title-id"] || [key isEqualToString:@"ds_game_code|nds-header-gamecode"]) versionedID=YES;
     if ([key isEqualToString:@"ppu_hash|rpcs3-ppu-hash"]) ppu=YES;
-    if ([key isEqualToString:@"ps2_crc|pcsx2-executable-crc"] ||
+    if ([key isEqualToString:@"romset|fbneo-driver-name"] || [key isEqualToString:@"ps2_crc|pcsx2-executable-crc"] ||
         [key isEqualToString:@"n64_header|n64-crc1-crc2-country"] ||
         [key isEqualToString:@"executable_hash|duckstation-game-hash"] ||
         [key isEqualToString:@"md5|rom-full"] || [key isEqualToString:@"sha1|rom-full"] ||
@@ -706,6 +706,29 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 }
 
 #pragma mark - Queries
+- (NSArray<NSDictionary *> *)installedProgramsForIdentity:(NSDictionary *)identity {
+  if (NSThread.isMainThread) return @[];
+  __block NSArray *result=@[];
+  dispatch_sync(_queue,^{
+    if (!self->_manifest) {
+      NSDictionary *cached=[self validatedManifest:ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],ManifestLimit) error:nil];
+      NSDictionary *local=cached ?: [self bundledManifest];
+      if (local) [self adoptManifest:local];
+    }
+    [self effectiveGames]; NSMutableArray *found=[NSMutableArray array];
+    for (NSDictionary *game in self->_gamesBySystem[System(identity[@"system"])]) {
+      if (found.count>=64) break;
+      if (![[self.class matchGame:game identity:identity] isEqual:@"exact"] || ![self hasChunk:game verify:NO]) continue;
+      NSData *data=ReadBounded([self chunkPath:game],ChunkLimit);
+      if (data.length!=[game[@"size"] unsignedIntegerValue] || ![Digest(data) isEqual:String(game[@"sha256"]).lowercaseString]) continue;
+      NSArray *programs=[self validatedCheats:data game:game error:nil];
+      if (programs) [found addObject:@{@"game":game,@"programs":programs}];
+    }
+    result=[found copy];
+  });
+  return result;
+}
+
 - (void)gamesForIdentity:(NSDictionary *)identity completion:(void (^)(NSArray<NSDictionary *> * _Nonnull,NSError * _Nullable))completion {
   NSDictionary *requested=[identity copy];
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}

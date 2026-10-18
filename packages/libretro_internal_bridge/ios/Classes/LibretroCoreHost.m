@@ -1,3 +1,4 @@
+#import <neo_cheat_catalog/NeoUnifiedCheatCatalog.h>
 #import "LibretroCoreHost.h"
 
 #import "LibretroCoreOptions.h"
@@ -1204,6 +1205,16 @@ static bool HostEnvironment(unsigned command, void *data) {
   // These families delegate Game Genie read overrides to their console
   // implementation. Numeric CPU tuples are not that native format.
   if (family == 0x1E000000 || family == 0x1F000000 || family == 0x22000000) return;
+  NSDictionary *identity=@{@"system":@"arcade",@"identities":@[@{@"type":@"romset",@"scheme":@"fbneo-driver-name",@"value":driver}]};
+  NSUInteger installed=0;
+  for (NSDictionary *selection in [NeoUnifiedCheatCatalog.sharedCatalog installedProgramsForIdentity:identity]) {
+    for (NSDictionary *program in selection[@"programs"]) {
+      if (installed>=4096) break;
+      if ([LibretroCheats canInstallFBNeoPrograms:@[program] game:selection[@"game"]]) {
+        if ([LibretroCheats installFBNeoPrograms:@[program] game:selection[@"game"] systemDirectory:_systemDirectory error:nil]) installed++;
+      }
+    }
+  }
   _fbneoManagedDriverReady = [LibretroCheats stageManagedFBNeoDriver:driver systemDirectory:_systemDirectory
     destination:_fbneoPrivateCheatDirectory error:nil] != nil;
   [self enforceManagedFBNeoCheatPath];

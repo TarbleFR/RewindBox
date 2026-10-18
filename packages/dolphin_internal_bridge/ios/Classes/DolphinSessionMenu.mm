@@ -1,3 +1,4 @@
+#import <neo_cheat_catalog/NeoUnifiedCheatList.h>
 #import "DolphinSessionMenu.h"
 #import "DolphinRetroAchievementsAccount.h"
 #include "DOLManualCheatEditor.h"
@@ -56,6 +57,65 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 - (NSString*)text:(NSString*)key {
   if ([key isEqual:@"downloadGecko"]) return NeoCheatText(@"downloadCatalogs",self.labels[@"__locale"]);
   return self.labels[key] ?: key;
+}
+
+- (NSDictionary*)directCheatState:(NSDictionary*)raw {
+  NSMutableArray* items=[NSMutableArray array];
+  for(NSString* type in @[@"gecko",@"actionReplay"])for(NSDictionary* entry in raw[type]) {
+    NSMutableDictionary* item=[entry mutableCopy];item[@"type"]=type;
+    item[@"key"]=[NSString stringWithFormat:@"%@|%@",type,entry[@"name"] ?: @""];
+    item[@"enabled"]=@([entry[@"enabled"] boolValue] && [raw[@"masterEnabled"] boolValue]); [items addObject:item];
+  }
+  NSMutableDictionary* identity=[raw mutableCopy] ?: [NSMutableDictionary dictionary];identity[@"wii"]=@(self.wii);
+  return @{@"identity":NeoUnifiedEngineIdentity(identity,NO),@"items":items,
+      @"available":raw[@"available"] ?: @NO,@"hardcore":raw[@"hardcore"] ?: @NO};
+}
+- (UIViewController*)directCheats {
+  NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=self.labels[@"__locale"];list.engine=@"dolphin";
+  NSString* locale=list.locale;
+  __weak DolphinSessionMenu* weakSelf=self;
+  list.readState=^(void (^done)(NSDictionary*)){weakSelf.readCheats(^(NSDictionary* state){done([weakSelf directCheatState:state]);});};
+  list.accepts=^BOOL(NSDictionary* program){return bool(NeoUnifiedNativeProgram(program,NO));};
+  list.install=^(NSDictionary* game,NSArray* programs,void (^done)(NSDictionary*,NSError*)) {
+    DolphinSessionMenu* menu=weakSelf;if(!menu){done(nil,NeoUnifiedNativeError(nil,locale));return;}
+    menu.readCheats(^(NSDictionary* current){
+      NSDictionary* request=NeoUnifiedNativeRequest(game,programs,current,NO);
+      if(![request[@"success"] boolValue]){done(nil,NeoUnifiedNativeError(request,locale));return;}
+      auto parsed=NeoUnifiedNativeProgram(programs.lastObject,NO);
+      NSString* type=parsed && !parsed.entries.empty()?NeoString(parsed.entries.front().type):@"";
+      menu.performCheatCommand(request,^(BOOL ok,NSDictionary* result){
+        if(!ok){done(nil,NeoUnifiedNativeError(result,locale));return;}
+        menu.readCheats(^(NSDictionary* after){
+          NSDictionary* found=nil;NSString* name=NeoField(result,@"unifiedDisplayName");
+          if(NeoIdentityMatches(current,after,NO))for(NSDictionary* item in [menu directCheatState:after][@"items"])
+            if([item[@"type"] isEqual:type] && ([item[@"name"] isEqual:name] || [item[@"name"] hasPrefix:[name stringByAppendingString:@" ["]])){found=item;break;}
+          done(found,found?nil:NeoUnifiedNativeError(nil,locale));
+        });
+      });
+    });
+  };
+  list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)) {
+    DolphinSessionMenu* menu=weakSelf;if(!menu){done(NO);return;}
+    // Indexes can change after an import. Resolve the stable type/name again.
+    menu.readCheats(^(NSDictionary* current){
+      NSDictionary* found=nil;for(NSDictionary* candidate in [menu directCheatState:current][@"items"])
+        if([candidate[@"key"] isEqual:item[@"key"]]){found=candidate;break;}
+      if(!found){done(NO);return;}
+      NSDictionary* request=@{@"kind":@"toggle",@"type":found[@"type"],@"index":found[@"index"],@"enabled":@(enabled)};
+      void (^change)(void)=^{menu.performCheatCommand(request,^(BOOL ok,NSDictionary* result){done(ok);});};
+      if(enabled)menu.performCheatCommand(@{@"kind":@"master",@"enabled":@YES},^(BOOL ok,NSDictionary* result){if(ok)change();else done(NO);});else change();
+    });
+  };
+  list.importAction=^(UIViewController* presenter){
+    DolphinSessionMenu* menu=weakSelf;menu.readCheats(^(NSDictionary* state){DOLMenuOnMain(^{
+      if(![state[@"available"] boolValue] || [state[@"hardcore"] boolValue])return;
+      DOLManualCheatEditor* editor=[DOLManualCheatEditor new];editor.ps2=NO;editor.localeIdentifier=menu.labels[@"__locale"];
+      editor.identity=state;editor.openDocumentOnAppear=YES;editor.importMode=YES;
+      editor.saveCheat=^(NSDictionary* request,void (^done)(NSDictionary*)){menu.performCheatCommand(request,^(BOOL ok,NSDictionary* result){done(result ?: NeoCheatFailure(@"writeFailed"));});};
+      [presenter.navigationController pushViewController:editor animated:YES];
+    });});
+  };
+  return list;
 }
 
 - (void)openUnifiedCheatCatalogue {
@@ -812,6 +872,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       [self presentViewController:alert animated:YES completion:nil];
       return;
     }
+    if([key isEqual:@"cheats"]){[self.navigationController pushViewController:[self directCheats] animated:YES];return;}
     DOLMenuPage page = [key isEqual:@"graphics"] ? DOLMenuGraphics :
         [key isEqual:@"hacks"] ? DOLMenuHacks :
         [key isEqual:@"cheats"] ? DOLMenuCheats :

@@ -353,12 +353,22 @@ FBNEO_UNAVAILABLE_LABELS = {
 }
 
 
+DIRECT_LABELS = {
+ "en": ("Import cheats", "Patches"), "fr": ("Importer des cheats", "Patchs"),
+ "de": ("Cheats importieren", "Patches"), "es": ("Importar trucos", "Parches"),
+ "it": ("Importa trucchi", "Patch"), "pt": ("Importar cheats", "Patches"),
+ "ru": ("Импортировать читы", "Патчи"), "id": ("Impor cheat", "Patch"),
+ "zh": ("导入金手指", "补丁"), "zh_Hant": ("匯入金手指", "修補程式"),
+ "ja": ("チートをインポート", "パッチ"), "ko": ("치트 가져오기", "패치"),
+}
+
 def resource():
     result = {}
     for locale, values in STRINGS.items():
         if len(values) != len(KEYS):
             raise ValueError(f"{locale}: {len(values)} values, expected {len(KEYS)}")
         result[locale] = dict(zip(KEYS, values))
+        result[locale]["directImport"], result[locale]["directPatches"] = DIRECT_LABELS[locale]
         result[locale]["unifiedCatalogue"], result[locale]["noDependencies"] = ENTRY_LABELS[locale]
         result[locale]["dependenciesExclusive"] = EXCLUSIVE_ERRORS[locale]
         result[locale]["notes"] = NOTES_LABELS[locale]

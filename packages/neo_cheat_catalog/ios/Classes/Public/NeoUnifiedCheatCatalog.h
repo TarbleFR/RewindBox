@@ -46,6 +46,10 @@ typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
 - (void)cheatsForGame:(NSDictionary *)game
           completion:(void (^)(NSArray<NSDictionary *> *, NSError *_Nullable))completion;
 
+/// Boot-time native adapters: exact typed identities and verified installed
+/// chunks only. Disk reads, no fetch or main-queue callbacks. Off-main only.
+- (NSArray<NSDictionary *> *)installedProgramsForIdentity:(NSDictionary *)identity;
+
 /// nil means no match; exact requires compatible source-specific strong IDs.
 /// Bare serial/game ID without a known matching revision remains candidate.
 + (nullable NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity;

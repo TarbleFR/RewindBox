@@ -1108,6 +1108,9 @@ static UIViewController* ARMSX2RootViewController(void) {
                 NSDictionary* prepared=NeoUnifiedResolveNativeName(bridge.activeDataDirectory,request,state,YES);
                 result=NeoIdentityMatches(prepared,state,YES) && NeoUnifiedNativeReceipt(bridge.activeDataDirectory,prepared)
                     ? NeoPnachImport(bridge.activeDataDirectory,prepared,state) : NeoCheatFailure(@"writeFailed");
+                if ([result[@"success"] boolValue] && prepared[@"unifiedDisplayName"]) {
+                  NSMutableDictionary* named=[result mutableCopy]; named[@"unifiedDisplayName"]=prepared[@"unifiedDisplayName"]; result=named;
+                }
                 if([result[@"success"] boolValue] && [result[@"added"] integerValue]>0) {
                   char error[512]={};
                   if(!bridge.api->reload_cheats(error,sizeof(error))) {

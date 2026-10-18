@@ -6,6 +6,12 @@ import sys
 import tempfile
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
+CATALOG = ROOT/'packages/neo_cheat_catalog/ios/Classes'
+def catalogue_dependency(work):
+    include=work/'include/neo_cheat_catalog';include.mkdir(parents=True)
+    (include/'NeoUnifiedCheatCatalog.h').write_bytes((CATALOG/'Public/NeoUnifiedCheatCatalog.h').read_bytes())
+    return ['-I',str(include.parent),str(CATALOG/'NeoUnifiedCheatCatalog.m')]
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--only-fbneo', action='store_true',
                     help='Run only the FBNeo Host/file checks; reuse earlier passing identities/PSP checks.')
@@ -34,7 +40,7 @@ if not args.only_fbneo:
         units = ['LibretroCoreHost.m', 'LibretroCoreOptions.m', 'LibretroResolution.m',
                  'LibretroStateCodec.m', 'LibretroZipReader.m', 'LibretroCheats.m']
         subprocess.run(['clang', '-fobjc-arc', '-fblocks', '-O1', '-Wall', '-Wno-deprecated-declarations',
-                        '-I', str(classes), '-I', str(libretro),
+                        '-I', str(classes), '-I', str(libretro), *catalogue_dependency(work),
                         *(str(classes / name) for name in units), str(ROOT / 'test/unified_identity_host_test.m'),
                         '-framework', 'Foundation', '-lz', '-o', str(binary)], check=True)
         subprocess.run([str(binary), str(core), str(work / 'data')], check=True)
@@ -52,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix='neostation-unified-fbneo-') as work:
     units = ['LibretroCoreHost.m', 'LibretroCoreOptions.m', 'LibretroResolution.m',
              'LibretroStateCodec.m', 'LibretroZipReader.m', 'LibretroCheats.m']
     subprocess.run(['clang', '-fobjc-arc', '-fblocks', '-O1', '-Wall', '-Wno-deprecated-declarations',
-                    '-I', str(classes), '-I', str(libretro),
+                    '-I', str(classes), '-I', str(libretro), *catalogue_dependency(work),
                     *(str(classes / name) for name in units), str(ROOT / 'test/unified_identity_fbneo_test.m'),
                     '-framework', 'Foundation', '-lz', '-o', str(binary)], check=True)
     subprocess.run([str(binary), str(core), str(work / 'data')], check=True)

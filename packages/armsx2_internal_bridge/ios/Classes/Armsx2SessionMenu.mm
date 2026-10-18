@@ -1,3 +1,4 @@
+#import <neo_cheat_catalog/NeoUnifiedCheatList.h>
 #import "Armsx2SessionMenu.h"
 #include "ARMSX2ManualCheatEditor.h"
 #include "NeoUnifiedNativeImport.h"
@@ -156,6 +157,54 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 }
 
 - (void)importCheatFilePressed {[self openManualCheatEditor:YES];}
+- (NSDictionary*)directCheatState:(NSDictionary*)raw {
+  NSMutableArray* items=[NSMutableArray array];
+  for (NSDictionary* entry in raw[@"items"]) if ([entry[@"cheat"] boolValue]) {
+    NSMutableDictionary* item=[entry mutableCopy]; item[@"key"]=entry[@"id"] ?: entry[@"name"];
+    item[@"name"]=NeoCheatDisplayName(NeoField(entry,@"name")); item[@"enabled"]=@([entry[@"value"] integerValue]==1);
+    item[@"detail"]=NeoField(entry,@"description"); [items addObject:item];
+  }
+  return @{@"identity":NeoUnifiedEngineIdentity(raw,YES),@"items":items,
+      @"available":raw[@"available"] ?: @NO,@"hardcore":raw[@"hardcore"] ?: @NO};
+}
+- (UIViewController*)directCheats {
+  NeoUnifiedCheatList* list=[NeoUnifiedCheatList new]; list.locale=self.localeIdentifier; list.engine=@"armsx2";
+  NSString* locale=list.locale;
+  __weak Armsx2SessionMenu* weakSelf=self;
+  list.readState=^(void (^done)(NSDictionary*)) { weakSelf.readPatches(^(NSDictionary* state){done([weakSelf directCheatState:state]);}); };
+  list.accepts=^BOOL(NSDictionary* program){return ![program[@"kind"] isEqual:@"graphics"] && bool(NeoUnifiedNativeProgram(program,YES));};
+  list.install=^(NSDictionary* game,NSArray* programs,void (^done)(NSDictionary*,NSError*)) {
+    Armsx2SessionMenu* menu=weakSelf; if(!menu){done(nil,NeoUnifiedNativeError(nil,locale));return;}
+    menu.readPatches(^(NSDictionary* current){
+      NSDictionary* request=NeoUnifiedNativeRequest(game,programs,current,YES);
+      if(![request[@"success"] boolValue]){done(nil,NeoUnifiedNativeError(request,locale));return;}
+      menu.importCheats(request,^(NSDictionary* result){
+        if(![result[@"success"] boolValue]){done(nil,NeoUnifiedNativeError(result,locale));return;}
+        menu.readPatches(^(NSDictionary* after){
+          NSDictionary* found=nil;
+          if(NeoIdentityMatches(current,after,YES)) for(NSDictionary* item in [menu directCheatState:after][@"items"])
+            if([item[@"name"] isEqual:result[@"unifiedDisplayName"]]){found=item;break;}
+          done(found,found?nil:NeoUnifiedNativeError(nil,locale));
+        });
+      });
+    });
+  };
+  list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)) {
+    Armsx2SessionMenu* menu=weakSelf;if(!menu){done(NO);return;}
+    void (^change)(void)=^{menu.performPatchCommand(item[@"key"],enabled?1:0,^(BOOL ok,NSString* message){done(ok);});};
+    if(enabled)menu.performCommand(@"cheats",@YES,^(BOOL ok,NSString* message){if(ok)change();else done(NO);});else change();
+  };
+  list.importAction=^(UIViewController* presenter){
+    Armsx2SessionMenu* menu=weakSelf; menu.readPatches(^(NSDictionary* state){ARMSX2MenuOnMain(^{
+      if(![state[@"available"] boolValue] || [state[@"hardcore"] boolValue])return;
+      ARMSX2ManualCheatEditor* editor=[ARMSX2ManualCheatEditor new];editor.ps2=YES;editor.localeIdentifier=menu.localeIdentifier;
+      editor.identity=state;editor.openDocumentOnAppear=YES;editor.importMode=YES;editor.saveCheat=menu.importCheats;
+      [presenter.navigationController pushViewController:editor animated:YES];
+    });});
+  };
+  return list;
+}
+
 - (void)openUnifiedCheatCatalogue {
   if (self.loading || !self.readPatches || !self.importCheats) return;
   self.loading = YES;
@@ -171,7 +220,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     NSString* locale = menu.localeIdentifier ?: @"en";
     [NeoUnifiedCheatBrowser presentFrom:menu identity:NeoUnifiedEngineIdentity(state,YES)
         engine:@"armsx2" locale:locale
-        accepts:^BOOL(NSDictionary* program) { return bool(NeoUnifiedNativeProgram(program,YES)); }
+        accepts:^BOOL(NSDictionary* program) { return ![program[@"kind"] isEqual:@"graphics"] && bool(NeoUnifiedNativeProgram(program,YES)); }
         importHandler:^(NSDictionary* game, NSArray* programs, void (^finished)(NSError*)) {
       Armsx2SessionMenu* owner = weakSelf;
       if (!owner || !owner.readPatches || !owner.importCheats) {
@@ -319,7 +368,9 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       Armsx2SessionMenu* menu=weakSelf;
       if (!menu) return;
       menu.patchesLoading=NO;
-      menu.patches=[state isKindOfClass:NSDictionary.class] ? state : @{};
+      NSMutableDictionary* patches=[state isKindOfClass:NSDictionary.class] ? [state mutableCopy] : [NSMutableDictionary dictionary];
+      NSMutableArray* graphics=[NSMutableArray array];for(NSDictionary* item in state[@"items"])if(![item[@"cheat"] boolValue])[graphics addObject:item];
+      patches[@"items"]=graphics;menu.patches=patches;
       [menu.tableView reloadData];
     });
   });
@@ -355,7 +406,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 - (NSInteger)tableView:(UITableView*)tableView numberOfRowsInSection:(NSInteger)section {
   switch (self.page) {
     case ARMSX2MenuRoot: return self.rootKeys.count;
-    case ARMSX2MenuGraphics: return self.snapshot.count ? 5 : 0;
+    case ARMSX2MenuGraphics: return self.snapshot.count ? 6 : 0;
     case ARMSX2MenuShaders: return [self.snapshot[@"graphicsAssets"][@"supported"] boolValue]
         ? 2 + self.visibleShaderPresets.count : 0;
     case ARMSX2MenuGraphicsHacks:
@@ -477,6 +528,8 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     } else if (row == 3) {
       cell.textLabel.text = ARMSX2MenuText(@"Performance Overlays", @"Overlays de performances");
       cell.detailTextLabel.text = ARMSX2MenuText(@"FPS, frametime and diagnostics", @"FPS, frametime et diagnostics");
+    } else if (row == 5) {
+      cell.textLabel.text = [NeoUnifiedCheatBrowser localizedText:@"directPatches" locale:self.localeIdentifier];
     } else {
       cell.textLabel.text = ARMSX2MenuText(@"Graphics Hacks", @"Hacks graphiques");
       cell.detailTextLabel.text = ARMSX2MenuText(@"Per-game advanced GS options", @"Options GS avancées par jeu");
@@ -656,8 +709,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuGraphics
           title:ARMSX2MenuText(@"Graphics", @"Graphismes")] animated:YES];
     } else if ([key isEqual:@"cheats"]) {
-      [self.navigationController pushViewController:[self child:ARMSX2MenuCheats
-          title:ARMSX2MenuText(@"Compatibility / Cheats", @"Hacks / Cheats")] animated:YES];
+      [self.navigationController pushViewController:[self directCheats] animated:YES];
     } else if ([key isEqual:@"controls"]) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuControls
           title:ARMSX2MenuText(@"Controls", @"Commandes")] animated:YES];
@@ -708,6 +760,9 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
           titles:@[ARMSX2MenuText(@"Off",@"Désactivé"),ARMSX2MenuText(@"Simple",@"Simple"),
                    ARMSX2MenuText(@"Detailed",@"Détaillé"),ARMSX2MenuText(@"Full",@"Complet")]
           selectedIndex:[self.snapshot[@"graphicsAssets"][@"overlay"] integerValue]];
+    } else if (row == 5) {
+      Armsx2SessionMenu* patches=[self child:ARMSX2MenuPatches title:[NeoUnifiedCheatBrowser localizedText:@"directPatches" locale:self.localeIdentifier]];
+      [self.navigationController pushViewController:patches animated:YES]; [patches reloadPatches];
     } else {
       Armsx2SessionMenu* hacks=[self child:ARMSX2MenuGraphicsHacks
           title:ARMSX2MenuText(@"Graphics Hacks", @"Hacks graphiques")];
