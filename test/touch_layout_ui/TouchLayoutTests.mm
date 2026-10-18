@@ -214,6 +214,18 @@ static NeoTouchElement* TLFirstOfKind(NSArray<NeoTouchElement*>* elements, NeoTo
   return nil;
 }
 
+/// Where a control is, for a failure message: its frame and transform, each
+/// ancestor up to `top`, and the element's captured stock geometry.
+static NSString* TLDescribe(NeoTouchElement* element, UIView* top) {
+  NSMutableString* text = [NSMutableString stringWithFormat:@"%@ stock centre %@ size %@; ", element.identifier,
+      NSStringFromCGPoint(element.defaultCenter), NSStringFromCGSize(element.defaultSize)];
+  for (UIView* view = element.view; view && view != top.superview; view = view.superview)
+    [text appendFormat:@"<%@ frame %@ bounds %@ t %@ hidden %d> ", NSStringFromClass(view.class),
+        NSStringFromCGRect(view.frame), NSStringFromCGRect(view.bounds),
+        NSStringFromCGAffineTransform(view.transform), view.hidden];
+  return text;
+}
+
 static NSInteger TLSuffix(NSString* identifier) {
   return [[identifier componentsSeparatedByString:@"."].lastObject integerValue];
 }
@@ -1135,15 +1147,16 @@ static rpcs3_ios_status TLSetPad(uint32_t port, const rpcs3_ios_pad_state* state
   UIView* rootView = controller.view;
   NSArray<NeoTouchElement*>* elements = [editor valueForKey:@"elements"];
   XCTAssertGreaterThan(elements.count, 4U);
+  // The presentation has settled: the controls are where the game would show them.
+  TLSpin(0.5);
+  [rootView layoutIfNeeded];
+  elements = [editor valueForKey:@"elements"];
   for (NeoTouchElement* element in elements) {
     const CGPoint point = [element.view convertPoint:TLMid(element.view.bounds) toView:rootView];
     UIView* hit = [rootView hitTest:point withEvent:nil];
-    XCTAssertTrue([hit isDescendantOfView:editor], @"%@ preview control %@ reachable: point %@, hit %@, editor %@, root %@, "
-                  "canvas %@, window %@", key, element.identifier, NSStringFromCGPoint(point), hit,
-                  NSStringFromCGRect([editor convertRect:editor.bounds toView:rootView]),
-                  NSStringFromCGRect(rootView.bounds),
-                  NSStringFromCGRect([editor.superview convertRect:editor.superview.bounds toView:rootView]),
-                  NSStringFromCGRect(TLWindow().bounds));
+    XCTAssertTrue([hit isDescendantOfView:editor], @"%@ preview control reachable: point %@, hit %@, editor %@, root %@; %@",
+                  key, NSStringFromCGPoint(point), hit, NSStringFromCGRect([editor convertRect:editor.bounds toView:rootView]),
+                  NSStringFromCGRect(rootView.bounds), TLDescribe(element, editor.superview));
   }
   NeoTouchElement* button = TLFirstOfKind(elements, NeoTouchElementKindButton, @[]);
   [editor setScale:1.4 forElement:button.identifier];
