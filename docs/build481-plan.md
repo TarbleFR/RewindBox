@@ -223,7 +223,30 @@ construction du Core, validation des exports. Résultats en § 7.
 - Code : commit `2fffa08bb02b3453e0487f3ed87e97551b5d8ff0` sur `Claude`
   (patch canonique `bc63c5da2dc97dca0f205b132dfb078d53da3d87c6fcf546810468512dd37a33`,
   manifeste 212 fichiers, `PATCH_SHA256` épinglé).
-- Run Core `rpcs3-core.yml` : `39142102313` sur `2fffa08b` — *résultat à compléter*.
+- Runs Core `rpcs3-core.yml` :
+  - `39142102313` sur `2fffa08b` : arrêt au préflight, `rpcs3_spu_warmup_test.py`
+    ancré sur le commentaire du module interpréteur reformulé (ancrage déplacé
+    par `e731ed95`, contrat conservé).
+  - `39142620900` sur `e731ed95` : la porte de syntaxe iOS et la **preuve de
+    relocalisation en deux processus ont réussi** (LLVM 22.1.8 : objet de
+    2 000 octets lié sans génération de code ; données `0x1023a4028 →
+    0x1045a8188`, aide `0x102399320 → 0x10459d320`, code `0x1023f8010 →
+    0x1045fc010`) ; arrêt sur le scénario `corrupt` du test lui-même (le module
+    « étranger » était validé contre le symbole du module d'origine au lieu du
+    sien) ; corrigé par `aae1c147`.
+  - `39143262614` sur `aae1c147` : préflight complet réussi (preuve en deux
+    processus avec scénarios tronqué/étranger, porte de syntaxe iOS) ; arrêt
+    dans le script de construction sur `rpcs3_xitrix_v0101_native_test.py`,
+    qui lisait l'ancienne constante `cache_version` (contrat déplacé vers
+    `format_version` de l'en-tête de politique par `5919be61`).
+  - `39144244183` sur `5919be61` : **réussi** (préflight avec preuve en deux
+    processus, construction 54 min, exports validés). Core
+    `libRPCS3Core.dylib` SHA-256
+    `b249523453b3c3188b2f849b1bd87187d259511612170c9167b9420678aef01d`, ABI 30,
+    67 entrées de Core épinglées, identité de codegen SPU `72b3b9b3c7883b23`
+    (PPU `a58328ba0a0e9be6`), artefact `RPCS3Core-5919be61…` (28 324 684 octets,
+    conservé jusqu'au 17 novembre 2026), diagnostics conservés jusqu'au
+    1er novembre 2026. Épinglé dans `retroarch-delivery.yml` et `neoswap-ipa.yml`.
 - Livraison : *à compléter* (source, run, artefact, IPA, SHA-256, taille).
 
 ## 8. Protocole d'essai sur l'iPhone 16 Pro Max

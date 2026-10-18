@@ -1051,6 +1051,20 @@ IPA_WORKFLOW_BUILD444_LINES = (
      '            test/rpcs3_build444_core_delta_test.py \\\n'
      '            test/native/rpcs3_build444_core_delta_test.cpp \\\n'),
 )
+# Build 481 (18 October 2026): persistent SPU object cache Core delta test inputs
+# and the Core pinned after run 39144244183 on 5919be61 succeeded.
+IPA_WORKFLOW_BUILD481_LINES = (
+    ('      RPCS3_CORE_HOST_SHA: dcf0df67b3edf923d5dd54071f5228e6cf6882b6\n',
+     '      RPCS3_CORE_HOST_SHA: 5919be61269f67542c4f8c905c30555cbe09bdf0\n'),
+    ("      RPCS3_CORE_RUN_ID: '38178247609'\n", "      RPCS3_CORE_RUN_ID: '39144244183'\n"),
+    ('            test/rpcs3_build444_core_delta_test.py \\\n'
+     '            test/native/rpcs3_build444_core_delta_test.cpp \\\n',
+     '            test/rpcs3_build444_core_delta_test.py \\\n'
+     '            test/native/rpcs3_build444_core_delta_test.cpp \\\n'
+     '            test/rpcs3_build481_spu_object_cache_test.py \\\n'
+     '            test/native/rpcs3_build481_spu_object_cache_test.cpp \\\n'
+     '            test/native/rpcs3_spu_object_relocation_test.cpp \\\n'),
+)
 for path in ARMSX2_INTEGRATION_FILES:
     revision = ARMSX2_INTEGRATION_OVERRIDES.get(path, ARMSX2_INTEGRATION_SHA)
     reviewed = subprocess.check_output(['git', 'show', revision + ':' + path], cwd=ROOT)
@@ -1067,6 +1081,9 @@ for path in ARMSX2_INTEGRATION_FILES:
             text = text.replace(old, new, 1)
         for old, new in IPA_WORKFLOW_BUILD444_LINES:
             assert text.count(old) == 1, 'Build444 IPA workflow line expected once: ' + old
+            text = text.replace(old, new, 1)
+        for old, new in IPA_WORKFLOW_BUILD481_LINES:
+            assert text.count(old) == 1, 'Build481 IPA workflow line expected once: ' + old
             text = text.replace(old, new, 1)
         reviewed = text.encode('utf-8')
     elif path == '.github/workflows/neoswap-ipa.yml':
