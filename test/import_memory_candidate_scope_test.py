@@ -1065,6 +1065,17 @@ IPA_WORKFLOW_BUILD481_LINES = (
      '            test/native/rpcs3_build481_spu_object_cache_test.cpp \\\n'
      '            test/native/rpcs3_spu_object_relocation_test.cpp \\\n'),
 )
+# Build 483 (18 October 2026): LLVM pipeline test inputs and the Core pinned
+# after run 39163125594 on 1b4f65e2 succeeded.
+IPA_WORKFLOW_BUILD483_LINES = (
+    ('      RPCS3_CORE_HOST_SHA: 5919be61269f67542c4f8c905c30555cbe09bdf0\n',
+     '      RPCS3_CORE_HOST_SHA: 1b4f65e2067823a518034ef1ee1ba06a5b5abe09\n'),
+    ("      RPCS3_CORE_RUN_ID: '39144244183'\n", "      RPCS3_CORE_RUN_ID: '39163125594'\n"),
+    ('            test/native/rpcs3_spu_object_relocation_test.cpp \\\n',
+     '            test/native/rpcs3_spu_object_relocation_test.cpp \\\n'
+     '            test/rpcs3_build483_llvm_pipeline_test.py \\\n'
+     '            test/native/rpcs3_llvm_pipeline_harness.cpp \\\n'),
+)
 for path in ARMSX2_INTEGRATION_FILES:
     revision = ARMSX2_INTEGRATION_OVERRIDES.get(path, ARMSX2_INTEGRATION_SHA)
     reviewed = subprocess.check_output(['git', 'show', revision + ':' + path], cwd=ROOT)
@@ -1084,6 +1095,9 @@ for path in ARMSX2_INTEGRATION_FILES:
             text = text.replace(old, new, 1)
         for old, new in IPA_WORKFLOW_BUILD481_LINES:
             assert text.count(old) == 1, 'Build481 IPA workflow line expected once: ' + old
+            text = text.replace(old, new, 1)
+        for old, new in IPA_WORKFLOW_BUILD483_LINES:
+            assert text.count(old) == 1, 'Build483 IPA workflow line expected once: ' + old
             text = text.replace(old, new, 1)
         reviewed = text.encode('utf-8')
     elif path == '.github/workflows/neoswap-ipa.yml':
