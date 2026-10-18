@@ -11,6 +11,7 @@ typedef NS_ENUM(NSInteger, ARMSX2MenuPage) {
   ARMSX2MenuRoot,
   ARMSX2MenuGraphics,
   ARMSX2MenuGraphicsHacks,
+  ARMSX2MenuBlending,
   ARMSX2MenuShaders,
   ARMSX2MenuCheats,
   ARMSX2MenuPatches,
@@ -25,6 +26,11 @@ typedef NS_ENUM(NSInteger, ARMSX2MenuPage) {
 static void ARMSX2MenuOnMain(dispatch_block_t block) {
   if (NSThread.isMainThread) block();
   else dispatch_async(dispatch_get_main_queue(), block);
+}
+
+// A snapshot field that is absent or not a number must not read as 0.
+static NSInteger ARMSX2MenuInteger(id value, NSInteger fallback) {
+  return [value isKindOfClass:NSNumber.class] ? [value integerValue] : fallback;
 }
 
 static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
@@ -422,6 +428,56 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   return child;
 }
 
+// Blending accuracy (Build 482): the engine reports the layers and the only
+// levels it distinguishes on iPhone; the menu never adds a level of its own.
+- (NSDictionary*)blending {
+  NSDictionary* blending = self.snapshot[@"blending"];
+  return [blending isKindOfClass:NSDictionary.class] ? blending : @{};
+}
+
+- (NSArray<NSNumber*>*)blendingLevels {
+  NSArray* levels = [self blending][@"levels"];
+  if (![levels isKindOfClass:NSArray.class]) return @[];
+  NSMutableArray<NSNumber*>* numbers = [NSMutableArray array];
+  for (id level in levels)
+    if ([level isKindOfClass:NSNumber.class]) [numbers addObject:level];
+  return numbers;
+}
+
+- (NSString*)blendingLevelName:(NSInteger)level {
+  // AccBlendLevel names of the pinned engine. Medium is reported when an INI
+  // already holds it, never offered: it renders like Basic on iPhone.
+  switch (level) {
+    case 0: return ARMSX2MenuText(@"Minimum", @"Minimum");
+    case 1: return ARMSX2MenuText(@"Basic", @"Basique");
+    case 2: return ARMSX2MenuText(@"Medium", @"Moyenne");
+    case 3: return ARMSX2MenuText(@"High", @"Élevée");
+    case 4: return ARMSX2MenuText(@"Full", @"Complet");
+    case 5: return ARMSX2MenuText(@"Maximum", @"Maximum");
+    default: return ARMSX2MenuText(@"Automatic", @"Automatique");
+  }
+}
+
+- (NSString*)blendingOriginText {
+  NSDictionary* blending = [self blending];
+  if (ARMSX2MenuInteger(blending[@"game"], -1) >= 0)
+    return ARMSX2MenuText(@"Set for this game", @"Réglée pour ce jeu");
+  if (ARMSX2MenuInteger(blending[@"effective"], 1) != ARMSX2MenuInteger(blending[@"global"], 1))
+    return ARMSX2MenuText(@"Adjusted by the ARMSX2/GameDB profile for this game",
+                          @"Ajustée par le profil ARMSX2/GameDB pour ce jeu");
+  return ARMSX2MenuText(@"Default for all PS2 games", @"Valeur par défaut de tous les jeux PS2");
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView*)tableView {
+  return self.page == ARMSX2MenuBlending ? 2 : 1;
+}
+
+- (NSString*)tableView:(UITableView*)tableView titleForHeaderInSection:(NSInteger)section {
+  if (self.page != ARMSX2MenuBlending) return nil;
+  return section == 0 ? ARMSX2MenuText(@"This game", @"Ce jeu")
+                      : ARMSX2MenuText(@"Default for all PS2 games", @"Valeur par défaut de tous les jeux PS2");
+}
+
 - (void)resumePressed {
   if (!self.loading && self.resumeGame) self.resumeGame();
 }
@@ -429,7 +485,11 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 - (NSInteger)tableView:(UITableView*)tableView numberOfRowsInSection:(NSInteger)section {
   switch (self.page) {
     case ARMSX2MenuRoot: return self.rootKeys.count;
-    case ARMSX2MenuGraphics: return self.snapshot.count ? 6 : 0;
+    case ARMSX2MenuGraphics: return self.snapshot.count ? 7 : 0;
+    case ARMSX2MenuBlending: {
+      const NSInteger levels = (NSInteger)[self blendingLevels].count;
+      return levels ? (section == 0 ? levels + 1 : levels) : 0;
+    }
     case ARMSX2MenuShaders: return [self.snapshot[@"graphicsAssets"][@"supported"] boolValue]
         ? 2 + self.visibleShaderPresets.count : 0;
     case ARMSX2MenuGraphicsHacks:
@@ -446,6 +506,26 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 }
 
 - (NSString*)tableView:(UITableView*)tableView titleForFooterInSection:(NSInteger)section {
+  if (self.page == ARMSX2MenuBlending) {
+    NSDictionary* blending = [self blending];
+    if (![self blendingLevels].count)
+      return ARMSX2MenuText(@"Blending accuracy is unavailable for this session.",
+                            @"La précision du blending n’est pas disponible pour cette session.");
+    if (section == 0) {
+      NSString* status = [NSString stringWithFormat:ARMSX2MenuText(@"Effective now: %@", @"Appliquée actuellement : %@"),
+          [self blendingLevelName:ARMSX2MenuInteger(blending[@"effective"], 1)]];
+      status = [status stringByAppendingFormat:@" · %@", [self blendingOriginText]];
+      const NSInteger recommended = ARMSX2MenuInteger(blending[@"gamedbRecommended"], -1);
+      if (recommended >= 0)
+        status = [status stringByAppendingFormat:@"\n%@", [NSString stringWithFormat:
+            ARMSX2MenuText(@"GameDB recommends %@ for this game", @"GameDB recommande %@ pour ce jeu"),
+            [self blendingLevelName:recommended]]];
+      if (self.stateMessage.length) status = [status stringByAppendingFormat:@"\n%@", self.stateMessage];
+      return status;
+    }
+    return ARMSX2MenuText(@"Higher blending accuracy can fix some effects (transparency, shadows, glows) but increases the GPU load and lowers performance. Changes apply immediately to the running game. Automatic follows the default for all PS2 games; the ARMSX2/GameDB profile may raise or lower it for a known game.",
+                          @"Une précision du blending plus élevée peut corriger certains effets (transparences, ombres, halos) mais augmente la charge du GPU et réduit les performances. Les changements s’appliquent immédiatement au jeu en cours. Automatique suit la valeur par défaut de tous les jeux PS2 ; le profil ARMSX2/GameDB peut la relever ou l’abaisser pour un jeu connu.");
+  }
   if (self.page == ARMSX2MenuGraphics)
     return ARMSX2MenuText(@"Per-game graphics settings are applied live. Advanced hacks keep ARMSX2/GameDB automatic behavior unless explicitly overridden.",
                           @"Les réglages graphiques par jeu sont appliqués en direct. Les hacks avancés conservent le comportement automatique ARMSX2/GameDB sauf remplacement explicite.");
@@ -543,19 +623,46 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       cell.textLabel.text = ARMSX2MenuText(@"Screen Format", @"Format d’écran");
       cell.detailTextLabel.text = [self aspectTitle:[self.snapshot[@"aspect"] integerValue]];
     } else if (row == 2) {
+      cell.textLabel.text = ARMSX2MenuText(@"Blending Accuracy", @"Précision du blending");
+      cell.detailTextLabel.text = [self blendingLevels].count
+          ? [NSString stringWithFormat:@"%@ · %@",
+              [self blendingLevelName:ARMSX2MenuInteger([self blending][@"effective"], 1)], [self blendingOriginText]]
+          : ARMSX2MenuText(@"Unavailable", @"Indisponible");
+    } else if (row == 3) {
       cell.textLabel.text = ARMSX2MenuText(@"Shaders", @"Shaders");
       cell.detailTextLabel.text = [self.snapshot[@"graphicsAssets"][@"supported"] boolValue]
           ? ARMSX2MenuText(@"Bundled presets and downloads", @"Presets intégrés et téléchargements")
           : ARMSX2MenuText(@"Unavailable", @"Indisponible");
       cell.userInteractionEnabled = [self.snapshot[@"graphicsAssets"][@"supported"] boolValue];
-    } else if (row == 3) {
+    } else if (row == 4) {
       cell.textLabel.text = ARMSX2MenuText(@"Performance Overlays", @"Overlays de performances");
       cell.detailTextLabel.text = ARMSX2MenuText(@"FPS, frametime and diagnostics", @"FPS, frametime et diagnostics");
-    } else if (row == 5) {
+    } else if (row == 6) {
       cell.textLabel.text = [NeoUnifiedCheatBrowser localizedText:@"directPatches" locale:self.localeIdentifier];
     } else {
       cell.textLabel.text = ARMSX2MenuText(@"Graphics Hacks", @"Hacks graphiques");
       cell.detailTextLabel.text = ARMSX2MenuText(@"Per-game advanced GS options", @"Options GS avancées par jeu");
+    }
+  } else if (self.page == ARMSX2MenuBlending) {
+    NSDictionary* blending = [self blending];
+    NSArray<NSNumber*>* levels = [self blendingLevels];
+    cell.accessoryType = UITableViewCellAccessoryNone;
+    if (indexPath.section == 0) {
+      const NSInteger game = ARMSX2MenuInteger(blending[@"game"], -1);
+      if (row == 0) {
+        cell.textLabel.text = ARMSX2MenuText(@"Automatic", @"Automatique");
+        cell.detailTextLabel.text = ARMSX2MenuText(@"Default for all PS2 games, adjusted by the ARMSX2/GameDB profile",
+                                                   @"Valeur par défaut de tous les jeux PS2, ajustée par le profil ARMSX2/GameDB");
+        if (game < 0) cell.accessoryType = UITableViewCellAccessoryCheckmark;
+      } else if (row - 1 < (NSInteger)levels.count) {
+        const NSInteger level = levels[row - 1].integerValue;
+        cell.textLabel.text = [self blendingLevelName:level];
+        if (game == level) cell.accessoryType = UITableViewCellAccessoryCheckmark;
+      }
+    } else if (row < (NSInteger)levels.count) {
+      const NSInteger level = levels[row].integerValue;
+      cell.textLabel.text = [self blendingLevelName:level];
+      if (ARMSX2MenuInteger(blending[@"global"], 1) == level) cell.accessoryType = UITableViewCellAccessoryCheckmark;
     }
   } else if (self.page == ARMSX2MenuShaders) {
     NSDictionary* assets=self.snapshot[@"graphicsAssets"];
@@ -775,15 +882,18 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
                           ARMSX2MenuText(@"Stretch", @"Étendre")]
           selectedIndex:selected];
     } else if (row == 2) {
+      [self.navigationController pushViewController:[self child:ARMSX2MenuBlending
+          title:ARMSX2MenuText(@"Blending Accuracy", @"Précision du blending")] animated:YES];
+    } else if (row == 3) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuShaders
           title:ARMSX2MenuText(@"Shaders",@"Shaders")] animated:YES];
-    } else if (row == 3) {
+    } else if (row == 4) {
       [self pushChoice:ARMSX2MenuText(@"Performance Overlays",@"Overlays de performances")
           command:@"overlay" values:@[@0,@1,@2,@3]
           titles:@[ARMSX2MenuText(@"Off",@"Désactivé"),ARMSX2MenuText(@"Simple",@"Simple"),
                    ARMSX2MenuText(@"Detailed",@"Détaillé"),ARMSX2MenuText(@"Full",@"Complet")]
           selectedIndex:[self.snapshot[@"graphicsAssets"][@"overlay"] integerValue]];
-    } else if (row == 5) {
+    } else if (row == 6) {
       Armsx2SessionMenu* patches=[self child:ARMSX2MenuPatches title:[NeoUnifiedCheatBrowser localizedText:@"directPatches" locale:self.localeIdentifier]];
       [self.navigationController pushViewController:patches animated:YES]; [patches reloadPatches];
     } else {
@@ -791,6 +901,23 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
           title:ARMSX2MenuText(@"Graphics Hacks", @"Hacks graphiques")];
       [self.navigationController pushViewController:hacks animated:YES];
       [hacks reloadGraphicsHacks];
+    }
+  } else if (self.page == ARMSX2MenuBlending) {
+    NSArray<NSNumber*>* levels = [self blendingLevels];
+    if (indexPath.section == 0) {
+      if (row == 0) {
+        [self perform:@"blending" value:@(-1)
+          successText:ARMSX2MenuText(@"Blending accuracy follows the default for all PS2 games again.",
+                                     @"La précision du blending suit de nouveau la valeur par défaut des jeux PS2.")];
+      } else if (row - 1 < (NSInteger)levels.count) {
+        [self perform:@"blending" value:levels[row - 1]
+          successText:ARMSX2MenuText(@"Blending accuracy updated for this game.",
+                                     @"Précision du blending mise à jour pour ce jeu.")];
+      }
+    } else if (row < (NSInteger)levels.count) {
+      [self perform:@"blendingDefault" value:levels[row]
+        successText:ARMSX2MenuText(@"Default blending accuracy updated for all PS2 games.",
+                                   @"Précision du blending par défaut mise à jour pour tous les jeux PS2.")];
     }
   } else if (self.page == ARMSX2MenuShaders) {
     if (row==1) {

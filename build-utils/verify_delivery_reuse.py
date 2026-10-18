@@ -926,6 +926,18 @@ BUILD481_DELTA = {
     'test/rpcs3_build481_spu_object_cache_test.py',
 }
 DELTA |= BUILD481_DELTA
+# Build 482 (18 October 2026): ARMSX2 blending accuracy (Core ABI 7, in-game menu)
+# and the Get More RAM information before a PS3 firmware installation.
+BUILD482_DELTA = {
+    'packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.h',
+    'packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc',
+    'lib/l10n/rpcs3_firmware_locale.dart',
+    'lib/widgets/rpcs3_firmware_preflight_dialog.dart',
+    'test/armsx2_blending_accuracy_test.mm',
+    'test/rpcs3_firmware_preflight_test.dart',
+    'test/build482_targeted_test.py',
+}
+DELTA |= BUILD482_DELTA
 # New inputs of the libretro skin/touch commits 4da31544..f28525fd (other session,
 # 11-12 October 2026) present on Claude when Build 444 was delivered; listed so the
 # closed-tree check names them instead of refusing every later delivery.

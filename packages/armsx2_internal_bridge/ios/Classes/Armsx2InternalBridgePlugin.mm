@@ -518,7 +518,8 @@ static UIViewController* ARMSX2RootViewController(void) {
       !api->login_retroachievements || !api->logout_retroachievements ||
       !api->get_graphics_hacks_json || !api->set_graphics_hack ||
       !api->get_graphics_assets_json || !api->set_shader_preset ||
-      !api->set_performance_overlay || !api->install_shader_pack) {
+      !api->set_performance_overlay || !api->install_shader_pack ||
+      !api->get_blending_accuracy_json || !api->set_blending_accuracy) {
     if (error) *error = @"Embedded ARMSX2 Core ABI is incompatible.";
     return NO;
   }
@@ -854,6 +855,14 @@ static UIViewController* ARMSX2RootViewController(void) {
       id decoded = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
       if ([decoded isKindOfClass:NSDictionary.class]) assets = decoded;
     }
+    // ABI 7: blending accuracy layers of the running game (Build 482).
+    NSDictionary* blending = nil;
+    char blendingJSON[2048] = {};
+    if (self.api->get_blending_accuracy_json(blendingJSON, sizeof(blendingJSON))) {
+      NSData* data = [NSData dataWithBytes:blendingJSON length:strlen(blendingJSON)];
+      id decoded = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+      if ([decoded isKindOfClass:NSDictionary.class]) blending = decoded;
+    }
     dispatch_async(dispatch_get_main_queue(), ^{
       if (self.gameController != controller || self.stopInProgress) {
         if (completion) completion(nil);
@@ -866,6 +875,7 @@ static UIViewController* ARMSX2RootViewController(void) {
         @"saveStateMask": @(mask),
         @"touch": @(controller.touchControlsVisible),
         @"graphicsAssets": assets ?: @{},
+        @"blending": blending ?: @{},
       });
     });
   });
@@ -959,6 +969,21 @@ static UIViewController* ARMSX2RootViewController(void) {
     } else if ([command isEqualToString:@"overlay"]) {
       ok = self.api->set_performance_overlay([value unsignedIntValue], error, sizeof(error)) != 0;
       success = [controller en:@"Performance overlay updated for this game." fr:@"Overlay de performances mis à jour pour ce jeu."];
+    } else if ([command isEqualToString:@"blending"]) {
+      // This game's INI: -1 removes the game's choice (default + GameDB apply again).
+      const int level = [value isKindOfClass:NSNumber.class] ? [value intValue] : NEO_ARMSX2_BLENDING_INHERIT - 1;
+      ok = self.api->set_blending_accuracy(NEO_ARMSX2_BLENDING_SCOPE_GAME, level, error, sizeof(error)) != 0;
+      success = level == NEO_ARMSX2_BLENDING_INHERIT
+          ? [controller en:@"Blending accuracy follows the default for all PS2 games again."
+                        fr:@"La précision du blending suit de nouveau la valeur par défaut des jeux PS2."]
+          : [controller en:@"Blending accuracy updated for this game."
+                        fr:@"Précision du blending mise à jour pour ce jeu."];
+    } else if ([command isEqualToString:@"blendingDefault"]) {
+      // PCSX2.ini: the default every PS2 game without its own choice follows.
+      const int level = [value isKindOfClass:NSNumber.class] ? [value intValue] : NEO_ARMSX2_BLENDING_INHERIT - 1;
+      ok = self.api->set_blending_accuracy(NEO_ARMSX2_BLENDING_SCOPE_DEFAULT, level, error, sizeof(error)) != 0;
+      success = [controller en:@"Default blending accuracy updated for all PS2 games."
+                            fr:@"Précision du blending par défaut mise à jour pour tous les jeux PS2."];
     } else if ([command isEqualToString:@"cheats"]) {
       ok = self.api->set_cheats_enabled([value boolValue] ? 1 : 0, error, sizeof(error)) != 0;
       success = [value boolValue]

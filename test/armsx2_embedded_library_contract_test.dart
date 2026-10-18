@@ -79,7 +79,15 @@ void main() {
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     ).readAsStringSync();
 
-    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 6u'));
+    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 7u'));
+    expect(abi, contains('get_blending_accuracy_json'));
+    expect(abi, contains('set_blending_accuracy'));
+    expect(abi, contains('NEO_ARMSX2_BLENDING_SCOPE_DEFAULT'));
+    expect(core, contains('ARMSX2BlendingAccuracy.inc'));
+    expect(plugin, contains('get_blending_accuracy_json'));
+    expect(plugin, contains('"blendingDefault"'));
+    expect(sessionMenu, contains('Précision du blending'));
+    expect(sessionMenu, contains('ARMSX2MenuBlending'));
     expect(abi, contains('NEO_ARMSX2_BOOT_BIOS'));
     expect(abi, contains('set_upscale_multiplier'));
     expect(abi, contains('set_aspect_ratio'));

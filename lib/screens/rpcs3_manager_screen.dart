@@ -9,6 +9,7 @@ import '../l10n/rpcs3_ui_locale.dart';
 import '../services/rpcs3_content_import_service.dart';
 import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_save_exchange_service.dart';
+import '../widgets/rpcs3_firmware_preflight_dialog.dart';
 import '../widgets/rpcs3_save_exchange_dialogs.dart';
 
 /// User-facing management surface for the embedded RPCS3 engine.
@@ -164,6 +165,13 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
 
   Future<void> _installFirmware() async {
     if (_busy) return;
+    // Build 482: the Get More RAM information precedes every firmware picker,
+    // first installation and reinstallation alike. Back changes nothing.
+    final proceed = await showRpcs3FirmwarePreflight(
+      context,
+      reinstall: _firmwareVersion?.isNotEmpty == true,
+    );
+    if (!proceed || !mounted || _busy) return;
     setState(() {
       _busy = true;
       _error = null;

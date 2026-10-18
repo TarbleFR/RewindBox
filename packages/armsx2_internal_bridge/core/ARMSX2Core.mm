@@ -15,6 +15,7 @@
 #include "pcsx2/Config.h"
 #include "pcsx2/Memory.h"
 #include "pcsx2/Patch.h"
+#include "pcsx2/GameDatabase.h"
 #include "pcsx2/Achievements.h"
 #include "pcsx2/VMManager.h"
 #include "pcsx2/CDVD/CDVDcommon.h"
@@ -684,6 +685,7 @@ int set_graphics_hack(const char* name,int value,char* error,size_t capacity) {
 }
 
 #include "ARMSX2GraphicsAssets.inc"
+#include "ARMSX2BlendingAccuracy.inc"
 
 const NeoARMSX2API api={sizeof(NeoARMSX2API),NEO_ARMSX2_ABI_VERSION,NEO_ARMSX2_SOURCE_REVISION,
   create_view,release_view,prepare,request_jit_detach,validate_jit,boot,request_stop,shutdown,paused,button,sticks,
@@ -693,7 +695,8 @@ const NeoARMSX2API api={sizeof(NeoARMSX2API),NEO_ARMSX2_ABI_VERSION,NEO_ARMSX2_S
   get_retroachievements_state_json,set_retroachievements_option,
   login_retroachievements,logout_retroachievements,
   get_graphics_hacks_json,set_graphics_hack,
-  get_graphics_assets_json,set_shader_preset,set_performance_overlay,install_shader_pack};
+  get_graphics_assets_json,set_shader_preset,set_performance_overlay,install_shader_pack,
+  get_blending_accuracy_json,set_blending_accuracy};
 }
 extern "C" bool ARMSX2_IsIdleVMPrewarmResolved() { return false; } // No autonomous prewarm in NeoStation.
 extern "C" const NeoARMSX2API* NeoARMSX2_GetAPI(uint32_t version) {
