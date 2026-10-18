@@ -755,7 +755,11 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       dispatch_async(self->_queue,report);
       dispatch_group_t group=dispatch_group_create();
       for(NSDictionary *pack in packs){dispatch_group_enter(group);[self->_packQueue addOperationWithBlock:^{NSError *error=[self installPack:pack manifest:manifest];
-        dispatch_async(self->_queue,^{completed++;if(error){[failed addObject:pack[@"id"]];[errors addObject:@{@"pack_id":pack[@"id"],@"message":error.localizedDescription ?: @"Pack failed"}];}else{installed++;completedBytes += [pack[@"size"] unsignedLongLongValue];}report();dispatch_group_leave(group);});}];}
+        dispatch_async(self->_queue,^{completed++;if(error){[failed addObject:pack[@"id"]];[errors addObject:@{@"pack_id":pack[@"id"],@"message":error.localizedDescription ?: @"Pack failed"}];}else{installed++;completedBytes += [pack[@"size"] unsignedLongLongValue];}
+          // Refresh only the current game's changed packs during this pass.
+          // Other packs retain the shared frozen view until bulk completion.
+          if ([priority containsObject:pack[@"id"]]) [self invalidateViews];
+          report();dispatch_group_leave(group);});}];}
       dispatch_group_notify(group,self->_queue,^{self->_installing=NO;
         [self invalidateViews];
         [self readInstallIndex];NSError *storageError=nil;

@@ -260,7 +260,7 @@ static uint64_t Footprint(void) {
   task_vm_info_data_t info={0};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
   return task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count)==KERN_SUCCESS ? info.phys_footprint : 0;
 }
-static void InGameDownloadChecks(NSString *root) {
+static void InGameDownloadChecks(NSString *root,BOOL exerciseUpdate) {
   NSMutableArray *games=[NSMutableArray array],*packs=[NSMutableArray array];
   NSMutableDictionary *responses=[NSMutableDictionary dictionary];
   NSArray *identities=@[
@@ -283,12 +283,25 @@ static void InGameDownloadChecks(NSString *root) {
   NeoUnifiedCheatCatalog *catalog=[NeoUnifiedCheatCatalog new];catalog.storageDirectory=[root stringByAppendingPathComponent:@"target-cache"];catalog.bundledDirectory=bundle;
   [NSFileManager.defaultManager createDirectoryAtPath:catalog.storageDirectory withIntermediateDirectories:YES attributes:nil error:NULL];
   [Bytes(@{@"schema_version":@1,@"catalogue_id":@"targets",@"revision":@"474",@"games":@[games[0]],@"packs":@[packs[0]]}) writeToFile:[catalog.storageDirectory stringByAppendingPathComponent:@"manifest.json"] atomically:YES];
+  if (exerciseUpdate) {
+    NSMutableDictionary *oldGame=[games[1] mutableCopy];
+    NSData *oldChunk=Bytes(@{@"schema_version":@1,@"game":oldGame,@"cheats":@[]});
+    oldGame[@"sha256"]=Hash(oldChunk);oldGame[@"size"]=@(oldChunk.length);
+    NSString *folder=[catalog.storageDirectory stringByAppendingPathComponent:@"files"];
+    [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:NULL];
+    [oldChunk writeToFile:[folder stringByAppendingPathComponent:[oldGame[@"sha256"] stringByAppendingString:@".json"]] atomically:YES];
+    [Bytes(@{@"schema_version":@1,@"games":@{oldGame[@"id"]:@{@"game":oldGame}}}) writeToFile:[catalog.storageDirectory stringByAppendingPathComponent:@"installed.json"] atomically:YES];
+  }
   catalog.manifestURL=[NSURL URLWithString:@"https://catalogue.invalid/targets/manifest.json"];
   NSObject *lock=[NSObject new];__block NSUInteger fetched=0;
+  __block void (^heldDownload)(void);__block BOOL releaseDownload=!exerciseUpdate;
   catalog.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)) {
     NSString *path=[url.path substringFromIndex:@"/targets/".length];
     CHECK(![path isEqual:@"manifest.json"],"in-game install must use the verified local index before network refresh");
-    @synchronized(lock){fetched++;}NSData *data=responses[path];CHECK(data && data.length<=limit,"real service requests an indexed bounded pack");completion(data,nil);
+    @synchronized(lock){fetched++;}NSData *data=responses[path];CHECK(data && data.length<=limit,"real service requests an indexed bounded pack");
+    BOOL hold=NO;
+    @synchronized(lock){if (!releaseDownload && [path containsString:@"target-0"]) {heldDownload=^{completion(data,nil);};hold=YES;}}
+    if (!hold) completion(data,nil);
   };
   NSDictionary *upgraded=Load(catalog);
   CHECK([upgraded[@"games"] count]==2 && [upgraded[@"revision"] isEqual:@"475"],"a nonempty old downloaded index must not conceal new bundled PS3 editions");
@@ -296,9 +309,23 @@ static void InGameDownloadChecks(NSString *root) {
   nativePS2[@"identities"]=@[ID(@"serial",@"SLUS-20655",@"ps2-disc-serial"),ID(@"ps2_crc",@"2D29C32F",@"pcsx2-executable-crc")];
   __block BOOL done=NO;
   [catalog gamesForIdentity:nativePS2 completion:^(NSArray *matches,NSError *error){CHECK(!error && matches.count==1,"actual discovery prefilter accepts formatted native PS2 serial");CHECK(![matches[0][@"installed"] boolValue],"matching index is not confused with downloaded codes");done=YES;}];Spin(^BOOL{return done;});
-  done=NO;__block NSUInteger progressCount=0;
-  [catalog installAllForIdentity:identities[1] progress:^(NSDictionary *progress){CHECK(NSThread.isMainThread,"in-game progress is on main");progressCount++;}
+  done=NO;__block NSUInteger progressCount=0;__block BOOL partialRead=NO,partialRequested=NO;
+  [catalog installAllForIdentity:identities[1] progress:^(NSDictionary *progress){
+    CHECK(NSThread.isMainThread,"in-game progress is on main");progressCount++;
+    if (exerciseUpdate && !partialRequested && [progress[@"installed_packs"] unsignedIntegerValue]) {
+      partialRequested=YES;
+      [catalog gamesForIdentity:identities[1] completion:^(NSArray *matches,NSError *error){
+        CHECK(!error && matches.count==1 && ![matches[0][@"update_available"] boolValue] && [matches[0][@"sha256"] isEqual:games[1][@"sha256"]],"new current-game metadata replaces the old installed edition before unrelated downloads finish");
+        [catalog cheatsForGame:matches[0] completion:^(NSArray *programs,NSError *problem){
+          CHECK(!problem && programs.count==1,"new PS3 programs are readable during partial bulk completion");partialRead=YES;
+          void (^release)(void)=nil;@synchronized(lock){releaseDownload=YES;release=heldDownload;heldDownload=nil;}
+          if(release)release();
+        }];
+      }];
+    }
+  }
       completion:^(NSDictionary *result,NSError *error){CHECK(!error && [result[@"installed_games"] unsignedIntegerValue]==2,"in-game button installs PS2 and PS3 through the real service");done=YES;}];Spin(^BOOL{return done;});
+  CHECK(!exerciseUpdate || partialRead,"partial update witness actually returned current-game codes");
   CHECK(fetched==2 && progressCount>=3,"one request per pack with immediate and completion progress");
   CHECK(Codes(catalog,games[1],YES).count==1,"downloaded PS3 program is readable");
   CHECK(![Codes(catalog,games[0],YES)[0][@"enabled"] boolValue],"download never activates PS2 programs");
@@ -372,6 +399,6 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
   }
   IdentityChecks();NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:NULL];
-  RuntimeChecks(root);RejectionChecks(root);InGameDownloadChecks(root);[NSFileManager.defaultManager removeItemAtPath:root error:NULL];
+  RuntimeChecks(root);RejectionChecks(root);InGameDownloadChecks(root,!(argc==2 && strcmp(argv[1],"--queue-baseline")==0));[NSFileManager.defaultManager removeItemAtPath:root error:NULL];
   printf("Foundation unified catalogue: %lu behavioral checks passed\n",(unsigned long)checks);return 0;
 }}
