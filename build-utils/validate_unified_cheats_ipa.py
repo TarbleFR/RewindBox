@@ -28,12 +28,20 @@ def validate(ipa, build):
         if data != expected:
             raise ValueError('Packaged index differs from the Apple-tested final index')
         manifest = json.loads(gzip.decompress(data))
-        counts=(44794,859,2353299) if build >= 477 else (44789,858,2353283)
+        if build >= 478:
+            receipt=json.loads((ROOT/'docs/evidence/cheats478-sources.json').read_bytes())
+            counts=(receipt['totals']['games'],receipt['preservedPackCount']+len(receipt['newPacks']),receipt['totals']['programs'])
+            if hashlib.sha256(data).hexdigest()!=receipt['manifestSHA256']:
+                raise ValueError('Packaged expansion differs from exact native-tested receipt')
+        else:
+            counts=(44794,859,2353299) if build >= 477 else (44789,858,2353283)
         if (len(manifest['games']),len(manifest['packs']),manifest['totals']['programs']) != counts:
             raise ValueError('Wrong final publication counts')
         notice=matches[0].rsplit('/',1)[0]+'/gow3-0100-LICENSE.txt'
         if z.read(notice)!=(ROOT/'packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt').read_bytes():
             raise ValueError('Source MIT notice missing from actual app resource')
+        if build >= 478 and z.read(matches[0].rsplit('/',1)[0]+'/artemis-rpcs3-LICENSE.txt')!=(ROOT/'packages/neo_cheat_catalog/ios/Resources/artemis-rpcs3-LICENSE.txt').read_bytes():
+            raise ValueError('Artemis RPCS3 source MIT notice missing from actual app resource')
         binaries = {}
         for name in ('neo_cheat_catalog', 'libretro_internal_bridge',
                      'armsx2_internal_bridge', 'dolphin_internal_bridge', 'rpcs3_internal_bridge'):
@@ -56,6 +64,10 @@ def validate(ipa, build):
                 for marker in (b'NeoUnifiedCheatCatalogProgressNotification',b'installation.json',b'enqueuePack:manifest:priority:completion:',b'resumeDownload'):
                     if marker not in binary:
                         raise ValueError('Packaged common installation fix is missing '+marker.decode())
+            if name == 'neo_cheat_catalog' and build >= 478:
+                for marker in (b'detectedEdition',b'otherRevisions',b'explainMissingRevision:generation:',b'60fps'):
+                    if marker not in binary:
+                        raise ValueError('Packaged version/FPS source-note UI is missing '+marker.decode())
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')
