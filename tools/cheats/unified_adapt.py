@@ -18,6 +18,8 @@ import zipfile
 
 from unified_formats import FormatError, cheat, game
 from unified_reserve import parse_cheatdevice_ps2
+from unified478_formats import PARSERS as EXPANDED_NATIVE_PARSERS
+from unified478_fps import PARSERS as FPS_PARSERS
 
 
 PROOFS = {
@@ -325,3 +327,5 @@ def parse_reviewed_editions_json(data, options):
 
 PARSERS = {"reviewed-editions-json":parse_reviewed_editions_json,"ps3-static-json":parse_reviewed_ps3_json,"reviewed-native-json":parse_reviewed_ps3_json,"mister-adapted-zip": parse_mister_adapted_zip,
            "cheatdevice-pnach": parse_cheatdevice_pnach}
+PARSERS.update(EXPANDED_NATIVE_PARSERS)
+PARSERS.update(FPS_PARSERS)

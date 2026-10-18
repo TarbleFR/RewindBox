@@ -1,0 +1,253 @@
+[
+  {
+    "id": "psxdatacenter_v2_478",
+    "name": "PSX Data Center PNACH v2.0",
+    "url": "https://psxdatacenter.com/psx2/down2.html",
+    "revision": "v2.0-downloaded-2026-10-18",
+    "sha256": "82f34ce66cc096316b599a65d51a380f4bc28b30158fc8642e5d3bf215363106",
+    "download_url": "https://psxdatacenter.com/psx2/downloads2/PS2%20Cheats%20Pack%20New%20Pnach%20Format%20v.2.0%20for%20PCSX2.zip",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.pnach",
+        "format": "edition-pnach"
+      }
+    ],
+    "license": "Unspecified; original authors retain rights; preserve source notices and attribution",
+    "research_id": 74,
+    "status": "available",
+    "import_scope": "Whole CRC-attested PNACH programs; independent sections only when the existing control-flow proof succeeds",
+    "publication": {
+      "enabled": true,
+      "reason": "Whole CRC-attested PNACH programs; independent sections only when the existing control-flow proof succeeds"
+    }
+  },
+  {
+    "id": "pal_pnach478",
+    "name": "European PNACH collection",
+    "url": "https://github.com/complicatiion/pcsx2_europe_cheats_collection",
+    "revision": "9886a7a771e38d7ba65cf5826544ddc846d78b55",
+    "sha256": "297eb4a84c2ad84bbe26063727c1b4276b887bdaf5aa1fe67081c670a3f1f22b",
+    "download_url": "https://codeload.github.com/complicatiion/pcsx2_europe_cheats_collection/zip/9886a7a771e38d7ba65cf5826544ddc846d78b55",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.pnach",
+        "format": "edition-pnach"
+      }
+    ],
+    "license": "Unspecified; original authors retain rights; preserve source notices and attribution",
+    "research_id": 75,
+    "status": "available",
+    "import_scope": "Complete source-attested PNACH programs only; source default activation is not imported",
+    "publication": {
+      "enabled": true,
+      "reason": "Complete source-attested PNACH programs only; source default activation is not imported"
+    }
+  },
+  {
+    "id": "shadow_pnach478",
+    "name": "ShadowNinja PNACH collection",
+    "url": "https://github.com/shadowninja826/pcsx2_pnach_cheats",
+    "revision": "56d328be4c4f048896788f8203703b822656b768",
+    "sha256": "afb0fea13ceca0f72858b2130bd6aac59014319d8edb89283ad693ac6e922669",
+    "download_url": "https://codeload.github.com/shadowninja826/pcsx2_pnach_cheats/zip/56d328be4c4f048896788f8203703b822656b768",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.pnach",
+        "format": "edition-pnach"
+      }
+    ],
+    "license": "Unspecified; original authors retain rights; preserve source notices and attribution",
+    "research_id": 76,
+    "status": "available",
+    "import_scope": "Complete source-attested PNACH programs only; source default activation is not imported",
+    "publication": {
+      "enabled": true,
+      "reason": "Complete source-attested PNACH programs only; source default activation is not imported"
+    }
+  },
+  {
+    "id": "yuki_pnach478",
+    "name": "YukiXXL retail PNACH programs",
+    "url": "https://github.com/YukiXXL/PS2-modding",
+    "revision": "bf079d98cc6a820643ab08598b1c3d3df6a9d960",
+    "sha256": "e56e3d0b4887894e2c6f6083c1cbef32e049eeba8e2d7acd371cfdb781c85974",
+    "download_url": "https://codeload.github.com/YukiXXL/PS2-modding/zip/bf079d98cc6a820643ab08598b1c3d3df6a9d960",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*/Cheat_Codes/PNACHs/Single/*.pnach",
+        "regex": "(?i)(?!.*(?:/patches/|/prototype|/experimental|/beta/|/demo/)).*",
+        "format": "edition-pnach"
+      }
+    ],
+    "license": "Unspecified; original authors retain rights; preserve source notices and attribution",
+    "research_id": 77,
+    "status": "available",
+    "import_scope": "Complete source-attested PNACH programs only; source default activation is not imported",
+    "publication": {
+      "enabled": true,
+      "reason": "Complete source-attested PNACH programs only; source default activation is not imported"
+    }
+  },
+  {
+    "id": "dragon_pnach478",
+    "name": "xGamingDragon93x PNACH collection",
+    "url": "https://github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH",
+    "revision": "ec43b3324d7ee371af550afea006c2834e76d934",
+    "sha256": "c6c01d6dc2a405bb6d7670f0a603c45f890e0c670c86ed809c7ad12c28c2fbb0",
+    "download_url": "https://codeload.github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH/zip/ec43b3324d7ee371af550afea006c2834e76d934",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.rar",
+        "format": "edition-pnach-rar"
+      }
+    ],
+    "license": "Unspecified; original authors retain rights; preserve source notices and attribution",
+    "research_id": 78,
+    "status": "available",
+    "import_scope": "Complete source-attested PNACH programs only; source default activation is not imported",
+    "publication": {
+      "enabled": true,
+      "reason": "Complete source-attested PNACH programs only; source default activation is not imported"
+    }
+  },
+  {
+    "id": "artemis_static478",
+    "name": "ArtemisPS3 complete static PPU programs",
+    "url": "https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes",
+    "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+    "sha256": "2cc8948b08184c097fada692a5c497428d6cb48d11f289d6e92665ec1177dd15",
+    "download_url": "https://codeload.github.com/bucanero/ArtemisPS3/tar.gz/d79b41e525e20251bd0d919100039ac0a6433956",
+    "archive": "tar.gz",
+    "members": [
+      {
+        "glob": "*/docs/codes/*.ncl",
+        "format": "static-ppu-ncl"
+      }
+    ],
+    "license": "Unspecified; original authors retain rights; preserve source notices and attribution",
+    "research_id": 79,
+    "status": "available",
+    "import_scope": "Only complete mode-0 aligned 32-bit static text writes below 0x02000000, explicit source serial/version, observed runtime PPU binding and edition confirmation; no scan/pointer/freeze/partial program conversion",
+    "publication": {
+      "enabled": true,
+      "reason": "Only complete mode-0 aligned 32-bit static text writes below 0x02000000, explicit source serial/version, observed runtime PPU binding and edition confirmation; no scan/pointer/freeze/partial program conversion"
+    }
+  },
+  {
+    "id": "artemis_pkg478",
+    "name": "Artemis RPCS3 authored PKG collection",
+    "url": "https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG",
+    "revision": "471bde6f857fe1ed9a717f7468e9dc91bc53a500",
+    "sha256": "73c4aaa45bb3a4edc69e48a9e99955783d72517d0f4a4ba17cec399506c5acda",
+    "download_url": "https://codeload.github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG/zip/471bde6f857fe1ed9a717f7468e9dc91bc53a500",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*",
+        "regex": "[^/]+/[^/]+\\[[^/]+\\][^/]*",
+        "format": "rpcs3-yaml"
+      }
+    ],
+    "license": "MIT, copyright 2023 chidreams; original hacker attribution retained",
+    "research_id": 80,
+    "status": "available",
+    "import_scope": "Existing authored native PPU documents only; complete programs, serial/version/hash constraints and exclusive groups retained",
+    "publication": {
+      "enabled": true,
+      "reason": "Existing authored native PPU documents only; complete programs, serial/version/hash constraints and exclusive groups retained"
+    }
+  },
+  {
+    "id": "pcsx2_fps478",
+    "name": "PCSX2/pcsx2_patches explicit 60 FPS patches",
+    "url": "https://github.com/PCSX2/pcsx2_patches",
+    "revision": "3ef626fda330ed78a1d8d6d54976e7a4e5e7d92c",
+    "sha256": "4d521aba513985829e6b47b0a8a4fa7b064f7594d5de57bcbe80e4203a43c67d",
+    "download_url": "https://codeload.github.com/PCSX2/pcsx2_patches/zip/3ef626fda330ed78a1d8d6d54976e7a4e5e7d92c",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.pnach",
+        "format": "fps-pnach"
+      }
+    ],
+    "license": "Original authors retain rights; preserve author names, descriptions and source notices",
+    "research_id": 81,
+    "status": "available",
+    "import_scope": "Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes",
+    "publication": {
+      "enabled": true
+    }
+  },
+  {
+    "id": "gabominated_fps478",
+    "name": "Gabominated/PCSX2 explicit 60 FPS patches",
+    "url": "https://github.com/Gabominated/PCSX2",
+    "revision": "69f9ff7a7edc61ac887f950ec640417315babf57",
+    "sha256": "930f0063dafd6baa478a596e598c9640acebb00916d7f10eeb2638f347eaa10d",
+    "download_url": "https://codeload.github.com/Gabominated/PCSX2/zip/69f9ff7a7edc61ac887f950ec640417315babf57",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.pnach",
+        "format": "fps-pnach"
+      }
+    ],
+    "license": "Original authors retain rights; preserve author names, descriptions and source notices",
+    "research_id": 82,
+    "status": "available",
+    "import_scope": "Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes",
+    "publication": {
+      "enabled": true
+    }
+  },
+  {
+    "id": "nethersx2_fps478",
+    "name": "Saramagrean/NetherSX2-cheats explicit 60 FPS patches",
+    "url": "https://github.com/Saramagrean/NetherSX2-cheats",
+    "revision": "52187122e0adf73a50869b52ce9143e878ab4129",
+    "sha256": "976a125e7e6068a66f6908e0a5d64f699eb9ae873276a5c95d1bc51548421b6e",
+    "download_url": "https://codeload.github.com/Saramagrean/NetherSX2-cheats/zip/52187122e0adf73a50869b52ce9143e878ab4129",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*.pnach",
+        "format": "fps-pnach"
+      }
+    ],
+    "license": "Original authors retain rights; preserve author names, descriptions and source notices",
+    "research_id": 83,
+    "status": "available",
+    "import_scope": "Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes",
+    "publication": {
+      "enabled": true
+    }
+  },
+  {
+    "id": "illusion_fps478",
+    "name": "RPCS3 native 60 FPS patches, pinned illusion mirror",
+    "url": "https://github.com/illusion0001/rpcs3-game-patch",
+    "revision": "16be3d817e9aedc4685389c8327f3d8a925df862",
+    "sha256": "833d87e96c23575927783589329be71d5fce13c2f3391f6c124ecbed8ae2127a",
+    "download_url": "https://codeload.github.com/illusion0001/rpcs3-game-patch/zip/16be3d817e9aedc4685389c8327f3d8a925df862",
+    "archive": "zip",
+    "members": [
+      {
+        "glob": "*/patch.yml",
+        "format": "fps-rpcs3-yaml"
+      }
+    ],
+    "license": "Original patch authors retain rights; preserve attribution and source requirements",
+    "research_id": 84,
+    "status": "available",
+    "import_scope": "Complete author-published native PPU documents explicitly labeled 60 FPS, keeping exact serial/version/hash, notes and exclusive groups; configurable/unsupported programs stay excluded",
+    "publication": {
+      "enabled": true
+    }
+  }
+]

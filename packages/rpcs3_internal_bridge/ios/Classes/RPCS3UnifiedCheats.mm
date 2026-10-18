@@ -208,7 +208,9 @@ static void RPCheatGame(void* context,const rpcs3_ios_catalogue_game_info* game)
     if(!document && RPCheatStaticRows(program)) {
       if(!RPCheatMatch(self.runtimePPUHash,@"^PPU-[0-9a-f]{40}$") || allVersions || !RPCheatString(game[@"title"]).length)return NO;
       runtimeBinding=YES;
-      document=@{@"Version":@"1.2",self.runtimePPUHash:@{program[@"name"]:@{@"Games":@{game[@"title"]:@{serial:@[version]}},@"Patch":RPCheatStaticRows(program),@"Author":@"CodeFreak/PS3UserCheat"}}};
+      NSString *author=RPCheatString(program[@"author"]);
+      document=@{@"Version":@"1.2",self.runtimePPUHash:@{program[@"name"]:@{@"Games":@{game[@"title"]:@{serial:@[version]}},@"Patch":RPCheatStaticRows(program),
+          @"Author":author.length ? author : @"CodeFreak/PS3UserCheat",@"Notes":RPCheatString(program[@"notes"])}}};
     }
     if (!document) return NO;
     [ids addObject:RPCheatString(program[@"id"])];

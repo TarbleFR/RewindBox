@@ -88,7 +88,7 @@ def contracts():
     print(f"Shared catalogue: {len(keys)} complete keys in all twelve languages; placeholders preserved.", flush=True)
 
 
-def native(result_path: Path | None, regional_only: bool = False, direct_only: bool = False, direct_fix_only: bool = False, direct_toggle_only: bool = False, manual_only: bool = False, followup476_only: bool = False, followup477_only: bool = False):
+def native(result_path: Path | None, regional_only: bool = False, direct_only: bool = False, direct_fix_only: bool = False, direct_toggle_only: bool = False, manual_only: bool = False, followup476_only: bool = False, followup477_only: bool = False, followup478_only: bool = False):
     if platform.system() != "Darwin":
         raise RuntimeError("UIKit execution requires macOS with Xcode; no native pass is claimed on this host")
     sdk = subprocess.check_output(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"], text=True).strip()
@@ -151,7 +151,24 @@ def native(result_path: Path | None, regional_only: bool = False, direct_only: b
                    "-scheme", "UnifiedCatalogueBrowser", "-destination", "platform=iOS Simulator,id=" + device["udid"],
                    "-destination-timeout", "60", "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES",
                    "-default-test-execution-time-allowance", "60", "-maximum-test-execution-time-allowance", "120"]
-        if followup477_only:
+        if followup478_only:
+            command += ["-only-testing:UnifiedCatalogueTests/UnifiedCatalogueBrowserTests/" + name for name in (
+                "test478BladestormDifferentRevisionExplainsSourceWithoutOfferingOrImportingCodes",
+                "test478RevisionDiagnosticKeepsKnownSerialAndPPUConflictsExcluded",
+                "test478FPSPatchShowsSourceRequirementsBesideTheDisabledSwitch",
+                "test477InstalledCatalogueCannotBeDownloadedAgainInAnotherConsole",
+                "test477ReopenedConsoleShowsSharedProgressThenCompletedState",
+                "test477PartialCatalogueOffersResumeAndBlocksAnotherRunningRequest",
+                "test477AuthorizedCatalogueLoadsMissingGameWithoutAnotherBulkRequest",
+                "test476DownloadStatusIsVisibleAndInstalledCodesRemainUsableDuringDownload",
+                "test476PartialDownloadRefreshesThisGameBeforeAllCataloguesFinish",
+                "test476OfflinePackIsRecoveredAndBlockedEngineDoesNotHideMatchingCodes",
+                "test476MissingDownloadIsDistinctFromNoEditionAndFailuresStayVisible",
+                "testDirectListLateImportAfterPopCannotEnableACode",
+                "testDirectListNeverOffersRetiredCataloguesAfterUpdate",
+                "testDirectListConfirmsAnUnknownEditionOncePerDetectedGame",
+            )]
+        elif followup477_only:
             command += ["-only-testing:UnifiedCatalogueTests/UnifiedCatalogueBrowserTests/" + name for name in (
                 "test477InstalledCatalogueCannotBeDownloadedAgainInAnotherConsole",
                 "test477ReopenedConsoleShowsSharedProgressThenCompletedState",
@@ -226,7 +243,8 @@ if __name__ == "__main__":
     parser.add_argument("--manual-only", action="store_true")
     parser.add_argument("--followup476-only", action="store_true")
     parser.add_argument("--followup477-only", action="store_true")
+    parser.add_argument("--followup478-only", action="store_true")
     arguments = parser.parse_args()
     contracts()
     if arguments.native:
-        native(arguments.result, arguments.regional_only, arguments.direct_only, arguments.direct_fix_only, arguments.direct_toggle_only, arguments.manual_only, arguments.followup476_only, arguments.followup477_only)
+        native(arguments.result, arguments.regional_only, arguments.direct_only, arguments.direct_fix_only, arguments.direct_toggle_only, arguments.manual_only, arguments.followup476_only, arguments.followup477_only, arguments.followup478_only)

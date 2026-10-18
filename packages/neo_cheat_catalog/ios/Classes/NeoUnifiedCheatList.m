@@ -187,6 +187,34 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
     [rows addObject:@{@"key":NCLString(item[@"key"]),@"name":NCLString(item[@"name"]),@"native":item}];
   self.rows=rows; [self.tableView reloadData];
 }
+- (NSString *)detectedEdition {
+  NSDictionary *identity=self.state[@"identity"];
+  if (![identity[@"system"] isEqual:@"ps3"]) return @"";
+  for (NSDictionary *identifier in NCLArray(identity[@"identities"])) if ([identifier[@"scheme"] isEqual:@"ps3-title-id"] && NCLString(identifier[@"value"]).length) {
+    NSString *detail=[[self text:@"detectedEdition"] stringByReplacingOccurrencesOfString:@"{serial}" withString:identifier[@"value"]];
+    NSString *revision=NCLString(identity[@"revision"]);
+    return [detail stringByReplacingOccurrencesOfString:@"{revision}" withString:revision.length ? revision : [self text:@"unknown"]];
+  }
+  return @"";
+}
+- (void)explainMissingRevision:(NSDictionary *)identity generation:(NSUInteger)generation {
+  if (![identity[@"system"] isEqual:@"ps3"] || !NCLString(identity[@"revision"]).length || ![self detectedEdition].length) return;
+  NSMutableDictionary *withoutRevision=[identity mutableCopy]; [withoutRevision removeObjectForKey:@"revision"];
+  __weak typeof(self) weakSelf=self;
+  // Diagnostic lookup only: these rows never enter selections/imports. All
+  // known serial/PPU/region/language conflicts remain enforced by the service.
+  [NeoUnifiedCheatCatalog.sharedCatalog gamesForIdentity:withoutRevision completion:^(NSArray *games,NSError *error) {
+    NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed || menu.generation!=generation || error) return;
+    NSMutableSet *versions=[NSMutableSet set];
+    for (NSDictionary *game in games) if (![game[@"archived"] boolValue] && NCLString(game[@"revision"]).length &&
+        ![game[@"revision"] isEqual:identity[@"revision"]] && [NeoUnifiedCheatCatalog matchGame:game identity:withoutRevision])
+      [versions addObject:game[@"revision"]];
+    if (!versions.count) return;
+    NSString *detail=[[menu text:@"otherRevisions"] stringByReplacingOccurrencesOfString:@"{versions}"
+        withString:[[[versions allObjects] sortedArrayUsingSelector:@selector(compare:)] componentsJoinedByString:@", "]];
+    menu.catalogueStatus=[NSString stringWithFormat:@"%@\n%@",[menu text:@"noMatches"],detail]; [menu rebuild];
+  }];
+}
 - (void)reloadCheats {
   if (!self.readState || self.busy || self.closed) return;
   NSUInteger generation=++self.generation; self.discovering=YES;
@@ -210,7 +238,11 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
             if (pending.count<64) [pending addObject:game];
           } else needsDownload=YES;
         }
-        if (!pending.count) { owner.catalogueStatus=[owner text:needsDownload ? @"notInstalled" : @"noMatches"]; owner.discovering=NO; [owner rebuild]; return; }
+        if (!pending.count) {
+          owner.catalogueStatus=[owner text:needsDownload ? @"notInstalled" : @"noMatches"]; owner.discovering=NO; [owner rebuild];
+          if (!needsDownload && !games.count) [owner explainMissingRevision:state[@"identity"] ?: @{} generation:generation];
+          return;
+        }
         __block NSUInteger remaining=pending.count; NSMutableArray *choices=[NSMutableArray array];
         // Serial catalogue queue/worker bounds remain owned by the service.
         for (NSDictionary *game in pending) [NeoUnifiedCheatCatalog.sharedCatalog cheatsForGame:game completion:^(NSArray *programs,NSError *problem) {
@@ -236,7 +268,11 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   if (section==0) return nil;
   if (self.discovering) return [self text:@"loading"];
   NSString *help=NCLString(self.state[@"help"]);
-  return self.rows.count ? help : [NSString stringWithFormat:@"%@%@%@",self.catalogueStatus ?: [self text:@"noMatches"],help.length ? @"\n" : @"",help];
+  NSMutableArray *details=[NSMutableArray array];
+  if (!self.rows.count) [details addObject:self.catalogueStatus ?: [self text:@"noMatches"]];
+  NSString *edition=[self detectedEdition]; if (edition.length) [details addObject:edition];
+  if (help.length) [details addObject:help];
+  return [details componentsJoinedByString:@"\n"];
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
   UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
@@ -254,6 +290,9 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
     NSDictionary *row=self.rows[path.row],*item=row[@"native"];
     cell.textLabel.text=row[@"name"];
     cell.detailTextLabel.text=item ? NCLString(item[@"detail"]) : NCLString(row[@"game"][@"revision"]);
+    NSDictionary *program=NCLArray(row[@"programs"]).lastObject;
+    if ([program[@"feature"] isEqual:@"60fps"] && NCLString(program[@"notes"]).length)
+      cell.detailTextLabel.text=[@[cell.detailTextLabel.text ?: @"",program[@"notes"]] componentsJoinedByString:@"\n"];
     UISwitch *toggle=[UISwitch new]; toggle.on=[item[@"enabled"] boolValue]; toggle.tag=path.row;
     toggle.enabled=!self.busy && [self.state[@"available"] boolValue] && ![self.state[@"hardcore"] boolValue] && ![item[@"readOnly"] boolValue];
     toggle.accessibilityLabel=row[@"name"]; toggle.accessibilityIdentifier=@"directCheats.toggle";

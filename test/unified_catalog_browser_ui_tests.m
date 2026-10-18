@@ -54,6 +54,7 @@ static void NUCBExchangeSingleton(void) {
 @interface NUCBFakeCatalog : NeoUnifiedCheatCatalog
 @property(nonatomic, copy) NSArray *rows;
 @property(nonatomic, copy) NSArray *codes;
+@property(nonatomic, copy) NSArray *revisionRows;
 @property(nonatomic, copy) NSDictionary *summaryFixture;
 @property(nonatomic, copy) NSDictionary *chosenGame;
 @property(nonatomic, copy) void (^installProgress)(NSDictionary *);
@@ -68,7 +69,9 @@ static void NUCBExchangeSingleton(void) {
 - (void)loadWithCompletion:(void (^)(NSDictionary *, NSError *))completion {
     completion(self.summaryFixture ?: @{@"installed_games": @0, @"installed_packs": @0, @"total_packs": @2, @"total_bytes": @1000}, nil);
 }
-- (void)gamesForIdentity:(NSDictionary *)identity completion:(void (^)(NSArray *, NSError *))completion { completion(self.rows ?: @[], nil); }
+- (void)gamesForIdentity:(NSDictionary *)identity completion:(void (^)(NSArray *, NSError *))completion {
+    completion(!identity[@"revision"] && self.revisionRows ? self.revisionRows : self.rows ?: @[], nil);
+}
 - (void)searchGames:(NSString *)query system:(NSString *)system completion:(void (^)(NSArray *, NSError *))completion { completion(self.rows ?: @[], nil); }
 - (void)installAllWithProgress:(void (^)(NSDictionary *))progress completion:(void (^)(NSDictionary *, NSError *))completion {
     self.installs++;
@@ -999,6 +1002,54 @@ static void NUCBExchangeSingleton(void) {
     cell=[ps2 tableView:ps2.tableView cellForRowAtIndexPath:action];XCTAssertFalse(cell.userInteractionEnabled);
     [ps2 tableView:ps2.tableView didSelectRowAtIndexPath:action];
     XCTAssertEqual(self.catalog.installs,0U);
+}
+
+- (void)test478BladestormDifferentRevisionExplainsSourceWithoutOfferingOrImportingCodes {
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];list.engine=@"rpcs3";
+    NSDictionary *identity=@{@"system":@"ps3",@"revision":@"01.01",@"identities":@[@{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLES00113"}]};
+    self.catalog.rows=@[];
+    self.catalog.revisionRows=@[@{@"system":@"ps3",@"revision":@"01.00",@"identities":identity[@"identities"],@"installed":@YES}];
+    __block NSUInteger imports=0,activations=0;
+    list.install=^(NSDictionary *g,NSArray *p,void (^done)(NSDictionary*,NSError*)){imports++;};
+    list.setEnabled=^(NSDictionary *i,BOOL e,void (^done)(BOOL)){activations++;};
+    list.readState=^(void (^done)(NSDictionary*)){done(@{@"available":@YES,@"identity":identity,@"items":@[]});};
+    [list reloadCheats];
+    [self waitFor:^BOOL{return [[list tableView:list.tableView titleForFooterInSection:1] containsString:@"01.00"];}];
+    NSString *footer=[list tableView:list.tableView titleForFooterInSection:1];
+    XCTAssertTrue([footer containsString:@"BLES00113 · 01.01"]);
+    XCTAssertTrue([footer containsString:@"ne correspondent pas"]);
+    XCTAssertEqual([list tableView:list.tableView numberOfRowsInSection:1],0);
+    XCTAssertEqual(imports,0U);XCTAssertEqual(activations,0U);XCTAssertEqual(self.catalog.installs,0U);
+}
+
+- (void)test478RevisionDiagnosticKeepsKnownSerialAndPPUConflictsExcluded {
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];list.engine=@"rpcs3";
+    NSDictionary *identity=@{@"system":@"ps3",@"revision":@"01.01",@"identities":@[
+        @{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLES00113"},
+        @{@"type":@"ppu_hash",@"scheme":@"rpcs3-ppu-hash",@"value":@"0123456789012345678901234567890123456789"}]};
+    self.catalog.rows=@[];self.catalog.revisionRows=@[
+        @{@"system":@"ps3",@"revision":@"01.02",@"identities":@[@{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLJM60009"}]},
+        @{@"system":@"ps3",@"revision":@"01.03",@"identities":@[
+            @{@"type":@"serial",@"scheme":@"ps3-title-id",@"value":@"BLES00113"},
+            @{@"type":@"ppu_hash",@"scheme":@"rpcs3-ppu-hash",@"value":@"abcdef0123456789012345678901234567890123"}]}];
+    list.readState=^(void (^done)(NSDictionary*)){done(@{@"available":@YES,@"identity":identity,@"items":@[]});};
+    [list reloadCheats];[self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    NSString *footer=[list tableView:list.tableView titleForFooterInSection:1];
+    XCTAssertTrue([footer containsString:@"BLES00113 · 01.01"]);
+    XCTAssertFalse([footer containsString:@"01.02"]);XCTAssertFalse([footer containsString:@"01.03"]);
+    XCTAssertEqual([list tableView:list.tableView numberOfRowsInSection:1],0);
+}
+
+- (void)test478FPSPatchShowsSourceRequirementsBesideTheDisabledSwitch {
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];
+    NSMutableDictionary *program=[[self program:@"60 FPS" dependencies:@[]] mutableCopy];
+    program[@"feature"]=@"60fps";program[@"notes"]=@"Might need EE overclock (130%).";
+    self.catalog.codes=@[program];[list reloadCheats];
+    [self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];
+    UITableViewCell *cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    XCTAssertEqualObjects(cell.textLabel.text,@"60 FPS");
+    XCTAssertTrue([cell.detailTextLabel.text containsString:@"Might need EE overclock (130%)."]);
+    XCTAssertFalse(((UISwitch*)cell.accessoryView).on);XCTAssertEqual(self.catalog.installs,0U);
 }
 
 - (void)test477ReopenedConsoleShowsSharedProgressThenCompletedState {

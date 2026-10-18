@@ -1,0 +1,71 @@
+name: Expanded gameplay and 60 FPS catalogues 478
+on:
+  push:
+    branches: [Claude]
+    paths: ['tools/cheats/**', 'test/cheats478*', 'test/unified_catalog_browser_ui*', '.github/workflows/cheats478-data.yml']
+  workflow_dispatch:
+permissions: {contents: read}
+concurrency:
+  group: cheats478-sources-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[sources478]') }}
+    permissions: {contents: write}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tested_commit: ${{ steps.publish.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - run: python3 -m pip install PyYAML==6.0.3
+      - name: Generate bounded pinned additions and retain all delivered packs
+        run: |
+          python3 tools/cheats/unified478.py
+          python3 tools/cheats/unified_catalogue.py validate --input native/cheats/catalogue
+          python3 test/cheats478_sources.py
+          python3 tools/cheats/fps478_inventory.py
+          python3 test/unified_catalog_browser_ui_test.py
+      - name: Publish the generated data on the authorized branch
+        id: publish
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/Claude | cut -f1)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/cheats/unified-sources.json native/cheats/catalogue packages/neo_cheat_catalog/ios/Resources/manifest.json.gz docs/evidence/cheats478-sources.json docs/evidence/cheats478-fps.json
+          if ! git diff --cached --quiet; then
+            git commit -m '[direct-followup] Publish pinned gameplay and 60 FPS additions for 478 [skip ci]'
+            git push origin HEAD:refs/heads/Claude
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  apple:
+    needs: publish
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.publish.outputs.tested_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Exact published native programs and full-index memory
+        run: |
+          git rev-parse HEAD
+          python3 test/cheats478_sources.py --native
+      - name: Compile and link the changed shared list with the iPhone SDK
+        run: |
+          python3 test/unified_catalog_ios_test.py IPhoneCatalogTests
+          xcrun --sdk iphoneos clang++ -std=c++20 -fobjc-arc -fblocks -target arm64-apple-ios17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -I packages/rpcs3_internal_bridge/ios/Classes -c packages/rpcs3_internal_bridge/ios/Classes/RPCS3UnifiedCheats.mm -o /tmp/RPCS3UnifiedCheats478.o
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Shared installation, version diagnostics and source notes in UIKit
+        run: python3 test/unified_catalog_browser_ui_test.py --native --followup478-only --result evidence/cheats478.xcresult
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cheats478-sources-${{ needs.publish.outputs.tested_commit }}
+          path: evidence/
+          retention-days: 14

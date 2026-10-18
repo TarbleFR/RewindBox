@@ -225,7 +225,14 @@ def parse_source(source, data):
                         merged["identities"] = options["identities_by_title"].get(merged.get("system", "") + ":" + title_key, [])
                     fmt = rule.get("format", source.get("format"))
                     try:
-                        result.extend(PARSERS[fmt](member, merged))
+                        rows = PARSERS[fmt](member, merged)
+                        # A format may reject a whole program without losing
+                        # other independent programs in that same source file.
+                        # Keep those decisions in the generation-only audit.
+                        member_errors = {canonical({"path": path, **issue}): {"path": path, **issue}
+                            for row in rows for issue in row.get("source_rejections", [])}
+                        errors.extend(member_errors.values())
+                        result.extend(rows)
                     except Exception as exc:
                         errors.append({"path": path, "reason": str(exc)[:300]})
                     break

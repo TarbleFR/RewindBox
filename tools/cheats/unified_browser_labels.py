@@ -386,6 +386,21 @@ FBNEO_AUTOMATIC_LABELS = {
  "ko": "카탈로그를 다운로드한 다음 게임을 다시 열면 치트를 불러옵니다. 새 코드는 꺼져 있습니다.",
 }
 
+EDITION_DIAGNOSTICS = {
+ "en": ("Detected edition: {serial} · {revision}", "Codes exist for version(s): {versions}. They do not match this game's detected version."),
+ "fr": ("Édition détectée : {serial} · {revision}", "Des codes existent pour la ou les versions : {versions}. Ils ne correspondent pas à la version détectée de ce jeu."),
+ "de": ("Erkannte Ausgabe: {serial} · {revision}", "Codes sind für folgende Versionen vorhanden: {versions}. Sie passen nicht zur erkannten Version dieses Spiels."),
+ "es": ("Edición detectada: {serial} · {revision}", "Hay códigos para estas versiones: {versions}. No coinciden con la versión detectada de este juego."),
+ "it": ("Edizione rilevata: {serial} · {revision}", "Sono disponibili codici per queste versioni: {versions}. Non corrispondono alla versione rilevata di questo gioco."),
+ "pt": ("Edição detectada: {serial} · {revision}", "Existem códigos para estas versões: {versions}. Não correspondem à versão detectada deste jogo."),
+ "ru": ("Обнаруженное издание: {serial} · {revision}", "Есть коды для версий: {versions}. Они не соответствуют обнаруженной версии этой игры."),
+ "id": ("Edisi terdeteksi: {serial} · {revision}", "Kode tersedia untuk versi: {versions}. Kode tersebut tidak cocok dengan versi game yang terdeteksi."),
+ "zh": ("检测到的版本：{serial} · {revision}", "以下版本有代码：{versions}。它们与此游戏检测到的版本不匹配。"),
+ "zh_Hant": ("偵測到的版本：{serial} · {revision}", "以下版本有代碼：{versions}。它們與此遊戲偵測到的版本不相符。"),
+ "ja": ("検出したエディション：{serial} · {revision}", "コードがあるバージョン：{versions}。このゲームで検出したバージョンとは一致しません。"),
+ "ko": ("감지된 에디션: {serial} · {revision}", "다음 버전의 코드가 있습니다: {versions}. 이 게임에서 감지된 버전과 일치하지 않습니다."),
+}
+
 def resource():
     result = {}
     for locale, values in STRINGS.items():
@@ -403,6 +418,7 @@ def resource():
             raise ValueError(f"{locale}: incomplete FBNeo translations")
         result[locale].update(zip(FBNEO_KEYS, FBNEO_LABELS[locale]))
         result[locale]["resumeDownload"] = RESUME_DOWNLOAD_LABELS[locale]
+        result[locale]["detectedEdition"], result[locale]["otherRevisions"] = EDITION_DIAGNOSTICS[locale]
         result[locale]["fbneoSessionHelp"] = FBNEO_AUTOMATIC_LABELS[locale]
         result[locale]["exclusiveConflict"], result[locale]["mgbaIsolationConflict"] = ACTIVATION_CONFLICT_LABELS[locale]
         result[locale]["fbneoUnsafeDefault"], result[locale]["fbneoUnmanagedOption"] = FBNEO_UNAVAILABLE_LABELS[locale]
