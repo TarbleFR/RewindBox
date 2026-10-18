@@ -527,7 +527,7 @@ entry:
 	{
 		llvm::LLVMContext context;
 		std::unique_ptr<llvm::Module> m = parse(context, R"IR(
-define internal void @spu_test_state(ptr %t) preserve_mostcc {
+define internal preserve_mostcc void @spu_test_state(ptr %t) {
 entry:
   store i8 1, ptr %t, align 1
   ret void
