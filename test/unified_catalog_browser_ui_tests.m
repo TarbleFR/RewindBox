@@ -143,8 +143,13 @@ static void NUCBExchangeSingleton(void) {
     [self.browser tableView:self.browser.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:section]];
 }
 - (void)dismissAlert:(UIAlertController *)alert action:(UIAlertAction *)action {
+    // Disabling animations does not make UIKit appearance transitions
+    // synchronous. Wait for presentation and dismissal before the next tap.
+    [self waitFor:^BOOL { return alert.viewIfLoaded.window && !alert.isBeingPresented && !alert.transitionCoordinator; }];
     void (^handler)(UIAlertAction *) = [action valueForKey:@"handler"];
-    [alert dismissViewControllerAnimated:NO completion:^{ if (handler) handler(action); }];
+    __block BOOL dismissed = NO;
+    [alert dismissViewControllerAnimated:NO completion:^{ dismissed = YES; if (handler) handler(action); }];
+    [self waitFor:^BOOL { return dismissed; }];
 }
 
 - (void)testTwelveRealTranslationsAndTraditionalChineseSelection {
@@ -238,8 +243,10 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertEqualObjects(self.catalog.chosenGame[@"match"], @"conflict");
     XCTAssertEqualObjects(self.catalog.chosenGame[@"edition_confirmed"], @NO);
     NeoUnifiedCheatBrowser *codes = (id)self.navigation.topViewController;
+    [self waitFor:^BOOL { return codes.viewIfLoaded.window && !self.navigation.transitionCoordinator; }];
     XCTAssertEqualObjects([codes reasonForProgram:self.catalog.codes.firstObject], @"editionMismatch");
     [codes tableView:codes.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+    [self waitFor:^BOOL { return self.navigation.viewControllers.count == 3 && !self.navigation.transitionCoordinator; }];
     self.browser = (id)self.navigation.topViewController;
     UITableViewCell *import = [self.browser tableView:self.browser.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:3]];
     XCTAssertTrue((import.accessibilityTraits & UIAccessibilityTraitNotEnabled) != 0);

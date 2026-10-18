@@ -1,0 +1,41 @@
+{
+  "source_sha": "e813d226dc1cd0b9d6e9b204d9de692621b9a62c",
+  "run_id": 39094836721,
+  "job_id": 117579007774,
+  "artifact_id": 12124581237,
+  "artifact_zip_sha256": "4dd6bf0c66a023e75b760b7fc6b5be82cd8cae88541ad549cec71a2b1e9a01c1",
+  "passed": [
+    "testActualImportActionSendsOneWholeDependencyGroupOnlyOnce",
+    "testAllPartsRemainVisibleWithExplicitPartNumbers",
+    "testClosureAUTOAndExclusiveMetadataSurviveMergeSaveAndActualReload",
+    "testDependencyClosurePreservesEveryLineAndDisablesWholePrograms",
+    "testDismissedBrowserIgnoresLateLookupDownloadAndImportCallbacks",
+    "testDownloadActionAnnouncesCompressedDownloadAndExtractedPlusCachedStorage",
+    "testExactTypedROMIdentityOpensCodesWithoutEditionConfirmation",
+    "testExclusiveGroupsAcrossTogglesIncludeLegacyAndRestoreIsAtomic",
+    "testFBNeoCompleteNativeImportStaysDisabledAndExplainsGameRelaunch",
+    "testFBNeoExplicitToggleAndDisableAllUseSessionNativeOptionsOnly",
+    "testFBNeoFirstLaunchWithoutINIStillOffersCatalogueAndDisabledImport",
+    "testFBNeoMenuLoadsNativeOptionsWithoutActivatingOrUsingRetroCheatSet",
+    "testFBNeoUnavailableNativeOptionsStayVisibleAndCannotSendActivation",
+    "testGBAVBARawDialectRequiresMGBAAndKeepsWholeAddressValueProgram",
+    "testInvalidUnresolvedUnsupportedAndIncompleteDependenciesCannotImport",
+    "testLongRowsActuallyFitNarrowUIKitCellsAtAccessibilitySize",
+    "testMGBARawAUTOActivationIsIsolatedButCompleteVBACanCoexist",
+    "testMGBARestoreRefusesAUTOCombinationWithoutChangingAnyPriorState",
+    "testPCEWonderSwanAndPicoProfilesUseNativeBindingsAndCanonicalCatalogueAliases",
+    "testRealLibretroAutoloadRejectsExclusiveDependenciesAndWrongParameterTypes",
+    "testRealLibretroCombinesMasterAndChildIntoOneDisabledToggle",
+    "testRealLibretroFullRecordLimitReportsImportFailureInSharedUI",
+    "testRealLibretroKeepsRegionalConfirmationByGameIDAndMergesAllAttribution",
+    "testRealLibretroNotificationLoadsInstalledCodesWithoutActivationOrNetwork",
+    "testRealLibretroOwnerIsReleasedAfterPageDismissalAndNotificationObserverRemoval",
+    "testRealLibretroSameTitleAndCodeKeepDistinctUncertainEditionScopes",
+    "testSingleDownloadActionShowsGlobalProgressAndRetriesPartialFailure",
+    "testTwelveRealTranslationsAndTraditionalChineseSelection"
+  ],
+  "failed": [
+    "testCandidateCannotDownloadProgramsBeforeExplicitEditionConfirmation",
+    "testKnownTypedHashConflictIsReadOnlyAndCannotBeConfirmedOrImported"
+  ]
+}
