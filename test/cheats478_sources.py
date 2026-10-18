@@ -100,21 +100,23 @@ def verify_publication():
     print('PASS exact delta:',dict(systems),'programs;',len(old['games']),'old chunk hashes and',len(old['packs']),'packs preserved.',flush=True)
     return receipt,chunks
 
-def apple(receipt,chunks):
+def apple(receipt,chunks,reuse_index=False):
     if sys.platform!='darwin':raise SystemExit('Apple native proof requires macOS/Xcode.')
     cat=ROOT/'packages/neo_cheat_catalog/ios/Classes';arms=ROOT/'packages/armsx2_internal_bridge/ios/Classes';rpc=ROOT/'packages/rpcs3_internal_bridge/ios/Classes'
     def run(args):subprocess.run(list(map(str,args)),check=True,cwd=ROOT)
     with tempfile.TemporaryDirectory(prefix='neo-sources478-') as folder:
         work=Path(folder);fixtures=work/'chunks.json';fixtures.write_bytes(canonical(chunks));obj=work/'catalog.o'
         run(['xcrun','clang','-fobjc-arc','-fblocks','-I',cat/'Public','-c',cat/'NeoUnifiedCheatCatalog.m','-o',obj])
-        run(['xcrun','clang','-fobjc-arc','-fblocks','-I',cat/'Public',ROOT/'test/unified_catalog_runtime_native.m',obj,'-framework','Foundation','-lz','-o',work/'memory'])
-        run([work/'memory','--manifest',ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz','--games',str(receipt['totals']['games']),'--packs',str(len(json.loads(gzip.decompress((ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()))['packs']))])
+        if not reuse_index:
+            run(['xcrun','clang','-fobjc-arc','-fblocks','-I',cat/'Public',ROOT/'test/unified_catalog_runtime_native.m',obj,'-framework','Foundation','-lz','-o',work/'memory'])
+            run([work/'memory','--manifest',ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz','--games',str(receipt['totals']['games']),'--packs',str(len(json.loads(gzip.decompress((ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()))['packs']))])
         run(['xcrun','clang++','-std=c++20','-fobjc-arc','-fblocks','-I',arms,'-I',rpc,'-I',cat/'Public',ROOT/'test/cheats478_sources.mm',rpc/'RPCS3UnifiedCheats.mm',obj,'-framework','Foundation','-lz','-o',work/'native'])
         run([work/'native',ROOT,fixtures,str(receipt['newPrograms'])])
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--native',action='store_true');args=parser.parse_args()
-    suite=unittest.defaultTestLoader.loadTestsFromTestCase(SourceContracts)
-    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():raise SystemExit(1)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--native',action='store_true');parser.add_argument('--native-only',action='store_true');parser.add_argument('--reuse-index-proof',action='store_true');args=parser.parse_args()
+    if not args.native_only:
+        suite=unittest.defaultTestLoader.loadTestsFromTestCase(SourceContracts)
+        if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():raise SystemExit(1)
     receipt,chunks=verify_publication()
-    if args.native:apple(receipt,chunks)
+    if args.native or args.native_only:apple(receipt,chunks,args.reuse_index_proof)

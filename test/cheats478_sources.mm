@@ -17,6 +17,16 @@ static std::vector<std::string> Lines(const NeoCheat::Result& parsed) {
   for(const auto& entry:parsed.entries)result.insert(result.end(),entry.lines.begin(),entry.lines.end());
   return result;
 }
+static void Difference(id expected,id actual,NSString *path,NSUInteger depth) {
+  if([expected isEqual:actual] || depth>32)return;
+  if([expected isKindOfClass:NSDictionary.class] && [actual isKindOfClass:NSDictionary.class]) {
+    for(NSString *key in expected)Difference(expected[key],actual[key],[path stringByAppendingFormat:@"/%@",key],depth+1);
+  } else if([expected isKindOfClass:NSArray.class] && [actual isKindOfClass:NSArray.class] && [expected count]==[actual count]) {
+    for(NSUInteger i=0;i<[expected count];i++)Difference(expected[i],actual[i],[path stringByAppendingFormat:@"/%lu",(unsigned long)i],depth+1);
+  } else fprintf(stderr,"Source difference %s: %s (%s) -> %s (%s)\n",path.UTF8String,
+      [[expected description] UTF8String],NSStringFromClass([expected class]).UTF8String,
+      [[actual description] UTF8String],NSStringFromClass([actual class]).UTF8String);
+}
 int main(int argc,const char *argv[]) {@autoreleasepool{
   assert(argc==4);NSString *repo=@(argv[1]);NSUInteger expected=[@(argv[3]) integerValue];
   NSArray *chunks=[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:@(argv[2])] options:0 error:nil];assert(chunks.count);
@@ -62,6 +72,10 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
         if(!ok){fprintf(stderr,"PS3 stage rejected %s / %s / %s\n",serial.UTF8String,[game[@"revision"] UTF8String],[program[@"name"] UTF8String]);return 3;}
         NSDictionary *state=[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:[staging stringByAppendingPathComponent:@"NeoStationUnifiedCheats/state.json"]] options:0 error:nil];
         NSArray *records=state[@"programs"];assert(records.count==1 && ![records[0][@"enabled"] boolValue]);
+        if(![records[0][@"sources"] isEqual:@[program]]) {
+          fprintf(stderr,"Roundtrip mismatch %s / %s\n",serial.UTF8String,[program[@"name"] UTF8String]);
+          Difference(@[program],records[0][@"sources"],@"program",0);
+        }
         assert([records[0][@"sources"] isEqual:@[program]]);
         if([program[@"dialect"] isEqual:@"ps3-static-be32"]) {
           assert([records[0][@"runtimeBound"] boolValue]);
