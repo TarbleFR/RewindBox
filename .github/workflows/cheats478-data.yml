@@ -55,7 +55,7 @@ jobs:
       - name: Exact published native programs and full-index memory
         run: |
           git rev-parse HEAD
-          python3 test/cheats478_sources.py --native
+          python3 test/cheats478_sources.py --native-only
       - name: Compile and link the changed shared list with the iPhone SDK
         run: |
           python3 test/unified_catalog_ios_test.py IPhoneCatalogTests
