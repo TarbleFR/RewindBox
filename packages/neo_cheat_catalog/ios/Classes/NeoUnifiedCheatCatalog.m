@@ -426,6 +426,33 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   NSDictionary *plain=[self validatedManifest:ReadBounded([self.bundledDirectory stringByAppendingPathComponent:@"manifest.json"],ManifestLimit) error:nil];
   return plain ?: [self validatedManifest:ReadBounded([self.bundledDirectory stringByAppendingPathComponent:@"manifest.json.gz"],ManifestCompressedLimit) error:nil];
 }
+- (NSData *)bundledIndexBytes {
+  if (!self.bundledDirectory) return nil;
+  return ReadBounded([self.bundledDirectory stringByAppendingPathComponent:@"manifest.json"],ManifestLimit) ?:
+      ReadBounded([self.bundledDirectory stringByAppendingPathComponent:@"manifest.json.gz"],ManifestCompressedLimit);
+}
+- (void)rememberBundledIndex {
+  NSData *bytes=[self bundledIndexBytes];
+  if (bytes) WriteAtomic(JSONData(@{@"sha256":Digest(bytes)}),[self.storageDirectory stringByAppendingPathComponent:@"bundled-index.json"],nil);
+}
+- (NSDictionary *)localManifest {
+  NSString *path=[self.storageDirectory stringByAppendingPathComponent:@"manifest.json"];
+  NSDictionary *cached=[self validatedManifest:ReadBounded(path,ManifestLimit) error:nil];
+  NSData *bytes=[self bundledIndexBytes];
+  if (!bytes) return cached;
+  NSString *fingerprint=Digest(bytes);
+  NSDictionary *previous=JSON(ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"bundled-index.json"],4096));
+  // A nonempty 474 cache must not conceal the new PS3 editions shipped in 475.
+  // Remember the bundle generation separately so an explicit later remote
+  // update is retained on subsequent launches of the same application.
+  if (Array(cached[@"games"]).count && [String(previous[@"sha256"]) isEqual:fingerprint]) return cached;
+  NSDictionary *bundled=[self validatedManifest:bytes error:nil];
+  if (!bundled) return cached;
+  NSDictionary *selected=[String(cached[@"revision"]) isEqual:String(bundled[@"revision"])] && Array(cached[@"games"]).count ? cached : bundled;
+  if (selected==bundled) WriteAtomic(JSONData(bundled),path,nil);
+  WriteAtomic(JSONData(@{@"sha256":fingerprint}),[self.storageDirectory stringByAppendingPathComponent:@"bundled-index.json"],nil);
+  return selected;
+}
 - (NSUInteger)manifestDownloadLimit {
   return self.fetch ? ManifestLimit : ([self.manifestURL.path hasSuffix:@".gz"] ? ManifestCompressedLimit : ManifestLimit);
 }
@@ -536,12 +563,8 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     if(self->_manifest){NSDictionary *snapshot=[self snapshot];dispatch_async(dispatch_get_main_queue(),^{completion(snapshot,nil);});return;}
     [self->_loadWaiters addObject:[completion copy]];
     if(self->_loading)return;self->_loading=YES;
-    NSError *error=nil;
-    NSDictionary *cached=[self validatedManifest:ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],ManifestLimit) error:&error];
-    NSDictionary *bundled=nil;
-    if(!Array(cached[@"games"]).count && self.bundledDirectory)
-      bundled=[self bundledManifest];
-    if(cached || bundled){[self adoptManifest:(Array(cached[@"games"]).count || !bundled) ? cached : bundled];[self finishLoading:nil];return;}
+    NSDictionary *local=[self localManifest];
+    if(local){[self adoptManifest:local];[self finishLoading:nil];return;}
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
       NSError *fetchError=nil;NSData *data=[self download:self.manifestURL limit:[self manifestDownloadLimit] error:&fetchError];
       NSDictionary *manifest=[self validatedManifest:data error:&fetchError];
@@ -702,9 +725,8 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       NSDictionary *fresh=remote ? [self validatedManifest:remote error:&refreshError] : nil;
       __block NSDictionary *manifest=nil;
       dispatch_sync(self->_queue,^{
-        if(fresh){[self adoptManifest:fresh];WriteAtomic(JSONData(fresh),[self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],nil);}
-        if(!self->_manifest){NSDictionary *local=[self validatedManifest:ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],ManifestLimit) error:nil];
-          if(!local && self.bundledDirectory)local=[self bundledManifest];
+        if(fresh){[self adoptManifest:fresh];WriteAtomic(JSONData(fresh),[self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],nil);[self rememberBundledIndex];}
+        if(!self->_manifest){NSDictionary *local=[self localManifest];
           if(local)[self adoptManifest:local];}
         manifest=self->_manifest;
       });
@@ -749,8 +771,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   __block NSArray *result=@[];
   dispatch_sync(_queue,^{
     if (!self->_manifest) {
-      NSDictionary *cached=[self validatedManifest:ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"manifest.json"],ManifestLimit) error:nil];
-      NSDictionary *local=cached ?: [self bundledManifest];
+      NSDictionary *local=[self localManifest];
       if (local) [self adoptManifest:local];
     }
     [self effectiveGames]; NSMutableArray *found=[NSMutableArray array];

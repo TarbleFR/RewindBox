@@ -281,6 +281,8 @@ static void InGameDownloadChecks(NSString *root) {
   [NSFileManager.defaultManager createDirectoryAtPath:bundle withIntermediateDirectories:YES attributes:nil error:NULL];
   [Bytes(@{@"schema_version":@1,@"catalogue_id":@"targets",@"revision":@"475",@"games":games,@"packs":packs}) writeToFile:[bundle stringByAppendingPathComponent:@"manifest.json"] atomically:YES];
   NeoUnifiedCheatCatalog *catalog=[NeoUnifiedCheatCatalog new];catalog.storageDirectory=[root stringByAppendingPathComponent:@"target-cache"];catalog.bundledDirectory=bundle;
+  [NSFileManager.defaultManager createDirectoryAtPath:catalog.storageDirectory withIntermediateDirectories:YES attributes:nil error:NULL];
+  [Bytes(@{@"schema_version":@1,@"catalogue_id":@"targets",@"revision":@"474",@"games":@[games[0]],@"packs":@[packs[0]]}) writeToFile:[catalog.storageDirectory stringByAppendingPathComponent:@"manifest.json"] atomically:YES];
   catalog.manifestURL=[NSURL URLWithString:@"https://catalogue.invalid/targets/manifest.json"];
   NSObject *lock=[NSObject new];__block NSUInteger fetched=0;
   catalog.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)) {
@@ -288,7 +290,8 @@ static void InGameDownloadChecks(NSString *root) {
     CHECK(![path isEqual:@"manifest.json"],"in-game install must use the verified local index before network refresh");
     @synchronized(lock){fetched++;}NSData *data=responses[path];CHECK(data && data.length<=limit,"real service requests an indexed bounded pack");completion(data,nil);
   };
-  Load(catalog);
+  NSDictionary *upgraded=Load(catalog);
+  CHECK([upgraded[@"games"] count]==2 && [upgraded[@"revision"] isEqual:@"475"],"a nonempty old downloaded index must not conceal new bundled PS3 editions");
   NSMutableDictionary *nativePS2=[identities[0] mutableCopy];nativePS2[@"title"]=@"";
   nativePS2[@"identities"]=@[ID(@"serial",@"SLUS-20655",@"ps2-disc-serial"),ID(@"ps2_crc",@"2D29C32F",@"pcsx2-executable-crc")];
   __block BOOL done=NO;
@@ -306,6 +309,10 @@ static void InGameDownloadChecks(NSString *root) {
   done=NO;[catalog gamesForIdentity:nativePS2 completion:^(NSArray *matches,NSError *error){CHECK(!error && matches.count==1 && ![matches[0][@"installed"] boolValue] && [matches[0][@"cached_pack"] boolValue],"cached pack remains discoverable after an extracted file is missing");done=YES;}];Spin(^BOOL{return done;});
   CHECK(Codes(catalog,games[0],YES).count==1,"missing extracted PS2 codes recover from the verified offline pack");
   done=NO;[catalog gamesForIdentity:identities[1] completion:^(NSArray *matches,NSError *error){CHECK(!error && matches.count==1 && [matches[0][@"installed"] boolValue],"installed PS3 serial/version returns its cheat edition");done=YES;}];Spin(^BOOL{return done;});
+  NSMutableDictionary *remote=[upgraded mutableCopy];remote[@"revision"]=@"later-user-update";
+  [Bytes(remote) writeToFile:[catalog.storageDirectory stringByAppendingPathComponent:@"manifest.json"] atomically:YES];
+  NeoUnifiedCheatCatalog *reopened=[NeoUnifiedCheatCatalog new];reopened.storageDirectory=catalog.storageDirectory;reopened.bundledDirectory=bundle;reopened.fetch=catalog.fetch;
+  CHECK([Load(reopened)[@"revision"] isEqual:@"later-user-update"],"same bundle generation retains a subsequent explicit catalogue update");
 }
 static void FullManifestMemoryProbe(NSString *path,NSUInteger expectedGames,NSUInteger expectedPacks) {
   NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
