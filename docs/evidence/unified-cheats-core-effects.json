@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "source_commit": "2ae6ec849c9e4b122a1fae62bc9715cbdcc64691",
+  "run_id": 39094043482,
+  "job_id": 117576625930,
+  "artifact_id": 12123653735,
+  "artifact_zip_sha256": "a70e82ea6b1be93eb18cdbae553fa13f1a5be6942e636ad3c312e26c4833fa0b",
+  "probe_report_sha256": "10eb0d5d94210c7c04249e46c0eff332ba9370707e150be3411e981a9323d072",
+  "scope": "Component success inside a job failing its separate FBNeo probe; no global success claimed.",
+  "simulator": "iPhone SE (3rd generation) iOS 26.2",
+  "core_rebuilt": false,
+  "physical_device_validated": false,
+  "scenarios": [
+    {
+      "name": "unified-cheats-psp",
+      "core": "ppsspp",
+      "checks": [
+        {
+          "name": "audited adapter preserves one complete native program",
+          "passed": true
+        },
+        {
+          "name": "delivered core exposes the expected real RAM address",
+          "passed": true
+        },
+        {
+          "name": "real core advanced four frames and RAM[9371684]=7F",
+          "passed": true
+        },
+        {
+          "name": "real core advanced four frames and RAM[9371684]=7F",
+          "passed": true
+        },
+        {
+          "name": "real core advanced four frames and RAM[9371684]=22",
+          "passed": true
+        }
+      ],
+      "stopped": true,
+      "active_after_stop": false
+    },
+    {
+      "name": "unified-cheats-n64",
+      "core": "mupen64plus_next",
+      "checks": [
+        {
+          "name": "audited adapter preserves one complete native program",
+          "passed": true
+        },
+        {
+          "name": "delivered core exposes the expected real RAM address",
+          "passed": true
+        },
+        {
+          "name": "real core advanced four frames and RAM[983079]=7F",
+          "passed": true
+        },
+        {
+          "name": "real core advanced four frames and RAM[983079]=7F",
+          "passed": true
+        },
+        {
+          "name": "real core advanced four frames and RAM[983079]=22",
+          "passed": true
+        }
+      ],
+      "stopped": true,
+      "active_after_stop": false
+    }
+  ],
+  "core_sha256": {
+    "ppsspp": "40d3b6f81a726ff82a89f87df5332f20a5dcdecd9f6473fcae7cade60bcb0cf0",
+    "mupen64plus_next": "afdaff358796de530fa005eb037af68f3e05936442cf07f5f7dde86803f8f115"
+  },
+  "n64_simulator_options": {
+    "mupen64plus-rdp-plugin": "angrylion",
+    "mupen64plus-rsp-plugin": "cxd4",
+    "mupen64plus-cpucore": "cached_interpreter"
+  },
+  "reuse_scope": "Host, adapters, core payloads and probe inputs unchanged after source_commit; fake FBNeo fixture changes do not alter these scenarios."
+}

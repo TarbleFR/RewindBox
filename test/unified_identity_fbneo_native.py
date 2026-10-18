@@ -60,6 +60,21 @@ def main():
         report = {'originalBinarySHA256': DIGEST, 'returncode': outcome.returncode,
                   'codeChanged': False, 'hostFixture': 'unified_identity_fbneo_test.m',
                   'physicalDeviceValidated': False}
+        if outcome.returncode < 0:
+            report['signal'] = -outcome.returncode
+            # Preserve an actionable stack for an engine or fixture abort.
+            # Rerun only this original CPU fixture, never a game or other core.
+            try:
+                diagnostic = subprocess.run(
+                    ['lldb', '--batch', '-o', 'settings set target.disable-aslr false',
+                     '-o', 'run', '-o', 'thread backtrace all', '--',
+                     str(binary), str(core), str(work)],
+                    text=True, capture_output=True, timeout=60)
+                (evidence / 'fbneo-native-backtrace.txt').write_text(
+                    diagnostic.stdout + diagnostic.stderr)
+                report['debuggerReturncode'] = diagnostic.returncode
+            except (OSError, subprocess.TimeoutExpired) as error:
+                (evidence / 'fbneo-native-backtrace.txt').write_text(str(error) + '\n')
         if outcome.stdout.strip():
             try:
                 report['native'] = json.loads(outcome.stdout.strip().splitlines()[-1])

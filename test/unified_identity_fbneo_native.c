@@ -20,9 +20,11 @@ typedef struct cpu_core_config {
  uint64_t memory_size;uint32_t address_flags;
 } cpu_core_config;
 static uint8_t memory[256];static unsigned writes,checks,failures;
-static void cpu_open(int n){if(n!=0)abort();}static void noop(void){}
-static uint8_t cpu_read(uint32_t a){if(a>=sizeof(memory))abort();return memory[a];}
-static void cpu_write(uint32_t a,uint8_t v){if(a>=sizeof(memory))abort();memory[a]=v;writes++;}
+static const char *phase="entry";
+#define PHASE(name) do{phase=(name);fprintf(stderr,"FBNeo phase: %s\n",phase);}while(0)
+static void cpu_open(int n){if(n!=0){fprintf(stderr,"FBNeo %s: unexpected CPU index %d\n",phase,n);abort();}}static void noop(void){}
+static uint8_t cpu_read(uint32_t a){if(a>=sizeof(memory)){fprintf(stderr,"FBNeo %s: CPU read outside fixture RAM: 0x%08X\n",phase,a);abort();}return memory[a];}
+static void cpu_write(uint32_t a,uint8_t v){if(a>=sizeof(memory)){fprintf(stderr,"FBNeo %s: CPU write outside fixture RAM: 0x%08X=0x%02X\n",phase,a,v);abort();}memory[a]=v;writes++;}
 static int zero(void){return 0;}static int one_arg(int n){return n;}
 static void irq(int a,int b,int c){(void)a;(void)b;(void)c;}
 static char *path_export,private_path[260],personal_system[260];
@@ -66,8 +68,10 @@ static bool isolation_environment(unsigned command,void *data){
 #define CHECK(c,m) do{checks++;if(!(c)){failures++;fprintf(stderr,"FAIL %s\n",m);}}while(0)
 #define SYMBOL(type,name,symbol) type name=(type)dlsym(library,symbol);if(!name){fprintf(stderr,"Missing actual core export %s\n",symbol);return 2;}
 int main(int argc,char **argv){
+ setvbuf(stderr,NULL,_IONBF,0);PHASE("before dlopen");
  if(argc!=3)return 2;
  void *library=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);if(!library){fprintf(stderr,"%s\n",dlerror());return 2;}
+ PHASE("resolving native exports");
  typedef int(*int_fn)(void);typedef void(*void_fn)(void);typedef int(*enable_fn)(int,int);
  typedef char*(*text_fn)(uint32_t);typedef void(*register_fn)(int,cpu_core_config*);
  typedef cpu_core_config*(*config_fn)(int);
@@ -79,7 +83,8 @@ int main(int argc,char **argv){
  SYMBOL(config_fn,cpu_config,"_Z16GetCpuCoreConfigi");
  SYMBOL(uint32_t*,driver,"nBurnDrvActive");SYMBOL(uint32_t*,count,"nBurnDrvCount");
  SYMBOL(bool*,allowed,"bCheatsAllowed");SYMBOL(char*,cheats_path,"szAppCheatsPath");
- CHECK(burn_init()==0,"native driver database initialises");
+ PHASE("BurnLibInit");CHECK(burn_init()==0,"native driver database initialises");
+ PHASE("selecting 1942 metadata");
  for(*driver=0;*driver<*count;(*driver)++){const char *name=driver_name(0);if(name&&!strcmp(name,"1942"))break;}
  if(*driver>=*count){fprintf(stderr,"Pinned core has no1942 driver metadata\n");return 2;}
  // argv2 is a deliberately short test-only /tmp directory.
@@ -88,26 +93,26 @@ int main(int argc,char **argv){
  char filename[128];snprintf(filename,sizeof(filename),"%s/1942.ini",argv[2]);FILE *file=fopen(filename,"wb");if(!file)return 2;
  fputs("cheat \"Original CPU callback fixture\"\ndefault 0\n0 \"Disabled\"\n1 \"Enabled\", 0, 0x24, 0x7F\n2 \"Alternate\", 0, 0x24, 0x33\n",file);fclose(file);
  cpu_core_config cpu={"Original test CPU",cpu_open,noop,cpu_read,cpu_write,zero,zero,noop,one_arg,irq,one_arg,noop,noop,one_arg,noop,sizeof(memory),0};
- CHECK(cheat_init()==0,"native CPU cheat registry initialises");register_cpu(0,&cpu);CHECK(cpu_config(0)==&cpu,"actual exported CPU registry retains callback configuration");*allowed=true;
- CHECK(load()==0,"actual pinned parser reads native INI");memory[0x24]=0x11;apply();CHECK(memory[0x24]==0x11&&writes==0,"native INI starts disabled");
- CHECK(enable(0,1)==0,"actual native choice enables");apply();CHECK(memory[0x24]==0x7f&&writes>0,"actual delivered engine writes CPU memory");
+ PHASE("registering fixture CPU");CHECK(cheat_init()==0,"native CPU cheat registry initialises");register_cpu(0,&cpu);CHECK(cpu_config(0)==&cpu,"actual exported CPU registry retains callback configuration");*allowed=true;
+ PHASE("parsing default0 INI");CHECK(load()==0,"actual pinned parser reads native INI");memory[0x24]=0x11;apply();CHECK(memory[0x24]==0x11&&writes==0,"native INI starts disabled");
+ PHASE("enabling native choice");CHECK(enable(0,1)==0,"actual native choice enables");apply();CHECK(memory[0x24]==0x7f&&writes>0,"actual delivered engine writes CPU memory");
  memory[0x24]=0x22;unsigned before=writes;apply();CHECK(memory[0x24]==0x7f&&writes>before,"native engine repeats the write after overwrite");
  *allowed=false;update();memory[0x24]=0x55;before=writes;apply();CHECK(memory[0x24]==0x55&&writes==before,"master Off plus native CheatUpdate immediately stops cached active writes");*allowed=true;update();
  CHECK(enable(0,2)==0,"actual second native choice selected");apply();CHECK(memory[0x24]==0x33,"native choice values are preserved");
  CHECK(enable(0,0)==0,"actual native Off selected");memory[0x24]=0x44;before=writes;apply();CHECK(memory[0x24]==0x44&&writes==before,"disabled native engine leaves memory untouched");
- cheat_exit();
+ PHASE("exiting default0 fixture");cheat_exit();
  // Diagnose the personal-INI case separately. Production imports always use
  // default0; do not silently rewrite a user's existing nonzero default.
  file=fopen(filename,"wb");if(!file)return 2;
  fputs("cheat \"Nonzero default diagnostic\"\ndefault 1\n0 \"Disabled\"\n1 \"Enabled\", 0, 0x24, 0x7F\n",file);fclose(file);
  memset(memory,0,sizeof(memory));memory[0x24]=0x11;unsigned initial_writes=writes;
- cheat_init();register_cpu(0,&cpu);*allowed=true;load();apply();
+ PHASE("parsing nonzero default diagnostic");cheat_init();register_cpu(0,&cpu);*allowed=true;load();apply();
  bool nonzero_loaded_off=memory[0x24]==0x11&&writes==initial_writes;
  CHECK(nonzero_loaded_off,"native ConfigCheatLoad does not activate a nonzero default before explicit selection");
  enable(0,1);apply();CHECK(memory[0x24]==0x7f,"nonzero default diagnostic can activate its default choice");
  enable(0,0);memory[0x24]=0x44;initial_writes=writes;apply();
  bool nonzero_can_disable=memory[0x24]==0x44&&writes==initial_writes;
- cheat_exit();burn_exit();
+ PHASE("exiting native CPU fixture");cheat_exit();burn_exit();
  // Execute the actual load_game path up to early native options with an empty
  // ZIP. Missing game ROMs are expected; no CPU game execution is claimed.
  typedef void(*environment_fn)(retro_environment_t);typedef bool(*load_game_fn)(const struct retro_game_info*);
@@ -121,16 +126,16 @@ int main(int argc,char **argv){
  const char *personal="cheat \"NS_PERSONAL\"\ndefault 1\n0 \"Disabled\"\n1 \"Enabled\",0,0x24,0x66\n";fputs(personal,file);fclose(file);
  snprintf(zip,sizeof(zip),"%s/1942.zip",argv[2]);file=fopen(zip,"wb");if(!file)return 2;unsigned char empty_zip[22]={0x50,0x4b,0x05,0x06};fwrite(empty_zip,1,sizeof(empty_zip),file);fclose(file);
  path_export=cheats_path;master_export=allowed;update_export=update;
- set_environment(isolation_environment);
+ PHASE("setting real libretro environment");set_environment(isolation_environment);
  typedef void(*set_poll_fn)(retro_input_poll_t);typedef void(*set_state_fn)(retro_input_state_t);
  typedef void(*set_video_fn)(retro_video_refresh_t);typedef void(*set_audio_fn)(retro_audio_sample_t);typedef void(*set_batch_fn)(retro_audio_sample_batch_t);
  SYMBOL(set_poll_fn,set_poll,"retro_set_input_poll");SYMBOL(set_state_fn,set_state,"retro_set_input_state");
  SYMBOL(set_video_fn,set_video,"retro_set_video_refresh");SYMBOL(set_audio_fn,set_audio,"retro_set_audio_sample");SYMBOL(set_batch_fn,set_batch,"retro_set_audio_sample_batch");
- set_poll(input_poll);set_state(input_state);set_video(video);set_audio(audio);set_batch(audio_batch);init();
- struct retro_game_info info={zip,NULL,0,NULL};(void)load_game(&info);
+ set_poll(input_poll);set_state(input_state);set_video(video);set_audio(audio);set_batch(audio_batch);PHASE("real retro_init");init();
+ PHASE("real retro_load_game early native parser");struct retro_game_info info={zip,NULL,0,NULL};(void)load_game(&info);
  CHECK(controller_callbacks>0&&private_options>0,"actual early load parser sees command35 staged private INI");
  CHECK(personal_options==0,"actual early load parser excludes personal nonzero-default INI");
  file=fopen(personal_ini,"rb");char preserved[256]={0};if(file){fread(preserved,1,sizeof(preserved)-1,file);fclose(file);}CHECK(!strcmp(preserved,personal),"personal INI remains byte for byte unchanged");
- cheat_exit();deinit();dlclose(library);
+ PHASE("real retro_deinit");cheat_exit();deinit();dlclose(library);
  printf("{\"checks\":%u,\"failures\":%u,\"writes\":%u,\"privateOptions\":%u,\"personalOptions\":%u,\"nonzeroDefaultLoadedOff\":%s,\"nonzeroDefaultCanDisable\":%s,\"rebuiltCore\":false,\"gameROMUsed\":false,\"physicalDeviceValidated\":false}\n",checks,failures,writes,private_options,personal_options,nonzero_loaded_off?"true":"false",nonzero_can_disable?"true":"false");return failures?1:0;
 }
