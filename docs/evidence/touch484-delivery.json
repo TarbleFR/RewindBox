@@ -1,0 +1,83 @@
+{
+ "build": 484,
+ "version": "0.0.8 (484)",
+ "result": "delivered",
+ "deliverySource": "e76f40b77fb45e8ce23f161d5d4f4b0dd6fbf3f3",
+ "deliveryRun": 39177384518,
+ "jobs": {
+  "checks": "success",
+  "native": "success",
+  "Release device build • cold": "success",
+  "Release device build • warm": "skipped"
+ },
+ "testedSource": "1ff09e968276143f155242db4c4a3963d3c666c0",
+ "targetedProofs": {
+  "host": {
+   "run": 39175673497,
+   "job": 117820408422,
+   "source": "1ff09e968276143f155242db4c4a3963d3c666c0",
+   "checks": 40,
+   "inputs": 113
+  },
+  "native": {
+   "run": 39175671512,
+   "job": 117817705860,
+   "source": "1ff09e968276143f155242db4c4a3963d3c666c0",
+   "checks": 12,
+   "inputs": 71
+  },
+  "uikit": {
+   "run": 39174427738,
+   "job": 117814065289,
+   "source": "79968b07ec78f8da68603cd145b449e9fb7fb189",
+   "tests": 35,
+   "processes": 3,
+   "inputs": 60,
+   "reused": true,
+   "reuseCondition": "its 60 inputs are byte-identical between 79968b07 and 1ff09e96 (git diff in the delivery closure)"
+  }
+ },
+ "deliveredBaseline": {
+  "build": 483,
+  "source": "2c0e022f8cf0f95f732cc749d7a47444eb28d3f9",
+  "run": 39169474336
+ },
+ "coreRebuilt": false,
+ "corePins": {
+  "rpcs3": {
+   "source": "1b4f65e2067823a518034ef1ee1ba06a5b5abe09",
+   "run": 39163125594
+  },
+  "armsx2": {
+   "source": "da091fa7483279844d5a7406dfafd0f447ab3099",
+   "run": 39155495662
+  },
+  "dolphinCoreHost": "ae7d46f90dff64ce698b8c18e0c12510dbae96fe",
+  "libretroCores": {
+   "source": "c3408821b2b9c47c6e31ae25b45c113aa9fd3f74",
+   "run": 39081741396,
+   "count": 34
+  }
+ },
+ "xcodeBuildSeconds": 270.44,
+ "signatureAndExportSeconds": 63.94,
+ "validatedIpaBeforeSealSHA256": "d6754b73f6d0fcb8bd34e7e6b01533013b34527ea463bdb09e9018cd80173964",
+ "sealedIpaSHA256": null,
+ "sealedIpaNote": "to be read from SHA256SUMS and signed-payload-identity.json after decryption; the pre-seal hash is not the delivered IPA's",
+ "encryptedArtifact": {
+  "id": 12155081702,
+  "name": "NeoStation-Build-484-e76f40b77fb45e8ce23f161d5d4f4b0dd6fbf3f3-cold",
+  "bytes": 227601821,
+  "zipSHA256": "4c9f743a7660ad8b2e582abf1dffa345c5d5e4821f859263fa0bce2676084598",
+  "expires": "2026-11-01T23:52:33Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "deviceInstallationTested": false,
+ "deviceGameplayValidated": false,
+ "physicalControllerValidated": false,
+ "sideStoreResigningRequired": true,
+ "receiptSHA256": {
+  "docs/evidence/llvmpipe483-delivery.json": "76ceca52fd3eec20ee415e6912b6b258f8bf184d03738d7140d5625dc0e6c683",
+  "docs/evidence/ps2blend482-delivery.json": "e9cb832b045d96c2bfdfc93ec3a50cdd861863ddf4219cc3afb3f7833c7c7d34"
+ }
+}

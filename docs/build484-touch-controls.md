@@ -81,7 +81,12 @@ Correctifs apportés pendant les essais (chacun suivi d'un run ciblé) :
 
 Échecs conservés et non attribués à la 484 : les 13 vérifications de la liste `PRE_EXISTING` et le cas Flutter `import shares the pill without covering any media tab at width 430.0` échouent de la même façon sur la base (comparaison exécutée en CI à chaque run hôte).
 
-IPA : à compléter après la livraison (identité exacte relevée sur l'IPA livrée).
+Livraison :
+
+- Premier essai `39176954590` (source `7da1f9af`) : `checks` et `native` réussis, `cold` arrêté à « Verify retained stable Dolphin Core ». Cette garde compare l'en-tête UIKit recompilé `DolphinSessionMenu.h` à celui du commit hôte du cœur Dolphin (`ae7d46f9`) et n'admettait que les rappels Affichage, Shaders et Textures. Correctif `e76f40b7` : la garde retire exactement une fois le bloc des trois rappels de la page Commandes tactiles (avec son commentaire) et exige toujours l'égalité stricte du reste ; le binaire `DolphinCore`, ses exports et ses sources restent vérifiés comme avant.
+- **Livraison vérifiée** : source `e76f40b77fb45e8ce23f161d5d4f4b0dd6fbf3f3`, run `39177384518` (`checks` et `native` réussis par réutilisation fermée, `cold` réussi en 14 min : `xcode_build` 270 s, signature et export 64 s ; `warm` ignoré). Aucun cœur reconstruit : Core RPCS3 483 (`1b4f65e2`, run `39163125594`), Core ARMSX2 ABI 7 (`da091fa7`, run `39155495662`), cœur Dolphin conservé (`ae7d46f9`), 34 cœurs libretro (`c3408821`, run `39081741396`) ; validations de l'IPA par la CI réussies (34 cœurs libretro, isolation du compilateur de shaders, KartPad, NeoPlay, Dusklight, ZIP intègre, signature `valid on disk`).
+- IPA validée avant scellement : SHA-256 `d6754b73f6d0fcb8bd34e7e6b01533013b34527ea463bdb09e9018cd80173964` (ce n'est pas l'IPA livrée : le scellement SideStore la recrée). Artefact chiffré `12155081702` (`NeoStation-Build-484-e76f40b7…-cold`, 227 601 821 octets, archive SHA-256 `4c9f743a7660ad8b2e582abf1dffa345c5d5e4821f859263fa0bce2676084598`, conservé jusqu'au 1er novembre 2026), chiffré pour `build-utils/delivery-424-recipient.pem`. **SHA-256 de l'IPA scellée à relever après déchiffrement** (`SHA256SUMS`, `signed-payload-identity.json`) : le conteneur de travail ne peut pas télécharger les artefacts. Version **0.0.8 (484)**. Reçu : `docs/evidence/touch484-delivery.json`.
+- Aucune installation ni validation sur iPhone, aucune manette physique : re-signature Apple par SideStore requise, puis le protocole du § 6. Ne pas réutiliser le numéro 484.
 
 ## 6. Protocole d'essai sur l'iPhone
 
