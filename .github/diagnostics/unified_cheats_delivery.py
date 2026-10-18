@@ -16,15 +16,21 @@ from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = '881c8df6bcffbdd0e4c3f5a32fd66492830f6dd1'
-CATALOGUE = '2c328dfb6267245220da6162790b52542b9e2e0b'
+CATALOGUE = 'fabbdebda0761cb819cd250baee6dfc8f686fb25'
+NATIVE_FINAL = 'b157f557fe13b077d92afdd4ef1146c60982235d'
+APP_FINAL = 'f7c2d70b9e97c59d03f357185308e19399364d64'
+MANUAL_RUN = 39101802667
+RUNTIME_FINAL = '6b56a8b5bb7b1b0c13e232f61e48c41908c840d2'
 SDK_SOURCE = '2ae6ec849c9e4b122a1fae62bc9715cbdcc64691'
+RUNTIME_RUN = 39101251790
 RPC_SOURCE = 'c9ba99fb81dc7e9dd79d17dde845a22628924bdb'
 DELIVERY_ONLY = {
     '.github/diagnostics/unified_cheats_delivery.py',
     '.github/workflows/retroarch-delivery.yml',
     'build-utils/validate_unified_cheats_ipa.py',
     'build-utils/delivery-474-recipient.pem',
-    'docs/build474-unified-cheats.md', 'AGENTS.md',
+    'docs/build474-unified-cheats.md', 'docs/build475-direct-cheats.md', 'AGENTS.md',
+    'docs/unified-cheats-direct-build475.md', 'docs/evidence/unified-cheats-direct475.json',
 }
 
 
@@ -43,30 +49,30 @@ def api(path, raw=False):
 
 
 def source_closure():
-    for args in (['git', 'diff', '--name-only', CATALOGUE, 'HEAD'],
-                 ['git', 'diff', '--name-only', CATALOGUE]):
-        extra = set(command(args).splitlines()) - DELIVERY_ONLY
-        if extra:
-            raise ValueError('Unvalidated changes after final cheat proofs: ' + ', '.join(sorted(extra)))
-    # These components inherit 473 evidence, not a newly invented test result.
-    command(['git', 'diff', '--exit-code', BASE, '--', 'lib', 'assets',
-             'native/neoswap', 'native/neoswap-relay', 'native/neoswap-donation',
-             'native/nestopia', 'build-utils/libretro', 'packages/neo_swap',
-             'packages/external_display', 'packages/external_folder_access'])
-    # All changed native packages equal the Apple-tested source, except for
-    # the separately tested RPCS3 first-import correction and the final index.
-    expected = {'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz',
-                'packages/rpcs3_internal_bridge/ios/Classes/RPCS3UnifiedCheats.mm'}
-    changed = set(command(['git', 'diff', '--name-only', SDK_SOURCE, '--', 'packages']).splitlines())
-    if changed != expected:
-        raise ValueError('Changed Apple compilation inputs: ' + ', '.join(sorted(changed)))
-    command(['git', 'diff', '--exit-code', RPC_SOURCE, '--',
-             'packages/rpcs3_internal_bridge/ios/Classes/RPCS3UnifiedCheats.mm'])
-    manifest = ROOT / 'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz'
-    if hashlib.sha256(manifest.read_bytes()).hexdigest() != 'cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57':
-        raise ValueError('Final manifest no longer matches the Apple preflight')
-    return {'base': BASE, 'catalogue': CATALOGUE, 'nativeSDK': SDK_SOURCE,
-            'correctedRPCS3Store': RPC_SOURCE, 'allOtherInputsUnchanged': True}
+    for args in (['git','diff','--name-only',APP_FINAL,'HEAD'], ['git','diff','--name-only',APP_FINAL]):
+        extra=set(command(args).splitlines())-DELIVERY_ONLY
+        if extra: raise ValueError('Unvalidated changes after final direct-cheat proofs: '+', '.join(sorted(extra)))
+    command(['git','diff','--exit-code',BASE,'--','lib','assets','native/neoswap','native/neoswap-relay',
+             'native/neoswap-donation','native/nestopia','build-utils/libretro','packages/neo_swap',
+             'packages/external_display','packages/external_folder_access'])
+    # Every shipped product/data input equals the published UI/data snapshot.
+    command(['git','diff','--exit-code',APP_FINAL,'--','packages'])
+    command(['git','diff','--exit-code',CATALOGUE,'--','native/cheats/catalogue','tools/cheats'])
+    expected={'packages/neo_cheat_catalog/ios/Classes/NeoUnifiedCheatList.m',
+              'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz',
+              'packages/neo_cheat_catalog/ios/Resources/labels.json',
+              'packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt',
+              'packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec'}
+    changed=set(command(['git','diff','--name-only',NATIVE_FINAL,CATALOGUE,'--','packages']).splitlines())
+    if changed!=expected: raise ValueError('Unproved native/source composition: '+', '.join(sorted(changed)))
+    data=(ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()
+    if hashlib.sha256(data).hexdigest()!='ff64b3b92225f5ab6960e1931fadaf4509665864a4470fb36908cc2faf22d792':
+        raise ValueError('Final direct-cheat index differs from Apple preflight')
+    report=(ROOT/'native/cheats/catalogue/VALIDATION.json').read_bytes()
+    if hashlib.sha256(report).hexdigest()!='032950997212a242fb584db4f6de72dc562522c532c8ad9336f79b2d04b4b93f':
+        raise ValueError('Final full active-pack audit changed')
+    return {'base':BASE,'catalogueAndFinalUI':CATALOGUE,'nativeAdapters':NATIVE_FINAL,'manualImport':APP_FINAL,
+            'retiredMemberContract':RUNTIME_FINAL,'protectedComponentsUnchanged':True}
 
 
 @contextmanager
@@ -135,60 +141,64 @@ def successful_run(run_id, ref, names):
     return {'run': run_id, 'source': ref, 'jobs': names, 'conclusion': 'success'}
 
 
+def component_run(run_id, ref, names, overall):
+    run=api(f'actions/runs/{run_id}')
+    if run['head_sha']!=ref or run['status']!='completed' or run['conclusion']!=overall:
+        raise ValueError('Wrong run identity/status: '+str(run_id))
+    jobs=api(f'actions/runs/{run_id}/jobs?per_page=100')['jobs']
+    for name in names:
+        selected=[job for job in jobs if job['name']==name]
+        if len(selected)!=1 or selected[0]['conclusion']!='success':
+            raise ValueError('Unsuccessful required component: '+name)
+    return {'run':run_id,'source':ref,'jobs':names,'overallConclusion':overall,
+            'scope':'successful named components only' if overall!='success' else 'successful run'}
+
+
 def evidence():
-    records = [
-        successful_run(39088132898, BASE, ['checks', 'native', 'Release device build • cold']),
-        successful_run(39096074029, '6cbb8466a82fd64513240f43dc5b738967b9d2ff', ['data']),
-        successful_run(39095959132, '1f024f0be5a61c5d66bdb50418473f275cd231b0', ['published-index']),
-        successful_run(39094644017, 'd254ece2317a879dc821b7ca639c0d01a6874993', ['core-effects']),
-        successful_run(39095481129, 'a302af0d8c79cd521e712aa50c7f25ac99fa2a8b', ['native']),
-    ]
-    # This job failed later in other components. Require its real SDK/link
-    # successes and the 92-identity / seven native-file log witnesses exactly.
-    job = api('actions/jobs/117576626168')
-    if job['head_sha'] != SDK_SOURCE:
-        raise ValueError('Wrong Apple source')
-    successes = {s['name'] for s in job['steps'] if s.get('conclusion') == 'success'}
-    required = {'Shared Foundation behavior and actual iPhone SDK',
-                'Compile and link the affected Libretro bridge'}
-    if not required <= successes:
-        raise ValueError('Incomplete successful Apple components')
-    log = api('actions/jobs/117576626168/logs', raw=True)
-    if 'Unified identity: 92 checks, 0 failures' not in log:
-        raise ValueError('Missing executed identity witness')
-    for path in ('armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
-                 'armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm',
-                 'dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.mm',
-                 'dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm',
-                 'rpcs3_internal_bridge/ios/Classes/Rpcs3SessionMenu.mm',
-                 'rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
-                 'rpcs3_internal_bridge/ios/Classes/RPCS3UnifiedCheats.mm'):
-        if 'Z PASS iPhone SDK syntax: packages/' + path not in log:
-            raise ValueError('Missing actual SDK compilation: ' + path)
-    job = api('actions/jobs/117577305555')
-    if job['head_sha'] != RPC_SOURCE:
-        raise ValueError('Wrong corrected RPCS3 store source')
-    successes = {s['name'] for s in job['steps'] if s.get('conclusion') == 'success'}
-    if not {'Regional identities and per-core complete programs',
-            'Native imports, disabled state and RPCS3 persistence'} <= successes:
-        raise ValueError('Corrected FBNeo Host / RPCS3 store not validated')
-    records.append({'run': 39094043482, 'source': SDK_SOURCE,
-                    'job': 117576626168, 'scope': 'successful components only; overall job failed'})
-    records.append({'run': 39094267628, 'source': RPC_SOURCE,
-                    'job': 117577305555, 'scope': 'successful Host/store components only; overall job failed'})
-    receipts = {}
-    for name in ('core-effects', 'fbneo-native', 'ui-e813', 'ui-regional',
-                 'full-index', 'publication', 'published-data'):
-        path = 'docs/evidence/unified-cheats-' + name + '.json'
-        raw = (ROOT / path).read_bytes()
-        json.loads(raw)
-        receipts[path] = hashlib.sha256(raw).hexdigest()
-    # 28 UIKit successes from the earlier failed suite are reused explicitly,
-    # together with the two successful targeted regional cases. No full rerun.
-    old_ui = api('actions/jobs/117579007774')
-    if old_ui['head_sha'] != 'e813d226dc1cd0b9d6e9b204d9de692621b9a62c':
-        raise ValueError('Wrong original UIKit source')
-    return records, receipts
+    records=[successful_run(39088132898,BASE,['checks','native','Release device build • cold']),
+             successful_run(39097173122,'b3c83af81e362718a63c73b048d797d8c21654cf',['checks','native','Release device build • cold']),
+             successful_run(39100669248,NATIVE_FINAL,['additional-proofs']),
+             component_run(39101181611,CATALOGUE,['index','final-ui'],'failure'),
+             successful_run(RUNTIME_RUN,RUNTIME_FINAL,['runtime-contract']),
+             successful_run(MANUAL_RUN,APP_FINAL,['manual-import'])]
+    job=api('actions/jobs/117594585948')
+    if job['head_sha']!='c3e690914b5103d19d9a2ab0dcc611f4b2498991':raise ValueError('Wrong initial direct native source')
+    required={'Changed Foundation and shared iPhone SDK','Host routing, native startup and option isolation',
+              'Three native menus and actual disabled import stores','Compile and link changed Libretro bridge'}
+    if not required<={step['name'] for step in job['steps'] if step.get('conclusion')=='success'}:
+        raise ValueError('Missing successful direct native components')
+    log=api('actions/jobs/117594585948/logs',raw=True)
+    import re
+    passed=set(re.findall(r"Test Case '-\[UnifiedCatalogueBrowserTests (\w+)\]' passed",log))
+    failed=set(re.findall(r"Test Case '-\[UnifiedCatalogueBrowserTests (\w+)\]' failed",log))
+    expected_failures={'testDirectListLateImportAfterPopCannotEnableACode',
+        'testExclusiveGroupsAcrossTogglesIncludeLegacyAndRestoreIsAtomic',
+        'testMGBARestoreRefusesAUTOCombinationWithoutChangingAnyPriorState'}
+    if len(passed)!=31 or failed!=expected_failures:raise ValueError('Initial UIKit results do not match the retained component evidence')
+    records.append({'run':39100149182,'source':job['head_sha'],'job':job['id'],
+        'scope':'four successful native steps and 31 UIKit cases only; three failed cases corrected in later successful gates',
+        'passedUIKitCases':sorted(passed),'logSHA256':hashlib.sha256(log.encode()).hexdigest()})
+    data_job=api('actions/jobs/117597604157')
+    if data_job['head_sha']!=CATALOGUE:raise ValueError('Wrong published data source')
+    if not any(step['name']=='Changed PNACH identities, complete groups and PS3 source' and step.get('conclusion')=='success' for step in data_job['steps']):
+        raise ValueError('Missing 42 source/format regression successes')
+    log=api('actions/jobs/117597604157/logs',raw=True)
+    import gzip
+    totals=json.loads(gzip.decompress((ROOT/'native/cheats/catalogue/manifest.json.gz').read_bytes()))['totals']
+    observed=[]
+    for line in log.splitlines():
+        try:observed.append(json.loads(line.split('Z ',1)[1]))
+        except (ValueError,IndexError):pass
+    if totals not in observed or 'Ran 42 tests' not in log or 'line 60' not in log:
+        raise ValueError('Missing complete published validator result before the retired-member fixture failure')
+    records.append({'run':39101181611,'source':CATALOGUE,'job':data_job['id'],
+        'scope':'42 successful format tests and complete CLI validation; later old active-only fixture failed, corrected by runtime-contract gate',
+        'validatedTotals':totals,'logSHA256':hashlib.sha256(log.encode()).hexdigest()})
+    receipts={}
+    for name in ('core-effects','fbneo-native','publication','published-data'):
+        path='docs/evidence/unified-cheats-'+name+'.json';raw=(ROOT/path).read_bytes();json.loads(raw)
+        receipts[path]=hashlib.sha256(raw).hexdigest()
+    return records,receipts
 
 
 def main():
@@ -207,7 +217,7 @@ def main():
         validate_rpc_core_pin(a.rpc_core_inputs, a.core_paths)
         return
     if a.source_only:
-        print('PASS exact final catalogue, Apple source closure and unchanged 473 components')
+        print('PASS final direct-cheat product/data source closure and retained components')
         return
     records, receipts = evidence()
     record = {'result': 'passed', 'testedSHA': CATALOGUE, 'candidateSHA': command(['git', 'rev-parse', 'HEAD']),
@@ -225,7 +235,7 @@ def main():
     out = ROOT / a.output
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=2) + '\n')
-    print('PASS closed Build 473 baseline + final cheat component evidence; no suites rerun')
+    print('PASS closed baseline + direct-cheat component evidence; no suites rerun')
 
 
 if __name__ == '__main__':

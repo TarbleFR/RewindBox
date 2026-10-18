@@ -28,22 +28,31 @@ def validate(ipa, build):
         if data != expected:
             raise ValueError('Packaged index differs from the Apple-tested final index')
         manifest = json.loads(gzip.decompress(data))
-        if len(manifest['games']) != 44955 or len(manifest['packs']) != 851:
+        if len(manifest['games']) != 44789 or len(manifest['packs']) != 858:
             raise ValueError('Wrong final publication counts')
+        notice=matches[0].rsplit('/',1)[0]+'/gow3-0100-LICENSE.txt'
+        if z.read(notice)!=(ROOT/'packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt').read_bytes():
+            raise ValueError('Source MIT notice missing from actual app resource')
         binaries = {}
         for name in ('neo_cheat_catalog', 'libretro_internal_bridge',
                      'armsx2_internal_bridge', 'dolphin_internal_bridge', 'rpcs3_internal_bridge'):
             binary = z.read(root + f'Frameworks/{name}.framework/{name}')
             if b'NeoUnifiedCheatBrowser' not in binary:
                 raise ValueError('Unified browser not linked into ' + name)
+            if name in ('neo_cheat_catalog','armsx2_internal_bridge','dolphin_internal_bridge','rpcs3_internal_bridge') and b'NeoUnifiedCheatList' not in binary:
+                raise ValueError('Direct list missing from '+name)
+            if name == 'rpcs3_internal_bridge' and (b'ps3-static-be32' not in binary or b'PPU executable hash: PPU-' not in binary):
+                raise ValueError('Actual PPU/static patch binding missing')
+            if name == 'libretro_internal_bridge' and b'installedProgramsForIdentity:' not in binary:
+                raise ValueError('Arcade boot discovery missing')
             if name == 'neo_cheat_catalog' and b'NeoUnifiedCheatCatalog' not in binary:
                 raise ValueError('Shared catalogue implementation missing')
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')
     return {'result': 'passed', 'build': build, 'manifestSHA256': hashlib.sha256(data).hexdigest(),
-            'manifestBytes': len(data), 'transportParts': 44955, 'packs': 851,
-            'programs': 2341355, 'frameworksSHA256': binaries,
+            'manifestBytes': len(data), 'transportParts': 44789, 'packs': 858,
+            'programs': 2353283, 'frameworksSHA256': binaries,
             'indexBundled': True, 'packsBundled': False,
             'ipaSHA256': hashlib.sha256(ipa.read_bytes()).hexdigest(),
             'physicalDeviceValidated': False}
