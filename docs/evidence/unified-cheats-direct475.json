@@ -1,0 +1,192 @@
+{
+  "result": "passed",
+  "build": 475,
+  "version": "0.0.7",
+  "source": "69dd419030024e18457464d6a4b0e580bd5f6058",
+  "ipa": "NeoStation-Build475-69dd4190.ipa",
+  "bytes": 225470910,
+  "sha256": "cc69b5dc8c04a3217db2dd3374d81384e5ae365e7198907464888817428b4cf9",
+  "sha256MatchesBothCIRecords": true,
+  "zipIntegrity": true,
+  "bundleVersionsChecked": 6,
+  "actualThinMachOImagesMatchedToSeal": 77,
+  "ciAdHocSignaturesVerified": 80,
+  "linuxCodesignRerun": false,
+  "unifiedCatalogue": {
+    "result": "passed",
+    "build": 475,
+    "manifestSHA256": "ff64b3b92225f5ab6960e1931fadaf4509665864a4470fb36908cc2faf22d792",
+    "manifestBytes": 6608944,
+    "transportParts": 44789,
+    "packs": 858,
+    "programs": 2353283,
+    "frameworksSHA256": {
+      "neo_cheat_catalog": "4681e64ce2ae47222eaa0916222e181fd63224aedc36d3448c58ff466c0a4632",
+      "libretro_internal_bridge": "71fbf11a673d9fc1b5d1b123ff0b1753902fcdbac63439657dd83d8c5d09c751",
+      "armsx2_internal_bridge": "bee8720e2d5d9977e074198266cade4f0c856f58a51ed37e465e5e57d613c49b",
+      "dolphin_internal_bridge": "932474fe3874f865f786e9532d97cff1550faa0e189f66624b9568badb6c1d8b",
+      "rpcs3_internal_bridge": "727062e58fc69647535d1dc67a4efc5c2391928976164dc62170dfc619a4d834"
+    },
+    "indexBundled": true,
+    "packsBundled": false,
+    "ipaSHA256": "cc69b5dc8c04a3217db2dd3374d81384e5ae365e7198907464888817428b4cf9",
+    "physicalDeviceValidated": false
+  },
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceValidated": false,
+  "branch": "Claude",
+  "workflowRun": 39102171744,
+  "jobs": {
+    "checks": 117600507132,
+    "native": 117600507296,
+    "cold": 117600639114,
+    "warmSkipped": 117602163459
+  },
+  "encryptedArtifact": {
+    "id": 12126798816,
+    "bytes": 225691037,
+    "sha256": "4abf1148ff735dde66284618631b094665940b05285fe9f8307a109f984f5429",
+    "downloadCompletedBeforeDecryption": true
+  },
+  "coldCompile": {
+    "startedUTC": "2026-10-18T05:58:18Z",
+    "finishedUTC": "2026-10-18T06:01:21Z",
+    "seconds": 183,
+    "deviceIPAsCompiled": 1
+  },
+  "validationComposition": {
+    "result": "passed",
+    "testedSHA": "fabbdebda0761cb819cd250baee6dfc8f686fb25",
+    "candidateSHA": "69dd419030024e18457464d6a4b0e580bd5f6058",
+    "validationWasReused": true,
+    "sourceClosure": {
+      "base": "881c8df6bcffbdd0e4c3f5a32fd66492830f6dd1",
+      "catalogueAndFinalUI": "fabbdebda0761cb819cd250baee6dfc8f686fb25",
+      "nativeAdapters": "b157f557fe13b077d92afdd4ef1146c60982235d",
+      "manualImport": "f7c2d70b9e97c59d03f357185308e19399364d64",
+      "retiredMemberContract": "6b56a8b5bb7b1b0c13e232f61e48c41908c840d2",
+      "protectedComponentsUnchanged": true
+    },
+    "reusedEvidence": [
+      {
+        "run": 39088132898,
+        "source": "881c8df6bcffbdd0e4c3f5a32fd66492830f6dd1",
+        "jobs": [
+          "checks",
+          "native",
+          "Release device build \u2022 cold"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39097173122,
+        "source": "b3c83af81e362718a63c73b048d797d8c21654cf",
+        "jobs": [
+          "checks",
+          "native",
+          "Release device build \u2022 cold"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39100669248,
+        "source": "b157f557fe13b077d92afdd4ef1146c60982235d",
+        "jobs": [
+          "additional-proofs"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39101181611,
+        "source": "fabbdebda0761cb819cd250baee6dfc8f686fb25",
+        "jobs": [
+          "index",
+          "final-ui"
+        ],
+        "overallConclusion": "failure",
+        "scope": "successful named components only"
+      },
+      {
+        "run": 39101251790,
+        "source": "6b56a8b5bb7b1b0c13e232f61e48c41908c840d2",
+        "jobs": [
+          "runtime-contract"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39101802667,
+        "source": "f7c2d70b9e97c59d03f357185308e19399364d64",
+        "jobs": [
+          "manual-import"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39100149182,
+        "source": "c3e690914b5103d19d9a2ab0dcc611f4b2498991",
+        "job": 117594585948,
+        "scope": "four successful native steps and 31 UIKit cases only; three failed cases corrected in later successful gates",
+        "passedUIKitCases": [
+          "testActualImportActionSendsOneWholeDependencyGroupOnlyOnce",
+          "testAllPartsRemainVisibleWithExplicitPartNumbers",
+          "testCandidateCannotDownloadProgramsBeforeExplicitEditionConfirmation",
+          "testClosureAUTOAndExclusiveMetadataSurviveMergeSaveAndActualReload",
+          "testDependencyClosurePreservesEveryLineAndDisablesWholePrograms",
+          "testDirectListDependencyClosureStartsDisabledAndRejectsPartialPrograms",
+          "testDirectListDisplaysInstalledCodesWithoutImportingAndOneSwitchActivates",
+          "testDirectListDownloadButtonInstallsAllWithoutImportOrActivation",
+          "testDismissedBrowserIgnoresLateLookupDownloadAndImportCallbacks",
+          "testDownloadActionAnnouncesCompressedDownloadAndExtractedPlusCachedStorage",
+          "testExactTypedROMIdentityOpensCodesWithoutEditionConfirmation",
+          "testFBNeoCompleteNativeImportStaysDisabledAndExplainsGameRelaunch",
+          "testFBNeoExplicitToggleAndDisableAllUseSessionNativeOptionsOnly",
+          "testFBNeoFirstLaunchOffersOneBulkDownloadWithoutImportOrActivation",
+          "testFBNeoMenuLoadsNativeOptionsWithoutActivatingOrUsingRetroCheatSet",
+          "testFBNeoUnavailableNativeOptionsStayVisibleAndCannotSendActivation",
+          "testGBAVBARawDialectRequiresMGBAAndKeepsWholeAddressValueProgram",
+          "testInvalidUnresolvedUnsupportedAndIncompleteDependenciesCannotImport",
+          "testKnownTypedHashConflictIsReadOnlyAndCannotBeConfirmedOrImported",
+          "testLongRowsActuallyFitNarrowUIKitCellsAtAccessibilitySize",
+          "testMGBARawAUTOActivationIsIsolatedButCompleteVBACanCoexist",
+          "testPCEWonderSwanAndPicoProfilesUseNativeBindingsAndCanonicalCatalogueAliases",
+          "testRealLibretroAutoloadRejectsExclusiveDependenciesAndWrongParameterTypes",
+          "testRealLibretroCombinesMasterAndChildIntoOneDisabledToggle",
+          "testRealLibretroFullRecordLimitReportsImportFailureInSharedUI",
+          "testRealLibretroKeepsRegionalConfirmationByGameIDAndMergesAllAttribution",
+          "testRealLibretroNotificationLoadsInstalledCodesWithoutActivationOrNetwork",
+          "testRealLibretroOwnerIsReleasedAfterPageDismissalAndNotificationObserverRemoval",
+          "testRealLibretroSameTitleAndCodeKeepDistinctUncertainEditionScopes",
+          "testSingleDownloadActionShowsGlobalProgressAndRetriesPartialFailure",
+          "testTwelveRealTranslationsAndTraditionalChineseSelection"
+        ],
+        "logSHA256": "37133c648e27dbfe6e7bfeee7b0302aec9f3ac9fe7968aed7abccbb62ef6af4e"
+      },
+      {
+        "run": 39101181611,
+        "source": "fabbdebda0761cb819cd250baee6dfc8f686fb25",
+        "job": 117597604157,
+        "scope": "42 successful format tests and complete CLI validation; later old active-only fixture failed, corrected by runtime-contract gate",
+        "validatedTotals": {
+          "available": 2353283,
+          "cheats": 2353283,
+          "download_bytes": 276552040,
+          "games": 44789,
+          "identity_groups": 43647,
+          "programs": 2353283,
+          "sources": 37
+        },
+        "logSHA256": "152f151b3a19fd8d30d65213816e7ba4a9ea4795ae699e7bb564f9eadbb79992"
+      }
+    ],
+    "receiptSHA256": {
+      "docs/evidence/unified-cheats-core-effects.json": "fc57507b887b900460d108ccedf48b139c37aaa7b4b851cb32154b8ced4420a7",
+      "docs/evidence/unified-cheats-fbneo-native.json": "3a3b0be96ab120eb310e167bf1da4c310e3db73b522ff8da8ffdc6295b5419c6",
+      "docs/evidence/unified-cheats-publication.json": "2c3a3ed248810f6c692f563b68463b379db87692781ac1d581d93b3742e117e8",
+      "docs/evidence/unified-cheats-published-data.json": "4cb4b54c3156bed905555107ad75e19fc705a68bc412303549f231e3189a3e60"
+    },
+    "deviceGameplayValidated": false,
+    "coreRebuilt": false
+  },
+  "publicReleaseCreated": false
+}

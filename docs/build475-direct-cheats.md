@@ -9,3 +9,13 @@ Required successful evidence is composed by `.github/diagnostics/unified_cheats_
 The device Release must use Xcode 26.3 / iPhone SDK 26.2, preserve every pinned emulator Core/helper and compile the changed native host and shared pod. Only one cold build is requested; the optional warm benchmark is disabled. Actual IPA inspection must confirm all six bundle versions, sealed binary fingerprints, signatures, exact final index, MIT notice, direct list consumers, PPU binding and arcade boot discovery. The 276,552,040 bytes of full packs remain downloadable rather than bundled.
 
 Build 475 is reserved for this delivery. Reuse the existing session recipient `build-utils/delivery-474-recipient.pem`; no private key is committed. No public release or physical iPhone gameplay validation is claimed. Final source/run/artifact identities and inspection results will be appended after verification.
+
+## Verified private delivery
+
+- Source `69dd419030024e18457464d6a4b0e580bd5f6058`, branch `Claude`; run [39102171744](https://github.com/TarbleFR/neostation-ios/actions/runs/39102171744) succeeded. Checks `117600507132`, native provenance `117600507296`, cold Release `117600639114`; optional warm `117602163459` skipped.
+- Exactly one Build 475 device IPA compiled. AOT/Xcode phase: 05:58:18–06:01:21 UTC, **183 seconds**. Historical component evidence was reused with exact source/toolchain checks; no emulator Core rebuilt.
+- Final **0.0.7 (475)**: `NeoStation-Build475-69dd4190.ipa`, **225,470,910 bytes**, SHA-256 `cc69b5dc8c04a3217db2dd3374d81384e5ae365e7198907464888817428b4cf9`.
+- Encrypted artifact `12126798816`: 225,691,037 bytes, ZIP SHA-256 `4abf1148ff735dde66284618631b094665940b05285fe9f8307a109f984f5429`. Download finished and exact size/digest passed before decryption. The temporary password was removed; no private key or signed download URL appears in Git or the deliverable.
+- Independent inspection of the downloaded IPA passed ZIP integrity, both CI checksum records, all six bundle versions and all **77** sealed thin-image fingerprints. CI verified **80** ad hoc signatures. The actual final index, MIT notice, direct native lists, static PS3/PPU binding and arcade boot discovery are present; full downloadable packs are absent.
+- All 34 Libretro cores and retained RPCS3/ARMSX2/Dolphin/JIT helper pins passed their normal IPA checks. No public release, Windows copy or physical iPhone gameplay test is claimed. SideStore Apple re-signing is required.
+- Machine-readable receipt: `docs/evidence/unified-cheats-direct475.json`. **Do not reuse build 475.**
