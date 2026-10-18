@@ -920,7 +920,7 @@ IPA_WORKFLOW_BUILD412_PURGED_INPUT_LINES = (
     ("      - name: Download validated KartPad Core candidate\n        if: ${{ env.KARTPAD_CANDIDATE == '1' }}\n        uses: actions/download-artifact@v4\n        with:\n          name: KartPadCore-${{ env.KARTPAD_CORE_HOST_SHA }}\n          run-id: ${{ env.KARTPAD_CORE_RUN_ID }}\n          github-token: ${{ secrets.GITHUB_TOKEN }}\n          path: dist/kartpad-native\n",
      "      - name: Download validated KartPad Core candidate\n        if: ${{ env.KARTPAD_CANDIDATE == '1' }}\n        shell: bash\n        run: |\n          set -euo pipefail\n          # KartPadCore-3934ac9d (run 36322395443) was purged on 7 October 2026\n          # and its official source IPA is no longer published. The verified\n          # Build 350 donor IPA embeds that exact artifact; restore it byte for\n          # byte against the pinned identity checked again below.\n          python3 test/kartpad_donor_restore_test.py\n          python3 build-utils/restore_kartpad_donor_from_ipa.py build/native-donor/NeoStation.ipa dist/kartpad-native\n"),
     ("      ARMSX2_CORE_HOST_SHA: f4bdeb5e25f7622118a5c8ba23d8fc538e07ba07\n      ARMSX2_CORE_RUN_ID: '37164423042'\n",
-     "      ARMSX2_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c\n      ARMSX2_CORE_RUN_ID: '37641466835'\n"),
+     "      ARMSX2_CORE_HOST_SHA: da091fa7483279844d5a7406dfafd0f447ab3099\n      ARMSX2_CORE_RUN_ID: '39155495662'\n"),
     ("      DUSKLIGHT_CORE_HOST_SHA: 94ed2d91e1547e1879fab214b6ef082b642dff84\n      DUSKLIGHT_CORE_RUN_ID: '36720032937'\n",
      "      DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c\n      DUSKLIGHT_CORE_RUN_ID: '37641472546'\n"),
 )
@@ -1257,13 +1257,17 @@ for workflow_path in ('.github/workflows/neoswap-ipa.yml', '.github/workflows/io
         assert re.findall(pattern, workflow) == re.findall(pattern, old_workflow), (workflow_path, key)
     # Build412 (neoswap-ipa only): the f4bdeb5e Core artifact was purged on
     # 7 October 2026; the Core rebuilt at 899d3c44 has unchanged inputs.
-    armsx2_pin = (('899d3c44f8f465c8da0d93c763817ffca519c00c', "'37641466835'")
+    # Build 482 (18 October 2026): ARMSX2 Core rebuilt with ABI 7 (blending accuracy)
+    # at da091fa7, run 39155495662.
+    armsx2_pin = (('da091fa7483279844d5a7406dfafd0f447ab3099', "'39155495662'")
                   if workflow_path == '.github/workflows/neoswap-ipa.yml'
                   else ('f4bdeb5e25f7622118a5c8ba23d8fc538e07ba07', "'37164423042'"))
     assert re.findall(r'(?m)^      ARMSX2_CORE_HOST_SHA: (.+)$', workflow) == [armsx2_pin[0]]
     assert re.findall(r'(?m)^      ARMSX2_CORE_RUN_ID: (.+)$', workflow) == [armsx2_pin[1]]
     assert 'Download pinned ARMSX2 2.6 Core' in workflow
-    assert "identity['abi_version'] == source['abi_version'] == 6" in workflow
+    # ios-ci.yml still pins the ABI 6 Core; the NeoSwap IPA uses the Build 482 ABI 7 Core.
+    expected_abi = 7 if workflow_path == '.github/workflows/neoswap-ipa.yml' else 6
+    assert f"identity['abi_version'] == source['abi_version'] == {expected_abi}" in workflow
     pattern = r'(?m)^      DUSKLIGHT_CORE_HOST_SHA: (.+)$'
     if workflow_path == '.github/workflows/neoswap-ipa.yml':
         # Related owned-GLSL consumer requires this exact newly built Core;

@@ -166,8 +166,8 @@ jobs:
       # Preserve the validated KartPad session recovery while testing the new pinned RPCS3 Core.
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
-      ARMSX2_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
-      ARMSX2_CORE_RUN_ID: '37641466835'
+      ARMSX2_CORE_HOST_SHA: da091fa7483279844d5a7406dfafd0f447ab3099
+      ARMSX2_CORE_RUN_ID: '39155495662'
       RPCS3_CORE_HOST_SHA: 5919be61269f67542c4f8c905c30555cbe09bdf0
       RPCS3_CORE_RUN_ID: '39144244183'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
@@ -1067,7 +1067,7 @@ jobs:
           assert identity['revision'] == source['revision'], identity
           assert identity['host_commit'] == os.environ['ARMSX2_CORE_HOST_SHA'], identity
           assert identity['architectures'] == ['arm64'], identity
-          assert identity['abi_version'] == source['abi_version'] == 6, identity
+          assert identity['abi_version'] == source['abi_version'] == 7, identity
           assert identity['release'] == source['release'] == 'iOSv2.6.0', identity
           assert identity['shader_chains'] and identity['performance_overlays'], identity
           assert identity['bundled_shader_presets'] == 12 and identity['bundled_shader_files'] == 28, identity
