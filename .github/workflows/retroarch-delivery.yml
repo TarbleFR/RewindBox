@@ -1,5 +1,5 @@
-name: NeoStation RetroArch • Build 473 • SideStore
-run-name: NeoStation Build ${{ inputs.build_number || '473' }} • ${{ github.sha }} • embedded libretro
+name: NeoStation RetroArch • Build 474 • SideStore
+run-name: NeoStation Build ${{ inputs.build_number || '474' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
@@ -11,7 +11,7 @@ run-name: NeoStation Build ${{ inputs.build_number || '473' }} • ${{ github.sh
       build_number:
         description: New delivery build number
         required: true
-        default: '473'
+        default: '474'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -25,7 +25,7 @@ run-name: NeoStation Build ${{ inputs.build_number || '473' }} • ${{ github.sh
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: docs/delivery/recipients/neostation-470-skins-recipient.pem
+        default: build-utils/delivery-474-recipient.pem
         type: string
 permissions:
   contents: read
@@ -73,7 +73,7 @@ jobs:
         if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         else
-          python3 .github/diagnostics/setup_skip_delivery.py --dart-evidence --output build/delivery/dart-validation.json
+          python3 .github/diagnostics/unified_cheats_delivery.py --dart-evidence --output build/delivery/dart-validation.json
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         fi
     - uses: subosito/flutter-action@v2
@@ -83,7 +83,7 @@ jobs:
         cache: true
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify closed validation input tree and previous CI success
-      run: python3 .github/diagnostics/setup_skip_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+      run: python3 .github/diagnostics/unified_cheats_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
@@ -209,7 +209,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '473' }}-validation-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '474' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -267,46 +267,18 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '473' }}-native-reuse-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '474' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
-    - name: Reuse validated NeoSwap native inputs from delivered 469
+    - name: Reuse unchanged NeoSwap and the validated unified native bridge
       if: ${{ inputs.validation_scope != 'library_covers' && inputs.validation_scope != 'rpcs3_neoswap' }}
       id: neoswap-evidence
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh run download 38969006609 --repo TarbleFR/neostation-ios \
-          --name NeoStation-469-neoswap-native-69f2194acb415a4d68f7898428d42262ab2149da --dir build/delivery/neoswap
-        python3 - <<'PY'
-        import hashlib,json,os,subprocess
-        from pathlib import Path
-        ref='69f2194acb415a4d68f7898428d42262ab2149da'
-        endpoint='repos/TarbleFR/neostation-ios/actions/runs/38969006609'
-        run=json.loads(subprocess.check_output(['gh','api',endpoint]))
-        jobs=json.loads(subprocess.check_output(['gh','api',endpoint+'/jobs?per_page=100']))['jobs']
-        native=[j for j in jobs if j['name']=='native']
-        assert run['head_sha']==ref and run['conclusion']=='success'
-        assert len(native)==1 and native[0]['head_sha']==ref and native[0]['conclusion']=='success'
-        assert any(s['name']=='Validate changed RPCS3 NeoSwap allocators and iPhone control plane' and s['conclusion']=='success' for s in native[0]['steps'])
-        file=Path('build/delivery/neoswap/identity.json')
-        record=json.loads(file.read_text())
-        assert record['result']=='passed' and record['testedSHA']==ref
-        assert record['xcode']==subprocess.check_output(['xcodebuild','-version'],text=True).strip()
-        assert record['iphoneSDK']==subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-version'],text=True).strip()
-        guards={'.github/workflows/retroarch-delivery.yml','build-utils/verify_delivery_reuse.py','test/delivery_pipeline_test.py'}
-        assert len(record['inputsSHA256'])==110
-        for path,digest in record['inputsSHA256'].items():
-            if path not in guards:
-                assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==digest,path
-        record['validationWasReused']=True
-        record['reusedFromRun']=38969006609
-        record['unchangedNativeInputCount']=107
-        file.write_text(json.dumps(record,indent=2)+'\n')
-        with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('reused=true\n')
-        print('Reused all 107 unchanged NeoSwap native inputs and their successful tests; no allocator tests rerun.')
-        PY
+        python3 .github/diagnostics/unified_cheats_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
+        echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
       shell: bash
@@ -443,7 +415,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '473' }}-neoswap-native-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '474' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -482,7 +454,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/setup_skip_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
+        python3 .github/diagnostics/unified_cheats_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Run the embedded libretro host against a test core
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
@@ -556,10 +528,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '473' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'docs/delivery/recipients/neostation-470-skins-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '474' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-474-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '473' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '474' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -590,7 +562,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/setup_skip_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/unified_cheats_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -607,7 +579,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/setup_skip_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/unified_cheats_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -1331,6 +1303,7 @@ jobs:
           --build-number "$BUILD_NUMBER" --report dist/neoswap-validation.json
         python3 build-utils/validate_debugger_probe_ipa.py "dist/$IPA_NAME.ipa"
         python3 build-utils/validate_cheat_bulk_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report dist/cheat-bulk-validation.json
+        python3 build-utils/validate_unified_cheats_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/unified-cheats-ipa-validation.json
         python3 build-utils/validate_cheat_bootstrap_ipa.py "dist/$IPA_NAME.ipa" --report dist/cheat-bootstrap-validation.json
         python3 build-utils/validate_release002_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" --report dist/release-version-validation.json
@@ -1461,10 +1434,10 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '473' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'docs/delivery/recipients/neostation-470-skins-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '474' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-474-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '473' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '474' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -1510,7 +1483,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/setup_skip_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/unified_cheats_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4
@@ -1653,6 +1626,7 @@ jobs:
           --build-number "$BUILD_NUMBER" --report dist/neoswap-validation.json
         python3 build-utils/validate_debugger_probe_ipa.py "dist/$IPA_NAME.ipa"
         python3 build-utils/validate_cheat_bulk_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report dist/cheat-bulk-validation.json
+        python3 build-utils/validate_unified_cheats_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/unified-cheats-ipa-validation.json
         python3 build-utils/validate_cheat_bootstrap_ipa.py "dist/$IPA_NAME.ipa" --report dist/cheat-bootstrap-validation.json
         python3 build-utils/validate_release002_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" --report dist/release-version-validation.json
