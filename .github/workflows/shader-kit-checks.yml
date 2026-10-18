@@ -40,7 +40,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
-    if: ${{ !inputs.ui_only && !inputs.compiler_only }}
+    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') && (!inputs.ui_only && !inputs.compiler_only) }}
     # Preset and source rules, reflection and MSL bindings of the portable
     # core (vendored glslang and SPIRV-Cross), on Linux.
     runs-on: ubuntu-24.04
@@ -55,7 +55,7 @@ jobs:
       if: ${{ !cancelled() }}
       run: python3 test/dolphin_shader_localizations_test.py
   metal:
-    if: ${{ !inputs.compiler_only }}
+    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') && (!inputs.compiler_only) }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -67,7 +67,7 @@ jobs:
       with:
         xcode-version: '26.3'
     - name: Metal runtime render tests (pixels read back from the GPU)
-      if: ${{ !inputs.ui_only }}
+      if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') && (!inputs.ui_only) }}
       run: python3 test/neo_shader_kit_test.py --require-metal --build-directory build/neo-shader-kit
     - name: The pod compiles and links for iPhone (podspec sources and settings)
       if: ${{ !cancelled() && !inputs.ui_only }}

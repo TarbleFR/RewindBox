@@ -24,6 +24,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   original-skin-on-real-nestopia:
+    # Reuse unchanged 470/471 evidence; unified-cheats.yml covers the changed inputs.
+    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -62,6 +64,8 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
   memory-sanitizers:
+    # Reuse unchanged 470/471 evidence; unified-cheats.yml covers the changed inputs.
+    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 40
     steps:

@@ -42,7 +42,7 @@ static BOOL SHA(id value) {
   dispatch_once(&once,^{invalid=[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"].invertedSet;});
   return s.length == 64 && [s rangeOfCharacterFromSet:invalid].location == NSNotFound;
 }
-static BOOL Size(id value, NSUInteger limit, BOOL zero) {
+static BOOL NUCCatalogSizeIsValid(id value, NSUInteger limit, BOOL zero) {
   return [value isKindOfClass:NSNumber.class] && [value doubleValue] == [value unsignedLongLongValue] &&
     [value unsignedLongLongValue] <= limit && (zero || [value unsignedLongLongValue] > 0);
 }
@@ -382,7 +382,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   NSUInteger rejected=0;
   for (id p in json[@"packs"]) {@autoreleasepool{
     if (![p isKindOfClass:NSDictionary.class] || !SafeID(p[@"id"]) || [packIDs containsObject:p[@"id"]] || !SafePath(p[@"path"]) ||
-        !SHA(p[@"sha256"]) || !Size(p[@"size"],PackLimit,NO) || !Size(p[@"uncompressed_size"],ExpansionLimit,NO) ||
+        !SHA(p[@"sha256"]) || !NUCCatalogSizeIsValid(p[@"size"],PackLimit,NO) || !NUCCatalogSizeIsValid(p[@"uncompressed_size"],ExpansionLimit,NO) ||
         ![p[@"game_ids"] isKindOfClass:NSArray.class] || Array(p[@"game_ids"]).count>250000) {rejected++;continue;}
     BOOL valid=YES; NSMutableSet *seen=[NSMutableSet set];
     for (id gameID in p[@"game_ids"]) {if(!SafeID(gameID)||[seen containsObject:gameID]){valid=NO;break;}[seen addObject:gameID];}
@@ -393,12 +393,12 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     NSString *pack=[g isKindOfClass:NSDictionary.class] ? String(g[@"pack_id"] ?: g[@"pack"]) : @"";
     if (![g isKindOfClass:NSDictionary.class] || !SafeID(g[@"id"]) || [gameIDs containsObject:g[@"id"]] ||
         !SafeID(g[@"system"]) || !String(g[@"title"]).length || String(g[@"title"]).length>1024 ||
-        !SafePath(g[@"path"]) || !SHA(g[@"sha256"]) || !Size(g[@"size"],ChunkLimit,NO) || ![packIDs containsObject:pack] ||
+        !SafePath(g[@"path"]) || !SHA(g[@"sha256"]) || !NUCCatalogSizeIsValid(g[@"size"],ChunkLimit,NO) || ![packIDs containsObject:pack] ||
         ![packGames[pack] containsObject:g[@"id"]]) {rejected++;continue;}
     NSMutableDictionary *copy=nil;
     if(![String(g[@"pack_id"]) isEqualToString:pack]){copy=[g mutableCopy];copy[@"pack_id"]=pack;}
     for(NSString *field in @[@"part",@"parts",@"cheat_count",@"available_count"])
-      if(g[field] && !Size(g[field],100000000,YES)){if(!copy)copy=[g mutableCopy];[copy removeObjectForKey:field];}
+      if(g[field] && !NUCCatalogSizeIsValid(g[field],100000000,YES)){if(!copy)copy=[g mutableCopy];[copy removeObjectForKey:field];}
     if([g[@"revision"] isKindOfClass:NSNumber.class]){if(!copy)copy=[g mutableCopy];copy[@"revision"]=[g[@"revision"] stringValue];}
     [games addObject:copy ? [copy copy] : g];[gameIDs addObject:g[@"id"]];
   }}
@@ -438,7 +438,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   for (NSString *key in records) {
     id row=records[key];
     if (SafeID(key) && [row isKindOfClass:NSDictionary.class] && [row[@"game"] isKindOfClass:NSDictionary.class] &&
-        [String(row[@"game"][@"id"]) isEqualToString:key] && SHA(row[@"game"][@"sha256"]) && Size(row[@"game"][@"size"],ChunkLimit,NO)) {
+        [String(row[@"game"][@"id"]) isEqualToString:key] && SHA(row[@"game"][@"sha256"]) && NUCCatalogSizeIsValid(row[@"game"][@"size"],ChunkLimit,NO)) {
       NSDictionary *canonical=_gamesByID[key],*saved=row[@"game"];
       _installed[key]=@{@"game":canonical && [String(canonical[@"sha256"]) isEqualToString:String(saved[@"sha256"])] ? canonical : saved};
     }
@@ -448,7 +448,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   return [self.storageDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"files/%@.json",String(game[@"sha256"]).lowercaseString]];
 }
 - (BOOL)hasChunk:(NSDictionary *)game verify:(BOOL)verify {
-  if (!SHA(game[@"sha256"]) || !Size(game[@"size"],ChunkLimit,NO)) return NO;
+  if (!SHA(game[@"sha256"]) || !NUCCatalogSizeIsValid(game[@"size"],ChunkLimit,NO)) return NO;
   NSString *path=[self chunkPath:game];
   NSDictionary *attrs=[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
   if (![attrs.fileType isEqualToString:NSFileTypeRegular] || attrs.fileSize != [game[@"size"] unsignedLongLongValue]) return NO;
@@ -511,7 +511,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   result[@"total_bytes"]=@(bytes);result[@"installed_bytes"]=@(installedBytes);
   _snapshotCache=[result copy];return _snapshotCache;
 }
-- (void)loadWithCompletion:(void (^)(NSDictionary *,NSError *))completion {
+- (void)loadWithCompletion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
   dispatch_async(_queue,^{
     if(self->_manifest){NSDictionary *snapshot=[self snapshot];dispatch_async(dispatch_get_main_queue(),^{completion(snapshot,nil);});return;}
     [self->_loadWaiters addObject:[completion copy]];
@@ -661,7 +661,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     return error;
   }
 }
-- (void)installAllWithProgress:(void (^)(NSDictionary *))progress completion:(void (^)(NSDictionary *,NSError *))completion {
+- (void)installAllWithProgress:(void (^ _Nullable)(NSDictionary * _Nonnull))progress completion:(void (^)(NSDictionary * _Nullable,NSError * _Nullable))completion {
   dispatch_async(_queue,^{
     if(self->_installing){dispatch_async(dispatch_get_main_queue(),^{completion(nil,Failure(9,@"A catalogue download is already running"));});return;}
     self->_installing=YES;
@@ -703,7 +703,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 }
 
 #pragma mark - Queries
-- (void)gamesForIdentity:(NSDictionary *)identity completion:(void (^)(NSArray *,NSError *))completion {
+- (void)gamesForIdentity:(NSDictionary *)identity completion:(void (^)(NSArray<NSDictionary *> * _Nonnull,NSError * _Nullable))completion {
   NSDictionary *requested=[identity copy];
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}
     dispatch_async(self->_queue,^{NSMutableArray *matches=[NSMutableArray array];
@@ -720,7 +720,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     });
   }];
 }
-- (void)searchGames:(NSString *)query system:(NSString *)system completion:(void (^)(NSArray *,NSError *))completion {
+- (void)searchGames:(NSString *)query system:(NSString *)system completion:(void (^)(NSArray<NSDictionary *> * _Nonnull,NSError * _Nullable))completion {
   NSArray *words=TitleWords(String(query));NSString *requested=System(system);
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}
     dispatch_async(self->_queue,^{NSMutableArray *matches=[NSMutableArray array];
@@ -731,7 +731,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     });
   }];
 }
-- (void)cheatsForGame:(NSDictionary *)game completion:(void (^)(NSArray *,NSError *))completion {
+- (void)cheatsForGame:(NSDictionary *)game completion:(void (^)(NSArray<NSDictionary *> * _Nonnull,NSError * _Nullable))completion {
   NSDictionary *requested=[game copy];
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}
     dispatch_async(self->_queue,^{
