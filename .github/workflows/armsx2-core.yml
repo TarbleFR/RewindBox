@@ -76,7 +76,18 @@ jobs:
         run: |
           python3 test/armsx2_graphics_test.py
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm
+          # Since Build 474 the menu imports <neo_cheat_catalog/...>: stage the
+          # public headers of the pods it depends on exactly as CocoaPods
+          # exposes them (same staging as the libretro iPhone check).
+          STAGE="$RUNNER_TEMP/armsx2-menu-stage"
+          python3 - "$STAGE" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0,'test')
+          from libretro_ios_syntax_test import stage_dependency_headers
+          stage_dependency_headers(Path(sys.argv[1]))
+          PY
+          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -I "$STAGE/include" packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm
       - name: Install required Rust Metal shader target
         run: |
           command -v rustup >/dev/null || brew install rustup
