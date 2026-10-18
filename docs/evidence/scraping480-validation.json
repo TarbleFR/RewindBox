@@ -1,0 +1,75 @@
+{
+  "result": "passed",
+  "testedSHA": "fe610c9f92c62e5815950d1aecc460d1314ee87e",
+  "candidateSHA": "7493d9babe20be1b2939e21a1051a72da8fb5d01",
+  "validationWasReused": true,
+  "sourceClosure": {
+    "deliveredBaseline": "ff28cf2a63695400ad09d1c61538059d96992cc1",
+    "sourceRightsSnapshot": "4c5eeba0f4c2abb587806ceb620ea105f14abdf8",
+    "mergedProvenanceSnapshot": "964599711fb9813f646a3695c05b968d760c69ae",
+    "testedScraping": "fe610c9f92c62e5815950d1aecc460d1314ee87e",
+    "changedProductPaths": [
+      "lib/services/screenscraper/rom_hasher.dart",
+      "lib/utils/optimized_md5_utils.dart"
+    ],
+    "manifestSHA256": "095cf728487a7b10d0516b88895d64f1eac43ad5df65eb4aabe5f1796e79270c",
+    "precompiledCoresAndHelpersUnchanged": true
+  },
+  "reusedEvidence": [
+    {
+      "run": 39127133775,
+      "source": "ff28cf2a63695400ad09d1c61538059d96992cc1",
+      "jobs": [
+        "checks",
+        "native",
+        "Release device build \u2022 cold"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "run": 39131701581,
+      "source": "4c5eeba0f4c2abb587806ceb620ea105f14abdf8",
+      "jobs": [
+        "native",
+        "overlays"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "run": 39132169652,
+      "source": "fe610c9f92c62e5815950d1aecc460d1314ee87e",
+      "jobs": [
+        "targeted"
+      ],
+      "conclusion": "success",
+      "verdictSHA256": "9a4a7927750c70323c84ca97ece6c2c66b0a5a09ff23d6acb893f26bbc99749a",
+      "largeFile": {
+        "fixtureBytes": 3363110912,
+        "digest": "f70f295bdaa27ba3e3ebc9f6fce9ddb8",
+        "baselineRss": 213647360,
+        "peakRss": 220459008,
+        "extraRss": 6811648,
+        "elapsedMs": 12133,
+        "physicalIPhoneTest": false
+      },
+      "scenarios": 5,
+      "scenariosExecuted": 1,
+      "scenariosReused": 4,
+      "reusedComponents": {
+        "source": "083d3deb7ff57835258f86d67cb3b28cd7d85f86",
+        "run": 39131858146,
+        "job": 117688482965,
+        "scope": "four successful unchanged scenarios only; original I/O guard fixture failed",
+        "logSHA256": "b0e0b43c205584e439c9496d053719e1e5217c1333691c4472c5f4119be5642b"
+      },
+      "concurrentWorkers": 6,
+      "physicalDeviceCrashReproduced": false
+    }
+  ],
+  "receiptSHA256": {
+    "docs/evidence/cheats479-delivery.json": "254877133fb9febb5a57d713db546687cdc108fa62b691766cb8cddfece9983c",
+    "docs/evidence/source-rights-withdrawal.json": "0b03510e0269a1f3c6b0f157411783fa69868690f9778cd81a5fa27f286c238c"
+  },
+  "deviceGameplayValidated": false,
+  "coreRebuilt": false
+}
