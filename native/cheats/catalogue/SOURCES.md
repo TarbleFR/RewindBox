@@ -1,5 +1,9 @@
 # NeoStation cheat source inventory
 
+For all 51 contributing entries, original-author credits, pinned inputs and recorded
+license notices, see the [English source attribution register](../../../docs/CHEAT_CATALOG_SOURCES.md).
+This research table also includes excluded references; they do not increase the active source count.
+
 Current index SHA-256: `a475a740a2e6251a5638077ffcce53c81afc125acd6fbcfaf97ff28d7602d1a1`.
 
 51 contributing source groups; 2,395,549 programs in 50,284 typed identity groups; 51,652 transport records. These are not counts of distinct commercial games.

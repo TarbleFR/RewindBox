@@ -2,11 +2,11 @@
 
 These notices are used by NeoStation’s build packager. Updates to this directory
 apply to subsequent builds and do not rewrite previously published IPAs.
-The complete 14-core reference collection is in `libretro/`; the post-0.0.7
+The complete 34-core development reference collection is in `libretro/`; the post-0.0.7
 packager verifies its hashes and embeds it under `Legal/Libretro/`.
 
 The full maintained attribution record is:
-https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md
+https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md
 
 The exact 0.0.1 source/binary identity manifest is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.1_SOURCE_MANIFEST.md
@@ -46,6 +46,23 @@ https://iisu.network/
 No standalone RiiSU license file was visible when this integration was added.
 NeoStation therefore keeps the artwork hosted by the original project and does
 not treat it as NeoStation-owned or generally redistributable material.
+
+## Unified cheat catalogue — development source credits
+
+The publication used by private Builds 478–479 contains 51 contributing source
+entries. All collection credits, upstream URLs, pinned revisions, input hashes,
+recorded rights notices and import scopes are documented at:
+https://github.com/TarbleFR/neostation-ios/blob/main/docs/CHEAT_CATALOG_SOURCES.md
+
+Original code and patch authors retain their rights and per-program provenance.
+Libretro-derived data keeps its CC BY-SA 4.0 identification, the skyzyx database
+its Unlicense notice, and the Luckysugar / authored Artemis PKG inputs their MIT
+notices. Other inputs keep their own recorded terms or unspecified data rights;
+the frontend GPL does not relicense them. Source profiles and program variants
+must not be presented as counts of unique projects or games.
+
+This attribution update applies to subsequent builds; it does not rewrite an
+already delivered IPA or publish a new official release.
 
 ## Optional cheat catalogue source
 

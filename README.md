@@ -41,18 +41,96 @@ app for the Nintendo Switch integration.
 The release contains the **Build 455 IPA** and its SHA-256 checksum.
 [Read the release notes](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7).
 
+## Unified cheats and patches — development snapshot
+
+The current source tree includes the catalogue delivered in private **Build 479**:
+**51 contributing source entries**, **2,395,549 programs and edition variants**,
+and **1,926 source-backed 60 FPS selections** for supported native adapters.
+One common installation serves the embedded engines. Matching uses the detected
+game identity, region and revision; compatible codes appear as named switches.
+Codes start disabled. Coverage and native support depend on the exact game edition.
+
+These are development-source improvements, separate from the official
+**0.0.7 / Build 455** download above. Source profiles can share an upstream project,
+and their contributions overlap; the counts do not mean unique games or effects.
+
+**[Full source credits, pinned inputs and recorded license notices](docs/CHEAT_CATALOG_SOURCES.md)**
+credit the collections and original authors. Their data keeps its own terms;
+NeoStation’s frontend license does not relicense third-party codes.
+
+<details>
+<summary>All 51 contributing cheat and patch sources</summary>
+
+| Source / import profile | Maintainers and original contributors |
+| --- | --- |
+| [Libretro Database](https://github.com/libretro/libretro-database) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-libretro) | Libretro Database contributors and original code authors |
+| [GameHacking.org](https://gamehacking.org/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gamehacking) | Mezmorize / GameHacking.org |
+| [DeadSkullzJr NDS(i) Cheat Databases](https://gbatemp.net/threads/deadskullzjrs-nds-i-cheat-databases.488711/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dsj) | DeadSkullzJr and the original code contributors; verified historical mirror |
+| [CWCheat Database Plus](https://github.com/Saramagrean/CWCheat-Database-Plus-) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-cwcheat) | Saramagrean and collection contributors; original code authors |
+| [DuckStation chtdb](https://github.com/duckstation/chtdb) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-duckstation) | duckstation and collection contributors; original code authors |
+| [pcsx2_cheats_collection](https://github.com/xs1l3n7x/pcsx2_cheats_collection) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-ps2pnach) | xs1l3n7x and collection contributors; original code authors |
+| [Dolphin GameSettings](https://github.com/dolphin-emu/dolphin/tree/master/Data/Sys/GameSettings) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dolphin) | dolphin-emu and collection contributors; original code authors |
+| [GeckoArchive](https://github.com/SpaceXCheeseWheel/GeckoArchive) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-geckoarchive) | SpaceXCheeseWheel and collection contributors; original code authors |
+| [FBNeo cheats](https://github.com/finalburnneo/FBNeo-cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-fbneo) | finalburnneo and collection contributors; original code authors |
+| [Project64 Cheats](https://github.com/project64/project64/tree/develop/Config/Cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pj64) | project64 and collection contributors; original code authors |
+| [Mupen64Plus database](https://github.com/mupen64plus/mupen64plus-core/blob/master/data/mupencheat.txt) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mupen) | mupen64plus and collection contributors; original code authors |
+| [Mesen2 CheatDb](https://github.com/SourMesen/Mesen2/tree/master/UI/Dependencies/Internal) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mesen) | SourMesen and collection contributors; original code authors |
+| [Snes9x cheats.bml](https://github.com/snes9xgit/snes9x/blob/master/data/cheats.bml) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-snes9x) | snes9xgit and collection contributors; original code authors |
+| [ArtemisPS3](https://github.com/bucanero/ArtemisPS3/tree/master/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis) | bucanero and collection contributors; original code authors |
+| [Artemis Patch Collection RPCS3](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemisrpcs3) | chidreams and collection contributors; original code authors |
+| [Pokémon France / PokéLord](https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pokemonfrance) | PokéLord / Pokémon France; einstein95/pokered-fr identity research |
+| [MiSTer Cheats](https://github.com/MiSTer-devel/Cheats_MiSTer) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mister) | MiSTer-devel and collection contributors; original code authors |
+| [LunaMoo PPSSPP workarounds](https://github.com/LunaMoo/PPSSPP_workarounds) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-lunamoo) | LunaMoo and collection contributors; original code authors |
+| [TAbdiukov PPSSPP patches](https://github.com/TAbdiukov/PPSSPP-patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-tabdiukov) | TAbdiukov and collection contributors; original code authors |
+| [Admentus Enhancement Codes](https://github.com/Admentus64/Enhancement-Codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-enhancement) | Admentus64 and collection contributors; original code authors |
+| [skyzyx OpenEmu cheat database](https://github.com/skyzyx/openemu-cheat-database) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-openemu_personal) | skyzyx and collection contributors; original code authors |
+| [Mighty Mo's Cheat Code Pack](https://github.com/mightymo77/MightyMos-Cheat-Code-Pack) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-mighty_mo) | mightymo77 and collection contributors; original code authors |
+| [dillonhafer OpenEmu cheats-database.xml](https://gist.github.com/dillonhafer/8399eb1926e2af9164470ad45da67a57) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dillonhafer_xml) | dillonhafer OpenEmu cheats-database.xml contributors and original code authors |
+| [FF7.fr — French Action Replay codes](https://www.ff7.fr/action_replay.php) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-ff7_fr) | Léonard Neveu / FF7.fr |
+| [Ethereal Games](https://etherealgames.com/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-ethereal) | Ethereal Games and the original posters credited by the collection |
+| [PSX Data Center — Action Replay sections](https://www.psxdatacenter.com/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-psxdatacenter) | PSX Data Center and original code authors |
+| [Pokébip — Action Replay contributions](https://www.pokebip.com/espace-membre/blogs/129214/article/84411) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pokebip_contributions) | Pokébip blog contributor; excerpt credits Pokémon Espace |
+| [Square Palace — Secret of Mana codes](https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-squarepalace) | Square Palace; source credits No Secret For Me |
+| [Weed Sheet — Sly Cooper](https://github.com/zzamizz/weed-sheet) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-weed_sheet) | zzamizz and collection contributors; original code authors |
+| [XoEVOoX Pokémon FireRed codes](https://github.com/xoevoox/pokemon-fire-red-codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-xoevoox_firered) | XoEVOoX and repository contributors |
+| [TylerD007 — The Shiny Pokémon Code Repository](https://github.com/TylerD007/The_Shiny_Pokemon_Code_Repository) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-tyler_shiny) | Ciro Bogea Fernandes / TylerD007 |
+| [Kodewerx code contributions](https://www.kodewerx.org/forum/viewtopic.php?f=18&t=2763&view=print) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-kodewerx_codes) | dlong; source credits Viper and HyperHacker |
+| [r/Gameshark — Pokémon Emerald event islands (12-digit codes)](https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gameshark_event_islands) | u/SoggyMinimum8386 |
+| [DeltaCore — All Cheat Codes public workbook](https://github.com/rileytestut/DeltaCore/wiki/Cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-delta_workbook) | DeltaCore community and the original workbook/code contributors |
+| [Luckysugar God of War III 01.00](https://github.com/Luckisugar/rpcs3-gow3-patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gow3_0100) | Luckysugar (repository: Luckisugar) |
+| [Artemis Bladestorm static instruction adapter](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20The%20Hundred%20Years%27%20War%20BLES00113%20BLUS30070%2001.00.ncl) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-bladestorm_static) | ArtemisPS3 contributors; CodeFreak / PS3UserCheat source credits |
+| [Artemis GoW3 identical-PPU static instruction ports](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gow3_0103_ppu) | chidreams and the original patch authors named in each native document |
+| [PSX Data Center reviewed PAL PS2 RAW](https://psxdatacenter.com/psx2/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-psxdatacenter_pal477) | PSX Data Center and the original code authors |
+| [Artemis Bladestorm Japan static instruction supplement](https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-bladestorm_jp477) | ArtemisPS3 contributors and the original authors named in the NCL source |
+| [PSX Data Center PNACH v2.0](https://psxdatacenter.com/psx2/down2.html) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-psxdatacenter_v2_478) | PSX Data Center and the original PNACH authors |
+| [European PNACH collection](https://github.com/complicatiion/pcsx2_europe_cheats_collection) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pal_pnach478) | complicatiion and collection contributors; original code authors |
+| [ShadowNinja PNACH collection](https://github.com/shadowninja826/pcsx2_pnach_cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-shadow_pnach478) | shadowninja826 and collection contributors; original code authors |
+| [YukiXXL retail PNACH programs](https://github.com/YukiXXL/PS2-modding) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-yuki_pnach478) | YukiXXL and collection contributors; original code authors |
+| [xGamingDragon93x PNACH collection](https://github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dragon_pnach478) | xGamingDragon93x and collection contributors; original code authors |
+| [ArtemisPS3 complete static PPU programs](https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_static478) | bucanero / ArtemisPS3 contributors and the original code authors |
+| [Artemis RPCS3 authored PKG collection](https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_pkg478) | PaauloSilva collection; chidreams (MIT notice); original patch authors |
+| [PCSX2/pcsx2_patches explicit 60 FPS patches](https://github.com/PCSX2/pcsx2_patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pcsx2_fps478) | PCSX2 and collection contributors; original code authors |
+| [Gabominated/PCSX2 explicit 60 FPS patches](https://github.com/Gabominated/PCSX2) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gabominated_fps478) | Gabominated and collection contributors; original code authors |
+| [Saramagrean/NetherSX2-cheats explicit 60 FPS patches](https://github.com/Saramagrean/NetherSX2-cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-nethersx2_fps478) | Saramagrean and collection contributors; original code authors |
+| [RPCS3 native 60 FPS patches, pinned illusion mirror](https://github.com/illusion0001/rpcs3-game-patch) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-illusion_fps478) | illusion0001 mirror, RPCS3 patch contributors and original patch authors |
+| [TheYearOfWaluigi Gen IV battle framerate codes](https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-nds_fps478) | TheYearOfWaluigi |
+
+</details>
+
 ## Embedded systems and ports
 
 | Integration | Systems / purpose |
 | --- | --- |
-| **Libretro — 14 cores** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
+| **Libretro — 34 cores in the development tree** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
 | **Dusklight** | Twilight Princess port; requires compatible game data |
 | **KartPad / WiiCompiled** | Mario Kart Wii port; requires supported PAL RMCP01 game data |
 
-The number of cores differs from the number of console profiles. Compatibility,
+The public Build 455 release contains 14 Libretro cores; the current source tree
+contains 34. [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
+are preserved. The number of cores differs from the number of console profiles. Compatibility,
 features and performance depend on the game, core and device.
 
 ## Make it yours
@@ -135,8 +213,10 @@ restricted capabilities on a device.
 
 For the published app, use the **0.0.7 tag**, whose build source is
 `a12f075906ef452885decbef78fefd6517ce0fe0`.
-The `Claude` branch contains ongoing work; `main` also carries public
-documentation and is not the release's source snapshot.
+The `main` branch contains the Build 479 development sources and subsequent
+attribution/documentation updates. `Claude` remains the working branch. Neither
+branch replaces the exact source snapshot of an already published release.
+The private Build 479 was compiled from `ff28cf2a63695400ad09d1c61538059d96992cc1`.
 
 The release workflow uses **Flutter 3.47.2** and **Xcode 26.3**:
 
@@ -167,7 +247,8 @@ attribution does not imply endorsement.
 Thanks to the emulator, port, Libretro, StikJIT, RetroAchievements, ScreenScraper,
 GameDB, skin, shader, reading-library and memory-research contributors.
 **[Full credits and source records](docs/LEGAL_AND_CREDITS.md)** include the
-individual authors and **[all 14 core license references](assets/legal/libretro/LIBRETRO_CORES.md)**.
+individual authors, **[all 34 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**
+and **[all 51 contributing cheat source entries](docs/CHEAT_CATALOG_SOURCES.md)**.
 
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and

@@ -1,4 +1,7 @@
-# Embedded Libretro cores — NeoStation iOS 0.0.7 / Build 455
+# Embedded Libretro cores — current development source
+
+The published 0.0.7 / Build 455 release contained 14 cores. The current
+development tree and private Build 479 contain the 34 cores credited below.
 
 NeoStation packages 34 iOS ARM64 libretro core binaries, including the official
 Azahar 2127.0-alpha1 release. RetroArch

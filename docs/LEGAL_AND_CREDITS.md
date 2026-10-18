@@ -40,7 +40,7 @@ physical memory or circumvent Apple's resource enforcement.
 
 | Component | Authors / upstream | License / redistribution note |
 | --- | --- | --- |
-| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 14 cores keeps its own license. |
+| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 34 current development cores keeps its own license; published Build 455 contained 14. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by NeoStation is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
@@ -199,6 +199,30 @@ notices. The post-release correction embeds and checks every file in
 shader and music notices added after the earlier main-branch implementation.
 The published IPA is unchanged; the release review records that distinction.
 
+## Unified cheat catalogue — 51 contributing source entries
+
+The development catalogue delivered in private Builds 478–479 credits **51 source
+entries**. [The complete attribution register](CHEAT_CATALOG_SOURCES.md) names every
+collection, known excerpt author, upstream URL, exact input revision, SHA-256,
+recorded license notice and import scope. Profiles of the same collection are
+listed separately so source lineage is preserved, without calling them independent
+projects or adding overlapping contribution totals.
+
+Original code and patch authors retain their rights. Libretro-derived data keeps
+its CC BY-SA 4.0 attribution, adapted-data identification and ShareAlike terms;
+the skyzyx OpenEmu database retains its Unlicense notice. The Luckysugar and
+authored Artemis PKG inputs preserve their respective MIT notices. Other entries
+keep the recorded original-author terms or explicitly unspecified data rights.
+Attribution alone is not permission to relicense unspecified material under
+NeoStation’s frontend GPL. Full license texts and per-program provenance remain
+part of the source records.
+
+The publication has 2,395,549 programs/edition variants in 50,284 typed identity
+groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lists
+excluded references, which are not counted among the 51 contributing entries.
+This source-tree update does not publish a release or change a previously
+distributed IPA. The official release remains 0.0.7 / Build 455.
+
 ## Optional cheat catalogue source
 
 The RE4 PAL G4BP08 catalogue adapter fetches the author's public WIIRD topic
@@ -348,7 +372,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 
 ## Individual embedded-core notices
 
-See [the 14-core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
+See [the 34-core development inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
 [the hashed source references](../assets/legal/libretro/license-sources.json).
 License snapshots are not proof of the matching source for every buildbot binary.
 Azahar 2127.0-alpha1 is pinned separately to its official release.

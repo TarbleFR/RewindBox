@@ -488,3 +488,24 @@ See assets/legal/THIRD_PARTY_NOTICES.md and docs/LEGAL_AND_CREDITS.md for
 glslang, SPIRV-Cross, Libretro shader catalogs, Dolphin shaders,
 “Once Upon a Time (loop)” by TAD (CC0), and the community skin catalogs.
 Each upstream work retains its original license, authorship and source record.
+
+
+UNIFIED CHEAT CATALOGUE — DEVELOPMENT BUILDS 478–479
+
+The active publication has 51 contributing source entries. The complete source,
+author, pinned-input and recorded-license register is:
+https://github.com/TarbleFR/neostation-ios/blob/main/docs/CHEAT_CATALOG_SOURCES.md
+
+Collection maintainers and individual code/patch authors retain their rights.
+Libretro-derived data is separately identified as CC BY-SA 4.0; adapted-data
+and source attribution is retained. The skyzyx OpenEmu database preserves its
+Unlicense text. Luckysugar and the authored Artemis PKG collection preserve
+their original MIT notices. Other inputs retain their own recorded notices
+and per-program attribution; unspecified data rights are not a GPL grant.
+
+Source entries are import profiles and can share the same upstream collection.
+Contributions overlap; neither 51 source entries nor 2,395,549 programs/variants
+is a count of unique projects, unique effects or distinct commercial games.
+NeoStation's conversion/integration work does not claim authorship of codes
+created by others. Existing licenses and author notices must be preserved.
+This source-tree update does not alter the published 0.0.7 / Build 455 IPA.
