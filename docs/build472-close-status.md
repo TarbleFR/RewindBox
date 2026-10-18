@@ -34,6 +34,13 @@ negative controls, six corrected embedded-return cases and one external case
 are included. This validates the common UI; no physical engine/gameplay run is
 claimed.
 
+The first harness run `39085427665` at `9b6d120e` passed the old Dusklight
+negative control, then timed out awaiting the singleton manager's finalization
+across separate Flutter FakeAsync test zones. It produced no complete verdict
+and is not accepted validation. The harness now runs all thirteen sequential
+returns in one app/test clock, retaining every original assertion; its bound is
+reduced to two minutes. The product file is byte-identical to `9b6d120e`.
+
 Build 471's corrected Nestopia and all other native inputs must be reused by
 identity. Successful unchanged tests must not be repeated. Delivery commit,
 actual CI results and final IPA verification are recorded after production.

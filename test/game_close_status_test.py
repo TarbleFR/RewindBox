@@ -112,6 +112,7 @@ void main() {
   }
   Future<void> exercise(WidgetTester tester, String exe, {bool baseline = false,
       bool desktop = false}) async {
+    debugPrint('RETURN_CASE $exe baseline=$baseline desktop=$desktop begin');
     await prepare(tester);
     Platform.isIOS = !desktop;
     final navigator = GlobalKey<NavigatorState>();
@@ -178,12 +179,17 @@ void main() {
     expect(GameService.cleanupCalls, 1);
     await tester.pumpWidget(const SizedBox());
     GameService.cleanup = null;
+    debugPrint('RETURN_CASE $exe baseline=$baseline desktop=$desktop passed');
   }
 '''
+    # The production manager is a singleton and retains its completed audio
+    # finalization Future. Keep sequential returns in ONE FakeAsync zone,
+    # like one running app, rather than awaiting a Future from a dead test zone.
+    code += "testWidgets('thirteen return and cleanup scenarios in one app clock', (tester) async {\n"
     for exe in executables:
-        code += f"testWidgets('471 negative control {exe}', (tester) => exercise(tester, '{exe}', baseline: true));\n"
-        code += f"testWidgets('first return frame and deferred cleanup {exe}', (tester) => exercise(tester, '{exe}'));\n"
-    code += "testWidgets('external desktop keeps playing label', (tester) => exercise(tester, 'retroarch', desktop: true));\n}\n"
+        code += f"await exercise(tester, '{exe}', baseline: true);\n"
+        code += f"await exercise(tester, '{exe}');\n"
+    code += "await exercise(tester, 'retroarch', desktop: true);\n}, timeout: const Timeout(Duration(minutes: 2)));\n}\n"
     with tempfile.TemporaryDirectory(prefix='neostation-close-status-') as directory:
         work = Path(directory)
         (work / 'test').mkdir()
