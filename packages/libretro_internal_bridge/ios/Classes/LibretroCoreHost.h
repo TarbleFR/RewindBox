@@ -194,6 +194,8 @@ typedef struct {
 - (nullable NSString *)labelForDisk:(unsigned)index;
 
 - (void)applyCheats:(NSArray<NSString *> *)codes;
+/// Emulator-queue only. FBNeo native INI installation and declared core options.
+- (nullable NSDictionary *)performFBNeoCheatCommand:(NSDictionary *)request error:(NSError **)error;
 
 - (void *_Nullable)memoryDataForIdentifier:(unsigned)identifier size:(size_t *)size;
 - (const struct retro_memory_descriptor *_Nullable)memoryDescriptors:(unsigned *)count;

@@ -517,12 +517,17 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
     if (![self collectProgram:program visiting:[NSMutableSet set] visited:[NSMutableSet set] ordered:ordered reason:reason]) return nil;
     NSMutableSet *exclusive = [NSMutableSet set];
     for (NSDictionary *part in ordered) {
-        NSString *group = NUCBString(part[@"exclusive_group"]);
-        if (group.length && [exclusive containsObject:group]) {
-            if (reason) *reason = @"dependenciesExclusive";
-            return nil;
+        NSMutableSet *groups = [NSMutableSet set];
+        NSString *legacy = NUCBString(part[@"exclusive_group"]);
+        if (legacy.length) [groups addObject:legacy];
+        for (id group in NUCBArray(part[@"exclusive_groups"])) if (NUCBString(group).length) [groups addObject:group];
+        for (NSString *group in groups) {
+            if ([exclusive containsObject:group]) {
+                if (reason) *reason = @"dependenciesExclusive";
+                return nil;
+            }
+            [exclusive addObject:group];
         }
-        if (group.length) [exclusive addObject:group];
     }
     return [ordered copy];
 }
@@ -613,7 +618,7 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
             if (error) { [self showError:error explanation:@"importFailed"]; return; }
             if (![self canPresent]) return;
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:[self text:@"importDoneTitle"]
-                message:[self text:@"importDoneMessage"] preferredStyle:UIAlertControllerStyleAlert];
+                message:[self text:[self.engine isEqualToString:@"fbneo"] ? @"fbneoImportDoneMessage" : @"importDoneMessage"] preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:[self text:@"backToEngine"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
                 [weakSelf closeBrowser];
             }]];

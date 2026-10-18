@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "license": {
+    "identifier": "GPL-2.0-or-later",
+    "path": "ps1-primary-LICENSE",
+    "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb",
+    "upstream_urls": [
+      "https://raw.githubusercontent.com/libretro/beetle-pce-fast-libretro/3f946f277aef3aa99a95551618bbcd1dd2bda0d9/COPYING",
+      "https://raw.githubusercontent.com/libretro/beetle-wswan-libretro/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd/COPYING"
+    ]
+  },
+  "sources": [
+    {
+      "core": "pce",
+      "repo": "libretro/beetle-pce-fast-libretro",
+      "pin": "3f946f277aef3aa99a95551618bbcd1dd2bda0d9",
+      "path": "libretro.c",
+      "url": "https://raw.githubusercontent.com/libretro/beetle-pce-fast-libretro/3f946f277aef3aa99a95551618bbcd1dd2bda0d9/libretro.c",
+      "size": 74538,
+      "sha256": "9e7882c3d3988caecb4004ca9f2f2a48518bf0fc67810cdc574f3e1ce3f2dd76"
+    },
+    {
+      "core": "ws",
+      "repo": "libretro/beetle-wswan-libretro",
+      "pin": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "path": "libretro.c",
+      "url": "https://raw.githubusercontent.com/libretro/beetle-wswan-libretro/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd/libretro.c",
+      "size": 52372,
+      "sha256": "c6f7d7c7e235298bced76a1eac592da6c4aec53c14497931183dfa2e0e6988be"
+    },
+    {
+      "core": "pce",
+      "repo": "libretro/beetle-pce-fast-libretro",
+      "pin": "3f946f277aef3aa99a95551618bbcd1dd2bda0d9",
+      "path": "mednafen/mempatcher.c",
+      "url": "https://raw.githubusercontent.com/libretro/beetle-pce-fast-libretro/3f946f277aef3aa99a95551618bbcd1dd2bda0d9/mednafen/mempatcher.c",
+      "size": 13910,
+      "sha256": "3aea2a3daa4f12e629c7d01be09cf5622b4926668c51782546ac644888c69b0f"
+    },
+    {
+      "core": "ws",
+      "repo": "libretro/beetle-wswan-libretro",
+      "pin": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "path": "mednafen/mempatcher.c",
+      "url": "https://raw.githubusercontent.com/libretro/beetle-wswan-libretro/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd/mednafen/mempatcher.c",
+      "size": 3798,
+      "sha256": "3fbca4f8d2b2ce0d388bf380e1f241095c5deb4773e116408c68cd8b8e4286fa"
+    },
+    {
+      "core": "ws",
+      "repo": "libretro/beetle-wswan-libretro",
+      "pin": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "path": "mednafen/wswan/wswan-memory.c",
+      "url": "https://raw.githubusercontent.com/libretro/beetle-wswan-libretro/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd/mednafen/wswan/wswan-memory.c",
+      "size": 16591,
+      "sha256": "5e92f39bc3e71bdba29b32c6989c1f6d005fa529571377a027ceaf084ead6b34"
+    }
+  ],
+  "provenance": {
+    "ws": "Embedded core version v0.9.35.1 4b01295 identifies source commit4b01295838ea89e3f1355bbe4cb5cf98aa6108cd.",
+    "pce": "Core version v1.31.0.0 does not embed a Git hash. Primary source commit3f946f277aef3aa99a95551618bbcd1dd2bda0d9 predates the2026-10-11 binary build. The exact delivered binary independently confirms fortified strlcpy256, strtok/strlen/strtoul and MDFNI_AddCheat typeR length1; this is correlation, not an embedded source-revision attestation."
+  },
+  "binaries": {
+    "mednafen_pce_fast": {
+      "sha256": "97aed349a4b523b2c5ae3e55f75810f5c6de5403cea41fccae55368c6b89cb6d",
+      "wrapper_evidence": {
+        "calls": [
+          {
+            "at": "0x56514",
+            "target": "___sprintf_chk"
+          },
+          {
+            "at": "0x56528",
+            "target": "___strlcpy_chk"
+          },
+          {
+            "at": "0x56538",
+            "target": "_strtok"
+          },
+          {
+            "at": "0x5659c",
+            "target": "_strtok"
+          },
+          {
+            "at": "0x565ac",
+            "target": "_strlen"
+          },
+          {
+            "at": "0x565d4",
+            "target": "_strtoul"
+          },
+          {
+            "at": "0x565e8",
+            "target": "_strtoul"
+          },
+          {
+            "at": "0x56670",
+            "target": "_MDFNI_AddCheat"
+          },
+          {
+            "at": "0x566d4",
+            "target": "___stack_chk_fail"
+          }
+        ],
+        "mov_immediates": [
+          {
+            "at": "0x5650c",
+            "register": 1,
+            "immediate": 0
+          },
+          {
+            "at": "0x56510",
+            "register": 2,
+            "immediate": 256
+          },
+          {
+            "at": "0x56520",
+            "register": 2,
+            "immediate": 256
+          },
+          {
+            "at": "0x56524",
+            "register": 3,
+            "immediate": 256
+          },
+          {
+            "at": "0x56544",
+            "register": 27,
+            "immediate": 40960
+          },
+          {
+            "at": "0x5654c",
+            "register": 28,
+            "immediate": 12287
+          },
+          {
+            "at": "0x56588",
+            "register": 0,
+            "immediate": 0
+          },
+          {
+            "at": "0x56594",
+            "register": 0,
+            "immediate": 0
+          },
+          {
+            "at": "0x565cc",
+            "register": 1,
+            "immediate": 0
+          },
+          {
+            "at": "0x565d0",
+            "register": 2,
+            "immediate": 16
+          },
+          {
+            "at": "0x565e0",
+            "register": 1,
+            "immediate": 0
+          },
+          {
+            "at": "0x565e4",
+            "register": 2,
+            "immediate": 16
+          },
+          {
+            "at": "0x565fc",
+            "register": 11,
+            "immediate": 2031616
+          },
+          {
+            "at": "0x5664c",
+            "register": 0,
+            "immediate": 0
+          },
+          {
+            "at": "0x56660",
+            "register": 3,
+            "immediate": 0
+          },
+          {
+            "at": "0x56664",
+            "register": 4,
+            "immediate": 82
+          },
+          {
+            "at": "0x56668",
+            "register": 5,
+            "immediate": 1
+          },
+          {
+            "at": "0x5666c",
+            "register": 6,
+            "immediate": 0
+          },
+          {
+            "at": "0x56680",
+            "register": 0,
+            "immediate": 0
+          }
+        ]
+      }
+    },
+    "mednafen_wswan": {
+      "sha256": "0f3a7249303cbe3be71ac9e99f425a4cc05034abb7615baedfa95d17e8155117",
+      "embedded_version": "v0.9.35.1 4b01295"
+    }
+  },
+  "scope": "Unmodified primary C decoder, RAM registration and periodic writer fragments. Only logging, settings and unused read-substitution callbacks are stubbed. No ROM, Apple binary or gameplay execution.",
+  "fragments": {
+    "pce_globals": {
+      "sha256": "8bb1c71151942b8b9156d2a87da2528c2eda9cbc5ac3f3b06991c7df0d9d6bc6",
+      "source": "static uint8 **RAMPtrs = NULL;\nstatic uint32 PageSize;\nstatic uint32 NumPages;\n\ntypedef struct __CHEATF\n{\n   char *name;\n   char *conditions;\n\n   uint32 addr;\n   uint64 val;\n   uint64 compare;\n\n   unsigned int length;\n   bool bigendian;\n   unsigned int icount; // Instance count\n   char type;   /* 'R' for replace, 'S' for substitute(GG), 'C' for substitute with compare */\n   int status;\n} CHEATF;\n\n/* Was std::vector<CHEATF>; manual growable array (ptr/count/capacity). */\nstatic CHEATF *cheats        = NULL;\nstatic size_t  cheats_count  = 0;\nstatic size_t  cheats_cap    = 0;\nstatic bool CheatsActive     = true;\n\n"
+    },
+    "pce_push": {
+      "sha256": "62c0e315b10dc2796838700519c45a1816a77c5400f3aa40cdd00259078f9311",
+      "source": "static int cheats_push_back(const CHEATF *v)\n{\n   if(cheats_count >= cheats_cap)\n   {\n      size_t newcap = cheats_cap ? cheats_cap * 2 : 8;\n      CHEATF *n = (CHEATF *)realloc(cheats, newcap * sizeof(CHEATF));\n      if(!n)\n         return 0;\n      cheats = n;\n      cheats_cap = newcap;\n   }\n   cheats[cheats_count++] = *v;\n   return 1;\n}"
+    },
+    "pce_add_entry": {
+      "sha256": "51046f0c0f38ec4f6b980deababb9f57608f7d52edca5a95fc95e53750b7e223",
+      "source": "static int AddCheatEntry(char *name, char *conditions, uint32 addr, uint64 val, uint64 compare, int status, char type, unsigned int length, bool bigendian)\n{\n CHEATF temp;\n\n memset(&temp, 0, sizeof(CHEATF));\n\n temp.name=name;\n temp.conditions = conditions;\n temp.addr=addr;\n temp.val=val;\n temp.status=status;\n temp.compare=compare;\n temp.length = length;\n temp.bigendian = bigendian;\n temp.type=type;\n\n return cheats_push_back(&temp);\n}"
+    },
+    "pce_add_cheat": {
+      "sha256": "4fd60342fc9f694ddf4ab4c27f435f151e66e739bb8262e52a6476d269ab4d23",
+      "source": "int MDFNI_AddCheat(const char *name, uint32 addr, uint64 val, uint64 compare, char type, unsigned int length, bool bigendian)\n{\n   char *t;\n\n   if(!(t = strdup(name)))\n      return(0);\n\n   if(!AddCheatEntry(t, NULL, addr,val,compare,1,type, length, bigendian))\n   {\n      free(t);\n      return(0);\n   }\n\n   MDFNMP_RemoveReadPatches();\n   RebuildSubCheats();\n   MDFNMP_InstallReadPatches();\n\n   return(1);\n}"
+    },
+    "pce_init": {
+      "sha256": "041ecdf96f3eaa7a0c1302861ceffd308cca06db10218652208c7892aea3a603",
+      "source": "bool MDFNMP_Init(uint32 ps, uint32 numpages)\n{\n   PageSize = ps;\n   NumPages = numpages;\n\n   RAMPtrs = (uint8 **)calloc(numpages, sizeof(uint8 *));\n\n   CheatsActive = MDFN_GetSettingB(\"cheats\");\n   return(1);\n}"
+    },
+    "pce_add_ram": {
+      "sha256": "0cd2eb679928de19ffff4b427fe9572da497c55acab45165c2e0a53b4b12d8ff",
+      "source": "void MDFNMP_AddRAM(uint32 size, uint32 A, uint8 *RAM)\n{\n uint32 AB = A / PageSize;\n unsigned int x;\n\n size /= PageSize;\n\n for(x = 0; x < size; x++)\n {\n  RAMPtrs[AB + x] = RAM;\n  if(RAM) // Don't increment the RAM pointer if we're passed a NULL pointer\n   RAM += PageSize;\n }\n}"
+    },
+    "pce_apply": {
+      "sha256": "9b2d9ba9d04eedf45817da918b3535cec2b5ef8799be7e3bba2e58d00c66e1b3",
+      "source": "void MDFNMP_ApplyPeriodicCheats(void)\n{\n size_t ci;\n\n if(!CheatsActive)\n  return;\n\n for(ci = 0; ci < cheats_count; ci++)\n {\n  CHEATF *chit = &cheats[ci];\n  if(chit->status && chit->type == 'R')\n  {\n   if(!chit->conditions || TestConditions(chit->conditions))\n   {\n    unsigned int x;\n    for(x = 0; x < chit->length; x++)\n    {\n     uint32 page = ((chit->addr + x) / PageSize) % NumPages;\n     if(RAMPtrs[page])\n     {\n      uint64 tmpval = chit->val;\n\n      if(chit->bigendian)\n       tmpval >>= (chit->length - 1 - x) * 8;\n      else\n       tmpval >>= x * 8;\n\n      RAMPtrs[page][(chit->addr + x) % PageSize] = tmpval;\n     }\n    }\n   }\n  }\n }\n}"
+    },
+    "pce_flush": {
+      "sha256": "4b08775d8f6487d851d8e79d0265c055df66076cfa3eaa8eb06e06f1a54f1233",
+      "source": "void MDFN_FlushGameCheats(int nosave)\n{\n   size_t ci;\n\n   for(ci = 0; ci < cheats_count; ci++)\n   {\n      free(cheats[ci].name);\n      if(cheats[ci].conditions)\n         free(cheats[ci].conditions);\n   }\n   cheats_count = 0;\n\n   RebuildSubCheats();\n}"
+    },
+    "pce_set": {
+      "sha256": "dc2a0d164feedd6dbd183fa1b883d621edf6dc827e77d0eab38ff04fe7dd7e09",
+      "source": "void retro_cheat_set(unsigned index, bool enabled, const char *code)\n{\n   char name[256];\n   char temp[256];\n   char *codepart;\n\n   if (code == NULL)\n      return;\n\n   sprintf(name, \"N/A\");\n   /* code originates from the frontend and may be arbitrarily long; a plain\n    * strcpy into a 256-byte stack buffer is a buffer overflow. */\n   strlcpy(temp, code, sizeof(temp));\n   codepart = strtok(temp, \"+,;._ \");\n\n   while (codepart)\n   {\n      // Cheat references are based on\n      // https://gamehacking.org/system/pce\n      // https://gamehacking.org/system/pcd\n      //\n      // accepts 1Fxxxx:xx raw format (ram)      \n      // accepts 10xxxx:xx raw format (cd-ram)\n      // accepts F8xxxx:xx physical address format (ram)\n      if ((strlen(codepart) == 9) && (codepart[6]==':'))\n      {\n         uint32 a;\n         uint64 v;\n\n         codepart[6] = '\\0';\n\n         a = strtoul(codepart, NULL, 16);\n         v = strtoul(codepart + 7, NULL, 16);\n\n         // RAM region (0x1F0000 - 0x1F2000)\n         //translate physical address to raw address format\n         if ((a & 0xFFE000) == 0xF82000)\n         {\n            a &= 0x1FFF;\n            a |= 0x1F0000;\n         }\n\n         // CD-RAM region (0x100000 - 0x110000)\n         // translate physical address to raw address format\n         // this is just guess-work and assumed the target address is always 0x10Axxx,\n         // better use raw formats if possible\n         if ((a & 0xFFC000) == 0x80C000)\n         {\n            a &= 0x1FFF;\n            a |= 0x10A000;\n         }\n         \n         // only accept codes in of valid address range\n         // raw address = 0x1F0000 - 0x1F1FFF or physical address 0xF82xxx - 0xF83xxx (RAM) \n         // raw address = 0x0D0000 - 0x10FFFF (SYSTEM CARD RAM / CD-RAM)\n         if (((a >= 0x1F0000) && (a < 0x1F2000)) ||  // main RAM\n            ((a >= 0x100000) && (a < 0x110000))  ||  // CD RAM\n            ((a >= 0x00D000) && (a < 0x10FFFF)))     // System Card RAM\n         {\n            if (!MDFNI_AddCheat(name, a, v, 0, 'R', 1, 0))\n               log_cb(RETRO_LOG_DEBUG, \"Failed to set code: '%s:%02x'\\n\", codepart,v);\n            else\n               log_cb(RETRO_LOG_DEBUG, \"Code set: '%s:%02x'\\n\", codepart,v);\n         }\n         else\n            log_cb(RETRO_LOG_DEBUG, \"Invalid or unknown code: '%s:%02x'\\n\", codepart,v);\n         /* log_cb(RETRO_LOG_DEBUG, \"address=%08x v=%02x\\n\", a, v); */\n      }\n      else\n         log_cb(RETRO_LOG_DEBUG, \"Invalid or unknown code: '%s'\\n\", codepart);\n      codepart = strtok(NULL,\"+,;._ \");\n   }\n}"
+    },
+    "pce_reset": {
+      "sha256": "4a830fca66869aff2132cd4c0a1c6eb13f054ab38774ec7c6ca57910a029dfa5",
+      "source": "void retro_cheat_reset(void)\n{\n   MDFN_FlushGameCheats(0);\n}"
+    },
+    "ws_memory": {
+      "sha256": "c907218d642f73c8817c1671a19635aee3bac5b651097aae62e1a11147997a58",
+      "source": "typedef struct\n{\n   uint32 addr;\n   uint64 val;\n   uint32 length;\n   uint8 bigendian;\n   uint8 type;\n} CHEATF;\n\nstatic uint8 **RAMPtrs      = NULL;\nstatic uint32 PageSize      = 0;\nstatic uint32 NumPages      = 0;\nstatic bool CheatsActive    = true;\n\nstatic CHEATF *cheats       = NULL;\nstatic uint32 cheat_count   = 0;\nstatic uint32 cheat_alloc   = 0;\n\nbool MDFNMP_Init(uint32 ps, uint32 numpages)\n{\n   PageSize = ps;\n   NumPages = numpages;\n\n   RAMPtrs = (uint8 **)calloc(numpages, sizeof(uint8 *));\n   if (!RAMPtrs)\n      return 0;\n\n   CheatsActive = MDFN_GetSettingB(\"cheats\");\n   return 1;\n}\n\nvoid MDFNMP_Kill(void)\n{\n   if (RAMPtrs)\n   {\n      free(RAMPtrs);\n      RAMPtrs = NULL;\n   }\n   if (cheats)\n   {\n      free(cheats);\n      cheats      = NULL;\n      cheat_count = 0;\n      cheat_alloc = 0;\n   }\n}\n\nvoid MDFNMP_AddRAM(uint32 size, uint32 A, uint8 *RAM)\n{\n   uint32 AB = A / PageSize;\n   uint32 x;\n\n   /* Round the page count up: with the 16KB cheat page size, a\n    * region smaller than one page (e.g. the 8KB SRAM used by save\n    * type 0x01 carts) previously mapped zero pages, making it\n    * invisible to the cheat engine. Same bug exists in upstream\n    * mednafen. Callers are responsible for keeping cheat\n    * addresses within the real region size; the libretro cheat\n    * entry point validates against SRAMSize before adding a\n    * code. */\n   size = (size + PageSize - 1) / PageSize;\n\n   for (x = 0; x < size; x++)\n   {\n      if (AB + x >= NumPages)\n         break;\n      RAMPtrs[AB + x] = RAM;\n      if (RAM) /* Don't increment the RAM pointer if we're passed a NULL pointer */\n         RAM += PageSize;\n   }\n}\n\nint MDFNI_AddCheat(const char *name, uint32 addr, uint64 val, uint64 compare, char type, unsigned int length, bool bigendian)\n{\n   CHEATF *slot;\n\n   (void)name;\n   (void)compare;\n\n   if (cheat_count == cheat_alloc)\n   {\n      uint32 new_alloc = cheat_alloc ? (cheat_alloc << 1) : 8;\n      CHEATF *new_buf  = (CHEATF *)realloc(cheats, new_alloc * sizeof(CHEATF));\n\n      if (!new_buf)\n         return 0;\n\n      cheats      = new_buf;\n      cheat_alloc = new_alloc;\n   }\n\n   slot            = &cheats[cheat_count];\n   slot->addr      = addr;\n   slot->val       = val;\n   slot->length    = length;\n   slot->bigendian = bigendian ? 1 : 0;\n   slot->type      = (uint8)type;\n   cheat_count++;\n\n   return 1;\n}\n\nvoid MDFN_FlushGameCheats(int nosave)\n{\n   (void)nosave;\n   cheat_count = 0;\n}\n\nvoid MDFNMP_ApplyPeriodicCheats(void)\n{\n   uint32 i;\n\n   if (!CheatsActive)\n      return;\n\n   for (i = 0; i < cheat_count; i++)\n   {\n      const CHEATF *ch = &cheats[i];\n      uint32 x;\n\n      if (ch->type != 'R')\n         continue;\n\n      for (x = 0; x < ch->length; x++)\n      {\n         uint32 page = ((ch->addr + x) / PageSize) % NumPages;\n\n         if (RAMPtrs[page])\n         {\n            uint64 tmpval = ch->val;\n\n            if (ch->bigendian)\n               tmpval >>= (ch->length - 1 - x) * 8;\n            else\n               tmpval >>= x * 8;\n\n            RAMPtrs[page][(ch->addr + x) % PageSize] = (uint8)tmpval;\n         }\n      }\n   }\n}\n"
+    },
+    "ws_digit": {
+      "sha256": "b7b366deba91681ee48488858435715bc08d1929fb4f9215dbf1cb77cdae4b6f",
+      "source": "static INLINE int cheat_hex_digit(char c)\n{\n   if (c >= '0' && c <= '9')\n      return c - '0';\n   if (c >= 'A' && c <= 'F')\n      return c - 'A' + 10;\n   if (c >= 'a' && c <= 'f')\n      return c - 'a' + 10;\n   return -1;\n}"
+    },
+    "ws_separator": {
+      "sha256": "a752516ce287f6dc0904415d2d2da7e7405efb9609a0475833194aa8900b950b",
+      "source": "static INLINE int cheat_is_sep(char c)\n{\n   return (c == '+' || c == ',' || c == ';' || c == '.' ||\n           c == '_' || c == ' ');\n}"
+    },
+    "ws_set": {
+      "sha256": "ce0384a0f3fa6bb22b3f8a93831823a6180725c8516074e391e99c8349fb51ce",
+      "source": "void retro_cheat_set(unsigned index, bool enabled, const char *code)\n{\n   const char *p = code;\n\n   (void)index;\n\n   if (!code || !enabled)\n      return;\n\n   while (*p)\n   {\n      uint32 a       = 0;\n      uint32 v       = 0;\n      int addr_chars = 0;\n      int val_chars  = 0;\n      int valid      = 1;\n      const char *part_start;\n      int d;\n\n      while (cheat_is_sep(*p))\n         p++;\n      if (!*p)\n         break;\n      part_start = p;\n\n      /* hex address, 1-6 digits */\n      while ((d = cheat_hex_digit(*p)) >= 0)\n      {\n         if (addr_chars >= 6)\n         {\n            valid = 0;\n            break;\n         }\n         a = (a << 4) | (uint32)d;\n         addr_chars++;\n         p++;\n      }\n      if (!addr_chars || addr_chars > 5)\n         valid = 0;\n\n      if (valid && *p == ':')\n         p++;\n      else\n         valid = 0;\n\n      /* value: exactly two hex digits */\n      if (valid)\n      {\n         while ((d = cheat_hex_digit(*p)) >= 0)\n         {\n            if (val_chars >= 2)\n            {\n               valid = 0;\n               break;\n            }\n            v = (v << 4) | (uint32)d;\n            val_chars++;\n            p++;\n         }\n         if (val_chars != 2)\n            valid = 0;\n      }\n\n      /* the part must end exactly at a separator or the end */\n      if (valid && *p && !cheat_is_sep(*p))\n         valid = 0;\n\n      if (valid)\n      {\n         /* RAM, or SRAM when the cart has any */\n         if (a < 0x10000 || (SRAMSize && a >= 0x10000 &&\n               a < 0x10000 + SRAMSize))\n         {\n            if (!MDFNI_AddCheat(\"N/A\", a, v, 0, 'R', 1, false))\n            {\n               if (log_cb)\n                  log_cb(RETRO_LOG_WARN, \"Failed to set cheat: %05X:%02X\\n\", a, v);\n            }\n         }\n         else if (log_cb)\n            log_cb(RETRO_LOG_WARN, \"Cheat address out of range: %05X:%02X\\n\", a, v);\n      }\n      else if (log_cb)\n         log_cb(RETRO_LOG_WARN, \"Invalid cheat code part: '%.16s'\\n\", part_start);\n\n      /* advance to the next separator (recovers from junk parts) */\n      while (*p && !cheat_is_sep(*p))\n         p++;\n   }\n}"
+    },
+    "ws_reset": {
+      "sha256": "4a830fca66869aff2132cd4c0a1c6eb13f054ab38774ec7c6ca57910a029dfa5",
+      "source": "void retro_cheat_reset(void)\n{\n   MDFN_FlushGameCheats(0);\n}"
+    }
+  },
+  "registration_evidence": {
+    "ws": "wswan-memory.c39 wsRAM[65536];472 wsRAMSize=65536;500 MDFNMP_AddRAM(wsRAMSize,0x00000,wsRAM);503 SRAM separately registered10000 when present. libretro.c444 applies periodic writes before frame execution.",
+    "pce": "libretro.c1072 MDFNMP_AddRAM(8192,0xf8*8192,BaseRAM);1216 MDFNMP_AddRAM(262144,0x68*8192,ROMSpace+0x68*8192) for CD/SystemCard RAM;1324 periodic writer before VDC_RunFrame."
+  }
+}

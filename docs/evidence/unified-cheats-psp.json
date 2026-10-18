@@ -1,0 +1,24 @@
+{
+  "kind": "recorded-real-core-evidence",
+  "engine": "ppsspp",
+  "source_commit": "b60d1af2d020c616a481296a51e6a82504810ea7",
+  "workflow_run": 39092101414,
+  "artifact_id": 12122773198,
+  "artifact_sha256": "bf4eac229eb492fc578ca1b88f5802164d96a07274e018edfd9b41bf6b81822f",
+  "report_sha256": "f8ef04600a8b34aff45aee96e6837d5d2ace143be9d7388ad981e9e18f3d5ebd",
+  "core_sha256": "40d3b6f81a726ff82a89f87df5332f20a5dcdecd9f6473fcae7cade60bcb0cf0",
+  "checks_passed": 5,
+  "checks_total": 5,
+  "fixture": {
+    "repository": "https://github.com/hrydgard/pspautotests",
+    "revision": "cd3d49c4c5d8fa4d84779a216270db7408842017",
+    "file": "simple.prx",
+    "bytes": 133594,
+    "sha256": "7422ff8e0f2dac9ea9e40367b7f59d426a25a7dbec88376bf5adb12884996240",
+    "git_blob": "dd010448eb8d19f91e409fc280023f823b5fc209"
+  },
+  "real_frames_observed": true,
+  "core_rebuilt": false,
+  "physical_device_validated": false,
+  "reuse_scope": "Historical PSP baseline only. A later shared Host aggregate guard changes this path, so PSP effects must run again for that revision. The original workflow failed separately on N64 OpenGL setup; no overall successful workflow is claimed."
+}

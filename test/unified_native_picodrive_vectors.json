@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/libretro/picodrive",
+  "revision": "1890c2932234c9d30f4cd3851d02228baae8f09e",
+  "delivered_version": "2.05-1890c29",
+  "delivered_binary_sha256": "3c5d6181904d4d644cad530008a202931237ab038ab6a064e4b4f68ecbc4592b",
+  "source_sha256": {
+    "patch.c": "77584c670f5bbf16437c55eb02a5edea0b564eb005678ec8e38e4fb3b71008d5",
+    "patch.h": "16d19a056581f3589bdd1c1cbd4f6c508ef829a9cf2b623813c2620096a76f43",
+    "libretro.c": "6ca5a4da219d4a2643a2d9deb964a0ed456f0965c5f6a4564eb8a1af7940d27e"
+  },
+  "vectors": [
+    {
+      "code": "AMEA-AA9Y",
+      "address": "00C8F4",
+      "value": "6002"
+    },
+    {
+      "code": "ABST-EA4G+DKST-EACJ",
+      "address": [
+        "025F46",
+        "025F48"
+      ],
+      "value": [
+        "6000",
+        "001A"
+      ]
+    },
+    {
+      "code": "FF03B4:0060",
+      "address": "FF03B4",
+      "value": "0060"
+    }
+  ],
+  "profile": {
+    "systems": [
+      "32x",
+      "pico",
+      "md"
+    ],
+    "mcd": "main68k RAM only",
+    "allowed_addresses": "even ROM offsets below0x400000 or main68k FF0000..FFFFFE",
+    "excluded_value": "FFFF is the callback error sentinel",
+    "sms_gg": "RAM write path is no-op; not enabled by this profile",
+    "no_sh2_projection": true,
+    "maximum_ascii_bytes_per_call": 255,
+    "batching": "Callbacks append and capture originals without applying until next frame. Every batch call must finish before emulation resumes.",
+    "maximum_host_calls_tested": 99,
+    "patches_in_maximum_batch_test": 2475,
+    "maximum_ascii_bytes_per_program": 8192
+  },
+  "source_license": "PicoDrive sources fetched intact from their pinned repository; no core vendored or rebuilt.",
+  "32x_source_audit": {
+    "source_revision": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+    "files": 29,
+    "source_programs": 658,
+    "bounded_programs": 523,
+    "rejected_odd_address": 121,
+    "empty_or_parameterized": 12,
+    "error_sentinel": 2
+  }
+}

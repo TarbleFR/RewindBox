@@ -56,12 +56,51 @@ int main() { @autoreleasepool {
   assert([request[@"success"] boolValue]);
   auto parsed=NeoCheat::parse(NeoUTF8(request[@"content"]),"pnach","Fallback");
   assert(parsed && parsed.entries.size()==1 && parsed.entries[0].lines.size()==2 && parsed.entries[0].name=="Full cheat");
+  NSMutableDictionary* fullFile=[master mutableCopy];fullFile[@"id"]=@"full-file";fullFile[@"name"]=@"Whole source file";
+  fullFile[@"code"]=@"[L1+L2 For Max Gil]\npatch=1,EE,D056BB5C,extended,0000FAFF\n[L1+L2 For Max Gil]\npatch=1,EE,20547F08,extended,05F5E0FF";
+  NSDictionary* fullRequest=NeoUnifiedNativeRequest(game,@[fullFile],snapshot,YES);
+  auto complete=NeoCheat::parse(NeoUTF8(fullRequest[@"content"]),"pnach","Fallback");
+  assert(complete && complete.entries.size()==1 && complete.entries[0].lines.size()==2 && complete.entries[0].name=="Whole source file");
+  assert(complete.entries[0].lines[0].find("D056BB5C")!=std::string::npos && complete.entries[0].lines[1].find("20547F08")!=std::string::npos);
   assert(NeoUnifiedNativeReceipt(root,request));
   NSDictionary* saved=NeoPnachImport(root,request,snapshot);assert([saved[@"success"] boolValue]);
   NSString* pnach=[NSString stringWithContentsOfFile:saved[@"file"] encoding:NSUTF8StringEncoding error:nil];
   assert([pnach containsString:@"D0000000"] && [pnach containsString:@"20000004"]);
   NSMutableDictionary* wrong=[game mutableCopy];wrong[@"identities"]=@[@{@"type":@"ps2_crc",@"scheme":@"pcsx2-executable-crc",@"value":@"12345678"}];
   assert(![NeoUnifiedNativeRequest(wrong,@[master],snapshot,YES)[@"success"] boolValue]);
+  // A source with an exact disc serial and no executable CRC stays a candidate.
+  // Confirmation permits mapping to the CRC read from the running engine,
+  // without inventing a CRC in the source identity or enabling the code.
+  NSMutableDictionary* serialGame=[@{@"system":@"ps2",@"identities":@[@{@"type":@"serial",@"scheme":@"ps2-disc-serial",@"value":@"SLES00000"}]} mutableCopy];
+  assert(!NeoUnifiedNativeGameMatches(serialGame,snapshot,YES));
+  serialGame[@"edition_confirmed"]=@YES;
+  assert(NeoUnifiedNativeGameMatches(serialGame,snapshot,YES));
+  NSMutableDictionary* otherSerial=[serialGame mutableCopy];otherSerial[@"identities"]=@[@{@"type":@"serial",@"scheme":@"ps2-disc-serial",@"value":@"SLES00001"}];
+  assert(!NeoUnifiedNativeGameMatches(otherSerial,snapshot,YES));
+  otherSerial[@"identities"]=@[@{@"type":@"serial",@"scheme":@"unknown",@"value":@"SLES00000"}];
+  assert(!NeoUnifiedNativeGameMatches(otherSerial,snapshot,YES));
+  otherSerial[@"identities"]=[serialGame[@"identities"] arrayByAddingObject:@{@"type":@"ps2_crc",@"scheme":@"pcsx2-executable-crc",@"value":@"12345678"}];
+  assert(!NeoUnifiedNativeGameMatches(otherSerial,snapshot,YES));
+  NSMutableDictionary* reread=[snapshot mutableCopy];reread[@"crc"]=@"1234ABCD";
+  NSDictionary* mapped=NeoUnifiedNativeRequest(serialGame,@[child],reread,YES);
+  // The child requires its master: mapping never bypasses dependency checks.
+  assert(![mapped[@"success"] boolValue]);
+  mapped=NeoUnifiedNativeRequest(serialGame,@[master,child],reread,YES);
+  assert([mapped[@"success"] boolValue] && [mapped[@"crc"] isEqual:@"1234ABCD"]);
+  NSString* mappedRoot=[root stringByAppendingPathComponent:@"serial-candidate"];
+  assert(NeoUnifiedNativeReceipt(mappedRoot,mapped));
+  NSDictionary* mappedSave=NeoPnachImport(mappedRoot,mapped,reread);assert([mappedSave[@"success"] boolValue]);
+  assert([[mappedSave[@"file"] lastPathComponent] hasPrefix:@"1234ABCD-NeoStation-"]);
+  NSString* mappedBody=[NSString stringWithContentsOfFile:mappedSave[@"file"] encoding:NSUTF8StringEncoding error:nil];
+  assert([mappedBody containsString:@"Disabled until selected"]);
+  NSString* receipts=[mappedRoot stringByAppendingPathComponent:@"NeoStationCatalogueProvenance"];
+  NSArray* receiptNames=[fm contentsOfDirectoryAtPath:receipts error:nil];assert(receiptNames.count==1);
+  NSDictionary* receipt=[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:[receipts stringByAppendingPathComponent:receiptNames[0]]] options:0 error:nil];
+  assert([receipt[@"game"] isEqual:serialGame] && [receipt[@"game"][@"identities"] count]==1);
+  assert([receipt[@"mapped_target"][@"identity"][@"identities"][0][@"value"] isEqual:@"1234ABCD"]);
+  assert([receipt[@"mapped_target"][@"edition_confirmed"] boolValue]);
+  reread[@"crc"]=@"";assert(!NeoUnifiedNativeGameMatches(serialGame,reread,YES));
+  reread[@"crc"]=@"00000000";assert(!NeoUnifiedNativeGameMatches(serialGame,reread,YES));
   NSDictionary* dol=@{@"available":@YES,@"gameId":@"G4BP08",@"revision":@0,@"hardcore":@NO,@"gecko":@[],@"actionReplay":@[]};
   NSDictionary* dolGame=@{@"revision":@"0",@"identities":@[@{@"type":@"game_id",@"scheme":@"dolphin-disc-game-id",@"value":@"G4BP08"}]};
   NSDictionary* dolProgram=@{@"id":@"g",@"name":@"Gecko",@"code":@"04000000 00000001",@"status":@"available",@"dialect":@"gecko",@"parameters":@[],@"dependencies":@[]};
@@ -108,6 +147,20 @@ int main() { @autoreleasepool {
   assert(![store stageGame:(id)@"bad game" programs:(id)@"bad programs" serial:@"BLES00001" version:@"01.01"]);
   badProgram=[PS3Program(@"invalid",@"BLES00001") mutableCopy];badProgram[@"dependencies"]=@[@{@"invalid":@"dependency"}];
   assert(![RPCS3UnifiedCheats acceptsProgram:badProgram]);
+  NSMutableDictionary* decimalAddress=[NSJSONSerialization JSONObjectWithData:
+      [NSJSONSerialization dataWithJSONObject:PS3Program(@"numeric-address",@"BLES00001") options:0 error:nil]
+      options:NSJSONReadingMutableContainers error:nil];
+  NSMutableDictionary* addressPatch=decimalAddress[@"native_document"][@"PPU-0123456789012345678901234567890123456789"][@"Original program"];
+  addressPatch[@"Patch"]=@[@[@"be32",@16,@1]];
+  assert(![RPCS3UnifiedCheats acceptsProgram:decimalAddress]);
+  addressPatch[@"Patch"]=@[@[@"be32",@"16",@1]];
+  assert(![RPCS3UnifiedCheats acceptsProgram:decimalAddress]);
+  addressPatch[@"Patch"]=@[@[@"be32",@"0x00000010",@1]];
+  assert([RPCS3UnifiedCheats acceptsProgram:decimalAddress]);
+  addressPatch[@"Patch"]=@[@[@"be32",@"0x100000000",@1]];
+  assert(![RPCS3UnifiedCheats acceptsProgram:decimalAddress]);
+  addressPatch[@"Patch"]=@[@[@"be32",@"0x00000010",@[@1]]];
+  assert(![RPCS3UnifiedCheats acceptsProgram:decimalAddress]);
   assert([[store installedVersionForTitle:@"BLES00001"] isEqual:@"01.01"]);
   assert([store stageGame:PS3Game(@"BLES00001") programs:@[PS3Program(@"source-1",@"BLES00001")] serial:@"BLES00001" version:@"01.01"]);
   assert(toggles.count==0 && [[NSData dataWithContentsOfFile:official] isEqual:original]); // staging never calls the Core.

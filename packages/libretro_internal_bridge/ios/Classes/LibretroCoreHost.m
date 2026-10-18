@@ -67,6 +67,18 @@ static uint64_t MonotonicMicroseconds(void) {
 /// context argument. Owned elsewhere for the whole session.
 static __unsafe_unretained LibretroCoreHost *gActiveHost = nil;
 
+@interface LibretroCoreHost (ManagedFBNeoCheats)
+- (void)manageFBNeoDeclaredOptions;
+- (void)enforceManagedFBNeoCheatPath;
+- (void)stageManagedFBNeoCheatsForCurrentDriver;
+- (void)setFBNeoCheatsMasterEnabled:(BOOL)enabled;
+@end
+
+static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
+  if (declared) [host manageFBNeoDeclaredOptions];
+  return declared;
+}
+
 @implementation LibretroCoreHost {
   NSString *_corePath;
   NSString *_systemDirectory;
@@ -76,6 +88,17 @@ static __unsafe_unretained LibretroCoreHost *gActiveHost = nil;
   NSString *_cacheDirectory;
   NSString *_saveDirectory;
   NSString *_stateDirectory;
+  NSMutableSet<NSString *> *_managedFBNeoOptions;
+  BOOL _fbneoCheatsNeedRestart;
+  NSString *_fbneoImportedPath;
+  NSString *_fbneoPrivateCheatDirectory;
+  NSString *_fbneoStagedDriver;
+  char *_fbneoCheatPathExport;
+  bool *_fbneoCheatMaster;
+  int (*_fbneoCheatUpdate)(void);
+  BOOL _fbneoLoadingContent;
+  BOOL _fbneoManagedDriverReady;
+  BOOL _fbneoExplicitCheatsEnabled;
   unsigned _language;
   BOOL _jitCapable;
 
@@ -329,6 +352,7 @@ static void SetOutputString(void *data, const char *value) {
 static bool HostEnvironment(unsigned command, void *data) {
   LibretroCoreHost *host = gActiveHost;
   if (host == nil || (command & RETRO_ENVIRONMENT_PRIVATE) != 0) return false;
+  [host enforceManagedFBNeoCheatPath];
   id<LibretroCoreHostDelegate> delegate = host->_delegate;
   switch (ENV_BASE(command)) {
     case RETRO_ENVIRONMENT_SET_ROTATION:
@@ -382,9 +406,11 @@ static bool HostEnvironment(unsigned command, void *data) {
     case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME:
     case RETRO_ENVIRONMENT_SET_PROC_ADDRESS_CALLBACK:
     case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
-    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
     case ENV_BASE(RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT):
     case RETRO_ENVIRONMENT_SET_MINIMUM_AUDIO_LATENCY:
+      return true;
+    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+      [host stageManagedFBNeoCheatsForCurrentDriver];
       return true;
     case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: {
       const struct retro_disk_control_callback *callback = data;
@@ -451,7 +477,7 @@ static bool HostEnvironment(unsigned command, void *data) {
       return variable->value != NULL;
     }
     case RETRO_ENVIRONMENT_SET_VARIABLES:
-      return [host->_options declareVariables:data];
+      return ManagedOptionsDeclared(host,[host->_options declareVariables:data]);
     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
       if (data != NULL) *(bool *)data = [host->_options consumeUpdate];
       return true;
@@ -468,18 +494,18 @@ static bool HostEnvironment(unsigned command, void *data) {
       if (data != NULL) *(unsigned *)data = 2;
       return true;
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS:
-      return [host->_options declareDefinitions:data local:NULL];
+      return ManagedOptionsDeclared(host,[host->_options declareDefinitions:data local:NULL]);
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL: {
       const struct retro_core_options_intl *intl = data;
       if (intl == NULL) return false;
-      return [host->_options declareDefinitions:intl->us local:intl->local];
+      return ManagedOptionsDeclared(host,[host->_options declareDefinitions:intl->us local:intl->local]);
     }
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2:
-      return [host->_options declareV2:data local:NULL];
+      return ManagedOptionsDeclared(host,[host->_options declareV2:data local:NULL]);
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2_INTL: {
       const struct retro_core_options_v2_intl *intl = data;
       if (intl == NULL) return false;
-      return [host->_options declareV2:intl->us local:intl->local];
+      return ManagedOptionsDeclared(host,[host->_options declareV2:intl->us local:intl->local]);
     }
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
       [host->_options setDisplay:data];
@@ -719,6 +745,29 @@ static bool HostEnvironment(unsigned command, void *data) {
   _options = [[LibretroCoreOptions alloc] initWithStorePath:optionsPath
                                               gameStorePath:gameOptionsPath
                                                     gameKey:self.optionsGameKey];
+  _managedFBNeoOptions = nil;
+  _fbneoCheatsNeedRestart = NO;
+  _fbneoImportedPath = nil;
+  _fbneoStagedDriver = nil;
+  _fbneoManagedDriverReady = NO;
+  _fbneoExplicitCheatsEnabled = NO;
+  if ([self isFBNeoCore]) {
+    // These C exports and the 260-byte path capacity were checked against
+    // the delivered FBNeo binary. The core overwrites the path during load;
+    // the environment guard below restores it before its first cheat parse.
+    _fbneoCheatPathExport = (char *)dlsym(_library,"szAppCheatsPath");
+    _fbneoCheatMaster = (bool *)dlsym(_library,"bCheatsAllowed");
+    _fbneoCheatUpdate = (int (*)(void))dlsym(_library,"CheatUpdate");
+    _fbneoPrivateCheatDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:
+      [@"NFC-" stringByAppendingString:NSUUID.UUID.UUIDString]];
+    if (!_fbneoCheatPathExport || !_fbneoCheatMaster || !_fbneoCheatUpdate ||
+        [_fbneoPrivateCheatDirectory lengthOfBytesUsingEncoding:NSUTF8StringEncoding] + 1 + 64 + 5 >= 260 ||
+        ![NSFileManager.defaultManager createDirectoryAtPath:_fbneoPrivateCheatDirectory withIntermediateDirectories:YES attributes:nil error:error]) {
+      if (error && !*error) *error = HostError(LibretroHostErrorCoreIncompatible,@"FBNeo native cheat isolation is unavailable");
+      return NO;
+    }
+    [self enforceManagedFBNeoCheatPath];
+  }
   // Before retro_set_environment and retro_init: DeSmuME reads its options
   // only in retro_init. Locked values come last so they win.
   NSDictionary<NSString *, NSString *> *initialDefaults = self.initialOptionDefaults;
@@ -746,6 +795,11 @@ static bool HostEnvironment(unsigned command, void *data) {
   void (^optionsDeclared)(LibretroCoreOptions *) = self.optionsDeclared;
   if (optionsDeclared != nil) optionsDeclared(_options);
   if (managesPSPCheats) [_options applySessionOverrides:@{@"ppsspp_cheats":@"disabled"}];
+  if ([self isFBNeoCore]) {
+    for (LibretroCoreOption *option in _options.options)
+      if ([_managedFBNeoOptions containsObject:option.key])
+        [_options applySessionOverrides:@{option.key:option.values.firstObject}];
+  }
   _symbols.retro_init();
   _coreInitialized = YES;
   [self appendLog:[NSString stringWithFormat:@"[HOST] loaded %@ %@", _libraryName, _libraryVersion]];
@@ -820,7 +874,21 @@ static bool HostEnvironment(unsigned command, void *data) {
   game.data = _contentData.bytes;
   game.size = _contentData.length;
   game.meta = NULL;
-  if (!_symbols.retro_load_game(&game)) {
+  if ([self isFBNeoCore]) {
+    _fbneoStagedDriver = nil;
+    _fbneoManagedDriverReady = NO;
+    _fbneoExplicitCheatsEnabled = NO;
+    _fbneoCheatsNeedRestart = NO;
+    for (NSString *entry in [files contentsOfDirectoryAtPath:_fbneoPrivateCheatDirectory error:nil])
+      [files removeItemAtPath:[_fbneoPrivateCheatDirectory stringByAppendingPathComponent:entry] error:nil];
+    [self enforceManagedFBNeoCheatPath];
+  }
+  _fbneoLoadingContent = [self isFBNeoCore];
+  BOOL accepted = _symbols.retro_load_game(&game);
+  _fbneoLoadingContent = NO;
+  [self enforceManagedFBNeoCheatPath];
+  [self setFBNeoCheatsMasterEnabled:NO];
+  if (!accepted) {
     _gameInfoExtReady = NO;
     if (error) *error = HostError(LibretroHostErrorContentRejected, contentPath.lastPathComponent);
     return NO;
@@ -989,7 +1057,10 @@ static bool HostEnvironment(unsigned command, void *data) {
   _audioCount = 0;
   _frameSerial++;
   _polledThisFrame = NO;
+  [self enforceManagedFBNeoCheatPath];
+  [self setFBNeoCheatsMasterEnabled:_fbneoExplicitCheatsEnabled];
   _symbols.retro_run();
+  [self setFBNeoCheatsMasterEnabled:_fbneoExplicitCheatsEnabled];
   if (_audioCount > 0) [_delegate coreHost:self audioFrames:_audioBuffer count:_audioCount];
 }
 
@@ -1091,12 +1162,160 @@ static bool HostEnvironment(unsigned command, void *data) {
   return [NSString stringWithUTF8String:label];
 }
 
+- (BOOL)isFBNeoCore {
+  NSString *identifier = _corePath.lastPathComponent.stringByDeletingPathExtension;
+  return [identifier isEqual:@"fbneo"] || [identifier isEqual:@"fbneo_libretro"];
+}
+- (void)enforceManagedFBNeoCheatPath {
+  if (!_fbneoCheatPathExport || !_fbneoPrivateCheatDirectory) return;
+  NSString *path = [_fbneoPrivateCheatDirectory stringByAppendingString:@"/"];
+  const char *bytes = path.fileSystemRepresentation;
+  size_t length = strlen(bytes);
+  if (length + 64 + 5 >= 260) return;
+  memcpy(_fbneoCheatPathExport,bytes,length + 1);
+  if (!_fbneoExplicitCheatsEnabled) [self setFBNeoCheatsMasterEnabled:NO];
+}
+- (void)setFBNeoCheatsMasterEnabled:(BOOL)enabled {
+  if (!_fbneoCheatMaster) return;
+  *_fbneoCheatMaster = enabled;
+  // CheatApply reads a cached bCheatsEnabled flag. Updating the exported
+  // master alone does not stop a previously active write on the next frame.
+  if (!enabled && _fbneoCheatUpdate) _fbneoCheatUpdate();
+}
+- (void)stageManagedFBNeoCheatsForCurrentDriver {
+  if (!_fbneoCheatPathExport || (!_fbneoLoadingContent && !_contentLoaded)) return;
+  uint32_t *active = (uint32_t *)dlsym(_library,"nBurnDrvActive");
+  uint32_t *count = (uint32_t *)dlsym(_library,"nBurnDrvCount");
+  char *(*driverText)(uint32_t) = (char *(*)(uint32_t))dlsym(_library,"BurnDrvGetTextA");
+  if (!active || !count || *active >= *count || !driverText) return;
+  const char *name = driverText(0);
+  if (!name || !strnlen(name,65) || strnlen(name,65) > 64) return;
+  NSString *driver = [NSString stringWithUTF8String:name];
+  if ([driver isEqual:_fbneoStagedDriver]) return;
+  _fbneoStagedDriver = driver;
+  _fbneoManagedDriverReady = NO;
+  NSFileManager *files = NSFileManager.defaultManager;
+  // No parent INI, DAT, VCT or unresolved include can enter this session.
+  for (NSString *entry in [files contentsOfDirectoryAtPath:_fbneoPrivateCheatDirectory error:nil])
+    [files removeItemAtPath:[_fbneoPrivateCheatDirectory stringByAppendingPathComponent:entry] error:nil];
+  uint32_t (*hardwareCode)(void) = (uint32_t (*)(void))dlsym(_library,"BurnDrvGetHardwareCode");
+  if (!hardwareCode) return;
+  uint32_t family = hardwareCode() & 0x7FFF0000;
+  // These families delegate Game Genie read overrides to their console
+  // implementation. Numeric CPU tuples are not that native format.
+  if (family == 0x1E000000 || family == 0x1F000000 || family == 0x22000000) return;
+  _fbneoManagedDriverReady = [LibretroCheats stageManagedFBNeoDriver:driver systemDirectory:_systemDirectory
+    destination:_fbneoPrivateCheatDirectory error:nil] != nil;
+  [self enforceManagedFBNeoCheatPath];
+}
+- (void)manageFBNeoDeclaredOptions {
+  if (![self isFBNeoCore]) return;
+  if (!_managedFBNeoOptions) _managedFBNeoOptions = [NSMutableSet set];
+  // FBNeo redeclares its per-driver cheat options inside retro_load_game.
+  // Override before returning to the core, including a stored enabled value
+  // or an INI whose source default was active. Index zero is the native Off.
+  for (LibretroCoreOption *option in _options.options) {
+    if (![option.key hasPrefix:@"fbneo-cheat-"] || [_managedFBNeoOptions containsObject:option.key]) continue;
+    NSString *off = option.values.firstObject;
+    if (![off hasPrefix:@"0 - "]) continue;
+    [_options lockSessionOverrides:@{option.key:off}]; [_managedFBNeoOptions addObject:option.key];
+  }
+}
+- (NSString *)fbneoDriver {
+  if (![self isFBNeoCore] || !_contentLoaded || !_library) return nil;
+  // Public C FBNeo API, exported by the delivered core; no C++ object layout
+  // or guessed ROM filename is used to identify the actual selected driver.
+  char *(*driverText)(uint32_t) = (char *(*)(uint32_t))dlsym(_library,"BurnDrvGetTextA");
+  const char *name = driverText ? driverText(0 /* DRV_NAME */) : NULL;
+  if (!name || strnlen(name,65) > 64) return nil;
+  NSString *driver = [NSString stringWithUTF8String:name];
+  return [driver rangeOfString:@"^[a-zA-Z0-9_+-]{1,64}$" options:NSRegularExpressionSearch].location == NSNotFound ? nil : driver;
+}
+- (NSDictionary *)fbneoCheatSnapshot {
+  NSString *driver = [self fbneoDriver] ?: @"";
+  NSString *pattern = [NSString stringWithFormat:@"^fbneo-cheat-[0-9]+-%@-",[NSRegularExpression escapedPatternForString:driver]];
+  NSMutableArray *options = [NSMutableArray array]; NSUInteger active = 0;
+  for (LibretroCoreOption *option in _options.options) {
+    if (![_managedFBNeoOptions containsObject:option.key] || !driver.length ||
+        [option.key rangeOfString:pattern options:NSRegularExpressionSearch].location == NSNotFound) continue;
+    NSString *off = option.values.firstObject ?: @"", *value = [_options currentValueForKey:option.key] ?: off;
+    if (![value isEqual:off]) active++;
+    BOOL available = _fbneoManagedDriverReady && [option.defaultValue hasPrefix:@"0 - "];
+    [options addObject:@{@"key":option.key,@"name":option.coreDescription ?: option.key,@"value":value,
+      @"values":option.values,@"labels":option.valueLabels,@"off_value":off,@"available":@(available),
+      @"reason_code":available ? @"" : [option.defaultValue hasPrefix:@"0 - "] ? @"unmanaged_native_file" : @"nonzero_native_default"}];
+  }
+  return @{@"driver":driver,@"options":options,@"restart_required":@(_fbneoCheatsNeedRestart),
+    @"imported_path":_fbneoImportedPath ?: @"",@"enabled_count":@(active),
+    @"identities": driver.length ? @[@{@"type":@"romset",@"value":driver,@"scheme":@"fbneo-driver-name"}] : @[]};
+}
+- (NSDictionary *)performFBNeoCheatCommand:(NSDictionary *)request error:(NSError **)error {
+  if (error) *error = nil;
+  if (![self isFBNeoCore] || !_contentLoaded || ![request isKindOfClass:NSDictionary.class]) {
+    if (error) *error = HostError(LibretroHostErrorCoreIncompatible,@"FBNeo native cheats require a running FBNeo driver"); return nil;
+  }
+  NSString *action = [request[@"action"] isKindOfClass:NSString.class] ? request[@"action"] : @"";
+  if ([action isEqual:@"snapshot"]) return [self fbneoCheatSnapshot];
+  if ([action isEqual:@"disableAll"] || [action isEqual:@"import"]) {
+    _fbneoExplicitCheatsEnabled = NO;
+    [self setFBNeoCheatsMasterEnabled:NO];
+    for (NSDictionary *option in [self fbneoCheatSnapshot][@"options"]) [_options applySessionOverrides:@{option[@"key"]:option[@"off_value"]}];
+    if ([action isEqual:@"disableAll"]) return [self fbneoCheatSnapshot];
+    NSDictionary *game = [request[@"game"] isKindOfClass:NSDictionary.class] ? request[@"game"] : @{};
+    NSArray *programs = [request[@"programs"] isKindOfClass:NSArray.class] ? request[@"programs"] : @[];
+    NSString *driver = [self fbneoDriver]; BOOL sameDriver = NO;
+    for (NSDictionary *identity in [game[@"identities"] isKindOfClass:NSArray.class] ? game[@"identities"] : @[]) {
+      if ([identity isKindOfClass:NSDictionary.class] && [identity[@"type"] isEqual:@"romset"] &&
+          [identity[@"scheme"] isEqual:@"fbneo-driver-name"] && [identity[@"value"] isKindOfClass:NSString.class] &&
+          [identity[@"value"] caseInsensitiveCompare:driver ?: @""] == NSOrderedSame) sameDriver = YES;
+    }
+    if (!sameDriver || ![LibretroCheats canInstallFBNeoPrograms:programs game:game]) {
+      if (error) *error = HostError(LibretroHostErrorContentRejected,@"FBNeo requires a complete native program for the actual running driver"); return nil;
+    }
+    // The actual core driver determines the case-sensitive native filename.
+    NSMutableDictionary *nativeGame = [game mutableCopy];
+    nativeGame[@"identities"] = @[@{@"type":@"romset",@"value":driver,@"scheme":@"fbneo-driver-name"}];
+    NSDictionary *installed = [LibretroCheats installFBNeoPrograms:programs game:nativeGame systemDirectory:_systemDirectory error:error];
+    if (!installed) return nil;
+    _fbneoImportedPath = installed[@"imported_path"];
+    _fbneoCheatsNeedRestart = _fbneoCheatsNeedRestart || [installed[@"changed"] boolValue];
+    NSMutableDictionary *snapshot = [[self fbneoCheatSnapshot] mutableCopy]; snapshot[@"imported"] = installed[@"imported"];
+    return snapshot;
+  }
+  if ([action isEqual:@"set"]) {
+    if (_fbneoCheatsNeedRestart) { if (error) *error = HostError(LibretroHostErrorContentRejected,@"Relaunch the FBNeo game to declare the imported native cheat options"); return nil; }
+    NSString *key = [request[@"key"] isKindOfClass:NSString.class] ? request[@"key"] : @"";
+    NSString *value = [request[@"value"] isKindOfClass:NSString.class] ? request[@"value"] : @"";
+    for (NSDictionary *option in [self fbneoCheatSnapshot][@"options"]) {
+      if (![option[@"key"] isEqual:key] || ![option[@"values"] containsObject:value]) continue;
+      if (![option[@"available"] boolValue] && ![value isEqual:option[@"off_value"]]) continue;
+      [_options applySessionOverrides:@{key:value}];
+      _fbneoExplicitCheatsEnabled = [[self fbneoCheatSnapshot][@"enabled_count"] unsignedIntegerValue] > 0;
+      [self setFBNeoCheatsMasterEnabled:_fbneoExplicitCheatsEnabled];
+      return [self fbneoCheatSnapshot];
+    }
+    if (error) *error = HostError(LibretroHostErrorContentRejected,@"FBNeo cheat choice is not declared by the running core"); return nil;
+  }
+  if (error) *error = HostError(LibretroHostErrorContentRejected,@"Unknown FBNeo native cheat operation"); return nil;
+}
+
 - (void)applyCheats:(NSArray<NSString *> *)codes {
   if (!_contentLoaded) return;
   _symbols.retro_cheat_reset();
   unsigned index = 0;
   NSString *core = [_corePath.lastPathComponent stringByDeletingPathExtension];
   NSUInteger maximumBytes = [LibretroCheats maximumCodeBytesForCore:core];
+  BOOL valid = [codes isKindOfClass:NSArray.class] && codes.count <= 99;
+  NSString *base = [core hasSuffix:@"_libretro"] ? [core substringToIndex:core.length-9] : core;
+  BOOL audited = [[LibretroCheats supportedCoreIDs] containsObject:base];
+  for (id raw in valid && audited ? codes : @[]) {
+    if (![raw isKindOfClass:NSString.class]) { valid = NO; break; }
+    NSData *ascii = [raw dataUsingEncoding:NSASCIIStringEncoding allowLossyConversion:NO];
+    if (!ascii.length || ascii.length > maximumBytes || memchr(ascii.bytes,0,ascii.length)) { valid = NO; break; }
+  }
+  // An invalid tail or exhausted quota must not activate only a prefix of a
+  // selected programme. The menu prevalidates the same aggregate limits.
+  if (!valid) { [self appendLog:@"[HOST] rejected incomplete or oversized cheat selection"]; codes = @[]; }
   for (id raw in codes) {
     if (![raw isKindOfClass:NSString.class] || index >= 99) continue;
     NSString *code = raw;
@@ -1147,6 +1366,11 @@ static bool HostEnvironment(unsigned command, void *data) {
     if (observer != nil) observer(@"dlclose", YES);
   }
   memset(&_symbols, 0, sizeof(_symbols));
+  _fbneoCheatPathExport = NULL;
+  _fbneoCheatMaster = NULL;
+  _fbneoCheatUpdate = NULL;
+  if (_fbneoPrivateCheatDirectory) [NSFileManager.defaultManager removeItemAtPath:_fbneoPrivateCheatDirectory error:nil];
+  _fbneoPrivateCheatDirectory = nil;
   _contentData = nil;
   _usesHardwareRendering = NO;
   _hasDisk = NO;

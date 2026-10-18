@@ -1,8 +1,11 @@
 #import "LibretroCheats.h"
+#import "LibretroPicoCheatDecoder.h"
 #import <CommonCrypto/CommonDigest.h>
 #import <zlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
+#include <stdlib.h>
 // Catalogue identity uses published MD5 hashes; it is not a security signature.
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
@@ -18,6 +21,18 @@ static NSString *Hex(const unsigned char *bytes, NSUInteger count) {
   return result;
 }
 static NSString *String(id value) { return [value isKindOfClass:NSString.class] ? value : @""; }
+static NSArray<NSString *> *NativeBatches(NSArray<NSString *> *lines, NSUInteger maximumBytes) {
+  NSMutableArray *result = [NSMutableArray array]; NSMutableString *batch = [NSMutableString string];
+  for (NSString *line in lines) {
+    if (line.length > maximumBytes) return nil;
+    if (batch.length && batch.length + 1 + line.length > maximumBytes) {
+      [result addObject:[batch copy]]; [batch setString:@""];
+    }
+    if (batch.length) [batch appendString:@"+"]; [batch appendString:line];
+  }
+  if (batch.length) [result addObject:[batch copy]];
+  return result.count && result.count <= 99 ? result : nil;
+}
 static BOOL SameFileAttributes(NSDictionary *before, NSDictionary *after) {
   return before && after && [before[NSFileType] isEqual:after[NSFileType]] &&
     [before fileSize] == [after fileSize] && [before[NSFileModificationDate] isEqual:after[NSFileModificationDate]] &&
@@ -123,6 +138,90 @@ static NSDictionary *SFOStrings(NSData *data) {
     }
   }
   return result;
+}
+
+// FBNeo's native parser uses eight CPU slots, 512 addresses per choice and
+// a fixed 8192-byte line buffer. Its libretro option API exposes <128 choices.
+// Validate the native block again at the device boundary, independently of the
+// remote catalogue's status. Never reinterpret its triples as libretro CHT.
+static BOOL FBNumber(NSString *text, uint64_t maximum, uint64_t *value) {
+  if (!Matches(text,@"^(?:0[xX][0-9a-fA-F]+|[0-9]+)$")) return NO;
+  const char *input = text.UTF8String; char *end = NULL; errno = 0;
+  unsigned long long number = strtoull(input,&end,0);
+  if (errno || !end || *end || number > maximum) return NO;
+  if (value) *value = number; return YES;
+}
+static NSString *FBDriver(NSDictionary *game) {
+  if (![game isKindOfClass:NSDictionary.class]) return nil;
+  if (![@"arcade" isEqual:String(game[@"system"])] && ![@"arcade" isEqual:String(game[@"console"])]) return nil;
+  NSString *result = nil;
+  for (id identity in [game[@"identities"] isKindOfClass:NSArray.class] ? game[@"identities"] : @[]) {
+    if (![identity isKindOfClass:NSDictionary.class]) continue;
+    if ([identity[@"type"] isEqual:@"romset"] && [identity[@"scheme"] isEqual:@"fbneo-driver-name"]) {
+      NSString *driver = String(identity[@"value"]);
+      if (!Matches(driver,@"^[a-zA-Z0-9_+-]{1,64}$") ||
+          (result && [result caseInsensitiveCompare:driver] != NSOrderedSame)) return nil;
+      result = driver;
+    }
+  }
+  return result;
+}
+static NSString *FBBlock(NSDictionary *program) {
+  if (![program isKindOfClass:NSDictionary.class] || ![program[@"dialect"] isEqual:@"fbneo-ini"] ||
+      ![program[@"status"] isEqual:@"available"]) return nil;
+  for (NSString *field in @[@"parameters",@"dependencies"]) {
+    id values = program[field];
+    if (values && (![values isKindOfClass:NSArray.class] || [values count])) return nil;
+  }
+  NSString *code = String(program[@"code"]);
+  NSData *bytes = [code dataUsingEncoding:NSUTF8StringEncoding];
+  if (!code.length || bytes.length > 1024*1024 || memchr(bytes.bytes,0,bytes.length)) return nil;
+  NSRegularExpression *declaration = [NSRegularExpression regularExpressionWithPattern:@"^cheat\\s+\"(.*)\"$" options:0 error:nil];
+  NSRegularExpression *choice = [NSRegularExpression regularExpressionWithPattern:@"^([0-9]{1,3})\\s+\"(.*)\"(?:\\s*,\\s*(.*))?$" options:0 error:nil];
+  NSRegularExpression *defaults = [NSRegularExpression regularExpressionWithPattern:@"^default\\s+([0-9]{1,3})$" options:0 error:nil];
+  NSMutableArray *lines = [NSMutableArray array]; NSMutableSet *indices = [NSMutableSet set];
+  BOOL declared = NO, hasDefault = NO, hasWrites = NO; NSUInteger sourceDefault = 0;
+  for (NSString *raw in [code componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+    NSString *line = [raw stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
+    if (!line.length || [line hasPrefix:@"//"] || [line hasPrefix:@";"] || [line hasPrefix:@"#"]) continue;
+    if ([line lengthOfBytesUsingEncoding:NSUTF8StringEncoding] >= 8192) return nil;
+    NSTextCheckingResult *match = [declaration firstMatchInString:line options:0 range:NSMakeRange(0,line.length)];
+    if (match) {
+      if (declared || [[line substringWithRange:[match rangeAtIndex:1]] lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > 126) return nil;
+      declared = YES; [lines addObject:line]; continue;
+    }
+    if (!declared) return nil;
+    match = [defaults firstMatchInString:line options:0 range:NSMakeRange(0,line.length)];
+    if (match) {
+      if (hasDefault) return nil; hasDefault = YES;
+      uint64_t numericDefault;
+      if (!FBNumber([line substringWithRange:[match rangeAtIndex:1]],126,&numericDefault)) return nil;
+      sourceDefault = (NSUInteger)numericDefault;
+      [lines addObject:@"default 0"]; continue;
+    }
+    match = [choice firstMatchInString:line options:0 range:NSMakeRange(0,line.length)];
+    if (!match) return nil;
+    uint64_t numericIndex;
+    if (!FBNumber([line substringWithRange:[match rangeAtIndex:1]],126,&numericIndex)) return nil;
+    NSUInteger index = (NSUInteger)numericIndex;
+    NSString *name = [line substringWithRange:[match rangeAtIndex:2]];
+    if (index >= 127 || [indices containsObject:@(index)] || [name lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > 126) return nil;
+    [indices addObject:@(index)]; NSRange valuesRange = [match rangeAtIndex:3];
+    NSString *values = valuesRange.location == NSNotFound ? @"" : [line substringWithRange:valuesRange];
+    NSArray *words = values.length ? [values componentsSeparatedByString:@","] : @[];
+    if ((index == 0 && words.count) || (index != 0 && !words.count) || words.count % 3 || words.count > 512*3) return nil;
+    for (NSUInteger i = 0; i < words.count; i+=3) {
+      uint64_t address;
+      if (!FBNumber([words[i] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet],7,NULL) ||
+          !FBNumber([words[i+1] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet],UINT32_MAX,&address) || !address ||
+          !FBNumber([words[i+2] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet],255,NULL)) return nil;
+    }
+    if (index && words.count) hasWrites = YES;
+    [lines addObject:line];
+  }
+  if (!declared || !hasDefault || !hasWrites || ![indices containsObject:@(sourceDefault)] || indices.count < 2) return nil;
+  for (NSUInteger i = 0; i < indices.count; i++) if (![indices containsObject:@(i)]) return nil;
+  return [[lines componentsJoinedByString:@"\n"] stringByAppendingString:@"\n"];
 }
 
 @interface LibretroCheatXML : NSObject <NSXMLParserDelegate>
@@ -248,7 +347,7 @@ static NSDictionary *SFOStrings(NSData *data) {
   // Explicitly audited native handlers, not just the presence of mandatory ABI symbols.
   return @[@"nestopia", @"snes9x", @"gambatte", @"mgba",
            @"genesis_plus_gx", @"genesis_plus_gx_wide", @"desmume", @"mednafen_psx_hw", @"mednafen_psx",
-           @"ppsspp", @"mupen64plus_next"];
+           @"ppsspp", @"mupen64plus_next", @"mednafen_pce_fast", @"mednafen_wswan", @"picodrive"];
 }
 + (NSUInteger)maximumCodeBytesForCore:(NSString *)core {
   if ([core hasSuffix:@"_libretro"]) core = [core substringToIndex:core.length - 9];
@@ -260,6 +359,7 @@ static NSDictionary *SFOStrings(NSData *data) {
   // lines are kept together. Mupen has 256 token slots: 128 address/value pairs.
   if ([core isEqual:@"ppsspp"]) return 4096;
   if ([core isEqual:@"mupen64plus_next"]) return 1791;
+  if ([core isEqual:@"mednafen_wswan"]) return 1023;
   return 255;
 }
 + (NSArray<NSString *> *)codesForCheat:(NSDictionary *)cheat core:(NSString *)core console:(NSString *)console {
@@ -269,10 +369,47 @@ static NSDictionary *SFOStrings(NSData *data) {
   if (![[self supportedCoreIDs] containsObject:core] || [handler integerValue] != 0) return nil;
   NSString *code = [String(cheat[@"code"]) uppercaseString];
   if (code.length == 0 || code.length > 8192 || ![code canBeConvertedToEncoding:NSASCIIStringEncoding]) return nil;
+  NSData *codeBytes = [code dataUsingEncoding:NSASCIIStringEncoding];
+  if (memchr(codeBytes.bytes,0,codeBytes.length)) return nil;
   NSString *pattern = nil;
   BOOL gba = [core isEqual:@"mgba"] && [console isEqual:@"gba"];
   BOOL psp = [core isEqual:@"ppsspp"] && [console isEqual:@"psp"];
   BOOL n64 = [core isEqual:@"mupen64plus_next"] && [console isEqual:@"n64"];
+  BOOL pico = [core isEqual:@"picodrive"] && [@[@"32x",@"pico",@"md",@"mcd"] containsObject:console];
+  if (pico) {
+    NSMutableArray *lines = [NSMutableArray array];
+    for (NSString *line in [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ \t\r\n"]]) {
+      if (!line.length) continue;
+      if (!NeoPicoMDTokenAllowed(line.UTF8String,![console isEqual:@"mcd"])) return nil;
+      [lines addObject:line];
+    }
+    // Native calls append patches and execute only on the following frame.
+    // Prevalidate everything, then preserve order across bounded ABI calls.
+    return NativeBatches(lines,255);
+  }
+  BOOL pce = [core isEqual:@"mednafen_pce_fast"] && [@[@"pce",@"tg16",@"pccd",@"tgcd"] containsObject:console];
+  BOOL ws = [core isEqual:@"mednafen_wswan"] && [@[@"ws",@"wsc"] containsObject:console];
+  if (pce || ws) {
+    NSMutableArray *lines = [NSMutableArray array];
+    for (NSString *line in [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ \t\r\n"]]) {
+      if (!line.length) continue;
+      if (!Matches(line,pce ? @"^[0-9A-F]{6}:[0-9A-F]{2}$" : @"^[0-9A-F]{1,8}:[0-9A-F]{2}$")) return nil;
+      NSArray *parts = [line componentsSeparatedByString:@":"];
+      uint64_t address = strtoull([parts[0] UTF8String],NULL,16);
+      if (pce) {
+        BOOL main = (address >= 0x1F0000 && address <= 0x1F1FFF) || (address >= 0xF82000 && address <= 0xF83FFF);
+        BOOL cd = [@[@"pccd",@"tgcd"] containsObject:console] && address >= 0x0D0000 && address <= 0x10FFFF;
+        if (!main && !cd) return nil;
+        [lines addObject:line];
+      } else {
+        if (address > 0xFFFF) return nil;
+        [lines addObject:[NSString stringWithFormat:@"%04llX:%@",(unsigned long long)address,parts[1]]];
+      }
+    }
+    if (pce) return NativeBatches(lines,255);
+    NSString *program = [lines componentsJoinedByString:@"+"];
+    return lines.count && lines.count <= 128 && program.length <= [self maximumCodeBytesForCore:core] ? @[program] : nil;
+  }
   if (psp || n64) {
     NSMutableArray *words = [NSMutableArray array], *lines = [NSMutableArray array];
     for (NSString *raw in [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ ;,\t\r\n"]]) {
@@ -310,7 +447,8 @@ static NSDictionary *SFOStrings(NSData *data) {
   BOOL psx = [@[@"mednafen_psx_hw", @"mednafen_psx"] containsObject:core] && [console isEqual:@"psx"];
   BOOL ds = [core isEqual:@"desmume"] && [console isEqual:@"nds"];
   if (psx || ds) {
-    NSMutableArray *words = [NSMutableArray array], *lines = [NSMutableArray array];
+    NSMutableArray *words = [NSMutableArray array], *lines = [NSMutableArray array], *pairs = [NSMutableArray array];
+    BOOL psxControl = NO;
     for (NSString *word in [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ ;,\t\r\n"]])
       if (word.length) [words addObject:word];
     for (NSUInteger i = 0; i < words.count; i++) {
@@ -318,7 +456,13 @@ static NSDictionary *SFOStrings(NSData *data) {
       if (Matches(word, psx ? @"^[0-9A-F]{12}$" : @"^[0-9A-F]{16}$")) pair = word;
       else if (Matches(word, @"^[0-9A-F]{8}$") && i+1 < words.count &&
         Matches(words[i+1], psx ? @"^[0-9A-F]{4}$" : @"^[0-9A-F]{8}$")) pair = [word stringByAppendingString:words[++i]];
-      if (!pair || (psx && !Matches(pair, @"^(?:30|80)[0-9A-F]{10}$"))) return nil;
+      if (!pair || (psx && !Matches(pair, @"^(?:30|80|D[0-3]|E[0-3]|50)[0-9A-F]{10}$"))) return nil;
+      if (psx) {
+        uint64_t value = strtoull([[pair substringFromIndex:8] UTF8String],NULL,16);
+        if (([pair hasPrefix:@"30"] || [pair hasPrefix:@"E"]) && value > 255) return nil;
+        if (![pair hasPrefix:@"30"] && ![pair hasPrefix:@"80"]) psxControl = YES;
+        [pairs addObject:pair];
+      }
       [lines addObject:[NSString stringWithFormat:@"%@ %@", [pair substringToIndex:8], [pair substringFromIndex:8]]];
     }
     NSString *program = [lines componentsJoinedByString:@"+"];
@@ -326,6 +470,27 @@ static NSDictionary *SFOStrings(NSData *data) {
     // program: the upstream entry point uses strcpy into ds_code[1024].
     if (ds) return lines.count && program.length <= [self maximumCodeBytesForCore:core] ? @[program] : nil;
     if (!lines.count) return nil;
+    if (psxControl) {
+      // Delivered Beetle 10e4b0c accumulates a condition/repeater in one
+      // MemoryPatch until its next write. Never split this programme. Keep
+      // only [one condition][one repeater]write groups, with byte fields
+      // bounded exactly as the native decoder consumes them.
+      NSUInteger pending = 0;
+      for (NSString *pair in pairs) {
+        if ([pair hasPrefix:@"30"] || [pair hasPrefix:@"80"]) { pending = 0; continue; }
+        if ([pair hasPrefix:@"D"] || [pair hasPrefix:@"E"]) {
+          if (pending) return nil;
+          pending = 1; continue;
+        }
+        if (pending == 2 || ![pair hasPrefix:@"5000"] ||
+            strtoull([[pair substringWithRange:NSMakeRange(4,2)] UTF8String],NULL,16) == 0 ||
+            strtoull([[pair substringFromIndex:8] UTF8String],NULL,16) > 255) return nil;
+        pending = 2;
+      }
+      if (pending) return nil;
+      NSString *atomic = [pairs componentsJoinedByString:@"+"];
+      return atomic.length <= [self maximumCodeBytesForCore:core] ? @[atomic] : nil;
+    }
     if (program.length <= [self maximumCodeBytesForCore:core]) return @[program];
     // Only PSX 30/80 independent writes reach this branch. Beetle creates one
     // MemoryPatch per pair, so bounded contiguous batches preserve all effects
@@ -342,6 +507,29 @@ static NSDictionary *SFOStrings(NSData *data) {
     return batches;
   }
   if (gba) {
+    if ([String(cheat[@"dialect"]) isEqual:@"gba-vba-raw"]) {
+      // mGBA 7a12d6d dispatches ':' to GBACheatAddVBALine before encrypted
+      // formats. ROM words retain their source byte order. Canonical physical
+      // RAM writes have explicit width and must stay inside the RAM bank.
+      NSMutableArray *lines = [NSMutableArray array];
+      for (NSString *line in [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ \t\r\n"]]) {
+        if (!line.length) continue;
+        if (!Matches(line,@"^[0-9A-F]{8}:(?:[0-9A-F]{2}|[0-9A-F]{4}|[0-9A-F]{8})$")) return nil;
+        uint64_t address = strtoull([[line substringToIndex:8] UTF8String],NULL,16);
+        NSUInteger width = (line.length - 9) / 2;
+        BOOL rom = width == 4 && address >= 0x08000000 && address <= 0x0DFFFFFF;
+        uint64_t ramEnd = address >= 0x02000000 && address < 0x02040000 ? 0x02040000 :
+          address >= 0x03000000 && address < 0x03008000 ? 0x03008000 : 0;
+        BOOL ram = ramEnd && address + width <= ramEnd && address % width == 0;
+        if (!rom && !ram) return nil;
+        // The real libretro wrapper dispatches only 13/17-character records.
+        // A byte VBA write is 11 characters: its two padding spaces must be
+        // present before '+' and at the end of the final record as well.
+        [lines addObject:width == 1 ? [line stringByAppendingString:@"  "] : line];
+      }
+      NSString *program = [lines componentsJoinedByString:@"+"];
+      return lines.count && lines.count <= 128 && program.length <= 4096 ? @[program] : nil;
+    }
     // OpenEmu writes concatenated address/value pairs; RetroArch CHT uses '+' separators.
     NSMutableArray *lines = [NSMutableArray array];
     NSArray *tokens = [code componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"+ \t\r\n"]];
@@ -471,7 +659,7 @@ static uint32_t ISO32(const uint8_t *p) {
         nes = prgSize && prgSize != UINT64_MAX && chr != UINT64_MAX && prgSize <= [before fileSize] && chr <= [before fileSize]-prgSize && skip <= [before fileSize]-prgSize-chr;
         if (nes) nesSize = prgSize + chr;
       }
-      if ([console isEqual:@"snes"] && [before fileSize] % 1024 == 512) skip = 512;
+      if ([console isEqual:@"snes"] && ([before fileSize] & 0x7fff) == 512) skip = 512;
       if ([console isEqual:@"n64"] && length >= 64) {
         n64 = memcmp(buffer,"\x80\x37\x12\x40",4) == 0;
         if (memcmp(buffer, "\x37\x80\x40\x12", 4) == 0) { swap = 2; n64 = YES; }
@@ -580,6 +768,105 @@ static uint32_t ISO32(const uint8_t *p) {
   after = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
   if (!SameFileAttributes(before,after)) return nil;
   return result;
+}
++ (BOOL)canInstallFBNeoPrograms:(NSArray<NSDictionary *> *)programs game:(NSDictionary *)game {
+  // A source INI block already contains all writes/choices. Multi-block
+  // master/child dependency closures cannot become independent native toggles.
+  if (![programs isKindOfClass:NSArray.class] || !FBDriver(game) || programs.count != 1) return NO;
+  for (id program in programs) if (!FBBlock(program)) return NO;
+  return YES;
+}
++ (NSDictionary *)installFBNeoPrograms:(NSArray<NSDictionary *> *)programs game:(NSDictionary *)game
+                      systemDirectory:(NSString *)directory error:(NSError **)error {
+  if (error) *error = nil;
+  if (![self canInstallFBNeoPrograms:programs game:game] || !directory.isAbsolutePath) {
+    if (error) *error = CheatError(@"Unsupported FBNeo native program or missing driver identity"); return nil;
+  }
+  NSString *driver = FBDriver(game), *folder = [directory stringByAppendingPathComponent:@"NeoStationFBNeo/fbneo/cheats"];
+  NSString *file = [folder stringByAppendingPathComponent:[driver stringByAppendingPathExtension:@"ini"]];
+  NSString *receipt = [[folder stringByAppendingPathComponent:@"NeoStationManaged"] stringByAppendingPathComponent:[driver stringByAppendingPathExtension:@"json"]];
+  NSFileManager *files = NSFileManager.defaultManager;
+  NSDictionary *attributes = [files attributesOfItemAtPath:file error:nil];
+  NSData *existing = attributes && [attributes fileSize] <= 4*1024*1024 ? [NSData dataWithContentsOfFile:file] : nil;
+  NSDictionary *receiptAttributes = [files attributesOfItemAtPath:receipt error:nil];
+  NSData *receiptData = receiptAttributes && [receiptAttributes fileSize] <= 12*1024*1024 ? [NSData dataWithContentsOfFile:receipt] : nil;
+  id previous = receiptData ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:nil] : nil;
+  BOOL owned = [previous isKindOfClass:NSDictionary.class] && [previous[@"schema"] isEqual:@1] &&
+    [previous[@"driver"] isEqual:driver] && existing && [previous[@"sha256"] isEqual:[self digest:existing]];
+  if (attributes && (!owned || ![attributes[NSFileType] isEqual:NSFileTypeRegular])) {
+    if (error) *error = CheatError(@"An existing personal or modified FBNeo cheat file was preserved"); return nil;
+  }
+  NSMutableDictionary *merged = [NSMutableDictionary dictionary];
+  if (owned && [previous[@"programs"] isKindOfClass:NSArray.class]) for (NSDictionary *program in previous[@"programs"]) {
+    NSString *block = FBBlock(program); if (block) merged[[self digest:[block dataUsingEncoding:NSUTF8StringEncoding]]] = program;
+  }
+  for (NSDictionary *program in programs) {
+    NSString *block = FBBlock(program); merged[[self digest:[block dataUsingEncoding:NSUTF8StringEncoding]]] = program;
+  }
+  if (merged.count > 4096) { if (error) *error = CheatError(@"FBNeo managed programme limit exceeded"); return nil; }
+  NSMutableString *text = [NSMutableString stringWithString:@"// NeoStation managed native cheats; activation is session-only.\n"];
+  NSMutableArray *records = [NSMutableArray array];
+  for (NSString *key in [merged.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+    NSDictionary *program = merged[key]; [text appendString:FBBlock(program)]; [text appendString:@"\n"]; [records addObject:program];
+  }
+  NSData *data = [text dataUsingEncoding:NSUTF8StringEncoding];
+  if (data.length > 4*1024*1024) { if (error) *error = CheatError(@"FBNeo native file exceeds size limit"); return nil; }
+  NSDictionary *next = @{@"schema":@1,@"driver":driver,@"sha256":[self digest:data],@"programs":records};
+  NSData *nextReceipt = [NSJSONSerialization dataWithJSONObject:next options:NSJSONWritingSortedKeys error:error];
+  if (!nextReceipt || nextReceipt.length > 12*1024*1024) { if (error && !*error) *error = CheatError(@"FBNeo provenance exceeds size limit"); return nil; }
+  BOOL changed = ![data isEqual:existing];
+  if (![files createDirectoryAtPath:receipt.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:error]) return nil;
+  // The UI serialises imports on the emulation queue. Never overwrite a file
+  // that appeared or changed since the ownership check above.
+  NSDictionary *current = [files attributesOfItemAtPath:file error:nil];
+  if ((attributes && !SameFileAttributes(attributes,current)) || (!attributes && current)) {
+    if (error) *error = CheatError(@"FBNeo cheat file changed during installation"); return nil;
+  }
+  if (changed && ![data writeToFile:file options:NSDataWritingAtomic error:error]) return nil;
+  if (![nextReceipt writeToFile:receipt options:NSDataWritingAtomic error:error]) {
+    NSData *written = [NSData dataWithContentsOfFile:file];
+    if (changed && [written isEqual:data]) {
+      if (existing) [existing writeToFile:file options:NSDataWritingAtomic error:nil];
+      else [files removeItemAtPath:file error:nil];
+    }
+    return nil;
+  }
+  return @{@"driver":driver,@"imported_path":file,@"changed":@(changed),@"restart_required":@(changed),@"imported":@(programs.count)};
+}
++ (NSDictionary *)stageManagedFBNeoDriver:(NSString *)driver systemDirectory:(NSString *)directory
+                             destination:(NSString *)destination error:(NSError **)error {
+  if (error) *error = nil;
+  if (!Matches(driver,@"^[a-zA-Z0-9_+-]{1,64}$") || !directory.isAbsolutePath || !destination.isAbsolutePath) return nil;
+  NSString *folder = [directory stringByAppendingPathComponent:@"NeoStationFBNeo/fbneo/cheats"];
+  NSString *file = [folder stringByAppendingPathComponent:[driver stringByAppendingPathExtension:@"ini"]];
+  NSString *receipt = [[folder stringByAppendingPathComponent:@"NeoStationManaged"] stringByAppendingPathComponent:[driver stringByAppendingPathExtension:@"json"]];
+  NSFileManager *files = NSFileManager.defaultManager;
+  NSDictionary *attributes = [files attributesOfItemAtPath:file error:nil];
+  NSDictionary *receiptAttributes = [files attributesOfItemAtPath:receipt error:nil];
+  if (![attributes[NSFileType] isEqual:NSFileTypeRegular] || [attributes fileSize] > 4*1024*1024 ||
+      ![receiptAttributes[NSFileType] isEqual:NSFileTypeRegular] || [receiptAttributes fileSize] > 12*1024*1024) return nil;
+  NSData *data = [NSData dataWithContentsOfFile:file], *receiptData = [NSData dataWithContentsOfFile:receipt];
+  id provenance = receiptData ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:nil] : nil;
+  if (![provenance isKindOfClass:NSDictionary.class] || ![provenance[@"schema"] isEqual:@1] ||
+      ![provenance[@"driver"] isEqual:driver] || ![provenance[@"sha256"] isEqual:[self digest:data ?: NSData.data]] ||
+      ![provenance[@"programs"] isKindOfClass:NSArray.class] || [provenance[@"programs"] count] > 4096) return nil;
+  NSMutableDictionary *blocks = [NSMutableDictionary dictionary];
+  for (id program in provenance[@"programs"]) {
+    NSString *block = FBBlock(program); if (!block) return nil;
+    blocks[[self digest:[block dataUsingEncoding:NSUTF8StringEncoding]]] = block;
+  }
+  if (!blocks.count) return nil;
+  NSMutableString *native = [NSMutableString stringWithString:@"// NeoStation managed native cheats; activation is session-only.\n"];
+  for (NSString *key in [blocks.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+    [native appendString:blocks[key]]; [native appendString:@"\n"];
+  }
+  // A matching receipt hash alone does not make arbitrary personal text safe.
+  // Regeneration independently excludes includes, DAT scripts and active Off.
+  NSData *regenerated = [native dataUsingEncoding:NSUTF8StringEncoding];
+  if (![data isEqual:regenerated] || !SameFileAttributes(attributes,[files attributesOfItemAtPath:file error:nil])) return nil;
+  NSString *target = [destination stringByAppendingPathComponent:[driver stringByAppendingPathExtension:@"ini"]];
+  if (![data writeToFile:target options:NSDataWritingAtomic error:error]) return nil;
+  return @{@"driver":driver,@"programs":@(blocks.count),@"sha256":[self digest:data],@"path":target};
 }
 + (NSString *)searchTitle:(NSString *)title {
   static NSRegularExpression *tags, *spaces; static dispatch_once_t once;

@@ -12,6 +12,7 @@ import importlib.util
 import json
 import platform
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -57,9 +58,27 @@ def contracts():
             assert set(marker.findall(value)) == set(marker.findall(labels["en"][key])), (locale, key)
     source = (CLASSES / "NeoUnifiedCheatBrowser.m").read_text()
     literal_keys = set(re.findall(r'\[self text:@"([A-Za-z]+)"', source))
+    literal_keys.update(re.findall(r'fbneoText:@"([A-Za-z]+)"', (LIBRETRO / "LibretroCheatMenu.m").read_text()))
     assert literal_keys <= keys, sorted(literal_keys - keys)
     assert labels["zh_Hant"]["downloadAll"] != labels["zh"]["downloadAll"]
     assert {"editionConfirmMessage", "downloadAll", "retryDownloads", "dependenciesExclusive", "cataloguePart"} <= keys
+    # These focused assertions have no optional message argument. Verify their
+    # real C macro arity before booting a Simulator: Objective-C dictionary and
+    # array commas must be protected by parentheses at assertion boundaries.
+    preprocessor = shutil.which("cpp")
+    if preprocessor:
+        tests = (ROOT / "test/unified_catalog_browser_ui_tests.m").read_text()
+        tests = re.sub(r"^#import.*$", "", tests, flags=re.MULTILINE)
+        names = sorted(set(re.findall(r"\b(XCTAssert\w+)\s*\(", tests)))
+        definitions = []
+        for name in names:
+            count = 3 if name.endswith("WithAccuracy") else 2 if name in {
+                "XCTAssertEqual", "XCTAssertEqualObjects", "XCTAssertNotEqualObjects", "XCTAssertGreaterThanOrEqual"
+            } else 1
+            arguments = ",".join(f"arg{index}" for index in range(count))
+            definitions.append(f"#define {name}({arguments}) ((void)0)")
+        subprocess.run([preprocessor, "-P", "-x", "c", "-"], input="\n".join(definitions) + "\n" + tests,
+                       text=True, stdout=subprocess.DEVNULL, check=True)
     print(f"Shared catalogue: {len(keys)} complete keys in all twelve languages; placeholders preserved.", flush=True)
 
 

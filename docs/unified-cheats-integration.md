@@ -2,8 +2,8 @@
 
 État de ce document : implémentation candidate du 18 octobre 2026. Le mainteneur
 a autorisé l'intégration du catalogue commun pour les consoles Libretro,
-ARMSX2, RPCS3 et Dolphin iOS. Aucune nouvelle IPA ni publication publique n'est
-attestée par ce document. Les résultats Apple doivent être complétés après le
+ARMSX2, RPCS3 et Dolphin iOS. Aucune nouvelle IPA n'a été générée ou publiée
+pour ce chantier. Les résultats Apple doivent être complétés après le
 passage de la CI ciblée ; les vérifications Linux ne les remplacent pas.
 
 ## Résultat proposé dans l'application
@@ -35,6 +35,28 @@ exploitable par les moteurs actuels ; les parties valides des sources partielles
 sont conservées. L'inventaire historique de recherche et les exclusions restent
 séparés de cette publication active. L'assemblage final est encore en cours à
 ce stade du commit de validation du code.
+
+## Adaptations avant exclusion
+
+La vérification ne se limite pas aux extensions de fichiers. Les travaux
+supplémentaires portent sur les INI natifs FBNeo et leurs options de session,
+les programmes PS2 RAW réellement compatibles avec le moteur PNACH, les
+lectures ROM MiSTer NES comparables au mécanisme de patch du cœur, les quatre
+blocs Action Replay chiffrés Dolphin validés par son décodeur, et les limites
+réelles DeSmuME/PS1. Ces ajouts restent candidats tant que leurs contrôles
+ciblés ne sont pas terminés.
+
+Pour PS3, un rapprochement strict associe les programmes Artemis NCL aux
+patchs YAML existants seulement lorsque le serial, la version explicite, le
+PPU, le nom et toutes les écritures ordonnées correspondent. Une seconde
+provenance ne crée pas un programme unique supplémentaire. Les adresses YAML
+sont conservées sous la forme hexadécimale attendue par le véritable parseur.
+
+Les 892 entrées handler 1 du snapshot Libretro examiné sont des observateurs
+mémoire de vibrations avec un type de cheat désactivé ; elles ne définissent
+aucune écriture de triche à transposer. Les convertir arbitrairement en
+GameShark ou PAR changerait leur sens. Les autres exclusions doivent, elles
+aussi, indiquer l'essai effectué et le blocage concret dans l'audit final.
 
 ## Les 70 références et les 14 compléments
 
@@ -285,3 +307,20 @@ réexécutés pour ce catalogue.
   effectivement raccordés et vérifiés.
 - Aucun test sur iPhone physique, aucune IPA de ce chantier et aucune
   publication publique ne sont affirmés ici.
+
+## Contrôles intermédiaires et réutilisation
+
+| Révision | Résultat acquis | Échec conservé dans l’historique |
+|---|---|---|
+| `2dec00b8` | Premier raccordement de code, sans données publiées ni IPA. | Le compilateur Apple a révélé une collision entre le validateur `Size` et le type système homonyme. |
+| `b60d1af2` | Le package compile avec le vrai SDK iPhone. Les cinq contrôles mémoire PPSSPP passent avec le vrai cœur. | La fixture Foundation révèle le refus du lien système `/var` ; le scénario N64 demande un contexte OpenGL indisponible. Le workflow global échoue. |
+| `095ca745` | SDK iPhone, comportement Foundation, identités et compilation du bridge Libretro réussissent. | Le callback RPCS3 a une signature de nullabilité incompatible ; les tests UIKit ont une erreur de macro et ne s’exécutent pas. Ces deux défauts sont corrigés dans le lot suivant. |
+
+La preuve PPSSPP est consignée dans
+`docs/evidence/unified-cheats-psp.json`, avec révision, empreintes du cœur,
+fixture et rapport, et identifiant de l’artefact. Elle reste une preuve de cette révision. Le nouveau garde agrégé
+de l’hôte touche aussi PSP : le prochain essai revérifie donc PSP et N64,
+avec les options logicielles N64 de la sonde, et les fonctions natives FBNeo
+du binaire livré. Aucun moteur produit n’est changé pour contourner une limite du
+Simulateur. Les contrôles du manifeste final sont distincts : aucune absence
+de données dans le commit de code ne vaut validation du catalogue complet.

@@ -232,6 +232,126 @@ EDITION_MISMATCH_LABELS = {
     "ko": "이 카탈로그 판본은 현재 게임의 지역, 언어, 리비전 또는 식별 정보와 충돌합니다. 코드를 볼 수는 있지만 가져올 수는 없습니다.",
 }
 
+FBNEO_KEYS = ("fbneoSessionHelp", "fbneoRestartHelp", "fbneoRefresh", "fbneoNoCodes",
+              "fbneoImportDoneMessage", "fbneoCommandFailed", "fbneoDisabled", "fbneoRestartRequired")
+FBNEO_LABELS = {
+    "en": (
+        "Choose codes explicitly here. Choices last only for this session; codes start disabled whenever the game opens.",
+        "Newly imported codes load after closing and reopening this game.", "Refresh native cheats",
+        "No native codes are loaded. Import from the unified catalogue, then reopen the game.",
+        "The complete programs were installed disabled. Close and reopen this game, then enable the required codes in this menu.",
+        "The native cheat command could not be completed.", "Disabled", "Restart required"),
+    "fr": (
+        "Choisissez explicitement les codes ici. Les choix durent uniquement cette session ; les codes sont désactivés à chaque ouverture du jeu.",
+        "Les codes nouvellement importés se chargent après avoir fermé puis rouvert ce jeu.", "Actualiser les cheats natifs",
+        "Aucun code natif n’est chargé. Importez depuis le catalogue unifié, puis rouvrez le jeu.",
+        "Les programmes complets ont été installés désactivés. Fermez puis rouvrez ce jeu et activez ensuite les codes souhaités dans ce menu.",
+        "Impossible de terminer la commande de cheats natifs.", "Désactivé", "Relancement requis"),
+    "es": (
+        "Elige los códigos explícitamente aquí. Las opciones duran solo esta sesión; los códigos se desactivan cada vez que se abre el juego.",
+        "Los códigos recién importados se cargan después de cerrar y volver a abrir este juego.", "Actualizar trucos nativos",
+        "No hay códigos nativos cargados. Importa desde el catálogo unificado y vuelve a abrir el juego.",
+        "Los programas completos se instalaron desactivados. Cierra y vuelve a abrir este juego, y activa después los códigos deseados en este menú.",
+        "No se pudo completar la orden de trucos nativos.", "Desactivado", "Es necesario reiniciar el juego"),
+    "de": (
+        "Wähle die Codes hier ausdrücklich aus. Die Auswahl gilt nur für diese Sitzung; bei jedem Spielstart sind die Codes deaktiviert.",
+        "Neu importierte Codes werden nach dem Schließen und erneuten Öffnen dieses Spiels geladen.", "Native Cheats aktualisieren",
+        "Keine nativen Codes geladen. Importiere sie aus dem gemeinsamen Katalog und öffne das Spiel erneut.",
+        "Die vollständigen Programme wurden deaktiviert installiert. Schließe und öffne das Spiel erneut und aktiviere dann die gewünschten Codes in diesem Menü.",
+        "Der native Cheat-Befehl konnte nicht abgeschlossen werden.", "Deaktiviert", "Neustart des Spiels erforderlich"),
+    "it": (
+        "Scegli esplicitamente i codici qui. Le scelte valgono solo per questa sessione; i codici sono disattivati a ogni apertura del gioco.",
+        "I codici appena importati vengono caricati dopo aver chiuso e riaperto questo gioco.", "Aggiorna i trucchi nativi",
+        "Nessun codice nativo caricato. Importa dal catalogo unificato, poi riapri il gioco.",
+        "I programmi completi sono stati installati disattivati. Chiudi e riapri questo gioco, poi attiva i codici desiderati in questo menu.",
+        "Impossibile completare il comando dei trucchi nativi.", "Disattivato", "Riavvio del gioco richiesto"),
+    "pt": (
+        "Escolha explicitamente os códigos aqui. As escolhas valem apenas nesta sessão; os códigos começam desativados a cada abertura do jogo.",
+        "Os códigos recém-importados são carregados após fechar e reabrir este jogo.", "Atualizar cheats nativos",
+        "Nenhum código nativo carregado. Importe do catálogo unificado e reabra o jogo.",
+        "Os programas completos foram instalados desativados. Feche e reabra este jogo e ative os códigos desejados neste menu.",
+        "Não foi possível concluir o comando de cheats nativos.", "Desativado", "É necessário reabrir o jogo"),
+    "ru": (
+        "Выбирайте коды здесь вручную. Выбор действует только в этой сессии; при каждом запуске игры коды выключены.",
+        "Новые импортированные коды загрузятся после закрытия и повторного открытия игры.", "Обновить встроенные читы",
+        "Встроенные коды не загружены. Импортируйте их из общего каталога и откройте игру заново.",
+        "Полные программы установлены выключенными. Закройте и заново откройте игру, затем включите нужные коды в этом меню.",
+        "Не удалось выполнить команду встроенных читов.", "Выключено", "Требуется перезапуск игры"),
+    "id": (
+        "Pilih kode secara eksplisit di sini. Pilihan hanya berlaku untuk sesi ini; kode selalu nonaktif setiap kali game dibuka.",
+        "Kode yang baru diimpor dimuat setelah game ditutup dan dibuka kembali.", "Segarkan cheat bawaan",
+        "Tidak ada kode bawaan yang dimuat. Impor dari katalog terpadu, lalu buka kembali game.",
+        "Program lengkap dipasang dalam keadaan nonaktif. Tutup dan buka kembali game ini, lalu aktifkan kode yang diinginkan di menu ini.",
+        "Perintah cheat bawaan tidak dapat diselesaikan.", "Nonaktif", "Game perlu dibuka kembali"),
+    "zh": (
+        "请在此明确选择代码。选择仅在当前会话有效；每次打开游戏时代码均处于禁用状态。",
+        "关闭并重新打开此游戏后，将加载新导入的代码。", "刷新原生金手指",
+        "未加载原生代码。请从统一目录导入，然后重新打开游戏。",
+        "完整程序已以禁用状态安装。请关闭并重新打开此游戏，再在此菜单中启用所需代码。",
+        "无法完成原生金手指命令。", "已禁用", "需要重新打开游戏"),
+    "zh_Hant": (
+        "請在此明確選擇代碼。選擇僅在目前工作階段有效；每次開啟遊戲時代碼均處於停用狀態。",
+        "關閉並重新開啟此遊戲後，將載入新匯入的代碼。", "重新整理原生金手指",
+        "未載入原生代碼。請從統一目錄匯入，然後重新開啟遊戲。",
+        "完整程式已以停用狀態安裝。請關閉並重新開啟此遊戲，再於此選單啟用所需代碼。",
+        "無法完成原生金手指命令。", "已停用", "需要重新開啟遊戲"),
+    "ja": (
+        "ここでコードを明示的に選択してください。選択は現在のセッションでのみ有効で、ゲームを開くたびにコードは無効になります。",
+        "新しくインポートしたコードは、このゲームを閉じて開き直すと読み込まれます。", "ネイティブチートを更新",
+        "ネイティブコードは読み込まれていません。統合カタログからインポートし、ゲームを開き直してください。",
+        "完全なプログラムを無効のままインストールしました。このゲームを閉じて開き直し、このメニューで必要なコードを有効にしてください。",
+        "ネイティブチートの操作を完了できませんでした。", "無効", "ゲームの再起動が必要"),
+    "ko": (
+        "여기서 코드를 명시적으로 선택하세요. 선택은 현재 세션에서만 유효하며 게임을 열 때마다 코드는 비활성 상태로 시작합니다.",
+        "게임을 닫고 다시 열면 새로 가져온 코드를 불러옵니다.", "네이티브 치트 새로 고침",
+        "불러온 네이티브 코드가 없습니다. 통합 카탈로그에서 가져온 후 게임을 다시 여세요.",
+        "완전한 프로그램을 비활성 상태로 설치했습니다. 이 게임을 닫고 다시 연 다음 이 메뉴에서 필요한 코드를 활성화하세요.",
+        "네이티브 치트 명령을 완료할 수 없습니다.", "비활성화됨", "게임을 다시 열어야 함"),
+}
+
+ACTIVATION_CONFLICT_LABELS = {
+    "en": ("These codes are mutually exclusive. Disable the conflicting code before enabling this one.",
+           "This code cannot run with the other active GBA codes. Disable conflicting codes and try again. Compatible VBA codes can remain enabled."),
+    "fr": ("Ces codes sont incompatibles entre eux. Désactivez le code en conflit avant d’activer celui-ci.",
+           "Ce code ne peut pas fonctionner avec les autres codes GBA actifs. Désactivez les codes en conflit, puis réessayez. Les codes VBA compatibles peuvent rester actifs."),
+    "es": ("Estos códigos son mutuamente excluyentes. Desactiva el código en conflicto antes de activar este.",
+           "Este código no puede funcionar con los otros códigos GBA activos. Desactiva los códigos en conflicto y vuelve a intentarlo. Los códigos VBA compatibles pueden seguir activos."),
+    "de": ("Diese Codes schließen sich gegenseitig aus. Deaktiviere den widersprüchlichen Code, bevor du diesen aktivierst.",
+           "Dieser Code kann nicht zusammen mit den anderen aktiven GBA-Codes laufen. Deaktiviere die widersprüchlichen Codes und versuche es erneut. Kompatible VBA-Codes können aktiviert bleiben."),
+    "it": ("Questi codici si escludono a vicenda. Disattiva il codice in conflitto prima di attivare questo.",
+           "Questo codice non può funzionare con gli altri codici GBA attivi. Disattiva i codici in conflitto e riprova. I codici VBA compatibili possono restare attivi."),
+    "pt": ("Estes códigos são mutuamente exclusivos. Desative o código em conflito antes de ativar este.",
+           "Este código não pode funcionar com os outros códigos GBA ativos. Desative os códigos em conflito e tente novamente. Os códigos VBA compatíveis podem permanecer ativos."),
+    "ru": ("Эти коды взаимоисключающие. Выключите конфликтующий код, прежде чем включать этот.",
+           "Этот код нельзя использовать с другими активными кодами GBA. Выключите конфликтующие коды и повторите попытку. Совместимые коды VBA могут оставаться включёнными."),
+    "id": ("Kode-kode ini saling meniadakan. Nonaktifkan kode yang bertentangan sebelum mengaktifkan kode ini.",
+           "Kode ini tidak dapat berjalan bersama kode GBA aktif lainnya. Nonaktifkan kode yang bertentangan dan coba lagi. Kode VBA yang kompatibel boleh tetap aktif."),
+    "zh": ("这些代码互斥。请先禁用冲突代码，再启用此代码。",
+           "此代码无法与其他已启用的 GBA 代码同时运行。请禁用冲突代码后重试。兼容的 VBA 代码可保持启用。"),
+    "zh_Hant": ("這些代碼互斥。請先停用衝突代碼，再啟用此代碼。",
+                "此代碼無法與其他已啟用的 GBA 代碼同時執行。請停用衝突代碼後重試。相容的 VBA 代碼可保持啟用。"),
+    "ja": ("これらのコードは同時に使用できません。このコードを有効にする前に、競合するコードを無効にしてください。",
+           "このコードは、ほかの有効な GBA コードと同時に使用できません。競合するコードを無効にして再試行してください。対応する VBA コードは有効のままにできます。"),
+    "ko": ("이 코드들은 동시에 사용할 수 없습니다. 이 코드를 활성화하기 전에 충돌하는 코드를 비활성화하세요.",
+           "이 코드는 다른 활성 GBA 코드와 함께 실행할 수 없습니다. 충돌하는 코드를 비활성화하고 다시 시도하세요. 호환되는 VBA 코드는 활성 상태로 유지할 수 있습니다."),
+}
+
+
+FBNEO_UNAVAILABLE_LABELS = {
+    "en": ("This native option cannot be safely disabled, so activation is unavailable.", "This option is outside the verified catalogue installation. Import its complete program from the catalogue to use it safely."),
+    "fr": ("Cette option native ne peut pas être désactivée de façon fiable. Son activation est indisponible.", "Cette option ne fait pas partie de l’installation vérifiée du catalogue. Importez son programme complet depuis le catalogue pour l’utiliser en toute sécurité."),
+    "es": ("Esta opción nativa no se puede desactivar de forma fiable. Su activación no está disponible.", "Esta opción no pertenece a la instalación verificada del catálogo. Importa su programa completo desde el catálogo para usarla de forma segura."),
+    "de": ("Diese native Option lässt sich nicht zuverlässig deaktivieren. Ihre Aktivierung ist nicht verfügbar.", "Diese Option gehört nicht zur geprüften Kataloginstallation. Importiere ihr vollständiges Programm aus dem Katalog, um sie sicher zu verwenden."),
+    "it": ("Questa opzione nativa non può essere disattivata in modo affidabile. L’attivazione non è disponibile.", "Questa opzione non fa parte dell’installazione verificata del catalogo. Importa il programma completo dal catalogo per usarla in sicurezza."),
+    "pt": ("Esta opção nativa não pode ser desativada de forma fiável. A ativação está indisponível.", "Esta opção não pertence à instalação verificada do catálogo. Importe o programa completo do catálogo para usá-la com segurança."),
+    "ru": ("Эту встроенную опцию нельзя надёжно выключить, поэтому её включение недоступно.", "Эта опция не входит в проверенную установку каталога. Для безопасного использования импортируйте её полную программу из каталога."),
+    "id": ("Opsi bawaan ini tidak dapat dinonaktifkan dengan andal, sehingga aktivasi tidak tersedia.", "Opsi ini berada di luar pemasangan katalog terverifikasi. Impor program lengkapnya dari katalog agar dapat digunakan dengan aman."),
+    "zh": ("此原生选项无法可靠禁用，因此不可启用。", "此选项不属于已验证的目录安装。请从目录导入其完整程序以安全使用。"),
+    "zh_Hant": ("此原生選項無法可靠停用，因此不可啟用。", "此選項不屬於已驗證的目錄安裝。請從目錄匯入其完整程式以安全使用。"),
+    "ja": ("このネイティブ設定は確実に無効化できないため、有効にできません。", "この設定は検証済みカタログのインストールに含まれていません。安全に使用するには、カタログから完全なプログラムをインポートしてください。"),
+    "ko": ("이 네이티브 옵션은 확실하게 비활성화할 수 없어 활성화할 수 없습니다.", "이 옵션은 검증된 카탈로그 설치에 포함되지 않습니다. 안전하게 사용하려면 카탈로그에서 전체 프로그램을 가져오세요."),
+}
+
 
 def resource():
     result = {}
@@ -245,6 +365,11 @@ def resource():
         result[locale]["cataloguePart"] = PART_LABELS[locale]
         result[locale]["downloadSize"], result[locale]["storageSize"] = SIZE_LABELS[locale]
         result[locale]["editionMismatch"] = EDITION_MISMATCH_LABELS[locale]
+        if len(FBNEO_LABELS[locale]) != len(FBNEO_KEYS):
+            raise ValueError(f"{locale}: incomplete FBNeo translations")
+        result[locale].update(zip(FBNEO_KEYS, FBNEO_LABELS[locale]))
+        result[locale]["exclusiveConflict"], result[locale]["mgbaIsolationConflict"] = ACTIVATION_CONFLICT_LABELS[locale]
+        result[locale]["fbneoUnsafeDefault"], result[locale]["fbneoUnmanagedOption"] = FBNEO_UNAVAILABLE_LABELS[locale]
     return result
 
 

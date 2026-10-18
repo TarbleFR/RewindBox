@@ -28,6 +28,10 @@ static void NUCBExchangeSingleton(void) {
 - (void)presentUnifiedFrom:(UIViewController *)page;
 - (BOOL)verified:(NSDictionary *)record;
 - (void)merge:(NSArray *)records;
+- (NSDictionary *)unifiedIdentity;
+- (void)save;
+- (BOOL)isPureMGBAVBARecord:(NSDictionary *)record;
+- (NSArray *)enabledCodes;
 @end
 
 @interface NeoUnifiedCheatBrowser (BrowserTests)
@@ -376,8 +380,8 @@ static void NUCBExchangeSingleton(void) {
     body[@"code"] = @"010300C2"; body[@"lines"] = @[@"010300C2"];
     XCTAssertTrue([menu acceptsUnifiedProgram:master]);
     NSMutableArray *ordered = [NSMutableArray array];
-    XCTAssertTrue([menu appendUnifiedProgram:body index:@{@"master": master, @"child": body}
-        visited:[NSMutableSet set] visiting:[NSMutableSet set] result:ordered depth:0]);
+    XCTAssertTrue(([menu appendUnifiedProgram:body index:@{@"master": master, @"child": body}
+        visited:[NSMutableSet set] visiting:[NSMutableSet set] result:ordered depth:0]));
     XCTAssertEqualObjects(ordered, (@[master, body]));
     NSDictionary *record = [menu unifiedRecordForGame:[self game] programs:ordered];
     XCTAssertNotNil(record); XCTAssertEqualObjects(record[@"name"], @"child");
@@ -390,6 +394,203 @@ static void NUCBExchangeSingleton(void) {
     NSMutableArray *incomplete = [NSMutableArray array];
     XCTAssertFalse([menu appendUnifiedProgram:body index:@{@"child": body} visited:[NSMutableSet set]
         visiting:[NSMutableSet set] result:incomplete depth:0]);
+}
+- (void)testGBAVBARawDialectRequiresMGBAAndKeepsWholeAddressValueProgram {
+    LibretroCheatMenu *menu = [self realLibretroMenu:nil];
+    [menu setValue:@"gba" forKey:@"console"]; [menu setValue:@"mgba" forKey:@"core"];
+    NSDictionary *program = @{@"id": @"gba-vba-raw", @"name": @"Raw ROM patch", @"status": @"available",
+        @"dialect": @"gba-vba-raw", @"handler": @0, @"parameters": @[], @"dependencies": @[],
+        @"code": @"08020000:12345678+08020004:00000000"};
+    XCTAssertTrue([menu acceptsUnifiedProgram:program]);
+    XCTAssertEqualObjects([LibretroCheats codesForCheat:program core:@"mgba" console:@"gba"], (@[@"08020000:12345678+08020004:00000000"]));
+    [menu setValue:@"gambatte" forKey:@"core"]; XCTAssertFalse([menu acceptsUnifiedProgram:program]);
+    [menu setValue:@"mgba" forKey:@"core"]; [menu setValue:@"gb" forKey:@"console"];
+    XCTAssertFalse([menu acceptsUnifiedProgram:program]);
+}
+- (void)testPCEWonderSwanAndPicoProfilesUseNativeBindingsAndCanonicalCatalogueAliases {
+    LibretroCheatMenu *menu = [self realLibretroMenu:nil];
+    NSArray *fixtures = @[
+        @[@"pce", @"mednafen_pce_fast", @"pce-raw", @"1F0000:01", @"pce"],
+        @[@"tg16", @"mednafen_pce_fast_libretro", @"pce-raw", @"1F0000:01", @"pce"],
+        @[@"pccd", @"mednafen_pce_fast", @"pce-raw", @"0D0000:01", @"pccd"],
+        @[@"tgcd", @"mednafen_pce_fast_libretro", @"pce-raw", @"0D0000:01", @"pccd"],
+        @[@"ws", @"mednafen_wswan", @"wswan-raw", @"1234:01", @"ws"],
+        @[@"wsc", @"mednafen_wswan_libretro", @"wswan-raw", @"1234:01", @"wsc"],
+        @[@"md", @"picodrive", @"md-raw", @"FF0000:0001", @"md"],
+        @[@"mcd", @"picodrive", @"md-raw", @"FF0000:0001", @"mcd"],
+        @[@"32x", @"picodrive_libretro", @"md-raw", @"FF0000:0001", @"32x"],
+        @[@"pico", @"picodrive", @"md-raw", @"FF0000:0001", @"pico"]];
+    for (NSArray *fixture in fixtures) {
+        [menu setValue:fixture[0] forKey:@"console"]; [menu setValue:fixture[1] forKey:@"core"];
+        NSDictionary *program = @{@"id": @"profile-probe", @"name": @"Probe", @"status": @"available",
+            @"dialect": fixture[2], @"code": fixture[3], @"handler": @0, @"parameters": @[], @"dependencies": @[]};
+        XCTAssertTrue([menu acceptsUnifiedProgram:program]);
+        XCTAssertEqualObjects([menu unifiedIdentity][@"system"], fixture[4]);
+        XCTAssertEqualObjects([menu valueForKey:@"console"], fixture[0]);
+    }
+    [menu setValue:@"md" forKey:@"console"]; [menu setValue:@"picodrive_libretro" forKey:@"core"];
+    NSDictionary *restricted = @{@"id": @"pico-master", @"name": @"Probe", @"status": @"available",
+        @"dialect": @"md-raw", @"code": @"FF0000:0001", @"handler": @0, @"parameters": @[], @"dependencies": @[],
+        @"activation_profiles": @[@"picodrive"]};
+    NSMutableDictionary *body = [restricted mutableCopy]; [body removeObjectForKey:@"activation_profiles"];
+    body[@"id"] = @"pico-body"; body[@"code"] = @"FF0002:0002";
+    NSDictionary *game = @{@"id": @"md-probe", @"title": @"Probe", @"system": @"md", @"identities": @[]};
+    NSDictionary *record = [menu unifiedRecordForGame:game programs:@[restricted, body]];
+    XCTAssertNotNil(record); XCTAssertEqualObjects(record[@"activation_profiles"], (@[@"picodrive"]));
+    [menu merge:@[record]];
+    NSMutableDictionary *stored = [[menu valueForKey:@"records"] firstObject]; stored[@"enabled"] = @YES;
+    XCTAssertNotNil([menu enabledCodes]);
+    [menu setValue:@"genesis_plus_gx" forKey:@"core"];
+    XCTAssertFalse([menu acceptsUnifiedProgram:restricted]); XCTAssertNil([menu enabledCodes]);
+}
+- (LibretroCheatMenu *)realMGBAAtDirectory:(NSString *)existing apply:(void (^)(NSArray *))apply {
+    NSString *directory = existing ?: [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+    if (!existing) [self.temporaryFolders addObject:directory];
+    [NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *content = [directory stringByAppendingPathComponent:@"Probe.gba"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:content]) [[NSMutableData dataWithLength:32768] writeToFile:content atomically:YES];
+    LibretroCheatMenu *menu = [[LibretroCheatMenu alloc] initWithDirectory:directory console:@"gba" core:@"mgba"
+        contentPath:content gameTitle:@"Probe" legacy:@[] text:^NSString *(NSString *key) { return key; }
+        apply:apply ?: ^(NSArray *codes) {}];
+    __weak LibretroCheatMenu *weakMenu = menu;
+    [self waitFor:^BOOL { LibretroCheatMenu *current = weakMenu; return [[current valueForKey:@"ready"] boolValue] &&
+        [[current valueForKey:@"pendingSources"] unsignedIntegerValue] == 0 && ![[current valueForKey:@"discovering"] boolValue]; }];
+    menu.uiLocale = @"fr"; [menu setValue:@YES forKey:@"warned"];
+    return menu;
+}
+- (NSDictionary *)gbaRecord:(NSString *)identifier code:(NSString *)code dialect:(NSString *)dialect isolated:(BOOL)isolated {
+    return @{@"id": identifier, @"name": identifier, @"code": code, @"dialect": dialect, @"status": @"available",
+        @"handler": @0, @"parameters": @[], @"dependencies": @[], @"mgba_auto_isolated": isolated ? @YES : @NO};
+}
+- (void)hostMenuPage:(LibretroMenuPage *)page {
+    self.navigation = [[UINavigationController alloc] initWithRootViewController:page];
+    self.window.rootViewController = self.navigation; [self.window makeKeyAndVisible];
+    [page loadViewIfNeeded]; [page rebuild]; [self.window layoutIfNeeded];
+}
+- (void)setActualMenuSwitch:(LibretroMenuPage *)page row:(NSUInteger)row enabled:(BOOL)enabled {
+    [page rebuild];
+    UITableViewCell *cell = [page tableView:page.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:(NSInteger)row inSection:1]];
+    UISwitch *control = (id)cell.accessoryView;
+    XCTAssertTrue([control isKindOfClass:UISwitch.class]); XCTAssertTrue(control.enabled);
+    [control setOn:enabled animated:NO]; [control sendActionsForControlEvents:UIControlEventValueChanged];
+}
+- (void)tapActualRestore:(LibretroMenuPage *)page {
+    [page rebuild];
+    NSArray *sections = [page valueForKey:@"sections"];
+    BOOL found = NO;
+    for (NSUInteger section = 0; section < sections.count; section++) {
+        NSArray *rows = ((LibretroMenuSection *)sections[section]).rows;
+        for (NSUInteger row = 0; row < rows.count; row++) if ([((LibretroMenuRow *)rows[row]).title isEqual:@"cheatRestore"]) {
+            [page tableView:page.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:(NSInteger)row inSection:(NSInteger)section]];
+            found = YES; break;
+        }
+        if (found) break;
+    }
+    XCTAssertTrue(found);
+}
+- (void)testMGBARawAUTOActivationIsIsolatedButCompleteVBACanCoexist {
+    __block NSUInteger applies = 0;
+    LibretroCheatMenu *menu = [self realMGBAAtDirectory:nil apply:^(NSArray *codes) { applies++; }];
+    NSDictionary *autoCode = [self gbaRecord:@"isolated-auto" code:@"02000000 00000001" dialect:@"gba-auto" isolated:YES];
+    NSDictionary *other = [self gbaRecord:@"other-gba" code:@"02000004 00000002" dialect:@"gba-gameshark-v3" isolated:NO];
+    NSDictionary *vba = [self gbaRecord:@"complete-vba" code:@"08020000:12345678" dialect:@"gba-vba-raw" isolated:NO];
+    [menu merge:@[autoCode, other, vba]];
+    LibretroMenuPage *page = [menu rootPage]; [self hostMenuPage:page];
+    [self setActualMenuSwitch:page row:0 enabled:YES]; XCTAssertEqual(applies, 1U);
+    [self setActualMenuSwitch:page row:1 enabled:YES]; XCTAssertEqual(applies, 1U);
+    NSArray *records = [menu valueForKey:@"records"];
+    XCTAssertEqualObjects(records[0][@"enabled"], @YES); XCTAssertEqualObjects(records[1][@"enabled"], @NO);
+    XCTAssertEqualObjects(records[1][@"selected"], @NO);
+    XCTAssertEqualObjects(((LibretroMenuSection *)page.builder()[1]).title, [NeoUnifiedCheatBrowser localizedText:@"mgbaIsolationConflict" locale:@"fr"]);
+    [self setActualMenuSwitch:page row:2 enabled:YES]; XCTAssertEqual(applies, 2U);
+    XCTAssertEqual(menu.enabledCount, 2U);
+    [self setActualMenuSwitch:page row:0 enabled:NO];
+    [self setActualMenuSwitch:page row:1 enabled:YES]; XCTAssertEqual(applies, 4U);
+    [self setActualMenuSwitch:page row:0 enabled:YES]; XCTAssertEqual(applies, 4U);
+    XCTAssertEqualObjects(records[0][@"enabled"], @NO); XCTAssertEqualObjects(records[0][@"selected"], @NO);
+    XCTAssertEqualObjects(records[1][@"enabled"], @YES); XCTAssertEqualObjects(records[2][@"enabled"], @YES);
+    NSMutableDictionary *mixed = [vba mutableCopy]; mixed[@"code"] = @"02000000 00000001+08020000:12345678";
+    mixed[@"mgba_auto_isolated"] = @YES;
+    XCTAssertFalse([menu isPureMGBAVBARecord:mixed]);
+    XCTAssertEqualObjects(records[0][@"code"], autoCode[@"code"]);
+}
+- (void)testMGBARestoreRefusesAUTOCombinationWithoutChangingAnyPriorState {
+    __block NSUInteger applies = 0;
+    LibretroCheatMenu *menu = [self realMGBAAtDirectory:nil apply:^(NSArray *codes) { applies++; }];
+    NSMutableDictionary *autoCode = [[self gbaRecord:@"auto" code:@"02000000 00000001" dialect:@"gba-auto" isolated:YES] mutableCopy];
+    NSMutableDictionary *other = [[self gbaRecord:@"other" code:@"02000004 00000002" dialect:@"gba-gameshark-v3" isolated:NO] mutableCopy];
+    NSDictionary *vba = [self gbaRecord:@"vba" code:@"08020000:12345678" dialect:@"gba-vba-raw" isolated:NO];
+    autoCode[@"selected"] = @YES; other[@"selected"] = @YES;
+    [menu merge:@[autoCode, other, vba]];
+    LibretroMenuPage *page = [menu rootPage]; [self hostMenuPage:page];
+    [self setActualMenuSwitch:page row:2 enabled:YES]; XCTAssertEqual(applies, 1U);
+    NSArray *before = [[NSArray alloc] initWithArray:[menu valueForKey:@"records"] copyItems:YES];
+    [self tapActualRestore:page]; XCTAssertEqual(applies, 1U);
+    XCTAssertEqualObjects([menu valueForKey:@"records"], before);
+    XCTAssertEqual(menu.enabledCount, 1U);
+    XCTAssertEqualObjects(((LibretroMenuSection *)page.builder()[1]).title, [NeoUnifiedCheatBrowser localizedText:@"mgbaIsolationConflict" locale:@"fr"]);
+}
+- (void)testExclusiveGroupsAcrossTogglesIncludeLegacyAndRestoreIsAtomic {
+    __block NSUInteger applies = 0;
+    LibretroCheatMenu *menu = [self realLibretroMenu:^(NSArray *codes) { applies++; }];
+    menu.uiLocale = @"fr"; [menu setValue:@YES forKey:@"warned"];
+    NSMutableDictionary *a = [[self program:@"a" dependencies:@[]] mutableCopy], *b = [[self program:@"b" dependencies:@[]] mutableCopy];
+    a[@"code"] = @"010100C0"; b[@"code"] = @"010200C1";
+    a[@"exclusive_groups"] = @[@"slot-1"]; b[@"exclusive_group"] = @"slot-1";
+    a[@"selected"] = @YES; b[@"selected"] = @YES;
+    [menu merge:@[a, b]];
+    LibretroMenuPage *page = [menu rootPage]; [self hostMenuPage:page];
+    [self setActualMenuSwitch:page row:0 enabled:YES]; XCTAssertEqual(applies, 1U);
+    NSArray *before = [[NSArray alloc] initWithArray:[menu valueForKey:@"records"] copyItems:YES];
+    [self setActualMenuSwitch:page row:1 enabled:YES]; XCTAssertEqual(applies, 1U);
+    XCTAssertEqualObjects([menu valueForKey:@"records"], before);
+    [self tapActualRestore:page]; XCTAssertEqual(applies, 1U);
+    XCTAssertEqualObjects([menu valueForKey:@"records"], before);
+    XCTAssertEqualObjects(((LibretroMenuSection *)page.builder()[1]).title, [NeoUnifiedCheatBrowser localizedText:@"exclusiveConflict" locale:@"fr"]);
+}
+- (void)testClosureAUTOAndExclusiveMetadataSurviveMergeSaveAndActualReload {
+    LibretroCheatMenu *menu = [self realMGBAAtDirectory:nil apply:nil];
+    NSMutableDictionary *master = [[self gbaRecord:@"master" code:@"02000000 00000001" dialect:@"gba-auto" isolated:YES] mutableCopy];
+    NSMutableDictionary *body = [[self gbaRecord:@"body" code:@"02000004 00000002" dialect:@"gba-auto" isolated:NO] mutableCopy];
+    master[@"exclusive_group"] = @"master-choice"; body[@"exclusive_groups"] = @[@"body-choice"];
+    NSDictionary *game = @{@"id": @"gba-probe", @"title": @"Probe", @"system": @"gba", @"identities": @[]};
+    NSDictionary *record = [menu unifiedRecordForGame:game programs:@[master, body]];
+    XCTAssertNotNil(record); XCTAssertEqualObjects(record[@"mgba_auto_isolated"], @YES);
+    XCTAssertEqualObjects(record[@"exclusive_groups"], (@[@"master-choice", @"body-choice"]));
+    [menu merge:@[record]];
+    NSMutableDictionary *duplicate = [record mutableCopy]; duplicate[@"mgba_auto_isolated"] = @NO;
+    duplicate[@"exclusive_groups"] = @[@"second-source-choice"];
+    [menu merge:@[duplicate]]; [menu save];
+    NSString *file = [menu valueForKey:@"preferencesPath"];
+    [self waitFor:^BOOL { return [NSFileManager.defaultManager fileExistsAtPath:file]; }];
+    NSDictionary *saved = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:file] options:0 error:nil];
+    NSDictionary *savedRecord = [saved[@"cheats"] firstObject];
+    XCTAssertEqualObjects(savedRecord[@"mgba_auto_isolated"], @YES);
+    XCTAssertTrue([savedRecord[@"exclusive_groups"] containsObject:@"master-choice"]);
+    XCTAssertTrue([savedRecord[@"exclusive_groups"] containsObject:@"body-choice"]);
+    XCTAssertTrue([savedRecord[@"exclusive_groups"] containsObject:@"second-source-choice"]);
+    XCTAssertEqualObjects(savedRecord[@"programIDs"], (@[@"master", @"body"])); XCTAssertNil(savedRecord[@"programs"]);
+    LibretroCheatMenu *reloaded = [self realMGBAAtDirectory:[menu valueForKey:@"directory"] apply:nil];
+    NSArray *records = [reloaded valueForKey:@"records"];
+    XCTAssertEqual(records.count, 1U); XCTAssertEqualObjects(records[0][@"mgba_auto_isolated"], @YES);
+    XCTAssertEqualObjects(records[0][@"exclusive_groups"], savedRecord[@"exclusive_groups"]);
+    XCTAssertEqualObjects(records[0][@"enabled"], @NO);
+    NSMutableDictionary *nullFlags = [[self gbaRecord:@"null-flags" code:@"02000008 00000003" dialect:@"gba-auto" isolated:NO] mutableCopy];
+    nullFlags[@"mgba_auto_isolated"] = NSNull.null; nullFlags[@"exclusive_group"] = NSNull.null;
+    nullFlags[@"exclusive_groups"] = NSNull.null;
+    NSMutableDictionary *stringFlags = [[self gbaRecord:@"string-flags" code:@"0200000C 00000004" dialect:@"gba-auto" isolated:NO] mutableCopy];
+    stringFlags[@"mgba_auto_isolated"] = @"YES"; stringFlags[@"exclusive_groups"] = @[NSNull.null, @7, @"valid-choice", @""];
+    [reloaded merge:@[nullFlags, stringFlags]]; [reloaded save];
+    [self waitFor:^BOOL {
+        NSDictionary *latest = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:file] options:0 error:nil];
+        return [latest[@"cheats"] count] == 3;
+    }];
+    LibretroCheatMenu *malformedReload = [self realMGBAAtDirectory:[menu valueForKey:@"directory"] apply:nil];
+    NSArray *sanitized = [malformedReload valueForKey:@"records"];
+    XCTAssertEqual(sanitized.count, 3U);
+    XCTAssertEqualObjects(sanitized[1][@"mgba_auto_isolated"], @NO); XCTAssertEqualObjects(sanitized[1][@"exclusive_groups"], @[]);
+    XCTAssertEqualObjects(sanitized[2][@"mgba_auto_isolated"], @NO);
+    XCTAssertEqualObjects(sanitized[2][@"exclusive_groups"], (@[@"valid-choice"]));
 }
 - (void)testRealLibretroKeepsRegionalConfirmationByGameIDAndMergesAllAttribution {
     LibretroCheatMenu *menu = [self realLibretroMenu:nil];
@@ -487,5 +688,169 @@ static void NUCBExchangeSingleton(void) {
     // A subsequent catalogue notification cannot resurrect the dismissed owner.
     [NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogDidInstallNotification object:self.catalog];
     XCTAssertNil(owner);
+}
+
+- (NSDictionary *)fbneoGame {
+    return @{@"id": @"arcade-probe", @"title": @"Probe", @"system": @"arcade", @"identities": @[
+        @{@"type": @"romset", @"value": @"probe", @"scheme": @"fbneo-driver-name"}]};
+}
+- (NSDictionary *)fbneoProgram {
+    return @{@"id": @"native-block", @"name": @"Infinite Credits", @"dialect": @"fbneo-ini", @"status": @"available",
+        @"code": @"cheat \"Infinite Credits\"\ndefault 1\n0 \"Disabled\"\n1 \"Enabled\", 0, 0xE018, 0x01, 0, 0xE010, 0x08",
+        @"parameters": @[], @"dependencies": @[], @"enabled": @NO};
+}
+- (LibretroCheatMenu *)realFBNeoMenu:(void (^)(NSArray *))apply {
+    NSString *directory = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+    [self.temporaryFolders addObject:directory];
+    [NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *content = [directory stringByAppendingPathComponent:@"probe.zip"];
+    [[NSMutableData dataWithLength:256] writeToFile:content atomically:YES];
+    LibretroCheatMenu *menu = [[LibretroCheatMenu alloc] initWithDirectory:directory console:@"arcade" core:@"fbneo"
+        contentPath:content gameTitle:@"Probe" legacy:@[] text:^NSString *(NSString *key) { return key; }
+        apply:apply ?: ^(NSArray *codes) {}];
+    __weak LibretroCheatMenu *weakMenu = menu;
+    [self waitFor:^BOOL { LibretroCheatMenu *current = weakMenu; return [[current valueForKey:@"ready"] boolValue] &&
+        [[current valueForKey:@"pendingSources"] unsignedIntegerValue] == 0; }];
+    menu.uiLocale = @"fr";
+    return menu;
+}
+- (NSDictionary *)fbneoOption:(NSString *)value {
+    return @{@"key": @"fbneo-cheat-0-probe-Infinite Credits", @"name": @"Infinite Credits", @"value": value,
+        @"values": @[@"0 - Disabled", @"1 - Enabled"], @"labels": @[@"Disabled", @"Enabled"], @"off_value": @"0 - Disabled",
+        @"available": @YES, @"reason_code": @""};
+}
+- (void)testFBNeoFirstLaunchWithoutINIStillOffersCatalogueAndDisabledImport {
+    __block NSDictionary *imported = nil;
+    LibretroCheatMenu *menu = [self realFBNeoMenu:nil];
+    menu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
+        if ([request[@"action"] isEqual:@"import"]) imported = request;
+        completion(@{@"driver": @"probe", @"options": @[], @"imported_path": @"", @"restart_required": @NO}, nil);
+    };
+    LibretroMenuPage *page = [menu rootPage];
+    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
+    [self hostMenuPage:page];
+    NSArray *sections = page.builder();
+    LibretroMenuRow *catalogue = ((LibretroMenuSection *)sections[0]).rows[0];
+    XCTAssertTrue(catalogue.enabled); XCTAssertEqual(((LibretroMenuSection *)sections[1]).rows.count, 0U);
+    XCTAssertEqual(menu.enabledCount, 0U); XCTAssertTrue([menu acceptsUnifiedProgram:[self fbneoProgram]]);
+    catalogue.action(page);
+    [self waitFor:^BOOL { return page.presentedViewController != nil; }];
+    NeoUnifiedCheatBrowser *browser = (id)((UINavigationController *)page.presentedViewController).topViewController;
+    XCTAssertEqualObjects([browser valueForKey:@"engine"], @"fbneo");
+    void (^handler)(NSDictionary *, NSArray *, void (^)(NSError *)) = [browser valueForKey:@"importHandler"];
+    __block BOOL finished = NO;
+    handler([self fbneoGame], @[[self fbneoProgram]], ^(NSError *error) { XCTAssertNil(error); finished = YES; });
+    [self waitFor:^BOOL { return finished; }];
+    XCTAssertEqualObjects(imported[@"action"], @"import");
+    XCTAssertEqualObjects(imported[@"programs"][0][@"enabled"], @NO); XCTAssertEqual(menu.enabledCount, 0U);
+}
+- (void)testFBNeoUnavailableNativeOptionsStayVisibleAndCannotSendActivation {
+    LibretroCheatMenu *menu = [self realFBNeoMenu:nil];
+    NSMutableArray *requests = [NSMutableArray array];
+    NSMutableDictionary *unsafe = [[self fbneoOption:@"0 - Disabled"] mutableCopy];
+    unsafe[@"available"] = @NO; unsafe[@"reason_code"] = @"nonzero_native_default";
+    NSMutableDictionary *unmanaged = [unsafe mutableCopy]; unmanaged[@"key"] = @"fbneo-cheat-1-probe-unmanaged";
+    unmanaged[@"available"] = NSNull.null; unmanaged[@"reason_code"] = @"unmanaged_native_file";
+    menu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
+        [requests addObject:request];
+        completion(@{@"driver": @"probe", @"options": @[unsafe, unmanaged], @"restart_required": @NO}, nil);
+    };
+    LibretroMenuPage *page = [menu rootPage];
+    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
+    NSArray *rows = ((LibretroMenuSection *)page.builder()[1]).rows;
+    XCTAssertEqual(rows.count, 2U);
+    LibretroMenuRow *first = rows[0], *second = rows[1];
+    XCTAssertFalse(first.enabled); XCTAssertFalse(second.enabled);
+    XCTAssertEqualObjects(first.detail, [NeoUnifiedCheatBrowser localizedText:@"fbneoUnsafeDefault" locale:@"fr"]);
+    XCTAssertEqualObjects(second.detail, [NeoUnifiedCheatBrowser localizedText:@"fbneoUnmanagedOption" locale:@"fr"]);
+    first.toggle(page, YES); second.toggle(page, YES);
+    for (NSDictionary *request in requests) XCTAssertEqualObjects(request[@"action"], @"snapshot");
+    XCTAssertEqual(menu.enabledCount, 0U);
+}
+- (void)testFBNeoMenuLoadsNativeOptionsWithoutActivatingOrUsingRetroCheatSet {
+    __block NSUInteger genericApply = 0;
+    LibretroCheatMenu *menu = [self realFBNeoMenu:^(NSArray *codes) { genericApply++; }];
+    NSMutableArray *requests = [NSMutableArray array];
+    menu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
+        [requests addObject:request];
+        completion(@{@"driver": @"probe", @"options": @[[self fbneoOption:@"0 - Disabled"]], @"restart_required": @NO}, nil);
+    };
+    LibretroMenuPage *page = [menu rootPage];
+    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
+    NSArray *sections = page.builder();
+    XCTAssertEqual(sections.count, 2U);
+    NSArray *rows = ((LibretroMenuSection *)sections[1]).rows;
+    XCTAssertEqual(rows.count, 1U); XCTAssertTrue(((LibretroMenuRow *)rows[0]).isToggle);
+    XCTAssertFalse(((LibretroMenuRow *)rows[0]).toggleOn);
+    XCTAssertEqual(menu.enabledCount, 0U); XCTAssertEqual(genericApply, 0U);
+    for (NSDictionary *request in requests) XCTAssertEqualObjects(request[@"action"], @"snapshot");
+    XCTAssertEqual(self.catalog.lookups, 0U);
+    XCTAssertFalse([LibretroCheats.supportedCoreIDs containsObject:@"fbneo"]);
+    XCTAssertTrue([menu acceptsUnifiedProgram:[self fbneoProgram]]);
+    NSMutableDictionary *dependent = [[self fbneoProgram] mutableCopy]; dependent[@"dependencies"] = @[@"unconverted-master"];
+    XCTAssertFalse([menu acceptsUnifiedProgram:dependent]);
+    NSMutableDictionary *invalid = [[self fbneoProgram] mutableCopy]; invalid[@"parameters"] = NSNull.null;
+    XCTAssertFalse([menu acceptsUnifiedProgram:invalid]);
+}
+- (void)testFBNeoExplicitToggleAndDisableAllUseSessionNativeOptionsOnly {
+    __block NSUInteger genericApply = 0; __block NSString *current = @"0 - Disabled";
+    LibretroCheatMenu *menu = [self realFBNeoMenu:^(NSArray *codes) { genericApply++; }];
+    NSMutableArray *requests = [NSMutableArray array];
+    menu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
+        [requests addObject:request];
+        if ([request[@"action"] isEqual:@"set"]) current = request[@"value"];
+        if ([request[@"action"] isEqual:@"disableAll"]) current = @"0 - Disabled";
+        completion(@{@"driver": @"probe", @"options": @[[self fbneoOption:current]], @"restart_required": @NO}, nil);
+    };
+    LibretroMenuPage *page = [menu rootPage];
+    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
+    [menu setValue:@YES forKey:@"warned"];
+    LibretroMenuRow *toggle = ((LibretroMenuSection *)page.builder()[1]).rows.firstObject;
+    toggle.toggle(page, YES);
+    [self waitFor:^BOOL { return menu.enabledCount == 1; }];
+    XCTAssertEqualObjects(requests.lastObject[@"action"], @"set");
+    XCTAssertEqualObjects(requests.lastObject[@"key"], @"fbneo-cheat-0-probe-Infinite Credits");
+    XCTAssertEqualObjects(requests.lastObject[@"value"], @"1 - Enabled");
+    LibretroMenuRow *disable = ((LibretroMenuSection *)page.builder()[0]).rows[2];
+    disable.action(page);
+    [self waitFor:^BOOL { return menu.enabledCount == 0; }];
+    XCTAssertEqualObjects(requests.lastObject[@"action"], @"disableAll");
+    XCTAssertEqual(genericApply, 0U);
+    XCTAssertEqual([[menu valueForKey:@"records"] count], 0U);
+}
+- (void)testFBNeoCompleteNativeImportStaysDisabledAndExplainsGameRelaunch {
+    __block NSDictionary *imported = nil; __block NSUInteger genericApply = 0; __block BOOL restartRequired = NO;
+    LibretroCheatMenu *menu = [self realFBNeoMenu:^(NSArray *codes) { genericApply++; }];
+    menu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
+        if ([request[@"action"] isEqual:@"import"]) { imported = request; restartRequired = YES; }
+        completion(@{@"driver": @"probe", @"options": @[[self fbneoOption:@"0 - Disabled"]], @"restart_required": restartRequired ? @YES : @NO}, nil);
+    };
+    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
+    UIViewController *presenter = [UIViewController new]; self.window.rootViewController = presenter; [self.window makeKeyAndVisible];
+    [menu presentUnifiedFrom:presenter];
+    UINavigationController *navigation = (id)presenter.presentedViewController;
+    NeoUnifiedCheatBrowser *root = (id)navigation.topViewController;
+    XCTAssertEqualObjects([root valueForKey:@"engine"], @"fbneo");
+    void (^handler)(NSDictionary *, NSArray *, void (^)(NSError *)) = [root valueForKey:@"importHandler"];
+    [navigation dismissViewControllerAnimated:NO completion:nil];
+    NeoUnifiedCheatBrowser *detail = [[NeoUnifiedCheatBrowser alloc] initWithIdentity:[self fbneoGame] engine:@"fbneo" locale:@"fr"
+        accepts:^BOOL(NSDictionary *program) { return [menu acceptsUnifiedProgram:program]; } importHandler:handler];
+    [detail setValue:@2 forKey:@"page"]; [detail setValue:[self fbneoGame] forKey:@"game"];
+    [detail setValue:[self fbneoProgram] forKey:@"program"]; [detail setProgramsForDisplay:@[[self fbneoProgram]]];
+    [self host:detail]; [self selectSection:3 row:0];
+    [self waitFor:^BOOL { return self.browser.presentedViewController != nil; }];
+    XCTAssertEqualObjects(imported[@"action"], @"import"); XCTAssertEqual([imported[@"programs"] count], 1U);
+    XCTAssertEqualObjects(imported[@"programs"][0][@"code"], [self fbneoProgram][@"code"]);
+    XCTAssertEqualObjects(imported[@"programs"][0][@"enabled"], @NO);
+    XCTAssertEqual(menu.enabledCount, 0U); XCTAssertEqual(genericApply, 0U);
+    UIAlertController *alert = (id)self.browser.presentedViewController;
+    XCTAssertEqualObjects(alert.message, [NeoUnifiedCheatBrowser localizedText:@"fbneoImportDoneMessage" locale:@"fr"]);
+    LibretroMenuPage *nativeRoot = [menu rootPage];
+    [self waitFor:^BOOL { return ![[menu valueForKey:@"fbneoLoading"] boolValue]; }];
+    NSArray *sections = nativeRoot.builder();
+    XCTAssertEqual(sections.count, 3U);
+    XCTAssertFalse(((LibretroMenuRow *)((LibretroMenuSection *)sections[1]).rows.firstObject).enabled);
+    LibretroMenuRow *restart = ((LibretroMenuSection *)sections[2]).rows.firstObject;
+    XCTAssertEqualObjects(restart.title, [NeoUnifiedCheatBrowser localizedText:@"fbneoRestartRequired" locale:@"fr"]);
 }
 @end

@@ -1379,7 +1379,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (!bridge) { if (completion) completion(nil); return; }
     [bridge readSessionStates:completion];
   };
-  menu.readCheats = ^(void (^completion)(NSDictionary* state)) {
+  menu.readCheats = ^(void (^completion)(NSDictionary<NSString*, id>* _Nullable state)) {
     Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
     if (!bridge || !owner) { completion(nil); return; }
     dispatch_async(bridge->_runtimeQueue,^{

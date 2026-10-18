@@ -44,11 +44,13 @@ static BOOL NeoUnifiedNativeGameMatches(NSDictionary* game, NSDictionary* snapsh
   NSString* required = ps2 ? @"ps2_crc" : @"game_id";
   NSString* scheme = ps2 ? @"pcsx2-executable-crc" : @"dolphin-disc-game-id";
   NSString* expected = NeoField(snapshot, ps2 ? @"crc" : @"gameId").uppercaseString;
-  BOOL found = NO;
+  if (ps2 && (!NeoCheat::hex(NeoUTF8(expected),8,8) || [expected isEqual:@"00000000"])) return NO;
+  BOOL found = NO, exactSerial = NO;
   for (id raw in game[@"identities"]) {
     if (![raw isKindOfClass:NSDictionary.class] || ![raw[@"type"] isKindOfClass:NSString.class] ||
         ![raw[@"value"] isKindOfClass:NSString.class] || ![raw[@"scheme"] isKindOfClass:NSString.class]) return NO;
     NSDictionary* item = raw;
+    if (ps2 && [NeoField(item,@"type") isEqual:@"ps2_crc"] && ![NeoField(item,@"scheme") isEqual:scheme]) return NO;
     if ([NeoField(item,@"type") isEqual:required] && [NeoField(item,@"scheme") isEqual:scheme]) {
       if (![NeoField(item,@"value").uppercaseString isEqual:expected]) return NO;
       found = YES;
@@ -57,12 +59,16 @@ static BOOL NeoUnifiedNativeGameMatches(NSDictionary* game, NSDictionary* snapsh
       NSString* a = [NeoField(item,@"value").uppercaseString stringByReplacingOccurrencesOfString:@"-" withString:@""];
       NSString* b = [NeoField(snapshot,@"serial").uppercaseString stringByReplacingOccurrencesOfString:@"-" withString:@""];
       if (a.length && b.length && ![a isEqual:b]) return NO;
+      if (a.length && b.length && [a isEqual:b] && [NeoField(item,@"scheme") isEqual:@"ps2-disc-serial"]) exactSerial = YES;
     }
   }
   if (!ps2 && NeoField(game,@"revision").length &&
       ![NeoField(game,@"revision") isEqual:[snapshot[@"revision"] description]]) return NO;
   if (!ps2 && !NeoField(game,@"revision").length && ![game[@"edition_confirmed"] boolValue]) return NO;
-  return found;
+  // Some reviewed RAW catalogues identify the disc serial without publishing
+  // PCSX2's executable CRC. A confirmed candidate can target the CRC just read
+  // from the engine; the source identity itself must remain unchanged.
+  return found || (ps2 && exactSerial && [game[@"edition_confirmed"] boolValue]);
 }
 
 static NeoCheat::Result NeoUnifiedNativeProgram(NSDictionary* program, BOOL ps2) {
@@ -138,7 +144,9 @@ static NSDictionary* NeoUnifiedNativeRequest(NSDictionary* game, NSArray* progra
   request[@"filename"] = @""; request[@"success"] = @YES;
   // The importer uses this metadata only to preserve a provenance receipt.
   // It is not a setting and can never enable a program.
-  request[@"unifiedProvenance"] = @{@"game":game, @"programs":programs};
+  request[@"unifiedProvenance"] = @{@"game":game, @"programs":programs,
+      @"mapped_target":@{@"identity":NeoUnifiedEngineIdentity(snapshot,ps2),
+                          @"edition_confirmed":@([game[@"edition_confirmed"] boolValue])}};
   return request;
 }
 
@@ -228,9 +236,11 @@ static BOOL NeoUnifiedNativeReceipt(NSString* root, NSDictionary* request) {
         @"dialect":NeoField(program,@"dialect"), @"provenance":program[@"provenance"] ?: @[],
         @"dependencies":program[@"dependencies"] ?: @[]}];
   }
-  NSDictionary* receipt = @{@"schema_version":@1, @"kind":@"catalogue_selection",
+  if (selection[@"mapped_target"] && ![selection[@"mapped_target"] isKindOfClass:NSDictionary.class]) return NO;
+  NSMutableDictionary* receipt = [@{@"schema_version":@1, @"kind":@"catalogue_selection",
       @"game":selection[@"game"] ?: @{}, @"programs":programs,
-      @"native_name":NeoField(request,@"unifiedDisplayName")};
+      @"native_name":NeoField(request,@"unifiedDisplayName")} mutableCopy];
+  if (selection[@"mapped_target"]) receipt[@"mapped_target"] = selection[@"mapped_target"];
   if (![NSJSONSerialization isValidJSONObject:receipt]) return NO;
   NSData* data = [NSJSONSerialization dataWithJSONObject:receipt options:NSJSONWritingSortedKeys error:nil];
   if (!data.length || data.length > 4 * 1024 * 1024) return NO;

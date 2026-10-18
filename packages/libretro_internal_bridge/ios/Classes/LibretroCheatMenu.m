@@ -11,6 +11,9 @@ static NSString *GameKey(NSDictionary *game) {
   return [NSString stringWithFormat:@"%@|%@|%@|%@", game[@"source"], game[@"revision"], game[@"sha"] ?: @"", game[@"title"]];
 }
 @interface LibretroCheatMenu () <UIDocumentPickerDelegate>
+- (void)refreshFBNeoSnapshot;
+- (void)runFBNeoCommand:(NSDictionary *)request completion:(void (^)(NSDictionary *, NSError *))completion;
+- (LibretroMenuPage *)fbneoRootPage;
 @end
 @implementation LibretroCheatMenu {
   NSString *_directory, *_console, *_core, *_preferencesPath;
@@ -30,10 +33,22 @@ static NSString *GameKey(NSDictionary *game) {
   __weak LibretroMenuPage *_rootPage;
   dispatch_queue_t _queue;
   id _unifiedObserver;
+  NSDictionary *_fbneoSnapshot;
+  NSError *_fbneoError;
+  BOOL _fbneoLoading;
+  NSUInteger _fbneoGeneration;
 }
 @synthesize diagnostic = _diagnostic;
+@synthesize fbneoCommand = _fbneoCommand;
 - (void)setDiagnostic:(void (^)(NSString *))diagnostic {
   _diagnostic = [diagnostic copy]; _catalog.diagnostic = diagnostic;
+}
+- (BOOL)usesFBNeoNativeCheats {
+  return [_console isEqual:@"arcade"] && ([_core isEqual:@"fbneo"] || [_core isEqual:@"fbneo_libretro"]);
+}
+- (void)setFbneoCommand:(void (^)(NSDictionary *, void (^)(NSDictionary *, NSError *)))command {
+  _fbneoCommand = [command copy];
+  if (_ready && [self usesFBNeoNativeCheats]) [self refreshFBNeoSnapshot];
 }
 - (instancetype)initWithDirectory:(NSString *)directory console:(NSString *)console core:(NSString *)core
                      contentPath:(NSString *)contentPath legacy:(NSArray<NSDictionary *> *)legacy
@@ -143,6 +158,10 @@ static NSString *GameKey(NSDictionary *game) {
 // Called after both identity and all source indices are ready, and after install/update.
 // Only this worker traverses indices. All UI/model mutations stay on the main queue.
 - (void)discover {
+  if ([self usesFBNeoNativeCheats]) {
+    if (_ready) [self refreshFBNeoSnapshot];
+    return;
+  }
   if (_ready) [self discoverUnified];
   if (!_ready || _pendingSources) return;
   NSUInteger generation = ++_discoveryGeneration; _discovering = YES; _status = nil;
@@ -197,23 +216,46 @@ static NSString *GameKey(NSDictionary *game) {
 }
 - (NSDictionary *)unifiedIdentity {
   NSMutableDictionary *identity = [_identity mutableCopy] ?: [NSMutableDictionary dictionary];
-  identity[@"system"] = _console;
+  identity[@"system"] = @{ @"tg16": @"pce", @"tgcd": @"pccd" }[_console] ?: _console;
+  if ([self usesFBNeoNativeCheats] && String(_fbneoSnapshot[@"driver"]).length) {
+    NSMutableArray *identities = [NSMutableArray array];
+    for (id value in [identity[@"identities"] isKindOfClass:NSArray.class] ? identity[@"identities"] : @[]) {
+      if (![value isKindOfClass:NSDictionary.class]) continue;
+      if ([value[@"type"] isEqual:@"romset"] && [value[@"scheme"] isEqual:@"fbneo-driver-name"]) continue;
+      [identities addObject:value];
+    }
+    [identities addObject:@{@"type": @"romset", @"value": _fbneoSnapshot[@"driver"], @"scheme": @"fbneo-driver-name"}];
+    identity[@"identities"] = identities;
+  }
   id revision = identity[@"gameRevision"] ?: identity[@"pspDiscVersion"];
   if ([revision isKindOfClass:NSString.class] || [revision isKindOfClass:NSNumber.class]) identity[@"revision"] = [revision description];
   return identity;
 }
+- (BOOL)allowsActivationProfile:(NSDictionary *)program {
+  id profiles = program[@"activation_profiles"];
+  if (!profiles) return YES;
+  if (![profiles isKindOfClass:NSArray.class] || ![profiles count]) return NO;
+  for (id profile in profiles) if (!String(profile).length) return NO;
+  NSString *core = [_core hasSuffix:@"_libretro"] ? [_core substringToIndex:_core.length - 9] : _core;
+  return [profiles containsObject:core];
+}
 - (BOOL)acceptsUnifiedProgram:(NSDictionary *)program {
+  if ([self usesFBNeoNativeCheats])
+    return [LibretroCheats canInstallFBNeoPrograms:@[program] game:[self unifiedIdentity]];
   if (![program[@"status"] isEqual:@"available"] ||
       (program[@"parameters"] && ![program[@"parameters"] isKindOfClass:NSArray.class]) ||
       (program[@"dependencies"] && ![program[@"dependencies"] isKindOfClass:NSArray.class]) ||
-      [program[@"parameters"] count]) return NO;
+      [program[@"parameters"] count] || ![self allowsActivationProfile:program]) return NO;
   NSDictionary *dialects = @{
     @"nes": @[@"nes-gamegenie", @"nes-raw"], @"snes": @[@"snes-gamegenie", @"snes-par"],
     @"gb": @[@"gb-gamegenie", @"gb-gameshark"], @"gbc": @[@"gb-gamegenie", @"gb-gameshark"],
-    @"gba": @[@"gba-gameshark-v1", @"gba-gameshark-v3", @"gba-codebreaker", @"gba-auto", @"gba-unknown"],
+    @"gba": @[@"gba-gameshark-v1", @"gba-gameshark-v3", @"gba-codebreaker", @"gba-auto", @"gba-unknown", @"gba-vba-raw"],
     @"nds": @[@"ds-actionreplay"], @"psx": @[@"ps1-gameshark"],
     @"psp": @[@"cwcheat"], @"n64": @[@"n64-gameshark"],
     @"md": @[@"md-gamegenie", @"md-raw"], @"mcd": @[@"md-gamegenie", @"md-raw"],
+    @"32x": @[@"md-gamegenie", @"md-raw"], @"pico": @[@"md-gamegenie", @"md-raw"],
+    @"pce": @[@"pce-raw"], @"tg16": @[@"pce-raw"], @"pccd": @[@"pce-raw"], @"tgcd": @[@"pce-raw"],
+    @"ws": @[@"wswan-raw"], @"wsc": @[@"wswan-raw"],
     @"sms": @[@"sega8-gamegenie", @"sega8-raw"], @"gg": @[@"sega8-gamegenie", @"sega8-raw"]};
   if (![dialects[_console] containsObject:String(program[@"dialect"])]) return NO;
   NSArray *parts = [LibretroCheats codesForCheat:program core:_core console:_console];
@@ -233,16 +275,27 @@ static NSString *GameKey(NSDictionary *game) {
     if (![dependency isKindOfClass:NSString.class] || !index[dependency] ||
         ![self appendUnifiedProgram:index[dependency] index:index visited:visited visiting:visiting result:result depth:depth + 1]) return NO;
   }
-  NSString *exclusive = String(program[@"exclusive_group"]);
-  for (NSDictionary *previous in result) if (exclusive.length && [exclusive isEqual:String(previous[@"exclusive_group"])]) return NO;
+  NSSet *exclusive = [NSSet setWithArray:[self exclusiveGroupsForRecord:program]];
+  for (NSDictionary *previous in result) if ([exclusive intersectsSet:[NSSet setWithArray:[self exclusiveGroupsForRecord:previous]]]) return NO;
   [visiting removeObject:identifier]; [visited addObject:identifier]; [result addObject:program]; return YES;
 }
 - (NSDictionary *)unifiedRecordForGame:(NSDictionary *)game programs:(NSArray *)programs {
   if (!programs.count || [NeoUnifiedCheatCatalog gameHasConflict:game identity:[self unifiedIdentity]]) return nil;
   NSMutableArray *codes = [NSMutableArray array], *provenance = [NSMutableArray array];
+  NSMutableOrderedSet *exclusiveGroups = [NSMutableOrderedSet orderedSet];
+  NSMutableSet *activationProfiles = nil;
+  BOOL isolatedAUTO = NO;
   for (NSDictionary *program in programs) {
     if (![self acceptsUnifiedProgram:program]) return nil;
+    if (program[@"activation_profiles"]) {
+      NSSet *profiles = [NSSet setWithArray:program[@"activation_profiles"]];
+      if (activationProfiles) [activationProfiles intersectSet:profiles]; else activationProfiles = [profiles mutableCopy];
+    }
     [codes addObject:String(program[@"code"])];
+    NSArray *groups = [self exclusiveGroupsForRecord:program];
+    for (NSString *group in groups) if ([exclusiveGroups containsObject:group]) return nil;
+    [exclusiveGroups addObjectsFromArray:groups];
+    if ([program[@"mgba_auto_isolated"] isKindOfClass:NSNumber.class] && [program[@"mgba_auto_isolated"] boolValue]) isolatedAUTO = YES;
     for (NSDictionary *origin in program[@"provenance"] ?: @[]) if (![provenance containsObject:origin]) [provenance addObject:origin];
   }
   NSDictionary *selected = programs.lastObject;
@@ -256,15 +309,27 @@ static NSString *GameKey(NSDictionary *game) {
   record[@"uncertain"] = @(![[NeoUnifiedCheatCatalog matchGame:game identity:[self unifiedIdentity]] isEqual:@"exact"]);
   record[@"automaticExact"] = @(![record[@"uncertain"] boolValue]);
   record[@"programs"] = programs; // Original ordered programs retain formats, authors and dependencies.
+  record[@"exclusive_groups"] = exclusiveGroups.array;
+  record[@"mgba_auto_isolated"] = isolatedAUTO ? @YES : @NO;
+  if (activationProfiles) record[@"activation_profiles"] = [[activationProfiles allObjects] sortedArrayUsingSelector:@selector(compare:)];
   NSArray *prepared = [LibretroCheats codesForCheat:record core:_core console:_console];
   return prepared.count && prepared.count <= 99 ? record : nil;
 }
 - (void)presentUnifiedFrom:(UIViewController *)page {
   __weak LibretroCheatMenu *weakSelf = self;
-  [NeoUnifiedCheatBrowser presentFrom:page identity:[self unifiedIdentity] engine:@"libretro" locale:self.uiLocale
+  [NeoUnifiedCheatBrowser presentFrom:page identity:[self unifiedIdentity] engine:[self usesFBNeoNativeCheats] ? @"fbneo" : @"libretro" locale:self.uiLocale
     accepts:^BOOL(NSDictionary *program) { return [weakSelf acceptsUnifiedProgram:program]; }
     importHandler:^(NSDictionary *game, NSArray *programs, void (^completion)(NSError *)) {
       LibretroCheatMenu *menu = weakSelf;
+      if ([menu usesFBNeoNativeCheats]) {
+        if (!menu.fbneoCommand || [NeoUnifiedCheatCatalog gameHasConflict:game identity:[menu unifiedIdentity]] ||
+            ![LibretroCheats canInstallFBNeoPrograms:programs game:game]) {
+          completion([NSError errorWithDomain:NeoUnifiedCheatCatalogErrorDomain code:10 userInfo:nil]); return;
+        }
+        [menu runFBNeoCommand:@{@"action": @"import", @"game": game, @"programs": programs}
+          completion:^(NSDictionary *result, NSError *error) { completion(error); }];
+        return;
+      }
       NSDictionary *record = [menu unifiedRecordForGame:game programs:programs];
       if (!menu || !record || menu->_records.count >= 4096) {
         NSString *reason = menu ? [menu t:menu->_records.count >= 4096 ? @"cheatResultsLimited" : @"cheatCodeUnsupported"] : @"";
@@ -275,6 +340,9 @@ static NSString *GameKey(NSDictionary *game) {
     }];
 }
 - (void)discoverUnified {
+  // Installing native INI is always an explicit import. Merely discovering a
+  // catalogue must not write a file or select a native FBNeo option.
+  if ([self usesFBNeoNativeCheats]) return;
   if (_unifiedDiscovering) return;
   _unifiedDiscovering = YES; __weak LibretroCheatMenu *weakSelf = self;
   [NeoUnifiedCheatCatalog.sharedCatalog gamesForIdentity:[self unifiedIdentity] completion:^(NSArray *games, NSError *error) {
@@ -312,6 +380,13 @@ static NSString *GameKey(NSDictionary *game) {
   }];
 }
 - (NSUInteger)enabledCount {
+  if ([self usesFBNeoNativeCheats]) {
+    NSUInteger count = 0;
+    for (NSDictionary *option in [self fbneoOptions]) {
+      if (String(option[@"value"]).length && ![option[@"value"] isEqual:option[@"off_value"]]) count++;
+    }
+    return count;
+  }
   NSUInteger count = 0; for (NSDictionary *record in _records) if ([record[@"enabled"] boolValue]) count++;
   return count;
 }
@@ -333,6 +408,246 @@ static NSString *GameKey(NSDictionary *game) {
   [root rebuild]; if (visible != root) [visible rebuild];
 }
 - (NSString *)t:(NSString *)key { return _text(key); }
+- (NSArray<NSString *> *)exclusiveGroupsForRecord:(NSDictionary *)record {
+  NSMutableOrderedSet *groups = [NSMutableOrderedSet orderedSet];
+  NSString *legacy = String(record[@"exclusive_group"]);
+  if (legacy.length) [groups addObject:legacy];
+  id stored = record[@"exclusive_groups"];
+  if ([stored isKindOfClass:NSArray.class]) for (id value in stored) if (String(value).length) [groups addObject:value];
+  return groups.array;
+}
+- (BOOL)isPureMGBAVBARecord:(NSDictionary *)record {
+  // The source dialect alone is insufficient for a dependency closure: its
+  // complete executable code must still be one valid ':' VBA program.
+  return [String(record[@"dialect"]) isEqual:@"gba-vba-raw"] &&
+    [LibretroCheats codesForCheat:record core:@"mgba" console:@"gba"].count > 0;
+}
+- (NSString *)activationConflict {
+  NSMutableSet *activeGroups = [NSMutableSet set];
+  BOOL mgba = [_console isEqual:@"gba"] && ([_core isEqual:@"mgba"] || [_core isEqual:@"mgba_libretro"]);
+  BOOL isolatedAUTO = NO;
+  NSUInteger nonVBA = 0;
+  for (NSDictionary *record in _records) {
+    if (![record[@"enabled"] boolValue]) continue;
+    NSArray *groups = [self exclusiveGroupsForRecord:record];
+    for (NSString *group in groups) {
+      if ([activeGroups containsObject:group]) return @"exclusiveConflict";
+      [activeGroups addObject:group];
+    }
+    if (mgba && ![self isPureMGBAVBARecord:record]) {
+      nonVBA++;
+      if ([record[@"mgba_auto_isolated"] isKindOfClass:NSNumber.class] && [record[@"mgba_auto_isolated"] boolValue]) isolatedAUTO = YES;
+    }
+  }
+  return isolatedAUTO && nonVBA > 1 ? @"mgbaIsolationConflict" : nil;
+}
+- (void)showActivationFailure:(NSString *)conflict page:(LibretroMenuPage *)page {
+  _status = conflict.length ? [NeoUnifiedCheatBrowser localizedText:conflict locale:self.uiLocale] : [self t:@"cheatFailed"];
+  [self refresh]; [page rebuild];
+}
+- (BOOL)changeRecord:(NSMutableDictionary *)record enabled:(BOOL)enabled page:(LibretroMenuPage *)page {
+  id previousEnabled = record[@"enabled"] ?: @NO, previousSelected = record[@"selected"] ?: @NO;
+  record[@"enabled"] = enabled ? @YES : @NO;
+  NSString *conflict = [self activationConflict];
+  NSArray *codes = conflict ? nil : [self enabledCodes];
+  if (!codes) {
+    record[@"enabled"] = previousEnabled; record[@"selected"] = previousSelected;
+    [self showActivationFailure:conflict page:page]; return NO;
+  }
+  record[@"selected"] = enabled ? @YES : @NO;
+  _status = nil; _apply(codes); [self save]; [self refresh]; [page rebuild]; return YES;
+}
+- (BOOL)restoreSelectedOnPage:(LibretroMenuPage *)page {
+  NSMutableArray *previous = [NSMutableArray arrayWithCapacity:_records.count];
+  for (NSMutableDictionary *record in _records) {
+    [previous addObject:record[@"enabled"] ?: @NO];
+    record[@"enabled"] = [record[@"selected"] boolValue] && [self verified:record] &&
+      [LibretroCheats codesForCheat:record core:_core console:_console] != nil ? @YES : @NO;
+  }
+  NSString *conflict = [self activationConflict];
+  NSArray *codes = conflict ? nil : [self enabledCodes];
+  if (!codes) {
+    for (NSUInteger index = 0; index < _records.count; index++) _records[index][@"enabled"] = previous[index];
+    [self showActivationFailure:conflict page:page]; return NO;
+  }
+  _status = nil; _apply(codes); [self save]; [self refresh]; [page rebuild]; return YES;
+}
+- (NSString *)fbneoText:(NSString *)key {
+  return [NeoUnifiedCheatBrowser localizedText:key locale:self.uiLocale];
+}
+- (NSArray *)fbneoOptions {
+  NSMutableArray *options = [NSMutableArray array];
+  id records = _fbneoSnapshot[@"options"];
+  if (![records isKindOfClass:NSArray.class]) return options;
+  for (id option in records) {
+    if (![option isKindOfClass:NSDictionary.class] || ![String(option[@"key"]) hasPrefix:@"fbneo-cheat-"] ||
+        ![option[@"values"] isKindOfClass:NSArray.class] || ![option[@"labels"] isKindOfClass:NSArray.class] ||
+        !String(option[@"off_value"]).length || ![option[@"values"] containsObject:option[@"off_value"]]) continue;
+    BOOL valid = [option[@"values"] count] > 0;
+    for (id value in option[@"values"]) if (!String(value).length) valid = NO;
+    if (valid) [options addObject:option];
+  }
+  return options;
+}
+- (BOOL)fbneoOptionAvailable:(NSDictionary *)option {
+  return [option[@"available"] isKindOfClass:NSNumber.class] && [option[@"available"] boolValue];
+}
+- (NSString *)fbneoUnavailableReason:(NSDictionary *)option {
+  if ([String(option[@"reason_code"]) isEqual:@"nonzero_native_default"]) return [self fbneoText:@"fbneoUnsafeDefault"];
+  return [self fbneoText:@"fbneoUnmanagedOption"];
+}
+- (void)refreshFBNeoSnapshot {
+  if (![self usesFBNeoNativeCheats] || !_fbneoCommand || _fbneoLoading || _busy) return;
+  _fbneoLoading = YES;
+  NSUInteger generation = ++_fbneoGeneration;
+  __weak LibretroCheatMenu *weakSelf = self;
+  _fbneoCommand(@{@"action": @"snapshot"}, ^(NSDictionary *snapshot, NSError *error) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroCheatMenu *menu = weakSelf;
+      if (!menu || generation != menu->_fbneoGeneration) return;
+      menu->_fbneoLoading = NO;
+      menu->_fbneoError = error;
+      if ([snapshot isKindOfClass:NSDictionary.class]) menu->_fbneoSnapshot = [snapshot copy];
+      [menu refresh];
+    });
+  });
+}
+- (void)runFBNeoCommand:(NSDictionary *)request completion:(void (^)(NSDictionary *, NSError *))completion {
+  if (![self usesFBNeoNativeCheats] || !_fbneoCommand || _busy) {
+    completion(nil, [NSError errorWithDomain:@"NeoStation.FBNeoCheats" code:9 userInfo:nil]); return;
+  }
+  _busy = YES; _fbneoLoading = NO; _fbneoError = nil;
+  NSUInteger generation = ++_fbneoGeneration;
+  [self refresh];
+  __weak LibretroCheatMenu *weakSelf = self;
+  __block BOOL finished = NO;
+  _fbneoCommand(request, ^(NSDictionary *result, NSError *error) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (finished) return; finished = YES;
+      LibretroCheatMenu *menu = weakSelf;
+      if (menu && generation == menu->_fbneoGeneration) {
+        menu->_busy = NO; menu->_fbneoError = error;
+        if ([result isKindOfClass:NSDictionary.class]) {
+          NSMutableDictionary *snapshot = [menu->_fbneoSnapshot mutableCopy] ?: [NSMutableDictionary dictionary];
+          [snapshot addEntriesFromDictionary:result]; menu->_fbneoSnapshot = [snapshot copy];
+        }
+        [menu refresh];
+        // Import validation can fail after the host has deliberately returned
+        // existing native options to Off. Re-read their actual session state.
+        if (error && !result) [menu refreshFBNeoSnapshot];
+      }
+      completion(result, error);
+    });
+  });
+}
+- (void)showFBNeoError:(NSError *)error page:(LibretroMenuPage *)page {
+  if (!page.viewIfLoaded.window || page.presentedViewController) return;
+  NSString *detail = [NSString stringWithFormat:@"%@\n%@ (%ld)\n%@", [self fbneoText:@"technicalDetails"],
+    error.domain, (long)error.code, error.localizedDescription ?: @""];
+  UIAlertController *alert = [UIAlertController alertControllerWithTitle:[self fbneoText:@"fbneoCommandFailed"]
+    message:detail preferredStyle:UIAlertControllerStyleAlert];
+  [alert addAction:[UIAlertAction actionWithTitle:[self fbneoText:@"close"] style:UIAlertActionStyleCancel handler:nil]];
+  [page presentViewController:alert animated:YES completion:nil];
+}
+- (NSString *)fbneoValueLabel:(NSString *)value option:(NSDictionary *)option {
+  if ([value isEqual:option[@"off_value"]]) return [self fbneoText:@"fbneoDisabled"];
+  NSUInteger index = [option[@"values"] indexOfObject:value];
+  NSArray *labels = option[@"labels"];
+  return index != NSNotFound && index < labels.count && String(labels[index]).length ? labels[index] : value;
+}
+- (void)setFBNeoValue:(NSString *)value option:(NSDictionary *)option page:(LibretroMenuPage *)page pop:(BOOL)pop {
+  if (_busy || _fbneoLoading || [_fbneoSnapshot[@"restart_required"] boolValue] || ![self fbneoOptionAvailable:option] ||
+      ![option[@"values"] containsObject:value]) { [page rebuild]; return; }
+  _visiblePage = page;
+  __weak LibretroCheatMenu *weakSelf = self;
+  __weak LibretroMenuPage *weakPage = page;
+  void (^change)(void) = ^{
+    LibretroCheatMenu *menu = weakSelf; if (!menu) return;
+    [menu runFBNeoCommand:@{@"action": @"set", @"key": option[@"key"], @"value": value}
+      completion:^(NSDictionary *result, NSError *error) {
+        LibretroCheatMenu *current = weakSelf; LibretroMenuPage *visible = weakPage;
+        if (error) [current showFBNeoError:error page:visible];
+        else if (pop) [visible.navigationController popViewControllerAnimated:YES];
+      }];
+  };
+  if ([value isEqual:option[@"off_value"]]) change();
+  else [self warnOnPage:page action:change];
+}
+- (LibretroMenuPage *)fbneoChoicesPage:(NSDictionary *)option {
+  __weak LibretroCheatMenu *weakSelf = self;
+  LibretroMenuPage *page = [[LibretroMenuPage alloc] initWithTitle:String(option[@"name"]) builder:^NSArray<LibretroMenuSection *> * {
+    LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
+    NSMutableArray *rows = [NSMutableArray array];
+    NSDictionary *current = option;
+    for (NSDictionary *candidate in [menu fbneoOptions]) if ([candidate[@"key"] isEqual:option[@"key"]]) { current = candidate; break; }
+    for (NSString *value in current[@"values"]) {
+      LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:[menu fbneoValueLabel:value option:current]
+        action:^(LibretroMenuPage *page) { [weakSelf setFBNeoValue:value option:current page:page pop:YES]; }];
+      row.checked = [value isEqual:current[@"value"]]; row.enabled = !menu->_busy && !menu->_fbneoLoading &&
+        ![menu->_fbneoSnapshot[@"restart_required"] boolValue] && [menu fbneoOptionAvailable:current];
+      [rows addObject:row];
+    }
+    LibretroMenuSection *section = [LibretroMenuSection sectionWithTitle:nil rows:rows];
+    section.footer = [menu fbneoOptionAvailable:current] ? [menu fbneoText:@"fbneoSessionHelp"] : [menu fbneoUnavailableReason:current]; return @[section];
+  }];
+  _visiblePage = page; return page;
+}
+- (LibretroMenuPage *)fbneoRootPage {
+  [self refreshFBNeoSnapshot];
+  __weak LibretroCheatMenu *weakSelf = self;
+  LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
+    LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
+    NSMutableArray *actions = [NSMutableArray array];
+    LibretroMenuRow *catalogue = [LibretroMenuRow rowWithTitle:[menu fbneoText:@"unifiedCatalogue"]
+      action:^(LibretroMenuPage *page) { [weakSelf presentUnifiedFrom:page]; }];
+    catalogue.enabled = menu->_ready && menu.fbneoCommand != nil && !menu->_busy && !menu->_fbneoLoading;
+    [actions addObject:catalogue];
+    LibretroMenuRow *refresh = [LibretroMenuRow rowWithTitle:[menu fbneoText:@"fbneoRefresh"]
+      action:^(LibretroMenuPage *page) { [weakSelf refreshFBNeoSnapshot]; [page rebuild]; }];
+    refresh.enabled = menu.fbneoCommand != nil && !menu->_busy && !menu->_fbneoLoading; [actions addObject:refresh];
+    LibretroMenuRow *disableAll = [LibretroMenuRow rowWithTitle:[menu t:@"cheatDisableAll"] action:^(LibretroMenuPage *page) {
+      __weak LibretroMenuPage *weakPage = page;
+      [weakSelf runFBNeoCommand:@{@"action": @"disableAll"} completion:^(NSDictionary *result, NSError *error) {
+        if (error) [weakSelf showFBNeoError:error page:weakPage];
+      }];
+    }];
+    disableAll.enabled = menu.enabledCount > 0 && !menu->_busy && !menu->_fbneoLoading; [actions addObject:disableAll];
+    NSMutableArray *rows = [NSMutableArray array];
+    for (NSDictionary *option in [menu fbneoOptions]) {
+      NSArray *values = option[@"values"];
+      LibretroMenuRow *row;
+      if (values.count == 2) {
+        NSString *on = [values[0] isEqual:option[@"off_value"]] ? values[1] : values[0];
+        row = [LibretroMenuRow toggleWithTitle:String(option[@"name"]) on:![option[@"value"] isEqual:option[@"off_value"]]
+          toggle:^(LibretroMenuPage *page, BOOL enabled) { [weakSelf setFBNeoValue:enabled ? on : option[@"off_value"] option:option page:page pop:NO]; }];
+      } else {
+        row = [LibretroMenuRow rowWithTitle:String(option[@"name"]) action:^(LibretroMenuPage *page) { [page push:[weakSelf fbneoChoicesPage:option]]; }];
+      }
+      row.stackedText = YES;
+      row.detail = [menu fbneoOptionAvailable:option] ? [menu fbneoValueLabel:String(option[@"value"]) option:option] : [menu fbneoUnavailableReason:option];
+      row.enabled = menu->_ready && !menu->_busy && !menu->_fbneoLoading &&
+        ![menu->_fbneoSnapshot[@"restart_required"] boolValue] && [menu fbneoOptionAvailable:option]; [rows addObject:row];
+    }
+    NSString *status = menu->_fbneoLoading ? [menu fbneoText:@"loading"] : rows.count ? nil : [menu fbneoText:@"fbneoNoCodes"];
+    LibretroMenuSection *list = [LibretroMenuSection sectionWithTitle:status rows:rows];
+    list.footer = [menu fbneoText:@"fbneoSessionHelp"];
+    NSMutableArray *sections = [NSMutableArray arrayWithObjects:[LibretroMenuSection sectionWithTitle:nil rows:actions], list, nil];
+    if ([menu->_fbneoSnapshot[@"restart_required"] boolValue]) {
+      LibretroMenuRow *restart = [LibretroMenuRow rowWithTitle:[menu fbneoText:@"fbneoRestartRequired"] action:nil];
+      restart.detail = [menu fbneoText:@"fbneoRestartHelp"]; restart.stackedText = YES;
+      [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:@[restart]]];
+    }
+    if (menu->_fbneoError) {
+      NSError *error = menu->_fbneoError;
+      LibretroMenuRow *failure = [LibretroMenuRow rowWithTitle:[menu fbneoText:@"fbneoCommandFailed"]
+        action:^(LibretroMenuPage *page) { [weakSelf showFBNeoError:error page:page]; }];
+      failure.detail = [menu fbneoText:@"technicalDetails"]; failure.stackedText = YES;
+      [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:@[failure]]];
+    }
+    return sections;
+  }];
+  _rootPage = root; _visiblePage = root; return root;
+}
 - (void)merge:(NSArray *)records {
   for (id raw in records) {
     if (![raw isKindOfClass:NSDictionary.class]) continue;
@@ -372,6 +687,9 @@ static NSString *GameKey(NSDictionary *game) {
     }
     NSString *attribution = [NSString stringWithFormat:@"%@ · %@ · %@ · %@", String(raw[@"source"]), String(raw[@"game"]), String(raw[@"revision"]), String(raw[@"license"])];
     if (existing) {
+      NSMutableOrderedSet *groups = [NSMutableOrderedSet orderedSetWithArray:[self exclusiveGroupsForRecord:existing]];
+      [groups addObjectsFromArray:[self exclusiveGroupsForRecord:raw]]; existing[@"exclusive_groups"] = groups.array;
+      if ([raw[@"mgba_auto_isolated"] isKindOfClass:NSNumber.class] && [raw[@"mgba_auto_isolated"] boolValue]) existing[@"mgba_auto_isolated"] = @YES;
       NSMutableOrderedSet *sources = [NSMutableOrderedSet orderedSetWithArray:existing[@"attributions"] ?: @[]];
       [sources addObject:attribution]; existing[@"attributions"] = sources.array;
       NSMutableOrderedSet *allOrigins = [NSMutableOrderedSet orderedSetWithArray:existing[@"origins"] ?: @[]];
@@ -384,6 +702,8 @@ static NSString *GameKey(NSDictionary *game) {
     }
     if (_records.count >= 4096) { _status = [self t:@"cheatResultsLimited"]; continue; }
     NSMutableDictionary *record = [raw mutableCopy]; record[@"enabled"] = @NO; record[@"dedup"] = key;
+    record[@"exclusive_groups"] = [self exclusiveGroupsForRecord:raw];
+    record[@"mgba_auto_isolated"] = [raw[@"mgba_auto_isolated"] isKindOfClass:NSNumber.class] && [raw[@"mgba_auto_isolated"] boolValue] ? @YES : @NO;
     record[@"handler"] = [raw[@"handler"] isKindOfClass:NSNumber.class] ? raw[@"handler"] : @0;
     record[@"selected"] = @([raw[@"selected"] isKindOfClass:NSNumber.class] && [raw[@"selected"] boolValue]);
     NSMutableArray *attributions = [NSMutableArray array];
@@ -395,8 +715,10 @@ static NSString *GameKey(NSDictionary *game) {
   }
 }
 - (NSArray<NSString *> *)enabledCodes {
+  if ([self activationConflict]) return nil;
   NSMutableArray *codes = [NSMutableArray array];
   for (NSDictionary *record in _records) if ([record[@"enabled"] boolValue]) {
+    if (![self allowsActivationProfile:record]) return nil;
     NSArray *parts = [LibretroCheats codesForCheat:record core:_core console:_console];
     if (parts == nil || codes.count + parts.count > 99) return nil;
     [codes addObjectsFromArray:parts];
@@ -432,7 +754,7 @@ static NSString *GameKey(NSDictionary *game) {
 - (void)failed { _status = [self t:@"cheatFailed"]; [self refresh]; }
 - (void)applyAndSave {
   NSArray *codes = [self enabledCodes];
-  if (codes == nil) { [self failed]; return; }
+  if (codes == nil) { [self showActivationFailure:[self activationConflict] page:_visiblePage]; return; }
   _apply(codes); [self save]; [self refresh];
 }
 - (void)warnOnPage:(LibretroMenuPage *)page action:(dispatch_block_t)action {
@@ -471,7 +793,7 @@ static NSString *GameKey(NSDictionary *game) {
     name.detail = [menu gameSubtitle:record]; name.stackedText = YES;
     NSMutableArray *warnings = [NSMutableArray array];
     if (![menu verified:record]) [warnings addObject:[menu t:@"cheatVersionUncertain"]];
-    if ([LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] == nil)
+    if (![menu allowsActivationProfile:record] || [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] == nil)
       [warnings addObject:[menu t:[record[@"handler"] integerValue] != 0 ? @"cheatMemoryUnsupported" : @"cheatCodeUnsupported"]];
     LibretroMenuSection *summary = [LibretroMenuSection sectionWithTitle:nil rows:@[name]];
     summary.footer = [warnings componentsJoinedByString:@"\n\n"];
@@ -495,6 +817,7 @@ static NSString *GameKey(NSDictionary *game) {
   }];
 }
 - (LibretroMenuPage *)rootPage {
+  if ([self usesFBNeoNativeCheats]) return [self fbneoRootPage];
   __weak LibretroCheatMenu *weakSelf = self;
   LibretroMenuPage *root = [[LibretroMenuPage alloc] initWithTitle:[self t:@"cheats"] builder:^NSArray<LibretroMenuSection *> * {
     LibretroCheatMenu *menu = weakSelf; if (!menu) return @[];
@@ -541,16 +864,7 @@ static NSString *GameKey(NSDictionary *game) {
     }]; remember.enabled = menu->_ready && menu->_preferencesPath != nil; [tools addObject:remember];
     if (menu->_remember) [tools addObject:[LibretroMenuRow rowWithTitle:[menu t:@"cheatRestore"] action:^(LibretroMenuPage *page) {
       [menu warnOnPage:page action:^{
-        NSMutableArray *previous = [NSMutableArray array];
-        for (NSMutableDictionary *record in menu->_records) {
-          [previous addObject:record[@"enabled"] ?: @NO];
-          record[@"enabled"] = @([record[@"selected"] boolValue] && [menu verified:record] && [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil);
-        }
-        if ([menu enabledCodes] == nil) {
-          for (NSUInteger i = 0; i < menu->_records.count; i++) menu->_records[i][@"enabled"] = previous[i];
-          [menu failed];
-        }
-        [menu applyAndSave]; [page rebuild];
+        [menu restoreSelectedOnPage:page];
       }];
     }]];
     [tools addObject:[menu searchRow:NO]];
@@ -558,13 +872,11 @@ static NSString *GameKey(NSDictionary *game) {
     NSMutableArray *rows = [NSMutableArray array];
     for (NSMutableDictionary *record in menu->_records) {
       if (menu->_cheatSearch.length && [String(record[@"name"]) rangeOfString:menu->_cheatSearch options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location == NSNotFound) continue;
-      BOOL supported = [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil;
+      BOOL supported = [menu allowsActivationProfile:record] && [LibretroCheats codesForCheat:record core:menu->_core console:menu->_console] != nil;
       LibretroMenuRow *row = [LibretroMenuRow toggleWithTitle:[menu displayName:record] on:[record[@"enabled"] boolValue] toggle:^(LibretroMenuPage *page, BOOL on) {
         menu->_visiblePage = page;
         void (^change)(void) = ^{
-          record[@"enabled"] = @(on);
-          if ([menu enabledCodes] == nil) { record[@"enabled"] = @NO; [menu failed]; [page rebuild]; return; }
-          record[@"selected"] = @(on); [menu applyAndSave]; [page rebuild];
+          [menu changeRecord:record enabled:on page:page];
         };
         if (on) [menu activate:record page:page action:change]; else change();
       }];

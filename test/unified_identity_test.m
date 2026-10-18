@@ -8,6 +8,7 @@ static unsigned checks, failures;
 #define CHECK(c,m) do { checks++; if (!(c)) { failures++; fprintf(stderr,"FAIL %d %s\n",__LINE__,m); } } while(0)
 static NSString *HexBytes(const uint8_t *p, NSUInteger n) { NSMutableString *s=[NSMutableString string];for(NSUInteger i=0;i<n;i++)[s appendFormat:@"%02x",p[i]];return s; }
 static NSString *SHA1(NSData *d) { uint8_t out[20];CC_SHA1(d.bytes,(CC_LONG)d.length,out);return HexBytes(out,20); }
+static NSString *SHA256(NSData *d) { uint8_t out[32];CC_SHA256(d.bytes,(CC_LONG)d.length,out);return HexBytes(out,32); }
 static NSDictionary *ID(NSString *type, NSString *value, NSString *scheme) { return @{@"type":type,@"value":value,@"scheme":scheme}; }
 static NSString *Value(NSDictionary *identity,NSString *type,NSString *scheme) { for(NSDictionary *d in identity[@"identities"])if([d[@"type"] isEqual:type]&&[d[@"scheme"] isEqual:scheme])return d[@"value"];return nil; }
 static void Put32(NSMutableData *d,NSUInteger at,uint32_t v) { uint8_t *p=d.mutableBytes;for(unsigned i=0;i<4;i++)p[at+i]=(uint8_t)(v>>(i*8)); }
@@ -35,6 +36,8 @@ int main(void) { @autoreleasepool {
   CHECK(([[LibretroCheats matchGame:wrongScope identity:n] isEqual:@"mismatch"]),"same digest in wrong namespace cannot match");
   p[4]=255;NSDictionary *bad=Read(folder,@"truncated.nes",nes,@"nes");CHECK((!Value(bad,@"sha1",@"nes-prg")),"truncated header does not invent PRG identity");
   p=nes.mutableBytes;p[4]=0x38;p[5]=0x34;p[7]=8;p[9]=0xff;NSDictionary *nes2=Read(folder,@"nes2.nes",nes,@"nes");CHECK(([Value(nes2,@"sha1",@"nes-prg") isEqual:SHA1(prg)]),"NES2 exponent sizes hash the same exact PRG bytes");
+  NSMutableData *snes=[NSMutableData dataWithLength:32768+512];memset(snes.mutableBytes,0xa5,512);NSDictionary *sfc=Read(folder,@"headered.smc",snes,@"snes");CHECK(([Value(sfc,@"sha256",@"bsnes-cartridge") isEqual:SHA256([snes subdataWithRange:NSMakeRange(512,32768)])]),"bsnes cartridge identity removes exactly its512byte copier header");
+  [snes setLength:1536];sfc=Read(folder,@"odd-sized.smc",snes,@"snes");CHECK(([Value(sfc,@"sha256",@"bsnes-cartridge") isEqual:SHA256(snes)]),"bsnes namespace does not strip bytes outside its exact32768size test");
   NSMutableData *nds=[NSMutableData dataWithLength:1024];p=nds.mutableBytes;memcpy(p+12,"CPUF",4);p[0x1e]=5;for(NSUInteger i=512;i<nds.length;i++)p[i]=(uint8_t)i;
   NSDictionary *ds=Read(folder,@"renamed.nds",nds,@"nds");NSString *r4=@"10192E29";
   CHECK(([ds[@"ndsGameCode"] isEqual:@"CPUF"]&&[ds[@"ndsR4CRC32"] isEqual:r4]),"R4 uses inverted header CRC plus game code");
@@ -61,14 +64,55 @@ int main(void) { @autoreleasepool {
   for(NSUInteger i=0;i<2;i++)[dsLines addObject:@"22000024 0000007F"];CHECK(([LibretroCheats codesForCheat:@{@"code":[dsLines componentsJoinedByString:@"+"],@"handler":@0} core:@"desmume" console:@"nds"]==nil),"DS program exceeding upstream stack buffer rejected intact");
   NSMutableArray *psxLines=[NSMutableArray array];for(NSUInteger i=0;i<60;i++)[psxLines addObject:[NSString stringWithFormat:@"8001%04lX %04lX",(unsigned long)i,(unsigned long)i]];program=[psxLines componentsJoinedByString:@"+"];
   native=[LibretroCheats codesForCheat:@{@"code":program,@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"];CHECK((native.count>1&&[[native componentsJoinedByString:@"+"] isEqual:program]),"long PSX independent writes split without loss or reordering");for(NSString *batch in native)CHECK((batch.length<=255),"every PSX call remains bounded");
+  for (NSString *valid in @[@"D0010024 0011+80010028 007F",@"E3010024 0011+30010028 007F",@"50000302 0001+80010028 007F",@"D0010024 0011+50000302 0001+80010028 007F"]) {
+    native=[LibretroCheats codesForCheat:@{@"code":valid} core:@"mednafen_psx_hw" console:@"psx"];
+    CHECK((native.count==1&&[native[0] isEqual:[valid stringByReplacingOccurrencesOfString:@" " withString:@""]]),"PSX condition/repeater stays in one native call");
+  }
+  for (NSString *invalid in @[@"D0010024 0011",@"50000302 0001",@"D0010024 0011+E0010028 0011+8001002C 007F",@"50000302 0001+D0010024 0011+80010028 007F",@"50000302 0001+50000302 0001+80010028 007F",@"E0010024 0100+30010028 007F",@"50000302 0100+80010028 007F",@"50010302 0001+80010028 007F",@"50000002 0001+80010028 007F",@"C2010024 0011+80010028 007F"]) {
+    CHECK(([LibretroCheats codesForCheat:@{@"code":invalid} core:@"mednafen_psx_hw" console:@"psx"]==nil),"PSX unsupported or incomplete control group rejected atomically");
+  }
+  NSMutableArray *atomic=[NSMutableArray arrayWithObjects:@"D00100240011",nil];for(NSUInteger i=0;i<18;i++)[atomic addObject:@"80010028007F"];
+  CHECK(([LibretroCheats codesForCheat:@{@"code":[atomic componentsJoinedByString:@"+"]} core:@"mednafen_psx_hw" console:@"psx"].count==1),"PSX19compactinstructions fit one255byte call");
+  [atomic addObject:@"80010028007F"];CHECK(([LibretroCheats codesForCheat:@{@"code":[atomic componentsJoinedByString:@"+"]} core:@"mednafen_psx_hw" console:@"psx"]==nil),"PSX conditional program over255 is never fragmented");
   for(NSString *unreviewed in @[@"azahar",@"unreviewed_core"])CHECK((![[LibretroCheats supportedCoreIDs] containsObject:unreviewed]),"identity support does not claim unverified native activation");
   CHECK((([LibretroCheats codesForCheat:@{@"code":@"_L 0x200F0024 0x0000007F\n_L 0x200F0028 0x00000022",@"handler":@0} core:@"ppsspp" console:@"psp"].count==1)),"PSP CWCheat normalized as one ordered program");
   CHECK((([LibretroCheats codesForCheat:@{@"code":@"_M 0x200F0024 0x0000007F",@"handler":@0} core:@"ppsspp" console:@"psp"]==nil)),"PSP alternate dialect is not silently rewritten");
+  native=[LibretroCheats codesForCheat:@{@"code":@"08000100:12345678+08000104:ABCDEF01",@"dialect":@"gba-vba-raw"} core:@"mgba" console:@"gba"];
+  CHECK((native.count==1&&[native[0] isEqual:@"08000100:12345678+08000104:ABCDEF01"]),"VBA ROM patch colon and source byte order preserved");
+  native=[LibretroCheats codesForCheat:@{@"code":@"0200E924:96+03000000:0096+02000004:00000096+03007FFF:7F",@"dialect":@"gba-vba-raw"} core:@"mgba" console:@"gba"];
+  CHECK((native.count==1&&[native[0] isEqual:@"0200E924:96  +03000000:0096+02000004:00000096+03007FFF:7F  "]),"VBA RAM write widths and required byte padding survive every separator and final record");
+  for(NSString *invalid in @[@"02040000:12",@"03008000:12",@"02000001:1234",@"03007FFE:12345678",@"04000000:1234",@"08000100:1234",@"08000100 12345678",@"08000100:12345678+ZZ000104:ABCDEF01"])
+    CHECK(([LibretroCheats codesForCheat:@{@"code":invalid,@"dialect":@"gba-vba-raw"} core:@"mgba" console:@"gba"]==nil),"VBA ROM profile rejects other address spaces or dialects");
   NSMutableArray *n64Lines=[NSMutableArray array];for(NSUInteger i=0;i<128;i++)[n64Lines addObject:@"800F0024 007F"];program=[n64Lines componentsJoinedByString:@"+"];
   native=[LibretroCheats codesForCheat:@{@"code":program,@"handler":@0} core:@"mupen64plus_next" console:@"n64"];CHECK((native.count==1&&[native[0] isEqual:program]&&program.length==1791),"N64 complete128pairs fit upstream256tokens");
   [n64Lines addObject:@"800F0024 007F"];CHECK(([LibretroCheats codesForCheat:@{@"code":[n64Lines componentsJoinedByString:@"+"],@"handler":@0} core:@"mupen64plus_next" console:@"n64"]==nil),"N64 never overruns upstream token slots");
   CHECK((([LibretroCheats codesForCheat:@{@"code":@"D00F0024 0001+800F0028 007F",@"handler":@0} core:@"mupen64plus_next" console:@"n64"].count==1)),"N64 condition and write stay grouped");
   CHECK((([LibretroCheats codesForCheat:@{@"code":@"D00F0024 0001",@"handler":@0} core:@"mupen64plus_next" console:@"n64"]==nil)),"dangling N64 condition rejected");
   CHECK((([LibretroCheats codesForCheat:@{@"code":@"880F0024 007F",@"handler":@0} core:@"mupen64plus_next" console:@"n64"]==nil)),"N64 physical GameShark button code not falsely advertised");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"1F0024:7F+F82024:11"} core:@"mednafen_pce_fast" console:@"pce"].count==1),"PCE native main RAM and attested alias accepted together");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"0D0000:7F+10FFFF:11"} core:@"mednafen_pce_fast" console:@"pccd"].count==1),"PCE CD RAM admitted only on CD console binding");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"0D0000:7F"} core:@"mednafen_pce_fast" console:@"pce"]==nil),"PCE cartridge profile cannot address unconfirmed CD memory");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"80C024:7F"} core:@"mednafen_pce_fast" console:@"pce"]==nil),"PCE guessed address alias remains unavailable");
+  NSMutableArray *pceLines=[NSMutableArray array];for(NSUInteger i=0;i<26;i++)[pceLines addObject:@"1F0024:7F"];
+  native=[LibretroCheats codesForCheat:@{@"code":[pceLines componentsJoinedByString:@"+"]} core:@"mednafen_pce_fast" console:@"pce"];
+  CHECK((native.count==2&&[[native componentsJoinedByString:@"+"] isEqual:[pceLines componentsJoinedByString:@"+"]]),"PCE append-only calls preserve all26writes and their order under255bytes");
+  [pceLines addObject:@"FFFFFF:01"];CHECK(([LibretroCheats codesForCheat:@{@"code":[pceLines componentsJoinedByString:@"+"]} core:@"mednafen_pce_fast" console:@"pce"]==nil),"PCE validates the tail before emitting any batches");
+  native=[LibretroCheats codesForCheat:@{@"code":@"001E24:09+0000FFFF:7F"} core:@"mednafen_wswan" console:@"wsc"];
+  CHECK((native.count==1&&[native[0] isEqual:@"1E24:09+FFFF:7F"]),"WonderSwan canonicalizes only numerically identical main RAM addresses");
+  for(NSString *invalid in @[@"10000:01",@"00010000:01",@"0123456",@"1E24:0100"])
+    CHECK(([LibretroCheats codesForCheat:@{@"code":invalid} core:@"mednafen_wswan" console:@"ws"]==nil),"WonderSwan raw profile refuses ROM Game Genie and unknown SRAM");
+  NSMutableArray *wsLines=[NSMutableArray array];for(NSUInteger i=0;i<128;i++)[wsLines addObject:@"1E24:09"];
+  native=[LibretroCheats codesForCheat:@{@"code":[wsLines componentsJoinedByString:@"+"]} core:@"mednafen_wswan" console:@"ws"];
+  CHECK((native.count==1&&[native[0] length]==1023),"128WonderSwan writes stay in one streaming parser call");
+  native=[LibretroCheats codesForCheat:@{@"code":@"AMEA-AA9Y+FF03B4:0060"} core:@"picodrive" console:@"32x"];
+  CHECK((native.count==1&&[native[0] isEqual:@"AMEA-AA9Y+FF03B4:0060"]),"PicoDrive attested MD Genie and raw words preserve one programme");
+  for(NSString *invalid in @[@"FF0001:0001",@"400000:1234",@"FF0000:FFFF",@"FF0000:12345"])
+    CHECK(([LibretroCheats codesForCheat:@{@"code":invalid} core:@"picodrive" console:@"32x"]==nil),"PicoDrive rejects odd SH2 sentinel and oversized words");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"AMEA-AA9Y"} core:@"picodrive" console:@"mcd"]==nil),"PicoDrive CD profile never projects cartridge ROM addresses");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"FF03B4:0060"} core:@"picodrive" console:@"sms"]==nil),"PicoDrive SMS RAM no-op is not offered as an executable profile");
+  NSMutableArray *picoLines=[NSMutableArray array];for(NSUInteger i=0;i<50;i++)[picoLines addObject:@"FF03B4:0060"];
+  native=[LibretroCheats codesForCheat:@{@"code":[picoLines componentsJoinedByString:@"+"]} core:@"picodrive" console:@"32x"];
+  CHECK((native.count==3&&[[native componentsJoinedByString:@"+"] isEqual:[picoLines componentsJoinedByString:@"+"]]),"PicoDrive append batches retain the complete50write programme");
+  [picoLines addObject:@"FF0001:0001"];CHECK(([LibretroCheats codesForCheat:@{@"code":[picoLines componentsJoinedByString:@"+"]} core:@"picodrive" console:@"32x"]==nil),"PicoDrive rejects an invalid last write before returning any batches");
   [NSFileManager.defaultManager removeItemAtPath:folder error:nil];
 } printf("Unified identity: %u checks, %u failures\n",checks,failures);return failures?1:0; }

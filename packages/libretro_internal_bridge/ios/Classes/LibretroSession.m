@@ -3225,6 +3225,21 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
         }];
       }];
     _cheatMenu.uiLocale = [self uiLocale];
+    _cheatMenu.fbneoCommand = ^(NSDictionary *request, void (^completion)(NSDictionary *, NSError *)) {
+      LibretroSession *session = weakSelf;
+      if (!session) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+          if (completion) completion(nil, [NSError errorWithDomain:@"NeoStation.LibretroCheats" code:1
+            userInfo:@{NSLocalizedDescriptionKey:@"The game session has ended"}]);
+        });
+        return;
+      }
+      [session enqueue:^{
+        NSError *error = nil;
+        NSDictionary *result = [session->_host performFBNeoCheatCommand:request error:&error];
+        dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(result, error); });
+      }];
+    };
     _cheatMenu.diagnostic = ^(NSString *message) {
       LibretroSession *session = weakSelf; if (!session) return;
       [session->_journal note:[@"cheats: " stringByAppendingString:message]];

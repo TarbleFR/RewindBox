@@ -47,6 +47,15 @@ jobs:
           python3 tools/cheats/unified_catalogue.py validate --input native/cheats/catalogue
           python3 test/unified_catalog_runtime_test.py
           python3 test/unified_catalog_browser_ui_test.py
+          python3 -m unittest discover -s test -p unified_identity_ps1_source_test.py -v
+          python3 -m unittest discover -s test -p unified_identity_pce_ws_source_test.py -v
+          python3 test/unified_native_artemis_test.py
+      - name: Real pinned Dolphin Action Replay decryption
+        run: python3 test/unified_native_dolphin_ar_test.py --fetch
+      - name: Real pinned mGBA wrapper and complete-program decoders
+        run: python3 test/unified_native_mgba_test.py --fetch
+      - name: Real pinned PicoDrive decoder, append, apply and reset
+        run: python3 test/unified_native_picodrive_test.py --fetch
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - name: Resolve the new shared plugin in the locked workspace
@@ -101,9 +110,15 @@ jobs:
           run-id: '38638115521'
           github-token: ${{ github.token }}
           path: dist/libretro
+      - name: Delivered FBNeo INI parser and native memory effects
+        run: python3 test/unified_identity_fbneo_native.py --cores dist/libretro --evidence evidence/fbneo-native
       - name: Fetch the existing pinned PSP test fixture
+        if: ${{ !cancelled() }}
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+      # Historical PSP5/5 remains recorded, but the new shared Host guard
+      # changes its path too, so both engines are checked for this revision.
       - name: Real PPSSPP and Mupen RAM enable, repeat and disable
+        if: ${{ !cancelled() }}
         run: >-
           python3 test/unified_identity_core_probe.py
           --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs"

@@ -23,5 +23,12 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)versionTitle:(NSString *)title;
 + (NSString *)searchTitle:(NSString *)title;
 + (NSDictionary *)metadataForTitle:(NSString *)title;
+/// FBNeo uses native INI files and core options, not retro_cheat_set.
++ (BOOL)canInstallFBNeoPrograms:(NSArray<NSDictionary *> *)programs game:(NSDictionary *)game;
++ (nullable NSDictionary *)installFBNeoPrograms:(NSArray<NSDictionary *> *)programs game:(NSDictionary *)game
+                               systemDirectory:(NSString *)directory error:(NSError **)error;
+/// Copy only an intact receipt-backed native file into an isolated session folder.
++ (nullable NSDictionary *)stageManagedFBNeoDriver:(NSString *)driver systemDirectory:(NSString *)directory
+                                      destination:(NSString *)destination error:(NSError **)error;
 @end
 NS_ASSUME_NONNULL_END

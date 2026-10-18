@@ -52,7 +52,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for flag in ('cores', 'inputs', 'evidence', 'label'):
         parser.add_argument('--' + flag, required=True)
+    parser.add_argument('--only', choices=('psp', 'n64'), nargs='+',
+                        help='Run only the selected real-core effect scenarios.')
     args = parser.parse_args()
+    selected = set(args.only or ('psp', 'n64'))
     if sys.platform != 'darwin':
         raise SystemExit('The real-core probe requires Apple Silicon macOS Simulator.')
     expected = {
@@ -60,6 +63,8 @@ def main():
         'mupen64plus_next': 'afdaff358796de530fa005eb037af68f3e05936442cf07f5f7dde86803f8f115',
     }
     for core, digest in expected.items():
+        if ('psp' if core == 'ppsspp' else 'n64') not in selected:
+            continue
         binary = Path(args.cores) / 'Frameworks' / f'{core}_libretro.framework' / f'{core}_libretro'
         if hashlib.sha256(binary.read_bytes()).hexdigest() != digest:
             raise SystemExit(f'{core}: input is not the inspected delivered core.')
@@ -68,11 +73,19 @@ def main():
     args.lot1 = args.lot2 = args.official_shaders = False
     evidence = Path(args.evidence)
     evidence.mkdir(parents=True, exist_ok=True)
-    probe.REAL_CORES = ('ppsspp', 'mupen64plus_next')
+    probe.REAL_CORES = tuple(core for core in expected
+                            if ('psp' if core == 'ppsspp' else 'n64') in selected)
     probe.SCENARIOS = [
         {'name':'unified-cheats-psp','core':'ppsspp','console':'psp','content':'content/probe.iso','cheatProbe':True,'expect':'run'},
-        {'name':'unified-cheats-n64','core':'mupen64plus_next','console':'n64','content':'content/unified-cheats.z64','cheatProbe':True,'expect':'run'},
+        {'name':'unified-cheats-n64','core':'mupen64plus_next','console':'n64','content':'content/unified-cheats.z64','cheatProbe':True,'expect':'run',
+         # Simulator has no usable OpenGL ES textures. Exercise the delivered
+         # software RDP/RSP implementations, not a fake hardware context.
+         'optionDefaults':{'mupen64plus-rdp-plugin':'angrylion',
+                           'mupen64plus-rsp-plugin':'cxd4',
+                           'mupen64plus-cpucore':'cached_interpreter'},
+         'noJitOverrides':{'mupen64plus-cpucore':'cached_interpreter'}},
     ]
+    probe.SCENARIOS = [item for item in probe.SCENARIOS if item['console'] in selected]
     with tempfile.TemporaryDirectory(prefix='unified-cheats-cores-') as temporary:
         work = Path(temporary)
         # Compile the exact existing probe with only its dispatch function
@@ -95,6 +108,18 @@ def main():
         entry.write_text(source)
         probe.ROOT = stage
         app, scenarios = probe.assemble(args, probe.BRIDGE, work / 'build')
+        # assemble deliberately overwrites scenario settings with the product
+        # catalogue's defaults. Apply these Simulator-only software engines
+        # after that step, without editing the catalogue or production Host.
+        for scenario in scenarios:
+            if scenario['core'] == 'mupen64plus_next':
+                fixture = next(item for item in probe.SCENARIOS if item['core'] == scenario['core'])
+                scenario['optionDefaults'].update(fixture['optionDefaults'])
+                scenario['noJitOverrides'].update(fixture['noJitOverrides'])
+        config_path = app / 'probe-config.json'
+        config = json.loads(config_path.read_text())
+        config['scenarios'] = scenarios
+        config_path.write_text(json.dumps(config, indent=2) + '\n')
         n64_content(app / 'content/unified-cheats.z64')
         probe.run(['codesign', '--force', '--sign', '-', '--timestamp=none', app])
         outcome = probe.run_in_simulator(app, evidence, 180)

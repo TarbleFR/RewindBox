@@ -52,7 +52,12 @@ static NSDictionary* RPCheatDocument(NSDictionary* program) {
     for (id line in patch[@"Patch"])
       if (![line isKindOfClass:NSArray.class] || [line count] != 3 ||
           ![line[0] isKindOfClass:NSString.class] ||
-          !RPCheatMatch(line[0],@"^(byte|le16|le32|le64|lef32|lef64|be16|be32|be64|bd32|bd64|bef32|bef64|alloc|code_alloc|jump|jump_link|jump_func|utf8|cutf8|bpex)$")) return nil;
+          !RPCheatMatch(line[0],@"^(byte|le16|le32|le64|lef32|lef64|be16|be32|be64|bd32|bd64|bef32|bef64|alloc|code_alloc|jump|jump_link|jump_func|utf8|cutf8|bpex)$") ||
+          // patch_type_uses_hex_offset covers every opcode allowed above.
+          // A typed YAML loader must preserve/re-emit hexadecimal addresses:
+          // JSON decimal numbers are scalars but the real Core rejects them.
+          !RPCheatMatch(line[1],@"^0x[0-9A-Fa-f]{1,8}$") ||
+          !([line[2] isKindOfClass:NSString.class] || [line[2] isKindOfClass:NSNumber.class])) return nil;
   }
   return document;
 }

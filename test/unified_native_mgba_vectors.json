@@ -1,0 +1,811 @@
+{
+  "schema_version": 1,
+  "engine_repository": "https://github.com/libretro/mgba",
+  "engine_revision": "7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+  "delivered_binary_sha256": "c7026dc4d8a799be2d991faa3d4e2286011d97f9b11fb1e2ef6ba77ebca66218",
+  "delivered_version_string": "0.11-212-7a12d6d",
+  "source_sha256": {
+    "src/gba/cheats.c": "081bde3fc8dc52df676330c5d7e38fa208cee8f55111e91786ec35ad687b692d",
+    "src/gba/cheats/gameshark.c": "03c0d4ef2c2cdab44e6bc67480ee6a4bd309684bcd3678df427a323d6f468577",
+    "src/gba/cheats/parv3.c": "0cd4edd4c3da0fd2ab3ba74af76e82d7bcd57bf54449b2a8f378c2ad5767d4c8",
+    "src/gba/cheats/codebreaker.c": "ace40160677b887bd8e0db6e8cc24f4a6ac07e1e6b4bfa30609ecbb64b5d0ed1",
+    "src/core/cheats.c": "9ef9f8adfcc9d291c7b1a7e72149bb547057acf440143a321a7207029b354ba1",
+    "src/util/string.c": "869bf7ea80f1ec3a65d1043608480a0372901a4fcccd501afe05a9f05cda909f",
+    "src/util/vector.c": "a4bc89430bbb9d27b4deb32aaf41a8ba6d3a8cdd3d8179546159fc55ea305613",
+    "src/platform/libretro/libretro.c": "79f25f38e20efa0507b59ab513b5528afe8957e74f764cebff96b53b0ca62c63"
+  },
+  "vectors": [
+    {
+      "source_id": "xoevoox_firered",
+      "title": "Pokemon FireRed (USA)",
+      "name": "Encounter Bulbasaur — FireRed USA",
+      "complete_program_code": "72BC6DFB E9CA5465\nA47FB2DC 1AF3CA86\n17543C48 E65E0B97\nAD86124F 2823D8DA",
+      "trace": {
+        "lines": [
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 3,
+            "scores": [
+              -48,
+              32,
+              -64,
+              16
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 3,
+            "selected_version": 3,
+            "scores": [
+              -176,
+              256,
+              -64,
+              16
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 3,
+            "selected_version": 3,
+            "scores": [
+              -112,
+              64,
+              -112,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 3,
+            "selected_version": 3,
+            "scores": [
+              16,
+              -96,
+              -64,
+              16
+            ]
+          }
+        ],
+        "accepted": 4,
+        "total": 4,
+        "instructions": 0,
+        "rom_patches": 1,
+        "hook": true,
+        "incomplete": false,
+        "remaining_addresses": 0,
+        "operations": []
+      },
+      "native_channel": "gba-auto"
+    },
+    {
+      "source_id": "gameshark_event_islands",
+      "title": "Pokemon Emeraude (France)",
+      "name": "Master Code — Français Émeraude",
+      "complete_program_code": "00004B8C 000A\n100005E6 0007",
+      "trace": {
+        "lines": [
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "accepted": 2,
+        "total": 2,
+        "instructions": 0,
+        "rom_patches": 0,
+        "hook": true,
+        "incomplete": false,
+        "remaining_addresses": 0,
+        "operations": []
+      },
+      "native_channel": "gba-auto"
+    },
+    {
+      "source_id": "delta_workbook",
+      "title": "Pokemon Emerald",
+      "name": "Catch Trainers' Pokemon",
+      "complete_program_code": "B6C5368A 08BE8FF4\nB8D95CFE 06ED6EA1\nE151C402 8A229A83\n8E883EFF 92E9660D",
+      "trace": {
+        "lines": [
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 3,
+            "scores": [
+              -64,
+              32,
+              -64,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 3,
+            "selected_version": 3,
+            "scores": [
+              -64,
+              64,
+              -64,
+              16
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 3,
+            "selected_version": 3,
+            "scores": [
+              -64,
+              64,
+              -176,
+              16
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 3,
+            "selected_version": 3,
+            "scores": [
+              -64,
+              -96,
+              16,
+              0
+            ]
+          }
+        ],
+        "accepted": 4,
+        "total": 4,
+        "instructions": 2,
+        "rom_patches": 1,
+        "hook": false,
+        "incomplete": false,
+        "remaining_addresses": 0,
+        "operations": [
+          {
+            "type": 6,
+            "width": 2,
+            "address": 67109168,
+            "operand": 255,
+            "repeat": 1
+          },
+          {
+            "type": 0,
+            "width": 1,
+            "address": 33697772,
+            "operand": 4,
+            "repeat": 1
+          }
+        ]
+      },
+      "native_channel": "gba-auto"
+    },
+    {
+      "source_id": "tyler_shiny",
+      "title": "Pokemon Emerald (USA)",
+      "name": "Shiny stationary/starters/roaming/fossil/gift Pokémon — complete RAW program",
+      "complete_program_code": "08067bf8:fc02f317\n08067bfe:fba7f317\n080007ba:fdb9f37e\n0837f330:f000b580\n0837f334:687ff965\n0837f338:2f00683f\n0837f33c:f4f0d101\n0837f340:bd80f945\n0837f350:f4f0b5c0\n0837f354:f000f93b\n0837f358:687ff953\n0837f35c:603e2600\n0837f360:0000bdc0\n0837f400:b08cb5f0\n0837f404:f8fcf000\n0837f408:21016878\n0837f40c:68b86001\n0837f410:6800210a\n0837f414:88011840\n0837f418:88419100\n0837f41c:68f89101\n0837f420:91026801\n0837f424:9e019d00\n0837f428:990268f8\n0837f42c:0c086001\n0837f430:f4f01c04\n0837f434:1c01f8cb\n0837f438:40694061\n0837f43c:29084071\n0837f440:68f8daf6\n0837f444:91026801\n0837f448:f8e2f000\n0837f44c:bdf0b00c\n0837f600:47704f00\n0837f604:0837f700\n0837f610:480668f9\n0837f614:1c13680a\n0837f618:48054343\n0837f61c:600818c0\n0837f620:68114a04\n0837f624:60113901\n0837f628:47700c00\n0837f62c:eeb9eb65\n0837f630:0a3561a1\n0837f634:020249c0\n0837f700:03005550\n0837f704:0300554c\n0837f708:03005d90\n0837f70c:03005d80",
+      "trace": {
+        "lines": [
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "accepted": true,
+            "initial_version": 0,
+            "selected_version": 0,
+            "scores": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "accepted": 49,
+        "total": 49,
+        "instructions": 0,
+        "rom_patches": 49,
+        "hook": false,
+        "incomplete": false,
+        "remaining_addresses": 0,
+        "operations": []
+      },
+      "native_channel": "vba-colon"
+    }
+  ],
+  "vba_wrapper_proof": {
+    "payload": "0200E924:96  +0200E924:0096+0200E924:00000096",
+    "clean": {
+      "stored_lines": 3,
+      "rom_patches": 0,
+      "operations": [
+        {
+          "type": 0,
+          "width": 1,
+          "address": 33614116,
+          "operand": 150
+        },
+        {
+          "type": 0,
+          "width": 2,
+          "address": 33614116,
+          "operand": 150
+        },
+        {
+          "type": 0,
+          "width": 4,
+          "address": 33614116,
+          "operand": 150
+        }
+      ]
+    },
+    "after_cb9_seed": {
+      "stored_lines": 4,
+      "rom_patches": 0,
+      "operations": [
+        {
+          "type": 0,
+          "width": 1,
+          "address": 33614116,
+          "operand": 150
+        },
+        {
+          "type": 0,
+          "width": 2,
+          "address": 33614116,
+          "operand": 150
+        },
+        {
+          "type": 0,
+          "width": 4,
+          "address": 33614116,
+          "operand": 150
+        }
+      ]
+    },
+    "byte_padding": "Two spaces after a two-hex value, before + or end of the complete program."
+  }
+}
