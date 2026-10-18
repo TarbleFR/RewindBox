@@ -15,8 +15,10 @@ def main():
  flags=['xcrun','--sdk','iphonesimulator','clang','-target','arm64-apple-ios17.4-simulator','-isysroot',sdk,'-g','-O1']
  here=Path(__file__).parent;classes=ROOT/'packages/libretro_internal_bridge/ios/Classes'
  run(flags+['-I',ROOT/'packages/libretro_internal_bridge/ios/ThirdParty/include/libretro','-c',here/'core_probe.c','-o',evidence/'core_probe.o'])
- run(flags+['-std=c++17','-c',here/'poison.cpp','-o',evidence/'poison.o'])
- run(flags+['-fobjc-arc','-I',classes,here/'app.m',evidence/'core_probe.o',evidence/'poison.o','-lc++','-framework','UIKit','-framework','Foundation','-o',app/'Probe'])
+ poison=app/'Frameworks/libNestopiaPoison.dylib'
+ run(flags+['-std=c++17','-dynamiclib',here/'poison.cpp','-lc++','-Wl,-install_name,@rpath/libNestopiaPoison.dylib','-o',poison])
+ run(['codesign','--force','--sign','-','--timestamp=none',poison])
+ run(flags+['-fobjc-arc','-I',classes,here/'app.m',evidence/'core_probe.o',poison,'-Wl,-rpath,@executable_path/Frameworks','-lc++','-framework','UIKit','-framework','Foundation','-o',app/'Probe'])
  plist={'CFBundleIdentifier':bundle,'CFBundleExecutable':'Probe','CFBundleName':'Nestopia reset regression','CFBundlePackageType':'APPL',
         'CFBundleVersion':'1','CFBundleShortVersionString':'1.0','MinimumOSVersion':'17.4','LSRequiresIPhoneOS':True,
         'UIDeviceFamily':[1,2],'UILaunchScreen':{}}

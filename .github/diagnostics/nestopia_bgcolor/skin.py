@@ -8,12 +8,14 @@ import libretro_nestopia_skin_stability_probe as original
 import libretro_skin_press_probe as press
 from libretro_simulator_device import pick_notched_device
 def compile_with_poison(sources,sdk,work,app):
- obj=work/'nestopia_poison.o';original_run=probe.run
+ dylib=app/'Frameworks/libNestopiaPoison.dylib';original_run=probe.run
  original_run(['xcrun','--sdk','iphonesimulator','clang++','-target',probe.TARGET,'-isysroot',sdk,
-               '-O1','-std=c++17','-c',Path(__file__).parent/'poison.cpp','-o',obj])
+               '-O1','-std=c++17','-dynamiclib',Path(__file__).parent/'poison.cpp',
+               '-Wl,-install_name,@rpath/libNestopiaPoison.dylib','-o',dylib])
+ original_run(['codesign','--force','--sign','-','--timestamp=none',dylib])
  def link_with_poison(command,**kwargs):
   if str(app/'Probe') in [str(x) for x in command] and '-c' not in command:
-   command=list(command)+[str(obj),'-lc++']
+   command=list(command)+[str(dylib),'-Wl,-u,_nestopia_poisoned_allocations','-lc++']
   return original_run(command,**kwargs)
  probe.run=link_with_poison
  try:original_compile(sources,sdk,work,app)

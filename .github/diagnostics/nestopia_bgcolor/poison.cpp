@@ -1,4 +1,5 @@
-// Test executable only. Fill fresh Nestopia C++ allocations BEFORE construction.
+// Test dylib only. Fill fresh Nestopia C++ allocations BEFORE construction.
+// dyld's buildInterposingTables deliberately skips non-dylib images.
 // No core instructions, fields, callbacks or reset behavior are patched.
 #include <atomic>
 #include <cstdio>
