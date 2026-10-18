@@ -94,7 +94,8 @@ are required in every process. The separate six-session integration also passed,
 poisoned allocations, zero failures, real 602×224 / 2408-byte-pitch frames
 and completed Metal commands in every session. Four sessions use the original
 skin and two native controls; two original NES programs include plain and ZIP
-loading, live skin/layout changes and owner-lifetime checks. Simulator runtime
+loading, live skin/layout changes and 17 passing owner-lifetime checks, including eight live skin/layout
+changes under an additional 32 MiB load. Simulator runtime
 execution lasted 91.9 seconds; physical-device validation remains false. The already compiled core comes from
 `c3408821b2b9c47c6e31ae25b45c113aa9fd3f74`, with SHA-256
 `1a04f99e5ae2c10aa5b3c75b002e212e894c2e7934cc46232deb50da62c0e16d`.
@@ -154,7 +155,7 @@ No production UIKit, skin, touch, Metal, session, cheat or other-console source 
 ## Delivery gate
 
 The latest successful private delivery was Build 470, run `39078262825`;
-471 is the next number. The corrected binary was compiled once at source
+471 is the next number. The delivered corrected binary was compiled at source
 `c3408821b2b9c47c6e31ae25b45c113aa9fd3f74` and reused unchanged by the
 successful regression source `a518034e826258b1e2aa20f7abddb00d750411b4`,
 run [39081741396](https://github.com/TarbleFR/neostation-ios/actions/runs/39081741396).
@@ -163,7 +164,23 @@ The successful run preserves the same core collection as artifact
 `d2ba83c34e4a555c894f577fdfb436cc88641e8e323f49de639cde8c8abb17b4`.
 The delivery pipeline requires both this witness and the unchanged Build 470
 app evidence; only four new delivery-guard tests execute. No warm benchmark
-or public release is requested. Final IPA details follow after compilation.
+or public release is requested. The delivery completed successfully as recorded below.
+
+## Verified private delivery
+
+- Version **0.0.7 (471)**; source commit [`9429a1627a2f72dddc07a5fe3c4cda35cdbd7db9`](https://github.com/TarbleFR/neostation-ios/commit/9429a1627a2f72dddc07a5fe3c4cda35cdbd7db9).
+- Run [39082560152](https://github.com/TarbleFR/neostation-ios/actions/runs/39082560152): `checks`, `native` and cold Release build succeeded; optional warm build skipped. Four new delivery-guard tests passed. All 107 unchanged NeoSwap native inputs and prior app/skin/cheat checks were reused, not rerun.
+- Final file **NeoStation-Build471-9429a162.ipa**, **218,606,105 bytes**.
+- Final IPA SHA-256: **8484d2003a35de7c4ddedc199f9be9c80d540222b3fe2ca3e21e09c0f123682c**.
+- Encrypted artifact `12120055879`, ZIP SHA-256 `7a5ad1e997192aebfb71d527166294384b31b52b2c37e6630d9509ae47d7752f`, decrypted with the authorized 470 delivery recipient key. No key material is included in this report or the evidence bundle.
+- Independent inspection of the decrypted IPA confirms the app and five extensions at 0.0.7 (471), 34 cores, source stamps, 76 sealed ARM64 code/data/ABI image fingerprints and the record of 79 successful CI ad hoc signature checks. Linux does not run Apple's `codesign`; the delivered bytes match the CI-sealed identity. SideStore applies the normal Apple re-signing/provisioning for installation.
+- The packaged Nestopia UUID is **2321DDEC-E187-3AC6-80FD-C94C63C718C0**, iPhoneOS / minimum iOS 18.0.0. Its sealed-file SHA-256 is `47a017a4ce1bc8c1873a4279cde3e929767e8c5a8f409be6a618a7bf0ea2aeb0`; its code, data and ABI exactly match the tested compiled core. The other 33 cores and MoltenVK retain the delivered 470 code/data/ABI fingerprints. The test allocator dylib is absent from the IPA.
+- Windows copy verified through Desktop Commander: `C:\Users\Coren\Downloads\NeoStation-Build471-9429a162.ipa`, identical bytes and SHA-256. Existing IPAs were preserved.
+
+Only one Build 471 IPA was produced. The four retained preparation failures
+above concern the core's minimum-OS build recipe and the regression harness;
+none produced an IPA. The actual old/fixed core and six-session tests that
+passed were not repeated. **Do not reuse build number 471.**
 
 ## Limits
 
