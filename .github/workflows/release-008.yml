@@ -1,0 +1,34 @@
+name: Package NeoStation 0.0.8 from verified Build 480
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the exact tested IPA from the new draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh release view 0.0.8 --json isDraft --jq .isDraft)" = true
+          gh release download 0.0.8 --pattern NeoStation-Build480-7493d9ba.ipa --dir release-input
+      - name: Update the public version and verify unchanged compiled payloads
+        run: python3 build-utils/package_release008.py release-input/NeoStation-Build480-7493d9ba.ipa --output release-output
+      - name: Upload the verified release files to the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh release view 0.0.8 --json isDraft --jq .isDraft)" = true
+          gh release upload 0.0.8 release-output/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NeoStation-0.0.8-release-evidence
+          path: |
+            release-output/*.json
+            release-output/*SHA256SUMS.txt
+          if-no-files-found: error

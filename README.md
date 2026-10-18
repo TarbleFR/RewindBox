@@ -9,7 +9,7 @@
 
 ![NeoStation iOS](assets/readme/neostation-ios-preview.png)
 
-**[Download 0.0.7 · Build 455](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
+**[Download 0.0.8](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
 
 </div>
 
@@ -23,36 +23,31 @@ local games run inside the app, with NeoStation's own menu and controls.
 A separate RetroArch installation is not required. **MeloNX** remains a separate
 app for the Nintendo Switch integration.
 
-## What's new in 0.0.7
+## What's new in 0.0.8
 
-- **Nintendo 3DS:** Azahar **2127.0-alpha1**, Fast Interpreter mode, and improved
-  BIOS/NAND imports, including supported console-encrypted NAND titles.
-- **AirPlay / Apple TV:** corrected NeoStation menu presentation.
-- **Consoles:** hide console profiles and enable or disable embedded emulators
-  individually.
-- **Skins and shaders:** improved community catalogs, Libretro shader downloads
-  and Dolphin visual effects.
-- **Internal resolution:** adjust supported Libretro cores globally or per game.
-  Available values and whether a restart is required depend on the core.
-- **Touch controls:** refinements to on-screen buttons and virtual sticks.
-- **Menu music:** “Once Upon a Time (loop)” by **TAD**, under **CC0 1.0**.
-  Enabled by default; switch it off in Settings.
+- **Unified cheat catalogue:** a single download for supported Libretro cores,
+  arcade, PS2, PS3, GameCube and Wii games, with automatic edition matching,
+  faster searches and direct on/off switches.
+- **More immersive controls:** visible button presses on compatible skins and
+  improved touch handling.
+- **Scraping:** reduced memory use for large files, correcting the reported
+  iPhone 15 Pro Max crash.
+- **Stability:** fixes for game startup, skins, shaders and closing games.
+- **First launch:** skip folder selection and add games later.
 
-The release contains the **Build 455 IPA** and its SHA-256 checksum.
-[Read the release notes](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7).
+[Read the release notes](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8).
 
-## Unified cheats and patches — development snapshot
+## Unified cheats and patches
 
-The current source tree starts from private **Build 479** and withholds the eight Pokémon France programs pending permission:
+Version **0.0.8** includes the unified catalogue and withholds the eight Pokémon France programs pending permission:
 **50 active contributing source entries**, **2,395,541 programs and edition variants**,
 and **1,926 source-backed 60 FPS selections** for supported native adapters.
 One common installation serves the embedded engines. Matching uses the detected
 game identity, region and revision; compatible codes appear as named switches.
 Codes start disabled. Coverage and native support depend on the exact game edition.
 
-These are development-source improvements, separate from the official
-**0.0.7 / Build 455** download above. Source profiles can share an upstream project,
-and their contributions overlap; the counts do not mean unique games or effects.
+Source profiles can share an upstream project, and their contributions overlap;
+the counts do not mean unique games or effects.
 
 **[Full source credits, pinned inputs and recorded license notices](docs/CHEAT_CATALOG_SOURCES.md)**
 credit the collections and original authors. Their data keeps its own terms;

@@ -23,7 +23,7 @@ workspace:
   - packages/neo_shader_kit
   - packages/neo_cheat_catalog
 
-version: 0.0.7+455
+version: 0.0.8+480
 environment:
   sdk: '>=3.9.2'
 
