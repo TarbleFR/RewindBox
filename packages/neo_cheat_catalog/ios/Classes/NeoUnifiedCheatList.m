@@ -219,7 +219,9 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   cell.userInteractionEnabled=!self.busy && !(path.section==0 && path.row==0 && self.downloading); return cell;
 }
 - (void)applyRow:(NSDictionary *)row enabled:(BOOL)enabled {
-  if (self.busy || !self.setEnabled) return; self.busy=YES; [self.tableView reloadData];
+  if (self.busy || self.closed || !self.setEnabled || ![self.state[@"available"] boolValue] ||
+      [self.state[@"hardcore"] boolValue] || [row[@"native"][@"readOnly"] boolValue]) return;
+  self.busy=YES; [self.tableView reloadData];
   NSUInteger generation=self.generation; __weak typeof(self) weakSelf=self;
   void (^activate)(NSDictionary *,NSError *)=^(NSDictionary *item,NSError *error) {
     NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed || menu.generation!=generation || menu.navigationController.topViewController!=menu || !menu.viewIfLoaded.window || menu.navigationController.isBeingDismissed) return;
@@ -239,6 +241,10 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
 - (void)toggle:(UISwitch *)sender {
   if (sender.tag<0 || sender.tag>=(NSInteger)self.rows.count || self.busy) return;
   NSDictionary *row=self.rows[sender.tag]; BOOL enabled=sender.on;
+  if (!sender.enabled || self.closed || ![self.state[@"available"] boolValue] ||
+      [self.state[@"hardcore"] boolValue] || [row[@"native"][@"readOnly"] boolValue]) {
+    sender.on=[row[@"native"][@"enabled"] boolValue]; return;
+  }
   NSString *editionKey=[@"edition|" stringByAppendingString:NCLString(row[@"game"][@"identity_group"] ?: row[@"game"][@"id"])];
   if (!row[@"native"] && ![row[@"game"][@"match"] isEqual:@"exact"] && ![self.links[editionKey] isEqual:@"confirmed"]) {
     sender.on=NO;

@@ -932,6 +932,9 @@ static void NUCBExchangeSingleton(void) {
 
 - (void)test476OfflinePackIsRecoveredAndBlockedEngineDoesNotHideMatchingCodes {
     NeoUnifiedCheatList* list=[self directListWithItems:@[]];
+    __block NSUInteger mutations=0;
+    list.install=^(NSDictionary* game,NSArray* programs,void (^done)(NSDictionary*,NSError*)){mutations++;};
+    list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){mutations++;};
     NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@NO;game[@"cached_pack"]=@YES;
     self.catalog.rows=@[game];
     list.readState=^(void (^done)(NSDictionary*)){done(@{@"identity":[self identity],@"available":@NO,@"help":@"Protected native patch file",@"items":@[]});};
@@ -939,6 +942,8 @@ static void NUCBExchangeSingleton(void) {
     XCTAssertEqual([list tableView:list.tableView numberOfRowsInSection:1],1U);
     UITableViewCell* cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
     XCTAssertFalse(((UISwitch*)cell.accessoryView).enabled);
+    UISwitch* toggle=(id)cell.accessoryView;toggle.on=YES;[toggle sendActionsForControlEvents:UIControlEventValueChanged];
+    XCTAssertEqual(mutations,0U);XCTAssertFalse(toggle.on);
     XCTAssertEqualObjects([list tableView:list.tableView titleForFooterInSection:1],@"Protected native patch file");
 }
 
