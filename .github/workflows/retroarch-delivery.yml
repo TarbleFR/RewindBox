@@ -687,8 +687,9 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
+        RPCS3_PIN_GUARD=.github/diagnostics/unified_cheats_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
-        git diff --exit-code "$RPCS3_CORE_HOST_SHA" "$GITHUB_SHA" -- \
+        python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           build-utils/build_rpcs3_embedded_core.sh \
           build-utils/materialize_rpcs3_core.py \
           build-utils/apply_rpcs3_llvm_patch.py \
@@ -756,13 +757,14 @@ jobs:
         # RPCS3_CORE_INPUTS_END
         # The independent host broker/donation is rebuilt by this IPA job.
         # Only the Core source, client ABI, recipe and native tests are pinned.
-        python3 test/neo_swap_core_pin_test.py
+        # The guard above validates all original Core inputs in an exact ABI view.
         python3 - <<'PY'
         import json, os, shutil, sys
         from pathlib import Path
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
-        from neo_swap_core_pin_test import validate_core_input_identity
+        sys.path.insert(0, '.github/diagnostics')
+        from unified_cheats_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -814,6 +816,8 @@ jobs:
         symbols = {line.split()[-1] for line in exports if line.split()}
         missing = (set(REQUIRED_CORE_SYMBOLS) | {
             '_rpcs3_ios_set_neoswap_api', '_rpcs3_ios_get_neoswap_client_stats',
+            '_rpcs3_ios_install_patch_repository', '_rpcs3_ios_enumerate_runtime_patches',
+            '_rpcs3_ios_set_runtime_patch_enabled', '_rpcs3_ios_enumerate_games',
         }) - symbols
         forbidden = set(FORBIDDEN_CORE_SYMBOLS) & symbols
         assert not missing, f'Missing RPCS3 Core exports: {sorted(missing)}'

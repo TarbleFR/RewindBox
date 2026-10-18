@@ -8,7 +8,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
+import sys
+import tempfile
+from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = '881c8df6bcffbdd0e4c3f5a32fd66492830f6dd1'
@@ -63,6 +67,60 @@ def source_closure():
         raise ValueError('Final manifest no longer matches the Apple preflight')
     return {'base': BASE, 'catalogue': CATALOGUE, 'nativeSDK': SDK_SOURCE,
             'correctedRPCS3Store': RPC_SOURCE, 'allOtherInputsUnchanged': True}
+
+
+@contextmanager
+def rpc_core_input_view(pin):
+    """Preserve the authentic Core identity; isolate host-only declarations.
+
+    Every published Core input is still checked byte-for-byte. Only a temporary
+    view of the host header removes the exact, separately SDK-tested optional
+    declarations. The compiled main API layout must equal the pinned original.
+    Neither the live header nor the downloaded identity is rewritten.
+    """
+    sys.path.insert(0, str(ROOT / 'test'))
+    import neo_swap_core_pin_test as core
+    if pin != 'dcf0df67b3edf923d5dd54071f5228e6cf6882b6':
+        raise ValueError('Unexpected RPCS3 Core pin')
+    path = 'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h'
+    current = (ROOT / path).read_bytes()
+    tested = subprocess.check_output(['git', 'show', SDK_SOURCE + ':' + path], cwd=ROOT)
+    original = subprocess.check_output(['git', 'show', pin + ':' + path], cwd=ROOT)
+    if current != tested:
+        raise ValueError('Optional RPCS3 declarations differ from their SDK proof')
+    start = current.index(b'// Optional functions already exported by the pinned ABI-30 Core.')
+    end = current.index(b'typedef enum rpcs3_ios_performance_metric_bits', start)
+    normalized = current[:start] + current[end:]
+    if normalized != original:
+        raise ValueError('Main RPCS3 ABI changed outside the proved optional declarations')
+    folder = ROOT / 'build'
+    folder.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='rpc-core-input-view-', dir=folder) as tmp:
+        view = Path(tmp)
+        # Read the same immutable objects, with paths relative to this view.
+        # No index/ref operation is performed in the temporary repository view.
+        git_dir = command(['git', 'rev-parse', '--absolute-git-dir'])
+        (view / '.git').write_text('gitdir: ' + git_dir + '\n')
+        for relative in core.CORE_INPUTS:
+            destination = view / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, destination)
+        (view / path).write_bytes(normalized)
+        yield core, view
+
+
+def validate_rpc_core_identity(identity):
+    with rpc_core_input_view(identity['host_commit']) as (core, view):
+        core.validate_core_input_identity(identity, root=view)
+
+
+def validate_rpc_core_pin(pin, paths):
+    with rpc_core_input_view(pin) as (core, view):
+        if len(paths) != len(core.CORE_INPUTS) or set(paths) != set(core.CORE_INPUTS):
+            raise ValueError('Delivery omitted or duplicated a published Core input')
+        core.validate_source_contract()
+        core.validate_exact_pin(pin, root=view)
+    print('PASS all authentic RPCS3 Core inputs; only exact optional host declarations isolated')
 
 
 def successful_run(run_id, ref, names):
@@ -141,8 +199,13 @@ def main():
     p.add_argument('--skin-session-evidence', action='store_true')
     p.add_argument('--scope', default='full', choices=['full'])
     p.add_argument('--output', default='build/delivery/reused-validation.json')
+    p.add_argument('--rpc-core-inputs')
+    p.add_argument('core_paths', nargs='*')
     a = p.parse_args()
     closure = source_closure()
+    if a.rpc_core_inputs:
+        validate_rpc_core_pin(a.rpc_core_inputs, a.core_paths)
+        return
     if a.source_only:
         print('PASS exact final catalogue, Apple source closure and unchanged 473 components')
         return

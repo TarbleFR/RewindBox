@@ -38,3 +38,14 @@ stopped in evidence collection before any IPA compilation. The installed
 GitHub CLI rejected historical ANSI-bearing logs without its explicit
 `--allow-escape-sequences` flag. The reader now captures those log bytes
 privately with that flag. No product, core or prior test assertion changed.
+
+Run `39096796545`, source `ce605518c5b73cad2af3eae152339dc039997242`,
+passed checks and native provenance, then stopped before host compilation.
+The old RPCS3 input gate rejected the optional, separately tested patch API
+declarations in the host header. The replacement verifies the exact SDK-tested
+header, removes only that exact optional block in a temporary input view,
+requires every remaining byte to match the published Core header, and runs
+the unchanged Core pin/identity validators against that view. The authentic
+artifact identity and all other Core inputs remain unchanged. The live host
+header and the main ABI layout are never rewritten. Existing-symbol checks
+also require all four optional exports from the actual downloaded binary.
