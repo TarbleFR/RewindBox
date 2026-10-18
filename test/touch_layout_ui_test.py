@@ -131,7 +131,7 @@ def project(directory: Path, include: Path, resources: Path) -> Path:
     )
     search = ' '.join(str(path) for path in (include, DOL, DOL / 'TouchController', ARMS, RPC))
     sdk = [{'sdk': name} for name in ('UIKit.framework', 'Foundation.framework', 'GameController.framework',
-                                       'CoreMotion.framework', 'QuartzCore.framework')]
+                                       'CoreMotion.framework', 'QuartzCore.framework', 'CoreGraphics.framework')]
     spec = {
         'name': SCHEME,
         'options': {'deploymentTarget': {'iOS': '17.4'}},
