@@ -113,6 +113,7 @@ def simulator() -> dict:
 
 
 def project(directory: Path, include: Path, resources: Path) -> Path:
+    directory.mkdir(parents=True)
     umbrella = directory / 'dolphin_internal_bridge.h'
     umbrella.write_text('// Umbrella of the test stand-in: the header the Swift controls import.\n'
                         '#import <Foundation/Foundation.h>\n'
