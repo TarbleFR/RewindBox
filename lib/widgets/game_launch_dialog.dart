@@ -110,7 +110,13 @@ class _GameLaunchDialogState extends State<GameLaunchDialog> {
             _gameStatus = AppLocale.launchingGame.getString(context);
             break;
           case GameLaunchPhase.playing:
-            _gameStatus = AppLocale.gameExecuting.getString(context);
+            // Embedded iOS games cover this route with their native view.
+            // Prepare its return label now, before UIKit uncovers Flutter;
+            // the native end event still owns cleanup and route removal.
+            _gameStatus = (GameLaunchManager().closeRouteImmediately
+                    ? AppLocale.closingGame
+                    : AppLocale.gameExecuting)
+                .getString(context);
             break;
           case GameLaunchPhase.closing:
           case GameLaunchPhase.closed:

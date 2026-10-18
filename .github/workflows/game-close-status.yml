@@ -1,0 +1,35 @@
+name: Embedded game return label
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - lib/widgets/game_launch_dialog.dart
+      - test/game_close_status_test.py
+      - .github/workflows/game-close-status.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  close-status:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Exercise first return frame and unchanged cleanup ownership
+        run: python3 test/game_close_status_test.py
+      - name: Preserve targeted evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-close-status-${{ github.sha }}
+          path: build/close-status/
+          if-no-files-found: warn
+          retention-days: 14
