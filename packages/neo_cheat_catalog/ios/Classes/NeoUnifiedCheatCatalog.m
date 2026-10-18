@@ -437,21 +437,26 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 }
 - (NSDictionary *)localManifest {
   NSString *path=[self.storageDirectory stringByAppendingPathComponent:@"manifest.json"];
-  NSDictionary *cached=[self validatedManifest:ReadBounded(path,ManifestLimit) error:nil];
   NSData *bytes=[self bundledIndexBytes];
-  if (!bytes) return cached;
-  NSString *fingerprint=Digest(bytes);
+  NSString *fingerprint=bytes ? Digest(bytes) : nil;
   NSDictionary *previous=JSON(ReadBounded([self.storageDirectory stringByAppendingPathComponent:@"bundled-index.json"],4096));
   // A nonempty 474 cache must not conceal the new PS3 editions shipped in 475.
   // Remember the bundle generation separately so an explicit later remote
   // update is retained on subsequent launches of the same application.
-  if (Array(cached[@"games"]).count && [String(previous[@"sha256"]) isEqual:fingerprint]) return cached;
-  NSDictionary *bundled=[self validatedManifest:bytes error:nil];
-  if (!bundled) return cached;
-  NSDictionary *selected=[String(cached[@"revision"]) isEqual:String(bundled[@"revision"])] && Array(cached[@"games"]).count ? cached : bundled;
-  if (selected==bundled) WriteAtomic(JSONData(bundled),path,nil);
-  WriteAtomic(JSONData(@{@"sha256":fingerprint}),[self.storageDirectory stringByAppendingPathComponent:@"bundled-index.json"],nil);
-  return selected;
+  NSDictionary *bundled=nil;
+  if (bytes && ![String(previous[@"sha256"]) isEqual:fingerprint]) {
+    bundled=[self validatedManifest:bytes error:nil];
+    if (Array(bundled[@"games"]).count) {
+      // Do not parse and retain two full indexes during a memory-heavy game.
+      WriteAtomic(JSONData(bundled),path,nil);
+      WriteAtomic(JSONData(@{@"sha256":fingerprint}),[self.storageDirectory stringByAppendingPathComponent:@"bundled-index.json"],nil);
+      return bundled;
+    }
+  }
+  NSDictionary *cached=[self validatedManifest:ReadBounded(path,ManifestLimit) error:nil];
+  if (Array(cached[@"games"]).count || !bytes) return cached;
+  bundled=bundled ?: [self validatedManifest:bytes error:nil];
+  return bundled ?: cached;
 }
 - (NSUInteger)manifestDownloadLimit {
   return self.fetch ? ManifestLimit : ([self.manifestURL.path hasSuffix:@".gz"] ? ManifestCompressedLimit : ManifestLimit);
