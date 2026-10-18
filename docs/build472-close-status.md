@@ -59,3 +59,59 @@ The next available delivery number is 472 (the latest completed IPA is 471).
 The delivery recipe pins this new UI source and successful run, preserves the
 471 Nestopia proof and all unchanged native inputs, and rejects any other
 product or core edit. No public GitHub release is requested or created.
+
+
+## Delivered IPA verification
+
+- IPA source: `02550f923dd2d086227e9f379a896c23ef6670ac` on `Claude`.
+- GitHub Actions delivery run `39086364895`: checks `117553679232`, native
+  reuse `117553679091`, cold Release `117553781844` succeeded; optional warm
+  build skipped. Exactly one Build 472 IPA was produced.
+- Final IPA: **0.0.7 (472)**, **218,606,012 bytes**,
+  `NeoStation-Build472-02550f92.ipa`.
+- Final SHA-256:
+  `b47d59188f28b5c6e70de11207b77fe7a81f91f13ebecc5a53d08c5c49455b26`.
+- Authorized recipient remains
+  `docs/delivery/recipients/neostation-470-skins-recipient.pem`.
+  Encrypted artifact `12120918802`, **219,529,117 bytes**, archive SHA-256
+  `e7a2291d1df3a0243e46cbc36d733433f90cd5c2a8d0cb0c0af445d66c250f50`.
+  The RSA key and transient AES secret are excluded from evidence/deliverables.
+- Independent inspection matched the actual IPA against the final CI seal,
+  source stamp, all six application/extension versions and ZIP structure.
+  All 76 thin Mach-O identities match the seal; CI checked 79 ad hoc bundle
+  signatures. Apple codesign was not rerun on this Linux inspection host.
+- The fat-wrapped Flutter App executable was inspected separately: its arm64
+  AOT fingerprint differs from delivered 471. Final AOT file SHA-256 is
+  `4ff1ea8515319a1b16a049e26a22ac69c05b7f3b7dfc287cbc7a41cf47e10179`.
+  This delivery includes newly compiled Dart code, not a renamed old IPA.
+- Every one of the 34 Libretro cores has the same code/data/ABI fingerprint as
+  delivered 471. RPCS3, Dolphin, ARMSX2 and MoltenVK also retain their exact
+  code/data/ABI identities. Nestopia is still the tested reset correction,
+  UUID `2321DDEC-E187-3AC6-80FD-C94C63C718C0`, iPhoneOS, minimum 18.0.
+- SideStore Apple re-signing/provisioning is required as usual. No physical
+  iPhone run of 472 or real commercial-game engine test is claimed by the
+  Flutter return scenarios. The maintainer's physical confirmation concerns
+  the 471 startup fix; 472 preserves that core by identity.
+
+## Changed files
+
+The only product file is `lib/widgets/game_launch_dialog.dart`.
+The focused test is `test/game_close_status_test.py`, driven by
+`.github/workflows/game-close-status.yml`. Delivery provenance is composed by
+`.github/diagnostics/game_close_delivery.py` with two new unit checks in
+`.github/diagnostics/game_close_delivery_test.py` and the existing
+`.github/workflows/retroarch-delivery.yml`. `AGENTS.md` and this report record
+scope, actual results, the retained harness timeout and delivery identity.
+No emulator-core, skin, touch, cheat, save, preference or native teardown
+implementation was modified.
+
+
+## Private handoff
+
+Desktop Commander completed the independent Windows copy with the same
+218,606,012 bytes and SHA-256:
+`C:\Users\Coren\Downloads\NeoStation-Build472-02550f92.ipa`.
+The copy used create-only semantics; existing IPAs were preserved.
+The transient delivery password was removed after the verified copy.
+The downloadable IPA and evidence ZIP are provided privately in the chat;
+no public GitHub release was created.
