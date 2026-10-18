@@ -23,8 +23,8 @@ BASE='47c9e9c1e07db306c09edbfc394590428458e874'
 # Build 482 source (run 39157242359: checks/native reused, cold Release).
 DELIVERED='c676b31710c50cfc60ca3e356aecd49995fe0a76'
 # Build 483 Core: source and rpcs3-core.yml run pinned by the delivery workflow.
-CORE_SOURCE='0000000000000000000000000000000000000000'
-CORE_RUN=0
+CORE_SOURCE='1b4f65e2067823a518034ef1ee1ba06a5b5abe09'
+CORE_RUN=39163125594
 PATCH='0fd83bccbdcfbe079236b47e1e3ebd674c70ecb06a2092f426cc88d0b769d843'
 CORE_JOB='RPCS3 Core arm64 with NeoSwap client'
 # Changed inputs proven by the Core run (published Core inputs and host tests).
