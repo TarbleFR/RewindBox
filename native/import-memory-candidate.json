@@ -100,7 +100,8 @@
     "Build435 Core delta (10 October 2026, maintainer request): the single canonical RPCS3 patch gains the measured per-process memory allowance with a relative God of War III moderate stage and adaptive reclaim cooldown, deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, and an unlocked snapshot precheck before vm::writer_lock on PUTLLC and PPU stcx (protocol unchanged). Policies executed on the host by test/rpcs3_build435_core_delta_test.py; Build412 scope stage frozen at afb33454 and the four drifted pinned comparisons re-pinned on maintainer approval. No Core artifact is pinned until its run succeeds; no device validation.",
     "Build436 Core delta (10 October 2026): the Build435 deferred SPU compilation is switched off (SPUDeferredCompilePolicy.h deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; measured memory allowance and writer-lock precheck kept. No device validation.",
     "Build436 XITRIX v0.11 import (10 October 2026, maintainer request): five RSX/Vulkan commits of XITRIX/rpcs3 ios-port 395636f5 imported verbatim with their fixtures (framebuffer source selection 3dc49630, Vulkan image-pool race 7137b41a, rendering overhead 3ebf5c99, divided vertex range 57ce3bf6, alpha-to-one 395636f5), executed by test/rpcs3_xitrix_v011_native_test.py before the Core build; the PPU start-gate fix a5c5ed56 does not apply to the canonical base; no SPU, PPU, JIT, VM or lifecycle file changes. No device validation.",
-    "Build444 Core delta (11 October 2026, maintainer request): optional direct guest admission on a gameplay stock miss (NeoSwapDirectRelayAPI, budget allowance, non-blocking), client diagnostics extension, JITPROF compile-phase counters, PPU object cache identity (LLVM release, source digest, target features), opt-in ARM64 PPU EarlyCSE (default off); host backend burst restock and rate-limited maintenance wake-up. Executed on the host by test/rpcs3_build444_core_delta_test.py, test/relay_backend_test.cpp and the materialized relay client test; deferred SPU compilation stays off. No device validation."
+    "Build444 Core delta (11 October 2026, maintainer request): optional direct guest admission on a gameplay stock miss (NeoSwapDirectRelayAPI, budget allowance, non-blocking), client diagnostics extension, JITPROF compile-phase counters, PPU object cache identity (LLVM release, source digest, target features), opt-in ARM64 PPU EarlyCSE (default off); host backend burst restock and rate-limited maintenance wake-up. Executed on the host by test/rpcs3_build444_core_delta_test.py, test/relay_backend_test.cpp and the materialized relay client test; deferred SPU compilation stays off. No device validation.",
+    "Build481 Core delta (18 October 2026, maintainer request): persistent ARM64 SPU object cache. The SPU translator references the host only through MCJIT symbols (spu_timebase_offs replaces the baked &g_timebase_offs), a relocatability guard refuses to persist a module that turns a host address into a pointer constant, objects are parsed and their entry symbol required before MCJIT, the directory key folds settings, device features, CPU, LLVM release and the configure-time SPU codegen digest, bounded to 40000 files or 512 MiB with oldest-first eviction; JITPROF spu_cache_read/spu_object_load/spu_cache_write and SPUPROF obj_* counters. Executed on the host by test/rpcs3_build481_spu_object_cache_test.py (policy, two-process MCJIT relocation proof with LLVM 22, wiring); deferred SPU compilation stays off; interpreter module process-local. No device validation."
   ],
   "files_sha256": {
     ".gitattributes": "93b8dd50f1120e097f797bdaf5c53342e08a4af05984137266bba82d3435bfce",
@@ -1105,11 +1106,11 @@
     "docs/rpcs3-build436-gow3-black-screen.md": "100644"
   },
   "rpcs3_postimages_sha256": {
-    "rpcs3/Emu/CMakeLists.txt": "2480fa140159172b6471eff07f084ac742e250626541e6c2e16581f60b9cb55d",
+    "rpcs3/Emu/CMakeLists.txt": "0355878a83a40f377129857cb4299bb2fa237ddc110162ce19110b21ad7547de",
     "rpcs3/Emu/Cell/Modules/cellVdec.cpp": "affd214bfd2c1927c7ce7f79ea60bf2f415862621ee36af9841654042d265a52",
     "rpcs3/Emu/Cell/PPUThread.cpp": "c214e9c1540a0e0861b882a07ab49463bb70e61c89ed474ad3f9529943f0b10b",
-    "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "0f0dce73fa9c8420d2b9998df4708111a51c004c9acdb3b11dc53d9daad4548f",
-    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "10345e66963d0347408935ae75109c36397c74078fa3347c0aa4c4cd430ae8cd",
+    "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "1c45ef27abb99dfc2dee10641c2961717b7cc1f02bfdfd2aee0c964801871282",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "cd37f4b3bf62890e5e8ea4e74a042eb1b0c5fd94d05a3453e7b5bd99ed7c1a5e",
     "rpcs3/Emu/Cell/SPURecompiler.h": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
     "rpcs3/Emu/Cell/SPUThread.cpp": "e75c5a38e5820a1dd1e1a6e4172c233ef389bdcde87433e5c6ffcb553e387145",
     "rpcs3/Emu/Cell/SPUWarmupPolicy.h": "f25e9e67b591f58a4fc4993bccdd086b2f49e489eabdf0a75655fd8b546a67eb",
@@ -1141,8 +1142,8 @@
     "rpcs3/ios/RPCS3IOS.cpp": "2f6db9ae24c84ea34eca80cd7f453bf512c5787524837fc115869dc853350e65",
     "rpcs3/ios/RPCS3IOS.exports": "0979b780bbf7639a1e30a6f71c5e2c622e6daefcf0b82ae544374ea6cb64d773",
     "rpcs3/ios/RPCS3IOS.h": "9def925414af0665cdd92a3d128f6b0154ed26486d2320e83af17c5bf3c84274",
-    "rpcs3/ios/RPCS3IOSPerformance.cpp": "e0989145a2526f7fe5a8c47455ec5fb5fad547af0f542f494301d493949b413f",
-    "rpcs3/ios/RPCS3IOSPerformance.h": "3141778c10fffabd6341c93492e7a50a9bf5606ed29cf45784f0687e62910561",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "d051523920e15823513fc17d8f4a9d824def06f64605f675287d9e24c2430af1",
+    "rpcs3/ios/RPCS3IOSPerformance.h": "16b518770045fe8058c9fc6946e538f9c5d0ee180eebaa0f8d1d2636f8c5bb7f",
     "rpcs3/util/vm.hpp": "ac58df153ca5e9b1e9f69511879035493338265ee2de96656072ab777a07ecbc",
     "rpcs3/util/vm_native.cpp": "2c8c9547fc4ae1b6c7d2b39d19475c64b6922d4ac21b193cbded859fc2796a8c",
     "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",

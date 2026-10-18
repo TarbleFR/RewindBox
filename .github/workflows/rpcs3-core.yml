@@ -33,6 +33,9 @@ on:
       - 'test/native/rpcs3_build435_core_delta_test.cpp'
       - 'test/rpcs3_build444_core_delta_test.py'
       - 'test/native/rpcs3_build444_core_delta_test.cpp'
+      - 'test/rpcs3_build481_spu_object_cache_test.py'
+      - 'test/native/rpcs3_build481_spu_object_cache_test.cpp'
+      - 'test/native/rpcs3_spu_object_relocation_test.cpp'
       - 'test/native/rpcs3_vk_*'
       - 'test/native/rpcs3_neoswap_stats_getter_test.cpp'
       - 'test/rpcs3_neoswap_vulkan_buffer_test.py'
@@ -126,6 +129,11 @@ jobs:
             brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
           done
           mkdir -p dist/rpcs3 build/rpcs3-core-diagnostics
+          # NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: policy, two-process MCJIT relocation
+          # proof with the LLVM 22 that builds the Core, and the translator wiring; fails
+          # here, before the expensive dependency and Core builds.
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+            python3 test/rpcs3_build481_spu_object_cache_test.py "$STORAGE_SRC" --sanitize --require-llvm 2>&1 | tee build/rpcs3-core-diagnostics/spu-object-cache-proof.txt
       - name: Build Core from the single reviewed source delta
         shell: bash
         run: |

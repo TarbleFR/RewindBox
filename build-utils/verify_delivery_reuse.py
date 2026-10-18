@@ -918,6 +918,14 @@ BUILD444_DELTA = {
     'test/rpcs3_neoswap_relay_test.py',
 }
 DELTA |= BUILD444_DELTA
+# Build 481 (18 October 2026): persistent ARM64 SPU object cache of the RPCS3 Core;
+# host evidence files of the Core delta.
+BUILD481_DELTA = {
+    'test/native/rpcs3_build481_spu_object_cache_test.cpp',
+    'test/native/rpcs3_spu_object_relocation_test.cpp',
+    'test/rpcs3_build481_spu_object_cache_test.py',
+}
+DELTA |= BUILD481_DELTA
 # New inputs of the libretro skin/touch commits 4da31544..f28525fd (other session,
 # 11-12 October 2026) present on Claude when Build 444 was delivered; listed so the
 # closed-tree check names them instead of refusing every later delivery.

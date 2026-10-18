@@ -67,13 +67,17 @@ require('inline constinit registry g_counters{};' in profile, 'phase registry mu
 require('inline thread_local std::uint64_t t_nested_ticks = 0;' in profile, 'nested-scope accounting missing')
 require(all(name in profile for name in ('ppu_translate', 'ppu_opt', 'ppu_verify', 'ppu_codegen', 'ppu_cache_write',
                                          'ppu_cache_read', 'ppu_object_load', 'ppu_finalize', 'ppu_symbols',
-                                         'spu_build', 'spu_passes', 'spu_codegen')), 'phase list changed')
+                                         'spu_build', 'spu_passes', 'spu_codegen',
+                                         # Build 481 appends the SPU object cache phases after the Build 444 list.
+                                         'spu_cache_read', 'spu_object_load', 'spu_cache_write')), 'phase list changed')
 
 # --- JITLLVM.cpp: cache read/write, codegen (miss) and object load are measured in place.
 require('#include "JITPhaseProfile.h"' in jit, 'JITLLVM.cpp does not include the phase profile')
-require('jit_phase::scope phase_timer(jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());' in jit,
+# Build 481: the same ObjectCache serves PPU and SPU objects; the phase is selected by kind.
+require('jit_phase::scope phase_timer(m_spu ? jit_phase::spu_cache_write : jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());' in jit,
         'object cache write is not measured')
-require('jit_phase::scope phase_timer(jit_phase::ppu_cache_read, utils::get_tsc);' in jit and
+require('jit_phase::scope phase_timer(read_phase, utils::get_tsc);' in jit and
+        'jit_phase::phase read_phase = jit_phase::ppu_cache_read' in jit and
         'phase_timer.bytes = out.size();' in jit, 'object cache read is not measured with its decompressed size')
 require(jit.count('const jit_phase::scope phase_timer(jit_phase::ppu_codegen, utils::get_tsc);\n\t\tm_engine->generateCodeForModule(ptr);') == 2,
         'both cached add() paths must time code generation')

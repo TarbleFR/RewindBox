@@ -11,7 +11,7 @@ index 2caa77d..daac444 100644
  option(RUN_RPCS3_TESTS "Run RPCS3 unit tests. Requires BUILD_RPCS3_TESTS" OFF)
  option(USE_GAMEMODE "Choose whether to enable GameMode features or not." ON)
 diff --git a/Utilities/JIT.h b/Utilities/JIT.h
-index 6e17c582c..c0c9cd214 100644
+index 6e17c582c..4058c0aeb 100644
 --- a/Utilities/JIT.h
 +++ b/Utilities/JIT.h
 @@ -123,8 +123,11 @@ struct jit_runtime final : jit_runtime_base
@@ -38,7 +38,49 @@ index 6e17c582c..c0c9cd214 100644
  	jit_announce(result, code.codeSize(), name);
  	return reinterpret_cast<FT>(uptr(result));
  }
-@@ -625,6 +632,14 @@ public:
+@@ -546,6 +553,7 @@ namespace llvm
+ 	class ExecutionEngine;
+ 	class Module;
+ 	class StringRef;
++	class MemoryBuffer;
+ }
+ 
+ enum class thread_state : u32;
+@@ -553,6 +561,33 @@ enum class thread_state : u32;
+ // Temporary compiler interface
+ struct JITAnnouncer;
+ 
++// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: an object read and validated
++// before its module is finished, so a cache hit can skip the IR passes.
++struct jit_cached_object
++{
++	std::unique_ptr<llvm::MemoryBuffer> buffer;
++	usz bytes = 0;
++	// A file was present but unreadable, corrupt or foreign and was removed.
++	bool removed_invalid = false;
++
++	jit_cached_object() noexcept;
++	jit_cached_object(jit_cached_object&&) noexcept;
++	jit_cached_object& operator=(jit_cached_object&&) noexcept;
++	~jit_cached_object();
++
++	explicit operator bool() const noexcept
++	{
++		return buffer != nullptr;
++	}
++};
++
++struct jit_cache_outcome
++{
++	bool loaded = false;  // code generation was replaced by the cached object
++	bool written = false; // a generated object was written to the cache
++	usz object_bytes = 0;
++};
++
+ class jit_compiler final
+ {
+ 	// Local LLVM context
+@@ -625,6 +660,29 @@ public:
  	// Get system triple (SPU)
  	static std::string triple2();
  
@@ -49,6 +91,21 @@ index 6e17c582c..c0c9cd214 100644
 +
 +	// The explicit target features advertised to LLVM on this device.
 +	static const std::vector<std::string>& target_attributes();
++
++	// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: identity of the SPU objects
++	// (LLVM release, configure-time digest of the SPU translator/backend
++	// sources, target features). Folded into the SPU object directory key.
++	static std::string spu_codegen_identity();
++
++	// Reads <path>.gz (or <path>), parses it as an object file and requires
++	// required_symbol to be defined in it. Anything else is removed from disk
++	// and reported through removed_invalid, so the caller compiles normally.
++	static jit_cached_object load_cached_object(const std::string& path, const std::string& required_symbol);
++
++	// Cached add: a preloaded object replaces code generation; otherwise code
++	// is generated and the object written into path_dir. Returns false after
++	// LLVM fatal recovery. The compiler must be discarded.
++	bool try_add_cached(std::unique_ptr<llvm::Module> _module, const std::string& path_dir, jit_cached_object preloaded, jit_cache_outcome& outcome, std::string& error);
 +
  	bool add_sub_disk_space(ssz space);
  };
@@ -1071,7 +1128,7 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e0a..0cf69751e 100644
+index 863624e0a..361f0f879 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
 @@ -13,6 +13,8 @@
@@ -1136,24 +1193,112 @@ index 863624e0a..0cf69751e 100644
  		}
  	}
  #endif
-@@ -653,6 +659,7 @@ public:
+@@ -641,18 +647,76 @@ class ObjectCache final : public llvm::ObjectCache
+ {
+ 	const std::string& m_path;
+ 	const std::add_pointer_t<jit_compiler> m_compiler = nullptr;
++	// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: SPU objects report their own
++	// phases; a preloaded, already validated object replaces the file read.
++	const bool m_spu = false;
++	std::unique_ptr<llvm::MemoryBuffer> m_preloaded;
++	jit_cache_outcome* const m_outcome = nullptr;
  
+ public:
+-	ObjectCache(const std::string& path, jit_compiler* compiler = nullptr)
++	ObjectCache(const std::string& path, jit_compiler* compiler = nullptr, bool spu = false, std::unique_ptr<llvm::MemoryBuffer> preloaded = nullptr, jit_cache_outcome* outcome = nullptr)
+ 		: m_path(path)
+ 		, m_compiler(compiler)
++		, m_spu(spu)
++		, m_preloaded(std::move(preloaded))
++		, m_outcome(outcome)
+ 	{
+ 	}
+ 
+ 	~ObjectCache() override = default;
+ 
++	// Parses the buffer and, when required_symbol is not empty, requires it to
++	// be a defined symbol. A stale, truncated or foreign file fails here instead
++	// of inside MCJIT, whose loader reports it as a fatal error.
++	static bool validate(const llvm::MemoryBuffer& buffer, std::string_view required_symbol)
++	{
++		llvm::Expected<std::unique_ptr<llvm::object::ObjectFile>> object_file = llvm::object::ObjectFile::createObjectFile(buffer.getMemBufferRef());
++
++		if (!object_file)
++		{
++			llvm::consumeError(object_file.takeError());
++			return false;
++		}
++
++		if (required_symbol.empty())
++		{
++			return true;
++		}
++
++		const llvm::StringRef required(required_symbol.data(), required_symbol.size());
++
++		for (const llvm::object::SymbolRef& symbol : (*object_file)->symbols())
++		{
++			llvm::Expected<llvm::StringRef> name = symbol.getName();
++
++			if (!name)
++			{
++				llvm::consumeError(name.takeError());
++				continue;
++			}
++
++			if (*name != required)
++			{
++				continue;
++			}
++
++			llvm::Expected<u32> flags = symbol.getFlags();
++
++			if (!flags)
++			{
++				llvm::consumeError(flags.takeError());
++				return false;
++			}
++
++			return !(*flags & llvm::object::SymbolRef::SF_Undefined);
++		}
++
++		return false;
++	}
++
  	void notifyObjectCompiled(const llvm::Module* _module, llvm::MemoryBufferRef obj) override
  	{
-+		const jit_phase::scope phase_timer(jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());
++		const jit_phase::scope phase_timer(m_spu ? jit_phase::spu_cache_write : jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());
  		std::string name = m_path;
  
  		name.append(_module->getName());
-@@ -699,6 +706,8 @@ public:
+@@ -694,11 +758,24 @@ public:
  
- 	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path)
+ 		// Restore space that was overestimated
+ 		ensure(m_compiler->add_sub_disk_space(max_size - module_file.file.size()));
+-		module_file.commit();
++
++		if (!module_file.commit())
++		{
++			jit_log.error("LLVM: Failed to commit module file: %s (%s)", name, fs::g_tls_error);
++			return;
++		}
++
++		if (m_outcome)
++		{
++			m_outcome->written = true;
++			m_outcome->object_bytes = obj.getBufferSize();
++		}
+ 	}
+ 
+-	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path)
++	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path, jit_phase::phase read_phase = jit_phase::ppu_cache_read)
  	{
-+		jit_phase::scope phase_timer(jit_phase::ppu_cache_read, utils::get_tsc);
++		jit_phase::scope phase_timer(read_phase, utils::get_tsc);
 +
  		if (fs::file cached{path + ".gz", fs::read})
  		{
  			const std::vector<u8> cached_data = cached.to_vector<u8>();
-@@ -718,6 +727,7 @@ public:
+@@ -718,6 +795,7 @@ public:
  
  			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(out.size());
  			std::memcpy(buf->getBufferStart(), out.data(), out.size());
@@ -1161,7 +1306,7 @@ index 863624e0a..0cf69751e 100644
  			return buf;
  		}
  
-@@ -730,6 +740,7 @@ public:
+@@ -730,6 +808,7 @@ public:
  
  			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(cached.size());
  			cached.read(buf->getBufferStart(), buf->getBufferSize());
@@ -1169,7 +1314,41 @@ index 863624e0a..0cf69751e 100644
  			return buf;
  		}
  
-@@ -751,6 +762,87 @@ public:
+@@ -738,11 +817,33 @@ public:
+ 
+ 	std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module* _module) override
+ 	{
++		if (m_preloaded)
++		{
++			if (m_outcome)
++			{
++				m_outcome->loaded = true;
++				m_outcome->object_bytes = m_preloaded->getBufferSize();
++			}
++
++			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
++			return std::move(m_preloaded);
++		}
++
+ 		std::string path = m_path;
+ 		path.append(_module->getName().data());
+ 
+ 		if (auto buf = load(path))
+ 		{
++			if (!validate(*buf, {}))
++			{
++				// Never hand MCJIT a file it cannot load: that is a fatal error
++				// there, while a miss here is one more compilation.
++				jit_log.error("LLVM: Removed unloadable cached module: %s", path);
++				fs::remove_file(path + ".gz");
++				fs::remove_file(path);
++				return nullptr;
++			}
++
+ 			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
+ 			return buf;
+ 		}
+@@ -751,6 +852,123 @@ public:
  	}
  };
  
@@ -1254,10 +1433,46 @@ index 863624e0a..0cf69751e 100644
 +	return identity;
 +}
 +
++std::string jit_compiler::spu_codegen_identity()
++{
++	// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: same construction as the PPU
++	// identity, over the SPU translator/backend digest (NEOSTATION_SPU_CODEGEN_ID,
++	// rpcs3/Emu/CMakeLists.txt). The directory key of the SPU object cache adds
++	// the settings bits, the device features and the CPU name on top.
++	static const std::string identity = []()
++	{
++		std::string seed = LLVM_VERSION_STRING;
++		seed += '|';
++#ifdef NEOSTATION_SPU_CODEGEN_ID
++		seed += NEOSTATION_SPU_CODEGEN_ID;
++#else
++		seed += "unversioned";
++#endif
++		seed += '|';
++
++		for (const auto& attribute : target_attributes())
++		{
++			seed += attribute;
++			seed += ',';
++		}
++
++		seed += "|aggressive|pic|interleaved-load-combine-off|ghc-emergency-spill-v1|spu-objects-v1";
++
++		u8 output[20]{};
++		sha1_context ctx{};
++		sha1_starts(&ctx);
++		sha1_update(&ctx, reinterpret_cast<const u8*>(seed.data()), seed.size());
++		sha1_finish(&ctx, output);
++		return fmt::format("%s", fmt::base57(output, 12));
++	}();
++
++	return identity;
++}
++
  std::string jit_compiler::cpu(std::string_view _cpu)
  {
  	std::string m_cpu = std::string(_cpu);
-@@ -904,6 +996,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -904,6 +1122,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		return true;
  	}();
  
@@ -1284,7 +1499,7 @@ index 863624e0a..0cf69751e 100644
  	std::string result;
  
  	auto null_mod = std::make_unique<llvm::Module> ("null_", *m_context);
-@@ -929,38 +1041,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -929,38 +1167,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		mem = std::make_unique<MemoryManager1>(std::move(symbols_cement));
  	}
  
@@ -1324,7 +1539,7 @@ index 863624e0a..0cf69751e 100644
  
  	{
  		m_engine.reset(llvm::EngineBuilder(std::move(null_mod))
-@@ -1030,7 +1111,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
+@@ -1030,7 +1237,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
  
  	const auto ptr = _module.get();
  	m_engine->addModule(std::move(_module));
@@ -1336,7 +1551,7 @@ index 863624e0a..0cf69751e 100644
  	m_engine->setObjectCache(nullptr);
  
  	for (auto& func : ptr->functions())
-@@ -1050,6 +1134,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+@@ -1050,6 +1260,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
  
  	if (!run_recoverable_llvm([&]()
  	{
@@ -1344,7 +1559,73 @@ index 863624e0a..0cf69751e 100644
  		m_engine->generateCodeForModule(ptr);
  	}, error))
  	{
-@@ -1106,6 +1191,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
+@@ -1068,6 +1279,65 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+ 	return true;
+ }
+ 
++jit_cached_object::jit_cached_object() noexcept = default;
++jit_cached_object::jit_cached_object(jit_cached_object&&) noexcept = default;
++jit_cached_object& jit_cached_object::operator=(jit_cached_object&&) noexcept = default;
++jit_cached_object::~jit_cached_object() = default;
++
++jit_cached_object jit_compiler::load_cached_object(const std::string& path, const std::string& required_symbol)
++{
++	jit_cached_object result;
++
++	if (!fs::is_file(path + ".gz") && !fs::is_file(path))
++	{
++		return result;
++	}
++
++	std::unique_ptr<llvm::MemoryBuffer> buffer = ObjectCache::load(path, jit_phase::spu_cache_read);
++
++	if (buffer && ObjectCache::validate(*buffer, required_symbol))
++	{
++		result.bytes = buffer->getBufferSize();
++		result.buffer = std::move(buffer);
++		return result;
++	}
++
++	jit_log.error("LLVM: Removed invalid cached object: %s", path);
++	fs::remove_file(path + ".gz");
++	fs::remove_file(path);
++	result.removed_invalid = true;
++	return result;
++}
++
++bool jit_compiler::try_add_cached(std::unique_ptr<llvm::Module> _module, const std::string& path_dir, jit_cached_object preloaded, jit_cache_outcome& outcome, std::string& error)
++{
++	ObjectCache cache{path_dir, this, true, std::move(preloaded.buffer), &outcome};
++	m_engine->setObjectCache(&cache);
++
++	const auto ptr = _module.get();
++	m_engine->addModule(std::move(_module));
++
++	if (!run_recoverable_llvm([&]()
++	{
++		m_engine->generateCodeForModule(ptr);
++	}, error))
++	{
++		m_engine->setObjectCache(nullptr);
++		if (m_announcer) m_announcer->finalized(false);
++		return false;
++	}
++
++	m_engine->setObjectCache(nullptr);
++
++	for (auto& func : ptr->functions())
++	{
++		// Delete IR to lower memory consumption
++		func.deleteBody();
++	}
++
++	return true;
++}
++
+ void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
+ {
+ 	const auto ptr = _module.get();
+@@ -1106,6 +1376,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
  
  bool jit_compiler::add(const std::string& path)
  {
@@ -1352,7 +1633,7 @@ index 863624e0a..0cf69751e 100644
  	auto cache = ObjectCache::load(path);
  
  	if (!cache)
-@@ -1114,6 +1200,8 @@ bool jit_compiler::add(const std::string& path)
+@@ -1114,6 +1385,8 @@ bool jit_compiler::add(const std::string& path)
  		return false;
  	}
  
@@ -1363,10 +1644,10 @@ index 863624e0a..0cf69751e 100644
  		m_engine->addObjectFile(llvm::object::OwningBinary<llvm::object::ObjectFile>(std::move(*object_file), std::move(cache)));
 diff --git a/Utilities/JITPhaseProfile.h b/Utilities/JITPhaseProfile.h
 new file mode 100644
-index 000000000..e550931da
+index 000000000..5368be246
 --- /dev/null
 +++ b/Utilities/JITPhaseProfile.h
-@@ -0,0 +1,130 @@
+@@ -0,0 +1,135 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: process-wide, allocation-free
@@ -1395,13 +1676,18 @@ index 000000000..e550931da
 +		ppu_symbols,     // symbol resolver lookups
 +		spu_build,       // SPU LLVM IR construction, bytes = guest code
 +		spu_passes,      // SPU function pass pipeline
-+		spu_codegen,     // SPU code generation + finalization
++		spu_codegen,     // SPU code generation + finalization of a cache miss
++		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1
++		spu_cache_read,  // SPU object read + decompression, bytes = object size
++		spu_object_load, // SPU object link + finalization of a cache hit (replaces spu_passes/spu_codegen), bytes = object size
++		spu_cache_write, // SPU object compression + file write, bytes = object size
 +		count
 +	};
 +
 +	inline constexpr const char* names[count] = {
 +		"ppu_translate", "ppu_opt", "ppu_verify", "ppu_codegen", "ppu_cache_write", "ppu_cache_read",
 +		"ppu_object_load", "ppu_finalize", "ppu_symbols", "spu_build", "spu_passes", "spu_codegen",
++		"spu_cache_read", "spu_object_load", "spu_cache_write",
 +	};
 +
 +	struct snapshot
@@ -1870,10 +2156,10 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea11d..8fde142c9 100644
+index 9bb3ea11d..7cd879844 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -25,6 +25,40 @@ if(USE_LTO)
+@@ -25,6 +25,77 @@ if(USE_LTO)
      set_target_properties(rpcs3_emu PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
  endif()
  
@@ -1911,10 +2197,47 @@ index 9bb3ea11d..8fde142c9 100644
 +    message(STATUS "NeoStation PPU codegen identity: ${NEOSTATION_PPU_CODEGEN_ID}")
 +endif()
 +
++# NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: configure-time digest of the sources
++# that shape ARM64 SPU LLVM objects (translator, analyser, thread layout, ARM64
++# lowering/backend, JIT engine, backend spill patch). It joins the LLVM release
++# and the JIT target features in the SPU object cache key, so objects of another
++# Core are never loaded; they are rebuilt once into a new directory.
++if(RPCS3_FRONTEND STREQUAL "IOS")
++    set(NEOSTATION_SPU_CODEGEN_DIGEST "")
++    foreach(NEOSTATION_SPU_CODEGEN_SOURCE IN ITEMS
++        Cell/SPULLVMRecompiler.cpp
++        Cell/SPUCommonRecompiler.cpp
++        Cell/SPURecompiler.h
++        Cell/SPUThread.h
++        Cell/SPUAnalyser.h
++        Cell/SPUObjectCachePolicy.h
++        Cell/SPUARM64Lowering.h
++        Cell/SPUARM64CompareLowering.h
++        CPU/CPUTranslator.cpp
++        CPU/CPUTranslator.h
++        CPU/Backends/AArch64/AArch64JIT.cpp
++        CPU/Backends/AArch64/AArch64JIT.h
++        CPU/Backends/AArch64/SPUChecksum.h
++        CPU/Backends/AArch64/SPUInterrupts.h
++        CPU/Backends/AArch64/SPUInterpreterGateway.h
++        CPU/Backends/AArch64/SPUReservationHash.h
++        CPU/Backends/AArch64/SPUReservationScan.h
++        ../../Utilities/JIT.h
++        ../../Utilities/JITLLVM.cpp
++        ../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp)
++        file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${NEOSTATION_SPU_CODEGEN_SOURCE}" NEOSTATION_SPU_CODEGEN_FILE_SHA256)
++        string(APPEND NEOSTATION_SPU_CODEGEN_DIGEST "${NEOSTATION_SPU_CODEGEN_SOURCE}:${NEOSTATION_SPU_CODEGEN_FILE_SHA256};")
++    endforeach()
++    string(SHA256 NEOSTATION_SPU_CODEGEN_ID "${NEOSTATION_SPU_CODEGEN_DIGEST}")
++    string(SUBSTRING "${NEOSTATION_SPU_CODEGEN_ID}" 0 16 NEOSTATION_SPU_CODEGEN_ID)
++    target_compile_definitions(rpcs3_emu PRIVATE NEOSTATION_SPU_CODEGEN_ID="${NEOSTATION_SPU_CODEGEN_ID}")
++    message(STATUS "NeoStation SPU codegen identity: ${NEOSTATION_SPU_CODEGEN_ID}")
++endif()
++
  if(USE_ASAN)
      set_source_files_properties(../../Utilities/Thread.cpp PROPERTIES COMPILE_DEFINITIONS USE_ASAN)
  endif()
-@@ -100,7 +134,12 @@ if(APPLE)
+@@ -100,7 +171,12 @@ if(APPLE)
  endif()
  
  if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -1927,7 +2250,7 @@ index 9bb3ea11d..8fde142c9 100644
          Io/IOS/IOSPadHandler.cpp
          Io/IOS/IOSPadHandler.h
          ../../Utilities/JITArenaAllocator.h
-@@ -721,9 +760,14 @@ if(TARGET 3rdparty_vulkan)
+@@ -721,9 +797,14 @@ if(TARGET 3rdparty_vulkan)
  
      if(RPCS3_FRONTEND STREQUAL "IOS")
          target_sources(rpcs3_emu PRIVATE
@@ -4299,7 +4622,7 @@ index 0000000..665988a
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
-index d451a94..2ff9ed8 100644
+index d451a943a..6ccf2a4b7 100644
 --- a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 @@ -1,5 +1,6 @@
@@ -4309,15 +4632,16 @@ index d451a94..2ff9ed8 100644
  
  #include "Emu/System.h"
  #include "Emu/system_config.h"
-@@ -30,6 +31,7 @@
+@@ -30,6 +31,8 @@
  #include "util/sysinfo.hpp"
  
  #ifdef RPCS3_IOS
 +#include "SPUDeferredCompilePolicy.h"
++#include "SPUObjectCachePolicy.h"
  #include "ios/RPCS3IOSExperimentalPolicy.h"
  #include "ios/IOSMemoryPressurePolicy.h"
  #include "ios/RPCS3IOSPerformance.h"
-@@ -40,6 +42,19 @@ const extern spu_decoder<spu_itype> g_spu_itype;
+@@ -40,6 +43,19 @@ const extern spu_decoder<spu_itype> g_spu_itype;
  const extern spu_decoder<spu_iname> g_spu_iname;
  const extern spu_decoder<spu_iflag> g_spu_iflag;
  
@@ -4337,7 +4661,7 @@ index d451a94..2ff9ed8 100644
  constexpr u32 s_reg_max = spu_recompiler_base::s_reg_max;
  
  template<typename T>
-@@ -279,7 +294,19 @@ static void ghc_cpp_trampoline(u64 fn_target, native_asm& c, auto& args)
+@@ -279,7 +295,19 @@ static void ghc_cpp_trampoline(u64 fn_target, native_asm& c, auto& args)
  }
  #endif
  
@@ -4358,7 +4682,7 @@ index d451a94..2ff9ed8 100644
  {
  	jit_write_guard jit_guard;
  #if defined(ARCH_X64)
-@@ -306,8 +333,11 @@ DECLARE(spu_runtime::tr_dispatch) = []
+@@ -306,8 +334,11 @@ DECLARE(spu_runtime::tr_dispatch) = []
  #error "Unimplemented"
  #endif
  }();
@@ -4371,7 +4695,7 @@ index d451a94..2ff9ed8 100644
  {
  	jit_write_guard jit_guard;
  #if defined(ARCH_X64)
-@@ -332,8 +362,11 @@ DECLARE(spu_runtime::tr_branch) = []
+@@ -332,8 +363,11 @@ DECLARE(spu_runtime::tr_branch) = []
  #error "Unimplemented"
  #endif
  }();
@@ -4384,7 +4708,7 @@ index d451a94..2ff9ed8 100644
  {
  	jit_write_guard jit_guard;
  #if defined(ARCH_X64)
-@@ -354,23 +387,30 @@ DECLARE(spu_runtime::tr_interpreter) = []
+@@ -354,23 +388,30 @@ DECLARE(spu_runtime::tr_interpreter) = []
  	return trptr;
  #endif
  }();
@@ -4419,7 +4743,7 @@ index d451a94..2ff9ed8 100644
  {
  	jit_write_guard jit_guard;
  
-@@ -400,11 +440,11 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -400,11 +441,11 @@ DECLARE(spu_runtime::tr_all) = []
  	*raw++ = 0xe8;
  	*raw++ = 0x0c;
  
@@ -4433,7 +4757,7 @@ index d451a94..2ff9ed8 100644
  	std::memcpy(raw, &r32, 4);
  	raw += 4;
  
-@@ -427,7 +467,7 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -427,7 +468,7 @@ DECLARE(spu_runtime::tr_all) = []
  
  #elif defined(ARCH_ARM64)
  	auto trptr = build_function_asm<spu_function_t>("tr_all",
@@ -4442,7 +4766,7 @@ index d451a94..2ff9ed8 100644
  		{
  			using namespace asmjit;
  
-@@ -449,12 +489,12 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -449,12 +490,12 @@ DECLARE(spu_runtime::tr_all) = []
  			c.ldr(a64::w3, arm::Mem(a64::x7));
  			// shr (32 - 20)
  			c.lsr(a64::w3, a64::w3, Imm(32 - 20));
@@ -4458,7 +4782,7 @@ index d451a94..2ff9ed8 100644
  			c.mov(a64::x6, Imm(8));
  			c.mul(a64::x6, a64::x3, a64::x6);
  			c.add(a64::x4, a64::x4, a64::x6);
-@@ -468,8 +508,11 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -468,8 +509,11 @@ DECLARE(spu_runtime::tr_all) = []
  #error "Unimplemented"
  #endif
  }();
@@ -4471,7 +4795,7 @@ index d451a94..2ff9ed8 100644
  {
  	// Gateway for SPU dispatcher, converts from native to GHC calling convention, also saves RSP value for spu_escape
  	using namespace asmjit;
-@@ -519,7 +562,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
+@@ -519,7 +563,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
  		c.vzeroupper();
  	}
  
@@ -4480,7 +4804,7 @@ index d451a94..2ff9ed8 100644
  
  	if (utils::has_avx())
  	{
-@@ -599,7 +642,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
+@@ -599,7 +643,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
  	c.sub(a64::sp, a64::sp, Imm(8192));
  #endif
  
@@ -4489,7 +4813,7 @@ index d451a94..2ff9ed8 100644
  	c.blr(a64::x0);
  
  	// This is the return point for the far ret. Never jump back into host code without coming through this exit
-@@ -628,8 +671,11 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
+@@ -628,8 +672,11 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
  #error "Unimplemented"
  #endif
  });
@@ -4502,7 +4826,7 @@ index d451a94..2ff9ed8 100644
  {
  	using namespace asmjit;
  
-@@ -652,8 +698,11 @@ DECLARE(spu_runtime::g_escape) = build_function_asm<void(*)(spu_thread*)>("spu_e
+@@ -652,8 +699,11 @@ DECLARE(spu_runtime::g_escape) = build_function_asm<void(*)(spu_thread*)>("spu_e
  #error "Unimplemented"
  #endif
  });
@@ -4515,7 +4839,7 @@ index d451a94..2ff9ed8 100644
  {
  	using namespace asmjit;
  
-@@ -730,6 +779,53 @@ DECLARE(spu_runtime::g_tail_escape) = build_function_asm<void(*)(spu_thread*, sp
+@@ -730,6 +780,53 @@ DECLARE(spu_runtime::g_tail_escape) = build_function_asm<void(*)(spu_thread*, sp
  #error "Unimplemented"
  #endif
  });
@@ -4569,7 +4893,7 @@ index d451a94..2ff9ed8 100644
  
  DECLARE(spu_runtime::g_interpreter_table) = {};
  
-@@ -845,6 +941,10 @@ static u16 calculate_crc16(const uchar* data, usz length)
+@@ -845,6 +942,10 @@ static u16 calculate_crc16(const uchar* data, usz length)
  
  std::deque<spu_program> spu_cache::get()
  {
@@ -4580,7 +4904,7 @@ index d451a94..2ff9ed8 100644
  	std::deque<spu_program> result;
  
  	if (!m_file)
-@@ -852,10 +952,18 @@ std::deque<spu_program> spu_cache::get()
+@@ -852,10 +953,18 @@ std::deque<spu_program> spu_cache::get()
  		return result;
  	}
  
@@ -4602,7 +4926,7 @@ index d451a94..2ff9ed8 100644
  	{
  		struct block_info_t
  		{
-@@ -864,37 +972,48 @@ std::deque<spu_program> spu_cache::get()
+@@ -864,37 +973,48 @@ std::deque<spu_program> spu_cache::get()
  			be_t<u32> addr;
  		} block_info{};
  
@@ -4659,7 +4983,7 @@ index d451a94..2ff9ed8 100644
  			continue;
  		}
  
-@@ -905,11 +1024,39 @@ std::deque<spu_program> spu_cache::get()
+@@ -905,11 +1025,39 @@ std::deque<spu_program> spu_cache::get()
  		result.emplace_front(std::move(res));
  	}
  
@@ -4699,7 +5023,7 @@ index d451a94..2ff9ed8 100644
  	if (!m_file)
  	{
  		return;
-@@ -917,9 +1064,8 @@ void spu_cache::add(const spu_program& func)
+@@ -917,9 +1065,8 @@ void spu_cache::add(const spu_program& func)
  
  	be_t<u32> size = ::size32(func.data);
  	be_t<u32> addr = func.entry_point;
@@ -4711,7 +5035,7 @@ index d451a94..2ff9ed8 100644
  
  	const fs::iovec_clone gather[3]
  	{
-@@ -927,11 +1073,282 @@ void spu_cache::add(const spu_program& func)
+@@ -927,11 +1074,282 @@ void spu_cache::add(const spu_program& func)
  		{&addr, sizeof(addr)},
  		{func.data.data(), func.data.size() * 4}
  	};
@@ -4851,7 +5175,9 @@ index d451a94..2ff9ed8 100644
 +{
 +	std::unique_ptr<spu_recompiler_base> compiler;
 +	std::vector<be_t<u32>> ls;
-+
+ 
+-	// Append data
+-	m_file.write_gather(gather, 3);
 +	while (thread_ctrl::state() != thread_state::aborting)
 +	{
 +		spu_item* item = pool->take();
@@ -4893,9 +5219,7 @@ index d451a94..2ff9ed8 100644
 +		{
 +			target = compile_spu_llvm_with_retry(compiler, func2);
 +		}
- 
--	// Append data
--	m_file.write_gather(gather, 3);
++
 +		rpcs3::spu::clear_warmup_local_store(std::span{ls.data() + start / 4, size0});
 +		const u64 finished = utils::get_tsc();
 +		rpcs3::ios::record_spu_deferred_compile(target != nullptr,
@@ -4996,7 +5320,7 @@ index d451a94..2ff9ed8 100644
  void spu_cache::initialize(bool build_existing_cache)
  {
  	jit_write_guard jit_guard;
-@@ -946,6 +1363,16 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -946,6 +1364,16 @@ void spu_cache::initialize(bool build_existing_cache)
  		}
  	}
  
@@ -5013,7 +5337,7 @@ index d451a94..2ff9ed8 100644
  	const std::string ppu_cache = rpcs3::cache::get_ppu_cache();
  
  	if (ppu_cache.empty())
-@@ -974,8 +1401,22 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -974,8 +1402,22 @@ void spu_cache::initialize(bool build_existing_cache)
  		return;
  	}
  
@@ -5038,7 +5362,7 @@ index d451a94..2ff9ed8 100644
  	atomic_t<usz> fnext{};
  	atomic_t<u8> fail_flag{0};
  
-@@ -989,12 +1430,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -989,12 +1431,20 @@ void spu_cache::initialize(bool build_existing_cache)
  		total_precompile += sec.funcs.size();
  	}
  
@@ -5061,7 +5385,7 @@ index d451a94..2ff9ed8 100644
  	}
  	else if (!build_existing_cache)
  	{
-@@ -1046,6 +1495,9 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1046,6 +1496,9 @@ void spu_cache::initialize(bool build_existing_cache)
  		}
  
  		worker_count = std::min<u32>(rpcs3::utils::get_max_threads(), ::narrow<u32>(add_count));
@@ -5071,7 +5395,7 @@ index d451a94..2ff9ed8 100644
  	}
  
  	atomic_t<u32> pending_progress = 0;
-@@ -1058,8 +1510,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1058,8 +1511,20 @@ void spu_cache::initialize(bool build_existing_cache)
  		progress_dialog.emplace(get_localized_string(localized_string_id::PROGRESS_DIALOG_BUILDING_SPU_CACHE));
  	}
  
@@ -5092,7 +5416,7 @@ index d451a94..2ff9ed8 100644
  #ifdef __APPLE__
  		// Apple Silicon W^X: enable JIT write mode for this worker and
  		// pair it with an RAII guard so execute mode is restored on
-@@ -1170,8 +1634,14 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1170,8 +1635,14 @@ void spu_cache::initialize(bool build_existing_cache)
  			// Call analyser
  			spu_program func2 = compiler->analyse(ls.data(), func.entry_point);
  
@@ -5107,7 +5431,7 @@ index d451a94..2ff9ed8 100644
  				spu_log.error("[0x%05x] SPU Analyser failed, %u vs %u", func2.entry_point, func2.data.size(), size0);
  
  				if (logged_error < 2)
-@@ -1182,16 +1652,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1182,16 +1653,20 @@ void spu_cache::initialize(bool build_existing_cache)
  					logged_error++;
  				}
  			}
@@ -5135,7 +5459,7 @@ index d451a94..2ff9ed8 100644
  			result++;
  
  			if (is_first_thread && !showing_progress)
-@@ -1211,6 +1685,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1211,6 +1686,7 @@ void spu_cache::initialize(bool build_existing_cache)
  			}
  		}
  
@@ -5143,7 +5467,7 @@ index d451a94..2ff9ed8 100644
  		u32 last_sec_idx = umax;
  
  		for (func_i = data_indexer++;; func_i = data_indexer++, (showing_progress ? g_progr_pdone : pending_progress) += build_existing_cache ? 1 : 0)
-@@ -1302,7 +1777,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1302,7 +1778,7 @@ void spu_cache::initialize(bool build_existing_cache)
  				{
  					if (ls[start_new / 4] && g_spu_itype.decode(ls[start_new / 4]) != spu_itype::UNK)
  					{
@@ -5152,7 +5476,7 @@ index d451a94..2ff9ed8 100644
  						func2 = compiler->analyse(ls.data(), start_new, &targets);
  						block_addr = start_new;
  						continue;
-@@ -1366,7 +1841,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1366,7 +1842,7 @@ void spu_cache::initialize(bool build_existing_cache)
  				}
  
  
@@ -5161,7 +5485,7 @@ index d451a94..2ff9ed8 100644
  				func2 = compiler->analyse(ls.data(), new_entry, &targets);
  				block_addr = new_entry;
  			}
-@@ -1408,6 +1883,11 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1408,6 +1884,11 @@ void spu_cache::initialize(bool build_existing_cache)
  	}
  
  #ifdef RPCS3_IOS
@@ -5173,7 +5497,7 @@ index d451a94..2ff9ed8 100644
  	if (const u64 released = rpcs3::ios::relieve_process_memory_pressure())
  	{
  		spu_log.notice("iOS released %llu MiB of transient SPU compilation memory", released / rpcs3::ios::process_memory_mib);
-@@ -1432,9 +1912,10 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1432,9 +1913,10 @@ void spu_cache::initialize(bool build_existing_cache)
  	}
  
  	// Initialize global cache instance
@@ -5185,18 +5509,135 @@ index d451a94..2ff9ed8 100644
  	}
  }
  
-@@ -1499,8 +1980,8 @@ spu_runtime::spu_runtime()
+@@ -1497,11 +1979,18 @@ spu_runtime::spu_runtime()
+ 	}
+ 
  #ifdef RPCS3_IOS
- 	if (rpcs3::ios::get_experimental_policy().persistent_spu_object_cache)
- 	{
+-	if (rpcs3::ios::get_experimental_policy().persistent_spu_object_cache)
+-	{
 -		// v3 retires objects produced before ARM64 persistence was disabled.
 -		constexpr u32 cache_version = 3;
-+		// v5 retires objects whose analyzer omitted the BID continuation edge.
-+		constexpr u32 cache_version = 5;
- 		constexpr usz max_files = 12'000;
+-		constexpr usz max_files = 12'000;
++	// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: persistent ARM64 SPU objects.
++	// The directory key folds every input that shapes an object: the cache
++	// format, the codegen settings, the device features, the CPU name, the
++	// LLVM release and the configure-time digest of the translator/backend
++	// sources (jit_compiler::spu_codegen_identity), plus the Core revision.
++	// Objects of another key are never read; their directories are removed.
++	// Within the key, the directory is bounded in files and bytes and the
++	// oldest objects are evicted first (rpcs3::spu::object_cache).
++	if (g_cfg.core.spu_cache && rpcs3::ios::get_experimental_policy().persistent_spu_object_cache)
++	{
++		namespace object_cache = rpcs3::spu::object_cache;
++
  		sha1_context ctx;
  		u8 key[20];
-@@ -1889,7 +2370,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+ 		sha1_starts(&ctx);
+@@ -1511,7 +2000,12 @@ spu_runtime::spu_runtime()
+ 			sha1_update(&ctx, reinterpret_cast<const u8*>(&value), sizeof(value));
+ 		};
+ 
+-		fold(cache_version);
++		const auto fold_string = [&](const std::string& value)
++		{
++			sha1_update(&ctx, reinterpret_cast<const u8*>(value.data()), value.size());
++		};
++
++		fold(object_cache::format_version);
+ 		const u32 xfloat = static_cast<u32>(g_cfg.core.spu_xfloat_accuracy.get());
+ 		const u32 block_size = static_cast<u32>(g_cfg.core.spu_block_size.get());
+ 		const u32 clocks_scale = static_cast<u32>(g_cfg.core.clocks_scale.get());
+@@ -1540,40 +2034,73 @@ spu_runtime::spu_runtime()
+ 		fold(hw);
+ 		fold(tsc_freq);
+ 
+-		const std::string cpu = jit_compiler::cpu(g_cfg.core.llvm_cpu.to_string());
+-		sha1_update(&ctx, reinterpret_cast<const u8*>(cpu.data()), cpu.size());
++		fold_string(jit_compiler::cpu(g_cfg.core.llvm_cpu.to_string()));
++		fold_string(jit_compiler::spu_codegen_identity());
+ 		const auto [commit, revision] = rpcs3::get_commit_and_hash();
+-		sha1_update(&ctx, reinterpret_cast<const u8*>(commit.data()), commit.size());
+-		sha1_update(&ctx, reinterpret_cast<const u8*>(revision.data()), revision.size());
++		fold_string(commit);
++		fold_string(revision);
+ 		sha1_finish(&ctx, key);
+ 
+-		m_obj_cache_path = m_cache_path + fmt::format("spuobj-v%u-%s/", cache_version, fmt::base57(key, 16));
++		m_obj_cache_path = m_cache_path + fmt::format("spuobj-v%u-%s/", object_cache::format_version, fmt::base57(key, 16));
++
++		// Directories of other keys (another Core, other settings or features)
++		// are never read again. Names are collected first: fs::dir is live.
++		std::vector<std::string> stale_directories;
++
++		for (auto&& entry : fs::dir(m_cache_path))
++		{
++			if (entry.is_directory && entry.name.starts_with("spuobj-") && m_cache_path + entry.name + "/" != m_obj_cache_path)
++			{
++				stale_directories.push_back(entry.name);
++			}
++		}
++
++		for (const std::string& name : stale_directories)
++		{
++			spu_log.notice("SPU object cache: removing directory of another build or configuration: %s", name);
++			fs::remove_all(m_cache_path + name + "/");
++			rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::stale_directory);
++		}
++
+ 		if (!fs::create_path(m_obj_cache_path))
+ 		{
++			spu_log.error("SPU object cache: failed to create %s (%s); objects are not persisted this session", m_obj_cache_path, fs::g_tls_error);
+ 			m_obj_cache_path.clear();
+ 		}
+ 		else
+ 		{
+-			usz file_count = 0;
++			// Bounded storage, applied once here before any compile worker
++			// writes: the writers share no index and never evict.
++			std::vector<object_cache::entry> entries;
++
+ 			for (auto&& entry : fs::dir(m_obj_cache_path))
+ 			{
+-				file_count += !entry.is_directory;
++				if (!entry.is_directory)
++				{
++					entries.push_back({entry.name, entry.size, entry.mtime});
++				}
+ 			}
+ 
+-			if (file_count > max_files)
++			const object_cache::eviction_plan plan = object_cache::plan_eviction(std::move(entries));
++
++			for (const std::string& name : plan.remove)
+ 			{
+-				spu_log.notice("SPU object cache exceeded %u files; rebuilding it.", max_files);
+-				fs::remove_all(m_obj_cache_path, false);
+-				if (!fs::create_path(m_obj_cache_path))
+-				{
+-					m_obj_cache_path.clear();
+-				}
+-				file_count = 0;
++				fs::remove_file(m_obj_cache_path + name);
+ 			}
+ 
+-			spu_log.notice("SPU object cache: %s (%u files)", m_obj_cache_path, file_count);
++			if (!plan.remove.empty())
++			{
++				spu_log.notice("SPU object cache: evicted the %u oldest objects (%u KiB) to stay within %u files and %u MiB", plan.remove.size(), plan.removed_bytes / 1024, object_cache::max_files, object_cache::max_bytes >> 20);
++				rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::evicted, plan.remove.size());
++			}
++
++			spu_log.notice("SPU object cache: %s (%u files, %u KiB)", m_obj_cache_path, plan.kept_files, plan.kept_bytes / 1024);
+ 		}
+ 	}
++	else
++	{
++		spu_log.notice("SPU object cache: disabled (spu_cache=%d policy=%d)", g_cfg.core.spu_cache.get(), rpcs3::ios::get_experimental_policy().persistent_spu_object_cache);
++	}
+ #endif
+ }
+ 
+@@ -1889,7 +2416,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  			if (w.level >= w.beg->first.size() || w.level >= it->first.size())
  			{
  				// If functions cannot be compared, assume smallest function
@@ -5210,7 +5651,7 @@ index d451a94..2ff9ed8 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -1928,7 +2414,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1928,7 +2460,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  
  			if (it == m_flat_list.end())
  			{
@@ -5219,7 +5660,7 @@ index d451a94..2ff9ed8 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -2414,6 +2900,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
+@@ -2414,6 +2946,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
  		return;
  	}
  
@@ -5233,7 +5674,7 @@ index d451a94..2ff9ed8 100644
  	const auto func = compile_spu_llvm_with_retry(spu.jit, program);
  #else
  	const auto func = spu.jit->compile(std::move(program));
-@@ -2564,6 +3057,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2564,6 +3103,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  
  	// LS pointer
  	const auto base = static_cast<const u8*>(ls);
@@ -5241,7 +5682,7 @@ index d451a94..2ff9ed8 100644
  
  	while (true)
  	{
-@@ -2577,12 +3071,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2577,12 +3117,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  			(spu.pc < spu.interp_fallback_begin || spu.pc >= spu.interp_fallback_end)) [[unlikely]]
  		{
  			spu.interp_fallback = false;
@@ -5277,7 +5718,7 @@ index d451a94..2ff9ed8 100644
  	}
  }
  
-@@ -3174,6 +3690,55 @@ struct block_reg_info
+@@ -3174,6 +3736,55 @@ struct block_reg_info
  	}
  };
  
@@ -5333,7 +5774,7 @@ index d451a94..2ff9ed8 100644
  spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, std::map<u32, std::vector<u32>>* out_target_list)
  {
  	// Result: addr + raw instruction data
-@@ -3401,11 +3966,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -3401,11 +4012,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const u32 target = spu_branch_target(av);
  
@@ -5358,7 +5799,7 @@ index d451a94..2ff9ed8 100644
  					break;
  				}
  
-@@ -5789,7 +6366,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5789,7 +6412,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				getllar_starts[previous.lsa_pc] = true;
  				g_fxo->get<putllc16_statistics_t>().breaking_reason[cause]++;
  
@@ -5367,7 +5808,7 @@ index d451a94..2ff9ed8 100644
  				{
  					return;
  				}
-@@ -5829,7 +6406,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5829,7 +6452,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -5376,7 +5817,7 @@ index d451a94..2ff9ed8 100644
  			}
  		};
  
-@@ -5846,7 +6423,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5846,7 +6469,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  				g_fxo->get<rchcnt_statistics_t>().breaking_reason[cause]++;
  
@@ -5385,7 +5826,7 @@ index d451a94..2ff9ed8 100644
  				{
  					return;
  				}
-@@ -5886,7 +6463,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5886,7 +6509,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -5394,7 +5835,7 @@ index d451a94..2ff9ed8 100644
  			}
  		};
  
-@@ -5896,7 +6473,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5896,7 +6519,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				g_fxo->get<reduced_statistics_t>().breaking_reason[cause]++;
  
@@ -5403,7 +5844,7 @@ index d451a94..2ff9ed8 100644
  				{
  					return;
  				}
-@@ -5941,12 +6518,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5941,12 +6564,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -5418,7 +5859,7 @@ index d451a94..2ff9ed8 100644
  			}
  		};
  
-@@ -6157,7 +6734,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6157,7 +6780,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  						{
  							if (!std::exchange(logged_block[target_pc / 4], true))
  							{
@@ -5427,7 +5868,7 @@ index d451a94..2ff9ed8 100644
  							}
  
  							state_it->parent_target_index++;
-@@ -6830,7 +7407,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6830,7 +7453,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const reg_state_t& rt = vregs[op.rt];
  
@@ -5443,7 +5884,7 @@ index d451a94..2ff9ed8 100644
  				{
  					if (rchcnt_loop->conditioned)
  					{
-@@ -6841,7 +7425,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6841,7 +7471,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  					rchcnt_loop->conditioned = true;
  					rchcnt_loop->branch_pc = pos;
@@ -5456,7 +5897,7 @@ index d451a94..2ff9ed8 100644
  				}
  
  				break;
-@@ -7679,7 +8267,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -7679,7 +8313,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  							if (getllar_starts.emplace(atomic16->lsa_pc, false).second)
  							{
  								g_fxo->get<putllc16_statistics_t>().all++;
@@ -5465,7 +5906,7 @@ index d451a94..2ff9ed8 100644
  							}
  						}
  
-@@ -8745,7 +9333,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8745,7 +9379,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  			if (rchcnt_loop->active)
  			{
@@ -5474,7 +5915,7 @@ index d451a94..2ff9ed8 100644
  				{
  					if (op.si10 != 0 && op.si10 != 1)
  					{
-@@ -8754,7 +9342,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8754,7 +9388,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  					}
  
  					rchcnt_loop->ch_product = vregs[op.rt];
@@ -5485,7 +5926,7 @@ index d451a94..2ff9ed8 100644
  				}
  			}
  
-@@ -9007,7 +9597,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9007,7 +9643,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			add_pattern(inst_attr::putllc16, pattern.put_pc - result.entry_point, value.data);
  		}
  
@@ -5494,7 +5935,7 @@ index d451a94..2ff9ed8 100644
  			, pattern.mem_count, pattern.put_pc, value.type == v_relative, value.off18, value.type == v_const, value.type == v_reg2, value.reg, value.runtime16_select, entry_point, func_hash, pattern_hash, +stats.nowrite, ++stats.single, +stats.all);
  	}
  
-@@ -9024,6 +9614,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9024,6 +9660,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			continue;
  		}
  
@@ -5506,7 +5947,7 @@ index d451a94..2ff9ed8 100644
  		if (inst_attr attr = m_inst_attrs[(read_pc - entry_point) / 4]; attr == inst_attr::none)
  		{
  			add_pattern(inst_attr::rchcnt_loop, read_pc - result.entry_point, 0);
-@@ -9113,7 +9708,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9113,7 +9754,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  	if (likely_putllc_loop && !had_putllc_evaluation)
  	{
@@ -5515,7 +5956,7 @@ index d451a94..2ff9ed8 100644
  	}
  
  	if (result.data.empty())
-@@ -9359,7 +9954,7 @@ struct spu_llvm_worker
+@@ -9359,7 +10000,7 @@ struct spu_llvm_worker
  			}
  
  			// Clear fake LS
@@ -5916,19 +6357,20 @@ index 0000000..9d19266
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c790..129770096 100644
+index 9a1e4c790..08db84eef 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-@@ -1,5 +1,8 @@
+@@ -1,5 +1,9 @@
  #include "stdafx.h"
 +
 +// NEOSTATION_SPU_ARM64_LOWERING_41F0ECC_V1: ported from upstream 41f0ecc.
  #include "SPURecompiler.h"
 +#include "SPUWarmupPolicy.h"
++#include "SPUObjectCachePolicy.h"
  
  #include "Emu/System.h"
  #include "Emu/system_config.h"
-@@ -8,8 +11,14 @@
+@@ -8,8 +12,14 @@
  #include "Emu/Cell/lv2/sys_time.h"
  #include "Emu/Memory/vm_reservation.h"
  #include "Emu/RSX/Core/RSXReservationLock.hpp"
@@ -5943,7 +6385,7 @@ index 9a1e4c790..129770096 100644
  
  #include "SPUThread.h"
  #include "SPUAnalyser.h"
-@@ -27,6 +36,19 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+@@ -27,6 +37,19 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
  
  #ifdef LLVM_AVAILABLE
  
@@ -5963,7 +6405,7 @@ index 9a1e4c790..129770096 100644
  #include "Emu/CPU/CPUTranslator.h"
  
  #ifdef _MSC_VER
-@@ -61,9 +83,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+@@ -61,9 +84,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
  #endif
  
  #ifdef ARCH_ARM64
@@ -5976,7 +6418,100 @@ index 9a1e4c790..129770096 100644
  
  namespace
  {
-@@ -706,19 +731,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -76,6 +102,92 @@ void spu_llvm_set_compile_context(spu_llvm_compile_context* context) noexcept
+ }
+ #endif
+ 
++#ifdef RPCS3_IOS
++namespace
++{
++	// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: true when no instruction or
++	// constant turns an integer that is really a host address into a pointer.
++	// Everything the translator references in the host is a symbol resolved
++	// by MCJIT at load time; a baked address would only come from a future
++	// pointer cast of an integer built from a host pointer and would break every
++	// object loaded by another process (ARMSX3 457a932c7).
++	bool spu_llvm_constant_is_host_address(const llvm::Constant* value, u64& offending, u32 depth = 0)
++	{
++		if (!value || depth > 8)
++		{
++			return false;
++		}
++
++		if (const auto expr = llvm::dyn_cast<llvm::ConstantExpr>(value))
++		{
++			if (expr->getOpcode() == llvm::Instruction::IntToPtr)
++			{
++				if (const auto imm = llvm::dyn_cast<llvm::ConstantInt>(expr->getOperand(0)); imm && imm->getBitWidth() <= 64 && rpcs3::spu::object_cache::is_host_address_constant(imm->getZExtValue()))
++				{
++					offending = imm->getZExtValue();
++					return true;
++				}
++			}
++		}
++
++		if (llvm::isa<llvm::GlobalValue>(value))
++		{
++			// A symbol: relocated by the loader in every process.
++			return false;
++		}
++
++		for (const llvm::Use& operand : value->operands())
++		{
++			if (spu_llvm_constant_is_host_address(llvm::dyn_cast<llvm::Constant>(operand.get()), offending, depth + 1))
++			{
++				return true;
++			}
++		}
++
++		return false;
++	}
++
++	bool spu_llvm_module_is_relocatable(const llvm::Module& m, u64& offending)
++	{
++		for (const llvm::GlobalVariable& global : m.globals())
++		{
++			if (global.hasInitializer() && spu_llvm_constant_is_host_address(global.getInitializer(), offending))
++			{
++				return false;
++			}
++		}
++
++		for (const llvm::Function& function : m)
++		{
++			for (const llvm::BasicBlock& block : function)
++			{
++				for (const llvm::Instruction& inst : block)
++				{
++					if (const auto itp = llvm::dyn_cast<llvm::IntToPtrInst>(&inst))
++					{
++						if (const auto imm = llvm::dyn_cast<llvm::ConstantInt>(itp->getOperand(0)); imm && imm->getBitWidth() <= 64 && rpcs3::spu::object_cache::is_host_address_constant(imm->getZExtValue()))
++						{
++							offending = imm->getZExtValue();
++							return false;
++						}
++					}
++
++					for (const llvm::Use& operand : inst.operands())
++					{
++						if (spu_llvm_constant_is_host_address(llvm::dyn_cast<llvm::Constant>(operand.get()), offending))
++						{
++							return false;
++						}
++					}
++				}
++			}
++		}
++
++		return true;
++	}
++}
++#endif
++
+ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ {
+ 	// JIT Instance
+@@ -706,19 +818,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -6021,7 +6556,7 @@ index 9a1e4c790..129770096 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -728,6 +778,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -728,6 +865,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto e = m_ir->CreateAnd(val, 0x7f800000);
  			return uint64_as_double(m_ir->CreateSelect(m_ir->CreateIsNotNull(e), f, s));
  		}
@@ -6029,7 +6564,7 @@ index 9a1e4c790..129770096 100644
  
  		const auto s = m_ir->CreateShl(m_ir->CreateAnd(x, 0x80000000), 32);
  		const auto a = m_ir->CreateAnd(x, 0x7fffffff);
-@@ -735,6 +786,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -735,6 +873,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		const auto r = m_ir->CreateSelect(m_ir->CreateICmpSGT(a, splat<u64[4]>(0x7fffff).eval(m_ir)), m, splat<u64[4]>(0).eval(m_ir));
  		const auto f = m_ir->CreateOr(s, r);
  		return uint64_as_double(f);
@@ -6037,7 +6572,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	// Clamp double values to ±Smax, flush values smaller than ±Smin to positive zero
-@@ -742,6 +794,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -742,6 +881,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -6045,7 +6580,7 @@ index 9a1e4c790..129770096 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -754,6 +807,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -754,6 +894,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto r = m_ir->CreateOr(c, m_ir->CreateAnd(d, 0x8000000000000000));
  			return uint64_as_double(m_ir->CreateSelect(n, r, splat<u64[4]>(0).eval(m_ir)));
  		}
@@ -6053,7 +6588,7 @@ index 9a1e4c790..129770096 100644
  
  		const auto smax = uint64_as_double(splat<u64[4]>(0x47ffffffe0000000).eval(m_ir));
  		const auto smin = uint64_as_double(splat<u64[4]>(0x3810000000000000).eval(m_ir));
-@@ -770,10 +824,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -770,10 +911,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	// Expand 32-bit mask for xfloat values to 64-bit, 29 least significant bits are always zero
  	llvm::Value* conv_xfloat_mask(llvm::Value* val)
  	{
@@ -6333,7 +6868,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	llvm::Value* get_reg_raw(u32 index)
-@@ -1160,10 +1483,27 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -1160,10 +1570,27 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		m_ir->SetInsertPoint(check);
  		update_pc(addr);
  
@@ -6362,7 +6897,19 @@ index 9a1e4c790..129770096 100644
  
  		if (may_be_unsafe_for_savestate)
  		{
-@@ -1674,6 +2014,12 @@ public:
+@@ -1602,6 +2029,11 @@ public:
+ 			m_spurt = &g_fxo->get<spu_runtime>();
+ 			cpu_translator::initialize(m_jit.get_context(), m_jit.get_engine());
+ 
++			// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: the timebase offset is
++			// read through this symbol instead of a baked host address, so the
++			// objects of this engine stay relocatable across processes.
++			m_engine->updateGlobalMapping("spu_timebase_offs", reinterpret_cast<u64>(&g_timebase_offs));
++
+ 			const auto md_name = llvm::MDString::get(m_context, "branch_weights");
+ 			const auto md_low = llvm::ValueAsMetadata::get(llvm::ConstantInt::get(GetType<u32>(), 1));
+ 			const auto md_high = llvm::ValueAsMetadata::get(llvm::ConstantInt::get(GetType<u32>(), 999));
+@@ -1674,6 +2106,12 @@ public:
  			return nullptr;
  		}
  
@@ -6375,7 +6922,7 @@ index 9a1e4c790..129770096 100644
  		const spu_program& func = add_loc->data;
  
  		if (func.entry_point != start0)
-@@ -1689,6 +2035,10 @@ public:
+@@ -1689,6 +2127,10 @@ public:
  				add_loc->compiled.wait(nullptr, atomic_wait_timeout{10'000'000});
  			}
  
@@ -6386,7 +6933,7 @@ index 9a1e4c790..129770096 100644
  			return add_loc->compiled;
  		}
  
-@@ -1702,6 +2052,10 @@ public:
+@@ -1702,6 +2144,10 @@ public:
  				add_loc->llvm_compile_state.wait(1, atomic_wait_timeout{10'000'000});
  			}
  
@@ -6397,7 +6944,7 @@ index 9a1e4c790..129770096 100644
  			return add_loc->llvm_compile_state == 2 ? add_loc->compiled.load() : nullptr;
  		}
  
-@@ -1722,11 +2076,25 @@ public:
+@@ -1722,11 +2168,25 @@ public:
  
  		bool add_to_file = false;
  
@@ -6424,7 +6971,42 @@ index 9a1e4c790..129770096 100644
  		{
  			sha1_context ctx;
  			u8 output[20];
-@@ -1764,13 +2132,21 @@ public:
+@@ -1751,6 +2211,34 @@ public:
+ 		{
+ 			g_spu_llvm_compile_context->llvm_error.clear();
+ 		}
++
++		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: the register-pressure retries
++		// generate different machine code for the same guest bytes; the object
++		// name tells the variants apart (ARMSX3 a84572bcb).
++		m_hash += rpcs3::spu::object_cache::variant_suffix(m_use_tbl2, m_use_fma);
++#endif
++
++#ifdef RPCS3_IOS
++		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: read a previously generated
++		// object before building the IR. A hit still builds the module (its
++		// symbol names and patchpoint mappings are needed to link) but skips the
++		// pass pipeline and code generation. spu_debug keeps upstream's textual
++		// cache path and never reuses objects.
++		const std::string& spu_obj_cache = m_spurt->get_obj_cache_path();
++		const bool use_spu_obj_cache = !spu_obj_cache.empty() && !g_cfg.core.spu_debug;
++		jit_cached_object spu_cached_object;
++		jit_cache_outcome spu_cache_outcome;
++		bool spu_cache_write_attempted = false;
++
++		if (use_spu_obj_cache)
++		{
++			spu_cached_object = jit_compiler::load_cached_object(spu_obj_cache + m_hash + ".obj", m_hash);
++
++			if (spu_cached_object.removed_invalid)
++			{
++				rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::invalid);
++			}
++		}
+ #endif
+ 
+ 		spu_log.notice("Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
+@@ -1764,13 +2252,21 @@ public:
  		m_pp_id = 0;
  
  		std::string function_log;
@@ -6450,7 +7032,7 @@ index 9a1e4c790..129770096 100644
  			{
  				// Fallback: write to main log
  				to_log_func = true;
-@@ -1786,11 +2162,13 @@ public:
+@@ -1786,11 +2282,13 @@ public:
  			if (itype == spu_itype::RDCH && op.ra == SPU_RdDec)
  			{
  				to_log_func = true;
@@ -6464,7 +7046,7 @@ index 9a1e4c790..129770096 100644
  			spu_log.notice("Function %s dump:\n%s", m_hash, function_log);
  		}
  
-@@ -1875,6 +2253,7 @@ public:
+@@ -1875,6 +2373,7 @@ public:
  			[[maybe_unused]] u32 elements;
  			[[maybe_unused]] u32 dwords;
  
@@ -6472,7 +7054,7 @@ index 9a1e4c790..129770096 100644
  			if (m_use_avx512)
  			{
  				stride = 64;
-@@ -1888,6 +2267,7 @@ public:
+@@ -1888,6 +2387,7 @@ public:
  				dwords = 4;
  			}
  			else
@@ -6480,7 +7062,7 @@ index 9a1e4c790..129770096 100644
  			{
  				stride = 16;
  				elements = 4;
-@@ -3853,6 +4233,13 @@ public:
+@@ -3853,6 +4353,13 @@ public:
  			m_function_table->eraseFromParent();
  		}
  
@@ -6494,23 +7076,36 @@ index 9a1e4c790..129770096 100644
  		// Create the analysis managers.
  		// These must be declared in this order so that they are destroyed in the
  		// correct order due to inter-analysis-manager references.
-@@ -3885,6 +4272,12 @@ public:
- 		for (auto& f : *m_module)
- 		{
- 			run_transforms(f);
-+#ifdef ARCH_ARM64
-+			lower_spu_variable_insertions(f);
-+			spu_llvm::arm64::fold_byte_reversals(f);
-+			spu_llvm::arm64::fold_single_source_tables(f);
-+			spu_llvm::arm64::fold_wide_comparison_reversals(f);
+@@ -3882,15 +4389,49 @@ public:
+ 		fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
+ 		fpm.addPass(ADCEPass());
+ 
+-		for (auto& f : *m_module)
++#ifdef RPCS3_IOS
++		// A cached object replaces everything the passes would feed to the
++		// code generator; the IR only has to exist for linking.
++		if (!spu_cached_object)
 +#endif
- 		}
- 
- 		for (const auto& func : m_functions)
-@@ -3893,6 +4286,27 @@ public:
- 			fpm.run(*f, fam);
- 		}
- 
+ 		{
+-			run_transforms(f);
++			for (auto& f : *m_module)
++			{
++				run_transforms(f);
++#ifdef ARCH_ARM64
++				lower_spu_variable_insertions(f);
++				spu_llvm::arm64::fold_byte_reversals(f);
++				spu_llvm::arm64::fold_single_source_tables(f);
++				spu_llvm::arm64::fold_wide_comparison_reversals(f);
++#endif
++			}
++
++			for (const auto& func : m_functions)
++			{
++				const auto f = func.second.fn ? func.second.fn : func.second.chunk;
++				fpm.run(*f, fam);
++			}
++		}
++
 +#ifdef RPCS3_IOS
 +		const u64 codegen_started = utils::get_tsc();
 +		jit_phase::g_counters.add(jit_phase::spu_passes, codegen_started - passes_started, m_size);
@@ -6524,18 +7119,19 @@ index 9a1e4c790..129770096 100644
 +		{
 +			m_test_state->eraseFromParent();
 +			m_test_state = nullptr;
-+		}
-+
+ 		}
+ 
+-		for (const auto& func : m_functions)
 +		if (m_dispatch->use_empty())
-+		{
+ 		{
+-			const auto f = func.second.fn ? func.second.fn : func.second.chunk;
+-			fpm.run(*f, fam);
 +			m_dispatch->eraseFromParent();
 +			m_dispatch = nullptr;
-+		}
-+
+ 		}
+ 
  		// Clear context (TODO)
- 		m_blocks.clear();
- 		m_block_queue.clear();
-@@ -3904,12 +4318,28 @@ public:
+@@ -3904,12 +4445,33 @@ public:
  		std::string& llvm_log = function_log;
  		raw_string_ostream out(llvm_log);
  
@@ -6546,7 +7142,7 @@ index 9a1e4c790..129770096 100644
 -		if (verifyModule(*_module, &out))
 +		bool llvm_ir_logged = false;
 +		const auto append_llvm_ir = [&]
- 		{
++		{
 +			if (!llvm_ir_logged)
 +			{
 +				prepare_function_log();
@@ -6561,23 +7157,36 @@ index 9a1e4c790..129770096 100644
 +		}
 +		std::string verification_log;
 +		raw_string_ostream verification_out(verification_log);
-+		if (verifyModule(*_module, &verification_out))
-+		{
++#ifdef RPCS3_IOS
++		const bool verify_ir = !spu_cached_object;
++#else
++		constexpr bool verify_ir = true;
++#endif
++		if (verify_ir && verifyModule(*_module, &verification_out))
+ 		{
 +			verification_out.flush();
 +			append_llvm_ir();
 +			out << verification_log;
  			out.flush();
  			spu_log.error("LLVM: Verification failed at 0x%x:\n%s", func.entry_point, llvm_log);
  
-@@ -3951,25 +4381,10 @@ public:
+@@ -3951,22 +4513,39 @@ public:
  
  			if (recoverable)
  			{
 -				bool added = false;
  				std::string& llvm_error = g_spu_llvm_compile_context->llvm_error;
--
++				bool added = false;
+ 
 -				if (g_cfg.core.spu_debug)
--				{
++#ifdef RPCS3_IOS
++				// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: a hit links the cached
++				// object; a miss generates code and persists it, but only when the
++				// module holds no integer constant that is really a host address.
++				// Such a module is compiled without persistence and reported, so
++				// a future translator change can never poison the cache again.
++				if (use_spu_obj_cache)
+ 				{
 -					// Testing only
 -					added = m_jit.try_add(std::move(_module), m_spurt->get_cache_path() + "llvm/", llvm_error);
 -				}
@@ -6587,18 +7196,32 @@ index 9a1e4c790..129770096 100644
 -					// immediates without relocations. Compile into the current
 -					// process only until every such address is symbolic.
 -					added = m_jit.try_add(std::move(_module), llvm_error);
--				}
--				else
--				{
--					added = m_jit.try_add(std::move(_module), llvm_error);
--				}
-+				// ARM64 objects embed process-specific host addresses. This rule
-+				// also applies in debug mode; textual IR diagnostics remain safe.
-+				const bool added = m_jit.try_add(std::move(_module), llvm_error);
- 
- 				if (!added || !m_jit.try_fin(llvm_error))
++					u64 offending = 0;
++
++					if (spu_cached_object || spu_llvm_module_is_relocatable(*_module, offending))
++					{
++						spu_cache_write_attempted = !spu_cached_object;
++						added = m_jit.try_add_cached(std::move(_module), spu_obj_cache, std::move(spu_cached_object), spu_cache_outcome, llvm_error);
++					}
++					else
++					{
++						static atomic_t<u32> s_nonreloc_reported = 0;
++						rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::nonreloc);
++
++						if (!s_nonreloc_reported.exchange(1))
++						{
++							spu_log.error("SPU object cache: %s embeds host address 0x%x; compiled without persistence", m_hash, offending);
++						}
++
++						added = m_jit.try_add(std::move(_module), llvm_error);
++					}
+ 				}
+ 				else
++#endif
  				{
-@@ -3983,19 +4398,7 @@ public:
+ 					added = m_jit.try_add(std::move(_module), llvm_error);
+ 				}
+@@ -3983,19 +4562,7 @@ public:
  			}
  			else
  			{
@@ -6619,17 +7242,57 @@ index 9a1e4c790..129770096 100644
  
  				m_jit.fin();
  			}
-@@ -4018,11 +4421,20 @@ public:
+@@ -4018,11 +4585,60 @@ public:
  #endif
  		}
  
 +#ifdef RPCS3_IOS
-+		jit_phase::g_counters.add(jit_phase::spu_codegen, utils::get_tsc() - codegen_started, m_size);
++		if (spu_cache_outcome.loaded)
++		{
++			jit_phase::g_counters.add(jit_phase::spu_object_load, utils::get_tsc() - codegen_started, spu_cache_outcome.object_bytes);
++			rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::hit, spu_cache_outcome.object_bytes);
++		}
++		else
++		{
++			jit_phase::g_counters.add(jit_phase::spu_codegen, utils::get_tsc() - codegen_started, m_size);
++
++			if (use_spu_obj_cache)
++			{
++				rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::miss);
++			}
++
++			if (spu_cache_write_attempted)
++			{
++				rpcs3::ios::record_spu_object_cache_event(spu_cache_outcome.written ? rpcs3::ios::spu_object_cache_event::written : rpcs3::ios::spu_object_cache_event::write_failed, spu_cache_outcome.object_bytes);
++			}
++		}
 +#endif
 +
  		// Register function pointer
  		const spu_function_t fn = reinterpret_cast<spu_function_t>(m_jit.get_engine().getPointerToFunction(main_func));
  
++#ifdef RPCS3_IOS
++		if (!fn)
++		{
++			// Unreachable with a validated object (its entry symbol was required
++			// before the module was built); kept as the last guard against
++			// publishing a null entry point.
++			spu_log.error("SPU object cache: %s produced no entry point (cached=%d)", m_hash, spu_cache_outcome.loaded);
++
++			if (spu_cache_outcome.loaded)
++			{
++				fs::remove_file(spu_obj_cache + m_hash + ".obj.gz");
++			}
++
++			if (add_to_file)
++			{
++				add_loc->cached = 0;
++			}
++
++			return nullptr;
++		}
++#endif
++
  		// Install unconditionally, possibly replacing existing one from spu_fast
 +		add_loc->warmed = rpcs3::spu::loading_warmup;
  		add_loc->compiled = fn;
@@ -6640,7 +7303,7 @@ index 9a1e4c790..129770096 100644
  
  		// Rebuild trampoline if necessary
  		if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
-@@ -4069,7 +4481,7 @@ public:
+@@ -4069,7 +4685,7 @@ public:
  				cache.add(func);
  			}
  
@@ -6649,7 +7312,7 @@ index 9a1e4c790..129770096 100644
  		}
  
  		return fn;
-@@ -4159,14 +4571,13 @@ public:
+@@ -4159,14 +4775,13 @@ public:
  		// Pinned constant, address of first register
  		m_interp_regs = _ptr(m_thread, get_reg_offset(0));
  
@@ -6668,7 +7331,7 @@ index 9a1e4c790..129770096 100644
  
  		// Decode (shift) and load function pointer
  		const auto first = m_ir->CreateLoad(get_type<u8*>(), m_ir->CreateGEP(get_type<u8*>(), m_interp_table, m_ir->CreateLShr(m_interp_op, 32u - m_interp_magn)));
-@@ -4444,17 +4855,34 @@ public:
+@@ -4444,17 +5059,34 @@ public:
  		for (auto& f : *_module)
  		{
  			run_transforms(f);
@@ -6692,13 +7355,13 @@ index 9a1e4c790..129770096 100644
 +		};
 +		const bool log_llvm_ir = g_cfg.core.spu_debug.get();
 +		if (log_llvm_ir)
- 		{
++		{
 +			append_llvm_ir();
 +		}
 +		std::string verification_log;
 +		raw_string_ostream verification_out(verification_log);
 +		if (verifyModule(*_module, &verification_out))
-+		{
+ 		{
 +			verification_out.flush();
 +			if (!log_llvm_ir)
 +			{
@@ -6708,18 +7371,19 @@ index 9a1e4c790..129770096 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed:\n%s", llvm_log);
  
-@@ -4466,6 +4894,10 @@ public:
+@@ -4466,6 +5098,11 @@ public:
  			fmt::throw_exception("Compilation failed");
  		}
  
 +#ifdef ARCH_ARM64
-+		// The generated interpreter also contains process-local addresses.
++		// Built once per process; the interpreter module is not persisted
++		// (NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1 covers compiled blocks only).
 +		m_jit.add(std::move(_module));
 +#else
  		if (g_cfg.core.spu_debug)
  		{
  			// Testing only
-@@ -4479,11 +4911,22 @@ public:
+@@ -4479,11 +5116,22 @@ public:
  		{
  			m_jit.add(std::move(_module));
  		}
@@ -6742,7 +7406,7 @@ index 9a1e4c790..129770096 100644
  
  		for (u32 i = 0; i < spu_runtime::g_interpreter_table.size(); i++)
  		{
-@@ -4507,7 +4950,7 @@ public:
+@@ -4507,7 +5155,7 @@ public:
  
  	static bool exec_check_state(spu_thread* _spu)
  	{
@@ -6751,7 +7415,18 @@ index 9a1e4c790..129770096 100644
  	}
  
  	template <spu_intrp_func_t F>
-@@ -4924,9 +5367,25 @@ public:
+@@ -4747,7 +5395,9 @@ public:
+ #if defined(ARCH_X64) || defined(ARCH_ARM64)
+ 			if (utils::get_tsc_freq() && !(g_cfg.core.spu_loop_detection) && (g_cfg.core.clocks_scale == 100))
+ 			{
+-				const auto timebase_offs = m_ir->CreateLoad(get_type<u64>(), m_ir->CreateIntToPtr(m_ir->getInt64(reinterpret_cast<u64>(&g_timebase_offs)), get_type<u64*>()));
++				// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: external symbol mapped in
++				// init(), never a baked host address (see SPUObjectCachePolicy.h).
++				const auto timebase_offs = m_ir->CreateLoad(get_type<u64>(), m_module->getOrInsertGlobal("spu_timebase_offs", get_type<u64>()));
+ 				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
+ 				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));
+ 				const auto tsc = m_ir->CreateCall(get_intrinsic(llvm::Intrinsic::readcyclecounter));
+@@ -4924,9 +5574,25 @@ public:
  			{
  				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
  				{
@@ -6778,7 +7453,7 @@ index 9a1e4c790..129770096 100644
  				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
  				break;
  			}
-@@ -5200,7 +5659,7 @@ public:
+@@ -5200,7 +5866,7 @@ public:
  				}
  			}
  
@@ -6787,7 +7462,7 @@ index 9a1e4c790..129770096 100644
  			//m_ir->CreateStore(val.value, spu_ptr(&spu_thread::ch_mfc_cmd, &spu_mfc_cmd::eah));
  			return;
  		}
-@@ -5403,6 +5862,16 @@ public:
+@@ -5403,6 +6069,16 @@ public:
  					}
  					}
  
@@ -6804,7 +7479,7 @@ index 9a1e4c790..129770096 100644
  					// Check if the LS address is constant and 256 bit aligned
  					u64 clsa = umax;
  
-@@ -5411,20 +5880,19 @@ public:
+@@ -5411,20 +6087,19 @@ public:
  						clsa = ci->getZExtValue();
  					}
  
@@ -6827,7 +7502,7 @@ index 9a1e4c790..129770096 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5558,7 +6026,7 @@ public:
+@@ -5558,7 +6233,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -6836,7 +7511,7 @@ index 9a1e4c790..129770096 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6048,8 @@ public:
+@@ -5580,29 +6255,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -6868,7 +7543,7 @@ index 9a1e4c790..129770096 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6149,34 @@ public:
+@@ -5702,14 +6356,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -6903,7 +7578,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6214,13 @@ public:
+@@ -5747,7 +6421,13 @@ public:
  			return;
  		}
  
@@ -6917,7 +7592,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6239,13 @@ public:
+@@ -5766,7 +6446,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -6931,7 +7606,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6283,13 @@ public:
+@@ -5804,7 +6490,13 @@ public:
  			return;
  		}
  
@@ -6945,7 +7620,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +6743,12 @@ public:
+@@ -6258,13 +6950,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -6963,7 +7638,7 @@ index 9a1e4c790..129770096 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +6757,17 @@ public:
+@@ -6273,7 +6964,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -6981,7 +7656,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +6828,24 @@ public:
+@@ -6334,20 +7035,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -7006,7 +7681,7 @@ index 9a1e4c790..129770096 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +7002,14 @@ public:
+@@ -6504,8 +7209,14 @@ public:
  			}
  		}
  
@@ -7021,7 +7696,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7022,27 @@ public:
+@@ -6518,15 +7229,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -7049,7 +7724,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7077,13 @@ public:
+@@ -6561,11 +7284,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -7063,7 +7738,7 @@ index 9a1e4c790..129770096 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7092,13 @@ public:
+@@ -6574,11 +7299,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -7077,7 +7752,7 @@ index 9a1e4c790..129770096 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7244,16 @@ public:
+@@ -6724,6 +7451,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -7094,7 +7769,7 @@ index 9a1e4c790..129770096 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7262,16 @@ public:
+@@ -6732,6 +7469,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -7111,7 +7786,7 @@ index 9a1e4c790..129770096 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7281,16 @@ public:
+@@ -6741,6 +7488,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -7128,7 +7803,7 @@ index 9a1e4c790..129770096 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7323,7 @@ public:
+@@ -6773,6 +7530,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -7136,7 +7811,7 @@ index 9a1e4c790..129770096 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7340,7 @@ public:
+@@ -6789,6 +7547,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -7144,7 +7819,7 @@ index 9a1e4c790..129770096 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7364,17 @@ public:
+@@ -6812,6 +7571,17 @@ public:
  			return;
  		}
  
@@ -7162,7 +7837,7 @@ index 9a1e4c790..129770096 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7413,31 @@ public:
+@@ -6850,11 +7620,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -7194,7 +7869,7 @@ index 9a1e4c790..129770096 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7448,16 @@ public:
+@@ -6865,6 +7655,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -7211,7 +7886,7 @@ index 9a1e4c790..129770096 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7518,28 @@ public:
+@@ -6925,16 +7725,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -7240,7 +7915,7 @@ index 9a1e4c790..129770096 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8022,32 @@ public:
+@@ -7417,6 +8229,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -7273,7 +7948,7 @@ index 9a1e4c790..129770096 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8082,18 @@ public:
+@@ -7451,6 +8289,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -7292,7 +7967,7 @@ index 9a1e4c790..129770096 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8104,21 @@ public:
+@@ -7461,6 +8311,21 @@ public:
  			return;
  		}
  
@@ -7314,7 +7989,7 @@ index 9a1e4c790..129770096 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7568,6 +8226,28 @@ public:
+@@ -7568,6 +8433,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -7343,7 +8018,7 @@ index 9a1e4c790..129770096 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8307,12 @@ public:
+@@ -7627,12 +8514,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -7361,7 +8036,7 @@ index 9a1e4c790..129770096 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8355,14 @@ public:
+@@ -7675,6 +8562,14 @@ public:
  				return;
  			}
  
@@ -7376,7 +8051,7 @@ index 9a1e4c790..129770096 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8382,15 @@ public:
+@@ -7694,6 +8589,15 @@ public:
  			return;
  		}
  
@@ -7392,7 +8067,7 @@ index 9a1e4c790..129770096 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8398,14 @@ public:
+@@ -7701,6 +8605,14 @@ public:
  			return;
  		}
  
@@ -7407,7 +8082,7 @@ index 9a1e4c790..129770096 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8658,7 @@ public:
+@@ -7953,6 +8865,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -7415,7 +8090,7 @@ index 9a1e4c790..129770096 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8666,7 @@ public:
+@@ -7960,6 +8873,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -7423,7 +8098,7 @@ index 9a1e4c790..129770096 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8700,7 @@ public:
+@@ -7993,6 +8907,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -7431,7 +8106,7 @@ index 9a1e4c790..129770096 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8711,7 @@ public:
+@@ -8003,6 +8918,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -7439,7 +8114,7 @@ index 9a1e4c790..129770096 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +8767,15 @@ public:
+@@ -8058,6 +8974,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -7455,7 +8130,7 @@ index 9a1e4c790..129770096 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +8872,15 @@ public:
+@@ -8154,6 +9079,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -7471,7 +8146,7 @@ index 9a1e4c790..129770096 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9159,15 @@ public:
+@@ -8432,6 +9366,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -7487,7 +8162,7 @@ index 9a1e4c790..129770096 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9217,15 @@ public:
+@@ -8481,6 +9424,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -7503,7 +8178,7 @@ index 9a1e4c790..129770096 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9414,7 @@ public:
+@@ -8669,6 +9621,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -7511,7 +8186,7 @@ index 9a1e4c790..129770096 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9423,7 @@ public:
+@@ -8677,6 +9630,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -7519,7 +8194,7 @@ index 9a1e4c790..129770096 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9436,7 @@ public:
+@@ -8689,6 +9643,7 @@ public:
  			}
  		});
  
@@ -7527,7 +8202,7 @@ index 9a1e4c790..129770096 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9450,7 @@ public:
+@@ -8702,6 +9657,7 @@ public:
  			});
  		}
  		else
@@ -7535,7 +8210,7 @@ index 9a1e4c790..129770096 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9659,38 @@ public:
+@@ -8910,17 +9866,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -7574,7 +8249,7 @@ index 9a1e4c790..129770096 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +9816,7 @@ public:
+@@ -9046,6 +10023,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -7582,7 +8257,7 @@ index 9a1e4c790..129770096 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +9827,7 @@ public:
+@@ -9056,6 +10034,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -7590,7 +8265,7 @@ index 9a1e4c790..129770096 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10083,7 @@ public:
+@@ -9311,6 +10290,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -7598,7 +8273,7 @@ index 9a1e4c790..129770096 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10091,7 @@ public:
+@@ -9318,6 +10298,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -7606,7 +8281,7 @@ index 9a1e4c790..129770096 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10424,7 @@ public:
+@@ -9650,7 +10631,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -7615,7 +8290,7 @@ index 9a1e4c790..129770096 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10441,13 @@ public:
+@@ -9667,6 +10648,13 @@ public:
  		return addr;
  	}
  
@@ -7629,7 +8304,7 @@ index 9a1e4c790..129770096 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10471,7 @@ public:
+@@ -9690,7 +10678,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -7638,7 +8313,7 @@ index 9a1e4c790..129770096 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10530,7 @@ public:
+@@ -9749,7 +10737,7 @@ public:
  
  		if (op.d)
  		{
@@ -7647,7 +8322,7 @@ index 9a1e4c790..129770096 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +10817,7 @@ public:
+@@ -10036,7 +11024,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -7656,6 +8331,143 @@ index 9a1e4c790..129770096 100644
  			return;
  		}
  
+diff --git a/rpcs3/Emu/Cell/SPUObjectCachePolicy.h b/rpcs3/Emu/Cell/SPUObjectCachePolicy.h
+new file mode 100644
+index 000000000..9d8738321
+--- /dev/null
++++ b/rpcs3/Emu/Cell/SPUObjectCachePolicy.h
+@@ -0,0 +1,131 @@
++#pragma once
++
++// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: policy of the persistent ARM64 SPU
++// object cache. Pure, allocation-light and LLVM-free so the host test suite
++// can execute it (test/native/rpcs3_build481_spu_object_cache_test.cpp).
++//
++// Why ARM64 objects can be persisted since Build 481: the SPU translator no
++// longer bakes any host address into the IR as an integer constant. Every host
++// reference (dispatcher, escape, patchpoints, segment base, timebase offset)
++// is an external symbol that MCJIT resolves through the engine's global
++// mapping when an object is loaded, in whatever process loads it. Before the
++// change, SPU_RdDec materialized &g_timebase_offs as movz/movk immediates with
++// no relocation (ARMSX3 457a932c7 documents the resulting crash), which is why
++// the cache stayed disabled on ARM64 until now.
++#include <algorithm>
++#include <cstddef>
++#include <cstdint>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace rpcs3::spu::object_cache
++{
++	// Bump whenever the on-disk layout or the key composition changes; older
++	// directories are removed as "another build" at the next boot.
++	inline constexpr std::uint32_t format_version = 6;
++
++	// Bounds of one title's directory. Objects are a few KiB each (gzip);
++	// 40,000 files is ARMSX3's iOS bound, 512 MiB keeps a worst case of large
++	// Mega blocks below the per-title shader and metadata caches.
++	inline constexpr std::size_t max_files = 40'000;
++	inline constexpr std::uint64_t max_bytes = 512ull << 20;
++
++	// After a bound is crossed, the oldest objects are removed until both
++	// bounds are at this fraction, so the next boots do not evict again at once.
++	inline constexpr unsigned low_water_percent = 90;
++
++	// True once every host reference of the SPU translator is symbolic. The
++	// experimental policy resolves "Automatic" to this value on ARM64.
++	inline constexpr bool arm64_objects_relocatable = true;
++
++	// iOS 64-bit processes keep __PAGEZERO over the first 4 GiB: every host
++	// pointer (image, heap, JIT arena, stacks) is above it, while guest
++	// addresses and local-store offsets are below. An integer constant turned
++	// into a pointer above this floor is therefore a baked host address.
++	inline constexpr std::uint64_t host_address_floor = 1ull << 32;
++
++	constexpr bool is_host_address_constant(std::uint64_t value) noexcept
++	{
++		return value >= host_address_floor;
++	}
++
++	struct entry
++	{
++		std::string name;
++		std::uint64_t bytes = 0;
++		std::int64_t mtime = 0;
++	};
++
++	struct eviction_plan
++	{
++		std::vector<std::string> remove; // oldest first
++		std::size_t kept_files = 0;
++		std::uint64_t kept_bytes = 0;
++		std::uint64_t removed_bytes = 0;
++	};
++
++	// Selects the oldest entries (by mtime, then name for determinism) to remove
++	// when the directory exceeds either bound. Within bounds nothing is removed.
++	inline eviction_plan plan_eviction(std::vector<entry> entries,
++		std::size_t file_limit = max_files, std::uint64_t byte_limit = max_bytes, unsigned low_water = low_water_percent)
++	{
++		eviction_plan plan;
++		std::uint64_t total = 0;
++
++		for (const entry& item : entries)
++		{
++			total += item.bytes;
++		}
++
++		plan.kept_files = entries.size();
++		plan.kept_bytes = total;
++
++		if (entries.size() <= file_limit && total <= byte_limit)
++		{
++			return plan;
++		}
++
++		const std::size_t file_target = static_cast<std::size_t>(static_cast<std::uint64_t>(file_limit) * low_water / 100);
++		const std::uint64_t byte_target = byte_limit / 100 * low_water;
++
++		std::sort(entries.begin(), entries.end(), [](const entry& a, const entry& b)
++		{
++			return a.mtime != b.mtime ? a.mtime < b.mtime : a.name < b.name;
++		});
++
++		for (entry& item : entries)
++		{
++			if (plan.kept_files <= file_target && plan.kept_bytes <= byte_target)
++			{
++				break;
++			}
++
++			plan.kept_files--;
++			plan.kept_bytes -= item.bytes;
++			plan.removed_bytes += item.bytes;
++			plan.remove.push_back(std::move(item.name));
++		}
++
++		return plan;
++	}
++
++	// Codegen variants of the ARM64 register-pressure retries produce different
++	// machine code for the same guest bytes; they never share an object name.
++	inline std::string variant_suffix(bool use_tbl2, bool use_fma)
++	{
++		std::string suffix;
++
++		if (!use_tbl2)
++		{
++			suffix += "-notbl2";
++		}
++
++		if (!use_fma)
++		{
++			suffix += "-nofma";
++		}
++
++		return suffix;
++	}
++}
 diff --git a/rpcs3/Emu/Cell/SPURecompiler.h b/rpcs3/Emu/Cell/SPURecompiler.h
 index faf4082..d08c480 100644
 --- a/rpcs3/Emu/Cell/SPURecompiler.h
@@ -16719,18 +17531,42 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..753fc50 100644
+index 7c3389b83..24908668b 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -58,6 +58,7 @@ void resolve_experimental_policy() noexcept
+@@ -1,6 +1,7 @@
+ #include "stdafx.h"
+ #include "RPCS3IOSExperimentalPolicy.h"
+ 
++#include "Emu/Cell/SPUObjectCachePolicy.h"
+ #include "Emu/RSX/Common/BufferUtils.h"
+ #include "Emu/system_config.h"
+ #include "util/logs.hpp"
+@@ -58,14 +59,17 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
 +	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, false);
  
- 	// ARM64 SPU objects currently contain process-specific absolute host
- 	// addresses without relocations. Reusing them after ASLR moves those
-@@ -74,11 +75,12 @@ void resolve_experimental_policy() noexcept
+-	// ARM64 SPU objects currently contain process-specific absolute host
+-	// addresses without relocations. Reusing them after ASLR moves those
+-	// addresses is unsafe, even when the user explicitly requests the cache.
+-	resolved.persistent_spu_object_cache = false;
+-	if (g_cfg.ios_experimental.persistent_spu_object_cache == ios_experimental_mode::enabled)
++	// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: the SPU translator references
++	// the host only through symbols, so ARM64 objects relocate in any process
++	// and Automatic enables the persistent cache. The compile-time switch
++	// documents the precondition; Disabled still opts out.
++	resolved.persistent_spu_object_cache = arm64_default && rpcs3::spu::object_cache::arm64_objects_relocatable &&
++		resolve_mode(g_cfg.ios_experimental.persistent_spu_object_cache, true);
++	if (!resolved.persistent_spu_object_cache && g_cfg.ios_experimental.persistent_spu_object_cache == ios_experimental_mode::enabled)
+ 	{
+-		ios_experimental_log.warning("Persistent SPU object cache is unavailable on ARM64 because its objects are not relocatable");
++		ios_experimental_log.warning("Persistent SPU object cache requested but unavailable on this build");
+ 	}
+ 
+ 	s_policy = resolved;
+@@ -74,11 +78,12 @@ void resolve_experimental_policy() noexcept
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
  	ios_experimental_log.notice(
@@ -16758,7 +17594,7 @@ index 8fba197..8aa46a0 100644
  
  // Replaced only while boot is serialized and before emulation workers exist.
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..c255eba41 100644
+index d8005424b..798d71e85 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,129 @@
@@ -16891,7 +17727,7 @@ index d8005424b..c255eba41 100644
  
  u64 process_memory_footprint()
  {
-@@ -41,23 +144,287 @@ u64 process_memory_footprint()
+@@ -41,23 +144,303 @@ u64 process_memory_footprint()
  class performance_registry final
  {
  public:
@@ -16999,6 +17835,10 @@ index d8005424b..c255eba41 100644
 +		m_spu_compile_diagnostics = 0;
 +		m_rsx_shader_cache_hits = 0;
 +		m_rsx_shader_cache_misses = 0;
++		for (auto& counter : m_spu_object_events)
++			counter = 0;
++		m_spu_object_hit_bytes = 0;
++		m_spu_object_written_bytes = 0;
 +		if (!m_profile_thread.joinable())
 +		{
 +			m_profile_thread = std::thread([this] { sampler_main(); });
@@ -17185,10 +18025,22 @@ index d8005424b..c255eba41 100644
 +	void record_rsx_shader_cache_lookup(bool hit) noexcept
 +	{
 +		(hit ? m_rsx_shader_cache_hits : m_rsx_shader_cache_misses).fetch_add(1, std::memory_order_relaxed);
++	}
++
++	void record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event event, u64 amount) noexcept
++	{
++		const usz index = static_cast<usz>(event);
++		if (index >= static_cast<usz>(rpcs3::ios::spu_object_cache_event::count))
++			return;
++		m_spu_object_events[index].fetch_add(event == rpcs3::ios::spu_object_cache_event::evicted ? amount : 1, std::memory_order_relaxed);
++		if (event == rpcs3::ios::spu_object_cache_event::hit)
++			m_spu_object_hit_bytes.fetch_add(amount, std::memory_order_relaxed);
++		else if (event == rpcs3::ios::spu_object_cache_event::written)
++			m_spu_object_written_bytes.fetch_add(amount, std::memory_order_relaxed);
  	}
  
  	rpcs3_ios_status snapshot(rpcs3_ios_performance_metrics* metrics)
-@@ -72,7 +439,7 @@ public:
+@@ -72,7 +455,7 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -17197,7 +18049,7 @@ index d8005424b..c255eba41 100644
  		const bool presented_since_last_sample = !m_has_fps_baseline || frame_count > m_last_frame_count;
  		rpcs3_ios_performance_metrics result{};
  		result.struct_size = sizeof(result);
-@@ -113,7 +480,297 @@ public:
+@@ -113,7 +496,308 @@ public:
  	}
  
  private:
@@ -17310,19 +18162,30 @@ index d8005424b..c255eba41 100644
 +		}
 +
 +		const auto milliseconds = [frequency](u64 ticks) { return frequency ? static_cast<double>(ticks) * 1000.0 / frequency : 0.0; };
++		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: obj_* fields of the persistent
++		// SPU object cache (counts per window; bytes of loaded/written objects).
++		u64 obj_events[static_cast<usz>(rpcs3::ios::spu_object_cache_event::count)]{};
++		for (usz index = 0; index < static_cast<usz>(rpcs3::ios::spu_object_cache_event::count); ++index)
++			obj_events[index] = m_spu_object_events[index].exchange(0, std::memory_order_relaxed);
++		const u64 obj_hit_bytes = m_spu_object_hit_bytes.exchange(0, std::memory_order_relaxed);
++		const u64 obj_written_bytes = m_spu_object_written_bytes.exchange(0, std::memory_order_relaxed);
 +		ios_core_profiler.notice(
 +			"SPUPROF session=%llu loading_attempts=%llu loading_failures=%llu loading_total_ms=%.3f loading_max_ms=%.3f "
 +			"gameplay_attempts=%llu gameplay_failures=%llu gameplay_total_ms=%.3f gameplay_max_ms=%.3f "
 +			"warm_reuses=%llu warm_recompile_attempts=%llu "
 +			"deferred_hits=%llu deferred_queued=%llu deferred_pending=%llu deferred_failed_hits=%llu deferred_inline=%llu "
 +			"deferred_published=%llu deferred_failures=%llu deferred_wait_ms=%.3f deferred_wait_max_ms=%.3f deferred_build_ms=%.3f "
-+			"interp_entries=%llu interp_instructions=%llu interp_branches=%llu interp_handoffs=%llu",
++			"interp_entries=%llu interp_instructions=%llu interp_branches=%llu interp_handoffs=%llu "
++			"obj_hits=%llu obj_hit_kib=%.3f obj_misses=%llu obj_written=%llu obj_written_kib=%.3f obj_write_failures=%llu "
++			"obj_invalid=%llu obj_nonreloc=%llu obj_evicted=%llu obj_stale_dirs=%llu",
 +			profile_session, loading.count, loading.failures, milliseconds(loading.ticks), milliseconds(loading.maximum_ticks),
 +			gameplay.count, gameplay.failures, milliseconds(gameplay.ticks), milliseconds(gameplay.maximum_ticks),
 +			warm_reuses, warm_recompile_attempts,
 +			deferred_dispatch[0], deferred_dispatch[1], deferred_dispatch[2], deferred_dispatch[3], deferred_dispatch[4],
 +			deferred.count - deferred.failures, deferred.failures, milliseconds(deferred.ticks), milliseconds(deferred.maximum_ticks), milliseconds(deferred_compile_ticks),
-+			interp_entries, interp_instructions, interp_branches, interp_handoffs);
++			interp_entries, interp_instructions, interp_branches, interp_handoffs,
++			obj_events[0], static_cast<double>(obj_hit_bytes) / 1024.0, obj_events[1], obj_events[2], static_cast<double>(obj_written_bytes) / 1024.0, obj_events[3],
++			obj_events[4], obj_events[5], obj_events[6], obj_events[7]);
 +		// wl_<source>=count:acquire_ms:hold_ms attributes the exclusive writer
 +		// locks that stop the PPU threads (NEOSTATION_WRITER_LOCK_ATTRIBUTION_V1).
 +		ios_core_profiler.notice(
@@ -17495,7 +18358,7 @@ index d8005424b..c255eba41 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +778,73 @@ private:
+@@ -121,6 +805,76 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -17566,10 +18429,13 @@ index d8005424b..c255eba41 100644
 +	std::atomic<u64> m_spu_compile_diagnostics{0};
 +	std::atomic<u64> m_rsx_shader_cache_hits{0};
 +	std::atomic<u64> m_rsx_shader_cache_misses{0};
++	std::atomic<u64> m_spu_object_events[static_cast<usz>(rpcs3::ios::spu_object_cache_event::count)]{};
++	std::atomic<u64> m_spu_object_hit_bytes{0};
++	std::atomic<u64> m_spu_object_written_bytes{0};
  };
  
  performance_registry g_performance_registry;
-@@ -138,6 +862,111 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +892,116 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -17678,10 +18544,15 @@ index d8005424b..c255eba41 100644
 +	g_performance_registry.record_rsx_shader_cache_lookup(hit);
 +}
 +
++void record_spu_object_cache_event(spu_object_cache_event event, u64 amount) noexcept
++{
++	g_performance_registry.record_spu_object_cache_event(event, amount);
++}
++
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +976,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1011,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -17724,10 +18595,10 @@ index d8005424b..c255eba41 100644
  {
  #ifdef RPCS3_IOS
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.h b/rpcs3/ios/RPCS3IOSPerformance.h
-index 88392e0..97bef8b 100644
+index 88392e05f..fff82b576 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.h
 +++ b/rpcs3/ios/RPCS3IOSPerformance.h
-@@ -15,10 +15,50 @@ void reset_performance_metrics();
+@@ -15,10 +15,70 @@ void reset_performance_metrics();
  // device-wide hardware counter.
  void record_presented_frame(u32 rsx_load) noexcept;
  
@@ -17766,6 +18637,26 @@ index 88392e0..97bef8b 100644
 +void record_spu_compile_diagnostic() noexcept;
 +void record_rsx_shader_cache_lookup(bool hit) noexcept;
 +
++// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: persistent SPU object cache events.
++// hit/miss count compiled modules; written/write_failed count persistence
++// attempts of a miss; invalid counts files removed as unloadable; nonreloc
++// counts modules refused for a baked host address; evicted/stale_directory
++// count boot-time maintenance. amount carries object bytes for hit/written
++// and the removed count for evicted.
++enum class spu_object_cache_event : u32
++{
++	hit,
++	miss,
++	written,
++	write_failed,
++	invalid,
++	nonreloc,
++	evicted,
++	stale_directory,
++	count,
++};
++void record_spu_object_cache_event(spu_object_cache_event event, u64 amount = 1) noexcept;
++
  // Returns the current dirty-memory headroom before iOS applies the process
  // limit. The query is intentionally cheap enough for frame-boundary sampling.
  u64 available_process_memory_headroom() noexcept;
@@ -17779,7 +18670,7 @@ index 88392e0..97bef8b 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..5c1c5facc 100644
+index b7b047471..1bad2263a 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -17807,10 +18698,12 @@ index b7b047471..5c1c5facc 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -134,9 +138,11 @@ const std::array catalog{
+@@ -133,10 +137,12 @@ const std::array catalog{
+ 	SETTING("experimental.rsx_dma_wait_parking", "Experimental", "RSX", "Park RSX DMA waits", "After a short spin, parks the RSX thread while its offloader drains work. Disable to restore RPCS3's continuous spin. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_dma_wait_parking, 0, 0, 0),
  	SETTING("experimental.vulkan_command_buffer_reclamation", "Experimental", "Vulkan Memory", "Per-command-buffer ring reclamation", "Returns completed Vulkan ring allocations after each command buffer, including loads with no presentation. Disable to restore frame-only reclamation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.vulkan_command_buffer_reclamation, 0, 0, 0),
  	SETTING("experimental.expanded_spu_scratch", "Experimental", "SPU", "Expanded ARM64 SPU scratch", "Reserves 256 KiB instead of RPCS3's 8 KiB for generated ARM64 SPU spills. Disable to restore the original reservation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.expanded_spu_scratch, 0, 0, 0),
- 	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Unavailable on ARM64 because cached objects contain process-specific addresses. The setting is retained only for configuration compatibility.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
+-	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Unavailable on ARM64 because cached objects contain process-specific addresses. The setting is retained only for configuration compatibility.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
++	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Keeps the compiled ARM64 SPU code of each title between sessions. Objects are keyed by the Core, LLVM, settings and CPU features, bounded to 40,000 files or 512 MiB per title (oldest removed first) and ignored when invalid. Automatic enables it. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
 +	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
  
  	// Emulator
