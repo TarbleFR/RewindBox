@@ -151,6 +151,10 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   }];
 }
 - (void)viewWillAppear:(BOOL)animated { [super viewWillAppear:animated]; self.closed=NO; [self refreshDownloadState]; [self reloadCheats]; }
+- (void)viewWillDisappear:(BOOL)animated {
+  [super viewWillDisappear:animated];
+  if(self.isMovingFromParentViewController || self.navigationController.isBeingDismissed || self.isBeingDismissed){self.closed=YES;self.generation++;}
+}
 - (void)viewDidDisappear:(BOOL)animated {
   [super viewDidDisappear:animated];
   if (self.isMovingFromParentViewController || self.navigationController.isBeingDismissed) { self.closed=YES; self.generation++; }
@@ -330,12 +334,14 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   if(index>=games.count || self.closed || self.generation!=generation)return;
   NSDictionary *game=games[index];__weak typeof(self) weakSelf=self;
   [NeoUnifiedCheatCatalog.sharedCatalog cheatsForGame:game completion:^(NSArray *programs,NSError *problem) {
-    NeoUnifiedCheatList *menu=weakSelf;if(!menu || menu.closed || menu.generation!=generation)return;
+    NeoUnifiedCheatList *menu=weakSelf;if(!menu || menu.closed || menu.generation!=generation || !menu.viewIfLoaded.window ||
+        (menu.navigationController && menu.navigationController.topViewController!=menu))return;
     BOOL (^accepts)(NSDictionary *)=[menu.accepts copy];
     [NCLSelectionQueue() addOperationWithBlock:^{
       NSArray *additions=problem ? @[] : [NeoUnifiedCheatList selectionsForGame:game programs:programs accepts:accepts];
       dispatch_async(dispatch_get_main_queue(),^{
-        NeoUnifiedCheatList *current=weakSelf;if(!current || current.closed || current.generation!=generation)return;
+        NeoUnifiedCheatList *current=weakSelf;if(!current || current.closed || current.generation!=generation || !current.viewIfLoaded.window ||
+            (current.navigationController && current.navigationController.topViewController!=current))return;
         if(problem)current.catalogueStatus=[current text:@"loadFailed"];
         NSMutableArray *choices=context[@"choices"];
         for(NSDictionary *selection in additions){if(choices.count>=4096)break;[choices addObject:selection];}

@@ -969,7 +969,10 @@ static void NUCBExchangeSingleton(void) {
 - (void)testDirectListConfirmsAnUnknownEditionOncePerDetectedGame {
     NeoUnifiedCheatList* list=[self directListWithItems:@[]];
     NSMutableDictionary* game=[[self game] mutableCopy];game[@"installed"]=@YES;game[@"match"]=@"candidate";
-    self.catalog.rows=@[game];self.catalog.codes=@[[self program:@"a" dependencies:@[]],[self program:@"b" dependencies:@[]]];
+    // Two independently executable codes: identical bodies now deliberately
+    // consolidate into one row, covered by the dedicated 479 duplicate case.
+    NSMutableDictionary *other=[[self program:@"b" dependencies:@[]] mutableCopy];other[@"code"]=@"010300C0\n010400C1";other[@"lines"]=@[@"010300C0",@"010400C1"];
+    self.catalog.rows=@[game];self.catalog.codes=@[[self program:@"a" dependencies:@[]],other];
     __block NSUInteger sets=0;
     list.install=^(NSDictionary* g,NSArray* p,void (^done)(NSDictionary*,NSError*)){XCTAssertEqualObjects(g[@"edition_confirmed"],@YES);done(@{@"key":p.lastObject[@"id"]},nil);};
     list.setEnabled=^(NSDictionary* item,BOOL enabled,void (^done)(BOOL)){sets++;done(YES);};
