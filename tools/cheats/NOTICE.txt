@@ -52,3 +52,10 @@ Some data permissions remain unestablished; Pokemon France's published reuse
 restriction is specifically recorded. Do not describe the catalogue as cleared
 merely because all 51 profiles have source credits. Repository notice archival
 does not correct notices or source metadata in an already delivered IPA.
+
+CURRENT WITHDRAWAL FOLLOW-UP
+
+The eight Pokemon France programs are withheld pending established permission;
+50 profiles remain active. The historical 51-profile inventory is retained.
+See docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md and the withdrawal receipt.
+Do not conceal the source name while retaining the same programs.

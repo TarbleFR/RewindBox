@@ -1,0 +1,237 @@
+{
+  "inspectedIPA": "a1c44f59c80fa98f4d5a0fa7a59885e2b8269fc3666f40b23a805a0528f1b742",
+  "scope": "Observed binary version strings resolved in primary upstream repositories; source candidates, not complete build/source attestations",
+  "results": [
+    {
+      "core": "snes9x",
+      "repository": "https://github.com/libretro/snes9x",
+      "versionString": "1.63 fae2fea",
+      "abbreviatedRevision": "fae2fea",
+      "queryURL": "https://api.github.com/repos/libretro/snes9x/commits?sha=fae2fea&per_page=1",
+      "resolvedRevision": "fae2fea08f74180759ef540ee94259213f503480",
+      "upstreamCommitURL": "https://github.com/libretro/snes9x/commit/fae2fea08f74180759ef540ee94259213f503480",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "gambatte",
+      "repository": "https://github.com/libretro/gambatte-libretro",
+      "versionString": "v0.5.0-netlink d9d6cd0",
+      "abbreviatedRevision": "d9d6cd0",
+      "queryURL": "https://api.github.com/repos/libretro/gambatte-libretro/commits?sha=d9d6cd0&per_page=1",
+      "resolvedRevision": "d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "upstreamCommitURL": "https://github.com/libretro/gambatte-libretro/commit/d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "genesis_plus_gx",
+      "repository": "https://github.com/libretro/Genesis-Plus-GX",
+      "versionString": "v1.7.4 393f70c",
+      "abbreviatedRevision": "393f70c",
+      "queryURL": "https://api.github.com/repos/libretro/Genesis-Plus-GX/commits?sha=393f70c&per_page=1",
+      "resolvedRevision": "393f70cd64c7334564c19a424c383f53986c13f4",
+      "upstreamCommitURL": "https://github.com/libretro/Genesis-Plus-GX/commit/393f70cd64c7334564c19a424c383f53986c13f4",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "genesis_plus_gx_wide",
+      "repository": "https://github.com/libretro/Genesis-Plus-GX-Wide",
+      "versionString": "v1.7.4 b7ad005",
+      "abbreviatedRevision": "b7ad005",
+      "queryURL": "https://api.github.com/repos/libretro/Genesis-Plus-GX-Wide/commits?sha=b7ad005&per_page=1",
+      "resolvedRevision": "b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "upstreamCommitURL": "https://github.com/libretro/Genesis-Plus-GX-Wide/commit/b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mupen64plus_next",
+      "repository": "https://github.com/libretro/mupen64plus-libretro-nx",
+      "versionString": "3.0-Vulkan 12edd2c",
+      "abbreviatedRevision": "12edd2c",
+      "queryURL": "https://api.github.com/repos/libretro/mupen64plus-libretro-nx/commits?sha=12edd2c&per_page=1",
+      "resolvedRevision": "12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "upstreamCommitURL": "https://github.com/libretro/mupen64plus-libretro-nx/commit/12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mednafen_psx_hw",
+      "repository": "https://github.com/libretro/beetle-psx-libretro",
+      "versionString": "0.9.44.1-GLES3 10e4b0c",
+      "abbreviatedRevision": "10e4b0c",
+      "queryURL": "https://api.github.com/repos/libretro/beetle-psx-libretro/commits?sha=10e4b0c&per_page=1",
+      "resolvedRevision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "upstreamCommitURL": "https://github.com/libretro/beetle-psx-libretro/commit/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mednafen_psx",
+      "repository": "https://github.com/libretro/beetle-psx-libretro",
+      "versionString": "0.9.44.1 10e4b0c",
+      "abbreviatedRevision": "10e4b0c",
+      "queryURL": "https://api.github.com/repos/libretro/beetle-psx-libretro/commits?sha=10e4b0c&per_page=1",
+      "resolvedRevision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "upstreamCommitURL": "https://github.com/libretro/beetle-psx-libretro/commit/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mednafen_wswan",
+      "repository": "https://github.com/libretro/beetle-wswan-libretro",
+      "versionString": "v0.9.35.1 4b01295",
+      "abbreviatedRevision": "4b01295",
+      "queryURL": "https://api.github.com/repos/libretro/beetle-wswan-libretro/commits?sha=4b01295&per_page=1",
+      "resolvedRevision": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "upstreamCommitURL": "https://github.com/libretro/beetle-wswan-libretro/commit/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mednafen_ngp",
+      "repository": "https://github.com/libretro/beetle-ngp-libretro",
+      "versionString": "v1.29.0.0 a50d5ac",
+      "abbreviatedRevision": "a50d5ac",
+      "queryURL": "https://api.github.com/repos/libretro/beetle-ngp-libretro/commits?sha=a50d5ac&per_page=1",
+      "resolvedRevision": "a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "upstreamCommitURL": "https://github.com/libretro/beetle-ngp-libretro/commit/a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "handy",
+      "repository": "https://github.com/libretro/libretro-handy",
+      "versionString": "0.97 bc55d46",
+      "abbreviatedRevision": "bc55d46",
+      "queryURL": "https://api.github.com/repos/libretro/libretro-handy/commits?sha=bc55d46&per_page=1",
+      "resolvedRevision": "bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "upstreamCommitURL": "https://github.com/libretro/libretro-handy/commit/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mednafen_vb",
+      "repository": "https://github.com/libretro/beetle-vb-libretro",
+      "versionString": "v1.31.0 d5ae54c",
+      "abbreviatedRevision": "d5ae54c",
+      "queryURL": "https://api.github.com/repos/libretro/beetle-vb-libretro/commits?sha=d5ae54c&per_page=1",
+      "resolvedRevision": "d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "upstreamCommitURL": "https://github.com/libretro/beetle-vb-libretro/commit/d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "stella",
+      "repository": "https://github.com/stella-emu/stella",
+      "versionString": " b52ccb02e",
+      "abbreviatedRevision": "b52ccb02e",
+      "queryURL": "https://api.github.com/repos/stella-emu/stella/commits?sha=b52ccb02e&per_page=1",
+      "resolvedRevision": "b52ccb02eea5e117c142421a2b5ba289f2c7c2c5",
+      "upstreamCommitURL": "https://github.com/stella-emu/stella/commit/b52ccb02eea5e117c142421a2b5ba289f2c7c2c5",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "a5200",
+      "repository": "https://github.com/libretro/a5200",
+      "versionString": "2.0.2  40c6f2f",
+      "abbreviatedRevision": "40c6f2f",
+      "queryURL": "https://api.github.com/repos/libretro/a5200/commits?sha=40c6f2f&per_page=1",
+      "resolvedRevision": "40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "upstreamCommitURL": "https://github.com/libretro/a5200/commit/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "sameduck",
+      "repository": "https://github.com/LIJI32/SameBoy/tree/SameDuck",
+      "versionString": "0.13.6 040e19c",
+      "abbreviatedRevision": "040e19c",
+      "queryURL": "https://api.github.com/repos/libretro/sameduck/commits?sha=040e19c&per_page=1",
+      "resolvedRevision": "040e19c379f00dae10afe0eb0c1b2b019b985bbe",
+      "upstreamCommitURL": "https://github.com/libretro/sameduck/commit/040e19c379f00dae10afe0eb0c1b2b019b985bbe",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested",
+      "correctedRepository": "https://github.com/libretro/sameduck"
+    },
+    {
+      "core": "potator",
+      "repository": "https://github.com/libretro/potator",
+      "versionString": "1.0.5  227c5f6",
+      "abbreviatedRevision": "227c5f6",
+      "queryURL": "https://api.github.com/repos/libretro/potator/commits?sha=227c5f6&per_page=1",
+      "resolvedRevision": "227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "upstreamCommitURL": "https://github.com/libretro/potator/commit/227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "wasm4",
+      "repository": "https://github.com/aduros/wasm4",
+      "versionString": "v1 9d6c962",
+      "abbreviatedRevision": "9d6c962",
+      "queryURL": "https://api.github.com/repos/aduros/wasm4/commits?sha=9d6c962&per_page=1",
+      "resolvedRevision": "9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "upstreamCommitURL": "https://github.com/aduros/wasm4/commit/9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "freechaf",
+      "repository": "https://github.com/libretro/FreeChaF",
+      "versionString": "1.0 76c7a84",
+      "abbreviatedRevision": "76c7a84",
+      "queryURL": "https://api.github.com/repos/libretro/FreeChaF/commits?sha=76c7a84&per_page=1",
+      "resolvedRevision": "76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "upstreamCommitURL": "https://github.com/libretro/FreeChaF/commit/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "freeintv",
+      "repository": "https://github.com/libretro/FreeIntv",
+      "versionString": "1.2  ef3e0fe",
+      "abbreviatedRevision": "ef3e0fe",
+      "queryURL": "https://api.github.com/repos/libretro/FreeIntv/commits?sha=ef3e0fe&per_page=1",
+      "resolvedRevision": "ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "upstreamCommitURL": "https://github.com/libretro/FreeIntv/commit/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "o2em",
+      "repository": "https://github.com/libretro/libretro-o2em",
+      "versionString": "1.18 679d6fe",
+      "abbreviatedRevision": "679d6fe",
+      "queryURL": "https://api.github.com/repos/libretro/libretro-o2em/commits?sha=679d6fe&per_page=1",
+      "resolvedRevision": "679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "upstreamCommitURL": "https://github.com/libretro/libretro-o2em/commit/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mednafen_pcfx",
+      "repository": "https://github.com/libretro/beetle-pcfx-libretro",
+      "versionString": "v0.9.36.5 c1650ba",
+      "abbreviatedRevision": "c1650ba",
+      "queryURL": "https://api.github.com/repos/libretro/beetle-pcfx-libretro/commits?sha=c1650ba&per_page=1",
+      "resolvedRevision": "c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "upstreamCommitURL": "https://github.com/libretro/beetle-pcfx-libretro/commit/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "verifiedAs": "Binary version string resolved in upstream repository; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "mgba",
+      "repository": "https://github.com/libretro/mgba",
+      "versionString": "0.11-212-7a12d6d",
+      "abbreviatedRevision": "7a12d6d",
+      "queryURL": "https://api.github.com/repos/libretro/mgba/commits?sha=7a12d6d&per_page=1",
+      "resolvedRevision": "7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "upstreamCommitURL": "https://github.com/libretro/mgba/commit/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "verifiedAs": "Binary version string resolved upstream; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "picodrive",
+      "repository": "https://github.com/libretro/picodrive",
+      "versionString": "2.05-1890c29",
+      "abbreviatedRevision": "1890c29",
+      "queryURL": "https://api.github.com/repos/libretro/picodrive/commits?sha=1890c29&per_page=1",
+      "resolvedRevision": "1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "upstreamCommitURL": "https://github.com/libretro/picodrive/commit/1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "verifiedAs": "Binary version string resolved upstream; complete build inputs and modifications not attested"
+    },
+    {
+      "core": "gearcoleco",
+      "repository": "https://github.com/drhelius/Gearcoleco",
+      "versionString": "1.7.4-10-gd74e9b8",
+      "abbreviatedRevision": "d74e9b8",
+      "queryURL": "https://api.github.com/repos/drhelius/Gearcoleco/commits?sha=d74e9b8&per_page=1",
+      "resolvedRevision": "d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "upstreamCommitURL": "https://github.com/drhelius/Gearcoleco/commit/d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "verifiedAs": "Binary version string resolved upstream; complete build inputs and modifications not attested"
+    }
+  ]
+}
