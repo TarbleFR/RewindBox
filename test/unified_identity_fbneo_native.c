@@ -69,7 +69,8 @@ static bool isolation_environment(unsigned command,void *data){
 #define SYMBOL(type,name,symbol) type name=(type)dlsym(library,symbol);if(!name){fprintf(stderr,"Missing actual core export %s\n",symbol);return 2;}
 int main(int argc,char **argv){
  setvbuf(stderr,NULL,_IONBF,0);PHASE("before dlopen");
- if(argc!=3)return 2;
+ bool isolation_only=argc==4&&!strcmp(argv[3],"--isolation");
+ if(argc!=3&&!isolation_only)return 2;
  void *library=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);if(!library){fprintf(stderr,"%s\n",dlerror());return 2;}
  PHASE("resolving native exports");
  typedef int(*int_fn)(void);typedef void(*void_fn)(void);typedef int(*enable_fn)(int,int);
@@ -83,6 +84,11 @@ int main(int argc,char **argv){
  SYMBOL(config_fn,cpu_config,"_Z16GetCpuCoreConfigi");
  SYMBOL(uint32_t*,driver,"nBurnDrvActive");SYMBOL(uint32_t*,count,"nBurnDrvCount");
  SYMBOL(bool*,allowed,"bCheatsAllowed");SYMBOL(char*,cheats_path,"szAppCheatsPath");
+ // BurnLibInit itself calls BurnLibExit. The delivered Exit leaves its freed
+ // table pointers non-null, so an explicit Exit followed by retro_init would
+ // double-free them. Each independent fixture runs in a fresh process.
+ FILE *file;
+ if(!isolation_only){
  PHASE("BurnLibInit");CHECK(burn_init()==0,"native driver database initialises");
  PHASE("selecting 1942 metadata");
  for(*driver=0;*driver<*count;(*driver)++){const char *name=driver_name(0);if(name&&!strcmp(name,"1942"))break;}
@@ -90,7 +96,7 @@ int main(int argc,char **argv){
  // argv2 is a deliberately short test-only /tmp directory.
  if(strlen(argv[2])>64)return 2;
  strcpy(cheats_path,argv[2]);strcat(cheats_path,"/");
- char filename[128];snprintf(filename,sizeof(filename),"%s/1942.ini",argv[2]);FILE *file=fopen(filename,"wb");if(!file)return 2;
+ char filename[128];snprintf(filename,sizeof(filename),"%s/1942.ini",argv[2]);file=fopen(filename,"wb");if(!file)return 2;
  fputs("cheat \"Original CPU callback fixture\"\ndefault 0\n0 \"Disabled\"\n1 \"Enabled\", 0, 0x24, 0x7F\n2 \"Alternate\", 0, 0x24, 0x33\n",file);fclose(file);
  cpu_core_config cpu={"Original test CPU",cpu_open,noop,cpu_read,cpu_write,zero,zero,noop,one_arg,irq,one_arg,noop,noop,one_arg,noop,sizeof(memory),0};
  PHASE("registering fixture CPU");CHECK(cheat_init()==0,"native CPU cheat registry initialises");register_cpu(0,&cpu);CHECK(cpu_config(0)==&cpu,"actual exported CPU registry retains callback configuration");*allowed=true;
@@ -113,6 +119,9 @@ int main(int argc,char **argv){
  enable(0,0);memory[0x24]=0x44;initial_writes=writes;apply();
  bool nonzero_can_disable=memory[0x24]==0x44&&writes==initial_writes;
  PHASE("exiting native CPU fixture");cheat_exit();burn_exit();
+ dlclose(library);
+ printf("{\"checks\":%u,\"failures\":%u,\"writes\":%u,\"nonzeroDefaultLoadedOff\":%s,\"nonzeroDefaultCanDisable\":%s,\"rebuiltCore\":false,\"gameROMUsed\":false,\"physicalDeviceValidated\":false}\n",checks,failures,writes,nonzero_loaded_off?"true":"false",nonzero_can_disable?"true":"false");return failures?1:0;
+ }
  // Execute the actual load_game path up to early native options with an empty
  // ZIP. Missing game ROMs are expected; no CPU game execution is claimed.
  typedef void(*environment_fn)(retro_environment_t);typedef bool(*load_game_fn)(const struct retro_game_info*);
@@ -137,5 +146,5 @@ int main(int argc,char **argv){
  CHECK(personal_options==0,"actual early load parser excludes personal nonzero-default INI");
  file=fopen(personal_ini,"rb");char preserved[256]={0};if(file){fread(preserved,1,sizeof(preserved)-1,file);fclose(file);}CHECK(!strcmp(preserved,personal),"personal INI remains byte for byte unchanged");
  PHASE("real retro_deinit");cheat_exit();deinit();dlclose(library);
- printf("{\"checks\":%u,\"failures\":%u,\"writes\":%u,\"privateOptions\":%u,\"personalOptions\":%u,\"nonzeroDefaultLoadedOff\":%s,\"nonzeroDefaultCanDisable\":%s,\"rebuiltCore\":false,\"gameROMUsed\":false,\"physicalDeviceValidated\":false}\n",checks,failures,writes,private_options,personal_options,nonzero_loaded_off?"true":"false",nonzero_can_disable?"true":"false");return failures?1:0;
+ printf("{\"checks\":%u,\"failures\":%u,\"privateOptions\":%u,\"personalOptions\":%u,\"rebuiltCore\":false,\"gameROMUsed\":false,\"physicalDeviceValidated\":false}\n",checks,failures,private_options,personal_options);return failures?1:0;
 }

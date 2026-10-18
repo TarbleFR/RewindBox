@@ -54,37 +54,57 @@ def main():
         subprocess.run(['clang', '-std=c11', '-O1', '-Wall', '-Wextra',
                         '-I', str(ROOT / 'packages/libretro_internal_bridge/ios/ThirdParty/include/libretro'),
                         str(ROOT / 'test/unified_identity_fbneo_native.c'), '-o', str(binary)], check=True)
-        outcome = subprocess.run([str(binary), str(core), str(work)], text=True, capture_output=True)
-        (evidence / 'fbneo-native.stdout').write_text(outcome.stdout)
-        (evidence / 'fbneo-native.stderr').write_text(outcome.stderr)
-        report = {'originalBinarySHA256': DIGEST, 'returncode': outcome.returncode,
+        report = {'originalBinarySHA256': DIGEST, 'returncode': 0, 'cases': [],
                   'codeChanged': False, 'hostFixture': 'unified_identity_fbneo_test.m',
                   'physicalDeviceValidated': False}
-        if outcome.returncode < 0:
-            report['signal'] = -outcome.returncode
-            # Preserve an actionable stack for an engine or fixture abort.
-            # Rerun only this original CPU fixture, never a game or other core.
-            try:
-                diagnostic = subprocess.run(
-                    ['lldb', '--batch', '-o', 'settings set target.disable-aslr false',
-                     '-o', 'run', '-o', 'thread backtrace all', '--',
-                     str(binary), str(core), str(work)],
-                    text=True, capture_output=True, timeout=60)
-                (evidence / 'fbneo-native-backtrace.txt').write_text(
-                    diagnostic.stdout + diagnostic.stderr)
-                report['debuggerReturncode'] = diagnostic.returncode
-            except (OSError, subprocess.TimeoutExpired) as error:
-                (evidence / 'fbneo-native-backtrace.txt').write_text(str(error) + '\n')
-        if outcome.stdout.strip():
-            try:
-                report['native'] = json.loads(outcome.stdout.strip().splitlines()[-1])
-            except json.JSONDecodeError:
-                pass
+        all_stdout, all_stderr = [], []
+        combined = {'checks': 0, 'failures': 0}
+        # The engine API and libretro lifecycle are independent fixtures. The
+        # delivered BurnLibInit calls BurnLibExit itself, whose freed table
+        # pointers remain non-null. Do not fabricate an Exit/init cycle in a
+        # single process; each case starts with untouched native globals.
+        for name, extra in (('engine', []), ('isolation', ['--isolation'])):
+            command = [str(binary), str(core), str(work), *extra]
+            outcome = subprocess.run(command, text=True, capture_output=True)
+            case = {'name': name, 'returncode': outcome.returncode}
+            report['cases'].append(case)
+            (evidence / f'fbneo-native-{name}.stdout').write_text(outcome.stdout)
+            (evidence / f'fbneo-native-{name}.stderr').write_text(outcome.stderr)
+            all_stdout.append(outcome.stdout)
+            all_stderr.append(outcome.stderr)
+            if outcome.stdout.strip():
+                try:
+                    result = json.loads(outcome.stdout.strip().splitlines()[-1])
+                    case['native'] = result
+                    combined['checks'] += result.get('checks', 0)
+                    combined['failures'] += result.get('failures', 0)
+                    combined.update({key: value for key, value in result.items()
+                                     if key not in ('checks', 'failures')})
+                except json.JSONDecodeError:
+                    pass
+            print(outcome.stdout, end='')
+            if outcome.returncode:
+                report['returncode'] = outcome.returncode
+                print(outcome.stderr, file=sys.stderr, end='')
+                if outcome.returncode < 0:
+                    case['signal'] = -outcome.returncode
+                    try:
+                        diagnostic = subprocess.run(
+                            ['lldb', '--batch', '-o', 'settings set target.disable-aslr false',
+                             '-o', 'run', '-k', 'thread backtrace all', '--', *command],
+                            text=True, capture_output=True, timeout=60)
+                        (evidence / 'fbneo-native-backtrace.txt').write_text(
+                            diagnostic.stdout + diagnostic.stderr)
+                        case['debuggerReturncode'] = diagnostic.returncode
+                    except (OSError, subprocess.TimeoutExpired) as error:
+                        (evidence / 'fbneo-native-backtrace.txt').write_text(str(error) + '\n')
+                break
+        report['native'] = combined
+        (evidence / 'fbneo-native.stdout').write_text(''.join(all_stdout))
+        (evidence / 'fbneo-native.stderr').write_text(''.join(all_stderr))
         (evidence / 'fbneo-native.json').write_text(json.dumps(report, indent=2) + '\n')
-        print(outcome.stdout, end='')
-        if outcome.returncode:
-            print(outcome.stderr, file=sys.stderr, end='')
-            raise SystemExit(outcome.returncode)
+        if report['returncode']:
+            raise SystemExit(report['returncode'])
 
 
 if __name__ == '__main__':
