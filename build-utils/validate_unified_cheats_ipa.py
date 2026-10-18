@@ -47,6 +47,10 @@ def validate(ipa, build):
                 raise ValueError('Arcade boot discovery missing')
             if name == 'neo_cheat_catalog' and b'NeoUnifiedCheatCatalog' not in binary:
                 raise ValueError('Shared catalogue implementation missing')
+            if name == 'neo_cheat_catalog' and build >= 476:
+                for marker in (b'installAllForIdentity:progress:completion:',b'bundled-index.json',b'cached_pack',b'progressPacks'):
+                    if marker not in binary:
+                        raise ValueError('Packaged PS2/PS3 follow-up is missing '+marker.decode())
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')
