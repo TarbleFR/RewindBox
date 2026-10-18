@@ -201,6 +201,31 @@ def summary(result: Path) -> dict:
         return {'error': str(error)}
 
 
+def failures(result: Path) -> list:
+    """Failing test cases and their messages, from the result bundle."""
+    try:
+        data = json.loads(subprocess.check_output(['xcrun', 'xcresulttool', 'get', 'test-results', 'tests',
+                                                   '--path', str(result)], text=True, timeout=120))
+    except Exception as error:
+        return [f'(no test details: {error})']
+    found = []
+
+    def visit(node, owner=''):
+        kind = node.get('nodeType')
+        name = node.get('name', '')
+        if kind == 'Test Case' and node.get('result') == 'Failed':
+            messages = [child.get('name', '') for child in node.get('children', [])
+                        if child.get('nodeType') == 'Failure Message']
+            found.append(f'{owner}/{name}: ' + ' | '.join(messages)[:600])
+            return
+        for child in node.get('children', []):
+            visit(child, name if kind == 'Test Suite' else owner)
+
+    for node in data.get('testNodes', []):
+        visit(node)
+    return found
+
+
 def main():
     if sys.platform != 'darwin':
         raise SystemExit('The UIKit suite runs on macOS with the iOS Simulator.')
@@ -237,6 +262,8 @@ def main():
                                         '-maximum-test-execution-time-allowance', '300',
                                         '-resultBundlePath', str(result)], timeout=1800)
             entry = {'run': name, 'exit': completed.returncode, **summary(result)}
+            if completed.returncode:
+                entry['failures'] = failures(result)
             report['runs'].append(entry)
             print(json.dumps(entry), flush=True)
             if completed.returncode:
@@ -244,6 +271,9 @@ def main():
             if name == 'persistence-write' and completed.returncode:
                 break
     (OUT / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+    for entry in report['runs']:
+        for line in entry.get('failures', [])[:40]:
+            print('FAILED TEST', entry['run'], line, flush=True)
     if failed:
         raise SystemExit('UIKit touch-layout runs failed: ' + ', '.join(failed))
     total = sum(entry.get('passedTests') or 0 for entry in report['runs'])
