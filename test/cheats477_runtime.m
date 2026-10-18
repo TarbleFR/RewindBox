@@ -55,6 +55,7 @@ static void GlobalInstallationChecks(NSString *root,BOOL baseline) {
   CHECK([complete[@"installed_games"] unsignedIntegerValue]==3,"first request installs the common catalogue");
   NSUInteger attempts=catalog.packAttempts,fetches=requests.count;
   NSDictionary *files=FileIdentity(catalog.storageDirectory);
+  NSUInteger initialFileCount=files.count;
   DownloadInGame(catalog,fixture[@"manifest"][@"games"][1]);
   CHECK(catalog.packAttempts==attempts,"completed catalogue must not run any pack work again");
   CHECK(requests.count==fetches,"a second console performs zero catalogue network requests");
@@ -84,7 +85,7 @@ static void GlobalInstallationChecks(NSString *root,BOOL baseline) {
   DownloadInGame(partial,game);
   CHECK(partial.packAttempts==1 && requests.count==1 && [requests[0] isEqual:pack[@"path"]],"resume schedules and fetches exactly one missing pack");
   CHECK([Load(partial)[@"installation_state"] isEqual:@"complete"],"resumed common catalogue is complete");
-  CHECK([FileIdentity(partial.storageDirectory) count]==files.count,"resume does not multiply stored files");
+  CHECK([FileIdentity(partial.storageDirectory) count]==initialFileCount,"resume restores the original files and one metadata checkpoint without duplicates");
 }
 
 static void SharedRequestsAndPriority(NSString *root) {
