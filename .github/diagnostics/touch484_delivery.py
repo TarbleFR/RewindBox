@@ -26,10 +26,10 @@ BASE=DELIVERED
 # Build 484 source tested by touch-layout-checks.yml. Each part: (run, source,
 # job). The UIKit part of 79968b07 is reused: the harness repair after it
 # changed no UIKit input (product, support and suite files).
-TESTED_SOURCE='0000000000000000000000000000000000000000'
+TESTED_SOURCE='1ff09e968276143f155242db4c4a3963d3c666c0'
 PROOFS={
-    'host':(0,TESTED_SOURCE,'Texts, geometry, pad merge, engine contracts and Flutter'),
-    'native':(0,TESTED_SOURCE,'iPhone SDK build and the affected UIKit suites'),
+    'host':(39175673497,TESTED_SOURCE,'Texts, geometry, pad merge, engine contracts and Flutter'),
+    'native':(39175671512,TESTED_SOURCE,'iPhone SDK build and the affected UIKit suites'),
     'uikit':(39174427738,'79968b07ec78f8da68603cd145b449e9fb7fb189',
              'Editor, five layouts, orientations, multitouch, controller policy and persistence on UIKit'),
 }
