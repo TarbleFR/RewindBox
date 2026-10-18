@@ -34,7 +34,17 @@ RETRO_API void retro_set_audio_sample(retro_audio_sample_t cb) {(void)cb;}
 RETRO_API void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {(void)cb;}
 RETRO_API void retro_set_input_poll(retro_input_poll_t cb) {(void)cb;}
 RETRO_API void retro_set_input_state(retro_input_state_t cb) {(void)cb;}
-RETRO_API void retro_init(void) { memset(report,0,sizeof(report));report[0]=!enabled(); }
+RETRO_API void retro_init(void) {
+ memset(report,0,sizeof(report));
+#ifdef FBNEO
+ // Driver options do not exist yet. A stored unknown value is not an
+ // activation: the exported native master is already Off before init.
+ report[0]=!enabled()||!bCheatsAllowed;
+ report[6]=!bCheatsAllowed;
+#else
+ report[0]=!enabled();
+#endif
+}
 RETRO_API void retro_deinit(void) {}
 RETRO_API unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 RETRO_API void retro_get_system_info(struct retro_system_info *i) { memset(i,0,sizeof(*i));i->library_name="UnifiedIdentityHost";i->library_version="1";i->valid_extensions="ntc"; }

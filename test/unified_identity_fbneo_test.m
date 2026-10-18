@@ -43,7 +43,9 @@ int main(int argc,const char **argv) { @autoreleasepool {
  CHECK(([LibretroCheats installFBNeoPrograms:@[Program(Block(@"Seed"))] game:Game() systemDirectory:hostSystem error:&error]!=nil),"managed source seeded for next clean game launch");
  LibretroCoreHost *host=Host(core,folder);host.optionsGameKey=@"game";host.initialSessionOverrides=@{key:on};
  CHECK(([host loadCore:&error]&&[host loadContentAtPath:content error:&error]),"FBNeo measurement core/content load");size_t size=0;uint8_t *ram=[host memoryDataForIdentifier:RETRO_MEMORY_SYSTEM_RAM size:&size];
- CHECK((ram&&size==256&&ram[0]&&ram[1]&&ram[5]),"stored defaults stay off and native path overwrite is restored before cheat parsing");
+ CHECK((ram&&size==256&&ram[0]&&ram[6]),"stored undeclared driver preferences cannot activate the native engine before init");
+ CHECK((ram&&ram[1]),"declared driver cheat options are Off before the load-time native read");
+ CHECK((ram&&ram[5]),"native path overwrite is restored before cheat parsing");
  NSDictionary *snapshot=[host performFBNeoCheatCommand:@{@"action":@"snapshot"} error:&error];
  CHECK(([snapshot[@"driver"] isEqual:@"neotest"]&&[snapshot[@"options"] count]==1&&[snapshot[@"enabled_count"] integerValue]==0),"snapshot uses exported actual driver and filters foreign-driver options");
  CHECK((![host.options setValue:on forKey:key persist:YES]),"generic option cannot bypass explicit native cheat channel");

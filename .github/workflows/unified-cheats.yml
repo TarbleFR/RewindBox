@@ -63,7 +63,7 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter analyze packages/neo_cheat_catalog --no-fatal-infos
   native:
-    if: ${{ !contains(github.event.head_commit.message, '[unified-data-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[unified-data-only]') && !contains(github.event.head_commit.message, '[unified-effects-only]') }}
     runs-on: macos-15
     timeout-minutes: 35
     steps:
@@ -72,15 +72,16 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with: {xcode-version: '26.3'}
       - name: Shared Foundation behavior and actual iPhone SDK
+        if: ${{ !contains(github.event.head_commit.message, '[unified-native-fix]') }}
         run: python3 test/unified_catalog_ios_test.py
       - name: Regional identities and per-core complete programs
         if: ${{ !cancelled() }}
-        run: python3 test/unified_identity_test.py
+        run: python3 test/unified_identity_test.py ${{ contains(github.event.head_commit.message, '[unified-native-fix]') && '--only-fbneo' || '' }}
       - name: Native imports, disabled state and RPCS3 persistence
         if: ${{ !cancelled() }}
-        run: python3 test/unified_native_ios_test.py
+        run: python3 test/unified_native_ios_test.py ${{ contains(github.event.head_commit.message, '[unified-native-fix]') && '--rpcs3-store-only' || '' }}
       - name: Compile and link the affected Libretro bridge
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[unified-native-fix]') }}
         run: python3 test/libretro_ios_syntax_test.py
       - name: Install targeted UIKit project generator
         if: ${{ !cancelled() }}
@@ -96,7 +97,7 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
   core-effects:
-    if: ${{ !contains(github.event.head_commit.message, '[unified-data-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[unified-data-only]') && !contains(github.event.head_commit.message, '[unified-native-fix]') }}
     runs-on: macos-15
     timeout-minutes: 35
     steps:
@@ -113,12 +114,12 @@ jobs:
       - name: Delivered FBNeo INI parser and native memory effects
         run: python3 test/unified_identity_fbneo_native.py --cores dist/libretro --evidence evidence/fbneo-native
       - name: Fetch the existing pinned PSP test fixture
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[unified-fbneo-only]') }}
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
       # Historical PSP5/5 remains recorded, but the new shared Host guard
       # changes its path too, so both engines are checked for this revision.
       - name: Real PPSSPP and Mupen RAM enable, repeat and disable
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[unified-fbneo-only]') }}
         run: >-
           python3 test/unified_identity_core_probe.py
           --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs"

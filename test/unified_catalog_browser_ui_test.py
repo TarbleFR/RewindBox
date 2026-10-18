@@ -77,8 +77,13 @@ def contracts():
             } else 1
             arguments = ",".join(f"arg{index}" for index in range(count))
             definitions.append(f"#define {name}({arguments}) ((void)0)")
-        subprocess.run([preprocessor, "-P", "-x", "c", "-"], input="\n".join(definitions) + "\n" + tests,
-                       text=True, stdout=subprocess.DEVNULL, check=True)
+        # Apple's cpp wrapper does not reliably forward '-' as a stdin input.
+        # A named C input works with both that wrapper and GNU cpp.
+        with tempfile.TemporaryDirectory(prefix="neo-unified-xctest-macros-") as folder:
+            input_path = Path(folder) / "assertions.c"
+            input_path.write_text("\n".join(definitions) + "\n" + tests)
+            subprocess.run([preprocessor, "-P", "-x", "c", str(input_path)],
+                           text=True, stdout=subprocess.DEVNULL, check=True)
     print(f"Shared catalogue: {len(keys)} complete keys in all twelve languages; placeholders preserved.", flush=True)
 
 

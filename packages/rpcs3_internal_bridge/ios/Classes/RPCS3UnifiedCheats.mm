@@ -81,7 +81,9 @@ static NSDictionary* RPCheatDocument(NSDictionary* program) {
 - (NSString*)statePath { return [self.folder stringByAppendingPathComponent:@"state.json"]; }
 - (NSMutableDictionary*)state {
   NSData* data=[NSData dataWithContentsOfFile:self.statePath options:0 error:nil];
-  if (!data) return [@{@"schema_version":@1,@"pending":@NO,@"programs":@[]} mutableCopy];
+  // A mutable root copy does not make its nested literal array mutable.
+  // The first import must be able to append before any state file exists.
+  if (!data) return [@{@"schema_version":@1,@"pending":@NO,@"programs":[NSMutableArray array]} mutableCopy];
   if (data.length > 32*1024*1024) return nil;
   id object=[NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:nil];
   if (![object isKindOfClass:NSMutableDictionary.class] ||
