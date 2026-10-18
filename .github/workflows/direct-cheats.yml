@@ -111,3 +111,13 @@ jobs:
           name: direct-cheats-final-ui-${{ github.sha }}
           path: evidence/
           retention-days: 14
+
+  runtime-contract:
+    if: ${{ contains(github.event.head_commit.message, '[direct-runtime]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Exact active plus retired member contract
+        run: python3 test/unified_catalog_runtime_test.py

@@ -57,7 +57,7 @@ class PackContractTests(unittest.TestCase):
             self.assertLessEqual(len(expanded), 16 * 1024 * 1024)
             contents = json.loads(expanded)
             self.assertEqual(contents['schema_version'], 1)
-            self.assertEqual({row['game_id'] for row in contents['files']}, set(pack['game_ids']))
+            self.assertEqual({row['game_id'] for row in contents['files']}, set(pack['game_ids']) | {item['game_id'] for item in pack.get('retired', [])})
             for row in contents['files']:
                 retired = {item['game_id']: item for item in pack.get('retired', [])}
                 if row['game_id'] in retired:
