@@ -775,6 +775,10 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     dispatch_async(self->_queue,^{
       NSArray *finished=[self->_packJobs[key][@"callbacks"] copy];[self->_packJobs removeObjectForKey:key];
       for(void(^callback)(NSError*) in finished)callback(error);
+      if(!self->_installing) {
+        self->_snapshotCache=nil;NSDictionary *state=[self snapshot];
+        dispatch_async(dispatch_get_main_queue(),^{[NSNotificationCenter.defaultCenter postNotificationName:NeoUnifiedCheatCatalogProgressNotification object:self userInfo:state];});
+      }
     });
   }];
   operation.queuePriority=priority;

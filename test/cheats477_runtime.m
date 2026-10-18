@@ -86,6 +86,12 @@ static void GlobalInstallationChecks(NSString *root,BOOL baseline) {
   CHECK(partial.packAttempts==1 && requests.count==1 && [requests[0] isEqual:pack[@"path"]],"resume schedules and fetches exactly one missing pack");
   CHECK([Load(partial)[@"installation_state"] isEqual:@"complete"],"resumed common catalogue is complete");
   CHECK([FileIdentity(partial.storageDirectory) count]==initialFileCount,"resume restores the original files and one metadata checkpoint without duplicates");
+  [NSFileManager.defaultManager removeItemAtPath:chunk error:nil];
+  requests=[NSMutableArray array];Catalogue477Probe *offline=SharedProbe(root,fixture,requests);
+  CHECK([Load(offline)[@"installation_state"] isEqual:@"partial"],"a missing extracted game is visible in the common state");
+  Codes(offline,game,YES);
+  CHECK([Load(offline)[@"installation_state"] isEqual:@"complete"],"current-game offline recovery updates the shared installation status");
+  CHECK(!requests.count && offline.packAttempts==1,"current-game recovery reuses the cached pack without another download");
 }
 
 static void SharedRequestsAndPriority(NSString *root) {
@@ -132,7 +138,7 @@ static void PublishedPS2PS3Chunks(NSString *root,NSString *repository) {
     game[@"path"]=[NSString stringWithFormat:@"games/%@.json",gid];game[@"sha256"]=Hash(data);game[@"size"]=@(data.length);game[@"pack_id"]=pid;
     [games addObject:game];[packs addObject:@{@"id":pid,@"path":path,@"sha256":Hash(compressed),@"size":@(compressed.length),@"uncompressed_size":@(expanded.length),@"game_ids":@[gid]}];responses[path]=compressed;
   }
-  NSDictionary *fixture=@{@"manifest":@{@"schema_version":@1,@"games":games,@"packs":packs,@"sources":@[]},@"responses":responses};
+  NSDictionary *fixture=@{@"manifest":@{@"schema_version":@1,@"catalogue_id":@"published-477",@"revision":@"1",@"games":games,@"packs":packs,@"sources":@[]},@"responses":responses};
   NSMutableArray *requests=[NSMutableArray array];Catalogue477Probe *catalog=SharedProbe(root,fixture,requests);
   DownloadInGame(catalog,games[0]);CHECK(requests.count==2,"one download installs both PS2 and PS3 published sources");
   Catalogue477Probe *reopened=SharedProbe(root,fixture,[NSMutableArray array]);Load(reopened);
