@@ -2,6 +2,10 @@
 #import "Public/NeoUnifiedCheatCatalog.h"
 #import <CommonCrypto/CommonDigest.h>
 #import <zlib.h>
+#import <sys/attr.h>
+#import <sys/vnode.h>
+#import <fcntl.h>
+#import <unistd.h>
 
 NSString *const NeoUnifiedCheatCatalogErrorDomain = @"NeoUnifiedCheatCatalog";
 NSNotificationName const NeoUnifiedCheatCatalogDidInstallNotification = @"NeoUnifiedCheatCatalogDidInstallNotification";
@@ -60,6 +64,43 @@ static NSDictionary *JSON(NSData *data) {
 }
 static NSData *JSONData(id object) {
   return [NSJSONSerialization dataWithJSONObject:object options:NSJSONWritingSortedKeys error:nil];
+}
+// APFS returns names, object types and sizes together. Do not issue one or
+// two Foundation stat calls for each of the 51,652 installed chunk files.
+// Keep the old checked reader as a fallback for unsupported filesystems.
+static NSDictionary *ChunkFileSizes(NSString *directory) {
+  int fd=open(directory.fileSystemRepresentation,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
+  if(fd<0)return nil;
+  struct attrlist attributes={0};attributes.bitmapcount=ATTR_BIT_MAP_COUNT;
+  attributes.commonattr=ATTR_CMN_RETURNED_ATTRS|ATTR_CMN_NAME|ATTR_CMN_OBJTYPE;
+  attributes.fileattr=ATTR_FILE_DATALENGTH;
+  struct __attribute__((packed,aligned(4))) Record {
+    uint32_t length;attribute_set_t returned;attrreference_t name;fsobj_type_t type;off_t size;
+  };
+  unsigned char buffer[64*1024];NSMutableDictionary *files=[NSMutableDictionary dictionary];
+  BOOL valid=YES;int count=0;
+  while((count=getattrlistbulk(fd,&attributes,buffer,sizeof(buffer),FSOPT_PACK_INVAL_ATTRS))>0) {
+    NSUInteger offset=0;
+    for(int i=0;i<count;i++) {@autoreleasepool{
+      if(offset+sizeof(struct Record)>sizeof(buffer)){valid=NO;break;}
+      struct Record record;memcpy(&record,buffer+offset,sizeof(record));
+      if(record.length<sizeof(record) || record.length>sizeof(buffer)-offset){valid=NO;break;}
+      NSInteger start=(NSInteger)offsetof(struct Record,name)+record.name.attr_dataoffset;
+      NSUInteger length=record.name.attr_length;
+      if(start<0 || !length || (NSUInteger)start>record.length || length>record.length-(NSUInteger)start){valid=NO;break;}
+      const char *name=(const char *)buffer+offset+start;
+      if(name[length-1]!='\0'){valid=NO;break;}
+      if((record.returned.commonattr&(ATTR_CMN_NAME|ATTR_CMN_OBJTYPE))==(ATTR_CMN_NAME|ATTR_CMN_OBJTYPE) &&
+         (record.returned.fileattr&ATTR_FILE_DATALENGTH) && record.type==VREG && record.size>=0 && record.size<=ChunkLimit && length==70) {
+        NSString *filename=[[NSString alloc] initWithBytes:name length:length-1 encoding:NSUTF8StringEncoding];
+        if([filename hasSuffix:@".json"] && SHA([filename substringToIndex:64]))
+          files[[filename substringToIndex:64]]=@(record.size);
+      }
+      offset+=record.length;
+    }}
+    if(!valid)break;
+  }
+  close(fd);return valid && count>=0 ? [files copy] : nil;
 }
 static BOOL RegularPath(NSString *path) {
   return [[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil].fileType isEqualToString:NSFileTypeRegular];
@@ -296,7 +337,9 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   NSArray *_effectiveGames;
   NSDictionary *_effectiveByID;
   NSDictionary *_gamesBySystem;
+  NSDictionary *_gamesByTypedID;
   NSDictionary *_searchTitles;
+  NSCache *_programCache;
   NSSet *_updates;
   NSSet *_archives;
   NSDictionary *_snapshotCache;
@@ -325,6 +368,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   _packQueue.qualityOfService=NSQualityOfServiceUtility;
   _readQueue=[NSOperationQueue new]; _readQueue.maxConcurrentOperationCount=2;
   _readQueue.qualityOfService=NSQualityOfServiceUtility;
+  _programCache=[NSCache new];_programCache.totalCostLimit=8*1024*1024;_programCache.countLimit=16;
   _manifestURL=[NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/neostation-ios/Claude/native/cheats/catalogue/manifest.json.gz"];
   NSString *documents=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject ?: NSTemporaryDirectory();
   _storageDirectory=[documents stringByAppendingPathComponent:@"NeoStation/Cheats/Unified"];
@@ -475,7 +519,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   return self.fetch ? ManifestLimit : ([self.manifestURL.path hasSuffix:@".gz"] ? ManifestCompressedLimit : ManifestLimit);
 }
 - (void)invalidateViews {
-  _effectiveGames=nil;_effectiveByID=nil;_gamesBySystem=nil;_searchTitles=nil;
+  _effectiveGames=nil;_effectiveByID=nil;_gamesBySystem=nil;_gamesByTypedID=nil;_searchTitles=nil;
   _updates=nil;_archives=nil;_snapshotCache=nil;
 }
 - (void)adoptManifest:(NSDictionary *)manifest {
@@ -537,18 +581,39 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     NSDictionary *previous=_installed[key][@"game"];
     if([self hasChunk:previous verify:NO]){[games addObject:previous];byID[key]=previous;[archives addObject:key];}
   }
-  NSMutableDictionary *systems=[NSMutableDictionary dictionary],*titles=[NSMutableDictionary dictionaryWithCapacity:games.count];
+  NSMutableDictionary *systems=[NSMutableDictionary dictionary],*typed=[NSMutableDictionary dictionary];
   for(NSDictionary *game in games){@autoreleasepool{
     NSString *system=System(game[@"system"]);
     if(!systems[system])systems[system]=[NSMutableArray array];
     [systems[system] addObject:game];
-    titles[game[@"id"]]=Fold(String(game[@"title"]));
+    NSDictionary *ids=Identities(game[@"identities"]);
+    for(NSString *kind in ids)for(NSString *value in ids[kind]) {
+      NSString *key=[NSString stringWithFormat:@"%@|%@|%@",system,kind,value];
+      if(!typed[key])typed[key]=[NSMutableArray array];[typed[key] addObject:game];
+    }
   }}
   NSMutableDictionary *frozenSystems=[NSMutableDictionary dictionaryWithCapacity:systems.count];
   for(NSString *system in systems)frozenSystems[system]=[systems[system] copy];
   _effectiveGames=[games copy];_effectiveByID=[byID copy];_gamesBySystem=[frozenSystems copy];
-  _searchTitles=[titles copy];_updates=[updates copy];_archives=[archives copy];
+  _gamesByTypedID=[typed copy];_updates=[updates copy];_archives=[archives copy];
   return _effectiveGames;
+}
+// A detected identifier ends title discovery. Keep every compatible source
+// and transport part for that identifier, never unrelated USA/World editions.
+- (NSArray *)poolForIdentity:(NSDictionary *)identity {
+  [self effectiveGames];NSString *system=System(identity[@"system"]);
+  NSDictionary *ids=Identities(identity[@"identities"]);
+  if(!ids.count)return _gamesBySystem[system] ?: @[];
+  NSMutableDictionary *found=[NSMutableDictionary dictionary];
+  for(NSString *kind in ids)for(NSString *value in ids[kind])
+    for(NSDictionary *game in _gamesByTypedID[[NSString stringWithFormat:@"%@|%@|%@",system,kind,value]])found[game[@"id"]]=game;
+  return found.allValues;
+}
+- (void)prepareTitleSearch {
+  if(_searchTitles)return;
+  NSMutableDictionary *titles=[NSMutableDictionary dictionaryWithCapacity:_effectiveGames.count];
+  for(NSDictionary *game in _effectiveGames)titles[game[@"id"]]=Fold(String(game[@"title"]));
+  _searchTitles=[titles copy];
 }
 - (NSDictionary *)decoratedGame:(NSDictionary *)game {
   NSMutableDictionary *row=[game mutableCopy];
@@ -573,12 +638,14 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   _readyPacks=[NSMutableSet set];
   BOOL directory=NO;
   if(![NSFileManager.defaultManager fileExistsAtPath:[self.storageDirectory stringByAppendingPathComponent:@"files"] isDirectory:&directory] || !directory)return;
+  NSDictionary *sizes=ChunkFileSizes([self.storageDirectory stringByAppendingPathComponent:@"files"]);
   BOOL changed=NO;
   for(NSDictionary *pack in Array(_manifest[@"packs"])) {
     BOOL ready=YES;
     for(NSString *gameID in Array(pack[@"game_ids"])) {@autoreleasepool{
       NSDictionary *game=_gamesByID[gameID];
-      if(!game || ![self hasChunk:game verify:NO]){ready=NO;continue;}
+      BOOL present=game && (sizes ? [sizes[String(game[@"sha256"]).lowercaseString] isEqual:game[@"size"]] : [self hasChunk:game verify:NO]);
+      if(!present){ready=NO;continue;}
       _downloadRequested=YES;
       if(![String(_installed[gameID][@"game"][@"sha256"]) isEqualToString:String(game[@"sha256"])]) {
         _installed[gameID]=@{@"game":game};changed=YES;
@@ -664,6 +731,11 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   }
 }
 - (NSArray *)validatedCheats:(NSData *)data game:(NSDictionary *)game error:(NSError **)error {
+  NSString *cacheKey=[NSString stringWithFormat:@"%@|%@|%@",game[@"id"],System(game[@"system"]),game[@"sha256"]];
+  NSArray *cached=[_programCache objectForKey:cacheKey];
+  // Cache decoding, never the integrity decision: changed/corrupt bytes are
+  // checked again before any cached program can reach an engine.
+  if(cached && [Digest(data) isEqual:String(game[@"sha256"]).lowercaseString])return cached;
   NSDictionary *chunk=JSON(data);
   if(![chunk[@"schema_version"] isKindOfClass:NSNumber.class] || [chunk[@"schema_version"] integerValue]!=1 || ![chunk[@"game"] isKindOfClass:NSDictionary.class] ||
      ![String(chunk[@"game"][@"id"]) isEqualToString:String(game[@"id"])] ||
@@ -686,9 +758,11 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     if((![copy[@"handler"] isKindOfClass:NSNumber.class] || [copy[@"handler"] integerValue]!=0 ||
         String(copy[@"code"]).length>131072 || Array(copy[@"lines"]).count>4096) && [copy[@"status"] isEqual:@"available"])
       copy[@"status"]=@"requires_engine";
-    [ids addObject:row[@"id"]];[cheats addObject:copy];
+    [ids addObject:row[@"id"]];[cheats addObject:[copy copy]];
   }
-  return cheats;
+  NSArray *result=[cheats copy];
+  if([Digest(data) isEqual:String(game[@"sha256"]).lowercaseString])[_programCache setObject:result forKey:cacheKey cost:data.length*3];
+  return result;
 }
 - (NSError *)recordInstalledGames:(NSArray *)games {
   __block NSError *error=nil;
@@ -850,7 +924,9 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       });
       if(!manifest){dispatch_async(self->_queue,^{[self finishInstallation:nil error:refreshError ?: Failure(1,@"No catalogue index is available")];});return;}
       NSMutableSet *priority=[NSMutableSet set];
-      if (identity) for (NSDictionary *game in Array(manifest[@"games"])) {
+      __block NSArray *priorityGames=@[];
+      if(identity)dispatch_sync(self->_queue,^{priorityGames=[self poolForIdentity:identity];});
+      for (NSDictionary *game in priorityGames) {
         if ([System(game[@"system"]) isEqual:System(identity[@"system"])] && [self.class matchGame:game identity:identity])
           [priority addObject:game[@"pack_id"]];
       }
@@ -896,7 +972,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       if (local) [self adoptManifest:local];
     }
     [self effectiveGames]; NSMutableArray *found=[NSMutableArray array];
-    for (NSDictionary *game in self->_gamesBySystem[System(identity[@"system"])]) {
+    for (NSDictionary *game in [self poolForIdentity:identity]) {
       if (found.count>=64) break;
       if (![[self.class matchGame:game identity:identity] isEqual:@"exact"] || ![self hasChunk:game verify:NO]) continue;
       NSData *data=ReadBounded([self chunkPath:game],ChunkLimit);
@@ -914,14 +990,19 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}
     dispatch_async(self->_queue,^{NSMutableArray *matches=[NSMutableArray array];
       [self effectiveGames];
-      NSArray *pool=self->_gamesBySystem[System(requested[@"system"])] ?: @[];
+      NSArray *pool=[self poolForIdentity:requested];
+      BOOL identified=Identities(requested[@"identities"]).count>0;
+      if(!identified)[self prepareTitleSearch];
       NSArray *words=TitleWords(String(requested[@"title"])),*ids=Array(requested[@"identities"]);
       for(NSDictionary *game in pool){@autoreleasepool{
-        if(!RawIdentityOverlap(game,ids) && !FoldedTitleContains(self->_searchTitles[game[@"id"]],words))continue;
+        if(!identified && !RawIdentityOverlap(game,ids) && !FoldedTitleContains(self->_searchTitles[game[@"id"]],words))continue;
         NSString *match=[self.class matchGame:game identity:requested];
         if(match){NSMutableDictionary *row=[[self decoratedGame:game] mutableCopy];row[@"match"]=match;[matches addObject:row];}
       }}
-      [matches sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b){NSInteger x=[a[@"match"] isEqual:@"exact"]?0:1,y=[b[@"match"] isEqual:@"exact"]?0:1;return x==y ? [String(a[@"title"]) localizedStandardCompare:String(b[@"title"])] : (x<y ? NSOrderedAscending:NSOrderedDescending);}];
+      [matches sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b){NSInteger x=[a[@"match"] isEqual:@"exact"]?0:1,y=[b[@"match"] isEqual:@"exact"]?0:1;
+        if(x!=y)return x<y ? NSOrderedAscending:NSOrderedDescending;
+        BOOL first=[a[@"installed"] boolValue],second=[b[@"installed"] boolValue];if(first!=second)return first?NSOrderedAscending:NSOrderedDescending;
+        NSComparisonResult title=[String(a[@"title"]) localizedStandardCompare:String(b[@"title"])];return title!=NSOrderedSame?title:[String(a[@"id"]) compare:String(b[@"id"])];}];
       NSArray *result=[matches copy];dispatch_async(dispatch_get_main_queue(),^{completion(result,nil);});
     });
   }];
@@ -930,7 +1011,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   NSArray *words=TitleWords(String(query));NSString *requested=System(system);
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}
     dispatch_async(self->_queue,^{NSMutableArray *matches=[NSMutableArray array];
-      [self effectiveGames];NSArray *pool=requested.length ? (self->_gamesBySystem[requested] ?: @[]) : self->_effectiveGames;
+      [self effectiveGames];[self prepareTitleSearch];NSArray *pool=requested.length ? (self->_gamesBySystem[requested] ?: @[]) : self->_effectiveGames;
       for(NSDictionary *game in pool){if(words.count && !FoldedTitleContains(self->_searchTitles[game[@"id"]],words))continue;
         [matches addObject:[self decoratedGame:game]];if(matches.count>=500)break;}
       NSArray *result=[matches copy];dispatch_async(dispatch_get_main_queue(),^{completion(result,nil);});

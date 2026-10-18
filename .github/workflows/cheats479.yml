@@ -1,0 +1,37 @@
+name: Fast compatible cheat discovery 479
+on:
+  push:
+    branches: [Claude]
+    paths: ['packages/neo_cheat_catalog/**', 'test/cheats479*', 'test/unified_catalog_browser_ui*', '.github/workflows/cheats479.yml']
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  targeted:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[cheats479]') }}
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Actual 478 negative control and 51652-file candidate benchmark
+        run: |
+          git rev-parse HEAD
+          python3 test/cheats479_regression.py
+      - name: Changed shared installation and integrity behaviour
+        run: python3 test/cheats477_regression.py
+      - name: Changed full-index memory and iPhone SDK
+        run: |
+          xcrun clang -fobjc-arc -fblocks -I packages/neo_cheat_catalog/ios/Classes/Public test/unified_catalog_runtime_native.m packages/neo_cheat_catalog/ios/Classes/NeoUnifiedCheatCatalog.m -framework Foundation -lz -o /tmp/cheats479-memory
+          /tmp/cheats479-memory --manifest packages/neo_cheat_catalog/ios/Resources/manifest.json.gz --games 51652 --packs 874
+          python3 test/unified_catalog_ios_test.py IPhoneCatalogTests
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Incremental deduplication and all affected direct menu controls in UIKit
+        run: python3 test/unified_catalog_browser_ui_test.py --native --followup479-only --result evidence/cheats479.xcresult
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cheats479-${{ github.sha }}
+          path: evidence/
+          retention-days: 14

@@ -4,9 +4,53 @@
 #import "NeoUnifiedCheatBrowser.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <CommonCrypto/CommonDigest.h>
+#import <objc/runtime.h>
 
 static NSString *NCLString(id value) { return [value isKindOfClass:NSString.class] ? value : @""; }
 static NSArray *NCLArray(id value) { return [value isKindOfClass:NSArray.class] ? value : @[]; }
+static char NCLSwitchRowKey;
+static NSOperationQueue *NCLSelectionQueue(void) {
+  static NSOperationQueue *queue;static dispatch_once_t once;dispatch_once(&once,^{
+    queue=[NSOperationQueue new];queue.maxConcurrentOperationCount=2;queue.qualityOfService=NSQualityOfServiceUserInitiated;
+  });return queue;
+}
+static NSString *NCLExecutionKey(NSArray *programs) {
+  NSMutableArray *body=[NSMutableArray array];
+  for(NSDictionary *program in programs) {
+    NSString *dialect=NCLString(program[@"dialect"]),*code=NCLString(program[@"code"]);
+    id instructions=code;
+    if([dialect isEqual:@"pnach"]) {
+      NSMutableArray *commands=[NSMutableArray array];
+      for(NSString *line in [code componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+        NSString *text=[[line componentsSeparatedByString:@"//"] firstObject];
+        text=[[text componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceCharacterSet] componentsJoinedByString:@""].lowercaseString;
+        if([text hasPrefix:@"patch="])[commands addObject:text];
+      }
+      if(commands.count)instructions=commands;
+    } else if([dialect isEqual:@"rpcs3-yaml"] && [program[@"native_document"] isKindOfClass:NSDictionary.class]) {
+      NSMutableDictionary *document=[program[@"native_document"] mutableCopy];
+      for(NSString *hash in [document.allKeys copy])if(![hash isEqual:@"Version"] && [document[hash] isKindOfClass:NSDictionary.class]) {
+        NSMutableArray *patches=[NSMutableArray array];
+        for(NSString *name in [document[hash] allKeys]) {
+          NSMutableDictionary *patch=[document[hash][name] mutableCopy];
+          // Names and attribution differ between mirrors. Execution scope,
+          // instructions, order, groups and all other controls stay intact.
+          [patch removeObjectsForKeys:@[@"Author",@"Notes",@"Patch Version"]];[patches addObject:patch];
+        }
+        document[hash]=patches;
+      }
+      instructions=document;
+    }
+    NSMutableDictionary *row=[NSMutableDictionary dictionaryWithDictionary:@{@"dialect":dialect,@"instructions":instructions}];
+    for(NSString *key in @[@"handler",@"kind",@"exclusive_group",@"exclusive_groups",@"source_options"])
+      if(program[key])row[key]=program[key];
+    [body addObject:row];
+  }
+  NSData *data=[NSJSONSerialization dataWithJSONObject:body options:NSJSONWritingSortedKeys error:nil];
+  if(!data)return @"";
+  unsigned char hash[CC_SHA256_DIGEST_LENGTH];CC_SHA256(data.bytes,(CC_LONG)data.length,hash);
+  NSMutableString *result=[NSMutableString string];for(NSUInteger i=0;i<sizeof(hash);i++)[result appendFormat:@"%02x",hash[i]];return result;
+}
 static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *visiting,
                       NSMutableSet *seen, NSMutableArray *ordered, BOOL (^accepts)(NSDictionary *), NSUInteger depth) {
   NSString *key=NCLString(program[@"id"]);
@@ -60,8 +104,38 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
       if ([groups intersectsSet:this]) conflict=YES; [groups unionSet:this];
     }
     if (!conflict) [result addObject:@{@"key":[NSString stringWithFormat:@"%@|%@",game[@"identity_group"] ?: game[@"id"],program[@"id"]],
-        @"name":NCLString(program[@"name"]),@"game":game,@"programs":ordered}];
+        @"name":NCLString(program[@"name"]),@"game":game,@"programs":ordered,@"execution_key":NCLExecutionKey(ordered)}];
   }
+  return result;
+}
++ (NSArray *)distinctSelections:(NSArray *)selections identity:(NSDictionary *)identity links:(NSDictionary *)links {
+  NSMutableDictionary *groups=[NSMutableDictionary dictionary];
+  BOOL identified=NCLArray(identity[@"identities"]).count>0;
+  for(NSDictionary *selection in selections) {
+    NSString *execution=NCLString(selection[@"execution_key"]);
+    NSString *key=execution.length ? execution : selection[@"key"];
+    if(!identified)key=[NSString stringWithFormat:@"%@|%@",selection[@"game"][@"identity_group"] ?: selection[@"game"][@"id"],key];
+    NSMutableDictionary *previous=groups[key];
+    NSMutableArray *equivalent=previous[@"equivalent_selections"] ?: [NSMutableArray array];
+    NSMutableSet *aliases=previous[@"alias_keys"] ?: [NSMutableSet set];
+    [equivalent addObject:selection];[aliases addObject:selection[@"key"]];
+    BOOL linked=NCLString(links[selection[@"key"]]).length>0,oldLinked=previous && NCLString(links[previous[@"key"]]).length>0;
+    BOOL exact=[selection[@"game"][@"match"] isEqual:@"exact"],oldExact=[previous[@"game"][@"match"] isEqual:@"exact"];
+    BOOL prefer=!previous || (linked!=oldLinked ? linked : (exact!=oldExact ? exact : [selection[@"key"] compare:previous[@"key"]]==NSOrderedAscending));
+    NSMutableDictionary *chosen=prefer ? [selection mutableCopy] : previous;
+    chosen[@"equivalent_selections"]=equivalent;chosen[@"alias_keys"]=aliases;groups[key]=chosen;
+  }
+  NSMutableArray *result=[NSMutableArray array];
+  for(NSMutableDictionary *row in groups.allValues) {
+    NSMutableOrderedSet *notes=[NSMutableOrderedSet orderedSet];
+    for(NSDictionary *source in row[@"equivalent_selections"]) {
+      NSDictionary *program=NCLArray(source[@"programs"]).lastObject;
+      if([program[@"feature"] isEqual:@"60fps"] && NCLString(program[@"notes"]).length)[notes addObject:program[@"notes"]];
+    }
+    row[@"source_notes"]=[notes.array componentsJoinedByString:@"\n"];
+    [result addObject:row];
+  }
+  [result sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b){NSComparisonResult name=[a[@"name"] localizedStandardCompare:b[@"name"]];return name!=NSOrderedSame ? name : [a[@"key"] compare:b[@"key"]];}];
   return result;
 }
 - (void)viewDidLoad {
@@ -179,6 +253,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   NSMutableSet *used=[NSMutableSet set]; NSMutableArray *rows=[NSMutableArray array];
   for (NSDictionary *selection in self.selections) {
     NSString *key=self.links[selection[@"key"]]; NSDictionary *item=key ? native[key] : nil;
+    if(!item)for(NSString *alias in selection[@"alias_keys"]){NSString *alternative=self.links[alias];if(alternative && native[alternative]){key=alternative;item=native[key];break;}}
     NSMutableDictionary *row=[selection mutableCopy];
     if (item) { row[@"native"]=item; [used addObject:key]; }
     [rows addObject:row];
@@ -243,30 +318,41 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
           if (!needsDownload && !games.count) [owner explainMissingRevision:state[@"identity"] ?: @{} generation:generation];
           return;
         }
-        __block NSUInteger remaining=pending.count; NSMutableArray *choices=[NSMutableArray array];
-        // Serial catalogue queue/worker bounds remain owned by the service.
-        for (NSDictionary *game in pending) [NeoUnifiedCheatCatalog.sharedCatalog cheatsForGame:game completion:^(NSArray *programs,NSError *problem) {
-          NeoUnifiedCheatList *current=weakSelf; if (!current || current.closed || current.generation!=generation) return;
-          if (problem) current.catalogueStatus=[current text:@"loadFailed"];
-          if (!problem) for (NSDictionary *selection in [NeoUnifiedCheatList selectionsForGame:game programs:programs accepts:current.accepts]) {
-            if (choices.count>=4096) break; [choices addObject:selection];
-          }
-          if (--remaining==0) {
-            [choices sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b) { return [a[@"name"] localizedStandardCompare:b[@"name"]]; }];
-            current.selections=choices; current.discovering=NO;
-            if (!choices.count && !current.catalogueStatus) current.catalogueStatus=[current text:@"noCompatible"];
-            [current rebuild];
-          }
-        }];
+        NSMutableDictionary *context=[@{@"remaining":@(pending.count),@"choices":[NSMutableArray array]} mutableCopy];
+        // Two bounded streams; show the first ready part immediately. Native
+        // acceptance/closure hashing runs off main, without enabling anything.
+        for(NSUInteger i=0;i<MIN((NSUInteger)2,pending.count);i++)[owner loadGames:pending context:context index:i generation:generation];
       }];
     });
   });
+}
+- (void)loadGames:(NSArray *)games context:(NSMutableDictionary *)context index:(NSUInteger)index generation:(NSUInteger)generation {
+  if(index>=games.count || self.closed || self.generation!=generation)return;
+  NSDictionary *game=games[index];__weak typeof(self) weakSelf=self;
+  [NeoUnifiedCheatCatalog.sharedCatalog cheatsForGame:game completion:^(NSArray *programs,NSError *problem) {
+    NeoUnifiedCheatList *menu=weakSelf;if(!menu || menu.closed || menu.generation!=generation)return;
+    BOOL (^accepts)(NSDictionary *)=[menu.accepts copy];
+    [NCLSelectionQueue() addOperationWithBlock:^{
+      NSArray *additions=problem ? @[] : [NeoUnifiedCheatList selectionsForGame:game programs:programs accepts:accepts];
+      dispatch_async(dispatch_get_main_queue(),^{
+        NeoUnifiedCheatList *current=weakSelf;if(!current || current.closed || current.generation!=generation)return;
+        if(problem)current.catalogueStatus=[current text:@"loadFailed"];
+        NSMutableArray *choices=context[@"choices"];
+        for(NSDictionary *selection in additions){if(choices.count>=4096)break;[choices addObject:selection];}
+        context[@"remaining"]=@([context[@"remaining"] unsignedIntegerValue]-1);
+        current.selections=[NeoUnifiedCheatList distinctSelections:choices identity:current.state[@"identity"] links:current.links];
+        current.discovering=[context[@"remaining"] unsignedIntegerValue]>0;
+        if(!current.discovering && !current.selections.count && !current.catalogueStatus)current.catalogueStatus=[current text:@"noCompatible"];
+        [current rebuild];[current loadGames:games context:context index:index+2 generation:generation];
+      });
+    }];
+  }];
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return section==0 ? 1+(self.importAction ? 1 : 0) : self.rows.count; }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
   if (section==0) return nil;
-  if (self.discovering) return [self text:@"loading"];
+  if (self.discovering && !self.rows.count) return [self text:@"loading"];
   NSString *help=NCLString(self.state[@"help"]);
   NSMutableArray *details=[NSMutableArray array];
   if (!self.rows.count) [details addObject:self.catalogueStatus ?: [self text:@"noMatches"]];
@@ -291,11 +377,13 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
     cell.textLabel.text=row[@"name"];
     cell.detailTextLabel.text=item ? NCLString(item[@"detail"]) : NCLString(row[@"game"][@"revision"]);
     NSDictionary *program=NCLArray(row[@"programs"]).lastObject;
-    if ([program[@"feature"] isEqual:@"60fps"] && NCLString(program[@"notes"]).length)
-      cell.detailTextLabel.text=[@[cell.detailTextLabel.text ?: @"",program[@"notes"]] componentsJoinedByString:@"\n"];
+    NSString *notes=NCLString(row[@"source_notes"]);
+    if(!notes.length && [program[@"feature"] isEqual:@"60fps"])notes=NCLString(program[@"notes"]);
+    if(notes.length)cell.detailTextLabel.text=[@[cell.detailTextLabel.text ?: @"",notes] componentsJoinedByString:@"\n"];
     UISwitch *toggle=[UISwitch new]; toggle.on=[item[@"enabled"] boolValue]; toggle.tag=path.row;
     toggle.enabled=!self.busy && [self.state[@"available"] boolValue] && ![self.state[@"hardcore"] boolValue] && ![item[@"readOnly"] boolValue];
     toggle.accessibilityLabel=row[@"name"]; toggle.accessibilityIdentifier=@"directCheats.toggle";
+    objc_setAssociatedObject(toggle,&NCLSwitchRowKey,row[@"key"],OBJC_ASSOCIATION_COPY_NONATOMIC);
     [toggle addTarget:self action:@selector(toggle:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView=toggle;
   }
   cell.userInteractionEnabled=!self.busy && !(path.section==0 && path.row==0 && (self.downloading || self.catalogueInstalled || !self.catalogueStateKnown)); return cell;
@@ -308,7 +396,8 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   void (^activate)(NSDictionary *,NSError *)=^(NSDictionary *item,NSError *error) {
     NeoUnifiedCheatList *menu=weakSelf; if (!menu || menu.closed || menu.generation!=generation || menu.navigationController.topViewController!=menu || !menu.viewIfLoaded.window || menu.navigationController.isBeingDismissed) return;
     if (!item || error) { menu.busy=NO; [menu showFailure]; [menu reloadCheats]; return; }
-    if (row[@"game"]) { menu.links[row[@"key"]]=item[@"key"]; [NSUserDefaults.standardUserDefaults setObject:menu.links forKey:menu.scope]; }
+    if (row[@"game"]) { menu.links[row[@"key"]]=item[@"key"];for(NSString *alias in row[@"alias_keys"])menu.links[alias]=item[@"key"];
+      [NSUserDefaults.standardUserDefaults setObject:menu.links forKey:menu.scope]; }
     menu.setEnabled(item,enabled,^(BOOL success) { dispatch_async(dispatch_get_main_queue(),^{
       NeoUnifiedCheatList *current=weakSelf; if (!current || current.closed || current.generation!=generation) return;
       current.busy=NO; if (!success) [current showFailure]; [current reloadCheats];
@@ -321,8 +410,11 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   } else { self.busy=NO; [self showFailure]; }
 }
 - (void)toggle:(UISwitch *)sender {
-  if (sender.tag<0 || sender.tag>=(NSInteger)self.rows.count || self.busy) return;
-  NSDictionary *row=self.rows[sender.tag]; BOOL enabled=sender.on;
+  if(self.busy)return;
+  NSString *key=objc_getAssociatedObject(sender,&NCLSwitchRowKey);NSDictionary *row=nil;
+  if(key.length){for(NSDictionary *candidate in self.rows)if([candidate[@"key"] isEqual:key] || [candidate[@"alias_keys"] containsObject:key]){row=candidate;break;}}
+  else if(sender.tag>=0 && sender.tag<(NSInteger)self.rows.count)row=self.rows[sender.tag];
+  if(!row)return;BOOL enabled=sender.on;
   if (!sender.enabled || self.closed || ![self.state[@"available"] boolValue] ||
       [self.state[@"hardcore"] boolValue] || [row[@"native"][@"readOnly"] boolValue]) {
     sender.on=[row[@"native"][@"enabled"] boolValue]; return;

@@ -48,6 +48,8 @@ typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
 /// identity: {system,title,regions,languages,revision,identities:[{type,value,scheme}]}
 /// Returned rows add match (exact/candidate) and installed. A title alone is
 /// never an exact match. Conflicting regions/languages/revisions are excluded.
+/// A known typed identifier limits discovery to that identifier's compatible
+/// rows; title-only fallback remains available to explicit searchGames calls.
 - (void)gamesForIdentity:(NSDictionary *)identity
              completion:(void (^)(NSArray<NSDictionary *> *, NSError *_Nullable))completion;
 - (void)searchGames:(NSString *)query system:(NSString *)system

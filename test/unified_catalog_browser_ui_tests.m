@@ -12,6 +12,7 @@
 static NeoUnifiedCheatCatalog *NUCBInjectedShared;
 @interface NeoUnifiedCheatList (ManualImportTest)
 - (void)documentPicker:(UIDocumentPickerViewController*)picker didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls;
++ (NSArray *)distinctSelections:(NSArray *)selections identity:(NSDictionary *)identity links:(NSDictionary *)links;
 @end
 @interface NeoUnifiedCheatCatalog (UITestSingleton)
 + (instancetype)nucbTestSharedCatalog;
@@ -55,6 +56,7 @@ static void NUCBExchangeSingleton(void) {
 @property(nonatomic, copy) NSArray *rows;
 @property(nonatomic, copy) NSArray *codes;
 @property(nonatomic, copy) NSArray *revisionRows;
+@property(nonatomic, strong) NSMutableDictionary *heldGames;
 @property(nonatomic, copy) NSDictionary *summaryFixture;
 @property(nonatomic, copy) NSDictionary *chosenGame;
 @property(nonatomic, copy) void (^installProgress)(NSDictionary *);
@@ -84,7 +86,7 @@ static void NUCBExchangeSingleton(void) {
 - (void)cheatsForGame:(NSDictionary *)game completion:(void (^)(NSArray *, NSError *))completion {
     self.lookups++;
     self.chosenGame = game;
-    if (self.holdCheats) self.cheatsCompletion = completion;
+    if (self.holdCheats) {self.cheatsCompletion = completion;if(!self.heldGames)self.heldGames=[NSMutableDictionary dictionary];self.heldGames[game[@"id"]]=[completion copy];}
     else completion(self.codes ?: @[], nil);
 }
 @end
@@ -1002,6 +1004,65 @@ static void NUCBExchangeSingleton(void) {
     cell=[ps2 tableView:ps2.tableView cellForRowAtIndexPath:action];XCTAssertFalse(cell.userInteractionEnabled);
     [ps2 tableView:ps2.tableView didSelectRowAtIndexPath:action];
     XCTAssertEqual(self.catalog.installs,0U);
+}
+
+- (void)test479IdenticalPNACHProgramsKeepSourcesAndOneDisabledSelection {
+    NSDictionary *identity=@{@"identities":@[@{@"type":@"serial",@"scheme":@"ps2-disc-serial",@"value":@"SLES51839"}]};
+    NSMutableDictionary *one=[[self program:@"one" dependencies:@[]] mutableCopy];one[@"dialect"]=@"pnach";
+    one[@"code"]=@"// Author A\n[Money]\npatch=1,EE,D0100000,extended,00000001\npatch=1,EE,20100004,extended,00000002";
+    NSMutableDictionary *two=[one mutableCopy];two[@"id"]=@"two";two[@"name"]=@"Gold";
+    two[@"code"]=@"// Author B\n[Gold]\npatch = 1, EE, D0100000, extended, 00000001\npatch=1,EE,20100004,extended,00000002";
+    NSArray *selections=[NeoUnifiedCheatList selectionsForGame:[self game] programs:@[one,two] accepts:^BOOL(NSDictionary *p){return YES;}];
+    NSArray *distinct=[NeoUnifiedCheatList distinctSelections:selections identity:identity links:@{}];
+    XCTAssertEqual(distinct.count,1U);XCTAssertEqual([distinct[0][@"alias_keys"] count],2U);
+    XCTAssertEqual([distinct[0][@"equivalent_selections"] count],2U);
+    for(NSDictionary *source in distinct[0][@"equivalent_selections"]) {
+      XCTAssertEqual([source[@"programs"] count],1U);
+      NSDictionary *program=source[@"programs"][0];XCTAssertEqualObjects(program[@"enabled"],@NO);
+      XCTAssertEqual([program[@"code"] componentsSeparatedByString:@"patch"].count,3U);
+      XCTAssertEqualObjects(program[@"provenance"],one[@"provenance"]);
+    }
+}
+- (void)test479DifferentBodiesControlsAndUnknownEditionsStaySeparate {
+    NSMutableDictionary *one=[[self program:@"one" dependencies:@[]] mutableCopy],*two=[[self program:@"two" dependencies:@[]] mutableCopy];
+    two[@"code"]=@"010300C0";
+    NSArray *a=[NeoUnifiedCheatList selectionsForGame:[self game] programs:@[one,two] accepts:^BOOL(NSDictionary *p){return YES;}];
+    NSDictionary *identity=@{@"identities":@[@{@"type":@"md5",@"scheme":@"rom-full",@"value":@"exact-fixture"}]};
+    XCTAssertEqual([NeoUnifiedCheatList distinctSelections:a identity:identity links:@{}].count,2U);
+    two[@"code"]=one[@"code"];two[@"exclusive_group"]=@"Other setting";
+    a=[NeoUnifiedCheatList selectionsForGame:[self game] programs:@[one,two] accepts:^BOOL(NSDictionary *p){return YES;}];
+    XCTAssertEqual([NeoUnifiedCheatList distinctSelections:a identity:identity links:@{}].count,2U);
+    [two removeObjectForKey:@"exclusive_group"];NSMutableDictionary *other=[[self game] mutableCopy];other[@"id"]=@"other-release";other[@"revision"]=@"01.01";
+    NSArray *left=[NeoUnifiedCheatList selectionsForGame:[self game] programs:@[one] accepts:^BOOL(NSDictionary *p){return YES;}];
+    NSArray *right=[NeoUnifiedCheatList selectionsForGame:other programs:@[two] accepts:^BOOL(NSDictionary *p){return YES;}];
+    XCTAssertEqual([NeoUnifiedCheatList distinctSelections:[left arrayByAddingObjectsFromArray:right] identity:@{} links:@{}].count,2U);
+}
+- (void)test479ReadyPartAppearsOffMainAndAnOldSwitchKeepsItsTargetAfterSorting {
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];NSMutableDictionary *a=[self.catalog.rows[0] mutableCopy],*b=[a mutableCopy];a[@"id"]=@"ready-part";b[@"id"]=@"waiting-part";
+    self.catalog.rows=@[a,b];self.catalog.holdCheats=YES;
+    __block BOOL offMain=NO;list.accepts=^BOOL(NSDictionary *program){offMain=!NSThread.isMainThread;return YES;};
+    [list reloadCheats];[self waitFor:^BOOL{return self.catalog.heldGames[@"ready-part"] && self.catalog.heldGames[@"waiting-part"];}];
+    void (^first)(NSArray*,NSError*)=self.catalog.heldGames[@"ready-part"];first(@[[self program:@"Zorro" dependencies:@[]]],nil);
+    [self waitFor:^BOOL{return [list tableView:list.tableView numberOfRowsInSection:1]==1;}];
+    XCTAssertTrue(offMain);XCTAssertTrue([[list valueForKey:@"discovering"] boolValue]);
+    UITableViewCell *cell=[list tableView:list.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];UISwitch *oldSwitch=(id)cell.accessoryView;
+    XCTAssertEqualObjects(cell.textLabel.text,@"Zorro");XCTAssertTrue(oldSwitch.enabled);XCTAssertFalse(oldSwitch.on);XCTAssertEqual(self.catalog.installs,0U);
+    NSMutableDictionary *newer=[[self program:@"Aardvark" dependencies:@[]] mutableCopy];newer[@"code"]=@"010300C0";
+    void (^last)(NSArray*,NSError*)=self.catalog.heldGames[@"waiting-part"];last(@[newer],nil);
+    [self waitFor:^BOOL{return ![[list valueForKey:@"discovering"] boolValue];}];XCTAssertEqual([list tableView:list.tableView numberOfRowsInSection:1],2);
+    __block NSString *imported=nil;__block NSUInteger enabled=0;
+    list.install=^(NSDictionary *game,NSArray *programs,void (^done)(NSDictionary*,NSError*)){imported=programs.lastObject[@"name"];done(@{@"key":@"native-zorro"},nil);};
+    list.setEnabled=^(NSDictionary *item,BOOL value,void (^done)(BOOL)){enabled++;done(YES);};
+    oldSwitch.on=YES;[oldSwitch sendActionsForControlEvents:UIControlEventValueChanged];
+    [self waitFor:^BOOL{return enabled==1;}];XCTAssertEqualObjects(imported,@"Zorro");
+}
+- (void)test479LateMatchingPartsAfterClosingCannotRenderOrActivate {
+    NeoUnifiedCheatList *list=[self directListWithItems:@[]];self.catalog.holdCheats=YES;
+    __block NSUInteger mutations=0;list.install=^(NSDictionary *g,NSArray *p,void (^done)(NSDictionary*,NSError*)){mutations++;};list.setEnabled=^(NSDictionary *i,BOOL e,void (^done)(BOOL)){mutations++;};
+    [list reloadCheats];[self waitFor:^BOOL{return self.catalog.cheatsCompletion!=nil;}];void (^late)(NSArray*,NSError*)=self.catalog.cheatsCompletion;
+    [self.navigation popViewControllerAnimated:NO];NSUInteger oldRows=[[list valueForKey:@"rows"] count];late(@[[self program:@"late" dependencies:@[]]],nil);
+    [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.1]];
+    XCTAssertEqual([[list valueForKey:@"rows"] count],oldRows);XCTAssertEqual(mutations,0U);
 }
 
 - (void)test478BladestormDifferentRevisionExplainsSourceWithoutOfferingOrImportingCodes {
