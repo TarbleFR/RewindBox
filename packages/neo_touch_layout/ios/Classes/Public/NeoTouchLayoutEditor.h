@@ -16,6 +16,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// called again. `editing` shows hidden controls faintly; the host must not
 /// send any input while editing.
 - (void)touchLayoutApplyLayout:(nullable NeoTouchLayout*)layout editing:(BOOL)editing;
+@optional
+/// Orientations the engine's game sessions use (default: all but upside
+/// down). The editor opened from the settings offers only these, so a layout
+/// is never edited for an orientation the game never shows.
+- (UIInterfaceOrientationMask)touchLayoutSupportedInterfaceOrientations;
 @end
 
 typedef NS_ENUM(NSInteger, NeoTouchLayoutScope) {

@@ -403,6 +403,11 @@ static CGRect RPCS3Centered(CGPoint center, CGFloat width, CGFloat height) {
   [self layoutIfNeeded];
 }
 
+- (UIInterfaceOrientationMask)touchLayoutSupportedInterfaceOrientations {
+  // The RPCS3 session controller is landscape only.
+  return UIInterfaceOrientationMaskLandscape;
+}
+
 @end
 
 void RPCS3TouchControlsRegisterPreview(void) {

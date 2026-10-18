@@ -1210,4 +1210,11 @@ static const NSUInteger kNeoTouchUndoLimit = 64;
 - (BOOL)prefersStatusBarHidden { return YES; }
 - (BOOL)prefersHomeIndicatorAutoHidden { return YES; }
 
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  [self loadViewIfNeeded];
+  if ([_preview respondsToSelector:@selector(touchLayoutSupportedInterfaceOrientations)])
+    return [_preview touchLayoutSupportedInterfaceOrientations];
+  return UIInterfaceOrientationMaskAllButUpsideDown;
+}
+
 @end

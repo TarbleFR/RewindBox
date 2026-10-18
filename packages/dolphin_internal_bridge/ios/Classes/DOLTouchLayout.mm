@@ -183,6 +183,11 @@
   [_layout touchLayoutApplyLayout:layout editing:editing];
 }
 
+- (UIInterfaceOrientationMask)touchLayoutSupportedInterfaceOrientations {
+  // DOLDolphinViewController runs the GameCube and Wii sessions in landscape.
+  return UIInterfaceOrientationMaskLandscape;
+}
+
 @end
 
 void DOLTouchLayoutRegisterPreviews(void) {

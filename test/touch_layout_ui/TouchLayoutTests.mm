@@ -1112,6 +1112,10 @@ static rpcs3_ios_status TLSetPad(uint32_t port, const rpcs3_ios_pad_state* state
   UIViewController* root = TLWindow().rootViewController;
   NeoTouchLayoutEditorController* controller = [[NeoTouchLayoutEditorController alloc] initWithLayoutKey:key locale:@"de"];
   XCTAssertNotNil(controller, @"%@ has no registered preview", key);
+  // Only the orientations the engine's sessions use: Dolphin and RPCS3 run in landscape.
+  XCTAssertEqual(controller.supportedInterfaceOrientations,
+                 [key isEqualToString:@"ps2"] ? UIInterfaceOrientationMaskAllButUpsideDown
+                                              : UIInterfaceOrientationMaskLandscape);
   __block NSNumber* result = nil;
   controller.finished = ^(BOOL saved) { result = @(saved); };
   [root presentViewController:controller animated:NO completion:nil];

@@ -361,6 +361,11 @@ static NSString* const kArmsx2RightStick = @"stick.right";
   [self layoutIfNeeded];
 }
 
+- (UIInterfaceOrientationMask)touchLayoutSupportedInterfaceOrientations {
+  // ARMSX2 sessions turn with the phone; both orientations have a stock layout.
+  return UIInterfaceOrientationMaskAllButUpsideDown;
+}
+
 @end
 
 void Armsx2TouchControlsRegisterPreview(void) {
