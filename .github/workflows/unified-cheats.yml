@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   data:
-    if: ${{ !contains(github.event.head_commit.message, '[unified-code-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[unified-code-only]') && !contains(github.event.head_commit.message, '[unified-index-only]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -40,6 +40,11 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
+      # This marker is used only after the maintainer records a successful
+      # index-only Apple run and unchanged Foundation/probe sources.
+      - name: Verify the exact index bytes before reusing its Apple preflight
+        if: ${{ contains(github.event.head_commit.message, '[unified-index-verified]') }}
+        run: python3 test/unified_catalog_stage_index.py --verify-local
       - run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
       - name: Importers, dependency preservation and deterministic data
         run: |
@@ -132,12 +137,19 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
   published-index:
-    if: ${{ !contains(github.event.head_commit.message, '[unified-code-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[unified-code-only]') && (!contains(github.event.head_commit.message, '[unified-index-verified]') || contains(github.event.head_commit.message, '[unified-index-only]')) }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
+      # Pair [unified-index-only] with [unified-data-only] so only this job
+      # runs. The two frozen files are staged in this workspace, never published.
+      - name: Stage the immutable final index for Foundation-only verification
+        if: ${{ contains(github.event.head_commit.message, '[unified-index-only]') }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 test/unified_catalog_stage_index.py
       - uses: maxim-lobanov/setup-xcode@v1
         with: {xcode-version: '26.3'}
       - name: Load the entire published index in the real Foundation runtime
