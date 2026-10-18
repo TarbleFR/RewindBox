@@ -50,8 +50,8 @@ class RPCS3InputBridgeTests(unittest.TestCase):
         # and the PS3 preference is on (default), and the existing Touch
         # Controls switch still applies. With the preference off, touch and
         # controller feed one merged pad (test_touch_and_controller_merge).
-        self.assertIn('NeoTouchHidesControlsWithController(@"ps3")', text)
-        self.assertIn('BOOL showTouch = self.started && self.touchControlsEnabled && !controllerHides;', text)
+        self.assertIn('const BOOL showTouch = !NeoTouchControlsShouldHide(@"ps3", self.controllerMonitor.connected,', text)
+        self.assertIn('self.touchControlsEnabled, !self.started,', text)
         self.assertIn('if (!showTouch && !self.touchOverlay.hidden) [self releaseTouchInput];', text)
         self.assertIn('RPCS3MergePadStates(&_touchState, [self touchActive] ? 1 : 0,', text)
         self.assertIn('_touchState.connected = 1;', text)

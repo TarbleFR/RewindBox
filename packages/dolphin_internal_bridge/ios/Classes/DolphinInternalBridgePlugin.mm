@@ -402,9 +402,9 @@ static UIViewController* _Nullable DOLRootViewController(void) {
     return;
   }
   if (!self.acceptsTouchInput) return;
-  const BOOL controllerHides = self.controllerMonitor.connected &&
-      NeoTouchHidesControlsWithController([self touchConsole]);
-  const BOOL hidden = !self.touchEditing && (self.presentedViewController != nil || controllerHides);
+  // Dolphin has no Touch controls switch: a presented menu covers the session.
+  const BOOL hidden = NeoTouchControlsShouldHide([self touchConsole], self.controllerMonitor.connected, YES,
+                                                 self.presentedViewController != nil, self.touchEditing);
   if (hidden && !self.touchOverlay.hidden) {
     [self.touchOverlay cancelTouchInteractions];
     [self releaseTouchInput];

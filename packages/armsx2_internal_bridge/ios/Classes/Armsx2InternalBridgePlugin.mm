@@ -248,8 +248,8 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
   if (!self.controlsView) return;
-  const BOOL controllerHides = self.controllerMonitor.connected && NeoTouchHidesControlsWithController(@"ps2");
-  const BOOL hidden = !self.touchEditing && (!self.touchControlsVisible || controllerHides || self.closing);
+  const BOOL hidden = NeoTouchControlsShouldHide(@"ps2", self.controllerMonitor.connected, self.touchControlsVisible,
+                                                 self.closing, self.touchEditing);
   if (hidden && !self.controlsView.hidden) [self resetInput];
   self.controlsView.hidden = hidden;
 }

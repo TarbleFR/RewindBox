@@ -51,7 +51,8 @@ typedef NS_ENUM(NSInteger, NeoTouchElementKind) {
 @property(nonatomic) CGPoint defaultCenter;
 /// Stock size (the view's bounds size).
 @property(nonatomic) CGSize defaultSize;
-/// Stock alpha of the view; the layout opacity multiplies it.
+/// Stock alpha of the view (read once, before any layout opacity); the
+/// layout opacity multiplies it.
 @property(nonatomic) CGFloat defaultAlpha;
 /// Captures defaultCenter, defaultSize and defaultAlpha from the view as the
 /// engine laid it out (identity transform), converted to `canvas`.

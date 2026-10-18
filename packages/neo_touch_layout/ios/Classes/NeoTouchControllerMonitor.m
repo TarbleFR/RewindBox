@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import "Public/NeoTouchControllerMonitor.h"
+#import "Public/NeoTouchLayoutStore.h"
 #import <UIKit/UIKit.h>
 #import <stdatomic.h>
 
@@ -7,6 +8,13 @@ static _Atomic(NSInteger) gNeoTouchTestingCount = -1;
 
 void NeoTouchControllerMonitorSetTestingCount(NSInteger count) {
   atomic_store(&gNeoTouchTestingCount, count < 0 ? -1 : count);
+}
+
+BOOL NeoTouchControlsShouldHide(NSString* console, BOOL controllerConnected, BOOL touchEnabled, BOOL covered,
+                                BOOL editing) {
+  if (editing) return NO;
+  if (!touchEnabled || covered) return YES;
+  return controllerConnected && NeoTouchHidesControlsWithController(console);
 }
 
 @implementation NeoTouchControllerMonitor {

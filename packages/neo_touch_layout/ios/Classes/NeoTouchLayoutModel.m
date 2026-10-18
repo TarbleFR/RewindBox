@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import "Public/NeoTouchLayoutModel.h"
 #import "Public/NeoTouchLayoutGeometry.h"
+#import <objc/runtime.h>
 
 NSString* const NeoTouchLayoutKeyGameCube = @"gc";
 NSString* const NeoTouchLayoutKeyWii = @"wii";
@@ -57,6 +58,15 @@ NSString* NeoTouchLayoutGameKey(NSString* raw) {
   UIView* parent = view.superview ?: canvas;
   self.defaultCenter = parent == canvas ? view.center : [parent convertPoint:view.center toView:canvas];
   self.defaultSize = view.bounds.size;
+  // The engine's own alpha, read once before any layout opacity was applied,
+  // so the stock layout keeps each control exactly as the engine drew it.
+  static char kStockAlpha;
+  NSNumber* stock = objc_getAssociatedObject(view, &kStockAlpha);
+  if (!stock) {
+    stock = @(view.alpha);
+    objc_setAssociatedObject(view, &kStockAlpha, stock, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  }
+  self.defaultAlpha = stock.doubleValue;
 }
 
 - (NSString*)description {

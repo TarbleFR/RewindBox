@@ -30,6 +30,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)invalidate;
 @end
 
+/// Visibility rule shared by the embedded engines. The touch controls are
+/// hidden when the engine's Touch controls switch is off (`touchEnabled` NO),
+/// while something covers the session (`covered`: a menu, the game closing),
+/// or while a compatible controller is connected and the console's "hide
+/// with a controller" preference is on (default). The editor (`editing`)
+/// always shows them, without input.
+FOUNDATION_EXPORT BOOL NeoTouchControlsShouldHide(NSString* console, BOOL controllerConnected, BOOL touchEnabled,
+                                                  BOOL covered, BOOL editing);
+
 /// Test seam: a count >= 0 replaces the GameController list (number of
 /// compatible controllers); a negative count restores the real list.
 FOUNDATION_EXPORT void NeoTouchControllerMonitorSetTestingCount(NSInteger count);

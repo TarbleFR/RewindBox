@@ -357,9 +357,9 @@ static inline void RPCS3SetBit(uint64_t* bits, uint64_t bit, BOOL pressed) {
 // if the PS3 preference says so (default), or when the Touch Controls switch
 // is off; always shown while the editor is open, without input.
 - (void)updateTouchVisibility {
-  const BOOL controllerHides = self.controllerMonitor.connected && NeoTouchHidesControlsWithController(@"ps3");
-  BOOL showTouch = self.started && self.touchControlsEnabled && !controllerHides;
-  if (self.editingTouchLayout) showTouch = YES;
+  const BOOL showTouch = !NeoTouchControlsShouldHide(@"ps3", self.controllerMonitor.connected,
+                                                     self.touchControlsEnabled, !self.started,
+                                                     self.editingTouchLayout);
   if (!showTouch && !self.touchOverlay.hidden) [self releaseTouchInput];
   self.touchOverlay.hidden = !showTouch;
   self.touchOverlay.userInteractionEnabled = showTouch && !self.editingTouchLayout;
