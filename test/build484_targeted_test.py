@@ -109,7 +109,6 @@ DART_TESTS = [
     'test/embedded_touch_controls_panel_test.dart',
     'test/dolphin_wii_motion_panel_test.dart',
     'test/dolphin_shake_locale_test.dart',
-    'test/dolphin_import_ui_test.dart',
     'test/armsx2_embedded_library_contract_test.dart',
     'test/armsx2_in_game_localization_test.dart',
     'test/rpcs3_internal_integration_test.dart',
@@ -157,6 +156,9 @@ PRE_EXISTING = [
     'test/neoswap_swap_research_test.py', 'test/neoswap_source_archive_host_test.py',
     'test/external_display_host_plist_test.py', 'test/delivery_pipeline_test.py', 'test/check_neo_swap_scope.py',
 ]
+# Two layout cases of this Flutter suite fail on the unchanged base under the
+# Linux test fonts; compared case by case with the base.
+PRE_EXISTING_DART = ['test/dolphin_import_ui_test.dart']
 
 
 def run(args, log):
@@ -208,6 +210,35 @@ def compare_with_base(log):
             print(f'  {test}: base {codes[0]}, head {codes[1]}', flush=True)
             if codes[0] == 0 and codes[1] != 0:
                 raise SystemExit(f'Regression: {test} passes before Build 484 and fails here')
+        flutter = shutil.which('flutter') or 'flutter'
+        subprocess.run([flutter, 'pub', 'get', '--enforce-lockfile'], cwd=tree, check=True,
+                       stdout=subprocess.DEVNULL)
+        for test in PRE_EXISTING_DART:
+            failing = []
+            for where in (tree, ROOT):
+                completed = subprocess.run([flutter, 'test', '--machine', test], cwd=where, capture_output=True,
+                                           text=True, errors='replace', timeout=1800)
+                names, failed = {}, set()
+                for line in completed.stdout.splitlines():
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(event, dict):
+                        continue
+                    if event.get('type') == 'testStart':
+                        names[event['test']['id']] = event['test']['name']
+                    elif event.get('type') == 'testDone' and event.get('result') != 'success' \
+                            and not event.get('hidden'):
+                        failed.add(names.get(event['testID'], str(event['testID'])))
+                if completed.returncode and not failed:
+                    failed.add('<suite failed to load>')
+                failing.append(sorted(failed))
+            results[test] = {'baseFailing': failing[0], 'headFailing': failing[1]}
+            print(f'  {test}: base failing {failing[0]}, head failing {failing[1]}', flush=True)
+            new_failures = set(failing[1]) - set(failing[0])
+            if new_failures:
+                raise SystemExit(f'Regression in {test}: ' + ', '.join(sorted(new_failures)))
     finally:
         subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=ROOT, check=False)
     return base, results
@@ -234,7 +265,7 @@ def main():
         timings['analyze'] = run([flutter, 'analyze', '--no-fatal-infos', *ANALYZED], log)
         timings['dartTests'] = run([flutter, 'test', *DART_TESTS], log)
         checks += DART_TESTS
-        tested = HOST_PYTHON + DART_TESTS + PRE_EXISTING
+        tested = HOST_PYTHON + DART_TESTS + PRE_EXISTING + PRE_EXISTING_DART
         comparison_base, comparison = compare_with_base(log)
     else:
         if platform.system() != 'Darwin':
