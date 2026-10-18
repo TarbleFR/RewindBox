@@ -161,32 +161,51 @@ PRE_EXISTING = [
 PRE_EXISTING_DART = ['test/dolphin_import_ui_test.dart']
 
 
-def run(args, log):
-    print('+', ' '.join(args), flush=True)
+def execute(args, log, cwd=ROOT):
+    """Runs a check, logging its output; returns (exit code, seconds, output)."""
+    print('+', ' '.join(args), f'[{cwd}]' if cwd != ROOT else '', flush=True)
     started = time.monotonic()
     env = {**os.environ, 'PYTHONUTF8': '1'}
+    lines = []
     with log.open('a', encoding='utf-8') as handle:
-        handle.write('\n+ ' + ' '.join(args) + '\n')
+        handle.write('\n+ ' + ' '.join(args) + f' [{cwd}]\n')
         handle.flush()
-        process = subprocess.Popen(args, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        process = subprocess.Popen(args, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, errors='replace')
-        tail = []
         for line in process.stdout:
             handle.write(line)
-            tail = (tail + [line])[-60:]
+            lines.append(line)
         code = process.wait()
-    elapsed = round(time.monotonic() - started, 3)
+    return code, round(time.monotonic() - started, 3), lines
+
+
+def run(args, log):
+    code, elapsed, lines = execute(args, log)
     if code:
-        sys.stdout.write(''.join(tail))
+        sys.stdout.write(''.join(lines[-60:]))
         raise SystemExit(f'FAILED ({code}): {" ".join(args)}')
-    print(f'  ok in {elapsed}s: {tail[-1].strip() if tail else ""}', flush=True)
+    print(f'  ok in {elapsed}s: {lines[-1].strip() if lines else ""}', flush=True)
     return elapsed
 
 
-def compare_with_base(log):
-    """Runs each PRE_EXISTING check on the commit before Build 484 and here:
-    a check that passes there must pass here (no regression hidden among
-    known failures)."""
+def error_lines(lines, root):
+    """Error and failure lines of a check's output, with its tree root and
+    temporary paths removed, to compare a failure here with one on the base."""
+    import re
+    keep = re.compile(r'(error:|FAIL:|AssertionError|Error:|\*\* TEST FAILED|Test Case .* failed|fatal)')
+    found = set()
+    for line in lines:
+        if not keep.search(line):
+            continue
+        line = line.replace(str(root), '<root>')
+        line = re.sub(r'/(private/)?(var/folders|tmp)/[^ :]*', '<tmp>', line)
+        line = re.sub(r'DerivedData/[^/ ]+', 'DerivedData/<project>', line)
+        line = re.sub(r'\b\d+(\.\d+)? ?(s|seconds)\b', '<t>', line)
+        found.add(line.strip())
+    return found
+
+
+def base_tree():
     first = subprocess.check_output(['git', 'log', '--diff-filter=A', '--format=%H', '--',
                                      'packages/neo_touch_layout/pubspec.yaml'], cwd=ROOT, text=True).split()[-1]
     base = subprocess.check_output(['git', 'rev-parse', first + '^'], cwd=ROOT, text=True).strip()
@@ -195,6 +214,38 @@ def compare_with_base(log):
         subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=ROOT, check=False)
     subprocess.run(['git', 'worktree', 'add', '--detach', str(tree), base], cwd=ROOT, check=True,
                    stdout=subprocess.DEVNULL)
+    return base, tree
+
+
+def run_or_compare(args, log, comparisons):
+    """A failing check is run on the commit before Build 484: it is accepted
+    as pre-existing only if it fails there too with every error line seen
+    here; a new error line, or a pass on the base, is a regression."""
+    code, elapsed, lines = execute(args, log)
+    if not code:
+        print(f'  ok in {elapsed}s: {lines[-1].strip() if lines else ""}', flush=True)
+        return elapsed
+    sys.stdout.write(''.join(lines[-40:]))
+    if 'tree' not in comparisons:
+        comparisons['base'], comparisons['tree'] = base_tree()
+    tree = comparisons['tree']
+    base_code, _, base_lines = execute(args, log, cwd=tree)
+    head_errors, base_errors = error_lines(lines, ROOT), error_lines(base_lines, tree)
+    new = sorted(head_errors - base_errors)
+    comparisons.setdefault('checks', {})[' '.join(args[1:])] = {
+        'head': code, 'base': base_code, 'errorLines': sorted(head_errors), 'newErrorLines': new}
+    if base_code == 0 or new:
+        raise SystemExit(f'Regression: {" ".join(args[1:])} (base exit {base_code}); new errors: {new}')
+    print(f'  pre-existing failure (identical on the base {comparisons["base"][:8]}): {" ".join(args[1:])}',
+          flush=True)
+    return elapsed
+
+
+def compare_with_base(log):
+    """Runs each PRE_EXISTING check on the commit before Build 484 and here:
+    a check that passes there must pass here (no regression hidden among
+    known failures)."""
+    base, tree = base_tree()
     results = {}
     try:
         for test in PRE_EXISTING:
@@ -270,9 +321,16 @@ def main():
     else:
         if platform.system() != 'Darwin':
             raise SystemExit(f'The {part} part runs on macOS with Xcode.')
-        for command in NATIVE if part == 'native' else UIKIT:
-            timings[' '.join(command)] = run([python, *command], log)
-            checks.append(' '.join(command))
+        comparisons = {}
+        try:
+            for command in NATIVE if part == 'native' else UIKIT:
+                timings[' '.join(command)] = (run_or_compare([python, *command], log, comparisons)
+                                              if part == 'native' else run([python, *command], log))
+                checks.append(' '.join(command))
+        finally:
+            if 'tree' in comparisons:
+                subprocess.run(['git', 'worktree', 'remove', '--force', str(comparisons.pop('tree'))], cwd=ROOT,
+                               check=False)
         tested = [command[0] for command in (NATIVE if part == 'native' else UIKIT)]
     inputs = digest(PRODUCT + SUPPORT + tested)
     verdict = {
@@ -291,6 +349,8 @@ def main():
     }
     if part == 'host':
         verdict['preExistingComparison'] = {'base': comparison_base, 'exitCodes': comparison}
+    if part == 'native':
+        verdict['preExistingComparison'] = comparisons
     if part != 'host':
         verdict['xcode'] = subprocess.check_output(['xcodebuild', '-version'], text=True).strip()
         verdict['iphoneSDK'] = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'],
