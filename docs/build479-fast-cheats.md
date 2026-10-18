@@ -19,3 +19,9 @@ The published 478 manifest, all packs, source provenance, language catalogue and
 ## Validation scope
 
 Compare exact delivered 478 with the candidate on the same 51,652-row publication and a complete sparse file-metadata fixture, with actual published Bladestorm and PS2 target chunks. The other sparse entries model metadata only, not playable code. Record real timings and metadata operation counts; prove the old title-fallback negative control. Test exact compatible region/revision/CRC selection, no-network decoded reuse, corruption repair and real BLES00113 01.01 rejection. Rerun the affected shared installation/integrity cases, full-index memory, changed iPhone SDK compile/link and nineteen targeted UIKit cases. Reuse successful unchanged 478 source-program acceptance and precompiled engine evidence, without claiming them rerun. Actual outcomes and sealed IPA identity follow after execution.
+
+## Retained preparation result
+
+Run `39125651399`, source `0074a62af457a1634548b62d84c7ced41605b117`, job `117670090283`: the exact 478 regional-title negative control passed; both 51,652-file metadata benchmarks passed; 352 shared installation/integrity checks passed. Recorded baseline/candidate cold load: 5.079167 / 2.876018 s; twelve warm queries: 0.551794 / 0.289849 s. The candidate made zero initial per-file checks versus 51,652 in delivered 478. Full-index memory passed: 73,647,808 bytes loaded, 81,348,288 after ten menus (+7,700,480 bytes for lazy search setup). These are Apple Silicon macOS fixture measurements, not physical iPhone measurements.
+
+The later iPhone SDK compile stopped because `sys/vnode.h` is unavailable in the public SDK. The directory-record field now uses Darwin's published uint32 object-type ABI and VREG value 1 directly, retaining the same batch metadata checks without a kernel-only header. The failed step is not an SDK/UIKit pass; focused native/SDK/UIKit execution must succeed at the corrected source before an IPA.

@@ -3,7 +3,6 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <zlib.h>
 #import <sys/attr.h>
-#import <sys/vnode.h>
 #import <fcntl.h>
 #import <unistd.h>
 
@@ -75,8 +74,11 @@ static NSDictionary *ChunkFileSizes(NSString *directory) {
   attributes.commonattr=ATTR_CMN_RETURNED_ATTRS|ATTR_CMN_NAME|ATTR_CMN_OBJTYPE;
   attributes.fileattr=ATTR_FILE_DATALENGTH;
   struct __attribute__((packed,aligned(4))) Record {
-    uint32_t length;attribute_set_t returned;attrreference_t name;fsobj_type_t type;off_t size;
+    uint32_t length;attribute_set_t returned;attrreference_t name;uint32_t type;off_t size;
   };
+  // Darwin's filesystem object ABI uses uint32_t / VREG=1. The kernel-only
+  // sys/vnode.h header is absent from the public iPhone SDK.
+  const uint32_t regularFileType=1;
   unsigned char buffer[64*1024];NSMutableDictionary *files=[NSMutableDictionary dictionary];
   BOOL valid=YES;int count=0;
   while((count=getattrlistbulk(fd,&attributes,buffer,sizeof(buffer),FSOPT_PACK_INVAL_ATTRS))>0) {
@@ -91,7 +93,7 @@ static NSDictionary *ChunkFileSizes(NSString *directory) {
       const char *name=(const char *)buffer+offset+start;
       if(name[length-1]!='\0'){valid=NO;break;}
       if((record.returned.commonattr&(ATTR_CMN_NAME|ATTR_CMN_OBJTYPE))==(ATTR_CMN_NAME|ATTR_CMN_OBJTYPE) &&
-         (record.returned.fileattr&ATTR_FILE_DATALENGTH) && record.type==VREG && record.size>=0 && record.size<=ChunkLimit && length==70) {
+         (record.returned.fileattr&ATTR_FILE_DATALENGTH) && record.type==regularFileType && record.size>=0 && record.size<=ChunkLimit && length==70) {
         NSString *filename=[[NSString alloc] initWithBytes:name length:length-1 encoding:NSUTF8StringEncoding];
         if([filename hasSuffix:@".json"] && SHA([filename substringToIndex:64]))
           files[[filename substringToIndex:64]]=@(record.size);
