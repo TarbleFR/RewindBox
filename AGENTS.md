@@ -421,3 +421,9 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Reuse the exact delivered 471 native cores and previous unchanged evidence; do not rebuild cores or rerun successful unrelated suites. No physical device run of 472 is claimed. The requested next IPA is Build 472; final delivery identity is recorded after verification.
 
 - Build 472 delivered privately from `02550f923dd2d086227e9f379a896c23ef6670ac`, run `39086364895`: checks/native/cold Release success, optional warm skipped. Final IPA `NeoStation-Build472-02550f92.ipa`, 218,606,012 bytes, SHA-256 `b47d59188f28b5c6e70de11207b77fe7a81f91f13ebecc5a53d08c5c49455b26`. Actual IPA verification confirms new Dart AOT, all six versions, 76 sealed thin images, 79 CI ad hoc signatures, all 34 Libretro cores and RPCS3/Dolphin/ARMSX2 identities preserved from 471. Windows Downloads copy has the same hash and preserves old IPAs. No physical 472 run or public release claimed. **Do not reuse build 472.**
+
+
+## Build 473 — optional first-run iOS library, 18 October 2026
+
+- The maintainer requests a visible skip action for users without RetroArch. The only product file is `lib/widgets/setup_wizard.dart`: expose the existing twelve-language Skip action on the iOS folder step, keep the established scan/next/finish flow and do not register an arbitrary external folder. Block touch/gamepad Skip during a pending picker/import/download/save and cancel the post-frame scan after disposal.
+- Run only the new setup-navigation proof. Reuse Build 472's common return-label evidence and all previously validated unchanged emulator/native/skin/cheat inputs. Do not rebuild any core. Delivery source, CI and actual IPA identity are recorded in `docs/build473-optional-setup.md` after verification; do not reuse number 473 once delivered.
