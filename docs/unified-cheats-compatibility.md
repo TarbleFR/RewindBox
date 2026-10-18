@@ -5,7 +5,12 @@ premier commit de code `2dec00b824bebd3dcf3f20df993c389f36a80d63`. Le principe
 est de chercher une adaptation exécutable avant d'écarter une source. Une
 conversion doit préserver l'édition, le programme entier, l'ordre des
 instructions, les dépendances et la provenance. Les chiffres de ce document
-décrivent les audits ciblés ; le total publié doit venir du manifeste final.
+décrivent les audits ciblés. Le manifeste final figé annonce 2 341 355
+programmes dédupliqués, 43 813 groupes d'identité et 44 955 fiches de transport,
+avec 34 sources ou provenances actives sur 22 systèmes. L'index et les packs
+représentent environ 281 Mo à télécharger. Ces nombres ne sont ni des effets
+uniques ni des jeux commerciaux uniques. Le contrôle Foundation Apple de
+l'index final et la validation CI des données finales sont réussis.
 Aucune nouvelle IPA ni exécution sur appareil n'est attestée ici.
 
 ## Résultats concrets
@@ -20,13 +25,17 @@ Aucune nouvelle IPA ni exécution sur appareil n'est attestée ici.
 | ARMSX2, RAW PS2 | Envelopper seulement les opérations RAW dont l'équivalence PNACH est démontrée ; permettre une source identifiée par serial exact sans inventer de CRC source. | Le bridge accepte une édition candidate confirmée et écrit au CRC exécutable réellement relu dans le moteur. | Un titre seul, un serial contraire ou un CRC source contraire ne permettent pas l'import. |
 | mGBA, dialecte GBA indéterminé | Employer le vrai canal AUTO, sans inventer une version GS/AR. | Audit entier : 873 Delta, 6 XoEVOoX et 1 EventIslands passent ; 75 Delta et 4 EventIslands restent bloqués. | Décodage réel ; aucune édition ni efficacité Pokémon déduite. Un programme AUTO isolé ne se combine pas librement avec d'autres contextes crypto. |
 | mGBA, routine Shiny RAW | Conserver la syntaxe VBA à deux-points et les 49 écritures ROM complètes. | Le parseur et la vraie entrée Libretro produisent 49 patches ROM. | Profil hôte borné, aucun renommage en GS/AR, aucune troncature. |
-| FBNeo | Employer le fichier et les options natifs, associés au vrai driver. | Raccordement d'import complet avec choix désactivés et activation native volontaire. | Les callbacks Libretro du binaire livré sont sans effet ; le raccordement Apple doit être vérifié par la CI. |
+| FBNeo | Employer le fichier et les options natifs, associés au vrai driver. | 59 087 programmes dédupliqués pour 3 299 romsets ; Host Apple 39/39, vrai moteur et isolement natif 18/18, import désactivé et bootstrap vérifiés dans UIKit. | Les callbacks Libretro du binaire livré sont sans effet ; les preuves natives utilisent une RAM de test et ne valident pas le gameplay commercial. |
 | PicoDrive, notamment 32X | Employer le vrai décodeur MD Game Genie/RAW et les écritures natives, sans projection d'adresses SH2. | 523 des 658 programmes 32X examinés passent le profil borné ; les fonctions réelles et 2 475 patches en 99 appels passent les tests. | Adresses paires, portée ROM/main 68000 démontrée, valeur `FFFF` inutilisable dans ce callback ; RAM SMS/GG non implémentée. |
+| Beetle PCE Fast | Conserver les écritures RAW RAM démontrées ; canonicaliser `tg16` vers `pce` et `tgcd` vers `pccd` pour le catalogue seulement. | Profil `pce-raw` et quatre bindings validés dans les contrôles d'identité/adaptateur et le test UIKit positif. | RAM principale et RAM CD explicitement admises ; programme de 8 192 octets maximum, appels ordonnés de 255 octets. Cela ne prouve pas la conversion des lectures de bus MiSTer. |
+| Beetle WonderSwan | Utiliser le profil `wswan-raw` et préserver la distinction `ws` / `wsc`. | Écritures RAM validées ; les deux bindings passent le test UIKit positif. | 128 écritures / 1 023 octets dans un seul appel ; aucun offset mémoire inventé. |
 
 Les nombres ci-dessus ne doivent pas s'additionner au total du catalogue. Les
 documents RPCS3 peuvent couvrir plusieurs éditions ; les associations NCL et
-les miroirs peuvent désigner un même programme. La régénération finale et son
-rapport doivent donner les nombres dédupliqués et les exclusions effectives.
+les miroirs peuvent désigner un même programme. Les compteurs du manifeste
+figé et les exclusions sont documentés dans
+[l'intégration](unified-cheats-integration.md). Le contrôle de l'index Apple
+et la validation des packs restent deux preuves distinctes.
 
 ## RPCS3 : correction de données et chemin natif réel
 
@@ -63,6 +72,14 @@ sauvegarde sont restaurés après validation. Un catalogue invalide ou une API
 optionnelle absente ne bloque pas le démarrage normal du jeu ; seule une
 impossibilité matérielle de restaurer les fichiers globaux peut arrêter ce
 chemin pour éviter un état incohérent.
+
+Le vrai magasin `RPCS3UnifiedCheats.mm` a été compilé avec le SDK iPhone puis
+exécuté sous Foundation à `c9ba99fb81dc7e9dd79d17dde845a22628924bdb`,
+[run 39094267628, job 117577305555](https://github.com/TarbleFR/neostation-ios/actions/runs/39094267628/job/117577305555).
+La fixture appelle l'implémentation produit avec un transport Core simulé :
+premier import, choix désactivés, persistance et restauration des fichiers
+sont vérifiés ; ce n'est pas une exécution du patch dans un jeu PS3. Ce
+composant passe alors que le job échoue ensuite dans le précontrôle UIKit.
 
 ## Artemis NCL : ce qui peut être relié, ce qui demande un interpréteur
 
@@ -257,7 +274,8 @@ applique des conversions bornées par leur sémantique réelle.
 | PSX | 381 392 programmes disponibles avant déduplication ; 63 756 sélections ambiguës et 7 086 hors profil restent bloqués. Conditions et répétitions utilisent un programme compact entier de 255 octets maximum ; les écritures 30/80 indépendantes peuvent être transmises en batches ordonnés sans troncature. |
 | Game Boy, Mega Drive, Mega CD, SMS, SNES | Le matériel remplace la valeur lue sur un bus ; ce comportement ne se confond pas avec une écriture RAM périodique. Le mapping ROM/banc et les comparateurs doivent être démontrés avant une conversion supplémentaire. |
 | N64 | Les champs d'opération, masques d'octets et règles d'endian ne sont pas des opcodes GameShark. Une conversion exige une équivalence explicite de ces opérations. |
-| Atari Lynx, Jaguar, PC Engine/CD, Virtual Boy | Adaptateur d'activation natif absent dans le périmètre actuel. Les tuples ne deviennent pas des cheats d'un autre système. |
+| PC Engine/CD | Le profil natif `pce-raw` est raccordé, mais ne démontre pas à lui seul l'équivalence de ces tuples de lecture de bus avec des écritures RAM. Les tuples non convertis restent exclus. |
+| Atari Lynx, Jaguar, Virtual Boy | Adaptateur d'activation natif absent dans le périmètre actuel. Les tuples ne deviennent pas des cheats d'un autre système. |
 
 Ces quantités sont des apports examinés avant filtrage et déduplication,
 pas des nombres à additionner au manifeste publié. Une restriction de
@@ -281,8 +299,20 @@ NES/FDS/SNES restent bloquées. Désactiver l'ensemble appelle aussi
 sources du commit `1a03a1546cfa72f82fcba85267c1381a70437480` sont
 `src/burner/libretro/libretro.cpp`, `src/burner/conc.cpp` et
 `src/burn/cheat.cpp`. Le test spécifique est
-`test/unified_identity_fbneo_native.py`, accompagné des tests de magasin et
-de bridge ; leur exécution Apple doit être attestée par la CI.
+`test/unified_identity_fbneo_native.py`. Son exécution sur le vrai binaire
+livré est attestée à `d254ece2317a879dc821b7ca639c0d01a6874993` :
+18 contrôles réussis, moteur de cheats et isolement du chargement exécutés
+dans deux processus indépendants. Le
+[reçu FBNeo natif](evidence/unified-cheats-fbneo-native.json) décrit les
+callbacks CPU de test, les écritures RAM mesurées et l'absence de validation
+sur appareil ou jeu commercial. Il conserve aussi le diagnostic du défaut
+natif avec `default1`, raison du profil géré limité à `default0`.
+
+Le Host Apple passe 39/39 à `c9ba99fb` ; les cinq tests UIKit FBNeo passent
+à `e813d226`, notamment l'accès au catalogue sans INI préexistant, l'import
+désactivé, les options de session explicites et le refus des options
+indisponibles. Une option `available=false` reste visible avec une raison
+traduite et ne peut pas envoyer de commande d'activation.
 
 Pour PS1, le vrai parseur Beetle au commit
 `10e4b0c6ceae20daa65ddf436a4445dddd0982d2` permet d'étendre le sous-ensemble
@@ -389,15 +419,52 @@ python3 test/unified_native_ios_test.py
 git diff --check
 ```
 
-Le troisième test exécute ici le parseur C++ portable et signale explicitement
-le saut des contrôles Apple. Les tests Foundation et la compilation des sept
-sources Objective-C++ modifiées requièrent la CI macOS ; leurs résultats
-doivent être ajoutés après le passage correspondant. Les tests du magasin
-couvrent aussi les métadonnées de mauvais type, l'import désactivé, les
-variantes homonymes, les dépendances indivisibles, la cible CRC séparée de la
-source, et la préservation des fichiers RPCS3 personnels et globaux.
+Sur Linux, `unified_native_ios_test.py` exécute le parseur C++ portable et
+signale explicitement le saut de ses contrôles Apple. Ces contrôles ont
+depuis été exécutés : SDK partagé, 180 contrôles Foundation, identités 92/92,
+Host PSP 12/12, sept sources natives et compilation/liaison des 76 sources
+Libretro passent à `2ae6ec849c9e4b122a1fae62bc9715cbdcc64691`,
+[run 39094043482, job 117576626168](https://github.com/TarbleFR/neostation-ios/actions/runs/39094043482/job/117576626168).
+Le magasin RPCS3 et le Host FBNeo passent à `c9ba99fb`, comme indiqué plus
+haut. Les échecs indépendants de ces jobs sont conservés dans
+[l'historique d'intégration](unified-cheats-integration.md#contrôles-intermédiaires-et-réutilisation).
 
-La publication du pack actif doit suivre la régénération finale, l'examen de
-ses diagnostics et les validations Apple. Les programmes trop longs ou
-incomplets sont refusés entiers ; aucune instruction n'est tronquée pour
-gonfler un compteur. Le téléchargement global ne provoque aucune activation.
+Les effets RAM PSP et N64 passent chacun 5/5 à `2ae6ec84`, sur les cœurs
+livrés et des frames réelles, avec les options logicielles N64 de la sonde.
+Le [reçu des effets](evidence/unified-cheats-core-effects.json) les distingue
+du job qui échoue séparément sur FBNeo. La preuve FBNeo 18/18 à `d254ece2`
+est un résultat ultérieur distinct, pas une réussite rétroactive de ce job.
+
+L'application et les 30 tests UIKit compilent à `e813d226` :
+[28 cas passent](evidence/unified-cheats-ui-e813.json), les deux cas
+régionaux échouent dans la synchronisation de la fixture. Après correction
+de cette seule synchronisation, [les deux cas régionaux passent à
+`a302af0d`](evidence/unified-cheats-ui-regional.json). Aucun fichier produit
+n'a changé entre ces révisions. Les assertions de confirmation d'édition et
+de refus d'un hash contradictoire sont conservées ; les 28 autres succès
+sont réutilisés. Aucune relance intégrale de 30 cas n'est affirmée.
+
+Les tests du magasin couvrent aussi les métadonnées de mauvais type,
+l'import désactivé, les variantes homonymes, les dépendances indivisibles,
+la cible CRC séparée de la source, et la préservation des fichiers RPCS3
+personnels et globaux. Les tests UIKit couvrent les préférences mal typées,
+les conflits d'activation et les callbacks tardifs. Ces contrôles ne sont
+pas une validation gameplay des millions de programmes publiés.
+
+Le [contrôle Foundation de l'index final](evidence/unified-cheats-full-index.json)
+réussit sur le blob gzip exact : 44 955 fiches et 851 packs conservés, aucun
+rejet, 0 octet de croissance retenue après dix menus dans le processus macOS.
+La [publication complète](evidence/unified-cheats-publication.json) est
+consignée au commit `6cbb8466a82fd64513240f43dc5b738967b9d2ff`.
+
+La [CI des données finales](evidence/unified-cheats-published-data.json), run
+`39096074029`, réussit sur ce commit : 123 tests (117 importateurs/cheats et
+six Pokémon FR), validation complète des packs, décodeurs primaires,
+résolution Flutter verrouillée et analyse sans anomalie. Le lecteur et le
+blob final étant inchangés, la preuve Apple de l'index est réutilisée après
+contrôle exact des deux copies gzip.
+
+La nouvelle IPA et le test sur iPhone physique ne sont pas attestés par ce
+chantier. Les programmes trop longs ou incomplets restent refusés
+entiers ; aucune instruction n'est tronquée pour gonfler un compteur. Le
+téléchargement global ne provoque aucune activation.

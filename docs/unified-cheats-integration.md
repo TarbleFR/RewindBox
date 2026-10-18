@@ -1,12 +1,16 @@
 # Catalogue de cheats unifié — intégration sur Claude
 
-État de ce document : implémentation candidate du 18 octobre 2026. Le mainteneur
+État de ce document : intégration du 18 octobre 2026 sur `Claude`. Le mainteneur
 a autorisé l'intégration du catalogue commun pour les consoles Libretro,
 ARMSX2, RPCS3 et Dolphin iOS. Aucune nouvelle IPA n'a été générée ou publiée
-pour ce chantier. Les résultats Apple doivent être complétés après le
-passage de la CI ciblée ; les vérifications Linux ne les remplacent pas.
+pour ce chantier. Les preuves Apple des composants et du navigateur sont
+consignées ci-dessous. Le catalogue complet est publié au commit
+`6cbb8466a82fd64513240f43dc5b738967b9d2ff`. Le contrôle Foundation de son
+index complet et la validation CI des données finales sont réussis. Les
+reçus ci-dessous distinguent les révisions et les composants effectivement
+exécutés des résultats inchangés réutilisés.
 
-## Résultat proposé dans l'application
+## Comportement intégré dans l'application
 
 Le même catalogue NeoStation est accessible depuis les menus Cheats des quatre
 familles de moteurs. Une action **Télécharger tous les catalogues** installe
@@ -35,8 +39,9 @@ exploitable par les moteurs actuels ; les parties valides des sources partielles
 sont conservées. L'inventaire historique de recherche et les exclusions restent
 séparés de cette publication active. Les données sont figées à la révision
 `bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4` :
-34 attributions de sources figurent dans le manifeste, dont ArtemisPS3 comme
-provenance seule de programmes RPCS3 existants. L'inventaire complet est dans
+34 sources ou provenances actives couvrent 22 systèmes dans le manifeste,
+dont ArtemisPS3 comme provenance seule de programmes RPCS3 existants.
+L'inventaire complet est dans
 [Sources de cheats NeoStation](unified-cheats-sources.md).
 
 ## Adaptations avant exclusion
@@ -67,7 +72,8 @@ concret dans l'audit final.
 
 La liste exacte des drivers du binaire FBNeo livré a également été comparée
 aux INI : 107 romsets absents et leurs 1 344 programmes sont retirés ;
-59 087 programmes restent publiés dans cette source. Aucun alias de driver
+59 087 programmes dédupliqués restent publiés pour 3 299 romsets dans cette
+source. Aucun alias de driver
 n'est inventé à partir du titre ou du nom d'un parent.
 
 ## Les 70 références et les 14 compléments
@@ -296,7 +302,7 @@ python3 tools/cheats/unified_catalogue.py validate --input native/cheats/catalog
 Données figées à la révision
 `bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4`.
 Le manifeste et son exemplaire embarqué sont identiques. L'index référence
-34 attributions de sources, dont ArtemisPS3 comme provenance seule,
+34 sources ou provenances actives sur 22 systèmes, dont ArtemisPS3 comme provenance seule,
 2 341 355 programmes dédupliqués dans leurs groupes d'identité,
 43 813 groupes et 44 955 fiches de transport, parties comprises.
 Ces comptes ne sont ni un nombre d'effets uniques ni un nombre de jeux
@@ -314,7 +320,8 @@ programmes dans les packs, duplications éventuelles de dépendances comprises.
 | Packs décompressés, somme des enveloppes temporaires | 3 226 101 652 octets (3076,65 Mio) |
 | Chunks de jeux installables, hors index et métadonnées locales | 2 417 589 667 octets (2305,59 Mio) |
 
-Les tailles décompressées sont des sommes sur le catalogue ; les packs sont
+Le téléchargement initial représente donc environ 281 Mo décimaux. Les
+tailles décompressées sont des sommes sur le catalogue ; les packs sont
 traités dans les limites de concurrence et de mémoire du service partagé.
 L'IPA embarque l'index, pas les 851 packs.
 
@@ -347,9 +354,50 @@ Résultats déjà obtenus dans le conteneur de cette session :
   pas de simples chaînes trouvées dans le fichier. Preuve réexécutable et
   identité détaillée : `test/unified_native_rpcs3_exports.json`.
 
-**Validation Apple encore à renseigner :** SHA exact, run, jobs, résultats SDK,
-Foundation, UIKit et effets des sondes. Les tests avec transport simulé ne
-prouvent pas un effet dans un jeu commercial PS2, GameCube/Wii ou PS3.
+Les résultats Apple acquis portent sur des composants précis, parfois dans
+un job dont une autre étape a échoué :
+
+| Révision et preuve | Résultat acquis | Portée |
+|---|---|---|
+| `2ae6ec849c9e4b122a1fae62bc9715cbdcc64691`, [run 39094043482, job 117576626168](https://github.com/TarbleFR/neostation-ios/actions/runs/39094043482/job/117576626168) | Package partagé compilé et lié avec le SDK iPhone ; 180 contrôles Foundation ; identités 92/92 et Host PSP 12/12 ; 76 sources du bridge Libretro compilées et liées. Les sept sources des menus/plugins natifs passent également le SDK. | Succès de ces composants, pas du job : le contrôle FBNeo et le magasin RPCS3 échouent encore à cette révision. |
+| Même révision, [reçu des effets PSP/N64](evidence/unified-cheats-core-effects.json), job `117576625930` | 5/5 contrôles PSP et 5/5 N64 sur les cœurs livrés, avec frames réelles et lecture RAM. | Options logicielles propres à la sonde N64 ; aucun cœur reconstruit. Le job échoue séparément dans la sonde FBNeo. |
+| `c9ba99fb81dc7e9dd79d17dde845a22628924bdb`, [run 39094267628, job 117577305555](https://github.com/TarbleFR/neostation-ios/actions/runs/39094267628/job/117577305555) | Host FBNeo 39/39 ; vrai magasin `RPCS3UnifiedCheats.mm` compilé avec le SDK iPhone puis exécuté avec Foundation, y compris le premier import. | Le transport Core RPCS3 est un double de test. Le job échoue séparément dans le précontrôle UIKit, avant sa compilation. |
+| `d254ece2317a879dc821b7ca639c0d01a6874993`, [reçu FBNeo natif](evidence/unified-cheats-fbneo-native.json), run `39094644017` | 18/18 contrôles du vrai binaire FBNeo livré : moteur de cheats et isolement du chargement natif, dans deux processus distincts. | CPU de test et RAM bornée ; aucun jeu commercial ou appareil physique validé. |
+| `e813d226dc1cd0b9d6e9b204d9de692621b9a62c`, [reçu UIKit 28 succès](evidence/unified-cheats-ui-e813.json), run `39094836721` | Application et 30 tests compilés ; 28 tests UIKit réussis. | Les deux tests régionaux échouent sur la synchronisation des transitions de la fixture ; le job reste en échec. |
+| `a302af0d8c79cd521e712aa50c7f25ac99fa2a8b`, [reçu UIKit régional](evidence/unified-cheats-ui-regional.json), run `39095481129` | Les deux tests régionaux corrigés passent, 2/2 ; artefact téléchargé et SHA-256 vérifié. | Relance ciblée sur iPhone 17 Pro Simulator iOS 26.2. Aucun fichier produit changé depuis `e813` ; les 28 succès précédents sont réutilisés. |
+| `1f024f0be5a61c5d66bdb50418473f275cd231b0`, [reçu de l'index complet](evidence/unified-cheats-full-index.json), run `39095959132`, job `117582328545` | Le vrai lecteur Foundation conserve 44 955 fiches et 851 packs, sans entrée rejetée. Empreintes finales exactes contrôlées avant chargement. | Processus macOS arm64/Xcode 26.3 : empreinte mémoire de 59 672 064 octets après chargement et après dix menus, soit 0 octet de croissance retenue. Aucune mesure sur iPhone physique. |
+| `6cbb8466a82fd64513240f43dc5b738967b9d2ff`, [reçu des données publiées](evidence/unified-cheats-published-data.json), run `39096074029`, job `117582679418` | Job et run réussis : 123 tests Python, validation des 851 packs et 2 341 355 programmes, contrats portables, décodeurs primaires et analyse Flutter sans anomalie. | 117 tests d'importateurs/cheats et six tests Pokémon FR. Le SDK/les effets Core et l'index Apple inchangés sont réutilisés explicitement ; aucune nouvelle IPA ni reconstruction de Core. |
+
+Les 30 cas UIKit sont donc couverts par les deux reçus, sans présenter la
+relance régionale comme une nouvelle exécution de toute la suite. Ils
+couvrent le téléchargement global et sa reprise, les tailles annoncées,
+les éditions incertaines et contradictoires, les dépendances désactivées,
+FBNeo dès le premier import, les profils PCE/WonderSwan/PicoDrive, les
+conflits AUTO/exclusifs, les préférences mal typées et les callbacks tardifs.
+
+La [preuve de publication](evidence/unified-cheats-publication.json) confirme
+853 blobs lourds uniques pour 854 chemins, les 26 fichiers de données/outils
+figés et le reçu régional, soit 881 chemins ajoutés dans un arbre Git comparé
+à l'index local figé. La branche a été avancée en une seule opération après
+transfert de tous les packs. Aucun catalogue partiel n'a été publié.
+
+Le contrôle Apple a précédé cette publication, sur le blob gzip final exact.
+Le code du lecteur, sa sonde et le contrôle sont inchangés dans le commit de
+données. La CI vérifie les deux empreintes locales avant de réutiliser ce
+résultat ; les autres suites Apple acquises ne sont pas répétées.
+
+La CI des données finales est réussie. Elle vérifie aussi 24 comportements
+PS1, 14 PCE et 12 WonderSwan à partir des parseurs primaires, le rapprochement
+NCL exact, quatre blocs Action Replay chiffrés avec Dolphin, les vrais
+décodeurs mGBA et PicoDrive (4 096 vecteurs, 2 475 patches dans 99 lots), puis
+`flutter pub get --enforce-lockfile` et l'analyse du package partagé. Ces
+preuves de syntaxe, d'ordre et de mémoire ne sont pas des essais de chaque
+programme sur une ROM commerciale.
+
+Les tests avec transport simulé ne prouvent pas un effet dans un jeu
+commercial PS2, GameCube/Wii ou PS3. Les preuves PSP/N64 mesurent leurs
+fixtures RAM ; la preuve FBNeo mesure le vrai moteur avec ses callbacks de
+test. Aucune de ces mesures n'est une validation gameplay du catalogue.
 Les résultats historiques des skins, de NeoSwap et des composants inchangés
 sont réutilisés conformément à `AGENTS.md` ; ils ne sont pas présentés comme
 réexécutés pour ce catalogue.
@@ -367,8 +415,8 @@ réexécutés pour ce catalogue.
 - Le support futur Switch, Vita, Wii U ou MAME XML ne découle pas de la présence
   de leurs données dans l'inventaire. La voie arcade FBNeo INI déjà raccordée
   n'est pas un interpréteur universel des autres formats arcade.
-- Aucun test sur iPhone physique, aucune IPA de ce chantier et aucune
-  publication publique ne sont affirmés ici.
+- Aucun test sur iPhone physique ni aucune nouvelle IPA de ce chantier
+  ne sont affirmés ici. La publication concerne les sources et le catalogue.
 
 ## Contrôles intermédiaires et réutilisation
 
@@ -377,12 +425,21 @@ réexécutés pour ce catalogue.
 | `2dec00b8` | Premier raccordement de code, sans données publiées ni IPA. | Le compilateur Apple a révélé une collision entre le validateur `Size` et le type système homonyme. |
 | `b60d1af2` | Le package compile avec le vrai SDK iPhone. Les cinq contrôles mémoire PPSSPP passent avec le vrai cœur. | La fixture Foundation révèle le refus du lien système `/var` ; le scénario N64 demande un contexte OpenGL indisponible. Le workflow global échoue. |
 | `095ca745` | SDK iPhone, comportement Foundation, identités et compilation du bridge Libretro réussissent. | Le callback RPCS3 a une signature de nullabilité incompatible ; les tests UIKit ont une erreur de macro et ne s’exécutent pas. Ces deux défauts sont corrigés dans le lot suivant. |
+| `2ae6ec84` | SDK/Foundation, identités 92/92, Host PSP 12/12, bridge Libretro et effets PSP/N64 5/5 chacun réussissent séparément. | Host FBNeo : 37 contrôles, un échec ; le premier import RPCS3 tente de modifier un tableau immuable. La sonde native FBNeo interrompt aussi son job d'effets distinct. |
+| `c9ba99fb` | Host FBNeo 39/39 et magasin réel RPCS3/Foundation corrigés réussissent. | Le wrapper Apple `cpp` échoue avant compilation UIKit, y compris avec un fichier temporaire explicite. |
+| `89626ba6` | Le vrai compilateur remplace `cpp` pour le précontrôle. | La compilation UIKit révèle un sélecteur `progress` ambigu dans une observation de fixture non typée ; aucun test UIKit n'est exécuté. |
+| `e813d226` | Les 30 cas UIKit compilent et s'exécutent ; 28 passent. | Deux cas régionaux enchaînent les transitions UIKit trop tôt dans la fixture ; les assertions produit restent conservées. |
+| `d254ece2` | Les 18 contrôles natifs FBNeo passent dans deux processus indépendants. | Les sondes précédentes partageaient un cycle initialisation/arrêt dans un même processus ; leur interruption ne constitue pas une preuve native réussie. |
+| `a302af0d` | Les deux seuls cas régionaux repassent après attente des transitions réelles ; 2/2, job réussi. | Les 28 succès `e813` restent réutilisés ; aucune nouvelle exécution intégrale ni modification produit n'est affirmée. |
+| `1f024f0b` | Index final complet accepté par le lecteur Foundation, 0 rejet, empreintes finales contrôlées. | Préflight de l'index seul ; ne constitue pas une validation des 851 packs ni de leurs effets en jeu. |
+| `6cbb8466` | Publication complète et CI des données réussies, 123 tests et vérification des packs ; analyse Flutter sans anomalie. | L'index Apple exact et les composants natifs inchangés sont réutilisés avec leurs reçus ; aucun gameplay global ni nouvel appareil testé. |
 
 La preuve PPSSPP est consignée dans
 `docs/evidence/unified-cheats-psp.json`, avec révision, empreintes du cœur,
-fixture et rapport, et identifiant de l’artefact. Elle reste une preuve de cette révision. Le nouveau garde agrégé
-de l’hôte touche aussi PSP : le prochain essai revérifie donc PSP et N64,
-avec les options logicielles N64 de la sonde, et les fonctions natives FBNeo
-du binaire livré. Aucun moteur produit n’est changé pour contourner une limite du
-Simulateur. Les contrôles du manifeste final sont distincts : aucune absence
-de données dans le commit de code ne vaut validation du catalogue complet.
+fixture et rapport, et identifiant de l’artefact. Elle reste une preuve
+historique de `b60d`. Après le changement du garde agrégé de l'hôte, PSP et N64
+ont été revérifiés à `2ae6ec84`, puis les fonctions natives FBNeo à `d254ece2`,
+avec les reçus distincts cités plus haut. Aucun moteur produit n'est changé
+pour contourner une limite du Simulateur. Les contrôles du manifeste final
+restent distincts : aucune absence de données dans un commit de code ne vaut
+validation du catalogue complet.

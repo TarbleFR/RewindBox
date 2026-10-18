@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "repository": "TarbleFR/neostation-ios",
+  "branch": "Claude",
+  "commit": "6cbb8466a82fd64513240f43dc5b738967b9d2ff",
+  "commit_url": "https://github.com/TarbleFR/neostation-ios/commit/6cbb8466a82fd64513240f43dc5b738967b9d2ff",
+  "parent_commit": "1f024f0be5a61c5d66bdb50418473f275cd231b0",
+  "tree": "35b52776ead51f485bbf6b26ce61dc8ba9b5bdc6",
+  "publication_atomic": true,
+  "tree_matches_frozen_local_index": true,
+  "all_published_blob_paths_match_expected_git_sha": true,
+  "published_paths": 881,
+  "heavy_paths": 854,
+  "heavy_unique_blobs": 853,
+  "heavy_unique_bytes": 280904327,
+  "small_frozen_paths": 26,
+  "additional_regional_receipt_paths": 1,
+  "upload_shards_verified_unique_blobs": {
+    "A": 270,
+    "B": 195,
+    "C": 194,
+    "D": 194
+  },
+  "upload_failures": 0,
+  "upload_missing_blobs": 0,
+  "upload_overlapping_shards": 0,
+  "upload_evidence": "Every heavy blob create response was checked against its immutable Git SHA; all 26 small blobs were checked identically before constructing the tree. The final tree was created without moving the branch, compared with the local temporary index, then published in one non-forced expected-head ref update.",
+  "checkpoint_sha256": {
+    "unified-data-upload.json": {
+      "sha256": "adba5cad39fdf76bc23fb11d460a572e9af06acf86f3c88f7d0cb1739c4b683f"
+    },
+    "unified-data-upload-b.json": {
+      "sha256": "f02856b05eeb8457f60636d4aec517c762f8e48b49096f1819eebc894d57747b"
+    },
+    "unified-data-upload-c.json": {
+      "sha256": "2c58bcc3521be7376408ea41c84c387c9c096b425c86700953850950e8b8db4d"
+    },
+    "unified-data-upload-d.json": {
+      "sha256": "e5d2c262cbe392117e1e9c66fbc00e25c82eb56c5c4f4a46797b3741a28c0c35"
+    }
+  },
+  "catalogue_revision": "bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4",
+  "manifest_gzip_sha256": "cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57",
+  "manifest_git_blob_sha": "bbb58e422c42c026a5097b9070c430d51508f0f5",
+  "manifest_bytes": 6574067,
+  "packs": 851,
+  "pack_bytes": 274318367,
+  "initial_download_bytes": 280892434,
+  "programs": 2341355,
+  "identity_groups": 43813,
+  "transport_parts": 44955,
+  "source_attributions": 34,
+  "systems": 22,
+  "all_programs_disabled": true,
+  "validation_report_sha256": "6f675798d570d873077057b0d576bba7b8aa207ae15e93a7576af8b261558962",
+  "index_apple_preflight_receipt": "docs/evidence/unified-cheats-full-index.json",
+  "index_apple_preflight_run": 39095959132,
+  "data_ci_run": 39096074029,
+  "data_ci_scope": "Result recorded separately in unified-cheats-published-data.json; this receipt attests publication and transfer, not the final CI result.",
+  "ipa_built": false,
+  "physical_device_validated": false,
+  "all_programs_gameplay_validated": false
+}

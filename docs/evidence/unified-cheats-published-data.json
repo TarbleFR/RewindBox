@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "repository": "TarbleFR/neostation-ios",
+  "branch": "Claude",
+  "source_commit": "6cbb8466a82fd64513240f43dc5b738967b9d2ff",
+  "source_tree": "35b52776ead51f485bbf6b26ce61dc8ba9b5bdc6",
+  "parent_commit": "1f024f0be5a61c5d66bdb50418473f275cd231b0",
+  "publication_receipt": {
+    "path": "docs/evidence/unified-cheats-publication.json",
+    "sha256": "2c3a3ed248810f6c692f563b68463b379db87692781ac1d581d93b3742e117e8",
+    "published_paths": 881,
+    "all_published_blobs_sha_match": true
+  },
+  "run": {
+    "id": 39096074029,
+    "attempt": 1,
+    "number": 12,
+    "event": "push",
+    "conclusion": "success",
+    "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39096074029",
+    "created_at": "2026-10-18T04:08:44Z",
+    "completed_at": "2026-10-18T04:11:08Z"
+  },
+  "job": {
+    "id": 117582679418,
+    "name": "data",
+    "conclusion": "success",
+    "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39096074029/job/117582679418"
+  },
+  "catalogue": {
+    "revision": "bf10b1c3314e951c810a2e786c67a10bc388fe34530badb45ebfe3565881bcb4",
+    "manifest_gzip_sha256": "cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57",
+    "manifest_gzip_bytes": 6574067,
+    "manifest_json_bytes": 29376532,
+    "pack_count": 851,
+    "pack_bytes": 274318367,
+    "initial_download_bytes": 280892434,
+    "systems": 22,
+    "totals": {
+      "available": 2341355,
+      "cheats": 2341355,
+      "download_bytes": 274318367,
+      "games": 44955,
+      "identity_groups": 43813,
+      "programs": 2341355,
+      "sources": 34
+    },
+    "counting_policy": "programs counts deduplicated programs within exact typed edition-identity groups before dependency duplication in transport parts; games counts transport records/parts, not unique commercial games. Different identity schemes are never merged by title alone.",
+    "two_manifest_copies_identical": true
+  },
+  "results": {
+    "unit_tests": {
+      "conclusion": "success",
+      "tests_run": 123,
+      "passed": 123,
+      "cheat_importer_catalogue_tests": 117,
+      "pokemon_french_identity_tests": 6
+    },
+    "full_catalogue_validation": {
+      "conclusion": "success",
+      "totals": {
+        "available": 2341355,
+        "cheats": 2341355,
+        "download_bytes": 274318367,
+        "games": 44955,
+        "identity_groups": 43813,
+        "programs": 2341355,
+        "sources": 34
+      }
+    },
+    "portable_runtime": {
+      "conclusion": "success",
+      "tests_run": 3,
+      "passed": 2,
+      "skipped": 1,
+      "skip_reason": "Apple Foundation runtime requires macOS; exact full published index independently passed in the preflight referenced below."
+    },
+    "browser_localization": {
+      "conclusion": "success",
+      "complete_keys": 81,
+      "languages": 12,
+      "placeholders_preserved": true,
+      "ui_simulator_rerun": false
+    },
+    "primary_source_proofs": {
+      "ps1": {
+        "conclusion": "success",
+        "tests": 2,
+        "decoder_memory_behaviors": 24,
+        "source_pin": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2"
+      },
+      "pce_wonderswan": {
+        "conclusion": "success",
+        "tests": 2,
+        "pce_parser_memory_behaviors": 14,
+        "wonderswan_parser_memory_behaviors": 12
+      },
+      "artemis": {
+        "conclusion": "success",
+        "scope": "Exact authored NCL/native crosswalk: edition, hash, mode, ordered operations and whole-program gates."
+      },
+      "dolphin_action_replay": {
+        "conclusion": "success",
+        "complete_encrypted_blocks": 4,
+        "real_pinned_decoder": true,
+        "parity_crc_validated": true,
+        "damaged_block_rejected": true
+      },
+      "mgba": {
+        "conclusion": "success",
+        "real_pinned_auto_vba_decoders": true,
+        "complete_dependency_closure": true,
+        "malformed_instruction_rejected": true,
+        "scope": "Primary source fixtures and real libretro wrapper/decoder; this CI does not re-decode every catalogue program or validate gameplay."
+      },
+      "picodrive": {
+        "conclusion": "success",
+        "real_decoder_set_apply_reset": true,
+        "differential_vectors": 4096,
+        "batches": 99,
+        "patches": 2475,
+        "overlapping_rom_reset": true,
+        "rejected_cases": [
+          "SMS no-op",
+          "SH2 addresses",
+          "odd addresses",
+          "FFFF sentinel"
+        ]
+      }
+    },
+    "flutter": {
+      "locked_dependency_resolution": "success",
+      "command": "flutter analyze packages/neo_cheat_catalog --no-fatal-infos",
+      "conclusion": "success",
+      "issues": 0
+    }
+  },
+  "exact_index_preflight": {
+    "receipt_path": "docs/evidence/unified-cheats-full-index.json",
+    "receipt_sha256": "b33e98f8a1177df37810445edc5175e60eb42d07c65db9b1d91d950b0cbd11a6",
+    "run_id": 39095959132,
+    "job_id": 117582328545,
+    "conclusion": "success",
+    "exact_manifest_gzip_sha256": "cf8959bfd6b20b4ef2516e1e235723b1a5048b2fc2c98033d05ad0d48cf84e57",
+    "games": 44955,
+    "packs": 851,
+    "rejected_entries": 0,
+    "loaded_memory_bytes": 59672064,
+    "retained_growth_after_ten_menus_bytes": 0,
+    "decoded_log_sha256": "9d30edea2863780fa66ea280a542c37b788716481739b3022cffec56a8fe1399"
+  },
+  "source_lock": {
+    "path": "tools/cheats/unified-sources.json",
+    "sha256": "745361b10903604fac9b3ab81b236576826bb4e57fdb6b24fd0c6288a957c82c"
+  },
+  "independent_pack_validation": {
+    "path": "native/cheats/catalogue/VALIDATION.json",
+    "sha256": "6f675798d570d873077057b0d576bba7b8aa207ae15e93a7576af8b261558962",
+    "max_program_utf8_bytes": 127508,
+    "max_program_lines": 4015,
+    "program_byte_limit": 131072,
+    "program_line_limit": 4096,
+    "overflows": 0
+  },
+  "log": {
+    "api_url": "https://api.github.com/repos/TarbleFR/neostation-ios/actions/jobs/117582679418/logs",
+    "encoding": "UTF-8 encoding of the decoded GitHub workflow-job log text returned by the connector, preserving its leading BOM and line endings.",
+    "utf8_bytes": 74866,
+    "sha256": "c9899a520806b6a7f1dd2cc2aa8fafa4b4d575342174047769573761b930964f"
+  },
+  "limits": {
+    "core_rebuilt": false,
+    "ipa_built": false,
+    "physical_device_validated": false,
+    "all_programs_gameplay_validated": false,
+    "historical_core_effect_suites_rerun": false,
+    "skipped_jobs": [
+      "published-index",
+      "native",
+      "core-effects"
+    ],
+    "source_decoder_proofs_are_not_all_program_gameplay_tests": true
+  }
+}
