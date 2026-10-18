@@ -289,5 +289,39 @@ def parse_reviewed_ps3_json(data, options):
     return rows
 
 
-PARSERS = {"ps3-static-json":parse_reviewed_ps3_json,"reviewed-native-json":parse_reviewed_ps3_json,"mister-adapted-zip": parse_mister_adapted_zip,
+def parse_reviewed_editions_json(data, options):
+    """Source-attested serials and whole simple RAW/static programs only."""
+    if len(data)>4*1024*1024:
+        raise FormatError("reviewed-editions-input-too-large")
+    rows=json.loads(data)
+    if not isinstance(rows,list) or len(rows)>4096:
+        raise FormatError("reviewed-editions-list-required")
+    for game in rows:
+        if not isinstance(game,dict) or game.get("system") not in {"ps2","ps3"} or not isinstance(game.get("cheats"),list):
+            raise FormatError("reviewed-ps2-ps3-edition-required")
+        ps2=game["system"]=="ps2"
+        scheme="ps2-disc-serial" if ps2 else "ps3-title-id"
+        if not any(isinstance(i,dict) and i.get("type")=="serial" and i.get("scheme")==scheme and re.fullmatch(r"[A-Z]{4}[0-9]{5}",i.get("value","")) for i in game.get("identities",[])):
+            raise FormatError("explicit-source-disc-serial-required")
+        for program in game["cheats"]:
+            original=program.get("source_code","")
+            if not program.get("source_url","").startswith("https://"):
+                raise FormatError("exact-primary-source-url-required")
+            if ps2:
+                if (program.get("source_dialect")!="ps2-raw" or program.get("conversion",{}).get("source_declares_raw") is not True or
+                    program.get("dialect")!="pnach" or program.get("code")!=convert_ps2rd_simple_program(original)):
+                    raise FormatError("reviewed-raw-to-pnach-mismatch")
+            else:
+                lines=original.splitlines()
+                if (program.get("source_dialect")!="artemis-ncl" or program.get("dialect")!="ps3-static-be32" or not lines or len(lines)>64 or
+                    any(not re.fullmatch(r"0 [0-9A-Fa-f]{8} [0-9A-Fa-f]{8}",line) for line in lines) or
+                    program.get("code")!="\n".join(line[2:] for line in lines) or not re.fullmatch(r"[0-9]{2}\.[0-9]{2}",game.get("revision",""))):
+                    raise FormatError("reviewed-static-ncl-mismatch")
+            program["enabled"]=False
+            program["provenance"]=[{"source_id":options["source_id"],"url":program["source_url"],
+                "author":program.get("author",""),"revision":options["revision"],"license":options["license"]}]
+    return rows
+
+
+PARSERS = {"reviewed-editions-json":parse_reviewed_editions_json,"ps3-static-json":parse_reviewed_ps3_json,"reviewed-native-json":parse_reviewed_ps3_json,"mister-adapted-zip": parse_mister_adapted_zip,
            "cheatdevice-pnach": parse_cheatdevice_pnach}

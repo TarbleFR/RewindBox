@@ -1,0 +1,232 @@
+[
+  {
+    "system": "ps2",
+    "title": "Dragon Ball Z: Budokai 2",
+    "revision": "",
+    "regions": [
+      "Europe"
+    ],
+    "languages": [],
+    "edition_confirmation_required": true,
+    "identities": [
+      {
+        "type": "serial",
+        "scheme": "ps2-disc-serial",
+        "value": "SLES51839"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "Money after a purchase",
+        "source_code": "20289E58 3C02001F",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SLES-51839.html",
+        "code": "patch=1,EE,20289E58,extended,3C02001F",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "P1 health",
+        "source_code": "203E9284 453B8000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SLES-51839.html",
+        "code": "patch=1,EE,203E9284,extended,453B8000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "P1 Ki",
+        "source_code": "203E928C 442E8000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SLES-51839.html",
+        "code": "patch=1,EE,203E928C,extended,442E8000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      }
+    ]
+  },
+  {
+    "system": "ps2",
+    "title": "God of War",
+    "revision": "",
+    "regions": [
+      "Europe"
+    ],
+    "languages": [],
+    "edition_confirmation_required": true,
+    "identities": [
+      {
+        "type": "serial",
+        "scheme": "ps2-disc-serial",
+        "value": "SCES53133"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "No damage (Normal)",
+        "source_code": "20338038 00000000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-53133.html",
+        "code": "patch=1,EE,20338038,extended,00000000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Magic energy",
+        "source_code": "20304D9C 42C80000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-53133.html",
+        "code": "patch=1,EE,20304D9C,extended,42C80000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Rage meter",
+        "source_code": "20304DA0 42C80000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-53133.html",
+        "code": "patch=1,EE,20304DA0,extended,42C80000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Maximum level",
+        "source_code": "20304DA8 00007530",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-53133.html",
+        "code": "patch=1,EE,20304DA8,extended,00007530",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      }
+    ]
+  },
+  {
+    "system": "ps2",
+    "title": "God of War II",
+    "revision": "",
+    "regions": [
+      "Europe"
+    ],
+    "languages": [],
+    "edition_confirmation_required": true,
+    "identities": [
+      {
+        "type": "serial",
+        "scheme": "ps2-disc-serial",
+        "value": "SCES54206"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "Magic energy",
+        "source_code": "2033523C 42C80000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-54206.html",
+        "code": "patch=1,EE,2033523C,extended,42C80000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Titan rage",
+        "source_code": "20335248 42C80000",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-54206.html",
+        "code": "patch=1,EE,20335248,extended,42C80000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Red orbs",
+        "source_code": "20335250 000F423F",
+        "source_dialect": "ps2-raw",
+        "author": "Unspecified",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SCES-54206.html",
+        "code": "patch=1,EE,20335250,extended,000F423F",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      }
+    ]
+  },
+  {
+    "system": "ps2",
+    "title": "The Hobbit: The Prelude to the Lord of the Rings",
+    "revision": "",
+    "regions": [
+      "Europe"
+    ],
+    "languages": [],
+    "edition_confirmation_required": true,
+    "identities": [
+      {
+        "type": "serial",
+        "scheme": "ps2-disc-serial",
+        "value": "SLES51723"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "Bilbo health",
+        "source_code": "2046DFBC 41400000",
+        "source_dialect": "ps2-raw",
+        "author": "GLADIATOR",
+        "source_url": "https://psxdatacenter.com/psx2/games2/SLES-51723.html",
+        "code": "patch=1,EE,2046DFBC,extended,41400000",
+        "dialect": "pnach",
+        "conversion": {
+          "id": "ps2rd-simple-write-to-pnach",
+          "source_declares_raw": true
+        },
+        "enabled": false
+      }
+    ]
+  }
+]

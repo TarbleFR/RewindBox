@@ -362,6 +362,15 @@ DIRECT_LABELS = {
  "ja": ("チートをインポート", "パッチ"), "ko": ("치트 가져오기", "패치"),
 }
 
+RESUME_DOWNLOAD_LABELS = {
+ "en": "Complete the catalogue", "fr": "Compléter le catalogue",
+ "de": "Katalog vervollständigen", "es": "Completar el catálogo",
+ "it": "Completa il catalogo", "pt": "Completar o catálogo",
+ "ru": "Дополнить каталог", "id": "Lengkapi katalog",
+ "zh": "补全目录", "zh_Hant": "補齊目錄",
+ "ja": "カタログを補完", "ko": "카탈로그 완성",
+}
+
 FBNEO_AUTOMATIC_LABELS = {
  "en": "Download the catalogue, then reopen this game to load its cheats. New codes start off.",
  "fr": "Téléchargez le catalogue, puis rouvrez ce jeu pour charger ses cheats. Les nouveaux codes sont désactivés.",
@@ -393,6 +402,7 @@ def resource():
         if len(FBNEO_LABELS[locale]) != len(FBNEO_KEYS):
             raise ValueError(f"{locale}: incomplete FBNeo translations")
         result[locale].update(zip(FBNEO_KEYS, FBNEO_LABELS[locale]))
+        result[locale]["resumeDownload"] = RESUME_DOWNLOAD_LABELS[locale]
         result[locale]["fbneoSessionHelp"] = FBNEO_AUTOMATIC_LABELS[locale]
         result[locale]["exclusiveConflict"], result[locale]["mgbaIsolationConflict"] = ACTIVATION_CONFLICT_LABELS[locale]
         result[locale]["fbneoUnsafeDefault"], result[locale]["fbneoUnmanagedOption"] = FBNEO_UNAVAILABLE_LABELS[locale]

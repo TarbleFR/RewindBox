@@ -1,0 +1,101 @@
+[
+  {
+    "system": "ps3",
+    "title": "Bladestorm Hyakunen Sensou",
+    "revision": "01.00",
+    "regions": [
+      "Japan"
+    ],
+    "languages": [],
+    "edition_confirmation_required": true,
+    "identities": [
+      {
+        "type": "serial",
+        "scheme": "ps3-title-id",
+        "value": "BLJM60009"
+      }
+    ],
+    "cheats": [
+      {
+        "name": "Infinite Money",
+        "code": "00072A18 409D0008",
+        "source_code": "0 00072A18 409D0008",
+        "source_dialect": "artemis-ncl",
+        "source_url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+        "dialect": "ps3-static-be32",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_git_blob_sha1": "21338ce82a90d1e2a0cedd8bb63f54fb374874a5",
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+          "runtime_ppu_binding_required": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Point",
+        "code": "000F05F8 409D0134",
+        "source_code": "0 000F05F8 409D0134",
+        "source_dialect": "artemis-ncl",
+        "source_url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+        "dialect": "ps3-static-be32",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_git_blob_sha1": "21338ce82a90d1e2a0cedd8bb63f54fb374874a5",
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+          "runtime_ppu_binding_required": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Exp",
+        "code": "001D8348 409D007C",
+        "source_code": "0 001D8348 409D007C",
+        "source_dialect": "artemis-ncl",
+        "source_url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+        "dialect": "ps3-static-be32",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_git_blob_sha1": "21338ce82a90d1e2a0cedd8bb63f54fb374874a5",
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+          "runtime_ppu_binding_required": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Infinite SP",
+        "code": "0036409C 60000000",
+        "source_code": "0 0036409C 60000000",
+        "source_dialect": "artemis-ncl",
+        "source_url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+        "dialect": "ps3-static-be32",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_git_blob_sha1": "21338ce82a90d1e2a0cedd8bb63f54fb374874a5",
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+          "runtime_ppu_binding_required": true
+        },
+        "enabled": false
+      },
+      {
+        "name": "Combo",
+        "code": "000FC334 3940270F",
+        "source_code": "0 000FC334 3940270F",
+        "source_dialect": "artemis-ncl",
+        "source_url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+        "dialect": "ps3-static-be32",
+        "author": "CodeFreak/PS3UserCheat",
+        "conversion": {
+          "id": "ncl-type0-static-32bit-to-rpcs3-be32",
+          "source_file_git_blob_sha1": "21338ce82a90d1e2a0cedd8bb63f54fb374874a5",
+          "source_revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+          "runtime_ppu_binding_required": true
+        },
+        "enabled": false
+      }
+    ]
+  }
+]

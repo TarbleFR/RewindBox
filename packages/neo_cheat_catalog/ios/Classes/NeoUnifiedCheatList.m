@@ -242,7 +242,7 @@ static BOOL NCLAppend(NSDictionary *program, NSDictionary *index, NSMutableSet *
   UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
   cell.textLabel.numberOfLines=0; cell.detailTextLabel.numberOfLines=0;
   if (path.section==0) {
-    NSString *downloadKey=!self.catalogueStateKnown ? @"loading" : self.downloading ? @"downloading" : self.catalogueInstalled ? @"installedReady" : self.cataloguePartial ? @"retryDownloads" : @"downloadAll";
+    NSString *downloadKey=!self.catalogueStateKnown ? @"loading" : self.downloading ? @"downloading" : self.catalogueInstalled ? @"installedReady" : self.cataloguePartial ? @"resumeDownload" : @"downloadAll";
     cell.textLabel.text=[self text:path.row==0 ? downloadKey : @"directImport"];
     if (path.row==0) {
       cell.detailTextLabel.text=self.downloadStatus;

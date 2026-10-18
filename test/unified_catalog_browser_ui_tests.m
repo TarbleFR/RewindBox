@@ -1025,7 +1025,7 @@ static void NUCBExchangeSingleton(void) {
     NSIndexPath *action=[NSIndexPath indexPathForRow:0 inSection:0];
     UITableViewCell *cell=[list tableView:list.tableView cellForRowAtIndexPath:action];
     XCTAssertTrue(cell.userInteractionEnabled);
-    XCTAssertEqualObjects(cell.textLabel.text,[NeoUnifiedCheatBrowser localizedText:@"retryDownloads" locale:@"fr"]);
+    XCTAssertEqualObjects(cell.textLabel.text,[NeoUnifiedCheatBrowser localizedText:@"resumeDownload" locale:@"fr"]);
     [list tableView:list.tableView didSelectRowAtIndexPath:action];XCTAssertEqual(self.catalog.installs,1U);
     self.catalog.summaryFixture=@{@"installation_state":@"installing",@"installed_packs":@1,@"total_packs":@3};
     NeoUnifiedCheatList *other=[self directListWithItems:@[]];
