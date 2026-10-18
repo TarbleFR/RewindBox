@@ -44,3 +44,48 @@ Artifact `12121487670` contains the verdict; ZIP SHA-256 is
 Two new delivery-composition guard tests passed locally once. No successful
 test is repeated by the delivery recipe. The automatically started broad run
 `39088013058` was cancelled, not accepted as new validation.
+
+
+## Verified private delivery
+
+- Source `881c8df6bcffbdd0e4c3f5a32fd66492830f6dd1`, branch `Claude`.
+- Run `39088132898` succeeded: checks `117558927955`, native reuse
+  `117558927866`, cold Release `117559037325`; optional warm job skipped.
+  Exactly one Build 473 IPA was compiled. The AOT/Xcode compilation phase
+  passed from 01:58:07 to 02:02:44 UTC (277 seconds).
+- Actual IPA **0.0.7 (473)**: `NeoStation-Build473-881c8df6.ipa`,
+  **218,615,292 bytes**. SHA-256:
+  `ab4ca98e5aa7221a824591c39fb7e277cda3c1e7df6ca14c44c4922205376054`.
+- Encrypted artifact `12121897150`, 219,540,381 bytes, ZIP SHA-256:
+  `0408158c50b0d444327f0c2fd80bfeab07ce5bc1d99d14307651847719638320`.
+  The existing authorized recipient is unchanged. Private keys and transient
+  delivery passwords are excluded from reports and deliverables.
+- The first local decryption was attempted before the download process had
+  finished; the archive hash guard stopped it before decryption/extraction.
+  After awaiting download exit 0 and its exact hash, decryption succeeded.
+  This preparation error caused no CI rerun or additional IPA compilation.
+- Independent inspection passed ZIP structure, source stamp, all six bundle
+  versions, exact final IPA identity and all 76 thin Mach-O fingerprints
+  against the CI seal. CI verified 79 ad hoc signatures; codesign was not
+  rerun on this Linux inspection host. SideStore Apple re-signing is required.
+- The actual Flutter App AOT differs from delivered 472. Its SHA-256 is
+  `238ca2566ddae7bfe028cf37619717408feb7f01cd978e911dab2638835c5b84`.
+  All 34 Libretro cores, RPCS3, Dolphin, ARMSX2 and MoltenVK retain their
+  delivered 472 code/data/ABI identities. Only Runner differs in the thin
+  Mach-O ledger (the fat-wrapped Dart AOT is inspected separately).
+- Desktop Commander completed a create-only copy and independently verified
+  the same bytes/hash at
+  `C:\Users\Coren\Downloads\NeoStation-Build473-881c8df6.ipa`.
+  Existing IPAs were preserved. The temporary AES password was removed.
+- No physical iPhone first-run, actual Files picker, RetroArch app launch or
+  gameplay validation is claimed by the Flutter harness. No phone/Xcode test
+  connection is available here. The unchanged prior proofs are reused.
+  No public GitHub release was created.
+
+## Changed files
+
+Product: `lib/widgets/setup_wizard.dart` only. Focused proof:
+`test/setup_skip_test.py`, `.github/workflows/setup-skip.yml`. Provenance:
+`.github/diagnostics/setup_skip_delivery.py`, its two guard tests in
+`setup_skip_delivery_test.py`, and `.github/workflows/retroarch-delivery.yml`.
+`AGENTS.md` and this report record the scope and actual results.
