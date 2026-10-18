@@ -8,11 +8,12 @@ on:
       - test/scraping_streaming_md5_test.*
       - .github/workflows/scraping-streaming-md5.yml
   workflow_dispatch:
-permissions: {contents: read}
+permissions: {contents: read, actions: read}
 jobs:
   targeted:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env: {GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'}
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, persist-credentials: false}
@@ -22,7 +23,7 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Analyze changed hash and diagnostics
         run: dart analyze lib/utils/optimized_md5_utils.dart lib/services/screenscraper/rom_hasher.dart test/scraping_streaming_md5_test.dart
-      - name: Original whole-file negative control and complete 3.36 GB streaming proof
+      - name: Correct I/O guard and reuse four unchanged successful MD5 scenarios
         run: python3 test/scraping_streaming_md5_test.py
       - name: Preserve exact targeted proof
         if: always()

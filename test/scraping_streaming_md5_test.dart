@@ -17,6 +17,8 @@ class GuardedFile implements File {
   int largestChunk = 0;
   @override String get path => real.path;
   @override Future<bool> exists() => real.exists();
+  @override Future<RandomAccessFile> open({FileMode mode = FileMode.read}) =>
+      real.open(mode: mode);
   @override Stream<List<int>> openRead([int? start, int? end]) =>
       real.openRead(start, end).map((bytes) {
         chunks++;
