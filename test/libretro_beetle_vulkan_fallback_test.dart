@@ -58,6 +58,7 @@ void main() {
       return null;
     });
     final systemDirectory = await LibretroInternalService.systemDirectory();
+    systemDirectory.createSync(recursive: true);
     File(p.join(systemDirectory.path, 'scph5501.bin')).writeAsBytesSync(List<int>.filled(16, 2));
   });
 

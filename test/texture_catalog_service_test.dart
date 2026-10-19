@@ -24,10 +24,12 @@ void main() {
       'psp': 'psp', 'pspminis': 'psp', '3ds': '3ds', 'n3ds': '3ds',
       // Mupen64Plus-Next (GLideN64) reads hires_texture packs: the N64 catalogue.
       'n64': 'n64', 'N64': 'n64',
+      // Build 489: Beetle PSX HW (Vulkan) reads <content>-texture-replacements: the PS1 catalogue.
+      'psx': 'ps1', 'ps1': 'ps1', 'PSX': 'ps1', 'playstation': 'ps1',
     }.entries) {
       expect(TextureCatalogService.textureSystem(entry.key), entry.value, reason: entry.key);
     }
-    for (final folder in ['psx', 'nes', 'nds', 'ps3', 'switch', 'gba', 'dreamcast', 'wiiu', '']) {
+    for (final folder in ['nes', 'nds', 'ps3', 'saturn', 'switch', 'gba', 'dreamcast', 'wiiu', '']) {
       expect(TextureCatalogService.textureSystem(folder), isNull, reason: folder);
     }
   });
@@ -37,7 +39,8 @@ void main() {
     expect(TextureCatalogService.supports('ps2'), isFalse);
     TextureCatalogService.debugIsIOS = true;
     expect(TextureCatalogService.supports('ps2'), isTrue);
-    expect(TextureCatalogService.supports('psx'), isFalse);
+    expect(TextureCatalogService.supports('psx'), isTrue);
+    expect(TextureCatalogService.supports('nes'), isFalse);
   });
 
   test('twelve languages, Traditional Chinese selected by script or region', () {

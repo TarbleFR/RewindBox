@@ -8,8 +8,11 @@ with the Build 485 ARMSX2 store linked as in the app, then runs them on:
   failed or web-page refresh keeping the last index, matching on real packs);
 - local fixture packs served through the store's download transport:
   Dolphin 7z with a subtree, update, conflict, changed file, web page, space
-  check, Game ID marker layout and removal; PPSSPP and Azahar folders and
-  their per-game core options; ARMSX2 ZIP and 7z handed to its own store.
+  check, Game ID marker layout and removal; PPSSPP, Azahar, Mupen64Plus-Next
+  and Beetle PSX HW folders and their per-game core options (Beetle: the
+  folder named after the loaded file, next to the memory cards, which stay);
+  ARMSX2 ZIP and 7z handed to its own store; a manual pack whose author's file
+  was verified on CI, installed from that exact file only (Build 489).
 Needs Foundation: macOS only; elsewhere it fails instead of reporting a pass.
 """
 from pathlib import Path
@@ -180,6 +183,23 @@ def main() -> int:
         cartridge[0x3B:0x3F] = b'NSKE'
         # .v64 byte order (16-bit words swapped), as many dumps are stored.
         (fixtures / 'kart.v64').write_bytes(b''.join(bytes(cartridge[i:i + 2][::-1]) for i in range(0, len(cartridge), 2)))
+        # Beetle PSX HW: <hash>-<palette> names directly in <content>-texture-replacements.
+        beetle = zip_of(fixtures / 'beetle.zip', [('Castle-texture-replacements/1a2b-0.png', png()), ('Castle-texture-replacements/3C4D-FF.dds', DDS),
+                                                  ('Castle-texture-replacements/variants/5e6f-0.png', png()), ('Castle-texture-replacements/readme.txt', b'x')])
+        packs['beetle'] = pack('fixture-beetle', 'ps1', 'beetle', game('Synthetic Castle', 'serial', 'ps1-disc-serial', 'SLUS-00067', 'USA'),
+                               serve('beetle.zip', beetle), beetle, [{'from': 'Castle-texture-replacements/', 'to': '{id}'}], 2)
+        # A manual pack whose author's file (on a file host) was verified on CI: installed only from that exact file.
+        hosted = zip_of(fixtures / 'hosted.zip', [('Pack/GALE01/tex1_m.png', png()), ('Pack/notes.txt', b'x')])
+        verified = pack('fixture-verified-manual', 'gc', 'dolphin', game('Synthetic Melee', 'game_id', 'dolphin-disc-game-id', 'GALE01', 'USA'),
+                        'https://unused.invalid/', hosted, [{'from': 'Pack/GALE01/', 'to': 'GALE01'}], 1)
+        verified['availability'] = 'manual'
+        verified['download'] = {'automatable': False, 'verified': {'format': 'zip', 'file_name': 'hosted.zip', 'host': 'mega',
+                                                                   'size': hosted.stat().st_size, 'sha256': hashlib.sha256(hosted.read_bytes()).hexdigest()}}
+        packs['verifiedManual'] = verified
+        malformed = json.loads(json.dumps(verified))
+        malformed['id'] = 'fixture-verified-malformed'
+        malformed['download']['verified']['sha256'] = 'not-a-digest'
+        packs['verifiedMalformed'] = malformed
         ps2game = game('Synthetic PS2', 'serial', 'ps2-disc-serial', 'SLUS-21137', 'USA')
         ps2zip = fixtures / 'ps2/pack-deflate.zip'
         packs['armsx2zip'] = pack('fixture-armsx2-zip', 'ps2', 'armsx2', ps2game, serve('ps2.zip', ps2zip), ps2zip,
@@ -196,6 +216,7 @@ def main() -> int:
             'bundledManifest': str(BUNDLED), 'bundledPackCount': len(index['packs']),
             'bundledAvailableCount': sum(1 for p in index['packs'] if p['availability'] == 'available'),
             'matches': probes(index), 'served': served, 'packs': packs, 'gcDisc': str(disc), 'n64Rom': str(fixtures / 'kart.v64'),
+            'hostedFile': str(hosted), 'otherFile': str(other),
         }
         (base / 'fixtures.json').write_text(json.dumps(description, indent=1))
 

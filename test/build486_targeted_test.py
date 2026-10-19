@@ -139,6 +139,8 @@ DART_TESTS = [
     'test/dusklight_ports_stage1_test.dart',
     'test/libretro_core_catalog_test.dart',
     'test/libretro_resolution_test.dart',
+    'test/libretro_beetle_vulkan_fallback_test.dart',
+    'test/libretro_bios_launch_test.dart',
 ]
 NATIVE = [
     ['test/texture_catalog_native_test.py'],
