@@ -380,6 +380,9 @@ def mega_folder_file(link, destination, max_bytes):
     return {'size': size, 'sha256': digest.hexdigest(), 'final': link, 'name': node['name'], 'seconds': round(time.time() - started, 1)}
 
 
+MEGA_SECONDS = 45 * 60  # a public file of a few gigabytes arrives in minutes on a CI runner
+
+
 def mega(url, destination, max_bytes):
     link = mega_link(url)
     if '/folder/' in link and '/file/' in link:
@@ -391,8 +394,13 @@ def mega(url, destination, max_bytes):
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     started = time.time()
-    result = subprocess.run([_megatools(), 'dl', '--no-progress', '--path', str(work), link], capture_output=True, text=True,
-                            errors='replace', timeout=4 * 3600)
+    try:
+        result = subprocess.run([_megatools(), 'dl', '--no-progress', '--path', str(work), link], capture_output=True, text=True,
+                                errors='replace', timeout=MEGA_SECONDS)
+    except subprocess.TimeoutExpired:
+        # A transfer that stalls is MEGA's per-address quota or throttling: reported, never worked around.
+        shutil.rmtree(work, ignore_errors=True)
+        raise HostError('quota', f'MEGA transfer not finished within {MEGA_SECONDS // 60} minutes')
     text = result.stderr + result.stdout
     files = [p for p in work.rglob('*') if p.is_file()]
     try:

@@ -608,5 +608,15 @@
   "console": "wii",
   "source": "xbox_one_textures_and_controls_for_satsr_autorunner__82cb9.zip (https://gamebanana.com/dl/1403110)",
   "reason": "Sonic and the Secret Rings Xbox One GUI, autorunner edition: the same textures with six more for an input mod."
+ },
+ {
+  "console": "gc",
+  "source": "CUSTOM.ROBO-HD.TEXTURES-WiP1.7z (https://drive.google.com/file/d/1_Y6me02VeS9HLVxVfgc02BizwTyvBYeb/view)",
+  "reason": "Custom Robo HD Textures (work in progress 1): the author's archive is 10,428,363,545 bytes, beyond what NeoStation installs on an iPhone (host run 39278264111); the finished release is excluded for the same reason."
+ },
+ {
+  "console": "gc",
+  "source": "Medal of Honor European Assault Remastered 4K Alpha.7z (https://drive.google.com/file/d/17u-csNyOAieyyatvyDEjA2CNk_Nc9Eyp/view?usp=drive_link)",
+  "reason": "Medal of Honor: European Assault Remastered 4K (alpha): the author's archive holds a damaged PNG (tex1_64x64_3c281b13e67b245c_14.png, wrong signature), which NeoStation refuses to install (host run 39278264111)."
  }
 ]

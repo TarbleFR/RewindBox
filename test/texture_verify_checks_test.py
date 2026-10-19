@@ -102,5 +102,30 @@ check(listed == [{'name': 'GALE01/pack.zip', 'size': len(content), 'url': link +
 check(hosts._aes(decrypted['FILE']['key'], 'ctr', decrypted['FILE']['iv'])(encrypt(file_key, modes.CTR(nonce + bytes(8)), content)) == content,
       'AES-CTR with the derived file key and nonce gives the file back')
 check(hosts.mega_link('https://mega.nz/#F!ABCDEFGH!' + b64(folder_key)) == link, 'old #F! folder links')
+
+# A MEGA transfer that stalls (per-address quota, throttling) ends at the bound as "quota", its partial download removed.
+calls = []
+
+
+def stalled(command, **options):
+    calls.append(options.get('timeout'))
+    Path(command[command.index('--path') + 1], 'partial.zip').write_bytes(b'PK')
+    raise hosts.subprocess.TimeoutExpired(command, options.get('timeout'))
+
+
+real_run, real_tool = hosts.subprocess.run, hosts._megatools
+hosts.subprocess.run, hosts._megatools = stalled, lambda: '/usr/bin/megatools'
+try:
+    with tempfile.TemporaryDirectory() as folder:
+        destination = Path(folder) / 'part-0'
+        try:
+            hosts.mega('https://mega.nz/file/ABCDEFGH#' + b64(file_key), str(destination), 1 << 30)
+            check(False, 'a stalled MEGA transfer raises')
+        except hosts.HostError as error:
+            check(error.status == 'quota', f'stalled MEGA transfer status {error.status}')
+        check(calls == [hosts.MEGA_SECONDS] and hosts.MEGA_SECONDS <= 3600, f'MEGA transfer bound {calls}')
+        check(sorted(p.name for p in Path(folder).iterdir()) == [], 'the partial MEGA download is removed')
+finally:
+    hosts.subprocess.run, hosts._megatools = real_run, real_tool
 print(f'PASS texture verification checks: {checks} checks (PPSSPP loose and zipped textures.ini, missing and '
-      'case-mismatched targets; MEGA folder listing, key derivation, attributes and file decryption)')
+      'case-mismatched targets; MEGA folder listing, key derivation, attributes and file decryption; stalled MEGA transfer)')
