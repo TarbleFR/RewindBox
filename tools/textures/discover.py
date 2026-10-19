@@ -137,12 +137,17 @@ class GitHub:
         return None
 
 
+def is_exclusions(path):
+    """excluded.json and excluded-<origin>.json: reviewed and left out, not entries."""
+    return path.name == 'excluded.json' or path.name.startswith('excluded-')
+
+
 def catalogued():
     """Repositories already in a sources file, and those reviewed and left out."""
     known, excluded = {}, []
     for path in sorted(SOURCES.glob('*.json')):
-        if path.name == 'excluded.json':
-            excluded = json.loads(path.read_text(encoding='utf-8'))
+        if is_exclusions(path):
+            excluded += json.loads(path.read_text(encoding='utf-8'))
             continue
         for entry in json.loads(path.read_text(encoding='utf-8')):
             source = entry.get('source_id', '')
@@ -397,7 +402,7 @@ def mode_links(args, gh, emit):
     latest_cache = {}
     totals = {}
     for path in sorted(SOURCES.glob('*.json')):
-        if path.name == 'excluded.json':
+        if is_exclusions(path):
             continue
         for entry in json.loads(path.read_text(encoding='utf-8')):
             if args.only and entry['id'] not in args.only.split(','):

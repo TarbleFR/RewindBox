@@ -291,7 +291,9 @@ def cell(text):
 def inventory(index, excluded, pending, entries):
     """docs/HD_TEXTURE_CATALOG_SOURCES.md: every pack with its author, page,
     terms and verification, then what was reviewed and left out."""
-    excluded_sources = json.loads((SOURCES / 'excluded.json').read_text(encoding='utf-8'))
+    # excluded.json, then excluded-<origin>.json of other contributors.
+    excluded_sources = [item for path in [SOURCES / 'excluded.json', *sorted(SOURCES.glob('excluded-*.json'))]
+                        for item in json.loads(path.read_text(encoding='utf-8'))]
     lines = [
         '# HD texture catalogue — sources and credits',
         '',
