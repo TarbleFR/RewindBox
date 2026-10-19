@@ -1,2 +1,2 @@
-# url<TAB>ref title — PS1 (Beetle PSX HW) candidates
-https://drive.google.com/drive/folders/1-3J98DummFM0QeiAvyUV3VfQP0pyxd3A	S168 Suikoden II — Project Kyaro (Beta Version folder, Den of Fao)
+# PS1 references (S166–S177) with a public file host link, probed to tell Beetle PSX HW packs from DuckStation packs
+https://drive.google.com/drive/folders/1-3J98DummFM0QeiAvyUV3VfQP0pyxd3A?usp=sharing	S168 (ps1) Suikoden II — Project Kyaro (Faospark)
