@@ -39,6 +39,20 @@
         "3ds"
       ],
       "records": 9
+    },
+    {
+      "run": 39258904471,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only psp-ridge-racers-2-jp-hd-codyv59)",
+      "source": "a37b0bce9b24e8e4d980875ab55712b9c493ee3b",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds",
+        "n64"
+      ],
+      "records": 1
     }
   ]
 }
