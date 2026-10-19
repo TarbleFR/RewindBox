@@ -1153,6 +1153,7 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
                                   // Diagnostics printed by the runner: frames the core ran, the size it produced.
                                   result[@"beetleFrames"] = @(BeetleFrames(session));
+                                  result[@"beetleProgram"] = BeetleProgramMarkers(session);
 #endif
                                   result[@"beetleFrameSize"] = ProducedFrameSize(session);
                                   result[@"recentLog"] = Tail(session.recentLog, 80);

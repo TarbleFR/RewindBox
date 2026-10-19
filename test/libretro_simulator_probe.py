@@ -749,8 +749,10 @@ def _mips_program():
     the reset address it sets up the GPU, uploads a 16x16 4-bit texture and its
     palette from the CPU (what Beetle's texture tracker hashes) and draws it as
     a textured quad, again and again; every GP0 word of the setup and uploads
-    waits for the FIFO, the quad's words follow one wait for an idle GPU."""
-    T0, T1, T3, T4, T2, T5 = 8, 9, 11, 12, 10, 13
+    waits for the FIFO, the quad's words follow one wait for an idle GPU.
+    Each pass leaves its progress at 0x1000 of system RAM (loop count, last
+    step, GPUSTAT before the quad), which the probe reads back."""
+    T0, T1, T3, T4, T2, T5, T6, T7 = 8, 9, 11, 12, 10, 13, 14, 15
     words = []
 
     def emit(word):
@@ -816,9 +818,15 @@ def _mips_program():
             load(value)
             sw(T1, 0x1810, T0)
 
+    def mark(stage):
+        # Progress the probe reads back from system RAM (BEETLE_PROGRAM_MARKERS).
+        ori(T1, 0, stage)
+        sw(T1, 0x1004, T6)
+
     lui(T0, 0x1F80)               # I/O base
     lui(T4, 0x1000)               # GPUSTAT bit 28
     lui(T5, 0x0400)               # GPUSTAT bit 26 (idle)
+    lui(T6, 0xA000)               # system RAM (KSEG1): markers at 0x1000
     gp1(0x00000000)               # reset
     gp1(0x08000000)               # 256x240, NTSC, 15-bit
     gp1(0x05000000)               # display start (0,0)
@@ -826,17 +834,24 @@ def _mips_program():
     gp1(0x07040010)               # vertical range
     gp1(0x03000000)               # display on
     loop = len(words)
+    lw(T7, 0x1000, T6)            # loop count
+    nop()
+    addiu(T7, T7, 1)
+    sw(T7, 0x1000, T6)
+    mark(1)
     gp0(0xE1000408)               # texpage x=512, 4-bit, drawing to the displayed area
     gp0(0xE3000000)               # drawing area top-left
     gp0(0xE403BCFF)               # drawing area bottom-right (255, 239)
     gp0(0xE5000000)               # drawing offset
     for word in (0x02202020, 0x00000000, 0x00F00100):  # clear to dark grey
         gp0(word)
+    mark(2)
     # CLUT at (0, 480): index 0 red, index 1 blue, the rest red.
     for word in (0xA0000000, 0x01E00000, 0x00010010):
         gp0(word)
     for _ in range(8):
         gp0(0x7C00001F)
+    mark(3)
     # 16x16 4-bit texture at (512, 0): 4 halfwords per row, checkered red/blue.
     for word in (0xA0000000, 0x00000200, 0x00100004):
         gp0(word)
@@ -844,9 +859,14 @@ def _mips_program():
         pattern = 0x10101010 if (row // 4) % 2 == 0 else 0x01010101
         gp0(pattern)
         gp0(pattern)
+    mark(4)
+    lw(T3, 0x1814, T0)            # GPUSTAT before the quad
+    nop()
+    sw(T3, 0x1008, T6)
     # Raw textured quad (64,56)-(192,184), CLUT (0,480), texpage 8.
     gp0_words((0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
                0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F))
+    mark(5)
     lui(T2, 0x0004)               # delay, then draw again
     delay = len(words)
     addiu(T2, T2, -1)
@@ -1326,6 +1346,15 @@ def print_beetle_diagnostics(report):
         print(f"    status={result.get('beetleStatus')} frames={result.get('beetleFrames')} size={result.get('beetleFrameSize')} "
               f"dumped={len(result.get('beetleDumped') or [])} replacements={len(result.get('beetleReplacements') or [])} "
               f"capture={(result.get('frame') or {}).get('captureError')}", flush=True)
+        # Where the stand-in BIOS got to, and what the presented frame holds: the
+        # quad's cells (5..10 of the 16x16 grid) and the cleared area around it.
+        frame = result.get('frame') or {}
+        grid = (frame.get('screenGridsRGB') or [[]])[0]
+        print(f"    program={result.get('beetleProgram')} drawable={frame.get('width')}x{frame.get('height')} "
+              f"png={frame.get('png')} centres={frame.get('screenCentresRGBA')}", flush=True)
+        if len(grid) == 256:
+            for gy in (1, 5, 7, 10, 14):
+                print(f"    row {gy:2d}: " + ' '.join('%02x%02x%02x' % tuple(grid[gy * 16 + gx]) for gx in range(16)), flush=True)
         for check in result.get('beetleLifecycle') or []:
             print(f"    lifecycle {'ok' if check.get('passed') else 'FAILED'}: {check.get('name')}", flush=True)
         lines = [line for line in str(result.get('journal', '')).splitlines() if any(word in line for word in keep)]

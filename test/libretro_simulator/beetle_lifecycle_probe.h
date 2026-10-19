@@ -29,6 +29,21 @@ static uint64_t BeetleFrames(LibretroSession *session) {
   return host.frameSerial;
 }
 
+/// The stand-in BIOS's progress (test/libretro_simulator_probe.py
+/// _mips_program), at 0x1000 of system RAM: loop count, last step reached
+/// (1 GPU set up, 2 screen cleared, 3 palette, 4 texture, 5 quad sent) and
+/// GPUSTAT read before the quad. Read on the main thread: a diagnostic only.
+static NSDictionary *BeetleProgramMarkers(LibretroSession *session) {
+  LibretroCoreHost *host = [session valueForKey:@"host"];
+  size_t size = 0;
+  const uint8_t *ram = host != nil ? [host memoryDataForIdentifier:2 /* RETRO_MEMORY_SYSTEM_RAM */ size:&size] : NULL;
+  if (ram == NULL || size < 0x100C) return @{@"ramBytes" : @(size)};
+  uint32_t words[3];
+  memcpy(words, ram + 0x1000, sizeof(words));
+  return @{@"loops" : @(words[0]), @"stage" : @(words[1]),
+           @"gpustat" : [NSString stringWithFormat:@"0x%08x", words[2]]};
+}
+
 static void BeetleSendBool(LibretroSession *session, NSString *name, BOOL value) {
   SEL selector = NSSelectorFromString(name);
   if (![session respondsToSelector:selector]) return;
