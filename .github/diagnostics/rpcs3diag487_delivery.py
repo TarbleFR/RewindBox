@@ -37,17 +37,18 @@ CORE_JOB='RPCS3 Core arm64 with NeoSwap client'
 HOST_PRODUCT={'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm',
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h'}
-CORE_PRODUCT={'build-utils/rpcs3/canonical-source.json','build-utils/rpcs3/embedded-core.patch'}
+CORE_PRODUCT={'build-utils/rpcs3/canonical-source.json','build-utils/rpcs3/embedded-core.patch',
+    'native/import-memory-candidate.json'}  # candidate record: RPCS3 postimage hashes and the Build 487 note
 # Changed inputs proven by the Core run (published Core inputs, host product and tests).
 TESTED=HOST_PRODUCT|CORE_PRODUCT|{'build-utils/rpcs3_core_syntax_gate.py','test/neo_swap_core_pin_test.py',
     'test/rpcs3_build258_core_architecture_test.py','test/rpcs3_build487_core_diagnostics_test.py',
     'test/rpcs3_build487_host_diagnostics_test.py','test/native/rpcs3_diagnostics_test.mm',
     'test/native/rpcs3_build487_profiler_helpers_test.cpp','test/native/rpcs3_build487_boot_diagnostics_test.cpp',
     'test/native/rpcs3_build487_lever_helpers_test.cpp','test/native/rpcs3_build487_retention_sequence_test.cpp',
-    '.github/workflows/rpcs3-core.yml'}
+    '.github/workflows/rpcs3-core.yml','build-utils/rpcs3/regenerate_canonical_delta.py'}
 # Delivery wiring, records, authoring tool and pins: no product or Core input.
 DELIVERY_ONLY={'AGENTS.md','docs/build487-plan.md','docs/evidence/rpcs3diag487-delivery.json',
-    'docs/rpcs3-bottleneck-audit-2026-10-18.md','build-utils/rpcs3/regenerate_canonical_delta.py',
+    'docs/rpcs3-bottleneck-audit-2026-10-18.md',
     '.github/diagnostics/rpcs3diag487_delivery.py','.github/workflows/retroarch-delivery.yml',
     '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py'}
 PRODUCT_PATHS=previous.PRODUCT_PATHS

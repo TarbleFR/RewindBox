@@ -96,7 +96,18 @@ deux identités (`NeoStation PPU codegen identity:`,
 
 ## 5. Vérifications exécutées
 
-*(complété après les runs ; voir § 7)*
+Exécuté dans le conteneur Linux (aucune compilation iOS possible ici) :
+
+| Vérification | Résultat |
+|---|---|
+| Relecture contradictoire des trois lots Core (un relecteur par lot, puis correction) | 16 constats, tous confirmés ou documentés ; corrigés : indicateur `native_ui_visible` qui restait à 1 (liste d'overlays jamais vidée), test de contrat `RPCS3IOSContractTests.cpp` resté à 48 octets, pause comptée deux fois comme inactivité RSX, inactivité non comptée pendant les spins NOP/saut-sur-soi, verrous bloquants du vidage de gel (remplacés par des essais), lecture concurrente de l'état du cycle de vie, `MUTEX_DESTROY_BUSY` non borné dans le Core (64 puis 1/1024), marqueur de rétention incapable de distinguer deux builds du Core (identité de codegen SPU ajoutée), date du répertoire non rafraîchie, coût quadratique de `entries_left_in`, portée du réglage de rétention, `JITPROF_BOOT` au-delà de 1 Kio (coupé en deux lignes), `memcpy` avec pointeur nul (UB), redémarrage exitspawn non signalé |
+| Vérification syntaxique différentielle de chaque fichier Core modifié (clang 18, C++23, `-DRPCS3_IOS`, en-têtes amont réels : yaml-cpp, asmjit, stb, Fusion, zstd, pugixml, zlib, wolfSSL, LLVM 20), en x86-64 et en aarch64, contre l'arbre 483 | 17 fichiers : **aucune erreur nouvelle** ; les erreurs restantes sont identiques à la 483 (frameworks Apple absents, écarts LLVM 20/22). Les blocs `__APPLE__` (échantillonnage `task_threads`) ne sont pas couverts par cette vérification |
+| `test/rpcs3_build487_core_diagnostics_test.py` sur le delta matérialisé | 4 exécutables (115 + 54 + 55 + 25 vérifications, aussi sous ASan/UBSan avec g++), 10 sources de génération de code identiques à la 483, lignes de clé SPU et de nom d'objet PPU identiques, câblage et défauts |
+| `test/rpcs3_build487_host_diagnostics_test.py --core` | bloc d'admission réel exécuté, jalons et plafond, contrats, disposition de l'ABI (72 octets), miroir égal à l'en-tête du Core |
+| 33 tests Core existants prenant l'arbre en argument, sur la 483 et sur la 487 | résultats identiques ; les 7 échecs sont les mêmes sur les deux arbres (environnement : sous-module zstd absent, ancres audio, historique Git superficiel) |
+| Delta canonique régénéré (`build-utils/rpcs3/regenerate_canonical_delta.py`) | 226 sections, SHA-256 `61e41b7d…975e`, appliqué sur un clone amont vierge, toutes les post-images vérifiées ; l'outil reproduit le delta 483 à l'octet près hors lignes `index` |
+
+Non vérifié ici : compilation iOS (porte de syntaxe puis construction du Core en CI macOS), comportement sur l'iPhone.
 
 ## 6. Protocole de capture sur l'iPhone
 

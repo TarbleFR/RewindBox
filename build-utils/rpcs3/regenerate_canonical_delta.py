@@ -50,8 +50,11 @@ def generate(work: Path, upstream: str):
         run(['git', 'add', '-A', '--', '.'], cwd=work, env=env)
         # Index lines carry the default abbreviation; the historical patch mixes 7- and
         # 9-character blob ids, so the regenerated text differs from it only there.
-        patch = run(['git', '-c', 'diff.renames=false', 'diff', '--cached',
-                     '--no-color', '--no-ext-diff', upstream], cwd=work, env=env).stdout
+        # Bytes, never text mode: upstream files with CRLF endings must keep
+        # their exact '\r' in removed and context lines.
+        patch = subprocess.run(['git', '-c', 'diff.renames=false', 'diff', '--cached', '--no-color',
+                                '--no-ext-diff', upstream], cwd=work, env=env, check=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
         status = run(['git', 'diff', '--cached', '--name-status', '--no-renames', upstream],
                      cwd=work, env=env).stdout
     files = {}
@@ -63,8 +66,8 @@ def generate(work: Path, upstream: str):
             raise SystemExit('A canonical delta never deletes an upstream file: ' + relative)
         else:
             raise SystemExit('Unexpected status ' + line)
-    if not patch.endswith('\n'):
-        patch += '\n'
+    if not patch.endswith(b'\n'):
+        patch += b'\n'
     return patch, files
 
 
@@ -86,12 +89,12 @@ def main() -> int:
     if head.returncode != 0:
         raise SystemExit(f'{work} does not contain the upstream revision {upstream}')
     patch, files = generate(work, upstream)
-    digest = hashlib.sha256(patch.encode('utf-8')).hexdigest()
+    digest = hashlib.sha256(patch).hexdigest()
     old_files = manifest['files_sha256']
     added = sorted(set(files) - set(old_files))
     changed = sorted(f for f in files if f in old_files and old_files[f] != files[f])
     removed = sorted(set(old_files) - set(files))
-    print(f'patch: {len(patch.encode())} bytes, sha256 {digest}; files {len(files)} '
+    print(f'patch: {len(patch)} bytes, sha256 {digest}; files {len(files)} '
           f'(+{len(added)} new, {len(changed)} changed, {len(removed)} no longer in the delta)')
     for f in added:
         print('  new:    ', f)
@@ -117,7 +120,7 @@ def main() -> int:
         if not name or not path:
             raise SystemExit('--record expects NAME=FILE.json')
         manifest[name] = json.loads(Path(path).read_text(encoding='utf-8'))
-    PATCH.write_text(patch, encoding='utf-8', newline='\n')
+    PATCH.write_bytes(patch)
     MANIFEST.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     pin = PIN_TEST.read_text(encoding='utf-8')
     new_pin, count = re.subn(r"^PATCH_SHA256 = '[0-9a-f]{64}'$", f"PATCH_SHA256 = '{digest}'", pin, flags=re.M)

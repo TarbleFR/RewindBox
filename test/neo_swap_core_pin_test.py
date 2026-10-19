@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = '0fd83bccbdcfbe079236b47e1e3ebd674c70ecb06a2092f426cc88d0b769d843'
+PATCH_SHA256 = '61e41b7df09d77b016cddbceebff14a14502632ea714af70ea5ace1b76ea975e'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -91,6 +91,14 @@ CORE_INPUTS = (
     'test/native/rpcs3_spu_object_relocation_test.cpp',
     'test/rpcs3_build483_llvm_pipeline_test.py',
     'test/native/rpcs3_llvm_pipeline_harness.cpp',
+    # NEOSTATION_BUILD487_DIAGNOSTICS_V1: executed by the Core preflight.
+    'test/rpcs3_build487_core_diagnostics_test.py',
+    'test/native/rpcs3_build487_profiler_helpers_test.cpp',
+    'test/native/rpcs3_build487_boot_diagnostics_test.cpp',
+    'test/native/rpcs3_build487_lever_helpers_test.cpp',
+    'test/native/rpcs3_build487_retention_sequence_test.cpp',
+    'test/rpcs3_build487_host_diagnostics_test.py',
+    'test/rpcs3_build258_core_architecture_test.py',
     'test/rpcs3_ios_ppu_compile_budget_test.cpp',
     'test/rpcs3_ppu_no_size_split_policy_test.cpp',
     'test/rpcs3_xitrix_v0101_native_test.py',

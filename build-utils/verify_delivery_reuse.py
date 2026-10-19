@@ -933,6 +933,20 @@ BUILD483_DELTA = {
     'test/rpcs3_build483_llvm_pipeline_test.py',
 }
 DELTA |= BUILD483_DELTA
+# Build 487 (19 October 2026): diagnostics and levers of the RPCS3 bottleneck audit;
+# host evidence files of the Core delta and of the bridge diagnostics.
+BUILD487_DELTA = {
+    'test/rpcs3_build487_core_diagnostics_test.py',
+    'test/rpcs3_build487_host_diagnostics_test.py',
+    'test/native/rpcs3_build487_profiler_helpers_test.cpp',
+    'test/native/rpcs3_build487_boot_diagnostics_test.cpp',
+    'test/native/rpcs3_build487_lever_helpers_test.cpp',
+    'test/native/rpcs3_build487_retention_sequence_test.cpp',
+    'test/rpcs3_build258_core_architecture_test.py',
+    'test/native/rpcs3_diagnostics_test.mm',
+    'build-utils/rpcs3/regenerate_canonical_delta.py',
+}
+DELTA |= BUILD487_DELTA
 # Build 482 (18 October 2026): ARMSX2 blending accuracy (Core ABI 7, in-game menu)
 # and the Get More RAM information before a PS3 firmware installation.
 BUILD482_DELTA = {
