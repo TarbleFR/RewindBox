@@ -565,6 +565,10 @@ def review_url(url, follow_pages=0):
         record['body_text'] = body[:600]
         return record
     record['title'] = page_title(body)
+    # MyBB forums (Dolphin, PPSSPP): the author of the thread's first post, to credit the pack.
+    author = re.search(r'class="author_information".*?<a [^>]*>(.*?)</a>', body, re.S)
+    if author:
+        record['author'] = html.unescape(re.sub(r'<[^>]+>', '', author.group(1))).strip()[:80]
     site = urllib.parse.urlsplit(response['url']).hostname or ''
     record['links'] = [link for link in page_links(body, response['url'])
                        if (link['kind'] != 'other' or FILE_EXT.search(link['url'])) and not own_navigation(link, site)]
@@ -626,6 +630,8 @@ def describe(record, out):
         out.append(f"    {record['reason']}")
     if record.get('title'):
         out.append(f"    title: {record['title'][:160]}")
+    if record.get('author'):
+        out.append(f"    author: {record['author']}")
     if record.get('error'):
         out.append(f"    error: {record['error']}")
     gb = record.get('gamebanana')
