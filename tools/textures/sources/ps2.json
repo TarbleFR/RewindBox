@@ -471,7 +471,7 @@
  {
   "id": "ps2-mk-armageddon-hd-ckiscxrsed",
   "title": "Mortal Kombat Armageddon HD Texture Pack",
-  "version": "1.5",
+  "version": "Latest release (v1.6 on 19 October 2026)",
   "games": [
    {
     "title": "Mortal Kombat: Armageddon",
@@ -490,16 +490,16 @@
   "authors": [
    "ckiscxrsed"
   ],
-  "page_url": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/tag/v1.5",
+  "page_url": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/latest",
   "source_id": "github:ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures",
   "licence": {
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Published as a RAR archive: extract it on a computer, then import the SLUS-21410 folder from Files.",
+  "notes": "The author publishes RAR archives (v1.5: SLUS-21410.rar): extract it on a computer, then import the SLUS-21410 folder from Files.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/tag/v1.5"
+   "page": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/latest"
   },
   "system": "ps2",
   "engine": "armsx2",

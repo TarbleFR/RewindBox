@@ -37,7 +37,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-sm64-reloaded-png-4k",
@@ -77,7 +77,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). 4K variant: far more storage and memory than the HD one."
  },
  {
   "id": "n64-mario-craft-64-png-hd",
@@ -117,7 +117,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-mario-craft-64-png-4k",
@@ -157,7 +157,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). 4K variant: far more storage and memory than the HD one."
  },
  {
   "id": "n64-mm-reloaded-png-hd",
@@ -197,7 +197,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-mk64-reloaded-png-hd",
@@ -237,7 +237,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-ssb-reloaded-png",
@@ -277,13 +277,13 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-bk-reloaded-png-hd",
   "system": "n64",
   "title": "BK Reloaded (GLideN64 PNG HD)",
-  "version": "v0.1.0",
+  "version": "v0.2.1",
   "games": [
    {
     "title": "Banjo-Kazooie",
@@ -299,7 +299,7 @@
   "authors": [
    "GhostlyDark"
   ],
-  "page_url": "https://github.com/GhostlyDark/BK-Reloaded/releases/tag/v2025-12-30",
+  "page_url": "https://github.com/GhostlyDark/BK-Reloaded/releases/tag/v0.2.1",
   "source_id": "github:GhostlyDark/BK-Reloaded",
   "licence": {
    "summary": "No licence stated; credits in the README",
@@ -308,22 +308,22 @@
   "download": {
    "automatable": true,
    "format": "zip",
-   "file_name": "bk-reloaded-v0.1.0-gliden64-png-hd.zip",
+   "file_name": "bk-reloaded-v0.2.1-gliden64-png-hd.zip",
    "parts": [
     {
-     "url": "https://github.com/GhostlyDark/BK-Reloaded/releases/download/v2025-12-30/bk-reloaded-v0.1.0-gliden64-png-hd.zip"
+     "url": "https://github.com/GhostlyDark/BK-Reloaded/releases/download/v0.2.1/bk-reloaded-v0.2.1-gliden64-png-hd.zip"
     }
    ]
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-bk-reloaded-png-4k",
   "system": "n64",
   "title": "BK Reloaded (GLideN64 PNG 4K)",
-  "version": "v0.1.0",
+  "version": "v0.2.1",
   "games": [
    {
     "title": "Banjo-Kazooie",
@@ -339,7 +339,7 @@
   "authors": [
    "GhostlyDark"
   ],
-  "page_url": "https://github.com/GhostlyDark/BK-Reloaded/releases/tag/v2025-12-30",
+  "page_url": "https://github.com/GhostlyDark/BK-Reloaded/releases/tag/v0.2.1",
   "source_id": "github:GhostlyDark/BK-Reloaded",
   "licence": {
    "summary": "No licence stated; credits in the README",
@@ -348,16 +348,16 @@
   "download": {
    "automatable": true,
    "format": "zip",
-   "file_name": "bk-reloaded-v0.1.0-gliden64-png-4k.zip",
+   "file_name": "bk-reloaded-v0.2.1-gliden64-png-4k.zip",
    "parts": [
     {
-     "url": "https://github.com/GhostlyDark/BK-Reloaded/releases/download/v2025-12-30/bk-reloaded-v0.1.0-gliden64-png-4k.zip"
+     "url": "https://github.com/GhostlyDark/BK-Reloaded/releases/download/v0.2.1/bk-reloaded-v0.2.1-gliden64-png-4k.zip"
     }
    ]
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). 4K variant: far more storage and memory than the HD one."
  },
  {
   "id": "n64-bt-reloaded-png-hd",
@@ -397,7 +397,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-bt-reloaded-png-4k",
@@ -437,7 +437,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). 4K variant: far more storage and memory than the HD one."
  },
  {
   "id": "n64-goldeneye-007-hd-png-hd",
@@ -477,7 +477,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-re2-reloaded-png-hd",
@@ -517,7 +517,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack)."
  },
  {
   "id": "n64-oot-reloaded-png-hd",
@@ -560,7 +560,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). About 3.3 GB in two parts."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). About 3.3 GB in two parts."
  },
  {
   "id": "n64-oot-community-retexture-v7",
@@ -601,7 +601,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Partial retexture (see the project's progress list).",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). Partial retexture (see the project's progress list).",
   "credits": "README: mode7, Chieftain459, DCS78, Death-Droid, Driscol, Djipi, Mdtauk, Rice, Kalzenith, Necromagician and other contributors."
  },
  {
@@ -642,7 +642,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). Replaces the 30 pilot racing portraits."
  },
  {
   "id": "n64-f-zero-x-hq-pilot-portraits-4k",
@@ -682,7 +682,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). Replaces the 30 pilot racing portraits."
  },
  {
   "id": "n64-f-zero-x-hq-pilot-portraits-no-text-1080p",
@@ -722,7 +722,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). Replaces the 30 pilot racing portraits."
  },
  {
   "id": "n64-f-zero-x-hq-pilot-portraits-no-text-4k",
@@ -762,7 +762,7 @@
   },
   "engine": "mupen64plus",
   "availability": "available",
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). Replaces the 30 pilot racing portraits."
  },
  {
   "id": "n64-sm64-hires-fonts-paintings-fanfreluche",
@@ -814,7 +814,7 @@
     }
    ]
   },
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Font and paintings only."
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack). Font and paintings only."
  },
  {
   "id": "n64-space-station-silicon-valley-hd-jappawakka",
@@ -866,7 +866,7 @@
     }
    ]
   },
-  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used).",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (decoded textures kept in a cache file instead of memory; the first start after installing reads the whole pack).",
   "credits": "README: reflection textures by AonoZan and sleekdigital."
  }
 ]
