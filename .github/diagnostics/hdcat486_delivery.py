@@ -24,11 +24,11 @@ BASE='dc653f12eb5d09ea15d7a618576eecc4e1674c04'
 DELIVERED='85a28e9013eaf7613da0338b4bc44f5ab7268f10'
 DELIVERED_RUN=39182252832
 # Build 486 source tested by hd-textures.yml. Each part: (run, source, job).
-TESTED_SOURCE=''
+TESTED_SOURCE='16a2b896f6fb6cc1cd803625700f1a9055fff7df'
 PROOFS={
-    'host':(0,TESTED_SOURCE,'Readers, identities, installer, labels, catalogue, contracts and Flutter'),
-    'native':(0,TESTED_SOURCE,'Store and adapters on Foundation, iPhone SDK build of every changed source'),
-    'uikit':(0,TESTED_SOURCE,'The HD textures page on UIKit with the bundled catalogue'),
+    'host':(39194576112,TESTED_SOURCE,'Readers, identities, installer, labels, catalogue, contracts and Flutter'),
+    'native':(39194576112,TESTED_SOURCE,'Store and adapters on Foundation, iPhone SDK build of every changed source'),
+    'uikit':(39194576112,TESTED_SOURCE,'The HD textures page on UIKit with the bundled catalogue'),
 }
 PARTS=('host','native','uikit')
 

@@ -74,4 +74,13 @@ Aucune de ces vérifications n'affiche une texture dans un jeu : une installatio
 
 ## 7. Identités et résultats CI
 
-À compléter après les exécutions (source testée, runs, livraison, IPA et SHA-256).
+Source testée : `16a2b896f6fb6cc1cd803625700f1a9055fff7df`, run `hd-textures.yml` `39194576112`, Xcode 26.3 (17C529), Flutter 3.47.2 :
+
+- **host** (job `117874440090`, réussi) : 46 vérifications — libellés (12 langues, 154 clés natives et 4 Flutter), catalogue `2026-10-19.c38f84a2c654` (170 packs : PS2 55, GameCube 19, Wii 22, PSP 57, 3DS 17 ; 128 sources ; 43 601 octets), `check_ci_records.py` (les 64 enregistrements d'archives de dépôt sont ceux des artefacts du run `39188364133`), lecteurs d'archives (47 scénarios), identités (30 images), installation (54 vérifications), porte de l'IPA (10 refus), contrats existants, `flutter analyze` (3 remarques non bloquantes) et 86 tests Dart. Les neuf contrats `PRE_EXISTING` échouent à l'identique sur la base `dc653f12` (code 1 avant et après).
+- **native** (job `117874440021`, réussi) : test Foundation du magasin et des adaptateurs avec le magasin 485 (`texture_catalog_native_test.py`), pod compilé et lié pour iPhone (8 sources, `texture_catalog_ios_syntax_test.py`), `armsx2_texture_native_test.py`, `armsx2_graphics_ui_test.py` (page Textures HD exécutée dans le menu Graphismes ARMSX2 sur UIKit), `libretro_ios_syntax_test.py` (77 objets liés pour iPhone), `touch_layout_ios_build.py`, `unified_native_ios_test.py` ; aucune comparaison avec la base nécessaire.
+- **uikit** (job `117874440026`, réussi) : `texture_catalog_ui_test.py`, six tests (disque GameCube réel et interrupteur `GMSE01r0.ini`, à confirmer / titre seul, bibliothèque d'une console, rafraîchissement échoué, PS2, PSP et 3DS avec leurs options de cœur par jeu, douze langues).
+- **repositories** : run `39188364133` sur `8fbfd4ad`, 64 packs réussis (24 PS2, 9 GameCube/Wii, 30 PSP, 1 3DS).
+
+Échecs conservés : runs `39188351476` (`-Werror`, lambda) et `39193602740` (correspondance perdue, test UIKit), décrits au § 4.
+
+Livraison : à compléter après vérification de l'IPA réelle.
