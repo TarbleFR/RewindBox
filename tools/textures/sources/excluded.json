@@ -303,5 +303,10 @@
   "console": "n64",
   "source": "GitHub N64 searches (hd-textures.yml discover run 39260093158: 24 searches, 7 topics, 112 texture repositories, 49 described)",
   "reason": "No other repository carries GLideN64 hi-res names; the rest are recompilations, ports, converters, editors and frontends."
+ },
+ {
+  "console": "wii",
+  "source": "Mario Kart Wii HD (Matteoki & Rmed24, Game Restorers) Google Drive folder https://drive.google.com/drive/folders/1G11t2cOKiq48-BjBgWd-dsOKyqxiXPvZ (S068)",
+  "reason": "Loose files in nested Drive folders (HD_Home_Menu, HD_Miis, Mkwii_HD_Hud, Mkwii_HD_Stages_Preview; probe run 39293796510), no archive that can be verified as one file; its textures are part of GhostlyDark's MKWii Reloaded, which is catalogued from its GitHub release."
  }
 ]
