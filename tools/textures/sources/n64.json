@@ -1,0 +1,872 @@
+[
+ {
+  "id": "n64-sm64-reloaded-png-hd",
+  "system": "n64",
+  "title": "SM64 Reloaded (GLideN64 PNG HD)",
+  "version": "v2.6.0",
+  "games": [
+   {
+    "title": "Super Mario 64",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5355504552204D4152494F203634"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/SM64-Reloaded/releases/tag/v2.6.0",
+  "source_id": "github:GhostlyDark/SM64-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "sm64-reloaded-v2.6.0-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/SM64-Reloaded/releases/download/v2.6.0/sm64-reloaded-v2.6.0-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-sm64-reloaded-png-4k",
+  "system": "n64",
+  "title": "SM64 Reloaded (GLideN64 PNG 4K)",
+  "version": "v2.6.0",
+  "games": [
+   {
+    "title": "Super Mario 64",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5355504552204D4152494F203634"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/SM64-Reloaded/releases/tag/v2.6.0",
+  "source_id": "github:GhostlyDark/SM64-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "sm64-reloaded-v2.6.0-gliden64-png-4k.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/SM64-Reloaded/releases/download/v2.6.0/sm64-reloaded-v2.6.0-gliden64-png-4k.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+ },
+ {
+  "id": "n64-mario-craft-64-png-hd",
+  "system": "n64",
+  "title": "Mario Craft 64 (GLideN64 PNG HD)",
+  "version": "v1.3",
+  "games": [
+   {
+    "title": "Super Mario 64",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5355504552204D4152494F203634"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/Mario-Craft-64/releases/tag/v1.3",
+  "source_id": "github:GhostlyDark/Mario-Craft-64",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mario-craft-64-v1.3-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/Mario-Craft-64/releases/download/v1.3/mario-craft-64-v1.3-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-mario-craft-64-png-4k",
+  "system": "n64",
+  "title": "Mario Craft 64 (GLideN64 PNG 4K)",
+  "version": "v1.3",
+  "games": [
+   {
+    "title": "Super Mario 64",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5355504552204D4152494F203634"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/Mario-Craft-64/releases/tag/v1.3",
+  "source_id": "github:GhostlyDark/Mario-Craft-64",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mario-craft-64-v1.3-gliden64-png-4k.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/Mario-Craft-64/releases/download/v1.3/mario-craft-64-v1.3-gliden64-png-4k.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+ },
+ {
+  "id": "n64-mm-reloaded-png-hd",
+  "system": "n64",
+  "title": "MM Reloaded (GLideN64 PNG HD)",
+  "version": "v11.0.2",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Majora's Mask",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5A454C4441204D414A4F52412753204D41534B"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/MM-Reloaded/releases/tag/v11.0.2",
+  "source_id": "github:GhostlyDark/MM-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mm-reloaded-v11.0.2-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/MM-Reloaded/releases/download/v11.0.2/mm-reloaded-v11.0.2-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-mk64-reloaded-png-hd",
+  "system": "n64",
+  "title": "MK64 Reloaded (GLideN64 PNG HD)",
+  "version": "v2026.04.03",
+  "games": [
+   {
+    "title": "Mario Kart 64",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "4D4152494F4B4152543634"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/MK64-Reloaded/releases/tag/v2026.04.03",
+  "source_id": "github:GhostlyDark/MK64-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mk64-reloaded-v2026.04.03-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-ssb-reloaded-png",
+  "system": "n64",
+  "title": "SSB Reloaded (GLideN64 PNG)",
+  "version": "v2.0.1",
+  "games": [
+   {
+    "title": "Super Smash Bros.",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "534D4153482042524F5448455253"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/SSB-Reloaded/releases/tag/v2.0.1",
+  "source_id": "github:GhostlyDark/SSB-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ssb-reloaded-v2.0.1-gliden64-png.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/SSB-Reloaded/releases/download/v2.0.1/ssb-reloaded-v2.0.1-gliden64-png.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-bk-reloaded-png-hd",
+  "system": "n64",
+  "title": "BK Reloaded (GLideN64 PNG HD)",
+  "version": "v0.1.0",
+  "games": [
+   {
+    "title": "Banjo-Kazooie",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "42616E6A6F2D4B617A6F6F6965"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/BK-Reloaded/releases/tag/v2025-12-30",
+  "source_id": "github:GhostlyDark/BK-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "bk-reloaded-v0.1.0-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/BK-Reloaded/releases/download/v2025-12-30/bk-reloaded-v0.1.0-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-bk-reloaded-png-4k",
+  "system": "n64",
+  "title": "BK Reloaded (GLideN64 PNG 4K)",
+  "version": "v0.1.0",
+  "games": [
+   {
+    "title": "Banjo-Kazooie",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "42616E6A6F2D4B617A6F6F6965"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/BK-Reloaded/releases/tag/v2025-12-30",
+  "source_id": "github:GhostlyDark/BK-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "bk-reloaded-v0.1.0-gliden64-png-4k.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/BK-Reloaded/releases/download/v2025-12-30/bk-reloaded-v0.1.0-gliden64-png-4k.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+ },
+ {
+  "id": "n64-bt-reloaded-png-hd",
+  "system": "n64",
+  "title": "BT Reloaded (GLideN64 PNG HD)",
+  "version": "v0.1.1",
+  "games": [
+   {
+    "title": "Banjo-Tooie",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "42414E4A4F20544F4F4945"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/BT-Reloaded/releases/tag/v0.1.1",
+  "source_id": "github:GhostlyDark/BT-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "bt-reloaded-v0.1.1-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/BT-Reloaded/releases/download/v0.1.1/bt-reloaded-v0.1.1-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-bt-reloaded-png-4k",
+  "system": "n64",
+  "title": "BT Reloaded (GLideN64 PNG 4K)",
+  "version": "v0.1.1",
+  "games": [
+   {
+    "title": "Banjo-Tooie",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "42414E4A4F20544F4F4945"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/BT-Reloaded/releases/tag/v0.1.1",
+  "source_id": "github:GhostlyDark/BT-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "bt-reloaded-v0.1.1-gliden64-png-4k.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/BT-Reloaded/releases/download/v0.1.1/bt-reloaded-v0.1.1-gliden64-png-4k.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). 4K variant: far more storage and memory than the HD one."
+ },
+ {
+  "id": "n64-goldeneye-007-hd-png-hd",
+  "system": "n64",
+  "title": "GoldenEye 007 HD (GLideN64 PNG HD)",
+  "version": "v2025.12.30",
+  "games": [
+   {
+    "title": "GoldenEye 007",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "474F4C44454E455945"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/GoldenEye-007-HD/releases/tag/v2025-12-30",
+  "source_id": "github:GhostlyDark/GoldenEye-007-HD",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ge007-hd-v2025.12.30-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/GoldenEye-007-HD/releases/download/v2025-12-30/ge007-hd-v2025.12.30-gliden64-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-re2-reloaded-png-hd",
+  "system": "n64",
+  "title": "RE2 Reloaded (GLideN64 PNG HD)",
+  "version": "v2.0.0",
+  "games": [
+   {
+    "title": "Resident Evil 2",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5265736964656E74204576696C204949"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/RE2-Reloaded/releases/tag/v2.0.0",
+  "source_id": "github:GhostlyDark/RE2-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "re2-reloaded-v2.0.0-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/RE2-Reloaded/releases/download/v2.0.0/re2-reloaded-v2.0.0-png-hd.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used)."
+ },
+ {
+  "id": "n64-oot-reloaded-png-hd",
+  "system": "n64",
+  "title": "OoT Reloaded (GLideN64 PNG HD)",
+  "version": "v11.0.0",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "544845204C4547454E44204F46205A454C4441"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "GhostlyDark"
+  ],
+  "page_url": "https://github.com/GhostlyDark/OoT-Reloaded/releases/tag/v11.0.0",
+  "source_id": "github:GhostlyDark/OoT-Reloaded",
+  "licence": {
+   "summary": "No licence stated; credits in the README",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "oot-reloaded-v11.0.0-gliden64-png-hd.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GhostlyDark/OoT-Reloaded/releases/download/v11.0.0/oot-reloaded-v11.0.0-gliden64-png-hd.zip.001"
+    },
+    {
+     "url": "https://github.com/GhostlyDark/OoT-Reloaded/releases/download/v11.0.0/oot-reloaded-v11.0.0-gliden64-png-hd.zip.002"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). About 3.3 GB in two parts."
+ },
+ {
+  "id": "n64-oot-community-retexture-v7",
+  "system": "n64",
+  "title": "Zelda Ocarina of Time Community Retexture V7",
+  "version": "v7",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "544845204C4547454E44204F46205A454C4441"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "OoT Community Retexture Project",
+   "IanSkelskey"
+  ],
+  "page_url": "https://github.com/IanSkelskey/oot-community-retexture/releases/tag/v7",
+  "source_id": "github:IanSkelskey/oot-community-retexture",
+  "licence": {
+   "summary": "No licence stated; README credits 32 texture and code contributors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "oot-community-retexture-v7.7z",
+   "parts": [
+    {
+     "url": "https://github.com/IanSkelskey/oot-community-retexture/releases/download/v7/oot-community-retexture-v7.7z"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Partial retexture (see the project's progress list).",
+  "credits": "README: mode7, Chieftain459, DCS78, Death-Droid, Driscol, Djipi, Mdtauk, Rice, Kalzenith, Necromagician and other contributors."
+ },
+ {
+  "id": "n64-f-zero-x-hq-pilot-portraits-1080p",
+  "system": "n64",
+  "title": "F-Zero X HQ Pilot Portraits (1080p)",
+  "version": "v1.0.1",
+  "games": [
+   {
+    "title": "F-Zero X",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "462D5A45524F2058"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DotZDRA"
+  ],
+  "page_url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/tag/v1.0.1",
+  "source_id": "github:DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; artwork sourced from game manual scans",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "F-Zero.X.HQ.Portraits.1080p.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/download/v1.0.1/F-Zero.X.HQ.Portraits.1080p.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+ },
+ {
+  "id": "n64-f-zero-x-hq-pilot-portraits-4k",
+  "system": "n64",
+  "title": "F-Zero X HQ Pilot Portraits (4K)",
+  "version": "v1.0.1",
+  "games": [
+   {
+    "title": "F-Zero X",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "462D5A45524F2058"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DotZDRA"
+  ],
+  "page_url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/tag/v1.0.1",
+  "source_id": "github:DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; artwork sourced from game manual scans",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "F-Zero.X.HQ.Portraits.4K.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/download/v1.0.1/F-Zero.X.HQ.Portraits.4K.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+ },
+ {
+  "id": "n64-f-zero-x-hq-pilot-portraits-no-text-1080p",
+  "system": "n64",
+  "title": "F-Zero X HQ Pilot Portraits (1080p, without text)",
+  "version": "v1.0.1",
+  "games": [
+   {
+    "title": "F-Zero X",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "462D5A45524F2058"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DotZDRA"
+  ],
+  "page_url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/tag/v1.0.1",
+  "source_id": "github:DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; artwork sourced from game manual scans",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "F-Zero.X.HQ.Portraits.No.Text.1080p.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/download/v1.0.1/F-Zero.X.HQ.Portraits.No.Text.1080p.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+ },
+ {
+  "id": "n64-f-zero-x-hq-pilot-portraits-no-text-4k",
+  "system": "n64",
+  "title": "F-Zero X HQ Pilot Portraits (4K, without text)",
+  "version": "v1.0.1",
+  "games": [
+   {
+    "title": "F-Zero X",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "462D5A45524F2058"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DotZDRA"
+  ],
+  "page_url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/tag/v1.0.1",
+  "source_id": "github:DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; artwork sourced from game manual scans",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "F-Zero.X.HQ.Portraits.No.Text.4K.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DotZDRA/F-Zero-X-HQ-Pilot-Portrait-Texture-Pack/releases/download/v1.0.1/F-Zero.X.HQ.Portraits.No.Text.4K.zip"
+    }
+   ]
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Replaces the 30 pilot racing portraits."
+ },
+ {
+  "id": "n64-sm64-hires-fonts-paintings-fanfreluche",
+  "system": "n64",
+  "title": "SUPER MARIO 64 hi-res texture pack (font and paintings)",
+  "version": "repository fbc6fbe",
+  "games": [
+   {
+    "title": "Super Mario 64",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "5355504552204D4152494F203634"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Fanfreluche"
+  ],
+  "page_url": "https://github.com/Fanfreluche/SUPERMARIO64-hires-texture-pack/tree/fbc6fbef0eab95166ad2d061cd877d4275c3293b",
+  "source_id": "github:Fanfreluche/SUPERMARIO64-hires-texture-pack",
+  "licence": {
+   "summary": "MIT (LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SUPERMARIO64-hires-texture-pack-fbc6fbef0eab95166ad2d061cd877d4275c3293b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Fanfreluche/SUPERMARIO64-hires-texture-pack/zip/fbc6fbef0eab95166ad2d061cd877d4275c3293b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Fanfreluche/SUPERMARIO64-hires-texture-pack",
+    "commit": "fbc6fbef0eab95166ad2d061cd877d4275c3293b"
+   }
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "SUPERMARIO64-hires-texture-pack-fbc6fbef0eab95166ad2d061cd877d4275c3293b/hires_texture/SUPER MARIO 64/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used). Font and paintings only."
+ },
+ {
+  "id": "n64-space-station-silicon-valley-hd-jappawakka",
+  "system": "n64",
+  "title": "Space Station Silicon Valley HD Texture Pack",
+  "version": "repository 23dff46",
+  "games": [
+   {
+    "title": "Space Station Silicon Valley",
+    "identities": [
+     {
+      "type": "rom_name",
+      "scheme": "n64-rom-name-hex",
+      "value": "53696C69636F6E2056616C6C6579"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "JappaWakka"
+  ],
+  "page_url": "https://github.com/JappaWakka/n64-SS_SiliconValley-TexturePack/tree/23dff46fea181e4209b36b21fb2189ed32a9de8a",
+  "source_id": "github:JappaWakka/n64-SS_SiliconValley-TexturePack",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (README)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "n64-SS_SiliconValley-TexturePack-23dff46fea181e4209b36b21fb2189ed32a9de8a.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/JappaWakka/n64-SS_SiliconValley-TexturePack/zip/23dff46fea181e4209b36b21fb2189ed32a9de8a"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/JappaWakka/n64-SS_SiliconValley-TexturePack",
+    "commit": "23dff46fea181e4209b36b21fb2189ed32a9de8a"
+   }
+  },
+  "engine": "mupen64plus",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "n64-SS_SiliconValley-TexturePack-23dff46fea181e4209b36b21fb2189ed32a9de8a/GLideNHQ/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "GLideN64 PNG pack, installed in the System › Mupen64plus › hires_texture folder named after the ROM. Turning it on also turns on GLideN64's full alpha channel and enhanced high-resolution storage (textures read when used).",
+  "credits": "README: reflection textures by AonoZan and sleekdigital."
+ }
+]

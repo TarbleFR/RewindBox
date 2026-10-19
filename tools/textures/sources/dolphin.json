@@ -2146,5 +2146,87 @@
   "credits": "README lists 19 contributors.",
   "engine": "dolphin",
   "availability": "available"
+ },
+ {
+  "id": "wii-skylanders-giants-deluxe-beta-brandoneps",
+  "system": "wii",
+  "title": "Skylanders Giants Deluxe (beta)",
+  "version": "BETA",
+  "games": [
+   {
+    "title": "Skylanders Giants",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SKYE52"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "BrandonEps"
+  ],
+  "page_url": "https://github.com/BrandonEps/-SkylandersGiantsDeluxeBeta/releases/tag/BETA",
+  "source_id": "github:BrandonEps/-SkylandersGiantsDeluxeBeta",
+  "licence": {
+   "summary": "No licence stated by the author: README: the characters belong to their owners; fan art",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SKYE52.zip",
+   "parts": [
+    {
+     "url": "https://github.com/BrandonEps/-SkylandersGiantsDeluxeBeta/releases/download/BETA/SKYE52.zip"
+    }
+   ]
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "notes": "Partial retexture published as a beta."
+ },
+ {
+  "id": "gc-star-fox-adventures-hd-font-calinou",
+  "system": "gc",
+  "title": "Star Fox Adventures HD Font",
+  "version": "download",
+  "games": [
+   {
+    "title": "Star Fox Adventures",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GSA"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Calinou (Hugo Locurcio)"
+  ],
+  "page_url": "https://github.com/Calinou/media/releases/tag/download",
+  "source_id": "github:Calinou/media",
+  "licence": {
+   "summary": "CC0 1.0 (repository README: \"unless stated otherwise\")",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Star.Fox.Adventures.HD.Font.zip",
+   "parts": [
+    {
+     "url": "https://github.com/Calinou/media/releases/download/download/Star.Fox.Adventures.HD.Font.zip"
+    }
+   ]
+  },
+  "engine": "dolphin",
+  "availability": "available"
  }
 ]

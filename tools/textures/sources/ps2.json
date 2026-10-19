@@ -2984,5 +2984,153 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual"
+ },
+ {
+  "id": "ps2-madden04-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 04 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 2004",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20752"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden04deluxe",
+  "source_id": "github:maddendeluxe/madden04deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden04deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-madden05-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 05 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 2005",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden05deluxe",
+  "source_id": "github:maddendeluxe/madden05deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden05deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-madden09-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 09 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 09",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21770"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden09deluxe",
+  "source_id": "github:maddendeluxe/madden09deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden09deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-madden12-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 12 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 12",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21946"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden12deluxe",
+  "source_id": "github:maddendeluxe/madden12deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden12deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
  }
 ]

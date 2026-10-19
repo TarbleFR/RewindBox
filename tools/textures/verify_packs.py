@@ -251,6 +251,24 @@ def check_azahar(folder):
     return report, problems
 
 
+def check_mupen64plus(folder):
+    """GLideNHQ: Rice textures <ROM name>#<crc>#<fmt>#<siz>..., read from hires_texture/<ROM name>."""
+    report, problems = {}, []
+    name = Path(folder).name
+    rice = [path for path in Path(folder).rglob('*') if path.is_file() and path.name[-4:] in ('.png', '.bmp') and '#' in path.name]
+    report['rice'] = len(rice)
+    report['otherName'] = sum(1 for path in rice if name not in path.name)
+    pngs = [path for path in rice if path.name.endswith('.png')]
+    bad = [str(path.relative_to(folder)) for path in pngs[:4000] if not png_ok(path)]
+    report['pngChecked'] = min(len(pngs), 4000)
+    report['badPng'] = bad[:5]
+    if not rice:
+        problems.append('noTextures')
+    if rice and report['otherName'] == len(rice):
+        problems.append('otherRomName')
+    return report, problems
+
+
 def verify(entry, driver, work, max_bytes):
     result = {'id': entry['id'], 'system': entry['system'], 'verified_at': time.strftime('%Y-%m-%d', time.gmtime())}
     spec = entry.get('download') or {}
@@ -324,7 +342,7 @@ def verify(entry, driver, work, max_bytes):
         folder = root / target
         count, size, formats = folder_stats(folder)
         installed.append({'from': source, 'to': target, 'exclude': excluded, 'files': count, 'bytes': size, 'formats': formats})
-        checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': check_azahar}[engine]
+        checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': check_azahar, 'mupen64plus': check_mupen64plus}[engine]
         folder_report, folder_problems = checker(folder)
         report[target] = folder_report
         problems += folder_problems
@@ -348,6 +366,9 @@ def download_file(url, path, max_bytes):
 
 
 def folder_for(engine, value):
+    if engine == 'mupen64plus':
+        # The catalogue writes the N64 ROM header name in hexadecimal; GLideN64 names the folder after the name.
+        return bytes.fromhex(value).decode('ascii')
     value = value.upper()
     if engine == 'ppsspp':
         return value.replace('-', '')

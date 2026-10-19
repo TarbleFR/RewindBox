@@ -40,8 +40,8 @@ SOURCES = HERE / 'sources'
 VERIFIED = HERE / 'verified.jsonl'
 HOSTED = ROOT / 'native/textures/catalogue/manifest.json.gz'
 BUNDLED = ROOT / 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz'
-CONSOLES = ['ps2', 'gc', 'wii', 'psp', '3ds']
-ENGINE = {'ps2': 'armsx2', 'gc': 'dolphin', 'wii': 'dolphin', 'psp': 'ppsspp', '3ds': 'azahar'}
+CONSOLES = ['ps2', 'gc', 'wii', 'psp', '3ds', 'n64']
+ENGINE = {'ps2': 'armsx2', 'gc': 'dolphin', 'wii': 'dolphin', 'psp': 'ppsspp', '3ds': 'azahar', 'n64': 'mupen64plus'}
 KEEP = ('id', 'system', 'systems', 'engine', 'title', 'version', 'games', 'authors', 'page_url', 'source_id',
         'licence', 'credits', 'requirements', 'notes')
 # Verification problems that leave a usable page for the user (the file exists but
@@ -59,6 +59,8 @@ def fail(message):
 
 
 def folder_id(engine, identity):
+    if engine == 'mupen64plus':
+        return bytes.fromhex(identity['value']).decode('ascii')  # the ROM header name, in hexadecimal
     value = identity['value'].upper()
     if engine == 'ppsspp':
         return value.replace('-', '')
@@ -75,7 +77,7 @@ def formats_of(engine, installed, checks):
             name = name.lower()
             if name.startswith('dds'):
                 out.add('dds-uncompressed' if name in ('ddsrgba', 'ddsuncompressed') else 'dds')
-            elif name in ('png', 'ktx2', 'zim', 'astc', 'ktx'):
+            elif name in ('png', 'ktx2', 'zim', 'astc', 'ktx', 'bmp'):
                 out.add(name)
             elif name == 'dds':
                 out.add('dds')
@@ -93,17 +95,20 @@ def source_name(entry):
     source = entry['source_id']
     if source.startswith('github:'):
         return source[len('github:'):], 'https://github.com/' + source[len('github:'):]
-    return source.split(':', 1)[-1], entry['page_url']
+    # A creator's own page (forum profile) names the source better than one of its packs.
+    return source.split(':', 1)[-1], entry.get('source_url') or entry['page_url']
 
 
 def load():
     entries = []
     for console in CONSOLES:
-        path = SOURCES / f'{console if console not in ("gc", "wii") else "dolphin"}.json'
         if console == 'wii':
             continue  # dolphin.json holds both GameCube and Wii
-        for entry in json.loads(path.read_text(encoding='utf-8')):
-            entries.append(entry)
+        name = console if console != 'gc' else 'dolphin'
+        # <console>.json, then the imported lists (<console>-<origin>.json, e.g. ps2-ps2ktxpak.json).
+        for path in [path for path in [SOURCES / f'{name}.json'] if path.exists()] + sorted(SOURCES.glob(f'{name}-*.json')):
+            for entry in json.loads(path.read_text(encoding='utf-8')):
+                entries.append(entry)
     seen = set()
     for entry in entries:
         if entry['id'] in seen:
@@ -198,8 +203,9 @@ def build(entries, records):
         packs.append(pack)
     packs.sort(key=lambda p: (CONSOLES.index(p['system']), p['games'][0]['title'].lower(), p['title'].lower(), p['id']))
     sources = {}
+    source_urls = {entry['id']: entry.get('source_url') for entry in entries if entry.get('source_url')}
     for pack in packs:
-        name, url = source_name(pack)
+        name, url = source_name({**pack, 'source_url': source_urls.get(pack['id'])})
         source = sources.setdefault(pack['source_id'], {'id': pack['source_id'], 'name': name, 'url': url,
                                                          'licence': pack['licence']['summary'], 'systems': set()})
         for system in pack.get('systems') or [pack['system']]:
@@ -275,7 +281,7 @@ def validate(index):
 
 
 CONSOLE_NAMES = {'ps2': 'PlayStation 2 (ARMSX2)', 'gc': 'GameCube (Dolphin)', 'wii': 'Wii (Dolphin)',
-                 'psp': 'PSP (PPSSPP)', '3ds': 'Nintendo 3DS (Azahar)'}
+                 'psp': 'PSP (PPSSPP)', '3ds': 'Nintendo 3DS (Azahar)', 'n64': 'Nintendo 64 (Mupen64Plus-Next, GLideN64)'}
 
 
 def cell(text):

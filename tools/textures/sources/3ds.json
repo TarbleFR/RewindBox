@@ -861,5 +861,49 @@
   "system": "3ds",
   "engine": "azahar",
   "availability": "manual"
+ },
+ {
+  "id": "3ds-oot3d-chinese-hd-font-map-remake-wee2002",
+  "system": "3ds",
+  "title": "Ocarina of Time 3D HD Font & Map Pack Remake (Chinese)",
+  "version": "v1.0.0",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time 3D (Chinese)",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000008F900"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "Wee2002"
+  ],
+  "page_url": "https://github.com/Wee2002/Ocarina-of-Time-3D-HD-Font-Map-Pack-Remake/releases/tag/v1.0.0",
+  "source_id": "github:Wee2002/Ocarina-of-Time-3D-HD-Font-Map-Pack-Remake",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3D.+.+.zip",
+   "parts": [
+    {
+     "url": "https://github.com/Wee2002/Ocarina-of-Time-3D-HD-Font-Map-Pack-Remake/releases/download/v1.0.0/3D.%2B.%2B.zip"
+    }
+   ]
+  },
+  "engine": "azahar",
+  "availability": "available",
+  "notes": "For the Chinese version (simplified and traditional text).",
+  "credits": "README credits 林瓶鱼 and 壕梧熠熠 (the original pack)."
  }
 ]
