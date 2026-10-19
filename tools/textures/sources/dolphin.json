@@ -2448,5 +2448,115 @@
    ]
   },
   "notes": "Static button-label textures (not Dynamic Input); one style per pack."
+ },
+ {
+  "id": "gc-pokemon-colosseum-hd-orrehd",
+  "system": "gc",
+  "title": "ColosseumHD Texturepack",
+  "version": "repository f298fb7",
+  "games": [
+   {
+    "title": "Pokémon Colosseum",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GC6E01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "OrreHD"
+  ],
+  "page_url": "https://github.com/OrreHD/ColosseumHD-Texturepack/tree/f298fb7155418e2e6e81e0574be9e54adfba5a59",
+  "source_id": "github:OrreHD/ColosseumHD-Texturepack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ColosseumHD-Texturepack-f298fb7155418e2e6e81e0574be9e54adfba5a59.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/OrreHD/ColosseumHD-Texturepack/zip/f298fb7155418e2e6e81e0574be9e54adfba5a59"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/OrreHD/ColosseumHD-Texturepack",
+    "commit": "f298fb7155418e2e6e81e0574be9e54adfba5a59"
+   }
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "ColosseumHD-Texturepack-f298fb7155418e2e6e81e0574be9e54adfba5a59/GC6E01/",
+     "to": "GC6E01"
+    }
+   ]
+  },
+  "notes": "Only the GC6E01 folder is installed (the layered working files stay out)."
+ },
+ {
+  "id": "wii-sonic-colors-hd-kawasuzu",
+  "system": "wii",
+  "title": "Sonic Colors HD Texture Project",
+  "version": "repository c4e908a",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SNCE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Kawasuzu"
+  ],
+  "page_url": "https://github.com/Kawasuzu/colorshdproject/tree/c4e908ad96e0a04327b8440df442f2801e116496",
+  "source_id": "github:Kawasuzu/colorshdproject",
+  "licence": {
+   "summary": "Creative Commons licence (LICENSE.md)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "colorshdproject-c4e908ad96e0a04327b8440df442f2801e116496.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Kawasuzu/colorshdproject/zip/c4e908ad96e0a04327b8440df442f2801e116496"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Kawasuzu/colorshdproject",
+    "commit": "c4e908ad96e0a04327b8440df442f2801e116496"
+   }
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "colorshdproject-c4e908ad96e0a04327b8440df442f2801e116496/SNCE8P/",
+     "to": "SNCE8P"
+    }
+   ]
+  },
+  "notes": "Characters and HUD in DDS: they need a GPU that samples BC formats."
  }
 ]

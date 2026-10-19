@@ -4222,5 +4222,423 @@
   },
   "engine": "ppsspp",
   "availability": "available"
+ },
+ {
+  "id": "psp-gundam-vs-gundam-next-plus-hd-saramagrean",
+  "system": "psp",
+  "title": "Gundam Vs. Gundam: Next Plus HD Texture Pack",
+  "version": "repository df564c2",
+  "games": [
+   {
+    "title": "Kidou Senshi Gundam: Gundam Vs. Gundam Next Plus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50107"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Benjamin Benda Gates (Saramagrean)"
+  ],
+  "page_url": "https://github.com/Saramagrean/Gundam-Next-Plus---Texture-Pack/tree/df564c27205507fa2e6984240cb6a2da5587be19",
+  "source_id": "github:Saramagrean/Gundam-Next-Plus---Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; textures.ini: \"By Benjamin Benda Gates\"",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Gundam-Next-Plus---Texture-Pack-df564c27205507fa2e6984240cb6a2da5587be19.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Saramagrean/Gundam-Next-Plus---Texture-Pack/zip/df564c27205507fa2e6984240cb6a2da5587be19"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Saramagrean/Gundam-Next-Plus---Texture-Pack",
+    "commit": "df564c27205507fa2e6984240cb6a2da5587be19"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "For the original or English-patched game (NPJH50107)."
+ },
+ {
+  "id": "psp-patapon2-remastered-textures-uces01177-almihalo",
+  "system": "psp",
+  "title": "Patapon 2 Remastered Texture Pack (Europe)",
+  "version": "repository 4c7321d",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01177"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Almighty Halo (AlmiHalo)"
+  ],
+  "page_url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/tree/4c7321d2ca1ad063262a39cdb84ade78101f4594",
+  "source_id": "github:AlmiHalo/HDTexturePackv1.1-Unfinished-",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/zip/4c7321d2ca1ad063262a39cdb84ade78101f4594"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-",
+    "commit": "4c7321d2ca1ad063262a39cdb84ade78101f4594"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594/UCES01177/",
+     "to": "UCES01177"
+    }
+   ]
+  },
+  "notes": "Unfinished (version 1.1); the author's RAR release files hold the same folders."
+ },
+ {
+  "id": "psp-patapon2-remastered-textures-ucjs10089-almihalo",
+  "system": "psp",
+  "title": "Patapon 2 Remastered Texture Pack (Japan)",
+  "version": "repository 4c7321d",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10089"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Almighty Halo (AlmiHalo)"
+  ],
+  "page_url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/tree/4c7321d2ca1ad063262a39cdb84ade78101f4594",
+  "source_id": "github:AlmiHalo/HDTexturePackv1.1-Unfinished-",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/zip/4c7321d2ca1ad063262a39cdb84ade78101f4594"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-",
+    "commit": "4c7321d2ca1ad063262a39cdb84ade78101f4594"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594/UCJS10089/",
+     "to": "UCJS10089"
+    }
+   ]
+  },
+  "notes": "Unfinished (version 1.1); the author's RAR release files hold the same folders."
+ },
+ {
+  "id": "psp-ules00183-hd-crowbardoctor",
+  "system": "psp",
+  "title": "Star Wars: Battlefront II HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "Star Wars: Battlefront II",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00183"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULES00183/",
+     "to": "ULES00183"
+    }
+   ]
+  },
+  "notes": "One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-ulus10098-hd-crowbardoctor",
+  "system": "psp",
+  "title": "The Godfather: Mob Wars HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "The Godfather: Mob Wars",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10098"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULUS10098/",
+     "to": "ULUS10098"
+    }
+   ]
+  },
+  "notes": "One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-ulus10345-hd-crowbardoctor",
+  "system": "psp",
+  "title": "Star Wars: The Force Unleashed HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "Star Wars: The Force Unleashed",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10345"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULUS10345/",
+     "to": "ULUS10345"
+    }
+   ]
+  },
+  "notes": "Textures taken from the Wii version of the game. One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-ulus10455-hd-crowbardoctor",
+  "system": "psp",
+  "title": "Assassin's Creed: Bloodlines HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "Assassin's Creed: Bloodlines",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10455"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULUS10455/",
+     "to": "ULUS10455"
+    }
+   ]
+  },
+  "notes": "One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-toukiden-kiwami-hd-texture-pack",
+  "system": "psp",
+  "title": "Toukiden Kiwami HD Texture Pack",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Toukiden Kiwami",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50878"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "セファロン 零",
+   "Ace-San",
+   "Amita Alisabezth",
+   "Saramagrean",
+   "HoaiTrung 097 Translation Team"
+  ],
+  "page_url": "https://github.com/Saramagrean/TKD_KWM-HD-Texture-Pack",
+  "source_id": "github:Saramagrean/TKD_KWM-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Saramagrean/TKD_KWM-HD-Texture-Pack"
+  },
+  "engine": "ppsspp",
+  "availability": "manual",
+  "notes": "The repository holds the README and textures.ini; the 1.4 GB of textures are downloaded from the authors' links (PPSSPP forum thread). Compatible with the Japanese game v1.00-1.07 and its English patches."
  }
 ]
