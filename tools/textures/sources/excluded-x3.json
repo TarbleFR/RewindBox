@@ -178,5 +178,55 @@
   "console": "3ds",
   "source": "Misc.zip (https://drive.google.com/file/d/1ibzv8vwcxRrNKEzvHP9vVP_AzOF5KFXH/view)",
   "reason": "Shin Megami Tensei IV (Kasaski) 'Misc': four loose textures, one part of a pack published in several files."
+ },
+ {
+  "console": "wii",
+  "source": "hgw6ge.zip (https://gamebanana.com/dl/1258539)",
+  "reason": "Dokapon Kingdom (berryface) \"hgw6ge\": a file of unstated content beside the TripleBaka textures; not catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "2500jq.zip (https://gamebanana.com/dl/1258540)",
+  "reason": "Dokapon Kingdom (berryface) \"2500jq\": a file of unstated content beside the TripleBaka textures; not catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "hawuia.zip (https://gamebanana.com/dl/1258542)",
+  "reason": "Dokapon Kingdom (berryface) \"hawuia\": a file of unstated content beside the TripleBaka textures; not catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "triplebakav4.zip (https://gamebanana.com/dl/1258544)",
+  "reason": "Dokapon Kingdom TripleBaka textures v4: an older version of v6, which is catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "v5_triplebakatextures.zip (https://gamebanana.com/dl/1262709)",
+  "reason": "Dokapon Kingdom TripleBaka textures v5: an older version of v6, which is catalogued."
+ },
+ {
+  "console": "3ds",
+  "source": "psychicspecters.7z (https://gamebanana.com/dl/915218)",
+  "reason": "Yo-kai Watch 2: Psychic Specters HD (earlier upload of the same pack, 432 MB): the later upload is catalogued."
+ },
+ {
+  "console": "gc",
+  "source": "ac_hd_texture_pack_-_jan_26_2022.zip (https://gamebanana.com/dl/875424)",
+  "reason": "Animal Crossing HD texture pack (Jan 26 2022, WhoDaDev, GameBanana): possibly the same project as brackenhawk's ACHD; not catalogued until its origin is clear."
+ },
+ {
+  "console": "wii",
+  "source": "nsmb_xbox_ui_e1010.zip (https://gamebanana.com/dl/1037424)",
+  "reason": "New Super Mario Bros. Wii button prompts for the PAL disc (SMNP01): the region-free editions of the same author are catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "nsmb_switch_ui.zip (https://gamebanana.com/dl/1037423)",
+  "reason": "New Super Mario Bros. Wii button prompts for the PAL disc (SMNP01): the region-free editions of the same author are catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "nsmb_playstation_ui_5b4f2.zip (https://gamebanana.com/dl/1037428)",
+  "reason": "New Super Mario Bros. Wii button prompts for the PAL disc (SMNP01): the region-free editions of the same author are catalogued."
  }
 ]

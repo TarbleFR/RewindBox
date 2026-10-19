@@ -1377,5 +1377,510 @@
   },
   "scope": "complete",
   "family": "3ds-mm3d-4k-henriko"
+ },
+ {
+  "id": "3ds-sm3dl-4k-henriko-1080p",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Super Mario 3D Land 4K (1080p)",
+  "version": "1.2.0b",
+  "games": [
+   {
+    "title": "Super Mario 3D Land",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000054000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/super-mario-3d-land-hd",
+  "source_id": "henrikomagnifico:super-mario-3d-land-hd",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/super-mario-3d-land-hd",
+   "file_name": "SM3DL 4K 1.2.0b (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1J0aEd7K6DUkNHcYsU42SBmxpNcZpC2Wd/view",
+    "sha256": "3e395856dcc9df28406002ecec2a5112294087ae003a7494fa82c6109c03e631"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-sm3dl-4k-henriko"
+ },
+ {
+  "id": "3ds-sm3dl-4k-henriko-4k",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Super Mario 3D Land 4K (4K)",
+  "version": "1.2.0b",
+  "games": [
+   {
+    "title": "Super Mario 3D Land",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000054000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/super-mario-3d-land-hd",
+  "source_id": "henrikomagnifico:super-mario-3d-land-hd",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/super-mario-3d-land-hd",
+   "file_name": "SM3DL 4K 1.2.0b (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1EG2kf2-_i1k5VCN9foHnS6DkQtdwz80Y/view",
+    "sha256": "4f989bd08ec6379a06487d8a6a7432730e9dab305cddcfbdf5ea3496b715f759"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-sm3dl-4k-henriko"
+ },
+ {
+  "id": "3ds-albw-4k-henriko-1080p",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "A Link Between Worlds 4K (1080p)",
+  "version": "2.0b",
+  "games": [
+   {
+    "title": "The Legend of Zelda: A Link Between Worlds",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000EC300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-a-link-between-worlds-4k",
+  "source_id": "henrikomagnifico:zelda-a-link-between-worlds-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-a-link-between-worlds-4k",
+   "file_name": "ALBW 4K 2.0b (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1ZdzR-yEY_91WCEeoEr30wlUgQ-2EjVy7/view",
+    "sha256": "880a8ea8827a4422bb25568134fdfe595a0612fac1764a01358e7564c8567376"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-albw-4k-henriko"
+ },
+ {
+  "id": "3ds-albw-4k-henriko-4k",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "A Link Between Worlds 4K (4K)",
+  "version": "2.0b",
+  "games": [
+   {
+    "title": "The Legend of Zelda: A Link Between Worlds",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000EC300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-a-link-between-worlds-4k",
+  "source_id": "henrikomagnifico:zelda-a-link-between-worlds-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-a-link-between-worlds-4k",
+   "file_name": "ALBW 4K 2.0b (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1pA7ybLO1rTagKeDeC_yCoot6BmaqYFhb/view",
+    "sha256": "ee1782ba94171226fa328b6e8ced6b3bc5987dc61784b6b5276240d6037592b2"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-albw-4k-henriko"
+ },
+ {
+  "id": "3ds-yokai-watch-2-psychic-specters-hd-uh06",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Yo-kai Watch 2: Psychic Specters HD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Yo-kai Watch 2: Psychic Specters",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B2700"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "UH06"
+  ],
+  "page_url": "https://gamebanana.com/mods/420384",
+  "source_id": "gamebanana:420384",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/420384",
+   "file_name": "psychicspecters_1b6a7.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/915725",
+    "sha256": "df89a32cecf813989f8e5b20e283c80c662c3b7d796f1cffb2267bcfaa413bc0"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "00040000001B2700/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "3ds-yokai-watch-2-psychic-specters-hd-uh06"
+ },
+ {
+  "id": "3ds-sm3dl-hd-ui-galacticmoblin",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Super Mario 3D Land HD UI Pack",
+  "version": "1.2",
+  "games": [
+   {
+    "title": "Super Mario 3D Land",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000054000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Super Mario 3D Land",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000053F00"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "GalacticMoblin"
+  ],
+  "page_url": "https://gamebanana.com/mods/394597",
+  "source_id": "gamebanana:394597",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/394597",
+   "file_name": "super_mario_3d_land_hd_ui_pack_v12.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1276654",
+    "sha256": "865c527b040b9db19b2084d08488d788a3293ce65d1601aa713adf27a117f17c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "3ds-sm3dl-hd-ui-galacticmoblin"
+ },
+ {
+  "id": "3ds-mario-luigi-paper-jam-classic-juggling-gamer",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Mario & Luigi: Paper Jam — Classic",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario & Luigi: Paper Jam Bros.",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000132800"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Juggling gamer"
+  ],
+  "page_url": "https://gamebanana.com/mods/485700",
+  "source_id": "gamebanana:485700",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Restyles the game with classic Mario & Luigi looks (182 textures).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/485700",
+   "file_name": "mario_luigi_classic_paper_jam_65254.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1108047",
+    "sha256": "2cac0bf599842923e13ad5e434e7f131e541c126d6dcf3cfe1f37aeb60844000"
+   }
+  },
+  "scope": "partial",
+  "family": "3ds-mario-luigi-paper-jam-classic-juggling-gamer"
+ },
+ {
+  "id": "3ds-sonic-generations-refined-hud-shademark",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Sonic Generations (3DS) Refined HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Generations",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000062300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Sonic Generations",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000062200"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "ShadeMark"
+  ],
+  "page_url": "https://gamebanana.com/mods/647819",
+  "source_id": "gamebanana:647819",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/647819",
+   "file_name": "sonic_gens_3ds_refined_hud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1607769",
+    "sha256": "35d48e3438f27f14d34804ca8896ed4b60dd6c304d222997e5b8850bf3d65970"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Sonic Gens 3DS Refined Hud/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "3ds-sonic-generations-refined-hud-shademark"
+ },
+ {
+  "id": "3ds-xenoblade-3d-hd-title-miguel92398",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Xenoblade Chronicles 3D — HD title screen",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Xenoblade Chronicles 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000F700100"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Miguel92398"
+  ],
+  "page_url": "https://gamebanana.com/mods/9572",
+  "source_id": "gamebanana:9572",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/9572",
+   "file_name": "xbc3dhd_title.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/462053",
+    "sha256": "9828547ae063bda84d2c67eed18740c84989cde6b65018cbfa37b6515386f97d"
+   }
+  },
+  "scope": "ui",
+  "family": "3ds-xenoblade-3d-hd-title-miguel92398"
+ },
+ {
+  "id": "3ds-tomodachi-life-hd-miis-elimcgamerguy",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Tomodachi Life — HD Miis",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Tomodachi Life",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000008C300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Tomodachi Life",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000008C400"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "EliMCGamerGuy"
+  ],
+  "page_url": "https://gamebanana.com/mods/515472",
+  "source_id": "gamebanana:515472",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/515472",
+   "file_name": "hd_miis.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1200345",
+    "sha256": "d4dac7be9f84f9bd1df15322693feb82d637df273c4d5b2932bba0838672cccc"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "texPack/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-tomodachi-life-hd-miis-elimcgamerguy"
  }
 ]
