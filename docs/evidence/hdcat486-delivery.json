@@ -1,0 +1,184 @@
+{
+ "build": 486,
+ "version": "0.0.8 (486)",
+ "result": "delivered",
+ "deliverySource": "b18c30cd884f915950ee03cb8d5a182de1cd9028",
+ "deliveryRun": 39195753114,
+ "jobs": {
+  "checks": "success",
+  "native": "success",
+  "Release device build • cold": "success",
+  "Release device build • warm": "skipped"
+ },
+ "closure": ".github/diagnostics/hdcat486_delivery.py",
+ "testedSource": "16a2b896f6fb6cc1cd803625700f1a9055fff7df",
+ "proofs": {
+  "targeted": {
+   "workflow": ".github/workflows/hd-textures.yml",
+   "run": 39194576112,
+   "source": "16a2b896f6fb6cc1cd803625700f1a9055fff7df",
+   "jobs": {
+    "host": {
+     "id": 117874440090,
+     "name": "Readers, identities, installer, labels, catalogue, contracts and Flutter",
+     "checks": 46,
+     "dartTests": 86,
+     "preExistingIdenticalOnBase": 9
+    },
+    "native": {
+     "id": 117874440021,
+     "name": "Store and adapters on Foundation, iPhone SDK build of every changed source",
+     "checks": 7,
+     "baseComparisons": 0
+    },
+    "uikit": {
+     "id": 117874440026,
+     "name": "The HD textures page on UIKit with the bundled catalogue",
+     "tests": 6
+    }
+   }
+  },
+  "repositoryArchives": {
+   "run": 39188364133,
+   "source": "8fbfd4ad94b0c4a5d36bde61e8283877f58193d7",
+   "packs": 64,
+   "recordsCheckedAgainstArtifacts": "tools/textures/check_ci_records.py (host part)"
+  },
+  "retainedFailures": [
+   {
+    "run": 39188351476,
+    "source": "8fbfd4ad94b0c4a5d36bde61e8283877f58193d7",
+    "reason": "-Werror unused function (native), __block variable captured by a lambda (uikit)"
+   },
+   {
+    "run": 39193602740,
+    "source": "0b8731dc75e36f32b1a482e36e003a0f0462c7e2",
+    "reason": "PS2 subtree pack reached the store without its catalogue match (native); UIKit test read the ID from the detail, expected GMSE01.ini and read the pack page before its rows"
+   }
+  ]
+ },
+ "deliveredBaseline": {
+  "build": 485,
+  "source": "85a28e9013eaf7613da0338b4bc44f5ab7268f10",
+  "run": 39182252832
+ },
+ "coreRebuilt": false,
+ "corePins": "Build 485 pins reused by identity: ARMSX2 1343906f (ABI 8, run 39178893158), RPCS3 1b4f65e2 (run 39163125594), Dusklight 899d3c44, 34 libretro cores c3408821 (run 39081741396)",
+ "catalogue": {
+  "revision": "2026-10-19.c38f84a2c654",
+  "indexSHA256": "20eed98f80134217ad02f4a304d96a99f930cb74f9322bd8a679d095984e4126",
+  "indexBytes": 43601,
+  "labelsSHA256": "202efe57c77e49cee11b24b969eddb2d971b697efb08cfbb7219122586e8f330",
+  "packs": 170,
+  "packsByPrimarySystem": {
+   "ps2": 55,
+   "gc": 19,
+   "wii": 22,
+   "psp": 57,
+   "3ds": 17
+  },
+  "packsPerSystemCountingSharedGameCube": {
+   "3ds": 17,
+   "gc": 24,
+   "ps2": 55,
+   "psp": 57,
+   "wii": 22
+  },
+  "oneTap": 144,
+  "manual": 26,
+  "sources": 128,
+  "packsBundled": false
+ },
+ "xcodeBuildSeconds": 261.59,
+ "signatureAndExportSeconds": 40.63,
+ "toolchain": {
+  "xcode": "26.3 (17C529)",
+  "iphoneSDK": "26.2",
+  "flutter": "3.47.2"
+ },
+ "ipaBeforeSealing": {
+  "sha256": "3ee9e2f6c9685a8b23f7a3d73fbc0e20b507becc15c267e2095d7f117cea45dc",
+  "note": "validated by the CI gates (HD textures, unified cheats, RPCS3, ARMSX2, libretro...); the SideStore seal recreates the IPA"
+ },
+ "encryptedArtifact": {
+  "id": 12161679895,
+  "name": "NeoStation-Build-486-b18c30cd884f915950ee03cb8d5a182de1cd9028-cold",
+  "bytes": 228242845,
+  "zipSHA256": "ce694b3f00c0bd16307a3e8cba21156056ef7bb8718b62599c8d0507202bd5b9",
+  "expires": "2026-11-02T03:52:31Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "sealedIpa": {
+  "name": "NeoStation-Build486-b18c30cd884f915950ee03cb8d5a182de1cd9028-cold.ipa",
+  "bytes": 227996758,
+  "sha256": "eef1553e73d115753df92455c42bec9ededc3cacb1c37980568bce9f2cedc607",
+  "matches": [
+   "SHA256SUMS",
+   "signed-payload-identity.json"
+  ],
+  "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build486-b18c30cd.ipa",
+  "windowsCopySHA256Verified": true
+ },
+ "independentInspection": {
+  "tool": "Python 3.12 on the maintainer's PC, no Xcode; downloaded archive SHA-256 checked before decryption, password and plaintext archive deleted",
+  "bundleVersions": "host and five extensions 0.0.8 (486), read from the binary Info.plist files",
+  "hdTextures": "one NeoTextureCatalog.bundle (Info.plist, labels.json, manifest.json.gz); index and labels SHA-256 equal to the hosted/generated files; no texture file in the IPA",
+  "imagesComparedWithBuild485": {
+   "total486": 82,
+   "total485": 81,
+   "identical": 76,
+   "changed": [
+    "Runner",
+    "App.framework (Dart AOT)",
+    "armsx2_internal_bridge",
+    "dolphin_internal_bridge",
+    "libretro_internal_bridge"
+   ],
+   "new": [
+    "neo_texture_catalog"
+   ],
+   "removed": [],
+   "withCodeSignature": 82,
+   "fingerprint": "section contents and __LINKEDIT up to the code signature, per slice"
+  },
+  "markersPresentIn486AbsentIn485": {
+   "neo_texture_catalog": [
+    "NeoTextureHDPage",
+    "NeoTexturePackStore",
+    "textureViewControllerWithOptions:",
+    "pack:matchedTo:",
+    "ppsspp_texture_replacement",
+    "citra_custom_textures",
+    "HiresTextures",
+    "NeoStation-pack.json"
+   ],
+   "armsx2_internal_bridge": [
+    "NeoTextureHDPage",
+    "initWithExpandedFolder:sourceName:dataPath:game:"
+   ],
+   "dolphin_internal_bridge": [
+    "NeoTextureHDPage",
+    "dolphinUser"
+   ],
+   "libretro_internal_bridge": [
+    "NeoTextureHDPage",
+    "libretro-menu-hd-textures"
+   ],
+   "App.framework": [
+    "neostation/texture_catalog"
+   ]
+  },
+  "unchangedImages": "34 libretro cores, ARMSX2Core, libRPCS3Core, DolphinCore, DusklightCore, MoltenVK, StikJIT, KartPad, the JIT helper extensions and every other plugin: identical code/data fingerprints to Build 485"
+ },
+ "deviceInstallationTested": false,
+ "deviceGameplayValidated": false,
+ "hdTexturesRenderedInGame": false,
+ "sideStoreResigningRequired": true,
+ "publicRelease": false,
+ "mainUpdated": false,
+ "receiptSHA256": {
+  "docs/evidence/hdtex485-delivery.json": "23547dab9c7c46398169066d812af588f219fff0a014b827d8b512bf9b2c2ade",
+  "docs/evidence/touch484-delivery.json": "62f034b88a840d64f6857cc0af1ac8a5927f5960ff3a64c9b6d23364cbcd5b7a",
+  "docs/evidence/llvmpipe483-delivery.json": "76ceca52fd3eec20ee415e6912b6b258f8bf184d03738d7140d5625dc0e6c683"
+ }
+}
