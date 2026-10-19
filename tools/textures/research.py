@@ -38,6 +38,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 import time
 import urllib.error
@@ -661,56 +662,58 @@ def describe(record, out):
 
 
 def probe(url, work, max_bytes):
-    """Downloads one candidate file (streamed to a temporary file, deleted after) and
-    lists what it holds: size, SHA-256, format, file tree as the engines read it."""
-    import hashlib
+    """Downloads one candidate file once (tools/textures/hosts.py: the author's link on
+    GitHub, GameBanana, MediaFire, Google Drive, Dropbox or MEGA; a sign-in, CAPTCHA,
+    payment or quota page ends the attempt), lists what it holds (size, SHA-256,
+    format, file tree as the engines read it) and deletes it. A shared folder link
+    is listed (its files), not downloaded."""
     import subprocess
     import tempfile
-    out = {'url': url}
+    sys.path.insert(0, str(HERE))
+    import hosts
+    out = {'url': url, 'host': hosts.kind(url)}
     pace(url)
-    request = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-    digest = hashlib.sha256()
-    size = 0
-    with tempfile.NamedTemporaryFile(dir=work, delete=False) as handle:
-        path = handle.name
-        try:
-            with urllib.request.urlopen(request, timeout=120) as response:
-                out['final'] = response.geturl()
-                out['type'] = response.headers.get('Content-Type', '')[:60]
-                out['disposition'] = response.headers.get('Content-Disposition', '')[:120]
-                while True:
-                    block = response.read(4 << 20)
-                    if not block:
-                        break
-                    size += len(block)
-                    if size > max_bytes:
-                        out['error'] = f'larger than {max_bytes} bytes'
-                        break
-                    digest.update(block)
-                    handle.write(block)
-        except Exception as error:
-            out['error'] = repr(error)[:200]
     try:
-        out['size'] = size
-        out['sha256'] = digest.hexdigest()
+        files = hosts.folder_files(url)
+    except hosts.HostError as error:
+        out.update(status=error.status, error=error.reason)
+        return out
+    except Exception as error:
+        out.update(status='error', error=repr(error)[:200])
+        return out
+    if files is not None:
+        out['status'] = 'folder'
+        out['files'] = files[:80]
+        return out
+    path = Path(tempfile.mkdtemp(dir=work)) / 'candidate'
+    try:
+        try:
+            out.update(hosts.fetch(url, str(path), max_bytes))
+        except hosts.HostError as error:
+            out.update(status=error.status, error=error.reason)
+            return out
+        except Exception as error:
+            out.update(status='error', error=repr(error)[:200])
+            return out
         with open(path, 'rb') as handle:
             head = handle.read(8)
         out['format'] = ('zip' if head.startswith(b'PK') else '7z' if head.startswith(b'7z\xbc\xaf') else
-                         'rar' if head.startswith(b'Rar!') else 'html' if head.lstrip()[:1] == b'<' else 'other')
-        if out['format'] in ('zip', '7z', 'rar') and not out.get('error'):
-            listing = subprocess.run(['7z', 'l', '-slt', '-ba', path], capture_output=True, text=True, errors='replace')
-            files, methods = [], set()
+                         'rar' if head.startswith(b'Rar!') else 'other')
+        out['status'] = 'ok' if out['format'] in ('zip', '7z') else 'unsupportedArchive'
+        if out['format'] in ('zip', '7z', 'rar'):
+            listing = subprocess.run(['7z', 'l', '-slt', '-ba', str(path)], capture_output=True, text=True, errors='replace')
+            names, methods = [], set()
             for block in listing.stdout.split('\n\n'):
                 fields = dict(line.split(' = ', 1) for line in block.splitlines() if ' = ' in line)
                 if fields.get('Method'):
                     methods.add(fields['Method'])
                 if fields.get('Path') and fields.get('Folder') != '+' and 'D' not in fields.get('Attributes', '')[:1]:
-                    files.append(fields['Path'])
-            out['tree'] = summarize_tree(files)
-            out['sample'] = files[:12]
+                    names.append(fields['Path'])
+            out['tree'] = summarize_tree(names)
+            out['sample'] = names[:12]
             out['methods'] = sorted(methods)[:6]
     finally:
-        os.unlink(path)
+        shutil.rmtree(path.parent, ignore_errors=True)
     return out
 
 
@@ -730,6 +733,7 @@ def main():
     probes.add_argument('--urls', default='')
     probes.add_argument('--file', default='')
     probes.add_argument('--max-gb', type=float, default=3)
+    probes.add_argument('--expand', action='store_true', help='also probe the archive files listed in a shared folder')
     probes.add_argument('--out', required=True)
     args = parser.parse_args()
     if args.mode == 'probe':
@@ -741,10 +745,15 @@ def main():
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         print('PROBE_BEGIN', len(urls), flush=True)
         with open(args.out, 'w', encoding='utf-8') as out:
-            for url in urls:
+            queue = list(urls)
+            while queue:
+                url = queue.pop(0)
                 result = probe(url, work, int(args.max_gb * (1 << 30)))
                 out.write(json.dumps(result) + '\n')
-                print('PROBE ' + json.dumps(result, sort_keys=True)[:1500], flush=True)
+                print('PROBE ' + json.dumps(result, sort_keys=True)[:2500], flush=True)
+                if args.expand and result.get('status') == 'folder':
+                    queue += [item['url'] for item in result['files'] if not item.get('folder')
+                              and re.search(r'\.(zip|7z)$', item.get('name') or '', re.I)]
         print('PROBE_END', flush=True)
         return
     SHEETS.update(item for item in args.sheets.split(',') if item)

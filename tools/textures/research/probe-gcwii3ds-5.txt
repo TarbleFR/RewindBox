@@ -1,0 +1,64 @@
+# url<TAB>ref (source) title — GC/Wii/3DS candidate files from the research runs
+https://github.com/qashto/Super_Mario_Sunshine_UHD_Texture_Pack/releases/download/2.1.1/SMS_UHD_Update_Patch_1_DDS.7z\u003c/a\u003e\u003c/p\u003e\n\u003cdiv	S016 (gc.txt) Super Mario Sunshine UHD — qashto/razius
+https://gamebanana.com/dl/1610253	S023 (gc.txt) Rayman 3 — HD Texture Pack Dolphin :: rayman_3_dolphin_ps3_hud.zip
+https://gamebanana.com/dl/858148	S025 (gc.txt) Sonic Riders DX — Texture Pack V2 :: optional_versions_.7z
+https://drive.google.com/file/d/1vU5hHBUjiRVciBFykZ-7ZnnwG6n9Ohls/view	S033 (gc.txt) Custom Robo HD
+https://drive.google.com/file/d/1D746CjhSIRKqXkCPoCt_-XeCjyzcFFLi/view?usp=sharing	S036 (gc.txt) Super Mario Sunshine 4K — Henriko
+https://drive.google.com/file/d/1zPUbqmprS0oqJrwij64UrGboHa5USb55/view?usp=drive_link	S044 (gc.txt) ChaotixSoda's Sonic Heroes
+https://drive.google.com/drive/folders/1G11t2cOKiq48-BjBgWd-dsOKyqxiXPvZ	S068 (wii.txt) Mario Kart Wii Reloaded
+https://drive.google.com/drive/folders/1E-6Xb__ZnWUh_Ud3jkO6PalPnWH4W8cd?usp=sharing	S079 (wii.txt) Zelda: Skyward Sword 4K — Wii Edition
+http://www.mediafire.com/file/1q1293z7aw32ime/EOBW_HD_Project_v1.1_PNG.7z/file	S098 (wii.txt) Matrix2525's Endless Ocean: Blue World
+http://www.mediafire.com/?chssw1233jlvu	S106 (wii.txt) Xenoblade Chronicles HD
+http://www.mediafire.com/?52ecskixq7k1n7x	S106 (wii.txt) Xenoblade Chronicles HD
+http://www.mediafire.com/?4tnp115xz6ee5vd	S106 (wii.txt) Xenoblade Chronicles HD
+https://gamebanana.com/dl/1219483	S119 (3ds.txt) Fire Emblem Awakening — Amateur Awakening HD :: aahd_map_for_cfw_6-19-24.zip
+https://gamebanana.com/dl/1124054	S128 (3ds.txt) Dragon Quest VIII HD :: dq8-4xhd_ui-only_110.zip
+https://gamebanana.com/dl/1471216	S136 (3ds.txt) Soul Hackers HD Demons :: soul_hackers_hd_demons.zip
+https://gamebanana.com/dl/1537017	S140 (3ds.txt) Kirby: Triple Deluxe in HD :: kirby_td_in_hd_87d2a.zip
+https://drive.google.com/drive/folders/1Io5Qw5L1Iep7WQja-5G9NyxkFqMkkSLv?usp=sharing	S146 (3ds.txt) A Link Between Worlds 4K — Henriko
+https://www.dropbox.com/scl/fo/mx5vg05s5toilhx82qwd8/AK7M_SEh7VRN2fRyD7NZjnw?rlkey=oj5aix8jpstjrzot4p2ezl7h3&st=0xkp4a3x&dl=0	S150 (3ds.txt) Monster Hunter 4 Ultimate HD v3.0 — mhondeck
+https://web.archive.org/web/20240228024932/https://www.mediafire.com/file/bjqedo6qxdzl27e/New_Super_Mario_Bros._2_HD_Texture_Pack_0.9.9.zip/file	S155 (3ds.txt) New Super Mario Bros. 2 — alxkiri et complément Bighead
+https://web.archive.org/web/20240228030323/https://drive.google.com/drive/folders/1jZtN3gsrwSasku51o9L9ugO9gi8OzhXM?usp=sharing	S158 (3ds.txt) Shin Megami Tensei IV — Kasaski
+https://drive.google.com/file/d/1ibzv8vwcxRrNKEzvHP9vVP_AzOF5KFXH/view?usp=sharing	S158 (3ds.txt) Shin Megami Tensei IV — Kasaski
+https://accounts.google.com/SignUpWithoutGmail?service\u003dwise\u0026continue\u003dhttps://drive.google.com/drive/folders/1CbWvaX5SahvpE--CD7JNqqa-BddHHrJM?utm_source%3Ddrive_fold	S164 (3ds.txt) WarioWare Gold — piste DniweTamp
+https://drive.google.com/file/d/183ZskbSqv2d8DquyOgOhtCPCwtstS4Iy/view	S165 (3ds.txt) Phoenix Wright: Spirit of Justice — piste Volya
+https://mega.nz/file/Y0kWkR7S#C38tMfHZq8744h38tN3qA9CjnoHsIZ_9IuVAXXD8rZE	X009 (dolphin-threads.txt) Megaman X Command Mission HD GUI
+https://www.mediafire.com/folder/9f2hyo37ul1zf/PSO_HD	X014 (dolphin-threads.txt) Phantasy Star Online High Definition Texture Pack
+https://www.mediafire.com/file/hn9v66bi4btssmu/GameCube_HD_Menu.7z/file	X019 (dolphin-threads.txt) GameCube Main Menu HD Texture Pack
+https://mega.co.nz/#!rcoilYZA!8utCWpa1dQmRueWAnx1VNgDH1EIAkXpixOaRfbtU4QY	X020 (dolphin-threads.txt) Super Paper Mario [hires texture pack]
+https://drive.google.com/file/d/1KwgfTTNOCbKYdMf152Q_PysvF_kN5v7V/view?usp=sharing	X021 (dolphin-threads.txt) Resident Evil 2 & Resident Evil 3 Seamless HD Project
+https://mega.co.nz/#!PN40VZzJ!FeTenlLKIrTuxltBE9eZl0zQ-gUEee-Ht9Ke40aSJMo	X026 (dolphin-threads.txt) Resident Evil 4 Wii Edition High-Res Textures
+https://drive.google.com/open?id=1sHKm3x_2M11tBAHhlyHSz4BvuQYLYHkX	X027 (dolphin-threads.txt) Xenoblade Chronicles HD Texture Pack v8.52 - (August 21, 2018)
+https://www.mediafire.com/folder/n6bb16f6t19mb/Xenoblade_Old	X027 (dolphin-threads.txt) Xenoblade Chronicles HD Texture Pack v8.52 - (August 21, 2018)
+http://www.mediafire.com/view/sg3qh7u1o66icxo/Dolphin_2019-11-21_20-31-f27.jpg/file	X031 (dolphin-threads.txt) Mario Party 8 HD Texture Project
+http://www.mediafire.com/view/3xywjmetb8jfmve/Dolphin_2019-11-21_22-13-36.jpg/file	X031 (dolphin-threads.txt) Mario Party 8 HD Texture Project
+https://gamebanana.com/dl/920299	X033 (dolphin-threads.txt) Sonic and the Black Knight HD Texture Pack (Ai Upscaled) (V1.1)
+https://drive.google.com/file/d/1RL0ABqryRXaIk4A1Qdn2LJff4bkOrC_L/view?usp=sharing	X039 (dolphin-threads.txt) Star Fox Assault HD Texture Pack
+https://mega.nz/file/hkEETT6Q#kBP-e-xHXRqkJ8I3ayfkEJudrupH-8yb9wD5HSE546w	X044 (dolphin-threads.txt) Rune Factory Frontier Upscaled Texture Pack [In Progress] Updated 10/10
+https://drive.google.com/file/d/1hu-MS2MkyynPyjEJbwlNYjKBHuJ86BVY/view?usp=drive_link	X050 (dolphin-threads.txt) Paper Mario TTYD HD Texture Pack v2.5 (May 9th, 2024)
+https://drive.google.com/file/d/1ZdFQjhUGjqa8QfrScCeLctH9vPPkjtl6/view?usp=share_link	X050 (dolphin-threads.txt) Paper Mario TTYD HD Texture Pack v2.5 (May 9th, 2024)
+https://www.mediafire.com/file/erftfx9kfshyrhm/NSMBW_HD_v2.81_DDS.7z/file	X055 (dolphin-threads.txt) New Super Mario Bros. Wii HD Texture Pack v2.81 - (September 18, 2023)
+https://mega.nz/#!dgY2ALLK!SONsnq0NVMZ0U9l2OI33hLtkmjs2NNzyxDcAZLcA49Q	X058 (dolphin-threads.txt) GhostlyDark's SSB Reloaded V2.0.0 (2025-03-20)
+https://mega.nz/file/G5ZFGJzS#pgXkDdaaZ4D0mMsojkEaXVKs11_QhGR8IWAif6p1pNA	X061 (dolphin-threads.txt) Metroid Prime 1,2,3 and Trilogy HD Texture Pack
+https://drive.google.com/file/d/17ayP-PEx3n8YlPty56y14kKxWJjL2uKp	X062 (dolphin-threads.txt) Metroid Prime Trilogy - HD Interface Textures (V 1.7 | May 01, 2021)
+http://www.mediafire.com/file/uiu4kss5wz4w10q/SoA_HD_v0.06_PNG.7z/file	X064 (dolphin-threads.txt) Skies of Arcadia HD v0.06 (June 27, 2020)
+https://drive.google.com/file/d/1XkinzgCwE-yJiWx3YJC3eqlJyVD5QaJ-/view?usp=drive_link	X066 (dolphin-threads.txt) Bakugan Battle Brawlers HD Texture Project
+https://www.mediafire.com/file/xs9kw4cowpmimx9/4K_Backgrounds_Add_on.7z/file	X069 (dolphin-threads.txt) Tales of Symphonia HD Textures
+http://www.mediafire.com/file/1ph6ngfs1gnc2ln/SA2B+HDGUIP+v1.5+DDS.7z	X073 (dolphin-threads.txt) Sonic Adventure 2 Battle HD Project v2.3 (June 21, 2019)
+https://mega.nz/file/aiRHVaJY#cbKaGJPhBFkFjYONftSTW8yA8bHaDYu-j5Q01QCAgC4	X076 (dolphin-threads.txt) Resident Evil Code: Veronica X HD
+https://www.dropbox.com/s/s4nulcxzc0amnvp/PS4%20Controller.7z?dl=0	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+http://www.mediafire.com/folder/lmk275gl5ibwd	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+https://mega.nz/file/iXZzCTrZ#wM_pNehFpNQoOzw_Gof3j_ztnox2_4GyRwFnJB5vj0E	X084 (dolphin-threads.txt) Zelda Four Swords Adventure HD 1.0 (2023-08-19)
+https://drive.google.com/open?id=1jm1mCyJTbL7ejgDcg0PTz6Hh3f52qr-5	X095 (dolphin-threads.txt) Mii Channel + Miis 4K Resource Pack (v1.3.1 - 4/19/2020)
+https://mega.co.nz/#!gtUQHLyJ!KH1dlNzopGMRLUadhScUymyA-fm9j-xp6Mbuh9T3xOs	X100 (dolphin-threads.txt) Super Mario Sunshine [hires texture pack]
+https://drive.google.com/file/d/12IfCLOCOmFEgSqrFFsUIkr3MYMuwAr-M/view?usp=sharing	X104 (dolphin-threads.txt) Star Fox Adventures HD Texture Pack
+https://drive.google.com/file/d/1Ro3Iddq2fx9t88sY5On8kdWJX_FxKcpT/view	X113 (dolphin-threads.txt) Mario Party 9 HD
+http://www.mediafire.com/download/3791t2a8v7oa4b3/YGO-DT+HD+V-0-2-4.7z	X118 (dolphin-threads.txt) Yu-Gi-Oh! 5Ds Duel Traser HD texture project V0.2.4 - 693 cards (update 07/18/2016)
+https://www.dropbox.com/s/7vohpckac8nz6hb/Tales%20of%20Graces%20HD%20%5BPS3%20Buttons%20v1%5D.rar	X121 (dolphin-threads.txt) Tales of Graces High-Res Version (v1.1 | Mar 22, 2013)
+http://www.mediafire.com/file/978l7ls0ae6ngrc/Link.zip	X124 (dolphin-threads.txt) Twilight Princess Character Texture Project
+https://mega.co.nz/#!B5knhKJZ!bz62Iz1phB...OdBQy0zn_E	X129 (dolphin-threads.txt) Skyward Sword Texture Pack for Twilight Princess Project
+https://mega.nz/file/i4BkBA6Z#NWfanFXr3BcoetewlI_prxau-3EuDOc20rL_dkHSWz0	X136 (dolphin-threads.txt) Spyro - Enter the Dragonfly Texture pack
+https://drive.google.com/open?id=1wNchyKew9eZAfmNq4zQ5gvRHvIZvwrta	X140 (dolphin-threads.txt) New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI
+https://drive.google.com/open?id=1bg8hdYj1BjzAUnkOw0Rsvlzgrny4qR1n	X140 (dolphin-threads.txt) New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI
+https://www.mediafire.com/?h7o0h677dmns6bt	X144 (dolphin-threads.txt) Pac-Man 05 ((Pac-Man World 3 "HD" Texture Pack themed after Sonic 2006))
+https://mega.nz/file/L5pWXSqb#9COjYr9LqTB_tyBha_qN6LsXz-KboDGEhL04bqCB2uc	X147 (dolphin-threads.txt) WiiSports4K - Remastered Wii Sports Interface Textures [PSDs included]
