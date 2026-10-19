@@ -8,7 +8,7 @@ import validate_hd_textures_ipa as gate  # noqa: E402
 INDEX=(ROOT/'native/textures/catalogue/manifest.json.gz').read_bytes()
 LABELS=(ROOT/'packages/neo_texture_catalog/ios/Resources/labels.json').read_bytes()
 NOTICES={p.name:p.read_bytes() for p in (ROOT/'packages/neo_texture_catalog/ios/Resources').glob('*.txt')}
-FRAMEWORK=b' '.join(gate.FRAMEWORK_MARKERS)
+FRAMEWORK=b' '.join(gate.FRAMEWORK_MARKERS+gate.FRAMEWORK_MARKERS_489)
 
 
 def build_ipa(path,build=486,index=INDEX,labels=LABELS,drop=(None,b''),extra=None,expected=None,notices=None):
@@ -24,8 +24,8 @@ def build_ipa(path,build=486,index=INDEX,labels=LABELS,drop=(None,b''),extra=Non
         z.writestr(bundle+'labels.json',labels)
         for name,content in (NOTICES if notices is None else notices).items():z.writestr(bundle+name,content)
         for name,markers in gate.BRIDGE_MARKERS.items():
-            z.writestr(root+f'Frameworks/{name}.framework/{name}',binary(name,b' '.join(markers)))
-        z.writestr(root+'Frameworks/App.framework/App',binary('App',b'...neostation/texture_catalog...'))
+            z.writestr(root+f'Frameworks/{name}.framework/{name}',binary(name,b' '.join(markers+gate.BRIDGE_MARKERS_489.get(name,()))))
+        z.writestr(root+'Frameworks/App.framework/App',binary('App',b'...neostation/texture_catalog...beetle_psx_hw_texture_directory...'))
         if extra:z.writestr(bundle+extra,b'\x89PNG')
 
 
@@ -62,6 +62,18 @@ refused('armsx2_internal_bridge is missing initWithExpandedFolder',drop=('armsx2
 refused('libretro_internal_bridge is missing libretro-menu-hd-textures',drop=('libretro_internal_bridge',b'libretro-menu-hd-textures'))
 refused('dolphin_internal_bridge is missing NeoTextureHDPage',drop=('dolphin_internal_bridge',b'NeoTextureHDPage'))
 refused('Flutter channel is missing',drop=('App',b'neostation/texture_catalog'))
+# Build 489: Beetle PSX HW adapter, verified-file import, session report and Dart options required.
+with tempfile.TemporaryDirectory() as folder:
+    ipa=Path(folder)/'candidate.ipa';build_ipa(ipa,build=489)
+    assert gate.validate(ipa,489)['result']=='passed'
+refused('neo_texture_catalog is missing beetle_psx_hw_replace_textures',build=489,expected=489,
+        drop=('neo_texture_catalog',b'beetle_psx_hw_replace_textures'))
+refused('neo_texture_catalog is missing installPack:fromFile:',build=489,expected=489,
+        drop=('neo_texture_catalog',b'installPack:fromFile:engine:identity:replace:confirmed:completion:'))
+refused('libretro_internal_bridge is missing hd-textures: core=beetle',build=489,expected=489,
+        drop=('libretro_internal_bridge',b'hd-textures: core=beetle'))
+refused('AOT is missing beetle_psx_hw_texture_directory',build=489,expected=489,drop=('App',b'beetle_psx_hw_texture_directory'))
 print('PASS HD texture IPA gate: real index/labels/framework/channel/bridges accepted; wrong build, earlier build, tampered '
       'index, changed labels, a bundled texture file, a missing or changed catalogue notice, the N64 adapter and each '
-      'missing entry point refused (13 refusals)')
+      'missing entry point refused (13 refusals); Build 489 accepted with the Beetle adapter, verified-file import, '
+      'session report and Dart options, each refused when missing (4 refusals)')

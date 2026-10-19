@@ -8,7 +8,8 @@ posted, to measure its size and SHA-256 and to install it with the app's own
 installer; the app then accepts that exact file when the user imports it.
 
 Supported, all public links without an account:
-  direct        GitHub release assets, archive.org, any https URL of a file
+  direct        GitHub release assets, archive.org files (an item's /details/ page is
+                listed through its public metadata API), any https URL of a file
   gamebanana    https://gamebanana.com/dl/<file id> (the site's own download link)
   mediafire     file pages (/file/<key>/..., /?<key>, /download/<key>/...) and
                 folders (the public folder API lists their files)
@@ -296,13 +297,29 @@ def mega(url, destination, max_bytes):
 
 # ---------------------------------------------------------------------- entry
 
+def archive_item(url):
+    """The files of an archive.org item (its public metadata API), for a /details/<item> link."""
+    match = re.search(r'archive\.org/details/([^/?#]+)', url)
+    if not match:
+        return None
+    body, _ = _page(f'https://archive.org/metadata/{match.group(1)}')
+    files = []
+    for item in json.loads(body).get('files') or []:
+        if item.get('source') == 'original' and re.search(r'\.(zip|7z|rar)$', item.get('name') or '', re.I):
+            files.append({'name': item['name'], 'size': int(item.get('size') or 0),
+                          'url': f"https://archive.org/download/{match.group(1)}/{urllib.parse.quote(item['name'])}"})
+    return files
+
+
 def folder_files(url):
-    """The files of a shared MediaFire or Google Drive folder link, or None for a file link."""
+    """The files of a shared MediaFire or Google Drive folder link or of an archive.org item, or None for a file link."""
     host = kind(url)
     if host == 'mediafire':
         return mediafire_folder(url)
     if host == 'gdrive':
         return gdrive_folder(url)
+    if 'archive.org/details/' in url:
+        return archive_item(url)
     return None
 
 

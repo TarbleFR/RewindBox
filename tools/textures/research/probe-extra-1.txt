@@ -1,0 +1,12 @@
+# url<TAB>source — author lists found in the directory references (S008 rapka, S009 Admentus64, S010 thelostgrimm)
+https://mega.nz/#!2JEDHIQT!9UVh6ML_DH8zSjZbukqiNuReDkdKFwsDz8V2xQiQST4	S008 rapka [GM8E01] Metroid Prime
+https://mega.nz/#!Wd8CUSYC!4kXspst7w3DJbcNqvns1XdJQKqZL0Z7u39NfcMoEDmg	S008 rapka [GT3E52] Tony Hawk's Pro Skater 3
+https://mega.nz/#!LAs0nSYY!sfFojNtdYaSgXC5T73kgiTDBB6UPxWZEqdSA0FlQ-Ks	S008 rapka [GVJE08] Viewtiful Joe
+https://mega.nz/#!PNs3FAoA!sa2_hbDf46EvowN6zHKs1XQRAPzX0NF3MKOAm_WA3Do	S008 rapka [GRSEAF] Soulcalibur II
+https://mega.nz/#!DE9EFaSa!sZ3UwrdmyLKKh2IM3J6AR4J5OmUfy90rv21hPeWlNOc	S008 rapka [GALE01] Super Smash Bros. Melee
+https://mega.nz/#!OZ1RUKAQ!l225vo2KmIg6yCRUNQQqeeVgyK6RT4zxKxIHpwgSipY	S008 rapka [NAKE01] Pokemon Snap (Wii VC)
+https://mega.nz/#!TJ0jjIZA!UQh8r_luF9RekfPbOfNa-Cj9Qgjxj83uOjCPfhXNsgQ	S008 rapka [NAIE01] Wave Race 64 (Wii VC)
+https://mega.nz/#!uBFV0KRZ!9M6SROjZJ5Z3RlGMJu9UHSp1RYIZk4KfmGnssGwDkWg	S008 rapka [NAME01] Mario Kart 64 (Wii VC)
+https://drive.google.com/drive/folders/1hoPMTakHuaCw1qacNXDYw9aycxFMf6be	S009 Admentus64 Dolphin DDS BC7 (main)
+https://drive.google.com/drive/folders/14TYzTum7uDMGnzkNMV0py66O3fjmpD4l	S009 Admentus64 Dolphin PNG (backup)
+https://archive.org/details/gchdtexturepacks	S010 thelostgrimm GameCube HD texture packs (archive.org item)

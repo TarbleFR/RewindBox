@@ -1,5 +1,9 @@
 """Inspect the actual packaged HD texture catalogue (Build 486) and its four entry points.
 
+Since Build 489 the same gate also requires the Beetle PSX HW adapter and the
+verified-file import in the catalogue framework, the libretro session's report
+of Beetle's renderer, and the Beetle texture options in the Dart AOT.
+
 The IPA must carry the neo_texture_catalog framework, exactly one resource
 bundle whose index is byte-identical to native/textures/catalogue (the copy the
 app refreshes from) and whose labels are the generated twelve-language file,
@@ -29,6 +33,13 @@ BRIDGE_MARKERS = {
     'dolphin_internal_bridge': (b'NeoTextureHDPage', b'dolphinUser'),
     'libretro_internal_bridge': (b'NeoTextureHDPage', b'libretro-menu-hd-textures'),
 }
+# Since Build 489: the Beetle PSX HW adapter, the import of a verified manual
+# pack's file, the libretro session's report of Beetle's renderer, and the
+# Dart catalogue's Beetle texture options (Vulkan preference and locks).
+FRAMEWORK_MARKERS_489 = (b'beetle_psx_hw_replace_textures', b'beetle_psx_hw_track_textures', b'ps1-disc-serial',
+                         b'installPack:fromFile:engine:identity:replace:confirmed:completion:')
+BRIDGE_MARKERS_489 = {'libretro_internal_bridge': (b'hd-textures: core=beetle', b'beetleTextureStatus')}
+APP_MARKERS_489 = (b'beetle_psx_hw_texture_directory',)
 
 
 def validate(ipa, build):
@@ -74,18 +85,23 @@ def validate(ipa, build):
             raise ValueError('Unexpected files in the HD texture resource bundle: ' + ', '.join(extra[:5]))
         frameworks = {}
         framework = z.read(root + 'Frameworks/neo_texture_catalog.framework/neo_texture_catalog')
-        missing = [m.decode() for m in FRAMEWORK_MARKERS if m not in framework]
+        missing = [m.decode() for m in FRAMEWORK_MARKERS + (FRAMEWORK_MARKERS_489 if build >= 489 else ()) if m not in framework]
         if missing:
             raise ValueError('neo_texture_catalog is missing ' + ', '.join(missing))
         frameworks['neo_texture_catalog'] = hashlib.sha256(framework).hexdigest()
         for name, markers in BRIDGE_MARKERS.items():
             binary = z.read(root + f'Frameworks/{name}.framework/{name}')
+            markers = markers + (BRIDGE_MARKERS_489.get(name, ()) if build >= 489 else ())
             missing = [m.decode() for m in markers if m not in binary]
             if missing:
                 raise ValueError(f'{name} is missing ' + ', '.join(missing))
             frameworks[name] = hashlib.sha256(binary).hexdigest()
-        if b'neostation/texture_catalog' not in z.read(root + 'Frameworks/App.framework/App'):
+        aot = z.read(root + 'Frameworks/App.framework/App')
+        if b'neostation/texture_catalog' not in aot:
             raise ValueError('The HD textures Flutter channel is missing from the actual AOT')
+        missing = [m.decode() for m in (APP_MARKERS_489 if build >= 489 else ()) if m not in aot]
+        if missing:
+            raise ValueError('The actual AOT is missing ' + ', '.join(missing))
     systems = {}
     for pack in index['packs']:
         for system in pack.get('systems') or [pack['system']]:
