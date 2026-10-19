@@ -1,0 +1,354 @@
+[
+ {
+  "id": "psp-persona2-ep-ui-upscale",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona 2: Eternal Punishment UI Upscale",
+  "version": "0.50",
+  "games": [
+   {
+    "title": "Persona 2: Tsumi to Batsu (Eternal Punishment)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50581"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28838",
+  "source_id": "ppsspp-forum:28838",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28838",
+   "file_name": "P2-EternalPunishment-NPJH50581.zip",
+   "verify": {
+    "url": "https://mega.nz/file/ndgwUYjS#30dJKpDToFQu9HX_8BkVhcqERyoK1EdLw58a8D-Jd8o",
+    "sha256": "dd6616591ebcb9b3b2968438f40f75773bd086f4807f2648685e7154318f2172"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NPJH50581/",
+     "to": "NPJH50581"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-persona2-ep-ui-upscale"
+ },
+ {
+  "id": "psp-persona1-hd-ui-v4",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona HD UI (portrait modernization)",
+  "version": "4",
+  "games": [
+   {
+    "title": "Shin Megami Tensei: Persona",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10432"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26691",
+  "source_id": "ppsspp-forum:26691",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26691",
+   "file_name": "ULUS10432 - Version 4.zip",
+   "verify": {
+    "url": "https://mega.nz/file/qBBwhRAC#lHcH_Fz7jP5154Ei6_UldV5NcovnwSfUDF2F0-eEDKA",
+    "sha256": "025bc1d090480deee00b80ff78c25eeefa7c4ed364f38a8a4a437cecf66a196f"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10432/",
+     "to": "ULUS10432"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-persona1-hd-ui"
+ },
+ {
+  "id": "psp-lord-of-arcana-hd-wip",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Lord of Arcana HD Texture Project (WIP)",
+  "version": "1.00",
+  "games": [
+   {
+    "title": "Lord of Arcana",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10479"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=24959",
+  "source_id": "ppsspp-forum:24959",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=24959",
+   "file_name": "LordOfArcanaHD-USA-[1.00]-2-15-2019.zip",
+   "verify": {
+    "url": "https://drive.google.com/open?id=1nyq5fAXgb_7uCS8tBpwUGncA3rfrieBy",
+    "sha256": "a0e9391333b21c885d23920179ffc9266dc5885612e12c0e02c14f28cd04b98f"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10479/",
+     "to": "ULUS10479"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-lord-of-arcana-hd"
+ },
+ {
+  "id": "psp-digimon-adventure-hd",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Digimon Adventure HD Textures",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Digimon Adventure",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50686"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26873",
+  "source_id": "ppsspp-forum:26873",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26873",
+   "file_name": "NPJH50686.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1RmwugfsppuOpyHz7HalAYvpCgpgpwy3j/view?usp=sharing",
+    "sha256": "ad0953b0008f8a03e6c644cb5de9eb93b68f574f31dd63da63cd6dd99debbe8b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "NPJH50686"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-digimon-adventure-hd"
+ },
+ {
+  "id": "psp-lego-batman-ai-upscale",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "LEGO Batman AI Upscale Textures",
+  "version": "see page",
+  "games": [
+   {
+    "title": "LEGO Batman: The Videogame",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10380"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=37842",
+  "source_id": "ppsspp-forum:37842",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=37842",
+   "file_name": "LegoBatmanUpscale.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/15BzNRuXFd_yYJ61BLcA6dNnPa3vYnZw1/view?usp=sharing",
+    "sha256": "7c3cc0219b486a9c4da727a672f4be5ecc33ac0772bb96b65d98c7f862d20a22"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10380/",
+     "to": "ULUS10380"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-lego-batman-ai-upscale"
+ },
+ {
+  "id": "psp-gow-ghost-of-sparta-hd-lite",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "God of War: Ghost of Sparta HD Lite",
+  "version": "see page",
+  "games": [
+   {
+    "title": "God of War: Ghost of Sparta",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98737"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=40782",
+  "source_id": "ppsspp-forum:40782",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Installed as published: one textures.zip that PPSSPP reads in place.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=40782",
+   "file_name": "God of War Ghost of Sparta HD Lite Pack.zip",
+   "verify": {
+    "url": "https://mega.nz/file/I4Zx0QRQ#6tolo7QvACmpWiCw1VsoBll7sryeF-ZjcTqrSwh4AcU",
+    "sha256": "4c383acb169980b3618a2b97e7ff1cc9f41d3d4ec978d0af6d84cac83330d99e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "UCUS98737/",
+     "to": "UCUS98737"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-gow-ghost-of-sparta-hd-lite"
+ },
+ {
+  "id": "psp-fate-extra-ccc-hd-lite",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Fate/Extra CCC HD Lite",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Fate/Extra CCC",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50505"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=38996",
+  "source_id": "ppsspp-forum:38996",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Installed as published: one textures.zip that PPSSPP reads in place.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=38996",
+   "file_name": "Fate Extra CCC Textures.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1Cfz8yqXRoPYxhdAv21o2Xrr8sH9_kQQT/view",
+    "sha256": "3cbf03661bfc0250d479c2ec0a5e7e8c2b5d924054b4d3d62ae2ad1c90a4d73e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NPJH50505/",
+     "to": "NPJH50505"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-fate-extra-ccc-hd-lite"
+ }
+]

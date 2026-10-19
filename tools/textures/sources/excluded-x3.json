@@ -1,0 +1,77 @@
+[
+ {
+  "console": "3ds",
+  "source": "hd_portaitsver2_max.7z (https://gamebanana.com/dl/507220)",
+  "reason": "Etrian Odyssey Nexus portraits v2: superseded by v3 of the same pack (an older version is not counted)."
+ },
+ {
+  "console": "3ds",
+  "source": "Latest-Rollup.7z (https://www.dropbox.com/scl/fi/abwjqas645nuvm80oc4r0/Latest-Rollup.7z?rlkey=1xk5k4gyys4knto17qwir5lzj&st=thnngf44&dl=0)",
+  "reason": "Monster Hunter 4 Ultimate HD 'Latest-Rollup': an update of the 11.6 GB base pack, made to be copied over it; installed alone it would replace the base pack."
+ },
+ {
+  "console": "3ds",
+  "source": "aaxd_optional_extras_11-25-24.zip (https://gamebanana.com/dl/1329882)",
+  "reason": "Fire Emblem Awakening \"Amateur Awakening XD\" optional extras: add-on files of a game modification that needs its own base installation."
+ },
+ {
+  "console": "3ds",
+  "source": "aahd_optional_files_2-24-25_.zip (https://gamebanana.com/dl/1388289)",
+  "reason": "Fire Emblem Awakening \"Amateur Awakening HD\" optional files: add-on files of a game modification that needs its own base installation."
+ },
+ {
+  "console": "3ds",
+  "source": "S120 (3ds.txt) Fire Emblem Awakening — Expanded XD :: aaxd_11-25-24.zip (https://gamebanana.com/dl/1329881)",
+  "reason": "Fire Emblem Awakening \"Expanded XD\": a RomFS game modification (.lz game files), not custom textures."
+ },
+ {
+  "console": "3ds",
+  "source": "mgs3dpart2.zip (https://gamebanana.com/dl/456757)",
+  "reason": "Metal Gear Solid 3D HD Edition part 2: one part of a split download; the pack is not usable from this part alone."
+ },
+ {
+  "console": "gc/wii",
+  "source": "TLS_UHD_TexturePack_Patch1.7z (https://mega.nz/file/puNXmKTB#CU9B_VtjeFQWefvrPi8xum9yJw_GPJ5QRPV0MDPdBQE)",
+  "reason": "The Last Story UHD patch 1: an update of a pack published as a multi-volume 7z (.7z.001, .7z.002), which the installers do not read."
+ },
+ {
+  "console": "gc/wii",
+  "source": "NAAE01.7z (https://www.dropbox.com/s/2dn7oto8n8syjbm/NAAE01.7z?dl=0)",
+  "reason": "GhostlyDark's SM64 Reloaded (Dropbox): the same pack is already in the catalogue from its GitHub releases (wii-sm64-reloaded-*)."
+ },
+ {
+  "console": "3ds",
+  "source": "dq8-4xhd_patch_110.zip (https://gamebanana.com/dl/1124052)",
+  "reason": "Dragon Quest VIII HD 4x patch 1.10: an update of the base pack, which was not verified."
+ },
+ {
+  "console": "3ds",
+  "source": "dq8-2xhd_patch_110_c9d7f.zip (https://gamebanana.com/dl/1124053)",
+  "reason": "Dragon Quest VIII HD 2x patch 1.10: an update of the base pack, which was not verified."
+ },
+ {
+  "console": "gc",
+  "source": "texture_editors_srdx_hd_texture_pack_v2_reference_pngs.7z (https://gamebanana.com/dl/858147)",
+  "reason": "Sonic Riders DX V2 reference PNGs for texture editors: the same pack as its DDS releases, kept for editing; not listed again."
+ },
+ {
+  "console": "psp",
+  "source": "ULUS10438_textures_ktx2_20250216.zip (https://drive.google.com/file/d/1lXDeH0jbu7wJALRJmShzpDGHm2E4DyNg/view?usp=drive_link)",
+  "reason": "Fantasy Golf: Pangya: KTX2 (Basis Universal) textures, which NeoStation does not open for PPSSPP."
+ },
+ {
+  "console": "psp",
+  "source": "NPUG80325-textures-ktx2-20241229.zip (https://drive.google.com/file/d/1-8-vnH7vqXLxZHg7cXki5X-wkRXvnqZa/view?usp=sharing)",
+  "reason": "God of War: Chains of Olympus: KTX2 (Basis Universal) textures, which NeoStation does not open for PPSSPP."
+ },
+ {
+  "console": "psp",
+  "source": "Fix Textures ID COO.7z (https://drive.google.com/file/d/19OTCgPEy4pbOza71Q7uJGGe7VknLauH1/view?usp=sharing)",
+  "reason": "God of War: Chains of Olympus ID fix: a textures.ini alone, for the KTX2 pack above."
+ },
+ {
+  "console": "psp",
+  "source": "VC3_ReTL_texture_addon.zip (https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/download/v1/VC3_ReTL_texture_addon.zip)",
+  "reason": "Valkyria Chronicles 3 Extra Edition ReTranslation texture add-on: one of the four parts (7.3 GB) of steccas' release, which also redistributes efonte's pack; it stays a manual link (psp-valkyria-chronicles-3-ee-retranslation-steccas)."
+ }
+]

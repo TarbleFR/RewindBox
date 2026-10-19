@@ -726,7 +726,7 @@
  {
   "id": "3ds-ace-combat-ahl-plus-hd-ostrich",
   "title": "Ace Combat: Assault Horizon Legacy+ HD Texture Pack",
-  "version": "see page",
+  "version": "0.9.2",
   "games": [
    {
     "title": "Ace Combat: Assault Horizon Legacy+",
@@ -751,14 +751,29 @@
    "summary": "No licence stated (credits only)",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Hosted on MEGA and Google Drive by the author: download it from the author's page and import it.",
+  "notes": "The author's Google Drive file (v0.9.2), linked from the author's page: download it there and import it.",
   "download": {
    "automatable": false,
-   "page": "https://ostrichmods.com/ac3d.html"
+   "page": "https://ostrichmods.com/ac3d.html",
+   "file_name": "ac3d-hd-texture-pack-v0.9.2.zip",
+   "verify": {
+    "url": "https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf",
+    "sha256": "d37d0770b459258bdc323bce97dd51ab3e2b93e9d7afa45c6df414941379acfa"
+   }
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual"
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "000400000015C000"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "3ds-ace-combat-ahl-plus-hd-ostrich"
  },
  {
   "id": "3ds-yokai-watch-2-redefined-text",
