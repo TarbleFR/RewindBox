@@ -945,6 +945,8 @@ BUILD487_DELTA = {
     'test/rpcs3_build258_core_architecture_test.py',
     'test/native/rpcs3_diagnostics_test.mm',
     'build-utils/rpcs3/regenerate_canonical_delta.py',
+    'build-utils/validate_rpcs3_diag487_ipa.py',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm',
 }
 DELTA |= BUILD487_DELTA
 # Build 482 (18 October 2026): ARMSX2 blending accuracy (Core ABI 7, in-game menu)

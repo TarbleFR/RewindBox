@@ -51,7 +51,7 @@ TESTED=HOST_PRODUCT|CORE_PRODUCT|{'build-utils/rpcs3_core_syntax_gate.py','test/
 DELIVERY_ONLY={'AGENTS.md','docs/build487-plan.md','docs/evidence/rpcs3diag487-delivery.json',
     'docs/rpcs3-bottleneck-audit-2026-10-18.md',
     '.github/diagnostics/rpcs3diag487_delivery.py','.github/workflows/retroarch-delivery.yml',
-    '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py'}
+    '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py','build-utils/validate_rpcs3_diag487_ipa.py'}
 PRODUCT_PATHS=previous.PRODUCT_PATHS
 ARMSX2_CORE_INPUTS=previous.ARMSX2_CORE_INPUTS
 # Catalogue-authoring tooling of the HD texture session (Build 486), committed on
