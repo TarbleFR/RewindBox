@@ -1,6 +1,6 @@
-name: NeoStation RetroArch • Build 484 • SideStore
+name: NeoStation RetroArch • Build 485 • SideStore
 # The closed evidence reader captures historical ANSI-bearing logs privately.
-run-name: NeoStation Build ${{ inputs.build_number || '484' }} • ${{ github.sha }} • embedded libretro
+run-name: NeoStation Build ${{ inputs.build_number || '485' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
@@ -12,7 +12,7 @@ run-name: NeoStation Build ${{ inputs.build_number || '484' }} • ${{ github.sh
       build_number:
         description: New delivery build number
         required: true
-        default: '484'
+        default: '485'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -74,7 +74,7 @@ jobs:
         if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         else
-          python3 .github/diagnostics/touch484_delivery.py --dart-evidence --output build/delivery/dart-validation.json
+          python3 .github/diagnostics/hdtex485_delivery.py --dart-evidence --output build/delivery/dart-validation.json
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         fi
     - uses: subosito/flutter-action@v2
@@ -84,7 +84,7 @@ jobs:
         cache: true
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify closed validation input tree and previous CI success
-      run: python3 .github/diagnostics/touch484_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+      run: python3 .github/diagnostics/hdtex485_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
@@ -210,7 +210,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '484' }}-validation-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '485' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -268,7 +268,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '484' }}-native-reuse-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '485' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -278,7 +278,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/touch484_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
+        python3 .github/diagnostics/hdtex485_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
@@ -416,7 +416,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '484' }}-neoswap-native-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '485' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -455,7 +455,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/touch484_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
+        python3 .github/diagnostics/hdtex485_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Run the embedded libretro host against a test core
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
@@ -529,17 +529,17 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '484' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '485' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '484' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '485' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
-      ARMSX2_CORE_HOST_SHA: da091fa7483279844d5a7406dfafd0f447ab3099
-      ARMSX2_CORE_RUN_ID: '39155495662'
+      ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
+      ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: 1b4f65e2067823a518034ef1ee1ba06a5b5abe09
       RPCS3_CORE_RUN_ID: '39163125594'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
@@ -563,7 +563,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/touch484_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/hdtex485_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -580,7 +580,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/touch484_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/hdtex485_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -687,7 +687,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/touch484_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/hdtex485_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           build-utils/build_rpcs3_embedded_core.sh \
@@ -769,7 +769,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from touch484_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from hdtex485_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -946,7 +946,7 @@ jobs:
         assert identity['revision'] == source['revision'], identity
         assert identity['host_commit'] == os.environ['ARMSX2_CORE_HOST_SHA'], identity
         assert identity['architectures'] == ['arm64'], identity
-        assert identity['abi_version'] == source['abi_version'] == 7, identity
+        assert identity['abi_version'] == source['abi_version'] == 8, identity
         assert identity['release'] == source['release'] == 'iOSv2.6.0', identity
         assert identity['shader_chains'] and identity['performance_overlays'], identity
         assert identity['bundled_shader_presets'] == 12 and identity['bundled_shader_files'] == 28, identity
@@ -1452,17 +1452,17 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '484' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '485' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '484' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '485' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
-      ARMSX2_CORE_HOST_SHA: da091fa7483279844d5a7406dfafd0f447ab3099
-      ARMSX2_CORE_RUN_ID: '39155495662'
+      ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
+      ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: 1b4f65e2067823a518034ef1ee1ba06a5b5abe09
       RPCS3_CORE_RUN_ID: '39163125594'
       DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
@@ -1501,7 +1501,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/touch484_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/hdtex485_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4

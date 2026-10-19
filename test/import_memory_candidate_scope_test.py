@@ -1272,15 +1272,16 @@ for workflow_path in ('.github/workflows/neoswap-ipa.yml', '.github/workflows/io
     # Build412 (neoswap-ipa only): the f4bdeb5e Core artifact was purged on
     # 7 October 2026; the Core rebuilt at 899d3c44 has unchanged inputs.
     # Build 482 (18 October 2026): ARMSX2 Core rebuilt with ABI 7 (blending accuracy)
-    # at da091fa7, run 39155495662.
-    armsx2_pin = (('da091fa7483279844d5a7406dfafd0f447ab3099', "'39155495662'")
+    # at da091fa7, run 39155495662. Build 485 (19 October 2026): ABI 8 (HD texture
+    # packs) at 1343906f, run 39178893158.
+    armsx2_pin = (('1343906f05e33b40f10f7026a1a6e2327c338d0e', "'39178893158'")
                   if workflow_path == '.github/workflows/neoswap-ipa.yml'
                   else ('f4bdeb5e25f7622118a5c8ba23d8fc538e07ba07', "'37164423042'"))
     assert re.findall(r'(?m)^      ARMSX2_CORE_HOST_SHA: (.+)$', workflow) == [armsx2_pin[0]]
     assert re.findall(r'(?m)^      ARMSX2_CORE_RUN_ID: (.+)$', workflow) == [armsx2_pin[1]]
     assert 'Download pinned ARMSX2 2.6 Core' in workflow
-    # ios-ci.yml still pins the ABI 6 Core; the NeoSwap IPA uses the Build 482 ABI 7 Core.
-    expected_abi = 7 if workflow_path == '.github/workflows/neoswap-ipa.yml' else 6
+    # ios-ci.yml still pins the ABI 6 Core; the NeoSwap IPA uses the Build 485 ABI 8 Core.
+    expected_abi = 8 if workflow_path == '.github/workflows/neoswap-ipa.yml' else 6
     assert f"identity['abi_version'] == source['abi_version'] == {expected_abi}" in workflow
     pattern = r'(?m)^      DUSKLIGHT_CORE_HOST_SHA: (.+)$'
     if workflow_path == '.github/workflows/neoswap-ipa.yml':
