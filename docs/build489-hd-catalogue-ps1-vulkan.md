@@ -96,7 +96,20 @@ Résultat : run `39302343072`, job `118230500429`, source `cc9f93a9` (iPhone SE 
 
 ## 5. Vérifications
 
-⟪CI⟫
+Source testée : `7c6a86e425f678607a885d3be70bb64221919732` (catalogue figé, index `2026-10-19.85092338c53c`, SHA-256 `3d46adc5d94ccd9694ae7d94d902f6ad0c001139605920ef8cf3ce56840eb6c4`). Toutes les parties ont été exécutées sur cette source ; aucune n'est reprise d'une source antérieure.
+
+| Vérification | Run / job | Résultat |
+|---|---|---|
+| Partie `host` de `hd-textures.yml` (lecteurs, identités, installateur, libellés, catalogue, contrats, Flutter) | `39337036938` / `118349013443` | réussi : 51 vérifications, 207 entrées ; libellés en 12 langues (177 clés natives, 4 Flutter) ; `build_catalogue.py --check` (1 034 entrées) ; **290 enregistrements CI comparés à leurs artefacts** (`check_ci_records.py`, dont tous ceux recopiés des journaux dans ce cycle) ; 130 tests Flutter ; test de la porte de l’IPA (13 + 4 cas de refus) |
+| Partie `native` (magasin et adaptateurs sur Foundation, SDK iPhone) | `39337040395` / `118349023281` | réussi : 7 vérifications, 156 entrées ; 8 sources `neo_texture_catalog` compilées et liées pour iPhone ; 77 objets du pont libretro liés (aucun symbole du pont indéfini) |
+| Partie `uikit` (page Textures HD sur UIKit) | `39337043258` / `118349032287` | réussi : page unifiée avec le catalogue embarqué, rapport du moteur PS1 Beetle et options, import d'un pack manuel vérifié, douze langues |
+| Beetle PSX HW dans le Simulateur (`libretro-simulator.yml`, `beetle_only`) | `39337045728` / `118349042081` | réussi : trois scénarios en Vulkan (iPhone SE 3e génération, iOS 26.2, 66,2 s) ; `frame` : `replace=off recognized=0`, 611 images ; `pack` : `replace=on recognized=5` (11 fichiers écrits, dont 6 que le cœur ignore), 13 vérifications de cycle de vie ; `off` : `replace=off recognized=5` ; rectangle `f80000` sur fond `202020` présenté dans les trois ; `applied=0` (aucun envoi de texture dans le Simulateur) |
+| Garde MEGA de `hosts.py` (transfert bloqué → `quota`, fichier partiel supprimé) | `test/texture_verify_checks_test.py` (partie `host`) | 16 vérifications ; échoue sur l'ancien code (contrôle négatif local) |
+| Contrôle des liens du catalogue | `39315058711` | voir § 2 |
+
+Vérifications d'installation des packs : 17 runs du job `hosts` et `repositories` (§ 2), chacun enregistré dans `tools/textures/ci-records.json`.
+
+Mises au point antérieures de Beetle (échecs conservés) : runs `39278458161` (SIGSEGV sur l'image nulle `A1R5G5B5`, corrigé par la garde de format), `39291452900`, `39293066511`, `39296323461`, `39299245695` (attente GPU de la sonde, copies CPU→VRAM refusées par le Simulateur) et `39302343072` (premier passage des trois scénarios, source `cc9f93a9`). Aucun test n'a été supprimé ni affaibli.
 
 ## 6. Limites
 
