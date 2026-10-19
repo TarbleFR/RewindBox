@@ -51,6 +51,7 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
     return Identity(s, @"game_id", @"dolphin-disc-game-id", v, revision, nil, region, title, nil, nil);
   }
   if ([s isEqualToString:@"psp"]) return Identity(s, @"disc_id", @"psp-param-sfo-disc-id", [v stringByReplacingOccurrencesOfString:@"-" withString:@""], revision, nil, nil, title, nil, nil);
+  if ([s isEqualToString:@"n64"]) return Identity(s, @"rom_name", @"n64-rom-name-hex", v, revision, nil, nil, title, nil, nil);
   return Identity(s, @"title_id", @"3ds-title-id", v, nil, nil, nil, title, nil, nil);
 }
 
@@ -87,6 +88,7 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
   else if ([s isEqualToString:@"gc"] || [s isEqualToString:@"wii"]) r = NeoTextureIdentity::Dolphin(file, std::string(s.UTF8String));
   else if ([s isEqualToString:@"psp"]) r = NeoTextureIdentity::PSP(file);
   else if ([s isEqualToString:@"3ds"]) r = NeoTextureIdentity::N3DS(file);
+  else if ([s isEqualToString:@"n64"]) r = NeoTextureIdentity::N64(file);
   else { if (problem) *problem = @"unsupportedFormat"; return nil; }
   NSDictionary *identity = nil;
   NSDictionary *record = nil;

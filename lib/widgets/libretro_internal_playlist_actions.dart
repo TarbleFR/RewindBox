@@ -111,7 +111,7 @@ class _LibretroInternalPlaylistActionsState
     }
   }
 
-  // Build 486: the console's HD textures page (PSP, 3DS).
+  // Build 486: the console's HD textures page (PSP, 3DS; N64 since its catalogue).
   Future<void> _openTextures() async {
     _interaction(true);
     try {

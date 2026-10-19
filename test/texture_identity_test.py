@@ -295,9 +295,41 @@ def main():
         update[0x118:0x120] = struct.pack('<Q', 0x0004000E00033500)
         check('3ds', bytes(update) + bytes(0x100), {'problem': 'notGame'}, ok=False)
         check('3ds', bytes(0x400), {'problem': 'unsupportedFormat'}, ok=False)
+
+        # N64: GLideN64's RSP.romname (header 0x20..0x33, big-endian order, cut at
+        # the first NUL, trailing spaces removed) from the three byte orders.
+        def n64(name, country=b'E', version=0):
+            header = bytearray(0x1000)
+            header[0:4] = bytes.fromhex('80371240')
+            header[0x20:0x34] = name.ljust(20, b' ')[:20]
+            header[0x3B:0x3F] = b'NSM' + country
+            header[0x3F] = version
+            return bytes(header)
+
+        def swap16(data):
+            return b''.join(data[i:i + 2][::-1] for i in range(0, len(data), 2))
+
+        def swap32(data):
+            return b''.join(data[i:i + 4][::-1] for i in range(0, len(data), 4))
+
+        mario = n64(b'SUPER MARIO 64')
+        for data, order in ((mario, 'z64'), (swap16(mario), 'v64'), (swap32(mario), 'n64')):
+            check('n64', data, {'value': b'SUPER MARIO 64'.hex().upper(), 'folder': 'SUPER+MARIO+64', 'region': 'USA',
+                                'revision': '0', 'format': order})
+        check('n64', n64(b'ZELDA MAJORA\'S MASK', b'P', 1), {'value': b"ZELDA MAJORA'S MASK".hex().upper(), 'region': 'Europe',
+                                                            'revision': '1'})
+        cut = bytearray(n64(b'F-ZERO X'))
+        cut[0x28:0x34] = bytes(12)  # NUL after the name: cut there, as strlen does
+        check('n64', bytes(cut), {'value': b'F-ZERO X'.hex().upper(), 'folder': 'F-ZERO+X', 'region': 'USA'})
+        check('n64', n64(b'                    '), {'problem': 'noRomName'}, ok=False)
+        check('n64', n64(b'ROM/WITH:SEPARATORS'), {'problem': 'unsupportedRomName'}, ok=False)
+        check('n64', n64(b'\xc3\xa9TOILE'), {'problem': 'unsupportedRomName'}, ok=False)
+        check('n64', bytes(0x1000), {'problem': 'unsupportedFormat'}, ok=False)
+        check('n64', bytes.fromhex('80371240'), {'problem': 'unreadable'}, ok=False)
         print(f'PASS texture identity: {count[0]} synthetic images (PS2 ISO/raw MODE1/MODE2/CSO/ZSO serial + ELF CRC; '
               'GC/Wii ISO/WBFS/CISO/WIA/RVZ/GCZ/WAD ID + revision; PSP ISO/CSO/ZSO/PBP/UMD_DATA disc ID; '
-              '3DS NCSD/NCCH/CIA program ID, update refused; unreadable inputs reported)')
+              '3DS NCSD/NCCH/CIA program ID, update refused; N64 z64/v64/n64 ROM name, unusable names refused; '
+              'unreadable inputs reported)')
 
 
 if __name__ == '__main__':

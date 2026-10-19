@@ -14,13 +14,14 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Every method may read or write files: call them off the main thread.
 @protocol NeoTextureEngine <NSObject>
-/// dolphin, armsx2, ppsspp or azahar.
+/// dolphin, armsx2, ppsspp, azahar or mupen64plus.
 @property(nonatomic, copy, readonly) NSString *engineID;
 /// Folder whose children are the per-game texture folders the engine reads.
 @property(nonatomic, copy, readonly) NSString *texturesRoot;
 - (BOOL)supportsSystem:(NSString *)system;
 /// The game's own folder name below texturesRoot (for instance SLUS-21050/replacements,
-/// GZ2E01, ULUS10041 or 0004000000033500); nil when the identity has no usable ID.
+/// GZ2E01, ULUS10041, 0004000000033500 or the N64 ROM name SUPER MARIO 64); nil when
+/// the identity has no usable ID.
 - (nullable NSString *)folderForIdentity:(NSDictionary *)identity;
 /// Folders below texturesRoot the engine would actually read for this game,
 /// in the engine's order (Dolphin falls back to the region-free folder).
@@ -72,6 +73,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSArray<NSDictionary *> *)installedPacks;
 /// Removes one installed pack (and nothing else): {success, error}.
 - (NSDictionary *)removeInstalledPack:(NSDictionary *)installed;
+/// Called by the store after it installed, replaced or removed the pack
+/// folder `folder` (relative to texturesRoot): the engine drops what it
+/// derived from the previous files (Mupen64Plus-Next: GLideNHQ's hi-res
+/// texture cache of that ROM name, which the core reuses without reading the
+/// pack again).
+- (void)didChangePackFolder:(NSString *)folder;
 /// A page with the engine's own details for this game (live engine state),
 /// pushed from the unified page; nil when the engine has none.
 - (nullable id)detailsViewControllerWithLocale:(NSString *)locale;
@@ -100,6 +107,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (id<NeoTextureEngine>)ppssppWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory;
 /// Azahar user directory (<Documents>/Libretro/Saves/Azahar/Azahar).
 + (id<NeoTextureEngine>)azaharWithUserDirectory:(NSString *)userDirectory configDirectory:(NSString *)configDirectory;
+/// Mupen64Plus-Next (GLideN64): the libretro system directory, whose
+/// Mupen64plus/hires_texture/<ROM name> folders GLideNHQ reads;
+/// config = <Documents>/Libretro/Config.
++ (id<NeoTextureEngine>)mupen64plusWithSystemDirectory:(NSString *)systemDirectory configDirectory:(NSString *)configDirectory;
 /// Optional session hooks for libretro adapters: read (key, gameKey) -> value
 /// and write (key, value, gameKey) -> success. Used while that game runs.
 + (void)setLibretroSessionReader:(nullable NSString *_Nullable (^)(NSString *key, NSString *gameKey))reader
@@ -108,6 +119,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The option keys the libretro adapters write.
 + (NSString *)ppssppOptionKey;
 + (NSString *)azaharOptionKey;
++ (NSString *)mupen64plusOptionKey;
 @end
 
 /// INI helpers of the Dolphin adapter: one key in one section, every other

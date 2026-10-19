@@ -39,7 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Entry point for the engine bridges and the Flutter plugin, which reach
 /// this pod through the Objective-C runtime (NSClassFromString), so no engine
 /// pod links it. options:
-///   system      ps2, gc, wii, psp (pspminis) or 3ds; engine (optional) derives from it
+///   system      ps2, gc, wii, psp (pspminis), 3ds or n64; engine (optional) derives from it
 ///   locale, title, inGame (BOOL), presentation ("modal": with a Close button)
 ///   identity    what the running engine reported (unified form), or gameID
 ///               (+ revision, crc) in the engine's own terms, or
@@ -48,7 +48,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///   games       console page: [{path, title, gameKey}] of the console's library
 ///   dolphinUser Dolphin user directory; armsx2Data ARMSX2 data folder and
 ///   armsx2Host  the running game's ARMSX2TextureHost; libretroSaves and
-///   libretroConfig the libretro Saves and Config folders, sessionReader and
+///   libretroConfig the libretro Saves and Config folders, libretroSystem its
+///   System folder (Mupen64Plus-Next textures), sessionReader and
 ///   sessionWriter the running core's option hooks (see NeoTextureEngines).
 /// nil when the directories needed by the engine are missing.
 + (nullable UIViewController *)textureViewControllerWithOptions:(NSDictionary *)options;

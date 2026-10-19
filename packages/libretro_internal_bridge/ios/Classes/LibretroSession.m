@@ -3215,7 +3215,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 // Build 486: "HD textures" for the cores that replace textures (PPSSPP,
-// Azahar), the page shared by every embedded engine (neo_texture_catalog,
+// Azahar; Mupen64Plus-Next's GLideN64 since the N64 catalogue), the page
+// shared by every embedded engine (neo_texture_catalog,
 // created by name so this pod does not link it). Its switch is the core's own
 // option for this game, written through the running store: the session would
 // otherwise rewrite the game's options when it next saves them.
@@ -3226,11 +3227,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (nullable LibretroMenuRow *)hdTexturesRow {
   NSString *coreId = _configuration.coreId;
-  if (![coreId isEqualToString:@"ppsspp"] && ![coreId isEqualToString:@"azahar"]) return nil;
+  if (![coreId isEqualToString:@"ppsspp"] && ![coreId isEqualToString:@"azahar"] && ![coreId isEqualToString:@"mupen64plus_next"]) return nil;
   Class page = [self hdTexturesPageClass];
   SEL text = NSSelectorFromString(@"text:locale:");
   if (page == nil || ![page respondsToSelector:text] || _configuration.saveDirectory.length == 0 ||
-      _configuration.optionsDirectory.length == 0) return nil;
+      _configuration.optionsDirectory.length == 0 ||
+      ([coreId isEqualToString:@"mupen64plus_next"] && _configuration.systemDirectory.length == 0)) return nil;
   NSString *title = ((NSString * (*)(id, SEL, NSString *, NSString *))objc_msgSend)(page, text, @"title", _configuration.uiLocale ?: @"en");
   __weak LibretroSession *weakSelf = self;
   LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:title
@@ -3256,11 +3258,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     // Read when the game starts: the change applies at its next launch.
     return [options setValue:value forKey:key game:YES applyNow:NO];
   };
+  NSString *coreId = _configuration.coreId;
+  BOOL n64 = [coreId isEqualToString:@"mupen64plus_next"];
   NSMutableDictionary *arguments = [@{
-    @"system": [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
-    @"engine": _configuration.coreId,
+    @"system": n64 ? @"n64" : [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
+    @"engine": n64 ? @"mupen64plus" : coreId,
     @"libretroSaves": _configuration.saveDirectory,
     @"libretroConfig": _configuration.optionsDirectory,
+    @"libretroSystem": _configuration.systemDirectory ?: @"",
     @"gamePath": _configuration.contentPath ?: @"",
     @"gameKey": gameKey,
     @"title": _configuration.gameTitle ?: @"",

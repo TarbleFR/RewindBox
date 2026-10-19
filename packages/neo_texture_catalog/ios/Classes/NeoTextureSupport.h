@@ -22,10 +22,13 @@ BOOL NeoTexHTTPS(id _Nullable value);
 BOOL NeoTexSHA256(id _Nullable value);
 BOOL NeoTexPositive(id _Nullable value, unsigned long long limit);
 NSCharacterSet *NeoTexIdentityCharacters(void);
-/// ps2->armsx2, gc/wii->dolphin, psp->ppsspp, 3ds->azahar, else nil.
+/// ps2->armsx2, gc/wii->dolphin, psp->ppsspp, 3ds->azahar, n64->mupen64plus, else nil.
 NSString *_Nullable NeoTexEngineForSystem(NSString *_Nullable system);
 /// pspminis->psp, n3ds->3ds, gamecube->gc, lower case.
 NSString *NeoTexCanonicalSystem(id _Nullable system);
+/// The N64 ROM header name a catalogue identity writes in hexadecimal
+/// (n64-rom-name-hex), when it is a usable folder name; nil otherwise.
+NSString *_Nullable NeoTexN64RomName(NSString *_Nullable hex);
 /// type|scheme -> set of upper-case values (PS2 serials without separators).
 NSDictionary<NSString *, NSSet<NSString *> *> *NeoTexTypedIdentities(id _Nullable identities);
 NSSet<NSString *> *NeoTexRegions(id _Nullable regions);

@@ -22,10 +22,12 @@ void main() {
     for (final entry in {
       'ps2': 'ps2', 'PS2': 'ps2', 'gc': 'gc', 'ngc': 'gc', 'gamecube': 'gc', 'wii': 'wii',
       'psp': 'psp', 'pspminis': 'psp', '3ds': '3ds', 'n3ds': '3ds',
+      // Mupen64Plus-Next (GLideN64) reads hires_texture packs: the N64 catalogue.
+      'n64': 'n64', 'N64': 'n64',
     }.entries) {
       expect(TextureCatalogService.textureSystem(entry.key), entry.value, reason: entry.key);
     }
-    for (final folder in ['psx', 'n64', 'nds', 'ps3', 'switch', 'gba', 'dreamcast', 'wiiu', '']) {
+    for (final folder in ['psx', 'nes', 'nds', 'ps3', 'switch', 'gba', 'dreamcast', 'wiiu', '']) {
       expect(TextureCatalogService.textureSystem(folder), isNull, reason: folder);
     }
   });

@@ -24,7 +24,7 @@ namespace I = NeoTextureInstall;
 namespace A = NeoARMSX2Textures;
 
 static I::Engine Parse(const std::string& s) {
-  return s == "dolphin" ? I::Engine::dolphin : s == "armsx2" ? I::Engine::armsx2 : s == "ppsspp" ? I::Engine::ppsspp : I::Engine::azahar;
+  return s == "dolphin" ? I::Engine::dolphin : s == "armsx2" ? I::Engine::armsx2 : s == "ppsspp" ? I::Engine::ppsspp : s == "mupen64plus" ? I::Engine::mupen64plus : I::Engine::azahar;
 }
 
 static int List(const std::string& path) {

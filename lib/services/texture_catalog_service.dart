@@ -22,8 +22,9 @@ import 'logger_service.dart';
 abstract final class TextureCatalogService {
   static final _log = LoggerService.instance;
 
-  /// ps2, gc, wii, psp or 3ds for the systems whose embedded engine replaces
-  /// textures (ARMSX2, Dolphin, PPSSPP, Azahar); null for every other one.
+  /// ps2, gc, wii, psp, 3ds or n64 for the systems whose embedded engine
+  /// replaces textures (ARMSX2, Dolphin, PPSSPP, Azahar, Mupen64Plus-Next);
+  /// null for every other one.
   static String? textureSystem(String folderName) {
     final folder = folderName.toLowerCase();
     if (folder == 'ps2') return 'ps2';
@@ -31,8 +32,13 @@ abstract final class TextureCatalogService {
     if (folder == 'wii') return 'wii';
     if (folder == 'psp' || folder == 'pspminis') return 'psp';
     if (folder == '3ds' || folder == 'n3ds') return '3ds';
+    if (folder == 'n64') return 'n64';
     return null;
   }
+
+  /// Systems whose switch is a libretro core option, kept per game.
+  static bool _libretro(String textureSystem) =>
+      textureSystem == 'psp' || textureSystem == '3ds' || textureSystem == 'n64';
 
   /// Tests stand in for iOS; null means the real platform.
   @visibleForTesting
@@ -48,6 +54,7 @@ abstract final class TextureCatalogService {
       'armsx2Data': (await Armsx2InternalService.rootDirectory()).path,
       'libretroSaves': (await LibretroInternalService.savesDirectory()).path,
       'libretroConfig': (await LibretroInternalService.configDirectory()).path,
+      'libretroSystem': (await LibretroInternalService.systemDirectory()).path,
     };
   }
 
@@ -72,7 +79,7 @@ abstract final class TextureCatalogService {
         'locale': _locale(),
         'title': game.name,
         'gamePath': romPath,
-        if (textureSystem == 'psp' || textureSystem == '3ds')
+        if (_libretro(textureSystem))
           'gameKey': '${LibretroInternalService.systemKey(system)}/${game.romname}',
         ...await _directories(),
       });
@@ -97,7 +104,7 @@ abstract final class TextureCatalogService {
             {
               'path': row.romPath,
               'title': row.realName?.trim().isNotEmpty == true ? row.realName : row.romname,
-              if (textureSystem == 'psp' || textureSystem == '3ds') 'gameKey': _gameKey(consoleKey ?? systemFolder, row.romname),
+              if (_libretro(textureSystem)) 'gameKey': _gameKey(consoleKey ?? systemFolder, row.romname),
             },
       ];
       return await NeoTextureCatalog.open({

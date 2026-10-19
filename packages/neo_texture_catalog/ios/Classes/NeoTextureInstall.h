@@ -20,7 +20,7 @@
 
 namespace NeoTextureInstall {
 
-enum class Engine { dolphin, armsx2, ppsspp, azahar };
+enum class Engine { dolphin, armsx2, ppsspp, azahar, mupen64plus };
 
 inline std::string Lower(std::string s) { for (char& c : s) if (c >= 'A' && c <= 'Z') c = char(c + 32); return s; }
 inline std::string UpperCase(std::string s) { for (char& c : s) if (c >= 'a' && c <= 'z') c = char(c - 32); return s; }
@@ -73,8 +73,24 @@ inline bool Accepts(Engine engine, const std::string& relative) {
       if (std::count(name.begin(), name.end(), '.') > 2) return false;
       return raw == "png" || raw == "dds" || raw == "ktx";
     }
+    case Engine::mupen64plus: {
+      // GLideNHQ (TxHiResLoader::checkFileName, _loadHiResTextures): a Rice
+      // texture <ROM name>#<crc>#<fmt>#<siz>..., ".png" or ".bmp" compared
+      // exactly; names starting with "." and folders "~!~..." are skipped.
+      for (const auto& part : Split(relative))
+        if (part.front() == '.' || part.rfind("~!~", 0) == 0) return false;
+      const std::string raw = name.size() >= 4 ? name.substr(name.size() - 4) : "";
+      return (raw == ".png" || raw == ".bmp") && name.find('#') != std::string::npos && name.front() != '#';
+    }
   }
   return false;
+}
+
+// N64 (GLideNHQ): the ROM name a Rice texture names, the part before its first "#".
+inline std::string RiceName(const std::string& relative) {
+  const std::string name = Basename(relative);
+  const size_t hash = name.find('#');
+  return hash == std::string::npos ? "" : name.substr(0, hash);
 }
 
 // An accepted file that is a texture (not a Game ID marker, textures.ini or
@@ -87,6 +103,7 @@ inline bool IsTexture(Engine engine, const std::string& relative) {
     case Engine::ppsspp: return lower != "textures.ini";
     case Engine::azahar: return Basename(relative) != "pack.json";
     case Engine::armsx2: return true;
+    case Engine::mupen64plus: return true;
   }
   return false;
 }
@@ -239,6 +256,33 @@ inline Layout Detect(Engine engine, const std::vector<std::string>& files, const
         }
     }
     return finish(root, target);
+  }
+  if (engine == Engine::mupen64plus) {
+    // hires_texture/<ROM name>/, read with its subfolders: the folder named
+    // after the ROM name the textures carry, else the folders holding them.
+    std::vector<std::string> root;
+    bool other = false, have = false;
+    for (const auto& file : files) {
+      if (!Accepts(engine, file)) continue;
+      const std::string rom = RiceName(file);
+      found.insert(rom);
+      if (rom != current) other = true;
+      std::vector<std::string> folders = Split(file);
+      folders.pop_back();
+      const auto named = std::find(folders.begin(), folders.end(), rom);
+      if (named != folders.end()) folders.erase(named + 1, folders.end());
+      if (!have) { root = folders; have = true; continue; }
+      size_t common = 0;
+      while (common < root.size() && common < folders.size() && root[common] == folders[common]) ++common;
+      root.resize(common);
+    }
+    if (!have) { layout.problem = "noTextures"; return layout; }
+    // GLideNHQ loads a texture only when its name holds this ROM's name.
+    if (other && found.size() == 1) { layout.problem = "otherGame"; layout.found.assign(found.begin(), found.end()); return layout; }
+    layout.otherRegion = other;
+    std::string prefix;
+    for (const auto& part : root) prefix += part + "/";
+    return finish(prefix, current);
   }
   if (engine == Engine::ppsspp) {
     std::string root;

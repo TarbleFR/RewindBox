@@ -78,7 +78,14 @@ def main():
                                  ('azahar', 'pack.json', True), ('azahar', 'sub/pack.json', False), ('azahar', 'tex1_1x1.png', True),
                                  # Azahar: extension compared exactly, at most three dot parts, pack.json exactly.
                                  ('azahar', 'a/tex1_1x1.PNG', False), ('azahar', 'tex1_1x1.norm.png', True),
-                                 ('azahar', 'a.b.c.png', False), ('azahar', 'Pack.json', False), ('azahar', 'a/b.KTX', False)):
+                                 ('azahar', 'a.b.c.png', False), ('azahar', 'Pack.json', False), ('azahar', 'a/b.KTX', False),
+                                 # GLideNHQ: Rice names (<ROM>#crc#fmt#siz...), ".png"/".bmp" exactly, hidden and "~!~" skipped.
+                                 ('mupen64plus', 'SUPER MARIO 64/SUPER MARIO 64#2D3A1B6C#0#2_all.png', True),
+                                 ('mupen64plus', 'SM64/SUPER MARIO 64#2D3A1B6C#0#2_rgb.bmp', True),
+                                 ('mupen64plus', 'SM64/SUPER MARIO 64#2D3A1B6C#0#2_all.PNG', False),
+                                 ('mupen64plus', 'SM64/preview.png', False), ('mupen64plus', 'SM64/#2D3A1B6C#0#2_all.png', False),
+                                 ('mupen64plus', 'SM64/.hidden/SUPER MARIO 64#1#0#2_all.png', False),
+                                 ('mupen64plus', 'SM64/~!~off/SUPER MARIO 64#1#0#2_all.png', False)):
             assert (run('accepts', engine, path)[0] == 0) == ok, (engine, path)
 
         # Import layout detection.
@@ -113,6 +120,19 @@ def main():
         assert 'other=1' in out, out
         out = detect('azahar', '0004000000033500', ['MyPack/pack.json', 'MyPack/a.png'])
         assert 'rule=MyPack/>0004000000033500' in out, out
+
+        # N64: the folder named after the ROM, else the folders holding the textures.
+        rice = 'SUPER MARIO 64#2D3A1B6C#0#2_all.png'
+        out = detect('mupen64plus', 'SUPER MARIO 64', [f'SM64 Reloaded/SUPER MARIO 64/a/{rice}', f'SM64 Reloaded/SUPER MARIO 64/{rice}',
+                                                        'SM64 Reloaded/README.md'])
+        assert 'rule=SM64 Reloaded/SUPER MARIO 64/>SUPER MARIO 64' in out and 'other=0' in out, out
+        out = detect('mupen64plus', 'SUPER MARIO 64', [f'pack/hd/{rice}', f'pack/ui/{rice}'])
+        assert 'rule=pack/>SUPER MARIO 64' in out and 'other=0' in out, out
+        out = detect('mupen64plus', 'SUPER MARIO 64', ['THE LEGEND OF ZELDA/THE LEGEND OF ZELDA#1#0#2_all.png'])
+        assert 'problem=otherGame' in out and 'found=THE LEGEND OF ZELDA' in out, out
+        out = detect('mupen64plus', 'SUPER MARIO 64', [f'p/{rice}', 'p/SUPER MARIO 64 (J)#1#0#2_all.png'])
+        assert 'other=1' in out, out
+        assert 'problem=noTextures' in detect('mupen64plus', 'SUPER MARIO 64', ['p/readme.png'])
 
         # Install into each engine's real layout from ZIP, 7z and a folder.
         dolphin = temp / 'Dolphin/User/Load/Textures'
@@ -177,6 +197,14 @@ def main():
         code, out = run('install', 'azahar', n3ds, pack, '0004000000033500/=0004000000033500')
         assert code == 0 and (n3ds / '0004000000033500/pack.json').exists(), out
 
+        n64 = temp / 'Libretro/System/Mupen64plus/hires_texture'
+        n64.mkdir(parents=True)
+        pack = zip_of('n.zip', [(f'SM64/SUPER MARIO 64/{rice}', PNG), ('SM64/SUPER MARIO 64/notes.txt', b'x'),
+                                ('SM64/SUPER MARIO 64/~!~disabled/SUPER MARIO 64#1#0#2_all.png', PNG)])
+        code, out = run('install', 'mupen64plus', n64, pack, 'SM64/SUPER MARIO 64/=SUPER MARIO 64')
+        assert code == 0 and 'files=1' in out and (n64 / 'SUPER MARIO 64' / rice).read_bytes() == PNG, out
+        assert not (n64 / 'SUPER MARIO 64/notes.txt').exists() and not (n64 / 'SUPER MARIO 64/~!~disabled').exists()
+
         # Refusals leave the installed pack untouched and no staging behind.
         before = sorted(p.name for p in (dolphin / 'GZ2E01').iterdir())
         bad = zip_of('bad.zip', [('GZ2E01/tex1_bad.png', b'not a png at all')])
@@ -215,7 +243,7 @@ def main():
         assert run('recover', dolphin)[0] == 0
         assert (dolphin / 'GZ2E01/tex1_c.png').exists() and not list(dolphin.glob('.neostation-*'))
         print(f'PASS texture install: {checks[0]} checks (engine file filters, import layout detection for Dolphin/ARMSX2/'
-              'PPSSPP/Azahar incl. region-free, other region and other game, ZIP/7z/folder installs into the real '
+              'PPSSPP/Azahar/Mupen64Plus-Next incl. region-free, other region and other game, ZIP/7z/folder installs into the real '
               'layouts incl. Dolphin Game ID markers and excluded subfolders, update, removal limited to the pack folder with PS2 dumps kept, signature/empty/RAR/duplicate/'
               'link refusals without side effects, crash recovery)')
 

@@ -273,6 +273,48 @@ int main(int argc, char **argv) {
     CHECK([JSON([config stringByAppendingPathComponent:@"Games/Azahar.json"])[@"games"][@"3ds/Synthetic Ocarina"][@"citra_custom_textures"] isEqual:@"enabled"],
           "azahar per-game option");
 
+    // 4c'. Mupen64Plus-Next (GLideN64): <System>/Mupen64plus/hires_texture/<ROM name>, per-game
+    // core options True/False with the full alpha channel and the enhanced storage.
+    NSString *libretroSystem = [work stringByAppendingPathComponent:@"Libretro/System"];
+    id<NeoTextureEngine> mupen = [NeoTextureEngines mupen64plusWithSystemDirectory:libretroSystem configDirectory:config];
+    [NeoTextureIdentityReader setCachePath:[work stringByAppendingPathComponent:@"identities-n64.json"]];
+    NSString *romProblem = nil;
+    NSMutableDictionary *kart64 = [[NeoTextureIdentityReader identityForPath:fixtures[@"n64Rom"] system:@"n64" title:@"Synthetic Kart 64"
+                                                                     problem:&romProblem] mutableCopy];
+    CHECK([kart64[@"identities"][0][@"scheme"] isEqual:@"n64-rom-name-hex"] && [[mupen folderForIdentity:kart64] isEqual:@"SYNTHETIC KART 64"] &&
+          [kart64[@"regions"] isEqual:@[@"USA"]], "n64 identity %s (%s)", kart64.description.UTF8String, romProblem.UTF8String);
+    kart64[@"gameKey"] = @"n64/Synthetic Kart 64 (USA)";
+    CHECK([mupen supportsSystem:@"n64"] && ![mupen supportsSystem:@"psp"] && [mupen acceptsFile:@"a/SYNTHETIC KART 64#0123ABCD#0#2_all.png"] &&
+          ![mupen acceptsFile:@"a/preview.png"], "mupen64plus filters");
+    CHECK([[NeoTextureCatalog pack:packs[@"mupen64plus"] matchedTo:kart64][@"match"] isEqual:@"exact"], "n64 pack matched by the ROM name");
+    // GLideNHQ's caches of this ROM name (and another game's, kept) from an earlier pack.
+    NSString *n64Cache = [libretroSystem stringByAppendingPathComponent:@"Mupen64plus/cache"];
+    NSArray<NSString *> *kartCaches = @[[n64Cache stringByAppendingPathComponent:@"SYNTHETIC KART 64_HIRESTEXTURES.hts"],
+                                        [n64Cache stringByAppendingPathComponent:@"SYNTHETIC KART 64_HIRESTEXTURES.htc"]];
+    NSString *otherCache = [n64Cache stringByAppendingPathComponent:@"SUPER MARIO 64_HIRESTEXTURES.hts"];
+    [FM() createDirectoryAtPath:n64Cache withIntermediateDirectories:YES attributes:nil error:nil];
+    for (NSString *path in [kartCaches arrayByAddingObject:otherCache]) [[NSData dataWithBytes:"old" length:3] writeToFile:path atomically:YES];
+    outcome = Install(store, packs[@"mupen64plus"], mupen, kart64, NO, NO);
+    CHECK(!outcome.error, "mupen64plus install: %s", outcome.error.description.UTF8String);
+    CHECK(!Exists(kartCaches[0]) && !Exists(kartCaches[1]) && Exists(otherCache), "mupen64plus install drops the stale hi-res caches of its ROM only");
+    NSString *n64Folder = [libretroSystem stringByAppendingPathComponent:@"Mupen64plus/hires_texture/SYNTHETIC KART 64"];
+    CHECK([Files(n64Folder) isEqualToArray:(@[@"NeoStation-pack.json", @"ui/SYNTHETIC KART 64#0123ABCD#0#2_all.png"])], "mupen64plus files %s",
+          Files(n64Folder).description.UTF8String);
+    NSDictionary *n64Options = JSON([config stringByAppendingPathComponent:@"Games/Mupen64Plus-Next.json"])[@"games"][@"n64/Synthetic Kart 64 (USA)"];
+    CHECK([n64Options[@"mupen64plus-txHiresEnable"] isEqual:@"True"] && [n64Options[@"mupen64plus-txHiresFullAlphaChannel"] isEqual:@"True"] &&
+          [n64Options[@"mupen64plus-EnableEnhancedHighResStorage"] isEqual:@"True"], "mupen64plus per-game options %s", n64Options.description.UTF8String);
+    activation = [mupen activationForIdentity:kart64];
+    CHECK([activation[@"enabled"] isEqual:@YES] && [activation[@"setting"] isEqual:@"mupen64plus-txHiresEnable"], "mupen64plus activation %s",
+          activation.description.UTF8String);
+    CHECK([mupen setActivation:NO identity:kart64 error:nil] &&
+          [JSON([config stringByAppendingPathComponent:@"Games/Mupen64Plus-Next.json"])[@"games"][@"n64/Synthetic Kart 64 (USA)"][@"mupen64plus-txHiresEnable"] isEqual:@"False"] &&
+          ![[mupen activationForIdentity:kart64][@"enabled"] boolValue], "mupen64plus switched off");
+    rows = [store installedForIdentity:kart64 engine:mupen];
+    [[NSData dataWithBytes:"new" length:3] writeToFile:kartCaches[0] atomically:YES];
+    CHECK(rows.count == 1 && !Remove(store, rows.firstObject, mupen) && !Exists(n64Folder) &&
+          Exists([libretroSystem stringByAppendingPathComponent:@"Mupen64plus/hires_texture"]), "mupen64plus removal limited to the ROM folder");
+    CHECK(!Exists(kartCaches[0]) && Exists(otherCache), "mupen64plus removal drops the hi-res cache built from the removed pack");
+
     // 4d. ARMSX2: downloaded and verified here, installed by the Build 485 store (direct ZIP and expanded 7z).
     NSString *armsx2Data = [work stringByAppendingPathComponent:@"ARMSX2"];
     id<NeoTextureEngine> armsx2 = [NeoTextureEngines armsx2WithDataDirectory:armsx2Data gamePath:nil host:nil];

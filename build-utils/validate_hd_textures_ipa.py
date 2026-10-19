@@ -23,7 +23,7 @@ RESOURCES = ROOT / 'packages/neo_texture_catalog/ios/Resources'
 # Compiled markers: class and selector names, and literals the code really uses.
 FRAMEWORK_MARKERS = (b'NeoTextureHDPage', b'NeoTexturePackStore', b'NeoTextureCatalog', b'NeoTextureIdentityReader',
                      b'textureViewControllerWithOptions:', b'neostation/texture_catalog', b'ppsspp_texture_replacement',
-                     b'citra_custom_textures', b'HiresTextures', b'NeoStation-pack.json')
+                     b'citra_custom_textures', b'HiresTextures', b'NeoStation-pack.json', b'mupen64plus-txHiresEnable')
 BRIDGE_MARKERS = {
     'armsx2_internal_bridge': (b'NeoTextureHDPage', b'initWithExpandedFolder:sourceName:dataPath:game:'),
     'dolphin_internal_bridge': (b'NeoTextureHDPage', b'dolphinUser'),
@@ -59,9 +59,16 @@ def validate(ipa, build):
         languages = {'en', 'es', 'ru', 'zh', 'zh_Hant', 'pt', 'fr', 'de', 'it', 'id', 'ja', 'ko'}
         if set(labels) != languages:
             raise ValueError('Packaged HD texture labels are not exactly the twelve NeoStation languages')
-        # The bundle holds the index and the labels only: no pack is shipped.
+        # The bundle holds the index, the labels and the notices of the catalogues
+        # the index is derived from: no pack is shipped.
+        notices = sorted(p.name for p in RESOURCES.glob('*.txt'))
+        for notice in notices:
+            if bundle + '/' + notice not in names:
+                raise ValueError('Packaged HD texture bundle is missing the notice ' + notice)
+            if z.read(bundle + '/' + notice) != (RESOURCES / notice).read_bytes():
+                raise ValueError('Packaged notice differs from the source: ' + notice)
         extra = sorted(n[len(bundle) + 1:] for n in names if n.startswith(bundle + '/') and not n.endswith('/')
-                       and n[len(bundle) + 1:] not in ('manifest.json.gz', 'labels.json', 'Info.plist')
+                       and n[len(bundle) + 1:] not in ('manifest.json.gz', 'labels.json', 'Info.plist', *notices)
                        and not n[len(bundle) + 1:].startswith('_CodeSignature/'))
         if extra:
             raise ValueError('Unexpected files in the HD texture resource bundle: ' + ', '.join(extra[:5]))

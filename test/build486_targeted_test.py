@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Targeted Build 486 checks: the unified HD texture catalogue.
 
+Since the catalogue expansion of 19 October 2026 the same runner proves the
+next candidate that changes the catalogue pod (Build 488: Nintendo 64 adapter
+for Mupen64Plus-Next and the expanded index); its verdicts carry BUILD.
+
 Build 486 adds the neo_texture_catalog pod (catalogue, pack store, engine
 adapters for ARMSX2, Dolphin, PPSSPP and Azahar, the shared "HD textures"
 page), opens it from the PS2, GameCube/Wii and libretro in-game menus, the
@@ -38,6 +42,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build/build486'
+# The candidate these verdicts prove (486: first catalogue; 488: N64 adapter and expanded index).
+BUILD = 488
 
 PRODUCT = sorted({
     'lib/l10n/texture_catalog_locale.dart',
@@ -292,7 +298,7 @@ def main():
     inputs = digest(PRODUCT + SUPPORT + tested)
     verdict = {
         'result': 'passed',
-        'build': 486,
+        'build': BUILD,
         'part': part,
         'source': os.environ.get('GITHUB_SHA') or subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         'host': platform.platform(),

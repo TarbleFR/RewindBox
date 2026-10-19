@@ -312,6 +312,14 @@ def inventory(index, excluded, pending, entries):
         'Azahar pack.json options and PNG integrity, the Build 485 store for PS2). It does not show that an engine '
         'displays the textures in a game.',
         '',
+        'Manual PlayStation 2 entries noted "Listed in ps2ktxpak" are derived from the '
+        '[ps2ktxpak catalogue](https://github.com/ps2ktxpak/catalog) (commit `807733e5`), ARMSX2\'s PlayStation 2 '
+        'texture pack catalogue: game titles, serials, creators and the creators\' own pages, completed with the PCSX2 '
+        'GameIndex (`tools/textures/import_ps2ktxpak.py`). ps2ktxpak is MIT-licensed, Copyright (c) 2026 ps2ktxpak '
+        'contributors; its notice is shipped with the catalogue '
+        '(`packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt`). The packs themselves belong to their '
+        'creators, under the terms shown on their pages.',
+        '',
         '| Console | One tap | Manual | Games |',
         '|---|---:|---:|---:|',
     ]

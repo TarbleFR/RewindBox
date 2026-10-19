@@ -7,7 +7,7 @@
 #include <fstream>
 using namespace NeoTextureInstall;
 static Engine Parse(const std::string& s) {
-  return s == "dolphin" ? Engine::dolphin : s == "armsx2" ? Engine::armsx2 : s == "ppsspp" ? Engine::ppsspp : Engine::azahar;
+  return s == "dolphin" ? Engine::dolphin : s == "armsx2" ? Engine::armsx2 : s == "ppsspp" ? Engine::ppsspp : s == "mupen64plus" ? Engine::mupen64plus : Engine::azahar;
 }
 int main(int argc, char** argv) {
   if (argc < 3) return 64;

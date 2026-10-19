@@ -167,6 +167,19 @@ def main() -> int:
                                              ('0004000000033500/tex1_8x8_0123456789ABCDEF_12.png', png())])
         packs['azahar'] = pack('fixture-azahar', '3ds', 'azahar', game('Synthetic Ocarina', 'title_id', '3ds-title-id', '0004000000033500'),
                                serve('3ds.zip', n3ds), n3ds, [{'from': '0004000000033500/', 'to': '0004000000033500'}], 2)
+        rom = 'SYNTHETIC KART 64'
+        rice = f'{rom}#0123ABCD#0#2_all.png'
+        n64 = zip_of(fixtures / 'n64.zip', [(f'Pack (PNG HD)/{rom}/ui/{rice}', png()), (f'Pack (PNG HD)/{rom}/README.txt', b'x'),
+                                            ('Pack (PNG HD)/preview.png', png())])
+        packs['mupen64plus'] = pack('fixture-mupen64plus', 'n64', 'mupen64plus',
+                                    game('Synthetic Kart 64', 'rom_name', 'n64-rom-name-hex', rom.encode().hex().upper(), 'USA'),
+                                    serve('n64.zip', n64), n64, [{'from': f'Pack (PNG HD)/{rom}/', 'to': '{id}'}], 1)
+        cartridge = bytearray(0x1000)
+        cartridge[0:4] = bytes.fromhex('80371240')
+        cartridge[0x20:0x34] = rom.encode().ljust(20, b' ')
+        cartridge[0x3B:0x3F] = b'NSKE'
+        # .v64 byte order (16-bit words swapped), as many dumps are stored.
+        (fixtures / 'kart.v64').write_bytes(b''.join(bytes(cartridge[i:i + 2][::-1]) for i in range(0, len(cartridge), 2)))
         ps2game = game('Synthetic PS2', 'serial', 'ps2-disc-serial', 'SLUS-21137', 'USA')
         ps2zip = fixtures / 'ps2/pack-deflate.zip'
         packs['armsx2zip'] = pack('fixture-armsx2-zip', 'ps2', 'armsx2', ps2game, serve('ps2.zip', ps2zip), ps2zip,
@@ -182,7 +195,7 @@ def main() -> int:
         description = {
             'bundledManifest': str(BUNDLED), 'bundledPackCount': len(index['packs']),
             'bundledAvailableCount': sum(1 for p in index['packs'] if p['availability'] == 'available'),
-            'matches': probes(index), 'served': served, 'packs': packs, 'gcDisc': str(disc),
+            'matches': probes(index), 'served': served, 'packs': packs, 'gcDisc': str(disc), 'n64Rom': str(fixtures / 'kart.v64'),
         }
         (base / 'fixtures.json').write_text(json.dumps(description, indent=1))
 

@@ -74,12 +74,26 @@ NSString *NeoTexCanonicalSystem(id value) {
   return s;
 }
 
+NSString *NeoTexN64RomName(NSString *hex) {
+  if (hex.length < 2 || hex.length > 40 || hex.length % 2) return nil;
+  NSMutableString *name = [NSMutableString string];
+  for (NSUInteger i = 0; i < hex.length; i += 2) {
+    unsigned value = 0;
+    NSScanner *scanner = [NSScanner scannerWithString:[hex substringWithRange:NSMakeRange(i, 2)]];
+    if (![scanner scanHexInt:&value] || !scanner.isAtEnd || value < 0x20 || value > 0x7E) return nil;
+    [name appendFormat:@"%c", (char)value];
+  }
+  // GLideN64 drops trailing spaces; the name is one folder below hires_texture.
+  return NeoTexSafeRelativePath(name, 20, 1) && ![name hasPrefix:@"."] ? name : nil;
+}
+
 NSString *NeoTexEngineForSystem(NSString *system) {
   NSString *s = NeoTexCanonicalSystem(system);
   if ([s isEqualToString:@"ps2"]) return @"armsx2";
   if ([s isEqualToString:@"gc"] || [s isEqualToString:@"wii"]) return @"dolphin";
   if ([s isEqualToString:@"psp"]) return @"ppsspp";
   if ([s isEqualToString:@"3ds"]) return @"azahar";
+  if ([s isEqualToString:@"n64"]) return @"mupen64plus";
   return nil;
 }
 

@@ -162,8 +162,12 @@ static NSString *Region(NSString *region, NSString *locale) {
 
 static NSString *GameIDs(NSDictionary *identity) {
   NSMutableArray *ids = [NSMutableArray array];
-  for (NSDictionary *entry in [identity[@"identities"] isKindOfClass:NSArray.class] ? identity[@"identities"] : @[])
-    if (NeoTexString(entry[@"value"]).length) [ids addObject:entry[@"value"]];
+  for (NSDictionary *entry in [identity[@"identities"] isKindOfClass:NSArray.class] ? identity[@"identities"] : @[]) {
+    NSString *value = NeoTexString(entry[@"value"]);
+    // An N64 ROM name is matched in hexadecimal and shown as the name itself.
+    if ([NeoTexString(entry[@"scheme"]) isEqualToString:@"n64-rom-name-hex"]) value = NeoTexN64RomName(value) ?: value;
+    if (value.length) [ids addObject:value];
+  }
   return [ids componentsJoinedByString:@", "];
 }
 
@@ -492,8 +496,16 @@ static NSString *AbsolutePath(id value) {
     return data ? [NeoTextureEngines armsx2WithDataDirectory:data gamePath:AbsolutePath(options[@"gamePath"]) host:options[@"armsx2Host"]] : nil;
   }
   NSString *saves = AbsolutePath(options[@"libretroSaves"]), *config = AbsolutePath(options[@"libretroConfig"]);
-  if (!saves || !config) return nil;
   id<NeoTextureEngine> engine = nil;
+  // Mupen64Plus-Next reads its high-resolution textures below the libretro system directory.
+  if ([engineID isEqualToString:@"mupen64plus"]) {
+    NSString *system = AbsolutePath(options[@"libretroSystem"]);
+    if (system && config) engine = [NeoTextureEngines mupen64plusWithSystemDirectory:system configDirectory:config];
+    if (engine && (options[@"sessionReader"] || options[@"sessionWriter"]))
+      [NeoTextureEngines setLibretroSessionReader:options[@"sessionReader"] writer:options[@"sessionWriter"] forEngine:engine];
+    return engine;
+  }
+  if (!saves || !config) return nil;
   // The libretro session gives each core <Saves>/<library name> as its save
   // directory: PPSSPP's memory stick, and Azahar's user folder below it.
   if ([engineID isEqualToString:@"ppsspp"]) engine = [NeoTextureEngines ppssppWithSaveDirectory:[saves stringByAppendingPathComponent:@"PPSSPP"] configDirectory:config];
@@ -781,6 +793,9 @@ static NSString *AbsolutePath(id value) {
   }
   NSString *notice = [activation[@"appliesAt"] isEqual:@"live"] ? @"liveNotice" : self.inGame ? @"restartNotice" : @"nextLaunchNotice";
   section.footer = [NSString stringWithFormat:@"%@\n\n%@", [self t:notice with:@{@"setting": NeoTexString(activation[@"setting"])}], [self t:@"loadedNotice"]];
+  // GLideNHQ reads a whole new pack before the game's first frame (then reuses its cache).
+  if ([self.engine.engineID isEqualToString:@"mupen64plus"])
+    section.footer = [NSString stringWithFormat:@"%@\n\n%@", section.footer, [self t:@"firstLaunchNotice.mupen64plus"]];
   return section;
 }
 

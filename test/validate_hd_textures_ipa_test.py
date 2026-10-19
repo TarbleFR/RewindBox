@@ -7,10 +7,11 @@ import validate_hd_textures_ipa as gate  # noqa: E402
 
 INDEX=(ROOT/'native/textures/catalogue/manifest.json.gz').read_bytes()
 LABELS=(ROOT/'packages/neo_texture_catalog/ios/Resources/labels.json').read_bytes()
+NOTICES={p.name:p.read_bytes() for p in (ROOT/'packages/neo_texture_catalog/ios/Resources').glob('*.txt')}
 FRAMEWORK=b' '.join(gate.FRAMEWORK_MARKERS)
 
 
-def build_ipa(path,build=486,index=INDEX,labels=LABELS,drop=(None,b''),extra=None,expected=None):
+def build_ipa(path,build=486,index=INDEX,labels=LABELS,drop=(None,b''),extra=None,expected=None,notices=None):
     # drop=(binary, marker): that marker is left out of that one binary.
     def binary(name,content):return content.replace(drop[1],b'') if drop[0]==name else content
     root='Payload/NeoStation.app/'
@@ -21,6 +22,7 @@ def build_ipa(path,build=486,index=INDEX,labels=LABELS,drop=(None,b''),extra=Non
         z.writestr(bundle+'Info.plist',plistlib.dumps({'CFBundleIdentifier':'org.cocoapods.NeoTextureCatalog'}))
         z.writestr(bundle+'manifest.json.gz',index)
         z.writestr(bundle+'labels.json',labels)
+        for name,content in (NOTICES if notices is None else notices).items():z.writestr(bundle+name,content)
         for name,markers in gate.BRIDGE_MARKERS.items():
             z.writestr(root+f'Frameworks/{name}.framework/{name}',binary(name,b' '.join(markers)))
         z.writestr(root+'Frameworks/App.framework/App',binary('App',b'...neostation/texture_catalog...'))
@@ -51,10 +53,15 @@ tampered=bytearray(INDEX);tampered[-1]^=1
 refused('differs from the hosted and tested index',index=bytes(tampered))
 refused('labels differ',labels=LABELS.replace(b'"en"',b'"EN"',1))
 refused('Unexpected files',extra='pack/tex1_256x256_0123456789abcdef_14.png')
+assert 'ps2ktxpak-LICENSE.txt' in NOTICES
+refused('missing the notice ps2ktxpak-LICENSE.txt',notices={k:v for k,v in NOTICES.items() if k!='ps2ktxpak-LICENSE.txt'})
+refused('notice differs from the source: ps2ktxpak-LICENSE.txt',notices={**NOTICES,'ps2ktxpak-LICENSE.txt':b'MIT'})
+refused('neo_texture_catalog is missing mupen64plus-txHiresEnable',drop=('neo_texture_catalog',b'mupen64plus-txHiresEnable'))
 refused('neo_texture_catalog is missing textureViewControllerWithOptions:',drop=('neo_texture_catalog',b'textureViewControllerWithOptions:'))
 refused('armsx2_internal_bridge is missing initWithExpandedFolder',drop=('armsx2_internal_bridge',b'initWithExpandedFolder:sourceName:dataPath:game:'))
 refused('libretro_internal_bridge is missing libretro-menu-hd-textures',drop=('libretro_internal_bridge',b'libretro-menu-hd-textures'))
 refused('dolphin_internal_bridge is missing NeoTextureHDPage',drop=('dolphin_internal_bridge',b'NeoTextureHDPage'))
 refused('Flutter channel is missing',drop=('App',b'neostation/texture_catalog'))
 print('PASS HD texture IPA gate: real index/labels/framework/channel/bridges accepted; wrong build, earlier build, tampered '
-      'index, changed labels, a bundled texture file and each missing entry point refused (10 refusals)')
+      'index, changed labels, a bundled texture file, a missing or changed catalogue notice, the N64 adapter and each '
+      'missing entry point refused (13 refusals)')

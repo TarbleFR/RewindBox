@@ -24,6 +24,7 @@ static NeoTextureInstall::Engine EngineKind(id<NeoTextureEngine> engine) {
   if ([name isEqualToString:@"dolphin"]) return NeoTextureInstall::Engine::dolphin;
   if ([name isEqualToString:@"armsx2"]) return NeoTextureInstall::Engine::armsx2;
   if ([name isEqualToString:@"ppsspp"]) return NeoTextureInstall::Engine::ppsspp;
+  if ([name isEqualToString:@"mupen64plus"]) return NeoTextureInstall::Engine::mupen64plus;
   return NeoTextureInstall::Engine::azahar;
 }
 
@@ -746,6 +747,8 @@ static BOOL LooksLikeHTML(NSString *path) {
     return PackError(problem == "noTextures" ? NeoTexturePackErrorLayout : NeoTexturePackErrorWrite,
                      problem == "noTextures" ? @"noTextures" : @"writeFailed", nil);
   cleanup.path.clear();
+  if ([engine respondsToSelector:@selector(didChangePackFolder:)])
+    for (NSString *target in targets) [engine didChangePackFolder:target];
   return nil;
 }
 
@@ -945,6 +948,7 @@ static BOOL LooksLikeHTML(NSString *path) {
     const BOOL removed = Delegates(engine) ? [[engine removeInstalledPack:installed][@"success"] boolValue]
                                            : relative.length && NeoTexSafeRelativePath(relative, 160, 2) &&
                                                  NeoTextureInstall::Remove(Std(engine.texturesRoot), Std(relative));
+    if (removed && [engine respondsToSelector:@selector(didChangePackFolder:)]) [engine didChangePackFolder:relative];
     NSError *error = removed ? nil : PackError(NeoTexturePackErrorWrite, @"removeFailed", nil);
     dispatch_async(dispatch_get_main_queue(), ^{
       completion(error);

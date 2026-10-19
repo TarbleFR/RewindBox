@@ -234,6 +234,26 @@ static NSString *Fixtures(void) { return NSProcessInfo.processInfo.environment[@
   [self dismiss];
 }
 
+- (void)testNintendo64UsesGLideN64OptionsOfTheGame {
+  NSString *system = [self.work stringByAppendingPathComponent:@"Libretro/System"], *config = [self.work stringByAppendingPathComponent:@"Libretro/Config"];
+  // The engine reports the ROM header name in hexadecimal (the identity reader's form): SUPER MARIO 64.
+  UIViewController *page = [self present:@{@"system": @"n64", @"libretroSystem": system, @"libretroConfig": config,
+                                           @"gameID": @"5355504552204D4152494F203634", @"gameKey": @"n64/Super Mario 64 (USA)",
+                                           @"title": @"Super Mario 64", @"locale": @"fr"}];
+  XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTexturePack.n64-sm64-reloaded-png-hd") != nil; } timeout:20], @"%@", Rows(page));
+  XCTAssertNil(Row(page, @"neoTexturePack.n64-mk64-reloaded-png-hd"), @"another game's pack is not offered: %@", Rows(page));
+  void (^switched)(BOOL) = [Row(page, @"neoTextureEnable") valueForKey:@"switched"];
+  switched(YES);
+  NSString *games = [config stringByAppendingPathComponent:@"Games/Mupen64Plus-Next.json"];
+  XCTAssertTrue([self until:^BOOL {
+    NSData *json = [NSData dataWithContentsOfFile:games];
+    NSDictionary *entry = (json ? [NSJSONSerialization JSONObjectWithData:json options:0 error:nil] : nil)[@"games"][@"n64/Super Mario 64 (USA)"];
+    return [entry[@"mupen64plus-txHiresEnable"] isEqual:@"True"] && [entry[@"mupen64plus-txHiresFullAlphaChannel"] isEqual:@"True"] &&
+           [entry[@"mupen64plus-EnableEnhancedHighResStorage"] isEqual:@"True"];
+  } timeout:10]);
+  [self dismiss];
+}
+
 - (void)testEveryLanguageNamesThePage {
   NSArray *languages = @[@"en", @"es", @"ru", @"zh", @"zh-Hant", @"pt", @"fr", @"de", @"it", @"id", @"ja", @"ko"];
   NSString *user = [self.work stringByAppendingPathComponent:@"Dolphin/User"];

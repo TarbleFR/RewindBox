@@ -30,7 +30,7 @@ static UIViewController *TopViewController(void) {
     // Only the keys the page reads, with the types it expects (no blocks from Dart).
     NSMutableDictionary *options = [NSMutableDictionary dictionary];
     for (NSString *key in @[@"system", @"engine", @"locale", @"title", @"gamePath", @"gameKey", @"dolphinUser", @"armsx2Data",
-                            @"libretroSaves", @"libretroConfig"])
+                            @"libretroSaves", @"libretroConfig", @"libretroSystem"])
       if ([args[key] isKindOfClass:NSString.class]) options[key] = args[key];
     if ([args[@"games"] isKindOfClass:NSArray.class]) {
       NSMutableArray *games = [NSMutableArray array];

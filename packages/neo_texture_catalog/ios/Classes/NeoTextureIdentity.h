@@ -13,6 +13,11 @@
 //   3DS:   program ID (NCCH 0x118, what Azahar names load/textures after)
 //          from NCSD (.3ds/.cci) and NCCH (.cxi/.app); title ID from the TMD
 //          of a CIA. Encrypted containers keep their headers in clear.
+//   N64:   the ROM header name GLideN64 names hires_texture/<name> after
+//          (RSP_Init: bytes 0x20..0x33 in big-endian order, cut at the first
+//          NUL, trailing spaces removed) from .z64, .v64 or .n64 byte orders;
+//          the catalogue matches it in hexadecimal (identity values are
+//          [A-Za-z0-9-]); country code 0x3E (region), version 0x3F.
 #pragma once
 #include <algorithm>
 #include <array>
@@ -485,6 +490,45 @@ inline Result N3DS(const std::string& path) {
   if (category == 0x0004000Eu || category == 0x0004008Cu) { r.problem = "notGame"; r.value.clear(); return r; }
   r.value = Hex16(program);
   r.folder = r.value;
+  return r;
+}
+
+inline Result N64(const std::string& path) {
+  Result r;
+  r.system = "n64"; r.type = "rom_name"; r.scheme = "n64-rom-name-hex";
+  Reader reader(path);
+  if (!reader.good()) { r.problem = "unreadable"; return r; }
+  unsigned char raw[0x40] = {0}, h[0x40] = {0};
+  if (reader.length() < sizeof(raw) || !reader.read(0, raw, sizeof(raw))) { r.problem = "unreadable"; return r; }
+  // The first word is 0x80371240 in big-endian (.z64) order.
+  const uint32_t magic = BE32(raw);
+  for (size_t i = 0; i < sizeof(raw); ++i) {
+    if (magic == 0x80371240u) { h[i] = raw[i]; r.format = "z64"; }
+    else if (magic == 0x37804012u) { h[i] = raw[i ^ 1]; r.format = "v64"; }
+    else if (magic == 0x40123780u) { h[i] = raw[i ^ 3]; r.format = "n64"; }
+    else { r.problem = "unsupportedFormat"; return r; }
+  }
+  std::string name;
+  for (size_t i = 0x20; i < 0x34 && h[i]; ++i) name += char(h[i]);
+  while (!name.empty() && name.back() == ' ') name.pop_back();
+  // mbstowcs turns the name into the folder name: only printable ASCII is the same folder on every system.
+  if (name.empty()) { r.problem = "noRomName"; return r; }
+  for (unsigned char c : name)
+    if (c < 0x20 || c > 0x7E || c == '/' || c == '\\' || c == ':') { r.problem = "unsupportedRomName"; return r; }
+  if (name == "." || name == ".." || name.front() == ' ' || name.front() == '.') { r.problem = "unsupportedRomName"; return r; }
+  static const char digits[] = "0123456789ABCDEF";
+  for (unsigned char c : name) { r.value += digits[c >> 4]; r.value += digits[c & 15]; }
+  r.folder = name;
+  r.title = name;
+  r.revision = std::to_string(unsigned(h[0x3F]));
+  switch (h[0x3E]) {
+    case 'E': case 'N': r.region = "USA"; break;
+    case 'J': r.region = "Japan"; break;
+    case 'P': case 'D': case 'F': case 'I': case 'S': case 'U': case 'X': case 'Y': case 'H': case 'W': case 'L': r.region = "Europe"; break;
+    case 'K': r.region = "Korea"; break;
+    case 'A': case 'C': r.region = "Asia"; break;
+    default: break;
+  }
   return r;
 }
 

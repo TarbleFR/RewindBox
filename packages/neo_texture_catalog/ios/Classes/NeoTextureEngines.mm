@@ -14,6 +14,13 @@
 //    textures.ini (+ PNG/DDS/ZIM or textures.zip). Switch: core option, per game.
 //  Azahar libretro: <user>/load/textures/<program ID %016X>, png|dds|ktx and
 //    an optional pack.json. Switch: core option, per game.
+//  Mupen64Plus-Next libretro (GLideN64, GLideNHQ): <system>/Mupen64plus/
+//    hires_texture/<ROM header name>, Rice textures <name>#<crc>#... .png|.bmp,
+//    subfolders read. Switch: core options mupen64plus-txHiresEnable (True),
+//    with the full alpha channel the current packs are made for and the
+//    enhanced hi-res storage (the core's "lazy loading": decoded textures in a
+//    file of <system>/Mupen64plus/cache instead of memory). That cache is
+//    reused without reading the pack again: changing a pack drops it.
 #import "Public/NeoTextureEngine.h"
 #import "NeoTextureSupport.h"
 #import "Public/NeoTextureIdentityReader.h"
@@ -24,6 +31,7 @@
 
 static NSString *const kPPSSPPOption = @"ppsspp_texture_replacement";
 static NSString *const kAzaharOption = @"citra_custom_textures";
+static NSString *const kMupen64plusOption = @"mupen64plus-txHiresEnable";
 
 NSString *NeoTextureINIValue(NSString *text, NSString *section, NSString *key) {
   const auto value = NeoTextureINI::Value(text.UTF8String ?: "", section.UTF8String, key.UTF8String);
@@ -536,25 +544,37 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 @end
 
-#pragma mark - Libretro (PPSSPP, Azahar)
+#pragma mark - Libretro (PPSSPP, Azahar, Mupen64Plus-Next)
 
 @interface NeoTextureLibretro : NSObject <NeoTextureEngine>
 @property(nonatomic, copy) NSString *identifier, *coreLibrary, *optionKey, *root, *configDirectory;
+/// The option's values (PPSSPP and Azahar: enabled/disabled; Mupen64Plus-Next: True/False).
+@property(nonatomic, copy) NSString *onValue, *offValue;
+/// Options written with the switch turned on (key -> value), before it.
+@property(nonatomic, copy) NSDictionary<NSString *, NSString *> *companions;
 @property(nonatomic, copy) NSString *_Nullable (^sessionReader)(NSString *key, NSString *gameKey);
 @property(nonatomic, copy) BOOL (^sessionWriter)(NSString *key, NSString *value, NSString *gameKey);
 @end
 @implementation NeoTextureLibretro
 - (NSString *)engineID { return self.identifier; }
 - (NSString *)texturesRoot { return self.root; }
+- (NeoTextureInstall::Engine)installEngine {
+  if ([self.identifier isEqualToString:@"ppsspp"]) return NeoTextureInstall::Engine::ppsspp;
+  if ([self.identifier isEqualToString:@"mupen64plus"]) return NeoTextureInstall::Engine::mupen64plus;
+  return NeoTextureInstall::Engine::azahar;
+}
 - (BOOL)supportsSystem:(NSString *)system {
   NSString *s = NeoTexCanonicalSystem(system);
-  return [self.identifier isEqualToString:@"ppsspp"] ? [s isEqualToString:@"psp"] : [s isEqualToString:@"3ds"];
+  if ([self.identifier isEqualToString:@"ppsspp"]) return [s isEqualToString:@"psp"];
+  if ([self.identifier isEqualToString:@"mupen64plus"]) return [s isEqualToString:@"n64"];
+  return [s isEqualToString:@"3ds"];
 }
 - (NSString *)folderForIdentity:(NSDictionary *)identity {
   if ([self.identifier isEqualToString:@"ppsspp"]) {
     NSString *disc = [FirstIdentity(identity, @"psp-param-sfo-disc-id").uppercaseString stringByReplacingOccurrencesOfString:@"-" withString:@""];
     return Matches(disc, @"^[A-Z]{4}[0-9]{5}$") ? disc : nil;
   }
+  if ([self.identifier isEqualToString:@"mupen64plus"]) return NeoTexN64RomName(FirstIdentity(identity, @"n64-rom-name-hex"));
   NSString *title = FirstIdentity(identity, @"3ds-title-id").uppercaseString;
   return Matches(title, @"^[0-9A-F]{16}$") ? title : nil;
 }
@@ -565,9 +585,7 @@ static NSDictionary *Asking(NSDictionary *inspection) {
       ? @[folder] : @[];
 }
 - (BOOL)acceptsFile:(NSString *)relativePath {
-  return NeoTextureInstall::Accepts([self.identifier isEqualToString:@"ppsspp"] ? NeoTextureInstall::Engine::ppsspp
-                                                                              : NeoTextureInstall::Engine::azahar,
-                                    relativePath.UTF8String ?: "");
+  return NeoTextureInstall::Accepts([self installEngine], relativePath.UTF8String ?: "");
 }
 - (NSString *)problemWithStagedFolder:(NSString *)folder pack:(NSDictionary *)pack {
   NSFileManager *fm = NSFileManager.defaultManager;
@@ -577,7 +595,21 @@ static NSDictionary *Asking(NSDictionary *inspection) {
         ![fm fileExistsAtPath:[folder stringByAppendingPathComponent:@"textures.zip"]]) return @"missingIni";
     return NeoTextureInstall::HasTextures(NeoTextureInstall::Engine::ppsspp, folder.UTF8String ?: "") ? nil : @"noTextures";
   }
-  return NeoTextureInstall::HasTextures(NeoTextureInstall::Engine::azahar, folder.UTF8String ?: "") ? nil : @"noTextures";
+  return NeoTextureInstall::HasTextures([self installEngine], folder.UTF8String ?: "") ? nil : @"noTextures";
+}
+- (void)didChangePackFolder:(NSString *)folder {
+  if (![self.identifier isEqualToString:@"mupen64plus"]) return;
+  // GLideNHQ keeps the textures it read in <system>/Mupen64plus/cache/<ROM name>_HIRESTEXTURES.htc
+  // (memory storage) or .hts (file storage) and reuses that file whenever its options match, without
+  // reading the pack folder again (TxHiResCache, TxCache::load); with the folder gone it is even loaded
+  // whatever its options. Drop the two files of this ROM name only, so the next launch reads the new
+  // pack, or none.
+  NSString *name = folder.pathComponents.firstObject;
+  if (!name.length || [name hasPrefix:@"."] || [name containsString:@"/"] || [name containsString:@":"]) return;
+  NSString *cache = [self.root.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"cache"];
+  for (NSString *extension in @[@"htc", @"hts"])
+    [NSFileManager.defaultManager removeItemAtPath:[cache stringByAppendingPathComponent:[NSString stringWithFormat:@"%@_HIRESTEXTURES.%@", name, extension]]
+                                             error:nil];
 }
 - (NSString *)gameStorePath { return [self.configDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"Games/%@.json", self.coreLibrary]]; }
 - (NSString *)coreStorePath { return [self.configDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.json", self.coreLibrary]]; }
@@ -595,21 +627,28 @@ static NSDictionary *Asking(NSDictionary *inspection) {
     NSDictionary *core = NeoTexJSONDictionary(NeoTexReadBounded(self.coreStorePath, 4 << 20))[@"values"];
     if ([core isKindOfClass:NSDictionary.class] && [core[self.optionKey] isKindOfClass:NSString.class]) value = core[self.optionKey];
   }
-  // Both cores ship the option disabled by default.
-  BOOL enabled = [value isEqualToString:@"enabled"];
+  // The three cores ship the option off by default.
+  BOOL enabled = [value isEqualToString:self.onValue];
   return @{@"known": @YES, @"enabled": @(enabled), @"scope": scope, @"appliesAt": @"next-launch", @"setting": self.optionKey};
 }
 - (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length || gameKey.length > 600) { if (error) *error = EngineError(@"noGameKey"); return NO; }
-  NSString *value = enabled ? @"enabled" : @"disabled";
+  NSString *value = enabled ? self.onValue : self.offValue;
+  NSDictionary<NSString *, NSString *> *companions = enabled ? (self.companions ?: @{}) : @{};
   // While this game runs, the session's option store owns its entry (and
   // rewrites it when the game closes): go through it.
-  if (self.sessionWriter && self.sessionWriter(self.optionKey, value, gameKey)) return YES;
+  if (self.sessionWriter) {
+    BOOL written = YES;
+    for (NSString *key in [companions.allKeys sortedArrayUsingSelector:@selector(compare:)])
+      written = written && self.sessionWriter(key, companions[key], gameKey);
+    if (written && self.sessionWriter(self.optionKey, value, gameKey)) return YES;
+  }
   @synchronized(NeoTextureLibretro.class) {
     NSMutableDictionary *document = [NeoTexJSONDictionary(NeoTexReadBounded(self.gameStorePath, 4 << 20)) mutableCopy] ?: [NSMutableDictionary dictionary];
     NSMutableDictionary *games = [document[@"games"] isKindOfClass:NSDictionary.class] ? [document[@"games"] mutableCopy] : [NSMutableDictionary dictionary];
     NSMutableDictionary *entry = [games[gameKey] isKindOfClass:NSDictionary.class] ? [games[gameKey] mutableCopy] : [NSMutableDictionary dictionary];
+    [entry addEntriesFromDictionary:companions];
     entry[self.optionKey] = value;
     games[gameKey] = entry;
     document[@"games"] = games;
@@ -638,6 +677,8 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   engine.identifier = @"ppsspp";
   engine.coreLibrary = @"PPSSPP";
   engine.optionKey = kPPSSPPOption;
+  engine.onValue = @"enabled";
+  engine.offValue = @"disabled";
   engine.root = [saveDirectory.stringByStandardizingPath stringByAppendingPathComponent:@"PSP/TEXTURES"];
   engine.configDirectory = configDirectory.stringByStandardizingPath;
   return engine;
@@ -647,7 +688,25 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   engine.identifier = @"azahar";
   engine.coreLibrary = @"Azahar";
   engine.optionKey = kAzaharOption;
+  engine.onValue = @"enabled";
+  engine.offValue = @"disabled";
   engine.root = [userDirectory.stringByStandardizingPath stringByAppendingPathComponent:@"load/textures"];
+  engine.configDirectory = configDirectory.stringByStandardizingPath;
+  return engine;
+}
++ (id<NeoTextureEngine>)mupen64plusWithSystemDirectory:(NSString *)systemDirectory configDirectory:(NSString *)configDirectory {
+  NeoTextureLibretro *engine = [NeoTextureLibretro new];
+  engine.identifier = @"mupen64plus";
+  engine.coreLibrary = @"Mupen64Plus-Next";
+  engine.optionKey = kMupen64plusOption;
+  engine.onValue = @"True";
+  engine.offValue = @"False";
+  // Current packs use the full alpha channel (the option's own help: off only
+  // for old Rice packs); the enhanced storage loads textures when they are
+  // used instead of keeping the whole pack in memory from the start.
+  engine.companions = @{@"mupen64plus-txHiresFullAlphaChannel": @"True", @"mupen64plus-EnableEnhancedHighResStorage": @"True"};
+  // getRetroArchDir: <system directory>/Mupen64plus/, then hires_texture.
+  engine.root = [systemDirectory.stringByStandardizingPath stringByAppendingPathComponent:@"Mupen64plus/hires_texture"];
   engine.configDirectory = configDirectory.stringByStandardizingPath;
   return engine;
 }
@@ -660,4 +719,5 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 + (NSString *)ppssppOptionKey { return kPPSSPPOption; }
 + (NSString *)azaharOptionKey { return kAzaharOption; }
++ (NSString *)mupen64plusOptionKey { return kMupen64plusOption; }
 @end

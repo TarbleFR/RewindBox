@@ -5,8 +5,10 @@ Pod::Spec.new do |s|
   s.description = <<-DESC
 One catalogue, download store and "HD textures" page for the textures the
 embedded engines replace: ARMSX2 (through its own Build 485 store), Dolphin,
-and the libretro PPSSPP and Azahar cores. Packs are fetched from their
-authors' own links when chosen; nothing is re-hosted.
+and the libretro PPSSPP, Azahar and Mupen64Plus-Next (GLideN64) cores. Packs
+are fetched from their authors' own links when chosen; nothing is re-hosted.
+Resources/ps2ktxpak-LICENSE.txt is the MIT notice of the ps2ktxpak catalogue
+from which the manual PlayStation 2 entries are derived.
                   DESC
   s.homepage = 'https://github.com/TarbleFR/neostation-ios'
   s.license = { :type => 'GPL-3.0' }
@@ -18,7 +20,7 @@ authors' own links when chosen; nothing is re-hosted.
   s.public_header_files = 'Classes/Public/*.h'
   s.private_header_files = 'Classes/*.h', 'ThirdParty/lzma/*.h'
   s.preserve_paths = 'ThirdParty/lzma/*'
-  s.resource_bundles = { 'NeoTextureCatalog' => ['Resources/*.json', 'Resources/*.gz'] }
+  s.resource_bundles = { 'NeoTextureCatalog' => ['Resources/*.json', 'Resources/*.gz', 'Resources/*.txt'] }
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
