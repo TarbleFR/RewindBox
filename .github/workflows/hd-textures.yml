@@ -19,7 +19,7 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, discover, links]
+        options: [all, host, native, uikit, repositories, discover, links, cores]
         default: all
       only:
         description: 'repositories: comma-separated pack ids (empty: every pack without a successful record)'
@@ -172,5 +172,31 @@ jobs:
         with:
           name: hdtex-links-${{ github.sha }}
           path: build/hdtex/links.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  cores:
+    name: Texture replacement in the pinned libretro cores (N64, PS1, NES)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'cores' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+          run-id: '38638115521'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Option keys and folders compiled into the pinned binaries
+        run: |
+          find dist/libretro -maxdepth 3 | head -60
+          python3 tools/textures/probe_cores.py --cores dist/libretro --out build/hdtex/cores.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-cores-${{ github.sha }}
+          path: build/hdtex/cores.json
           if-no-files-found: warn
           retention-days: 14
