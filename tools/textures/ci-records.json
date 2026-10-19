@@ -186,6 +186,19 @@
       ],
       "records": 9,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "wii-sonic-unleashed-hd-hud-raisyu": 39311640163
+      }
+    },
+    {
+      "run": 39311640163,
+      "source": "d4cf566f173851586d3b34b47e9f28ef19cf3acd",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
