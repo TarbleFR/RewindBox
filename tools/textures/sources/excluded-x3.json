@@ -243,5 +243,30 @@
   "console": "psp",
   "source": "TEXTURES.zip (https://drive.google.com/file/d/1KIWf3KLd5AgfSxkRi808_M0J1FZM6btP/view?usp=sharing)",
   "reason": "Yu-Gi-Oh! GX Tag Force 3 HD Cards: 228 card images named by card number with no textures.ini to map them (the archive's optional cards and a game settings file)."
+ },
+ {
+  "console": "gc",
+  "source": "optional_versions_.7z (https://gamebanana.com/dl/858148)",
+  "reason": "Sonic Riders DX texture pack V2, optional versions: alternatives for some textures of the catalogued pack, not a pack of their own."
+ },
+ {
+  "console": "gc",
+  "source": "Switch Button Layout Patch (Optional).zip (https://drive.google.com/file/d/1D746CjhSIRKqXkCPoCt_-XeCjyzcFFLi/view?usp=sharing)",
+  "reason": "Super Mario Sunshine 4K, Switch button layout patch: an optional add-on of Henriko Magnifico's pack (catalogued)."
+ },
+ {
+  "console": "3ds",
+  "source": "aahd_map_for_cfw_6-19-24.zip (https://gamebanana.com/dl/1219483)",
+  "reason": "Fire Emblem Awakening, Amateur Awakening HD map for custom firmware: a RomFS file, not a texture pack."
+ },
+ {
+  "console": "3ds",
+  "source": "cheats.zip (https://www.dropbox.com/scl/fo/mx5vg05s5toilhx82qwd8/AK7M_SEh7VRN2fRyD7NZjnw?rlkey=oj5aix8jpstjrzot4p2ezl7h3&st=0xkp4a3x&dl=0)",
+  "reason": "Monster Hunter 4 Ultimate HD v3.0 thread, cheats.zip: cheat codes, not textures."
+ },
+ {
+  "console": "wii",
+  "source": "bloom.zip (https://gamebanana.com/dl/920299)",
+  "reason": "Sonic and the Black Knight HD thread, bloom.zip: a game-ID marker only, no texture."
  }
 ]

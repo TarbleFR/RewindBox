@@ -3940,5 +3940,198 @@
   },
   "scope": "complete",
   "family": "gc-luigis-mansion-4k-henriko"
+ },
+ {
+  "id": "gc-star-fox-assault-hd-cyb3rtr0n",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Star Fox Assault HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Star Fox Assault",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GF7"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "CYB3RTR0N"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-star-fox-assault-hd-texture-pack",
+  "source_id": "dolphin-forum:star-fox-assault-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Made on the USA disc (GF7E01); players report wrong fonts with the PAL disc (GF7P01) in the thread. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-star-fox-assault-hd-texture-pack",
+   "file_name": "Star_Fox_Assault_HD.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1RL0ABqryRXaIk4A1Qdn2LJff4bkOrC_L/view?usp=sharing",
+    "sha256": "38ada98044590ef288b19f88c2381e67bac812a01079d94f8aab133ba8d86a2d"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GF7/",
+     "to": "GF7"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-star-fox-assault-hd-cyb3rtr0n"
+ },
+ {
+  "id": "gc-custom-robo-hd-release",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Custom Robo HD Textures (release)",
+  "version": "release",
+  "games": [
+   {
+    "title": "Custom Robo",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GXC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "slightlyflightyone"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/archive/index.php?thread-65471.html",
+  "source_id": "dolphin-forum:65471",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The finished release of the work-in-progress pack (about 10.7 GB). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/archive/index.php?thread-65471.html",
+   "file_name": "CUSTOM.ROBO-HD.TEXTURES-RELEASE.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1vU5hHBUjiRVciBFykZ-7ZnnwG6n9Ohls/view",
+    "sha256": "018ed2d7d4d1c7f58c1754ff972ee0461a53021ffac1d8c9f5e1e83b5502c9aa"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GXC/",
+     "to": "GXC"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-custom-robo-hd"
+ },
+ {
+  "id": "gc-ttyd-hd-dolphin-community-zip",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Dolphin Community's Paper Mario TTYD HD Texture Pack (ZIP upload)",
+  "version": "2.5",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Invader",
+   "Dolphin community contributors"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The thread's Google Drive upload of version 2.5 (ZIP), next to its MEGA upload (7z).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack",
+   "file_name": "The_Dolphin_Communitys_PM_TTYD_HD_Texture_Pack_v2.5.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1hu-MS2MkyynPyjEJbwlNYjKBHuJ86BVY/view?usp=drive_link",
+    "sha256": "0b8c7809a2a8ff39794c3137cb59788878924a73c7c1325c24a5c1737f4ff843"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-ttyd-hd-dolphin-community"
+ },
+ {
+  "id": "wii-metroid-prime-trilogy-hd-interface",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Metroid Prime Trilogy HD Interface Textures (DDS)",
+  "version": "1.7",
+  "games": [
+   {
+    "title": "Metroid Prime: Trilogy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R3M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hd-interface-textures-v-1-7-may-01-2021",
+  "source_id": "dolphin-forum:metroid-prime-trilogy-hd-interface-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Hand-made HUD, visor and menu textures for the USA and PAL discs. The PrimeHack keyboard and mouse icons of the archive are not installed. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hd-interface-textures-v-1-7-may-01-2021",
+   "file_name": "Metroid_Prime_Trilogy_HD_Interface_DDS_V1.7.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/17ayP-PEx3n8YlPty56y14kKxWJjL2uKp",
+    "sha256": "e2e31e39b6fe8e1c532e99d550701926893a34f34bc40c39c5cecb54d0c18ec7"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "R3M/",
+     "to": "R3M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-metroid-prime-trilogy-hd-interface"
  }
 ]
