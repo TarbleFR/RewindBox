@@ -19,10 +19,10 @@ import rpcs3diag487_delivery as previous
 base=previous.base  # unified_cheats_delivery: command, api, successful_run, ROOT
 
 # Branch head before this cycle's product push: the Build 487 delivery record on Claude.
-BASE=''
+BASE='b6c39807195efdb6ecb08b71f4e5b3f42d0a4e0e'
 # Build 487 source and its delivery run (checks/native reused, cold Release).
-DELIVERED=''
-DELIVERED_RUN=0
+DELIVERED='fad5eac6f793672240d2cb5f3559da73a40226f8'
+DELIVERED_RUN=39262042654
 # Build 488 source tested by hd-textures.yml. Each part: (run, source, job).
 TESTED_SOURCE=''
 PROOFS={
@@ -36,7 +36,6 @@ sys.path.insert(0,str(base.ROOT/'test'))
 import build486_targeted_test as targeted  # noqa: E402
 # The product files Build 488 changes (every one is in the runner's product list).
 PRODUCT={
-    'lib/l10n/texture_catalog_locale.dart',
     'lib/services/texture_catalog_service.dart',
     'lib/widgets/libretro_internal_playlist_actions.dart',
     'native/textures/catalogue/manifest.json.gz',
@@ -62,6 +61,8 @@ TESTED=(set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(targeted.HOST_PYTHON)|se
 # Delivery wiring, records, credits and pins: no product or Core input.
 DELIVERY_ONLY={'AGENTS.md','docs/hd-textures-expansion-2026-10-19.md','docs/evidence/hdtex488-delivery.json',
     'docs/HD_TEXTURE_CATALOG_SOURCES.md','.github/diagnostics/hdtex488_delivery.py',
+    # Records of the Build 487 delivery, written by its session after this cycle began.
+    'docs/build487-plan.md','docs/evidence/rpcs3diag487-delivery.json','docs/rpcs3-bottleneck-audit-2026-10-18.md',
     '.github/workflows/retroarch-delivery.yml','.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py'}
 PRODUCT_PATHS=previous.PRODUCT_PATHS
 ARMSX2_CORE_INPUTS=previous.ARMSX2_CORE_INPUTS
@@ -93,6 +94,9 @@ def source_closure():
     for end in (['HEAD'],[]):
         # The product differs from delivered 487 exactly by the Build 488 texture files.
         changed=set(base.command(['git','diff','--name-only',DELIVERED,*end,'--',*PRODUCT_PATHS]).splitlines())
+        # Catalogue tooling (sources, verification records, research) is never packaged;
+        # it is part of the tested inputs above.
+        changed-={path for path in changed if path.startswith('tools/textures/')}
         if changed!=PRODUCT:raise ValueError('Unexpected product change since Build 487: '+', '.join(sorted(changed^PRODUCT)))
         # No Core input changed: the RPCS3 Core and bridge of Build 487, the ARMSX2 Core of Build 485.
         base.command(['git','diff','--exit-code',DELIVERED,*end,'--',*RPCS3_CORE_PATHS])
