@@ -309,7 +309,6 @@ static BOOL LooksLikeHTML(NSString *path) {
 // Fetches part `index` (or verifies it when already complete), then the next.
 - (void)downloadParts:(NSDictionary *)pack index:(NSUInteger)index received:(unsigned long long)received
            completion:(void (^)(NSError *))completion {
-  NSString *packID = pack[@"id"];
   NSArray *parts = pack[@"download"][@"parts"];
   NSString *folder = [self folderForPack:pack];
   if (index >= parts.count) {
@@ -635,7 +634,7 @@ static BOOL LooksLikeHTML(NSString *path) {
         [self finish:packID state:@"failed" error:PackError(NeoTexturePackErrorWrite, @"writeFailed", nil) result:nil completion:completion];
         return;
       }
-      __block unsigned long long processed = 0;
+      unsigned long long processed = 0;  // read by the lambda only (a __block variable cannot be captured by one)
       NeoTextureArchive::Progress progress = [&](uint64_t n) {
         processed += n;
         const unsigned long long value = processed / 2;  // expansion is the first half
@@ -715,7 +714,7 @@ static BOOL LooksLikeHTML(NSString *path) {
     return PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
   const std::string base = Std(root);
   NeoTextureInstall::Recover(base);
-  __block unsigned long long processed = 0;
+  unsigned long long processed = 0;  // read by the lambda only (a __block variable cannot be captured by one)
   dispatch_async(_queue, ^{ [self update:packID values:@{@"state": @"installing", @"received": @0, @"total": @(MAX(total, 1ULL))} notify:YES]; });
   NeoTextureArchive::Progress progress = [&](uint64_t n) {
     processed += n;

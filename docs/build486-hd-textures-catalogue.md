@@ -28,7 +28,9 @@ Inventaire des packs, auteurs, conditions et exclusions : [`HD_TEXTURE_CATALOG_S
 
 - Sources revues : `tools/textures/sources/{ps2,dolphin,psp,3ds}.json` (auteur, page, licence, téléchargement, disposition) et `excluded.json` (revu, écarté, raison).
 - Vérification : `tools/textures/verify_packs.py` télécharge le fichier de l'auteur, refuse une page web, mesure taille et SHA-256 (parties jointes octet par octet), installe avec le code de l'application (`tools/textures/native/texture_verify.cpp` : `NeoTextureInstall`, et le pipeline du magasin 485 pour la PS2), puis contrôle ce que le moteur lit. Résultats : `tools/textures/verified.jsonl`.
-- Les fichiers publiés comme assets de release ont été vérifiés dans le conteneur de travail le 19 octobre 2026 (Linux, g++, téléchargement direct depuis GitHub) ; ceux publiés comme archives de dépôt (codeload, inaccessible depuis le conteneur) sont vérifiés par le job `repositories` de `.github/workflows/hd-textures.yml` puis ajoutés au catalogue hébergé.
+- Les fichiers publiés comme assets de release ont été vérifiés dans le conteneur de travail le 19 octobre 2026 (Linux, g++, téléchargement direct depuis GitHub). Les 64 packs publiés comme archives de dépôt (codeload, inaccessible depuis le conteneur) ont été téléchargés et installés avec le même code par le job `repositories` de `.github/workflows/hd-textures.yml`, run `39188364133` sur `8fbfd4ad` (24 PS2, 9 GameCube/Wii, 30 PSP, 1 3DS, tous réussis, jusqu'à 6,8 Go par archive). Leurs enregistrements ont été recopiés depuis le journal du run (le conteneur ne peut pas télécharger les artefacts) ; `tools/textures/check_ci_records.py`, exécuté par la partie host, télécharge en CI les artefacts de ce run (`tools/textures/ci-records.json`) et exige que chacun des 64 enregistrements soit identique dans `verified.jsonl`.
+- Révision `2026-10-19.c38f84a2c654` : 170 packs (PS2 55, GameCube 19, Wii 22, PSP 57, 3DS 17), dont 144 en un geste et 26 liens manuels (pages des auteurs), 128 sources ; aucun pack en attente. Cinq packs Wii (Majora’s Mask et Ocarina of Time Reloaded) servent aussi les versions GameCube et sont comptés pour les deux consoles dans l’inventaire.
+- Doublons : deux entrées qui installent les mêmes fichiers du même téléchargement sont refusées (« à fusionner ») ; des variantes qui installent d'autres dossiers d'une même archive (styles de boutons de Burnout 3 et Burnout Revenge) sont gardées comme variantes réelles.
 - `tools/textures/build_catalogue.py` produit `native/textures/catalogue/manifest.json.gz` et la copie embarquée (octets identiques, gzip sans horodatage), applique les mêmes règles que l'application et génère l'inventaire. Un pack n'est « en un geste » que si sa vérification est réussie.
 
 ## 4. Vérifications
@@ -46,6 +48,10 @@ Exécutées dans le conteneur de travail (Linux, sans SDK Apple ni Flutter) :
 - **uikit** (Simulateur) : `test/texture_catalog_ui_test.py` (page avec le catalogue embarqué : disque GameCube réel, exact / à confirmer / titre seul, console et bibliothèque, rafraîchissement échoué, PS2, PSP, 3DS, douze langues) ;
 - **repositories** : packs publiés comme archives de dépôt.
 
+- **IPA livrée** : `build-utils/validate_hd_textures_ipa.py` (contrôlé par `test/validate_hd_textures_ipa_test.py`, dix refus) inspecte l'IPA réelle dans `retroarch-delivery.yml` : framework `neo_texture_catalog` et ses classes, index embarqué identique octet pour octet à l'index hébergé, libellés des douze langues, aucun pack embarqué, canal Flutter dans l'AOT, points d'entrée ARMSX2 (`initWithExpandedFolder:`), Dolphin et libretro.
+
+Défauts trouvés avant livraison et corrigés : fonction et variable inutilisées (erreurs `-Werror` du test Foundation, run `39188351476`), variable `__block` capturée par une lambda C++ (refusée par clang, même run, partie uikit), méthode `setActivation:(BOOL)` de la page qui masquait le setter de la propriété `activation` (dictionnaire) — erreur ARC et mauvais appel à l'exécution, trouvée par une analyse locale clang 18 + en-têtes GNUstep — renommée `switchTextures:`, appels d'initialiseurs du magasin 485 par `objc_msgSend` remplacés par un protocole déclaré (sémantique ARC des `init`), règle de doublon du générateur.
+
 Aucune de ces vérifications n'affiche une texture dans un jeu : une installation réussie n'est pas une preuve de remplacement effectif.
 
 ## 5. Limites
@@ -56,6 +62,8 @@ Aucune de ces vérifications n'affiche une texture dans un jeu : une installatio
 - Un dossier par jeu et par moteur : les compléments à superposer à un pack (mises à jour partielles, boutons, langues) restent manuels.
 - PPSSPP `textures.zip` (pack laissé zippé) non utilisé : les packs sont extraits dans le dossier du jeu.
 - Identités : une image CHD/PBP PS2 ou un format non lu donne une identité « à confirmer » par le nom ; une mise à jour 3DS n'est pas un jeu.
+- PS2 : le magasin de la Build 485 garde ses propres verdicts. Pour quelques packs dont le nom d'archive mentionne une autre région (« NTSC_PAL ») ou une autre série, son importeur demande une confirmation même quand l'auteur cite le jeu ; la page affiche ses raisons.
+- Archives de dépôt GitHub : leur taille et leur SHA-256 sont ceux mesurés le 19 octobre 2026 ; si GitHub régénérait l'archive différemment, le téléchargement serait refusé (jamais installé) jusqu'à la mise à jour du catalogue hébergé.
 
 ## 6. Procédure sur l'iPhone
 

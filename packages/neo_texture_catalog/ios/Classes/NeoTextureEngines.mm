@@ -52,7 +52,6 @@ static BOOL Matches(NSString *value, NSString *pattern) {
   return value.length && [value rangeOfString:pattern options:NSRegularExpressionSearch].location != NSNotFound;
 }
 
-static NSString *ExtensionOf(NSString *path) { return path.pathExtension.lowercaseString; }
 
 /// Reads (bounded) an INI file below root, refusing links.
 static NSString *ReadINI(NSString *root, NSString *path) {
@@ -195,6 +194,14 @@ static Class ARMSX2Store(void) { return NSClassFromString(@"ARMSX2TexturePackSto
 static Class ARMSX2Import(void) { return NSClassFromString(@"ARMSX2TextureImport"); }
 
 static BOOL Responds(id target, NSString *selector) { return target && [target respondsToSelector:NSSelectorFromString(selector)]; }
+
+// The initializers of the Build 485 importer (ARMSX2TextureImport), declared
+// here only so these run-time calls are compiled as initializers.
+@protocol NeoARMSX2TextureImportInit <NSObject>
+- (nullable instancetype)initWithExpandedFolder:(NSString *)folder sourceName:(NSString *)sourceName
+                                       dataPath:(NSString *)dataPath game:(NSDictionary *)game;
+- (nullable instancetype)initWithURL:(NSURL *)url dataPath:(NSString *)dataPath game:(NSDictionary *)game expander:(nullable id)expander;
+@end
 
 static NSDictionary *StoreIdentify(NSString *gamePath, NSString *data) {
   SEL sel = NSSelectorFromString(@"identifyGameAtPath:dataPath:");
@@ -402,12 +409,13 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   }
   Class importClass = ARMSX2Import();
   id import = nil;
-  SEL moving = NSSelectorFromString(@"initWithExpandedFolder:sourceName:dataPath:game:");
-  if (expanded && [importClass instancesRespondToSelector:moving])
-    import = ((id (*)(id, SEL, id, id, id, id))objc_msgSend)([importClass alloc], moving, url.path, sourceName, self.dataDirectory, game);
-  else
-    import = ((id (*)(id, SEL, id, id, id, id))objc_msgSend)([importClass alloc], NSSelectorFromString(@"initWithURL:dataPath:game:expander:"),
-                                                         url, self.dataDirectory, game, nil);
+  // Messaged through the protocol so ARC applies init semantics (consumed
+  // receiver, retained result), also when an initializer returns nil.
+  if (expanded && [importClass instancesRespondToSelector:@selector(initWithExpandedFolder:sourceName:dataPath:game:)])
+    import = [(id<NeoARMSX2TextureImportInit>)[importClass alloc] initWithExpandedFolder:url.path sourceName:sourceName
+                                                                                dataPath:self.dataDirectory game:game];
+  else if ([importClass instancesRespondToSelector:@selector(initWithURL:dataPath:game:expander:)])
+    import = [(id<NeoARMSX2TextureImportInit>)[importClass alloc] initWithURL:url dataPath:self.dataDirectory game:game expander:nil];
   if (!import) return @{@"success": @NO, @"error": @"engineUnavailable"};
   __block BOOL stop = NO;
   void (^watched)(double, NSString *) = ^(double fraction, NSString *phase) {

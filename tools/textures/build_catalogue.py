@@ -156,9 +156,12 @@ def build(entries, records):
             spec['sha256'] = record['sha256']
         if download.get('repository'):
             spec['repository'] = download['repository']
-        digest = spec.get('sha256') or parts[0]['sha256']
+        # Identical packs (same file, same folders installed) are merged; variants
+        # installing other folders of one archive (button styles...) are kept.
+        digest = (spec.get('sha256') or parts[0]['sha256'],
+                  json.dumps([[f['from'], sorted(f.get('exclude') or [])] for f in record['installed']]))
         if digest in digests:
-            fail(f'{entry["id"]} and {digests[digest]} download the same file: merge them')
+            fail(f'{entry["id"]} and {digests[digest]} install the same files of the same download: merge them')
         digests[digest] = entry['id']
         first = folder_id(entry['engine'], entry['games'][0]['identities'][0])
         folders = []

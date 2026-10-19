@@ -61,6 +61,7 @@ HOST_PYTHON = [
     'test/texture_identity_test.py',
     'test/texture_install_test.py',
     'test/texture_labels_test.py',
+    'test/validate_hd_textures_ipa_test.py',
     'test/localization_12_locale_coverage_test.py',
     'test/armsx2_texture_packs_test.py',
     'test/libretro_external_surface_test.py',
@@ -91,7 +92,9 @@ HOST_PYTHON = [
     'test/carousel_chrome_layout_test.py',
 ]
 # The catalogue: generated files current, every pack the app's own rules accept.
-CATALOGUE = [['tools/textures/labels.py', '--check'], ['tools/textures/build_catalogue.py', '--check', '--allow-pending']]
+CATALOGUE = [['tools/textures/labels.py', '--check'], ['tools/textures/build_catalogue.py', '--check'],
+             # Records of the packs verified on CI runners (repository archives) are those of the run's artifacts.
+             ['tools/textures/check_ci_records.py']]
 ANALYZED = [
     'lib/l10n/texture_catalog_locale.dart',
     'lib/services/texture_catalog_service.dart',
@@ -130,7 +133,7 @@ SUPPORT = [
     'test/native/texture_install_driver.cpp', 'test/texture_7z_writer.py',
     'test/texture_catalog_store_test.mm', 'test/armsx2_texture_store_test.mm', 'test/armsx2_texture_core_adapter_test.mm',
     'test/armsx2_texture_pack_core_test.cpp', 'test/libretro_host/stubs/Flutter/Flutter.h',
-    'test/touch_layout_support.py', 'test/libretro_ios_syntax_test.py',
+    'test/touch_layout_support.py', 'test/libretro_ios_syntax_test.py', 'build-utils/validate_hd_textures_ipa.py',
 ]
 # Fail on the unchanged base in the development container and read a changed
 # file (pubspec.yaml, the Dolphin plugin): compared with the base on the CI host.

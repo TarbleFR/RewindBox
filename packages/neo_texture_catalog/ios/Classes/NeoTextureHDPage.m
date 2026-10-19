@@ -774,7 +774,7 @@ static NSString *AbsolutePath(id value) {
   if (activation && ![activation[@"known"] boolValue])
     toggle.detail = [self t:[@"activation." stringByAppendingString:NeoTexString(activation[@"reason"]) ?: @""]];
   __weak typeof(self) weakSelf = self;
-  toggle.switched = ^(BOOL on) { [weakSelf setActivation:on]; };
+  toggle.switched = ^(BOOL on) { [weakSelf switchTextures:on]; };
   [section.rows addObject:toggle];
   if (self.engineDetails) {
     NTRow *details = [NTRow title:[self t:@"engineDetails"] detail:[self t:@"engineDetailsDetail"]];
@@ -791,7 +791,8 @@ static NSString *AbsolutePath(id value) {
   return section;
 }
 
-- (void)setActivation:(BOOL)on {
+// The engine's own switch for this game (not the `activation` property's setter).
+- (void)switchTextures:(BOOL)on {
   id<NeoTextureEngine> engine = self.engine;
   NSDictionary *identity = self.identity;
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{

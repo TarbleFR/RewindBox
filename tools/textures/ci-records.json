@@ -1,0 +1,13 @@
+{
+  "comment": "CI runs whose artifacts hold the verification records of packs published as repository archives (checked by tools/textures/check_ci_records.py).",
+  "runs": [
+    {
+      "run": 39188364133,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "source": "8fbfd4ad94b0c4a5d36bde61e8283877f58193d7",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": ["ps2", "dolphin", "psp", "3ds"],
+      "records": 64
+    }
+  ]
+}

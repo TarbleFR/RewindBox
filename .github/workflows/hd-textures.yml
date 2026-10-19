@@ -11,6 +11,8 @@ on:
       - test/texture_*
       - test/native/texture_*
       - test/build486_targeted_test.py
+      - test/validate_hd_textures_ipa_test.py
+      - build-utils/validate_hd_textures_ipa.py
       - .github/workflows/hd-textures.yml
   workflow_dispatch:
     inputs:
@@ -37,7 +39,8 @@ jobs:
       - name: Restore exact locked dependencies
         run: flutter pub get --enforce-lockfile
       - name: New and affected host checks
-        env: {CXX: g++}
+        # The token reads the repository-archive verification artifacts (tools/textures/ci-records.json).
+        env: {CXX: g++, GH_TOKEN: '${{ github.token }}'}
         run: python3 test/build486_targeted_test.py --part host
       - uses: actions/upload-artifact@v4
         if: always()
