@@ -29,6 +29,10 @@ on:
         description: 'summarize: the run id of a discover run (its candidates artifact)'
         type: string
         default: ''
+      queries:
+        description: 'discover: searches replacing the built-in ones, separated by | (topics after a #, e.g. n64 texture pack|gliden64#gliden64)'
+        type: string
+        default: ''
 permissions: {contents: read, actions: read}
 concurrency:
   group: hd-textures-${{ github.sha }}
@@ -150,8 +154,18 @@ jobs:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
       - name: Search GitHub and describe each repository
-        env: {GH_TOKEN: '${{ github.token }}'}
-        run: python3 tools/textures/discover.py github --out build/hdtex/candidates.jsonl
+        env: {GH_TOKEN: '${{ github.token }}', QUERIES: '${{ inputs.queries }}'}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$QUERIES" ]; then
+            searches="${QUERIES%%#*}"; topics=""
+            case "$QUERIES" in *'#'*) topics="${QUERIES#*#}" ;; esac
+            IFS='|' read -ra items <<< "$searches"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--query "$item"); done
+            IFS='|' read -ra items <<< "$topics"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--topic "$item"); done
+            args+=(--skip-code)
+          fi
+          python3 tools/textures/discover.py github "${args[@]}" --out build/hdtex/candidates.jsonl
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -75,6 +75,8 @@ DOLPHIN_ID = re.compile(r'\b([GRSDW][A-Z0-9]{2}[EPJKDFISUXYZWLM][A-Z0-9]{2})\b')
 DOLPHIN_ID3 = re.compile(r'^([GRSDWNHJXCEFLM][A-Z0-9]{2})$')
 TITLE_ID = re.compile(r'\b(0004000[0-9A-Fa-f]{9})\b')
 TEX1 = re.compile(r'(^|/)tex1_[0-9]+x[0-9]+_', re.I)
+# GLideN64 (Mupen64Plus-Next) hi-res names: <ROM name>#<crc>#<fmt>#<siz>[#<palette crc>]_<kind>.png
+RICE = re.compile(r'#[0-9a-f]{8}#[0-4]#[0-3](#[0-9a-f]{8})?_(all|ciByRGBA|allciByRGBA|rgb|a)\.(png|bmp)$', re.I)
 PCSX2_HASH = re.compile(r'(^|/)[0-9a-f]{16}-[0-9a-f]{8}(-[0-9a-f]{8})?\.(png|dds)$', re.I)
 ARCHIVE = re.compile(r'\.(zip|7z|rar|tar|tar\.gz|tgz|tar\.zst|zst)(\.\d{3})?$', re.I)
 # A search result is described only when its name, description or topics speak
@@ -163,7 +165,7 @@ def ids_in(text):
 
 def tree_signals(paths):
     """What the file tree says: which engine reads it, and for which games."""
-    signals = {'tex1': 0, 'textures_ini': [], 'pack_json': [], 'replacements': set(), 'pcsx2_hash': 0,
+    signals = {'tex1': 0, 'textures_ini': [], 'pack_json': [], 'replacements': set(), 'pcsx2_hash': 0, 'rice': 0,
                'png': 0, 'dds': 0, 'ktx': 0, 'lfs': False, 'archives': []}
     ids = {'ps2': set(), 'psp': set(), 'dolphin': set(), '3ds': set()}
     folders = set()
@@ -178,6 +180,8 @@ def tree_signals(paths):
             signals['pack_json'].append(path)
         if PCSX2_HASH.search(path):
             signals['pcsx2_hash'] += 1
+        if RICE.search(name):
+            signals['rice'] += 1
         if '/replacements/' in lower or lower.startswith('replacements/'):
             signals['replacements'].add(path[:lower.index('replacements/') + len('replacements/')])
         if lower.endswith('.png'):
@@ -218,6 +222,8 @@ def engine_guess(signals, text):
         guesses.append('armsx2')
     if (signals['tex1'] and not signals['pack_json']) or any(word in text for word in ('dolphin', 'gamecube', ' wii')):
         guesses.append('dolphin')
+    if signals.get('rice') or any(word in text for word in ('gliden64', 'mupen64', 'hires_texture', 'nintendo 64', ' n64')):
+        guesses.append('mupen64plus')
     return guesses
 
 
@@ -307,14 +313,15 @@ def promising(record):
     """Texture files in the tree, an engine file, a game identifier or a release archive."""
     signals = record.get('signals') or {}
     textures = signals.get('tex1') or signals.get('textures_ini') or signals.get('pack_json') or signals.get('replacements') \
-        or signals.get('pcsx2_hash') or (signals.get('png', 0) + signals.get('dds', 0) + signals.get('ktx', 0)) >= 20
+        or signals.get('pcsx2_hash') or signals.get('rice') or (signals.get('png', 0) + signals.get('dds', 0) + signals.get('ktx', 0)) >= 20
     archives = any(ARCHIVE.search(asset[0]) for release in record.get('releases') or [] for asset in release['assets'])
     return bool(textures or archives or record.get('ids') or signals.get('archives'))
 
 
 def mode_github(args, gh, emit):
     known, left_out = catalogued()
-    found = search_repositories(gh, REPOSITORY_QUERIES if not args.query else args.query, TOPICS if not args.query else [], args.limit)
+    found = search_repositories(gh, REPOSITORY_QUERIES if not args.query else args.query,
+                                TOPICS if not args.query else args.topic or [], args.limit)
     found = {lower: item for lower, item in found.items()
              if TEXTURE_WORDS.search(' '.join([item['full_name'], item.get('description') or '', ' '.join(item.get('topics') or [])]))}
     log(f'# {len(found)} repositories speak of textures')
@@ -432,7 +439,7 @@ def mode_links(args, gh, emit):
 def engine_relevant(record):
     """A repository whose files an engine reads, or that names a game identifier."""
     signals = record.get('signals') or {}
-    return bool(signals.get('tex1') or signals.get('textures_ini') or signals.get('pack_json') or signals.get('replacements')
+    return bool(signals.get('tex1') or signals.get('textures_ini') or signals.get('pack_json') or signals.get('replacements') or signals.get('rice')
                 or signals.get('pcsx2_hash') or record.get('ids'))
 
 
@@ -450,7 +457,7 @@ def mode_summarize(args, gh, emit):
                   if ARCHIVE.search(name)][:6]
         emit({'repo': record['repo'], 'engines': record.get('engines'), 'ids': {k: v[:5] for k, v in (record.get('ids') or {}).items()},
               'tex1': signals.get('tex1'), 'ini': (signals.get('textures_ini') or [])[:3], 'packjson': (signals.get('pack_json') or [])[:2],
-              'repl': (signals.get('replacements') or [])[:2], 'pcsx2': signals.get('pcsx2_hash'), 'png': signals.get('png'),
+              'repl': (signals.get('replacements') or [])[:2], 'pcsx2': signals.get('pcsx2_hash'), 'rice': signals.get('rice'), 'png': signals.get('png'),
               'dds': signals.get('dds'), 'lfs': signals.get('lfs'), 'fork': record.get('fork'), 'files': record.get('files'),
               'stars': record.get('stargazers_count'), 'licence': record.get('licence'), 'pushed': (record.get('pushed_at') or '')[:10],
               'assets': assets, 'top': (record.get('top') or [])[:8], 'desc': (record.get('description') or '')[:90]})
@@ -464,6 +471,7 @@ def main():
     parser.add_argument('--candidates', default='', help='summarize: the JSONL written by the github mode')
     parser.add_argument('--out', required=True)
     parser.add_argument('--query', action='append', help='replace the built-in repository searches')
+    parser.add_argument('--topic', action='append', help='with --query: the topics to search (none otherwise)')
     parser.add_argument('--repo', action='append', help='also describe this owner/name')
     parser.add_argument('--limit', type=int, default=3000, help='stop searching after this many repositories')
     parser.add_argument('--skip-code', action='store_true')
