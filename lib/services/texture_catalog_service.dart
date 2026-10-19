@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neo_texture_catalog/neo_texture_catalog.dart';
@@ -64,7 +63,7 @@ abstract final class TextureCatalogService {
     return TextureCatalogLocale.nativeLocale(locale);
   }
 
-  /// The libretro per-game options key of a game ("<system>/<rom name>").
+  /// The libretro per-game options key of a game (`<system>/<rom name>`).
   static String _gameKey(String systemFolder, String romname) =>
       '${LibretroCoreCatalog.canonicalSystem(folderName: systemFolder)}/$romname';
 

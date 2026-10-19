@@ -142,6 +142,7 @@ void main() {
     // across 64 KiB, above 2 GiB and in the final byte of the full fixture.
     expect(digest, 'f70f295bdaa27ba3e3ebc9f6fce9ddb8');
     expect(peakRss - baselineRss, lessThan(192 * 1024 * 1024));
+    // ignore: avoid_print
     print('SCRAPING_MD5_METRICS ${jsonEncode({
       'fixtureBytes': size, 'digest': digest, 'baselineRss': baselineRss,
       'peakRss': peakRss, 'extraRss': peakRss - baselineRss,
