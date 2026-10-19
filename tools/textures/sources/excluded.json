@@ -298,5 +298,20 @@
   "console": "ps2",
   "source": "Melvin-Molder/bt3-rust-rewrite-hd, Javiju555/IE-repack",
   "reason": "A reimplementation of the game and a translation repacker, not texture packs."
+ },
+ {
+  "console": "n64",
+  "source": "retro-foundry/Perfect-Dark-Plus-HD-Textures, allnought/Super-Mario-64-HDS, Calinou/sm64pc-xbrz-2x, JappaWakka/Mario64HDTexturePack_PC, pokeheadroom/RESRGAN-16xre-upscale-HD-texture-pack, ItsMamaMoon/pastel_paradise",
+  "reason": "Packs for PC ports or remakes (Perfect Dark port, sm64ex, SM64 Coop DX): no GLideN64 hi-res names, not read by Mupen64Plus-Next."
+ },
+ {
+  "console": "n64",
+  "source": "GhostlyDark/SM64-Reloaded-Dolphin, SM64-Reloaded-GS, SM64-Reloaded-PC",
+  "reason": "Archived by the author and moved to GhostlyDark/SM64-Reloaded, whose releases are catalogued."
+ },
+ {
+  "console": "n64",
+  "source": "GitHub N64 searches (hd-textures.yml discover run 39260093158: 24 searches, 7 topics, 112 texture repositories, 49 described)",
+  "reason": "No other repository carries GLideN64 hi-res names; the rest are recompilations, ports, converters, editors and frontends."
  }
 ]
