@@ -352,57 +352,6 @@
   "family": "psp-star-wars-battlefront-2-hd"
  },
  {
-  "id": "psp-vc3-ee-ai-upscaled",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Valkyria Chronicles 3 Extra Edition — AI upscaled textures",
-  "version": "see page",
-  "games": [
-   {
-    "title": "Valkyria Chronicles 3: Extra Edition",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULJM05957"
-     }
-    ],
-    "regions": [
-     "Japan"
-    ]
-   }
-  ],
-  "authors": [
-   "see the page"
-  ],
-  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26728",
-  "source_id": "ppsspp-forum:26728",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "notes": "Seven textures.",
-  "download": {
-   "automatable": false,
-   "page": "https://forums.ppsspp.org/showthread.php?tid=26728",
-   "file_name": "textures HD valkyria Chronicles 3.7z",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1HopnQu12Di8A1Lp5cdss38a08Jqsm_9f/view?usp=sharing",
-    "sha256": "975d88609de2979577cbf1d19ed88378f84a1f6212ff77d7c6b8c450594bd37c"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "",
-     "to": "{id}"
-    }
-   ]
-  },
-  "scope": "partial",
-  "family": "psp-vc3-ee-ai-upscaled"
- },
- {
   "id": "psp-yugioh-gx-tf3-hd-cards-anime-tcg",
   "system": "psp",
   "engine": "ppsspp",
@@ -424,7 +373,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Moki.all.Games"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=45232",
   "source_id": "ppsspp-forum:45232",
@@ -475,7 +424,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Led Robster"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=35573",
   "source_id": "ppsspp-forum:35573",
@@ -525,7 +474,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "jcoolarts"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=27336",
   "source_id": "ppsspp-forum:27336",
@@ -625,7 +574,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Abbanon"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=25052",
   "source_id": "ppsspp-forum:25052",
@@ -675,7 +624,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Verymelon Benda"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=35005",
   "source_id": "ppsspp-forum:35005",
@@ -775,7 +724,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "chrisfand"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=28443",
   "source_id": "ppsspp-forum:28443",
@@ -826,7 +775,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "pandavenom"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=29826",
   "source_id": "ppsspp-forum:29826",
@@ -878,7 +827,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Verymelon Benda"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=26493",
   "source_id": "ppsspp-forum:26493",
@@ -930,7 +879,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Verymelon Benda"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=26493",
   "source_id": "ppsspp-forum:26493",
@@ -981,7 +930,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Angel105"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=29640",
   "source_id": "ppsspp-forum:29640",
@@ -1032,7 +981,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Verymelon Benda"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=29011",
   "source_id": "ppsspp-forum:29011",

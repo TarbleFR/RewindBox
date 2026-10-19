@@ -216,6 +216,11 @@
  },
  {
   "console": "psp",
+  "source": "textures HD valkyria Chronicles 3.7z (https://drive.google.com/file/d/1HopnQu12Di8A1Lp5cdss38a08Jqsm_9f/view?usp=sharing)",
+  "reason": "Valkyria Chronicles 3 Extra Edition AI upscaled (efonte): a file of seven textures from his thread, not the pack; his full pack is part of steccas' ReTranslation release, listed as a link."
+ },
+ {
+  "console": "psp",
   "source": "ULUS10566 - 3112021.zip (https://drive.google.com/file/d/1nAVp-ypbzBumA9-1AjGUFcUzPfJ125vY/view?usp=sharing)",
   "reason": "Dissidia 012 HD Retexture (PPSSPP forum, 3 November 2021 upload): an earlier release of Niosai's pack, whose GitHub repository (D012FFRT) is catalogued."
  },

@@ -144,6 +144,17 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
       "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39292371113,
+      "source": "a261f73bfd9c202e7e78e1b8bb257133e72db9dd",
+      "consoles": [
+        "3ds",
+        "dolphin"
+      ],
+      "records": 23,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }
