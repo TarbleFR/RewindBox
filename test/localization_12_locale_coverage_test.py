@@ -46,7 +46,8 @@ def main():
         "ambient_music_locale.dart","console_manager_locale.dart",
         "skin_browser_locale.dart",
         "touch_layout_locale.dart",
-        "armsx2_texture_locale.dart"
+        "armsx2_texture_locale.dart",
+        "game_box_locale.dart"
     ):
         require_locales(L10N / name)
 

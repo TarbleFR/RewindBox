@@ -1,0 +1,16 @@
+name: neo_box_reader
+description: Reads the back of a game box on the device (Vision text recognition, language detection, on-device translation).
+version: 0.1.0
+publish_to: none
+resolution: workspace
+environment:
+  sdk: '>=3.9.2'
+  flutter: '>=3.35.0'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: NeoBoxReaderPlugin

@@ -113,6 +113,25 @@ class ScreenscraperMediaDownloader {
     }
   }
 
+  /// Downloads one media to [fullPath] with the scrape's own validation,
+  /// atomic write and removal of other-extension siblings (3D box faces,
+  /// docs/game-box-3d.md § 6).
+  static Future<bool> downloadValidatedMedia(
+    String url,
+    String fullPath, {
+    required String mediaType,
+    bool forceOverwrite = false,
+  }) async {
+    final outcome = await _downloadMediaFileSmart(
+      url,
+      path.basename(fullPath),
+      path.dirname(fullPath),
+      mediaType: mediaType,
+      forceOverwrite: forceOverwrite,
+    );
+    return outcome.success;
+  }
+
   /// Returns whether an on-disk media file matches the expected media type.
   static Future<bool> isValidMediaFile(File file, String mediaType) async {
     try {

@@ -24,6 +24,7 @@ workspace:
   - packages/neo_cheat_catalog
   - packages/neo_touch_layout
   - packages/neo_texture_catalog
+  - packages/neo_box_reader
 
 version: 0.0.8+480
 environment:
@@ -71,6 +72,8 @@ dependencies:
     path: packages/neo_touch_layout
   neo_texture_catalog:
     path: packages/neo_texture_catalog
+  neo_box_reader:
+    path: packages/neo_box_reader
 
   file_picker: 12.0.0-beta.3
   device_info_plus: ^13.2.0
