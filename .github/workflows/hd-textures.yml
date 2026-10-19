@@ -34,9 +34,9 @@ on:
         type: string
         default: ''
       research:
-        description: 'research: reference selection for tools/textures/research.py refs, e.g. --console gc,wii --pages 6 (or --ids S001,S005 --urls a|b)'
+        description: 'research: tools/textures/research.py arguments, e.g. refs --console gc,wii --pages 6, refs --ids S001 --sheets GC,Wii, refs --file <list>, probe --file <list>'
         type: string
-        default: '--console gc'
+        default: 'refs --console gc'
 permissions: {contents: read, actions: read}
 concurrency:
   # Pushes of one commit share a group; each dispatch has its own, so review and
@@ -256,7 +256,11 @@ jobs:
         run: |
           set -euo pipefail
           read -ra args <<< "$RESEARCH"
-          python3 tools/textures/research.py refs "${args[@]}" --heads --out build/hdtex/research.jsonl
+          case "${args[0]:-}" in
+            probe) python3 tools/textures/research.py "${args[@]}" --out build/hdtex/research.jsonl ;;
+            refs) python3 tools/textures/research.py "${args[@]}" --heads --out build/hdtex/research.jsonl ;;
+            *) python3 tools/textures/research.py refs "${args[@]}" --heads --out build/hdtex/research.jsonl ;;
+          esac
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -54,6 +54,7 @@ USER_AGENT = 'NeoStation-HD-catalogue-review/1.0 (+https://github.com/TarbleFR/n
 MAX_PAGE = 4 << 20
 PACE = 1.5  # seconds between two requests to one host
 _last = {}
+SHEETS = set()  # spreadsheet sheets whose rows are printed (--sheets)
 
 HOSTS = [
     ('github-release', r'github\.com/[^/]+/[^/]+/releases'),
@@ -201,6 +202,26 @@ def page_text(page):
 KEYWORDS = re.compile(r'(download|mega|drive|mediafire|version|update|v\d+\.\d+|release|credit|permission|reupload|re-upload|'
                       r'do not|don\'t|patreon|early access|free|licen[cs]e|game ?id|serial|title ?id|NTSC|PAL|USA|EUR|JPN|'
                       r'4k|2k|1080|resolution|dolphin|citra|azahar|lime|ppsspp|duckstation|beetle|pcsx2|aethersx2|nethersx2)', re.I)
+
+
+ID_PATTERNS = {
+    'dolphin': r'\b[GRSDHW][A-Z0-9]{2}[EPJKDFISUXYZWL][A-Z0-9]{2}\b',
+    '3ds': r'\b000400000[0-9A-Fa-f]{7}\b',
+    'psp': r'\b(?:UL|UC|NP)[UEJKAH][SHGDBMZX][-_ ]?\d{5}\b',
+    'ps1/ps2': r'\b(?:SL|SC)(?:US|ES|PS|PM|KA|AJ|ED|CB)[-_ ]?\d{3}\.?\d{2}\b',
+}
+
+
+def identifiers(text):
+    """Game identifiers written in a page (Dolphin Game IDs, 3DS title IDs, PSP/PS1/PS2 serials)."""
+    found = {}
+    for kind, pattern in ID_PATTERNS.items():
+        values = sorted(set(m.upper() for m in re.findall(pattern, text)))
+        if kind == 'dolphin':
+            values = [v for v in values if re.search(r'\d', v) and not v.isdigit()]
+        if values:
+            found[kind] = values[:12]
+    return found
 
 
 def snippets(page, limit=12):
@@ -522,6 +543,7 @@ def review_url(url, follow_pages=0):
     record['links'] = [link for link in page_links(body, response['url'])
                        if (link['kind'] != 'other' or FILE_EXT.search(link['url'])) and not own_navigation(link, site)]
     record['snippets'] = snippets(body)
+    record['ids'] = identifiers(page_text(body))
     if follow_pages:
         record['listing'] = listing_pages(url, body, follow_pages)
     return record
@@ -549,8 +571,8 @@ def thread_links(page, base):
     for link in page_links(page, base):
         u = link['url']
         if re.search(r'(showthread\.php\?tid=\d+|/threads/[^/]+\.\d+/?$|Thread-[^/?#]+$|archive/index\.php\?thread-\d+|'
-                     r'/texturepacks/[^/]+/?$|henrikomagnifico\.com/[a-z0-9-]+$)', u) and link['text'] and link['text'] != '(text)':
-            keep.append({'url': u, 'text': link['text']})
+                     r'/texturepacks/[^/]+/?$|henrikomagnifico\.com/[a-z0-9-]+$)', u) and link['text'] != '(text)':
+            keep.append({'url': u, 'text': link['text'] or u.rstrip('/').rsplit('/', 3)[-3]})
     return keep
 
 
@@ -615,6 +637,12 @@ def describe(record, out):
         out.append(f"    SHEET tried={sheet.get('tried')}")
         for item in sheet.get('sheets') or []:
             out.append(f"    SHEET {item['name']!r} rows={item['rows']} header={item['header'][:10]}")
+            if item['name'] in SHEETS:
+                for row in item['data']:
+                    cells = [c.replace('\n', ' ')[:140] for c in row]
+                    out.append(f"      ROW {item['name']} | " + ' | '.join(cells)[:700])
+    if record.get('ids'):
+        out.append(f"    IDS {json.dumps(record['ids'])}")
     for line in record.get('snippets') or []:
         out.append(f"    | {line[:200]}")
     shown = 0
@@ -632,6 +660,60 @@ def describe(record, out):
             out.append(f"      T {thread['url'][:160]} :: {thread['text'][:90]}")
 
 
+def probe(url, work, max_bytes):
+    """Downloads one candidate file (streamed to a temporary file, deleted after) and
+    lists what it holds: size, SHA-256, format, file tree as the engines read it."""
+    import hashlib
+    import subprocess
+    import tempfile
+    out = {'url': url}
+    pace(url)
+    request = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+    digest = hashlib.sha256()
+    size = 0
+    with tempfile.NamedTemporaryFile(dir=work, delete=False) as handle:
+        path = handle.name
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                out['final'] = response.geturl()
+                out['type'] = response.headers.get('Content-Type', '')[:60]
+                out['disposition'] = response.headers.get('Content-Disposition', '')[:120]
+                while True:
+                    block = response.read(4 << 20)
+                    if not block:
+                        break
+                    size += len(block)
+                    if size > max_bytes:
+                        out['error'] = f'larger than {max_bytes} bytes'
+                        break
+                    digest.update(block)
+                    handle.write(block)
+        except Exception as error:
+            out['error'] = repr(error)[:200]
+    try:
+        out['size'] = size
+        out['sha256'] = digest.hexdigest()
+        with open(path, 'rb') as handle:
+            head = handle.read(8)
+        out['format'] = ('zip' if head.startswith(b'PK') else '7z' if head.startswith(b'7z\xbc\xaf') else
+                         'rar' if head.startswith(b'Rar!') else 'html' if head.lstrip()[:1] == b'<' else 'other')
+        if out['format'] in ('zip', '7z', 'rar') and not out.get('error'):
+            listing = subprocess.run(['7z', 'l', '-slt', '-ba', path], capture_output=True, text=True, errors='replace')
+            files, methods = [], set()
+            for block in listing.stdout.split('\n\n'):
+                fields = dict(line.split(' = ', 1) for line in block.splitlines() if ' = ' in line)
+                if fields.get('Method'):
+                    methods.add(fields['Method'])
+                if fields.get('Path') and fields.get('Folder') != '+' and 'D' not in fields.get('Attributes', '')[:1]:
+                    files.append(fields['Path'])
+            out['tree'] = summarize_tree(files)
+            out['sample'] = files[:12]
+            out['methods'] = sorted(methods)[:6]
+    finally:
+        os.unlink(path)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest='mode', required=True)
@@ -641,13 +723,42 @@ def main():
     refs.add_argument('--urls', default='', help='extra URLs separated by |, reviewed as references "X..."')
     refs.add_argument('--pages', type=int, default=0, help='listing pages to follow for directory references')
     refs.add_argument('--heads', action='store_true', help='size of direct file links found (HEAD, no download)')
+    refs.add_argument('--file', default='', help='extra URLs, one per line (text after a tab is the title)')
+    refs.add_argument('--sheets', default='', help='spreadsheet sheets whose rows are printed, e.g. GC,Wii,3DS')
     refs.add_argument('--out', required=True)
+    probes = sub.add_parser('probe')
+    probes.add_argument('--urls', default='')
+    probes.add_argument('--file', default='')
+    probes.add_argument('--max-gb', type=float, default=3)
+    probes.add_argument('--out', required=True)
     args = parser.parse_args()
+    if args.mode == 'probe':
+        urls = [u for u in args.urls.split('|') if u]
+        if args.file:
+            urls += [line.split('\t')[0].strip() for line in Path(args.file).read_text(encoding='utf-8').splitlines()
+                     if line.strip() and not line.startswith('#')]
+        work = os.environ.get('RUNNER_TEMP') or '/tmp'
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        print('PROBE_BEGIN', len(urls), flush=True)
+        with open(args.out, 'w', encoding='utf-8') as out:
+            for url in urls:
+                result = probe(url, work, int(args.max_gb * (1 << 30)))
+                out.write(json.dumps(result) + '\n')
+                print('PROBE ' + json.dumps(result, sort_keys=True)[:1500], flush=True)
+        print('PROBE_END', flush=True)
+        return
+    SHEETS.update(item for item in args.sheets.split(',') if item)
     references = json.loads(REFERENCES.read_text(encoding='utf-8'))['references']
     ids = {item for item in args.ids.split(',') if item}
     selected = [r for r in references if (not args.console or r['console'] in args.console.split(',')) and (not ids or r['id'] in ids)]
-    for index, url in enumerate(u for u in args.urls.split('|') if u):
-        selected.append({'id': f'X{index + 1:03d}', 'console': 'extra', 'title': url, 'url': url, 'provenance': []})
+    extra = [(u, u) for u in args.urls.split('|') if u]
+    if args.file:
+        for line in Path(args.file).read_text(encoding='utf-8').splitlines():
+            if line.strip() and not line.startswith('#'):
+                url, _, title = line.partition('\t')
+                extra.append((url.strip(), title.strip() or url.strip()))
+    for index, (url, title) in enumerate(extra):
+        selected.append({'id': f'X{index + 1:03d}', 'console': 'extra', 'title': title, 'url': url, 'provenance': []})
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     totals = Counter()
     print('RESEARCH_BEGIN', len(selected), flush=True)

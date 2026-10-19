@@ -1,0 +1,32 @@
+# GameBanana files of the maintainer's references (research runs 39263086641, 39263271511), ZIP and 7z only:
+# downloaded once on CI to read their tree, size and SHA-256 (research.py probe); nothing is kept.
+https://gamebanana.com/dl/1610256	S023 Rayman 3 HD textures
+https://gamebanana.com/dl/1610252	S023 Rayman 3 GCN HUD
+https://gamebanana.com/dl/1610254	S023 Rayman 3 X360 HUD
+https://gamebanana.com/dl/1610253	S023 Rayman 3 PS3 HUD
+https://gamebanana.com/dl/1610258	S024 Rayman Arena HD textures
+https://gamebanana.com/dl/858145	S025 Sonic Riders DX 1440p DDS
+https://gamebanana.com/dl/858144	S025 Sonic Riders DX 720p DDS
+https://gamebanana.com/dl/858146	S025 Sonic Riders DX 4K DDS
+https://gamebanana.com/dl/858148	S025 Sonic Riders DX optional versions
+https://gamebanana.com/dl/1437956	S112 Bravely Second HD font and icons
+https://gamebanana.com/dl/1437957	S112 Bravely Default HD font and icons
+https://gamebanana.com/dl/1565718	S114 PLvPW HD UI only
+https://gamebanana.com/dl/1469099	S117 Fates UI Remastered
+https://gamebanana.com/dl/1388289	S119 Amateur Awakening HD optional files
+https://gamebanana.com/dl/1329881	S120 Amateur Awakening XD
+https://gamebanana.com/dl/1329882	S120 Amateur Awakening XD optional extras
+https://gamebanana.com/dl/1124052	S128 DQ8 4x HD patch
+https://gamebanana.com/dl/1124053	S128 DQ8 2x HD patch
+https://gamebanana.com/dl/1124054	S128 DQ8 4x HD UI only
+https://gamebanana.com/dl/1238587	S128 DQ8 4x HD restoration
+https://gamebanana.com/dl/1119809	S128 DQ8 2x HD restoration
+https://gamebanana.com/dl/1624922	S135 SMT IV HD 1.2
+https://gamebanana.com/dl/1623188	S135 SMT IV PlayStation buttons
+https://gamebanana.com/dl/1471216	S136 Soul Hackers HD demons
+https://gamebanana.com/dl/1154178	S137 Devil Survivor Overclocked HD addon
+https://gamebanana.com/dl/507221	S138 Etrian Odyssey Nexus HD texts
+https://gamebanana.com/dl/777985	S138 Etrian Odyssey Nexus HD portraits v3
+https://gamebanana.com/dl/1389792	S139 ACNL TrueShade 4K
+https://gamebanana.com/dl/1537017	S140 Kirby Triple Deluxe in HD
+https://gamebanana.com/dl/1516435	S152 Sonic Generations 3DS HD
