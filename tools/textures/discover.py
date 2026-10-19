@@ -425,10 +425,10 @@ def mode_links(args, gh, emit):
                     info = gh.get(f'/repos/{source[7:]}') or {}
                     branch = info.get('default_branch')
                     head_cache[source] = ((gh.get(f'/repos/{source[7:]}/commits/{branch}') or {}).get('sha') if branch else None)
-                head = head_cache[source]
-                if head:
-                    result['head'] = head[:12]
-                    result['newer'] = head != repository.get('commit')
+                branch_head = head_cache[source]
+                if branch_head:
+                    result['head'] = branch_head[:12]
+                    result['newer'] = branch_head != repository.get('commit')
             elif source.startswith('github:'):
                 if source not in latest_cache:
                     latest_cache[source] = gh.get(f'/repos/{source[7:]}/releases/latest')
