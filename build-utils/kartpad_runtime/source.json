@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "purpose": "KartPad runtime built from public sources without any game code. The game code is the player's own pack, added on their computer before signing.",
+  "kartpad": {
+    "repository": "https://github.com/chrissotraidis/kartpad",
+    "release": "v0.8.3",
+    "commit": "7e99c6776263caa85dccde2de6281cb092778877",
+    "version": "0.8.3",
+    "build": 265,
+    "license": "GPL-3.0-only",
+    "submodules": {
+      "vendor/runtimes/android": "34dbc5203531a1bf6573636e2d9d8da094b8160e",
+      "vendor/runtimes/ios": "2babfb718809bc080be60a4fc106e5eda1efebcb",
+      "vendor/runtimes/macos": "6fa394fee17608eeacb06b98570df6d406558c46",
+      "vendor/runtimes/tvos": "1054051a97d282eb29d3c9379ff70bd71472e76e",
+      "vendor/wiicompiled": "937c334d4ebec0466198a1bc56c1334a838bc654"
+    }
+  },
+  "sunpad": {
+    "repository": "https://github.com/chrissotraidis/sunpad",
+    "commit": "e43f0ea6b797e5110787171957c9dc3c6213269c"
+  },
+  "dolphin_discio": {
+    "repository": "https://github.com/dolphin-emu/dolphin",
+    "commit": "4f8af23db516d8b6e9cd00e7b261a65b026514a8",
+    "license": "GPL-2.0-or-later",
+    "skipped_submodules": ["Externals/Qt", "Externals/FFmpeg-bin", "Externals/libadrenotools"]
+  },
+  "dawn": {
+    "url": "https://github.com/encounter/dawn-build/releases/download/v20260603.191052/dawn-ios-arm64.tar.gz",
+    "archive_name": "dawn-ios-arm64-v20260603.191052.tar.gz",
+    "sha256": "a361fcca75929fa5c766cfcde979c010a6da7d805e5db8e15c75e73fd8260e78"
+  },
+  "pack_interface_fingerprint": "47d67acd0c1ac5e7736cb1a6159425ab7663e4d3a2d5dec28aee1c507fdac58e",
+  "official_game_free_ipa": {
+    "url": "https://github.com/chrissotraidis/kartpad/releases/download/v0.8.3/KartPad-v0.8.3-ios-for-padmint.ipa",
+    "bytes": 9289255,
+    "sha256": "b5096fe14cb93e6305e365e49dddd65027fa2a386d6d06271dc4d6a9c5a3eb4d",
+    "executable_sha256": "0477ba73637f51cf03bdfd04967cd86673b5129782bef776feba74f59d6a4cc0",
+    "export_names_sha256": "7aff223a9b7fe8a9e603195a6fe4e04c87b660dc09714f6fbcde6de96f372fb4",
+    "export_names": 19626,
+    "prepared_runtime_files": 925,
+    "prepared_runtime_sha256": "42c44513e9028c0a73ece226926fe8cd194c134a04a4c6d24ec06e3d04f39805"
+  },
+  "embedded": {
+    "framework": "KartPadCore.framework",
+    "install_name": "@rpath/KartPadCore.framework/KartPadCore",
+    "neostation_abi": 3,
+    "runtime_identity": "kartpad_runtime_083_game_free",
+    "minimum_ios": "16.0"
+  }
+}
