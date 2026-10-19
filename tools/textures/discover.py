@@ -399,7 +399,7 @@ def link_state(status):
 
 
 def mode_links(args, gh, emit):
-    latest_cache = {}
+    latest_cache, head_cache = {}, {}
     totals = {}
     for path in sorted(SOURCES.glob('*.json')):
         if is_exclusions(path):
@@ -418,14 +418,31 @@ def mode_links(args, gh, emit):
                 same = checked.get('size') == part.get('size') if part.get('size') and (checked.get('size') or -1) >= 0 else None
                 result['parts'].append({'url': part['url'], 'status': checked.get('status'), 'size': checked.get('size'), 'same_size': same})
             source = entry.get('source_id', '')
-            if source.startswith('github:'):
+            repository = (entry.get('download') or {}).get('repository')
+            if source.startswith('github:') and repository:
+                # A repository archive is pinned to a commit: newer when the default branch moved.
+                if source not in head_cache:
+                    info = gh.get(f'/repos/{source[7:]}') or {}
+                    branch = info.get('default_branch')
+                    head_cache[source] = ((gh.get(f'/repos/{source[7:]}/commits/{branch}') or {}).get('sha') if branch else None)
+                head = head_cache[source]
+                if head:
+                    result['head'] = head[:12]
+                    result['newer'] = head != repository.get('commit')
+            elif source.startswith('github:'):
                 if source not in latest_cache:
                     latest_cache[source] = gh.get(f'/repos/{source[7:]}/releases/latest')
                 latest = latest_cache[source]
                 if latest:
                     result['latest_release'] = latest.get('tag_name')
-                    tag = (latest.get('tag_name') or '').lstrip('vV')
-                    result['newer'] = bool(tag) and entry.get('version') != 'repository' and tag != str(entry.get('version', '')).lstrip('vV')
+                    # The catalogued release is the tag of its download (or page) URL, not the version text.
+                    urls = [part['url'] for part in parts] + [entry.get('page_url', '')]
+                    tags = {re.search(r'/releases/(?:download|tag)/([^/]+)', url).group(1) for url in urls
+                            if re.search(r'/releases/(?:download|tag)/([^/]+)', url)}
+                    catalogued = {urllib.parse.unquote(tag) for tag in tags}
+                    result['newer'] = bool(latest.get('tag_name')) and bool(catalogued) and latest.get('tag_name') not in catalogued
+                    # A repository publishing several packs: its latest release may be another pack's.
+                    result['review'] = 'latest release of the repository; check that it is this pack' if result['newer'] else None
             states = [link_state(result['page'])] + [link_state(p['status']) for p in result['parts']]
             if 'broken' in states or any(p['same_size'] is False for p in result['parts']):
                 result['verdict'] = 'broken'
