@@ -58,7 +58,7 @@ _last = {}
 HOSTS = [
     ('github-release', r'github\.com/[^/]+/[^/]+/releases'),
     ('github-archive', r'(codeload\.github\.com|github\.com/[^/]+/[^/]+/archive/)'),
-    ('github', r'(^|\.)github\.com/'),
+    ('github', r'(//|\.)github\.com/'),
     ('github-raw', r'(raw\.githubusercontent\.com|objects\.githubusercontent\.com)'),
     ('gitlab', r'gitlab\.com/'),
     ('codeberg', r'codeberg\.org/'),
@@ -89,7 +89,7 @@ HOSTS = [
     ('catbox', r'(catbox|litterbox)\.moe/'),
 ]
 FILE_EXT = re.compile(r'\.(zip|7z|rar|tar|gz|xz|zst)(\?|$)', re.I)
-SKIP_LINK = re.compile(r'(\.(css|js|svg|ico|woff2?|ttf|jpe?g|gif|webp|png)(\?|$))|^(javascript|mailto):|#', re.I)
+SKIP_LINK = re.compile(r'(\.(css|js|svg|ico|woff2?|ttf|jpe?g|gif|webp|png)(\?|$))|^(javascript|mailto):|^#', re.I)
 CHALLENGE = re.compile(r'(cf-chl|challenge-platform|Just a moment\.\.\.|Attention Required|captcha|hcaptcha|recaptcha|'
                        r'Checking your browser|DDoS protection|Enable JavaScript and cookies)', re.I)
 
@@ -181,6 +181,15 @@ def page_links(page, base):
             seen.add(url)
             links.append({'url': url, 'text': '(text)', 'kind': host_kind(url)})
     return links
+
+
+def own_navigation(link, site):
+    """A link of the page's own site that is neither a file nor a thread or project page."""
+    host = urllib.parse.urlsplit(link['url']).hostname or ''
+    if host != site or FILE_EXT.search(link['url']):
+        return False
+    return not re.search(r'(showthread\.php\?tid=|/threads/|Thread-|/mods/\d+|/dl/\d+|/downloads/[a-z0-9-]+|/addons/[a-z0-9-]+|'
+                         r'/releases|/texturepacks/|/download)', link['url'], re.I)
 
 
 def page_text(page):
@@ -318,15 +327,24 @@ def gamebanana(url):
         entry = {'id': item.get('_idRow'), 'file': item.get('_sFile'), 'size': item.get('_nFilesize'),
                  'md5': item.get('_sMd5Checksum'), 'date': item.get('_tsDateAdded'), 'url': item.get('_sDownloadUrl'),
                  'description': (item.get('_sDescription') or '')[:160], 'analysis': item.get('_sAnalysisResult')}
-        detail = fetch(f"https://gamebanana.com/apiv11/File/{item.get('_idRow')}", accept='application/json')
-        if detail['status'] == 200:
+        for endpoint in (f"https://gamebanana.com/apiv11/File/{item.get('_idRow')}/RawFileTree",
+                         f"https://gamebanana.com/apiv11/File/{item.get('_idRow')}"):
+            detail = fetch(endpoint, accept='application/json')
+            if detail['status'] != 200:
+                entry.setdefault('tree_status', []).append(detail['status'])
+                continue
             try:
-                metadata = json.loads(detail['body']).get('_aMetadata') or {}
-                tree = metadata.get('_aArchiveFileTree')
-                if tree:
-                    entry['tree'] = summarize_tree(flatten_tree(tree))
+                document = json.loads(detail['body'])
             except ValueError:
-                pass
+                continue
+            tree = document if isinstance(document, list) else (
+                (document.get('_aMetadata') or {}).get('_aArchiveFileTree') or document.get('_aArchiveFileTree')
+                or document.get('_aFileTree'))
+            if tree:
+                entry['tree'] = summarize_tree(flatten_tree(tree))
+                entry['tree_source'] = endpoint.rsplit('/', 1)[-1]
+                break
+            entry.setdefault('tree_keys', sorted(document)[:20] if isinstance(document, dict) else type(document).__name__)
         files.append(entry)
     out['files'] = files
     out['alternate_sources'] = [{'url': s.get('url') or s.get('_sUrl'), 'text': s.get('description') or s.get('_sDescription')}
@@ -500,7 +518,9 @@ def review_url(url, follow_pages=0):
         record['body_text'] = body[:600]
         return record
     record['title'] = page_title(body)
-    record['links'] = [link for link in page_links(body, response['url']) if link['kind'] != 'other' or FILE_EXT.search(link['url'])]
+    site = urllib.parse.urlsplit(response['url']).hostname or ''
+    record['links'] = [link for link in page_links(body, response['url'])
+                       if (link['kind'] != 'other' or FILE_EXT.search(link['url'])) and not own_navigation(link, site)]
     record['snippets'] = snippets(body)
     if follow_pages:
         record['listing'] = listing_pages(url, body, follow_pages)
@@ -576,6 +596,8 @@ def describe(record, out):
                 out.append(f"      desc: {f['description']}")
             if f.get('tree'):
                 out.append(f"      tree: {json.dumps(f['tree'], sort_keys=True)[:400]}")
+            elif f.get('tree_keys') or f.get('tree_status'):
+                out.append(f"      no tree: status={f.get('tree_status')} keys={f.get('tree_keys')}")
         for alt in gb.get('alternate_sources') or []:
             out.append(f"    ALT {alt.get('url')} {alt.get('text') or ''}")
     gh = record.get('github')
