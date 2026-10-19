@@ -83,6 +83,8 @@ Source testée : `16a2b896f6fb6cc1cd803625700f1a9055fff7df`, run `hd-textures.ym
 
 Échecs conservés : runs `39188351476` (`-Werror`, lambda) et `39193602740` (correspondance perdue, test UIKit), décrits au § 4.
 
+Contrôle non concluant : `libretro-skin-loading-checks.yml` (job `existing-install`, run `39188351398` sur `8fbfd4ad`, déclenché par la ligne « Textures HD » de `LibretroSession.m`) a échoué deux fois (tentative 1 vers 02 h 15 UTC, tentative 2 relancée une seule fois, job `118001393897`, 10 h 05–10 h 15 UTC) avant tout test : l'application témoin compilée depuis les seules sources épinglées de la Build 463 (`73b0aabc`) n'a jamais démarré dans un Simulateur fraîchement amorcé (migration de données, `simctl launch` sans PID après 120 s), d'où l'absence de `build463/probe.json` ; la partie candidate n'a pas été exécutée. Aucun fichier de la 486 n'entre dans cette application témoin ; le contrôle ne donne donc aucun verdict, ni réussite ni régression. Le pont libretro livré est identique à celui de `8fbfd4ad`, qui a été compilé et lié pour iPhone (partie native ci-dessus) et exécuté par la sonde Simulateur, la stabilité NES et l'appui des skins sur la même source sans autre échec que ceux déjà présents sur la base.
+
 Livraison :
 
 - `retroarch-delivery.yml` run `39195753114` sur `b18c30cd884f915950ee03cb8d5a182de1cd9028` (périmètre `full`, destinataire `build-utils/delivery-424-recipient.pem`) : `checks` et `native` réutilisent les trois verdicts ci-dessus par `.github/diagnostics/hdcat486_delivery.py` (produit = Build 485 livrée + fichiers 486, entrées testées identiques à `16a2b896`, aucune entrée de Core changée), `cold` Release iPhone réussi (`xcode_build` 262 s, signature et export 41 s), `warm` ignoré. Aucun cœur reconstruit.

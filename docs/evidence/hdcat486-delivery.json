@@ -55,6 +55,18 @@
     "source": "0b8731dc75e36f32b1a482e36e003a0f0462c7e2",
     "reason": "PS2 subtree pack reached the store without its catalogue match (native); UIKit test read the ID from the detail, expected GMSE01.ini and read the pack page before its rows"
    }
+  ],
+  "inconclusive": [
+   {
+    "workflow": ".github/workflows/libretro-skin-loading-checks.yml",
+    "run": 39188351398,
+    "jobs": [
+     117855454457,
+     118001393897
+    ],
+    "source": "8fbfd4ad94b0c4a5d36bde61e8283877f58193d7",
+    "reason": "both attempts stopped before any test: the reference app built from the pinned Build 463 sources never launched in a freshly booted Simulator (no PID after 120 s); the candidate phase did not run; no Build 486 file is in the reference app"
+   }
   ]
  },
  "deliveredBaseline": {
