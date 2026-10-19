@@ -25,7 +25,10 @@ Terms published upstream:
 - Siddy212/canvas-es-de is published under Creative Commons CC BY-NC-SA, with
   attribution to Siddy212 and to the artists credited in its README.
 
-NeoStation is free and non-commercial. It keeps the artwork hosted by the
-original project and does not treat it as NeoStation-owned or generally
-redistributable material. This notice is attribution only; it does not grant
+NeoStation's position (maintainer, 19 October 2026): NeoStation is free and
+is not sold. Offering Canvas (ES-DE) is not a commercial use and does not
+present the pack as NeoStation's own: NeoStation makes the original project
+reachable to as many people as possible, with its authors credited. It keeps
+the artwork hosted by the original project, links to it, and does not treat it
+as NeoStation-owned or generally redistributable material. This notice is attribution only; it does not grant
 rights that the upstream projects or the artwork owners have not granted.

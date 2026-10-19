@@ -20,6 +20,11 @@ zenandiko's repository carries an MIT `LICENSE`; its README states personal,
 non-commercial use only and that game artwork, logos and trademarks belong to
 their owners. See `assets/legal/Canvas-ES-DE-ATTRIBUTION.md`.
 
+Maintainer's position (19 October 2026): respect the sources. NeoStation is
+free and not sold; offering the pack is not selling it as a source but making
+the original project reachable, publicly, to as many people as possible, with
+its authors credited and the images kept on their repository.
+
 ## Integration
 
 - **Pinned revision.** Images come from

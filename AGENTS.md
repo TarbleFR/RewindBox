@@ -656,6 +656,8 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 
 - Maintainer request: add https://github.com/zenandiko/canvas-es-de as a source of main-menu system icons in Settings › System Art. Curated external pack `CanvasESDE` (« Canvas (ES-DE) »), like RiiSU: images stay hosted upstream and are downloaded only when selected, never bundled. Details: `docs/system-art/Canvas-ES-DE.md`.
 - Pinned revision `12d03b1856b892497a3fa1c943888c1f542f9236`, `theme/flat/webp` only. ES-DE capsule names are mapped from every `assets/systems` alias by `tools/system_art/canvas_es_de.py` (generated `lib/services/system_art/canvas_es_de_capsules.dart`, `--check` in CI); an uncovered system is never requested. Credit zenandiko, Siddy212 and fagnerpc; upstream states personal, non-commercial use (`assets/legal/Canvas-ES-DE-ATTRIBUTION.md`).
+- Position du mainteneur : respecter les sources. NeoStation est gratuit et n'est pas vendu ; proposer ce pack n'est pas le vendre comme source, mais rendre le projet d'origine accessible publiquement au plus grand nombre, auteurs crédités, images laissées sur leur dépôt.
+- IPA demandée seulement après la fin des compilations en cours (489 livrée, 490 de l'autre session) ; ne pas réutiliser leurs numéros.
 
 ## Audit du mainteneur — KartPad en ligne et ports natifs (KartPad, Dusklight), 19 octobre 2026
 
