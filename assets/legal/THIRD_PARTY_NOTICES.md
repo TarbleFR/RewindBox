@@ -55,6 +55,21 @@ No standalone RiiSU license file was visible when this integration was added.
 NeoStation therefore keeps the artwork hosted by the original project and does
 not treat it as NeoStation-owned or generally redistributable material.
 
+### Canvas (ES-DE)
+
+Canvas (ES-DE) is a curated external System Art pack fetched on demand:
+https://github.com/zenandiko/canvas-es-de
+
+It is zenandiko's Canvas-Capsule custom edition of the original Canvas theme
+for ES-DE by **Siddy212** (CC BY-NC-SA; artwork and layouts credited to
+**fagnerpc**): https://github.com/Siddy212/canvas-es-de
+
+zenandiko's repository carries an MIT license file; its README states personal,
+non-commercial use only and that game artwork, logos and trademarks belong to
+their respective owners. NeoStation keeps the artwork hosted by the original
+project and does not treat it as NeoStation-owned or generally redistributable
+material.
+
 ## Unified cheat catalogue — development source credits
 
 The publication used by private Builds 478–479 contains 51 contributing source

@@ -385,6 +385,18 @@ No standalone RiiSU license file was visible when this integration was added.
 NeoStation therefore keeps RiiSU remotely hosted by its original project and
 only downloads/caches the artwork when selected by the user.
 
+Canvas (ES-DE):
+https://github.com/zenandiko/canvas-es-de
+
+Canvas-Capsule custom edition by zenandiko (MIT license file; README: personal,
+non-commercial use only) of the original Canvas theme for ES-DE by Siddy212
+(CC BY-NC-SA; artwork and layouts credited to fagnerpc):
+https://github.com/Siddy212/canvas-es-de
+
+Game artwork, logos and trademarks belong to their respective owners.
+NeoStation keeps Canvas (ES-DE) remotely hosted by its original project and
+only downloads/caches the artwork when selected by the user.
+
 ---
 
 METADATA / COMMUNITY SERVICES

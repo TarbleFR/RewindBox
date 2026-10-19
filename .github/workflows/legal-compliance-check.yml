@@ -16,6 +16,9 @@ on:
       - 'lib/screens/settings_screen/new_settings_options/about_settings_content.dart'
       - 'lib/screens/settings_screen/new_settings_options/system_art_settings_content.dart'
       - 'lib/services/neo_assets_service.dart'
+      - 'lib/services/system_art/**'
+      - 'tools/system_art/**'
+      - 'test/services/neo_assets_service_external_pack_test.dart'
       - 'lib/widgets/setup_wizard.dart'
       - 'build-utils/embed_legal_bundle.py'
       - 'build-utils/validate_legal_bundle_ipa.py'
@@ -79,7 +82,8 @@ jobs:
             test/grid_preview_audio_contract_test.dart \
             test/external_display_games_list_test.dart \
             test/secondary_background_fallback_test.dart \
-            test/neo_swap_locale_test.dart
+            test/neo_swap_locale_test.dart \
+            test/services/neo_assets_service_external_pack_test.dart
           python3 test/retroarch_baseline_scope_test.py
 
       - name: Validate legal scripts and source pins
@@ -88,6 +92,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile             build-utils/embed_legal_bundle.py             build-utils/validate_legal_bundle_ipa.py
           python3 test/legal_bundle_preflight_test.py
+          python3 tools/system_art/canvas_es_de.py --check
 
           python3 - <<'PY'
           from pathlib import Path
@@ -117,6 +122,9 @@ jobs:
           assert "recommended.author" in wizard
           assert "NeoStation Assets" in credits
           assert "RiiSU / iiSU System Art" in credits
+          assert "author: 'zenandiko, from Canvas by Siddy212'" in assets_service
+          assert "zenandiko/canvas-es-de" in assets_service
+          assert "Canvas (ES-DE) System Art" in credits
           assert "rootBundle.loadString" in credits
           for asset in (
               'NeoStation-GPL-3.0.txt',
@@ -127,6 +135,7 @@ jobs:
               'GameDB-PS3-GPL-3.0.txt',
               'NeoStation-Assets-CC-BY-NC-SA-4.0.txt',
               'RiiSU-ATTRIBUTION.md',
+              'Canvas-ES-DE-ATTRIBUTION.md',
           ):
               assert (Path('assets/legal') / asset).is_file(), asset
           PY

@@ -119,6 +119,21 @@ the original project and downloads/cache it only when the user chooses that
 pack. Attribution does not invent redistribution rights that upstream has not
 published.
 
+### Canvas (ES-DE)
+
+NeoStation also exposes **Canvas (ES-DE)** as a curated external on-demand
+System Art source:
+
+- Canvas-Capsule Theme — Custom Edition, by zenandiko — https://github.com/zenandiko/canvas-es-de
+- Original Canvas theme for ES-DE, by Siddy212 — https://github.com/Siddy212/canvas-es-de
+- Original Canvas artwork and layouts credited to fagnerpc — https://github.com/fagnerpc
+
+zenandiko's repository carries an MIT license file; its README states personal,
+non-commercial use only and that game artwork, logos and trademarks belong to
+their owners. Siddy212's original theme is CC BY-NC-SA. NeoStation keeps the
+artwork hosted by zenandiko's repository and downloads only the selected
+systems' capsules. Details: `docs/system-art/Canvas-ES-DE.md`.
+
 ## Metadata and datasets
 
 ### GameDB / GameDB-PS3
@@ -418,6 +433,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). NeoStation uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
 | **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
 | **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
+| **Canvas (ES-DE)** | [Canvas-Capsule custom edition](https://github.com/zenandiko/canvas-es-de) by zenandiko, from the [original Canvas theme](https://github.com/Siddy212/canvas-es-de) by Siddy212 (artwork and layouts credited to [fagnerpc](https://github.com/fagnerpc)). Remotely hosted and downloaded only when selected; upstream states personal, non-commercial use. |
 
 
 ## Individual embedded-core notices

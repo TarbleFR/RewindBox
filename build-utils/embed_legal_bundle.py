@@ -27,6 +27,7 @@ REQUIRED_LEGAL_FILES = (
     "StikJIT-MPL-2.0.txt",
     "NeoStation-Assets-CC-BY-NC-SA-4.0.txt",
     "RiiSU-ATTRIBUTION.md",
+    "Canvas-ES-DE-ATTRIBUTION.md",
     "NeoStation-GPL-3.0.txt",
     "GameDB-PS3-GPL-3.0.txt",
     "Guest-Page-Relay-MIT.txt",

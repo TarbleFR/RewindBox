@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import 'config_service.dart';
 import 'logger_service.dart';
 import '../utils/bounded_concurrency.dart';
+import 'system_art/canvas_es_de_capsules.dart';
 
 const _baseRaw =
     'https://raw.githubusercontent.com/misobadev/neostation-assets/main';
@@ -18,6 +19,17 @@ const _riisuRaw =
 const _riisuThemeFolder = 'RiiSU';
 const _riisuPreviewUrl =
     '$_riisuRaw/themes/RiiSU/backgrounds/switch.webp';
+
+// Curated third-party System Art pack: zenandiko's Canvas-Capsule custom
+// edition of Siddy212's Canvas theme for ES-DE. It publishes no theme.json and
+// names its square capsules after ES-DE folders, so NeoStation pins one
+// immutable revision, maps folders through canvasEsDeCapsuleByFolder and keeps
+// the images hosted by the original repository.
+const _canvasRaw =
+    'https://raw.githubusercontent.com/zenandiko/canvas-es-de/'
+    '$canvasEsDeRevision/theme/flat/webp';
+const _canvasThemeFolder = 'CanvasESDE';
+const _canvasPreviewUrl = '$_canvasRaw/ps2.webp';
 
 final _log = LoggerService.instance;
 
@@ -233,7 +245,38 @@ class NeoAssetsService {
         ),
       );
     }
+    if (!result.any((theme) => theme.folder == _canvasThemeFolder)) {
+      result.add(
+        const NeoAssetsTheme(
+          name: 'Canvas (ES-DE)',
+          folder: _canvasThemeFolder,
+          author: 'zenandiko, from Canvas by Siddy212',
+          previewUrl: _canvasPreviewUrl,
+          previewSource: _canvasPreviewUrl,
+          isAi: false,
+        ),
+      );
+    }
     return result;
+  }
+
+  /// Canvas (ES-DE) capsule for a ROM folder name, or null when the pack has
+  /// no image for that system.
+  static String? canvasCapsuleFor(String systemFolderName) {
+    return canvasEsDeCapsuleByFolder[systemFolderName.trim().toLowerCase()];
+  }
+
+  /// Metadata of the Canvas (ES-DE) pack, built in the app because upstream
+  /// publishes no theme.json. The pinned revision is the version, so moving
+  /// the pin redownloads the pack.
+  static Map<String, dynamic> _canvasThemeMetadata() {
+    return {
+      'id': _canvasThemeFolder,
+      'name': 'Canvas (ES-DE)',
+      'author': 'zenandiko, from Canvas by Siddy212',
+      'version': canvasEsDeRevision,
+      'ai': false,
+    };
   }
 
   /// Fetches the global manifest of available themes.
@@ -401,12 +444,24 @@ class NeoAssetsService {
     return '$_baseRaw/themes/$themeFolder';
   }
 
-  /// Returns the remote URL for a specific system background within a theme.
-  static String getBackgroundUrl(
+  /// Canvas (ES-DE) only publishes WebP capsules. An unmapped folder or another
+  /// format yields null, so nothing is requested from the repository.
+  static String? _canvasBackgroundUrl(String systemFolderName, String ext) {
+    final capsule = canvasCapsuleFor(systemFolderName);
+    if (capsule == null || ext != 'webp') return null;
+    return '$_canvasRaw/$capsule.webp';
+  }
+
+  /// Returns the remote URL for a specific system background within a theme,
+  /// or null when the theme cannot provide that system in that format.
+  static String? getBackgroundUrl(
     String themeFolder,
     String systemFolderName, {
     String ext = 'webp',
   }) {
+    if (themeFolder == _canvasThemeFolder) {
+      return _canvasBackgroundUrl(systemFolderName, ext);
+    }
     return '${_themeBaseUrl(themeFolder)}/backgrounds/$systemFolderName.$ext';
   }
 
@@ -509,6 +564,7 @@ class NeoAssetsService {
   static Future<Map<String, dynamic>?> _fetchThemeMetadata(
     String themeFolder,
   ) async {
+    if (themeFolder == _canvasThemeFolder) return _canvasThemeMetadata();
     try {
       final response = await http.get(
         Uri.parse(getThemeMetadataUrl(themeFolder)),
@@ -637,9 +693,15 @@ class NeoAssetsService {
   /// the list is absent (older themes / offline metadata), returns all of the
   /// user's systems and relies on the `.missing` negative-cache fallback.
   static List<String> _resolveCoveredSystems(
+    String themeFolder,
     Map<String, dynamic>? remoteMetadata,
     List<String> systemFolderNames,
   ) {
+    if (themeFolder == _canvasThemeFolder) {
+      return systemFolderNames
+          .where((system) => canvasCapsuleFor(system) != null)
+          .toList();
+    }
     final declared = remoteMetadata?['systems'];
     if (declared is! List) return systemFolderNames;
     final covered = declared.map((e) => e.toString()).toSet();
@@ -656,6 +718,7 @@ class NeoAssetsService {
     final remoteVersion = remoteMetadata?['version']?.toString();
 
     final coveredSystems = _resolveCoveredSystems(
+      themeFolder,
       remoteMetadata,
       systemFolderNames,
     );
@@ -697,8 +760,11 @@ class NeoAssetsService {
   ) async {
     final webpPath = await backgroundCachePath(themeFolder, systemFolderName);
     final webpUrl = getBackgroundUrl(themeFolder, systemFolderName);
-    var result = await downloadAndCacheAsset(webpUrl, webpPath);
-    if (result != null) return result;
+    String? result;
+    if (webpUrl != null) {
+      result = await downloadAndCacheAsset(webpUrl, webpPath);
+      if (result != null) return result;
+    }
 
     final gifPath = await backgroundCachePath(
       themeFolder,
@@ -706,8 +772,10 @@ class NeoAssetsService {
       ext: 'gif',
     );
     final gifUrl = getBackgroundUrl(themeFolder, systemFolderName, ext: 'gif');
-    result = await downloadAndCacheAsset(gifUrl, gifPath);
-    if (result != null) return result;
+    if (gifUrl != null) {
+      result = await downloadAndCacheAsset(gifUrl, gifPath);
+      if (result != null) return result;
+    }
 
     // Neither format exists remotely: record a negative-cache marker so this
     // system is not re-probed on every re-selection of the theme.

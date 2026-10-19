@@ -86,6 +86,13 @@ class LegalCreditsDialog {
       'assets/legal/RiiSU-ATTRIBUTION.md',
     ),
     _LegalEntry(
+      'Canvas (ES-DE) System Art',
+      'Canvas-Capsule custom edition by zenandiko; original Canvas theme by Siddy212',
+      'External on-demand artwork; upstream terms: personal, non-commercial use',
+      'https://github.com/zenandiko/canvas-es-de',
+      'assets/legal/Canvas-ES-DE-ATTRIBUTION.md',
+    ),
+    _LegalEntry(
       'Once Upon a Time (loop)',
       'TAD; default ambient music of the menus',
       'CC0-1.0 (public domain dedication)',
