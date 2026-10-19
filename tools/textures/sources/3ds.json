@@ -905,5 +905,115 @@
   "availability": "available",
   "notes": "For the Chinese version (simplified and traditional text).",
   "credits": "README credits 林瓶鱼 and 壕梧熠熠 (the original pack)."
+ },
+ {
+  "id": "3ds-project-mirai-dx-hd-snakemi",
+  "system": "3ds",
+  "title": "Project Mirai DX HD Texture Pack",
+  "version": "repository f4200a6",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project Mirai DX",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000148C00"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "snakemi"
+  ],
+  "page_url": "https://github.com/snakemi/miraihd/tree/f4200a665e1e9f6a66b5359f90c311a4ede5c64b",
+  "source_id": "github:snakemi/miraihd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "miraihd-f4200a665e1e9f6a66b5359f90c311a4ede5c64b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/snakemi/miraihd/zip/f4200a665e1e9f6a66b5359f90c311a4ede5c64b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/snakemi/miraihd",
+    "commit": "f4200a665e1e9f6a66b5359f90c311a4ede5c64b"
+   }
+  },
+  "engine": "azahar",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "miraihd-f4200a665e1e9f6a66b5359f90c311a4ede5c64b/0004000000148C00/",
+     "to": "0004000000148C00"
+    }
+   ]
+  },
+  "notes": "Work in progress; archived by the author."
+ },
+ {
+  "id": "3ds-oot3d-chinese-hd-font-map-linkfish1",
+  "system": "3ds",
+  "title": "Ocarina of Time 3D HD Font & Map Pack (Chinese)",
+  "version": "repository e1bf22a",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time 3D (Chinese)",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000008F900"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "LinkFish1"
+  ],
+  "page_url": "https://github.com/LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack/tree/e1bf22ababe7e9eac0bae1784088560b5fec3db7",
+  "source_id": "github:LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; README credits its collaborators",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Ocarina-of-Time-3D-HD-Font-Map-Pack-e1bf22ababe7e9eac0bae1784088560b5fec3db7.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack/zip/e1bf22ababe7e9eac0bae1784088560b5fec3db7"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack",
+    "commit": "e1bf22ababe7e9eac0bae1784088560b5fec3db7"
+   }
+  },
+  "engine": "azahar",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "Ocarina-of-Time-3D-HD-Font-Map-Pack-e1bf22ababe7e9eac0bae1784088560b5fec3db7/load/textures/000400000008F900/",
+     "to": "000400000008F900"
+    }
+   ]
+  },
+  "notes": "For the Simplified Chinese version only."
  }
 ]

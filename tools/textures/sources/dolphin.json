@@ -2228,5 +2228,225 @@
   },
   "engine": "dolphin",
   "availability": "available"
+ },
+ {
+  "id": "wii-iego-strikers-2013-undub-translation-akirajkr",
+  "system": "wii",
+  "title": "Inazuma Eleven GO Strikers 2013 Undub Translation (textures)",
+  "version": "repository 9915f97",
+  "games": [
+   {
+    "title": "Inazuma Eleven GO Strikers 2013",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "S5SJHF"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "AkiraJkr"
+  ],
+  "page_url": "https://github.com/AkiraJkr/IEGOS2013-Undub-Translation/tree/9915f97ad46302bbae5b06f05b435310d52ea63f",
+  "source_id": "github:AkiraJkr/IEGOS2013-Undub-Translation",
+  "licence": {
+   "summary": "No licence stated by the author; README credits the Inazuma Eleven Wikia",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "IEGOS2013-Undub-Translation-9915f97ad46302bbae5b06f05b435310d52ea63f.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AkiraJkr/IEGOS2013-Undub-Translation/zip/9915f97ad46302bbae5b06f05b435310d52ea63f"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AkiraJkr/IEGOS2013-Undub-Translation",
+    "commit": "9915f97ad46302bbae5b06f05b435310d52ea63f"
+   }
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "IEGOS2013-Undub-Translation-9915f97ad46302bbae5b06f05b435310d52ea63f/textures/S5SJHF/",
+     "to": "S5SJHF"
+    }
+   ]
+  },
+  "notes": "English translation of a few story textures (version 0.0.1), not an HD pack."
+ },
+ {
+  "id": "gc-ttyd-button-labels-ds4-pictocat",
+  "system": "gc",
+  "title": "TTYD Button Labels Pack (PlayStation (DS4))",
+  "version": "repository a775bc9",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G8ME01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "pictocat"
+  ],
+  "page_url": "https://github.com/pictocat/TTYDButtonLabelsPack/tree/a775bc980c8a518989a5af0f3db815472448870f",
+  "source_id": "github:pictocat/TTYDButtonLabelsPack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "TTYDButtonLabelsPack-a775bc980c8a518989a5af0f3db815472448870f.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/pictocat/TTYDButtonLabelsPack/zip/a775bc980c8a518989a5af0f3db815472448870f"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/pictocat/TTYDButtonLabelsPack",
+    "commit": "a775bc980c8a518989a5af0f3db815472448870f"
+   }
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "TTYDButtonLabelsPack-a775bc980c8a518989a5af0f3db815472448870f/DS4/G8ME01/",
+     "to": "G8ME01"
+    }
+   ]
+  },
+  "notes": "Static button-label textures (not Dynamic Input); one style per pack."
+ },
+ {
+  "id": "gc-ttyd-button-labels-steamdeck-pictocat",
+  "system": "gc",
+  "title": "TTYD Button Labels Pack (Steam Deck)",
+  "version": "repository a775bc9",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G8ME01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "pictocat"
+  ],
+  "page_url": "https://github.com/pictocat/TTYDButtonLabelsPack/tree/a775bc980c8a518989a5af0f3db815472448870f",
+  "source_id": "github:pictocat/TTYDButtonLabelsPack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "TTYDButtonLabelsPack-a775bc980c8a518989a5af0f3db815472448870f.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/pictocat/TTYDButtonLabelsPack/zip/a775bc980c8a518989a5af0f3db815472448870f"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/pictocat/TTYDButtonLabelsPack",
+    "commit": "a775bc980c8a518989a5af0f3db815472448870f"
+   }
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "TTYDButtonLabelsPack-a775bc980c8a518989a5af0f3db815472448870f/SteamDeck/G8ME01/",
+     "to": "G8ME01"
+    }
+   ]
+  },
+  "notes": "Static button-label textures (not Dynamic Input); one style per pack."
+ },
+ {
+  "id": "gc-ttyd-button-labels-switch-pictocat",
+  "system": "gc",
+  "title": "TTYD Button Labels Pack (Switch)",
+  "version": "repository a775bc9",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G8ME01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "pictocat"
+  ],
+  "page_url": "https://github.com/pictocat/TTYDButtonLabelsPack/tree/a775bc980c8a518989a5af0f3db815472448870f",
+  "source_id": "github:pictocat/TTYDButtonLabelsPack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "TTYDButtonLabelsPack-a775bc980c8a518989a5af0f3db815472448870f.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/pictocat/TTYDButtonLabelsPack/zip/a775bc980c8a518989a5af0f3db815472448870f"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/pictocat/TTYDButtonLabelsPack",
+    "commit": "a775bc980c8a518989a5af0f3db815472448870f"
+   }
+  },
+  "engine": "dolphin",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "TTYDButtonLabelsPack-a775bc980c8a518989a5af0f3db815472448870f/Switch/G8ME01/",
+     "to": "G8ME01"
+    }
+   ]
+  },
+  "notes": "Static button-label textures (not Dynamic Input); one style per pack."
  }
 ]

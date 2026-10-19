@@ -3933,5 +3933,294 @@
   "system": "psp",
   "engine": "ppsspp",
   "availability": "manual"
+ },
+ {
+  "id": "psp-mhfu-hd-retexture-eu-replydev",
+  "system": "psp",
+  "title": "Monster Hunter Freedom Unite Upscale Project (EU)",
+  "version": "repository ed23e72",
+  "games": [
+   {
+    "title": "Monster Hunter Freedom Unite",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01213"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "replydev",
+   "three5media"
+  ],
+  "page_url": "https://github.com/replydev/mhfu-hd-retexture-eu/tree/ed23e724d603048fa54fdcefe7bd6550c26a7051",
+  "source_id": "github:replydev/mhfu-hd-retexture-eu",
+  "licence": {
+   "summary": "README: \"Please feel free to take anything from this project and use anywhere you like\" (fork of three5media/mfhu-hd-retexture)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mhfu-hd-retexture-eu-ed23e724d603048fa54fdcefe7bd6550c26a7051.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/replydev/mhfu-hd-retexture-eu/zip/ed23e724d603048fa54fdcefe7bd6550c26a7051"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/replydev/mhfu-hd-retexture-eu",
+    "commit": "ed23e724d603048fa54fdcefe7bd6550c26a7051"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "mhfu-hd-retexture-eu-ed23e724d603048fa54fdcefe7bd6550c26a7051/ULES01213/",
+     "to": "ULES01213"
+    }
+   ]
+  },
+  "notes": "The European adaptation of three5media's pack (catalogued separately for ULUS10391). About 1.1 GB of PNG textures."
+ },
+ {
+  "id": "psp-ridge-racer-2-rrv-hud-amame-a",
+  "system": "psp",
+  "title": "Ridge Racer 2 RRV-esque HUD",
+  "version": "repository f41f263",
+  "games": [
+   {
+    "title": "Ridge Racer 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00422"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "amame-a (dataDrawing)"
+  ],
+  "page_url": "https://github.com/amame-a/RidgeRacer2-RRV-Esque-HUD/tree/f41f263eb23030fefac09f50b686e925f2704e36",
+  "source_id": "github:amame-a/RidgeRacer2-RRV-Esque-HUD",
+  "licence": {
+   "summary": "No licence stated by the author; README thanks Xenn for Ridge Racer V assets",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "RidgeRacer2-RRV-Esque-HUD-f41f263eb23030fefac09f50b686e925f2704e36.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/amame-a/RidgeRacer2-RRV-Esque-HUD/zip/f41f263eb23030fefac09f50b686e925f2704e36"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/amame-a/RidgeRacer2-RRV-Esque-HUD",
+    "commit": "f41f263eb23030fefac09f50b686e925f2704e36"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "HUD only (Ridge Racer V style). Tested by the author with the European disc UCES00422; the Asian and Japanese discs are not tested."
+ },
+ {
+  "id": "psp-project-diva-extend-hd-snakemi",
+  "system": "psp",
+  "title": "Project DIVA Extend HD Texture Pack",
+  "version": "repository 9ddfdd7",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project DIVA Extend",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50465"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "snakemi"
+  ],
+  "page_url": "https://github.com/snakemi/pdexhd/tree/9ddfdd7e8f112c75c6c880f06d446ef178a31449",
+  "source_id": "github:snakemi/pdexhd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pdexhd-9ddfdd7e8f112c75c6c880f06d446ef178a31449.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/snakemi/pdexhd/zip/9ddfdd7e8f112c75c6c880f06d446ef178a31449"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/snakemi/pdexhd",
+    "commit": "9ddfdd7e8f112c75c6c880f06d446ef178a31449"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "Work in progress (menus, loading screens, buttons, one stage)."
+ },
+ {
+  "id": "psp-project-diva-1st-hd-ayumi-chizuru189",
+  "system": "psp",
+  "title": "Project DIVA 1st HD Texture Pack",
+  "version": "repository b63f838",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project DIVA",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05472"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "ayumi-chizuru189"
+  ],
+  "page_url": "https://github.com/ayumi-chizuru189/pd1sthd/tree/b63f838cb1c80667b3092185a71fdd013c02cd08",
+  "source_id": "github:ayumi-chizuru189/pd1sthd",
+  "licence": {
+   "summary": "No licence stated by the author; README credits snakemi for pd2ndhd sprites used with permission",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pd1sthd-b63f838cb1c80667b3092185a71fdd013c02cd08.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/ayumi-chizuru189/pd1sthd/zip/b63f838cb1c80667b3092185a71fdd013c02cd08"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/ayumi-chizuru189/pd1sthd",
+    "commit": "b63f838cb1c80667b3092185a71fdd013c02cd08"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "Startup logos, song title cards and gameplay UI; made for the English-patched game."
+ },
+ {
+  "id": "psp-burnout-legends-hd-ui-testietendie",
+  "system": "psp",
+  "title": "Burnout Legends HD Texture Pack (UI)",
+  "version": "repository af07adb",
+  "games": [
+   {
+    "title": "Burnout Legends",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10025"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "TestieTendie"
+  ],
+  "page_url": "https://github.com/TestieTendie/Burnout-Legends-HD-Texture-Pack/tree/af07adbdbdf25b2d88f365de77f334c1a723e2d1",
+  "source_id": "github:TestieTendie/Burnout-Legends-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author (the repository has no README)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Burnout-Legends-HD-Texture-Pack-af07adbdbdf25b2d88f365de77f334c1a723e2d1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/TestieTendie/Burnout-Legends-HD-Texture-Pack/zip/af07adbdbdf25b2d88f365de77f334c1a723e2d1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/TestieTendie/Burnout-Legends-HD-Texture-Pack",
+    "commit": "af07adbdbdf25b2d88f365de77f334c1a723e2d1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-w40k-squad-command-hd-testietendie",
+  "system": "psp",
+  "title": "Warhammer 40,000: Squad Command HD Texture Pack",
+  "version": "repository bac74d9",
+  "games": [
+   {
+    "title": "Warhammer 40,000: Squad Command",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10313"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "TestieTendie"
+  ],
+  "page_url": "https://github.com/TestieTendie/W40k-Squad-Command-HD-Texture-Pack/tree/bac74d9b2ea3966df02ef671edc241c7e466b0da",
+  "source_id": "github:TestieTendie/W40k-Squad-Command-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "W40k-Squad-Command-HD-Texture-Pack-bac74d9b2ea3966df02ef671edc241c7e466b0da.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/TestieTendie/W40k-Squad-Command-HD-Texture-Pack/zip/bac74d9b2ea3966df02ef671edc241c7e466b0da"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/TestieTendie/W40k-Squad-Command-HD-Texture-Pack",
+    "commit": "bac74d9b2ea3966df02ef671edc241c7e466b0da"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available"
  }
 ]
