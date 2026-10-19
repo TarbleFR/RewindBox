@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Checks tools/textures/verified.jsonl against the CI runs that verified packs.
 
-Packs published as repository archives are downloaded and installed with the
-app's own code by .github/workflows/hd-textures.yml (part "repositories"), on
-GitHub's runners. Their records reach verified.jsonl through the run's log;
+Packs published as repository archives (part "repositories") and the
+authors' files of manual packs on file hosts (part "hosts", Build 489) are
+downloaded and installed with the app's own code by
+.github/workflows/hd-textures.yml, on GitHub's runners. Their records reach verified.jsonl through the run's log;
 this check downloads the run's own artifacts (on a CI runner, with the
 workflow token) and requires every record of every artifact to be present,
 byte for byte as parsed JSON, in verified.jsonl. ci-records.json names the runs.
@@ -41,7 +42,10 @@ def main():
         count = 0
         with tempfile.TemporaryDirectory(prefix='hdtex-ci-') as folder:
             for console in run['consoles']:
-                name = f"{run['artifact_prefix']}-{console}-{run['source']}"
+                # Repository-archive runs name their artifacts after the source; host runs
+                # (manual packs fetched from file hosts) after the run.
+                template = run.get('artifact_name', '{prefix}-{console}-{source}')
+                name = template.format(prefix=run.get('artifact_prefix', ''), console=console, source=run['source'], run=run['run'])
                 subprocess.run(['gh', 'run', 'download', str(run['run']), '--repo', args.repository, '--name', name,
                                 '--dir', str(Path(folder) / console)], check=True)
                 files = list((Path(folder) / console).rglob('*.jsonl'))
@@ -54,7 +58,7 @@ def main():
         if count != run['records']:
             raise SystemExit(f'run {run["run"]}: {count} records, expected {run["records"]}')
         checked += count
-    print(f'PASS {checked} repository-archive records in verified.jsonl are those of their CI runs')
+    print(f'PASS {checked} CI-verified records (repository archives, file hosts) in verified.jsonl are those of their CI runs')
 
 
 if __name__ == '__main__':
