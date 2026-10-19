@@ -38,7 +38,8 @@ HOST_PRODUCT={'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlu
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm',
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h'}
 CORE_PRODUCT={'build-utils/rpcs3/canonical-source.json','build-utils/rpcs3/embedded-core.patch',
-    'native/import-memory-candidate.json'}  # candidate record: RPCS3 postimage hashes and the Build 487 note
+    'native/import-memory-candidate.json',  # candidate record: RPCS3 postimage hashes and the Build 487 note
+    'build-utils/rpcs3/regenerate_canonical_delta.py'}  # authoring tool of the delta; never read by the Core recipe
 # Changed inputs proven by the Core run (published Core inputs, host product and tests).
 TESTED=HOST_PRODUCT|CORE_PRODUCT|{'build-utils/rpcs3_core_syntax_gate.py','test/neo_swap_core_pin_test.py',
     'test/rpcs3_build258_core_architecture_test.py','test/rpcs3_build487_core_diagnostics_test.py',
@@ -53,6 +54,16 @@ DELIVERY_ONLY={'AGENTS.md','docs/build487-plan.md','docs/evidence/rpcs3diag487-d
     '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py'}
 PRODUCT_PATHS=previous.PRODUCT_PATHS
 ARMSX2_CORE_INPUTS=previous.ARMSX2_CORE_INPUTS
+# Catalogue-authoring tooling of the HD texture session (Build 486), committed on
+# Claude after the 486 delivery: never packaged in the IPA. Accepted only while
+# the hosted and bundled catalogues and the catalogue pod are the delivered 486
+# bytes (checked below), so no product byte depends on them.
+TEXTURE_TOOLING_PREFIXES=('tools/textures/',)
+TEXTURE_TOOLING_FILES={'.github/workflows/hd-textures.yml'}
+TEXTURE_PRODUCT=['native/textures','packages/neo_texture_catalog']
+
+def texture_tooling(paths):
+    return {p for p in paths if p in TEXTURE_TOOLING_FILES or p.startswith(TEXTURE_TOOLING_PREFIXES)}
 
 def source_closure():
     for name,value in (('CORE_SOURCE',CORE_SOURCE),('PATCH',PATCH)):
@@ -60,12 +71,14 @@ def source_closure():
     if not CORE_RUN:raise ValueError('CORE_RUN is not pinned yet')
     for end in (['HEAD'],[]):
         paths=set(base.command(['git','diff','--name-only',BASE,*end]).splitlines())
-        extra=paths-TESTED-DELIVERY_ONLY
+        extra=paths-TESTED-DELIVERY_ONLY-texture_tooling(paths)
         if extra:raise ValueError('Unvalidated changed inputs: '+', '.join(sorted(extra)))
         # Every tested input is byte-identical to the Core run source.
         base.command(['git','diff','--exit-code',CORE_SOURCE,*end,'--',*sorted(TESTED)])
         # The product differs from delivered 486 exactly by the RPCS3 bridge and the canonical delta.
         changed=set(base.command(['git','diff','--name-only',DELIVERED,*end,'--',*PRODUCT_PATHS]).splitlines())
+        changed-=texture_tooling(changed)
+        base.command(['git','diff','--exit-code',DELIVERED,*end,'--',*TEXTURE_PRODUCT])
         if changed!=HOST_PRODUCT|CORE_PRODUCT:
             raise ValueError('Unexpected product change since Build 486: '+', '.join(sorted(changed^(HOST_PRODUCT|CORE_PRODUCT))))
         # The ARMSX2 Core (ABI 8, Build 485) is unchanged.
@@ -73,6 +86,8 @@ def source_closure():
     manifest=json.loads((base.ROOT/'build-utils/rpcs3/canonical-source.json').read_text())
     patch=hashlib.sha256((base.ROOT/'build-utils/rpcs3/embedded-core.patch').read_bytes()).hexdigest()
     if manifest['patch_sha256']!=PATCH or patch!=PATCH:raise ValueError('Canonical Core delta differs from the Build 487 pin')
+    for recipe in ('build-utils/build_rpcs3_embedded_core.sh','build-utils/materialize_rpcs3_core.py'):
+        if 'regenerate_canonical_delta' in (base.ROOT/recipe).read_text():raise ValueError('The Core recipe must not run the authoring tool')
     record=manifest.get('diagnostics_487')
     if not record or record['device_runtime_tested'] is not False or record['gameplay_validated'] is not False:
         raise ValueError('Build 487 manifest record missing or claiming device validation')
