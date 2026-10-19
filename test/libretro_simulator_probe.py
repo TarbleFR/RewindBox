@@ -373,7 +373,11 @@ for core, content, console, size in LOT2_RUNS:
 # run: those names, filled with green, are the game's replacement pack; the
 # drawn quad must turn green, through the core's own replacement, in Vulkan.
 # Third run: replacement off again, the original texture is back.
-BEETLE_LOG = ['hd-textures: core=beetle renderer=vulkan']
+# The frontend reads the device's A1R5G5B5 support before the core loads
+# (LibretroSession beetleVulkanFormatLocks): a Simulator without Apple5 has
+# none, so the session locks dithering off instead of letting the core use a
+# null image (Format 8, then SIGSEGV, run 39278458161).
+BEETLE_LOG = ['vulkan: A1R5G5B5 features 0x', 'hd-textures: core=beetle renderer=vulkan']
 SCENARIOS += [
     {'name': 'beetle-vulkan-dump', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 6.0, 'default': False, 'beetle': True,
@@ -1387,6 +1391,9 @@ def beetle_problems(name, expected, result, launch):
     """Beetle PSX HW in Vulkan: the renderer the core started, its dump, the
     replacement it reports, and the quad's pixels in the presented frame."""
     problems = []
+    core_log = result.get('journal', '') + '\n'.join(str(line) for line in result.get('recentLog') or [])
+    if 'is not supported for usage flags' in core_log:
+        problems.append(f'{name}: the core asked the device for an image format it does not support')
     status = result.get('beetleStatus') or {}
     if launch.get('hardwareRendering') != 'vulkan' or status.get('renderer') != 'vulkan':
         problems.append(f"{name}: Beetle did not run in Vulkan (launch {launch.get('hardwareRendering')!r}, "

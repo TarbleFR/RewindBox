@@ -359,6 +359,91 @@ static VkDevice LibretroVkCreateDeviceWrapper(VkPhysicalDevice gpu, void *opaque
   return device;
 }
 
+#pragma mark - Device format support
+
+/// Optimal-tiling features of `format` on the first GPU of a throwaway
+/// instance (the GPU `prepare:` takes); NO when MoltenVK or the instance is
+/// unavailable.
+static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *features) {
+  void *library = LoadMoltenVK();
+  if (library == NULL) return NO;
+  PFN_vkGetInstanceProcAddr getProc = (PFN_vkGetInstanceProcAddr)dlsym(library, "vkGetInstanceProcAddr");
+  if (getProc == NULL) return NO;
+  PFN_vkCreateInstance createInstance = (PFN_vkCreateInstance)getProc(VK_NULL_HANDLE, "vkCreateInstance");
+  PFN_vkEnumerateInstanceExtensionProperties enumerateExtensions =
+      (PFN_vkEnumerateInstanceExtensionProperties)getProc(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties");
+  if (createInstance == NULL || enumerateExtensions == NULL) return NO;
+  BOOL portability = NO;
+  uint32_t extensionCount = 0;
+  enumerateExtensions(NULL, &extensionCount, NULL);
+  if (extensionCount > 0) {
+    VkExtensionProperties *properties = calloc(extensionCount, sizeof(VkExtensionProperties));
+    enumerateExtensions(NULL, &extensionCount, properties);
+    for (uint32_t index = 0; index < extensionCount; index++) {
+      if (strcmp(properties[index].extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0) portability = YES;
+    }
+    free(properties);
+  }
+  const char *extensions[1] = {VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
+  VkApplicationInfo application = {
+      .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+      .pApplicationName = "NeoStation",
+      .applicationVersion = 1,
+      .pEngineName = "NeoStation libretro",
+      .engineVersion = 1,
+      .apiVersion = VK_API_VERSION_1_1,
+  };
+  VkInstanceCreateInfo info = {
+      .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+      .flags = portability ? VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR : 0,
+      .pApplicationInfo = &application,
+      .enabledExtensionCount = portability ? 1 : 0,
+      .ppEnabledExtensionNames = portability ? extensions : NULL,
+  };
+  VkInstance instance = VK_NULL_HANDLE;
+  if (createInstance(&info, NULL, &instance) != VK_SUCCESS || instance == VK_NULL_HANDLE) return NO;
+  PFN_vkDestroyInstance destroyInstance = (PFN_vkDestroyInstance)getProc(instance, "vkDestroyInstance");
+  PFN_vkEnumeratePhysicalDevices enumerateDevices =
+      (PFN_vkEnumeratePhysicalDevices)getProc(instance, "vkEnumeratePhysicalDevices");
+  PFN_vkGetPhysicalDeviceFormatProperties getFormatProperties =
+      (PFN_vkGetPhysicalDeviceFormatProperties)getProc(instance, "vkGetPhysicalDeviceFormatProperties");
+  BOOL known = NO;
+  if (enumerateDevices != NULL && getFormatProperties != NULL) {
+    uint32_t gpuCount = 1;
+    VkPhysicalDevice gpu = VK_NULL_HANDLE;
+    VkResult enumerated = enumerateDevices(instance, &gpuCount, &gpu);
+    if ((enumerated == VK_SUCCESS || enumerated == VK_INCOMPLETE) && gpu != VK_NULL_HANDLE) {
+      VkFormatProperties properties;
+      memset(&properties, 0, sizeof(properties));
+      getFormatProperties(gpu, format, &properties);
+      *features = properties.optimalTilingFeatures;
+      known = YES;
+    }
+  }
+  if (destroyInstance != NULL) destroyInstance(instance, NULL);
+  return known;
+}
+
++ (BOOL)optimalTilingFeatures:(uint32_t *)features ofFormat:(uint32_t)format {
+  static os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
+  static NSMutableDictionary<NSNumber *, NSNumber *> *cache = nil;
+  os_unfair_lock_lock(&lock);
+  NSNumber *cached = cache[@(format)];
+  os_unfair_lock_unlock(&lock);
+  if (cached == nil) {
+    VkFormatFeatureFlags queried = 0;
+    // Not kept when MoltenVK or the instance was unavailable: asked again next time.
+    if (!QueryOptimalTilingFeatures((VkFormat)format, &queried)) return NO;
+    cached = @((uint32_t)queried);
+    os_unfair_lock_lock(&lock);
+    if (cache == nil) cache = [NSMutableDictionary dictionary];
+    cache[@(format)] = cached;
+    os_unfair_lock_unlock(&lock);
+  }
+  if (features != NULL) *features = cached.unsignedIntValue;
+  return YES;
+}
+
 #pragma mark - Lifecycle
 
 + (unsigned)negotiationVersionForType:(enum retro_hw_render_context_negotiation_interface_type)type {

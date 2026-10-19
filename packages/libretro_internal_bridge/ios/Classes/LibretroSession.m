@@ -727,6 +727,39 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   if (root != nil && root != controller) [root setNeedsUpdateOfSupportedInterfaceOrientations];
 }
 
+/// Beetle PSX HW in Vulkan scans its picture out as A1R5G5B5 while it
+/// dithers (rhi_lib_vulkan.c: renderer_scanout_to_texture, and
+/// renderer_scanout_vram_to_texture for its VRAM view) and uses the null
+/// image it gets when the device cannot make one ("Format 8 is not supported
+/// for usage flags!", then SIGSEGV). MoltenVK 1.2.8 gives that format colour
+/// attachment, sampling and blit on iPhone GPUs (BGR5A1Unorm) and nothing in
+/// a Simulator without Apple5. Without all three (the frontend blits it to
+/// B8G8R8A8), dithering and the VRAM view are locked off for the session:
+/// the core then scans out R8G8B8A8. Journaled either way.
+- (NSDictionary<NSString *, NSString *> *)beetleVulkanFormatLocks {
+  LibretroSessionConfiguration *configuration = _configuration;
+  if (![configuration.coreId isEqualToString:@"mednafen_psx_hw"] ||
+      configuration.preferredHardwareContext != RETRO_HW_CONTEXT_VULKAN) {
+    return nil;
+  }
+  const uint32_t format = 8;  // VK_FORMAT_A1R5G5B5_UNORM_PACK16
+  // VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | COLOR_ATTACHMENT_BIT | BLIT_SRC_BIT
+  const uint32_t required = 0x1 | 0x80 | 0x400;
+  uint32_t features = 0;
+  if (![LibretroVulkanRenderer optimalTilingFeatures:&features ofFormat:format]) {
+    [_journal note:@"vulkan: A1R5G5B5 support unknown (no Vulkan instance); prepare decides"];
+    return nil;
+  }
+  if ((features & required) == required) {
+    [_journal note:[NSString stringWithFormat:@"vulkan: A1R5G5B5 features 0x%x: Beetle dithered scanout available", features]];
+    return nil;
+  }
+  [_journal note:[NSString stringWithFormat:@"vulkan: A1R5G5B5 features 0x%x lack 0x%x (colour attachment, sampling, blit): "
+                                             @"Beetle dithering and VRAM view locked off, 32-bit scanout",
+                                             features, required & ~features]];
+  return @{@"beetle_psx_hw_dither_mode" : @"disabled", @"beetle_psx_hw_display_vram" : @"disabled"};
+}
+
 - (NSDictionary<NSString *, id> *)loadContent {
   LibretroSessionConfiguration *configuration = _configuration;
   _host = [[LibretroCoreHost alloc] initWithCorePath:configuration.corePath
@@ -744,7 +777,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _host.initialOptionDefaults = configuration.optionDefaults.count > 0 ? configuration.optionDefaults : nil;
   _host.initialSessionOverrides =
       !LibretroJitUsableByCores() && configuration.noJitOverrides.count > 0 ? configuration.noJitOverrides : nil;
-  _host.lockedSessionOverrides = configuration.lockedOptions.count > 0 ? configuration.lockedOptions : nil;
+  NSDictionary<NSString *, NSString *> *lockedOptions = configuration.lockedOptions;
+  NSDictionary<NSString *, NSString *> *formatLocks = [self beetleVulkanFormatLocks];
+  if (formatLocks.count > 0) {
+    NSMutableDictionary<NSString *, NSString *> *merged = [NSMutableDictionary dictionaryWithDictionary:lockedOptions ?: @{}];
+    [merged addEntriesFromDictionary:formatLocks];
+    lockedOptions = merged;
+  }
+  _host.lockedSessionOverrides = lockedOptions.count > 0 ? lockedOptions : nil;
   // Values kept for this game only (internal resolution), and the native
   // resolution by default once the core has declared its options.
   _host.optionsGameKey = configuration.gameKey.length > 0 ? configuration.gameKey : nil;
