@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define NEO_ARMSX2_ABI_VERSION 7u
+#define NEO_ARMSX2_ABI_VERSION 8u
 #define NEO_ARMSX2_BOOT_DISC 1u
 #define NEO_ARMSX2_BOOT_ELF 2u
 // No ROM: use the installed BIOS and the same owned VM lifecycle.
@@ -104,6 +104,29 @@ typedef struct NeoARMSX2API {
   // Writes the INI layer of the scope, then applies live through VMManager.
   // A level outside `levels` (Medium included) is refused: no option without effect.
   int (*set_blending_accuracy)(uint32_t scope, int level, char* error, size_t capacity);
+
+  // ABI 8: HD replacement textures of the engine (GSTextureReplacements).
+  // JSON: available, serial, crc, version, title, game (-1 inherits, 0/1 this
+  // game's INI), global, effective/async/precache (EmuConfig), hardware, and from
+  // the GS thread indexed (file names the engine indexed), loaded (decoded and
+  // cached), cacheBytes, budgetBytes (0 until set), budgetReached, bcTextures,
+  // astcTextures; availableMemory (os_proc_available_memory). Errors are keys.
+  int (*get_texture_replacements_json)(char* output, size_t capacity);
+  // This game's INI: LoadTextureReplacements, and when on asynchronous loading
+  // without preloading the whole pack. Applied to the running game at once.
+  int (*set_texture_replacements)(int enabled, char* error, size_t capacity);
+  // Re-indexes the running game's replacements after their files changed.
+  int (*reload_texture_replacements)(char* error, size_t capacity);
+  // Before boot: {"games":{"<serial>":true|false}}, NeoStation's per-game choices.
+  // Once the disc is identified, the running game's choice is written to its INI
+  // before the first frame. Games absent from the map keep their INI.
+  int (*set_texture_boot_preferences)(const char* json, char* error, size_t capacity);
+  // Decodes a .tar.zst pack with the engine's own reader into [destination]
+  // (texture entries only, checked paths). Any thread; *cancel stops it,
+  // *consumed reports the compressed bytes read.
+  int (*expand_texture_archive)(const char* archive_path, const char* destination,
+                                uint64_t available_bytes, const volatile int* cancel,
+                                volatile uint64_t* consumed, char* error, size_t capacity);
 } NeoARMSX2API;
 
 typedef const NeoARMSX2API* (*NeoARMSX2GetAPI)(uint32_t version);

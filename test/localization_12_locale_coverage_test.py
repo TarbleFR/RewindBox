@@ -45,7 +45,8 @@ def main():
         "ios_setup_locale.dart","embedded_emulator_locale.dart",
         "ambient_music_locale.dart","console_manager_locale.dart",
         "skin_browser_locale.dart",
-        "touch_layout_locale.dart"
+        "touch_layout_locale.dart",
+        "armsx2_texture_locale.dart"
     ):
         require_locales(L10N / name)
 

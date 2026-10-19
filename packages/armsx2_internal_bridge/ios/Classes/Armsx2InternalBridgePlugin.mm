@@ -7,6 +7,7 @@
 #include "NeoCheatStore.h"
 #include "NeoUnifiedNativeImport.h"
 #import "ARMSX2InGameLocalization.h"
+#import "Armsx2TextureBridge.h"
 #import "Armsx2TouchControls.h"
 // Build 447: the Core's render view is a NeoExternalRenderHost of the
 // external_display pod (docs/external-display-universal.md § 5, row ARMSX2).
@@ -341,6 +342,10 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, strong) UINavigationController* sessionMenu;
 @property(nonatomic, assign) BOOL menuOpening;
 @property(nonatomic, copy) NSString* activeDataDirectory;
+// Build 485: HD texture packs (library methods, in-game page, boot choices).
+@property(nonatomic, strong) Armsx2TextureBridge* textures;
+@property(nonatomic, copy) NSString* activeGamePath;
+@property(nonatomic, assign) uint32_t activeBootKind;
 @end
 
 @implementation Armsx2InternalBridgePlugin {
@@ -355,6 +360,11 @@ static UIViewController* ARMSX2RootViewController(void) {
             binaryMessenger:registrar.messenger];
   Armsx2InternalBridgePlugin* instance = [Armsx2InternalBridgePlugin new];
   instance.channel = channel;
+  __weak Armsx2InternalBridgePlugin* weakInstance = instance;
+  instance.textures = [[Armsx2TextureBridge alloc] initWithChannel:channel sessionActive:^BOOL {
+    Armsx2InternalBridgePlugin* plugin = weakInstance;
+    return plugin && (plugin.operationBusy || plugin.gameController != nil);
+  }];
   [registrar addMethodCallDelegate:instance channel:channel];
   [Armsx2JitBridgePlugin registerWithRegistrar:registrar];
 }
@@ -433,7 +443,10 @@ static UIViewController* ARMSX2RootViewController(void) {
       !api->get_graphics_hacks_json || !api->set_graphics_hack ||
       !api->get_graphics_assets_json || !api->set_shader_preset ||
       !api->set_performance_overlay || !api->install_shader_pack ||
-      !api->get_blending_accuracy_json || !api->set_blending_accuracy) {
+      !api->get_blending_accuracy_json || !api->set_blending_accuracy ||
+      !api->get_texture_replacements_json || !api->set_texture_replacements ||
+      !api->reload_texture_replacements || !api->set_texture_boot_preferences ||
+      !api->expand_texture_archive) {
     if (error) *error = @"Embedded ARMSX2 Core ABI is incompatible.";
     return NO;
   }
@@ -1004,6 +1017,15 @@ static UIViewController* ARMSX2RootViewController(void) {
       Armsx2SessionMenu* menu = [Armsx2SessionMenu new];
       menu.gameTitle = controller.title.length ? controller.title : @"ARMSX2";
       menu.localeIdentifier = controller.uiLocale;
+      if (self.activeBootKind == NEO_ARMSX2_BOOT_DISC && self.activeGamePath.length && self.activeDataDirectory.length) {
+        __weak Armsx2InternalBridgePlugin* weakBridge = self;
+        __weak Armsx2GameViewController* weakOwner = controller;
+        menu.textureHost = [self.textures sessionHostForAPI:self.api gamePath:self.activeGamePath
+            dataPath:self.activeDataDirectory alive:^BOOL {
+              Armsx2InternalBridgePlugin* bridge = weakBridge;
+              return bridge && bridge.api && bridge.gameController == weakOwner && weakOwner && !bridge.stopInProgress;
+            }];
+      }
       __weak Armsx2InternalBridgePlugin* weakSelf = self;
       __weak Armsx2GameViewController* weakController = controller;
 
@@ -1181,6 +1203,9 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
 
+  // Build 485: HD texture packs of a PS2 game (library side, no Core needed).
+  if ([self.textures handleMethodCall:call result:result]) return;
+
   if (![call.method isEqualToString:@"launch"]) {
     result(FlutterMethodNotImplemented);
     return;
@@ -1259,6 +1284,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     config.transaction = transactionNumber.unsignedLongLongValue;
     config.data_directory = dataPath.fileSystemRepresentation;
     self.activeDataDirectory = dataPath;
+    self.activeGamePath = biosBoot ? @"" : gamePath;
     NSString* resources = [self resourcePath];
     config.resource_directory = resources.fileSystemRepresentation;
     config.bios_directory = biosDirectory.fileSystemRepresentation;
@@ -1295,6 +1321,14 @@ static UIViewController* ARMSX2RootViewController(void) {
     uint32_t kind = biosBoot ? NEO_ARMSX2_BOOT_BIOS :
         ([ext isEqualToString:@"elf"] ? NEO_ARMSX2_BOOT_ELF : NEO_ARMSX2_BOOT_DISC);
     memset(error, 0, sizeof(error));
+    // HD textures chosen in the library reach the game's INI once the Core has
+    // identified the disc, before its first frame. Not fatal: the INI stays as is.
+    if (kind == NEO_ARMSX2_BOOT_DISC &&
+        !self.api->set_texture_boot_preferences([self.textures bootPreferencesJSONForDataPath:dataPath].UTF8String,
+                                                error, sizeof(error)))
+      NSLog(@"[ARMSX2] HD texture choices not passed to the Core: %s", error);
+    self.activeBootKind = kind;
+    memset(error, 0, sizeof(error));
     const char* bootPath = biosBoot ? "" : gamePath.fileSystemRepresentation;
     if (!self.api->boot(bootPath, kind, 120000, error, sizeof(error))) {
       NSString* message = error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 boot failed.";
@@ -1303,6 +1337,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     }
 
     self.operationBusy = NO;
+    if (kind == NEO_ARMSX2_BOOT_DISC) [self.textures recordBootForAPI:self.api gamePath:gamePath dataPath:dataPath];
     [self publishMenuStateForController:controller message:
         [controller en:@"ARMSX2 ready." fr:@"ARMSX2 prêt."]];
     NSString* revision = self.api->source_revision

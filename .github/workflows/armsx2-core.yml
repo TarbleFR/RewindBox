@@ -14,6 +14,8 @@ on:
       - 'test/armsx2_patch_catalog_test.py'
       - 'test/armsx2_graphics*'
       - 'test/armsx2_blending_accuracy_test.mm'
+      - 'test/armsx2_texture*'
+      - 'tools/armsx2_textures/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -72,6 +74,12 @@ jobs:
           git diff --check
       - name: Verify patch selection and activation with Foundation
         run: python3 test/armsx2_patch_catalog_test.py
+      - name: HD texture packs (ABI 8) - files, host store and Core adapter with Foundation
+        run: |
+          set -euo pipefail
+          python3 tools/armsx2_textures/generate_strings.py --check
+          python3 test/armsx2_texture_packs_test.py
+          python3 test/armsx2_texture_native_test.py
       - name: Validate graphics library, translations and native menu
         run: |
           python3 test/armsx2_graphics_test.py
@@ -85,9 +93,14 @@ jobs:
           from pathlib import Path
           sys.path.insert(0,'test')
           from libretro_ios_syntax_test import stage_dependency_headers
-          stage_dependency_headers(Path(sys.argv[1]))
+          from touch_layout_support import stage_touch_layout
+          # Since Build 484 the menu also imports <neo_touch_layout/...>.
+          stage_touch_layout(stage_dependency_headers(Path(sys.argv[1])))
           PY
-          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -I "$STAGE/include" packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm
+          for source in Armsx2SessionMenu.mm ARMSX2TexturePage.mm ARMSX2TexturePackStore.mm; do
+            xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -I "$STAGE/include" "packages/armsx2_internal_bridge/ios/Classes/$source"
+          done
+          xcrun clang -fobjc-arc -fblocks -fsyntax-only -x objective-c -isysroot "$SDK" -target arm64-apple-ios18.0 packages/armsx2_internal_bridge/ios/Classes/ARMSX2TextureStrings.m
       - name: Install required Rust Metal shader target
         run: |
           command -v rustup >/dev/null || brew install rustup
@@ -145,7 +158,7 @@ jobs:
           cache: true
       - run: flutter precache --ios
       - run: flutter pub get --enforce-lockfile
-      - name: Compile actual embedded host against Flutter and ABI 7
+      - name: Compile actual embedded host against Flutter and ABI 8
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           FLUTTER_FRAMEWORK=$(find "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios" -path '*/Flutter.framework' -type d | head -1)
@@ -160,8 +173,12 @@ jobs:
           from pathlib import Path
           sys.path.insert(0,'test')
           from libretro_ios_syntax_test import stage_external_display
-          stage_external_display(Path(sys.argv[1]))
+          from touch_layout_support import stage_touch_layout
+          # Since Build 484 the plugin's touch controls import <neo_touch_layout/...>.
+          stage_touch_layout(stage_external_display(Path(sys.argv[1])))
           PY
-          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" -I packages/armsx2_jit_helper/ios/Classes -I "$STAGE/include" packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm
+          for source in Armsx2InternalBridgePlugin.mm Armsx2TextureBridge.mm; do
+            xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" -I packages/armsx2_jit_helper/ios/Classes -I "$STAGE/include" "packages/armsx2_internal_bridge/ios/Classes/$source"
+          done
       - name: Verify existing isolated roots, routing and localization
-        run: flutter test test/armsx2_in_game_localization_test.dart test/armsx2_isolated_root_test.dart test/armsx2_bios_selection_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/stikjit_armsx2_isolation_test.dart test/armsx2_embedded_library_contract_test.dart test/armsx2_launch_url_encoding_test.dart
+        run: flutter test test/armsx2_texture_panel_test.dart test/armsx2_in_game_localization_test.dart test/armsx2_isolated_root_test.dart test/armsx2_bios_selection_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/stikjit_armsx2_isolation_test.dart test/armsx2_embedded_library_contract_test.dart test/armsx2_launch_url_encoding_test.dart

@@ -5,5 +5,12 @@
   "pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm": "c88ab07071cb9fe3986be0aa098bc9080a18fdf783f62155dae62897d47c6636",
   "pcsx2/Host.cpp": "09e33ec6fd138ec5bdd5a98c3c49cc6ba1e20c6e5fa1ca8cb161b4b42ce5faf1",
   "platforms/ios/app/src/main/cpp/CMakeLists.txt": "63824503e173ef29d708ae6bd4a441f26fd0cf613412c75f631bf19c22590340",
-  "platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt": "814ad2ee21d831a15e48de5867f5ec49e10b4db5cf4a2c24550879196b797285"
+  "platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt": "814ad2ee21d831a15e48de5867f5ec49e10b4db5cf4a2c24550879196b797285",
+  "pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp": "7400e2c2f4b01fba4f8201f1ca882f231fd3b6f686eb72131de45a590e652f15",
+  "pcsx2/GS/Renderers/HW/GSTextureReplacements.h": "46c88bad608620b2a5386fedb8883cf0759b17196df0a11f4654dd5699ce181e",
+  "pcsx2/GS/Renderers/HW/GSTextureReplacementLoaders.cpp": "82111416c002922e3f4b33392723f4842f004fcd0259b88d75872aefdd6888f9",
+  "pcsx2/GS/Renderers/Metal/GSDeviceMTL.mm": "74b8851ac979e7e34e18d1a1b23803b3a7541a7f4648c5a40257e1613a0e30a7",
+  "platforms/ios/app/src/main/cpp/IOS/TexturePackPaths.h": "ea2f929a77c9d620a13fec5cc91e04b0fc8e6e41a860dca775fe1cb318e374c2",
+  "platforms/ios/app/src/main/cpp/IOS/TexturePackTar.h": "295d032b3f81ffb95c42c1686b41d8f928304ac3e3ecfde0e3351360b8ca158f",
+  "platforms/ios/app/src/main/cpp/IOS/TexturePackZstd.h": "71568ad9e55dbb881073d6016c9cdaeec3aa720d3e9c53500b916a2edb9da81a"
 }

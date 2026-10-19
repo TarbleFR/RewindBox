@@ -27,7 +27,7 @@ def main():
     headers=ROOT/'packages/armsx2_internal_bridge/ios/Classes'
     abi=(headers/'ARMSX2CoreABI.h').read_text()
     manifest=json.loads((ROOT/'build-utils/armsx2/source.json').read_text())
-    assert manifest['abi_version']==int(re.search(r'NEO_ARMSX2_ABI_VERSION (\d+)u',abi)[1])==7
+    assert manifest['abi_version']==int(re.search(r'NEO_ARMSX2_ABI_VERSION (\d+)u',abi)[1])==8
     assert 'get_blending_accuracy_json' in abi and 'set_blending_accuracy' in abi
     assert 'int get_blending_accuracy_json(' in core and 'int set_blending_accuracy(' in core
     assert 'get_available_patches_json' in abi and 'set_patch_state' in abi
@@ -47,7 +47,11 @@ def main():
         config=(args.upstream/'pcsx2/Pcsx2Config.cpp').read_text()
         for key in keys:
             assert re.search(r'SettingsWrapBitBoolEx\([^\n]*"'+re.escape(key)+r'"\)',config), key
+        # Build 485: the HD texture keys are plain GS booleans of the pinned engine.
+        for key in ('LoadTextureReplacements','LoadTextureReplacementsAsync','PrecacheTextureReplacements'):
+            assert 'SettingsWrapBitBool('+key+')' in config, key
         bridge=(args.upstream/'platforms/ios/app/src/main/cpp/ARMSX2Bridge.mm').read_text()
+        assert '+ (nullable NSNumber *)perGameINIBoolIfPresent:' in bridge
         assert 'ARMSX2SyncClaimsIfPinnedHackKey(si, section, key);' in bridge
         assert 'ARMSX2RequestPerGameSettingsReload();' in bridge
         print('Verified boolean GS keys and per-game persistence against pinned upstream',revision)
@@ -131,6 +135,19 @@ int main() {
     assert 'setINIBool:' not in setter, 'Must not alter global settings'
     assert 'deletePerGameINIValue:' in setter and 'setPerGameINIBool:' in setter
     assert 'Host::RunOnCPUThread' in setter
-    print('PASS: per-game-only writes on the owned CPU thread')
+    # Build 485 (ABI 8): HD textures write only this game's INI on the CPU thread,
+    # never the base layer, never a whole-pack preload, and reach a game's INI
+    # from the library choice after the disc is identified, before the first frame.
+    textures=(ROOT/'packages/armsx2_internal_bridge/core/ARMSX2TextureReplacements.inc').read_text()
+    for name in ('get_texture_replacements_json','set_texture_replacements','reload_texture_replacements',
+                 'set_texture_boot_preferences','expand_texture_archive'):
+        assert name in abi and 'int '+name+'(' in textures, name
+    assert 'setINIBool:' not in textures and 'setINIInt:' not in textures and 'setINIString:' not in textures
+    assert 'key:@"PrecacheTextureReplacements" value:NO' in textures
+    assert 'PrecacheTextureReplacements" value:YES' not in textures
+    assert textures.count('Host::RunOnCPUThread')==3 and textures.count('MTGS::WaitGS(false);')==2
+    assert 'apply_texture_boot_preference();\n      VMManager::SetState(VMState::Running);' in core
+    assert 'void apply_texture_boot_preference();' in core.split('void vm_worker()')[0]
+    print('PASS: per-game-only writes on the owned CPU thread (graphics hacks, blending, HD textures)')
 
 if __name__=='__main__': main()

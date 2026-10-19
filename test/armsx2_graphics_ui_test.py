@@ -2,9 +2,10 @@
 """Execute the actual ARMSX2 Graphics menu on UIKit (iOS Simulator), without a VM.
 
 The host application links the production menu, its RetroAchievements page,
-the native localization and the unified cheat catalogue classes the menu
-imports since Build 474. No emulator core, GPU, JIT or device is involved:
-this proves navigation, labels, the levels offered and the commands sent.
+the native localization, the unified cheat catalogue classes the menu
+imports since Build 474 and the HD textures page (Build 485, fake host). No
+emulator core, GPU, JIT or device is involved: this proves navigation,
+labels, the levels offered and the commands sent.
 """
 from pathlib import Path
 import json
@@ -43,9 +44,61 @@ TESTS = r'''
 #import <XCTest/XCTest.h>
 #import <UIKit/UIKit.h>
 #import "Armsx2SessionMenu.h"
+#import "ARMSX2TexturePage.h"
 @interface Armsx2SessionMenu (GraphicsTesting)
 - (void)resumePressed;
 - (void)updateSearchResultsForSearchController:(UISearchController*)search;
+@end
+// Build 485: the HD textures page's own steps, driven without Files or alerts.
+@interface ARMSX2TexturePage (GraphicsTesting)
+@property(nonatomic, copy) NSString* message;
+- (void)inspected:(NSDictionary*)inspection;
+- (NSString*)confirmationMessage:(NSDictionary*)inspection;
+- (void)install:(NSString*)token allow:(BOOL)allow;
+- (void)switchChanged:(UISwitch*)toggle;
+- (void)performRemove;
+- (void)cancelImport;
+@end
+// The bridge as the page sees it: answers set by each test, every call recorded.
+@interface ARMSX2FakeTextureHost : NSObject <ARMSX2TextureHost>
+@property(nonatomic, strong) NSMutableDictionary* state;
+@property(nonatomic, strong) NSMutableArray<NSString*>* calls;
+@property(nonatomic, assign) BOOL live;
+@property(nonatomic, copy) NSDictionary* installResult;
+@property(nonatomic, copy) NSDictionary* enableResult;
+@end
+@implementation ARMSX2FakeTextureHost
+- (instancetype)init {
+ if ((self=[super init])) {
+  _calls=[NSMutableArray array];_live=YES;
+  _state=[@{@"formats":@{@"bcTextures":@NO,@"astcTextures":@YES},
+   @"game":@{@"serial":@"SLUS-21137",@"source":@"session",@"region":@"NTSC-U",@"version":@"1.01",@"crc":@"ABCD1234",@"title":@"Ratchet"},
+   @"pack":@{@"installed":@YES,@"external":@NO,@"files":@4,@"bytes":@(3*1024*1024),@"named":@3,@"mips":@1,
+             @"formats":@{@"png":@2,@"ddsBc1":@1},@"source":@"Ratchet-HD.zip",@"packSerial":@"SLUS-21137",
+             @"folder":@"ARMSX2/textures/SLUS-21137/replacements",@"enabled":@YES,@"iniEnabled":@YES,@"globalEnabled":@NO},
+   @"engine":@{@"available":@YES,@"effective":@YES,@"hardware":@YES,@"indexed":@120,@"loaded":@8,
+               @"cacheBytes":@(64*1024*1024),@"budgetBytes":@(512*1024*1024),@"budgetReached":@NO,
+               @"async":@YES,@"precache":@NO,@"bcTextures":@NO,@"astcTextures":@YES}} mutableCopy];
+ }
+ return self;
+}
+- (void)textureReadState:(void (^)(NSDictionary*))completion { [self.calls addObject:@"read"]; completion([self.state copy]); }
+- (void)textureInspectURL:(NSURL*)url progress:(ARMSX2TextureProgress)progress completion:(void (^)(NSDictionary*))completion {
+ [self.calls addObject:@"inspect"]; completion(@{@"success":@NO,@"error":@"format"});
+}
+- (void)textureInstall:(NSString*)token allowMismatch:(BOOL)allow progress:(ARMSX2TextureProgress)progress completion:(void (^)(NSDictionary*))completion {
+ [self.calls addObject:[NSString stringWithFormat:@"install %@ %d",token,(int)allow]];
+ progress(0.5,@"installing");completion(self.installResult);
+}
+- (void)textureCancel:(NSString*)token { [self.calls addObject:[@"cancel " stringByAppendingString:token]]; }
+- (void)textureDiscard:(NSString*)token { [self.calls addObject:[@"discard " stringByAppendingString:token]]; }
+- (void)textureCancelInspection { [self.calls addObject:@"cancelInspection"]; }
+- (void)textureSetEnabled:(BOOL)enabled completion:(void (^)(NSDictionary*))completion {
+ [self.calls addObject:[NSString stringWithFormat:@"enable %d",(int)enabled]];
+ completion(self.enableResult ?: @{@"success":@YES,@"message":enabled?@"enabledLive":@"disabledLive"});
+}
+- (void)textureRemove:(void (^)(NSDictionary*))completion { [self.calls addObject:@"remove"]; completion(@{@"success":@YES}); }
+- (BOOL)textureLive { return self.live; }
 @end
 @interface ARMSX2GraphicsTests : XCTestCase
 @property(nonatomic, strong) NSMutableDictionary* snapshot;
@@ -65,7 +118,10 @@ TESTS = r'''
  self.snapshot[@"blending"]=blending;
 }
 - (Armsx2SessionMenu*)menu:(__strong UINavigationController**)navigation {
- Armsx2SessionMenu* menu=[Armsx2SessionMenu new];menu.localeIdentifier=@"fr";
+ return [self menu:navigation textures:nil];
+}
+- (Armsx2SessionMenu*)menu:(__strong UINavigationController**)navigation textures:(id<ARMSX2TextureHost>)textures {
+ Armsx2SessionMenu* menu=[Armsx2SessionMenu new];menu.localeIdentifier=@"fr";menu.textureHost=textures;
  __weak ARMSX2GraphicsTests* weakSelf=self;
  menu.readSnapshot=^(void (^done)(NSDictionary<NSString*, id>* _Nullable)){
   ARMSX2GraphicsTests* tests=weakSelf; if (tests) tests.snapshotReads++; done([tests.snapshot copy]);};
@@ -91,7 +147,7 @@ TESTS = r'''
 - (void)testGraphicsRowsPlaceBlendingAfterScreenFormat {
  UINavigationController* nav=nil;Armsx2SessionMenu* graphics=[self menu:&nav];
  XCTAssertEqual([graphics numberOfSectionsInTableView:graphics.tableView],1);
- XCTAssertEqual([graphics tableView:graphics.tableView numberOfRowsInSection:0],7);
+ XCTAssertEqual([graphics tableView:graphics.tableView numberOfRowsInSection:0],8);
  XCTAssertEqualObjects([self title:graphics row:0 section:0],@"Résolution interne");
  XCTAssertEqualObjects([self title:graphics row:1 section:0],@"Format d’écran");
  XCTAssertEqualObjects([self title:graphics row:2 section:0],@"Précision du blending");
@@ -100,6 +156,125 @@ TESTS = r'''
  XCTAssertEqualObjects([self title:graphics row:4 section:0],@"Overlays de performances");
  XCTAssertEqualObjects([self title:graphics row:5 section:0],@"Hacks graphiques");
  XCTAssertTrue([self title:graphics row:6 section:0].length>0);
+ XCTAssertEqualObjects([self title:graphics row:7 section:0],@"Textures HD");
+ XCTAssertEqualObjects([self cell:graphics row:7 section:0].detailTextLabel.text,@"Remplacer les textures du jeu par un pack importé");
+ // Without a disc session (no host) the row is inert.
+ XCTAssertFalse([self cell:graphics row:7 section:0].userInteractionEnabled);
+ [graphics tableView:graphics.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:7 inSection:0]];
+ XCTAssertEqual(nav.topViewController,graphics);
+}
+- (ARMSX2TexturePage*)texturePage:(ARMSX2FakeTextureHost*)host navigation:(__strong UINavigationController**)nav {
+ Armsx2SessionMenu* graphics=[self menu:nav textures:host];
+ XCTAssertTrue([self cell:graphics row:7 section:0].userInteractionEnabled);
+ [graphics tableView:graphics.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:7 inSection:0]];
+ ARMSX2TexturePage* page=(id)(*nav).topViewController;
+ XCTAssertTrue([page isKindOfClass:ARMSX2TexturePage.class]);
+ [page loadViewIfNeeded];
+ return page;
+}
+- (NSString*)detail:(UITableViewController*)page row:(NSInteger)row section:(NSInteger)section {
+ return [self cell:page row:row section:section].detailTextLabel.text;
+}
+- (void)testTexturePageKeepsPackSwitchAndEngineApart {
+ ARMSX2FakeTextureHost* host=[ARMSX2FakeTextureHost new];
+ UINavigationController* nav=nil;ARMSX2TexturePage* page=[self texturePage:host navigation:&nav];
+ XCTAssertEqualObjects(page.title,@"Textures HD");
+ XCTAssertEqualObjects(host.calls,(@[@"read"]));
+ XCTAssertEqual([page numberOfSectionsInTableView:page.tableView],4);
+ XCTAssertEqualObjects([self title:page row:0 section:0],@"SLUS-21137");
+ XCTAssertTrue([[self detail:page row:0 section:0] containsString:@"Ratchet · NTSC-U"]);
+ XCTAssertTrue([[self detail:page row:0 section:0] containsString:@"Numéro de série lu par ARMSX2 au lancement du jeu"]);
+ // Pack on disk, then what the engine itself reports.
+ XCTAssertEqual([page tableView:page.tableView numberOfRowsInSection:1],2);
+ XCTAssertEqualObjects([self title:page row:0 section:1],@"Pack installé");
+ XCTAssertTrue([[self detail:page row:0 section:1] containsString:@"3 textures de remplacement"]);
+ XCTAssertTrue([[self detail:page row:0 section:1] containsString:@"ARMSX2/textures/SLUS-21137/replacements"]);
+ XCTAssertEqualObjects([self title:page row:1 section:1],@"Moteur");
+ NSString* engine=[self detail:page row:1 section:1];
+ XCTAssertTrue([engine containsString:@"120 textures reconnues · 8 chargées"]);
+ XCTAssertTrue([engine containsString:@"Mémoire des textures : "]);
+ XCTAssertTrue([engine containsString:@"Chargées en arrière-plan, sans préchargement de tout le pack."]);
+ XCTAssertTrue([[page tableView:page.tableView titleForFooterInSection:1] containsString:@"décodés par le processeur"]);
+ UISwitch* toggle=(UISwitch*)[self cell:page row:0 section:2].accessoryView;
+ XCTAssertTrue([toggle isKindOfClass:UISwitch.class]);XCTAssertTrue(toggle.on);XCTAssertTrue(toggle.enabled);
+ XCTAssertEqualObjects([self title:page row:0 section:2],@"Utiliser les textures HD pour ce jeu");
+ XCTAssertEqualObjects([self detail:page row:0 section:2],@"S’applique immédiatement au jeu en cours");
+ NSArray* actions=@[@"Importer un dossier",@"Importer une archive (ZIP, TAR, TAR.ZST)",@"Supprimer le pack",@"Comment préparer un pack"];
+ XCTAssertEqual([page tableView:page.tableView numberOfRowsInSection:3],4);
+ for (NSInteger row=0;row<4;row++) XCTAssertEqualObjects([self title:page row:row section:3],actions[row]);
+ XCTAssertTrue([[page tableView:page.tableView titleForFooterInSection:3] containsString:@"Un import vérifie seulement les fichiers."]);
+}
+- (void)testTextureSwitchRemovalAndEngineOffReachTheHost {
+ ARMSX2FakeTextureHost* host=[ARMSX2FakeTextureHost new];
+ UINavigationController* nav=nil;ARMSX2TexturePage* page=[self texturePage:host navigation:&nav];
+ UISwitch* off=[UISwitch new];off.on=NO;
+ NSMutableDictionary* engine=[host.state[@"engine"] mutableCopy];engine[@"effective"]=@NO;host.state[@"engine"]=engine;
+ [page switchChanged:off];
+ XCTAssertEqualObjects(host.calls,(@[@"read",@"enable 0",@"read"]));
+ XCTAssertTrue([[page tableView:page.tableView titleForFooterInSection:3] hasPrefix:@"Textures HD désactivées : appliqué au jeu en cours."]);
+ XCTAssertEqualObjects([self detail:page row:1 section:1],@"Inutilisé : les textures HD sont désactivées pour ce jeu.");
+ XCTAssertFalse(((UISwitch*)[self cell:page row:0 section:2].accessoryView).on);
+ host.enableResult=@{@"success":@NO,@"error":@"sessionActive"};
+ [page switchChanged:off];
+ XCTAssertTrue([[page tableView:page.tableView titleForFooterInSection:3] hasPrefix:@"Fermez d’abord le jeu PS2 en cours."]);
+ NSMutableDictionary* pack=[host.state[@"pack"] mutableCopy];pack[@"installed"]=@NO;host.state[@"pack"]=pack;
+ [page performRemove];
+ XCTAssertEqualObjects(host.calls.lastObject,@"read");
+ XCTAssertTrue([host.calls containsObject:@"remove"]);
+ XCTAssertTrue([[page tableView:page.tableView titleForFooterInSection:3] hasPrefix:@"Pack supprimé. Les jeux et les sauvegardes n’ont pas été modifiés."]);
+ XCTAssertEqualObjects([self title:page row:0 section:1],@"Aucun pack installé");
+ XCTAssertEqual([page tableView:page.tableView numberOfRowsInSection:3],3);
+}
+- (void)testTextureInspectionIsExplainedBeforeInstalling {
+ ARMSX2FakeTextureHost* host=[ARMSX2FakeTextureHost new];
+ UINavigationController* nav=nil;ARMSX2TexturePage* page=[self texturePage:host navigation:&nav];
+ [page cancelImport];
+ XCTAssertEqualObjects(host.calls.lastObject,@"cancelInspection");
+ [page inspected:@{@"success":@NO,@"token":@"T1",@"error":@"method",@"detail":@"9"}];
+ XCTAssertTrue([host.calls containsObject:@"discard T1"]);
+ XCTAssertFalse([[host.calls componentsJoinedByString:@","] containsString:@"install"]);
+ XCTAssertTrue([[page tableView:page.tableView titleForFooterInSection:3] containsString:@"méthode de compression non prise en charge (9)"]);
+ NSString* question=[page confirmationMessage:@{@"match":@"otherSerial",@"packSerial":@"SLES-54164",@"packRegion":@"PAL",
+  @"gameSerial":@"SLUS-21137",@"gameRegion":@"NTSC-U",@"regionConflict":@YES,@"regions":@[@"PAL"],@"needsConfirmation":@YES}];
+ XCTAssertTrue([question containsString:@"Ce pack est prévu pour SLES-54164 (PAL). Ce jeu est SLUS-21137 (NTSC-U)."]);
+ XCTAssertTrue([question containsString:@"Les noms du pack mentionnent PAL ; ce jeu est NTSC-U."]);
+ XCTAssertTrue([question containsString:@"reconnues par leur contenu"]);
+ host.installResult=@{@"success":@YES,@"serial":@"SLUS-21137",@"named":@3,@"bytes":@(3*1024*1024),@"enabled":@YES,@"live":@YES,
+  @"unsupported":@1,@"unsupportedSamples":@[@"bad-0000beef.dds"]};
+ [page install:@"T2" allow:YES];
+ NSUInteger install=[host.calls indexOfObject:@"install T2 1"];
+ XCTAssertNotEqual(install,NSNotFound);
+ XCTAssertEqualObjects(host.calls[install+1],@"discard T2");
+ NSString* footer=[page tableView:page.tableView titleForFooterInSection:3];
+ XCTAssertTrue([footer containsString:@"Pack installé pour SLUS-21137 : 3 textures"]);
+ XCTAssertTrue([footer containsString:@"bad-0000beef.dds"]);
+ XCTAssertTrue([footer containsString:@"Le jeu en cours utilise maintenant les nouveaux fichiers."]);
+ XCTAssertNil(page.navigationItem.rightBarButtonItem);
+}
+- (void)testTextureHelpAndUnknownSerial {
+ ARMSX2FakeTextureHost* host=[ARMSX2FakeTextureHost new];
+ host.state[@"game"]=@{@"serial":@"",@"source":@"none"};
+ host.state[@"pack"]=@{@"installed":@NO};
+ [host.state removeObjectForKey:@"engine"];host.live=NO;
+ UINavigationController* nav=nil;ARMSX2TexturePage* page=[self texturePage:host navigation:&nav];
+ XCTAssertEqualObjects([self title:page row:0 section:0],@"Numéro de série inconnu");
+ XCTAssertEqual([page tableView:page.tableView numberOfRowsInSection:1],1);
+ XCTAssertFalse(((UISwitch*)[self cell:page row:0 section:2].accessoryView).enabled);
+ XCTAssertTrue([[self detail:page row:0 section:2] hasPrefix:@"S’applique au démarrage du jeu"]);
+ XCTAssertEqualObjects([self title:page row:1 section:3],@"Importer une archive (ZIP, TAR)");
+ XCTAssertFalse([self cell:page row:0 section:3].userInteractionEnabled);
+ XCTAssertFalse([self cell:page row:1 section:3].userInteractionEnabled);
+ XCTAssertTrue([self cell:page row:2 section:3].userInteractionEnabled);
+ [page tableView:page.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:2 inSection:3]];
+ UIViewController* help=nav.topViewController;
+ XCTAssertEqualObjects(help.title,@"Comment préparer un pack");
+ UITextView* text=(UITextView*)help.view;
+ XCTAssertTrue([text isKindOfClass:UITextView.class]);
+ XCTAssertTrue([text.text containsString:@"ARMSX2/textures/SLUS-21137/replacements"]);
+ XCTAssertTrue([text.text containsString:@"Ce ne sont ni des shaders"]);
+ XCTAssertTrue([text.text containsString:@"patchs PNACH"]);
+ XCTAssertEqualObjects(ARMSX2TextureErrorText(@{@"error":@"zstdNeedsGame"},@"en"),
+  @"TAR.ZST archives are decompressed by the ARMSX2 engine: import them from the game's pause menu (Graphics › HD textures).");
 }
 - (void)testBlendingPageOffersOnlyEngineLevelsAndSendsScopedCommands {
  UINavigationController* nav=nil;Armsx2SessionMenu* graphics=[self menu:&nav];
@@ -259,7 +434,10 @@ def native():
             'targets': {
                 'ARMSX2GraphicsHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'Armsx2SessionMenu.mm'),
-                                str(CLASSES / 'Armsx2RetroAchievementsMenu.mm'), str(CLASSES / 'ARMSX2InGameLocalization.mm')]
+                                str(CLASSES / 'Armsx2RetroAchievementsMenu.mm'), str(CLASSES / 'ARMSX2InGameLocalization.mm'),
+                                # Build 485: the Graphics menu's HD textures page.
+                                str(CLASSES / 'ARMSX2TexturePage.mm'), str(CLASSES / 'ARMSX2TextureStrings.m'),
+                                str(CLASSES / 'ARMSX2TexturePackStore.mm')]
                                + [str(source) for source in catalogue]
                                + [str(TOUCH_STRINGS)],
                     'dependencies': sdk_dependencies,
@@ -286,7 +464,7 @@ def native():
             '-test-timeouts-enabled', 'YES', '-default-test-execution-time-allowance', '60',
             '-maximum-test-execution-time-allowance', '120', '-resultBundlePath', str(result),
             'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-', 'DEVELOPMENT_TEAM='], check=True, timeout=900)
-    print(f'PASS: {len(catalogue)} catalogue classes linked; Graphics rows, blending page, shaders, search, download and overlays executed on UIKit', flush=True)
+    print(f'PASS: {len(catalogue)} catalogue classes linked; Graphics rows, blending page, shaders, search, download, overlays and the HD textures page executed on UIKit', flush=True)
 
 
 if __name__ == '__main__':

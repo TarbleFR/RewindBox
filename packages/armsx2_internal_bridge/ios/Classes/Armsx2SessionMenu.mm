@@ -6,6 +6,8 @@
 #import "Armsx2RetroAchievementsMenu.h"
 #import "ARMSX2InGameLocalization.h"
 #import <neo_touch_layout/NeoTouchLayoutStrings.h>
+#import "ARMSX2TexturePage.h"
+#import "ARMSX2TextureStrings.h"
 #include <cmath>
 
 typedef NS_ENUM(NSInteger, ARMSX2MenuPage) {
@@ -430,6 +432,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   child.importCheats = self.importCheats;
   child.performPatchCommand = self.performPatchCommand;
   child.patches = self.patches;
+  child.textureHost = self.textureHost;
   child.resumeGame = self.resumeGame;
   child.quitGame = self.quitGame;
   return child;
@@ -492,7 +495,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 - (NSInteger)tableView:(UITableView*)tableView numberOfRowsInSection:(NSInteger)section {
   switch (self.page) {
     case ARMSX2MenuRoot: return self.rootKeys.count;
-    case ARMSX2MenuGraphics: return self.snapshot.count ? 7 : 0;
+    case ARMSX2MenuGraphics: return self.snapshot.count ? 8 : 0;
     case ARMSX2MenuBlending: {
       const NSInteger levels = (NSInteger)[self blendingLevels].count;
       return levels ? (section == 0 ? levels + 1 : levels) : 0;
@@ -669,6 +672,12 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       cell.detailTextLabel.text = ARMSX2MenuText(@"FPS, frametime and diagnostics", @"FPS, frametime et diagnostics");
     } else if (row == 6) {
       cell.textLabel.text = [NeoUnifiedCheatBrowser localizedText:@"directPatches" locale:self.localeIdentifier];
+    } else if (row == 7) {
+      // Build 485: HD replacement textures (not shaders, resolution or PNACH patches).
+      cell.textLabel.text = ARMSX2TextureText(@"title", self.localeIdentifier);
+      cell.detailTextLabel.text = ARMSX2TextureText(@"graphicsRowDetail", self.localeIdentifier);
+      cell.accessibilityIdentifier = @"armsx2.menu.hdTextures";
+      cell.userInteractionEnabled = self.textureHost != nil;
     } else {
       cell.textLabel.text = ARMSX2MenuText(@"Graphics Hacks", @"Hacks graphiques");
       cell.detailTextLabel.text = ARMSX2MenuText(@"Per-game advanced GS options", @"Options GS avancées par jeu");
@@ -929,6 +938,12 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     } else if (row == 6) {
       Armsx2SessionMenu* patches=[self child:ARMSX2MenuPatches title:[NeoUnifiedCheatBrowser localizedText:@"directPatches" locale:self.localeIdentifier]];
       [self.navigationController pushViewController:patches animated:YES]; [patches reloadPatches];
+    } else if (row == 7) {
+      if (!self.textureHost) return;
+      ARMSX2TexturePage* textures = [ARMSX2TexturePage new];
+      textures.localeIdentifier = self.localeIdentifier;
+      textures.host = self.textureHost;
+      [self.navigationController pushViewController:textures animated:YES];
     } else {
       Armsx2SessionMenu* hacks=[self child:ARMSX2MenuGraphicsHacks
           title:ARMSX2MenuText(@"Graphics Hacks", @"Hacks graphiques")];

@@ -25,9 +25,9 @@ for locale in locales:
 assert len(translation_keys)==32  # 13 graphics keys + 19 blending accuracy keys (Build 482)
 source=json.loads((ROOT/'build-utils/armsx2/source.json').read_text())
 assert source['release']=='iOSv2.6.0' and source['revision']=='9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe'
-assert source['abi_version']==7
-assert '#define NEO_ARMSX2_ABI_VERSION 7u' in (CLASSES/'ARMSX2CoreABI.h').read_text()
-print('PASS: exact official 2.6 pin; ABI 7; 32 graphics keys in all 12 locales')
+assert source['abi_version']==8
+assert '#define NEO_ARMSX2_ABI_VERSION 8u' in (CLASSES/'ARMSX2CoreABI.h').read_text()
+print('PASS: exact official 2.6 pin; ABI 8; 32 graphics keys in all 12 locales')
 if platform.system()!='Darwin':
     print('Foundation behavior checks require macOS and are mandatory in native CI.')
     raise SystemExit(0)
