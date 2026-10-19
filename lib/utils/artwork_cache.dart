@@ -11,6 +11,10 @@ const List<String> scrapedArtworkTypes = [
   'wheels',
   'box2d',
   'screenshots',
+  // Faces of the 3D box ("Box faces" media setting).
+  'box2dback',
+  'box2dside',
+  'support2d',
 ];
 
 /// Resolves every artwork file a scrape may have written for [game].
