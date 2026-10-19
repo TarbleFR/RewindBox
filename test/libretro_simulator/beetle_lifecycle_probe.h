@@ -88,36 +88,42 @@ static const NSInteger kBeetleProbeSlot = 7;
       [self after:0.5];
       return;
     }
-    case 1:
+    case 1: {
       BeetleCheck(result, BeetleFrames(session) > _mark, @"frames advance before pausing");
       BeetleSendBool(session, @"setMenuPaused:", YES);
       [self after:0.4];
       return;
-    case 2:
+    }
+    case 2: {
       _mark = BeetleFrames(session);
       [self after:0.6];
       return;
-    case 3:
+    }
+    case 3: {
       BeetleCheck(result, BeetleFrames(session) <= _mark + 1, @"no frame while paused");
       BeetleSendBool(session, @"setMenuPaused:", NO);
       _mark = BeetleFrames(session);
       [self after:0.6];
       return;
-    case 4:
+    }
+    case 4: {
       BeetleCheck(result, BeetleFrames(session) > _mark + 5, @"frames resume after the pause");
       BeetleSendBool(session, @"applicationActive:", NO);
       [self after:0.4];
       return;
-    case 5:
+    }
+    case 5: {
       _mark = BeetleFrames(session);
       [self after:0.6];
       return;
-    case 6:
+    }
+    case 6: {
       BeetleCheck(result, BeetleFrames(session) <= _mark + 1, @"no frame in the background");
       BeetleSendBool(session, @"applicationActive:", YES);
       _mark = BeetleFrames(session);
       [self after:0.6];
       return;
+    }
     case 7: {
       BeetleCheck(result, BeetleFrames(session) > _mark + 5, @"frames resume in the foreground");
       LibretroCoreHost *host = [session valueForKey:@"host"];
@@ -135,7 +141,7 @@ static const NSInteger kBeetleProbeSlot = 7;
       });
       return;
     }
-    case 8:
+    case 8: {
       BeetleOnEmulation(session, ^BOOL(LibretroCoreHost *core) {
         NSError *error = nil;
         BOOL ok = [core loadStateFromSlot:kBeetleProbeSlot error:&error];
@@ -147,17 +153,20 @@ static const NSInteger kBeetleProbeSlot = 7;
         [self after:0.8];
       });
       return;
-    case 9:
+    }
+    case 9: {
       BeetleCheck(result, BeetleFrames(session) > _mark + 5, @"frames advance after loading the state");
       BeetleRotate(session, NO);
       [self after:1.5];
       return;
-    case 10:
+    }
+    case 10: {
       BeetleCheck(result, !BeetlePortrait(session), @"rotated to landscape");
       _mark = BeetleFrames(session);
       BeetleRotate(session, YES);
       [self after:1.5];
       return;
+    }
     case 11: {
       BeetleCheck(result, BeetlePortrait(session), @"rotated back to portrait");
       BeetleCheck(result, BeetleFrames(session) > _mark + 5, @"frames advance through the rotations");

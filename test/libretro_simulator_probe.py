@@ -1298,6 +1298,28 @@ def print_failure_tails(evidence, lines=60):
             print('    ' + line[:400], flush=True)
 
 
+def print_beetle_diagnostics(report):
+    """Beetle PSX HW scenarios: what the session and the core reported, in the job log."""
+    keep = ('vulkan', 'Vulkan', 'hd-textures', 'beetle', 'Beetle', 'video', 'frame', 'present', 'hand', 'run:', 'load:',
+            'A1R5G5B5', 'renderer', 'texture', 'dither')
+    for result in report.get('results', []):
+        if not str(result.get('core', '')).startswith('mednafen_psx'):
+            continue
+        launch = result.get('launch') or {}
+        print(f"--- {result.get('name')}: launch success={launch.get('success')} code={launch.get('code')} "
+              f"renderer={launch.get('hardwareRendering')} core={launch.get('libraryName')} {launch.get('libraryVersion')}", flush=True)
+        print(f"    status={result.get('beetleStatus')} frames={result.get('beetleFrames')} size={result.get('beetleFrameSize')} "
+              f"dumped={len(result.get('beetleDumped') or [])} replacements={len(result.get('beetleReplacements') or [])} "
+              f"capture={(result.get('frame') or {}).get('captureError')}", flush=True)
+        for check in result.get('beetleLifecycle') or []:
+            print(f"    lifecycle {'ok' if check.get('passed') else 'FAILED'}: {check.get('name')}", flush=True)
+        lines = [line for line in str(result.get('journal', '')).splitlines() if any(word in line for word in keep)]
+        for line in lines[-40:]:
+            print('    journal: ' + line[:300], flush=True)
+        for line in (result.get('recentLog') or [])[-40:]:
+            print('    core: ' + str(line)[:300], flush=True)
+
+
 def journal_order_problems(journal):
     lines = journal.splitlines()
     position = 0
@@ -1830,6 +1852,11 @@ def command_run(args):
         problems.insert(0, 'the probe did not finish (process ended or timed out); last progress lines:\n'
                         + '\n'.join(progress.splitlines()[-8:]))
         print_failure_tails(evidence)
+    elif getattr(args, 'beetle', False):
+        # Its evidence artifact cannot be read where the results are reviewed: the log carries it.
+        print_beetle_diagnostics(report)
+        if problems:
+            print_failure_tails(evidence)
     if problems:
         print('\nSimulator probe problems:', flush=True)
         for problem in problems:

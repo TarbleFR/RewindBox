@@ -1149,6 +1149,12 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                                   result[@"beetleStatus"] = BeetleStatus(session);
                                   result[@"beetleDumped"] = BeetleFolderFiles(stem, @"texture-dump");
                                   result[@"beetleReplacements"] = BeetleFolderFiles(stem, @"texture-replacements");
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+                                  // Diagnostics printed by the runner: frames the core ran, the size it produced.
+                                  result[@"beetleFrames"] = @(BeetleFrames(session));
+#endif
+                                  result[@"beetleFrameSize"] = ProducedFrameSize(session);
+                                  result[@"recentLog"] = Tail(session.recentLog, 80);
                                   Progress(@"%@: beetle %@, %lu dumped", name, result[@"beetleStatus"],
                                            (unsigned long)[result[@"beetleDumped"] count]);
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
