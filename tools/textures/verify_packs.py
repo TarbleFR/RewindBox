@@ -401,6 +401,8 @@ def main():
     parser.add_argument('--kind', choices=['all', 'repository', 'release'], default='all')
     parser.add_argument('--resume', action='store_true', help='keep the results already in --out, verify the others')
     parser.add_argument('--work', default=None, help='folder for the temporary downloads')
+    parser.add_argument('--skip-recorded', default=None,
+                        help='skip the packs whose verification already succeeded in this file (tools/textures/verified.jsonl)')
     args = parser.parse_args()
     only = {item for item in args.only.split(',') if item}
     entries = []
@@ -413,6 +415,13 @@ def main():
                 record = json.loads(line)
                 if record.get('status') in ('ok', 'failed', 'manual', 'layout', 'install', 'unsupportedArchive', 'html', 'changed'):
                     done[record['id']] = line
+    recorded = set()
+    if args.skip_recorded and Path(args.skip_recorded).exists():
+        for line in Path(args.skip_recorded).read_text(encoding='utf-8').splitlines():
+            if line.strip():
+                record = json.loads(line)
+                if record.get('status') == 'ok':
+                    recorded.add(record['id'])
     log('VERIFY_BEGIN')
     with open(args.out, 'w', encoding='utf-8') as out:
         for entry in entries:
@@ -420,6 +429,8 @@ def main():
                 continue
             repository = bool((entry.get('download') or {}).get('repository'))
             if (args.kind == 'repository' and not repository) or (args.kind == 'release' and repository):
+                continue
+            if entry['id'] in recorded and not only:
                 continue
             if entry['id'] in done:
                 out.write(done[entry['id']] + '\n')

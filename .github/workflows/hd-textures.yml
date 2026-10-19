@@ -19,8 +19,12 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories]
+        options: [all, host, native, uikit, repositories, discover, links]
         default: all
+      only:
+        description: 'repositories: comma-separated pack ids (empty: every pack without a successful record)'
+        type: string
+        default: ''
 permissions: {contents: read, actions: read}
 concurrency:
   group: hd-textures-${{ github.sha }}
@@ -122,11 +126,51 @@ jobs:
         run: |
           python3 tools/textures/verify_packs.py --sources tools/textures/sources/${{ matrix.console }}.json \
             --driver build/hdtex486/texture_verify --kind repository --work "$RUNNER_TEMP" --max-gb 12 \
+            --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
             --out build/hdtex486/verified-${{ matrix.console }}.jsonl
+        env: {ONLY: '${{ inputs.only }}'}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: hdtex486-repositories-${{ matrix.console }}-${{ github.sha }}
           path: build/hdtex486/verified-${{ matrix.console }}.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  discover:
+    name: Candidate packs on GitHub (review list, nothing published)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'discover' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Search GitHub and describe each repository
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 tools/textures/discover.py github --out build/hdtex/candidates.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-candidates-${{ github.sha }}
+          path: build/hdtex/candidates.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  links:
+    name: Links of the catalogued packs (reachability, size, newer release)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'links' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Check every page and download part
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 tools/textures/discover.py links --out build/hdtex/links.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-links-${{ github.sha }}
+          path: build/hdtex/links.jsonl
           if-no-files-found: warn
           retention-days: 14
