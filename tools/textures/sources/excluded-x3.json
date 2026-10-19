@@ -616,6 +616,11 @@
  },
  {
   "console": "wii",
+  "source": "SNCE8P_UHD Texture.7z (https://mega.nz/file/fPggjR4K#jVz3XbnYqbzYDEzjCEfvTvALe6d9lomXtPWjy6XY1BE)",
+  "reason": "Sonic Colors UHD Texture (Dolphin forum): NeoStation's installer refuses the author's 7z archive at staging (limits: beyond what it unpacks on an iPhone; host run 39334091920)."
+ },
+ {
+  "console": "wii",
   "source": "rspe01_bc241.zip (https://gamebanana.com/dl/1049470)",
   "reason": "Wii Sports Pro (Laggamer20xx): the author's archive holds a damaged PNG (tex1_1024x512_m_8a1542f59cadec72_14.png, wrong signature), which NeoStation refuses to install (host run 39325465870)."
  },

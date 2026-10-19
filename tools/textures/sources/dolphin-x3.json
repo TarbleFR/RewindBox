@@ -4779,57 +4779,6 @@
   "family": "wii-endless-ocean-blue-world-hd-matrix2525"
  },
  {
-  "id": "wii-sonic-colors-uhd-forum",
-  "system": "wii",
-  "engine": "dolphin",
-  "title": "Sonic Colors UHD Texture",
-  "version": "see page",
-  "games": [
-   {
-    "title": "Sonic Colors",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-disc-game-id",
-      "value": "SNCE8P"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "see the page"
-  ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-sonic-color-uhd-texture",
-  "source_id": "dolphin-forum:sonic-color-uhd-texture",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "notes": "Made on the USA disc (SNCE8P).",
-  "download": {
-   "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-sonic-color-uhd-texture",
-   "file_name": "SNCE8P_UHD Texture.7z",
-   "verify": {
-    "url": "https://mega.nz/file/fPggjR4K#jVz3XbnYqbzYDEzjCEfvTvALe6d9lomXtPWjy6XY1BE",
-    "sha256": "aa255c9dc39a2faf4824b49aeb8ab8a5629669b9ac4d5a88b345cf3560fa4ef8"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "SNCE8P/",
-     "to": "SNCE8P"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "wii-sonic-colors-uhd-forum"
- },
- {
   "id": "gc-super-mario-strikers-hd-venomalia",
   "system": "gc",
   "engine": "dolphin",
