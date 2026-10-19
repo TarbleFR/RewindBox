@@ -324,7 +324,8 @@ static NSString *Fixtures(void) { return NSProcessInfo.processInfo.environment[@
   [self waitForExpectations:@[refreshed] timeout:30];
   NeoTextureCatalog.sharedCatalog.fetch = nil;
   NSString *user = [self.work stringByAppendingPathComponent:@"Dolphin/User"];
-  UIViewController *page = [self present:@{@"system": @"gc", @"dolphinUser": user, @"gameID": @"GALE01", @"title": @"Super Smash Bros. Melee", @"locale": @"en"}];
+  UIViewController *page = [self present:@{@"system": @"gc", @"dolphinUser": user, @"gameID": @"GALE01", @"title": @"Super Smash Bros. Melee", @"locale": @"en",
+                                           @"presentation": @"modal"}];
   XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTexturePack.ui-test-verified-melee") != nil; } timeout:20], @"%@", [Rows(page) valueForKey:@"identifier"]);
   NSString *detail = [Row(page, @"neoTexturePack.ui-test-verified-melee") valueForKey:@"detail"];
   XCTAssertTrue([detail containsString:[self label:@"stateManualVerified" language:@"en"]], @"%@", detail);
