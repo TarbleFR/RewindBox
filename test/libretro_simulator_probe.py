@@ -748,11 +748,11 @@ def _mips_program():
     """A stand-in PlayStation BIOS written here (never a console's BIOS): from
     the reset address it sets up the GPU, uploads a 16x16 4-bit texture and its
     palette from the CPU (what Beetle's texture tracker hashes) and draws it as
-    a textured quad, again and again; every GP0 word of the setup and uploads
-    waits for the FIFO, the quad's words follow one wait for an idle GPU.
-    Each pass leaves its progress at 0x1000 of system RAM (loop count, last
-    step, GPUSTAT before the quad), which the probe reads back."""
-    T0, T1, T3, T4, T2, T5, T6, T7 = 8, 9, 11, 12, 10, 13, 14, 15
+    a textured quad, again and again. Each GP0 command waits for an idle GPU,
+    then all its words follow. Each pass leaves its progress at 0x1000 of
+    system RAM (loop count, last step, GPUSTAT before the quad), which the
+    probe reads back."""
+    T0, T1, T3, T2, T5, T6, T7 = 8, 9, 11, 10, 13, 14, 15
     words = []
 
     def emit(word):
@@ -794,21 +794,15 @@ def _mips_program():
         load(value)
         sw(T1, 0x1814, T0)
 
-    def gp0(value):
-        load(value)
-        # Wait for GPUSTAT bit 28 (ready to receive a word): a full FIFO drops writes.
-        lw(T3, 0x1814, T0)
-        nop()
-        and_(T3, T3, T4)
-        beq(T3, 0, -4)
-        nop()
-        sw(T1, 0x1810, T0)
-
-    def gp0_words(values):
-        # A quad leaves bit 28 clear until its fourth vertex arrives (gpu.c
-        # CalcFIFOReadyBit: INCMD_QUAD), so waiting on it before each word
-        # never ends. Wait for the idle bit 26 once, then write the command's
-        # words without waiting: the 16-word FIFO holds them.
+    def gp0(*values):
+        # Wait for the idle bit 26, then write the command's words. GPUSTAT
+        # bit 28 (DMA block) is no per-word flow control for the CPU: Beetle
+        # (gpu.c) clears it once a command's first fifo_fb_len words are queued
+        # and starts the command only when all its words are (ProcessFIFO), so
+        # a CPU-to-VRAM transfer queued while the GPU still owes draw time
+        # waited forever (run 39296323461: stopped after the screen clear);
+        # a quad also keeps it clear until its fourth vertex. Once a transfer
+        # starts, each data word is taken as it arrives.
         lw(T3, 0x1814, T0)
         nop()
         and_(T3, T3, T5)
@@ -824,7 +818,6 @@ def _mips_program():
         sw(T1, 0x1004, T6)
 
     lui(T0, 0x1F80)               # I/O base
-    lui(T4, 0x1000)               # GPUSTAT bit 28
     lui(T5, 0x0400)               # GPUSTAT bit 26 (idle)
     lui(T6, 0xA000)               # system RAM (KSEG1): markers at 0x1000
     gp1(0x00000000)               # reset
@@ -843,29 +836,24 @@ def _mips_program():
     gp0(0xE3000000)               # drawing area top-left
     gp0(0xE403BCFF)               # drawing area bottom-right (255, 239)
     gp0(0xE5000000)               # drawing offset
-    for word in (0x02202020, 0x00000000, 0x00F00100):  # clear to dark grey
-        gp0(word)
+    gp0(0x02202020, 0x00000000, 0x00F00100)  # clear to dark grey
     mark(2)
-    # CLUT at (0, 480): index 0 red, index 1 blue, the rest red.
-    for word in (0xA0000000, 0x01E00000, 0x00010010):
-        gp0(word)
-    for _ in range(8):
-        gp0(0x7C00001F)
+    # CLUT at (0, 480): even indices red, odd indices blue.
+    gp0(0xA0000000, 0x01E00000, 0x00010010, *([0x7C00001F] * 8))
     mark(3)
     # 16x16 4-bit texture at (512, 0): 4 halfwords per row, checkered red/blue.
-    for word in (0xA0000000, 0x00000200, 0x00100004):
-        gp0(word)
+    rows = []
     for row in range(16):
         pattern = 0x10101010 if (row // 4) % 2 == 0 else 0x01010101
-        gp0(pattern)
-        gp0(pattern)
+        rows += [pattern, pattern]
+    gp0(0xA0000000, 0x00000200, 0x00100004, *rows)
     mark(4)
     lw(T3, 0x1814, T0)            # GPUSTAT before the quad
     nop()
     sw(T3, 0x1008, T6)
     # Raw textured quad (64,56)-(192,184), CLUT (0,480), texpage 8.
-    gp0_words((0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
-               0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F))
+    gp0(0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
+        0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F)
     mark(5)
     lui(T2, 0x0004)               # delay, then draw again
     delay = len(words)
