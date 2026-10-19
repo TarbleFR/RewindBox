@@ -1269,6 +1269,31 @@ def run_in_simulator(app, evidence, timeout, *, reset=True):
 
 # --- evaluation ----------------------------------------------------------
 
+def print_failure_tails(evidence, lines=60):
+    """An unfinished probe: the ends of what the app wrote (its console, the newest
+    session journals and the system log), in the job log as well as the evidence."""
+    def tail(path, count):
+        try:
+            text = Path(path).read_text(errors='replace').splitlines()
+        except OSError:
+            return
+        print(f'--- last {min(count, len(text))} lines of {Path(path).relative_to(evidence)}', flush=True)
+        for line in text[-count:]:
+            print('    ' + line[:400], flush=True)
+    tail(evidence / 'probe-console.log', lines)
+    logs = sorted((evidence / 'Logs').rglob('*'), key=lambda path: path.stat().st_mtime) if (evidence / 'Logs').is_dir() else []
+    for path in [path for path in logs if path.is_file()][-3:]:
+        tail(path, lines)
+    system = evidence / 'simulator-system.log'
+    if system.is_file():
+        keep = [line for line in system.read_text(errors='replace').splitlines()
+                if any(word in line for word in ('Terminating', 'exception', 'Exception', 'abort', 'crash', 'Crash', 'signal', 'jetsam',
+                                                 'EXC_', 'Vulkan', 'MoltenVK', 'vk', 'beetle', 'Beetle'))]
+        print(f'--- {min(lines, len(keep))} matching lines of simulator-system.log', flush=True)
+        for line in keep[-lines:]:
+            print('    ' + line[:400], flush=True)
+
+
 def journal_order_problems(journal):
     lines = journal.splitlines()
     position = 0
@@ -1790,6 +1815,7 @@ def command_run(args):
     if not outcome['finished']:
         problems.insert(0, 'the probe did not finish (process ended or timed out); last progress lines:\n'
                         + '\n'.join(progress.splitlines()[-8:]))
+        print_failure_tails(evidence)
     if problems:
         print('\nSimulator probe problems:', flush=True)
         for problem in problems:
