@@ -23,5 +23,20 @@
   "console": "gc",
   "source": "soopadoopacoopa/Super-Mario-Sunshine-3D-All-stars-texture-pack--first-release-",
   "reason": "An archive committed without a description of its content or origin; not reviewed further."
+ },
+ {
+  "console": "gc",
+  "source": "rileycleavenger/melee-4k-textures",
+  "reason": "A merge of community HD packs and AI fills for the Melee 4K setup, split into two independent ZIP parts: a compilation without stated permission from the packs' authors, and NeoStation installs one archive per pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "HeitorSpectre/DKCR-Texture-Tool, KaikoClanworth1/Pokemon-Colosseum-Model-Viewer",
+  "reason": "Tools (texture editor, model viewer), not texture packs."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Voidronox/LegendSmith",
+  "reason": "A Minecraft resource pack, not for an emulated console."
  }
 ]

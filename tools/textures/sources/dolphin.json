@@ -2611,5 +2611,61 @@
     }
    ]
   }
+ },
+ {
+  "id": "gc-melee-picmip-pack-manniefesto",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Smash Bros. Melee — picmip pack (flat textures)",
+  "version": "repository fb3d29f",
+  "games": [
+   {
+    "title": "Super Smash Bros. Melee",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GALE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "manniefesto"
+  ],
+  "page_url": "https://github.com/manniefesto/melee-picmip-pack/tree/fb3d29fd6b415fc0ab80eaa36f8f367f530a3c87",
+  "source_id": "github:manniefesto/melee-picmip-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Flat, low-detail textures for competitive play (effects and the six tournament stages), not an HD pack. Made for the USA disc used in competition (GALE01).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "melee-picmip-pack-fb3d29fd6b415fc0ab80eaa36f8f367f530a3c87.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/manniefesto/melee-picmip-pack/zip/fb3d29fd6b415fc0ab80eaa36f8f367f530a3c87"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/manniefesto/melee-picmip-pack",
+    "commit": "fb3d29fd6b415fc0ab80eaa36f8f367f530a3c87"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "melee-picmip-pack-fb3d29fd6b415fc0ab80eaa36f8f367f530a3c87/",
+     "to": "GALE01"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-melee-picmip-pack-manniefesto"
  }
 ]
