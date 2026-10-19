@@ -106,9 +106,11 @@ def verdict(part, inputs, log, extra=None):
         'result': 'passed',
         'coreRebuilt': False,
         'deviceValidated': False,
-        'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
+        'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         'host': platform.platform(),
         'inputsSHA256': {p: sha(p) for p in sorted(set(inputs)) if (ROOT / p).exists()},
+        'checks': [' '.join(entry['command']) for entry in log],
+        'timingsSeconds': {' '.join(entry['command']): entry['seconds'] for entry in log},
         'commands': log,
         **(extra or {}),
     }
@@ -186,7 +188,9 @@ def native():
     sources = sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'packages/neo_box_reader/ios/Classes').glob('*.swift'))
     run(['xcrun', '--sdk', 'iphoneos', 'swiftc', '-typecheck', '-swift-version', '5',
          '-target', 'arm64-apple-ios18.0', '-F', str(framework), '-module-name', 'neo_box_reader', *sources], log)
-    verdict('native', PRODUCT + SUPPORT + [NATIVE_MAIN], log, {'reports': reports})
+    xcode = subprocess.check_output(['xcodebuild', '-version'], text=True).strip()
+    sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip()
+    verdict('native', PRODUCT + SUPPORT + [NATIVE_MAIN], log, {'reports': reports, 'xcode': xcode, 'iphoneSDK': sdk})
 
 
 def main():
