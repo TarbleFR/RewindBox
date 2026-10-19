@@ -242,6 +242,16 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39328775629,
+      "source": "96e1ed4ffe157f4e3699d05cd45971b61f9cbb1e",
+      "consoles": [
+        "psp"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }
