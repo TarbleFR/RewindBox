@@ -158,5 +158,85 @@
   "console": "3ds",
   "source": "Ace Combat AHL+ button prompts, MM3DHD font/Link/tunic variants",
   "reason": "Add-ons replacing files of a base pack in the same Title ID folder."
+ },
+ {
+  "console": "gc",
+  "source": "FHArchive/ZeldaTwilightPrincess720p, LuigisMansion720p, Zelda64_720p, Mario64_1440p",
+  "reason": "Re-scaled copies of other authors' packs (Henriko Magnifico, Admentus, GhostlyDark) whose licences read \"All Rights Reserved\": not the authors' own distribution."
+ },
+ {
+  "console": "gc",
+  "source": "Solid-Snake-Plissken/mgstts-gchd-1 (Metal Gear Solid: The Twin Snakes)",
+  "reason": "Copy of UltimateNova1203's project, whose own repository was removed: not the author's distribution."
+ },
+ {
+  "console": "gc",
+  "source": "lioncash/Wind-Waker-Awesome-Edition",
+  "reason": "Deliberately crude joke redraws, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "mu-th-ur6000/Super-Mario-Sunshine, soopadoopacoopa Super Mario Sunshine 3D All-Stars",
+  "reason": "A re-upload of Razius's retexture, and a pack stored as a ZIP inside the repository (not an installable layout)."
+ },
+ {
+  "console": "wii",
+  "source": "Layell/Smash-3C-HD-Textures-Base-Pack, WoodleyBrew/SG-Build-HD-Textures, Darth-Koopa/MKDD_CN, ShadowTheHedgehogHacking/CharacterMods",
+  "reason": "For Brawl mods or a translated disc, or needing disc file replacement besides textures."
+ },
+ {
+  "console": "wii",
+  "source": "Shirobuuh/SUnwiished-Redux, Hendo16/HitAndRunDolphinTextures",
+  "reason": "Compilations of other authors' textures (GameBanana mods, UniversalDynamicInput art) without a stated permission."
+ },
+ {
+  "console": "psp",
+  "source": "WallSoGB/Patapon3Textures, LiinkPK/Dissidia-012-HD-Textures, RetroHero/MHFU-HDver and MHFU-Textures, alien038/MHFU-HD, CodyV59 Ridge Racers 2 JP",
+  "reason": "Superseded by the author's own pointer, no Game ID, working source folders, a fork of another repository, or two conflicting textures.ini layouts."
+ },
+ {
+  "console": "psp",
+  "source": "0xf0xx0/WipEout-Pure-HD-Texture-Pack, RLShiftyDoggit/FTB2-HD-Texture-pack, cngjd/MHP3rd-HD-Texture-Pack-Merged, sashkinbro/EmuCoreA-Textures",
+  "reason": "Re-uploads, merges or mirrors of other authors' packs."
+ },
+ {
+  "console": "ps2",
+  "source": "sashkinbro/EmuCoreX-Textures (769 mirrored PS2 packs)",
+  "reason": "A third-party mirror of other authors' packs: never used as a download. The creators' own pages are referenced through ps2ktxpak instead."
+ },
+ {
+  "console": "ps2",
+  "source": "ps2ktxpak packs: paid (204), cost not recorded (78), no serial and no PCSX2 GameIndex title match (83), no creator page (5), uncredited (2)",
+  "reason": "Paid access is not bypassed; a pack whose cost, game or creator is unknown is not listed (details in tools/textures/ps2ktxpak-report.json)."
+ },
+ {
+  "console": "ps2",
+  "source": "fbievan/2K-Resurrected-Archive, lifestepvan2/PROA2K5, Saya-ya/StrawTraduccion, ykon28/GranTurismo4TexturePack",
+  "reason": "An archive of another team's mod, a roster mod, a single translated font image, a single partial track."
+ },
+ {
+  "console": "n64",
+  "source": "Nerrel/MMHD, GameBeast92 Conker's Bad Fur Day, GhostlyDark/Turok3-Reloaded and the HTS/HTC variants of the Reloaded packs",
+  "reason": "Published only as GLideN64 cache files (HTS/HTC), which need the cache folder and options NeoStation does not set; the PNG variants are catalogued."
+ },
+ {
+  "console": "n64",
+  "source": "FHArchive/Mario64_1440p (GLideN64), aspieweeb759/RENDER96_HD_TEXTURE_PACK_EMULATOR_VERSION, blutinoviscovistes/OoT-PrerenderedWidescreen, GhostlyDark/OoT-MM-Combo-Reloaded",
+  "reason": "Re-scaled or converted copies of other packs, an add-on over OoT Reloaded, a randomizer ROM."
+ },
+ {
+  "console": "nes",
+  "source": "HD Packs (LiQuiDzGit/HDnes, lyonhrt/hdnes-projects)",
+  "reason": "A Mesen feature; NeoStation's NES core is Nestopia, which has no HD pack support (probe of the pinned binary: no HD pack code)."
+ },
+ {
+  "console": "ps1",
+  "source": "Beetle PSX HW texture replacement",
+  "reason": "Compiled in the pinned core (track/replace options), but marked by the core as likely to crash and only tied to the hardware renderer, which iOS sessions have not been shown to use: not offered."
+ },
+ {
+  "console": "all",
+  "source": "GBAtemp, PPSSPP and Dolphin forums, GameBanana, ModDB, n64textures.com, EmuTalk, Reddit, Google Drive/Docs/Sites lists",
+  "reason": "Not reachable from the verification environment (egress policy): no page could be checked, so nothing is listed from them except through ps2ktxpak's reviewed records."
  }
 ]
