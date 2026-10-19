@@ -28,7 +28,6 @@ jobs:
     timeout-minutes: 240
     env:
       HOMEBREW_NO_AUTO_UPDATE: '1'
-      WORK: ${{ runner.temp }}/kartpad-runtime
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "WORK=$RUNNER_TEMP/kartpad-runtime" >> "$GITHUB_ENV"
           ls -d /Applications/Xcode*.app
           XCODE="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1 || true)"
           [[ -n "$XCODE" ]] || XCODE="$(ls -d /Applications/Xcode_26*.app | sort -V | tail -n 1)"
