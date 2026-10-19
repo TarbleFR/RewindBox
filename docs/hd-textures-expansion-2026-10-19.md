@@ -6,18 +6,27 @@ Inventaire généré (packs, auteurs, conditions, vérification, exclusions) : [
 
 ## 1. Résultat
 
-Révision `__REVISION__` (index hébergé `native/textures/catalogue/manifest.json.gz`, copie embarquée identique octet pour octet) :
+Révision `2026-10-19.72e26f767470` (index hébergé `native/textures/catalogue/manifest.json.gz`, copie embarquée identique octet pour octet) :
 
 | | Build 486 | Maintenant |
 |---|---:|---:|
-| Packs distincts | 170 | __PACKS__ |
-| En un geste (fichier de l'auteur téléchargé, installé et contrôlé ici) | 144 | __ONETAP__ |
-| Lien manuel (page de l'auteur) | 26 | __MANUAL__ |
-| Identifiants de jeux distincts | 171 | __IDS__ |
-| Sources (dépôt GitHub ou page d'un créateur) | 128 | __SOURCES__ |
-| Auteurs crédités | 149 | __AUTHORS__ |
+| Packs distincts | 170 | 857 |
+| En un geste (fichier de l'auteur téléchargé, installé et contrôlé ici) | 144 | 189 |
+| Lien manuel (page de l'auteur) | 26 | 668 |
+| Identifiants de jeux distincts | 171 | 910 |
+| Sources (dépôt GitHub ou page d'un créateur) | 128 | 275 |
+| Auteurs crédités | 149 | 298 |
 
-__TABLE__
+| Console | Build 486 (un geste / manuel) | Maintenant (un geste / manuel) | Identifiants de jeux |
+|---|---:|---:|---:|
+| PlayStation 2 (ARMSX2) | 44 / 11 | 44 / 652 | 53 → 761 |
+| GameCube (Dolphin) | 23 / 1 | 28 / 1 | 19 → 22 |
+| Wii (Dolphin) | 20 / 2 | 23 / 2 | 11 → 14 |
+| PSP (PPSSPP) | 54 / 3 | 68 / 4 | 72 → 85 |
+| Nintendo 3DS (Azahar) | 8 / 9 | 10 / 9 | 20 → 21 |
+| Nintendo 64 (Mupen64Plus-Next) | — | 21 / 0 | 0 → 11 |
+
+Un pack servant les disques GameCube et les titres Wii Virtual Console est compté pour les deux consoles . Ajoutés : 687 packs (45 en un geste dont 21 N64, 642 liens manuels dont 637 ps2ktxpak) ; retirés : aucun.
 
 Aucun pack n'a été retiré ; aucun doublon n'a été publié (deux entrées installant les mêmes fichiers d'un même téléchargement sont refusées par le générateur, les miroirs et copies sont exclus, § 4).
 
@@ -34,7 +43,7 @@ Aucun pack n'a été retiré ; aucun doublon n'a été publié (deux entrées in
 - **Preuve technique** : sources `libretro/mupen64plus-libretro-nx` (GLideNHQ compilé pour toutes les plateformes, options `mupen64plus-txHiresEnable`, `-txHiresFullAlphaChannel`, `-EnableEnhancedHighResStorage`, dossier `<système libretro>/Mupen64plus/hires_texture/<nom ROM>/`, noms Rice `<nom>#<crc>#<fmt>#<siz>[#<palette>]_<suffixe>.png`) et binaire iOS épinglé (`LibretroCores-fdeaef56…`, run `38638115521`) sondé par `tools/textures/probe_cores.py` (job `cores`, run `39251651918`) : options et marqueurs présents.
 - **Adaptateur** (`packages/neo_texture_catalog`, aucun cœur reconstruit) : identité `n64-rom-name-hex` lue dans l'en-tête de la ROM (`.z64`, `.v64` octets permutés, `.n64` petit-boutiste ; nom en hexadécimal car l'index n'admet que `[A-Za-z0-9-]`), filtre exact de GLideN64 (`.png`/`.bmp` sensibles à la casse, `#` obligatoire, dossiers cachés et `~!~` ignorés), détection du dossier du jeu dans une archive (et refus d'un pack pour une autre ROM), installation dans le dossier du nom de ROM, interrupteur par jeu dans `Config/Games/Mupen64Plus-Next.json` (`mupen64plus-txHiresEnable` = `True`/`False`, avec `-txHiresFullAlphaChannel` et `-EnableEnhancedHighResStorage` = `True` à l'activation), ligne « Textures HD » du menu en jeu Mupen64Plus-Next et rangée de la bibliothèque. Les packs de cache HTS/HTC ne sont pas proposés (exclus avec raison).
 - **Cache de GLideNHQ** (défaut trouvé dans les sources avant toute livraison) : au premier démarrage avec un pack, GLideNHQ lit et décode tout le dossier puis écrit `<système>/Mupen64plus/cache/<nom ROM>_HIRESTEXTURES.hts` (stockage fichier, option « enhanced Hi-Res storage » : textures décodées sur disque plutôt qu'en mémoire) ou `.htc` (cache mémoire sauvegardé, `-EnableTextureCache`, activé par défaut) ; ensuite il recharge ce fichier dès que ses options concordent, **sans relire le pack** (`TxHiResCache`, `TxCache::load`), et le charge même quel que soit le réglage quand le dossier du pack n'existe plus. Une mise à jour, un remplacement ou une suppression seraient donc restés sans effet. Le magasin appelle désormais `-didChangePackFolder:` après chaque installation, remplacement, import ou suppression réussi ; l'adaptateur N64 supprime alors ces deux fichiers pour ce seul nom de ROM (test Foundation : caches du jeu supprimés, cache d'un autre jeu conservé). La page signale que le premier démarrage après un pack nouveau ou mis à jour lit tout le pack et peut être long (texte dans les douze langues).
-- **Packs** : 19 packs GLideN64 PNG en un geste (GhostlyDark « Reloaded », Mario Kart 64, F-Zero X, Zelda, Banjo, Conker…), plus 2 archives de dépôt (Super Mario 64 polices et tableaux, Space Station Silicon Valley) vérifiées par le job `repositories` (§ 6). Les applications 486/487 ignorent ces packs (système inconnu, rejet pack par pack) : ils n'apparaissent qu'avec la Build 488.
+- **Packs** : 21 packs GLideN64 PNG en un geste pour 11 identifiants de ROM : 19 assets de release vérifiés dans le conteneur (GhostlyDark « Reloaded » pour Banjo-Kazooie, Banjo-Tooie, GoldenEye 007, Mario Kart 64, Majora's Mask, Ocarina of Time, Super Mario 64, Super Smash Bros., Resident Evil 2, Mario Craft 64, F-Zero X, etc.) et 2 archives de dépôt vérifiées sur CI (run `39264550682` : polices et tableaux de Super Mario 64 par Fanfreluche, 172 textures ; Space Station Silicon Valley HD par JappaWakka, 194 textures). BK Reloaded est à sa dernière version v0.2.1 (2 871 textures). Les applications 486/487 ignorent ces packs (système inconnu, rejet pack par pack) : ils n'apparaissent qu'avec la Build 488.
 
 ## 4. Plateformes étudiées et non ouvertes
 
@@ -45,7 +54,7 @@ Aucun pack n'a été retiré ; aucun doublon n'a été publié (deux entrées in
 
 ## 5. Contrôle des liens et mise à jour sans IPA
 
-- `discover.py links` (job `links`) : pour chaque pack, page et parties de téléchargement (statut, taille annoncée), nouvelle release GitHub ; une requête par URL, au plus une par seconde et par hôte ; un hôte qui refuse un contrôle automatique (401, 403, 429, 503) est noté « refusé », jamais contourné. Résultat : __LINKS__.
+- `discover.py links` (job `links`) : pour chaque pack, page et parties de téléchargement (statut, taille annoncée), nouvelle release GitHub ; une requête par URL, au plus une par seconde et par hôte ; un hôte qui refuse un contrôle automatique (401, 403, 429, 503) est noté « refusé », jamais contourné. Résultat : run `39259632196` (858 entrées, 829 URL) : **aucun pack en un geste cassé** (161 à jour, 30 signalés « version plus récente »). Revue des 30 : seule BK Reloaded avait réellement une version plus récente (v0.2.1, revérifiée) ; les autres sont des dépôts épinglés à leur tête (plus récente que leurs tags de release) ou des dépôts dont la dernière release concerne un autre pack (PokeTex XY, mod de difficulté de Pokémon Y Resurrection, version PCSX2 de MK Deception). Packs manuels : 28 pages accessibles, 7 avec une release plus récente (MK Armageddon renvoie désormais vers la dernière release, v1.6), **632 pages gbatemp.net refusent le contrôle automatique (HTTP 403)** : ni contournées ni comptées comme cassées — leur accessibilité n'est donc pas vérifiée ici..
 - Le catalogue reste hors ligne (index embarqué, dernier index valide conservé) ; l'index hébergé sur `Claude` est rafraîchi par l'application sans nouvelle IPA : les packs PS2, GameCube, Wii, PSP et 3DS ajoutés atteignent les Builds 486 et 487 installées ; seuls les packs N64 demandent la Build 488.
 
 ## 6. Vérifications
