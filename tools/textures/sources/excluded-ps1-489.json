@@ -1,0 +1,32 @@
+[
+ {
+  "console": "ps1",
+  "source": "S166 Xenogears Perfect ART Works (PAW), RetroArch texture pack (Godsibb ∞ Scientia)",
+  "reason": "Distributed through a Discord server (account required); not fetched, not catalogued."
+ },
+ {
+  "console": "ps1",
+  "source": "S167 Xenogears HD portraits (ShiningRed, Patreon post)",
+  "reason": "Patreon page not readable without an account; no public file found."
+ },
+ {
+  "console": "ps1",
+  "source": "S169 Chrono Cross upscale WIP (Reddit)",
+  "reason": "Reddit thread unreachable from the verification environment; no file found."
+ },
+ {
+  "console": "ps1",
+  "source": "S170–S175 PS1 packs made for DuckStation (Bl4ckH4nd collection, Resident Evil, Resident Evil 2, Parasite Eve II, Legend), GBAtemp",
+  "reason": "DuckStation replacement packs (its own texture hashes and names): Beetle PSX HW does not read them and renaming files would not convert them. GBAtemp also refuses automated access (HTTP 403)."
+ },
+ {
+  "console": "ps1",
+  "source": "S176 Castlevania: Symphony of the Night HD x4 for Beetle PSX HW (Tarrantx, GBAtemp)",
+  "reason": "Made for Beetle PSX HW, but its GBAtemp thread refuses automated access (HTTP 403): the file could not be fetched and verified. Candidate."
+ },
+ {
+  "console": "ps1",
+  "source": "S177 NR74W/WipEout-HD-Texture-Pack",
+  "reason": "Repository no longer exists (HTTP 404)."
+ }
+]
