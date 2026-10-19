@@ -36,6 +36,7 @@
 #import <neo_shader_kit/NeoSlangRenderer.h>
 
 #include <mach/mach_time.h>
+#import <objc/message.h>
 #include <mach/mach.h>
 #include <math.h>
 #include <stdatomic.h>
@@ -2971,6 +2972,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSUInteger enabledCheats = _cheatMenu.enabledCount;
   if (enabledCheats > 0) cheats.detail = @(enabledCheats).stringValue;
   [extras addObject:cheats];
+  LibretroMenuRow *textures = [self hdTexturesRow];
+  if (textures != nil) [extras addObject:textures];
   if (_achievements != nil) {
     LibretroMenuRow *achievements = [LibretroMenuRow rowWithTitle:[self text:@"achievements"]
                                                            action:^(LibretroMenuPage *page) {
@@ -3209,6 +3212,68 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
               }
               return @[ [LibretroMenuSection sectionWithTitle:nil rows:rows] ];
             }];
+}
+
+// Build 486: "HD textures" for the cores that replace textures (PPSSPP,
+// Azahar), the page shared by every embedded engine (neo_texture_catalog,
+// created by name so this pod does not link it). Its switch is the core's own
+// option for this game, written through the running store: the session would
+// otherwise rewrite the game's options when it next saves them.
+- (Class)hdTexturesPageClass {
+  Class page = NSClassFromString(@"NeoTextureHDPage");
+  return [page respondsToSelector:NSSelectorFromString(@"textureViewControllerWithOptions:")] ? page : nil;
+}
+
+- (nullable LibretroMenuRow *)hdTexturesRow {
+  NSString *coreId = _configuration.coreId;
+  if (![coreId isEqualToString:@"ppsspp"] && ![coreId isEqualToString:@"azahar"]) return nil;
+  Class page = [self hdTexturesPageClass];
+  SEL text = NSSelectorFromString(@"text:locale:");
+  if (page == nil || ![page respondsToSelector:text] || _configuration.saveDirectory.length == 0 ||
+      _configuration.optionsDirectory.length == 0) return nil;
+  NSString *title = ((NSString * (*)(id, SEL, NSString *, NSString *))objc_msgSend)(page, text, @"title", _configuration.uiLocale ?: @"en");
+  __weak LibretroSession *weakSelf = self;
+  LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:title
+                                                action:^(LibretroMenuPage *menuPage) {
+                                                  [weakSelf openHDTexturesFrom:menuPage];
+                                                }];
+  row.disclosure = YES;
+  row.identifier = @"libretro-menu-hd-textures";
+  return row;
+}
+
+- (void)openHDTexturesFrom:(LibretroMenuPage *)menuPage {
+  Class page = [self hdTexturesPageClass];
+  if (page == nil) return;
+  LibretroCoreOptions *options = _host.options;
+  NSString *gameKey = _configuration.gameKey ?: @"";
+  NSString *(^reader)(NSString *, NSString *) = ^NSString *(NSString *key, NSString *game) {
+    if (![game isEqualToString:gameKey]) return nil;
+    return [options nextLaunchValueForKey:key];
+  };
+  BOOL (^writer)(NSString *, NSString *, NSString *) = ^BOOL(NSString *key, NSString *value, NSString *game) {
+    if (![game isEqualToString:gameKey]) return NO;
+    // Read when the game starts: the change applies at its next launch.
+    return [options setValue:value forKey:key game:YES applyNow:NO];
+  };
+  NSMutableDictionary *arguments = [@{
+    @"system": [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
+    @"engine": _configuration.coreId,
+    @"libretroSaves": _configuration.saveDirectory,
+    @"libretroConfig": _configuration.optionsDirectory,
+    @"gamePath": _configuration.contentPath ?: @"",
+    @"gameKey": gameKey,
+    @"title": _configuration.gameTitle ?: @"",
+    @"inGame": @YES,
+    @"locale": _configuration.uiLocale ?: @"en",
+  } mutableCopy];
+  if (options != nil) {
+    arguments[@"sessionReader"] = reader;
+    arguments[@"sessionWriter"] = writer;
+  }
+  UIViewController *controller = ((UIViewController * (*)(id, SEL, NSDictionary *))objc_msgSend)(
+      page, NSSelectorFromString(@"textureViewControllerWithOptions:"), arguments);
+  if (controller != nil) [menuPage.navigationController pushViewController:controller animated:YES];
 }
 
 - (LibretroMenuPage *)cheatsPage {

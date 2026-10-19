@@ -1,0 +1,19 @@
+name: neo_texture_catalog
+resolution: workspace
+description: Unified HD texture pack catalogue shared by NeoStation's embedded engines (ARMSX2, Dolphin, PPSSPP, Azahar).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.9.2'
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: NeoTextureCatalogPlugin

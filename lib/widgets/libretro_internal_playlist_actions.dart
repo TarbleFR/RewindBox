@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/libretro_locale.dart';
+import '../l10n/texture_catalog_locale.dart';
+import '../services/texture_catalog_service.dart';
 import '../models/system_model.dart';
 import '../screens/libretro/libretro_library_actions.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
@@ -109,8 +111,23 @@ class _LibretroInternalPlaylistActionsState
     }
   }
 
+  // Build 486: the console's HD textures page (PSP, 3DS).
+  Future<void> _openTextures() async {
+    _interaction(true);
+    try {
+      final opened = await TextureCatalogService.openConsole(widget.system.folderName, consoleKey: widget.systemFolder);
+      if (!opened && mounted) _notice(TextureCatalogLocale.text(Localizations.localeOf(context), 'openFailed'));
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
+    if (action == 'textures') {
+      await _openTextures();
+      return;
+    }
     if (action == 'skins') {
       await _openSkins();
       return;
@@ -213,6 +230,11 @@ class _LibretroInternalPlaylistActionsState
           PopupMenuItem(value: 'retroarch', child: Text(_t('importRetroArch'))),
           if (_console != null)
             PopupMenuItem(value: 'skins', child: Text(_t('skins'))),
+          if (TextureCatalogService.supports(widget.systemFolder))
+            PopupMenuItem(
+              value: 'textures',
+              child: Text(TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle')),
+            ),
         ],
       ),
     );

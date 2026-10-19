@@ -57,6 +57,7 @@ physical memory or circumvent Apple's resource enforcement.
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by NeoStation is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
 | **ARMSX2 texture pack readers** | ARMSX2 team and contributors | Since Build 485, `IOS/TexturePackPaths.h` and `IOS/TexturePackTar.h` of the ARMSX2 tag `iOSv2.6.0` (`9d989ca9`) are copied unmodified into `packages/armsx2_internal_bridge/ios/Classes/upstream/` (GPL-3.0-or-later, SPDX headers kept; SHA-256 pinned in `build-utils/armsx2/upstream-files.json`) so HD texture packs install to the same paths as in ARMSX2. |
+| **LZMA SDK (7-Zip)** | Igor Pavlov | Since Build 486, the 7z reader of the HD texture catalogue (`packages/neo_texture_catalog/ios/ThirdParty/lzma`, LZMA SDK 24.09) is compiled into that pod with hidden symbols. The LZMA SDK is placed in the public domain by its author; files are kept unmodified with their headers. |
 | **librashader** | Ronny Chan / SnowflakePowered and contributors | Native Metal shader chains used by ARMSX2 2.6. The pinned 0.12.0 C API declares MPL-2.0 OR GPL-3.0-only; preserve upstream notices. |
 | **Dusklight** | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Dusklight's root work is CC0-1.0; embedded dependencies retain their own licenses. |
 | **KartPad / WiiCompiled** | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad. WiiCompiled and dependency notices remain applicable. Game-derived translated logic has separate rights considerations and is not relicensed by the software licenses. |
@@ -244,6 +245,25 @@ groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lis
 excluded references, which are not counted among the 51 contributing entries.
 This source-tree update does not publish a release or change a previously
 distributed IPA. The official release remains 0.0.7 / Build 455.
+
+## HD texture catalogue (Build 486)
+
+The "HD textures" page of the embedded ARMSX2, Dolphin, PPSSPP and Azahar
+engines lists packs published by their authors. **NeoStation does not host,
+mirror or redistribute any texture.** When the user chooses a pack, the app
+downloads the author's own file from the author's page (GitHub release asset or
+repository archive), checks its size and SHA-256 against the catalogue, and
+installs only the files the engine reads into that engine's folder for the
+game. Packs whose authors only publish elsewhere (MEGA, Google Drive, Dropbox,
+forums, GameBanana, Patreon) are listed as manual links, never fetched.
+
+Every pack keeps its authors, version, credits and stated terms in the
+catalogue and on its page in the app. [The source inventory](HD_TEXTURE_CATALOG_SOURCES.md)
+lists every pack, its author, page, licence statement and verification result,
+and the sources reviewed but left out with the reason. Most packs state no
+licence: that is recorded as such and is not a grant of any right. Textures
+derived from commercial games remain subject to their owners' rights; packs
+are for use with the user's own copy of the game.
 
 ## Optional cheat catalogue source
 

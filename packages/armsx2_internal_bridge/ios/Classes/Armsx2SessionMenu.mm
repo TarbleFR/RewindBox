@@ -9,6 +9,7 @@
 #import "ARMSX2TexturePage.h"
 #import "ARMSX2TextureStrings.h"
 #include <cmath>
+#import <objc/message.h>
 
 typedef NS_ENUM(NSInteger, ARMSX2MenuPage) {
   ARMSX2MenuRoot,
@@ -940,9 +941,27 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       [self.navigationController pushViewController:patches animated:YES]; [patches reloadPatches];
     } else if (row == 7) {
       if (!self.textureHost) return;
-      ARMSX2TexturePage* textures = [ARMSX2TexturePage new];
-      textures.localeIdentifier = self.localeIdentifier;
-      textures.host = self.textureHost;
+      // Build 486: the HD textures page shared by every embedded engine
+      // (neo_texture_catalog, created by name so this pod does not link it).
+      // It installs, switches and removes packs through this game's
+      // textureHost and the Build 485 store, and opens ARMSX2TexturePage as
+      // the engine's details; that page stays the fallback.
+      UIViewController* textures = nil;
+      Class unified = NSClassFromString(@"NeoTextureHDPage");
+      SEL make = NSSelectorFromString(@"textureViewControllerWithOptions:");
+      NSObject* host = (NSObject*)self.textureHost;
+      NSString* dataPath = [host respondsToSelector:NSSelectorFromString(@"dataPath")] ? [host valueForKey:@"dataPath"] : nil;
+      NSString* gamePath = [host respondsToSelector:NSSelectorFromString(@"gamePath")] ? [host valueForKey:@"gamePath"] : nil;
+      if (unified && [unified respondsToSelector:make] && [dataPath isKindOfClass:NSString.class] && [gamePath isKindOfClass:NSString.class])
+        textures = ((UIViewController* (*)(id, SEL, NSDictionary*))objc_msgSend)(unified, make, @{
+            @"system": @"ps2", @"engine": @"armsx2", @"armsx2Data": dataPath, @"armsx2Host": self.textureHost, @"gamePath": gamePath,
+            @"title": self.gameTitle ?: @"", @"inGame": @YES, @"locale": self.localeIdentifier ?: @"en"});
+      if (!textures) {
+        ARMSX2TexturePage* page = [ARMSX2TexturePage new];
+        page.localeIdentifier = self.localeIdentifier;
+        page.host = self.textureHost;
+        textures = page;
+      }
       [self.navigationController pushViewController:textures animated:YES];
     } else {
       Armsx2SessionMenu* hacks=[self child:ARMSX2MenuGraphicsHacks

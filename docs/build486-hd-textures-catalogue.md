@@ -1,0 +1,69 @@
+# Build 486 — catalogue unifié de textures HD (ARMSX2, Dolphin, PPSSPP, Azahar)
+
+Demande du mainteneur (19 octobre 2026) : un catalogue unifié de packs de textures HD téléchargeables, aussi simple que les cheats, pour la PS2 (ARMSX2 embarqué), le GameCube et la Wii (Dolphin iOS embarqué), la PSP (PPSSPP libretro) et la Nintendo 3DS (Azahar libretro) ; un menu « Textures HD » commun ; des catalogues réels, vérifiés, crédités, sans réhébergement ; une IPA de test après les autres compilations ; rien sur `main`, aucune release.
+
+Inventaire des packs, auteurs, conditions et exclusions : [`HD_TEXTURE_CATALOG_SOURCES.md`](HD_TEXTURE_CATALOG_SOURCES.md) (généré).
+
+## 1. Audit de l'existant
+
+- **PS2** : la Build 485 (autre session) a branché le remplacement de textures d'ARMSX2 (`GSTextureReplacements`, `ARMSX2/textures/<série>/replacements`, chargement asynchrone, budget `os_proc_available_memory()/2`) avec son magasin (`ARMSX2TexturePackStore`, lecteurs ZIP/TAR/dossier en flux, verdicts de série/région/CRC, interrupteur par jeu `LoadTextureReplacements`, choix appliqué avant la première image) et sa page en jeu. La 486 **ne crée pas de second système PS2** : l'adaptateur ARMSX2 du catalogue délègue au magasin 485 par le runtime Objective-C (aucun pod ne lie l'autre). Seule addition au pont ARMSX2 : `initWithExpandedFolder:` pour remettre au magasin un dossier que le catalogue a déjà vérifié et décompressé (7z, sous-arbre), déplacé comme une archive `.tar.zst` décompressée.
+- **Dolphin** : `HiresTexture::Update` lit `Load/Textures/<GameID>` (sinon `<ID3>`), plus tout dossier de premier niveau contenant un `<GameID|ID3|all>.txt` à n'importe quelle profondeur (`GetTextureDirectoriesWithGameId`), fichiers `tex1_*.png|dds` (extension sans casse, préfixe exact). Interrupteur : `[Video_Settings] HiresTextures` des `GameSettings/<ID>[r<rév>].ini` (couches `G`, `GXX`, `GXXXXX`, `GXXXXXr<rév>`), `CacheHiresTextures = False` pour ne jamais précharger tout un pack. DDS BC seulement si le GPU échantillonne les formats BC (iOS 16.4+, `supportsBCTextureCompression`). L'ancienne page d'import Dolphin (`DOLTextureSettings`) reste le repli ; son manifeste (`gameId`, `count`, `sourceGameIds`) reste lisible.
+- **PPSSPP (libretro)** : option `ppsspp_texture_replacement` (relue au lancement), `<Saves>/PPSSPP/PSP/TEXTURES/<DISC_ID>/textures.ini` (`[options] hash` obligatoire, quick/xxh32/xxh64), chemins `[hashes]` lus tels quels (stockage iOS sensible à la casse), pas de remplacement avec le rendu logiciel.
+- **Azahar (libretro)** : option `citra_custom_textures`, `<Saves>/Azahar/Azahar/load/textures/<ID programme %016X>/`, `pack.json` à la racine (booléens `skip_mipmap`, `flip_png_files`, `use_new_hash` ; absent = hachage hérité), extension comparée exactement (`png`, `dds`, `ktx`), nom de plus de trois parties ignoré, DDS refusé sans `pack.json` ou avec `skip_mipmap`, PNG endommagé dangereux.
+- **Cheats** : le catalogue unifié de cheats (index typé, paquets vérifiés, état commun) a servi de modèle : index rafraîchissable, dernier index valide conservé, identités typées.
+
+## 2. Conception
+
+- **Pod `packages/neo_texture_catalog`** (workspace Flutter, plugin iOS `NeoTextureCatalogPlugin`) :
+  - `NeoTextureCatalog` : index `catalogue_id = neostation-hd-textures`, `schema_version = 1`, embarqué (`Resources/manifest.json.gz`) et rafraîchi depuis `native/textures/catalogue/manifest.json.gz` de `Claude` (sans nouvelle IPA). Un rafraîchissement échoué (réseau, page web, index invalide) ne remplace jamais l'index valide ; l'erreur est notée et affichée. Hors ligne : dernier index téléchargé, sinon l'index embarqué. Validation stricte de chaque pack (URL HTTPS, taille et SHA-256 de chaque partie, ZIP ou 7z, dossiers cibles sûrs, exclusions).
+  - `NeoTexturePackStore` : un téléchargement à la fois depuis l'URL de l'auteur (`Library/Caches`, reprise quand le serveur le permet), taille et SHA-256 vérifiés, page HTML refusée comme telle, espace libre vérifié avant (téléchargement + installation + 1 Gio), extraction en flux hors du fil principal (ZIP/ZIP64 deflate/stocké, 7z LZMA/LZMA2 du LZMA SDK avec fenêtre bornée), chemins validés, préparation à part puis échange atomique journalisé (ancien dossier restauré en cas d'échec, reprise après interruption), nettoyage des fichiers temporaires, conflit avec un autre pack demandé à l'utilisateur. Seul le dossier du pack est supprimé : jamais le jeu, ses sauvegardes, ses BIOS ni un autre dossier.
+  - `NeoTextureEngines` : quatre adaptateurs (chemins donnés par l'intégration de chaque moteur, aucun chemin de conteneur écrit en dur) ; `NeoTextureIdentityReader` : lectures bornées des identifiants (série + CRC PS2, Game ID + révision GC/Wii y compris WAD, DISC_ID PSP, ID programme 3DS, mise à jour refusée).
+  - `NeoTextureHDPage` : page commune (catalogue et son état, jeu et ses identifiants, interrupteur réel du moteur, packs compatibles / à confirmer, packs installés, import depuis Fichiers, sources), page d'un pack (auteurs, version, tailles, formats, compatibilité, licence, crédits, source, vérification, installer / mettre à jour / remplacer / supprimer, progression, pause, annulation).
+- **Correspondance** par identifiants réels typés ; un dossier Dolphin de trois caractères vaut pour toutes les régions ; une autre région ou révision n'est jamais supposée compatible (au mieux « à confirmer » si le titre concorde) ; un titre seul n'est jamais exact ; des identifiants issus d'une base de jeux et non de l'auteur (`confirm`) demandent une confirmation. Un pack peut servir plusieurs consoles d'un même moteur (`systems`, GameCube + Wii Virtual Console).
+- **États distingués** : catalogue absent ou en chargement, rafraîchissement échoué (jamais présenté comme « aucun pack »), compatible, à confirmer, aucun pack, source manuelle, téléchargé, installé, activé, mise à jour disponible ; un pack installé n'est pas présenté comme chargé.
+- **Points d'entrée** : menu en jeu (ARMSX2 Graphismes › Textures HD, Dolphin Graphismes › Textures, PPSSPP/Azahar menu en jeu), menus d'import des consoles (PS2, GameCube, Wii, PSP, 3DS), options d'un jeu (onglet Gérer). Les ponts créent la page par son nom (`NSClassFromString`) ; l'ancienne page de chaque moteur reste le repli.
+- **Douze langues** : `tools/textures/labels*.py` (154 clés natives, 4 clés Flutter), contrôlées par `tools/textures/labels.py --check` et `test/texture_labels_test.py`.
+
+## 3. Catalogue
+
+- Sources revues : `tools/textures/sources/{ps2,dolphin,psp,3ds}.json` (auteur, page, licence, téléchargement, disposition) et `excluded.json` (revu, écarté, raison).
+- Vérification : `tools/textures/verify_packs.py` télécharge le fichier de l'auteur, refuse une page web, mesure taille et SHA-256 (parties jointes octet par octet), installe avec le code de l'application (`tools/textures/native/texture_verify.cpp` : `NeoTextureInstall`, et le pipeline du magasin 485 pour la PS2), puis contrôle ce que le moteur lit. Résultats : `tools/textures/verified.jsonl`.
+- Les fichiers publiés comme assets de release ont été vérifiés dans le conteneur de travail le 19 octobre 2026 (Linux, g++, téléchargement direct depuis GitHub) ; ceux publiés comme archives de dépôt (codeload, inaccessible depuis le conteneur) sont vérifiés par le job `repositories` de `.github/workflows/hd-textures.yml` puis ajoutés au catalogue hébergé.
+- `tools/textures/build_catalogue.py` produit `native/textures/catalogue/manifest.json.gz` et la copie embarquée (octets identiques, gzip sans horodatage), applique les mêmes règles que l'application et génère l'inventaire. Un pack n'est « en un geste » que si sa vérification est réussie.
+
+## 4. Vérifications
+
+Exécutées dans le conteneur de travail (Linux, sans SDK Apple ni Flutter) :
+
+- `test/texture_archive_test.py` (47 scénarios ZIP/ZIP64/7z, ASan/UBSan), `test/texture_identity_test.py` (30 images synthétiques, dont WAD), `test/texture_install_test.py` (54 vérifications : filtres exacts par moteur, détection de disposition, marqueurs Dolphin, exclusions, installation ZIP/7z/dossier dans les vraies arborescences, mise à jour, suppression limitée au dossier du pack, refus sans effet de bord, reprise après crash), `test/texture_labels_test.py` (douze langues, 144 clés contrôlées), `tools/textures/build_catalogue.py --check`.
+- Vérification réelle des packs (résultats dans l'inventaire).
+- Contrats existants lisant un fichier modifié : réussis, ou échouant à l'identique sur la base `dc653f1` (historique ou Flutter absents dans le conteneur), comparés à nouveau en CI.
+
+À exécuter en CI (`hd-textures.yml`, `test/build486_targeted_test.py`) — résultats au § 7 :
+
+- **host** (Ubuntu) : ce qui précède, contrats et `flutter analyze` / `flutter test` des fichiers Dart modifiés ;
+- **native** (macOS) : `test/texture_catalog_native_test.py` (magasin, catalogue embarqué, rafraîchissement échoué, correspondance sur les vrais packs, Dolphin 7z/mise à jour/conflit/fichier modifié/page web/espace/marqueurs/suppression, PPSSPP et Azahar avec leurs options par jeu, PS2 remis au magasin 485 en ZIP et en 7z), `test/texture_catalog_ios_syntax_test.py` (pod compilé et lié pour iPhone), et les suites existantes compilant les fichiers modifiés (`armsx2_texture_native_test.py`, `armsx2_graphics_ui_test.py`, `libretro_ios_syntax_test.py`, `touch_layout_ios_build.py`, `unified_native_ios_test.py`) ;
+- **uikit** (Simulateur) : `test/texture_catalog_ui_test.py` (page avec le catalogue embarqué : disque GameCube réel, exact / à confirmer / titre seul, console et bibliothèque, rafraîchissement échoué, PS2, PSP, 3DS, douze langues) ;
+- **repositories** : packs publiés comme archives de dépôt.
+
+Aucune de ces vérifications n'affiche une texture dans un jeu : une installation réussie n'est pas une preuve de remplacement effectif.
+
+## 5. Limites
+
+- Aucune validation sur iPhone ni avec un vrai jeu dans ce cycle.
+- DDS BC (Dolphin, PPSSPP) : seulement sur les GPU qui échantillonnent les formats BC ; la page le signale.
+- Packs 4K : mémoire bien plus élevée ; les variantes HD sont indiquées.
+- Un dossier par jeu et par moteur : les compléments à superposer à un pack (mises à jour partielles, boutons, langues) restent manuels.
+- PPSSPP `textures.zip` (pack laissé zippé) non utilisé : les packs sont extraits dans le dossier du jeu.
+- Identités : une image CHD/PBP PS2 ou un format non lu donne une identité « à confirmer » par le nom ; une mise à jour 3DS n'est pas un jeu.
+
+## 6. Procédure sur l'iPhone
+
+1. Ouvrir un jeu PS2, GameCube, Wii, PSP ou 3DS de la bibliothèque › options du jeu › onglet Gérer › **Textures HD** (ou le menu d'import de la console, ou le menu en jeu).
+2. Toucher **Télécharger les catalogues HD** : la page indique la révision et la date ; sans réseau, le catalogue embarqué ou le dernier téléchargé reste affiché.
+3. Choisir un pack « Compatible » (ou « Compatibilité à confirmer », après lecture de l’explication), vérifier auteur, taille et formats, toucher **Télécharger et installer** : progression, pause ou annulation possibles.
+4. L'interrupteur **Textures HD pour ce jeu** est activé avec le premier pack ; il s'applique au prochain lancement (immédiatement dans le menu en jeu ARMSX2). Lancer le jeu et comparer.
+
+## 7. Identités et résultats CI
+
+À compléter après les exécutions (source testée, runs, livraison, IPA et SHA-256).

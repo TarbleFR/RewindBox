@@ -1430,9 +1430,27 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           dispatch_async(dispatch_get_main_queue(),^{
             if(bridge.stopInProgress || bridge.dolphinController!=owner || !bridge.sessionMenu)return;
             NSString* game=NeoField(identity,@"gameId");if(!DOLTextureGame(game))return;
-            DOLTextureSettings* page=[[DOLTextureSettings alloc] initWithStyle:UITableViewStyleInsetGrouped];
-            page.userDirectory=bridge.activeUserDirectory;page.gameId=game;
-            page.revision=[identity[@"revision"] integerValue];page.localeIdentifier=bridge.menuLabels[@"__locale"]?:@"en";
+            NSString* locale=bridge.menuLabels[@"__locale"]?:@"en";
+            // Build 486: the shared HD textures page of every embedded engine
+            // (neo_texture_catalog, created by name so this pod does not link
+            // it): catalogue, this game's Load/Textures folder and its
+            // [Video_Settings] HiresTextures, with the folder, manifest and
+            // INI keys of this bridge's own import page, kept as the fallback.
+            UIViewController* page=nil;
+            Class unified=NSClassFromString(@"NeoTextureHDPage");
+            SEL make=NSSelectorFromString(@"textureViewControllerWithOptions:");
+            if(unified && [unified respondsToSelector:make] && bridge.activeUserDirectory.length){
+              NSDictionary* options=@{@"system":owner.wii?@"wii":@"gc",@"engine":@"dolphin",@"dolphinUser":bridge.activeUserDirectory,
+                @"gameID":game,@"revision":[NSString stringWithFormat:@"%ld",(long)[identity[@"revision"] integerValue]],
+                @"title":bridge.activeGameTitle.length?bridge.activeGameTitle:game,@"inGame":@YES,@"locale":locale};
+              page=((UIViewController*(*)(id,SEL,NSDictionary*))objc_msgSend)(unified,make,options);
+            }
+            if(!page){
+              DOLTextureSettings* legacy=[[DOLTextureSettings alloc] initWithStyle:UITableViewStyleInsetGrouped];
+              legacy.userDirectory=bridge.activeUserDirectory;legacy.gameId=game;
+              legacy.revision=[identity[@"revision"] integerValue];legacy.localeIdentifier=locale;
+              page=legacy;
+            }
             [bridge.sessionMenu pushViewController:page animated:YES];
           });
         });

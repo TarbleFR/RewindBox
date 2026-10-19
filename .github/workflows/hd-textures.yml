@@ -1,0 +1,129 @@
+name: HD texture catalogue (Build 486)
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - packages/neo_texture_catalog/**
+      - tools/textures/**
+      - native/textures/**
+      - lib/services/texture_catalog_service.dart
+      - lib/l10n/texture_catalog_locale.dart
+      - test/texture_*
+      - test/native/texture_*
+      - test/build486_targeted_test.py
+      - .github/workflows/hd-textures.yml
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: Parts to run
+        type: choice
+        options: [all, host, native, uikit, repositories]
+        default: all
+permissions: {contents: read, actions: read}
+concurrency:
+  group: hd-textures-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Readers, identities, installer, labels, catalogue, contracts and Flutter
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: New and affected host checks
+        env: {CXX: g++}
+        run: python3 test/build486_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build486-host-${{ github.sha }}
+          path: build/build486/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: Store and adapters on Foundation, iPhone SDK build of every changed source
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native' }}
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Foundation store test, iPhone compilation and the affected UIKit suites
+        run: python3 test/build486_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build486-native-${{ github.sha }}
+          path: |
+            build/build486/
+            build/armsx2-validation/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  uikit:
+    name: The HD textures page on UIKit with the bundled catalogue
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit' }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Unified page in the Simulator
+        run: python3 test/build486_targeted_test.py --part uikit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build486-uikit-${{ github.sha }}
+          path: build/build486/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  repositories:
+    name: Packs published as repository archives (${{ matrix.console }})
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'repositories') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        console: [ps2, dolphin, psp, 3ds]
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Free runner disk for multi-gigabyte packs
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h "$RUNNER_TEMP"
+      - name: Build the verification driver (the app's installers)
+        run: |
+          set -euo pipefail
+          mkdir -p build/hdtex486
+          gcc -O2 -c -I packages/neo_texture_catalog/ios/ThirdParty/lzma packages/neo_texture_catalog/ios/Classes/NeoTextureLZMA.c -o build/hdtex486/lzma.o
+          g++ -std=c++20 -O2 -Wall -Wextra -I packages/neo_texture_catalog/ios/Classes -I packages/neo_texture_catalog/ios/ThirdParty/lzma \
+            -I packages/armsx2_internal_bridge/ios/Classes tools/textures/native/texture_verify.cpp build/hdtex486/lzma.o -lz \
+            -o build/hdtex486/texture_verify
+      - name: Download each pack from its author's repository and install it with the app's code
+        run: |
+          python3 tools/textures/verify_packs.py --sources tools/textures/sources/${{ matrix.console }}.json \
+            --driver build/hdtex486/texture_verify --kind repository --work "$RUNNER_TEMP" --max-gb 12 \
+            --out build/hdtex486/verified-${{ matrix.console }}.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex486-repositories-${{ matrix.console }}-${{ github.sha }}
+          path: build/hdtex486/verified-${{ matrix.console }}.jsonl
+          if-no-files-found: warn
+          retention-days: 14

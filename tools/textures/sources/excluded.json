@@ -1,0 +1,162 @@
+[
+ {
+  "console": "ps2",
+  "source": "Alan-bur/PS2M4K (PlayStation 2 BIOS menu)",
+  "reason": "Textures for the BIOS system menu, not a game of the library."
+ },
+ {
+  "console": "ps2",
+  "source": "Bladdee/SmackdownSYM",
+  "reason": "The serial is not stated and the installation notes are truncated."
+ },
+ {
+  "console": "ps2",
+  "source": "MIRONTER Test Drive Unlimited and Ratchet & Clank: Size Matters repositories",
+  "reason": "No serial stated (no README); the author's own downloads are on Mail.ru cloud."
+ },
+ {
+  "console": "ps2",
+  "source": "Angel06a/BT4-HD (Budokai Tenkaichi 4 fan mod)",
+  "reason": "For a fan mod of Budokai Tenkaichi 3, not a retail disc; no automatable file."
+ },
+ {
+  "console": "ps2",
+  "source": "GBAtemp \"My HD remaster pack\" thread (FFX/X-2, MGS3, Jak II/3, SotC, Silent Hill 2)",
+  "reason": "Forum-only downloads; the forum is not reachable from the verification environment."
+ },
+ {
+  "console": "ps2",
+  "source": "GBAtemp threads: Burnout 3: Takedown, Burnout Revenge, God of War, Ratchet & Clank, Shadow of the Colossus, Okami, God of War, Grand Theft Auto: San Andreas",
+  "reason": "Forum-only downloads whose author and file could not be checked from the verification environment."
+ },
+ {
+  "console": "ps2",
+  "source": "Ostrich \"Ace Combat trilogy\" page",
+  "reason": "No PS2 pack could be confirmed on the author's page."
+ },
+ {
+  "console": "ps2",
+  "source": "Bl4ckH4nd (Patreon)",
+  "reason": "Paid distribution."
+ },
+ {
+  "console": "gc",
+  "source": "Super Mario Sunshine UHD update patch 1 and PS4 button textures (qashto, Rocketboy95)",
+  "reason": "Add-ons layered over the base pack in the same folder: NeoStation installs one pack per folder."
+ },
+ {
+  "console": "gc",
+  "source": "Super Mario Eclipse 4K & HD (iZePlayz)",
+  "reason": "For a Super Mario Sunshine mod (GMSE04), Dropbox-hosted, about 57 GB repository."
+ },
+ {
+  "console": "wii",
+  "source": "ReaverXIII House of the Dead 2 & 3 Return, Resident Evil: The Umbrella Chronicles, House of the Dead: Overkill",
+  "reason": "Split ZIP volumes (.z01...), which the installer does not read; up to 16 GB."
+ },
+ {
+  "console": "wii",
+  "source": "Alan-bur/WM4K (Wii Menu 4K)",
+  "reason": "System Menu textures: NeoStation does not start the Wii System Menu."
+ },
+ {
+  "console": "wii",
+  "source": "Alan-bur/WR4K (Wii no Ma)",
+  "reason": "A Japanese channel (HCIJ01), not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Venomalia/UniversalDynamicInput",
+  "reason": "Dynamic Input Textures (Load/DynamicInputTextures), a different Dolphin feature."
+ },
+ {
+  "console": "wii",
+  "source": "GhostlyDark Reloaded marker IDs NAX, NTL, NG2, NGZ, NIC, OOT, REL, NMR, NG2E01, NURE01",
+  "reason": "Not retail Game IDs (romhacks or custom builds): the packs are offered only for the retail IDs they name; the extra markers stay in the files."
+ },
+ {
+  "console": "psp",
+  "source": "kharij/Tekken-6-HD-Texture-Pack",
+  "reason": "The author names no Game ID for the folder: it cannot be matched to a game."
+ },
+ {
+  "console": "psp",
+  "source": "The Sims 2 alternative button layouts, Patapon 2 \"unsorted tips\", MHP3rd Stormie optionals",
+  "reason": "Add-ons copied over a base pack in the same folder."
+ },
+ {
+  "console": "psp",
+  "source": "forums.ppsspp.org, GameBanana, GBAtemp, itch.io packs",
+  "reason": "Not reachable from the verification environment; nothing listed without a checked page."
+ },
+ {
+  "console": "psp",
+  "source": "ccs21/OGU_Miscellaneous-things, ItzAntonis2012/modernizepspgames, jcchikikomori/RidgeRacer2-HD-repacked, cngjd/MHP3rd-HD-Texture-Pack-Merged",
+  "reason": "Compilations or repacks of other authors' packs."
+ },
+ {
+  "console": "psp",
+  "source": "9r3i/mhfu-hd-texture, Ellym57f MHP3rd Definitive, EmiyaBestBoy fate-extra-texturepack, WallSoGB/Patapon3Textures, Birth-by-Sleep-HD-ReMix-Nightly",
+  "reason": "Mirrors, intermediate forks or superseded copies of catalogued packs."
+ },
+ {
+  "console": "psp",
+  "source": "Saramagrean/GE2-HD-Texture-Pack",
+  "reason": "Re-upload of a mod whose author asks not to re-upload it."
+ },
+ {
+  "console": "psp",
+  "source": "KnotSora Patapon 3 Overhaul, RetroHero/MHF-HDui, PandaQuQ/P3P_HD_CHINESE, chenetulipe P2IS-HD-FR",
+  "reason": "Overlays that need files merged by hand into another pack or a modified ISO."
+ },
+ {
+  "console": "psp",
+  "source": "ThirteenAG WidescreenFixesPack PSP plugins",
+  "reason": "Plugins, not texture packs."
+ },
+ {
+  "console": "psp",
+  "source": "eternights/MH2-TexturePack, Danyilium Sims 2, AkiraJkr Dissidia 012, Klara-nihk MHFURemaster, AFOOT03939/MHFU-HD-PACK, CodyV59 Ridge Racers 2, Kurogami2134 controls, SonofUgly/Misc-Texture-Packs",
+  "reason": "No Game ID, no usable textures.ini at the folder root, or an ambiguous/abandoned pack."
+ },
+ {
+  "console": "psp",
+  "source": "IMASSP-TL/Imas-SP-Texture-Patch-CN",
+  "reason": "Images stored with Git LFS: the repository archive holds only pointer files."
+ },
+ {
+  "console": "psp",
+  "source": "steccas Valkyria Chronicles 3 Extra Edition ReTranslation",
+  "reason": "Kept as a manual link: 7.3 GB in four parts and it includes another author's pack redistributed with credit."
+ },
+ {
+  "console": "3ds",
+  "source": "Henriko Magnifico 4K packs (Ocarina of Time 3D, Majora's Mask 3D, A Link Between Worlds, Super Mario 3D Land)",
+  "reason": "Distributed through the author's site and Patreon, not reachable from the verification environment."
+ },
+ {
+  "console": "3ds",
+  "source": "Monster Hunter 4 Ultimate HD (MH Oldschool forum)",
+  "reason": "Forum and Dropbox distribution, about 12 GB, not reachable from the verification environment."
+ },
+ {
+  "console": "3ds",
+  "source": "MH classic HD Project (Monster Hunter 3 Ultimate)",
+  "reason": "Discord-only distribution."
+ },
+ {
+  "console": "3ds",
+  "source": "Project Restoration HD HUD, Omni UI, TopScreen / Single Screen Experience",
+  "reason": "Need code patches or LayeredFS mods besides textures."
+ },
+ {
+  "console": "3ds",
+  "source": "Ocarina of Time 3D UI/menu 4K PT-BR, Dragon Quest VIII 3DS HD (GameBanana)",
+  "reason": "GameBanana-only, made to merge over another pack or not checked."
+ },
+ {
+  "console": "3ds",
+  "source": "Ace Combat AHL+ button prompts, MM3DHD font/Link/tunic variants",
+  "reason": "Add-ons replacing files of a base pack in the same Title ID folder."
+ }
+]

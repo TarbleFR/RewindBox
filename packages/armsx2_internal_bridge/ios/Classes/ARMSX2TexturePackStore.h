@@ -53,6 +53,16 @@ typedef void (^ARMSX2TextureProgress)(double fraction, NSString* phase);
                    dataPath:(NSString*)dataPath
                        game:(NSDictionary<NSString*, id>*)game
                    expander:(nullable ARMSX2TextureExpander)expander;
+/// A pack NeoStation's HD textures catalogue (neo_texture_catalog) downloaded,
+/// verified and expanded itself into [folder], a new folder directly below
+/// <data>/textures named with this store's expanded-folder prefix: its files
+/// are moved into place like those of an expanded .tar.zst, and -close
+/// deletes what remains. [sourceName] is the archive's own name (serial and
+/// region hints).
+- (instancetype)initWithExpandedFolder:(NSString*)folder
+                            sourceName:(NSString*)sourceName
+                              dataPath:(NSString*)dataPath
+                                  game:(NSDictionary<NSString*, id>*)game;
 - (instancetype)init NS_UNAVAILABLE;
 /// Lists and checks the pack without writing it (a .tar.zst is first expanded).
 - (NSDictionary<NSString*, id>*)inspectWithProgress:(nullable ARMSX2TextureProgress)progress;

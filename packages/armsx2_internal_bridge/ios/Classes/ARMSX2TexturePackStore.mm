@@ -249,6 +249,7 @@ static NSString* IdentityKey(NSString* gamePath) {
   T::Plan _plan;
   T::Verdict _verdict;
   NSDictionary* _inspection;
+  BOOL _catalogueExpansion;
 }
 
 - (instancetype)initWithURL:(NSURL*)url dataPath:(NSString*)dataPath game:(NSDictionary*)game
@@ -263,6 +264,22 @@ static NSString* IdentityKey(NSString* gamePath) {
     _serial = Field(_game[@"serial"]);
     _expander = [expander copy];
     _sourceName = url.lastPathComponent ?: @"";
+  }
+  return self;
+}
+
+- (instancetype)initWithExpandedFolder:(NSString*)folder sourceName:(NSString*)sourceName
+                              dataPath:(NSString*)dataPath game:(NSDictionary*)game {
+  // Only a folder of this store's expanded kind, directly below its root.
+  NSString* root = [ARMSX2TexturePackStore texturesRootForDataPath:dataPath];
+  if (![folder.stringByDeletingLastPathComponent isEqualToString:root] ||
+      ![folder.lastPathComponent hasPrefix:[NSString stringWithUTF8String:T::kExpandedPrefix]])
+    return nil;
+  self = [self initWithURL:[NSURL fileURLWithPath:folder isDirectory:YES] dataPath:dataPath game:game expander:nil];
+  if (self) {
+    _expanded = [folder copy];
+    _sourceName = [sourceName copy] ?: @"";
+    _catalogueExpansion = YES;
   }
   return self;
 }
@@ -289,6 +306,14 @@ static NSDictionary* Failure(NSString* error, NSString* detail) {
   [url getResourceValue:&directory forKey:NSURLIsDirectoryKey error:nil];
   NSString* name = url.lastPathComponent.lowercaseString;
   _source = {};
+  if (_catalogueExpansion) {
+    // Expanded by the catalogue on this volume: moved like an expanded .tar.zst.
+    _kind = @"catalogue";
+    _source.kind = T::SourceKind::Folder;
+    _source.moveFiles = true;
+    _source.path = _expanded.fileSystemRepresentation;
+    return T::OpenSource(_source) ? nil : Str(_source.error);
+  }
   if (directory.boolValue) { _kind = @"folder"; _source.kind = T::SourceKind::Folder; }
   else if ([name hasSuffix:@".zip"]) { _kind = @"zip"; _source.kind = T::SourceKind::Zip; }
   else if ([name hasSuffix:@".tar"]) { _kind = @"tar"; _source.kind = T::SourceKind::Tar; }

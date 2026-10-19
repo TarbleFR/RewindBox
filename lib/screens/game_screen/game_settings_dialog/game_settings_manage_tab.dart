@@ -12,6 +12,8 @@ import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/settings_screen/new_settings_options/widgets/setting_row.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
+import 'package:neostation/l10n/texture_catalog_locale.dart';
+import 'package:neostation/services/texture_catalog_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/utils/enabled_index_nav.dart';
@@ -57,9 +59,14 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   GlobalKey _itemKey(int navIndex) =>
       _itemKeys.putIfAbsent(navIndex, () => GlobalKey());
 
-  int get _playTimeIdx => 0;
-  int get _deleteIdx => 1;
-  int get _totalItems => 2;
+  // Build 486: the HD textures page of the game's embedded engine first.
+  bool get _hasTextures =>
+      TextureCatalogService.supports(_targetSystemFolder) &&
+      (widget.game.romPath?.startsWith('/') ?? false);
+  int get _texturesIdx => _hasTextures ? 0 : -1;
+  int get _playTimeIdx => _hasTextures ? 1 : 0;
+  int get _deleteIdx => _playTimeIdx + 1;
+  int get _totalItems => _deleteIdx + 1;
 
   String get _targetSystemFolder =>
       widget.isAllMode && widget.game.systemFolderName != null
@@ -97,7 +104,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   }
 
   void trigger() {
-    if (_selectedIndex == _playTimeIdx) {
+    if (_selectedIndex == _texturesIdx) {
+      _openTextures();
+    } else if (_selectedIndex == _playTimeIdx) {
       if ((widget.game.playTime ?? 0) > 0 && !_isResettingPlayTime) {
         _confirmResetPlayTime();
       }
@@ -118,6 +127,21 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         );
       }
     });
+  }
+
+  Future<void> _openTextures() async {
+    SfxService().playNavSound();
+    final opened = await TextureCatalogService.openGame(
+      system: widget.system,
+      game: widget.game,
+    );
+    if (!opened && mounted) {
+      AppNotification.showNotification(
+        context,
+        TextureCatalogLocale.text(Localizations.localeOf(context), 'openFailed'),
+        type: NotificationType.error,
+      );
+    }
   }
 
   Future<void> _confirmResetPlayTime() async {
@@ -234,6 +258,26 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_hasTextures) ...[
+            GestureDetector(
+              onTap: () {
+                setState(() => _selectedIndex = _texturesIdx);
+                _openTextures();
+              },
+              child: SettingRow(
+                key: _itemKey(_texturesIdx),
+                focused: _selectedIndex == _texturesIdx,
+                title: TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle'),
+                subtitle: TextureCatalogLocale.text(Localizations.localeOf(context), 'menuSubtitle'),
+                trailing: Icon(
+                  Icons.hd_outlined,
+                  size: 20.r,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+            SizedBox(height: 12.r),
+          ],
           GestureDetector(
             onTap: () {
               SfxService().playNavSound();
