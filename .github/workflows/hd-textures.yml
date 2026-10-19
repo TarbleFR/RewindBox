@@ -164,7 +164,7 @@ jobs:
     name: Links of the catalogued packs (reachability, size, newer release)
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'links' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}

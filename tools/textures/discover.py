@@ -20,7 +20,10 @@ tools/textures/verify_packs.py installed the author's real file.
   discover.py links --out build/hdtex/links.jsonl
       For every catalogued pack: whether its page and each download part are
       still reachable with the recorded size, and, for a GitHub source,
-      whether a newer release than the catalogued version exists.
+      whether a newer release than the catalogued version exists. Verdicts:
+      ok, update, refused (the host refuses an automated check: 401, 403,
+      429, 503; not a dead link) and broken. Each URL is asked once, a host
+      at most once a second; LINKS_SUMMARY counts the verdicts.
 
   discover.py summarize --candidates build/hdtex/candidates.jsonl --out build/hdtex/summary.jsonl
       One short line per candidate whose files an engine reads (tex1_ names,
@@ -342,28 +345,59 @@ def mode_github(args, gh, emit):
     log(f'# {gh.calls} GitHub requests')
 
 
+HEAD_CACHE = {}
+HOST_LAST = {}
+HOST_INTERVAL = 1.0  # seconds between two requests to the same host
+
+
 def head(url):
-    """Reachability and size of a URL without downloading it (one byte asked)."""
+    """Reachability and size of a URL without downloading it (one byte asked).
+
+    Each URL is asked once per run, and a host at most once a second. The
+    request names itself; a host that refuses automated requests is reported
+    as such, never worked around."""
+    if url in HEAD_CACHE:
+        return HEAD_CACHE[url]
+    host = urllib.parse.urlsplit(url).hostname or ''
+    wait = HOST_LAST.get(host, 0) + HOST_INTERVAL - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
     request = urllib.request.Request(url, headers={'User-Agent': 'NeoStation-catalogue-links', 'Range': 'bytes=0-0'})
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             total = response.headers.get('Content-Range', '').rsplit('/', 1)[-1]
             size = int(total) if total.isdigit() else int(response.headers.get('Content-Length') or -1)
-            return {'status': response.status, 'size': size, 'type': response.headers.get('Content-Type', '')}
+            result = {'status': response.status, 'size': size, 'type': response.headers.get('Content-Type', '')}
     except urllib.error.HTTPError as error:
-        return {'status': error.code}
+        result = {'status': error.code}
     except Exception as error:
-        return {'status': 0, 'error': repr(error)[:120]}
+        result = {'status': 0, 'error': repr(error)[:120]}
+    HOST_LAST[host] = time.monotonic()
+    HEAD_CACHE[url] = result
+    return result
+
+
+# 401/403/429/503: the host refuses an automated check (login, rate limit,
+# anti-bot page). That does not show the page is gone: reported apart.
+REFUSED = (401, 403, 429, 503)
+
+
+def link_state(status):
+    return 'ok' if status in (200, 206) else 'refused' if status in REFUSED else 'broken'
 
 
 def mode_links(args, gh, emit):
+    latest_cache = {}
+    totals = {}
     for path in sorted(SOURCES.glob('*.json')):
         if path.name == 'excluded.json':
             continue
         for entry in json.loads(path.read_text(encoding='utf-8')):
             if args.only and entry['id'] not in args.only.split(','):
                 continue
-            result = {'id': entry['id'], 'page': head(entry['page_url'])['status']}
+            page = head(entry['page_url'])
+            result = {'id': entry['id'], 'page': page['status'], 'page_host': urllib.parse.urlsplit(entry['page_url']).hostname,
+                      'automatable': bool((entry.get('download') or {}).get('automatable'))}
             parts = (entry.get('download') or {}).get('parts') or []
             result['parts'] = []
             for part in parts:
@@ -373,14 +407,26 @@ def mode_links(args, gh, emit):
                 result['parts'].append({'url': part['url'], 'status': checked.get('status'), 'size': checked.get('size'), 'same_size': same})
             source = entry.get('source_id', '')
             if source.startswith('github:'):
-                latest = gh.get(f'/repos/{source[7:]}/releases/latest')
+                if source not in latest_cache:
+                    latest_cache[source] = gh.get(f'/repos/{source[7:]}/releases/latest')
+                latest = latest_cache[source]
                 if latest:
                     result['latest_release'] = latest.get('tag_name')
                     tag = (latest.get('tag_name') or '').lstrip('vV')
                     result['newer'] = bool(tag) and entry.get('version') != 'repository' and tag != str(entry.get('version', '')).lstrip('vV')
-            broken = result['page'] not in (200, 206) or any(p['status'] not in (200, 206) or p['same_size'] is False for p in result['parts'])
-            result['verdict'] = 'broken' if broken else ('update' if result.get('newer') else 'ok')
+            states = [link_state(result['page'])] + [link_state(p['status']) for p in result['parts']]
+            if 'broken' in states or any(p['same_size'] is False for p in result['parts']):
+                result['verdict'] = 'broken'
+            elif 'refused' in states:
+                result['verdict'] = 'refused'
+            else:
+                result['verdict'] = 'update' if result.get('newer') else 'ok'
+            key = ('one-tap' if result['automatable'] else 'manual', result['verdict'])
+            totals[key] = totals.get(key, 0) + 1
             emit(result)
+    summary = {f'{kind} {verdict}': count for (kind, verdict), count in sorted(totals.items())}
+    summary['urls'] = len(HEAD_CACHE)
+    log('LINKS_SUMMARY ' + json.dumps(summary, sort_keys=True))
 
 
 def engine_relevant(record):
