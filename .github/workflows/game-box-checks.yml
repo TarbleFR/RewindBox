@@ -1,0 +1,69 @@
+name: 3D game box (Jaquette view, back reader)
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - lib/services/game_box/**
+      - lib/widgets/game_box/**
+      - lib/screens/game_box/**
+      - lib/l10n/game_box_locale.dart
+      - lib/screens/game_screen/my_games_carousel.dart
+      - packages/neo_box_reader/**
+      - tools/game_box/**
+      - test/game_box_*
+      - .github/workflows/game-box-checks.yml
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: Parts to run
+        type: choice
+        options: [all, host, native]
+        default: all
+permissions: {contents: read, actions: read}
+concurrency:
+  group: game-box-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Texts, geometry, media, reader and inspector on Flutter
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: New and affected host checks
+        run: python3 test/game_box_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gamebox-host-${{ github.sha }}
+          path: build/gamebox/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: Vision, NaturalLanguage and Translation on macOS and the iOS Simulator; iPhone SDK type check
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native' }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Recognition in twelve languages, translation availability, plugin type check
+        run: python3 test/game_box_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gamebox-native-${{ github.sha }}
+          path: build/gamebox/
+          if-no-files-found: ignore
+          retention-days: 14

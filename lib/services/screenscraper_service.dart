@@ -319,6 +319,34 @@ class ScreenScraperService {
     if (serial.isNotEmpty) queryParameters['serialnum'] = serial;
   }
 
+  /// `mediaJeu.php` address of one media of a game already identified
+  /// ([gameId] from `jeuInfos.php`), e.g. `box-2D-back(fr)` for the 3D box
+  /// (docs/game-box-3d.md § 6). Credentials are added here at request time;
+  /// callers keep only the credential-free ids and media token.
+  static Future<Uri?> mediaJeuUri({
+    required String systemId,
+    required String gameId,
+    required String media,
+  }) async {
+    final credentials = _cachedCredentials ?? await getSavedCredentials();
+    if (credentials == null) return null;
+    _cachedCredentials ??= credentials;
+    final softname = await ScreenscraperClient.getSoftname();
+    return Uri.parse('$_baseUrl/mediaJeu.php').replace(queryParameters: {
+      'devid': _devId,
+      'devpassword': _devPassword,
+      'softname': softname,
+      'ssid': credentials['username'] ?? '',
+      'sspassword': credentials['password'] ?? '',
+      'crc': '',
+      'md5': '',
+      'sha1': '',
+      'systemeid': systemId,
+      'jeuid': gameId,
+      'media': media,
+    });
+  }
+
   /// Pure lookup parameters used by tests and by [fetchGameInfo].
   @visibleForTesting
   static Map<String, String> buildGameLookupParametersForTesting({

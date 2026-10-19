@@ -151,8 +151,13 @@ class GameRepository {
       'box2d',
       'videos',
       'manuals',
+      // Faces of the 3D box and its editions manifest (docs/game-box-3d.md).
+      'box2dback',
+      'box2dside',
+      'support2d',
+      'boxmeta',
     ];
-    const extensions = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'pdf'];
+    const extensions = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'pdf', 'json'];
     int deletedMedia = 0;
 
     for (final type in mediaTypes) {
@@ -184,6 +189,21 @@ class GameRepository {
         log.e(
           'deleteNeoStationScrapedMedia: Error deleting $type media for $filename: $e',
         );
+      }
+    }
+
+    // Back scans of other editions: one folder per game.
+    for (final base in {strippedBase, strippedFilename}) {
+      if (base.isEmpty) continue;
+      final editions = Directory('$mediaDir/$systemFolderName/box2dback-editions/$base');
+      try {
+        if (await editions.exists()) {
+          final count = (await editions.list().toList()).whereType<File>().length;
+          await editions.delete(recursive: true);
+          deletedMedia += count;
+        }
+      } catch (e) {
+        log.e('deleteNeoStationScrapedMedia: Error deleting box editions for $filename: $e');
       }
     }
 
