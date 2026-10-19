@@ -131,7 +131,35 @@ Non vérifié ici : compilation iOS (porte de syntaxe puis construction du Core 
 
 ## 7. Identités et résultats CI
 
-*(complété après le run Core et la livraison)*
+### Core RPCS3 487
+
+- `rpcs3-core.yml` run `39251938919` sur `1cf0219773d4c64922367151de3508f5dbcb9c8e`,
+  job « RPCS3 Core arm64 with NeoSwap client » (`118063361933`) réussi à la
+  **tentative 2**. La tentative 1 s'est arrêtée sur l'expiration de la fixture
+  existante `run-minecraft-fence-tests.py --native-atomic`, dont les entrées
+  ne changent pas dans cette build (seul un commentaire de `util/asm.hpp`) ;
+  les tâches échouées ont été relancées une seule fois, comme le prévoient
+  les consignes. L'échec de la tentative 1 n'est pas compté comme un succès.
+- Préflight exécuté : preuve 481 en deux processus, harnais 483 (LLVM 22),
+  test Core 487 (`PASS: Build 487 Core diagnostics and levers`), test 258,
+  tests hôtes 487 sur macOS ; porte de syntaxe iOS ; construction du Core.
+- Core `libRPCS3Core.dylib` SHA-256
+  `6b64fe7aeca17325592f478a8eb97d08187721127a586bd6f007f71cbdd11c73`, ABI 30,
+  patch canonique `61e41b7df09d77b016cddbceebff14a14502632ea714af70ea5ace1b76ea975e`.
+- Artefact Core `12191176025` (28 958 094 octets, archive SHA-256
+  `10d6c7416a83a8c8e5fefb0847b13cbedbf96ce0bc275d403c9ac124abd6f473`) ;
+  diagnostics `12191576064` (archive SHA-256
+  `76eb7088986d5dbd45bf4e2e8a3bc452c821114da56dc2619316400db4536866`).
+  Les deux tentatives ont publié un artefact de diagnostics sous le même nom :
+  la porte de livraison lit celui de la tentative 2 par son identifiant,
+  jamais par son nom, et vérifie son nom et son run.
+- Épinglé dans `retroarch-delivery.yml` (deux tâches) et `neoswap-ipa.yml` ;
+  `test/neo_swap_core_pin_test.py` et `--rpc-core-inputs` de la porte
+  (76 entrées) réussis dans le conteneur.
+
+### Livraison
+
+*(complété après la livraison)*
 
 ## 8. Risques et retour arrière
 

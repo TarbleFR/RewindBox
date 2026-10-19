@@ -28,9 +28,13 @@ BASE='32523c76616e19a125c64ddea65ed364a4bf379f'
 DELIVERED='b18c30cd884f915950ee03cb8d5a182de1cd9028'
 DELIVERED_RUN=39195753114
 # Build 487 Core: source and rpcs3-core.yml run pinned by the delivery workflow.
-CORE_SOURCE=''
-CORE_RUN=0
-PATCH=''
+CORE_SOURCE='1cf0219773d4c64922367151de3508f5dbcb9c8e'
+CORE_RUN=39251938919
+PATCH='61e41b7df09d77b016cddbceebff14a14502632ea714af70ea5ace1b76ea975e'
+# The run was re-run once (attempt 1 stopped on the unchanged Minecraft fence fixture timeout);
+# both attempts uploaded a diagnostics artifact under the same name, so the proofs are read
+# from the attempt-2 artifact by its id, never by name.
+CORE_DIAGNOSTICS_ARTIFACT=12191576064
 CORE_JOB='RPCS3 Core arm64 with NeoSwap client'
 # Host changes of Build 487 (product): proven by the Core run's host tests,
 # compiled for the iPhone by the delivery's Release build.
@@ -51,7 +55,8 @@ TESTED=HOST_PRODUCT|CORE_PRODUCT|{'build-utils/rpcs3_core_syntax_gate.py','test/
 DELIVERY_ONLY={'AGENTS.md','docs/build487-plan.md','docs/evidence/rpcs3diag487-delivery.json',
     'docs/rpcs3-bottleneck-audit-2026-10-18.md',
     '.github/diagnostics/rpcs3diag487_delivery.py','.github/workflows/retroarch-delivery.yml',
-    '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py','build-utils/validate_rpcs3_diag487_ipa.py'}
+    '.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py','build-utils/validate_rpcs3_diag487_ipa.py',
+    'test/import_memory_candidate_scope_test.py'}
 PRODUCT_PATHS=previous.PRODUCT_PATHS
 ARMSX2_CORE_INPUTS=previous.ARMSX2_CORE_INPUTS
 # Catalogue-authoring tooling of the HD texture session (Build 486), committed on
@@ -123,8 +128,18 @@ def evidence():
     records=[base.successful_run(DELIVERED_RUN,DELIVERED,['checks','native','Release device build • cold']),
         base.successful_run(CORE_RUN,CORE_SOURCE,[CORE_JOB])]
     with tempfile.TemporaryDirectory(prefix='rpcs3diag487-proof-') as tmp:
-        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/neostation-ios',
-            '--name','RPCS3Core-diagnostics-'+CORE_SOURCE,'--dir',tmp],check=True)
+        meta=json.loads(base.command(['gh','api',f'repos/TarbleFR/neostation-ios/actions/artifacts/{CORE_DIAGNOSTICS_ARTIFACT}']))
+        if meta['name']!='RPCS3Core-diagnostics-'+CORE_SOURCE or meta['workflow_run']['id']!=CORE_RUN or meta['expired']:
+            raise ValueError('Pinned Core diagnostics artifact differs: '+json.dumps(meta)[:400])
+        archive=Path(tmp)/'diagnostics.zip'
+        with archive.open('wb') as handle:
+            subprocess.run(['gh','api',f'repos/TarbleFR/neostation-ios/actions/artifacts/{CORE_DIAGNOSTICS_ARTIFACT}/zip'],
+                stdout=handle,check=True)
+        import zipfile
+        with zipfile.ZipFile(archive) as z:
+            for member in z.namelist():
+                if member.startswith('/') or '..' in Path(member).parts:raise ValueError('Unsafe artifact member '+member)
+            z.extractall(tmp)
         proofs={name:(Path(tmp)/name).read_text() for name in
             ('spu-object-cache-proof.txt','llvm-pipeline-proof.txt','build487-core-proof.txt','build487-host-proof.txt')}
         identity=json.loads((Path(tmp)/'identity.json').read_text())
@@ -140,7 +155,7 @@ def evidence():
             if needle not in proofs[name]:raise ValueError(f'Preflight proof missing in {name}: {needle}')
     if identity['host_commit']!=CORE_SOURCE or identity['source_patch_sha256']!=PATCH or identity['device_runtime_tested'] is not False:
         raise ValueError('Core identity differs from the pinned run')
-    records[-1].update(coreSHA256=identity['sha256'],coreInputs=len(identity['core_input_sha256']),
+    records[-1].update(coreSHA256=identity['sha256'],diagnosticsArtifact=CORE_DIAGNOSTICS_ARTIFACT,coreInputs=len(identity['core_input_sha256']),
         proofSHA256={name:hashlib.sha256(text.encode()).hexdigest() for name,text in proofs.items()})
     receipts={p:hashlib.sha256((base.ROOT/p).read_bytes()).hexdigest() for p in
         ('docs/evidence/hdcat486-delivery.json','docs/evidence/llvmpipe483-delivery.json') if (base.ROOT/p).is_file()}

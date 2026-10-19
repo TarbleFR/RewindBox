@@ -1076,6 +1076,22 @@ IPA_WORKFLOW_BUILD483_LINES = (
      '            test/rpcs3_build483_llvm_pipeline_test.py \\\n'
      '            test/native/rpcs3_llvm_pipeline_harness.cpp \\\n'),
 )
+# Build 487 (19 October 2026): audit diagnostics and levers Core test inputs and
+# the Core pinned after run 39251938919 (attempt 2) on 1cf02197 succeeded.
+IPA_WORKFLOW_BUILD487_LINES = (
+    ('      RPCS3_CORE_HOST_SHA: 1b4f65e2067823a518034ef1ee1ba06a5b5abe09\n',
+     '      RPCS3_CORE_HOST_SHA: 1cf0219773d4c64922367151de3508f5dbcb9c8e\n'),
+    ("      RPCS3_CORE_RUN_ID: '39163125594'\n", "      RPCS3_CORE_RUN_ID: '39251938919'\n"),
+    ('            test/native/rpcs3_llvm_pipeline_harness.cpp \\\n',
+     '            test/native/rpcs3_llvm_pipeline_harness.cpp \\\n'
+     '            test/rpcs3_build487_core_diagnostics_test.py \\\n'
+     '            test/native/rpcs3_build487_profiler_helpers_test.cpp \\\n'
+     '            test/native/rpcs3_build487_boot_diagnostics_test.cpp \\\n'
+     '            test/native/rpcs3_build487_lever_helpers_test.cpp \\\n'
+     '            test/native/rpcs3_build487_retention_sequence_test.cpp \\\n'
+     '            test/rpcs3_build487_host_diagnostics_test.py \\\n'
+     '            test/rpcs3_build258_core_architecture_test.py \\\n'),
+)
 for path in ARMSX2_INTEGRATION_FILES:
     revision = ARMSX2_INTEGRATION_OVERRIDES.get(path, ARMSX2_INTEGRATION_SHA)
     reviewed = subprocess.check_output(['git', 'show', revision + ':' + path], cwd=ROOT)
@@ -1098,6 +1114,9 @@ for path in ARMSX2_INTEGRATION_FILES:
             text = text.replace(old, new, 1)
         for old, new in IPA_WORKFLOW_BUILD483_LINES:
             assert text.count(old) == 1, 'Build483 IPA workflow line expected once: ' + old
+            text = text.replace(old, new, 1)
+        for old, new in IPA_WORKFLOW_BUILD487_LINES:
+            assert text.count(old) == 1, 'Build487 IPA workflow line expected once: ' + old
             text = text.replace(old, new, 1)
         reviewed = text.encode('utf-8')
     elif path == '.github/workflows/neoswap-ipa.yml':
