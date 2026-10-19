@@ -274,6 +274,47 @@ static void CaptureNextGameFrame(LibretroSession *session, NSString *name, Probe
 }
 #endif
 
+// Build 489 (Beetle PSX HW in Vulkan): the textures the core dumped in a first
+// run (<content>-texture-dump, beside its memory cards) become a pack of solid
+// green replacements of the same names, four times larger, for the next run;
+// what the core then draws shows whether it loaded them.
+static NSArray<NSString *> *BeetleFolderFiles(NSString *stem, NSString *suffix) {
+  NSString *folder = DocumentsPath([NSString stringWithFormat:@"Libretro/Saves/Beetle PSX HW/%@-%@", stem, suffix]);
+  NSMutableArray *names = [NSMutableArray array];
+  for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:folder error:nil] ?: @[])
+    if ([name.pathExtension.lowercaseString isEqualToString:@"png"]) [names addObject:name];
+  return [names sortedArrayUsingSelector:@selector(compare:)];
+}
+
+static NSUInteger PrepareBeetleReplacements(NSString *stem) {
+  NSString *dump = DocumentsPath([NSString stringWithFormat:@"Libretro/Saves/Beetle PSX HW/%@-texture-dump", stem]);
+  NSString *replacements = DocumentsPath([NSString stringWithFormat:@"Libretro/Saves/Beetle PSX HW/%@-texture-replacements", stem]);
+  [NSFileManager.defaultManager removeItemAtPath:replacements error:nil];
+  [NSFileManager.defaultManager createDirectoryAtPath:replacements withIntermediateDirectories:YES attributes:nil error:nil];
+  NSUInteger written = 0;
+  for (NSString *name in BeetleFolderFiles(stem, @"texture-dump")) {
+    UIImage *original = [UIImage imageWithContentsOfFile:[dump stringByAppendingPathComponent:name]];
+    if (original == nil) continue;
+    CGSize size = CGSizeMake(MAX(1.0, original.size.width * original.scale * 4), MAX(1.0, original.size.height * original.scale * 4));
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
+    format.scale = 1;
+    format.opaque = YES;
+    UIImage *green = [[[UIGraphicsImageRenderer alloc] initWithSize:size format:format] imageWithActions:^(UIGraphicsImageRendererContext *context) {
+      [[UIColor colorWithRed:0 green:1 blue:0 alpha:1] setFill];
+      [context fillRect:CGRectMake(0, 0, size.width, size.height)];
+    }];
+    if ([UIImagePNGRepresentation(green) writeToFile:[replacements stringByAppendingPathComponent:name] atomically:YES]) written++;
+  }
+  return written;
+}
+
+/// What the session reports of Beetle's texture replacement (renderer, options, counts).
+static NSDictionary *BeetleStatus(LibretroSession *session) {
+  SEL selector = NSSelectorFromString(@"beetleTextureStatus");
+  if (![session respondsToSelector:selector]) return @{};
+  return ((NSDictionary * (*)(id, SEL))[session methodForSelector:selector])(session, selector) ?: @{};
+}
+
 /// PPSSPP's probe (Core/MemMap.cpp): bases from 4 GiB, below this limit, in
 /// 8 MiB steps; the scratchpad view at base + 0x10000.
 static const uint64_t kProbeBaseMinimum = 0x100000000ull;
@@ -984,6 +1025,11 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
   PrepareSkinLoadingUpgrade(scenario);
 #endif
+  NSDictionary *beetle = [scenario[@"beetleTextures"] isKindOfClass:NSDictionary.class] ? scenario[@"beetleTextures"] : nil;
+  if ([beetle[@"replaceFromDump"] length]) {
+    result[@"beetleReplacementsPrepared"] = @(PrepareBeetleReplacements(beetle[@"replaceFromDump"]));
+    Progress(@"%@: %@ green replacements written from the core's dump", name, result[@"beetleReplacementsPrepared"]);
+  }
   LibretroSession *session = [[LibretroSession alloc] initWithConfiguration:[self configurationForScenario:scenario]];
   _session = session;
   CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
@@ -1097,6 +1143,23 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                           dispatch_after(
                               dispatch_time(DISPATCH_TIME_NOW, (int64_t)(runSeconds * NSEC_PER_SEC)),
                               dispatch_get_main_queue(), ^{
+                                if (beetle != nil) {
+                                  NSString *stem = [[scenario[@"content"] lastPathComponent] stringByDeletingPathExtension];
+                                  result[@"beetleStatus"] = BeetleStatus(session);
+                                  result[@"beetleDumped"] = BeetleFolderFiles(stem, @"texture-dump");
+                                  result[@"beetleReplacements"] = BeetleFolderFiles(stem, @"texture-replacements");
+                                  Progress(@"%@: beetle %@, %lu dumped", name, result[@"beetleStatus"],
+                                           (unsigned long)[result[@"beetleDumped"] count]);
+#ifdef NEOSTATION_SHADER_SESSION_PROBE
+                                  CaptureNextGameFrame(session, name, ^(NSDictionary *frame) {
+                                    result[@"frame"] = frame;
+                                    [probe stopScenario:result session:session];
+                                  });
+#else
+                                  [probe stopScenario:result session:session];
+#endif
+                                  return;
+                                }
                                 if (resolution != nil) {
                                   result[@"resolutionAfter"] = ProducedFrameSize(session);
                                   result[@"resolutionStateAfter"] = ResolutionState(session) ?: @{};

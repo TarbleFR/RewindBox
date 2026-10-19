@@ -132,7 +132,8 @@ void main() {
       // Sources: docs/libretro-resolution.md § 2.
       expect(apply('citra_resolution_factor'), LibretroResolutionApply.live);
       expect(apply('desmume_internal_resolution'), LibretroResolutionApply.live);
-      expect(apply('beetle_psx_hw_internal_resolution'), LibretroResolutionApply.live);
+      // Beetle PSX HW renders with Vulkan by default (Build 488): next launch.
+      expect(apply('beetle_psx_hw_internal_resolution'), LibretroResolutionApply.relaunch);
       expect(apply('beetle_psx_internal_resolution'), LibretroResolutionApply.live);
       expect(apply('ppsspp_internal_resolution'), LibretroResolutionApply.live);
       expect(apply('mupen64plus-43screensize'), LibretroResolutionApply.relaunch);
@@ -168,13 +169,14 @@ void main() {
       for (final profile in ppsspp) {
         expect(profile.renderers, isNot(contains(LibretroResolutionRenderer.software)));
       }
-      // Beetle PSX: live with OpenGL ES or its software renderer, next
-      // launch with Vulkan.
+      // Beetle PSX: next launch with Vulkan, its default renderer since the
+      // Build 488 (first profile); live with OpenGL ES or its software renderer.
       final beetle = named('beetle_psx_hw_internal_resolution');
-      expect(beetle.first.renderers,
+      expect(beetle.first.renderers, <String>[LibretroResolutionRenderer.vulkan]);
+      expect(beetle.first.apply, LibretroResolutionApply.relaunch);
+      expect(beetle.last.renderers,
           <String>[LibretroResolutionRenderer.gles, LibretroResolutionRenderer.software]);
-      expect(beetle.last.renderers, <String>[LibretroResolutionRenderer.vulkan]);
-      expect(beetle.last.apply, LibretroResolutionApply.relaunch);
+      expect(beetle.last.apply, LibretroResolutionApply.live);
       // Azahar draws with a GPU renderer only; DeSmuME's rasterizer is
       // software: no renderer condition.
       expect(named('citra_resolution_factor').single.renderers, isNot(contains(LibretroResolutionRenderer.software)));

@@ -562,6 +562,17 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   });
 }
 
+/// Emulation thread, once the renderer is up: the renderer Beetle PSX HW
+/// really obtained and its texture replacement, in the session journal (a
+/// software fallback is recorded as such, never as HD textures).
+- (void)noteTextureReplacement {
+  if (![_configuration.coreId isEqualToString:@"mednafen_psx_hw"]) return;
+  NSDictionary *status = [self beetleTextureStatus];
+  [_journal note:[NSString stringWithFormat:@"hd-textures: core=beetle renderer=%@ replace=%@ recognized=%@ folder=%@",
+                                            status[@"renderer"], [status[@"replace"] boolValue] ? @"on" : @"off",
+                                            status[@"recognized"] ?: @"unreported", status[@"folder"] ?: @"-"]];
+}
+
 - (NSString *)rendererName {
   return _gl != nil ? @"gles" : (_vulkan != nil ? @"vulkan" : @"software");
 }
@@ -573,6 +584,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _startupConfirmed = YES;
   [_journal note:[NSString stringWithFormat:@"run: startup confirmed after %lu frames (%.1f s)",
                                             (unsigned long)_startupFrames, _startupSeconds]];
+  // Beetle has listed its texture folder by now: what it recognised.
+  [self noteTextureReplacement];
   NSDictionary<NSString *, id> *success = @{
     @"success" : @YES,
     @"code" : @"",
@@ -808,7 +821,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     if (!prepared) return [self failureWithCode:@"LIBRETRO_HARDWARE_RENDER_FAILED" detail:error.localizedDescription];
     [_journal note:[NSString stringWithFormat:@"load: %@ context ready, context_reset called", [self rendererName]]];
     [_host hardwareContextReset];
+    [self noteTextureReplacement];
   } else {
+    [self noteTextureReplacement];
     [_journal note:@"video: initial black begin"];
     [_presenter presentBlack];
     [_journal note:@"video: initial black submitted"];
@@ -3215,11 +3230,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 // Build 486: "HD textures" for the cores that replace textures (PPSSPP,
-// Azahar; Mupen64Plus-Next's GLideN64 since the N64 catalogue), the page
-// shared by every embedded engine (neo_texture_catalog,
-// created by name so this pod does not link it). Its switch is the core's own
-// option for this game, written through the running store: the session would
-// otherwise rewrite the game's options when it next saves them.
+// Azahar; Mupen64Plus-Next's GLideN64 since the N64 catalogue; Beetle PSX HW
+// since the Build 489), the page shared by every embedded engine
+// (neo_texture_catalog, created by name so this pod does not link it). Its
+// switch is the core's own option for this game, written through the running
+// store: the session would otherwise rewrite the game's options when it next
+// saves them. Beetle's page also shows what the running core reports: its
+// renderer and the textures it recognised and bound.
 - (Class)hdTexturesPageClass {
   Class page = NSClassFromString(@"NeoTextureHDPage");
   return [page respondsToSelector:NSSelectorFromString(@"textureViewControllerWithOptions:")] ? page : nil;
@@ -3227,7 +3244,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (nullable LibretroMenuRow *)hdTexturesRow {
   NSString *coreId = _configuration.coreId;
-  if (![coreId isEqualToString:@"ppsspp"] && ![coreId isEqualToString:@"azahar"] && ![coreId isEqualToString:@"mupen64plus_next"]) return nil;
+  if (![@[@"ppsspp", @"azahar", @"mupen64plus_next", @"mednafen_psx_hw"] containsObject:coreId ?: @""]) return nil;
   Class page = [self hdTexturesPageClass];
   SEL text = NSSelectorFromString(@"text:locale:");
   if (page == nil || ![page respondsToSelector:text] || _configuration.saveDirectory.length == 0 ||
@@ -3258,11 +3275,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     // Read when the game starts: the change applies at its next launch.
     return [options setValue:value forKey:key game:YES applyNow:NO];
   };
-  NSString *coreId = _configuration.coreId;
-  BOOL n64 = [coreId isEqualToString:@"mupen64plus_next"];
+  NSString *coreId = _configuration.coreId ?: @"";
+  const BOOL n64 = [coreId isEqualToString:@"mupen64plus_next"];
+  const BOOL beetle = [coreId isEqualToString:@"mednafen_psx_hw"];
   NSMutableDictionary *arguments = [@{
-    @"system": n64 ? @"n64" : [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
-    @"engine": n64 ? @"mupen64plus" : coreId,
+    @"system": n64 ? @"n64" : beetle ? @"ps1" : [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
+    @"engine": n64 ? @"mupen64plus" : beetle ? @"beetle" : coreId,
     @"libretroSaves": _configuration.saveDirectory,
     @"libretroConfig": _configuration.optionsDirectory,
     @"libretroSystem": _configuration.systemDirectory ?: @"",
@@ -3276,9 +3294,33 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     arguments[@"sessionReader"] = reader;
     arguments[@"sessionWriter"] = writer;
   }
+  if (beetle) {
+    // The core's own report, never inferred from the installed pack.
+    __weak LibretroSession *weakSelf = self;
+    arguments[@"engineStatus"] = ^NSDictionary * {
+      LibretroSession *session = weakSelf;
+      return session ? [session beetleTextureStatus] : nil;
+    };
+  }
   UIViewController *controller = ((UIViewController * (*)(id, SEL, NSDictionary *))objc_msgSend)(
       page, NSSelectorFromString(@"textureViewControllerWithOptions:"), arguments);
   if (controller != nil) [menuPage.navigationController pushViewController:controller animated:YES];
+}
+
+/// Beetle PSX HW's texture replacement in this session: renderer obtained,
+/// Track + Replace Textures as the running core received them, textures it
+/// listed in its folder and bound so far (LibretroCoreHost), folder name.
+- (NSDictionary *)beetleTextureStatus {
+  LibretroCoreOptions *options = _host.options;
+  BOOL replace = [[options currentValueForKey:@"beetle_psx_hw_replace_textures"] isEqualToString:@"enabled"] &&
+                 [[options currentValueForKey:@"beetle_psx_hw_track_textures"] isEqualToString:@"enabled"];
+  NSMutableDictionary *status = [@{@"renderer": _loadedRenderer ?: [self rendererName], @"replace": @(replace),
+                                   @"applied": @(MAX(0, _host.hdTexturesApplied))} mutableCopy];
+  const NSInteger recognized = _host.hdTexturesRecognized;
+  if (recognized >= 0) status[@"recognized"] = @(recognized);
+  NSString *name = _host.loadedContentPath.lastPathComponent.stringByDeletingPathExtension;
+  if (name.length) status[@"folder"] = [name stringByAppendingString:@"-texture-replacements"];
+  return status;
 }
 
 - (LibretroMenuPage *)cheatsPage {

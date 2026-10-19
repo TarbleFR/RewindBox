@@ -113,6 +113,16 @@ LOCKED = {
     'wasm4': {
         'wasm4_audio_type': 'normal',
     },
+    # Build 489 (HD textures): <content>-texture-replacements read from the core's
+    # save directory, where the catalogue installs it; never dumped; textures
+    # decoded on demand within bounded VRAM/RAM caches.
+    'mednafen_psx_hw': {
+        'beetle_psx_hw_texture_directory': 'save',
+        'beetle_psx_hw_dump_textures': 'disabled',
+        'beetle_psx_hw_hd_caching_method': 'lazy',
+        'beetle_psx_hw_hd_cache_vram_budget': '512',
+        'beetle_psx_hw_hd_cache_ram_budget': '512',
+    },
 }
 # The choices of every curated setting, exactly: the raw values the core
 # offers, which the catalog must spell the same way (a misspelt choice is

@@ -14,7 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Every method may read or write files: call them off the main thread.
 @protocol NeoTextureEngine <NSObject>
-/// dolphin, armsx2, ppsspp, azahar or mupen64plus.
+/// dolphin, armsx2, ppsspp, azahar, mupen64plus or beetle.
 @property(nonatomic, copy, readonly) NSString *engineID;
 /// Folder whose children are the per-game texture folders the engine reads.
 @property(nonatomic, copy, readonly) NSString *texturesRoot;
@@ -82,6 +82,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// A page with the engine's own details for this game (live engine state),
 /// pushed from the unified page; nil when the engine has none.
 - (nullable id)detailsViewControllerWithLocale:(NSString *)locale;
+/// Why a game with an identifier still has no folder for this engine (an
+/// error key: Beetle names its folder after the loaded file, which a ZIP
+/// does not give). nil: no particular reason (noGameID).
+- (nullable NSString *)folderProblemForIdentity:(NSDictionary *)identity;
 /// What the engine itself recorded for a game file at an earlier boot (its
 /// identity in the unified form, with "identity_source": session, disc or
 /// name; "name" means read from the file name, to be confirmed). nil if none.
@@ -111,6 +115,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Mupen64plus/hires_texture/<ROM name> folders GLideNHQ reads;
 /// config = <Documents>/Libretro/Config.
 + (id<NeoTextureEngine>)mupen64plusWithSystemDirectory:(NSString *)systemDirectory configDirectory:(NSString *)configDirectory;
+/// Beetle PSX HW: root = the core's save directory (<Documents>/Libretro/Saves/Beetle PSX HW),
+/// where it reads <content name>-texture-replacements (HD Texture Folder "save").
++ (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory;
 /// Optional session hooks for libretro adapters: read (key, gameKey) -> value
 /// and write (key, value, gameKey) -> success. Used while that game runs.
 + (void)setLibretroSessionReader:(nullable NSString *_Nullable (^)(NSString *key, NSString *gameKey))reader
@@ -120,6 +127,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)ppssppOptionKey;
 + (NSString *)azaharOptionKey;
 + (NSString *)mupen64plusOptionKey;
+/// Beetle's switch: Track Textures, then Replace Textures (both per game).
++ (NSArray<NSString *> *)beetleOptionKeys;
 @end
 
 /// INI helpers of the Dolphin adapter: one key in one section, every other

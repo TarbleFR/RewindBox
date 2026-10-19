@@ -10,6 +10,9 @@
 //          WBFS, CISO, GCZ, WIA and RVZ.
 //   PSP:   PARAM.SFO DISC_ID / DISC_VERSION (PPSSPP's game ID) from ISO,
 //          CSO, ZSO or PBP; UMD_DATA.BIN as a fallback.
+//   PS1:   SYSTEM.CNF BOOT serial (SLUS-00067) from a CUE's first file, a
+//          CCD's image, an M3U's first disc or a BIN/ISO/IMG (2048 or raw 2352-byte
+//          sectors); CHD, PBP and ECM are compressed: no serial, title only.
 //   3DS:   program ID (NCCH 0x118, what Azahar names load/textures after)
 //          from NCSD (.3ds/.cci) and NCCH (.cxi/.app); title ID from the TMD
 //          of a CIA. Encrypted containers keep their headers in clear.
@@ -299,6 +302,99 @@ inline Result PS2(const std::string& path, bool withCRC = true) {
     }
     if (ok) r.crc = Hex8(crc);
   }
+  return r;
+}
+
+inline std::string LowerExtension(const std::string& path) {
+  const size_t slash = path.rfind('/'), dot = path.rfind('.');
+  if (dot == std::string::npos || (slash != std::string::npos && dot < slash)) return "";
+  std::string e = path.substr(dot + 1);
+  for (char& c : e) if (c >= 'A' && c <= 'Z') c = char(c + 32);
+  return e;
+}
+
+// The disc image a PS1 content file names (Beetle loads the CUE, M3U or CCD
+// itself): a CUE's first FILE, a CCD's .img, an M3U's first disc, relative to
+// the file; the file itself otherwise. Bounded reads, three levels at most.
+inline std::string PS1Image(const std::string& path, int depth = 0) {
+  const std::string extension = LowerExtension(path);
+  if (depth > 3 || (extension != "cue" && extension != "m3u" && extension != "ccd")) return path;
+  const size_t slash = path.rfind('/');
+  const std::string folder = slash == std::string::npos ? "" : path.substr(0, slash + 1);
+  if (extension == "ccd") {
+    const std::string stem = path.substr(0, path.size() - 3);
+    struct stat st {};
+    return ::stat((stem + "img").c_str(), &st) == 0 ? stem + "img" : stem + "bin";
+  }
+  Reader reader(path);
+  if (!reader.good() || reader.length() > (64u << 10)) return "";
+  std::string text(size_t(reader.length()), '\0');
+  if (!reader.read(0, text.data(), text.size())) return "";
+  size_t at = 0;
+  while (at < text.size()) {
+    size_t end = text.find_first_of("\r\n", at);
+    if (end == std::string::npos) end = text.size();
+    std::string line = text.substr(at, end - at);
+    at = end + 1;
+    while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) line.erase(line.begin());
+    while (!line.empty() && (line.back() == ' ' || line.back() == '\t')) line.pop_back();
+    if (line.empty() || line[0] == '#') continue;
+    std::string name;
+    if (extension == "m3u") {
+      name = line;
+    } else {
+      if (line.size() < 5 || Upper(line.substr(0, 5)) != "FILE ") continue;
+      std::string rest = line.substr(5);
+      if (!rest.empty() && rest[0] == '"') {
+        const size_t close = rest.find('"', 1);
+        if (close == std::string::npos) return "";
+        name = rest.substr(1, close - 1);
+      } else {
+        name = rest.substr(0, rest.find(' '));
+      }
+    }
+    if (name.empty() || name.find("..") != std::string::npos) return "";
+    return PS1Image(name[0] == '/' ? name : folder + name, depth + 1);
+  }
+  return "";
+}
+
+inline Result PS1(const std::string& path) {
+  Result r;
+  r.system = "ps1"; r.type = "serial"; r.scheme = "ps1-disc-serial";
+  const std::string image = PS1Image(path);
+  if (image.empty()) { r.problem = "unreadable"; return r; }
+  const std::string extension = LowerExtension(image);
+  if (extension == "chd" || extension == "pbp" || extension == "ecm" || extension == "7z" || extension == "zip") {
+    r.problem = "compressedImage";
+    return r;
+  }
+  Reader reader(image);
+  if (!reader.good()) { r.problem = "unreadable"; return r; }
+  Sectors sectors(reader);
+  if (!sectors.valid()) { r.problem = "unsupportedFormat"; return r; }
+  r.format = extension == "cue" ? "bin" : extension;
+  std::vector<unsigned char> cnf;
+  if (!ISORead(sectors, ISOFind(sectors, {"SYSTEM.CNF"}), cnf, 4096)) { r.problem = "noSystemCnf"; return r; }
+  const std::string text(cnf.begin(), cnf.end());
+  // BOOT = cdrom:\SLUS_000.67;1 (a PS2 disc names BOOT2 instead).
+  size_t boot = std::string::npos;
+  for (size_t at = text.find("BOOT"); at != std::string::npos; at = text.find("BOOT", at + 4))
+    if (at + 4 < text.size() && text[at + 4] != '2') { boot = at; break; }
+  if (boot == std::string::npos) { r.problem = text.find("BOOT2") != std::string::npos ? "ps2Disc" : "noBoot"; return r; }
+  const size_t end = text.find_first_of("\r\n", boot);
+  const std::string line = text.substr(boot, (end == std::string::npos ? text.size() : end) - boot);
+  const size_t sep = line.find_last_of("\\/:");
+  std::string base = sep == std::string::npos ? line : line.substr(sep + 1), letters, digits;
+  if (size_t semicolon = base.find(';'); semicolon != std::string::npos) base.resize(semicolon);
+  for (char c : Upper(base)) {
+    if (c >= 'A' && c <= 'Z' && digits.empty()) letters += c;
+    else if (c >= '0' && c <= '9') digits += c;
+  }
+  if (letters.size() != 4 || digits.size() != 5) { r.problem = "noPS1Serial"; return r; }
+  r.value = letters + "-" + digits;
+  r.folder = r.value;
+  r.region = letters == "SIPS" ? "Japan" : PS2Region(letters + digits);
   return r;
 }
 

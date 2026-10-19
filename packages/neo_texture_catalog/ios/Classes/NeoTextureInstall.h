@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <dirent.h>
 #include <filesystem>
+#include <map>
 #include <fstream>
 #include <ftw.h>
 #include <random>
@@ -20,7 +21,7 @@
 
 namespace NeoTextureInstall {
 
-enum class Engine { dolphin, armsx2, ppsspp, azahar, mupen64plus };
+enum class Engine { dolphin, armsx2, ppsspp, azahar, mupen64plus, beetle };
 
 inline std::string Lower(std::string s) { for (char& c : s) if (c >= 'A' && c <= 'Z') c = char(c + 32); return s; }
 inline std::string UpperCase(std::string s) { for (char& c : s) if (c >= 'a' && c <= 'z') c = char(c - 32); return s; }
@@ -45,6 +46,14 @@ inline std::vector<std::string> Split(const std::string& path) {
 }
 inline bool Matches(const std::string& value, const char* pattern) {
   return std::regex_match(value, std::regex(pattern));
+}
+
+// Beetle PSX HW (beetle-psx-libretro 10e4b0c, rhi/rhi_tt.c read_texture_directory):
+// "<hash>-<palette>.<ext>" in hexadecimal, the extension any of its decoders
+// without case (tt_replacement_exts: png, dds, webp, jpg, jpeg, bmp, tga).
+inline bool BeetleTextureName(const std::string& name) {
+  static const std::regex pattern("^[0-9A-Fa-f]{1,8}-[0-9A-Fa-f]{1,8}\\.(png|dds|webp|jpg|jpeg|bmp|tga)$", std::regex::icase);
+  return std::regex_match(name, pattern);
 }
 
 // Files the engine reads in a pack folder (anything else is not installed).
@@ -82,6 +91,11 @@ inline bool Accepts(Engine engine, const std::string& relative) {
       const std::string raw = name.size() >= 4 ? name.substr(name.size() - 4) : "";
       return (raw == ".png" || raw == ".bmp") && name.find('#') != std::string::npos && name.front() != '#';
     }
+    case Engine::beetle:
+      // The core lists the folder's own entries only (no subfolder), and
+      // keeps the Lazy modes' prefetch journal next to the textures.
+      if (relative.find('/') != std::string::npos) return false;
+      return name == "prefetch.journal" || BeetleTextureName(name);
   }
   return false;
 }
@@ -104,6 +118,7 @@ inline bool IsTexture(Engine engine, const std::string& relative) {
     case Engine::azahar: return Basename(relative) != "pack.json";
     case Engine::armsx2: return true;
     case Engine::mupen64plus: return true;
+    case Engine::beetle: return Basename(relative) != "prefetch.journal";
   }
   return false;
 }
@@ -303,6 +318,29 @@ inline Layout Detect(Engine engine, const std::vector<std::string>& files, const
         layout.otherRegion = compact != current;
       }
     }
+    return finish(root, current);
+  }
+  if (engine == Engine::beetle) {
+    // <content name>-texture-replacements: the folder holding the most texture
+    // names directly (a dump or page-aligned folder is never installed).
+    std::map<std::string, size_t> counts;
+    for (const auto& file : files) {
+      if (!BeetleTextureName(Basename(file))) continue;
+      const std::string prefix = file.substr(0, file.size() - Basename(file).size());
+      const auto parts = Split(prefix);
+      const std::string last = parts.empty() ? "" : Lower(parts.back());
+      auto endsWith = [&](const char* suffix) {
+        const std::string s(suffix);
+        return last.size() >= s.size() && last.compare(last.size() - s.size(), s.size(), s) == 0;
+      };
+      if (endsWith("-texture-dump") || endsWith("-texture-dump-pages") || endsWith("-texture-replacements-pages")) continue;
+      counts[prefix]++;
+    }
+    std::string root;
+    size_t best = 0;
+    for (const auto& [prefix, count] : counts)
+      if (count > best || (count == best && prefix.size() < root.size())) { root = prefix; best = count; }
+    if (!best) { layout.problem = "noTextures"; return layout; }
     return finish(root, current);
   }
   // Azahar: load/textures/<16 hex program ID>/.

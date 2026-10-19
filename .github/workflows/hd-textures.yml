@@ -19,10 +19,10 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, discover, links, cores, summarize, research]
+        options: [all, host, native, uikit, repositories, hosts, discover, links, cores, summarize, research]
         default: all
       only:
-        description: 'repositories: comma-separated pack ids (empty: every pack without a record)'
+        description: 'repositories, hosts: comma-separated pack ids (empty: every pack without a record)'
         type: string
         default: ''
       run:
@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        console: [ps2, dolphin, psp, 3ds, n64]
+        console: [ps2, dolphin, psp, 3ds, n64, ps1]
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
@@ -148,6 +148,52 @@ jobs:
         with:
           name: hdtex486-repositories-${{ matrix.console }}-${{ github.sha }}
           path: build/hdtex486/verified-${{ matrix.console }}.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  hosts:
+    # Manual packs published on a file host (download.verify): the author's file is fetched
+    # once here (tools/textures/hosts.py) and installed with the app's code; the app only
+    # accepts that exact file when the user imports it. Quotas and sign-in pages end an attempt.
+    name: Manual packs on file hosts (${{ matrix.console }})
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'hosts') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        console: [dolphin, 3ds, psp, ps2, ps1]
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Free runner disk for multi-gigabyte packs
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h "$RUNNER_TEMP"
+      - name: megatools (public MEGA links) and 7-Zip
+        run: sudo apt-get update -q && sudo apt-get install -y -q megatools p7zip-full
+      - name: Build the verification driver (the app's installers)
+        run: |
+          set -euo pipefail
+          mkdir -p build/hdtex486
+          gcc -O2 -c -I packages/neo_texture_catalog/ios/ThirdParty/lzma packages/neo_texture_catalog/ios/Classes/NeoTextureLZMA.c -o build/hdtex486/lzma.o
+          g++ -std=c++20 -O2 -Wall -Wextra -I packages/neo_texture_catalog/ios/Classes -I packages/neo_texture_catalog/ios/ThirdParty/lzma \
+            -I packages/armsx2_internal_bridge/ios/Classes tools/textures/native/texture_verify.cpp build/hdtex486/lzma.o -lz \
+            -o build/hdtex486/texture_verify
+      - name: Fetch each author's file from its host and install it with the app's code
+        run: |
+          shopt -s nullglob
+          sources=(tools/textures/sources/${{ matrix.console }}*.json)
+          python3 tools/textures/verify_packs.py --sources "${sources[@]}" \
+            --driver build/hdtex486/texture_verify --kind host --work "$RUNNER_TEMP" --max-gb 12 \
+            --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
+            --out build/hdtex486/verified-hosts-${{ matrix.console }}.jsonl
+        env: {ONLY: '${{ inputs.only }}'}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-hosts-${{ matrix.console }}-${{ github.run_id }}
+          path: build/hdtex486/verified-hosts-${{ matrix.console }}.jsonl
           if-no-files-found: warn
           retention-days: 14
 
@@ -251,6 +297,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
+      - name: megatools (public MEGA links) and 7-Zip for probes
+        run: sudo apt-get update -q && sudo apt-get install -y -q megatools p7zip-full
       - name: Read each reference page, its GameBanana or GitHub details and its links
         env: {GH_TOKEN: '${{ github.token }}', RESEARCH: '${{ inputs.research }}'}
         run: |

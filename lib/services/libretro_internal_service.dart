@@ -316,7 +316,21 @@ abstract final class LibretroInternalService {
       'preferredHardwareContext': core.preferredHardwareContext,
     };
     try {
-      final result = await LibretroInternalBridge.launch(request);
+      var result = await LibretroInternalBridge.launch(request);
+      if (result['success'] != true &&
+          result['code'] == 'LIBRETRO_HARDWARE_RENDER_FAILED' &&
+          coreId == 'mednafen_psx_hw' &&
+          core.preferredHardwareContext == LibretroHardwareContext.vulkan) {
+        // Beetle PSX HW asked for Vulkan and the device could not be made
+        // (MoltenVK, GPU features): one new session on its software renderer,
+        // which never replaces textures (the HD page says so).
+        _log.w('Beetle PSX HW: Vulkan unavailable (${result['message'] ?? ''}); relaunching with the software renderer');
+        result = await LibretroInternalBridge.launch(<String, Object?>{
+          ...request,
+          'preferredHardwareContext': LibretroHardwareContext.none,
+          'lockedOptions': <String, String>{...core.lockedOptions, 'beetle_psx_hw_renderer': 'software'},
+        });
+      }
       if (result['success'] == true) {
         _log.i(
           'Embedded libretro running core=$coreId '

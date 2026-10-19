@@ -147,6 +147,8 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   char *_gameInfoStrings[5];
 
   NSMutableArray<NSString *> *_log;
+  NSInteger _hdTexturesRecognized;  // guarded by _log
+  NSInteger _hdTexturesApplied;
   BOOL _supportsAchievements;
   BOOL _shutdownRequested;
   uint64_t _serializationQuirks;
@@ -172,6 +174,7 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
     _jitCapable = jitCapable;
     _pixelFormat = RETRO_PIXEL_FORMAT_0RGB1555;
     _log = [NSMutableArray array];
+    _hdTexturesRecognized = -1;
     _libraryName = @"";
     _libraryVersion = @"";
     _validExtensions = [NSSet set];
@@ -197,7 +200,34 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   @synchronized(_log) {
     [_log addObject:line];
     if (_log.count > kRecentLogLimit) [_log removeObjectsInRange:NSMakeRange(0, _log.count - kRecentLogLimit)];
+    [self noteTextureReplacementLine:line];
   }
+}
+
+// Beetle PSX HW's texture tracker (rhi_tt.c): "num hd textures: %d" when its
+// renderer starts, then every 300 frames "[hdcache] last 300f: %llu decodes,
+// %llu gpu-uploads (peak %llu/frame), %llu attaches". Called under _log.
+- (void)noteTextureReplacementLine:(NSString *)line {
+  static NSString *const recognized = @"[INFO] num hd textures: ";
+  static NSString *const window = @"[INFO] [hdcache] last 300f: ";
+  if ([line hasPrefix:recognized]) {
+    _hdTexturesRecognized = [line substringFromIndex:recognized.length].integerValue;
+  } else if ([line hasPrefix:window]) {
+    NSRange end = [line rangeOfString:@" attaches" options:NSBackwardsSearch];
+    NSRange comma = end.location == NSNotFound ? end : [line rangeOfString:@", " options:NSBackwardsSearch range:NSMakeRange(0, end.location)];
+    if (comma.location != NSNotFound) {
+      NSString *count = [line substringWithRange:NSMakeRange(NSMaxRange(comma), end.location - NSMaxRange(comma))];
+      _hdTexturesApplied += MAX(0, count.integerValue);
+    }
+  }
+}
+
+- (NSInteger)hdTexturesRecognized {
+  @synchronized(_log) { return _hdTexturesRecognized; }
+}
+
+- (NSInteger)hdTexturesApplied {
+  @synchronized(_log) { return _hdTexturesApplied; }
 }
 
 - (NSArray<NSString *> *)recentLog {

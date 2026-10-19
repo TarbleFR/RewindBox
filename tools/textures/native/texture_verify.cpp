@@ -8,7 +8,7 @@
 //       NeoTextureInstall::Detect on the archive's names for the game folder
 //       <current> (the store's own layout rules): prints problem, rules, IDs.
 //   install <engine> <root> <archive> <from=to[!excluded/|...]>... | flat <from[!excluded/|...]>
-//       NeoTextureInstall::ExtractArchive (dolphin, ppsspp, azahar), the
+//       NeoTextureInstall::ExtractArchive (dolphin, ppsspp, azahar, beetle), the
 //       signature check and the commit into <root>/<to>; "flat": the folder an
 //       engine with its own installer (ARMSX2) receives. Prints key=value.
 //   armsx2 <dataRoot> <source> <serial> <sourceName> [move]
@@ -24,7 +24,8 @@ namespace I = NeoTextureInstall;
 namespace A = NeoARMSX2Textures;
 
 static I::Engine Parse(const std::string& s) {
-  return s == "dolphin" ? I::Engine::dolphin : s == "armsx2" ? I::Engine::armsx2 : s == "ppsspp" ? I::Engine::ppsspp : s == "mupen64plus" ? I::Engine::mupen64plus : I::Engine::azahar;
+  return s == "dolphin" ? I::Engine::dolphin : s == "armsx2" ? I::Engine::armsx2 : s == "ppsspp" ? I::Engine::ppsspp
+       : s == "mupen64plus" ? I::Engine::mupen64plus : s == "beetle" ? I::Engine::beetle : I::Engine::azahar;
 }
 
 static int List(const std::string& path) {

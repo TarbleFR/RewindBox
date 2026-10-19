@@ -25,6 +25,7 @@ static NeoTextureInstall::Engine EngineKind(id<NeoTextureEngine> engine) {
   if ([name isEqualToString:@"armsx2"]) return NeoTextureInstall::Engine::armsx2;
   if ([name isEqualToString:@"ppsspp"]) return NeoTextureInstall::Engine::ppsspp;
   if ([name isEqualToString:@"mupen64plus"]) return NeoTextureInstall::Engine::mupen64plus;
+  if ([name isEqualToString:@"beetle"]) return NeoTextureInstall::Engine::beetle;
   return NeoTextureInstall::Engine::azahar;
 }
 
@@ -57,6 +58,12 @@ static NSError *ArchiveError(NeoTextureArchive::Status status, const std::string
     case NeoTextureArchive::Status::crc: return PackError(NeoTexturePackErrorArchive, @"archiveDamaged", nil);
     default: return PackError(NeoTexturePackErrorArchive, @"archiveDamaged", nil);
   }
+}
+
+// The error of a game without a folder for this engine.
+static NSString *NoFolderKey(id<NeoTextureEngine> engine, NSDictionary *identity) {
+  NSString *key = identity && [engine respondsToSelector:@selector(folderProblemForIdentity:)] ? [engine folderProblemForIdentity:identity] : nil;
+  return key.length ? key : @"noGameID";
 }
 
 static BOOL Delegates(id<NeoTextureEngine> engine) {
@@ -253,14 +260,32 @@ static BOOL LooksLikeHTML(NSString *path) {
   [self installPack:pack engine:engine identity:identity replace:replace confirmed:NO completion:completion];
 }
 
+// A manual pack with a CI-verified file, as the install path reads a pack: the
+// verified file is its one part (folderForPack, size and SHA-256 checks).
+static NSDictionary *VerifiedPack(NSDictionary *pack) {
+  NSDictionary *file = NeoTexVerifiedFile(pack);
+  if (!file || ![pack[@"availability"] isEqual:@"manual"] || ![pack[@"install"] isKindOfClass:NSDictionary.class]) return nil;
+  NSMutableDictionary *effective = [pack mutableCopy];
+  effective[@"download"] = @{@"automatable": @NO, @"format": file[@"format"], @"size": file[@"size"], @"sha256": file[@"sha256"],
+                             @"parts": @[@{@"size": file[@"size"], @"sha256": file[@"sha256"]}]};
+  return effective;
+}
+
+- (NSString *)archiveForPack:(NSDictionary *)pack {
+  return [[self folderForPack:pack] stringByAppendingPathComponent:[@"archive" stringByAppendingPathExtension:NeoTexString(pack[@"download"][@"format"])]];
+}
+
 - (void)installPack:(NSDictionary *)pack engine:(id<NeoTextureEngine>)engine identity:(NSDictionary *)identity
             replace:(BOOL)replace confirmed:(BOOL)confirmed completion:(void (^)(NSDictionary *, NSError *))completion {
   // The catalogue's verdict for the game it is installed for, whatever the
   // caller passed: engine checks and target folders depend on it.
   pack = [NeoTextureCatalog pack:pack matchedTo:identity];
+  // A verified file the user already imported for a manual pack installs like a download.
+  NSDictionary *verified = VerifiedPack(pack);
+  if (verified && [NSFileManager.defaultManager fileExistsAtPath:[self archiveForPack:verified]]) pack = verified;
   NSString *packID = NeoTexString(pack[@"id"]);
   NSDictionary *download = pack[@"download"];
-  if (![pack[@"availability"] isEqual:@"available"] || ![download[@"automatable"] boolValue]) {
+  if (pack != verified && (![pack[@"availability"] isEqual:@"available"] || ![download[@"automatable"] boolValue])) {
     dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, PackError(NeoTexturePackErrorManual, @"manualDownload", nil)); });
     return;
   }
@@ -308,6 +333,103 @@ static BOOL LooksLikeHTML(NSString *path) {
       install();
     }];
   });
+}
+
+- (void)installPack:(NSDictionary *)pack fromFile:(NSURL *)url engine:(id<NeoTextureEngine>)engine identity:(NSDictionary *)identity
+            replace:(BOOL)replace confirmed:(BOOL)confirmed completion:(void (^)(NSDictionary *, NSError *))completion {
+  pack = VerifiedPack([NeoTextureCatalog pack:pack matchedTo:identity]);
+  if (!pack || !url.isFileURL) {
+    dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, PackError(NeoTexturePackErrorManual, @"manualDownload", nil)); });
+    return;
+  }
+  NSString *packID = NeoTexString(pack[@"id"]);
+  dispatch_async(_queue, ^{
+    if (self->_busyPack) {
+      dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, PackError(NeoTexturePackErrorBusy, @"busy", nil)); });
+      return;
+    }
+    if (!replace) {
+      NSDictionary *conflict = [self conflictForPack:pack engine:engine identity:identity];
+      if (conflict) {
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, PackError(NeoTexturePackErrorConflict, @"conflict", conflict)); });
+        return;
+      }
+    }
+    self->_busyPack = packID;
+    self->_cancel = std::make_shared<std::atomic<bool>>(false);
+    std::shared_ptr<std::atomic<bool>> cancel = self->_cancel;
+    NSString *folder = [self folderForPack:pack], *archive = [self archiveForPack:pack];
+    for (NSString *stale in [self downloadFoldersOf:packID])
+      if (![stale isEqualToString:folder]) [NSFileManager.defaultManager removeItemAtPath:stale error:nil];
+    const unsigned long long size = [pack[@"download"][@"size"] unsignedLongLongValue];
+    const unsigned long long needed = [NeoTexturePackStore requiredBytesForPack:pack downloaded:NO];
+    const unsigned long long free = MIN(self.freeSpace(self.downloadDirectory), self.freeSpace(engine.texturesRoot));
+    if (free < needed) {
+      [self finish:packID state:@"failed" error:PackError(NeoTexturePackErrorSpace, @"space", @{@"required": @(needed), @"free": @(free)})
+            result:nil completion:completion];
+      return;
+    }
+    [self update:packID values:@{@"state": @"verifying", @"received": @0, @"total": @(size), @"error": [NSNull null]} notify:YES];
+    dispatch_async(self->_work, ^{
+      const BOOL scoped = [url startAccessingSecurityScopedResource];
+      NSError *error = [self copyVerifiedFile:url.path to:archive pack:pack cancel:cancel];
+      if (scoped) [url stopAccessingSecurityScopedResource];
+      if (error) {
+        [self finish:packID state:@"failed" error:error result:nil completion:completion];
+        return;
+      }
+      dispatch_async(self->_queue, ^{
+        [self installArchive:archive pack:pack engine:engine identity:identity confirmed:confirmed completion:completion];
+      });
+    });
+  });
+}
+
+// Copies the chosen file next to the downloads, hashing it on the way; only
+// the verified size and SHA-256 are accepted (the user's file is never changed).
+- (NSError *)copyVerifiedFile:(NSString *)source to:(NSString *)archive pack:(NSDictionary *)pack
+                       cancel:(std::shared_ptr<std::atomic<bool>>)cancel {
+  NSString *packID = NeoTexString(pack[@"id"]);
+  const unsigned long long size = [pack[@"download"][@"size"] unsignedLongLongValue];
+  NeoTextureArchive::File in;
+  if (!in.open(Std(source))) return PackError(NeoTexturePackErrorArchive, @"unreadable", nil);
+  if (in.length() != size) return PackError(NeoTexturePackErrorNotVerified, @"notVerifiedFile", nil);
+  [NSFileManager.defaultManager createDirectoryAtPath:archive.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:nil];
+  NSString *temporary = [archive stringByAppendingPathExtension:@"copying"];
+  [NSFileManager.defaultManager removeItemAtPath:temporary error:nil];
+  CC_SHA256_CTX context;
+  CC_SHA256_Init(&context);
+  {
+    NeoTextureArchive::Output out(Std(temporary));
+    if (!out.good()) return PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+    std::unique_ptr<unsigned char[]> buffer(new unsigned char[1 << 20]);
+    for (uint64_t at = 0; at < in.length();) {
+      if (cancel && cancel->load()) {
+        [NSFileManager.defaultManager removeItemAtPath:temporary error:nil];
+        return PackError(NeoTexturePackErrorCancelled, @"cancelled", nil);
+      }
+      const size_t n = size_t(std::min<uint64_t>(1 << 20, in.length() - at));
+      if (!in.read(at, buffer.get(), n) || !out.write(buffer.get(), n)) {
+        [NSFileManager.defaultManager removeItemAtPath:temporary error:nil];
+        return PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+      }
+      CC_SHA256_Update(&context, buffer.get(), (CC_LONG)n);
+      at += n;
+      if ((at & ((64ULL << 20) - 1)) == 0 || at == in.length())
+        dispatch_async(_queue, ^{ [self update:packID values:@{@"received": @(at)} notify:NO]; });
+    }
+    if (!out.commit()) return PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+  }
+  unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+  CC_SHA256_Final(digest, &context);
+  NSMutableString *hex = [NSMutableString stringWithCapacity:64];
+  for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) [hex appendFormat:@"%02x", digest[i]];
+  if (![hex isEqualToString:NeoTexString(pack[@"download"][@"sha256"])]) {
+    [NSFileManager.defaultManager removeItemAtPath:temporary error:nil];
+    return PackError(NeoTexturePackErrorNotVerified, @"notVerifiedFile", nil);
+  }
+  [NSFileManager.defaultManager removeItemAtPath:archive error:nil];
+  return [NSFileManager.defaultManager moveItemAtPath:temporary toPath:archive error:nil] ? nil : PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
 }
 
 // Fetches part `index` (or verifies it when already complete), then the next.
@@ -594,7 +716,7 @@ static BOOL LooksLikeHTML(NSString *path) {
   dispatch_async(_work, ^{
     NSArray<NSString *> *targets = [self targetsForPack:pack engine:engine identity:identity];
     if (!targets) {
-      [self finish:packID state:@"downloaded" error:PackError(NeoTexturePackErrorLayout, @"noGameID", nil) result:nil completion:completion];
+      [self finish:packID state:@"downloaded" error:PackError(NeoTexturePackErrorLayout, NoFolderKey(engine, identity), nil) result:nil completion:completion];
       return;
     }
     std::vector<NeoTextureInstall::Rule> rules;
@@ -800,7 +922,7 @@ static BOOL LooksLikeHTML(NSString *path) {
     dispatch_async(self->_work, ^{
       NSString *current = IdentityFolderID(engine, identity);
       if (!current.length) {
-        [self finish:packID state:@"failed" error:PackError(NeoTexturePackErrorLayout, @"noGameID", nil) result:nil completion:completion];
+        [self finish:packID state:@"failed" error:PackError(NeoTexturePackErrorLayout, NoFolderKey(engine, identity), nil) result:nil completion:completion];
         return;
       }
       const BOOL scoped = [url startAccessingSecurityScopedResource];

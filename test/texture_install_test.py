@@ -85,7 +85,13 @@ def main():
                                  ('mupen64plus', 'SM64/SUPER MARIO 64#2D3A1B6C#0#2_all.PNG', False),
                                  ('mupen64plus', 'SM64/preview.png', False), ('mupen64plus', 'SM64/#2D3A1B6C#0#2_all.png', False),
                                  ('mupen64plus', 'SM64/.hidden/SUPER MARIO 64#1#0#2_all.png', False),
-                                 ('mupen64plus', 'SM64/~!~off/SUPER MARIO 64#1#0#2_all.png', False)):
+                                 ('mupen64plus', 'SM64/~!~off/SUPER MARIO 64#1#0#2_all.png', False),
+                                 # Beetle PSX HW: <hash>-<palette>.<ext> in hex, any of its decoders without
+                                 # case, the folder's own entries only, and its prefetch journal.
+                                 ('beetle', '1a2b3c4d-0.png', True), ('beetle', 'ABCD-1234.DDS', True),
+                                 ('beetle', 'ff-ff.webp', True), ('beetle', '0-0.tga', True), ('beetle', 'prefetch.journal', True),
+                                 ('beetle', 'sub/1a2b-0.png', False), ('beetle', '1a2b-0.gif', False),
+                                 ('beetle', '123456789-0.png', False), ('beetle', 'readme.txt', False), ('beetle', 'g12-0.png', False)):
             assert (run('accepts', engine, path)[0] == 0) == ok, (engine, path)
 
         # Import layout detection.
@@ -133,6 +139,18 @@ def main():
         out = detect('mupen64plus', 'SUPER MARIO 64', [f'p/{rice}', 'p/SUPER MARIO 64 (J)#1#0#2_all.png'])
         assert 'other=1' in out, out
         assert 'problem=noTextures' in detect('mupen64plus', 'SUPER MARIO 64', ['p/readme.png'])
+        # Beetle: the folder holding the texture names is installed as the
+        # game's <content name>-texture-replacements; dumps and page-aligned
+        # folders are never taken.
+        current = 'Game (USA)-texture-replacements'
+        out = detect('beetle', current, ['Castlevania (USA)-texture-replacements/1a2b-0.png',
+                                         'Castlevania (USA)-texture-replacements/3c4d-ff.png',
+                                         'Castlevania (USA)-texture-dump/9-9.png', 'Castlevania (USA)-texture-dump/8-8.png',
+                                         'Castlevania (USA)-texture-dump/7-7.png', 'readme.txt'])
+        assert f'rule=Castlevania (USA)-texture-replacements/>{current}' in out and 'problem= ' in out + ' ', out
+        out = detect('beetle', current, ['1a2b-0.png', 'credits.txt'])
+        assert f'rule=>{current}' in out, out
+        assert 'problem=noTextures' in detect('beetle', current, ['Pack-texture-replacements-pages/1-2.png', 'x/readme.txt'])
 
         # Install into each engine's real layout from ZIP, 7z and a folder.
         dolphin = temp / 'Dolphin/User/Load/Textures'
@@ -204,6 +222,26 @@ def main():
         code, out = run('install', 'mupen64plus', n64, pack, 'SM64/SUPER MARIO 64/=SUPER MARIO 64')
         assert code == 0 and 'files=1' in out and (n64 / 'SUPER MARIO 64' / rice).read_bytes() == PNG, out
         assert not (n64 / 'SUPER MARIO 64/notes.txt').exists() and not (n64 / 'SUPER MARIO 64/~!~disabled').exists()
+        # Beetle: the core's save directory also holds the game's memory
+        # cards; only <content>-texture-replacements is written or removed,
+        # its files flat (a subfolder is not read by the core).
+        beetle = temp / 'Libretro/Saves/Beetle PSX HW'
+        beetle.mkdir(parents=True)
+        (beetle / 'Game (USA).mcr').write_bytes(b'MC' + bytes(126))
+        (beetle / 'Game (USA).1.mcr').write_bytes(b'MC' + bytes(126))
+        pack = zip_of('b.zip', [('Game-texture-replacements/1a2b-0.png', PNG), ('Game-texture-replacements/3C4D-FF.dds', DDS),
+                                ('Game-texture-replacements/prefetch.journal', b'TTPJ' + bytes(12)),
+                                ('Game-texture-replacements/variants/5e6f-0.png', PNG), ('Game-texture-replacements/readme.txt', b'x')])
+        code, out = run('install', 'beetle', beetle, pack, f'Game-texture-replacements/={current}')
+        assert code == 0 and 'files=3' in out, out
+        assert sorted(p.name for p in (beetle / current).iterdir()) == ['1a2b-0.png', '3C4D-FF.dds', 'prefetch.journal']
+        assert (beetle / 'Game (USA).mcr').read_bytes() == b'MC' + bytes(126) and (beetle / 'Game (USA).1.mcr').exists()
+        assert not list(beetle.glob('.neostation-*'))
+        journal_only = zip_of('bj.zip', [('x-texture-replacements/prefetch.journal', b'TTPJ')])
+        code, out = run('install', 'beetle', beetle, journal_only, f'x-texture-replacements/={current}')
+        assert code == 5 and 'noTextures' in out and (beetle / current / '1a2b-0.png').exists(), out
+        assert run('remove', beetle, current)[0] == 0 and not (beetle / current).exists()
+        assert (beetle / 'Game (USA).mcr').exists() and (beetle / 'Game (USA).1.mcr').exists(), 'memory cards must stay'
 
         # Refusals leave the installed pack untouched and no staging behind.
         before = sorted(p.name for p in (dolphin / 'GZ2E01').iterdir())
@@ -243,8 +281,9 @@ def main():
         assert run('recover', dolphin)[0] == 0
         assert (dolphin / 'GZ2E01/tex1_c.png').exists() and not list(dolphin.glob('.neostation-*'))
         print(f'PASS texture install: {checks[0]} checks (engine file filters, import layout detection for Dolphin/ARMSX2/'
-              'PPSSPP/Azahar/Mupen64Plus-Next incl. region-free, other region and other game, ZIP/7z/folder installs into the real '
-              'layouts incl. Dolphin Game ID markers and excluded subfolders, update, removal limited to the pack folder with PS2 dumps kept, signature/empty/RAR/duplicate/'
+              'PPSSPP/Azahar/Mupen64Plus-Next/Beetle PSX HW incl. region-free, other region and other game, ZIP/7z/folder installs into the real '
+              'layouts incl. Dolphin Game ID markers and excluded subfolders, update, removal limited to the pack folder with PS2 dumps '
+              'and PS1 memory cards kept, signature/empty/RAR/duplicate/'
               'link refusals without side effects, crash recovery)')
 
 

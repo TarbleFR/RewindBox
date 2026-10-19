@@ -229,6 +229,43 @@ def main():
         check('ps2', iso9660({'README.TXT': b'x'}), {'problem': 'noSystemCnf'}, ok=False)
         check('ps2', b'not an image' * 3000, {'problem': 'unsupportedFormat'}, ok=False)
 
+        # PS1: SYSTEM.CNF BOOT serial through the file Beetle loads (CUE, M3U,
+        # CCD) or the image itself; compressed images give no serial.
+        def ps1(files, entry, expect, ok=True):
+            count[0] += 1
+            folder = temp / f'ps1-{count[0]}'
+            folder.mkdir()
+            for name, data in files.items():
+                (folder / name).write_bytes(data)
+            result = subprocess.run([str(driver), 'ps1', str(folder / entry)], capture_output=True, text=True)
+            assert 'runtime error' not in result.stderr and 'Sanitizer' not in result.stderr, result.stderr
+            fields = dict(item.split('=', 1) for item in result.stdout.split())
+            assert (result.returncode == 0) == ok, ('ps1', entry, result.stdout)
+            for key, value in expect.items():
+                assert fields.get(key) == value, ('ps1', entry, key, fields)
+
+        psx = iso9660({'SYSTEM.CNF': b'BOOT = cdrom:\\SLUS_000.67;1\r\nTCB = 4\r\nEVENT = 10\r\nSTACK = 801FFF00\r\n',
+                       'SLUS_000.67': bytes(4096)})
+        disc = raw2352(psx, True)
+        usa = {'value': 'SLUS-00067', 'folder': 'SLUS-00067', 'region': 'USA'}
+        ps1({'Game (USA).bin': disc}, 'Game (USA).bin', {**usa, 'format': 'bin'})
+        ps1({'Game (USA).iso': psx}, 'Game (USA).iso', {**usa, 'format': 'iso'})
+        cue = b'FILE "Game (USA) (Track 1).bin" BINARY\r\n  TRACK 01 MODE2/2352\r\n    INDEX 01 00:00:00\r\n'
+        ps1({'Game (USA).cue': cue, 'Game (USA) (Track 1).bin': disc}, 'Game (USA).cue', usa)
+        two = raw2352(iso9660({'SYSTEM.CNF': b'BOOT=cdrom:\\SLUS_010.41;1\n', 'SLUS_010.41': bytes(16)}), True)
+        ps1({'Game.m3u': b'# discs\nGame (Disc 1).cue\nGame (Disc 2).cue\n', 'Game (Disc 1).cue': cue.replace(b'Game (USA) (Track 1)', b'd1'),
+             'd1.bin': disc, 'Game (Disc 2).cue': cue.replace(b'Game (USA) (Track 1)', b'd2'), 'd2.bin': two}, 'Game.m3u', usa)
+        ps1({'Game.ccd': b'[CloneCD]\n', 'Game.img': disc}, 'Game.ccd', usa)
+        jp = raw2352(iso9660({'SYSTEM.CNF': b'BOOT = cdrom:\\SLPS_012.34;1\r\n', 'SLPS_012.34': bytes(16)}), True)
+        ps1({'j.bin': jp}, 'j.bin', {'value': 'SLPS-01234', 'region': 'Japan'})
+        ps1({'Game.chd': b'MComprHD' + bytes(200)}, 'Game.chd', {'problem': 'compressedImage'}, ok=False)
+        ps1({'Game.pbp': b'\x00PBP' + bytes(200)}, 'Game.pbp', {'problem': 'compressedImage'}, ok=False)
+        ps1({'p.bin': raw2352(iso9660({'SYSTEM.CNF': b'BOOT2 = cdrom0:\\SLUS_210.50;1\r\n'}), True)}, 'p.bin',
+            {'problem': 'ps2Disc'}, ok=False)
+        ps1({'n.bin': raw2352(iso9660({'PSX.EXE': bytes(16)}), True)}, 'n.bin', {'problem': 'noSystemCnf'}, ok=False)
+        ps1({'Missing.cue': b'FILE "nowhere.bin" BINARY\n'}, 'Missing.cue', {'problem': 'unreadable'}, ok=False)
+        ps1({'Escape.cue': b'FILE "../x.bin" BINARY\n'}, 'Escape.cue', {'problem': 'unreadable'}, ok=False)
+
         # GameCube / Wii: ID and revision across containers.
         gc = disc_header('GZ2E01', 2, False)
         check('gc', gc + bytes(0x10000), {'value': 'GZ2E01', 'revision': '2', 'region': 'USA', 'format': 'iso'})
@@ -327,6 +364,7 @@ def main():
         check('n64', bytes(0x1000), {'problem': 'unsupportedFormat'}, ok=False)
         check('n64', bytes.fromhex('80371240'), {'problem': 'unreadable'}, ok=False)
         print(f'PASS texture identity: {count[0]} synthetic images (PS2 ISO/raw MODE1/MODE2/CSO/ZSO serial + ELF CRC; '
+              'PS1 BIN/ISO/CUE/M3U/CCD SYSTEM.CNF serial, CHD/PBP/PS2 disc/no SYSTEM.CNF/escaping CUE refused; '
               'GC/Wii ISO/WBFS/CISO/WIA/RVZ/GCZ/WAD ID + revision; PSP ISO/CSO/ZSO/PBP/UMD_DATA disc ID; '
               '3DS NCSD/NCCH/CIA program ID, update refused; N64 z64/v64/n64 ROM name, unusable names refused; '
               'unreadable inputs reported)')

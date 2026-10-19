@@ -109,7 +109,9 @@ LOT1_CORES = ('sameduck', 'potator', 'ardens', 'stella', 'prosystem', 'a5200', '
 # Lot 2 (docs/libretro-consoles-lot2.md): the same test for the four cores
 # of lot 2 (build_lot2_content).
 LOT2_CORES = ('freechaf', 'freeintv', 'o2em', 'mednafen_pcfx')
-REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES + LOT2_CORES
+# Build 489: Beetle PSX HW in Vulkan, run only with --beetle (build_beetle_content).
+BEETLE_CORE = 'mednafen_psx_hw'
+REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES + LOT2_CORES + (BEETLE_CORE,)
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 # Shader fixtures exercise the actual session and presenter; network bytes
@@ -362,6 +364,32 @@ for core, content, console, size in LOT2_RUNS:
             'requiredLog': ['load: content accepted', 'run: startup confirmed after',
                             f'run: frame {size}' if size else 'run: frame '],
         })
+
+# Build 489 (run by their own CI job with --beetle): Beetle PSX HW with the
+# options and the Vulkan context NeoStation gives it (libretro_core_catalog.dart),
+# on a stand-in BIOS the probe writes (_mips_program: a 4-bit texture uploaded
+# from the CPU and drawn as a quad). First run: the core dumps the texture it
+# tracked (dumping is a probe-only override; NeoStation locks it off). Second
+# run: those names, filled with green, are the game's replacement pack; the
+# drawn quad must turn green, through the core's own replacement, in Vulkan.
+# Third run: replacement off again, the original texture is back.
+BEETLE_LOG = ['hd-textures: core=beetle renderer=vulkan']
+SCENARIOS += [
+    {'name': 'beetle-vulkan-dump', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 6.0, 'default': False, 'beetle': True,
+     'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_dump_textures': 'enabled',
+                      'beetle_psx_hw_replace_textures': 'disabled'},
+     'beetleTextures': {'expectDump': True, 'colour': 'original'}, 'requiredLog': BEETLE_LOG},
+    {'name': 'beetle-vulkan-replace', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 8.0, 'default': False, 'beetle': True,
+     'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_replace_textures': 'enabled'},
+     'beetleTextures': {'replaceFromDump': 'probe-psx', 'colour': 'green', 'recognized': True},
+     'requiredLog': BEETLE_LOG},
+    {'name': 'beetle-vulkan-off', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
+     'probeOptions': {'beetle_psx_hw_track_textures': 'disabled', 'beetle_psx_hw_replace_textures': 'disabled'},
+     'beetleTextures': {'colour': 'original'}, 'requiredLog': BEETLE_LOG},
+]
 
 # Real official catalog/downloads; the rendering is the actual embedded
 # bridge, with a software test core, a Vulkan test core and real DeSmuME.
@@ -712,6 +740,124 @@ def build_lot2_content(content, system):
         'FILE "probe-pcfx.bin" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n')
 
 
+def _mips_program():
+    """A stand-in PlayStation BIOS written here (never a console's BIOS): from
+    the reset address it sets up the GPU, uploads a 16x16 4-bit texture and its
+    palette from the CPU (what Beetle's texture tracker hashes) and draws it as
+    a textured quad, again and again; every GP0 word waits for the FIFO."""
+    T0, T1, T3, T4, T2 = 8, 9, 11, 12, 10
+    words = []
+
+    def emit(word):
+        words.append(word & 0xFFFFFFFF)
+
+    def lui(rt, imm):
+        emit((0x0F << 26) | (rt << 16) | (imm & 0xFFFF))
+
+    def ori(rt, rs, imm):
+        emit((0x0D << 26) | (rs << 21) | (rt << 16) | (imm & 0xFFFF))
+
+    def sw(rt, offset, base):
+        emit((0x2B << 26) | (base << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def lw(rt, offset, base):
+        emit((0x23 << 26) | (base << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def and_(rd, rs, rt):
+        emit((rs << 21) | (rt << 16) | (rd << 11) | 0x24)
+
+    def beq(rs, rt, offset):
+        emit((0x04 << 26) | (rs << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def bne(rs, rt, offset):
+        emit((0x05 << 26) | (rs << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def addiu(rt, rs, imm):
+        emit((0x09 << 26) | (rs << 21) | (rt << 16) | (imm & 0xFFFF))
+
+    def nop():
+        emit(0)
+
+    def load(value):
+        lui(T1, value >> 16)
+        if value & 0xFFFF:
+            ori(T1, T1, value & 0xFFFF)
+
+    def gp1(value):
+        load(value)
+        sw(T1, 0x1814, T0)
+
+    def gp0(value):
+        load(value)
+        # Wait for GPUSTAT bit 28 (ready to receive a word): a full FIFO drops writes.
+        lw(T3, 0x1814, T0)
+        nop()
+        and_(T3, T3, T4)
+        beq(T3, 0, -4)
+        nop()
+        sw(T1, 0x1810, T0)
+
+    lui(T0, 0x1F80)               # I/O base
+    lui(T4, 0x1000)               # GPUSTAT bit 28
+    gp1(0x00000000)               # reset
+    gp1(0x08000000)               # 256x240, NTSC, 15-bit
+    gp1(0x05000000)               # display start (0,0)
+    gp1(0x06C60260)               # horizontal range
+    gp1(0x07040010)               # vertical range
+    gp1(0x03000000)               # display on
+    loop = len(words)
+    gp0(0xE1000408)               # texpage x=512, 4-bit, drawing to the displayed area
+    gp0(0xE3000000)               # drawing area top-left
+    gp0(0xE403BCFF)               # drawing area bottom-right (255, 239)
+    gp0(0xE5000000)               # drawing offset
+    for word in (0x02202020, 0x00000000, 0x00F00100):  # clear to dark grey
+        gp0(word)
+    # CLUT at (0, 480): index 0 red, index 1 blue, the rest red.
+    for word in (0xA0000000, 0x01E00000, 0x00010010):
+        gp0(word)
+    for _ in range(8):
+        gp0(0x7C00001F)
+    # 16x16 4-bit texture at (512, 0): 4 halfwords per row, checkered red/blue.
+    for word in (0xA0000000, 0x00000200, 0x00100004):
+        gp0(word)
+    for row in range(16):
+        pattern = 0x10101010 if (row // 4) % 2 == 0 else 0x01010101
+        gp0(pattern)
+        gp0(pattern)
+    # Raw textured quad (64,56)-(192,184), CLUT (0,480), texpage 8.
+    for word in (0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
+                 0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F):
+        gp0(word)
+    lui(T2, 0x0004)               # delay, then draw again
+    delay = len(words)
+    addiu(T2, T2, -1)
+    bne(T2, 0, delay - (len(words) + 1))
+    nop()
+    # j loop (BIOS ROM, KSEG1 0xBFC00000)
+    emit((0x02 << 26) | (((0xBFC00000 + loop * 4) >> 2) & 0x3FFFFFF))
+    nop()
+    return b''.join(word.to_bytes(4, 'little') for word in words)
+
+
+def build_beetle_content(content, system):
+    """Beetle PSX HW (Build 489): a PS-X EXE the core accepts as content (never
+    run: the stand-in BIOS keeps the CPU) and the stand-in BIOS under the names
+    Beetle looks for, written only into this probe's System folder."""
+    exe = bytearray(0x1000)
+    exe[0:8] = b'PS-X EXE'
+    exe[0x10:0x14] = (0x80010000).to_bytes(4, 'little')   # PC
+    exe[0x18:0x1C] = (0x80010000).to_bytes(4, 'little')   # text start
+    exe[0x1C:0x20] = (0x800).to_bytes(4, 'little')        # text size
+    exe[0x30:0x34] = (0x801FFF00).to_bytes(4, 'little')   # SP
+    exe[0x800:0x804] = ((0x02 << 26) | ((0x80010000 >> 2) & 0x3FFFFFF)).to_bytes(4, 'little')  # j self
+    (content / 'probe-psx.exe').write_bytes(bytes(exe))
+    program = _mips_program()
+    bios = bytearray(0x80000)
+    bios[:len(program)] = program
+    for name in ('scph5500.bin', 'scph5501.bin', 'scph5502.bin'):
+        (system / name).write_bytes(bytes(bios))
+
+
 def build_iso(program, output_path, work):
     """An ISO 9660 image like a PSP disc: PSP_GAME/PARAM.SFO and
     PSP_GAME/SYSDIR/EBOOT.BIN, system id "PSP GAME"."""
@@ -955,6 +1101,8 @@ def assemble(args, sources, work):
     if getattr(args, 'lot2', False):
         # Only the lot 2 run carries the stand-in BIOS images.
         build_lot2_content(content, app / 'LibretroSystem')
+    if getattr(args, 'beetle', False):
+        build_beetle_content(content, app / 'LibretroSystem')
     if imports_shader_kit(sources):
         build_shader_fixtures(app, args.official_shaders)
     if imports_cheat_catalog(sources):
@@ -972,6 +1120,9 @@ def assemble(args, sources, work):
         elif getattr(args, 'lot2', False):
             if not scenario.get('lot2'):
                 continue
+        elif getattr(args, 'beetle', False):
+            if not scenario.get('beetle'):
+                continue
         elif args.only and scenario['name'] not in args.only:
             continue
         elif not args.only and not scenario.get('default', True):
@@ -981,6 +1132,8 @@ def assemble(args, sources, work):
         entry = dict(scenario)
         if scenario['core'] in REAL_CORES:
             entry.update(core_settings(catalog, scenario['core']))
+            # The product's locked options, then the probe's own (Beetle's dumping run).
+            entry['lockedOptions'] = {**entry.get('lockedOptions', {}), **scenario.get('probeOptions', {})}
         entry['consoleName'] = names[scenario['console']]
         scenarios.append(entry)
     config = {'source': args.label, 'consoleGeometry': geometry, 'scenarios': scenarios}
@@ -1180,6 +1333,8 @@ def evaluate(report, scenarios):
                 problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('shaders'):
                 problems += shader_problems(name, scenario['shaders'], result, launch)
+            if scenario.get('beetleTextures'):
+                problems += beetle_problems(name, scenario['beetleTextures'], result, launch)
         elif scenario['expect'] == 'rejected':
             # The core is loaded and initialised, refuses the content, and
             # the session tears down to nothing.
@@ -1200,6 +1355,38 @@ def evaluate(report, scenarios):
                 problems.append(f'{name}: the game view or session stayed after the failure')
             if 'END launch failed LIBRETRO_CORE_STOPPED' not in result.get('journal', ''):
                 problems.append(f'{name}: the journal does not end with the launch failure')
+    return problems
+
+
+def beetle_problems(name, expected, result, launch):
+    """Beetle PSX HW in Vulkan: the renderer the core started, its dump, the
+    replacement it reports, and the quad's pixels in the presented frame."""
+    problems = []
+    status = result.get('beetleStatus') or {}
+    if launch.get('hardwareRendering') != 'vulkan' or status.get('renderer') != 'vulkan':
+        problems.append(f"{name}: Beetle did not run in Vulkan (launch {launch.get('hardwareRendering')!r}, "
+                        f"session {status.get('renderer')!r})")
+    if expected.get('expectDump') and not result.get('beetleDumped'):
+        problems.append(f'{name}: the core dumped no texture')
+    if expected.get('replaceFromDump'):
+        if not result.get('beetleReplacementsPrepared'):
+            problems.append(f'{name}: no replacement could be written from the dump')
+        if not status.get('replace') or int(status.get('recognized') or 0) <= 0:
+            problems.append(f'{name}: the core reports no recognised replacement ({status})')
+    grids = (result.get('frame') or {}).get('screenGridsRGB') or []
+    if not grids:
+        problems.append(f"{name}: no frame captured ({(result.get('frame') or {}).get('captureError')})")
+        return problems
+    # The quad covers (64,56)-(192,184) of 256x240: grid cells 5..10 x 5..10 are inside it.
+    inside = [grids[0][gy * 16 + gx] for gy in range(5, 11) for gx in range(5, 11)]
+    green = sum(1 for r, g, b in inside if g > 150 and r < 90 and b < 90)
+    original = sum(1 for r, g, b in inside if (r > 150 and g < 90 and b < 90) or (b > 150 and r < 90 and g < 90))
+    if expected.get('colour') == 'green' and green < len(inside) * 0.8:
+        problems.append(f'{name}: the quad is not the green replacement ({green}/{len(inside)} green, '
+                        f'{original} original cells)')
+    if expected.get('colour') == 'original' and original < len(inside) * 0.8:
+        problems.append(f'{name}: the quad is not the original red/blue texture ({original}/{len(inside)} cells, '
+                        f'{green} green)')
     return problems
 
 
@@ -1627,6 +1814,8 @@ def main():
                             help='Run only the lot 1 cores (docs/libretro-consoles-lot1.md)')
     run_parser.add_argument('--lot2', action='store_true',
                             help='Run only the lot 2 cores (docs/libretro-consoles-lot2.md)')
+    run_parser.add_argument('--beetle', action='store_true',
+                            help='Run only the Beetle PSX HW Vulkan texture replacement scenarios (Build 489)')
     run_parser.add_argument('--expect', choices=('fixed', 'unfixed'), default='fixed')
     run_parser.add_argument('--timeout', type=int, default=900)
     run_parser.add_argument('--official-shaders', action='store_true',

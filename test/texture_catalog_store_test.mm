@@ -315,6 +315,107 @@ int main(int argc, char **argv) {
           Exists([libretroSystem stringByAppendingPathComponent:@"Mupen64plus/hires_texture"]), "mupen64plus removal limited to the ROM folder");
     CHECK(!Exists(kartCaches[0]) && Exists(otherCache), "mupen64plus removal drops the hi-res cache built from the removed pack");
 
+    // 4e. Beetle PSX HW: <Saves>/Beetle PSX HW/<content name>-texture-replacements (the
+    // core's HD Texture Folder "save"), next to the game's memory cards; Track + Replace per game.
+    NSString *beetleSaves = [saves stringByAppendingPathComponent:@"Beetle PSX HW"];
+    id<NeoTextureEngine> beetle = [NeoTextureEngines beetleWithSaveDirectory:beetleSaves configDirectory:config];
+    [FM() createDirectoryAtPath:beetleSaves withIntermediateDirectories:YES attributes:nil error:nil];
+    NSData *card = [NSData dataWithBytes:"MC\0\0" length:4];
+    for (NSString *name in @[@"Castle (USA).mcr", @"Castle (USA).1.mcr"]) [card writeToFile:[beetleSaves stringByAppendingPathComponent:name] atomically:YES];
+    NSMutableDictionary *castle = [Identity(@"ps1", @"serial", @"ps1-disc-serial", @"SLUS-00067", @"Synthetic Castle") mutableCopy];
+    castle[@"path"] = @"/Library/roms/psx/Castle (USA).cue";
+    castle[@"gameKey"] = @"psx/Castle (USA).cue";
+    CHECK([beetle supportsSystem:@"ps1"] && ![beetle supportsSystem:@"ps2"] && [[beetle folderForIdentity:castle] isEqual:@"Castle (USA)-texture-replacements"],
+          "beetle folder %s", [beetle folderForIdentity:castle].UTF8String);
+    NSMutableDictionary *zipped = [castle mutableCopy];
+    zipped[@"path"] = @"/Library/roms/psx/Castle (USA).zip";
+    CHECK(![beetle folderForIdentity:zipped] && [[beetle folderProblemForIdentity:zipped] isEqual:@"zipContent"], "a zipped game has no Beetle folder");
+    CHECK([beetle acceptsFile:@"1a2b-0.png"] && [beetle acceptsFile:@"prefetch.journal"] && ![beetle acceptsFile:@"sub/1a2b-0.png"] &&
+          ![beetle acceptsFile:@"readme.txt"], "beetle filters");
+    CHECK([[beetle activationForIdentity:castle][@"enabled"] isEqual:@NO], "beetle replacement off before a pack");
+    outcome = Install(store, packs[@"beetle"], beetle, castle, NO, NO);
+    CHECK(!outcome.error && [outcome.result[@"activated"] boolValue], "beetle install: %s %s", outcome.error.description.UTF8String,
+          outcome.result.description.UTF8String);
+    NSString *beetleFolder = [beetleSaves stringByAppendingPathComponent:@"Castle (USA)-texture-replacements"];
+    CHECK([Files(beetleFolder) isEqualToArray:(@[@"1a2b-0.png", @"3C4D-FF.dds", @"NeoStation-pack.json"])], "beetle files %s",
+          Files(beetleFolder).description.UTF8String);
+    NSString *beetleStore = [config stringByAppendingPathComponent:@"Games/Beetle PSX HW.json"];
+    NSDictionary *beetleOptions = JSON(beetleStore)[@"games"][@"psx/Castle (USA).cue"];
+    CHECK([beetleOptions[@"beetle_psx_hw_track_textures"] isEqual:@"enabled"] && [beetleOptions[@"beetle_psx_hw_replace_textures"] isEqual:@"enabled"],
+          "beetle per-game options %s", beetleOptions.description.UTF8String);
+    CHECK(!beetleOptions[@"beetle_psx_hw_dump_textures"], "dumping is never written by the switch");
+    CHECK([beetle setActivation:NO identity:castle error:nil] && ![[beetle activationForIdentity:castle][@"enabled"] boolValue] &&
+          [JSON(beetleStore)[@"games"][@"psx/Castle (USA).cue"][@"beetle_psx_hw_track_textures"] isEqual:@"disabled"],
+          "beetle switched off (both options)");
+    // Replacing needs both options: one alone reads as off.
+    __block NSDictionary *beetleLive = @{@"beetle_psx_hw_track_textures": @"enabled", @"beetle_psx_hw_replace_textures": @"disabled"};
+    [NeoTextureEngines setLibretroSessionReader:^NSString *(NSString *key, NSString *gameKey) { return beetleLive[key]; }
+                                         writer:^BOOL(NSString *key, NSString *value, NSString *gameKey) {
+                                           NSMutableDictionary *next = [beetleLive mutableCopy];
+                                           next[key] = value;
+                                           beetleLive = next;
+                                           return YES;
+                                         }
+                                      forEngine:beetle];
+    CHECK(![[beetle activationForIdentity:castle][@"enabled"] boolValue], "track alone is not replacement");
+    CHECK([beetle setActivation:YES identity:castle error:nil] && [beetleLive[@"beetle_psx_hw_replace_textures"] isEqual:@"enabled"] &&
+          [[beetle activationForIdentity:castle][@"enabled"] boolValue], "beetle session write");
+    [NeoTextureEngines setLibretroSessionReader:nil writer:nil forEngine:beetle];
+    rows = [store installedForIdentity:castle engine:beetle];
+    CHECK(rows.count == 1 && !Remove(store, rows.firstObject, beetle) && !Exists(beetleFolder), "beetle removal");
+    CHECK([[NSData dataWithContentsOfFile:[beetleSaves stringByAppendingPathComponent:@"Castle (USA).mcr"]] isEqualToData:card] &&
+          [[NSData dataWithContentsOfFile:[beetleSaves stringByAppendingPathComponent:@"Castle (USA).1.mcr"]] isEqualToData:card],
+          "memory cards kept byte for byte");
+
+    // 4f. A manual pack whose author's file was verified on CI (download.verified): never
+    // downloaded, installed only from that exact file chosen by the user; any other file refused.
+    NSDictionary *verifiedIndex = @{@"catalogue_id": @"neostation-hd-textures", @"schema_version": @1, @"revision": @"test",
+                                    @"packs": @[packs[@"verifiedManual"], packs[@"verifiedMalformed"]]};
+    NSDictionary *checked = [NeoTextureCatalog validatedIndex:NeoTexJSONData(verifiedIndex) error:nil];
+    CHECK([checked[@"packs"] count] == 2 && NeoTexVerifiedFile(checked[@"packs"][0]) && !checked[@"packs"][1][@"download"][@"verified"] &&
+          !checked[@"packs"][1][@"install"], "verified manual pack kept, malformed record reduced to a page link: %s", checked.description.UTF8String);
+    NSDictionary *melee = Identity(@"gc", @"game_id", @"dolphin-disc-game-id", @"GALE01", @"Synthetic Melee");
+    NSUInteger beforeManual = requests;
+    outcome = Install(store, packs[@"verifiedManual"], dolphin, melee, NO, NO);
+    CHECK(outcome.error.code == NeoTexturePackErrorManual && requests == beforeManual, "a verified manual pack is never downloaded: %s",
+          outcome.error.description.UTF8String);
+    __block Outcome imported{};
+    void (^importFile)(NSString *) = ^(NSString *path) {
+      Wait(120, ^(dispatch_block_t done) {
+        [store installPack:packs[@"verifiedManual"] fromFile:[NSURL fileURLWithPath:path] engine:dolphin identity:melee replace:NO confirmed:NO
+                completion:^(NSDictionary *result, NSError *error) {
+                  CHECK(NSThread.isMainThread, "import completion off the main thread");
+                  imported.result = result;
+                  imported.error = error;
+                  done();
+                }];
+      });
+    };
+    importFile(fixtures[@"otherFile"]);
+    CHECK(imported.error.code == NeoTexturePackErrorNotVerified && !Exists([textures stringByAppendingPathComponent:@"GALE01"]),
+          "another file is refused before anything is installed: %s", imported.error.description.UTF8String);
+    NSArray<NSString *> *(^verifiedCopies)(void) = ^NSArray<NSString *> *(void) {
+      NSMutableArray *left = [NSMutableArray array];
+      for (NSString *name in [FM() contentsOfDirectoryAtPath:store.downloadDirectory error:nil])
+        if ([name hasPrefix:@"fixture-verified-manual@"])
+          for (NSString *inner in [FM() contentsOfDirectoryAtPath:[store.downloadDirectory stringByAppendingPathComponent:name] error:nil])
+            [left addObject:[name stringByAppendingPathComponent:inner]];
+      return left;
+    };
+    CHECK(!verifiedCopies().count, "a refused import left %s", verifiedCopies().description.UTF8String);
+    NSData *original = [NSData dataWithContentsOfFile:fixtures[@"hostedFile"]];
+    importFile(fixtures[@"hostedFile"]);
+    CHECK(!imported.error && [imported.result[@"activated"] boolValue], "verified file installed: %s", imported.error.description.UTF8String);
+    CHECK([Files([textures stringByAppendingPathComponent:@"GALE01"]) isEqualToArray:(@[@"NeoStation-pack.json", @"tex1_m.png"])], "verified files %s",
+          Files([textures stringByAppendingPathComponent:@"GALE01"]).description.UTF8String);
+    rows = [store installedForIdentity:melee engine:dolphin];
+    CHECK(rows.count == 1 && [rows[0][@"pack_id"] isEqual:@"fixture-verified-manual"] &&
+          [rows[0][@"sha256"] isEqual:packs[@"verifiedManual"][@"download"][@"verified"][@"sha256"]], "installed as the catalogue pack: %s",
+          rows.description.UTF8String);
+    CHECK([[NSData dataWithContentsOfFile:fixtures[@"hostedFile"]] isEqualToData:original], "the user's file is left as it was");
+    CHECK(!verifiedCopies().count, "the copy is dropped once installed: %s", verifiedCopies().description.UTF8String);
+    CHECK(!Remove(store, rows.firstObject, dolphin), "verified pack removal");
+
     // 4d. ARMSX2: downloaded and verified here, installed by the Build 485 store (direct ZIP and expanded 7z).
     NSString *armsx2Data = [work stringByAppendingPathComponent:@"ARMSX2"];
     id<NeoTextureEngine> armsx2 = [NeoTextureEngines armsx2WithDataDirectory:armsx2Data gamePath:nil host:nil];

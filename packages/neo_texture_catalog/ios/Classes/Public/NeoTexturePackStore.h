@@ -20,6 +20,7 @@ typedef NS_ENUM(NSInteger, NeoTexturePackError) {
   NeoTexturePackErrorConflict = 10,   // another pack owns this folder: confirmation required
   NeoTexturePackErrorManual = 11,     // the author only offers a manual download
   NeoTexturePackErrorHTML = 12,       // the server answered with a web page instead of an archive
+  NeoTexturePackErrorNotVerified = 13,  // an imported file is not the author's file verified for this pack
 };
 
 /// A pack installed in an engine folder, from its NeoStation-pack.json
@@ -69,6 +70,19 @@ typedef NSDictionary<NSString *, id> NeoTextureInstalled;
 /// mismatch (NeoTexturePackErrorRegion from an engine with its own installer);
 /// the verified download is kept until then.
 - (void)installPack:(NSDictionary *)pack
+             engine:(id<NeoTextureEngine>)engine
+           identity:(nullable NSDictionary *)identity
+            replace:(BOOL)replace
+          confirmed:(BOOL)confirmed
+         completion:(void (^)(NSDictionary *_Nullable result, NSError *_Nullable error))completion;
+/// A manual pack whose author's file was verified on CI (download.verified):
+/// installs the file the user downloaded from the author's page, chosen in
+/// Files (security scoped), only when it is that exact file (size, then
+/// SHA-256); anything else fails with NeoTexturePackErrorNotVerified and is
+/// left untouched. The copy is kept until the install succeeds, so a
+/// confirmation or a retry does not ask for the file again.
+- (void)installPack:(NSDictionary *)pack
+           fromFile:(NSURL *)url
              engine:(id<NeoTextureEngine>)engine
            identity:(nullable NSDictionary *)identity
             replace:(BOOL)replace

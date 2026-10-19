@@ -22,12 +22,13 @@ import 'logger_service.dart';
 abstract final class TextureCatalogService {
   static final _log = LoggerService.instance;
 
-  /// ps2, gc, wii, psp, 3ds or n64 for the systems whose embedded engine
-  /// replaces textures (ARMSX2, Dolphin, PPSSPP, Azahar, Mupen64Plus-Next);
-  /// null for every other one.
+  /// ps2, gc, wii, psp, 3ds, n64 or ps1 for the systems whose embedded engine
+  /// replaces textures (ARMSX2, Dolphin, PPSSPP, Azahar, Mupen64Plus-Next,
+  /// Beetle PSX HW); null for every other one.
   static String? textureSystem(String folderName) {
     final folder = folderName.toLowerCase();
     if (folder == 'ps2') return 'ps2';
+    if (folder == 'ps1' || folder == 'psx' || folder == 'playstation') return 'ps1';
     if (folder == 'gc' || folder == 'ngc' || folder == 'gamecube') return 'gc';
     if (folder == 'wii') return 'wii';
     if (folder == 'psp' || folder == 'pspminis') return 'psp';
@@ -38,7 +39,7 @@ abstract final class TextureCatalogService {
 
   /// Systems whose switch is a libretro core option, kept per game.
   static bool _libretro(String textureSystem) =>
-      textureSystem == 'psp' || textureSystem == '3ds' || textureSystem == 'n64';
+      textureSystem == 'psp' || textureSystem == '3ds' || textureSystem == 'n64' || textureSystem == 'ps1';
 
   /// Tests stand in for iOS; null means the real platform.
   @visibleForTesting

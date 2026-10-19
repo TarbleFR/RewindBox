@@ -7,8 +7,9 @@ name: Libretro simulator probe
 # address space as crowded as the iPhone's; since Build 455, the internal
 # resolution chosen during a game with the real DeSmuME core (frames, saved
 # for the core and for one game, relaunch) and refused for PPSSPP in its
-# software context. See test/libretro_simulator_probe.py. A simulator run
-# is not an iPhone test.
+# software context; since Build 489, Beetle PSX HW in Vulkan dumping, then
+# replacing, a texture drawn by a stand-in BIOS the probe writes (--beetle).
+# See test/libretro_simulator_probe.py. A simulator run is not an iPhone test.
 'on':
   push:
     branches:
@@ -35,6 +36,10 @@ name: Libretro simulator probe
         description: Run only the embedded shader session scenarios
         type: boolean
         default: false
+      beetle_only:
+        description: Run only the Beetle PSX HW Vulkan texture replacement scenarios (Build 489)
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -43,7 +48,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   probe:
-    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -82,7 +87,7 @@ jobs:
   # cores refuse content they cannot run. On a runner of its own, so its
   # verdict does not depend on the main job's scenarios.
   lot1:
-    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -117,7 +122,7 @@ jobs:
   # Beetle PC-FX, each launched twice, run and closed; O2EM and Beetle PC-FX
   # boot stand-in BIOS images the probe writes (a single jump to itself).
   lot2:
-    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -148,12 +153,47 @@ jobs:
         path: evidence/
         if-no-files-found: warn
         retention-days: 14
+  # Build 489: Beetle PSX HW with NeoStation's Vulkan context and options,
+  # its texture dump, a green replacement pack made from it (the quad must
+  # turn green) and replacement off again. Stand-in BIOS written by the probe.
+  beetle:
+    if: ${{ !inputs.shaders_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Select Xcode 26.3
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Download the libretro cores pinned by the delivery
+      uses: actions/download-artifact@v4
+      with:
+        name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
+        run-id: '38638115521'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/libretro
+    - name: Fetch the pinned MoltenVK simulator slice and test content
+      run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
+    - name: Beetle PSX HW in Vulkan dumps, replaces and stops replacing a texture
+      run: |
+        python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
+          --beetle --evidence evidence/beetle --label "${GITHUB_SHA}"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: libretro-simulator-beetle-${{ github.sha }}
+        path: evidence/
+        if-no-files-found: warn
+        retention-days: 14
   # The same Vulkan scenario with the sources before the teardown fix, on a
   # runner of its own (a second probe app in the same simulator session
   # never started). Informational: it records whether closing the game ends
   # the process; it does not fail the run.
   shaders:
-    if: ${{ !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.beetle_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -186,7 +226,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   official-shaders:
-    if: ${{ !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.beetle_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -219,7 +259,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   before-fix:
-    if: ${{ !inputs.shaders_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -268,7 +308,7 @@ jobs:
   # whether PPSSPP finds no memory base, as on the iPhone; it does not fail
   # the run.
   before-reservation:
-    if: ${{ !inputs.shaders_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:

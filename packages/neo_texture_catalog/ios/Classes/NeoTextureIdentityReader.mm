@@ -52,6 +52,11 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
   }
   if ([s isEqualToString:@"psp"]) return Identity(s, @"disc_id", @"psp-param-sfo-disc-id", [v stringByReplacingOccurrencesOfString:@"-" withString:@""], revision, nil, nil, title, nil, nil);
   if ([s isEqualToString:@"n64"]) return Identity(s, @"rom_name", @"n64-rom-name-hex", v, revision, nil, nil, title, nil, nil);
+  if ([s isEqualToString:@"ps1"]) {
+    NSString *compact = [[v stringByReplacingOccurrencesOfString:@"-" withString:@""] stringByReplacingOccurrencesOfString:@"_" withString:@""];
+    NSString *region = Str(NeoTextureIdentity::PS2Region(std::string(compact.UTF8String ?: "")));
+    return Identity(s, @"serial", @"ps1-disc-serial", v, nil, nil, region, title, nil, nil);
+  }
   return Identity(s, @"title_id", @"3ds-title-id", v, nil, nil, nil, title, nil, nil);
 }
 
@@ -89,11 +94,12 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
   else if ([s isEqualToString:@"psp"]) r = NeoTextureIdentity::PSP(file);
   else if ([s isEqualToString:@"3ds"]) r = NeoTextureIdentity::N3DS(file);
   else if ([s isEqualToString:@"n64"]) r = NeoTextureIdentity::N64(file);
+  else if ([s isEqualToString:@"ps1"]) r = NeoTextureIdentity::PS1(file);
   else { if (problem) *problem = @"unsupportedFormat"; return nil; }
   NSDictionary *identity = nil;
   NSDictionary *record = nil;
   if (r.ok()) {
-    // PS2 folders and the store use SLUS-21050; Dolphin, PSP and 3DS the raw value.
+    // PS2 folders and the store use SLUS-21050; PS1 the same form; Dolphin, PSP and 3DS the raw value.
     NSString *value = [s isEqualToString:@"ps2"] ? Str(r.folder) : Str(r.value);
     identity = Identity(s, Str(r.type), Str(r.scheme), value, Str(r.revision), Str(r.crc), Str(r.region), title, path, Str(r.format));
     NSMutableDictionary *stored = [identity mutableCopy];

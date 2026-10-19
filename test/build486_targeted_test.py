@@ -3,7 +3,9 @@
 
 Since the catalogue expansion of 19 October 2026 the same runner proves the
 next candidate that changes the catalogue pod (Build 488: Nintendo 64 adapter
-for Mupen64Plus-Next and the expanded index); its verdicts carry BUILD.
+for Mupen64Plus-Next and the expanded index; Build 489: Beetle PSX HW in
+Vulkan with its PS1 adapter, and manual packs whose author's file was
+verified on CI); its verdicts carry BUILD.
 
 Build 486 adds the neo_texture_catalog pod (catalogue, pack store, engine
 adapters for ARMSX2, Dolphin, PPSSPP and Azahar, the shared "HD textures"
@@ -42,8 +44,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build/build486'
-# The candidate these verdicts prove (486: first catalogue; 488: N64 adapter and expanded index).
-BUILD = 488
+# The candidate these verdicts prove (486: first catalogue; 488: N64 adapter and expanded index;
+# 489: Beetle PSX HW in Vulkan, PS1 adapter, verified manual packs).
+BUILD = 489
 
 PRODUCT = sorted({
     'lib/l10n/texture_catalog_locale.dart',
@@ -57,6 +60,11 @@ PRODUCT = sorted({
     'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     'packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/services/libretro_resolution.dart',
     'pubspec.yaml',
     'native/textures/catalogue/manifest.json.gz',
 } | set(subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard',
@@ -109,7 +117,14 @@ ANALYZED = [
     'lib/widgets/dolphin_internal_playlist_actions.dart',
     'lib/widgets/libretro_internal_playlist_actions.dart',
     'packages/neo_texture_catalog/lib/neo_texture_catalog.dart',
+    'lib/services/libretro_core_catalog.dart',
+    'lib/services/libretro_internal_service.dart',
+    'lib/services/libretro_resolution.dart',
     'test/texture_catalog_service_test.dart',
+    'test/libretro_core_catalog_test.dart',
+    'test/libretro_resolution_test.dart',
+    'test/libretro_beetle_vulkan_fallback_test.dart',
+    'test/libretro_bios_launch_test.dart',
 ]
 DART_TESTS = [
     'test/texture_catalog_service_test.dart',
@@ -122,6 +137,8 @@ DART_TESTS = [
     'test/rpcs3_preload_and_dolphin_delete_contract_test.dart',
     'test/rpcs3_regular_arena_dolphin_multidelete_contract_test.dart',
     'test/dusklight_ports_stage1_test.dart',
+    'test/libretro_core_catalog_test.dart',
+    'test/libretro_resolution_test.dart',
 ]
 NATIVE = [
     ['test/texture_catalog_native_test.py'],

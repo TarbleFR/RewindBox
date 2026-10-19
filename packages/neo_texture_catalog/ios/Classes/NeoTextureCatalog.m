@@ -127,10 +127,20 @@ static NSDictionary *ValidatedPack(id value) {
     for (id identity in game[@"identities"]) if (!ValidIdentity(identity)) return nil;
   }
   NSDictionary *install = pack[@"install"];
-  if ([availability isEqualToString:@"available"]) {
-    if (![install isKindOfClass:NSDictionary.class] || !NeoTexPositive(install[@"files"], 2000000) ||
-        !NeoTexPositive(install[@"bytes"], 256ULL << 30) || !ValidFolders(install[@"folders"]))
-      return nil;
+  const BOOL validInstall = [install isKindOfClass:NSDictionary.class] && NeoTexPositive(install[@"files"], 2000000) &&
+                            NeoTexPositive(install[@"bytes"], 256ULL << 30) && ValidFolders(install[@"folders"]);
+  if ([availability isEqualToString:@"available"] && !validInstall) return nil;
+  if ([availability isEqualToString:@"manual"] && pack[@"download"][@"verified"]) {
+    // A manual pack whose author's file was verified on CI: installed when the user
+    // imports that exact file. A malformed record leaves a plain page link.
+    if (!validInstall || !NeoTexVerifiedFile(pack)) {
+      NSMutableDictionary *plain = [pack mutableCopy];
+      NSMutableDictionary *download = [pack[@"download"] mutableCopy];
+      [download removeObjectForKey:@"verified"];
+      plain[@"download"] = download;
+      [plain removeObjectForKey:@"install"];
+      return plain;
+    }
   }
   return pack;
 }

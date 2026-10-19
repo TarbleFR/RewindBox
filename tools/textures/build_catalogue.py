@@ -20,6 +20,13 @@ A pack whose author does not publish a file the app can fetch is "manual"
 (page link). A pack whose verification failed is listed as manual with the
 reason, or left out when its file is gone.
 
+A manual pack published on a file host (MEGA, Google Drive, MediaFire,
+Dropbox, GameBanana: download.verify in its source) stays a page link, but
+when CI fetched the author's file once and installed it with the app's code
+(tools/textures/hosts.py, verify_packs.py --kind host) the index also carries
+download.verified (format, size, SHA-256) and the install layout: the app
+installs that exact file when the user imports it, and refuses any other.
+
   python3 tools/textures/build_catalogue.py            writes both copies
   python3 tools/textures/build_catalogue.py --check    fails when they are stale
   python3 tools/textures/build_catalogue.py --inventory docs/...md   also writes the inventory table
@@ -40,8 +47,9 @@ SOURCES = HERE / 'sources'
 VERIFIED = HERE / 'verified.jsonl'
 HOSTED = ROOT / 'native/textures/catalogue/manifest.json.gz'
 BUNDLED = ROOT / 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz'
-CONSOLES = ['ps2', 'gc', 'wii', 'psp', '3ds', 'n64']
-ENGINE = {'ps2': 'armsx2', 'gc': 'dolphin', 'wii': 'dolphin', 'psp': 'ppsspp', '3ds': 'azahar', 'n64': 'mupen64plus'}
+CONSOLES = ['ps2', 'gc', 'wii', 'psp', '3ds', 'n64', 'ps1']
+ENGINE = {'ps2': 'armsx2', 'gc': 'dolphin', 'wii': 'dolphin', 'psp': 'ppsspp', '3ds': 'azahar', 'n64': 'mupen64plus',
+          'ps1': 'beetle'}
 KEEP = ('id', 'system', 'systems', 'engine', 'title', 'version', 'games', 'authors', 'page_url', 'source_id',
         'licence', 'credits', 'requirements', 'notes')
 # Verification problems that leave a usable page for the user (the file exists but
@@ -59,6 +67,8 @@ def fail(message):
 
 
 def folder_id(engine, identity):
+    if engine == 'beetle':
+        return 'Game-texture-replacements'  # named after the loaded file in the app (verify_packs.folder_for)
     if engine == 'mupen64plus':
         return bytes.fromhex(identity['value']).decode('ascii')  # the ROM header name, in hexadecimal
     value = identity['value'].upper()
@@ -131,12 +141,21 @@ def build(entries, records):
     for entry in entries:
         download = entry.get('download') or {}
         pack = {key: entry[key] for key in KEEP if key in entry}
-        if not download.get('automatable'):
+        hosted = bool((download.get('verify') or {}).get('url')) and not download.get('automatable')
+        if not download.get('automatable') and not hosted:
             pack['availability'] = 'manual'
             pack['download'] = {'automatable': False}
             packs.append(pack)
             continue
         record = records.get(entry['id'])
+        if hosted and (not record or record.get('status') != 'ok'):
+            # Not (yet) verified, or its host refused CI (quota, sign-in): a page link like any manual pack.
+            pack['availability'] = 'manual'
+            pack['download'] = {'automatable': False}
+            packs.append(pack)
+            if record:
+                excluded.append((entry, record))
+            continue
         if not record:
             pending.append(entry['id'])
             continue
@@ -152,10 +171,16 @@ def build(entries, records):
             excluded.append((entry, record))
             continue
         parts = record['parts']
-        if len(parts) != len(download['parts']) or any(a['url'] != b['url'] for a, b in zip(parts, download['parts'])):
+        expected = [download['verify']] if hosted else download['parts']
+        if len(parts) != len(expected) or any(a['url'] != b['url'] for a, b in zip(parts, expected)):
             fail(f'{entry["id"]}: verification record names other files')
-        spec = {'automatable': True, 'format': record['format'], 'file_name': download.get('file_name') or parts[0]['url'].rsplit('/', 1)[-1],
-                'parts': [{'url': p['url'], 'size': p['size'], 'sha256': p['sha256']} for p in parts]}
+        if hosted:
+            name = download.get('file_name') or record.get('file_name') or f'{entry["id"]}.{record["format"]}'
+            spec = {'automatable': False, 'verified': {'format': record['format'], 'file_name': name[:200],
+                                                       'size': parts[0]['size'], 'sha256': parts[0]['sha256'], 'host': record.get('host', '')}}
+        else:
+            spec = {'automatable': True, 'format': record['format'], 'file_name': download.get('file_name') or parts[0]['url'].rsplit('/', 1)[-1],
+                    'parts': [{'url': p['url'], 'size': p['size'], 'sha256': p['sha256']} for p in parts]}
         if len(parts) > 1:
             spec['size'] = record['size']
             spec['sha256'] = record['sha256']
@@ -175,6 +200,8 @@ def build(entries, records):
             declared = next((f for f in (entry.get('install') or {}).get('folders', []) if f['from'] == installed['from']), None)
             if declared:
                 target = declared['to']
+            elif entry['engine'] == 'beetle':
+                target = '{id}'  # Beetle: <content name>-texture-replacements of the game it is installed for
             elif target == first and len({folder_id(entry['engine'], g['identities'][0]) for g in entry['games']}) > 1:
                 target = '{id}'  # detected for the first game; the pack serves each listed game
             folder = {'from': installed['from'], 'to': target}
@@ -195,7 +222,7 @@ def build(entries, records):
                 notes.append('Its DDS files are ignored by Azahar without a pack.json.')
         if notes:
             pack['notes'] = ' '.join(notes)
-        pack['availability'] = 'available'
+        pack['availability'] = 'manual' if hosted else 'available'
         pack['download'] = spec
         pack['install'] = {'files': files, 'bytes': size, 'folders': folders,
                            'formats': formats_of(entry['engine'], record['installed'], record.get('checks'))}
@@ -254,6 +281,12 @@ def validate(index):
                 if not re.match(r'^[A-Za-z0-9-]{1,40}$', identity['value']):
                     fail(f'{where}: identity value {identity["value"]}')
         download = pack['download']
+        verified = download.get('verified')
+        if verified is not None:
+            if pack['availability'] != 'manual' or download.get('automatable') or verified.get('format') not in ('zip', '7z') or \
+                    not sha.match(verified.get('sha256', '')) or not 0 < verified.get('size', 0) <= 64 << 30 or \
+                    not 0 < len(verified.get('file_name') or '') <= 200:
+                fail(f'{where}: verified file')
         if pack['availability'] == 'available':
             if download['format'] not in ('zip', '7z') or not 1 <= len(download['parts']) <= 16:
                 fail(f'{where}: download format/parts')
@@ -262,6 +295,7 @@ def validate(index):
                     fail(f'{where}: part')
             if len(download['parts']) > 1 and (not sha.match(download['sha256']) or download['size'] != sum(p['size'] for p in download['parts'])):
                 fail(f'{where}: joined parts')
+        if pack['availability'] == 'available' or verified is not None:
             install = pack['install']
             if not 0 < install['files'] <= 2000000 or not 0 < install['bytes'] <= 256 << 30 or not 1 <= len(install['folders']) <= 16:
                 fail(f'{where}: install totals')
@@ -281,7 +315,8 @@ def validate(index):
 
 
 CONSOLE_NAMES = {'ps2': 'PlayStation 2 (ARMSX2)', 'gc': 'GameCube (Dolphin)', 'wii': 'Wii (Dolphin)',
-                 'psp': 'PSP (PPSSPP)', '3ds': 'Nintendo 3DS (Azahar)', 'n64': 'Nintendo 64 (Mupen64Plus-Next, GLideN64)'}
+                 'psp': 'PSP (PPSSPP)', '3ds': 'Nintendo 3DS (Azahar)', 'n64': 'Nintendo 64 (Mupen64Plus-Next, GLideN64)',
+                 'ps1': 'PlayStation (Beetle PSX HW, Vulkan)'}
 
 
 def cell(text):
@@ -320,15 +355,23 @@ def inventory(index, excluded, pending, entries):
         '(`packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt`). The packs themselves belong to their '
         'creators, under the terms shown on their pages.',
         '',
-        '| Console | One tap | Manual | Games |',
-        '|---|---:|---:|---:|',
+        'A *manual, verified file* pack is a link to its author\'s page on a file host (MEGA, Google Drive, MediaFire, '
+        'Dropbox, GameBanana): the app never downloads from these hosts, but the author\'s file was fetched once on CI '
+        '(`tools/textures/hosts.py`) and installed with the production code, and the app installs that exact file '
+        '(size and SHA-256) when the user imports it from the pack\'s page.',
+        '',
+        '| Console | One tap | Manual, verified file | Manual | Games |',
+        '|---|---:|---:|---:|---:|',
     ]
     for console in CONSOLES:
         packs = [p for p in index['packs'] if console in (p.get('systems') or [p['system']])]
+        if not packs:
+            continue
         available = sum(1 for p in packs if p['availability'] == 'available')
-        manual = sum(1 for p in packs if p['availability'] == 'manual')
+        verified = sum(1 for p in packs if p['availability'] == 'manual' and p['download'].get('verified'))
+        manual = sum(1 for p in packs if p['availability'] == 'manual') - verified
         games = {i['value'].upper() for p in packs for g in p['games'] for i in g['identities']}
-        lines.append(f'| {CONSOLE_NAMES[console]} | {available} | {manual} | {len(games)} |')
+        lines.append(f'| {CONSOLE_NAMES[console]} | {available} | {verified} | {manual} | {len(games)} |')
     lines += ['', 'A pack serving GameCube discs and Wii Virtual Console titles is counted for both consoles.', '']
     for console in CONSOLES:
         packs = [p for p in index['packs'] if p['system'] == console]
@@ -344,6 +387,12 @@ def inventory(index, excluded, pending, entries):
             if pack['availability'] == 'available':
                 size = pack['download'].get('size') or sum(p['size'] for p in pack['download']['parts'])
                 download = f'{size / 1e6:,.1f} MB'
+                installed = f'{pack["install"]["files"]:,} files, {pack["install"]["bytes"] / 1e6:,.1f} MB'
+                formats = ', '.join(pack['install']['formats'])
+                verified = pack.get('verified_at', '')
+            elif pack['download'].get('verified'):
+                file = pack['download']['verified']
+                download = f'manual, verified file {file["size"] / 1e6:,.1f} MB ({file.get("host") or "file host"})'
                 installed = f'{pack["install"]["files"]:,} files, {pack["install"]["bytes"] / 1e6:,.1f} MB'
                 formats = ', '.join(pack['install']['formats'])
                 verified = pack.get('verified_at', '')

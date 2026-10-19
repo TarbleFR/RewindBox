@@ -182,6 +182,12 @@ typedef struct {
 
 /// Adds a frontend line ("[HOST] ...") to recentLog, next to the core's.
 - (void)appendLog:(NSString *)line;
+/// HD texture replacement as the core itself reports it in its log (Beetle
+/// PSX HW, rhi/rhi_tt.c): textures listed in its replacement folder when its
+/// renderer started ("num hd textures: N"; -1 until reported) and textures
+/// bound so far (sum of the "[hdcache] last 300f: ... N attaches" lines).
+@property(nonatomic, readonly) NSInteger hdTexturesRecognized;
+@property(nonatomic, readonly) NSInteger hdTexturesApplied;
 
 /// The last `limit` error lines of recentLog ("[ERROR]" lines of the core),
 /// oldest first: what a core logged before stopping by itself.

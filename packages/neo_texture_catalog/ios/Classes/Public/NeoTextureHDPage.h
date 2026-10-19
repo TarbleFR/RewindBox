@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 /// The one "HD textures" page shared by Dolphin, ARMSX2 and the libretro
-/// PPSSPP/Azahar cores, opened from a game's pause menu, from its options in
+/// PPSSPP/Azahar/Beetle PSX HW cores, opened from a game's pause menu, from its options in
 /// the library, or (without identity) from a console's library.
 ///
 /// Game mode (identity set): catalogue status and its single refresh action,
@@ -30,6 +30,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithNibName:(nullable NSString *)name bundle:(nullable NSBundle *)bundle NS_UNAVAILABLE;
 /// Opened from a running game: changes apply when the game is relaunched.
 @property(nonatomic, assign) BOOL inGame;
+/// The running engine's own report, re-read at each reload (in-game libretro
+/// pages): {renderer: vulkan|gles|software, replace (BOOL, this session),
+/// recognized (textures the engine listed in its folder; absent until it
+/// reported), applied (textures bound so far), folder}.
+@property(nonatomic, copy, nullable) NSDictionary *_Nullable (^engineStatus)(void);
 /// Reason the identity could not be read (unsupported container...), shown
 /// instead of the identifiers when `identity` has none.
 @property(nonatomic, copy, nullable) NSString *identityProblem;
@@ -39,7 +44,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Entry point for the engine bridges and the Flutter plugin, which reach
 /// this pod through the Objective-C runtime (NSClassFromString), so no engine
 /// pod links it. options:
-///   system      ps2, gc, wii, psp (pspminis), 3ds or n64; engine (optional) derives from it
+///   system      ps2, gc, wii, psp (pspminis), 3ds, n64 or ps1 (psx); engine (optional) derives from it
 ///   locale, title, inGame (BOOL), presentation ("modal": with a Close button)
 ///   identity    what the running engine reported (unified form), or gameID
 ///               (+ revision, crc) in the engine's own terms, or
@@ -50,7 +55,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///   armsx2Host  the running game's ARMSX2TextureHost; libretroSaves and
 ///   libretroConfig the libretro Saves and Config folders, libretroSystem its
 ///   System folder (Mupen64Plus-Next textures), sessionReader and
-///   sessionWriter the running core's option hooks (see NeoTextureEngines).
+///   sessionWriter the running core's option hooks (see NeoTextureEngines),
+///   engineStatus the running core's report (see the property).
 /// nil when the directories needed by the engine are missing.
 + (nullable UIViewController *)textureViewControllerWithOptions:(NSDictionary *)options;
 /// Label text in the page's language (12 NeoStation languages, English fallback).

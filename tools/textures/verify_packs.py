@@ -36,6 +36,7 @@ import zlib
 from pathlib import Path
 
 CHUNK = 4 << 20
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # hosts.py
 
 
 def log(message):
@@ -269,17 +270,57 @@ def check_mupen64plus(folder):
     return report, problems
 
 
+def check_beetle(folder):
+    """Beetle PSX HW (rhi_tt.c): <hash>-<palette>.<png|dds|webp|jpg|bmp|tga> directly in
+    <content name>-texture-replacements (no subfolder), the Lazy modes' prefetch.journal."""
+    report, problems = {}, []
+    pattern = re.compile(r'^[0-9a-f]{1,8}-[0-9a-f]{1,8}\.(png|dds|webp|jpe?g|bmp|tga)$', re.I)
+    names = [path for path in Path(folder).iterdir() if path.is_file()]
+    textures = [path for path in names if pattern.match(path.name)]
+    report['textures'] = len(textures)
+    report['subfolders'] = sum(1 for path in Path(folder).iterdir() if path.is_dir())
+    pngs = [path for path in textures if path.suffix.lower() == '.png']
+    bad = [path.name for path in pngs[:4000] if not png_ok(path)]
+    report['pngChecked'] = min(len(pngs), 4000)
+    report['badPng'] = bad[:5]
+    if not textures:
+        problems.append('noTextures')
+    if bad:
+        problems.append('badPng')
+    return report, problems
+
+
 def verify(entry, driver, work, max_bytes):
     result = {'id': entry['id'], 'system': entry['system'], 'verified_at': time.strftime('%Y-%m-%d', time.gmtime())}
     spec = entry.get('download') or {}
-    if not spec.get('automatable'):
+    external = (spec.get('verify') or {}).get('url') if not spec.get('automatable') else None
+    if not spec.get('automatable') and not external:
         result['status'] = 'manual'
         return result
     parts = []
     files = []
     started = time.time()
+    if external:
+        # A manual pack (file host): the author's file is fetched here once; the app
+        # only accepts this exact file when the user imports it (hosts.py).
+        import hosts
+        path = work / 'part-0'
+        try:
+            fetched = hosts.fetch(external, str(path), max_bytes)
+        except hosts.HostError as error:
+            result.update(status=error.status, error=error.reason, manual=True)
+            return result
+        except Exception as error:
+            result.update(status='network', error=str(error)[:200], manual=True)
+            return result
+        parts.append({'url': external, 'size': fetched['size'], 'sha256': fetched['sha256']})
+        files.append(path)
+        result.update(manual=True, host=fetched['host'], file_name=fetched.get('name') or '')
+        if spec['verify'].get('sha256') and spec['verify']['sha256'] != fetched['sha256']:
+            result.update(status='changed', parts=parts, expected=spec['verify']['sha256'])
+            return result
     try:
-        for index, part in enumerate(spec['parts']):
+        for index, part in enumerate([] if external else spec['parts']):
             path = work / f'part-{index}'
             size, digest, content_type, final = download_file(part['url'], path, max_bytes)
             parts.append({'url': part['url'], 'size': size, 'sha256': digest})
@@ -342,7 +383,8 @@ def verify(entry, driver, work, max_bytes):
         folder = root / target
         count, size, formats = folder_stats(folder)
         installed.append({'from': source, 'to': target, 'exclude': excluded, 'files': count, 'bytes': size, 'formats': formats})
-        checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': check_azahar, 'mupen64plus': check_mupen64plus}[engine]
+        checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': check_azahar, 'mupen64plus': check_mupen64plus,
+                   'beetle': check_beetle}[engine]
         folder_report, folder_problems = checker(folder)
         report[target] = folder_report
         problems += folder_problems
@@ -366,6 +408,9 @@ def download_file(url, path, max_bytes):
 
 
 def folder_for(engine, value):
+    if engine == 'beetle':
+        # Beetle names the folder after the loaded file; any game file name will do here.
+        return 'Game-texture-replacements'
     if engine == 'mupen64plus':
         # The catalogue writes the N64 ROM header name in hexadecimal; GLideN64 names the folder after the name.
         return bytes.fromhex(value).decode('ascii')
@@ -418,8 +463,9 @@ def main():
     parser.add_argument('--only', default='')
     parser.add_argument('--max-gb', type=float, default=12)
     # repository: only packs downloaded as a GitHub repository archive (codeload);
-    # release: every other automatable pack.
-    parser.add_argument('--kind', choices=['all', 'repository', 'release'], default='all')
+    # release: every other automatable pack; host: manual packs whose file is on a
+    # file host (download.verify, hosts.py).
+    parser.add_argument('--kind', choices=['all', 'repository', 'release', 'host'], default='all')
     parser.add_argument('--resume', action='store_true', help='keep the results already in --out, verify the others')
     parser.add_argument('--work', default=None, help='folder for the temporary downloads')
     parser.add_argument('--skip-recorded', default=None,
@@ -448,7 +494,9 @@ def main():
             if only and entry['id'] not in only:
                 continue
             repository = bool((entry.get('download') or {}).get('repository'))
-            if (args.kind == 'repository' and not repository) or (args.kind == 'release' and repository):
+            hosted = bool(((entry.get('download') or {}).get('verify') or {}).get('url'))
+            if ((args.kind == 'repository' and not repository) or (args.kind == 'release' and (repository or hosted))
+                    or (args.kind == 'host' and not hosted)):
                 continue
             if entry['id'] in recorded and not only:
                 continue

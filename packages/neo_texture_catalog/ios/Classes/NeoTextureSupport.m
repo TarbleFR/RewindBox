@@ -57,6 +57,16 @@ BOOL NeoTexPositive(id value, unsigned long long limit) {
   return d >= 1 && d == (double)[value unsignedLongLongValue] && [value unsignedLongLongValue] <= limit;
 }
 
+NSDictionary *NeoTexVerifiedFile(NSDictionary *pack) {
+  if (![pack isKindOfClass:NSDictionary.class] || ![pack[@"download"] isKindOfClass:NSDictionary.class]) return nil;
+  NSDictionary *file = pack[@"download"][@"verified"];
+  if (![file isKindOfClass:NSDictionary.class] || [pack[@"download"][@"automatable"] boolValue] ||
+      ![@[@"zip", @"7z"] containsObject:NeoTexString(file[@"format"])] || !NeoTexSHA256(file[@"sha256"]) ||
+      !NeoTexPositive(file[@"size"], 64ULL << 30) || !NeoTexString(file[@"file_name"]).length || NeoTexString(file[@"file_name"]).length > 200)
+    return nil;
+  return file;
+}
+
 NSCharacterSet *NeoTexIdentityCharacters(void) {
   static NSCharacterSet *set;
   static dispatch_once_t once;
@@ -71,6 +81,7 @@ NSString *NeoTexCanonicalSystem(id value) {
   if ([s isEqualToString:@"pspminis"]) return @"psp";
   if ([s isEqualToString:@"n3ds"] || [s isEqualToString:@"nintendo 3ds"]) return @"3ds";
   if ([s isEqualToString:@"gamecube"] || [s isEqualToString:@"ngc"]) return @"gc";
+  if ([s isEqualToString:@"psx"] || [s isEqualToString:@"playstation"]) return @"ps1";
   return s;
 }
 
@@ -94,6 +105,7 @@ NSString *NeoTexEngineForSystem(NSString *system) {
   if ([s isEqualToString:@"psp"]) return @"ppsspp";
   if ([s isEqualToString:@"3ds"]) return @"azahar";
   if ([s isEqualToString:@"n64"]) return @"mupen64plus";
+  if ([s isEqualToString:@"ps1"]) return @"beetle";
   return nil;
 }
 
@@ -104,7 +116,7 @@ NSDictionary *NeoTexTypedIdentities(id identities) {
     if (![identity isKindOfClass:NSDictionary.class]) continue;
     NSString *type = NeoTexString(identity[@"type"]), *scheme = NeoTexString(identity[@"scheme"]);
     NSString *value = NeoTexString(identity[@"value"]).uppercaseString;
-    if ([scheme isEqualToString:@"ps2-disc-serial"]) {
+    if ([scheme isEqualToString:@"ps2-disc-serial"] || [scheme isEqualToString:@"ps1-disc-serial"]) {
       value = [[[value stringByReplacingOccurrencesOfString:@"-" withString:@""]
                 stringByReplacingOccurrencesOfString:@"_" withString:@""] stringByReplacingOccurrencesOfString:@"." withString:@""];
     }

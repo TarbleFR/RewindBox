@@ -235,11 +235,20 @@ static NSDictionary *DeclaredIdentity(NSDictionary *pack) {
 
 #pragma mark - Pack page
 
-@interface NeoTexturePackPage : NeoTextureTablePage
+// The file host a verified manual pack is published on, as its product name.
+static NSString *HostName(NSString *host) {
+  NSDictionary *names = @{@"mega": @"MEGA", @"gdrive": @"Google Drive", @"mediafire": @"MediaFire", @"dropbox": @"Dropbox",
+                          @"gamebanana": @"GameBanana", @"direct": @"—"};
+  return names[host] ?: @"—";
+}
+
+@interface NeoTexturePackPage : NeoTextureTablePage <UIDocumentPickerDelegate>
 @property(nonatomic, strong) NSDictionary *pack;
 @property(nonatomic, strong) id<NeoTextureEngine> engine;
 @property(nonatomic, copy) NSDictionary *identity;
 @property(nonatomic, strong) NSDictionary *installed;
+/// The pending import of a verified file: replace an existing folder, candidate confirmed.
+@property(nonatomic) BOOL replaceOnImport, confirmedOnImport;
 @end
 
 @implementation NeoTexturePackPage
@@ -289,13 +298,17 @@ static NSDictionary *DeclaredIdentity(NSDictionary *pack) {
   [about.rows addObject:[NTRow title:[self t:@"detailGames"] detail:[games componentsJoinedByString:@"\n"]]];
   [about.rows addObject:[NTRow title:[self t:@"detailAuthor"] detail:[pack[@"authors"] componentsJoinedByString:@", "]]];
   [about.rows addObject:[NTRow title:[self t:@"detailVersion"] detail:NeoTexString(pack[@"version"])]];
+  // A manual pack whose author's file was verified on CI: installed from that exact file.
+  NSDictionary *verifiedFile = [pack[@"availability"] isEqual:@"manual"] && pack[@"install"] ? NeoTexVerifiedFile(pack) : nil;
   unsigned long long downloadSize = [pack[@"download"][@"size"] unsignedLongLongValue];
   if (!downloadSize) for (NSDictionary *part in pack[@"download"][@"parts"]) downloadSize += [part[@"size"] unsignedLongLongValue];
-  NSString *download = [pack[@"download"][@"automatable"] boolValue] ? Bytes(@(downloadSize)) : [self t:@"stateManual"];
+  NSString *download = [pack[@"download"][@"automatable"] boolValue] ? Bytes(@(downloadSize))
+                       : verifiedFile ? [NSString stringWithFormat:@"%@ · %@", Bytes(verifiedFile[@"size"]), [self t:@"stateManual"]]
+                                      : [self t:@"stateManual"];
   [about.rows addObject:[NTRow title:[self t:@"detailSize"] detail:[self t:@"detailSizeValue" with:@{@"download": download, @"install": pack[@"install"][@"bytes"] ? Bytes(pack[@"install"][@"bytes"]) : @"—"}]]];
   NSArray *formats = pack[@"install"][@"formats"] ?: @[];
   NSString *formatText = [[formats valueForKey:@"uppercaseString"] componentsJoinedByString:@", "];
-  NSString *archive = NeoTexString(pack[@"download"][@"format"]).uppercaseString;
+  NSString *archive = NeoTexString(pack[@"download"][@"format"] ?: verifiedFile[@"format"]).uppercaseString;
   [about.rows addObject:[NTRow title:[self t:@"detailFormats"] detail:archive.length ? [NSString stringWithFormat:@"%@ · %@", archive, formatText] : formatText]];
   NSString *match = pack[@"match"];
   if (match && !self.identity[@"declared"]) [about.rows addObject:[NTRow title:[self t:@"detailCompatibility"] detail:[self t:[match isEqual:@"exact"] ? @"matchExact" : @"matchCandidate"]]];
@@ -327,16 +340,39 @@ static NSDictionary *DeclaredIdentity(NSDictionary *pack) {
   if (self.installed) {
     NSString *installedVersion = NeoTexString(self.installed[@"version"]);
     NSString *installedDigest = NeoTexString(self.installed[@"sha256"]);
-    NSString *packDigest = NeoTexString(pack[@"download"][@"sha256"] ?: [pack[@"download"][@"parts"] firstObject][@"sha256"]);
+    NSString *packDigest = NeoTexString(pack[@"download"][@"sha256"] ?: [pack[@"download"][@"parts"] firstObject][@"sha256"] ?: verifiedFile[@"sha256"]);
     const BOOL update = (installedVersion.length && ![installedVersion isEqualToString:NeoTexString(pack[@"version"])]) ||
                         (installedDigest.length && packDigest.length && ![installedDigest isEqualToString:packDigest]);
     [actions.rows addObject:[NTRow title:[self t:update ? @"stateUpdate" : @"stateInstalled"]
                                   detail:[self t:@"installedSummary" with:@{@"files": self.installed[@"files"] ?: @"?", @"size": self.installed[@"bytes"] ? Bytes(self.installed[@"bytes"]) : @"?",
                                                                             @"folder": NeoTexString(self.installed[@"folder"])}]]];
-    if (update && !JobActive(job)) [actions.rows addObject:[self installRow:@"actionUpdate" replace:YES]];
+    if (update && !JobActive(job) && !verifiedFile) [actions.rows addObject:[self installRow:@"actionUpdate" replace:YES]];
+    if (update && !JobActive(job) && verifiedFile) [actions.rows addObject:[self importVerifiedRow:YES]];
   }
   if (state) [actions.rows addObject:[NTRow title:state detail:nil]];
-  if (![pack[@"download"][@"automatable"] boolValue] || ![pack[@"availability"] isEqual:@"available"]) {
+  if (verifiedFile) {
+    if (JobActive(job)) {
+      NTRow *cancel = [NTRow title:[self t:@"actionCancel"] detail:nil];
+      cancel.action = YES;
+      cancel.destructive = YES;
+      cancel.identifier = @"neoTextureCancel";
+      cancel.run = ^{ [NeoTexturePackStore.sharedStore cancelPack:pack[@"id"]]; };
+      [actions.rows addObject:cancel];
+    } else if ([job[@"state"] isEqual:@"downloaded"]) {
+      // The imported file is kept after a confirmation or a failed install: no need to pick it again.
+      [actions.rows addObject:[self installRow:@"actionInstallDownloaded" replace:self.installed != nil]];
+      NTRow *discard = [NTRow title:[self t:@"actionCancel"] detail:nil];
+      discard.action = YES;
+      discard.destructive = YES;
+      discard.identifier = @"neoTextureDiscard";
+      discard.run = ^{ [NeoTexturePackStore.sharedStore cancelPack:pack[@"id"]]; };
+      [actions.rows addObject:discard];
+    } else if (!self.installed) {
+      [actions.rows addObject:[self importVerifiedRow:NO]];
+    }
+    actions.footer = [self t:@"manualVerifiedHelp" with:@{@"host": HostName(NeoTexString(verifiedFile[@"host"])), @"file": NeoTexString(verifiedFile[@"file_name"]),
+                                                          @"size": Bytes(verifiedFile[@"size"])}];
+  } else if (![pack[@"download"][@"automatable"] boolValue] || ![pack[@"availability"] isEqual:@"available"]) {
     actions.footer = [self t:[pack[@"availability"] isEqual:@"unavailable"] ? @"unavailableHelp" : @"manualHelp"];
   } else if (JobActive(job)) {
     NTRow *pause = [NTRow title:[self t:@"actionPause"] detail:nil];
@@ -406,6 +442,64 @@ static NSDictionary *DeclaredIdentity(NSDictionary *pack) {
   return row;
 }
 
+- (NTRow *)importVerifiedRow:(BOOL)replace {
+  NTRow *row = [NTRow title:[self t:@"actionImportVerified"] detail:nil];
+  row.action = YES;
+  row.disabled = NeoTexturePackStore.sharedStore.isBusy;
+  row.identifier = @"neoTextureImportVerified";
+  __weak typeof(self) weakSelf = self;
+  row.run = ^{
+    NeoTexturePackPage *page = weakSelf;
+    if (!page) return;
+    void (^pick)(void) = ^{
+      NSMutableArray<UTType *> *types = [NSMutableArray arrayWithObject:UTTypeZIP];
+      UTType *sevenZip = [UTType typeWithFilenameExtension:@"7z"];
+      if (sevenZip) [types addObject:sevenZip];
+      UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:types asCopy:NO];
+      picker.delegate = page;
+      picker.allowsMultipleSelection = NO;
+      page.replaceOnImport = replace;
+      [page presentViewController:picker animated:YES completion:nil];
+    };
+    if ([page.pack[@"match"] isEqual:@"candidate"] && page.identity) {
+      NSString *source = GameIDs([page.pack[@"games"] firstObject]);
+      [page confirm:[page t:@"confirmCandidateTitle"]
+            message:[page t:@"confirmCandidateMessage" with:@{@"source": source, @"game": GameIDs(page.identity)}]
+             action:[page t:@"confirm"] destructive:NO then:^{ page.confirmedOnImport = YES; pick(); }];
+    } else {
+      page.confirmedOnImport = NO;
+      pick();
+    }
+  };
+  return row;
+}
+
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
+  NSURL *url = urls.firstObject;
+  if (!url) return;
+  [controller dismissViewControllerAnimated:YES completion:^{
+    [self installFile:url replace:self.replaceOnImport confirmed:self.confirmedOnImport];
+  }];
+}
+
+- (void)installFile:(NSURL *)url replace:(BOOL)replace confirmed:(BOOL)confirmed {
+  __weak typeof(self) weakSelf = self;
+  [NeoTexturePackStore.sharedStore installPack:self.pack fromFile:url engine:self.engine identity:self.identity replace:replace confirmed:confirmed
+                                    completion:^(NSDictionary *result, NSError *error) {
+    NeoTexturePackPage *page = weakSelf;
+    if (!page) return;
+    if (error.code == NeoTexturePackErrorConflict) {
+      // Asked before the file is read: picked again by the same URL once confirmed.
+      [page confirm:[page t:@"confirmReplaceTitle"]
+            message:[page t:@"confirmReplaceMessage" with:@{@"folder": NeoTexString(error.userInfo[@"folder"]),
+                                                             @"title": [error.userInfo[@"manual"] boolValue] ? [page t:@"installedManual"] : NeoTexString(error.userInfo[@"title"])}]
+             action:[page t:@"actionReplace"] destructive:NO then:^{ [page installFile:url replace:YES confirmed:confirmed]; }];
+      return;
+    }
+    [page finishInstall:result error:error replace:replace confirmed:confirmed];
+  }];
+}
+
 - (void)install:(BOOL)replace confirmed:(BOOL)confirmed {
   __weak typeof(self) weakSelf = self;
   [NeoTexturePackStore.sharedStore installPack:self.pack engine:self.engine identity:self.identity replace:replace confirmed:confirmed
@@ -419,8 +513,17 @@ static NSDictionary *DeclaredIdentity(NSDictionary *pack) {
              action:[page t:@"actionReplace"] destructive:NO then:^{ [page install:YES confirmed:confirmed]; }];
       return;
     }
+    [page finishInstall:result error:error replace:replace confirmed:confirmed];
+  }];
+}
+
+// After an install, a download or an imported verified file: confirmations, errors, result.
+- (void)finishInstall:(NSDictionary *)result error:(NSError *)error replace:(BOOL)replace confirmed:(BOOL)confirmed {
+  NeoTexturePackPage *page = self;
+  {
     if (error.code == NeoTexturePackErrorRegion) {
-      // The engine's own installer doubts the pack: its reasons, then the user's choice.
+      // The engine's own installer doubts the pack: its reasons, then the user's choice
+      // (the verified download or imported file is kept for it).
       NSDictionary *verdict = error.userInfo[@"engine"];
       [page confirm:[page t:@"confirmEngineTitle"]
             message:[page t:@"confirmEngineMessage" with:@{@"reasons": EngineReasons(verdict, page.locale),
@@ -438,7 +541,7 @@ static NSDictionary *DeclaredIdentity(NSDictionary *pack) {
     NSString *message = [result[@"live"] boolValue] && [result[@"activated"] boolValue] ? [page t:@"doneLive"]
                         : [result[@"activated"] boolValue] ? [page t:@"doneActivated"] : [page t:@"doneInstalled"];
     [page alert:[page t:@"title"] message:message];
-  }];
+  }
 }
 @end
 
@@ -510,6 +613,8 @@ static NSString *AbsolutePath(id value) {
   // directory: PPSSPP's memory stick, and Azahar's user folder below it.
   if ([engineID isEqualToString:@"ppsspp"]) engine = [NeoTextureEngines ppssppWithSaveDirectory:[saves stringByAppendingPathComponent:@"PPSSPP"] configDirectory:config];
   else if ([engineID isEqualToString:@"azahar"]) engine = [NeoTextureEngines azaharWithUserDirectory:[saves stringByAppendingPathComponent:@"Azahar/Azahar"] configDirectory:config];
+  // Beetle reads its packs from its own save directory (HD Texture Folder "save").
+  else if ([engineID isEqualToString:@"beetle"]) engine = [NeoTextureEngines beetleWithSaveDirectory:[saves stringByAppendingPathComponent:@"Beetle PSX HW"] configDirectory:config];
   if (engine && (options[@"sessionReader"] || options[@"sessionWriter"]))
     [NeoTextureEngines setLibretroSessionReader:options[@"sessionReader"] writer:options[@"sessionWriter"] forEngine:engine];
   return engine;
@@ -524,6 +629,7 @@ static NSString *AbsolutePath(id value) {
   NeoTextureHDPage *page = [[NeoTextureHDPage alloc] initWithEngine:engine system:system identity:nil gameTitle:title.length ? title : nil
                                                              locale:NeoTexString(options[@"locale"]).length ? options[@"locale"] : nil];
   page.inGame = [options[@"inGame"] boolValue];
+  if (options[@"engineStatus"]) page.engineStatus = options[@"engineStatus"];
   page.gamePath = AbsolutePath(options[@"gamePath"]);
   page.gameKey = NeoTexString(options[@"gameKey"]).length ? options[@"gameKey"] : nil;
   page.pendingIdentity = [options[@"identity"] isKindOfClass:NSDictionary.class] ? options[@"identity"] : nil;
@@ -781,6 +887,8 @@ static NSString *AbsolutePath(id value) {
   __weak typeof(self) weakSelf = self;
   toggle.switched = ^(BOOL on) { [weakSelf switchTextures:on]; };
   [section.rows addObject:toggle];
+  NTRow *status = [self engineStatusRow];
+  if (status) [section.rows addObject:status];
   if (self.engineDetails) {
     NTRow *details = [NTRow title:[self t:@"engineDetails"] detail:[self t:@"engineDetailsDetail"]];
     details.disclosure = YES;
@@ -797,6 +905,28 @@ static NSString *AbsolutePath(id value) {
   if ([self.engine.engineID isEqualToString:@"mupen64plus"])
     section.footer = [NSString stringWithFormat:@"%@\n\n%@", section.footer, [self t:@"firstLaunchNotice.mupen64plus"]];
   return section;
+}
+
+// What the running engine reports about this game (in-game only): its
+// renderer and whether it replaces textures, never inferred from the pack.
+- (NTRow *)engineStatusRow {
+  NSDictionary *(^provider)(void) = self.engineStatus;
+  NSDictionary *status = provider ? provider() : nil;
+  if (![status isKindOfClass:NSDictionary.class]) return nil;
+  NSString *renderer = NeoTexString(status[@"renderer"]);
+  NSString *title = [renderer isEqualToString:@"vulkan"] ? [self t:@"status.vulkan"]
+                    : [renderer isEqualToString:@"gles"] ? [self t:@"status.opengl"] : [self t:@"status.software"];
+  NSString *folder = NeoTexString(status[@"folder"]);
+  NSString *detail;
+  if (![renderer isEqualToString:@"vulkan"] && ![renderer isEqualToString:@"gles"]) detail = [self t:@"status.softwareDetail"];
+  else if (![status[@"replace"] boolValue]) detail = [self t:@"status.replaceOff"];
+  else if (!status[@"recognized"]) detail = [self t:@"status.waiting"];
+  else if ([status[@"recognized"] integerValue] <= 0) detail = [self t:@"status.noFiles" with:@{@"folder": folder}];
+  else detail = [self t:@"status.active" with:@{@"count": [status[@"recognized"] description], @"folder": folder,
+                                                @"applied": [status[@"applied"] ?: @0 description]}];
+  NTRow *row = [NTRow title:title detail:detail];
+  row.identifier = @"neoTextureEngineStatus";
+  return row;
 }
 
 // The engine's own switch for this game (not the `activation` property's setter).
@@ -862,6 +992,9 @@ static NSString *AbsolutePath(id value) {
     unsigned long long size = [pack[@"download"][@"size"] unsignedLongLongValue];
     if (!size) for (NSDictionary *part in pack[@"download"][@"parts"]) size += [part[@"size"] unsignedLongLongValue];
     [details addObject:Bytes(@(size))];
+  } else if ([pack[@"availability"] isEqual:@"manual"] && pack[@"install"] && NeoTexVerifiedFile(pack)) {
+    [details addObject:Bytes(NeoTexVerifiedFile(pack)[@"size"])];
+    [details addObject:[self t:@"stateManualVerified"]];
   } else {
     [details addObject:[self t:[pack[@"availability"] isEqual:@"unavailable"] ? @"stateUnavailable" : @"stateManual"]];
   }

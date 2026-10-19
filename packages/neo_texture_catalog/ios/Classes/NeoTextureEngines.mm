@@ -21,7 +21,12 @@
 //    enhanced hi-res storage (the core's "lazy loading": decoded textures in a
 //    file of <system>/Mupen64plus/cache instead of memory). That cache is
 //    reused without reading the pack again: changing a pack drops it.
+//  Beetle PSX HW libretro (beetle-psx-libretro 10e4b0c, rhi/rhi_tt.c):
+//    <texture root>/<content name>-texture-replacements/<hash>-<palette>.<ext>,
+//    the root being the core's save directory (HD Texture Folder "save",
+//    locked by NeoStation). Switch: Track + Replace Textures, per game.
 #import "Public/NeoTextureEngine.h"
+#import "Public/NeoTextureCatalog.h"
 #import "NeoTextureSupport.h"
 #import "Public/NeoTextureIdentityReader.h"
 #include "NeoTextureINI.h"
@@ -32,6 +37,8 @@
 static NSString *const kPPSSPPOption = @"ppsspp_texture_replacement";
 static NSString *const kAzaharOption = @"citra_custom_textures";
 static NSString *const kMupen64plusOption = @"mupen64plus-txHiresEnable";
+static NSString *const kBeetleReplaceOption = @"beetle_psx_hw_replace_textures";
+static NSString *const kBeetleTrackOption = @"beetle_psx_hw_track_textures";
 
 NSString *NeoTextureINIValue(NSString *text, NSString *section, NSString *key) {
   const auto value = NeoTextureINI::Value(text.UTF8String ?: "", section.UTF8String, key.UTF8String);
@@ -659,6 +666,118 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 @end
 
+#pragma mark - Beetle PSX HW (libretro)
+
+// Beetle reads <root>/<content name>-texture-replacements: the content name is
+// the loaded file's name without its last extension (libretro.c
+// extract_basename: the CUE, M3U, CHD or PBP the session hands the core; an
+// M3U keeps one folder for every disc). The root is the core's save
+// directory, next to its memory cards: NeoStation locks the HD Texture Folder
+// option to "save", so nothing is written beside the user's games. Replacing
+// needs both Track Textures and Replace Textures; the renderer reads them when
+// it starts (next launch).
+@interface NeoTextureBeetle : NeoTextureLibretro
+@end
+@implementation NeoTextureBeetle
+- (NeoTextureInstall::Engine)installEngine { return NeoTextureInstall::Engine::beetle; }
+- (BOOL)supportsSystem:(NSString *)system { return [NeoTexCanonicalSystem(system) isEqualToString:@"ps1"]; }
++ (NSString *)contentNameForPath:(NSString *)path {
+  NSString *name = NeoTexString(path).lastPathComponent;
+  // A ZIP is extracted by the host and Beetle loads the extracted file, whose name differs.
+  if (!name.length || [@[@"zip", @"7z"] containsObject:name.pathExtension.lowercaseString]) return nil;
+  NSString *stem = name.stringByDeletingPathExtension;
+  return stem.length ? stem : nil;
+}
+- (NSString *)folderForIdentity:(NSDictionary *)identity {
+  NSString *stem = [NeoTextureBeetle contentNameForPath:NeoTexString(identity[@"path"])];
+  NSString *folder = stem ? [stem stringByAppendingString:@"-texture-replacements"] : nil;
+  return folder && NeoTexSafeRelativePath(folder, 160, 1) ? folder : nil;
+}
+- (NSString *)folderProblemForIdentity:(NSDictionary *)identity {
+  NSString *path = NeoTexString(identity[@"path"]);
+  if (!path.length || [self folderForIdentity:identity]) return nil;
+  return [@[@"zip", @"7z"] containsObject:path.pathExtension.lowercaseString] ? @"zipContent" : @"contentName";
+}
+- (NSString *)valueForOption:(NSString *)key gameKey:(NSString *)gameKey scope:(NSString **)scope {
+  NSString *value = self.sessionReader ? self.sessionReader(key, gameKey) : nil;
+  if (value) { if (scope) *scope = @"game"; return value; }
+  NSDictionary *games = NeoTexJSONDictionary(NeoTexReadBounded(self.gameStorePath, 4 << 20))[@"games"];
+  id entry = [games isKindOfClass:NSDictionary.class] ? games[gameKey] : nil;
+  if ([entry isKindOfClass:NSDictionary.class] && [entry[key] isKindOfClass:NSString.class]) { if (scope) *scope = @"game"; return entry[key]; }
+  NSDictionary *core = NeoTexJSONDictionary(NeoTexReadBounded(self.coreStorePath, 4 << 20))[@"values"];
+  if ([core isKindOfClass:NSDictionary.class] && [core[key] isKindOfClass:NSString.class]) return core[key];
+  return nil;
+}
+- (NSDictionary *)activationForIdentity:(NSDictionary *)identity {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
+  NSString *setting = [NSString stringWithFormat:@"%@ + %@", kBeetleTrackOption, kBeetleReplaceOption];
+  if (!gameKey.length) return @{@"known": @NO, @"reason": @"noGameKey", @"setting": setting};
+  NSString *replaceScope = @"default", *trackScope = @"default";
+  NSString *replace = [self valueForOption:kBeetleReplaceOption gameKey:gameKey scope:&replaceScope];
+  NSString *track = [self valueForOption:kBeetleTrackOption gameKey:gameKey scope:&trackScope];
+  // Both options ship disabled; replacing needs both.
+  BOOL enabled = [replace isEqualToString:@"enabled"] && [track isEqualToString:@"enabled"];
+  NSString *scope = [replaceScope isEqualToString:@"game"] || [trackScope isEqualToString:@"game"] ? @"game" : @"default";
+  return @{@"known": @YES, @"enabled": @(enabled), @"scope": scope, @"appliesAt": @"next-launch", @"setting": setting};
+}
+- (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
+  if (!gameKey.length || gameKey.length > 600) { if (error) *error = EngineError(@"noGameKey"); return NO; }
+  NSString *value = enabled ? @"enabled" : @"disabled";
+  // Dumping stays off (locked by the session); tracking only serves replacing.
+  if (self.sessionWriter && self.sessionWriter(kBeetleTrackOption, value, gameKey) &&
+      self.sessionWriter(kBeetleReplaceOption, value, gameKey)) return YES;
+  @synchronized(NeoTextureLibretro.class) {
+    NSMutableDictionary *document = [NeoTexJSONDictionary(NeoTexReadBounded(self.gameStorePath, 4 << 20)) mutableCopy] ?: [NSMutableDictionary dictionary];
+    NSMutableDictionary *games = [document[@"games"] isKindOfClass:NSDictionary.class] ? [document[@"games"] mutableCopy] : [NSMutableDictionary dictionary];
+    NSMutableDictionary *entry = [games[gameKey] isKindOfClass:NSDictionary.class] ? [games[gameKey] mutableCopy] : [NSMutableDictionary dictionary];
+    entry[kBeetleTrackOption] = value;
+    entry[kBeetleReplaceOption] = value;
+    games[gameKey] = entry;
+    document[@"games"] = games;
+    document[@"version"] = @1;
+    if (!NeoTexWriteAtomic(NeoTexJSONData(document), self.gameStorePath, nil)) { if (error) *error = EngineError(@"writeFailed"); return NO; }
+  }
+  return YES;
+}
+// A disc image without a readable serial (CHD, PBP, a disc without
+// SYSTEM.CNF): the catalogue's PS1 game of the same title (and region tag of
+// the file name, when it has one) gives a serial to confirm, never exact.
+- (NSDictionary *)recordedIdentityForGamePath:(NSString *)path {
+  NSString *stem = path.lastPathComponent.stringByDeletingPathExtension;
+  NSString *folded = NeoTexFoldTitle(stem);
+  if (!folded.length) return nil;
+  // Region tags of No-Intro / Redump names: (USA), (Europe), (France), (Japan)...
+  NSDictionary *known = @{@"usa": @"usa", @"us": @"usa", @"europe": @"europe", @"eu": @"europe", @"uk": @"europe",
+                          @"france": @"europe", @"germany": @"europe", @"spain": @"europe", @"italy": @"europe",
+                          @"netherlands": @"europe", @"sweden": @"europe", @"australia": @"europe", @"scandinavia": @"europe",
+                          @"japan": @"japan"};
+  NSMutableSet *fileRegions = [NSMutableSet set];
+  NSRegularExpression *brackets = [NSRegularExpression regularExpressionWithPattern:@"\\(([^)]*)\\)" options:0 error:nil];
+  for (NSTextCheckingResult *match in [brackets matchesInString:stem options:0 range:NSMakeRange(0, stem.length)])
+    for (NSString *tag in [[stem substringWithRange:[match rangeAtIndex:1]] componentsSeparatedByString:@","]) {
+      NSString *region = known[[tag stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet].lowercaseString];
+      if (region) [fileRegions addObject:region];
+    }
+  for (NSDictionary *pack in [NeoTextureCatalog.sharedCatalog packsForSystem:@"ps1" engine:@"beetle"]) {
+    for (NSDictionary *game in pack[@"games"]) {
+      if (![NeoTexFoldTitle(game[@"title"]) isEqualToString:folded]) continue;
+      NSSet *regions = NeoTexRegions(game[@"regions"]);
+      if (fileRegions.count && regions.count && ![regions intersectsSet:fileRegions]) continue;
+      for (NSDictionary *entry in game[@"identities"]) {
+        if (![NeoTexString(entry[@"scheme"]) isEqualToString:@"ps1-disc-serial"]) continue;
+        NSMutableDictionary *identity = [[NeoTextureIdentityReader identityWithSystem:@"ps1" value:NeoTexString(entry[@"value"])
+                                                                              revision:nil crc:nil title:stem] mutableCopy];
+        identity[@"identity_source"] = @"name";
+        identity[@"path"] = path;
+        return identity;
+      }
+    }
+  }
+  return nil;
+}
+@end
+
 @implementation NeoTextureEngines
 + (id<NeoTextureEngine>)dolphinWithUserDirectory:(NSString *)userDirectory {
   NeoTextureDolphin *engine = [NeoTextureDolphin new];
@@ -710,6 +829,15 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   engine.configDirectory = configDirectory.stringByStandardizingPath;
   return engine;
 }
++ (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory {
+  NeoTextureBeetle *engine = [NeoTextureBeetle new];
+  engine.identifier = @"beetle";
+  engine.coreLibrary = @"Beetle PSX HW";
+  engine.optionKey = kBeetleReplaceOption;
+  engine.root = saveDirectory.stringByStandardizingPath;
+  engine.configDirectory = configDirectory.stringByStandardizingPath;
+  return engine;
+}
 + (void)setLibretroSessionReader:(NSString * (^)(NSString *, NSString *))reader
                           writer:(BOOL (^)(NSString *, NSString *, NSString *))writer
                        forEngine:(id<NeoTextureEngine>)engine {
@@ -720,4 +848,5 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 + (NSString *)ppssppOptionKey { return kPPSSPPOption; }
 + (NSString *)azaharOptionKey { return kAzaharOption; }
 + (NSString *)mupen64plusOptionKey { return kMupen64plusOption; }
++ (NSArray<NSString *> *)beetleOptionKeys { return @[kBeetleTrackOption, kBeetleReplaceOption]; }
 @end

@@ -254,6 +254,93 @@ static NSString *Fixtures(void) { return NSProcessInfo.processInfo.environment[@
   [self dismiss];
 }
 
+- (void)testPS1BeetleShowsTheRunningEngineAndWritesBothOptions {
+  NSString *saves = [self.work stringByAppendingPathComponent:@"Libretro/Saves"], *config = [self.work stringByAppendingPathComponent:@"Libretro/Config"];
+  __block NSDictionary *report = @{@"renderer": @"software", @"replace": @NO, @"applied": @0};
+  NSDictionary *(^status)(void) = ^NSDictionary *(void) { return report; };
+  NSDictionary *options = @{@"system": @"ps1", @"libretroSaves": saves, @"libretroConfig": config, @"gameID": @"SLUS-00067",
+                            @"gameKey": @"psx/Castle (USA).cue", @"title": @"Castlevania: Symphony of the Night", @"locale": @"fr",
+                            @"inGame": @YES, @"engineStatus": status};
+  UIViewController *page = [self present:options];
+  // A software renderer is reported as such: never "HD active".
+  XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTextureEngineStatus") != nil; } timeout:20], @"%@", [Rows(page) valueForKey:@"identifier"]);
+  id row = Row(page, @"neoTextureEngineStatus");
+  XCTAssertEqualObjects([row valueForKey:@"title"], [self label:@"status.software" language:@"fr"]);
+  XCTAssertEqualObjects([row valueForKey:@"detail"], [self label:@"status.softwareDetail" language:@"fr"]);
+  // The switch writes Track + Replace Textures for this game only.
+  void (^switched)(BOOL) = [Row(page, @"neoTextureEnable") valueForKey:@"switched"];
+  XCTAssertNotNil(switched, @"%@", [Rows(page) valueForKey:@"identifier"]);
+  switched(YES);
+  NSString *games = [config stringByAppendingPathComponent:@"Games/Beetle PSX HW.json"];
+  XCTAssertTrue([self until:^BOOL {
+    NSData *json = [NSData dataWithContentsOfFile:games];
+    NSDictionary *entry = (json ? [NSJSONSerialization JSONObjectWithData:json options:0 error:nil] : nil)[@"games"][@"psx/Castle (USA).cue"];
+    return [entry[@"beetle_psx_hw_track_textures"] isEqual:@"enabled"] && [entry[@"beetle_psx_hw_replace_textures"] isEqual:@"enabled"] &&
+           !entry[@"beetle_psx_hw_dump_textures"];
+  } timeout:10], @"%@", [NSString stringWithContentsOfFile:games encoding:NSUTF8StringEncoding error:nil]);
+  [self dismiss];
+  // Vulkan with textures recognised and bound by the core.
+  report = @{@"renderer": @"vulkan", @"replace": @YES, @"recognized": @12, @"applied": @3, @"folder": @"Castle (USA)-texture-replacements"};
+  page = [self present:options];
+  XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTextureEngineStatus") != nil; } timeout:20]);
+  row = Row(page, @"neoTextureEngineStatus");
+  NSString *detail = [row valueForKey:@"detail"];
+  XCTAssertEqualObjects([row valueForKey:@"title"], [self label:@"status.vulkan" language:@"fr"]);
+  XCTAssertTrue([detail containsString:@"12"] && [detail containsString:@"3"] && [detail containsString:@"Castle (USA)-texture-replacements"], @"%@", detail);
+  [self dismiss];
+  // Replacement on, but the core found nothing in its folder.
+  report = @{@"renderer": @"vulkan", @"replace": @YES, @"recognized": @0, @"applied": @0, @"folder": @"Castle (USA)-texture-replacements"};
+  page = [self present:options];
+  XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTextureEngineStatus") != nil; } timeout:20]);
+  XCTAssertEqualObjects([Row(page, @"neoTextureEngineStatus") valueForKey:@"detail"],
+                        [[self label:@"status.noFiles" language:@"fr"] stringByReplacingOccurrencesOfString:@"{folder}" withString:@"Castle (USA)-texture-replacements"]);
+  [self dismiss];
+}
+
+- (void)testVerifiedManualPackInstallsOnlyFromItsImportedFile {
+  // The bundled index plus one manual pack whose author's file was verified on CI.
+  NSData *bundled = [NSData dataWithContentsOfURL:[NSBundle.mainBundle URLForResource:@"manifest.json" withExtension:@"gz"]];
+  NSMutableDictionary *index = [[NeoTextureCatalog validatedIndex:bundled error:nil] mutableCopy];
+  XCTAssertNotNil(index);
+  NSDictionary *pack = @{@"id": @"ui-test-verified-melee", @"system": @"gc", @"engine": @"dolphin", @"title": @"Verified Melee", @"version": @"1.0",
+                         @"games": @[@{@"title": @"Super Smash Bros. Melee", @"identities": @[@{@"type": @"game_id", @"scheme": @"dolphin-disc-game-id", @"value": @"GALE01"}],
+                                       @"regions": @[@"USA"]}],
+                         @"authors": @[@"Test author"], @"page_url": @"https://example.invalid/melee", @"source_id": @"test:melee",
+                         @"licence": @{@"summary": @"Test", @"redistribution": @"Not redistributed"}, @"availability": @"manual",
+                         @"download": @{@"automatable": @NO, @"verified": @{@"format": @"7z", @"file_name": @"Melee HD.7z", @"host": @"mega",
+                                                                            @"size": @123456789, @"sha256": [@"" stringByPaddingToLength:64 withString:@"ab" startingAtIndex:0]}},
+                         @"install": @{@"files": @10, @"bytes": @2000000, @"folders": @[@{@"from": @"GALE01/", @"to": @"GALE01"}], @"formats": @[@"png"]},
+                         @"verified_at": @"2099-01-01"};
+  NSMutableArray *packs = [index[@"packs"] mutableCopy];
+  [packs addObject:pack];
+  index[@"packs"] = packs;
+  index[@"generated_at"] = @"2099-01-01";
+  index[@"revision"] = @"2099-01-01.uitest";
+  [index removeObjectForKey:@"rejected_packs"];
+  NSData *data = [NSJSONSerialization dataWithJSONObject:index options:0 error:nil];
+  NeoTextureCatalog.sharedCatalog.fetch = ^(NSURL *url, NSUInteger maximum, void (^completion)(NSData *, NSError *)) { completion(data, nil); };
+  XCTestExpectation *refreshed = [self expectationWithDescription:@"refreshed"];
+  [NeoTextureCatalog.sharedCatalog refreshWithCompletion:^(NSDictionary *snapshot, NSError *error) { [refreshed fulfill]; }];
+  [self waitForExpectations:@[refreshed] timeout:30];
+  NeoTextureCatalog.sharedCatalog.fetch = nil;
+  NSString *user = [self.work stringByAppendingPathComponent:@"Dolphin/User"];
+  UIViewController *page = [self present:@{@"system": @"gc", @"dolphinUser": user, @"gameID": @"GALE01", @"title": @"Super Smash Bros. Melee", @"locale": @"en"}];
+  XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTexturePack.ui-test-verified-melee") != nil; } timeout:20], @"%@", [Rows(page) valueForKey:@"identifier"]);
+  NSString *detail = [Row(page, @"neoTexturePack.ui-test-verified-melee") valueForKey:@"detail"];
+  XCTAssertTrue([detail containsString:[self label:@"stateManualVerified" language:@"en"]], @"%@", detail);
+  void (^open)(void) = [Row(page, @"neoTexturePack.ui-test-verified-melee") valueForKey:@"run"];
+  open();
+  XCTAssertTrue([self until:^BOOL { return page.navigationController.viewControllers.count == 2; } timeout:5]);
+  UIViewController *packPage = page.navigationController.viewControllers.lastObject;
+  [packPage loadViewIfNeeded];
+  XCTAssertTrue([self until:^BOOL { return Row(packPage, @"neoTextureImportVerified") != nil; } timeout:10], @"%@", [Rows(packPage) valueForKey:@"identifier"]);
+  XCTAssertNil(Row(packPage, @"neoTextureInstall"), @"a manual pack is never downloaded by the app");
+  NSString *footer = nil;
+  for (id section in Sections(packPage)) if ([[section valueForKey:@"footer"] containsString:@"Melee HD.7z"]) footer = [section valueForKey:@"footer"];
+  XCTAssertTrue([footer containsString:@"MEGA"], @"%@", footer);
+  [self dismiss];
+}
+
 - (void)testEveryLanguageNamesThePage {
   NSArray *languages = @[@"en", @"es", @"ru", @"zh", @"zh-Hant", @"pt", @"fr", @"de", @"it", @"id", @"ja", @"ko"];
   NSString *user = [self.work stringByAppendingPathComponent:@"Dolphin/User"];
@@ -330,7 +417,8 @@ def native():
             '-maximum-test-execution-time-allowance', '240', '-resultBundlePath', str(result),
             'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-', 'DEVELOPMENT_TEAM='], check=True, timeout=1500)
     print('PASS: unified HD textures page on UIKit with the bundled catalogue (GameCube disc, candidate/exact matching, console '
-          'library, failed refresh, PS2 store, PSP/3DS core options, twelve languages)', flush=True)
+          'library, failed refresh, PS2 store, PSP/3DS/N64 core options, PS1 Beetle engine report and options, verified manual '
+          'pack import, twelve languages)', flush=True)
 
 
 if __name__ == '__main__':
