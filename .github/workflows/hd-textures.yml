@@ -19,10 +19,14 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, discover, links, cores]
+        options: [all, host, native, uikit, repositories, discover, links, cores, summarize]
         default: all
       only:
         description: 'repositories: comma-separated pack ids (empty: every pack without a successful record)'
+        type: string
+        default: ''
+      run:
+        description: 'summarize: the run id of a discover run (its candidates artifact)'
         type: string
         default: ''
 permissions: {contents: read, actions: read}
@@ -200,3 +204,21 @@ jobs:
           path: build/hdtex/cores.json
           if-no-files-found: warn
           retention-days: 14
+
+  summarize:
+    name: Engine-relevant candidates of a discover run (review list)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'summarize' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hdtex-candidates-*
+          run-id: ${{ inputs.run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: build/hdtex/candidates
+          merge-multiple: true
+      - name: One short line per candidate an engine can read
+        run: python3 tools/textures/discover.py summarize --candidates build/hdtex/candidates/candidates.jsonl --out build/hdtex/summary.jsonl

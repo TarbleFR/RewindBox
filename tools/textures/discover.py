@@ -22,7 +22,12 @@ tools/textures/verify_packs.py installed the author's real file.
       still reachable with the recorded size, and, for a GitHub source,
       whether a newer release than the catalogued version exists.
 
-Both modes print one line per result between DISCOVER_BEGIN and
+  discover.py summarize --candidates build/hdtex/candidates.jsonl --out build/hdtex/summary.jsonl
+      One short line per candidate whose files an engine reads (tex1_ names,
+      textures.ini, pack.json, PCSX2 replacements) or that names a game
+      identifier: the review list without unrelated texture packs.
+
+Every mode prints one line per result between DISCOVER_BEGIN and
 DISCOVER_END markers, so a CI log is enough to read them. The GitHub API is
 read with GH_TOKEN or GITHUB_TOKEN when set (repository search is limited to
 30 requests a minute, code search to 10).
@@ -378,9 +383,39 @@ def mode_links(args, gh, emit):
             emit(result)
 
 
+def engine_relevant(record):
+    """A repository whose files an engine reads, or that names a game identifier."""
+    signals = record.get('signals') or {}
+    return bool(signals.get('tex1') or signals.get('textures_ini') or signals.get('pack_json') or signals.get('replacements')
+                or signals.get('pcsx2_hash') or record.get('ids'))
+
+
+def mode_summarize(args, gh, emit):
+    """One short line per engine-relevant candidate of a github run (its JSONL output)."""
+    kept = 0
+    for line in Path(args.candidates).read_text(encoding='utf-8').splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if record.get('error') or not engine_relevant(record):
+            continue
+        signals = record.get('signals') or {}
+        assets = [f'{release["tag"]}:{name}:{size}' for release in record.get('releases') or [] for name, size in release['assets']
+                  if ARCHIVE.search(name)][:6]
+        emit({'repo': record['repo'], 'engines': record.get('engines'), 'ids': {k: v[:5] for k, v in (record.get('ids') or {}).items()},
+              'tex1': signals.get('tex1'), 'ini': (signals.get('textures_ini') or [])[:3], 'packjson': (signals.get('pack_json') or [])[:2],
+              'repl': (signals.get('replacements') or [])[:2], 'pcsx2': signals.get('pcsx2_hash'), 'png': signals.get('png'),
+              'dds': signals.get('dds'), 'lfs': signals.get('lfs'), 'fork': record.get('fork'), 'files': record.get('files'),
+              'stars': record.get('stargazers_count'), 'licence': record.get('licence'), 'pushed': (record.get('pushed_at') or '')[:10],
+              'assets': assets, 'top': (record.get('top') or [])[:8], 'desc': (record.get('description') or '')[:90]})
+        kept += 1
+    log(f'# {kept} engine-relevant candidates')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('mode', choices=['github', 'links'])
+    parser.add_argument('mode', choices=['github', 'links', 'summarize'])
+    parser.add_argument('--candidates', default='', help='summarize: the JSONL written by the github mode')
     parser.add_argument('--out', required=True)
     parser.add_argument('--query', action='append', help='replace the built-in repository searches')
     parser.add_argument('--repo', action='append', help='also describe this owner/name')
@@ -399,7 +434,7 @@ def main():
             out.flush()
             log('DISCOVER ' + line)
         log('DISCOVER_BEGIN')
-        (mode_github if args.mode == 'github' else mode_links)(args, gh, emit)
+        {'github': mode_github, 'links': mode_links, 'summarize': mode_summarize}[args.mode](args, gh, emit)
         log('DISCOVER_END')
 
 
