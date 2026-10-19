@@ -254,6 +254,9 @@ static BOOL LooksLikeHTML(NSString *path) {
 
 - (void)installPack:(NSDictionary *)pack engine:(id<NeoTextureEngine>)engine identity:(NSDictionary *)identity
             replace:(BOOL)replace confirmed:(BOOL)confirmed completion:(void (^)(NSDictionary *, NSError *))completion {
+  // The catalogue's verdict for the game it is installed for, whatever the
+  // caller passed: engine checks and target folders depend on it.
+  pack = [NeoTextureCatalog pack:pack matchedTo:identity];
   NSString *packID = NeoTexString(pack[@"id"]);
   NSDictionary *download = pack[@"download"];
   if (![pack[@"availability"] isEqual:@"available"] || ![download[@"automatable"] boolValue]) {

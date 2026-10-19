@@ -55,6 +55,12 @@ typedef void (^NeoTextureFetch)(NSURL *url, NSUInteger maximumBytes,
 /// identities:[{type,scheme,value}]}. A title alone is never exact; a known
 /// different region or revision is a conflict (nil), never a candidate.
 + (nullable NSString *)matchPack:(NSDictionary *)pack identity:(NSDictionary *)identity;
+/// A copy of the pack with the verdict of packsForIdentity: for this game in
+/// "match" (absent when it does not match), for a pack that reaches the page or
+/// the store without one (reopened from its installed row, chosen from a
+/// console's list). An identifier read from a file name ("uncertain") never
+/// makes a pack exact.
++ (NSDictionary *)pack:(NSDictionary *)pack matchedTo:(nullable NSDictionary *)identity;
 /// Validates an index (JSON or gzip). Invalid packs are dropped and counted
 /// in "rejected_packs"; an index without schema 1 is refused.
 + (nullable NSDictionary *)validatedIndex:(NSData *)data error:(NSError **)error;

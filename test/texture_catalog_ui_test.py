@@ -134,26 +134,33 @@ static NSString *Fixtures(void) { return NSProcessInfo.processInfo.environment[@
                                            @"title": @"Super Mario Sunshine", @"locale": @"fr", @"presentation": @"modal"}];
   XCTAssertEqualObjects(page.title, [self label:@"title" language:@"fr"]);
   XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTexturePack.gc-sms-uhd-4k-dds-qashto") != nil; } timeout:20], @"%@", Rows(page));
-  NSString *ids = [Row(page, @"neoTextureGameID") valueForKey:@"detail"];
+  // The game's identifiers are the row's title (its detail only explains an uncertain one).
+  NSString *ids = [Row(page, @"neoTextureGameID") valueForKey:@"title"];
   XCTAssertTrue([ids containsString:@"GMSE01"], @"%@", ids);
   NSString *detail = [Row(page, @"neoTexturePack.gc-sms-uhd-4k-dds-qashto") valueForKey:@"detail"];
   XCTAssertTrue([detail containsString:@"qashto"] && [detail containsString:[self label:@"matchExact" language:@"fr"]], @"%@", detail);
   XCTAssertNil(Row(page, @"neoTexturePack.gc-kirby-air-ride-uhd-qashto"), @"another game's pack is not offered");
-  // The switch is Dolphin's own setting for this game.
+  // The switch is Dolphin's own setting for this game, in the file of the disc's
+  // revision (GameSettings/<ID>r<rev>.ini, layered last, as the Build 367 import).
   id toggle = Row(page, @"neoTextureEnable");
   XCTAssertNotNil(toggle);
   void (^switched)(BOOL) = [toggle valueForKey:@"switched"];
   switched(YES);
-  NSString *ini = [user stringByAppendingPathComponent:@"GameSettings/GMSE01.ini"];
+  NSString *ini = [user stringByAppendingPathComponent:@"GameSettings/GMSE01r0.ini"];
   XCTAssertTrue([self until:^BOOL {
-    return [[NSString stringWithContentsOfFile:ini encoding:NSUTF8StringEncoding error:nil] containsString:@"HiresTextures = True"];
+    NSString *text = [NSString stringWithContentsOfFile:ini encoding:NSUTF8StringEncoding error:nil];
+    return [text containsString:@"HiresTextures = True"] && [text containsString:@"CacheHiresTextures = False"];
   } timeout:10], @"%@", [NSString stringWithContentsOfFile:ini encoding:NSUTF8StringEncoding error:nil]);
+  XCTAssertTrue([self until:^BOOL { return [[Row(page, @"neoTextureEnable") valueForKey:@"toggle"] boolValue]; } timeout:10],
+                @"the page reads the switch back");
   // A pack page: author, version, size, formats, licence, source and an install action.
   void (^open)(void) = [Row(page, @"neoTexturePack.gc-sms-uhd-4k-dds-qashto") valueForKey:@"run"];
   open();
   XCTAssertTrue([self until:^BOOL { return page.navigationController.viewControllers.count == 2; } timeout:5]);
   UIViewController *packPage = page.navigationController.viewControllers.lastObject;
   [packPage loadViewIfNeeded];
+  // Its rows follow the installed-folder lookup, made off the main thread.
+  XCTAssertTrue([self until:^BOOL { return Rows(packPage).count > 0; } timeout:10]);
   NSMutableString *text = [NSMutableString string];
   for (id row in Rows(packPage)) [text appendFormat:@"%@ %@\n", [row valueForKey:@"title"] ?: @"", [row valueForKey:@"detail"] ?: @""];
   for (NSString *needle in @[@"qashto", @"2.1.1", @"DDS", @"github:qashto/Super_Mario_Sunshine_UHD_Texture_Pack"])

@@ -359,14 +359,22 @@ static NSDictionary *ValidatedPack(id value) {
 - (NSArray<NSDictionary *> *)packsForIdentity:(NSDictionary *)identity engine:(NSString *)engine {
   NSMutableArray *exact = [NSMutableArray array], *candidates = [NSMutableArray array];
   for (NSDictionary *pack in [self packsForSystem:NeoTexString(identity[@"system"]) engine:engine]) {
-    NSString *match = [NeoTextureCatalog matchPack:pack identity:identity];
+    NSDictionary *row = [NeoTextureCatalog pack:pack matchedTo:identity];
+    NSString *match = row[@"match"];
     if (!match) continue;
-    NSMutableDictionary *row = [pack mutableCopy];
-    row[@"match"] = match;
     [[match isEqualToString:@"exact"] ? exact : candidates addObject:row];
   }
   [exact addObjectsFromArray:candidates];
   return exact;
+}
+
++ (NSDictionary *)pack:(NSDictionary *)pack matchedTo:(NSDictionary *)identity {
+  NSMutableDictionary *row = [pack mutableCopy];
+  NSString *match = [NeoTextureCatalog matchPack:pack identity:identity];
+  // An identifier taken from a file name never makes a pack "compatible" on its own.
+  if (match && [identity[@"uncertain"] boolValue]) match = @"candidate";
+  row[@"match"] = match;
+  return row;
 }
 
 - (NSDictionary *)packWithID:(NSString *)packID {

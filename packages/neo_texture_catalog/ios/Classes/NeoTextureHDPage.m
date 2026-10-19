@@ -666,16 +666,9 @@ static NSString *AbsolutePath(id value) {
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     NeoTextureCatalog *catalog = NeoTextureCatalog.sharedCatalog;
     NSDictionary *snapshot = [catalog snapshot];
-    NSMutableArray *packs = [(identity ? [catalog packsForIdentity:identity engine:engine.engineID]
-                                       : [catalog packsForSystem:system engine:engine.engineID]) mutableCopy];
-    if ([identity[@"uncertain"] boolValue]) {
-      // An identifier taken from a file name never makes a pack "compatible" on its own.
-      for (NSUInteger i = 0; i < packs.count; i++) {
-        NSMutableDictionary *pack = [packs[i] mutableCopy];
-        pack[@"match"] = @"candidate";
-        packs[i] = pack;
-      }
-    }
+    // Rows of a game carry their match ("uncertain" identities only candidates).
+    NSArray *packs = identity ? [catalog packsForIdentity:identity engine:engine.engineID]
+                              : [catalog packsForSystem:system engine:engine.engineID];
     NSMutableArray *libraryPacks = [NSMutableArray array];
     for (NSDictionary *game in identity ? @[] : library)
       for (NSDictionary *pack in [catalog packsForIdentity:game engine:engine.engineID]) [libraryPacks addObject:@{@"identity": game, @"pack": pack}];
@@ -836,7 +829,8 @@ static NSString *AbsolutePath(id value) {
 
 - (void)openPack:(NSDictionary *)pack identity:(NSDictionary *)identity {
   NeoTexturePackPage *page = [[NeoTexturePackPage alloc] initWithStyle:UITableViewStyleInsetGrouped];
-  page.pack = pack;
+  // A pack reopened from its installed row has no match yet: the game's own.
+  page.pack = identity ? [NeoTextureCatalog pack:pack matchedTo:identity] : pack;
   page.engine = self.engine;
   page.identity = identity ?: DeclaredIdentity(pack);
   page.locale = self.locale;

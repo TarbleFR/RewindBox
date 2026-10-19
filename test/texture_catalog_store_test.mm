@@ -290,11 +290,23 @@ int main(int argc, char **argv) {
     activation = [armsx2 activationForIdentity:ps2];
     CHECK([activation[@"known"] boolValue] && [activation[@"enabled"] isEqual:@YES], "first PS2 pack switched on for the game: %s",
           activation.description.UTF8String);
+    // Passed without "match", as a pack reopened from its installed row: the
+    // store finds its exact match itself, so the subtree (named after no
+    // serial) installs without a question.
     outcome = Install(store, packs[@"armsx27z"], armsx2, ps2, YES, NO);
     CHECK(!outcome.error, "armsx2 7z (expanded then handed over): %s", outcome.error.description.UTF8String);
     ps2Files = Files(ps2Folder);
     CHECK([ps2Files containsObject:@"1111222233334444-r64x32-0000c3d4.astc"] && ![ps2Files containsObject:@"fedcba9876543210-0000a1b2.dds"],
           "armsx2 replacement %s", ps2Files.description.UTF8String);
+    // A caller's "exact" is not trusted: for a game the pack does not list, the engine's doubt is asked.
+    NSMutableDictionary *claimed = [packs[@"armsx27z"] mutableCopy];
+    claimed[@"match"] = @"exact";
+    NSDictionary *otherPS2 = Identity(@"ps2", @"serial", @"ps2-disc-serial", @"SLES-50000", @"Another PS2");
+    outcome = Install(store, claimed, armsx2, otherPS2, YES, NO);
+    CHECK(outcome.error.code == NeoTexturePackErrorRegion && [outcome.error.userInfo[@"engine"][@"match"] isEqual:@"noSerial"],
+          "a pack for another game must be confirmed: %s", outcome.error.description.UTF8String);
+    CHECK(!Exists([armsx2Data stringByAppendingPathComponent:@"textures/SLES-50000"]) && [Files(ps2Folder) isEqualToArray:ps2Files],
+          "nothing written before the confirmation");
     BOOL leftover = NO;
     for (NSString *name in [FM() contentsOfDirectoryAtPath:[armsx2Data stringByAppendingPathComponent:@"textures"] error:nil])
       if ([name hasPrefix:@".neostation-"]) leftover = YES;
