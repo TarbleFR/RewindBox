@@ -2558,5 +2558,58 @@
    ]
   },
   "notes": "Characters and HUD in DDS: they need a GPU that samples BC formats."
+ },
+ {
+  "id": "wii-super-mario-galaxy-glxy-kramerrepaints",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Super Mario Galaxy — GLXY repaint (Dolphin custom textures)",
+  "version": "1.15",
+  "games": [
+   {
+    "title": "Super Mario Galaxy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RMGE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "KramerRepaints"
+  ],
+  "page_url": "https://github.com/KramerRepaints/GLXY/releases/tag/GLXYv1.15",
+  "source_id": "github:KramerRepaints/GLXY",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "credits": "README: some interface textures come from Sy24's faithful HD textures mod, edited for GLXY.",
+  "notes": "A full repaint (about 1,800 textures) themed on RWBY. The mod's game-file edits (story, dialogue, audio and video: File.Edits.zip) are a separate archive that NeoStation does not install: the textures alone change the look only.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Dolphin.Custom.Textures.zip",
+   "parts": [
+    {
+     "url": "https://github.com/KramerRepaints/GLXY/releases/download/GLXYv1.15/Dolphin.Custom.Textures.zip"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-super-mario-galaxy-glxy-kramerrepaints",
+  "install": {
+   "folders": [
+    {
+     "from": "Dolphin Custom Textures/RMGE01/",
+     "to": "RMGE01"
+    }
+   ]
+  }
  }
 ]

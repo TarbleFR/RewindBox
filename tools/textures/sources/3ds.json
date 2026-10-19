@@ -1030,5 +1030,76 @@
    ]
   },
   "notes": "For the Simplified Chinese version only."
+ },
+ {
+  "id": "3ds-metroid-samus-returns-custom-textures-sabre230",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Metroid: Samus Returns Custom Textures",
+  "version": "repository 436d46c",
+  "games": [
+   {
+    "title": "Metroid: Samus Returns",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001BB200"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Metroid: Samus Returns",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001BFB00"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "sabre230"
+  ],
+  "page_url": "https://github.com/sabre230/msr-custom-textures/tree/436d46c07baa153da82b68f16489417a0cb25d82",
+  "source_id": "github:sabre230/msr-custom-textures",
+  "licence": {
+   "summary": "GPL-3.0 (LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Suit, effect and interface textures redrawn in Krita (a small, ongoing project). The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "msr-custom-textures-436d46c07baa153da82b68f16489417a0cb25d82.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/sabre230/msr-custom-textures/zip/436d46c07baa153da82b68f16489417a0cb25d82"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/sabre230/msr-custom-textures",
+    "commit": "436d46c07baa153da82b68f16489417a0cb25d82"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "msr-custom-textures-436d46c07baa153da82b68f16489417a0cb25d82/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-metroid-samus-returns-custom-textures-sabre230"
  }
 ]

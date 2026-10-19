@@ -230,11 +230,6 @@
   "reason": "A Mesen feature; NeoStation's NES core is Nestopia, which has no HD pack support (probe of the pinned binary: no HD pack code)."
  },
  {
-  "console": "ps1",
-  "source": "Beetle PSX HW texture replacement",
-  "reason": "Compiled in the pinned core (track/replace options), but marked by the core as likely to crash and only tied to the hardware renderer, which iOS sessions have not been shown to use: not offered."
- },
- {
   "console": "all",
   "source": "GBAtemp, PPSSPP and Dolphin forums, GameBanana, ModDB, n64textures.com, EmuTalk, Reddit, Google Drive/Docs/Sites lists",
   "reason": "Not reachable from the verification environment (egress policy): no page could be checked, so nothing is listed from them except through ps2ktxpak's reviewed records."
@@ -288,11 +283,6 @@
   "console": "psp",
   "source": "zxyandreay/tekken6-ultrawide",
   "reason": "Ultrawide plugin and compatibility settings, not textures."
- },
- {
-  "console": "ps2",
-  "source": "Matsilagi/WO3-Beta-Texturepack (Wip3out)",
-  "reason": "PlayStation pack for Beetle PSX HW (PS1 texture replacement is not offered)."
  },
  {
   "console": "ps2",

@@ -1,1 +1,60 @@
-[]
+[
+ {
+  "id": "ps1-wip3out-se-beta-texturepack-matsilagi",
+  "system": "ps1",
+  "engine": "beetle",
+  "title": "Wip3out Special Edition Beta Texturepack",
+  "version": "repository d074b4c",
+  "games": [
+   {
+    "title": "Wip3out Special Edition",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCES-02845"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Matsilagi"
+  ],
+  "page_url": "https://github.com/Matsilagi/WO3-Beta-Texturepack/tree/d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69",
+  "source_id": "github:Matsilagi/WO3-Beta-Texturepack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "credits": "README: textures from the official Wipeout 3 US demo (Official U.S. PlayStation Magazine #25; Psygnosis Leeds, Sony, Studio Liverpool), found and ported by Matsilagi; Concept Assegai skin by Shara; Concept Icaras skin by Matsilagi; XentaX PBP/CMP scripts and TIMViewer used to read the textures.",
+  "requirements": "Made by the author for Beetle PSX HW with its Vulkan renderer, Track Textures and Replace Textures (what NeoStation's switch sets).",
+  "notes": "Beta ship liveries, menu team colours, low-poly ships and power-up icons from the US demo, for the PAL Special Edition (SCES-02845). The optional skins of the alternate_textures folder are not installed (Beetle reads its folder flat).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "WO3-Beta-Texturepack-d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Matsilagi/WO3-Beta-Texturepack/zip/d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Matsilagi/WO3-Beta-Texturepack",
+    "commit": "d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "WO3-Beta-Texturepack-d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69/imagename-texture-replacements/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "ps1-wip3out-se-beta-texturepack-matsilagi"
+ }
+]
