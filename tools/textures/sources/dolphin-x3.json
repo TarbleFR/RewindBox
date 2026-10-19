@@ -4681,5 +4681,197 @@
   },
   "scope": "ui",
   "family": "wii-sonic-colors-hd-ui-triforce141"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-steam-buttons-joecontext",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog — Steam controller buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Joe Context"
+  ],
+  "page_url": "https://gamebanana.com/mods/676960",
+  "source_id": "gamebanana:676960",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/676960",
+   "file_name": "steam_buttons_4d9a3.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1700759",
+    "sha256": "7e794987a5a1f4d6434230892af2cab9c548586369e147a5d80da30a7939c824"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Steam Buttons/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-shadow-the-hedgehog-steam-buttons-joecontext"
+ },
+ {
+  "id": "wii-mkwii-xbox-ui-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — Xbox UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "xbox_ui_d457b.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1121035",
+    "sha256": "cee86ef4d6839847d6d45761b7576a7cd7b9df4c8edaf7766c6cde9e15581e9c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-console-ui-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-playstation-ui-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — PlayStation UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "playstation_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1121036",
+    "sha256": "81f32956e3a2bf8d379e92d1c6ec09d1df0824b8abfd28bef2036b57b7ab0671"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-console-ui-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-switch-ui-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — Nintendo Switch UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "switch_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1206353",
+    "sha256": "acb7f6e2e06be563c59d854c246312b42359ea5d6f305772c53133a542254c96"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-console-ui-floweygaming"
  }
 ]
