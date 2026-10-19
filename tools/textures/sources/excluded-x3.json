@@ -280,6 +280,16 @@
   "reason": "Sonic and the Black Knight HD thread, bloom.zip: a game-ID marker only, no texture."
  },
  {
+  "console": "gc",
+  "source": "g9se8p_ef626.zip (https://gamebanana.com/dl/778319)",
+  "reason": "Sonic Heroes HD (Hime6564): the author's archive holds a damaged DDS file (tex1_64x64_m_ccf9aba081e5c4f4_14.dds, wrong signature), which NeoStation refuses to install (host run 39308850492); the earlier uploads of the page are older versions."
+ },
+ {
+  "console": "gc",
+  "source": "hd_overhaul_9240f.7z (https://gamebanana.com/dl/1143178)",
+  "reason": "Sonic Unleashed HD Overhaul (GabiShy): at verification GameBanana served another file (23 MB, a different SHA-256) under the probed link (host run 39308850492): not verifiable."
+ },
+ {
   "console": "3ds",
   "source": "hd_ui.zip (https://gamebanana.com/dl/1762757)",
   "reason": "Monster Hunter 3 Ultimate HD UI: Cemu (Wii U) texture files, not a 3DS pack."
