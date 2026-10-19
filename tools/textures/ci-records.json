@@ -26,6 +26,19 @@
         "3ds"
       ],
       "records": 12
+    },
+    {
+      "run": 39257349302,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the packs without a record)",
+      "source": "1cebc63590614a1a6a3dce008fb65a5752bcca29",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds"
+      ],
+      "records": 9
     }
   ]
 }
