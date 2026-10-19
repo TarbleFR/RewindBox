@@ -387,7 +387,7 @@ SCENARIOS += [
     {'name': 'beetle-vulkan-replace', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 8.0, 'default': False, 'beetle': True,
      'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_replace_textures': 'enabled'},
-     'beetleTextures': {'replaceFromDump': 'probe-psx', 'colour': 'green', 'recognized': True},
+     'beetleTextures': {'replaceFromDump': 'probe-psx', 'colour': 'green', 'recognized': True, 'lifecycle': 14},
      'requiredLog': BEETLE_LOG},
     {'name': 'beetle-vulkan-off', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
@@ -1405,6 +1405,13 @@ def beetle_problems(name, expected, result, launch):
             problems.append(f'{name}: no replacement could be written from the dump')
         if not status.get('replace') or int(status.get('recognized') or 0) <= 0:
             problems.append(f'{name}: the core reports no recognised replacement ({status})')
+    if expected.get('lifecycle'):
+        # Pause, background, state save/load, rotation and audio (beetle_lifecycle_probe.h); the
+        # frame below is captured after them, so the replacement must survive them on screen too.
+        checks = result.get('beetleLifecycle') or []
+        if len(checks) != expected['lifecycle']:
+            problems.append(f"{name}: {len(checks)} of {expected['lifecycle']} lifecycle checks ran")
+        problems += [f"{name}: {check['name']}" for check in checks if not check.get('passed')]
     grids = (result.get('frame') or {}).get('screenGridsRGB') or []
     if not grids:
         problems.append(f"{name}: no frame captured ({(result.get('frame') or {}).get('captureError')})")

@@ -393,6 +393,7 @@ static NSString *ReservationReport(void) {
 
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
 #import "skin_lifetime_probe.h"
+#import "beetle_lifecycle_probe.h"
 #endif
 
 @implementation ProbeAppDelegate {
@@ -1151,10 +1152,14 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
                                   Progress(@"%@: beetle %@, %lu dumped", name, result[@"beetleStatus"],
                                            (unsigned long)[result[@"beetleDumped"] count]);
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
-                                  CaptureNextGameFrame(session, name, ^(NSDictionary *frame) {
-                                    result[@"frame"] = frame;
-                                    [probe stopScenario:result session:session];
-                                  });
+                                  dispatch_block_t capture = ^{
+                                    CaptureNextGameFrame(session, name, ^(NSDictionary *frame) {
+                                      result[@"frame"] = frame;
+                                      [probe stopScenario:result session:session];
+                                    });
+                                  };
+                                  if ([beetle[@"lifecycle"] boolValue]) RunBeetleLifecycle(session, result, capture);
+                                  else capture();
 #else
                                   [probe stopScenario:result session:session];
 #endif
