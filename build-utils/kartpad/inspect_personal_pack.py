@@ -58,7 +58,7 @@ def inspect_macho(data: bytes, pins: dict) -> dict:
             string_bytes > len(data) - string_offset):
         raise ValueError('Invalid symbol table bounds')
     strings = data[string_offset:string_offset + string_bytes]
-    addresses = []
+    exports = {b'_kartpad_game_pack_info': [], b'_kartpad_game_pack_fingerprint': []}
     for index in range(symbols):
         name_offset, symbol_type, _, _, address = struct.unpack_from('<IBBHQ', data, symbol_offset + 16 * index)
         if name_offset >= len(strings):
@@ -66,18 +66,29 @@ def inspect_macho(data: bytes, pins: dict) -> dict:
         name_end = strings.find(b'\0', name_offset)
         if name_end < 0:
             raise ValueError('Unterminated symbol name')
-        if strings[name_offset:name_end] == b'_kartpad_game_pack_info':
+        name = strings[name_offset:name_end]
+        if name in exports:
             if symbol_type & 0xE0 or not symbol_type & 1 or symbol_type & 0x0E != 0x0E:
-                raise ValueError('Game-pack info must be exported defined data')
-            addresses.append(address)
-    if len(addresses) != 1:
-        raise ValueError('Missing or ambiguous game-pack info export')
-    offsets = [offset + addresses[0] - base for base, offset, length in segments
-               if base <= addresses[0] and addresses[0] - base + 48 <= length]
-    if len(offsets) != 1 or struct.unpack_from('<I', data, offsets[0])[0] != pins['pack_abi']:
-        raise ValueError('Game-pack ABI mismatch or ambiguous data mapping')
+                raise ValueError('Game-pack info and fingerprint must be exported defined data')
+            exports[name].append(address)
+
+    def file_offset(name: bytes, size: int) -> int:
+        if len(exports[name]) != 1:
+            raise ValueError('Missing or ambiguous game-pack export ' + name.decode())
+        address = exports[name][0]
+        offsets = [offset + address - base for base, offset, length in segments
+                   if base <= address and address - base + size <= length]
+        if len(offsets) != 1:
+            raise ValueError('Ambiguous or unmapped game-pack export ' + name.decode())
+        return offsets[0]
+
+    if struct.unpack_from('<I', data, file_offset(b'_kartpad_game_pack_info', 48))[0] != pins['pack_abi']:
+        raise ValueError('Game-pack ABI mismatch')
+    # ABI 3 accepts a pack by its interface fingerprint, which the pack exports
+    # as a readable string; the runtime compares it before running any code.
     marker = b'kartpad-pack-fingerprint:' + pins['pack_interface_fingerprint'].encode() + b'\0'
-    if marker not in data:
+    start = file_offset(b'_kartpad_game_pack_fingerprint', len(marker))
+    if data[start:start + len(marker)] != marker:
         raise ValueError('Game-pack interface fingerprint mismatch')
     return {'pack_abi': pins['pack_abi'], 'pack_interface_fingerprint': pins['pack_interface_fingerprint'],
             'pack_sha256': hashlib.sha256(data).hexdigest(), 'pack_bytes': len(data)}
@@ -105,8 +116,8 @@ def inspect_ipa(path: Path, pins: dict) -> dict:
             raise ValueError('Game pack exceeds the inspection limit')
         result = inspect_macho(archive.read(packs[0]), pins)
         result.update({'input_preflight_passed': True, 'app_version': plist.get('CFBundleShortVersionString'),
-                       'target_release': pins['release'], 'integration_validated': False,
-                       'physical_iphone_validated': False})
+                       'target_release': pins['release'], 'integration_validated': pins['integrated'],
+                       'physical_iphone_validated': pins['physical_iphone_validated']})
         return result
 
 

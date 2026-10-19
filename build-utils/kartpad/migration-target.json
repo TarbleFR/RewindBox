@@ -1,16 +1,30 @@
 {
-  "schema_version": 1,
-  "release": "v0.7.3",
-  "release_commit": "9f973c4ecc46284edfba06eb7dede67f629eb4c5",
-  "ios_runtime_commit": "8892a36125681adc8e4e3e6c7d560d83291a84fa",
+  "schema_version": 2,
+  "release": "v0.8.3",
+  "release_build": 265,
+  "release_commit": "7e99c6776263caa85dccde2de6281cb092778877",
+  "ios_runtime_commit": "2babfb718809bc080be60a4fc106e5eda1efebcb",
+  "translator_commit": "937c334d4ebec0466198a1bc56c1334a838bc654",
   "pack_abi": 3,
-  "pack_interface_fingerprint": "35ccf81c6a555b043cfbfa25fa62c8e335c7dfac21623a304b24dfbcbb623f52",
+  "pack_interface_fingerprint": "47d67acd0c1ac5e7736cb1a6159425ab7663e4d3a2d5dec28aee1c507fdac58e",
   "official_ipa": {
-    "name": "KartPad-v0.7.3-ios-unsigned.ipa",
-    "bytes": 8633284,
-    "sha256": "f9ff55456560b61ae7e9cf47554bb543f2f78011f28e0345f9164b014adca1e2",
-    "executable_sha256": "36a4e85a56273b329280d861dd52fb0c49bb9bb2c5e70d899c4118d681e75dd4",
+    "name": "KartPad-v0.8.3-ios-for-padmint.ipa",
+    "bytes": 9289255,
+    "sha256": "b5096fe14cb93e6305e365e49dddd65027fa2a386d6d06271dc4d6a9c5a3eb4d",
+    "executable_sha256": "0477ba73637f51cf03bdfd04967cd86673b5129782bef776feba74f59d6a4cc0",
     "contains_game_pack": false
+  },
+  "retro_rewind": {
+    "version": "6.13.3",
+    "pack_version_file": "6.13.2",
+    "archive_sha256": "7e8008b5d38cf824bf034373322bfedaddfe7b1a432e8ed14bd339fe626326b9",
+    "code_pul_sha256": "58f4ac46afdeda4d57aacab361b381ccd95f08c3dbb2779e6e5760b48b1df036",
+    "wfc_payload_sha256": "099097a0f85a97c348123d91438438b24b112362f1fb23c94df6a343c5366471"
+  },
+  "personal_pack_inputs": {
+    "main_dol_sha256": "80d18895b39c63bd80f457398bfcbb91b7d16ac116a41a88967e954080155b05",
+    "static_r_rel_sha256": "16d9d146112541fefea701ecb5bc1a496f9d50e4a752fbb5b6778e7c6399f67d",
+    "official_procedure": "PadMint (https://github.com/chrissotraidis/padmint) building KartPad 0.8.3 for iOS from the player's own RMCP01 revision 0 disc"
   },
   "state": "requires_personal_pack_and_embedded_lifecycle_migration",
   "integrated": false,
