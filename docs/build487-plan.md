@@ -1,0 +1,131 @@
+# Build 487 — correctifs de l'audit des goulots RPCS3 (diagnostics et leviers sélectionnables), 19 octobre 2026
+
+Candidate construite par-dessus la Build 486 livrée (`b18c30cd`, Core RPCS3 483
+`1b4f65e2`). Demande du mainteneur, après l'audit
+`docs/rpcs3-bottleneck-audit-2026-10-18.md` : « établis tes correctifs suite à
+l'audit ». Contraintes reprises telles quelles : travail sur `Claude` seulement,
+rien sur `main`, aucune release ; aucun rapport `.ips`, Jetsam ou watchdog
+demandé ; la compilation SPU différée de la Build 435 reste désactivée ; aucun
+gain n'est annoncé sans mesure sur l'iPhone.
+
+Chaque affirmation porte l'une des étiquettes **observé dans le code**,
+**exécuté sur hôte** (Linux du conteneur ou macOS du runner Core), **mesuré sur
+appareil** (aucun dans ce cycle), **hypothèse restante**.
+
+## 1. Ce que la Build 487 corrige, et ce qu'elle ne prétend pas corriger
+
+L'audit a établi que les journaux fournis ne contenaient aucune seconde de jeu
+de God of War III ni de GTA V, que les causes décisives (profil GoW III jamais
+appliqué, recompilation PPU après un état, gel de Fallout 3) restaient des
+hypothèses faute d'observabilité, et que les leviers LLVM n'étaient pas
+mesurables. La Build 487 fait donc deux choses :
+
+1. **Rendre la prochaine capture décisive** (diagnostics D1–D10 de l'audit) sans
+   rien changer au jeu.
+2. **Exposer les leviers de l'audit comme réglages** (L2, L3, L5, L9) avec un
+   retour à la référence ; leurs défauts gardent le comportement de jeu de la
+   Build 483, sauf la rétention des répertoires d'objets SPU, qui est une
+   politique de cache.
+
+Elle ne prétend corriger ni le gel de Fallout 3, ni l'absence du profil GoW III,
+ni la recompilation après un état : elle permet de les trancher sur l'iPhone.
+
+## 2. Diagnostics (Core `NEOSTATION_BUILD487_DIAGNOSTICS_V1`, hôte `NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1`)
+
+| # | Ajout | Où | Ce que la capture montrera |
+|---|---|---|---|
+| D1 | `rpcs3_ios_performance_metrics` grandit de 48 à 72 octets après `memory_total_bytes` : `guest_frames_presented`, `native_ui_visible`, `emulation_state`, `boot_progress_completed/total`, bits de validité 4–7, écrits seulement si `struct_size` couvre la nouvelle taille ; `performance_sample` gagne `emu_state= boot_progress= guest_frames= native_ui=` (`-` sans le bit) | `rpcs3/ios/RPCS3IOS.h`, `RPCS3IOSPerformance.cpp`, `RPCS3IOS.cpp` ; hôte `Rpcs3CoreABI.h`, `Rpcs3InternalBridgePlugin.mm` | distinguer « jeu à 30 fps » de « boîte de progression à 30 fps » (cas GTA V) |
+| D2 | `COREPROF` ajoute `other_ms window_ms ppu/spu/rsx/jit/other_cores compile_threads compile_cores other_threads rsx_fifo_busy rsx_thread_cpu top=<cinq threads>` et s'émet aussi dans une fenêtre sans image (sauf émulateur arrêté) | `RPCS3IOSPerformance.cpp`, `RPCS3IOSProfilerHelpers.h` | nommer le consommateur de CPU, voir un gel |
+| D3 | `CONFIG_LAYERS title= name= database= legacy_custom= legacy_path= sparse_overrides= shader_mode= frame_limit= wcb= wdb= rsx_res= spu_block= spu_decoder= ppu_decoder= async_tex= max_spurs= getllar_pct=`, une fois par démarrage, d'après le chemin réellement suivi | `System.cpp`, `RPCS3IOSBootDiagnostics.h` | prouver quelle couche de configuration était active (profil GoW III) |
+| D4 | `NEOSTATION_RESTART reason=<savestate_create|savestate_load|game_setting:<clé>|home_menu|sys_game|other> title= detail=`, une ligne par redémarrage interne | `System.cpp`, `RPCS3IOS.cpp`, menus Home, `sys_game.cpp` | relier une recompilation à sa cause |
+| D5 | `MUTEX_DESTROY_BUSY mutex_id= owner_id= owner_name= caller_id= caller_name=` au site `CELL_EBUSY` | `sys_mutex.cpp` | relier l'erreur de Fallout 3 au thread propriétaire |
+| D6 | `FREEZE_DUMP` (64 lignes au plus, une fois par 30 s) des threads PPU/SPU/RSX quand aucune image n'a été présentée depuis plus de 3 s alors qu'un groupe dépasse 0,5 cœur et que l'émulateur tourne | `RPCS3IOSFreezeDump.{h,cpp}` | établir ce que font les threads pendant un gel |
+| D7 | `RANGELOCKPROF` ajoute le maintien maximal par source | `RPCS3IOSPerformance.cpp` | distinguer beaucoup de verrous courts d'un long |
+| D8 | `JITPROF_BOOT session= boot_kind= modules_total= modules_compiled= modules_cached= modules_existing= ppu_cache_hits= ppu_cache_misses= wall_ms=` + phases `JITPROF` du démarrage entier | `PPUThread.cpp`, `Utilities/JITPhaseProfile.h` (totaux monotones additifs), `RPCS3IOSBootDiagnostics.h` | coût réel d'une recompilation PPU sur l'iPhone |
+| D9 | `RPCS3-diagnostic.log` tourne vers `RPCS3-diagnostic.1.log` au lieu d'être tronqué ; `neoswap_guest_sample_ext` (phase `sample`) n'est écrit que si ses compteurs changent, plus une ligne par 60 s | `Rpcs3Diagnostics.mm`, `Rpcs3InternalBridgePlugin.mm` | couvrir le démarrage d'une session de 30 min |
+| D10 | `SAVESTATE_BOOT` (deux lignes) sur un démarrage depuis un état : `applied_patches seg0_code_end funcs fragments`, puis `ppu_cache_hits ppu_cache_misses objects_loaded link_ms fragments_total` | `PPUThread.cpp` | savoir si un chargement d'état recompile et pourquoi |
+| L1 | l'hôte laisse passer `JITPROF`, `JITPROF_BOOT`, `CONFIG_LAYERS`, `NEOSTATION_RESTART`, `SAVESTATE_BOOT`, `FREEZE_DUMP`, `MUTEX_DESTROY_BUSY` ; jalons `jitprof_boot`, `config_layers`, `internal_restart`, `savestate_boot`, `freeze_dump` (première ligne, 512 octets), `mutex_destroy_busy` (64 par processus) | `Rpcs3InternalBridgePlugin.mm` | les lignes survivent à la rotation de 2 Mio |
+
+Le compteur `rsx` (audit § 6.1) est corrigé dans le même lot : horodatage
+initialisé au démarrage du thread RSX, recalcul aussi sur base de temps,
+comptage de l'attente FIFO vide et de la pause, champs `rsx_fifo_busy` et
+`rsx_thread_cpu`. Conséquence observée dans le code : la première valeur de
+`gpu_usage_percent` vaut 0 sur une fenêtre vide au lieu d'environ 100 %.
+
+## 3. Leviers (réglages du nœud « iOS Experimental » du Core, catalogue en anglais)
+
+| Levier | Réglage | Défaut | Autre valeur | Établi dans le code | Hypothèse à mesurer |
+|---|---|---|---|---|---|
+| L2 | `SPU Spin Timing` (`experimental.spu_spin_timing`) | Reference : constantes en ticks de la 483 (1 000 / 5 000 / 400 000 ticks = 41,7 µs / 208 µs / 16,7 ms à 24 MHz) | Calibrated : seuils GETLLAR en temps via `cntfrq_el0`, durées voulues par l'amont sur un TSC à 3 GHz (333 ns / 1,67 µs / 133 µs = 8 / 40 / 3 200 ticks) ; appelle `utils::init_arm_timer_scale()` | `init_arm_timer_scale()` calcule `cntfrq / 30 000 000`, nul sous 30 MHz : à 24 MHz l'échelle reste 1 et `busy_wait(n)` est identique dans les deux modes ; seules les trois bornes GETLLAR changent réellement | moins de CPU brûlé en attente de réservation, latence de réveil possible |
+| L3 | `RSX FIFO Idle Wait` (`experimental.fifo_idle_mode`) | Yield (483) | Bounded sleep : `sleep_for(100 µs)` après les huit spins | la boucle FIFO vide de Fallout 3 brûlait ≈ 0,85 cœur à 0–1 % d'occupation | suppression de ce spin en scène légère ; latence de reprise de quelques centaines de µs |
+| L5 | `SPU Object Cache Retained Keys` (`experimental.spu_object_cache_retained_keys`, 1–4) | 2 | 1 = comportement 481/483 | répertoire de la clé courante toujours gardé ; jusqu'à N−1 autres `spuobj-v6-*` du même Core et du même CPU (fichier `neostation-build.id`) dans les bornes communes 40 000 fichiers / 512 Mio ; autres formats, Cores et CPU toujours supprimés | un A/B de réglage SPU ne recompile plus à chaque bascule |
+| L9 | `SPU Warmup Scope` (`experimental.spu_warmup_scope`) | God of War III | All titles with metadata | le préchauffage n'était lancé que pour GoW III | moins de compilations SPU en jeu, écran de chargement plus long |
+
+La ligne `Resolved boot policy` garde ses champs 483 et ajoute
+`spin_timing= fifo_idle= spuobj_keys= warmup_scope= cntfrq= timer_scale= getllar_ticks=`.
+Aucun de ces réglages n'entre dans une clé de cache ni ne change le code généré.
+
+Non repris dans cette build, et pourquoi : L4 (pipelines 483, déjà livrés) ; L6
+`SPU Block Size` et L7 `Max SPURS Threads` (réglages amont existants, à
+comparer par titre avec le protocole) ; L8 QoS des threads auxiliaires et L10
+`max_llvm_threads` (risques audio et mémoire, à décider après une capture) ;
+L11 identité d'objet PPU stable après un état (à décider après D10).
+
+## 4. Ce qui ne change pas (observé dans le code, vérifié par test)
+
+- Les fichiers de génération de code (traducteurs PPU/SPU, `CPUTranslator.h`,
+  `JIT.h`, `JITLLVM.cpp`, passerelles AArch64, `PPUAnalyser.cpp`) sont
+  identiques octet pour octet à la Build 483 ; les lignes qui composent la clé
+  du cache d'objets SPU et le nom d'objet PPU sont identiques à la 483
+  (`test/rpcs3_build487_core_diagnostics_test.py`).
+- Compilation SPU différée toujours désactivée ; ABI principale 30 inchangée ;
+  aucune exportation retirée ; Core ARMSX2, Dolphin, cœurs libretro, catalogues
+  et skins inchangés.
+
+**Conséquence certaine** : `PPUThread.cpp`, `Utilities/JITPhaseProfile.h` et
+`SPUCommonRecompiler.cpp` font partie des empreintes de codegen calculées par
+CMake. Les identités PPU et SPU changent donc : chaque titre recompile ses
+modules PPU et ses programmes SPU au premier démarrage après l'installation,
+comme après la 483. Le répertoire SPU de la 483 (sans fichier marqueur) est
+supprimé à ce démarrage. Le premier démarrage après installation doit être
+écarté de toute comparaison.
+
+## 5. Vérifications exécutées
+
+*(complété après les runs ; voir § 7)*
+
+## 6. Protocole de capture sur l'iPhone
+
+1. Installer la Build 487 (re-signature SideStore), lancer chaque titre une
+   première fois et l'écarter (recompilation certaine, § 4).
+2. Ne comparer que des captures au même état thermique ; écarter toute
+   fenêtre où `emu_state` n'est pas `running` ou où `guest_frames` vaut 0.
+3. God of War III : relever le jalon `config_layers` du démarrage. Si
+   `legacy_custom=1`, le fichier nommé par `legacy_path` explique l'absence du
+   profil (hypothèse a de l'audit) ; si `database=1` et `fifo=4096 getllar=1`
+   dans `boot_policy`, le profil est actif.
+4. Après une création ou un chargement d'état : jalons `internal_restart`,
+   `savestate_boot` et `jitprof_boot` (`modules_compiled`, `ppu_cache_misses`,
+   `wall_ms`).
+5. En cas de gel : jalon `freeze_dump`, puis les lignes `FREEZE_DUMP` complètes
+   dans `RPCS3-diagnostic.log` ou `RPCS3-diagnostic.1.log` ; `mutex_destroy_busy`.
+6. Leviers, un à la fois, deux processus par variante (le premier écarté) :
+   `RSX FIFO Idle Wait` Yield puis Bounded sleep ; `SPU Spin Timing` Reference
+   puis Calibrated ; `SPU Warmup Scope`. Champs : `COREPROF frametime/p95/p99`,
+   `rsx_thread_cpu`, `spu_cores`, `guest_frames`, `JITPROF`, `SPUPROF`.
+
+## 7. Identités et résultats CI
+
+*(complété après le run Core et la livraison)*
+
+## 8. Risques et retour arrière
+
+- Retour arrière sans perte : remettre les réglages à Reference / Yield / 1 /
+  God of War III, ou réinstaller la Build 486 (son Core ignore le fichier
+  marqueur et les répertoires `spuobj-v6-*` d'une autre clé).
+- Volume de diagnostic : `COREPROF` toutes les 5 s même sans image (≈ 0,9 Kio),
+  `FREEZE_DUMP` borné par le Core, `MUTEX_DESTROY_BUSY` borné par l'hôte ; deux
+  fichiers de 2 Mio au plus.
+- Le vidage de gel lit des champs d'autres threads sans verrou (comme le
+  débogueur de RPCS3) : valeurs possiblement incohérentes entre elles, sans
+  effet sur l'émulation.

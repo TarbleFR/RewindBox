@@ -80,6 +80,21 @@ int main(int argc, const char* argv[]) {
     entries = readEntries(path);
     assert(entries.count > 1 && entries.count < 700);
     assert([entries.lastObject[@"message"] isEqualToString:@"after rotation"]);
+    // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: the rotation keeps the previous
+    // generation (it holds the oldest lines) instead of truncating in place.
+    NSString* previousPath = [testDocuments
+        stringByAppendingPathComponent:@"RPCS3-diagnostic.1.log"];
+    unsigned long long previousSize = [[NSFileManager.defaultManager
+        attributesOfItemAtPath:previousPath error:nil] fileSize];
+    assert(previousSize > 0 && previousSize <= 2 * 1024 * 1024);
+    NSArray* previousEntries = readEntries(previousPath);
+    // "reopened", 700 large lines and "after rotation" fill exactly one
+    // rotation (each line is ~4.2 KiB): nothing is lost between the two files.
+    assert(previousEntries.count > 1);
+    assert(previousEntries.count + entries.count == 702);
+    assert([[previousEntries.firstObject objectForKey:@"message"] isEqualToString:@"reopened"]);
+    for (NSUInteger i = 1; i < previousEntries.count; ++i)
+      assert([previousEntries[i][@"message"] isEqualToString:large]);
     RPCS3Diagnostic(nil, nil);
     RPCS3DiagnosticsFlushForTesting();
     assert([readEntries(path).lastObject[@"stage"] isEqualToString:@""]);

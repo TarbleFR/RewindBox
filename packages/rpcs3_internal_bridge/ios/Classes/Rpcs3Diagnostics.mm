@@ -118,6 +118,20 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
   return YES;
 }
 
+// NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D9): one previous generation.
+// Returns NO when the rename fails; the caller then truncates in place as
+// before, so the 2 MiB bound of the current file always holds.
+- (BOOL)rotateDiagnosticFileAtPath:(NSString*)path {
+  NSString* previous = [[path stringByDeletingPathExtension]
+      stringByAppendingString:@".1.log"];
+  [self closeDiagnosticFile];
+  NSFileManager* files = NSFileManager.defaultManager;
+  [files removeItemAtPath:previous error:nil];
+  const BOOL moved = [files moveItemAtPath:path toPath:previous error:nil];
+  if (![self openDiagnosticFileAtPath:path]) return NO;
+  return moved && self->_diagnosticLength == 0;
+}
+
 - (NSData*)lineForStage:(nullable NSString*)stage
                 message:(nullable NSString*)message
               timestamp:(NSTimeInterval)timestamp {
@@ -153,9 +167,15 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
                                timestamp:timestamp];
         if (!line) return;
         if (self->_diagnosticLength + line.length > kRPCS3DiagnosticLimit) {
-          [self->_diagnosticFile truncateFileAtOffset:0];
-          [self->_diagnosticFile seekToFileOffset:0];
-          self->_diagnosticLength = 0;
+          // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D9): a session writes about
+          // 2.7 KiB/s, so truncating in place lost the boot of every session
+          // longer than ~13 min. Keep the previous file as RPCS3-diagnostic.1.log
+          // (one generation: at most 2 x 2 MiB on disk) and start a new one.
+          if (![self rotateDiagnosticFileAtPath:path]) {
+            [self->_diagnosticFile truncateFileAtOffset:0];
+            [self->_diagnosticFile seekToFileOffset:0];
+            self->_diagnosticLength = 0;
+          }
         }
         [self->_diagnosticFile writeData:line];
         self->_diagnosticLength += line.length;

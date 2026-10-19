@@ -12,6 +12,7 @@ UNITS = {'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
          'SPUCommonRecompiler.cpp', 'SPULLVMRecompiler.cpp', 'SPUThread.cpp',
          'VKResourceManager.cpp',
          'BufferUtils.cpp', 'RSXFIFO.cpp', 'RPCS3IOS.cpp', 'RPCS3IOSPerformance.cpp', 'buffer_object.cpp',
+         'RPCS3IOSFreezeDump.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1
          'VKProgramPipeline.cpp', 'fsr_pass.cpp', 'SourceClient.cpp', 'cellVdec.cpp'}
 
 def main(database: Path) -> None:
