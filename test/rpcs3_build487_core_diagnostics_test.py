@@ -59,6 +59,13 @@ NATIVE = [
     ('test/native/rpcs3_build487_retention_sequence_test.cpp', 'retention sequence against the SPU object-cache policy'),
 ]
 includes = ['-I' + str(core), '-I' + str(core / 'rpcs3'), '-I' + str(core / 'rpcs3/ios')]
+# The Core job passes Xcode's clang++, which needs the macOS SDK explicitly (as the
+# other Core tests do with HOST_MACOS_SDK); /usr/bin/clang++ and Linux need nothing.
+SYSROOT = []
+if sdk := os.environ.get('HOST_MACOS_SDK'):
+    SYSROOT = ['-isysroot', sdk]
+elif sys.platform == 'darwin' and shutil.which('xcrun'):
+    SYSROOT = ['-isysroot', subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()]
 
 
 def sanitizer_flags():
@@ -66,7 +73,7 @@ def sanitizer_flags():
         probe = Path(tmp) / 'p.cpp'
         probe.write_text('int main(){return 0;}\n')
         flags = ['-fsanitize=address,undefined', '-fno-sanitize-recover=all']
-        result = subprocess.run([compiler, '-std=c++20', *flags, str(probe), '-o', str(Path(tmp) / 'p')],
+        result = subprocess.run([compiler, '-std=c++20', *SYSROOT, *flags, str(probe), '-o', str(Path(tmp) / 'p')],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return flags if result.returncode == 0 else []
 
@@ -75,7 +82,7 @@ SANITIZE = sanitizer_flags()
 with tempfile.TemporaryDirectory(prefix='rpcs3-487-native-') as tmp:
     for source, label in NATIVE:
         binary = Path(tmp) / Path(source).stem
-        subprocess.run([compiler, '-std=c++20', '-O1', '-g', '-Wall', '-Wextra', '-Werror', *SANITIZE, *includes,
+        subprocess.run([compiler, '-std=c++20', '-O1', '-g', '-Wall', '-Wextra', '-Werror', *SYSROOT, *SANITIZE, *includes,
                         str(ROOT / source), '-o', str(binary)], check=True)
         result = subprocess.run([str(binary)], check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         print(result.stdout.strip().splitlines()[-1] if result.stdout.strip() else '')

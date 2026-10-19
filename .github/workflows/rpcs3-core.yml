@@ -146,7 +146,7 @@ jobs:
           # retention against the real SPU object-cache policy), then the wiring and the
           # unchanged defaults; the host bridge part (admission of the new Core lines,
           # milestones, metrics mirror equal to the Core header, Foundation rotation).
-          CXX="$(xcrun --sdk macosx --find clang++)" \
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
             python3 test/rpcs3_build487_core_diagnostics_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/build487-core-proof.txt
           python3 test/rpcs3_build258_core_architecture_test.py "$STORAGE_SRC" 2>&1 | tee -a build/rpcs3-core-diagnostics/build487-core-proof.txt
           { python3 test/rpcs3_build487_host_diagnostics_test.py --core "$STORAGE_SRC"
