@@ -665,6 +665,106 @@
   "reason": "Dissidia 012 (NPHH00293) original textures: the extracted original images without textures.ini, a source set rather than a pack."
  },
  {
+  "console": "gc",
+  "source": "GMS HUD 4x.7z (https://drive.google.com/file/d/1w-yi_gfM5HNpDayaJS6g9w3o3XQN48yr/view?usp=sharing)",
+  "reason": "Super Mario Sunshine HUD 4x (razius): the HUD of razius's hires pack, carried on by the catalogued Sunshine UHD (qashto/razius)."
+ },
+ {
+  "console": "gc",
+  "source": "GMS HUD 8x.7z (https://drive.google.com/file/d/1pzeNBqxlpaXZvXbA_bmE1iuGudo78IQk/view?usp=sharing)",
+  "reason": "Super Mario Sunshine HUD 8x (razius): the HUD of razius's hires pack, carried on by the catalogued Sunshine UHD (qashto/razius)."
+ },
+ {
+  "console": "wii",
+  "source": "DDS (x8).7z (https://drive.google.com/open?id=10kKMFUbNzWUnr5PtDxaSLwxDKgTzTlNq)",
+  "reason": "NSMBW Shield-style UI, DDS x8: another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "DDS (x4).7z (https://drive.google.com/open?id=1qAmOA4xByc6-1M2fI4XFPQGZvrktjZIu)",
+  "reason": "NSMBW Shield-style UI, DDS x4: another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "PNG - Bighead's Pack (Original).7z (https://drive.google.com/open?id=1rv97n-KREYHdvTMXwVy3v7GjcJz8v_k1)",
+  "reason": "NSMBW HD (Bighead's original PNG pack): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "NSMBW_HD_v2.81.zip (https://drive.google.com/file/d/189JGDR4d_UbpNqC8wFQasM_AX42rO7xN/view)",
+  "reason": "NSMBW HD v2.81, resource-pack edition: another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "NSMBW_HD_v2.81_PSX.zip (https://drive.google.com/file/d/1l7KDzem-6tHwybU4HqnT7mrfzMiAYAQG/view)",
+  "reason": "NSMBW HD v2.81 PlayStation buttons (resource pack): an add-on of the catalogued NSMBW HD."
+ },
+ {
+  "console": "wii",
+  "source": "Metroid_Prime_Trilogy_HD_Interface_PNG_V1.7.zip (https://drive.google.com/file/d/1luyhWa0HGxFR3qq7tR5TNTOb0dtU6qvx)",
+  "reason": "Metroid Prime Trilogy HD Interface v1.7 (PNG): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_v0.06_DDS.7z (https://drive.google.com/file/d/1dbUWkPCMK3-nmL-V9Y2MR09v7PbmH05J/view?usp=sharing)",
+  "reason": "Skies of Arcadia HD v0.06 (DDS): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_Core_v0.06.zip (https://drive.google.com/file/d/1HzP3ZQojGxm6Q5_3_2pVFgkVvunwGAXk/view)",
+  "reason": "Skies of Arcadia HD v0.06 core (resource pack): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_FMW_v0.06.zip (https://drive.google.com/file/d/1-jGBKBROUpXlbs04KYKtutwMtR0yB2wY/view)",
+  "reason": "Skies of Arcadia HD v0.06 FMW add-on: an add-on (one texture) of the catalogued pack."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_French_v0.06.zip (https://drive.google.com/file/d/1MIyFyKp-eUFIFZ4FqCuVo5JzM99QmOfQ/view)",
+  "reason": "Skies of Arcadia HD v0.06 French add-on: an add-on (four textures) of the catalogued pack."
+ },
+ {
+  "console": "gc",
+  "source": "4x DDS BC7_Zelda Four Swords Adventure HD 1.0.zip (https://mega.nz/file/uXZigCKD#AC3K6BMEsJ82_JDX7ZKD6OKzKIA-rolsk5zDb_I9qoM)",
+  "reason": "Zelda Four Swords Adventure HD 1.0 (Dolphin forum): same name and version as the catalogued GitHub release fsa-hd v1.0; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SFA_Beta_Textures_DDS.zip (https://drive.google.com/file/d/1_QFB9vka2mdgAqpqqSSdEul3AjiHLh3t/view?usp=sharing)",
+  "reason": "Star Fox Adventures HD beta and original textures: alternative textures for the catalogued CYB3RTR0N pack."
+ },
+ {
+  "console": "wii",
+  "source": "originalcontrols_65ec3.zip (https://gamebanana.com/dl/920697)",
+  "reason": "Sonic and the Black Knight original controls: an add-on (controller prompts) of the AI-upscaled pack, whose main archive is not among the files read."
+ },
+ {
+  "console": "wii",
+  "source": "PS3 Controller.7z (https://www.dropbox.com/s/fm3mopoall1nbke/PS3%20Controller.7z?dl=0)",
+  "reason": "Super Smash Bros. HD Retexture Project PS3 controller: an add-on of the project, without the game folder."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel 4K Parade Patch v1.3.1.zip (https://drive.google.com/file/d/1H2WHeHyM1lg_Ts63ugtUJw2qqCCUhKX8/view)",
+  "reason": "Mii Channel 4K parade patch: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel 4K Resource Pack v1.3.1.zip (https://drive.google.com/file/d/1SJ65JFoqcQH6vxXXkz7hIivQvTIVCAPQ/view)",
+  "reason": "Mii Channel 4K resource pack: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel HD Parade Patch v1.3.1.zip (https://drive.google.com/file/d/1ZStBuZ5WSW25A5OxhoRJhiCZYi0dYeBz/view)",
+  "reason": "Mii Channel HD parade patch: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel HD Resource Pack v1.3.1.zip (https://drive.google.com/file/d/1NfgkWFbZ-cbjoZtgoOBzxxjJpJMMu1HM/view)",
+  "reason": "Mii Channel HD resource pack: textures of a Wii system channel, not a game of the library."
+ },
+ {
   "console": "3ds",
   "source": "ac3d-hd-texture-pack-v0.9.2.zip (https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf)",
   "reason": "The same file as the catalogued Ace Combat: Assault Horizon Legacy+ HD pack (3ds.json, the author's Drive file)."

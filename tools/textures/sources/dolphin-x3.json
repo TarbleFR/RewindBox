@@ -4680,6 +4680,497 @@
   "family": "gc-shadow-the-hedgehog-steam-buttons-joecontext"
  },
  {
+  "id": "wii-animal-crossing-city-folk-hd-yttrium",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Animal Crossing: City Folk HD Project",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "Animal Crossing: City Folk",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RUUE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "yttrium"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-hd-project-animal-crossing-city-folk-ruue01",
+  "source_id": "dolphin-forum:hd-project-animal-crossing-city-folk-ruue01",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "First release (49 textures). Its few files in the old pre-2015 naming are not read by Dolphin and not installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-hd-project-animal-crossing-city-folk-ruue01",
+   "file_name": "RUUE01HDv0.1.7z",
+   "verify": {
+    "url": "https://www.dropbox.com/s/d9kxmyrns5qsyku/RUUE01HDv0.1.7z?dl=0",
+    "sha256": "ff7db23f1de332143418066ff8f3eca26fa2ab639cbc1eccc77c65d40bbc4730"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RUUE01/",
+     "to": "RUUE01"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-animal-crossing-city-folk-hd-yttrium"
+ },
+ {
+  "id": "wii-endless-ocean-blue-world-hd-matrix2525",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Endless Ocean: Blue World HD Project",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "Endless Ocean: Blue World",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R4E"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Matrix2525"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+  "source_id": "dolphin-forum:endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+   "file_name": "EOBW HDP v2.0 RP.zip",
+   "verify": {
+    "url": "https://mega.nz/file/9BVSzbrK#0KTFsA2wmSbv2YMlFnav2XXtM2hRosp0Z06Y8QzMInc",
+    "sha256": "a319d31753c3ac0c6f797c3effae546e5c49ce9622392619bd79146fa391c0ad"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/R4E/",
+     "to": "R4E"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-endless-ocean-blue-world-hd-matrix2525"
+ },
+ {
+  "id": "wii-sonic-colors-uhd-forum",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors UHD Texture",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SNCE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-sonic-color-uhd-texture",
+  "source_id": "dolphin-forum:sonic-color-uhd-texture",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Made on the USA disc (SNCE8P).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-sonic-color-uhd-texture",
+   "file_name": "SNCE8P_UHD Texture.7z",
+   "verify": {
+    "url": "https://mega.nz/file/fPggjR4K#jVz3XbnYqbzYDEzjCEfvTvALe6d9lomXtPWjy6XY1BE",
+    "sha256": "aa255c9dc39a2faf4824b49aeb8ab8a5629669b9ac4d5a88b345cf3560fa4ef8"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SNCE8P/",
+     "to": "SNCE8P"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-sonic-colors-uhd-forum"
+ },
+ {
+  "id": "gc-super-mario-strikers-hd-venomalia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Strikers HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Mario Strikers",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G4QE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Venomalia"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-mario-strikers-hd-texture-pack",
+  "source_id": "dolphin-forum:super-mario-strikers-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Made on the USA disc (G4QE01).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-mario-strikers-hd-texture-pack",
+   "file_name": "G4QE01.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1GNQ4x15g6YnlNBDTDKmpjdC2cj5BpCvI/view?usp=sharing",
+    "sha256": "39cf39eeca685600b149b3c4146fbbe9391e3c66c29c9ca673e6783b7bd6fb65"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "G4QE01/",
+     "to": "G4QE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-super-mario-strikers-hd-venomalia"
+ },
+ {
+  "id": "gc-ttyd-classic-controller-buttons-jvook",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Classic Controller buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "jvook"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario TTYD Classic Controller by jvook.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/m8l1EAwZ",
+    "sha256": "168b06c5d5b5789e2feb0def8fb261b3f159b5f30a52ef81d52a76b75c3257ef"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-buttons-jvook"
+ },
+ {
+  "id": "gc-ttyd-xbox360-ms-buttons-jvook",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Xbox 360 buttons (Microsoft layout)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "jvook"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario TTYD Xbox 360 (Microsoft Layout) by jvook.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/uw8hECAb",
+    "sha256": "383cbb1a0add55eb8626c3b576e34e96266fe66a0d31338c8b7d1d92091033c9"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-buttons-jvook"
+ },
+ {
+  "id": "gc-ttyd-xbox360-nintendo-buttons-jvook",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Xbox 360 buttons (Nintendo layout)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "jvook"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario TTYD Xbox 360 (Nintendo Layout) by jvook.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/q1thAAoC",
+    "sha256": "105192062bb7789b2922eb4f8d280f977a03abd8cdaaaba74fee4ab1333cfc1c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-buttons-jvook"
+ },
+ {
+  "id": "gc-ttyd-dualshock4-buttons-azcrate98",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — DualShock 4 buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "azcrate98",
+   "Invader"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario The Thousand-Year Door DualShock 4 Controller by azcrate98 & Invader.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/D90TnAKC",
+    "sha256": "ac3025a3b2a3207582298a84d0e14a96dfb3327c11a8cdd48df6a27f649f5661"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-dualshock4-buttons-azcrate98"
+ },
+ {
+  "id": "gc-ttyd-wiiu-pro-buttons-hydraxonn",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Wii U Pro Controller buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Hydraxonn",
+   "viola-kazooie"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario The Thousand-Year Door Wii U Pro Controller by Hydraxonn & viola-kazooie.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/ep8FAbrA",
+    "sha256": "99370b31fd710dee5db3b10622faf6acf8fb87a01c0519d99ae224baeef0004f"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-wiiu-pro-buttons-hydraxonn"
+ },
+ {
+  "id": "gc-ttyd-xbox-one-buttons-jakey455",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Xbox One buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Jakey455"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario The Thousand-Year Door Xbox One by Jakey455.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/2h1BEY5B",
+    "sha256": "bda079571cc43b820be657d8660c5e612fd7e4d720a1357c2959bd06a355b7e9"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-xbox-one-buttons-jakey455"
+ },
+ {
   "id": "wii-mkwii-xbox-ui-floweygaming",
   "system": "wii",
   "engine": "dolphin",
