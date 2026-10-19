@@ -4036,5 +4036,446 @@
   },
   "scope": "ui",
   "family": "wii-metroid-prime-trilogy-hd-interface"
+ },
+ {
+  "id": "gc-sonic-heroes-hd-hime6564",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Sonic Heroes HD Textures (Hime6564)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Heroes",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G9SE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Hime6564"
+  ],
+  "page_url": "https://gamebanana.com/mods/339813",
+  "source_id": "gamebanana:339813",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The author's latest upload on the page. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/339813",
+   "file_name": "g9se8p_ef626.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/778319",
+    "sha256": "d7b6f3b586928fc19ced9608225d39321939078d7fd9610347a4971a6f1135d4"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "G9SE8P/",
+     "to": "G9SE8P"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sonic-heroes-hd-hime6564"
+ },
+ {
+  "id": "gc-pac-man-world-2-hd-ui-ottomsx",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pac-Man World 2 HD UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Pac-Man World 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GP2EAF"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "OttoMSX"
+  ],
+  "page_url": "https://gamebanana.com/mods/701356",
+  "source_id": "gamebanana:701356",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/701356",
+   "file_name": "pmw2_hd_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1776640",
+    "sha256": "8eb752b790bee0d6413a333951cd204d647be57a7fd391e86af72a9aacd7063d"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "PMW2 HD UI/GP2EAF/",
+     "to": "GP2EAF"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-pac-man-world-2-hd-ui-ottomsx"
+ },
+ {
+  "id": "gc-mario-party-6-ps4-hud-seven",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 6 — PlayStation HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Party 6",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GP6E01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "seven_"
+  ],
+  "page_url": "https://gamebanana.com/mods/334855",
+  "source_id": "gamebanana:334855",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/334855",
+   "file_name": "xbox_and_playstation_huds_mario_party_6_.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/690486",
+    "sha256": "0de3c95d991fe00469e9690ae91d0b42e2fe1e52e3e608235f5f918a5929f1c6"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Xbox and Playstation Huds (Mario Party 6)/PlayStation 4/GP6E01/",
+     "to": "GP6E01"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-mario-party-6-console-huds-seven"
+ },
+ {
+  "id": "wii-sonic-unleashed-hd-overhaul-gabishy",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Unleashed (Wii) HD Overhaul",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Unleashed",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RSVE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "GabiShy"
+  ],
+  "page_url": "https://gamebanana.com/mods/361737",
+  "source_id": "gamebanana:361737",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/361737",
+   "file_name": "hd_overhaul_9240f.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1143178",
+    "sha256": "55a117c59b4299f04735cfa87bda51c88b2b74f060681f876b9a5c5147c7a73b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "HD OVERHAUL/RSVE8P/",
+     "to": "RSVE8P"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-sonic-unleashed-hd-overhaul-gabishy"
+ },
+ {
+  "id": "wii-sonic-unleashed-hd-hud-raisyu",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Unleashed (Wii) HD HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Unleashed",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RSV"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "raisyu"
+  ],
+  "page_url": "https://gamebanana.com/mods/588015",
+  "source_id": "gamebanana:588015",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/588015",
+   "file_name": "hd_hud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1420518",
+    "sha256": "4db696f4d37b7a4255e4a3345caa4c2109ec8a6af2b23480490c8a1ae57291c3"
+   }
+  },
+  "scope": "ui",
+  "family": "wii-sonic-unleashed-hd-hud-raisyu"
+ },
+ {
+  "id": "wii-smg-ps4-ui-stark1llerxx",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Super Mario Galaxy — PS4 UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Mario Galaxy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMG"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "StarK1llerXx"
+  ],
+  "page_url": "https://gamebanana.com/mods/689283",
+  "source_id": "gamebanana:689283",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/689283",
+   "file_name": "ps4_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1738399",
+    "sha256": "54a6a082eeca5faadb485858451e7ed3a4fc717daa57611b664e6799a70e07e4"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "PS4 UI/Load/Textures/RMG/",
+     "to": "RMG"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-smg-ps4-ui-stark1llerxx"
+ },
+ {
+  "id": "wii-elebits-hd-01-awesomemega8921",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Elebits HD Texture Pack (part 1)",
+  "version": "01",
+  "games": [
+   {
+    "title": "Elebits",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RELEA4"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "AwesomeMega8921"
+  ],
+  "page_url": "https://gamebanana.com/mods/399249",
+  "source_id": "gamebanana:399249",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "First part of a pack in progress.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/399249",
+   "file_name": "elebits_hd_texture_pack_01_f4016.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/857297",
+    "sha256": "23badeae65fd6576080da1dcbd91e00e32ed6bf941292053a0315ca65d54d4ec"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "RELEA4/",
+     "to": "RELEA4"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-elebits-hd-awesomemega8921"
+ },
+ {
+  "id": "wii-satsr-xbox-one-gui-accelerate",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic and the Secret Rings — HD Xbox One GUI and controls",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic and the Secret Rings",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RSRE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Accelerate"
+  ],
+  "page_url": "https://gamebanana.com/mods/390496",
+  "source_id": "gamebanana:390496",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds Dolphin controller and game settings. Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/390496",
+   "file_name": "xbox_one_textures_and_controls_for_satsr.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1756030",
+    "sha256": "d38d7b2b78c834c54df3edc56ea6a0883f6b7d4c7e0d1fd9ff7278358fc52af5"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "RSRE8P/",
+     "to": "RSRE8P"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-satsr-xbox-one-gui-accelerate"
+ },
+ {
+  "id": "wii-sonic-colors-dualsense-ui-pancho0411",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors — DualSense UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SNC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Pancho0411"
+  ],
+  "page_url": "https://gamebanana.com/mods/34057",
+  "source_id": "gamebanana:34057",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/34057",
+   "file_name": "dualsense_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/549303",
+    "sha256": "6ddfd6ef7fa51edd6ea34e3371706e2bd5ceab1d9d11d2f0b6406accf6090c8e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "DualSense UI/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-sonic-colors-dualsense-ui-pancho0411"
  }
 ]

@@ -278,5 +278,325 @@
   "console": "wii",
   "source": "bloom.zip (https://gamebanana.com/dl/920299)",
   "reason": "Sonic and the Black Knight HD thread, bloom.zip: a game-ID marker only, no texture."
+ },
+ {
+  "console": "3ds",
+  "source": "hd_ui.zip (https://gamebanana.com/dl/1762757)",
+  "reason": "Monster Hunter 3 Ultimate HD UI: Cemu (Wii U) texture files, not a 3DS pack."
+ },
+ {
+  "console": "3ds",
+  "source": "ps-ultrawide-03-1.zip (https://gamebanana.com/dl/1771672)",
+  "reason": "Monster Hunter 3 Ultimate ultrawide UI: Cemu (Wii U) texture files, not a 3DS pack."
+ },
+ {
+  "console": "gc",
+  "source": "ttyd_lgbtq_partner_pack.zip (https://gamebanana.com/dl/808954)",
+  "reason": "Paper Mario TTYD partner sprites (63 textures, no game folder): a cosmetic edit, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "male_wii_fit_trainer_csproject.zip (https://gamebanana.com/dl/1346589)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pac/.pcs), not Dolphin texture replacement."
+ },
+ {
+  "console": "psp",
+  "source": "parappa_hd_xbox_buttons_7d895.zip (https://gamebanana.com/dl/1585852)",
+  "reason": "PaRappa HD Xbox buttons: four textures (a PSP mod on a GameCube/Wii search)."
+ },
+ {
+  "console": "3ds",
+  "source": "fates_hd_additions_7-15-24.zip (https://gamebanana.com/dl/1237255)",
+  "reason": "Fire Emblem Fates HD additions: an add-on of another pack, without a title-ID folder."
+ },
+ {
+  "console": "wii",
+  "source": "mod_links_385d0.zip (https://gamebanana.com/dl/1420507)",
+  "reason": "Sonic Unleashed mod links: a readme only."
+ },
+ {
+  "console": "gc",
+  "source": "spinning_ring_icon_ai_texture.zip (https://gamebanana.com/dl/702806)",
+  "reason": "Sonic Heroes spinning ring icon: an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "item_icons_alt__fd044.zip (https://gamebanana.com/dl/702891)",
+  "reason": "Sonic Heroes item icons (alt): an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "mission_clear_screen_alt__c9725.zip (https://gamebanana.com/dl/702892)",
+  "reason": "Sonic Heroes mission clear screen (alt): an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "stage_hud_alt.zip (https://gamebanana.com/dl/703624)",
+  "reason": "Sonic Heroes stage HUD (alt): an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "g9se8p_b0975.zip (https://gamebanana.com/dl/703625)",
+  "reason": "Sonic Heroes HD (Hime6564), an earlier upload of the pack catalogued from the author's latest."
+ },
+ {
+  "console": "gc",
+  "source": "g9se8p_88540.zip (https://gamebanana.com/dl/764084)",
+  "reason": "Sonic Heroes HD (Hime6564), an earlier upload of the pack catalogued from the author's latest."
+ },
+ {
+  "console": "wii",
+  "source": "nsmbw_custom_hd_title.zip (https://gamebanana.com/dl/908195)",
+  "reason": "New Super Mario Bros. Wii custom title: one texture."
+ },
+ {
+  "console": "gc",
+  "source": "pm_themed_p__b8dc3.zip (https://gamebanana.com/dl/591917)",
+  "reason": "Project+ themes: game files (a Brawl mod), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "smash_3c_hooded_diddy_kong.7z (https://gamebanana.com/dl/1239373)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pac), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "s3c_substitue_ivysaur.zip (https://gamebanana.com/dl/411004)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pcs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "shadow_unwiished_skin.zip (https://gamebanana.com/dl/1397857)",
+  "reason": "Sonic Unleashed Shadow skin: a character skin, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "orochi_and_rengoku.zip (https://gamebanana.com/dl/700290)",
+  "reason": "Sonic Riders board skins: four textures."
+ },
+ {
+  "console": "gc",
+  "source": "acryte_-_hd_-_shield_bubble-10.zip (https://gamebanana.com/dl/1531229)",
+  "reason": "Melee shield bubble: two textures."
+ },
+ {
+  "console": "gc",
+  "source": "acryte_-_hd_-_shield_bubble-11.zip (https://gamebanana.com/dl/1531230)",
+  "reason": "Melee shield bubble: two textures."
+ },
+ {
+  "console": "gc",
+  "source": "dark_mode_cover_and_advantage_gears.zip (https://gamebanana.com/dl/700201)",
+  "reason": "Sonic Riders dark-mode gears: a cosmetic skin, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "gz2e01dolphin.zip (https://gamebanana.com/dl/1750733)",
+  "reason": "Twilight Princess: seven textures."
+ },
+ {
+  "console": "gc",
+  "source": "gz2e01dolphin_1080p.zip (https://gamebanana.com/dl/1750734)",
+  "reason": "Twilight Princess: seven textures (1080p)."
+ },
+ {
+  "console": "gc",
+  "source": "use_the_alt_download_71821.7z (https://gamebanana.com/dl/997552)",
+  "reason": "A placeholder file pointing to another download."
+ },
+ {
+  "console": "gc",
+  "source": "s3c_link_botw.zip (https://gamebanana.com/dl/505029)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pac), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "jermamikuphoto.zip (https://gamebanana.com/dl/915966)",
+  "reason": "Shadow the Hedgehog: one joke texture."
+ },
+ {
+  "console": "gc",
+  "source": "treffy.zip (https://gamebanana.com/dl/1637438)",
+  "reason": "Castlevania Judgment character skin: six textures."
+ },
+ {
+  "console": "gc",
+  "source": "game_portraits.zip (https://gamebanana.com/dl/1636027)",
+  "reason": "Castlevania Judgment portraits: a cosmetic edit."
+ },
+ {
+  "console": "gc",
+  "source": "netflixvania_portraits.zip (https://gamebanana.com/dl/1636496)",
+  "reason": "Castlevania Judgment portraits: a cosmetic edit."
+ },
+ {
+  "console": "gc",
+  "source": "whitney_19db7.zip (https://gamebanana.com/dl/1423577)",
+  "reason": "Animal Crossing villager skin: a cosmetic edit."
+ },
+ {
+  "console": "gc",
+  "source": "gmod_gamecube.zip (https://gamebanana.com/dl/222992)",
+  "reason": "Garry's Mod model, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "2s2h_-_gamecube_buttons_8bd_.zip (https://gamebanana.com/dl/1388930)",
+  "reason": "Majora's Mask PC port (2Ship2Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "2s2h_-_gamecube_buttons_vc_.zip (https://gamebanana.com/dl/1388929)",
+  "reason": "Majora's Mask PC port (2Ship2Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "soh_-_gamecube_buttons_8bd_.zip (https://gamebanana.com/dl/1388925)",
+  "reason": "Ocarina of Time PC port (Ship of Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "soh_-_gamecube_buttons_vc_.zip (https://gamebanana.com/dl/1388926)",
+  "reason": "Ocarina of Time PC port (Ship of Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "sadx_sonicmuzzlecornerfix_pc_b1838.zip (https://gamebanana.com/dl/1160463)",
+  "reason": "Sonic Adventure DX fix: game files (PVM, PC), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "sadx_sonicmuzzlecornerfix_gc_1fec2.zip (https://gamebanana.com/dl/1160464)",
+  "reason": "Sonic Adventure DX fix: game files (GVM), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "super_mario_mash-up_pack_-_classicube_port.zip (https://gamebanana.com/dl/1704486)",
+  "reason": "ClassiCube texture pack, not a console pack."
+ },
+ {
+  "console": "wii",
+  "source": "mkwii_texture_hack.zip (https://gamebanana.com/dl/785984)",
+  "reason": "Mario Kart Wii texture hack: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "lsp-v1.zip (https://gamebanana.com/dl/833656)",
+  "reason": "Luna Sports: a Riivolution mod (game files)."
+ },
+ {
+  "console": "wii",
+  "source": "v2026-02.zip (https://gamebanana.com/dl/1621037)",
+  "reason": "Mario Kart Wii mod: game files (.szs/.brstm), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "no_custom_items.zip (https://gamebanana.com/dl/1621039)",
+  "reason": "Mario Kart Wii mod: game files (.szs/.brsar), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "metaljaripower_kart_part_s.zip (https://gamebanana.com/dl/407876)",
+  "reason": "Mario Kart Wii kart parts: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "insane_kart_wii_91cb8.zip (https://gamebanana.com/dl/1621650)",
+  "reason": "Insane Kart Wii look for the retail game: a restyle into another mod distribution, not an HD pack."
+ },
+ {
+  "console": "wii",
+  "source": "mario_kart_wii_deluxe_x_76d58.zip (https://gamebanana.com/dl/1621649)",
+  "reason": "Mario Kart Wii Deluxe X: textures for a custom distribution with its own disc ID (RMCEA2)."
+ },
+ {
+  "console": "gc",
+  "source": "kirby_weapons_pack_project_mod.zip (https://gamebanana.com/dl/679317)",
+  "reason": "Super Smash Bros. Brawl weapons: game files (.pac), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "suwii_alttexture_v15_e32b7.zip (https://gamebanana.com/dl/712155)",
+  "reason": "Sonic Unleashed alternative textures: cosmetic alternatives (18 textures)."
+ },
+ {
+  "console": "wii",
+  "source": "suwii_alttexture_v11.zip (https://gamebanana.com/dl/657968)",
+  "reason": "Sonic Unleashed alternative textures: an earlier version."
+ },
+ {
+  "console": "wii",
+  "source": "suwii_alttexture.zip (https://gamebanana.com/dl/657441)",
+  "reason": "Sonic Unleashed alternative textures: an earlier version."
+ },
+ {
+  "console": "gc",
+  "source": "vs_phil_texture_pack.zip (https://gamebanana.com/dl/669829)",
+  "reason": "A macOS application bundle, not a texture pack."
+ },
+ {
+  "console": "wii",
+  "source": "dark_theme_texture_pack.zip (https://gamebanana.com/dl/1789738)",
+  "reason": "Mario Kart Wii dark theme: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "wsrdestinyislev1_0_2.zip (https://gamebanana.com/dl/1794917)",
+  "reason": "Wii Sports Resort Destiny Isle: a Riivolution mod (game files)."
+ },
+ {
+  "console": "gc",
+  "source": "dcf_wiiwheel_v10.zip (https://gamebanana.com/dl/1480051)",
+  "reason": "A GZDoom wheel layout, not a console texture pack."
+ },
+ {
+  "console": "wii",
+  "source": "bikeoutfits.zip (https://gamebanana.com/dl/685555)",
+  "reason": "Mario Kart Wii outfits: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "nsmbw_mario_pack_playerspurity_v10_.zip (https://gamebanana.com/dl/1744848)",
+  "reason": "Mario Kart Wii character pack: game files (.brres), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "sonic_riders_wii__6ef14.zip (https://gamebanana.com/dl/1810295)",
+  "reason": "Sonic Riders Wii: a game mod (nested archive and settings)."
+ },
+ {
+  "console": "gc",
+  "source": "rosalinarecolorpack.7z (https://gamebanana.com/dl/552109)",
+  "reason": "Super Smash Bros. Ultimate (Switch) recolour, not a GameCube/Wii/3DS pack."
+ },
+ {
+  "console": "wii",
+  "source": "wiisp.zip (https://gamebanana.com/dl/898605)",
+  "reason": "WiiSP: a Riivolution mod (game files)."
+ },
+ {
+  "console": "gc",
+  "source": "archive_texture_speed_garden_4.zip (https://gamebanana.com/dl/673496)",
+  "reason": "Super Mario 64 PC texture set, not a console pack."
+ },
+ {
+  "console": "gc",
+  "source": "archive_texture_speed_garden_3.zip (https://gamebanana.com/dl/642341)",
+  "reason": "Super Mario 64 PC texture set, not a console pack."
+ },
+ {
+  "console": "gc",
+  "source": "texture_pack_speed_garden_2.zip (https://gamebanana.com/dl/537611)",
+  "reason": "Super Mario 64 PC texture set, not a console pack."
+ },
+ {
+  "console": "gc",
+  "source": "sn-132.zip (https://gamebanana.com/dl/891190)",
+  "reason": "A PC game resource pack, not a console pack."
+ },
+ {
+  "console": "wii",
+  "source": "xbox_one_textures_and_controls_for_satsr_autorunner__82cb9.zip (https://gamebanana.com/dl/1403110)",
+  "reason": "Sonic and the Secret Rings Xbox One GUI, autorunner edition: the same textures with six more for an input mod."
  }
 ]
