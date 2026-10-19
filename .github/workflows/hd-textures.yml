@@ -39,7 +39,9 @@ on:
         default: '--console gc'
 permissions: {contents: read, actions: read}
 concurrency:
-  group: hd-textures-${{ github.sha }}
+  # Pushes of one commit share a group; each dispatch has its own, so review and
+  # verification runs dispatched together on one commit are never cancelled.
+  group: ${{ github.event_name == 'workflow_dispatch' && format('hd-textures-dispatch-{0}', github.run_id) || format('hd-textures-{0}', github.sha) }}
   cancel-in-progress: false
 jobs:
   host:
