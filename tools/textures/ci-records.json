@@ -53,6 +53,20 @@
         "n64"
       ],
       "records": 1
+    },
+    {
+      "run": 39264550682,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the two N64 repository packs)",
+      "source": "cdfc96101c2bd8b140a2dd80ab0fa6b7ac03065c",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds",
+        "n64"
+      ],
+      "records": 2
     }
   ]
 }
