@@ -18,16 +18,20 @@ from pathlib import Path
 import hdtex489_delivery as previous
 base=previous.base  # unified_cheats_delivery: command, api, successful_run, ROOT
 
-# Branch head before this cycle's product push: the Build 489 delivery records on Claude.
-BASE=''
-# Build 489 source and its delivery run (checks/native reused, cold Release).
-DELIVERED=''
-DELIVERED_RUN=0
-# Build 490 source tested by game-box-checks.yml. Each part: (run, source, job).
-TESTED_SOURCE=''
-PROOFS={
-    'host':(0,TESTED_SOURCE,'Texts, geometry, media, reader and inspector on Flutter'),
-    'native':(0,TESTED_SOURCE,'Vision, NaturalLanguage and Translation on macOS and the iOS Simulator; iPhone SDK type check'),
+# Build 489 source and its delivery run (checks/native reused, cold Release). The
+# Build 490 delivery ref (tag build-490) is this exact source plus the 490 commits
+# only: the later commits of other sessions on Claude are not part of Build 490.
+DELIVERED='a8065a993c0a9f791c40bad75c44726fa63e161d'
+DELIVERED_RUN=39340720047
+# Every change of this cycle is counted from the delivered 489 source.
+BASE=DELIVERED
+# The tested source is the delivery commit itself: game-box-checks.yml is dispatched
+# on the build-490 tag, so its parts ran on exactly the tree packaged here. Each part:
+# the job that must have passed in a successful run of that workflow on HEAD.
+WORKFLOW='game-box-checks.yml'
+JOBS={
+    'host':'Texts, geometry, media, reader and inspector on Flutter',
+    'native':'Vision, NaturalLanguage and Translation on macOS and the iOS Simulator; iPhone SDK type check',
 }
 PARTS=('host','native')
 
@@ -50,22 +54,28 @@ def part_inputs(part):
     tested={'host':targeted.HOST_PYTHON+targeted.DART_TESTS,'native':[targeted.NATIVE_MAIN]}[part]
     return set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(tested)
 
+def tested_source():
+    return base.command(['git','rev-parse','HEAD'])
+
+def proofs(source):
+    # The latest completed, successful run of the targeted workflow on this exact commit.
+    runs=base.api(f'actions/workflows/{WORKFLOW}/runs?head_sha={source}&status=success&per_page=20')['workflow_runs']
+    runs=[r for r in runs if r['head_sha']==source and r['conclusion']=='success']
+    if not runs:raise ValueError('No successful '+WORKFLOW+' run on '+source)
+    run=max(runs,key=lambda r:r['run_number']*100+r['run_attempt'])['id']
+    return {part:(run,source,job) for part,job in JOBS.items()}
+
 def source_closure():
-    for name,value in (('BASE',BASE),('DELIVERED',DELIVERED),('TESTED_SOURCE',TESTED_SOURCE)):
-        if len(value)!=40:raise ValueError(f'{name} is not pinned yet')
-    if not DELIVERED_RUN:raise ValueError('DELIVERED_RUN is not pinned yet')
-    for part,(run,source,job) in PROOFS.items():
-        if not run or len(source)!=40:raise ValueError(f'{part} proof is not pinned yet')
+    source=tested_source()
+    for name,value in (('BASE',BASE),('DELIVERED',DELIVERED)):
+        if len(value)!=40:raise ValueError(f'{name} is not pinned')
     for end in (['HEAD'],[]):
         paths=set(base.command(['git','diff','--name-only',BASE,*end]).splitlines())
         # Documentation and records (docs/, AGENTS.md) are never packaged nor tested inputs.
         extra={path for path in paths-TESTED-DELIVERY_ONLY if not path.startswith('docs/')}
         if extra:raise ValueError('Unvalidated changed inputs: '+', '.join(sorted(extra)))
-        # Every tested input is byte-identical to the tested source.
-        base.command(['git','diff','--exit-code',TESTED_SOURCE,*end,'--',*sorted(TESTED)])
-    for part,(run,source,job) in PROOFS.items():
-        if source!=TESTED_SOURCE:
-            base.command(['git','diff','--exit-code',source,TESTED_SOURCE,'--',*sorted(part_inputs(part))])
+    # The working tree is the tested commit (nothing edited after checkout).
+    base.command(['git','diff','--exit-code','HEAD','--',*sorted(TESTED)])
     for end in (['HEAD'],[]):
         # The product differs from delivered 489 exactly by the Build 490 files.
         changed=set(base.command(['git','diff','--name-only',DELIVERED,*end,'--',*PRODUCT_PATHS]).splitlines())
@@ -77,11 +87,11 @@ def source_closure():
         base.command(['git','diff','--exit-code',DELIVERED,*end,'--',*RPCS3_CORE_PATHS])
         base.command(['git','diff','--exit-code',DELIVERED,*end,'--',*ARMSX2_CORE_INPUTS])
         base.command(['git','diff','--exit-code',DELIVERED,*end,'--','build-utils/libretro'])
-        # The HD texture catalogue, its engines and the libretro bridge are the delivered 489 ones.
+        # The HD texture catalogue, its engines and the bridges are the delivered 489 ones.
         base.command(['git','diff','--exit-code',DELIVERED,*end,'--','packages/neo_texture_catalog','native/textures',
-            'packages/libretro_internal_bridge','packages/dolphin_internal_bridge','packages/armsx2_internal_bridge'])
-    return {'deliveredBaseline':DELIVERED,'baselineRecord':BASE,'testedSource':TESTED_SOURCE,
-        'targetedRuns':{part:{'run':run,'source':source} for part,(run,source,job) in PROOFS.items()},
+            'packages/libretro_internal_bridge','packages/dolphin_internal_bridge','packages/armsx2_internal_bridge',
+            'packages/rpcs3_internal_bridge'])
+    return {'deliveredBaseline':DELIVERED,'deliveredRun':DELIVERED_RUN,'baselineRecord':BASE,'testedSource':source,
         'changedProductPaths':sorted(PRODUCT),'coreRebuilt':False,
         'otherEnginesCataloguesSkinsHelpersUnchanged':True}
 
@@ -92,6 +102,7 @@ part_run=previous.part_run
 
 def evidence():
     records=[base.successful_run(DELIVERED_RUN,DELIVERED,['checks','native','Release device build • cold'])]
+    PROOFS=proofs(tested_source())
     verdicts={}
     with tempfile.TemporaryDirectory(prefix='gamebox490-proof-') as tmp:
         for part in PARTS:
@@ -113,9 +124,10 @@ def evidence():
             if hashlib.sha256((base.ROOT/path).read_bytes()).hexdigest()!=sha:
                 raise ValueError('Changed tested input '+path)
         covered|=set(verdict['inputsSHA256'])
-        records.append({'part':part,'run':PROOFS[part][0],'source':PROOFS[part][1],'verdictSHA256':digest,
+        records.append({'part':part,'run':PROOFS[part][0],'job':PROOFS[part][2],'source':PROOFS[part][1],'verdictSHA256':digest,
             'checks':verdict['checks'],'timingsSeconds':verdict['timingsSeconds']})
     missing={p for p in TESTED if (base.ROOT/p).is_file()}-covered
+    # Verdicts list what each part read; every tested input must be covered by one.
     if missing:raise ValueError('Targeted proof did not close: '+', '.join(sorted(missing)))
     native=verdicts['native'][0]
     if native['xcode']!='Xcode 26.3\nBuild version 17C529' or native['iphoneSDK']!='26.2':
@@ -130,7 +142,7 @@ def evidence():
         'similarities':{name:{s['code']:s.get('similarity') for s in reports[name]['samples']} for name in ('macos','iosSimulator')}})
     receipts={p:hashlib.sha256((base.ROOT/p).read_bytes()).hexdigest() for p in
         ('docs/evidence/hdtex489-delivery.json','docs/evidence/hdtex488-delivery.json') if (base.ROOT/p).is_file()}
-    return records,receipts
+    return records,receipts,PROOFS
 
 def main():
     import argparse,os
@@ -151,8 +163,9 @@ def main():
     if a.source_only:
         print('PASS Build 490 source closure: delivered 489 product + tested 3D game box changes, no Core input changed')
         return
-    records,receipts=evidence()
-    record={'result':'passed','testedSHA':TESTED_SOURCE,'candidateSHA':base.command(['git','rev-parse','HEAD']),
+    records,receipts,PROOFS=evidence()
+    closure['targetedRuns']={part:{'run':run,'source':source,'job':job} for part,(run,source,job) in PROOFS.items()}
+    record={'result':'passed','testedSHA':closure['testedSource'],'candidateSHA':base.command(['git','rev-parse','HEAD']),
         'validationWasReused':True,'sourceClosure':closure,'reusedEvidence':records,'receiptSHA256':receipts,
         'deviceGameplayValidated':False,'coreRebuilt':False}
     if a.dart_evidence:
