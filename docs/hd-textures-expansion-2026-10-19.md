@@ -59,7 +59,18 @@ Aucun pack n'a été retiré ; aucun doublon n'a été publié (deux entrées in
 
 ## 6. Vérifications
 
-__CHECKS__
+Exécutées dans le conteneur de travail (Linux, sans SDK Apple ni Flutter) : identités (40 images synthétiques, dont `.z64`/`.v64`/`.n64` et noms refusés), installation (67 vérifications, dont filtres et détection GLideN64), libellés (12 langues, 158 clés natives et 4 Flutter ; 147 vérifications de couverture), porte de l'IPA (13 refus, dont notice ps2ktxpak absente ou modifiée et adaptateur N64 absent), `build_catalogue.py --check` ; vérification réelle des assets de release (dont les 19 packs N64 et BK Reloaded v0.2.1) avec le code d'installation de l'application.
+
+Sur CI (`hd-textures.yml`) :
+
+- **Archives de dépôt** : runs `39254972220` (12 packs, dont Project Mirai DX refusé : deux PNG endommagés), `39257349302` (9), `39258904471` (Ridge Racers 2), `39264550682` (les deux packs N64) ; `check_ci_records.py` compare les 88 enregistrements d'archives de dépôt aux artefacts de leurs runs.
+- **Run complet `39265084257` sur `f4834ce5`** (Xcode 26.3, Flutter 3.47.2), toutes les parties réussies :
+  - host (job `118102460207`) : 46 vérifications (libellés, catalogue `2026-10-19.72e26f767470`, enregistrements CI, archives, identités, installation, porte de l'IPA, contrats existants, `flutter analyze` — 3 remarques non bloquantes — et 86 tests Dart) ; les neuf contrats `PRE_EXISTING` échouent à l'identique sur la base `dc653f12` ;
+  - native (job `118102461270`) : test Foundation du magasin et des adaptateurs avec la section N64 (identité, filtres, installation, options du jeu, caches GLideNHQ supprimés pour ce seul nom de ROM à l'installation et à la suppression), pod compilé et lié pour iPhone (8 sources), page Textures HD exécutée dans le menu Graphismes ARMSX2, pont libretro lié pour iPhone (77 objets), commandes tactiles, natif unifié ;
+  - uikit (job `118102459992`) : sept tests de la page dans le Simulateur, dont `testNintendo64UsesGLideN64OptionsOfTheGame` (pack proposé pour la ROM, pas celui d'un autre jeu, interrupteur écrivant les options du jeu).
+- **Discover / links / cores** : runs `39245687230`, `39260093158` (N64), `39256854044` (résumé), `39259632196` (liens), `39251651918` (cœurs).
+
+Aucune de ces vérifications n'affiche une texture dans un jeu.
 
 ## 7. Limites
 
