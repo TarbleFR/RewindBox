@@ -1,7 +1,7 @@
 From 7843d2274935a4d326f6377a110ef4c82de85ef0 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 19 Oct 2026 21:40:16 +0000
-Subject: [PATCH 1/2] feat(490): 3D boxes in the Jaquette view, multilingual
+Subject: [PATCH 1/4] feat(490): 3D boxes in the Jaquette view, multilingual
  back reader, opening on Play
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -11505,7 +11505,7 @@ index 0000000..a988911
 From 5306d0e14e6e54c19b3cfeedc4bf5ef3f1a4311f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 19 Oct 2026 21:44:25 +0000
-Subject: [PATCH 2/2] docs(490): 3D box design, sources, reader solution,
+Subject: [PATCH 2/4] docs(490): 3D box design, sources, reader solution,
  limits; plan and iPhone protocol
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -11758,6 +11758,674 @@ index c4308de..7a867f8 100644
  
  
  def main():
+-- 
+2.43.0
+
+
+From 42275a23084c4935ba9caa63995b70de4c35be64 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 21:49:34 +0000
+Subject: [PATCH 3/4] build(490): delivery gate for the 3D game box (not pinned
+ yet)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01H5ekkPNii761omm9rzxmDH
+---
+ .github/diagnostics/gamebox490_delivery.py | 171 +++++++++++++++++++++
+ 1 file changed, 171 insertions(+)
+ create mode 100644 .github/diagnostics/gamebox490_delivery.py
+
+diff --git a/.github/diagnostics/gamebox490_delivery.py b/.github/diagnostics/gamebox490_delivery.py
+new file mode 100644
+index 0000000..c4e3546
+--- /dev/null
++++ b/.github/diagnostics/gamebox490_delivery.py
+@@ -0,0 +1,171 @@
++"""Compose the delivered Build 489 with the Build 490 3D game box (Jaquette view).
++
++Build 490 shows the games of the carousel's Box card style as boxes of their
++console's family, adds the full-screen box viewer (360° turn, tilt, zoom,
++Front/Back/Reset, reading pose), the box opening before the usual launch, the
++box faces and editions fetched from ScreenScraper through the scraper's own
++client, and the multilingual back reader (neo_box_reader: Vision,
++NaturalLanguage and Apple Translation on the device). See
++docs/game-box-3d.md. No emulator Core is rebuilt and no engine, helper, skin,
++cheat or texture input changes: they are the delivered Build 489 product.
++This gate reads CI evidence; it never reruns suites. Each part (host, native)
++of .github/workflows/game-box-checks.yml must have passed on the tested
++source, every tested input must be byte-identical to that source, and the
++verdicts (BUILD 490) must cover every changed input.
++"""
++import hashlib,json,subprocess,sys,tempfile
++from pathlib import Path
++import hdtex489_delivery as previous
++base=previous.base  # unified_cheats_delivery: command, api, successful_run, ROOT
++
++# Branch head before this cycle's product push: the Build 489 delivery records on Claude.
++BASE=''
++# Build 489 source and its delivery run (checks/native reused, cold Release).
++DELIVERED=''
++DELIVERED_RUN=0
++# Build 490 source tested by game-box-checks.yml. Each part: (run, source, job).
++TESTED_SOURCE=''
++PROOFS={
++    'host':(0,TESTED_SOURCE,'Texts, geometry, media, reader and inspector on Flutter'),
++    'native':(0,TESTED_SOURCE,'Vision, NaturalLanguage and Translation on macOS and the iOS Simulator; iPhone SDK type check'),
++}
++PARTS=('host','native')
++
++sys.path.insert(0,str(base.ROOT/'test'))
++import game_box_targeted_test as targeted  # noqa: E402
++# The product files Build 490 changes: the runner's product list, every one of them.
++PRODUCT=set(targeted.PRODUCT)
++TESTED=(set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(targeted.HOST_PYTHON)|set(targeted.DART_TESTS)
++        |{targeted.NATIVE_MAIN})
++# Delivery wiring, records and pins: no product or Core input.
++DELIVERY_ONLY={'AGENTS.md','.github/diagnostics/gamebox490_delivery.py',
++    '.github/workflows/retroarch-delivery.yml','.github/workflows/neoswap-ipa.yml','build-utils/verify_delivery_reuse.py',
++    # Render previews written only when GAME_BOX_RENDER_DIR is set (manual inspection).
++    'test/game_box_render_preview_test.dart','test/game_box_render_inspector_preview_test.dart'}
++PRODUCT_PATHS=previous.PRODUCT_PATHS
++ARMSX2_CORE_INPUTS=previous.ARMSX2_CORE_INPUTS
++RPCS3_CORE_PATHS=previous.RPCS3_CORE_PATHS
++
++def part_inputs(part):
++    tested={'host':targeted.HOST_PYTHON+targeted.DART_TESTS,'native':[targeted.NATIVE_MAIN]}[part]
++    return set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(tested)
++
++def source_closure():
++    for name,value in (('BASE',BASE),('DELIVERED',DELIVERED),('TESTED_SOURCE',TESTED_SOURCE)):
++        if len(value)!=40:raise ValueError(f'{name} is not pinned yet')
++    if not DELIVERED_RUN:raise ValueError('DELIVERED_RUN is not pinned yet')
++    for part,(run,source,job) in PROOFS.items():
++        if not run or len(source)!=40:raise ValueError(f'{part} proof is not pinned yet')
++    for end in (['HEAD'],[]):
++        paths=set(base.command(['git','diff','--name-only',BASE,*end]).splitlines())
++        # Documentation and records (docs/, AGENTS.md) are never packaged nor tested inputs.
++        extra={path for path in paths-TESTED-DELIVERY_ONLY if not path.startswith('docs/')}
++        if extra:raise ValueError('Unvalidated changed inputs: '+', '.join(sorted(extra)))
++        # Every tested input is byte-identical to the tested source.
++        base.command(['git','diff','--exit-code',TESTED_SOURCE,*end,'--',*sorted(TESTED)])
++    for part,(run,source,job) in PROOFS.items():
++        if source!=TESTED_SOURCE:
++            base.command(['git','diff','--exit-code',source,TESTED_SOURCE,'--',*sorted(part_inputs(part))])
++    for end in (['HEAD'],[]):
++        # The product differs from delivered 489 exactly by the Build 490 files.
++        changed=set(base.command(['git','diff','--name-only',DELIVERED,*end,'--',*PRODUCT_PATHS]).splitlines())
++        # The strings generator is never packaged; it is a tested input above.
++        changed-={path for path in changed if path.startswith('tools/game_box/')}
++        expected={path for path in PRODUCT if not path.startswith('tools/game_box/')}
++        if changed!=expected:raise ValueError('Unexpected product change since Build 489: '+', '.join(sorted(changed^expected)))
++        # No Core input changed: the RPCS3 and ARMSX2 Cores, the libretro cores package.
++        base.command(['git','diff','--exit-code',DELIVERED,*end,'--',*RPCS3_CORE_PATHS])
++        base.command(['git','diff','--exit-code',DELIVERED,*end,'--',*ARMSX2_CORE_INPUTS])
++        base.command(['git','diff','--exit-code',DELIVERED,*end,'--','build-utils/libretro'])
++        # The HD texture catalogue, its engines and the libretro bridge are the delivered 489 ones.
++        base.command(['git','diff','--exit-code',DELIVERED,*end,'--','packages/neo_texture_catalog','native/textures',
++            'packages/libretro_internal_bridge','packages/dolphin_internal_bridge','packages/armsx2_internal_bridge'])
++    return {'deliveredBaseline':DELIVERED,'baselineRecord':BASE,'testedSource':TESTED_SOURCE,
++        'targetedRuns':{part:{'run':run,'source':source} for part,(run,source,job) in PROOFS.items()},
++        'changedProductPaths':sorted(PRODUCT),'coreRebuilt':False,
++        'otherEnginesCataloguesSkinsHelpersUnchanged':True}
++
++rpc_core_input_view=previous.rpc_core_input_view
++validate_rpc_core_identity=previous.validate_rpc_core_identity
++validate_rpc_core_pin=previous.validate_rpc_core_pin
++part_run=previous.part_run
++
++def evidence():
++    records=[base.successful_run(DELIVERED_RUN,DELIVERED,['checks','native','Release device build • cold'])]
++    verdicts={}
++    with tempfile.TemporaryDirectory(prefix='gamebox490-proof-') as tmp:
++        for part in PARTS:
++            run,source,job=PROOFS[part]
++            records.append(part_run(run,source,job))
++            folder=Path(tmp)/part
++            subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
++                '--name',f'gamebox-{part}-'+source,'--dir',str(folder)],check=True)
++            files=list(folder.rglob(f'{part}-verdict.json'))
++            if len(files)!=1:raise ValueError('Ambiguous or missing verdict: '+part)
++            raw=files[0].read_bytes();verdicts[part]=(json.loads(raw),hashlib.sha256(raw).hexdigest())
++    covered=set()
++    for part,(verdict,digest) in verdicts.items():
++        if verdict['result']!='passed' or verdict['source']!=PROOFS[part][1] or verdict['build']!=490 or verdict['part']!=part:
++            raise ValueError('Wrong targeted proof identity/result: '+part)
++        if verdict['coreRebuilt'] is not False or verdict['deviceValidated'] is not False:
++            raise ValueError('Targeted verdict claims more than it ran: '+part)
++        for path,sha in verdict['inputsSHA256'].items():
++            if hashlib.sha256((base.ROOT/path).read_bytes()).hexdigest()!=sha:
++                raise ValueError('Changed tested input '+path)
++        covered|=set(verdict['inputsSHA256'])
++        records.append({'part':part,'run':PROOFS[part][0],'source':PROOFS[part][1],'verdictSHA256':digest,
++            'checks':verdict['checks'],'timingsSeconds':verdict['timingsSeconds']})
++    missing={p for p in TESTED if (base.ROOT/p).is_file()}-covered
++    if missing:raise ValueError('Targeted proof did not close: '+', '.join(sorted(missing)))
++    native=verdicts['native'][0]
++    if native['xcode']!='Xcode 26.3\nBuild version 17C529' or native['iphoneSDK']!='26.2':
++        raise ValueError('Targeted native checks ran on another toolchain')
++    reports=native.get('reports') or {}
++    for name in ('macos','iosSimulator'):
++        report=reports.get(name) or {}
++        if report.get('passed') is not True or len(report.get('samples') or [])!=12:
++            raise ValueError('Native recognition report incomplete: '+name)
++    records.append({'part':'recognition','macosTranslation':reports['macos'].get('translation'),
++        'iosSimulatorRuntime':reports['iosSimulator'].get('runtime'),
++        'similarities':{name:{s['code']:s.get('similarity') for s in reports[name]['samples']} for name in ('macos','iosSimulator')}})
++    receipts={p:hashlib.sha256((base.ROOT/p).read_bytes()).hexdigest() for p in
++        ('docs/evidence/hdtex489-delivery.json','docs/evidence/hdtex488-delivery.json') if (base.ROOT/p).is_file()}
++    return records,receipts
++
++def main():
++    import argparse,os
++    p=argparse.ArgumentParser(description=__doc__)
++    p.add_argument('--source-only',action='store_true')
++    p.add_argument('--dart-evidence',action='store_true')
++    p.add_argument('--libretro-evidence',action='store_true')
++    p.add_argument('--skin-session-evidence',action='store_true')
++    p.add_argument('--scope',default='full',choices=['full'])
++    p.add_argument('--output',default='build/delivery/reused-validation.json')
++    p.add_argument('--rpc-core-inputs')
++    p.add_argument('core_paths',nargs='*')
++    a=p.parse_args()
++    closure=source_closure()
++    if a.rpc_core_inputs:
++        validate_rpc_core_pin(a.rpc_core_inputs,a.core_paths)
++        return
++    if a.source_only:
++        print('PASS Build 490 source closure: delivered 489 product + tested 3D game box changes, no Core input changed')
++        return
++    records,receipts=evidence()
++    record={'result':'passed','testedSHA':TESTED_SOURCE,'candidateSHA':base.command(['git','rev-parse','HEAD']),
++        'validationWasReused':True,'sourceClosure':closure,'reusedEvidence':records,'receiptSHA256':receipts,
++        'deviceGameplayValidated':False,'coreRebuilt':False}
++    if a.dart_evidence:
++        record.update(key=os.environ['DART_VALIDATION_KEY'],tool='Flutter 3.47.2, Ubuntu 24.04')
++    if a.libretro_evidence:
++        xcode=base.command(['xcodebuild','-version'])
++        sdk=base.command(['xcrun','--sdk','iphoneos','--show-sdk-version'])
++        if xcode!='Xcode 26.3\nBuild version 17C529' or sdk!='26.2':raise ValueError('Changed native toolchain')
++        record.update(xcode=xcode,iphoneSDK=sdk)
++    out=base.ROOT/a.output
++    out.parent.mkdir(parents=True,exist_ok=True)
++    out.write_text(json.dumps(record,indent=2)+'\n')
++    print('PASS delivered 489 product + Build 490 3D game box targeted evidence; no suites rerun, no Core rebuilt')
++
++if __name__=='__main__':
++    main()
+-- 
+2.43.0
+
+
+From c57124060468d582b671b3bd6855cb1567f22c76 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 21:52:25 +0000
+Subject: [PATCH 4/4] feat(490): Box faces media setting for library scrapes;
+ docs
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01H5ekkPNii761omm9rzxmDH
+---
+ docs/build490-plan.md                         |  4 +--
+ docs/game-box-3d.md                           |  7 +++--
+ lib/l10n/game_box_locale.dart                 | 26 +++++++++++++++++++
+ .../new_scraper_options_screen.dart           |  2 +-
+ .../scraper_contents/media_content.dart       | 10 +++++++
+ .../screenscraper/media_downloader.dart       | 20 ++++++++++++--
+ lib/utils/artwork_cache.dart                  |  4 +++
+ test/game_box_media_test.dart                 | 21 +++++++++++++++
+ test/game_box_targeted_test.py                |  7 +++++
+ tools/game_box/strings.json                   | 24 +++++++++++++++++
+ 10 files changed, 118 insertions(+), 7 deletions(-)
+
+diff --git a/docs/build490-plan.md b/docs/build490-plan.md
+index 7369512..c0eeb5d 100644
+--- a/docs/build490-plan.md
++++ b/docs/build490-plan.md
+@@ -7,8 +7,8 @@ Conception, sources, réglages et limites : [`game-box-3d.md`](game-box-3d.md).
+ ## 1. Périmètre
+ 
+ Fichiers produit :
+-- nouveaux : `lib/services/game_box/` (profils, régions, médias et manifeste, récupération, préférences, mise en page et service de lecture), `lib/widgets/game_box/` (géométrie, scène, surfaces, carte, sélecteur de langue, chargeur d'images), `lib/screens/game_box/` (visionneuse, lecture du dos), `lib/l10n/game_box_locale.dart` (généré, 104 textes × 12 langues), `packages/neo_box_reader/` (plugin Swift : Vision, NaturalLanguage, Translation ; lié statiquement) ;
+-- modifiés : `lib/screens/game_screen/my_games_carousel.dart` (style « Boîte » seulement), `lib/services/screenscraper/media_resolver.dart` (trois dossiers), `lib/services/screenscraper/media_downloader.dart` (téléchargement validé réutilisable), `lib/services/screenscraper_service.dart` (`mediaJeuUri`), `lib/repositories/game_repository.dart` (suppression des faces avec les médias du jeu), `pubspec.yaml` (paquet de l'espace de travail).
++- nouveaux : `lib/services/game_box/` (profils, régions, médias et manifeste, récupération, préférences, mise en page et service de lecture), `lib/widgets/game_box/` (géométrie, scène, surfaces, carte, sélecteur de langue, chargeur d'images), `lib/screens/game_box/` (visionneuse, lecture du dos), `lib/l10n/game_box_locale.dart` (généré, 106 textes × 12 langues), `packages/neo_box_reader/` (plugin Swift : Vision, NaturalLanguage, Translation ; lié statiquement) ;
++- modifiés : `lib/screens/game_screen/my_games_carousel.dart` (style « Boîte » seulement), `lib/services/screenscraper/media_resolver.dart` (trois dossiers), `lib/services/screenscraper/media_downloader.dart` (téléchargement validé réutilisable), `lib/services/screenscraper_service.dart` (`mediaJeuUri`), `lib/repositories/game_repository.dart` (suppression des faces avec les médias du jeu), `lib/screens/scraper_screen/scraper_contents/media_content.dart` et `new_scraper_options_screen.dart` (option « Faces du boîtier »), `lib/utils/artwork_cache.dart` (rechargement des faces après un scraping), `pubspec.yaml` (paquet de l'espace de travail).
+ 
+ Inchangés : les dix fichiers de bibliothèque verrouillés sur la 419 (dont `scraper_repository.dart`), les vues Liste et Grille, le carrousel « Fanart », le lancement (`launch_flow.dart`, `game_launch_utils.dart`, `game_launch_service.dart`), tous les moteurs, cœurs et helpers.
+ 
+diff --git a/docs/game-box-3d.md b/docs/game-box-3d.md
+index f0e3b52..22ffc4a 100644
+--- a/docs/game-box-3d.md
++++ b/docs/game-box-3d.md
+@@ -70,6 +70,8 @@ Le système de scraping existant est étendu, sans toucher aux fichiers verrouil
+ - **dos d'autres éditions** : téléchargés à la demande dans `media/<système>/box2dback-editions/<rom>/`, une fois par image (identité MD5/SHA-1 : un même scan listé `wor` et `us` n'est téléchargé qu'une fois) ; ensuite consultables hors ligne ;
+ - quota, connexion manquante, système non associé et jeu introuvable ont chacun leur message traduit.
+ 
++**Scraping par lots** : l'option « Faces du boîtier (boîtier 3D) » des réglages Scraping › Médias (désactivée par défaut, `boxFaces` dans la liste enregistrée) fait télécharger, par le scraping habituel d'un jeu ou d'une bibliothèque, les trois types `box-2D-back`, `box-2D-side` et `support-2D` dans les mêmes dossiers (`ScreenscraperMediaDownloader.expandMediaTypes`), selon l'ordre des régions et la langue préférée du scraping. Comme pour les manuels, l'activer rouvre les jeux déjà complets pour que le mode « nouveaux seulement » puisse compléter ces médias. Ce chemin n'écrit pas de manifeste : la région de chaque face et les autres éditions apparaissent après « Récupérer les faces du boîtier ». Les nouvelles faces sont rechargées après un scraping d'un seul jeu (`scrapedArtworkTypes`).
++
+ Suppression des médias d'un jeu (`GameRepository.deleteNeoStationScrapedMedia`) : les trois nouveaux dossiers, le manifeste et le dossier des éditions sont supprimés avec les autres médias.
+ 
+ ## 6. Éditions et langue des scans
+@@ -107,7 +109,7 @@ Garanties :
+ 
+ ## 9. Vérifications
+ 
+-- Flutter (`flutter test`, Linux) : `test/game_box_geometry_test.dart` (17 : faces visibles sur un tour complet, dos et tranche non inversés, inclinaison, cadrage constant en rotation, coins arrondis, ouverture par famille, cadrage du boîtier ouvert dans l'écran pour huit consoles, profils), `test/game_box_media_test.dart` (12 : régions des noms de fichiers, manifeste sans identifiants, éditions dédoublonnées, choix des faces, dos par langue, magasin), `test/game_box_text_test.dart` (8 : colonnes, titres, listes, mentions légales, recollage, illisible, cache de la transcription et de chaque traduction, scan différent, codes d'erreur), `test/game_box_inspector_test.dart` (7 : avant/dos/position initiale, rotation libre et arrêt, lancement unique puis retrait sous le dialogue, lancement qui ne démarre pas, réduction des animations, animation désactivée, scan corrompu), `test/game_box_locale_test.dart` (16 : douze langues, paramètres, chinois traditionnel), et les suites existantes qui lisent un fichier modifié.
++- Flutter (`flutter test`, Linux) : `test/game_box_geometry_test.dart` (17 : faces visibles sur un tour complet, dos et tranche non inversés, inclinaison, cadrage constant en rotation, coins arrondis, ouverture par famille, cadrage du boîtier ouvert dans l'écran pour huit consoles, profils), `test/game_box_media_test.dart` (13 : régions des noms de fichiers, manifeste sans identifiants, éditions dédoublonnées, choix des faces, dos par langue, option de scraping, magasin), `test/game_box_text_test.dart` (8 : colonnes, titres, listes, mentions légales, recollage, illisible, cache de la transcription et de chaque traduction, scan différent, codes d'erreur), `test/game_box_inspector_test.dart` (7 : avant/dos/position initiale, rotation libre et arrêt, lancement unique puis retrait sous le dialogue, lancement qui ne démarre pas, réduction des animations, animation désactivée, scan corrompu), `test/game_box_locale_test.dart` (16 : douze langues, paramètres, chinois traditionnel ; 106 textes), et les suites existantes qui lisent un fichier modifié.
+ - Python : `tools/game_box/generate_strings.py --check`, `test/game_box_strings_test.py`, `test/localization_12_locale_coverage_test.py`, `test/retroarch_baseline_scope_test.py` (fichiers de bibliothèque 419 intacts).
+ - Natif (`.github/workflows/game-box-checks.yml`, partie `native`) : le code de reconnaissance du plugin compilé et exécuté sur macOS puis dans le Simulateur iOS (texte rendu dans chacune des douze langues, similarité mesurée, langue détectée), disponibilité Translation des douze langues cibles (exigée sur macOS, relevée dans le Simulateur), vérification de type des sources Swift du plugin contre le SDK iPhone et Flutter.
+ 
+@@ -120,4 +122,5 @@ Lanceur : `python3 test/game_box_targeted_test.py --part host|native` (verdicts
+ - La qualité de la lecture dépend du scan : un dos basse résolution ou très stylisé donne des lignes peu lisibles, signalées, jamais complétées.
+ - La langue d'un scan est présumée de sa région ScreenScraper ; les éditions européennes multilingues sont présentées comme anglaises tant que la reconnaissance n'a pas détecté autre chose.
+ - `box-texture` (gabarit déplié de ScreenScraper) n'est pas utilisé : sa disposition varie selon les consoles et ne peut pas être vérifiée de façon fiable sans exemple consultable depuis le conteneur.
+-- Les faces du boîtier se récupèrent jeu par jeu depuis la visionneuse ; le scraping par lots ne les télécharge pas.
++- Le scraping par lots (option « Faces du boîtier ») choisit les faces selon l'ordre des régions, sans manifeste des éditions ; la récupération depuis la visionneuse choisit l'édition de votre jeu et liste toutes les éditions.
++- Le cache du texte des dos (`Application Support/NeoStation/BoxText`) n'a pas de rubrique dédiée dans l'analyse du stockage ; il est régénérable et n'est jamais supprimé automatiquement.
+diff --git a/lib/l10n/game_box_locale.dart b/lib/l10n/game_box_locale.dart
+index 0728da3..dc97c14 100644
+--- a/lib/l10n/game_box_locale.dart
++++ b/lib/l10n/game_box_locale.dart
+@@ -18,6 +18,8 @@ abstract final class GameBoxLocale {
+   static const openingAnimationDesc = 'openingAnimationDesc';
+   static const fetchFaces = 'fetchFaces';
+   static const fetchFacesDesc = 'fetchFacesDesc';
++  static const scrapeBoxFaces = 'scrapeBoxFaces';
++  static const scrapeBoxFacesDesc = 'scrapeBoxFacesDesc';
+   static const fetching = 'fetching';
+   static const fetchDone = 'fetchDone';
+   static const fetchNothing = 'fetchNothing';
+@@ -95,6 +97,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Opens the box before the game starts. Replaced by a short fade when Reduce Motion is on.',
+       'fetchFaces': 'Get the box faces',
+       'fetchFacesDesc': 'Downloads the back, spine and disc or cartridge scans from ScreenScraper.',
++      'scrapeBoxFaces': 'Box faces (3D box)',
++      'scrapeBoxFacesDesc': 'Back, spine and disc or cartridge scans for the 3D boxes of the carousel\'s Box style.',
+       'fetching': 'Looking for the box faces…',
+       'fetchDone': 'Box faces updated.',
+       'fetchNothing': 'ScreenScraper has no other scan of this box.',
+@@ -201,6 +205,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Ouvre le boîtier avant le lancement du jeu. Remplacée par un court fondu quand « Réduire les animations » est activé.',
+       'fetchFaces': 'Récupérer les faces du boîtier',
+       'fetchFacesDesc': 'Télécharge depuis ScreenScraper le dos, la tranche et le scan du disque ou de la cartouche.',
++      'scrapeBoxFaces': 'Faces du boîtier (boîtier 3D)',
++      'scrapeBoxFacesDesc': 'Dos, tranche et scan du disque ou de la cartouche pour les boîtiers 3D du carrousel en style Boîte.',
+       'fetching': 'Recherche des faces du boîtier…',
+       'fetchDone': 'Faces du boîtier mises à jour.',
+       'fetchNothing': 'ScreenScraper ne propose aucun autre scan de ce boîtier.',
+@@ -307,6 +313,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Öffnet die Hülle vor dem Spielstart. Wird durch eine kurze Überblendung ersetzt, wenn „Bewegung reduzieren“ aktiv ist.',
+       'fetchFaces': 'Seiten der Hülle laden',
+       'fetchFacesDesc': 'Lädt Rückseite, Rücken und den Scan der Disc oder des Moduls von ScreenScraper.',
++      'scrapeBoxFaces': 'Hüllenseiten (3D-Hülle)',
++      'scrapeBoxFacesDesc': 'Rückseite, Rücken und Scan der Disc oder des Moduls für die 3D-Hüllen im Karussellstil „Box“.',
+       'fetching': 'Seiten der Hülle werden gesucht…',
+       'fetchDone': 'Seiten der Hülle aktualisiert.',
+       'fetchNothing': 'ScreenScraper hat keinen weiteren Scan dieser Hülle.',
+@@ -413,6 +421,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Abre la caja antes de iniciar el juego. Se sustituye por un fundido breve si «Reducir movimiento» está activado.',
+       'fetchFaces': 'Obtener las caras de la caja',
+       'fetchFacesDesc': 'Descarga de ScreenScraper la contraportada, el lomo y el escaneo del disco o del cartucho.',
++      'scrapeBoxFaces': 'Caras de la caja (caja 3D)',
++      'scrapeBoxFacesDesc': 'Contraportada, lomo y escaneo del disco o del cartucho para las cajas 3D del carrusel en estilo Caja.',
+       'fetching': 'Buscando las caras de la caja…',
+       'fetchDone': 'Caras de la caja actualizadas.',
+       'fetchNothing': 'ScreenScraper no tiene ningún otro escaneo de esta caja.',
+@@ -519,6 +529,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Apre la custodia prima dell’avvio del gioco. Sostituita da una breve dissolvenza quando «Riduci movimento» è attivo.',
+       'fetchFaces': 'Scarica i lati della custodia',
+       'fetchFacesDesc': 'Scarica da ScreenScraper il retro, il dorso e la scansione del disco o della cartuccia.',
++      'scrapeBoxFaces': 'Lati della custodia (custodia 3D)',
++      'scrapeBoxFacesDesc': 'Retro, dorso e scansione del disco o della cartuccia per le custodie 3D del carosello in stile Scatola.',
+       'fetching': 'Ricerca dei lati della custodia…',
+       'fetchDone': 'Lati della custodia aggiornati.',
+       'fetchNothing': 'ScreenScraper non ha altre scansioni di questa custodia.',
+@@ -625,6 +637,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Abre a caixa antes de o jogo começar. É substituída por um esmaecimento curto quando “Reduzir movimento” está ativado.',
+       'fetchFaces': 'Obter as faces da caixa',
+       'fetchFacesDesc': 'Baixa do ScreenScraper o verso, a lombada e a digitalização do disco ou do cartucho.',
++      'scrapeBoxFaces': 'Faces da caixa (caixa 3D)',
++      'scrapeBoxFacesDesc': 'Verso, lombada e digitalização do disco ou do cartucho para as caixas 3D do carrossel no estilo Caixa.',
+       'fetching': 'Procurando as faces da caixa…',
+       'fetchDone': 'Faces da caixa atualizadas.',
+       'fetchNothing': 'O ScreenScraper não tem outra digitalização desta caixa.',
+@@ -731,6 +745,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Открывает коробку перед запуском игры. Если включено «Уменьшение движения», заменяется коротким затуханием.',
+       'fetchFaces': 'Загрузить стороны коробки',
+       'fetchFacesDesc': 'Загружает с ScreenScraper оборот, корешок и скан диска или картриджа.',
++      'scrapeBoxFaces': 'Стороны коробки (3D-коробка)',
++      'scrapeBoxFacesDesc': 'Оборот, корешок и скан диска или картриджа для 3D-коробок карусели в стиле «Коробка».',
+       'fetching': 'Поиск сторон коробки…',
+       'fetchDone': 'Стороны коробки обновлены.',
+       'fetchNothing': 'На ScreenScraper нет других сканов этой коробки.',
+@@ -837,6 +853,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'Membuka kotak sebelum game dimulai. Diganti dengan peralihan singkat jika "Kurangi Gerakan" aktif.',
+       'fetchFaces': 'Ambil sisi kotak',
+       'fetchFacesDesc': 'Mengunduh sampul belakang, punggung, dan pindaian disk atau kartrid dari ScreenScraper.',
++      'scrapeBoxFaces': 'Sisi kotak (kotak 3D)',
++      'scrapeBoxFacesDesc': 'Sampul belakang, punggung, dan pindaian disk atau kartrid untuk kotak 3D di carousel gaya Kotak.',
+       'fetching': 'Mencari sisi kotak…',
+       'fetchDone': 'Sisi kotak diperbarui.',
+       'fetchNothing': 'ScreenScraper tidak memiliki pindaian lain untuk kotak ini.',
+@@ -943,6 +961,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': 'ゲームを起動する前にケースを開きます。「視差効果を減らす」がオンのときは短いフェードになります。',
+       'fetchFaces': 'ケースの各面を取得',
+       'fetchFacesDesc': 'ScreenScraper から裏面、背表紙、ディスクまたはカートリッジのスキャンをダウンロードします。',
++      'scrapeBoxFaces': 'ケースの各面（3Dケース）',
++      'scrapeBoxFacesDesc': 'カルーセルの「ボックス」スタイルの3Dケース用に、裏面・背表紙・ディスクまたはカートリッジのスキャンを取得します。',
+       'fetching': 'ケースの各面を検索しています…',
+       'fetchDone': 'ケースの各面を更新しました。',
+       'fetchNothing': 'ScreenScraper にはこのケースの他のスキャンがありません。',
+@@ -1049,6 +1069,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': '게임을 시작하기 전에 케이스를 엽니다. "동작 줄이기"가 켜져 있으면 짧은 페이드로 바뀝니다.',
+       'fetchFaces': '케이스 면 가져오기',
+       'fetchFacesDesc': 'ScreenScraper에서 뒷면, 책등, 디스크 또는 카트리지 스캔을 내려받습니다.',
++      'scrapeBoxFaces': '케이스 면(3D 케이스)',
++      'scrapeBoxFacesDesc': '캐러셀의 박스아트 스타일 3D 케이스에 쓸 뒷면, 책등, 디스크 또는 카트리지 스캔입니다.',
+       'fetching': '케이스 면을 찾는 중…',
+       'fetchDone': '케이스 면을 업데이트했습니다.',
+       'fetchNothing': 'ScreenScraper에 이 케이스의 다른 스캔이 없습니다.',
+@@ -1155,6 +1177,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': '在游戏启动前打开游戏盒。开启“减弱动态效果”时改为短暂淡出。',
+       'fetchFaces': '获取游戏盒各面',
+       'fetchFacesDesc': '从 ScreenScraper 下载背面、书脊以及光盘或卡带的扫描图。',
++      'scrapeBoxFaces': '游戏盒各面（3D 游戏盒）',
++      'scrapeBoxFacesDesc': '为轮播“盒子”样式的 3D 游戏盒获取背面、书脊以及光盘或卡带扫描图。',
+       'fetching': '正在查找游戏盒各面…',
+       'fetchDone': '游戏盒各面已更新。',
+       'fetchNothing': 'ScreenScraper 没有此游戏盒的其他扫描图。',
+@@ -1261,6 +1285,8 @@ abstract final class GameBoxLocale {
+       'openingAnimationDesc': '在遊戲啟動前開啟遊戲盒。開啟「減少動態效果」時改為短暫淡出。',
+       'fetchFaces': '取得遊戲盒各面',
+       'fetchFacesDesc': '從 ScreenScraper 下載背面、書背以及光碟或卡匣的掃描圖。',
++      'scrapeBoxFaces': '遊戲盒各面（3D 遊戲盒）',
++      'scrapeBoxFacesDesc': '為輪播「盒子」樣式的 3D 遊戲盒取得背面、書背以及光碟或卡匣掃描圖。',
+       'fetching': '正在尋找遊戲盒各面…',
+       'fetchDone': '遊戲盒各面已更新。',
+       'fetchNothing': 'ScreenScraper 沒有此遊戲盒的其他掃描圖。',
+diff --git a/lib/screens/scraper_screen/new_scraper_options_screen.dart b/lib/screens/scraper_screen/new_scraper_options_screen.dart
+index 0bb8354..3b23f80 100644
+--- a/lib/screens/scraper_screen/new_scraper_options_screen.dart
++++ b/lib/screens/scraper_screen/new_scraper_options_screen.dart
+@@ -364,7 +364,7 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
+     final selectedKey = _menuItems[_selectedMenuIndex].localeKey;
+     if (selectedKey == AppLocale.scraping) return 1;
+     if (selectedKey == AppLocale.scrapeMode) return 2;
+-    if (selectedKey == AppLocale.media) return 6;
++    if (selectedKey == AppLocale.media) return MediaContentState.itemCount;
+     if (selectedKey == AppLocale.region) {
+       return _regionKey.currentState?.getItemCount ?? 0;
+     }
+diff --git a/lib/screens/scraper_screen/scraper_contents/media_content.dart b/lib/screens/scraper_screen/scraper_contents/media_content.dart
+index 8b567ff..9c72f8d 100644
+--- a/lib/screens/scraper_screen/scraper_contents/media_content.dart
++++ b/lib/screens/scraper_screen/scraper_contents/media_content.dart
+@@ -1,5 +1,6 @@
+ import 'package:flutter/material.dart';
+ import 'package:neostation/l10n/app_locale.dart';
++import 'package:neostation/l10n/game_box_locale.dart';
+ import 'package:flutter_localization/flutter_localization.dart';
+ import 'package:flutter_screenutil/flutter_screenutil.dart';
+ 
+@@ -34,7 +35,12 @@ class MediaContentState extends State<MediaContent> {
+     'box2D',
+     'video',
+     'manuel',
++    // Back, spine and support of the 3D boxes (docs/game-box-3d.md § 5).
++    'boxFaces',
+   ];
++
++  /// Number of media rows, for the screen's gamepad navigation.
++  static int get itemCount => _orderedKeys.length;
+   final AdaptiveScroller _scroller = AdaptiveScroller();
+   final List<GlobalKey> _itemKeys = List.generate(
+     _orderedKeys.length,
+@@ -88,6 +94,8 @@ class MediaContentState extends State<MediaContent> {
+         return AppLocale.scrapeVideo.getString(context);
+       case 'manuel':
+         return AppLocale.manual.getString(context);
++      case 'boxFaces':
++        return GameBoxLocale.text(context, GameBoxLocale.scrapeBoxFaces);
+       default:
+         return key;
+     }
+@@ -107,6 +115,8 @@ class MediaContentState extends State<MediaContent> {
+         return AppLocale.scrapeVideoDesc.getString(context);
+       case 'manuel':
+         return AppLocale.scrapeManualDesc.getString(context);
++      case 'boxFaces':
++        return GameBoxLocale.text(context, GameBoxLocale.scrapeBoxFacesDesc);
+       default:
+         return '';
+     }
+diff --git a/lib/services/screenscraper/media_downloader.dart b/lib/services/screenscraper/media_downloader.dart
+index a8139d6..c6bec9b 100644
+--- a/lib/services/screenscraper/media_downloader.dart
++++ b/lib/services/screenscraper/media_downloader.dart
+@@ -113,6 +113,21 @@ class ScreenscraperMediaDownloader {
+     }
+   }
+ 
++  /// The "box faces" setting stands for the three ScreenScraper types of the
++  /// 3D box: back, spine and support (docs/game-box-3d.md § 5).
++  static const List<String> boxFaceTypes = ['box-2D-back', 'box-2D-side', 'support-2D'];
++
++  /// Media types to download for the enabled settings, in order, once each.
++  static List<String> expandMediaTypes(List<String> enabled) {
++    final out = <String>[];
++    for (final type in enabled) {
++      for (final t in type == 'boxFaces' ? boxFaceTypes : [type]) {
++        if (!out.contains(t)) out.add(t);
++      }
++    }
++    return out;
++  }
++
+   /// Downloads one media to [fullPath] with the scrape's own validation,
+   /// atomic write and removal of other-extension siblings (3D box faces,
+   /// docs/game-box-3d.md § 6).
+@@ -259,8 +274,9 @@ class ScreenscraperMediaDownloader {
+ 
+     final userDataDir = await ScreenscraperMediaResolver.getMediaDirectory();
+     final regionPriority = await ScreenscraperRegionConfig.getRegionPriority();
+-    final mediaTypes =
+-        allowedMediaTypes ?? ['fanart', 'ss', 'video', 'wheel', 'box2D'];
++    final mediaTypes = expandMediaTypes(
++      allowedMediaTypes ?? ['fanart', 'ss', 'video', 'wheel', 'box2D'],
++    );
+ 
+     final downloadTasks = <Map<String, dynamic>>[];
+     for (final mediaType in mediaTypes) {
+diff --git a/lib/utils/artwork_cache.dart b/lib/utils/artwork_cache.dart
+index aab75e9..5a020e3 100644
+--- a/lib/utils/artwork_cache.dart
++++ b/lib/utils/artwork_cache.dart
+@@ -11,6 +11,10 @@ const List<String> scrapedArtworkTypes = [
+   'wheels',
+   'box2d',
+   'screenshots',
++  // Faces of the 3D box ("Box faces" media setting).
++  'box2dback',
++  'box2dside',
++  'support2d',
+ ];
+ 
+ /// Resolves every artwork file a scrape may have written for [game].
+diff --git a/test/game_box_media_test.dart b/test/game_box_media_test.dart
+index 0d8e5f8..91975ce 100644
+--- a/test/game_box_media_test.dart
++++ b/test/game_box_media_test.dart
+@@ -6,6 +6,9 @@ import 'package:neostation/models/game_model.dart';
+ import 'package:neostation/providers/file_provider.dart';
+ import 'package:neostation/services/game_box/game_box_media.dart';
+ import 'package:neostation/services/game_box/game_box_regions.dart';
++import 'package:neostation/services/screenscraper/media_downloader.dart';
++import 'package:neostation/services/screenscraper/media_resolver.dart';
++import 'package:neostation/utils/artwork_cache.dart';
+ import 'package:path/path.dart' as p;
+ 
+ class _TestFileProvider extends FileProvider {
+@@ -158,6 +161,24 @@ void main() {
+     });
+   });
+ 
++  group('scraping', () {
++    test('the Box faces setting downloads back, spine and support into their folders', () {
++      expect(ScreenscraperMediaDownloader.expandMediaTypes(['box2D', 'boxFaces', 'manuel']),
++          ['box2D', 'box-2D-back', 'box-2D-side', 'support-2D', 'manuel']);
++      expect(ScreenscraperMediaDownloader.expandMediaTypes(['boxFaces', 'box-2D-back']),
++          ['box-2D-back', 'box-2D-side', 'support-2D']);
++      expect(ScreenscraperMediaResolver.mapMediaTypeToFolder('box-2D-back'), GameBoxMediaFolders.back);
++      expect(ScreenscraperMediaResolver.mapMediaTypeToFolder('box-2D-side'), GameBoxMediaFolders.spine);
++      expect(ScreenscraperMediaResolver.mapMediaTypeToFolder('support-2D'), GameBoxMediaFolders.support);
++      expect(scrapedArtworkTypes, containsAll([GameBoxMediaFolders.back, GameBoxMediaFolders.spine, GameBoxMediaFolders.support]));
++      final best = ScreenscraperMediaResolver.selectBestMedia(
++        [_ss('box-2D-back', 'jp'), _ss('box-2D-back', 'us')], 'box-2D-back',
++        regionPriority: {'us': 90, 'jp': 70},
++      );
++      expect(best!['region'], 'us');
++    });
++  });
++
+   group('store', () {
+     late Directory dir;
+     setUp(() => dir = Directory.systemTemp.createTempSync('game_box_media'));
+diff --git a/test/game_box_targeted_test.py b/test/game_box_targeted_test.py
+index 7a867f8..2b478b6 100644
+--- a/test/game_box_targeted_test.py
++++ b/test/game_box_targeted_test.py
+@@ -43,6 +43,9 @@ PRODUCT = sorted({
+     'lib/services/screenscraper_service.dart',
+     'lib/services/screenscraper/media_downloader.dart',
+     'lib/services/screenscraper/media_resolver.dart',
++    'lib/screens/scraper_screen/scraper_contents/media_content.dart',
++    'lib/screens/scraper_screen/new_scraper_options_screen.dart',
++    'lib/utils/artwork_cache.dart',
+     'pubspec.yaml',
+ } | _files('lib/services/game_box', 'lib/widgets/game_box', 'lib/screens/game_box', 'packages/neo_box_reader'))
+ 
+@@ -68,6 +71,10 @@ DART_TESTS = [
+     'test/rainbow_selection_fairy_test.dart',
+     'test/ios_selective_rollback_test.dart',
+     'test/storage_orphan_detector_test.dart',
++    'test/artwork_cache_test.dart',
++    'test/scraper_repository_test.dart',
++    'test/new_scraper_options_screen_test.dart',
++    'test/gamepad_settings_scrolling_test.dart',
+ ]
+ 
+ ANALYZED = [p for p in PRODUCT if p.endswith('.dart')] + [p for p in DART_TESTS if p.startswith('test/game_box')]
+diff --git a/tools/game_box/strings.json b/tools/game_box/strings.json
+index a988911..5116b9e 100644
+--- a/tools/game_box/strings.json
++++ b/tools/game_box/strings.json
+@@ -29,6 +29,8 @@
+    "openingAnimationDesc": "Opens the box before the game starts. Replaced by a short fade when Reduce Motion is on.",
+    "fetchFaces": "Get the box faces",
+    "fetchFacesDesc": "Downloads the back, spine and disc or cartridge scans from ScreenScraper.",
++   "scrapeBoxFaces": "Box faces (3D box)",
++   "scrapeBoxFacesDesc": "Back, spine and disc or cartridge scans for the 3D boxes of the carousel's Box style.",
+    "fetching": "Looking for the box faces…",
+    "fetchDone": "Box faces updated.",
+    "fetchNothing": "ScreenScraper has no other scan of this box.",
+@@ -135,6 +137,8 @@
+    "openingAnimationDesc": "Ouvre le boîtier avant le lancement du jeu. Remplacée par un court fondu quand « Réduire les animations » est activé.",
+    "fetchFaces": "Récupérer les faces du boîtier",
+    "fetchFacesDesc": "Télécharge depuis ScreenScraper le dos, la tranche et le scan du disque ou de la cartouche.",
++   "scrapeBoxFaces": "Faces du boîtier (boîtier 3D)",
++   "scrapeBoxFacesDesc": "Dos, tranche et scan du disque ou de la cartouche pour les boîtiers 3D du carrousel en style Boîte.",
+    "fetching": "Recherche des faces du boîtier…",
+    "fetchDone": "Faces du boîtier mises à jour.",
+    "fetchNothing": "ScreenScraper ne propose aucun autre scan de ce boîtier.",
+@@ -241,6 +245,8 @@
+    "openingAnimationDesc": "Öffnet die Hülle vor dem Spielstart. Wird durch eine kurze Überblendung ersetzt, wenn „Bewegung reduzieren“ aktiv ist.",
+    "fetchFaces": "Seiten der Hülle laden",
+    "fetchFacesDesc": "Lädt Rückseite, Rücken und den Scan der Disc oder des Moduls von ScreenScraper.",
++   "scrapeBoxFaces": "Hüllenseiten (3D-Hülle)",
++   "scrapeBoxFacesDesc": "Rückseite, Rücken und Scan der Disc oder des Moduls für die 3D-Hüllen im Karussellstil „Box“.",
+    "fetching": "Seiten der Hülle werden gesucht…",
+    "fetchDone": "Seiten der Hülle aktualisiert.",
+    "fetchNothing": "ScreenScraper hat keinen weiteren Scan dieser Hülle.",
+@@ -347,6 +353,8 @@
+    "openingAnimationDesc": "Abre la caja antes de iniciar el juego. Se sustituye por un fundido breve si «Reducir movimiento» está activado.",
+    "fetchFaces": "Obtener las caras de la caja",
+    "fetchFacesDesc": "Descarga de ScreenScraper la contraportada, el lomo y el escaneo del disco o del cartucho.",
++   "scrapeBoxFaces": "Caras de la caja (caja 3D)",
++   "scrapeBoxFacesDesc": "Contraportada, lomo y escaneo del disco o del cartucho para las cajas 3D del carrusel en estilo Caja.",
+    "fetching": "Buscando las caras de la caja…",
+    "fetchDone": "Caras de la caja actualizadas.",
+    "fetchNothing": "ScreenScraper no tiene ningún otro escaneo de esta caja.",
+@@ -453,6 +461,8 @@
+    "openingAnimationDesc": "Apre la custodia prima dell’avvio del gioco. Sostituita da una breve dissolvenza quando «Riduci movimento» è attivo.",
+    "fetchFaces": "Scarica i lati della custodia",
+    "fetchFacesDesc": "Scarica da ScreenScraper il retro, il dorso e la scansione del disco o della cartuccia.",
++   "scrapeBoxFaces": "Lati della custodia (custodia 3D)",
++   "scrapeBoxFacesDesc": "Retro, dorso e scansione del disco o della cartuccia per le custodie 3D del carosello in stile Scatola.",
+    "fetching": "Ricerca dei lati della custodia…",
+    "fetchDone": "Lati della custodia aggiornati.",
+    "fetchNothing": "ScreenScraper non ha altre scansioni di questa custodia.",
+@@ -559,6 +569,8 @@
+    "openingAnimationDesc": "Abre a caixa antes de o jogo começar. É substituída por um esmaecimento curto quando “Reduzir movimento” está ativado.",
+    "fetchFaces": "Obter as faces da caixa",
+    "fetchFacesDesc": "Baixa do ScreenScraper o verso, a lombada e a digitalização do disco ou do cartucho.",
++   "scrapeBoxFaces": "Faces da caixa (caixa 3D)",
++   "scrapeBoxFacesDesc": "Verso, lombada e digitalização do disco ou do cartucho para as caixas 3D do carrossel no estilo Caixa.",
+    "fetching": "Procurando as faces da caixa…",
+    "fetchDone": "Faces da caixa atualizadas.",
+    "fetchNothing": "O ScreenScraper não tem outra digitalização desta caixa.",
+@@ -665,6 +677,8 @@
+    "openingAnimationDesc": "Открывает коробку перед запуском игры. Если включено «Уменьшение движения», заменяется коротким затуханием.",
+    "fetchFaces": "Загрузить стороны коробки",
+    "fetchFacesDesc": "Загружает с ScreenScraper оборот, корешок и скан диска или картриджа.",
++   "scrapeBoxFaces": "Стороны коробки (3D-коробка)",
++   "scrapeBoxFacesDesc": "Оборот, корешок и скан диска или картриджа для 3D-коробок карусели в стиле «Коробка».",
+    "fetching": "Поиск сторон коробки…",
+    "fetchDone": "Стороны коробки обновлены.",
+    "fetchNothing": "На ScreenScraper нет других сканов этой коробки.",
+@@ -771,6 +785,8 @@
+    "openingAnimationDesc": "Membuka kotak sebelum game dimulai. Diganti dengan peralihan singkat jika \"Kurangi Gerakan\" aktif.",
+    "fetchFaces": "Ambil sisi kotak",
+    "fetchFacesDesc": "Mengunduh sampul belakang, punggung, dan pindaian disk atau kartrid dari ScreenScraper.",
++   "scrapeBoxFaces": "Sisi kotak (kotak 3D)",
++   "scrapeBoxFacesDesc": "Sampul belakang, punggung, dan pindaian disk atau kartrid untuk kotak 3D di carousel gaya Kotak.",
+    "fetching": "Mencari sisi kotak…",
+    "fetchDone": "Sisi kotak diperbarui.",
+    "fetchNothing": "ScreenScraper tidak memiliki pindaian lain untuk kotak ini.",
+@@ -877,6 +893,8 @@
+    "openingAnimationDesc": "ゲームを起動する前にケースを開きます。「視差効果を減らす」がオンのときは短いフェードになります。",
+    "fetchFaces": "ケースの各面を取得",
+    "fetchFacesDesc": "ScreenScraper から裏面、背表紙、ディスクまたはカートリッジのスキャンをダウンロードします。",
++   "scrapeBoxFaces": "ケースの各面（3Dケース）",
++   "scrapeBoxFacesDesc": "カルーセルの「ボックス」スタイルの3Dケース用に、裏面・背表紙・ディスクまたはカートリッジのスキャンを取得します。",
+    "fetching": "ケースの各面を検索しています…",
+    "fetchDone": "ケースの各面を更新しました。",
+    "fetchNothing": "ScreenScraper にはこのケースの他のスキャンがありません。",
+@@ -983,6 +1001,8 @@
+    "openingAnimationDesc": "게임을 시작하기 전에 케이스를 엽니다. \"동작 줄이기\"가 켜져 있으면 짧은 페이드로 바뀝니다.",
+    "fetchFaces": "케이스 면 가져오기",
+    "fetchFacesDesc": "ScreenScraper에서 뒷면, 책등, 디스크 또는 카트리지 스캔을 내려받습니다.",
++   "scrapeBoxFaces": "케이스 면(3D 케이스)",
++   "scrapeBoxFacesDesc": "캐러셀의 박스아트 스타일 3D 케이스에 쓸 뒷면, 책등, 디스크 또는 카트리지 스캔입니다.",
+    "fetching": "케이스 면을 찾는 중…",
+    "fetchDone": "케이스 면을 업데이트했습니다.",
+    "fetchNothing": "ScreenScraper에 이 케이스의 다른 스캔이 없습니다.",
+@@ -1089,6 +1109,8 @@
+    "openingAnimationDesc": "在游戏启动前打开游戏盒。开启“减弱动态效果”时改为短暂淡出。",
+    "fetchFaces": "获取游戏盒各面",
+    "fetchFacesDesc": "从 ScreenScraper 下载背面、书脊以及光盘或卡带的扫描图。",
++   "scrapeBoxFaces": "游戏盒各面（3D 游戏盒）",
++   "scrapeBoxFacesDesc": "为轮播“盒子”样式的 3D 游戏盒获取背面、书脊以及光盘或卡带扫描图。",
+    "fetching": "正在查找游戏盒各面…",
+    "fetchDone": "游戏盒各面已更新。",
+    "fetchNothing": "ScreenScraper 没有此游戏盒的其他扫描图。",
+@@ -1195,6 +1217,8 @@
+    "openingAnimationDesc": "在遊戲啟動前開啟遊戲盒。開啟「減少動態效果」時改為短暫淡出。",
+    "fetchFaces": "取得遊戲盒各面",
+    "fetchFacesDesc": "從 ScreenScraper 下載背面、書背以及光碟或卡匣的掃描圖。",
++   "scrapeBoxFaces": "遊戲盒各面（3D 遊戲盒）",
++   "scrapeBoxFacesDesc": "為輪播「盒子」樣式的 3D 遊戲盒取得背面、書背以及光碟或卡匣掃描圖。",
+    "fetching": "正在尋找遊戲盒各面…",
+    "fetchDone": "遊戲盒各面已更新。",
+    "fetchNothing": "ScreenScraper 沒有此遊戲盒的其他掃描圖。",
 -- 
 2.43.0
 
