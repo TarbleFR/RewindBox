@@ -442,7 +442,8 @@ static NSString *ReservationReport(void) {
   [self prepareDirectories];
 #ifdef NEOSTATION_SHADER_SESSION_PROBE
   for (NSDictionary *scenario in _scenarios) {
-    if (scenario[@"shaders"] != nil || scenario[@"skinPress"] != nil) {
+    // Beetle scenarios capture the presented frame through the same hooks.
+    if (scenario[@"shaders"] != nil || scenario[@"skinPress"] != nil || scenario[@"beetleTextures"] != nil) {
       PrepareShaderObservation();
       break;
     }

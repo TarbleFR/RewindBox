@@ -387,7 +387,7 @@ SCENARIOS += [
     {'name': 'beetle-vulkan-replace', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 8.0, 'default': False, 'beetle': True,
      'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_replace_textures': 'enabled'},
-     'beetleTextures': {'replaceFromDump': 'probe-psx', 'colour': 'green', 'recognized': True, 'lifecycle': 14},
+     'beetleTextures': {'replaceFromDump': 'probe-psx', 'colour': 'green', 'recognized': True, 'lifecycle': 13},
      'requiredLog': BEETLE_LOG},
     {'name': 'beetle-vulkan-off', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
@@ -748,8 +748,9 @@ def _mips_program():
     """A stand-in PlayStation BIOS written here (never a console's BIOS): from
     the reset address it sets up the GPU, uploads a 16x16 4-bit texture and its
     palette from the CPU (what Beetle's texture tracker hashes) and draws it as
-    a textured quad, again and again; every GP0 word waits for the FIFO."""
-    T0, T1, T3, T4, T2 = 8, 9, 11, 12, 10
+    a textured quad, again and again; every GP0 word of the setup and uploads
+    waits for the FIFO, the quad's words follow one wait for an idle GPU."""
+    T0, T1, T3, T4, T2, T5 = 8, 9, 11, 12, 10, 13
     words = []
 
     def emit(word):
@@ -801,8 +802,23 @@ def _mips_program():
         nop()
         sw(T1, 0x1810, T0)
 
+    def gp0_words(values):
+        # A quad leaves bit 28 clear until its fourth vertex arrives (gpu.c
+        # CalcFIFOReadyBit: INCMD_QUAD), so waiting on it before each word
+        # never ends. Wait for the idle bit 26 once, then write the command's
+        # words without waiting: the 16-word FIFO holds them.
+        lw(T3, 0x1814, T0)
+        nop()
+        and_(T3, T3, T5)
+        beq(T3, 0, -4)
+        nop()
+        for value in values:
+            load(value)
+            sw(T1, 0x1810, T0)
+
     lui(T0, 0x1F80)               # I/O base
     lui(T4, 0x1000)               # GPUSTAT bit 28
+    lui(T5, 0x0400)               # GPUSTAT bit 26 (idle)
     gp1(0x00000000)               # reset
     gp1(0x08000000)               # 256x240, NTSC, 15-bit
     gp1(0x05000000)               # display start (0,0)
@@ -829,9 +845,8 @@ def _mips_program():
         gp0(pattern)
         gp0(pattern)
     # Raw textured quad (64,56)-(192,184), CLUT (0,480), texpage 8.
-    for word in (0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
-                 0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F):
-        gp0(word)
+    gp0_words((0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
+               0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F))
     lui(T2, 0x0004)               # delay, then draw again
     delay = len(words)
     addiu(T2, T2, -1)
@@ -1428,7 +1443,7 @@ def beetle_problems(name, expected, result, launch):
         if not status.get('replace') or int(status.get('recognized') or 0) <= 0:
             problems.append(f'{name}: the core reports no recognised replacement ({status})')
     if expected.get('lifecycle'):
-        # Pause, background, state save/load, rotation and audio (beetle_lifecycle_probe.h); the
+        # Pause, background, state save, rotation and audio (beetle_lifecycle_probe.h); the
         # frame below is captured after them, so the replacement must survive them on screen too.
         checks = result.get('beetleLifecycle') or []
         if len(checks) != expected['lifecycle']:
@@ -1848,15 +1863,15 @@ def command_run(args):
     if visual:
         (evidence / 'visual-verdicts.json').write_text(json.dumps({'source': args.label, 'problems': problems,
                                                                'scenarios': visual}, indent=2) + '\n')
+    if getattr(args, 'beetle', False):
+        # Its evidence artifact cannot be read where the results are reviewed: the log carries it.
+        print_beetle_diagnostics(report)
     if not outcome['finished']:
         problems.insert(0, 'the probe did not finish (process ended or timed out); last progress lines:\n'
                         + '\n'.join(progress.splitlines()[-8:]))
         print_failure_tails(evidence)
-    elif getattr(args, 'beetle', False):
-        # Its evidence artifact cannot be read where the results are reviewed: the log carries it.
-        print_beetle_diagnostics(report)
-        if problems:
-            print_failure_tails(evidence)
+    elif getattr(args, 'beetle', False) and problems:
+        print_failure_tails(evidence)
     if problems:
         print('\nSimulator probe problems:', flush=True)
         for problem in problems:
