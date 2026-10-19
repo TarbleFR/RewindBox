@@ -19,7 +19,7 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, discover, links, cores, summarize]
+        options: [all, host, native, uikit, repositories, discover, links, cores, summarize, research]
         default: all
       only:
         description: 'repositories: comma-separated pack ids (empty: every pack without a record)'
@@ -33,6 +33,10 @@ on:
         description: 'discover: searches replacing the built-in ones, separated by | (topics after a #, e.g. n64 texture pack|gliden64#gliden64)'
         type: string
         default: ''
+      research:
+        description: 'research: reference selection for tools/textures/research.py refs, e.g. --console gc,wii --pages 6 (or --ids S001,S005 --urls a|b)'
+        type: string
+        default: '--console gc'
 permissions: {contents: read, actions: read}
 concurrency:
   group: hd-textures-${{ github.sha }}
@@ -236,3 +240,25 @@ jobs:
           merge-multiple: true
       - name: One short line per candidate an engine can read
         run: python3 tools/textures/discover.py summarize --candidates build/hdtex/candidates/candidates.jsonl --out build/hdtex/summary.jsonl
+
+  research:
+    name: Reference pages of the maintainer's list (review list, nothing published)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'research' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Read each reference page, its GameBanana or GitHub details and its links
+        env: {GH_TOKEN: '${{ github.token }}', RESEARCH: '${{ inputs.research }}'}
+        run: |
+          set -euo pipefail
+          read -ra args <<< "$RESEARCH"
+          python3 tools/textures/research.py refs "${args[@]}" --heads --out build/hdtex/research.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-research-${{ github.run_id }}
+          path: build/hdtex/research.jsonl
+          if-no-files-found: warn
+          retention-days: 14

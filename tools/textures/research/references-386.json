@@ -1,0 +1,3197 @@
+{
+ "source": "Maintainer prompt \"Extension massive du catalogue HD et Beetle PSX HW en Vulkan\", 19 October 2026 (386 main references; provenance links attached to the same entry, not counted)",
+ "references": [
+  {
+   "id": "S001",
+   "console": "directory",
+   "title": "Texture Packs Archive — tous les onglets",
+   "url": "https://docs.google.com/spreadsheets/d/1sif8FeRGJRbytK8wFRXgF6Hke9V6GUFs/edit",
+   "note": "Répertoire de découverte. Retrouver les publications originales; ne pas reprendre automatiquement ses miroirs.",
+   "provenance": []
+  },
+  {
+   "id": "S002",
+   "console": "directory",
+   "title": "GBAtemp — Retro Texture Packs",
+   "url": "https://gbatemp.net/forums/retro-texture-packs.736/",
+   "note": "Parcourir toutes les pages et sous-catégories utiles.",
+   "provenance": []
+  },
+  {
+   "id": "S003",
+   "console": "directory",
+   "title": "Dolphin — Custom Texture Projects",
+   "url": "https://forums.dolphin-emu.org/Forum-custom-texture-projects",
+   "note": "L'accès automatisé peut être protégé; documenter le blocage et rechercher une publication officielle alternative.",
+   "provenance": []
+  },
+  {
+   "id": "S004",
+   "console": "directory",
+   "title": "Dolphin — index historique de projets, page 5",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?forum-42-5.html=",
+   "note": "Index consulté pour découvrir plusieurs projets ci-dessous; la présence du titre ne valide pas le téléchargement.",
+   "provenance": []
+  },
+  {
+   "id": "S005",
+   "console": "directory",
+   "title": "Emulation King — GameCube",
+   "url": "https://emulationking.com/nintendo/gamecube/texturepacks/",
+   "note": "Découverte uniquement; parcourir la pagination et remonter aux créateurs.",
+   "provenance": []
+  },
+  {
+   "id": "S006",
+   "console": "directory",
+   "title": "Emulation King — Wii",
+   "url": "https://emulationking.com/nintendo/wii/texturepacks/",
+   "note": "Découverte uniquement; parcourir les cinq pages visibles et vérifier les publications originales.",
+   "provenance": []
+  },
+  {
+   "id": "S007",
+   "console": "directory",
+   "title": "Henriko Magnifico — catalogue du créateur",
+   "url": "https://www.henrikomagnifico.com/texture-packs",
+   "note": "Parcourir les pages individuelles; respecter les éditions gratuites et accès anticipés.",
+   "provenance": []
+  },
+  {
+   "id": "S008",
+   "console": "directory",
+   "title": "rapka — liste Dolphin",
+   "url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "note": "Plusieurs jeux GameCube et Virtual Console; liens anciens à contrôler.",
+   "provenance": []
+  },
+  {
+   "id": "S009",
+   "console": "directory",
+   "title": "Admentus64 — liste de projets Dolphin",
+   "url": "https://github.com/Admentus64/Enhancement-Codes/blob/master/Textures.txt",
+   "note": "Collection historique; retrouver les distributions actuelles.",
+   "provenance": []
+  },
+  {
+   "id": "S010",
+   "console": "directory",
+   "title": "thelostgrimm — Dolphin HD Texture Packs",
+   "url": "https://github.com/thelostgrimm/Dolphin-HD-Texture-Packs",
+   "note": "Collection de l'auteur, notamment Virtua Striker 2002; variantes 2x/3x à regrouper.",
+   "provenance": []
+  },
+  {
+   "id": "S011",
+   "console": "directory",
+   "title": "Liste communautaire 3DS",
+   "url": "https://www.reddit.com/r/3DS/comments/1r0tuu3/3ds_hd_texture_packs_list/",
+   "note": "Lire aussi les commentaires; ne pas considérer les Drive communautaires comme distributions officielles sans preuve.",
+   "provenance": []
+  },
+  {
+   "id": "S012",
+   "console": "directory",
+   "title": "Collection PS1 de Bl4ckH4nd",
+   "url": "https://www.mediafire.com/folder/itrvbm8xd6rf7/PS1",
+   "note": "Lien publié par l'auteur sur GBAtemp; vérifier son contenu actuel, les droits et chaque format.",
+   "provenance": []
+  },
+  {
+   "id": "S013",
+   "console": "directory",
+   "title": "PPSSPP — Texture Packs, six pages à explorer",
+   "url": "https://forums.ppsspp.org/forumdisplay.php?fid=36",
+   "note": "Les publications ci-dessous ont été extraites des six pages parcourues. Vérifier les nouvelles pages et mises à jour; ne pas compter la pagination comme des sources indépendantes.",
+   "provenance": []
+  },
+  {
+   "id": "S014",
+   "console": "directory",
+   "title": "Panda_Venom — collection PS2",
+   "url": "https://gbatemp.net/threads/list-of-hd-texture-packs-by-panda_venom.620163/",
+   "note": "Point d'entrée à vérifier contre les publications individuelles ci-dessous; ne pas compter la collection comme un pack.",
+   "provenance": []
+  },
+  {
+   "id": "S015",
+   "console": "directory",
+   "title": "CCKrizalid — collection PS2",
+   "url": "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/",
+   "note": "Source auteur consultée; les liens par jeu ci-dessous renvoient à ses distributions publiées.",
+   "provenance": []
+  },
+  {
+   "id": "S016",
+   "console": "gc",
+   "title": "Super Mario Sunshine UHD — qashto/razius",
+   "url": "https://github.com/qashto/Super_Mario_Sunshine_UHD_Texture_Pack",
+   "note": "Utiliser les assets recommandés des releases; distinguer textures sources et distribution prête à jouer.",
+   "provenance": []
+  },
+  {
+   "id": "S017",
+   "console": "gc",
+   "title": "Kirby Air Ride UHD — qashto",
+   "url": "https://github.com/qashto/Kirby_Air_Ride_UHD_Texture_Pack",
+   "note": "Couverture notamment City Trial; pack partiel.",
+   "provenance": []
+  },
+  {
+   "id": "S018",
+   "console": "gc",
+   "title": "Kirby Air Ride — mise à jour Nick-PC",
+   "url": "https://github.com/Nick-PC/Kirby-Air-Ride-UHD-Texture-Pack",
+   "note": "Comparer la filiation avec le précédent; ne pas compter une copie comme nouveau pack.",
+   "provenance": []
+  },
+  {
+   "id": "S019",
+   "console": "gc",
+   "title": "Luigi's Mansion UHD — qashto",
+   "url": "https://github.com/qashto/Luigis_Mansion_UHD_Pack",
+   "note": "Couverture partielle à identifier.",
+   "provenance": []
+  },
+  {
+   "id": "S020",
+   "console": "gc",
+   "title": "Scaler UHD",
+   "url": "https://github.com/qashto/Scaler_UHD_Texture_Pack",
+   "note": "Vérifier l'arborescence, le format et les identifiants.",
+   "provenance": []
+  },
+  {
+   "id": "S021",
+   "console": "gc",
+   "title": "Zelda: Four Swords Adventures HD",
+   "url": "https://github.com/v1993/fsa-hd",
+   "note": "Vérifier la distribution et les instructions.",
+   "provenance": []
+  },
+  {
+   "id": "S022",
+   "console": "gc",
+   "title": "Fire Emblem: Path of Radiance — AppleBoi",
+   "url": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+   "note": "Publication de l'auteur avec liens externes à contrôler.",
+   "provenance": []
+  },
+  {
+   "id": "S023",
+   "console": "gc",
+   "title": "Rayman 3 — HD Texture Pack Dolphin",
+   "url": "https://gamebanana.com/mods/648584",
+   "note": "Vérifier les Resource Packs, variantes de HUD et crédits.",
+   "provenance": []
+  },
+  {
+   "id": "S024",
+   "console": "gc",
+   "title": "Rayman Arena — HD Texture Pack Dolphin",
+   "url": "https://gamebanana.com/mods/648585",
+   "note": "Vérifier l'édition et les régions prises en charge.",
+   "provenance": []
+  },
+  {
+   "id": "S025",
+   "console": "gc",
+   "title": "Sonic Riders DX — Texture Pack V2",
+   "url": "https://gamebanana.com/mods/399589",
+   "note": "Dépend du mod Sonic Riders DX; proposer uniquement au jeu modifié correspondant.",
+   "provenance": []
+  },
+  {
+   "id": "S026",
+   "console": "gc",
+   "title": "The Lord of the Rings: The Return of the King HD",
+   "url": "https://www.moddb.com/mods/the-lord-of-the-rings-the-return-of-the-king-hd-texture-remaster",
+   "note": "Examiner les distributions officielles et variantes.",
+   "provenance": []
+  },
+  {
+   "id": "S027",
+   "console": "gc",
+   "title": "The Lord of the Rings: The Two Towers HD",
+   "url": "https://www.moddb.com/mods/the-two-towers-textures-4k-ai-remaster",
+   "note": "Comparer Native et Lite sans les compter comme deux projets indépendants.",
+   "provenance": []
+  },
+  {
+   "id": "S028",
+   "console": "gc",
+   "title": "Spyro: A Hero's Tail",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-54308.html=",
+   "note": "Repéré dans l'index officiel; page protégée lors de la recherche. Retrouver publication actuelle et téléchargement.",
+   "provenance": []
+  },
+  {
+   "id": "S029",
+   "console": "gc",
+   "title": "SSX Tricky",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-65555.html=",
+   "note": "Repéré dans l'index officiel; téléchargement non vérifié.",
+   "provenance": []
+  },
+  {
+   "id": "S030",
+   "console": "gc",
+   "title": "Resident Evil 4 HD Project GameCube",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-64189.html=",
+   "note": "Repéré dans l'index; vérifier qu'il ne nécessite pas des fonctions absentes du Dolphin embarqué.",
+   "provenance": []
+  },
+  {
+   "id": "S031",
+   "console": "gc",
+   "title": "Crash Nitro Kart — HD Texture Fixes",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-47241.html=",
+   "note": "Repéré dans l'index; vérifier portée, dépendances et fichiers.",
+   "provenance": []
+  },
+  {
+   "id": "S032",
+   "console": "gc",
+   "title": "Resident Evil CODE: Veronica X — High-Res UI",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-28497.html=",
+   "note": "Complément UI, pas remaster complet.",
+   "provenance": []
+  },
+  {
+   "id": "S033",
+   "console": "gc",
+   "title": "Custom Robo HD",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-65471.html=",
+   "note": "Repéré dans l'index; téléchargement non vérifié.",
+   "provenance": []
+  },
+  {
+   "id": "S034",
+   "console": "gc",
+   "title": "The Urbz: Sims in the City — AI HD",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-65252.html=",
+   "note": "Publication à examiner et distribution à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S035",
+   "console": "gc",
+   "title": "The SpongeBob SquarePants Movie — AI HD",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-65226.html=",
+   "note": "Repéré dans l'index; comparer aux autres projets pour le même jeu.",
+   "provenance": []
+  },
+  {
+   "id": "S036",
+   "console": "gc",
+   "title": "Super Mario Sunshine 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+   "note": "Variante artistique distincte; vérifier l'édition mobile disponible.",
+   "provenance": []
+  },
+  {
+   "id": "S037",
+   "console": "gc",
+   "title": "Luigi's Mansion 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "note": "Vérifier variante, mémoire et distribution officielle.",
+   "provenance": []
+  },
+  {
+   "id": "S038",
+   "console": "gc",
+   "title": "Pikmin 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/pikmin-4k",
+   "note": "Examiner séparément compatibilité GameCube et Wii.",
+   "provenance": []
+  },
+  {
+   "id": "S039",
+   "console": "gc",
+   "title": "Pikmin 2 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/pikmin-2-4k-texture-pack",
+   "note": "Examiner séparément compatibilité GameCube et Wii.",
+   "provenance": []
+  },
+  {
+   "id": "S040",
+   "console": "gc",
+   "title": "1vierock28's Baten Kaitos: Eternal Wings and the Lost Ocean",
+   "url": "https://emulationking.com/nintendo/gamecube/games/batenkaitos/texturepacks/1vierock28/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S041",
+   "console": "gc",
+   "title": "Bighead and frozenwings' Skies of Arcadia Legends",
+   "url": "https://emulationking.com/nintendo/gamecube/games/skiesofarcadialegends/texturepacks/bigheadandfrozenwings/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S042",
+   "console": "gc",
+   "title": "brackenhawk's Animal Crossing",
+   "url": "https://forums.dolphin-emu.org/Thread-animal-crossing-hd-texture-pack-version-17-october-13th-2022",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/animalcrossing/texturepacks/brackenhawk/"
+   ]
+  },
+  {
+   "id": "S043",
+   "console": "gc",
+   "title": "calebthegreek's Wario World",
+   "url": "https://emulationking.com/nintendo/gamecube/games/warioworld/texturepacks/calebthegreek/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S044",
+   "console": "gc",
+   "title": "ChaotixSoda's Sonic Heroes",
+   "url": "https://forums.dolphin-emu.org/Thread-sonic-heroes-ai-hd-textures",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/sonicheroes/texturepacks/chaotixsoda/"
+   ]
+  },
+  {
+   "id": "S045",
+   "console": "gc",
+   "title": "ChaotixSoda's Super Monkey Ball",
+   "url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-ai-hd-textures",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/supermonkeyball/texturepacks/chaotixsoda/"
+   ]
+  },
+  {
+   "id": "S046",
+   "console": "gc",
+   "title": "coolhardy100's Luigi's Mansion",
+   "url": "https://emulationking.com/nintendo/gamecube/games/luigismansion/texturepacks/coolhardy100/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S047",
+   "console": "gc",
+   "title": "CYB3RTRON's Shadow the Hedgehog",
+   "url": "https://emulationking.com/nintendo/gamecube/games/shadowthehedgehog/texturepacks/cyb3rtron/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S048",
+   "console": "gc",
+   "title": "CYB3RTRON's Star Fox Assault",
+   "url": "https://emulationking.com/nintendo/gamecube/games/starfoxassault/texturepacks/cyb3rtron/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S049",
+   "console": "gc",
+   "title": "Dan_Tsukasa's Metal Gear Solid: The Twin Snakes",
+   "url": "https://emulationking.com/nintendo/gamecube/games/metalgearsolidthetwinsnakes/texturepacks/dantsukasa/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S050",
+   "console": "gc",
+   "title": "Ewzzy's Chibi-Robo!",
+   "url": "https://emulationking.com/nintendo/gamecube/games/chibirobo/texturepacks/ewzzy/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S051",
+   "console": "gc",
+   "title": "Ewzzy's Tony Hawk's Underground",
+   "url": "https://emulationking.com/nintendo/gamecube/games/tonyhawksunderground/texturepacks/ewzzy/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S052",
+   "console": "gc",
+   "title": "Game1Retroz's Burnout 2: Point of Impact",
+   "url": "https://forums.dolphin-emu.org/Thread-burnout-2-hd-textures-mod-complete-edition-reuploaded-8-12-2025",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/burnout2pointofimpact/texturepacks/game1retroz/"
+   ]
+  },
+  {
+   "id": "S053",
+   "console": "gc",
+   "title": "Star Wars Jedi Outcast / Rogue Squadron II / Rogue Squadron III — General_Han_Solo",
+   "url": "https://forums.dolphin-emu.org/Thread-hd-texture-star-wars-rogue-leader-rebel-strike-jedi-knight-9th-july-2017",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier. Publication commune à trois jeux: distinguer les archives et Game IDs; une page commune compte comme une référence.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/starwarsjediknightiijedioutcast/texturepacks/generalhansolo/",
+    "https://emulationking.com/nintendo/gamecube/games/starwarsroguesquadroniirogueleader/texturepacks/generalhansolo/",
+    "https://emulationking.com/nintendo/gamecube/games/starwarsroguesquadroniiirebelstrike/texturepacks/generalhansolo/"
+   ]
+  },
+  {
+   "id": "S054",
+   "console": "gc",
+   "title": "ggm's Super Mario Strikers",
+   "url": "https://emulationking.com/nintendo/gamecube/games/supermariostrikers/texturepacks/ggm/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S055",
+   "console": "gc",
+   "title": "Giodude's Mario Kart: Double Dash!!",
+   "url": "https://emulationking.com/nintendo/gamecube/games/mariokartdoubledash/texturepacks/giodude/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S056",
+   "console": "gc",
+   "title": "hazmatdoll's SoulCalibur II",
+   "url": "https://emulationking.com/nintendo/gamecube/games/soulcaliburii/texturepacks/hazmatdoll/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S057",
+   "console": "gc",
+   "title": "Hypatia's Wind Waker HD Mod",
+   "url": "https://emulationking.com/nintendo/gamecube/games/legendofzeldathewindwaker/texturepacks/hypatia/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S058",
+   "console": "gc",
+   "title": "JayGee24's Medal of Honor: European Assault",
+   "url": "https://forums.dolphin-emu.org/Thread-medal-of-honor-european-assault-hd-texture-project",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/medalofhonoreuropeanassault/texturepacks/jaygee24/"
+   ]
+  },
+  {
+   "id": "S059",
+   "console": "gc",
+   "title": "Matrix2525's Sonic Adventure 2: Battle",
+   "url": "https://emulationking.com/nintendo/gamecube/games/sonicadventure2battle/texturepacks/matrix2525/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S060",
+   "console": "gc",
+   "title": "Matrix2525's Sonic Heroes",
+   "url": "https://emulationking.com/nintendo/gamecube/games/sonicheroes/texturepacks/matrix2525/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S061",
+   "console": "gc",
+   "title": "Naruto: Gekitou Ninja Taisen! 4 HD Texture Pack and Translation",
+   "url": "https://forums.dolphin-emu.org/Thread-naruto-gekitou-ninja-taisen-4-hd-texture-pack-translation",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/gamecube/games/narutogekitouninjataisen4/texturepacks/chrismargroff/"
+   ]
+  },
+  {
+   "id": "S062",
+   "console": "gc",
+   "title": "Paper Mario: The Thousand-Year Door HD",
+   "url": "https://emulationking.com/nintendo/gamecube/games/papermariothethousandyeardoor/texturepacks/dolphincommunity/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S063",
+   "console": "gc",
+   "title": "your pal fox's Luigi's Mansion",
+   "url": "https://emulationking.com/nintendo/gamecube/games/luigismansion/texturepacks/yourpalfox/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S064",
+   "console": "gc",
+   "title": "Zombie's Eternal Darkness: Sanity's Requiem",
+   "url": "https://emulationking.com/nintendo/gamecube/games/eternaldarkness/texturepacks/zombie/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S065",
+   "console": "gc",
+   "title": "Zombie's Resident Evil Code: Veronica X",
+   "url": "https://emulationking.com/nintendo/gamecube/games/residentevilcodeveronicax/texturepacks/zombie/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S066",
+   "console": "gc",
+   "title": "Zombie's X-Men Legends II: Rise of Apocalypse",
+   "url": "https://emulationking.com/nintendo/gamecube/games/xmenlegendsiiriseofapocalypse/texturepacks/zombie/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S067",
+   "console": "wii",
+   "title": "Mario Kart Wii Faithful HD",
+   "url": "https://github.com/RMED24/MKWii-Faithful-HD",
+   "note": "Vérifier licence, régions et archive actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S068",
+   "console": "wii",
+   "title": "Mario Kart Wii Reloaded",
+   "url": "https://github.com/GhostlyDark/MKWii-Reloaded",
+   "note": "Distinguer les contributions et variantes du projet précédent.",
+   "provenance": []
+  },
+  {
+   "id": "S069",
+   "console": "wii",
+   "title": "Sonic & SEGA All-Stars Racing — Wii HD",
+   "url": "https://gamebanana.com/mods/629711",
+   "note": "Contrôler le format Dolphin.",
+   "provenance": []
+  },
+  {
+   "id": "S070",
+   "console": "wii",
+   "title": "Wario Land: Shake It! — AI HD",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-65695.html=",
+   "note": "Repéré dans l'index officiel; téléchargement non vérifié.",
+   "provenance": []
+  },
+  {
+   "id": "S071",
+   "console": "wii",
+   "title": "Wii Party HD Texture Pack",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-65650.html=",
+   "note": "Vérifier statut actuel et ne pas confondre avec d'autres projets Wii Party.",
+   "provenance": []
+  },
+  {
+   "id": "S072",
+   "console": "wii",
+   "title": "Pandora's Tower UHD",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-64818.html=",
+   "note": "Repéré dans l'index officiel; vérifier publication et distribution.",
+   "provenance": []
+  },
+  {
+   "id": "S073",
+   "console": "wii",
+   "title": "Zack & Wiki — vierockhd",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-64509.html=",
+   "note": "Repéré dans l'index; retrouver la distribution actuelle autorisée.",
+   "provenance": []
+  },
+  {
+   "id": "S074",
+   "console": "wii",
+   "title": "Kirby's Epic Yarn — 4x",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-63404.html=",
+   "note": "Repéré dans l'index officiel; téléchargement non vérifié.",
+   "provenance": []
+  },
+  {
+   "id": "S075",
+   "console": "wii",
+   "title": "Super Mario Galaxy 2 — HD Texture Mod",
+   "url": "https://forums.dolphin-emu.org/archive/index.php?thread-40108.html=",
+   "note": "Vérifier dernière version et variantes adaptées au mobile. Même projet CDAMJC/Razius référencé par un index secondaire; ne pas créer un doublon.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/supermariogalaxy2/texturepacks/cdamjcandrazius/"
+   ]
+  },
+  {
+   "id": "S076",
+   "console": "wii",
+   "title": "Mobile Suit Gundam: MS Sensen 0079 — NTSC-J",
+   "url": "https://gbatemp.net/threads/wii-mobile-suit-gundam-ms-sensen-0079-ntsc-j-hd-texture-pack-upscale.683779/",
+   "note": "Contrôler identifiant japonais et complétude.",
+   "provenance": []
+  },
+  {
+   "id": "S077",
+   "console": "wii",
+   "title": "NiGHTS: Journey of Dreams — NTSC-U",
+   "url": "https://gbatemp.net/threads/wii-nights-journey-of-dreams-ntsc-u.680472/",
+   "note": "Contrôler le pack et son édition.",
+   "provenance": []
+  },
+  {
+   "id": "S078",
+   "console": "wii",
+   "title": "Wii Sports 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/wii-sports-4k",
+   "note": "Comparer aux autres projets Wii Sports; ne pas dupliquer.",
+   "provenance": []
+  },
+  {
+   "id": "S079",
+   "console": "wii",
+   "title": "Zelda: Skyward Sword 4K — Wii Edition",
+   "url": "https://www.henrikomagnifico.com/zelda-skyward-sword-4k-wii-edition",
+   "note": "Ne pas confondre avec les packs Switch ou ports natifs.",
+   "provenance": []
+  },
+  {
+   "id": "S080",
+   "console": "wii",
+   "title": "Super Mario 64 Reloaded — Dolphin/Wii VC",
+   "url": "https://github.com/GhostlyDark/SM64-Reloaded",
+   "note": "Utiliser la distribution Dolphin pour Wii Virtual Console, pas les formats GLideN64/ports natifs.",
+   "provenance": []
+  },
+  {
+   "id": "S081",
+   "console": "wii",
+   "title": "Mario Kart 64 Reloaded — Dolphin/Wii VC",
+   "url": "https://github.com/GhostlyDark/MK64-Reloaded",
+   "note": "Identifier la variante Dolphin.",
+   "provenance": []
+  },
+  {
+   "id": "S082",
+   "console": "wii",
+   "title": "Mario Craft 64 — Dolphin/Wii VC",
+   "url": "https://github.com/GhostlyDark/Mario-Craft-64",
+   "note": "Variante artistique; confirmer édition et distribution Dolphin.",
+   "provenance": []
+  },
+  {
+   "id": "S083",
+   "console": "wii",
+   "title": "Wii Menu 4K",
+   "url": "https://github.com/Alan-bur/WM4K",
+   "note": "Bonus système séparé; exclure du nombre de jeux couverts.",
+   "provenance": []
+  },
+  {
+   "id": "S084",
+   "console": "wii",
+   "title": "Apothicx's Sengoku Basara: Samurai Heroes",
+   "url": "https://forums.dolphin-emu.org/Thread-high-resolution-texture-pack-for-samurai-heroes-wii-ntsc-%E2%80%93-uhd-4k-optimized",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/sengokubasarasamuraiheroes/texturepacks/apothicx/"
+   ]
+  },
+  {
+   "id": "S085",
+   "console": "wii",
+   "title": "Bighead and Razius's New Super Mario Bros. Wii",
+   "url": "https://emulationking.com/nintendo/wii/games/newsupermariobroswii/texturepacks/bigheadandrazius/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S086",
+   "console": "wii",
+   "title": "CDAMJC and Razius's Super Mario Galaxy",
+   "url": "https://forums.dolphin-emu.org/Thread-super-mario-galaxy-1-hd-texture-mod",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/supermariogalaxy/texturepacks/cdamjcandrazius/"
+   ]
+  },
+  {
+   "id": "S087",
+   "console": "wii",
+   "title": "CTCaer's Donkey Kong Country Returns",
+   "url": "https://emulationking.com/nintendo/wii/games/donkeykongcountryreturns/texturepacks/ctcaer/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S088",
+   "console": "wii",
+   "title": "Dangerism's Muramasa: The Demon Blade",
+   "url": "https://emulationking.com/nintendo/wii/games/muramasathedemonblade/texturepacks/dangerism/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S089",
+   "console": "wii",
+   "title": "FanBoy, Nerrel and Hyperspeed's Resident Evil 4: Wii Edition",
+   "url": "https://emulationking.com/nintendo/wii/games/residentevil4wiiedition/texturepacks/fanboynerrelandhyperspeed/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S090",
+   "console": "wii",
+   "title": "Gamerz's Rhythm Heaven Fever",
+   "url": "https://emulationking.com/nintendo/wii/games/rhythmheavenfever/texturepacks/gamerz/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S091",
+   "console": "wii",
+   "title": "Giodude's Dokapon Kingdom",
+   "url": "https://emulationking.com/nintendo/wii/games/dokaponkingdom/texturepacks/giodude/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S092",
+   "console": "wii",
+   "title": "Giodude's Sonic and the Black Knight",
+   "url": "https://emulationking.com/nintendo/wii/games/sonicandtheblackknight/texturepacks/giodude/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S093",
+   "console": "wii",
+   "title": "Gsprfdude's Rune Factory Frontier",
+   "url": "https://forums.dolphin-emu.org/Thread-rune-factory-frontier-upscaled-texture-pack-in-progress-updated-10-10",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/runefactoryfrontier/texturepacks/gsprfdude/"
+   ]
+  },
+  {
+   "id": "S094",
+   "console": "wii",
+   "title": "Hexioum's Mario Party 9",
+   "url": "https://emulationking.com/nintendo/wii/games/marioparty9/texturepacks/hexioum/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S095",
+   "console": "wii",
+   "title": "kevlahnota and Nerrel's Muramasa: The Demon Blade",
+   "url": "https://emulationking.com/nintendo/wii/games/muramasathedemonblade/texturepacks/kevlahnotaandnerrel/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S096",
+   "console": "wii",
+   "title": "lunarEcho21's The Last Story",
+   "url": "https://forums.dolphin-emu.org/Thread-the-last-story-uhd-texture-pack",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/thelaststory/texturepacks/lunarecho21/"
+   ]
+  },
+  {
+   "id": "S097",
+   "console": "wii",
+   "title": "Mario Kart Wii HD Remaster",
+   "url": "https://forums.dolphin-emu.org/Thread-mario-kart-wii-hd-remaster",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/mariokartwii/texturepacks/moukrea/"
+   ]
+  },
+  {
+   "id": "S098",
+   "console": "wii",
+   "title": "Matrix2525's Endless Ocean: Blue World",
+   "url": "https://forums.dolphin-emu.org/Thread-endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/endlessoceanblueworld/texturepacks/matrix2525/"
+   ]
+  },
+  {
+   "id": "S099",
+   "console": "wii",
+   "title": "Matteoki's Wii Sports",
+   "url": "https://emulationking.com/nintendo/wii/games/wiisports/texturepacks/matteoki/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S100",
+   "console": "wii",
+   "title": "PeanutReaper486's Arc Rise Fantasia",
+   "url": "https://emulationking.com/nintendo/wii/games/arcrisefantasia/texturepacks/peanutreaper486/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S101",
+   "console": "wii",
+   "title": "plusnine's Punch-Out!!",
+   "url": "https://emulationking.com/nintendo/wii/games/punchoutwii/texturepacks/plusnine/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S102",
+   "console": "wii",
+   "title": "quick.silver1's Sonic Colors",
+   "url": "https://forums.dolphin-emu.org/Thread-sonic-color-uhd-texture",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/soniccolors/texturepacks/quicksilver1/"
+   ]
+  },
+  {
+   "id": "S103",
+   "console": "wii",
+   "title": "Razius's Super Paper Mario",
+   "url": "https://emulationking.com/nintendo/wii/games/superpapermario/texturepacks/razius/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S104",
+   "console": "wii",
+   "title": "SSBHD Retexture",
+   "url": "https://emulationking.com/nintendo/wii/games/supersmashbrosbrawl/texturepacks/yami2b/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S105",
+   "console": "wii",
+   "title": "themriron2's The Last Story",
+   "url": "https://emulationking.com/nintendo/wii/games/thelaststory/texturepacks/themriron2/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S106",
+   "console": "wii",
+   "title": "Xenoblade Chronicles HD",
+   "url": "https://forums.dolphin-emu.org/Thread-hd-texture-project-xenoblade-chronicles-v5-0u-may-17-2014",
+   "note": "Publication Dolphin retrouvée via les crédits du répertoire. Accès parfois protégé; distribution et archive à vérifier.",
+   "provenance": [
+    "https://emulationking.com/nintendo/wii/games/xenobladechronicles/texturepacks/bigheadandthedolphincommunity/"
+   ]
+  },
+  {
+   "id": "S107",
+   "console": "wii",
+   "title": "zaozabot's Mario Party 8",
+   "url": "https://emulationking.com/nintendo/wii/games/marioparty8/texturepacks/zaozabot/",
+   "note": "Fiche secondaire de découverte. Retrouver le créateur et sa distribution officielle avant intégration automatique.",
+   "provenance": []
+  },
+  {
+   "id": "S108",
+   "console": "3ds",
+   "title": "Yo-kai Watch 2: Redefined",
+   "url": "https://github.com/ykwrefined/Yo-kai-Watch-2-Redefined",
+   "note": "Vérifier éditions, mises à jour et hachages.",
+   "provenance": []
+  },
+  {
+   "id": "S109",
+   "console": "3ds",
+   "title": "Monster Hunter 4 Ultimate — MH4HDUI",
+   "url": "https://github.com/xl3lackout/MH4HDUI",
+   "note": "Interface HD partielle; ne pas annoncer tout le jeu remasterisé.",
+   "provenance": []
+  },
+  {
+   "id": "S110",
+   "console": "3ds",
+   "title": "Bravely Default HD",
+   "url": "https://gamebanana.com/mods/530500",
+   "note": "Vérifier distribution et Title IDs.",
+   "provenance": []
+  },
+  {
+   "id": "S111",
+   "console": "3ds",
+   "title": "Bravely Second: End Layer HD",
+   "url": "https://gamebanana.com/mods/530531",
+   "note": "Vérifier le jeu réel dans l'archive malgré la catégorie du site.",
+   "provenance": []
+  },
+  {
+   "id": "S112",
+   "console": "3ds",
+   "title": "Bravely Default / Second — HD Font and Icons",
+   "url": "https://gamebanana.com/mods/592686",
+   "note": "Complément UI avec dépendances et conflits à identifier.",
+   "provenance": []
+  },
+  {
+   "id": "S113",
+   "console": "3ds",
+   "title": "Fantasy Life HD — King Goose",
+   "url": "https://ko-fi.com/s/18fb0ce211",
+   "note": "Page du créateur; vérifier distribution et conditions.",
+   "provenance": []
+  },
+  {
+   "id": "S114",
+   "console": "3ds",
+   "title": "Professor Layton vs. Phoenix Wright HD",
+   "url": "https://gamebanana.com/mods/601858",
+   "note": "Vérifier région, langue et couverture.",
+   "provenance": []
+  },
+  {
+   "id": "S115",
+   "console": "3ds",
+   "title": "Fire Emblem Fates HD Textures",
+   "url": "https://gamebanana.com/mods/9770",
+   "note": "Identifier version, auteurs et couverture.",
+   "provenance": []
+  },
+  {
+   "id": "S116",
+   "console": "3ds",
+   "title": "Fire Emblem Fates — Combined HD Pack",
+   "url": "https://gamebanana.com/mods/351105",
+   "note": "Comparer aux packs précédents et conserver les crédits.",
+   "provenance": []
+  },
+  {
+   "id": "S117",
+   "console": "3ds",
+   "title": "Fire Emblem Fates — UI Remastered",
+   "url": "https://gamebanana.com/mods/542115",
+   "note": "Complément UI; gérer l'ordre de priorité.",
+   "provenance": []
+  },
+  {
+   "id": "S118",
+   "console": "3ds",
+   "title": "Fire Emblem Fates — Shadow Dragon HD",
+   "url": "https://gamebanana.com/mods/515749",
+   "note": "Dépend du mod Shadow Dragon Remake; ne pas appliquer au jeu de base.",
+   "provenance": []
+  },
+  {
+   "id": "S119",
+   "console": "3ds",
+   "title": "Fire Emblem Awakening — Amateur Awakening HD",
+   "url": "https://gamebanana.com/mods/400809",
+   "note": "Vérifier version, régions et textures.",
+   "provenance": []
+  },
+  {
+   "id": "S120",
+   "console": "3ds",
+   "title": "Fire Emblem Awakening — Expanded XD",
+   "url": "https://gamebanana.com/mods/550100",
+   "note": "Projet lié; vérifier s'il s'agit de textures autonomes ou d'un mod nécessitant une installation distincte.",
+   "provenance": []
+  },
+  {
+   "id": "S121",
+   "console": "3ds",
+   "title": "Fire Emblem Echoes: Shadows of Valentia HD",
+   "url": "https://gamebanana.com/mods/506672",
+   "note": "Vérifier version et langue.",
+   "provenance": []
+  },
+  {
+   "id": "S122",
+   "console": "3ds",
+   "title": "Majora's Mask 3D — MM3DHD",
+   "url": "https://github.com/DeathWrench/MM3DHD",
+   "note": "Contrôler hachages et variantes.",
+   "provenance": []
+  },
+  {
+   "id": "S123",
+   "console": "3ds",
+   "title": "Majora's Mask 3D — HD Font & UI",
+   "url": "https://gamebanana.com/mods/568751",
+   "note": "Interface; vérifier compatibilité régionale.",
+   "provenance": []
+  },
+  {
+   "id": "S124",
+   "console": "3ds",
+   "title": "Metal Gear Solid 3D HD Edition",
+   "url": "https://gamebanana.com/mods/150247",
+   "note": "Identifier le périmètre et le statut du projet.",
+   "provenance": []
+  },
+  {
+   "id": "S125",
+   "console": "3ds",
+   "title": "MGS3 HD Edition — Remaster Overhaul",
+   "url": "https://gamebanana.com/mods/416034",
+   "note": "Comparer à l'autre projet, ne pas compter une copie comme création indépendante.",
+   "provenance": []
+  },
+  {
+   "id": "S126",
+   "console": "3ds",
+   "title": "Metal Gear Solid Snake Eater 3D — 4x AI",
+   "url": "https://gbatemp.net/threads/metal-gear-solid-snake-eater-3d-hd-4xai-upscale.658864/",
+   "note": "Vérifier les dépendances sans importer une sauvegarde à la place de celle de l'utilisateur.",
+   "provenance": []
+  },
+  {
+   "id": "S127",
+   "console": "3ds",
+   "title": "Dragon Quest VII HD — Panda_Venom",
+   "url": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
+   "note": "Vérifier la couverture et la version publiée.",
+   "provenance": []
+  },
+  {
+   "id": "S128",
+   "console": "3ds",
+   "title": "Dragon Quest VIII HD",
+   "url": "https://gamebanana.com/mods/489556",
+   "note": "Confirmer édition 3DS, pas PS2.",
+   "provenance": []
+  },
+  {
+   "id": "S129",
+   "console": "3ds",
+   "title": "Radiant Historia: Perfect Chronology HD",
+   "url": "https://gamebanana.com/mods/373806",
+   "note": "Contrôler extras, langue et hachages.",
+   "provenance": []
+  },
+  {
+   "id": "S130",
+   "console": "3ds",
+   "title": "E.X. Troopers — JPN / traduction anglaise",
+   "url": "https://gbatemp.net/threads/3ds-e-x-troopers-jpn-english-translation-hd-texture-pack.656525/",
+   "note": "Identifier les éditions et dépendances.",
+   "provenance": []
+  },
+  {
+   "id": "S131",
+   "console": "3ds",
+   "title": "Dillon's Dead-Heat Breakers — USA HD",
+   "url": "https://gbatemp.net/threads/3ds-dillons-dead-heat-breakers-usa-hd-texture-pack.656522/",
+   "note": "Vérifier Title ID USA et contenu.",
+   "provenance": []
+  },
+  {
+   "id": "S132",
+   "console": "3ds",
+   "title": "Super Robot Wars UX — JPN HD",
+   "url": "https://gbatemp.net/threads/3ds-super-robot-wars-ux-jpn-hd-texture-pack.656526/",
+   "note": "Contrôler compatibilité avec les traductions.",
+   "provenance": []
+  },
+  {
+   "id": "S133",
+   "console": "3ds",
+   "title": "Super Street Fighter IV: 3D Edition",
+   "url": "https://gbatemp.net/threads/super-street-fighter-iv-3d-edition-texture-pack-remaster-for-citra-3ds.674612/",
+   "note": "Vérifier textures et fonctions nécessaires.",
+   "provenance": []
+  },
+  {
+   "id": "S134",
+   "console": "3ds",
+   "title": "Project X Zone — US/EUR/JPN",
+   "url": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
+   "note": "Confirmer les régions réellement couvertes.",
+   "provenance": []
+  },
+  {
+   "id": "S135",
+   "console": "3ds",
+   "title": "Shin Megami Tensei IV HD — AspenVesper",
+   "url": "https://gamebanana.com/mods/651730",
+   "note": "Publication actuelle à examiner.",
+   "provenance": []
+  },
+  {
+   "id": "S136",
+   "console": "3ds",
+   "title": "Soul Hackers HD Demons",
+   "url": "https://gamebanana.com/mods/604806",
+   "note": "Inspecter le format: ne pas présumer qu'il s'agit d'un pack custom textures plutôt que RomFS.",
+   "provenance": []
+  },
+  {
+   "id": "S137",
+   "console": "3ds",
+   "title": "Devil Survivor Overclocked — HD Addon",
+   "url": "https://gamebanana.com/mods/500409",
+   "note": "Retrouver le pack de base nécessaire et contrôler les hachages.",
+   "provenance": []
+  },
+  {
+   "id": "S138",
+   "console": "3ds",
+   "title": "Etrian Odyssey Nexus HD",
+   "url": "https://gamebanana.com/mods/40630",
+   "note": "Vérifier la couverture, l'interface et les crédits.",
+   "provenance": []
+  },
+  {
+   "id": "S139",
+   "console": "3ds",
+   "title": "Animal Crossing: New Leaf — TrueShade 4K",
+   "url": "https://gamebanana.com/mods/494239",
+   "note": "Identifier édition Welcome amiibo, mises à jour et Title IDs acceptés.",
+   "provenance": []
+  },
+  {
+   "id": "S140",
+   "console": "3ds",
+   "title": "Kirby: Triple Deluxe in HD",
+   "url": "https://gamebanana.com/mods/626409",
+   "note": "Inspecter les signalements de compatibilité; garder candidat tant que le fonctionnement n'est pas démontré.",
+   "provenance": []
+  },
+  {
+   "id": "S141",
+   "console": "3ds",
+   "title": "Mario & Luigi: Superstar Saga HD",
+   "url": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
+   "note": "Remonter à la distribution publiée par l'auteur.",
+   "provenance": []
+  },
+  {
+   "id": "S142",
+   "console": "3ds",
+   "title": "Mario & Luigi: Bowser's Inside Story HD",
+   "url": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
+   "note": "Projet annoncé WIP; vérifier disponibilité et couverture.",
+   "provenance": []
+  },
+  {
+   "id": "S143",
+   "console": "3ds",
+   "title": "Crimson Shroud HD",
+   "url": "https://sites.google.com/view/vierockretrohd/3ds-hd/crimson-shroud-3ds-hd",
+   "note": "Page historique du créateur annonçant un pack partiel; vérifier distribution et droits actuels.",
+   "provenance": []
+  },
+  {
+   "id": "S144",
+   "console": "3ds",
+   "title": "Ocarina of Time 3D 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/zelda-ocarina-of-time-3d-4k",
+   "note": "Contrôler la version pour le hachage Azahar réellement embarqué.",
+   "provenance": []
+  },
+  {
+   "id": "S145",
+   "console": "3ds",
+   "title": "Majora's Mask 3D 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/zelda-majoras-mask-3d-4k",
+   "note": "Comparer aux autres variantes pour le même jeu.",
+   "provenance": []
+  },
+  {
+   "id": "S146",
+   "console": "3ds",
+   "title": "A Link Between Worlds 4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/zelda-a-link-between-worlds-4k",
+   "note": "Contrôler les hachages et régions.",
+   "provenance": []
+  },
+  {
+   "id": "S147",
+   "console": "3ds",
+   "title": "Super Mario 3D Land HD/4K — Henriko",
+   "url": "https://www.henrikomagnifico.com/super-mario-3d-land-hd",
+   "note": "Contrôler variantes et mémoire.",
+   "provenance": []
+  },
+  {
+   "id": "S148",
+   "console": "3ds",
+   "title": "Pokémon 3DS — PokeTex",
+   "url": "https://github.com/Gray-Rice/PokeTex-3DS",
+   "note": "Source déjà présente dans le chantier initial: conserver, compléter, vérifier provenance et compatibilité.",
+   "provenance": []
+  },
+  {
+   "id": "S149",
+   "console": "3ds",
+   "title": "Ace Combat: Assault Horizon Legacy+ — Ostrich",
+   "url": "https://ostrichmods.com/ac3d.html",
+   "note": "Source auteur consultée: UI, HUD et avions; version US annoncée, Title ID 000400000015C000. Boutons alternatifs comme variantes, model swap séparé.",
+   "provenance": []
+  },
+  {
+   "id": "S150",
+   "console": "3ds",
+   "title": "Monster Hunter 4 Ultimate HD v3.0 — mhondeck",
+   "url": "https://pastebin.com/45Pu5HQP",
+   "note": "Source de publication consultée. EU 0004000000126100 et US 0004000000126300; mise à jour du jeu v1.1 requise, pas MH4G japonais. Respecter les réglages documentés, éviter de précharger ~11 Go; intégrer les mises à jour sans les compter comme packs indépendants.",
+   "provenance": [
+    "https://pastebin.com/89XN1xCX"
+   ]
+  },
+  {
+   "id": "S151",
+   "console": "3ds",
+   "title": "Monster Hunter XX — projet HD 3DS historique",
+   "url": "https://www.neogaf.com/threads/monster-hunter-xx-3ds-hd-texture-project.1499866/",
+   "note": "Retrouver la publication et l'archive originales. Ne pas utiliser le pack MHGU Switch comme un pack 3DS.",
+   "provenance": []
+  },
+  {
+   "id": "S152",
+   "console": "3ds",
+   "title": "Sonic Generations 3DS — HD Textures",
+   "url": "https://gamebanana.com/mods/619599",
+   "note": "Page de projet retrouvée; inspecter les fichiers pour distinguer custom textures Citra et mod RomFS.",
+   "provenance": []
+  },
+  {
+   "id": "S153",
+   "console": "3ds",
+   "title": "Etrian Odyssey Nexus HD — autre publication",
+   "url": "https://gamebanana.com/mods/608253",
+   "note": "Comparer avec /mods/40630 et identifier auteur, filiation et couverture; pas automatiquement un nouveau pack distinct.",
+   "provenance": []
+  },
+  {
+   "id": "S154",
+   "console": "3ds",
+   "title": "Etrian Odyssey 2 Untold — Fearsoflove",
+   "url": "https://web.archive.org/web/20240228031459/https://community.citra-emu.org/t/etrian-odyssey-2-untold-the-fafnir-knight-hd-texture-pack/860242",
+   "note": "Publication auteur archivée consultée. Retrouver le lien MEGA complet et sa clé depuis la publication; disponibilité actuelle non vérifiée.",
+   "provenance": []
+  },
+  {
+   "id": "S155",
+   "console": "3ds",
+   "title": "New Super Mario Bros. 2 — alxkiri et complément Bighead",
+   "url": "https://web.archive.org/web/20240228024932/https://community.citra-emu.org/t/new-super-mario-bros-2-hd-texture-pack-0-9-9/392871",
+   "note": "Publication et commentaires consultés. Pack partiel; ancien problème d'atlas signalé. Bighead publie une variante dessinée à la main: retracer le MediaFire dans le commentaire, gérer conflits et couverture sans promettre un remaster complet.",
+   "provenance": []
+  },
+  {
+   "id": "S156",
+   "console": "3ds",
+   "title": "Shin Megami Tensei: Strange Journey Redux — Merkava2k15",
+   "url": "https://www.reddit.com/r/Megaten/comments/1b99gzf/smt_strange_journey_hd_texture_pack/",
+   "note": "Publication auteur consultée. Vérifier l'archive, les Title IDs et le hachage Azahar.",
+   "provenance": []
+  },
+  {
+   "id": "S157",
+   "console": "3ds",
+   "title": "Phoenix Wright: Dual Destinies — publication auteur",
+   "url": "https://www.reddit.com/r/AceAttorney/comments/l641oh/",
+   "note": "Annonce du créateur retrouvée par recherche; page complète inaccessible lors de la vérification. Remonter à la distribution, puis vérifier langue et Title ID.",
+   "provenance": []
+  },
+  {
+   "id": "S158",
+   "console": "3ds",
+   "title": "Shin Megami Tensei IV — Kasaski",
+   "url": "https://web.archive.org/web/20240228030323/https%3A//community.citra-emu.org/t/kasaskis-shin-megami-tensei-iv-hd-texture-pack/180130",
+   "note": "Référence historique identifiée; lecture de la capture échouée par timeout. Retrouver la distribution actuelle et vérifier les crédits; reste candidat.",
+   "provenance": []
+  },
+  {
+   "id": "S159",
+   "console": "3ds",
+   "title": "Shin Megami Tensei IV Apocalypse — Aflunn",
+   "url": "https://web.archive.org/web/20240228025258/https%3A//community.citra-emu.org/t/shin-megami-tensei-iv-apocalypse-hd-texture-pack/354836",
+   "note": "Référence historique identifiée; lecture de la capture échouée par timeout. Retrouver la distribution actuelle et vérifier les crédits; reste candidat.",
+   "provenance": []
+  },
+  {
+   "id": "S160",
+   "console": "3ds",
+   "title": "Soul Hackers — Gabriel25053, pack de base",
+   "url": "https://web.archive.org/web/20240228021624/https%3A//community.citra-emu.org/t/shin-megami-tensei-devil-summoner-soul-hackers-hd-texture-pack/621848",
+   "note": "Référence historique identifiée; lecture de la capture échouée par timeout. Retrouver la distribution actuelle et vérifier les crédits; reste candidat.",
+   "provenance": []
+  },
+  {
+   "id": "S161",
+   "console": "3ds",
+   "title": "Persona Q2 — DniweTamp",
+   "url": "https://web.archive.org/web/20240228025051/https%3A//community.citra-emu.org/t/persona-q2-hd-texture-pack/206846",
+   "note": "Référence historique identifiée; lecture de la capture échouée par timeout. Retrouver la distribution actuelle et vérifier les crédits; reste candidat.",
+   "provenance": []
+  },
+  {
+   "id": "S162",
+   "console": "3ds",
+   "title": "Stella Glow — Kamijoan",
+   "url": "https://web.archive.org/web/20240228025936/https%3A//community.citra-emu.org/t/stella-glow-hd-texture-pack-by-kamijoan/480219",
+   "note": "Référence historique identifiée; lecture de la capture échouée par timeout. Retrouver la distribution actuelle et vérifier les crédits; reste candidat.",
+   "provenance": []
+  },
+  {
+   "id": "S163",
+   "console": "3ds",
+   "title": "Majora's Mask 3D — Darmani",
+   "url": "https://gamebanana.com/mods/422313",
+   "note": "Projet annoncé dans la publication Citra conservée. Distinguer Henriko, DeathWrench et Darmani; page de fichiers non lisible dans cet accès.",
+   "provenance": []
+  },
+  {
+   "id": "S164",
+   "console": "3ds",
+   "title": "WarioWare Gold — piste DniweTamp",
+   "url": "https://drive.google.com/drive/folders/1CbWvaX5SahvpE--CD7JNqqa-BddHHrJM",
+   "note": "Lien repéré dans la liste communautaire 3DS. Provenance et disponibilité à confirmer avant installation; ne pas présenter comme distribution officielle validée.",
+   "provenance": []
+  },
+  {
+   "id": "S165",
+   "console": "3ds",
+   "title": "Phoenix Wright: Spirit of Justice — piste Volya",
+   "url": "https://drive.google.com/file/d/183ZskbSqv2d8DquyOgOhtCPCwtstS4Iy/view",
+   "note": "Lien de la liste communautaire 3DS. Retrouver l'auteur, la publication et les langues; archive non contrôlée.",
+   "provenance": []
+  },
+  {
+   "id": "S166",
+   "console": "ps1",
+   "title": "Xenogears — Perfect ART Works",
+   "url": "https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158",
+   "note": "Publication et distribution pour Beetle PSX HW; pack portraits/UI.",
+   "provenance": []
+  },
+  {
+   "id": "S167",
+   "console": "ps1",
+   "title": "Xenogears — HD Portraits, Shining Red",
+   "url": "https://www.patreon.com/ShiningRed/posts/xenogears-hd-1-0-41942032",
+   "note": "Variante portraits à examiner; accès et distribution à contrôler.",
+   "provenance": []
+  },
+  {
+   "id": "S168",
+   "console": "ps1",
+   "title": "Suikoden II — Project Kyaro",
+   "url": "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+   "note": "Projet pour Beetle PSX HW; vérifier pack actuel et compatibilité avec les correctifs du jeu.",
+   "provenance": []
+  },
+  {
+   "id": "S169",
+   "console": "ps1",
+   "title": "Chrono Cross — Upscale WIP",
+   "url": "https://www.reddit.com/r/GameUpscale/comments/grtmuc/chrono_cross_upscale_wip/",
+   "note": "Projet historique: vérifier s'il nécessite une version modifiée du cœur et ne pas la remplacer aveuglément.",
+   "provenance": []
+  },
+  {
+   "id": "S170",
+   "console": "ps1",
+   "title": "Bl4ckH4nd — publication de sa collection PS1",
+   "url": "https://gbatemp.net/threads/my-ps2-packs.621422/page-10",
+   "note": "L'auteur y publie son dossier PS1 Beetle PSX HW; examiner notamment Metal Gear Solid et les autres jeux réellement présents.",
+   "provenance": []
+  },
+  {
+   "id": "S171",
+   "console": "ps1",
+   "title": "Collection PS1 DuckStation",
+   "url": "https://gbatemp.net/threads/my-ps1-packs-for-dukstation-updated-28-05-2025.668845/",
+   "note": "Découverte uniquement pour cette intégration: vérifier l'existence d'éditions Beetle ou une adaptation fiable.",
+   "provenance": []
+  },
+  {
+   "id": "S172",
+   "console": "ps1",
+   "title": "Resident Evil — DuckStation",
+   "url": "https://gbatemp.net/threads/resident-evil-duckstation-hd-textures.672201/",
+   "note": "Pas directement installable dans Beetle sans adaptation prouvée.",
+   "provenance": []
+  },
+  {
+   "id": "S173",
+   "console": "ps1",
+   "title": "Resident Evil 2 — DuckStation",
+   "url": "https://gbatemp.net/threads/resident-evil-2-duckstation-hd-textures.673541/",
+   "note": "Pas directement installable dans Beetle sans adaptation prouvée.",
+   "provenance": []
+  },
+  {
+   "id": "S174",
+   "console": "ps1",
+   "title": "Parasite Eve II — DuckStation",
+   "url": "https://gbatemp.net/threads/parasite-eve-ii-duckstation-hd-textures.672709/",
+   "note": "Chercher une édition Beetle; distinguer ce projet des ports/remasters PC.",
+   "provenance": []
+  },
+  {
+   "id": "S175",
+   "console": "ps1",
+   "title": "Legend — DuckStation",
+   "url": "https://gbatemp.net/threads/legend-duckstation-hd-textures.672819/",
+   "note": "Candidat pour adaptation uniquement; ne pas annoncer compatible.",
+   "provenance": []
+  },
+  {
+   "id": "S176",
+   "console": "ps1",
+   "title": "Castlevania: Symphony of the Night x4 — Tarrantx, Beetle PSX HW",
+   "url": "https://gbatemp.net/threads/psx-castlevania-symphony-of-the-night-hd-x4-ntsc-us-slus-00067-beetle-psx-hw.685355/",
+   "note": "Publication explicitement Beetle PSX HW consultée; NTSC-US SLUS-00067 annoncé. Aucun lien de téléchargement visible dans le contenu récupéré: chercher la distribution avant de le compter installable. Le fil .685354 est une seconde publication du même projet.",
+   "provenance": []
+  },
+  {
+   "id": "S177",
+   "console": "ps1",
+   "title": "WipEout — NR74W, piste historique Beetle",
+   "url": "https://github.com/NR74W/WipEout-HD-Texture-Pack",
+   "note": "Dépôt cité par une présentation historique Beetle. Accès direct échoué; contenu et disponibilité à confirmer. Ne pas confondre WipEout, WipEout XL/2097 et les ports PC.",
+   "provenance": []
+  },
+  {
+   "id": "S178",
+   "console": "psp",
+   "title": "Valkyria Chronicles 3 Extra Edition AI upscaled",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26728",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Comparer les autres fils VC3 et regrouper les versions d'un même projet.",
+   "provenance": []
+  },
+  {
+   "id": "S179",
+   "console": "psp",
+   "title": "[ULES01183] Yu-Gi-Oh GX Tag Force 3 - HD Card Texture Pack (Anime + TCG)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=45232",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S180",
+   "console": "psp",
+   "title": "Valkyria Chronicles 3 Extra Edition English ReTranslation-ready AI upscaled pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=45098",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Comparer les autres fils VC3 et regrouper les versions d'un même projet.",
+   "provenance": []
+  },
+  {
+   "id": "S181",
+   "console": "psp",
+   "title": "[ULUS10555] Yu-Gi-Oh 5D's Tagforce 5 - HD Remaster",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=35573",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S182",
+   "console": "psp",
+   "title": "Persona 2 Eternal Punishment - UI Upscale v0.50",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28838",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S183",
+   "console": "psp",
+   "title": "Star Wars Battlefront 2 basic interface lift and small update.",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27336",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S184",
+   "console": "psp",
+   "title": "Persona 2 - Innocent Sin HD UI (v1.72 Update)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26806",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S185",
+   "console": "psp",
+   "title": "Final Fantasy VII Crisis Core HD/Remaster Project WIP",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26017",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S186",
+   "console": "psp",
+   "title": "SWBF2:UC PC PS2 Texture Pack [Version 6.2]",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=42436",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Vérifier les dépendances et l'édition modifiée.",
+   "provenance": []
+  },
+  {
+   "id": "S187",
+   "console": "psp",
+   "title": "Dissidia 012 Final Fantasy HD Retexture",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26396",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S188",
+   "console": "psp",
+   "title": "Yu-Gi-Oh Gx! Tag Force 2 Full HD Texture Pack en Español",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=42180",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S189",
+   "console": "psp",
+   "title": "Daxter Upscaled UHD Texture + Enhanced Cutscenes on *Android*",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28435",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Les vidéos améliorées Android doivent rester une dépendance distincte; ne pas les supposer prises en charge sur iOS.",
+   "provenance": []
+  },
+  {
+   "id": "S190",
+   "console": "psp",
+   "title": "Ridge Racer 2 - HD Texture Project (1.2/WIP)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25052",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S191",
+   "console": "psp",
+   "title": "Dragon Ball Shin Budokai 1 HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=39800",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S192",
+   "console": "psp",
+   "title": "Fantasy Golf: Pangya [ULUS-10438]",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=35005",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S193",
+   "console": "psp",
+   "title": "God of War Chains of Olympus HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=41156",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S194",
+   "console": "psp",
+   "title": "RIDGE RACERS 2 HD TEXTURE BOTH PACK UCES00422 & ULJS00080 UPDATE + LINKS",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29848",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S195",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! GX Tag Force 1 HD Cards Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28535",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S196",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! Tag Force 3 HD Texturas en ESPAÑOL!!",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=39817",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S197",
+   "console": "psp",
+   "title": "God of War: Ghost of Sparta HD Lite",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=40782",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S198",
+   "console": "psp",
+   "title": "Persona (1) - HD UI (v4 - Portrait Modernization)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26691",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S199",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! Tag Force 3 HD Cards Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28421",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S200",
+   "console": "psp",
+   "title": "Naruto Shippuden Ultimate Ninja Impact HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=40768",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S201",
+   "console": "psp",
+   "title": "Metal Gear Solid Peace Walker HD Texture Pack V1.1",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25060",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S202",
+   "console": "psp",
+   "title": "Lord of Arcana - HD Texture Project (1.00/WIP)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=24959",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S203",
+   "console": "psp",
+   "title": "Naruto Shippuden Ultimate Ninja Heroes 3 HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=39140",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S204",
+   "console": "psp",
+   "title": "Dragon Ball Shin Budokai 2 HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=35317",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S205",
+   "console": "psp",
+   "title": "Bleach Heat the Soul 2 HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=37052",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S206",
+   "console": "psp",
+   "title": "Fate/Extra CCC HD Lite",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=38996",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S207",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! 5D's Tag Force 6 HD Cards Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28497",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S208",
+   "console": "psp",
+   "title": "WIPEOUT Pure Overhaul",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=38252",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S209",
+   "console": "psp",
+   "title": "Digimon Adventure",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26873",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S210",
+   "console": "psp",
+   "title": "Lego Batman ULUS10380 AI Upscale Texture",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=37842",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S211",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! ARC-V Tag Force Special HD Cards Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28443",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S212",
+   "console": "psp",
+   "title": "Naruto Ultimate Ninja Heroes 2 HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=35027",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S213",
+   "console": "psp",
+   "title": "Fate/Extra CCC - HD Remaster (incomplete / Beta)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29826",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S214",
+   "console": "psp",
+   "title": "Samurai Showdown Anthology HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=36574",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S215",
+   "console": "psp",
+   "title": "LEGO Star Wars 2: GameCube/Wii HUD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=32170",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S216",
+   "console": "psp",
+   "title": "Gundam AGE PSP Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=35192",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Vérifier les dépendances et l'édition modifiée.",
+   "provenance": []
+  },
+  {
+   "id": "S217",
+   "console": "psp",
+   "title": "The Sims 2 HD Texture Pack [ULUS10031]",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29988",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S218",
+   "console": "psp",
+   "title": "Tactics Ogre LUCT HD UI v0.9.9",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26100",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S219",
+   "console": "psp",
+   "title": "God of War: Chains of Olympus - Upscaling texture pack.",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26493",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S220",
+   "console": "psp",
+   "title": "Fun Remaster Phantasy Star Portable 2: Infinity",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27894",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Vérifier les dépendances et l'édition modifiée.",
+   "provenance": []
+  },
+  {
+   "id": "S221",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! GX Tag Force 2 HD Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29640",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S222",
+   "console": "psp",
+   "title": "Silent Hill: Origins HD Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30370",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S223",
+   "console": "psp",
+   "title": "Castlevania: The Dracula X Chronicles HD v1.0",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=31528",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S224",
+   "console": "psp",
+   "title": "Final Fantasy Tactics: The War of the Lions Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29776",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S225",
+   "console": "psp",
+   "title": "Saint Seiya Omega Ultimate Cosmo HD Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=34929",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S226",
+   "console": "psp",
+   "title": "Bleach Heat the Soul HD Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=34875",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S227",
+   "console": "psp",
+   "title": "Prince of Persia: Rival Swords",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=34853",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S228",
+   "console": "psp",
+   "title": "Gran Turismo - Nürburgring Retextured",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=34809",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S229",
+   "console": "psp",
+   "title": "Musou Orochi 2 Special - HD Texture Pack.",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29011",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S230",
+   "console": "psp",
+   "title": "Gran turismo UCES01245 Ai enhanced hd textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29124",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S231",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! GX Tag Force 1 HD Remastered",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29487",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S232",
+   "console": "psp",
+   "title": "[WIP] Lumines Puzzle Fusion - HD Texture Pack & 60 FPS Mode",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28353",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S233",
+   "console": "psp",
+   "title": "Untold Legends: Brotherhood of the Blade - Amateur HD UI Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=34071",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S234",
+   "console": "psp",
+   "title": "Tekken 6 HD Texture Pack [ULUS10466]",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25479",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S235",
+   "console": "psp",
+   "title": "FF Dissidia 012 HD Texture Pack (WIP)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26257",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S236",
+   "console": "psp",
+   "title": "Valkyria Chronicles 2 AI upscaled (2021-11-08)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26698",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S237",
+   "console": "psp",
+   "title": "Patapon 3 AI upscaled (2021-05-28)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26747",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S238",
+   "console": "psp",
+   "title": "7th Dragon 2020 HD Texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29612",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S239",
+   "console": "psp",
+   "title": "Mega Man Maverick Hunter X HD Texture Pack v1.2",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29386",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S240",
+   "console": "psp",
+   "title": "Last Ranker v2.3 HD Retexture",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25998",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S241",
+   "console": "psp",
+   "title": "Metal Gear Solid: Peace Walker - All Main Missions Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30776",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S242",
+   "console": "psp",
+   "title": "[Archived] The 3rd Birthday - Texture Pack Lite",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=31152",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S243",
+   "console": "psp",
+   "title": "Resistance Retribution HD Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30905",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S244",
+   "console": "psp",
+   "title": "Ragnarok tactics textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30831",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S245",
+   "console": "psp",
+   "title": "初音ミク -Project DIVA 2nd/2nd#- HD Texture Pack (ULJM05681/NPJH50475)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25473",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S246",
+   "console": "psp",
+   "title": "Monster Hunter Portable 2nd G AI remastered WIP",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28339",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S247",
+   "console": "psp",
+   "title": "Phantom kingdom",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28795",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S248",
+   "console": "psp",
+   "title": "Jeanne D'Arc HD Textures (WIP)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28861",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S249",
+   "console": "psp",
+   "title": "Lunar: Silver Star Harmony (US/Undub) | HD Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30786",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S250",
+   "console": "psp",
+   "title": "Grand Theft Auto: Vice City Stories AI upscaled",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26729",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S251",
+   "console": "psp",
+   "title": "Ultimate Ghosts 'n Goblins HD Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30756",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S252",
+   "console": "psp",
+   "title": "Brave Story: New Traveler HD Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30670",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S253",
+   "console": "psp",
+   "title": "Manhunt 2 Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30269",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S254",
+   "console": "psp",
+   "title": "Lord of Apocalypse - Upscaling Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29886",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S255",
+   "console": "psp",
+   "title": "Monster Kingdom: Jewel Summoner ULUS10211 HD Texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29630",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S256",
+   "console": "psp",
+   "title": "Fate Extra Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=30052",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S257",
+   "console": "psp",
+   "title": "Grand knights history beatiful HD Texture!!",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27713",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S258",
+   "console": "psp",
+   "title": "Dragon Ball Z - Tenkaichi Tag Team AI Enhanced textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29080",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S259",
+   "console": "psp",
+   "title": "Dante's Inferno New HD Textures ULUS10469",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29867",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S260",
+   "console": "psp",
+   "title": "Ridge Racer 2 (UCES00422) Repacement UI Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=22241",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S261",
+   "console": "psp",
+   "title": "Samurai Warriors state of war(usa) HD Texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29694",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S262",
+   "console": "psp",
+   "title": "Grand Theft Auto: Liberty City Stories AI upscaled",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26734",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S263",
+   "console": "psp",
+   "title": "Ys Seven - HD Texture Pack (Almost complete)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25147",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S264",
+   "console": "psp",
+   "title": "Naruto Impact - Upscaling Texture Pack.",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26648",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S265",
+   "console": "psp",
+   "title": "Valhalla Knights 2 HD Texture Pack ULUS10366",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29587",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S266",
+   "console": "psp",
+   "title": "Syphon Filter Dark Mirror and Logan's Shadow HD textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28201",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S267",
+   "console": "psp",
+   "title": "Monster Hunter Freedom Unite",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28554",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S268",
+   "console": "psp",
+   "title": "Dante's Inferno Textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29551",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S269",
+   "console": "psp",
+   "title": "Kamen Raider: Super Climax Heroes NPJH50691 HD Texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29491",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S270",
+   "console": "psp",
+   "title": "Busou Shinki: Battle Masters",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29482",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S271",
+   "console": "psp",
+   "title": "Tales of the World - Radiant Mythology (usa) HD texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29466",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S272",
+   "console": "psp",
+   "title": "Warriors Orochi 2 ULUS10423 HD Texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29403",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S273",
+   "console": "psp",
+   "title": "Black Rock Shooter: The Game NPUH10126 HD Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29415",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S274",
+   "console": "psp",
+   "title": "Oreimo Portable Disc 1 (NPJH50568/ULJS00358) HD UI Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=22687",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S275",
+   "console": "psp",
+   "title": "Toukiden Kiwami - HD Texture Pack.",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27014",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S276",
+   "console": "psp",
+   "title": "Warriors Orochi ULES01054 HD Texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29340",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S277",
+   "console": "psp",
+   "title": "Digimon World Re:Digitize HD UI Pack (NPJH50588)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29321",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S278",
+   "console": "psp",
+   "title": "Dynasty warriors vol.2 (ULUS10170) hd textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29257",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S279",
+   "console": "psp",
+   "title": "Dynasty warriors 6 empires hd textures ai enhanced shin sangoku musou 5 empires",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29280",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S280",
+   "console": "psp",
+   "title": "Persona 3 Portable HD Texture Pack Community Expansion (WIP) [Updated 12/16/2021]",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26547",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S281",
+   "console": "psp",
+   "title": "Birth by Sleep HD ReMix Project V1(18/07/2019)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=24126",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S282",
+   "console": "psp",
+   "title": "Legend of Heroes: Trails in the Sky FC[1.1] & SC[1.1] - PC Texture Pack (27-Sep-2021)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27532",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S283",
+   "console": "psp",
+   "title": "Dynasty warriors 7 ULJM05938 hd textures Final Version",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29141",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S284",
+   "console": "psp",
+   "title": "Yakuza Black Panther 2",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29076",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S285",
+   "console": "psp",
+   "title": "Monster Hunter Portable 3rd Remake / ReTexture HD",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27616",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S286",
+   "console": "psp",
+   "title": "Metal Gear Solid: Peace Walker - Custom HD Texture Pack v0.2",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29020",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S287",
+   "console": "psp",
+   "title": "Samurai warriors 3 HD textures",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=29070",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S288",
+   "console": "psp",
+   "title": "Crisis Core - Final Fantasy VII - 2X UI texture pack (ULUS10336)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28786",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S289",
+   "console": "psp",
+   "title": "Earth Defense Force 2 Portable English/Spanish UI + PS2 Textures/AI Upscale",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28883",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S290",
+   "console": "psp",
+   "title": "Yu-Gi-Oh! TF1 remaster project",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27623",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S291",
+   "console": "psp",
+   "title": "Persona 3 Portable HD Texture Pack (WIP) - Update (2019-02-03)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=23509",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle.",
+   "provenance": []
+  },
+  {
+   "id": "S292",
+   "console": "psp",
+   "title": "Final Fantasy VII Core Crisis HD texture pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28287",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S293",
+   "console": "psp",
+   "title": "Genso Suikoden : Tsumugareshi Hyakunen no Toki (HD Texture)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=28184",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S294",
+   "console": "psp",
+   "title": "dissidia 012 asian version (nphh00293) hd texture",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25203",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S295",
+   "console": "psp",
+   "title": "Grand Theft Auto: Liberty and Vice City Stories - UI Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=22930",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S296",
+   "console": "psp",
+   "title": "Fate/Unlimited Codes [NPUH10009]",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25691",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S297",
+   "console": "psp",
+   "title": "Suikoden English+ HD texture",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27283",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S298",
+   "console": "psp",
+   "title": "Daxter HD HUD (WIP)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26567",
+   "note": "Projet partiel, bêta ou historique annoncé dans le titre; contrôler la distribution actuelle. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S299",
+   "console": "psp",
+   "title": "Test Drive Unlimited-Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27618",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S300",
+   "console": "psp",
+   "title": "Sword Art Online: Infinity Moment - HD Remake Project",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=27232",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S301",
+   "console": "psp",
+   "title": "SPONGE BOB TRUTH OR SQUARE HD 2020 TEXTURES",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26669",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S302",
+   "console": "psp",
+   "title": "Disgaea 2 PSP HD texture pack (ULUS10461)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26509",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S303",
+   "console": "psp",
+   "title": "Valkyria Chronicles 3 - Extra Edition",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26315",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Comparer les autres fils VC3 et regrouper les versions d'un même projet.",
+   "provenance": []
+  },
+  {
+   "id": "S304",
+   "console": "psp",
+   "title": "[UCES00044] Daxter Small HD Texture Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=24281",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S305",
+   "console": "psp",
+   "title": "Disgaea PSP HD texture pack (ULUS10308)",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26458",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S306",
+   "console": "psp",
+   "title": "Gundam Next Plus - Upscale Texture Pack.",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=26350",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S307",
+   "console": "psp",
+   "title": "La Pucelle: Ragnarok (ULJS00244) HD UI Replacement Pack",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25471",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier. Couverture UI/HUD: classer comme complément.",
+   "provenance": []
+  },
+  {
+   "id": "S308",
+   "console": "psp",
+   "title": "Star Wars Battlefront 2 HD TEXTURE",
+   "url": "https://forums.ppsspp.org/showthread.php?tid=25019",
+   "note": "Publication PPSSPP identifiée; archive, Game ID et fonctionnement du core embarqué à vérifier.",
+   "provenance": []
+  },
+  {
+   "id": "S309",
+   "console": "ps2",
+   "title": "Bloody Roar 4 (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/bloody-roar-4-usa-hd-remaster.609659/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S310",
+   "console": "ps2",
+   "title": "Burnout 3 - Takedown (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/burnout-3-takedown-usa-hd-remaster.621068/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S311",
+   "console": "ps2",
+   "title": "Burnout Dominator (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/burnout-dominator-usa-hd-remaster.621137/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S312",
+   "console": "ps2",
+   "title": "Burnout Revenge (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/burnout-revenge-usa-hd-remaster.621038/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S313",
+   "console": "ps2",
+   "title": "Call of Duty 3 (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/call-of-duty-3-usa-hd-remaster.622498/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S314",
+   "console": "ps2",
+   "title": "Castlevania - Curse of Darkness (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/castlevania-curse-of-darkness-usa-hd-remaster.619688/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S315",
+   "console": "ps2",
+   "title": "Dead or Alive 2 - Hardcore (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/dead-or-alive-2-hardcore-usa-hd-remaster.610460/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S316",
+   "console": "ps2",
+   "title": "Digital Devil Saga 1 (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/digital-devil-saga-1-usa-hd-remaster.609662/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S317",
+   "console": "ps2",
+   "title": "Digital Devil Saga 2 (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/digital-devil-saga-2-usa-hd-remaster.620814/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S318",
+   "console": "ps2",
+   "title": "Dragon Quest V (Jap - Translated) | HD Remaster",
+   "url": "https://gbatemp.net/threads/dragon-quest-v-jap-translated-hd-remaster.623233/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S319",
+   "console": "ps2",
+   "title": "Front Mission V (Jap - Translated) | HD Remaster",
+   "url": "https://gbatemp.net/threads/front-mission-v-jap-translated-hd-remaster.623392/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S320",
+   "console": "ps2",
+   "title": "God of War (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/god-of-war-usa-hd-remaster.620841/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S321",
+   "console": "ps2",
+   "title": "God of War 2 (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/god-of-war-2-usa-hd-remaster.621196/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S322",
+   "console": "ps2",
+   "title": "Grandia II (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/grandia-ii-usa-hd-remaster.652072/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S323",
+   "console": "ps2",
+   "title": "Grandia III (USA) | HD Remaster with widescreen support",
+   "url": "https://gbatemp.net/threads/grandia-iii-usa-hd-remaster-with-widescreen-support.620404/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S324",
+   "console": "ps2",
+   "title": "ICO (USA/EU) | HD Remaster",
+   "url": "https://gbatemp.net/threads/ico-usa-eu-hd-remaster.630164/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S325",
+   "console": "ps2",
+   "title": "Maximo vs Army of Zin (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/maximo-vs-army-of-zin-usa-hd-remaster.621528/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S326",
+   "console": "ps2",
+   "title": "Persona 3 FES (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/persona-3-fes-hd-remaster.614009/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S327",
+   "console": "ps2",
+   "title": "Persona 4 (USA) | HD Remaster (Widescreen)",
+   "url": "https://gbatemp.net/threads/persona-4-usa-hd-remaster-widescreen.620665/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S328",
+   "console": "ps2",
+   "title": "Phantasy Star Universe (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/phantasy-star-universe-usa-hd-remaster-work-in-progress-30-done.622913/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S329",
+   "console": "ps2",
+   "title": "Primal (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/primal-usa-hd-remaster.621578/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S330",
+   "console": "ps2",
+   "title": "Ratchet & Clank (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/ratchet-clank-usa-hd-remaster.622060/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S331",
+   "console": "ps2",
+   "title": "Ratchet & Clank - Going Commando (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/ratchet-clank-going-commando-usa-hd-remaster.635325/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S332",
+   "console": "ps2",
+   "title": "Sakura Wars: So Long, My Love | HD Remaster",
+   "url": "https://gbatemp.net/threads/sakura-wars-so-long-my-love-hd-remaster.630476/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S333",
+   "console": "ps2",
+   "title": "Shadow of the Colossus (EU) | HD Remaster",
+   "url": "https://gbatemp.net/threads/shadow-of-the-colossus-eu-hd-remaster.624038/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S334",
+   "console": "ps2",
+   "title": "Shin Megami Tensei: Nocturne (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/shin-megami-tensei-nocturne-usa-hd-remaster.610781/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S335",
+   "console": "ps2",
+   "title": "Star Wars Episode III: Revenge of the Sith (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/star-wars-episode-iii-revenge-of-the-sith-usa-hd-remaster.622914/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S336",
+   "console": "ps2",
+   "title": "Suikoden III (USA) | HD Remaster (Widescreen Texture Pack)",
+   "url": "https://gbatemp.net/threads/suikoden-iii-usa-hd-remaster-widescreen-texture-pack.613568/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S337",
+   "console": "ps2",
+   "title": "Suikoden IV (USA) | HD Remaster (Widescreen Texture Pack)",
+   "url": "https://gbatemp.net/threads/suikoden-iv-usa-hd-remaster-widescreen-texture-pack.610425/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S338",
+   "console": "ps2",
+   "title": "Suikoden V (USA) | HD Remaster (Widescreen Texture Pack)",
+   "url": "https://gbatemp.net/threads/suikoden-v-usa-hd-remaster-widescreen-texture-pack.609820/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S339",
+   "console": "ps2",
+   "title": "Tales of the Abyss (USA) - HD texture pack - WIP",
+   "url": "https://gbatemp.net/threads/tales-of-the-abyss-usa-hd-texture-pack-wip.610735/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S340",
+   "console": "ps2",
+   "title": "Tales of Legendia (USA) | HD Remaster (Work in Progress)",
+   "url": "https://gbatemp.net/threads/tales-of-legendia-usa-hd-remaster-work-in-progress.609876/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S341",
+   "console": "ps2",
+   "title": "The King of Fighters 2006 - Maximum Impact 2 (EU) | HD Remaster",
+   "url": "https://gbatemp.net/threads/the-king-of-fighters-2006-maximum-impact-2-eu-hd-remaster.609990/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S342",
+   "console": "ps2",
+   "title": "Trapt (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/trapt-usa-hd-remaster.625236/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S343",
+   "console": "ps2",
+   "title": "Wild ARMs 5 (USA) | HD Remaster (Widescreen Texture Pack)",
+   "url": "https://gbatemp.net/threads/wild-arms-5-usa-hd-remaster-widescreen-texture-pack.611320/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S344",
+   "console": "ps2",
+   "title": "Xenosaga TRILOGY (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/xenosaga-trilogy-usa-hd-remaster.612395/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S345",
+   "console": "ps2",
+   "title": "Yakuza (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/yakuza-usa-hd-remaster.624509/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S346",
+   "console": "ps2",
+   "title": "Yakuza 2 (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/yakuza-2-usa-hd-remaster.624885/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S347",
+   "console": "ps2",
+   "title": "Fatal Frame II: Crimson Butterfly | HD Remaster - Incomplete/Work in Progress",
+   "url": "https://gbatemp.net/threads/fatal-frame-ii-crimson-butterfly-hd-remaster-incomplete-work-in-progress.619359/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S348",
+   "console": "ps2",
+   "title": "Fatal Frame III: The Tormented | HD Remaster - Incomplete/Work in Progress",
+   "url": "https://gbatemp.net/threads/fatal-frame-iii-the-tormented-hd-remaster-incomplete-work-in-progress.619384/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S349",
+   "console": "ps2",
+   "title": "Dragon Quest VIII - Journey of the Cursed King (USA) | HD Remaster | WIP - 70%",
+   "url": "https://gbatemp.net/threads/dragon-quest-viii-journey-of-the-cursed-king-usa-hd-remaster-unfinished-dropped-by-panda_venom.612500/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S350",
+   "console": "ps2",
+   "title": "Genji (USA) | HD Remaster (UI and Characters only!)",
+   "url": "https://gbatemp.net/threads/genji-usa-hd-remaster-ui-and-characters-only.619838/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S351",
+   "console": "ps2",
+   "title": "Raidou Kuzunoha vs King Abaddon (USA) | HD Remaster (Work in Progress!)",
+   "url": "https://gbatemp.net/threads/raidou-kuzunoha-vs-king-abaddon-usa-hd-remaster-work-in-progress.626832/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S352",
+   "console": "ps2",
+   "title": "Spyro - A Hero's Tail (USA) | HD Remaster",
+   "url": "https://gbatemp.net/threads/spyro-a-heros-tail-usa-hd-remaster.636814/",
+   "note": "Publication de pack PCSX2. Vérifier serial/CRC, format et prise en charge réelle dans le moteur PS2 embarqué; pas de compatibilité iOS déduite du titre.",
+   "provenance": []
+  },
+  {
+   "id": "S353",
+   "console": "ps2",
+   "title": "Baroque — CCKrizalid",
+   "url": "https://mega.nz/file/Qds2kQAR#H0axHO4bIWOciSqh0jNkkzwpfHMiZ8AukDQfFClLMuI",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S354",
+   "console": "ps2",
+   "title": "Bionicle — CCKrizalid",
+   "url": "https://mega.nz/file/UZFAUJDY#c1QOCPGzDFy12Tta2zKjmPtwh-v2DWymyy-8Wb9uBzo",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S355",
+   "console": "ps2",
+   "title": "Black — CCKrizalid",
+   "url": "https://mega.nz/file/1NFxQCxb#pTjLHhhXsHFzQkIgIoR4lL-ciNE94LBi83FbCJEeca8",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S356",
+   "console": "ps2",
+   "title": "Bleach Blade Battlers 2nd — CCKrizalid",
+   "url": "https://mega.nz/file/tBEEADBZ#DFWFHZmpWXw9EsPqD7IQa1ot_8x3OH0oFQlMw0pliFc",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S357",
+   "console": "ps2",
+   "title": "BloodRayne — CCKrizalid",
+   "url": "https://mega.nz/file/9U9BFYJY#n757eB9KjXXyiQzza1tv56XgapNu0FupMxh0zkg5PUk",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S358",
+   "console": "ps2",
+   "title": "BloodRayne 2 — CCKrizalid",
+   "url": "https://mega.nz/file/IBNAnSYZ#RUphOhhjSsjs3ZJ72uzNr7wY0B6ez60832Zu9fBpPik",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S359",
+   "console": "ps2",
+   "title": "Buffy The Vampire Slayer - Chaos Bleeds — CCKrizalid",
+   "url": "https://mega.nz/file/gc9Q0Iib#TzrmvoK6jSHVqFpgUrMUiSLw-x7DkeYPg6NnVO8aK-Y",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S360",
+   "console": "ps2",
+   "title": "Chaos Legion — CCKrizalid",
+   "url": "https://mega.nz/file/VAU0DQ6L#idGrlSKkzP6Ndesd0LrdLUTJz-lkn413A-aBsndt2gk",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S361",
+   "console": "ps2",
+   "title": "Devil May Cry 1 — CCKrizalid",
+   "url": "https://mega.nz/file/xYt1SBLK#bC_JJ4xpQ4dmTbf_juMVaokKJTKFf1SC8ldEYXX-2Mk",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S362",
+   "console": "ps2",
+   "title": "Devil May Cry 2 (Both Discs) — CCKrizalid",
+   "url": "https://mega.nz/file/8MFVVTDQ#K2VnsSy2u6mjtsP4T1n9rN_iYjuuF75zsbwjW12Hfhk",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S363",
+   "console": "ps2",
+   "title": "Devil May Cry 3 (NOT Special Edition) — CCKrizalid",
+   "url": "https://mega.nz/file/BUtnDRoZ#smp-dJ7HkKzbuQPxXl0DIHZUWlhvcrnxWY7udAt6-jo",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S364",
+   "console": "ps2",
+   "title": "Devil May Cry 3 (Special Edition) — CCKrizalid",
+   "url": "https://mega.nz/file/IA9mVCoJ#zIfU9lsJ3DKgOmi7oC5qUkP6sP3xsROdngu6gd8TAiU",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S365",
+   "console": "ps2",
+   "title": "Dot Hack All Parts (Infection, Mutation, Outbreak, Quarantine) + Fragment — CCKrizalid",
+   "url": "https://mega.nz/file/AJEWgT5C#jRvpYoSHh-31sH0Ik88JLFPtgjhcxuZdUZvGwr2UMaA",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S366",
+   "console": "ps2",
+   "title": "Dot Hack G.U. Vol. 1 Rebirth [SLUS-21258] — CCKrizalid",
+   "url": "https://mega.nz/file/QEUgjTrK#eg9r7CIw2Vi55VW3xaYCR3VKguQ9a9RZTYEXKpJc3GY",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S367",
+   "console": "ps2",
+   "title": "Evil Dead Regeneration — CCKrizalid",
+   "url": "https://mega.nz/file/IFtVEI6Z#GwSXnVHuSW68tzdnz-KzBysWHjQ2sTx25dH6TJNKL6o",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S368",
+   "console": "ps2",
+   "title": "Fahrenheit a.k.a. Indigo Prophecy — CCKrizalid",
+   "url": "https://mega.nz/file/hAslQJAS#KL9_RnAIrWj9_Lvi9M_SZq-kvrcepORXIU9Jglb1h3s",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S369",
+   "console": "ps2",
+   "title": "Fate - Unlimited Codes — CCKrizalid",
+   "url": "https://mega.nz/file/xB1iDArT#q4qnSMxLL5O9O2icX7S2VigJztU7G9mVOA0phCJ13eo",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S370",
+   "console": "ps2",
+   "title": "Final Fantasy VII Dirge of Cerberus — CCKrizalid",
+   "url": "https://mega.nz/file/tRclxJxB#EkWAiknzXEVSu38QMZypC_mI1belIxGOUpVdxf7N16U",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S371",
+   "console": "ps2",
+   "title": "Ghost Rider — CCKrizalid",
+   "url": "https://mega.nz/file/4B0GEJjK#83pIBaD2ahQBQdLVq6gswzIPtAhWr1DmB2Mi3bYNbv0",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S372",
+   "console": "ps2",
+   "title": "Gungrave — CCKrizalid",
+   "url": "https://mega.nz/file/IE8CTCaD#FEBLmeOMBuxoIQlqe48bg0pIWr19FpGLHBqbSL7eUgk",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S373",
+   "console": "ps2",
+   "title": "Gungrave Overdose — CCKrizalid",
+   "url": "https://mega.nz/file/8ZlHAZqY#QoarSQPKTumWMhXrOFIXI73GGDdC-iL75eAYyNnf3ls",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S374",
+   "console": "ps2",
+   "title": "Naruto Shippuden Ultimate Ninja 5 — CCKrizalid",
+   "url": "https://mega.nz/file/RNEBiTZb#oiW4DHVO3ciysCVrXUCFOlZ-dafaKS1kJO4PJpSObp8",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S375",
+   "console": "ps2",
+   "title": "Need For Speed Underground — CCKrizalid",
+   "url": "https://mega.nz/file/cYFHgYRB#wrGA6tTGYMOLTh2n7YGliz8XbjwkpaBUdQ8peFHKKxI",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S376",
+   "console": "ps2",
+   "title": "Need For Speed Most Wanted [NOT BLACK EDITION] — CCKrizalid",
+   "url": "https://mega.nz/file/sVE3gLrL#TqjpHmquXVfbA_3f_ob5TM8BtchqoMjo7b2eP6Yg_y0",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S377",
+   "console": "ps2",
+   "title": "Need For Speed Carbon — CCKrizalid",
+   "url": "https://mega.nz/file/AcV2RCwI#DH0EhoqsM8slnggj8Tq_xNcMxAzq6tr_9IAjRNYvfn4",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S378",
+   "console": "ps2",
+   "title": "Need For Speed Undercover — CCKrizalid",
+   "url": "https://mega.nz/file/FRUAGZiR#el5DmfIQUVpfs9BatPXJ8RvFcFC4uKULe9GbM8z3G8k",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S379",
+   "console": "ps2",
+   "title": "Rayman - Raving Rabbids — CCKrizalid",
+   "url": "https://mega.nz/file/QNFgWSiL#WExU7L55rsv_-IGdXC3k8r5Tcq6qlSdIY5oujsA-9EU",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S380",
+   "console": "ps2",
+   "title": "Soul Eater - Battle Resonance — CCKrizalid",
+   "url": "https://mega.nz/file/EAcESKZA#t_ewOEiDUC5WdomGhIhpxQLOpSB7phnXkAA3Tqu-spI",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S381",
+   "console": "ps2",
+   "title": "Spider-man Friend or Foe — CCKrizalid",
+   "url": "https://mega.nz/file/BJtDDTjD#kGqB66so26k4zLMyzFeQX5fH9UXWmWtBpRVviSndoFE",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S382",
+   "console": "ps2",
+   "title": "Star Wars Battlefront — CCKrizalid",
+   "url": "https://mega.nz/file/wREUDKjK#ULEJcoklrOk7wEUk_kQmwrnG3b10aYhfCpRhSk1H0ec",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S383",
+   "console": "ps2",
+   "title": "Terminator 3 The Redemption — CCKrizalid",
+   "url": "https://mega.nz/file/9BdF0SqJ#ZzaXW56W8vBFUly_92_U9oxXi_9ksKgqbB_pyQTZ5kU",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S384",
+   "console": "ps2",
+   "title": "The Matrix Path of Neo — CCKrizalid",
+   "url": "https://mega.nz/file/RE03RCCK#Bu0XhEXvsrZzlFIUxck12c1ArUo1ntWVmb6Vv2fXYBU",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S385",
+   "console": "ps2",
+   "title": "Transformers The Game — CCKrizalid",
+   "url": "https://mega.nz/file/pc1GjChK#j40TbSHazm-JRwIzJ3ZCYpHwdV3Bf5YJqSTS__iObG0",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  },
+  {
+   "id": "S386",
+   "console": "ps2",
+   "title": "WipEout Pulse — CCKrizalid",
+   "url": "https://mega.nz/file/sQFiGRJZ#EGRMD-TbT1-5DpasqPlbjeba2McPwdXCegiBwqonnHw",
+   "note": "Lien de distribution publié dans la collection de l'auteur. Vérifier disponibilité, serial/CRC, archive et droits; format PCSX2 à contrôler dans le moteur iOS.",
+   "provenance": [
+    "https://gbatemp.net/threads/mega-library-of-hd-texture-packs-by-cckrizalid.618690/"
+   ]
+  }
+ ]
+}
