@@ -22,7 +22,7 @@ on:
         options: [all, host, native, uikit, repositories, discover, links, cores, summarize]
         default: all
       only:
-        description: 'repositories: comma-separated pack ids (empty: every pack without a successful record)'
+        description: 'repositories: comma-separated pack ids (empty: every pack without a record)'
         type: string
         default: ''
       run:
