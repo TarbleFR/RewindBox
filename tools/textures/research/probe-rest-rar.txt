@@ -1,0 +1,19 @@
+# RAR archives (not read by the app installer) and image links found in the same lists: recorded as exclusions, not probed
+http://www.mediafire.com/download/cdzvzx8lya7k3h9/h2h-landmark.rar	X027 (dolphin-threads.txt) Xenoblade Chronicles HD Texture Pack v8.52 - (August 21, 2018)
+https://www.mediafire.com/file/fjivrc9dcueowpy/RM8E01.rar/file	X031 (dolphin-threads.txt) Mario Party 8 HD Texture Project
+http://www.mediafire.com/download/z7ll4l...+Final.rar	X125 (dolphin-threads.txt) The spongebob squarepants movie HD retextured [FINAL RELEASE]
+http://www.mediafire.com/download/9vg37ak5elqei4s/GZ2E01.rar	X131 (dolphin-threads.txt) V 0.2 Zelda Twilight Princess Texture Pack (WW Styled)
+https://www.dropbox.com/s/ngg5yt1j4kliptl/Tales%20of%20Graces%20HD%20%5B1.1%20EN%5D.rar	X121 (dolphin-threads.txt) Tales of Graces High-Res Version (v1.1 | Mar 22, 2013)
+http://www.mediafire.com/download/6657c7zy5p3ye6q/Twilight+Princess+v0.2.rar	X131 (dolphin-threads.txt) V 0.2 Zelda Twilight Princess Texture Pack (WW Styled)
+http://https://www.mediafire.com/file/w3sm845v1y46zrm/Resident_Evil_4_HD_Project_-_Wii.rar/file	X053 (dolphin-threads.txt) Resident Evil 4 HD Project Nintendo Wii
+https://www.dropbox.com/s/f22sehx1jh6z19m/Tales%20of%20Graces%20HD%20%5B1.1%20FR%5D.rar	X121 (dolphin-threads.txt) Tales of Graces High-Res Version (v1.1 | Mar 22, 2013)
+http://www.mediafire.com/download/i75e3dbv3f3grqs/GSWE64.rar	X123 (dolphin-threads.txt) [HD Retexture] Star Wars Rogue Squadron II: Rogue Leader
+http://www.mediafire.com/file/3knl5eilzyssl5v/GFEE01.rar/file	X075 (dolphin-threads.txt) Fire Emblem Path of Radiance HD Texture Pack
+https://www.dropbox.com/s/ouihgeuyz2uj9yp/Tales%20of%20Graces%20HD%20%5B1.1%20JP%5D.rar	X121 (dolphin-threads.txt) Tales of Graces High-Res Version (v1.1 | Mar 22, 2013)
+https://www.mediafire.com/file/e00xvcqury8pgd5/Mega_Man_Maverick_Hunter_X_HD_Texture_Pack_v1.2.rar/file	S239 Mega Man Maverick Hunter X HD Texture Pack v1.2
+http://www.mediafire.com/file/de8e5kkfwydfofr/UCES00422.rar	S260 Ridge Racer 2 (UCES00422) Repacement UI Textures
+http://www.mediafire.com/view/av9c1wkr40p4lpu/Dolphin_2019-11-21_21-55-11.jpg/file	X031 (dolphin-threads.txt) Mario Party 8 HD Texture Project
+http://www.mediafire.com/view/xh5zvcepgbk63o6/Dolphin_2019-11-21_21-31-45.jpg/file	X031 (dolphin-threads.txt) Mario Party 8 HD Texture Project
+http://www.mediafire.com/view/q46g8mbghcnfmkr/Dolphin_2019-11-21_21-48-51.jpg/file	X031 (dolphin-threads.txt) Mario Party 8 HD Texture Project
+https://www.dropbox.com/s/if2rxekbn9ixoqn/PhazonMines2.mp4?dl=0	X061 (dolphin-threads.txt) Metroid Prime 1,2,3 and Trilogy HD Texture Pack
+https://www.mediafire.com/file/taxqdparq33thf2/Card_Frames.png/file	S290 Yu-Gi-Oh! TF1 remaster project
