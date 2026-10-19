@@ -212,6 +212,36 @@
       "records": 13,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39325465870,
+      "source": "6b1e0e47586e7ffe46e70af030b39b75cf7a50b7",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 8,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39325643427,
+      "source": "d7413dc6c4abbd078ddba344bf567e47eb0252ed",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39325882604,
+      "source": "70f10d2cf98daab4fd7671cde59b8c06f6758afd",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }

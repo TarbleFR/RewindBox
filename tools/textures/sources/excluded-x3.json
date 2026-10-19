@@ -615,6 +615,11 @@
   "reason": "Custom Robo HD Textures (work in progress 1): the author's archive is 10,428,363,545 bytes, beyond what NeoStation installs on an iPhone (host run 39278264111); the finished release is excluded for the same reason."
  },
  {
+  "console": "wii",
+  "source": "rspe01_bc241.zip (https://gamebanana.com/dl/1049470)",
+  "reason": "Wii Sports Pro (Laggamer20xx): the author's archive holds a damaged PNG (tex1_1024x512_m_8a1542f59cadec72_14.png, wrong signature), which NeoStation refuses to install (host run 39325465870)."
+ },
+ {
   "console": "gc",
   "source": "Medal of Honor European Assault Remastered 4K Alpha.7z (https://drive.google.com/file/d/17u-csNyOAieyyatvyDEjA2CNk_Nc9Eyp/view?usp=drive_link)",
   "reason": "Medal of Honor: European Assault Remastered 4K (alpha): the author's archive holds a damaged PNG (tex1_64x64_3c281b13e67b245c_14.png, wrong signature), which NeoStation refuses to install (host run 39278264111)."

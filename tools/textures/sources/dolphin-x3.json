@@ -4581,57 +4581,6 @@
   "family": "wii-monster-hunter-tri-hd-font-abbanon"
  },
  {
-  "id": "wii-wii-sports-pro-laggamer20xx",
-  "system": "wii",
-  "engine": "dolphin",
-  "title": "Wii Sports Pro",
-  "version": "see page",
-  "games": [
-   {
-    "title": "Wii Sports",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-disc-game-id",
-      "value": "RSPE01"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "Laggamer20xx"
-  ],
-  "page_url": "https://gamebanana.com/mods/466666",
-  "source_id": "gamebanana:466666",
-  "licence": {
-   "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "notes": "Made on the USA disc (RSPE01).",
-  "download": {
-   "automatable": false,
-   "page": "https://gamebanana.com/mods/466666",
-   "file_name": "rspe01_bc241.zip",
-   "verify": {
-    "url": "https://gamebanana.com/dl/1049470",
-    "sha256": "76fadd2dd8d6257138bede34b6703edde46c92c820a1b9b2adecb37920aa36b5"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "RSPE01/",
-     "to": "RSPE01"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "wii-wii-sports-pro-laggamer20xx"
- },
- {
   "id": "wii-sonic-colors-hd-ui-triforce141",
   "system": "wii",
   "engine": "dolphin",
