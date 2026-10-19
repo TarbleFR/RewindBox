@@ -2667,5 +2667,41 @@
   },
   "scope": "partial",
   "family": "gc-melee-picmip-pack-manniefesto"
+ },
+ {
+  "id": "wii-smg2-hd-texture-mod-blackbeetleking",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Super Mario Galaxy 2 HD Texture Mod",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Mario Galaxy 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SB4"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "BlackBeetleKing",
+   "BigHead (re-upload)"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-mario-galaxy-2-hd-texture-mod",
+  "source_id": "dolphin-forum:thread-40108",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "notes": "Fonts, particles, interface, icons and characters (initial release), in DDS and PNG editions. The re-upload folder linked from the thread is on MediaFire, which refused the verification runner with a bot challenge: the file is not verified, so this pack stays a link.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-mario-galaxy-2-hd-texture-mod"
+  },
+  "scope": "partial",
+  "family": "wii-smg2-hd-texture-mod-blackbeetleking"
  }
 ]

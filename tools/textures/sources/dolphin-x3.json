@@ -3820,5 +3820,125 @@
   },
   "scope": "partial",
   "family": "wii-dokapon-kingdom-triplebaka-berryface"
+ },
+ {
+  "id": "gc-luigis-mansion-4k-henriko-1080p",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion 4K (1080p)",
+  "version": "1.1.0b",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLM"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+  "source_id": "henrikomagnifico:luigis-mansion-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds a widescreen patch, ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "file_name": "Luigi's Mansion 4K Texture Pack 1.1.0b (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1wPvjgurh3Xsj8a-NCtNnVUX46Sk-7zCY/view",
+    "sha256": "a93c4c2aa2caecb6e0935312658374586a57d68623c5c42b5dece0593dff53f8"
+   }
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-4k-henriko"
+ },
+ {
+  "id": "gc-luigis-mansion-4k-henriko-4k",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion 4K (4K)",
+  "version": "1.1.0b",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLM"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+  "source_id": "henrikomagnifico:luigis-mansion-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds a widescreen patch, ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "file_name": "Luigi's Mansion 4K Texture Pack 1.1.0b (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1BgOcWF1SEsThx0Ers8m8hWgrIqE4TsJ5/view",
+    "sha256": "1975fecdef0bd6623ee1463564ec323887cc467a8b2d569964a5581bd81c558c"
+   }
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-4k-henriko"
+ },
+ {
+  "id": "gc-luigis-mansion-4k-henriko-mobile",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion 4K (Android & iOS edition)",
+  "version": "1.1.0b",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLM"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+  "source_id": "henrikomagnifico:luigis-mansion-4k",
+  "licence": {
+   "summary": "CC BY 4.0 (licence file in the archive)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The author's edition for phones (fewer, lighter textures). Only the textures are installed, not its Dolphin settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "file_name": "Luigi's Mansion 4K Texture Pack 1.1.0b (Android & iOS Version).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1FtTyPXvC7zqvMfFjdQpNh7poLjPBkO71/view",
+    "sha256": "f1b93386bc0638f429ceab546cbf41ae9a66ab1950d7f40ea1c076925a904358"
+   }
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-4k-henriko"
  }
 ]

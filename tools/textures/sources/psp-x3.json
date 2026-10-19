@@ -323,7 +323,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "forexjammer"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=25019",
   "source_id": "ppsspp-forum:25019",
@@ -350,5 +350,866 @@
   },
   "scope": "complete",
   "family": "psp-star-wars-battlefront-2-hd"
+ },
+ {
+  "id": "psp-vc3-ee-retranslation-hd-steccas",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Valkyria Chronicles 3 Extra Edition — HD textures for the English ReTranslation",
+  "version": "v1",
+  "games": [
+   {
+    "title": "Valkyria Chronicles 3: Extra Edition",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05957"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "steccas"
+  ],
+  "page_url": "https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack",
+  "source_id": "github:steccas/vc3-ee-retranslation-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "AI upscale whose text textures are in English: made for the English ReTranslation patch of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "VC3_ReTL_texture_addon.zip",
+   "parts": [
+    {
+     "url": "https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/download/v1/VC3_ReTL_texture_addon.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULJM05957/",
+     "to": "ULJM05957"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-vc3-ee-retranslation-hd-steccas"
+ },
+ {
+  "id": "psp-vc3-ee-ai-upscaled",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Valkyria Chronicles 3 Extra Edition — AI upscaled textures",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Valkyria Chronicles 3: Extra Edition",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05957"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26728",
+  "source_id": "ppsspp-forum:26728",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Seven textures.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26728",
+   "file_name": "textures HD valkyria Chronicles 3.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1HopnQu12Di8A1Lp5cdss38a08Jqsm_9f/view?usp=sharing",
+    "sha256": "975d88609de2979577cbf1d19ed88378f84a1f6212ff77d7c6b8c450594bd37c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-vc3-ee-ai-upscaled"
+ },
+ {
+  "id": "psp-yugioh-gx-tf3-hd-cards-anime-tcg",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! GX Tag Force 3 — HD card textures (Anime + TCG)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01183"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=45232",
+  "source_id": "ppsspp-forum:45232",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Card artwork and card backs (10.3 GB).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=45232",
+   "file_name": "ULES01183.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1GSF4CyA71MgfwM3tfMthbTkhcuXer7Bx/view?usp=drive_link",
+    "sha256": "eca49efa84116b92785cc3d3452087aca61547ff9e0fdbb4fff02c6929baff65"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULES01183/",
+     "to": "ULES01183"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-yugioh-gx-tf3-hd-cards-anime-tcg"
+ },
+ {
+  "id": "psp-yugioh-5ds-tf5-eu-hd-card-mod",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! 5D's Tag Force 5 — HD Card Mod (EU)",
+  "version": "1.5",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! 5D's Tag Force 5",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01474"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=35573",
+  "source_id": "ppsspp-forum:35573",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=35573",
+   "file_name": "Yu-Gi-Oh! 5Ds Tag Force 5 EU HD Card Mod ULES01474 v1.5.7z",
+   "verify": {
+    "url": "https://mega.nz/file/lNgm1KwB#GsQYzVlhh4RWBkTLqZcMJ1bViVTZ4-8eqf-HA4kNTpg",
+    "sha256": "01713e19bdc45596698acc6f9a85809875a0839b59ba6663798ca574171ad1f6"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULES01474/",
+     "to": "ULES01474"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-yugioh-5ds-tf5-hd-card-mod"
+ },
+ {
+  "id": "psp-swbf2-interface-facelift",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Star Wars Battlefront II — interface facelift",
+  "version": "1",
+  "games": [
+   {
+    "title": "Star Wars Battlefront II",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10053"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27336",
+  "source_id": "ppsspp-forum:27336",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=27336",
+   "file_name": "StarWarsFaceliftV1.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/16OeJUe-jkzro3tvFpcDQ4ctdYSHfBrJ2/view?usp=sharing",
+    "sha256": "8fdc321170c45325087433dd5db6b0a25270cf0e948febb020a94be015b76ed4"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-swbf2-interface-facelift"
+ },
+ {
+  "id": "psp-persona2-is-hd-ui",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona 2: Innocent Sin HD UI",
+  "version": "1.72",
+  "games": [
+   {
+    "title": "Shin Megami Tensei: Persona 2 – Innocent Sin",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10584"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ryuubu"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26806",
+  "source_id": "ppsspp-forum:26806",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26806",
+   "file_name": "P2-InnocentSin-ULUS10584.zip",
+   "verify": {
+    "url": "https://mega.nz/file/OZYm3R7Z#HOKChP0ascd17k4G93mToYknZmzrAnREHwFvGpeg1Aw",
+    "sha256": "eaecaed12858b82b1a22c2804257bc47dd19f8e256bba0d7c5e9002dee4da547"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10584/",
+     "to": "ULUS10584"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-persona2-is-hd-ui"
+ },
+ {
+  "id": "psp-dissidia-012-hd-retexture",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Dissidia 012 Final Fantasy HD Retexture",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Dissidia 012 Final Fantasy",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10566"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Niosai"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26396",
+  "source_id": "ppsspp-forum:26396",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26396",
+   "file_name": "ULUS10566.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1YjaH1YoUVmA3aNFRtka6MQp8tcUQ27gr/view?usp=sharing",
+    "sha256": "ff645992f82d510155f54c498e84d4da130e61ec34321d0f6312599dd6f76d2b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10566/",
+     "to": "ULUS10566"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-dissidia-012-hd-retexture"
+ },
+ {
+  "id": "psp-ridge-racer-2-hd-wip",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Ridge Racer 2 HD Texture Project (WIP)",
+  "version": "1.2",
+  "games": [
+   {
+    "title": "Ridge Racer 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00422"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=25052",
+  "source_id": "ppsspp-forum:25052",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=25052",
+   "file_name": "RidgeRacer2-HD-[1.2].zip",
+   "verify": {
+    "url": "https://drive.google.com/open?id=1ZmBKjuZGDCFDul-tPgu--MOomr7g4ULf",
+    "sha256": "a1b8ed7316a314b55682257148ff922426667d2bc634643ebd01d08482a05d58"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "UCES00422/",
+     "to": "UCES00422"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-ridge-racer-2-hd"
+ },
+ {
+  "id": "psp-pangya-fantasy-golf-hd-ktx2",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Fantasy Golf: Pangya HD textures (KTX2)",
+  "version": "2025-02-16",
+  "games": [
+   {
+    "title": "Fantasy Golf: Pangya Portable",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10438"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=35005",
+  "source_id": "ppsspp-forum:35005",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=35005",
+   "file_name": "ULUS10438_textures_ktx2_20250216.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1lXDeH0jbu7wJALRJmShzpDGHm2E4DyNg/view?usp=drive_link",
+    "sha256": "816746034a9b626df844f3be219753e2677cdd551f38ccf735c0061084ac9351"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-pangya-fantasy-golf-hd"
+ },
+ {
+  "id": "psp-persona1-hd-ui-v4-cards",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona HD UI (portrait modernization) with cards",
+  "version": "4",
+  "games": [
+   {
+    "title": "Shin Megami Tensei: Persona",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10432"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ryuubu"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26691",
+  "source_id": "ppsspp-forum:26691",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26691",
+   "file_name": "ULUS10432 - Version 4 with Cards.zip",
+   "verify": {
+    "url": "https://mega.nz/file/XEgTUBAZ#XJ8vtxgoIobAHblf1AAbG_WtEVJHNcYJn8pYZi6A8b8",
+    "sha256": "b4c49c377c6e5b016dee8bae947f4983ca5651a9a29f320b16988eeb50aaf08d"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10432/",
+     "to": "ULUS10432"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-persona1-hd-ui"
+ },
+ {
+  "id": "psp-lego-batman-ai-upscale",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "LEGO Batman: The Videogame AI upscale",
+  "version": "see page",
+  "games": [
+   {
+    "title": "LEGO Batman: The Videogame",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10380"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FunnyNameXYZ"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=37842",
+  "source_id": "ppsspp-forum:37842",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=37842",
+   "file_name": "LegoBatmanUpscale.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/15BzNRuXFd_yYJ61BLcA6dNnPa3vYnZw1/view?usp=sharing",
+    "sha256": "7c3cc0219b486a9c4da727a672f4be5ecc33ac0772bb96b65d98c7f862d20a22"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10380/",
+     "to": "ULUS10380"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-lego-batman-ai-upscale"
+ },
+ {
+  "id": "psp-yugioh-arcv-tfs-hd-cards-en",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! ARC-V Tag Force Special — HD cards (English)",
+  "version": "1.1",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! ARC-V Tag Force Special",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH00142"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28443",
+  "source_id": "ppsspp-forum:28443",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "English card artwork (for the English patch of this Japanese release).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28443",
+   "file_name": "NPJH00142_ENGLISH_v1.1.zip",
+   "verify": {
+    "url": "https://drive.google.com/uc?id=1K-1Nkdw32waE2XSICQKfn_DlgzSl1N3s&export=download",
+    "sha256": "a0a67743a02a9a6d51d9aa4b90f2b0d5f9f703c66b7615086f9a5b03f90d3e39"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-yugioh-arcv-tfs-hd-cards"
+ },
+ {
+  "id": "psp-fate-extra-ccc-hd-remaster",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Fate/Extra CCC HD Remaster (beta)",
+  "version": "2024-05-17",
+  "games": [
+   {
+    "title": "Fate/Extra CCC",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50505"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29826",
+  "source_id": "ppsspp-forum:29826",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The archive offers several fonts in \"!_please_select_a_font\": copy the one you prefer as instructed by the author.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29826",
+   "file_name": "NPJH50505 FateExtra CCC HD Remaster Complete_20240517.zip",
+   "verify": {
+    "url": "https://mega.nz/file/7UxSVLoB#SLCjPmboZO-NxVJceQjLq6D2wVdJTzabaE0fZyEynAc",
+    "sha256": "0942cd4ec237309b62464b479a7face42f514b1ddb174daa6ea8120ed870d359"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-fate-extra-ccc-hd-remaster"
+ },
+ {
+  "id": "psp-gow-coo-upscale-ktx2",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "God of War: Chains of Olympus upscaling texture pack (KTX2)",
+  "version": "2024-12-29",
+  "games": [
+   {
+    "title": "God of War: Chains of Olympus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUG80325"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26493",
+  "source_id": "ppsspp-forum:26493",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The author's KTX2 file names this game ID; its textures.ini lists the IDs it serves.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26493",
+   "file_name": "NPUG80325-textures-ktx2-20241229.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1-8-vnH7vqXLxZHg7cXki5X-wkRXvnqZa/view?usp=sharing",
+    "sha256": "89fae6c934fadc2f4a5a62a97b2eea802484bb618f8772b0868a5c9221e92bd6"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-gow-coo-upscale"
+ },
+ {
+  "id": "psp-gow-coo-upscale-png",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "God of War: Chains of Olympus upscaling texture pack (PNG)",
+  "version": "2020-05-15",
+  "games": [
+   {
+    "title": "God of War: Chains of Olympus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUG80325"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26493",
+  "source_id": "ppsspp-forum:26493",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "PNG edition of the same textures (2020); the KTX2 edition is newer.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26493",
+   "file_name": "GoW-CoO_texture_15052020.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/155B-nl1e07TcCFzqPi2LtIJPeJa0RDSx/view?usp=sharing",
+    "sha256": "713cc58001f1515b894835f57885a4562a7384dd4a36259bdd9a2b42929ef309"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-gow-coo-upscale"
+ },
+ {
+  "id": "psp-yugioh-gx-tf2-hd-tcg",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! GX Tag Force 2 HD Texture Pack (TCG)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10302"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29640",
+  "source_id": "ppsspp-forum:29640",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "4.1 GB.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29640",
+   "file_name": "ULUS10302_TCG.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/18JUwHSzNvTl29ysarNv3TFtEa2mbaYmb/view?usp=sharing",
+    "sha256": "14783a16884a7a47918b047eaecdbf765a41764e3f2658508fe7fa149737925a"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-yugioh-gx-tf2-hd"
+ },
+ {
+  "id": "psp-musou-orochi-2-special-hd",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Musou Orochi 2 Special HD Texture Pack (KTX2)",
+  "version": "2023-06-23",
+  "games": [
+   {
+    "title": "Musou Orochi 2 Special",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM06097"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29011",
+  "source_id": "ppsspp-forum:29011",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29011",
+   "file_name": "ULJM06097-textures-ktx2-20230623.zip",
+   "verify": {
+    "url": "https://mega.nz/file/fc9A1BoY#Yc98aKrsWK6XENSnn69uv8hAbZGtuqTTtMCKskNObX4",
+    "sha256": "14cb9e8be6261518ee291a3dc7f440bb4138acdef89353c56e221c6883849ffd"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-musou-orochi-2-special-hd"
  }
 ]

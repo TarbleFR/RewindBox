@@ -77,7 +77,10 @@
       ],
       "records": 27,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "3ds-acnl-trueshade-4k-thisstombi": 39291901789
+      }
     },
     {
       "run": 39285447608,
@@ -89,7 +92,10 @@
       ],
       "records": 18,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "3ds-oot3d-4k-henriko-1080p": 39291901789
+      }
     },
     {
       "run": 39285456991,
@@ -99,7 +105,13 @@
       ],
       "records": 22,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "gc-sonic-heroes-ai-hd-png-chaotixsoda": 39291901789,
+        "gc-smb-hd-4x-png": 39291901789,
+        "gc-harvest-moon-awl-kupo-png": 39291901789,
+        "gc-harvest-moon-awl-kupo-dds": 39291901789
+      }
     },
     {
       "run": 39287261791,
@@ -109,6 +121,27 @@
         "ps1"
       ],
       "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39291901789,
+      "source": "1c4020f3774e7b09b55292651b30f31c4de27c43",
+      "consoles": [
+        "3ds",
+        "dolphin"
+      ],
+      "records": 8,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39292473994,
+      "source": "b012c8fe4ae303dac6ad6f3105dde6ddad83d9ec",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
       "artifact_prefix": "hdtex486-repositories"
     }
