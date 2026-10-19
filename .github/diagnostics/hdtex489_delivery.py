@@ -27,14 +27,14 @@ BASE='984ade52a2c55f539d4b362e1019aadaf71c30ba'
 DELIVERED='2bdca0d4b7a353af17016c528d2cf38ecacc9e9b'
 DELIVERED_RUN=39267021460
 # Build 489 source tested by hd-textures.yml and libretro-simulator.yml. Each part: (run, source, job).
-TESTED_SOURCE=''
+TESTED_SOURCE='7c6a86e425f678607a885d3be70bb64221919732'
 PROOFS={
-    'host':(0,TESTED_SOURCE,'Readers, identities, installer, labels, catalogue, contracts and Flutter'),
-    'native':(0,TESTED_SOURCE,'Store and adapters on Foundation, iPhone SDK build of every changed source'),
-    'uikit':(0,TESTED_SOURCE,'The HD textures page on UIKit with the bundled catalogue'),
+    'host':(39337036938,TESTED_SOURCE,'Readers, identities, installer, labels, catalogue, contracts and Flutter'),
+    'native':(39337040395,TESTED_SOURCE,'Store and adapters on Foundation, iPhone SDK build of every changed source'),
+    'uikit':(39337043258,TESTED_SOURCE,'The HD textures page on UIKit with the bundled catalogue'),
 }
-# The real Beetle PSX HW core in Vulkan in the Simulator (dump, replacement, off): (run, source, job).
-SIMULATOR=(0,TESTED_SOURCE,'beetle')
+# The real Beetle PSX HW core in Vulkan in the Simulator (frame, pack, off): (run, source, job).
+SIMULATOR=(39337045728,TESTED_SOURCE,'beetle')
 PARTS=('host','native','uikit')
 
 sys.path.insert(0,str(base.ROOT/'test'))
@@ -69,7 +69,9 @@ PRODUCT={
 }
 # Inputs of the Simulator proof (the probe app, its scenarios and workflow).
 SIMULATOR_INPUTS={'test/libretro_simulator_probe.py','test/libretro_simulator/probe.m','test/libretro_simulator/beetle_lifecycle_probe.h',
-    '.github/workflows/libretro-simulator.yml'}
+    '.github/workflows/libretro-simulator.yml',
+    # The resolution rules the probe app is given (Beetle's renderer list), also read by libretro_resolution_test.dart.
+    'test/fixtures/libretro_resolution/native_rules.json'}
 TESTED=(set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(targeted.HOST_PYTHON)|set(targeted.DART_TESTS)|set(targeted.PRE_EXISTING)
         |{command[0] for command in targeted.CATALOGUE+targeted.NATIVE+targeted.UIKIT}|SIMULATOR_INPUTS)
 # Delivery wiring, records, credits and pins: no product or Core input.
