@@ -784,7 +784,7 @@ def main():
                 out.write(json.dumps(result) + '\n')
                 print('PROBE ' + json.dumps(result, sort_keys=True)[:2500], flush=True)
                 if args.expand and result.get('status') == 'folder':
-                    queue += [item['url'] for item in result['files'] if not item.get('folder')
+                    queue += [item['url'] for item in result.get('files') or [] if not item.get('folder')
                               and re.search(r'\.(zip|7z)$', item.get('name') or '', re.I)]
         print('PROBE_END', flush=True)
         return

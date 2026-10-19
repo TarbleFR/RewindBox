@@ -16,8 +16,9 @@ Supported, all public links without an account:
   gdrive        file links (/file/d/<id>, open?id=, uc?id=) through Google's own
                 "download anyway" form; folders through the public embedded view
   dropbox       shared links with dl=1
-  mega          public file links with megatools (megatools dl); a folder link is
-                reported "folder" and its files are reviewed by hand
+  mega          public file links with megatools (megatools dl); public folder links
+                through MEGA's own public API (the files listed, a file of the folder
+                downloaded and decrypted with the folder's key, as the MEGA web page does)
 
 Never worked around: a page asking to sign in, a CAPTCHA or bot challenge, a
 payment, a transfer quota or rate limit ("Too many users have viewed or
@@ -26,11 +27,13 @@ attempt with status "protected" or "quota" and the reason.
 
   python3 tools/textures/hosts.py <url> <destination>     one file, prints a JSON line
 """
+import base64
 import hashlib
 import html
 import json
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -262,10 +265,124 @@ def _megatools():
     return tool
 
 
+MEGA_API = 'https://g.api.mega.co.nz/cs'
+# Error codes of MEGA's API (negative numbers), as the web client names them.
+MEGA_ERRORS = {-2: 'EARGS', -3: 'EAGAIN', -4: 'ERATELIMIT', -9: 'ENOENT', -11: 'EACCESS', -16: 'EBLOCKED',
+               -17: 'EOVERQUOTA', -18: 'ETEMPUNAVAIL', -8: 'EEXPIRED'}
+
+
+def _b64url(text):
+    return base64.urlsafe_b64decode(text + '=' * (-len(text) % 4))
+
+
+def _aes(key, mode, iv=None):
+    """AES decryptor (python3-cryptography, else PyCryptodome)."""
+    try:
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        chosen = {'ecb': modes.ECB(), 'cbc': modes.CBC(iv or bytes(16)), 'ctr': modes.CTR(iv or bytes(16))}[mode]
+        return Cipher(algorithms.AES(key), chosen).decryptor().update
+    except ImportError:
+        from Crypto.Cipher import AES  # noqa: N814
+        if mode == 'ctr':
+            return AES.new(key, AES.MODE_CTR, nonce=iv[:8], initial_value=int.from_bytes(iv[8:], 'big')).decrypt
+        return (AES.new(key, AES.MODE_ECB) if mode == 'ecb' else AES.new(key, AES.MODE_CBC, iv or bytes(16))).decrypt
+
+
+def _mega_api(payload, folder):
+    request = urllib.request.Request(f'{MEGA_API}?id={int(time.time() * 1000) % 10**9}&n={folder}',
+                                     data=json.dumps(payload).encode(), headers={'User-Agent': USER_AGENT, 'Content-Type': 'application/json'})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        answer = json.loads(response.read())
+    if isinstance(answer, int) or (isinstance(answer, list) and answer and isinstance(answer[0], int) and answer[0] < 0):
+        code = answer if isinstance(answer, int) else answer[0]
+        name = MEGA_ERRORS.get(code, str(code))
+        if code in (-17, -4, -3):
+            raise HostError('quota', f'MEGA {name}')
+        raise HostError('gone' if code in (-9, -16, -8, -11) else 'error', f'MEGA {name}')
+    return answer[0]
+
+
+def _mega_folder_nodes(link):
+    """The decrypted nodes of a public folder link: {handle: {'name', 'path', 'size', 'type', 'key', 'iv'}}."""
+    match = re.search(r'/folder/([A-Za-z0-9_-]+)#([A-Za-z0-9_-]{22})', link)
+    if not match:
+        raise HostError('error', 'MEGA folder link without its key')
+    handle, folder_key = match.group(1), _b64url(match.group(2))
+    nodes = {}
+    for node in _mega_api([{'a': 'f', 'c': 1, 'ca': 1, 'r': 1}], handle).get('f') or []:
+        if node.get('t') not in (0, 1) or not node.get('k') or not node.get('a'):
+            continue
+        for share in node['k'].split('/'):
+            raw = _aes(folder_key, 'ecb')(_b64url(share.split(':')[-1]))
+            if node['t'] == 0 and len(raw) == 32:
+                words = struct.unpack('>8I', raw)
+                key = struct.pack('>4I', *(words[i] ^ words[i + 4] for i in range(4)))
+                iv = struct.pack('>2I', words[4], words[5]) + bytes(8)
+            elif node['t'] == 1 and len(raw) == 16:
+                key, iv = raw, None
+            else:
+                continue
+            attributes = _aes(key, 'cbc')(_b64url(node['a']))
+            if not attributes.startswith(b'MEGA{'):
+                continue
+            name = json.loads(attributes[4:].rstrip(b'\0').decode('utf-8', 'replace')).get('n') or node['h']
+            nodes[node['h']] = {'name': name, 'parent': node.get('p'), 'size': int(node.get('s') or 0), 'type': node['t'],
+                                'key': key, 'iv': iv}
+            break
+    for item in nodes.values():
+        parts, parent, seen = [item['name']], item['parent'], set()
+        while parent in nodes and parent not in seen:
+            seen.add(parent)
+            parts.insert(0, nodes[parent]['name'])
+            parent = nodes[parent]['parent']
+        item['path'] = '/'.join(parts[1:]) if len(parts) > 1 else parts[0]  # below the shared folder itself
+    return handle, match.group(2), nodes
+
+
+def mega_folder(url):
+    """The files of a public MEGA folder link; each file's link opens it in the folder on MEGA's web page."""
+    handle, key, nodes = _mega_folder_nodes(mega_link(url))
+    return [{'name': item['path'], 'size': item['size'], 'url': f'https://mega.nz/folder/{handle}#{key}/file/{node}'}
+            for node, item in sorted(nodes.items(), key=lambda pair: pair[1]['path']) if item['type'] == 0]
+
+
+def mega_folder_file(link, destination, max_bytes):
+    """One file of a public folder: the API gives its encrypted download URL; AES-CTR with the file key."""
+    match = re.search(r'/file/([A-Za-z0-9_-]+)$', link)
+    handle, _, nodes = _mega_folder_nodes(link)
+    node = nodes.get(match.group(1)) if match else None
+    if not node or node['type'] != 0:
+        raise HostError('gone', 'file not in the MEGA folder')
+    if node['size'] > max_bytes:
+        raise HostError('tooLarge', f'larger than {max_bytes} bytes')
+    answer = _mega_api([{'a': 'g', 'g': 1, 'n': match.group(1)}], handle)
+    if not isinstance(answer, dict) or not answer.get('g'):
+        raise HostError('quota' if isinstance(answer, dict) and answer.get('e') == -17 else 'error', f'MEGA download refused {answer}'[:200])
+    started, digest, size = time.time(), hashlib.sha256(), 0
+    decrypt = _aes(node['key'], 'ctr', node['iv'])
+    request = urllib.request.Request(answer['g'], headers={'User-Agent': USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=300) as response, open(destination, 'wb') as out:
+            for block in iter(lambda: response.read(CHUNK), b''):
+                plain = decrypt(block)
+                out.write(plain)
+                digest.update(plain)
+                size += len(plain)
+                if size > max_bytes:
+                    raise HostError('tooLarge', f'larger than {max_bytes} bytes')
+    except urllib.error.HTTPError as error:
+        raise HostError('quota' if error.code in (429, 509) else 'error', f'HTTP {error.code}')
+    if size != node['size']:
+        raise HostError('error', f'MEGA file truncated: {size} of {node["size"]} bytes')
+    return {'size': size, 'sha256': digest.hexdigest(), 'final': link, 'name': node['name'], 'seconds': round(time.time() - started, 1)}
+
+
 def mega(url, destination, max_bytes):
     link = mega_link(url)
+    if '/folder/' in link and '/file/' in link:
+        return mega_folder_file(link, destination, max_bytes)
     if '/folder/' in link:
-        # A shared folder holds several files of unknown size: its files are reviewed one by one, by hand.
+        # A shared folder holds several files: they are listed (folder_files) and probed one by one.
         raise HostError('folder', 'MEGA folder link')
     work = Path(destination).parent / ('mega-' + Path(destination).name)
     shutil.rmtree(work, ignore_errors=True)
@@ -312,7 +429,7 @@ def archive_item(url):
 
 
 def folder_files(url):
-    """The files of a shared MediaFire or Google Drive folder link or of an archive.org item, or None for a file link."""
+    """The files of a shared MediaFire, Google Drive or MEGA folder link or of an archive.org item, or None for a file link."""
     host = kind(url)
     if host == 'mediafire':
         return mediafire_folder(url)
@@ -320,6 +437,8 @@ def folder_files(url):
         return gdrive_folder(url)
     if 'archive.org/details/' in url:
         return archive_item(url)
+    if host == 'mega' and '/folder/' in mega_link(url) and '/file/' not in mega_link(url):
+        return mega_folder(url)
     return None
 
 
