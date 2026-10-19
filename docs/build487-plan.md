@@ -41,7 +41,7 @@ ni la recompilation après un état : elle permet de les trancher sur l'iPhone.
 | D5 | `MUTEX_DESTROY_BUSY mutex_id= owner_id= owner_name= caller_id= caller_name=` au site `CELL_EBUSY` | `sys_mutex.cpp` | relier l'erreur de Fallout 3 au thread propriétaire |
 | D6 | `FREEZE_DUMP` (64 lignes au plus, une fois par 30 s) des threads PPU/SPU/RSX quand aucune image n'a été présentée depuis plus de 3 s alors qu'un groupe dépasse 0,5 cœur et que l'émulateur tourne | `RPCS3IOSFreezeDump.{h,cpp}` | établir ce que font les threads pendant un gel |
 | D7 | `RANGELOCKPROF` ajoute le maintien maximal par source | `RPCS3IOSPerformance.cpp` | distinguer beaucoup de verrous courts d'un long |
-| D8 | `JITPROF_BOOT session= boot_kind= modules_total= modules_compiled= modules_cached= modules_existing= ppu_cache_hits= ppu_cache_misses= wall_ms=` + phases `JITPROF` du démarrage entier | `PPUThread.cpp`, `Utilities/JITPhaseProfile.h` (totaux monotones additifs), `RPCS3IOSBootDiagnostics.h` | coût réel d'une recompilation PPU sur l'iPhone |
+| D8 | deux lignes `JITPROF_BOOT` par démarrage : `session= boot_kind= modules_total= modules_compiled= modules_cached= modules_existing= ppu_cache_hits= ppu_cache_misses= wall_ms=` + les neuf phases PPU de `JITPROF` + `headroom_samples= headroom_min_mib= ppu_pipeline= ppu_ir_passes= spu_pipeline=`, puis `session= boot_kind= part=spu` + les six phases SPU (toutes les phases sont toujours écrites ; la coupure garde chaque ligne sous la limite de 1 Kio des jalons, préfixe de thread compris) | `PPUThread.cpp`, `Utilities/JITPhaseProfile.h` (totaux monotones additifs), `RPCS3IOSBootDiagnostics.h` | coût réel d'une recompilation PPU sur l'iPhone |
 | D9 | `RPCS3-diagnostic.log` tourne vers `RPCS3-diagnostic.1.log` au lieu d'être tronqué ; `neoswap_guest_sample_ext` (phase `sample`) n'est écrit que si ses compteurs changent, plus une ligne par 60 s | `Rpcs3Diagnostics.mm`, `Rpcs3InternalBridgePlugin.mm` | couvrir le démarrage d'une session de 30 min |
 | D10 | `SAVESTATE_BOOT` (deux lignes) sur un démarrage depuis un état : `applied_patches seg0_code_end funcs fragments`, puis `ppu_cache_hits ppu_cache_misses objects_loaded link_ms fragments_total` | `PPUThread.cpp` | savoir si un chargement d'état recompile et pourquoi |
 | L1 | l'hôte laisse passer `JITPROF`, `JITPROF_BOOT`, `CONFIG_LAYERS`, `NEOSTATION_RESTART`, `SAVESTATE_BOOT`, `FREEZE_DUMP`, `MUTEX_DESTROY_BUSY` ; jalons `jitprof_boot`, `config_layers`, `internal_restart`, `savestate_boot`, `freeze_dump` (première ligne, 512 octets), `mutex_destroy_busy` (64 par processus) | `Rpcs3InternalBridgePlugin.mm` | les lignes survivent à la rotation de 2 Mio |
@@ -84,11 +84,15 @@ L11 identité d'objet PPU stable après un état (à décider après D10).
 
 **Conséquence certaine** : `PPUThread.cpp`, `Utilities/JITPhaseProfile.h` et
 `SPUCommonRecompiler.cpp` font partie des empreintes de codegen calculées par
-CMake. Les identités PPU et SPU changent donc : chaque titre recompile ses
-modules PPU et ses programmes SPU au premier démarrage après l'installation,
-comme après la 483. Le répertoire SPU de la 483 (sans fichier marqueur) est
-supprimé à ce démarrage. Le premier démarrage après installation doit être
-écarté de toute comparaison.
+CMake (`rpcs3/Emu/CMakeLists.txt`). Nouvelle identité de codegen PPU (et SPU
+par `SPUCommonRecompiler.cpp`) : recompilation complète au premier démarrage
+de chaque titre après l'installation, comme après la 483. Les objets PPU de la
+483 sont conservés sur le disque (aucune purge : l'espace occupé par le cache
+PPU double jusqu'à suppression manuelle) ; le répertoire SPU de la 483 (sans
+fichier marqueur) est supprimé à ce démarrage. Le premier démarrage après
+installation doit être écarté de toute comparaison. Le run Core imprime les
+deux identités (`NeoStation PPU codegen identity:`,
+`NeoStation SPU codegen identity:`), à consigner au § 7.
 
 ## 5. Vérifications exécutées
 

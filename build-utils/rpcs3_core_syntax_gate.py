@@ -13,6 +13,8 @@ UNITS = {'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
          'VKResourceManager.cpp',
          'BufferUtils.cpp', 'RSXFIFO.cpp', 'RPCS3IOS.cpp', 'RPCS3IOSPerformance.cpp', 'buffer_object.cpp',
          'RPCS3IOSFreezeDump.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1
+         'System.cpp', 'sys_game.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D3/D4)
+         'overlay_home_menu_savestate.cpp', 'overlay_home_menu_main_menu.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D4)
          'VKProgramPipeline.cpp', 'fsr_pass.cpp', 'SourceClient.cpp', 'cellVdec.cpp'}
 
 def main(database: Path) -> None:
