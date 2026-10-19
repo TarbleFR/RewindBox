@@ -217,7 +217,12 @@
  {
   "console": "psp",
   "source": "ULUS10566 - 3112021.zip (https://drive.google.com/file/d/1nAVp-ypbzBumA9-1AjGUFcUzPfJ125vY/view?usp=sharing)",
-  "reason": "Dissidia 012 HD Retexture, the 3 November 2021 upload: 337 of the textures of the fuller upload of the same thread (10,301), which is catalogued."
+  "reason": "Dissidia 012 HD Retexture (PPSSPP forum, 3 November 2021 upload): an earlier release of Niosai's pack, whose GitHub repository (D012FFRT) is catalogued."
+ },
+ {
+  "console": "psp",
+  "source": "ULUS10566.zip (https://drive.google.com/file/d/1YjaH1YoUVmA3aNFRtka6MQp8tcUQ27gr/view?usp=sharing)",
+  "reason": "Dissidia 012 HD Retexture (PPSSPP forum, full upload): an earlier release of Niosai's pack, whose GitHub repository (D012FFRT) is catalogued."
  },
  {
   "console": "psp",

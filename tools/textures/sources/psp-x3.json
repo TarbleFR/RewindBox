@@ -352,58 +352,6 @@
   "family": "psp-star-wars-battlefront-2-hd"
  },
  {
-  "id": "psp-vc3-ee-retranslation-hd-steccas",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Valkyria Chronicles 3 Extra Edition — HD textures for the English ReTranslation",
-  "version": "v1",
-  "games": [
-   {
-    "title": "Valkyria Chronicles 3: Extra Edition",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULJM05957"
-     }
-    ],
-    "regions": [
-     "Japan"
-    ]
-   }
-  ],
-  "authors": [
-   "steccas"
-  ],
-  "page_url": "https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack",
-  "source_id": "github:steccas/vc3-ee-retranslation-hd-texture-pack",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
-  },
-  "notes": "AI upscale whose text textures are in English: made for the English ReTranslation patch of the game.",
-  "download": {
-   "automatable": true,
-   "format": "zip",
-   "file_name": "VC3_ReTL_texture_addon.zip",
-   "parts": [
-    {
-     "url": "https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/download/v1/VC3_ReTL_texture_addon.zip"
-    }
-   ]
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "ULJM05957/",
-     "to": "ULJM05957"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "psp-vc3-ee-retranslation-hd-steccas"
- },
- {
   "id": "psp-vc3-ee-ai-upscaled",
   "system": "psp",
   "engine": "ppsspp",
@@ -656,56 +604,6 @@
   "family": "psp-persona2-is-hd-ui"
  },
  {
-  "id": "psp-dissidia-012-hd-retexture",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Dissidia 012 Final Fantasy HD Retexture",
-  "version": "see page",
-  "games": [
-   {
-    "title": "Dissidia 012 Final Fantasy",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULUS10566"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "Niosai"
-  ],
-  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26396",
-  "source_id": "ppsspp-forum:26396",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.ppsspp.org/showthread.php?tid=26396",
-   "file_name": "ULUS10566.zip",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1YjaH1YoUVmA3aNFRtka6MQp8tcUQ27gr/view?usp=sharing",
-    "sha256": "ff645992f82d510155f54c498e84d4da130e61ec34321d0f6312599dd6f76d2b"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "ULUS10566/",
-     "to": "ULUS10566"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "psp-dissidia-012-hd-retexture"
- },
- {
   "id": "psp-ridge-racer-2-hd-wip",
   "system": "psp",
   "engine": "ppsspp",
@@ -854,56 +752,6 @@
   },
   "scope": "ui",
   "family": "psp-persona1-hd-ui"
- },
- {
-  "id": "psp-lego-batman-ai-upscale",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "LEGO Batman: The Videogame AI upscale",
-  "version": "see page",
-  "games": [
-   {
-    "title": "LEGO Batman: The Videogame",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULUS10380"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "FunnyNameXYZ"
-  ],
-  "page_url": "https://forums.ppsspp.org/showthread.php?tid=37842",
-  "source_id": "ppsspp-forum:37842",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.ppsspp.org/showthread.php?tid=37842",
-   "file_name": "LegoBatmanUpscale.zip",
-   "verify": {
-    "url": "https://drive.google.com/file/d/15BzNRuXFd_yYJ61BLcA6dNnPa3vYnZw1/view?usp=sharing",
-    "sha256": "7c3cc0219b486a9c4da727a672f4be5ecc33ac0772bb96b65d98c7f862d20a22"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "ULUS10380/",
-     "to": "ULUS10380"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "psp-lego-batman-ai-upscale"
  },
  {
   "id": "psp-yugioh-arcv-tfs-hd-cards-en",
