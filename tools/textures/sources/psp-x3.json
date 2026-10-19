@@ -958,5 +958,512 @@
   },
   "scope": "complete",
   "family": "psp-musou-orochi-2-special-hd"
+ },
+ {
+  "id": "psp-untold-legends-botb-hd-ui",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Untold Legends: Brotherhood of the Blade — Amateur HD UI Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Untold Legends: Brotherhood of the Blade",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10003"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=34071",
+  "source_id": "ppsspp-forum:34071",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=34071",
+   "file_name": "ULUS10003.zip",
+   "verify": {
+    "url": "https://mega.nz/file/Mm4QlDSK#mjTG-5EohoGFrwiHo-2kNSiJT_KtbiylX-w0rK5DZxI",
+    "sha256": "6c2b86390109f447592a4b54f90316210ac4caf199eadf4a60e7b4105c1fb344"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "ULUS10003"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-untold-legends-botb-hd-ui"
+ },
+ {
+  "id": "psp-gta-vcs-ai-upscaled",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Grand Theft Auto: Vice City Stories AI upscaled",
+  "version": "2020-08-07",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00502"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26729",
+  "source_id": "ppsspp-forum:26729",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Made on the European disc (ULES00502).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26729",
+   "file_name": "ULES00502_v20200807.zip",
+   "verify": {
+    "url": "https://mega.nz/file/K0pjFISC#5mWOpqyY7jC-DkUKYmvIIbVeMxnkkk8k4iK8InxKCrA",
+    "sha256": "d6e2222e9bddeade75986d915950ffea2f2798325d5588b33d34586cae64db90"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULES00502/",
+     "to": "ULES00502"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-gta-vcs-ai-upscaled"
+ },
+ {
+  "id": "psp-digimon-world-redigitize-hd-ui",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Digimon World Re:Digitize HD UI Pack",
+  "version": "0.0.1",
+  "games": [
+   {
+    "title": "Digimon World Re:Digitize",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50588"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29321",
+  "source_id": "ppsspp-forum:29321",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Includes the Roboto font of its interface (Apache licence file in the archive).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29321",
+   "file_name": "Digimon World Re?Digitize HD UI Pack v0.0.1 (NPJH50588).zip",
+   "verify": {
+    "url": "https://dl.dropbox.com/s/yjx571hjtgfc9mz/Digimon%20World%20Re-Digitize%20HD%20UI%20Pack%20v0.0.1%20%28NPJH50588%29.zip",
+    "sha256": "bd9b2ade99ac3cb865c1ef94b5ec8d27b9533164d83a382fd44a770828e028cd"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "NPJH50588"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-digimon-world-redigitize-hd-ui"
+ },
+ {
+  "id": "psp-gundam-next-plus-upscale-forum",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Gundam vs. Gundam Next Plus — Upscale Texture Pack",
+  "version": "2020-04-15",
+  "games": [
+   {
+    "title": "Gundam Vs. Gundam: Next Plus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50107"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26350",
+  "source_id": "ppsspp-forum:26350",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Counted once with the GitHub HD pack of this game: the forum thread may be the same work.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26350",
+   "file_name": "NPJH50107_texture_15042020.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/10xUxPZouHVgIaO8CA9a5kIwQ4an_oD6s/view?usp=drivesdk",
+    "sha256": "8314924bb9699e5b37ba755f7c589301d92f6116fa4643e499567c79d508b84e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NPJH50107/",
+     "to": "NPJH50107"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-gundam-vs-gundam-next-plus-hd-saramagrean"
+ },
+ {
+  "id": "psp-lord-of-apocalypse-upscale",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Lord of Apocalypse — Upscaling Texture Pack",
+  "version": "2024-02-01",
+  "games": [
+   {
+    "title": "Lord of Apocalypse",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50503"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29886",
+  "source_id": "ppsspp-forum:29886",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "KTX2 textures.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29886",
+   "file_name": "NPJH50503-ktx2-textures-20240201.zip",
+   "verify": {
+    "url": "https://mega.nz/file/uAEAAQYa#Tmr2sAa4m8MrNNgpBJulKI7VhyoozMZ9TQZ-3nEIjIw",
+    "sha256": "0868f6b9370be8ca53157192e2c8e98453a99bc1e05b3288c9a7c7632367ead4"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "NPJH50503"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-lord-of-apocalypse-upscale"
+ },
+ {
+  "id": "psp-naruto-impact-upscale",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Naruto Shippuden: Ultimate Ninja Impact — Upscaling Texture Pack",
+  "version": "2023-07-25",
+  "games": [
+   {
+    "title": "Naruto Shippuden: Ultimate Ninja Impact",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10582"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26648",
+  "source_id": "ppsspp-forum:26648",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "KTX2 textures.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26648",
+   "file_name": "ULUS10582_textures-ktx2_20230725.zip",
+   "verify": {
+    "url": "https://mega.nz/file/aFcBBSbb#bcgZ6NGr4GTyXouLNx_SGIJxw2hPGdnEyrzeOhWVFjg",
+    "sha256": "a97a6e2fb049b18383993a597697f80355c86159f345ffec59ddbbbd50347491"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "ULUS10582"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-naruto-impact-upscale"
+ },
+ {
+  "id": "psp-persona-3-portable-hd-community-expansion",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona 3 Portable HD Texture Pack Community Expansion (3x)",
+  "version": "3.0",
+  "games": [
+   {
+    "title": "Persona 3 Portable",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10512"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26547",
+  "source_id": "ppsspp-forum:26547",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Work in progress.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26547",
+   "file_name": "Version 3.0 (3x).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1cBjGvwkOElwnScUNPy0-OnlskBjClBMy/view",
+    "sha256": "34063f6b0626c3ab57cd5ef0d2b2183ee456cb8bab75c9399766016cb552b8d1"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10512/",
+     "to": "ULUS10512"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-persona-3-portable-hd-community-expansion"
+ },
+ {
+  "id": "psp-mgs-peace-walker-custom-hd",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Metal Gear Solid: Peace Walker — Custom HD Texture Pack",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Metal Gear Solid: Peace Walker",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10509"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29020",
+  "source_id": "ppsspp-forum:29020",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29020",
+   "file_name": "Custom HD Texture Pack v0.2.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1maBRZIzp6pF9jWYXQyLElnUto5Gxmy23",
+    "sha256": "dee96cded3663a564af45af628a67e2a6f7dd67f8c922670eb876ddec3115bf7"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10509/",
+     "to": "ULUS10509"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "psp-mgs-peace-walker-custom-hd"
+ },
+ {
+  "id": "psp-crisis-core-2x-ui",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Crisis Core: Final Fantasy VII — 2X UI texture pack",
+  "version": "1.0.10",
+  "games": [
+   {
+    "title": "Crisis Core: Final Fantasy VII",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10336"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28786",
+  "source_id": "ppsspp-forum:28786",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Includes the Roboto font of its interface (Apache licence file in the archive).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28786",
+   "file_name": "Crisis Core - Final Fantasy VII - texture pack v1.0.10 (ULUS10336).zip",
+   "verify": {
+    "url": "https://dl.dropbox.com/s/tw44cij1wfhbrd9/Crisis%20Core%20-%20Final%20Fantasy%20VII%20-%20texture%20pack%20v1.0.0%20%28ULUS10336%29.zip",
+    "sha256": "dd129c5a42936efaf40fcc2351694f8bc4ba7b79ccdbdc00665260896854b644"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "ULUS10336"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "psp-crisis-core-2x-ui"
+ },
+ {
+  "id": "psp-yugioh-gx-tag-force-hd-remastered",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! GX Tag Force — HD Remastered",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10136"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29487",
+  "source_id": "ppsspp-forum:29487",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29487",
+   "file_name": "Yu-Gi-Oh! GX Tag Force 1 HD Remastered.zip",
+   "verify": {
+    "url": "https://mega.nz/file/pdxnSYpb#NJSU2NaMXYJX5R6NTbLf7qUp75JbsyNt-Iv5EKVwJ8U",
+    "sha256": "cb521e3981a7632777f96b8e1c0bba18d8ccab52c0c70b2340c0599896879674"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10136/",
+     "to": "ULUS10136"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-yugioh-gx-tag-force-hd-remastered"
  }
 ]

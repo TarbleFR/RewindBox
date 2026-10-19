@@ -655,6 +655,16 @@
   "reason": "Shadow the Hedgehog NubyTech prompts: the source drawings (SVG, template), not a pack."
  },
  {
+  "console": "psp",
+  "source": "SaveHD Icons.zip (https://drive.google.com/file/d/1WPw6M-OScJYwHlsoGM4slWjUSx9zLp-E)",
+  "reason": "Metal Gear Solid: Peace Walker save icons (three images): an add-on of the catalogued Custom HD Texture Pack of the same thread."
+ },
+ {
+  "console": "psp",
+  "source": "nphh00293 original.7z (https://drive.google.com/file/d/15YCP7Y29Qrq8aadNXtGyE9PHhS1eWwdX/view)",
+  "reason": "Dissidia 012 (NPHH00293) original textures: the extracted original images without textures.ini, a source set rather than a pack."
+ },
+ {
   "console": "3ds",
   "source": "ac3d-hd-texture-pack-v0.9.2.zip (https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf)",
   "reason": "The same file as the catalogued Ace Combat: Assault Horizon Legacy+ HD pack (3ds.json, the author's Drive file)."
