@@ -9,6 +9,8 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.source_files = 'Classes/**/*.swift'
   s.dependency 'Flutter'
+  # Linked into Runner: no extra embedded framework in the IPA.
+  s.static_framework = true
   s.platform = :ios, '18.0'
   s.swift_version = '5.0'
   s.frameworks = 'Vision', 'NaturalLanguage', 'ImageIO', 'SwiftUI', 'UIKit', 'Translation'

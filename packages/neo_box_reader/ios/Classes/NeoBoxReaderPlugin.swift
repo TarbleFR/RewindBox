@@ -81,11 +81,11 @@ public final class NeoBoxReaderPlugin: NSObject, FlutterPlugin {
                 result(["texts": [String](), "source": Self.nullable(source)])
                 return
             }
-            guard let presenter = Self.visibleController() else {
-                result(FlutterError(code: "no-presenter", message: "No visible view controller", details: nil))
-                return
-            }
             Task { @MainActor in
+                guard let presenter = Self.visibleController() else {
+                    result(FlutterError(code: "no-presenter", message: "No visible view controller", details: nil))
+                    return
+                }
                 let sample = texts.joined(separator: "\n")
                 let before = await BoxTranslator.status(source: source, target: target, sample: sample)
                 if before == "unsupported" {
@@ -118,6 +118,7 @@ public final class NeoBoxReaderPlugin: NSObject, FlutterPlugin {
     }
 
     /// Topmost presented view controller of the key window.
+    @MainActor
     static func visibleController() -> UIViewController? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let window = scenes.flatMap { $0.windows }.first { $0.isKeyWindow } ?? scenes.first?.windows.first
