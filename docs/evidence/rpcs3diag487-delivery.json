@@ -1,0 +1,155 @@
+{
+ "build": 487,
+ "version": "0.0.8 (487)",
+ "result": "delivered",
+ "deliverySource": "fad5eac6f793672240d2cb5f3559da73a40226f8",
+ "deliverySourceNote": "dispatched on the Claude branch head; the build-487 tag push was refused by the session git proxy (HTTP 403), so the run head_sha is the fixed source",
+ "deliveryRun": 39262042654,
+ "jobs": {
+  "checks": "success",
+  "native": "success",
+  "Release device build • cold": "success",
+  "Release device build • warm": "skipped"
+ },
+ "closure": ".github/diagnostics/rpcs3diag487_delivery.py",
+ "testedSource": "1cf0219773d4c64922367151de3508f5dbcb9c8e",
+ "coreSource": "1cf0219773d4c64922367151de3508f5dbcb9c8e",
+ "proofs": {
+  "rpcs3Core": {
+   "run": 39251938919,
+   "attempt": 2,
+   "attempt1": "stopped on the unchanged run-minecraft-fence-tests.py --native-atomic fixture timeout; failed jobs re-run once; not counted as a pass",
+   "job": 118063361933,
+   "source": "1cf0219773d4c64922367151de3508f5dbcb9c8e",
+   "abi": 30,
+   "coreSHA256": "6b64fe7aeca17325592f478a8eb97d08187721127a586bd6f007f71cbdd11c73",
+   "canonicalPatchSHA256": "61e41b7df09d77b016cddbceebff14a14502632ea714af70ea5ace1b76ea975e",
+   "coreInputs": 76,
+   "artifact": {
+    "id": 12191176025,
+    "bytes": 28958094,
+    "zipSHA256": "10d6c7416a83a8c8e5fefb0847b13cbedbf96ce0bc275d403c9ac124abd6f473"
+   },
+   "diagnosticsArtifact": {
+    "id": 12191576064,
+    "zipSHA256": "76eb7088986d5dbd45bf4e2e8a3bc452c821114da56dc2619316400db4536866",
+    "note": "both attempts uploaded a diagnostics artifact under the same name (attempt 1: 12186179062); the gate reads attempt 2 by id"
+   },
+   "proofSHA256": {
+    "spu-object-cache-proof.txt": "d738bf1c5244c868435c3ce02c1f5d795046015cf661e19d8d085381edff7337",
+    "llvm-pipeline-proof.txt": "0ce806718853bfafe05fc5b7e8630a44e9c799a7dfbefc690e2acc3dae7ae96a",
+    "build487-core-proof.txt": "fdb6f47fe9ac4382d3524fe192e821748d39b87c54181ddeee587c0c4d62f5a8",
+    "build487-host-proof.txt": "245647fa4106ecf16baeba3e93ef9b334d8fdb431bf115fe8acdbb883ce1f0ac"
+   }
+  }
+ },
+ "deliveredBaseline": {
+  "build": 486,
+  "source": "b18c30cd884f915950ee03cb8d5a182de1cd9028",
+  "run": 39195753114,
+  "sealedIpaSHA256": "eef1553e73d115753df92455c42bec9ededc3cacb1c37980568bce9f2cedc607"
+ },
+ "changedProductPaths": [
+  "build-utils/rpcs3/canonical-source.json",
+  "build-utils/rpcs3/embedded-core.patch",
+  "build-utils/rpcs3/regenerate_canonical_delta.py",
+  "native/import-memory-candidate.json",
+  "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h",
+  "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm",
+  "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm"
+ ],
+ "coreRebuilt": "RPCS3 only (Build 487 diagnostics and levers); every other engine, core and helper reused by identity",
+ "corePins": {
+  "rpcs3": {
+   "source": "1cf0219773d4c64922367151de3508f5dbcb9c8e",
+   "run": 39251938919
+  },
+  "armsx2": {
+   "source": "1343906f05e33b40f10f7026a1a6e2327c338d0e",
+   "run": 39178893158
+  },
+  "dolphinCoreHost": "ae7d46f90dff64ce698b8c18e0c12510dbae96fe",
+  "dusklight": {
+   "source": "899d3c44f8f465c8da0d93c763817ffca519c00c",
+   "run": 37641472546
+  },
+  "libretroCores": {
+   "source": "c3408821b2b9c47c6e31ae25b45c113aa9fd3f74",
+   "run": 39081741396,
+   "count": 34
+  }
+ },
+ "xcodeBuildSeconds": 311.29,
+ "signatureAndExportSeconds": 59.18,
+ "toolchain": {
+  "xcode": "26.3 (17C529)",
+  "iphoneSDK": "26.2",
+  "flutter": "3.47.2",
+  "macOS": "15.7.9"
+ },
+ "ciValidations": {
+  "preSealIpaSHA256": "63a89663ce7340ece2460e187930c44825453bd6f0843320735e5a9e15a5b42f",
+  "rpcs3Diag487": {
+   "result": "passed",
+   "coreSHA256": "6b64fe7aeca17325592f478a8eb97d08187721127a586bd6f007f71cbdd11c73",
+   "bridgeSHA256": "bb3f9749873cf598610eb2561ab254c0722172627277a7cdef5bf43f04744644",
+   "coreMarkers": 9,
+   "bridgeMarkers": 14
+  },
+  "hdTextures": {
+   "result": "passed",
+   "revision": "2026-10-19.c38f84a2c654",
+   "packs": 170,
+   "packsBundled": false
+  },
+  "unifiedCheats": {
+   "result": "passed",
+   "packs": 874,
+   "programs": 2395541,
+   "packsBundled": false
+  },
+  "signing": "allCompiledCodeAndDataSectionsUnchangedBySigning and abiMetadataUnchangedBySigning true; ad hoc signatures verified for every bundle; SideStore Apple re-signing required"
+ },
+ "encryptedArtifact": {
+  "id": 12192460455,
+  "name": "NeoStation-Build-487-fad5eac6f793672240d2cb5f3559da73a40226f8-cold",
+  "bytes": 228261789,
+  "zipSHA256": "3e1808c21442d4d69aa5614f5a5c2c034e5654a11c2d81ce0788a00c747dcc05",
+  "expires": "2026-11-02T13:53:44Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "sealedIpa": {
+  "name": "NeoStation-Build487-fad5eac6f793672240d2cb5f3559da73a40226f8-cold.ipa",
+  "bytes": 228039548,
+  "sha256": "bd59a616d8f6f02a969ea9de71e9803b9f7156df250eb36d56559462b1551759",
+  "matches": [
+   "SHA256SUMS",
+   "signed-payload-identity.json"
+  ],
+  "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build487-fad5eac6.ipa",
+  "windowsCopySHA256Verified": true,
+  "decryptedOn": "maintainer PC with the 424 private key; session password and decrypted tar deleted immediately; encrypted archive and duplicate IPA removed after verification"
+ },
+ "independentInspection": {
+  "tool": "stdlib Mach-O section fingerprints (signature excluded), compared with the delivered Build 486 IPA",
+  "bundleVersions": "host and five extensions 0.0.8 (487), read from the binary Info.plist files",
+  "imagesComparedWithBuild486": {
+   "total": 82,
+   "identical": 78,
+   "changed": {
+    "libRPCS3Core.dylib": "rebuilt Core 487 (expected)",
+    "rpcs3_internal_bridge": "Build 487 host diagnostics (expected)",
+    "Runner": "__TEXT,__const only (build number, as in earlier builds)",
+    "armsx2_internal_bridge": "__TEXT,__stubs and __TEXT,__objc_stubs only: GOT slots 141 and 142 both bind _objc_msgSend (ordinal 0x8d, identical imports and GOT in both builds); the linker swapped which of the two slots the 814 Objective-C stubs and regular stub 159 load. __text, __got and selector references are byte-identical; no source change; no behavioural difference"
+   },
+   "new": [],
+   "removed": []
+  },
+  "markers": {
+   "core": "9/9 present (0 in Build 486)",
+   "bridge": "14/14 present (0 in Build 486)"
+  }
+ },
+ "deviceGameplayValidated": false,
+ "firstLaunchConsequence": "PPU and SPU codegen identities change: every title recompiles once after installation; exclude that launch from any measurement"
+}

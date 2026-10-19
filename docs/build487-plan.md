@@ -159,7 +159,51 @@ Non vérifié ici : compilation iOS (porte de syntaxe puis construction du Core 
 
 ### Livraison
 
-*(complété après la livraison)*
+- Source livrée `fad5eac6f793672240d2cb5f3559da73a40226f8`, tête de `Claude` au
+  lancement. Le tag `build-487` n'a pas pu être poussé : le proxy Git de la
+  session n'autorise que la branche `Claude` (HTTP 403), et cette restriction
+  n'a pas été contournée. Le `head_sha` du run est la source fixe de la 487.
+- `retroarch-delivery.yml` run `39262042654` : `checks` et `native` réutilisés
+  par la porte `rpcs3diag487_delivery.py`, `cold` réussi, `warm` ignoré.
+  Compilation Xcode 311 s, signature et export 59 s ; Xcode 26.3, SDK iPhone
+  26.2, Flutter 3.47.2, macOS 15.7.9. Aucun moteur reconstruit pendant la
+  livraison : seul le Core RPCS3 487 vient d'un nouveau run.
+- Contrôles CI sur l'IPA avant scellement (`63a89663…b42f`) :
+  `validate_rpcs3_diag487_ipa.py` (9 marqueurs Core, 14 marqueurs du pont,
+  Core SHA-256 `6b64fe7a…1c73` égal à l'artefact du run Core), catalogue de
+  textures HD et catalogue de cheats inchangés, aucun pack embarqué. Le
+  scellement ne modifie aucune section de code ou de données ni les
+  métadonnées d'ABI (`signed-payload-identity.json`).
+- Artefact chiffré `12192460455` (228 261 789 octets, archive SHA-256
+  `3e1808c21442d4d69aa5614f5a5c2c034e5654a11c2d81ce0788a00c747dcc05`, conservé
+  jusqu'au 2 novembre 2026) pour `build-utils/delivery-424-recipient.pem`,
+  déchiffré sur le PC du mainteneur avec la clé 424 (mot de passe de session et
+  archive en clair supprimés aussitôt, archive chiffrée et doublon de l'IPA
+  supprimés après vérification).
+- IPA **0.0.8 (487)** `NeoStation-Build487-fad5eac6f793672240d2cb5f3559da73a40226f8-cold.ipa`,
+  **228 039 548 octets**, SHA-256
+  **`bd59a616d8f6f02a969ea9de71e9803b9f7156df250eb36d56559462b1551759`**, égal à
+  `SHA256SUMS`, à `signed-payload-identity.json` et à la copie
+  `C:\Users\Coren\Downloads\NeoStation-Build487-fad5eac6.ipa` (relue après copie).
+  iOS 18.0 minimum ; re-signature Apple par SideStore requise.
+- Inspection indépendante contre l'IPA 486 livrée (`eef1553e…c607`, relue),
+  par empreinte des sections Mach-O hors signature : hôte et cinq extensions en
+  0.0.8 (487) ; 78 des 82 images identiques (34 cœurs libretro, ARMSX2, Dolphin,
+  Dusklight, MoltenVK, helpers, extensions, code Dart, catalogues). Changent :
+  - `libRPCS3Core.dylib` et `rpcs3_internal_bridge` : attendus, marqueurs 487
+    présents (9/9 et 14/14, aucun dans la 486) ;
+  - `Runner` : `__TEXT,__const` seulement (numéro de build, comme aux builds
+    précédentes) ;
+  - `armsx2_internal_bridge` : `__TEXT,__stubs` et `__TEXT,__objc_stubs`
+    seulement, sans changement de source. Les emplacements GOT 141 et 142
+    référencent tous deux `_objc_msgSend` (même import, tables d'imports et GOT
+    identiques dans les deux builds) ; l'éditeur de liens a seulement inversé
+    l'emplacement lu par les 814 stubs Objective-C et par le stub 159. Le code
+    (`__text`), la GOT et les références de sélecteurs sont identiques à
+    l'octet : aucun effet sur le comportement.
+- Reçu : `docs/evidence/rpcs3diag487-delivery.json`. Aucune validation sur
+  iPhone : premier démarrage de chaque titre à écarter (recompilation complète),
+  puis protocole du § 6. Ne pas réutiliser le numéro 487.
 
 ## 8. Risques et retour arrière
 
