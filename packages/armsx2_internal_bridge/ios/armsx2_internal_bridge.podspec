@@ -11,8 +11,8 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
-  # Build 485: the HD texture pack store, page and bridge (C++ and the vendored
-  # upstream ARMSX2 headers) stay out of the module's umbrella header.
+  # Build 485: the HD texture pack store, page and bridge (C++ and the two
+  # unmodified upstream ARMSX2 headers) stay out of the module's umbrella header.
   s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/Armsx2TouchControls.h',
                            'Classes/ARMSX2Texture*.h', 'Classes/Armsx2TextureBridge.h', 'Classes/upstream/*.h'
   s.dependency 'Flutter'

@@ -70,6 +70,8 @@ TESTS = [
     'test/game_audio_handoff_test.py',
     'test/retroarch_baseline_scope_test.py',
     'test/libretro_frontend_ui_contract_test.py',
+    # Reads the bridge podspec (the Core framework is never linked at start).
+    'test/armsx2_external_display_test.py',
     # Executed on macOS by armsx2-core.yml; hashed here so both runs name the same files.
     'test/armsx2_texture_native_test.py',
     'test/armsx2_texture_store_test.mm',
@@ -88,6 +90,7 @@ PYTHON_CHECKS = [
     'test/game_audio_handoff_test.py',
     'test/retroarch_baseline_scope_test.py',
     'test/libretro_frontend_ui_contract_test.py',
+    'test/armsx2_external_display_test.py',
 ]
 
 
