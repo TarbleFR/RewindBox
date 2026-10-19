@@ -11,11 +11,51 @@ Inventaire généré : [`HD_TEXTURE_CATALOG_SOURCES.md`](HD_TEXTURE_CATALOG_SOUR
 - **Portée** : `complete`, `partial` (travail en cours, sélection, correctifs), `ui` (interface, polices, boutons).
 - **N0 figé** sur l'index livré de la Build 488 (`2026-10-19.72e26f767470`, `python3 tools/textures/count_packs.py --git 2bdca0d4`) :
 
-⟪tableau N0 / objectif / Nfinal⟫
+| Console | N0 | 3 × N0 | Nfinal | ajoutées | rapport | écart à 3 × N0 | complètes / partielles / UI | un geste / manuelles vérifiées | variantes | jeux |
+|---|---|---|---|---|---|---|---|---|---|---|
+| GameCube | 21 | 63 | 76 | +55 | 3,62 | atteint | 52 / 8 / 16 | 23 / 53 | 25 | 53 |
+| Wii | 13 | 39 | 39 | +26 | 3,00 | atteint | 23 / 4 / 12 | 14 / 25 | 21 | 30 |
+| 3DS | 10 | 30 | 37 | +27 | 3,70 | atteint | 16 / 7 / 14 | 11 / 26 | 6 | 45 |
+| PSP | 56 | 168 | 82 | +26 | 1,46 | −86 | 62 / 7 / 13 | 56 / 26 | 14 | 97 |
+| PS2 | 32 | 96 | 33 | +1 | 1,03 | −63 | 25 / 1 / 7 | 32 / 1 | 12 | 44 |
+| N64 | 14 | 42 | 14 | +0 | 1,00 | −28 | 12 / 2 / 0 | 14 / 0 | 7 | 11 |
+| PS1 | 0 | 0 | 1 | +1 | — | atteint | 0 / 1 / 0 | 1 / 0 | 0 | 1 |
+| Total | 144 | 432 | 280 | +136 | 1,94 | −152 | 188 / 30 / 62 | 149 / 131 | 82 | 277 |
+
+Index final `2026-10-19.85092338c53c` : 1034 entrées (194 en un geste, 168 manuelles à fichier vérifié, 672 liens sans fichier vérifié, dont les 637 liens PS2 de ps2ktxpak). « Rendu vérifié en jeu » : 0 pack (aucun n'a été chargé dans un jeu sur iPhone pendant ce cycle).
+
+**Écart publié (Nfinal − N0).** GameCube +55, Wii +26, 3DS +27, PSP +26, PS2 +1, N64 +0, PS1 +1, total +136. L'objectif 3 × N0 est atteint pour le GameCube, la Wii et la 3DS ; il ne l'est pas au total (280 pour 432, écart 152) ni pour la PSP, la PS2 et la N64. L'objectif de plus de 800 packs distincts valides n'est pas atteint en packs installables : les 1 034 entrées de l'index n'y arrivent qu'en comptant 672 liens sans fichier vérifié, qui ne sont pas comptés ici.
+
+**Doublons évités.** 362 entrées installables pour 280 familles : 82 résolutions, formats, éditions, styles de boutons et mises à jour comptés une seule fois. Les autres téléversements, formats ou add-ons d'un pack déjà catalogué que les sondes ont rencontrés ne sont pas ajoutés une seconde fois et figurent avec leur motif sous « Reviewed and left out » de l'inventaire.
+
+**Rendu vérifié en jeu.** 0 pack : « installable » veut dire archive de l'auteur téléchargée sur un runner, taille et SHA-256 mesurées, installée par le code de l'application ; aucun pack de ce cycle n'a été chargé dans un jeu.
+
 
 ## 2. Exploration des références
 
-⟪statistiques des 386 références, sondes, hôtes, exclusions⟫
+**Méthode.** Les 386 références (S001–S386) ont été lues sur des runners CI (`research.py refs`, partie `research` de `hd-textures.yml` : page, API publiques GitHub et GameBanana, pages d'annuaire suivies), puis chaque fichier téléchargeable trouvé a été sondé (`research.py probe` : arborescence de l'archive résumée comme la lisent les moteurs, taille, SHA-256 ; rien n'est publié ni conservé). Les autres projets des auteurs, les fils du forum Dolphin et du forum PPSSPP, les listes de rapka, thelostgrimm et Admentus64 et la feuille Texture Packs Archive ont été suivis de la même façon, ainsi que 12 recherches GameBanana génériques (3 pages chacune) et 56 recherches par jeu GameCube/Wii (runs `39315268955` et `39315276351` : 743 mods lus, dont 155 GameCube/Wii et 14 retenus pour une sonde, le reste étant des mods de fichiers de jeu, des skins ou des portages PC).
+
+**Sondes.** 934 enregistrements pour 845 URL de fichiers distinctes : 449 archives lues, 137 pages protégées (défi anti-robot, connexion, CAPTCHA : jamais contournés), 85 fichiers retirés (404, fichiers MEGA supprimés), 64 dossiers partagés (développés en leurs fichiers), 45 archives non prises en charge (RAR surtout ; l'application n'ouvre pas le RAR), 11 quotas atteints (Google Drive, MEGA), 16 pages HTML à la place du fichier, 16 erreurs, 21 sans statut final. Deux runs de sonde (`39295542382`, `39294151651`) ont atteint leur limite de 300 minutes après 5 fichiers sur 38 et 26 sur 45 ; ces résultats partiels ne sont pas revus dans ce cycle (catalogue figé).
+
+**Décisions.** 456 archives distinctes (par SHA-256) : 172 deviennent des entrées du catalogue, 272 sont écartées avec leur motif, 12 restent des candidats pour un cycle suivant (ci-dessous). Les vérifications d'installation de ce cycle : 17 runs enregistrés (`tools/textures/ci-records.json`), 202 enregistrements dont 31 échecs conservés tels quels : 9 quotas Google Drive (packs restés des liens), 5 archives au-delà des limites de l'installateur sur iPhone, 4 archives contenant une image endommagée, 5 dossiers lus comme un autre jeu (dossier déclaré puis revérifié avec succès), 3 archives sans texture qu'un moteur charge, 2 copies refusées, 1 format non pris en charge, 1 fichier changé par GameBanana sous le lien sondé, 1 transfert MEGA bloqué 4 heures (revérifié avec succès après la borne de 45 minutes de `hosts.py`). Un enregistrement remplacé par une vérification ultérieure est marqué `superseded` dans le run qui l'avait produit.
+
+**Issue de chaque référence** (« pack catalogué » : au moins une entrée de l'index, installable ou lien ; « jeu couvert » : le jeu a déjà un pack d'une autre source ; « lue, sans fichier exploitable » : page lue, aucun fichier qu'un moteur sache charger) :
+
+| Références | pack catalogué | jeu couvert (titre) | exclue | lue, sans fichier exploitable | fichier lu, candidat | protégée | injoignable | morte | non lue | total |
+|---|---|---|---|---|---|---|---|---|---|---|
+| GameCube | 18 | 11 | 3 | 18 | 0 | 1 | 0 | 0 | 0 | 51 |
+| Wii | 11 | 8 | 0 | 20 | 0 | 2 | 0 | 0 | 0 | 41 |
+| 3DS | 21 | 10 | 4 | 11 | 0 | 6 | 6 | 0 | 0 | 58 |
+| PSP | 45 | 4 | 4 | 76 | 2 | 0 | 0 | 0 | 0 | 131 |
+| PS2 | 74 | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 78 |
+| PS1 | 0 | 0 | 7 | 1 | 0 | 4 | 0 | 0 | 0 | 12 |
+| Annuaires | 6 | 0 | 0 | 6 | 0 | 2 | 1 | 0 | 0 | 15 |
+| Total | 175 | 33 | 18 | 132 | 2 | 19 | 7 | 0 | 0 | 386 |
+
+**Contrôle des liens** (run `39315058711`, index du commit `7435f8fd`, 1 006 entrées) : 362 pages et fichiers joignables (188 en un geste, 174 manuels), 632 pages refusées aux lectures automatiques (toutes sur gbatemp.net, HTTP 403 : elles restent des liens), 3 pages cassées — des adresses de fils du forum Dolphin raccourcies par erreur, corrigées (`5647c853`) —, 9 signalements de version : quatre dépôts dont la branche a avancé depuis le commit vérifié (le catalogue reste épinglé sur ce commit), Pokémon Y Resurrection v2.3 plus récente que la v0.2 cataloguée (non adoptée, non vérifiée), et quatre faux positifs (la dernière publication du dépôt est un autre pack).
+
+**Candidats non catalogués** (fichier lu, à revoir) : Phazon UI v1.19 (archive qui semble être un thème de l'interface de Dolphin), Gauntlet: Dark Legacy HD 2.0 pour PCSX2 (dossier du numéro de série inconnu), SoniPro HD, Tomodachi Life HD Miis (trois régions), Majora's Mask 3D Project Restoration UI et boutons PlayStation, A Link Between Worlds (jaz) pour la 3DS, Resistance: Retribution HD, Ys Seven HD et une archive Dissidia 012 (NPHH00293) pour la PSP, dont les identifiants de jeu ne sont ni dans l'archive ni dans le titre.
+
 
 ## 3. Packs manuels à fichier vérifié
 
