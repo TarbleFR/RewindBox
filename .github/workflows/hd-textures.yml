@@ -56,6 +56,8 @@ jobs:
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - name: Restore exact locked dependencies
         run: flutter pub get --enforce-lockfile
+      - name: AES for the MEGA folder check (python3-cryptography)
+        run: python3 -c 'import cryptography' 2>/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q python3-cryptography)
       - name: New and affected host checks
         # The token reads the repository-archive verification artifacts (tools/textures/ci-records.json).
         env: {CXX: g++, GH_TOKEN: '${{ github.token }}'}

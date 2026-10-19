@@ -309,7 +309,9 @@ def _mega_folder_nodes(link):
         raise HostError('error', 'MEGA folder link without its key')
     handle, folder_key = match.group(1), _b64url(match.group(2))
     nodes = {}
-    for node in _mega_api([{'a': 'f', 'c': 1, 'ca': 1, 'r': 1}], handle).get('f') or []:
+    listing = _mega_api([{'a': 'f', 'c': 1, 'ca': 1, 'r': 1}], handle).get('f') or []
+    parents = {node.get('h'): node.get('p') for node in listing}
+    for node in listing:
         if node.get('t') not in (0, 1) or not node.get('k') or not node.get('a'):
             continue
         for share in node['k'].split('/'):
@@ -330,12 +332,13 @@ def _mega_folder_nodes(link):
                                 'key': key, 'iv': iv}
             break
     for item in nodes.values():
+        # Path below the shared folder itself (the node whose parent is not in the listing).
         parts, parent, seen = [item['name']], item['parent'], set()
-        while parent in nodes and parent not in seen:
+        while parent in parents and parents[parent] in parents and parent not in seen:
             seen.add(parent)
-            parts.insert(0, nodes[parent]['name'])
-            parent = nodes[parent]['parent']
-        item['path'] = '/'.join(parts[1:]) if len(parts) > 1 else parts[0]  # below the shared folder itself
+            parts.insert(0, nodes[parent]['name'] if parent in nodes else parent)
+            parent = parents[parent]
+        item['path'] = '/'.join(parts)
     return handle, match.group(2), nodes
 
 

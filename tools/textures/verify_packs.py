@@ -189,9 +189,22 @@ def check_dolphin(folder):
 def check_ppsspp(folder):
     problems, report = [], {}
     ini = Path(folder) / 'textures.ini'
-    if not ini.exists():
+    packed = Path(folder) / 'textures.zip'
+    archive = None
+    if not ini.exists() and packed.exists():
+        # TextureReplacer::LoadIni: a textures.zip in the game folder is opened as the
+        # folder itself (its textures.ini and textures are read from the archive).
+        try:
+            archive = zipfile.ZipFile(packed)
+            data = archive.read('textures.ini')
+        except (zipfile.BadZipFile, KeyError, OSError):
+            return report, ['missingIni']
+        report['zipped'] = True
+    elif ini.exists():
+        data = ini.read_bytes()
+    else:
         return report, ['missingIni']
-    text = ini.read_bytes().decode('utf-8', 'replace')
+    text = data.decode('utf-8', 'replace')
     section, options, hashes = '', {}, []
     for raw in text.splitlines():
         # IniFile::Load: a UTF-8 byte order mark is removed from each line, then CR.
@@ -211,7 +224,10 @@ def check_ppsspp(folder):
     report['hash'] = options.get('hash', '')
     if report['hash'].lower() not in ('quick', 'xxh32', 'xxh64'):
         problems.append('iniHash')
-    files = {str(path.relative_to(folder)).replace('\\', '/') for path in Path(folder).rglob('*') if path.is_file()}
+    if archive is not None:
+        files = {name for name in archive.namelist() if not name.endswith('/')}
+    else:
+        files = {str(path.relative_to(folder)).replace('\\', '/') for path in Path(folder).rglob('*') if path.is_file()}
     lower = {name.lower() for name in files}
     targets = {name.lstrip('/') for name in hashes if '..' not in name}
     report['hashTargets'] = len(targets)

@@ -74,6 +74,7 @@ HOST_PYTHON = [
     'test/texture_archive_test.py',
     'test/texture_identity_test.py',
     'test/texture_install_test.py',
+    'test/texture_verify_checks_test.py',
     'test/texture_labels_test.py',
     'test/validate_hd_textures_ipa_test.py',
     'test/localization_12_locale_coverage_test.py',
