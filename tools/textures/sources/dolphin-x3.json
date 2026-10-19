@@ -4285,5 +4285,401 @@
   },
   "scope": "ui",
   "family": "wii-sonic-colors-dualsense-ui-pancho0411"
+ },
+ {
+  "id": "gc-kirby-air-ride-hd-cyeme",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Kirby Air Ride — HD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Kirby Air Ride",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GKYP01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Cyeme"
+  ],
+  "page_url": "https://gamebanana.com/mods/633937",
+  "source_id": "gamebanana:633937",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Made on the European disc (GKYP01). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/633937",
+   "file_name": "air_ride_-_hd.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1563167",
+    "sha256": "919ed298771c2db042d64cefed82092a429c4a56bd876fd251b0165ee806aa3b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Air Ride - HD/GKYP01/",
+     "to": "GKYP01"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-kirby-air-ride-hd-cyeme"
+ },
+ {
+  "id": "gc-star-fox-adventures-repainted-frassefreak",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Star Fox Adventures Repainted",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Star Fox Adventures",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GSAE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FrasseFreak"
+  ],
+  "page_url": "https://gamebanana.com/mods/592742",
+  "source_id": "gamebanana:592742",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "A repaint of the game's textures (1,894 files), made on the USA disc.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/592742",
+   "file_name": "starfox_adventures_repainted.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1434052",
+    "sha256": "c0ae3dd5944ac375ab805f37d9e48eb2a275d6a50e0df80dc9e155a86aedd040"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "StarFox Adventures Repainted/Repainted Textures/GSAE01/",
+     "to": "GSAE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-star-fox-adventures-repainted-frassefreak"
+ },
+ {
+  "id": "gc-mario-party-7-switch-ui-yoshigreen24",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 7 — Nintendo Switch UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Party 7",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GP7"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "yoshigreen24"
+  ],
+  "page_url": "https://gamebanana.com/mods/558945",
+  "source_id": "gamebanana:558945",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Character icons in the style of the Nintendo Switch Mario Party games.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/558945",
+   "file_name": "mario_party_7_characters_textures_packs.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1332056",
+    "sha256": "ba0e18c28f56b75126084dc0a9fcc902c2e9d84456eb6d3d477c28c5188be669"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Mario Party 7 Characters Textures Packs/",
+     "to": "GP7"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-mario-party-7-switch-ui-yoshigreen24"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-ps-hud-colossussteppes",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog — PlayStation HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ColossusSteppes"
+  ],
+  "page_url": "https://gamebanana.com/mods/49298",
+  "source_id": "gamebanana:49298",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/49298",
+   "file_name": "shadowthehedgehogpshud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/441690",
+    "sha256": "769166a1b06785557de8c6bb74302cbef4ee68dea0b72c6ae73ebb9160635a24"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Playstation HUD/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-shadow-the-hedgehog-ps-hud-colossussteppes"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-nubytech-prompts-owletvii",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog — NubyTech controller prompts",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Owlet VII"
+  ],
+  "page_url": "https://gamebanana.com/mods/412130",
+  "source_id": "gamebanana:412130",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/412130",
+   "file_name": "shadow_nubytech_prompts.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/891427",
+    "sha256": "35dff865183d40318267c93930612da18fee1f9d29bb949f0ab0448ff0e9cd03"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/GUP/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-shadow-the-hedgehog-nubytech-prompts-owletvii"
+ },
+ {
+  "id": "wii-monster-hunter-tri-hd-font-abbanon",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Monster Hunter Tri — High Resolution Font",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Monster Hunter Tri",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMH"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Abbanon"
+  ],
+  "page_url": "https://gamebanana.com/mods/659216",
+  "source_id": "gamebanana:659216",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The game font redrawn at high resolution (English, French, German, Spanish and Italian; USA and European discs).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/659216",
+   "file_name": "mhtri_-_high_resolution_font_en-fr-de-es-it__82fe0.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1645551",
+    "sha256": "8d272cb2c4eb0f4d3d54a5a6560cf36182f81c3bc5e1a929cc566f6700e13568"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Textures/",
+     "to": "RMH"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-monster-hunter-tri-hd-font-abbanon"
+ },
+ {
+  "id": "wii-wii-sports-pro-laggamer20xx",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Wii Sports Pro",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Wii Sports",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RSPE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Laggamer20xx"
+  ],
+  "page_url": "https://gamebanana.com/mods/466666",
+  "source_id": "gamebanana:466666",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Made on the USA disc (RSPE01).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/466666",
+   "file_name": "rspe01_bc241.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1049470",
+    "sha256": "76fadd2dd8d6257138bede34b6703edde46c92c820a1b9b2adecb37920aa36b5"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "RSPE01/",
+     "to": "RSPE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-wii-sports-pro-laggamer20xx"
+ },
+ {
+  "id": "wii-sonic-colors-hd-ui-triforce141",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors — High Res UI",
+  "version": "2021",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SNC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "triforce141"
+  ],
+  "page_url": "https://gamebanana.com/mods/34058",
+  "source_id": "gamebanana:34058",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "The optional alternate character icons of the archive are not installed; the controller profile it carries is not used.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/34058",
+   "file_name": "sonic_colors_ui_2021.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/660360",
+    "sha256": "7c8a901faf33894183a522ba61cd666104fbcb4024ddbd05bb272f1c3bc3cecf"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/SNC/",
+     "to": "SNC",
+     "exclude": [
+      "0EXTRA - Alternate Character Icons/"
+     ]
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-sonic-colors-hd-ui-triforce141"
  }
 ]

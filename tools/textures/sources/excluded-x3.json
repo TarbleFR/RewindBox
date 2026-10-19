@@ -618,5 +618,35 @@
   "console": "gc",
   "source": "Medal of Honor European Assault Remastered 4K Alpha.7z (https://drive.google.com/file/d/17u-csNyOAieyyatvyDEjA2CNk_Nc9Eyp/view?usp=drive_link)",
   "reason": "Medal of Honor: European Assault Remastered 4K (alpha): the author's archive holds a damaged PNG (tex1_64x64_3c281b13e67b245c_14.png, wrong signature), which NeoStation refuses to install (host run 39278264111)."
+ },
+ {
+  "console": "gc",
+  "source": "wind-waker-wwhd_dpad.zip (https://gamebanana.com/dl/1820278)",
+  "reason": "Wind Waker WWHD Gameplay and Nintendo HUD (D-pad edition): an xdelta patch of the game disc; its eight optional Dolphin textures are a HUD add-on of the patched game."
+ },
+ {
+  "console": "gc",
+  "source": "wwhhdhud.zip (https://gamebanana.com/dl/1811241)",
+  "reason": "Wind Waker WWHD Gameplay and Nintendo HUD: an xdelta patch of the game disc; its eight optional Dolphin textures are a HUD add-on of the patched game."
+ },
+ {
+  "console": "gc",
+  "source": "download_link_7d92c.zip (https://gamebanana.com/dl/561653)",
+  "reason": "Star Fox Adventures HD Upscaled Texture Pack (CYB3RTR0N): the GameBanana file only holds a link to another host, not the pack."
+ },
+ {
+  "console": "gc",
+  "source": "shadow_nubytech_prompts_dynamic.zip (https://gamebanana.com/dl/891428)",
+  "reason": "Shadow the Hedgehog NubyTech prompts, dynamic edition: Dolphin dynamic input textures for one controller, not texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "shadow_nubytech_prompts_custom_032a8.zip (https://gamebanana.com/dl/966849)",
+  "reason": "Shadow the Hedgehog NubyTech prompts, custom edition: the same prompts with Dolphin controller profiles and game settings for a custom controller."
+ },
+ {
+  "console": "gc",
+  "source": "shadow_nubytech_prompts_source_62d47.zip (https://gamebanana.com/dl/891442)",
+  "reason": "Shadow the Hedgehog NubyTech prompts: the source drawings (SVG, template), not a pack."
  }
 ]

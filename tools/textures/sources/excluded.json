@@ -308,5 +308,25 @@
   "console": "wii",
   "source": "Mario Kart Wii HD (Matteoki & Rmed24, Game Restorers) Google Drive folder https://drive.google.com/drive/folders/1G11t2cOKiq48-BjBgWd-dsOKyqxiXPvZ (S068)",
   "reason": "Loose files in nested Drive folders (HD_Home_Menu, HD_Miis, Mkwii_HD_Hud, Mkwii_HD_Stages_Preview; probe run 39293796510), no archive that can be verified as one file; its textures are part of GhostlyDark's MKWii Reloaded, which is catalogued from its GitHub release."
+ },
+ {
+  "console": "wii",
+  "source": "Sonic Colors: Gens Textures + Xbox One / PS4 HUD (gens_textures_xbox_one_and_ps4_hud_6aeae.rar, 61 textures), Sanok Maynik, https://gamebanana.com/mods/9699 (https://gamebanana.com/dl/367109)",
+  "reason": "RAR archive: NeoStation's installer does not open RAR (the app refuses it as unsupported); the author's file is not converted or re-hosted (probe run 39322060295)."
+ },
+ {
+  "console": "wii",
+  "source": "New Super Mario Bros. Wii: nymo's HD HUD Tweaks (hd-hud-tweaks.rar, 36 textures), nymo642, https://gamebanana.com/mods/480785 (https://gamebanana.com/dl/1092375)",
+  "reason": "RAR archive: NeoStation's installer does not open RAR (the app refuses it as unsupported); the author's file is not converted or re-hosted (probe run 39322060295)."
+ },
+ {
+  "console": "wii",
+  "source": "Mario Party 9: Definitive Sonic HUD Textures (definitive_sonic_hud_textures.rar, 21 textures), Sonic Beyond, https://gamebanana.com/mods/469685 (https://gamebanana.com/dl/1058855)",
+  "reason": "RAR archive: NeoStation's installer does not open RAR (the app refuses it as unsupported); the author's file is not converted or re-hosted (probe run 39322060295)."
+ },
+ {
+  "console": "wii",
+  "source": "Super Paper Mario: GameCube Buttons (spm_gamecube_buttons.rar, 9 textures), NightSkye, https://gamebanana.com/mods/639887 (https://gamebanana.com/dl/1581959)",
+  "reason": "RAR archive: NeoStation's installer does not open RAR (the app refuses it as unsupported); the author's file is not converted or re-hosted (probe run 39322060295)."
  }
 ]
