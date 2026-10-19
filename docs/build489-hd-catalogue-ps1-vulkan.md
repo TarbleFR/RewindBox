@@ -35,11 +35,20 @@ Les enregistrements de ces runs sont recopiés depuis leurs journaux (le contene
 
 **Dossier et disques.** Pack installé en `<nom du contenu>-texture-replacements` dans le dossier de sauvegarde du cœur, à côté des cartes mémoire, qui restent intactes ; le nom est celui du fichier que Beetle charge (CUE, CHD, PBP ou M3U). Un jeu multidisque lancé par son M3U garde ce nom pour tous ses disques (le changement de disque du menu passe par `set_image_index`, qui ne change pas `retro_cd_base_name` ; seul `replace_image_index`, que NeoStation n'appelle pas, le changerait) : un seul dossier, aucune copie par disque. Identité : numéro de série lu dans `SYSTEM.CNF` (CUE/M3U/CCD/BIN/ISO) ; CHD/PBP reconnus par le titre (et la région) avec confirmation.
 
-**État affiché.** La page Textures HD du menu en jeu montre ce que le cœur rapporte (journal du cœur lu par `LibretroCoreHost`) : rendu (Vulkan, OpenGL ES, logiciel), remplacement actif ou non, textures reconnues dans le dossier et attachées ; jamais « HD actif » sur le rendu logiciel ni sans texture reconnue. Le journal de session écrit `hd-textures: core=beetle renderer=… replace=… recognized=…`.
+**État affiché.** La page Textures HD du menu en jeu montre le rendu obtenu (Vulkan, OpenGL ES, logiciel), le remplacement actif ou non (Track + Replace Textures tels que le cœur les a reçus), les fichiers de remplacement que le cœur liste dans son dossier et les textures qu'il dit avoir attachées ; jamais « HD actif » sur le rendu logiciel ni sans fichier reconnu. Le journal de session écrit `hd-textures: core=beetle renderer=… replace=… recognized=…`.
+
+*Défaut trouvé et corrigé.* Le suivi de textures du cœur (`rhi_tt.c`) liste son dossier de remplacements au démarrage du rendu, quand sa racine est encore le dossier du contenu ; la première image applique ensuite la racine `save` que NeoStation verrouille et relit le bon dossier, mais n'en écrit le compte que dans une compilation verbeuse. La ligne `num hd textures` lue jusque-là comptait donc le dossier du contenu : 0 pour tout pack NeoStation. La session compte désormais les fichiers de `<save>/<nom du contenu>-texture-replacements` selon la règle du cœur (`read_texture_directory` : `<hex>-<hex>.<ext>`, ext png/dds/webp/jpg/jpeg/bmp/tga sans casse, un par hachage et palette ; `LibretroCoreHost textureReplacementFilesInSaveFolder:`), au démarrage du rendu puis après le démarrage confirmé. Les textures attachées restent celles que le cœur annonce (`[hdcache] … attaches`).
 
 **Packs DuckStation.** Les packs faits pour DuckStation (ses propres hachages et noms) ne sont pas lus par Beetle ; NeoStation ne les renomme pas et ne les présente pas comme compatibles (exclusions S170–S175).
 
-⟪résultats Simulateur et limites Beetle⟫
+**Simulateur (ce qui y est prouvé, ce qui ne l'est pas).** Dans le Simulateur, toute copie CPU→VRAM du rendu Vulkan de Beetle (envoi de textures, chargement d'un état) demande à MoltenVK une texture linéaire sur un tampon visible par l'hôte, que le Metal du Simulateur refuse (« Linear texture can only be created on buffers with MTLStorageModePrivate in the simulator », runs `39291452900` et `39299245695`) ; le Metal d'un iPhone l'accepte. Aucun remplacement de texture à l'écran, aucun dump et aucun chargement d'état ne peuvent donc y être exercés : ils restent à vérifier sur l'iPhone. La sonde (`--beetle`, BIOS de remplacement écrit par la sonde, jamais un BIOS de console) vérifie :
+- `beetle-vulkan-frame` : l'image du GPU (écran effacé en gris, rectangle rouge rempli par le GPU) atteint le drawable présenté, en Vulkan, avec la garde `A1R5G5B5` ;
+- `beetle-vulkan-pack` : avec Track + Replace Textures, un pack écrit dans le dossier que lit le cœur (5 noms valides, un second format de l'un d'eux et cinq noms que le cœur ignore) est rapporté comme exactement 5 fichiers, à travers 13 vérifications de cycle de vie (audio, pause/reprise, arrière-plan/premier plan, état sauvegardé en Vulkan, rotation aller-retour, Vulkan et pack toujours rapportés) ;
+- `beetle-vulkan-off` : le remplacement coupé est rapporté coupé.
+
+Mise au point de la sonde (échecs conservés) : le programme de remplacement attendait le bit 28 de GPUSTAT avant chaque mot, ce qui bloquait un quad (`INCMD_QUAD`) puis un transfert CPU→VRAM que Beetle ne démarre qu'avec ses trois mots (runs `39291452900`, `39293066511`, `39296323461`, marqueurs de progression en RAM) ; chaque commande attend désormais le bit 26 (GPU inactif) puis envoie tous ses mots.
+
+⟪résultat du run Simulateur final⟫
 
 ## 5. Vérifications
 
