@@ -274,36 +274,47 @@ static void CaptureNextGameFrame(LibretroSession *session, NSString *name, Probe
 }
 #endif
 
-// Build 489 (Beetle PSX HW in Vulkan): the textures the core dumped in a first
-// run (<content>-texture-dump, beside its memory cards) become a pack of solid
-// green replacements of the same names, four times larger, for the next run;
-// what the core then draws shows whether it loaded them.
+// Build 489 (Beetle PSX HW in Vulkan). In the Simulator, Beetle's Vulkan
+// renderer cannot take a CPU-to-VRAM copy (texture uploads, state loads): it
+// asks MoltenVK for a linear texture on a host-visible buffer, which the
+// Simulator's Metal refuses ("Linear texture can only be created on buffers
+// with MTLStorageModePrivate in the simulator", runs 39291452900 and
+// 39299245695); an iPhone's Metal allows it. So no texture is uploaded, dumped
+// or replaced on screen here: the probe writes a pack into the folder the
+// core reads (<save>/<content>-texture-replacements, beside the memory
+// cards): valid replacement names, a second format of one of them and names
+// the core must skip; the session must report exactly the valid ones.
 static NSArray<NSString *> *BeetleFolderFiles(NSString *stem, NSString *suffix) {
   NSString *folder = DocumentsPath([NSString stringWithFormat:@"Libretro/Saves/Beetle PSX HW/%@-%@", stem, suffix]);
   NSMutableArray *names = [NSMutableArray array];
-  for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:folder error:nil] ?: @[])
-    if ([name.pathExtension.lowercaseString isEqualToString:@"png"]) [names addObject:name];
+  for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:folder error:nil] ?: @[]) [names addObject:name];
   return [names sortedArrayUsingSelector:@selector(compare:)];
 }
 
-static NSUInteger PrepareBeetleReplacements(NSString *stem) {
-  NSString *dump = DocumentsPath([NSString stringWithFormat:@"Libretro/Saves/Beetle PSX HW/%@-texture-dump", stem]);
+static NSUInteger WriteBeetlePack(NSString *stem, NSUInteger count) {
   NSString *replacements = DocumentsPath([NSString stringWithFormat:@"Libretro/Saves/Beetle PSX HW/%@-texture-replacements", stem]);
   [NSFileManager.defaultManager removeItemAtPath:replacements error:nil];
   [NSFileManager.defaultManager createDirectoryAtPath:replacements withIntermediateDirectories:YES attributes:nil error:nil];
+  UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
+  format.scale = 1;
+  format.opaque = YES;
+  UIImage *green = [[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(64, 64) format:format]
+      imageWithActions:^(UIGraphicsImageRendererContext *context) {
+        [[UIColor colorWithRed:0 green:1 blue:0 alpha:1] setFill];
+        [context fillRect:CGRectMake(0, 0, 64, 64)];
+      }];
+  NSData *png = UIImagePNGRepresentation(green);
   NSUInteger written = 0;
-  for (NSString *name in BeetleFolderFiles(stem, @"texture-dump")) {
-    UIImage *original = [UIImage imageWithContentsOfFile:[dump stringByAppendingPathComponent:name]];
-    if (original == nil) continue;
-    CGSize size = CGSizeMake(MAX(1.0, original.size.width * original.scale * 4), MAX(1.0, original.size.height * original.scale * 4));
-    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
-    format.scale = 1;
-    format.opaque = YES;
-    UIImage *green = [[[UIGraphicsImageRenderer alloc] initWithSize:size format:format] imageWithActions:^(UIGraphicsImageRendererContext *context) {
-      [[UIColor colorWithRed:0 green:1 blue:0 alpha:1] setFill];
-      [context fillRect:CGRectMake(0, 0, size.width, size.height)];
-    }];
-    if ([UIImagePNGRepresentation(green) writeToFile:[replacements stringByAppendingPathComponent:name] atomically:YES]) written++;
+  for (NSUInteger index = 0; index < count; index++) {
+    NSString *name = [NSString stringWithFormat:@"%x-%x.png", 0x1a2b3c00u + (unsigned)index, 0xbeef0000u + (unsigned)index];
+    if ([png writeToFile:[replacements stringByAppendingPathComponent:name] atomically:YES]) written++;
+  }
+  // Skipped by the core (rhi_tt.c read_texture_directory): a second format of
+  // the first texture (one per hash and palette), no palette, other extensions,
+  // a name that is not hexadecimal.
+  for (NSString *decoy in @[ @"1A2B3C00-BEEF0000.DDS", @"12345678.png", @"cover.png", @"readme.txt",
+                             @"0f0f0f0f-1234abcd.png.bak", @"zz-12.png" ]) {
+    [png writeToFile:[replacements stringByAppendingPathComponent:decoy] atomically:YES];
   }
   return written;
 }
@@ -1028,9 +1039,10 @@ static NSDictionary *ResolutionState(LibretroSession *session) {
   PrepareSkinLoadingUpgrade(scenario);
 #endif
   NSDictionary *beetle = [scenario[@"beetleTextures"] isKindOfClass:NSDictionary.class] ? scenario[@"beetleTextures"] : nil;
-  if ([beetle[@"replaceFromDump"] length]) {
-    result[@"beetleReplacementsPrepared"] = @(PrepareBeetleReplacements(beetle[@"replaceFromDump"]));
-    Progress(@"%@: %@ green replacements written from the core's dump", name, result[@"beetleReplacementsPrepared"]);
+  if ([beetle[@"pack"] unsignedIntegerValue] > 0) {
+    NSString *stem = [[scenario[@"content"] lastPathComponent] stringByDeletingPathExtension];
+    result[@"beetleReplacementsPrepared"] = @(WriteBeetlePack(stem, [beetle[@"pack"] unsignedIntegerValue]));
+    Progress(@"%@: %@ replacement files written with decoys", name, result[@"beetleReplacementsPrepared"]);
   }
   LibretroSession *session = [[LibretroSession alloc] initWithConfiguration:[self configurationForScenario:scenario]];
   _session = session;

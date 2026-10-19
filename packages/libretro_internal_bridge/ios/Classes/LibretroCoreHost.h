@@ -186,8 +186,19 @@ typedef struct {
 /// PSX HW, rhi/rhi_tt.c): textures listed in its replacement folder when its
 /// renderer started ("num hd textures: N"; -1 until reported) and textures
 /// bound so far (sum of the "[hdcache] last 300f: ... N attaches" lines).
+/// The first counts the folder of the texture root the core had then: before
+/// its first frame applies the "save" root NeoStation locks, that is the
+/// content folder, so it is not the replacement count of a NeoStation pack
+/// (see textureReplacementFilesInSaveFolder:).
 @property(nonatomic, readonly) NSInteger hdTexturesRecognized;
 @property(nonatomic, readonly) NSInteger hdTexturesApplied;
+/// Replacement files Beetle PSX HW lists in `folder` of the core's save
+/// directory, by its own rule (rhi_tt.c read_texture_directory: a flat folder
+/// of "<hex>-<hex>.<ext>", ext png, dds, webp, jpg, jpeg, bmp or tga in any
+/// case, one per hash and palette). Its first frame re-reads that folder once
+/// the "save" root applies, and logs the count only in a verbose build.
+/// 0 when the folder does not exist.
+- (NSInteger)textureReplacementFilesInSaveFolder:(NSString *)folder;
 
 /// The last `limit` error lines of recentLog ("[ERROR]" lines of the core),
 /// oldest first: what a core logged before stopping by itself.

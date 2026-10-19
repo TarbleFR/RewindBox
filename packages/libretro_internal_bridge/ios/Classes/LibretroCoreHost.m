@@ -230,6 +230,28 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   @synchronized(_log) { return _hdTexturesApplied; }
 }
 
+- (NSInteger)textureReplacementFilesInSaveFolder:(NSString *)folder {
+  if (folder.length == 0 || _saveDirectory.length == 0) return 0;
+  NSArray<NSString *> *names =
+      [NSFileManager.defaultManager contentsOfDirectoryAtPath:[_saveDirectory stringByAppendingPathComponent:folder] error:nil];
+  static NSSet<NSString *> *extensions;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    extensions = [NSSet setWithArray:@[ @"png", @"dds", @"webp", @"jpg", @"jpeg", @"bmp", @"tga" ]];
+  });
+  NSMutableSet<NSString *> *keys = [NSMutableSet set];
+  for (NSString *name in names) {
+    const char *text = name.UTF8String;
+    unsigned hash = 0, palette = 0;
+    int read = 0;
+    // The core's own test: sscanf(name, "%x-%x.%n", ...) == 2 and the rest a supported extension.
+    if (text == NULL || sscanf(text, "%x-%x.%n", &hash, &palette, &read) != 2 || read <= 0 || text[read - 1] != '.') continue;
+    if (![extensions containsObject:[@(text + read) lowercaseString]]) continue;
+    [keys addObject:[NSString stringWithFormat:@"%x-%x", hash, palette]];
+  }
+  return (NSInteger)keys.count;
+}
+
 - (NSArray<NSString *> *)recentLog {
   @synchronized(_log) {
     return [_log copy];

@@ -144,7 +144,10 @@ def evidence():
             if len(files)!=1:raise ValueError('Ambiguous or missing verdict: '+part)
             raw=files[0].read_bytes();verdicts[part]=(json.loads(raw),hashlib.sha256(raw).hexdigest())
         # The Simulator proof: the beetle job passed, and its report shows Beetle in Vulkan
-        # with a recognised replacement.
+        # presenting the GPU's picture, the probe's pack reported as exactly its valid
+        # replacement files (with Track + Replace Textures) through the lifecycle, and
+        # replacement off reported as such. The Simulator cannot run Beetle's CPU-to-VRAM
+        # copies (texture uploads, state loads): no texture is replaced on screen there.
         run,source,job=SIMULATOR
         records.append(part_run(run,source,job))
         folder=Path(tmp)/'beetle'
@@ -153,17 +156,22 @@ def evidence():
         reports=list(folder.rglob('probe.json'))
         if len(reports)!=1:raise ValueError('Ambiguous or missing Simulator report')
         results={r['name']:r for r in json.loads(reports[0].read_text())['results']}
-        replace=results.get('beetle-vulkan-replace') or {}
-        status=replace.get('beetleStatus') or {}
-        if status.get('renderer')!='vulkan' or not status.get('replace') or int(status.get('recognized') or 0)<=0:
-            raise ValueError('The Simulator report does not show Beetle replacing a texture in Vulkan')
-        # Pause, background, state save, rotation and audio, the replacement still recognised after them
+        statuses={name:(results.get(name) or {}).get('beetleStatus') or {} for name in ('beetle-vulkan-frame','beetle-vulkan-pack','beetle-vulkan-off')}
+        if any(status.get('renderer')!='vulkan' for status in statuses.values()):
+            raise ValueError('The Simulator report does not show Beetle in Vulkan')
+        pack=results.get('beetle-vulkan-pack') or {}
+        if not statuses['beetle-vulkan-pack'].get('replace') or statuses['beetle-vulkan-pack'].get('recognized')!=pack.get('beetleReplacementsPrepared') \
+                or not pack.get('beetleReplacementsPrepared'):
+            raise ValueError('The Simulator report does not show the replacement files reported with replacement on')
+        if statuses['beetle-vulkan-off'].get('replace') is not False:
+            raise ValueError('The Simulator report does not show replacement off')
+        # Pause, background, state save, rotation and audio, the pack still reported after them
         # (a state load is not run in the Simulator: its Metal refuses Beetle's linear textures).
-        lifecycle=replace.get('beetleLifecycle') or []
+        lifecycle=pack.get('beetleLifecycle') or []
         if len(lifecycle)!=13 or not all(check.get('passed') for check in lifecycle):
             raise ValueError('The Simulator report does not show the Beetle lifecycle checks passing')
         records.append({'part':'beetle','run':run,'source':source,'reportSHA256':hashlib.sha256(reports[0].read_bytes()).hexdigest(),
-            'beetleStatus':status,'dumped':len(results.get('beetle-vulkan-dump',{}).get('beetleDumped') or []),
+            'beetleStatus':statuses,'replacementFilesWritten':pack.get('beetleReplacementsPrepared'),
             'lifecycleChecks':[check['name'] for check in lifecycle]})
     covered=set()
     for part,(verdict,digest) in verdicts.items():

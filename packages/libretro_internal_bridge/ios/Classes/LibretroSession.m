@@ -94,6 +94,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 @end
 
 @interface LibretroSession () <LibretroCoreHostDelegate, LibretroGameViewLayoutSource, LibretroFrontendMenuHost>
+/// Beetle PSX HW: replacement files it lists in its folder, counted when its
+/// renderer is up and again once it has run (noteTextureReplacement); -1 before.
+@property(atomic) NSInteger beetleListedReplacements;
 @end
 
 @implementation LibretroSession {
@@ -224,6 +227,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _cheats = [NSMutableArray array];
     _diskLabels = @[];
     _screensAndShadersAvailable = YES;
+    _beetleListedReplacements = -1;
     _currentOrientation = LibretroSkinOrientationLandscape;
     _skinCache = [NSMutableDictionary dictionary];
     _failedSkins = [NSMutableSet set];
@@ -567,6 +571,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 /// software fallback is recorded as such, never as HD textures).
 - (void)noteTextureReplacement {
   if (![_configuration.coreId isEqualToString:@"mednafen_psx_hw"]) return;
+  // What the core reads once its first frame applies the "save" texture root
+  // (its "num hd textures" line counts the content folder it had before).
+  NSString *name = _host.loadedContentPath.lastPathComponent.stringByDeletingPathExtension;
+  if (name.length)
+    self.beetleListedReplacements =
+        [_host textureReplacementFilesInSaveFolder:[name stringByAppendingString:@"-texture-replacements"]];
   NSDictionary *status = [self beetleTextureStatus];
   [_journal note:[NSString stringWithFormat:@"hd-textures: core=beetle renderer=%@ replace=%@ recognized=%@ folder=%@",
                                             status[@"renderer"], [status[@"replace"] boolValue] ? @"on" : @"off",
@@ -3348,15 +3358,16 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 /// Beetle PSX HW's texture replacement in this session: renderer obtained,
-/// Track + Replace Textures as the running core received them, textures it
-/// listed in its folder and bound so far (LibretroCoreHost), folder name.
+/// Track + Replace Textures as the running core received them, replacement
+/// files it lists in its folder (by its rule, LibretroCoreHost) and textures
+/// it reports bound so far, folder name.
 - (NSDictionary *)beetleTextureStatus {
   LibretroCoreOptions *options = _host.options;
   BOOL replace = [[options currentValueForKey:@"beetle_psx_hw_replace_textures"] isEqualToString:@"enabled"] &&
                  [[options currentValueForKey:@"beetle_psx_hw_track_textures"] isEqualToString:@"enabled"];
   NSMutableDictionary *status = [@{@"renderer": _loadedRenderer ?: [self rendererName], @"replace": @(replace),
                                    @"applied": @(MAX(0, _host.hdTexturesApplied))} mutableCopy];
-  const NSInteger recognized = _host.hdTexturesRecognized;
+  const NSInteger recognized = self.beetleListedReplacements;
   if (recognized >= 0) status[@"recognized"] = @(recognized);
   NSString *name = _host.loadedContentPath.lastPathComponent.stringByDeletingPathExtension;
   if (name.length) status[@"folder"] = [name stringByAppendingString:@"-texture-replacements"];

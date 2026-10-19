@@ -367,32 +367,37 @@ for core, content, console, size in LOT2_RUNS:
 
 # Build 489 (run by their own CI job with --beetle): Beetle PSX HW with the
 # options and the Vulkan context NeoStation gives it (libretro_core_catalog.dart),
-# on a stand-in BIOS the probe writes (_mips_program: a 4-bit texture uploaded
-# from the CPU and drawn as a quad). First run: the core dumps the texture it
-# tracked (dumping is a probe-only override; NeoStation locks it off). Second
-# run: those names, filled with green, are the game's replacement pack; the
-# drawn quad must turn green, through the core's own replacement, in Vulkan.
-# Third run: replacement off again, the original texture is back.
+# on a stand-in BIOS the probe writes (_mips_program: the screen cleared and a
+# red rectangle filled by the GPU). In the Simulator, Beetle's Vulkan renderer
+# cannot take a CPU-to-VRAM copy (texture uploads, state loads): MoltenVK makes
+# a linear texture on a host-visible buffer, which the Simulator's Metal
+# refuses (runs 39291452900, 39299245695); an iPhone's allows it. So no
+# texture is uploaded, dumped or replaced on screen here (left to the iPhone):
+# - frame: the GPU's picture reaches the presented drawable through Vulkan;
+# - pack: with Track + Replace Textures, a pack the probe writes into the
+#   folder the core reads (<save>/<content>-texture-replacements) is reported
+#   as exactly its valid replacement names, through pause, background, a
+#   saved state, a rotation and audio (beetle_lifecycle_probe.h);
+# - off: with replacement off, the session says so.
 # The frontend reads the device's A1R5G5B5 support before the core loads
 # (LibretroSession beetleVulkanFormatLocks): a Simulator without Apple5 has
 # none, so the session locks dithering off instead of letting the core use a
 # null image (Format 8, then SIGSEGV, run 39278458161).
 BEETLE_LOG = ['vulkan: A1R5G5B5 features 0x', 'hd-textures: core=beetle renderer=vulkan']
+BEETLE_PACK = 5
 SCENARIOS += [
-    {'name': 'beetle-vulkan-dump', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+    {'name': 'beetle-vulkan-frame', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
+     'beetleTextures': {'replace': False, 'recognized': 0}, 'requiredLog': BEETLE_LOG},
+    {'name': 'beetle-vulkan-pack', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 6.0, 'default': False, 'beetle': True,
-     'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_dump_textures': 'enabled',
-                      'beetle_psx_hw_replace_textures': 'disabled'},
-     'beetleTextures': {'expectDump': True, 'colour': 'original'}, 'requiredLog': BEETLE_LOG},
-    {'name': 'beetle-vulkan-replace', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
-     'expect': 'run', 'runSeconds': 8.0, 'default': False, 'beetle': True,
      'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_replace_textures': 'enabled'},
-     'beetleTextures': {'replaceFromDump': 'probe-psx', 'colour': 'green', 'recognized': True, 'lifecycle': 13},
+     'beetleTextures': {'pack': BEETLE_PACK, 'replace': True, 'recognized': BEETLE_PACK, 'lifecycle': 13},
      'requiredLog': BEETLE_LOG},
     {'name': 'beetle-vulkan-off', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
      'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
      'probeOptions': {'beetle_psx_hw_track_textures': 'disabled', 'beetle_psx_hw_replace_textures': 'disabled'},
-     'beetleTextures': {'colour': 'original'}, 'requiredLog': BEETLE_LOG},
+     'beetleTextures': {'replace': False, 'recognized': BEETLE_PACK}, 'requiredLog': BEETLE_LOG},
 ]
 
 # Real official catalog/downloads; the rendering is the actual embedded
@@ -746,11 +751,12 @@ def build_lot2_content(content, system):
 
 def _mips_program():
     """A stand-in PlayStation BIOS written here (never a console's BIOS): from
-    the reset address it sets up the GPU, uploads a 16x16 4-bit texture and its
-    palette from the CPU (what Beetle's texture tracker hashes) and draws it as
-    a textured quad, again and again. Each GP0 command waits for an idle GPU,
-    then all its words follow. Each pass leaves its progress at 0x1000 of
-    system RAM (loop count, last step, GPUSTAT before the quad), which the
+    the reset address it sets up the GPU, clears the screen to dark grey and
+    fills a red rectangle at (64,56)-(192,184), again and again. Only GPU-side
+    commands: in the Simulator, Beetle's Vulkan renderer cannot take a
+    CPU-to-VRAM copy (see BEETLE_LOG above). Each GP0 command waits for an idle
+    GPU, then all its words follow. Each pass leaves its progress at 0x1000 of
+    system RAM (loop count, last step, GPUSTAT after the rectangle), which the
     probe reads back."""
     T0, T1, T3, T2, T5, T6, T7 = 8, 9, 11, 10, 13, 14, 15
     words = []
@@ -795,14 +801,10 @@ def _mips_program():
         sw(T1, 0x1814, T0)
 
     def gp0(*values):
-        # Wait for the idle bit 26, then write the command's words. GPUSTAT
-        # bit 28 (DMA block) is no per-word flow control for the CPU: Beetle
-        # (gpu.c) clears it once a command's first fifo_fb_len words are queued
-        # and starts the command only when all its words are (ProcessFIFO), so
-        # a CPU-to-VRAM transfer queued while the GPU still owes draw time
-        # waited forever (run 39296323461: stopped after the screen clear);
-        # a quad also keeps it clear until its fourth vertex. Once a transfer
-        # starts, each data word is taken as it arrives.
+        # Wait for the idle bit 26, then write the command's words. Bit 28 is
+        # the DMA-block flag, not per-word flow control: waiting on it before
+        # each word left Beetle (gpu.c ProcessFIFO) waiting for the rest of a
+        # command (run 39296323461).
         lw(T3, 0x1814, T0)
         nop()
         and_(T3, T3, T5)
@@ -838,23 +840,11 @@ def _mips_program():
     gp0(0xE5000000)               # drawing offset
     gp0(0x02202020, 0x00000000, 0x00F00100)  # clear to dark grey
     mark(2)
-    # CLUT at (0, 480): even indices red, odd indices blue.
-    gp0(0xA0000000, 0x01E00000, 0x00010010, *([0x7C00001F] * 8))
+    gp0(0x020000FF, 0x00380040, 0x00800080)  # red rectangle (64,56), 128x128
     mark(3)
-    # 16x16 4-bit texture at (512, 0): 4 halfwords per row, checkered red/blue.
-    rows = []
-    for row in range(16):
-        pattern = 0x10101010 if (row // 4) % 2 == 0 else 0x01010101
-        rows += [pattern, pattern]
-    gp0(0xA0000000, 0x00000200, 0x00100004, *rows)
-    mark(4)
-    lw(T3, 0x1814, T0)            # GPUSTAT before the quad
+    lw(T3, 0x1814, T0)            # GPUSTAT after the rectangle
     nop()
     sw(T3, 0x1008, T6)
-    # Raw textured quad (64,56)-(192,184), CLUT (0,480), texpage 8.
-    gp0(0x2D808080, 0x00380040, 0x78000000, 0x003800C0, 0x0008000F,
-        0x00B80040, 0x00000F00, 0x00B800C0, 0x00000F0F)
-    mark(5)
     lui(T2, 0x0004)               # delay, then draw again
     delay = len(words)
     addiu(T2, T2, -1)
@@ -1442,8 +1432,9 @@ def evaluate(report, scenarios):
 
 
 def beetle_problems(name, expected, result, launch):
-    """Beetle PSX HW in Vulkan: the renderer the core started, its dump, the
-    replacement it reports, and the quad's pixels in the presented frame."""
+    """Beetle PSX HW in Vulkan: the renderer the core started, the stand-in
+    BIOS's progress, the replacement files the session reports (the probe's
+    pack: valid names only) and the GPU's picture in the presented frame."""
     problems = []
     core_log = result.get('journal', '') + '\n'.join(str(line) for line in result.get('recentLog') or [])
     if 'is not supported for usage flags' in core_log:
@@ -1452,16 +1443,21 @@ def beetle_problems(name, expected, result, launch):
     if launch.get('hardwareRendering') != 'vulkan' or status.get('renderer') != 'vulkan':
         problems.append(f"{name}: Beetle did not run in Vulkan (launch {launch.get('hardwareRendering')!r}, "
                         f"session {status.get('renderer')!r})")
-    if expected.get('expectDump') and not result.get('beetleDumped'):
-        problems.append(f'{name}: the core dumped no texture')
-    if expected.get('replaceFromDump'):
-        if not result.get('beetleReplacementsPrepared'):
-            problems.append(f'{name}: no replacement could be written from the dump')
-        if not status.get('replace') or int(status.get('recognized') or 0) <= 0:
-            problems.append(f'{name}: the core reports no recognised replacement ({status})')
+    program = result.get('beetleProgram') or {}
+    if int(program.get('loops') or 0) < 2 or int(program.get('stage') or 0) < 2:
+        problems.append(f'{name}: the stand-in BIOS did not run its drawing loop ({program})')
+    if expected.get('pack') and result.get('beetleReplacementsPrepared') != expected['pack']:
+        problems.append(f"{name}: {result.get('beetleReplacementsPrepared')} of {expected['pack']} replacement files written")
+    if 'replace' in expected and bool(status.get('replace')) != expected['replace']:
+        problems.append(f"{name}: the session reports replacement {'on' if status.get('replace') else 'off'} ({status})")
+    if 'recognized' in expected and status.get('recognized') != expected['recognized']:
+        problems.append(f"{name}: the session reports {status.get('recognized')!r} replacement files, "
+                        f"expected {expected['recognized']} ({status})")
+    if result.get('beetleDumped'):
+        problems.append(f"{name}: the core dumped textures with dumping off ({len(result['beetleDumped'])})")
     if expected.get('lifecycle'):
         # Pause, background, state save, rotation and audio (beetle_lifecycle_probe.h); the
-        # frame below is captured after them, so the replacement must survive them on screen too.
+        # frame below is captured after them.
         checks = result.get('beetleLifecycle') or []
         if len(checks) != expected['lifecycle']:
             problems.append(f"{name}: {len(checks)} of {expected['lifecycle']} lifecycle checks ran")
@@ -1470,16 +1466,15 @@ def beetle_problems(name, expected, result, launch):
     if not grids:
         problems.append(f"{name}: no frame captured ({(result.get('frame') or {}).get('captureError')})")
         return problems
-    # The quad covers (64,56)-(192,184) of 256x240: grid cells 5..10 x 5..10 are inside it.
+    # The red rectangle covers (64,56)-(192,184) of 256x240: grid cells 5..10 x 5..10 are
+    # inside it, row 1 and column 1 are the cleared grey around it.
     inside = [grids[0][gy * 16 + gx] for gy in range(5, 11) for gx in range(5, 11)]
-    green = sum(1 for r, g, b in inside if g > 150 and r < 90 and b < 90)
-    original = sum(1 for r, g, b in inside if (r > 150 and g < 90 and b < 90) or (b > 150 and r < 90 and g < 90))
-    if expected.get('colour') == 'green' and green < len(inside) * 0.8:
-        problems.append(f'{name}: the quad is not the green replacement ({green}/{len(inside)} green, '
-                        f'{original} original cells)')
-    if expected.get('colour') == 'original' and original < len(inside) * 0.8:
-        problems.append(f'{name}: the quad is not the original red/blue texture ({original}/{len(inside)} cells, '
-                        f'{green} green)')
+    around = [grids[0][1 * 16 + gx] for gx in range(16)] + [grids[0][gy * 16 + 1] for gy in range(16)]
+    red = sum(1 for r, g, b in inside if r > 150 and g < 90 and b < 90)
+    grey = sum(1 for r, g, b in around if all(16 <= c <= 48 for c in (r, g, b)))
+    if red < len(inside) * 0.8 or grey < len(around) * 0.8:
+        problems.append(f'{name}: the presented frame is not the GPU picture ({red}/{len(inside)} red cells inside '
+                        f'the rectangle, {grey}/{len(around)} grey cells around it)')
     return problems
 
 

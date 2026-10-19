@@ -7,8 +7,9 @@ name: Libretro simulator probe
 # address space as crowded as the iPhone's; since Build 455, the internal
 # resolution chosen during a game with the real DeSmuME core (frames, saved
 # for the core and for one game, relaunch) and refused for PPSSPP in its
-# software context; since Build 489, Beetle PSX HW in Vulkan dumping, then
-# replacing, a texture drawn by a stand-in BIOS the probe writes (--beetle).
+# software context; since Build 489, Beetle PSX HW in Vulkan presenting a
+# stand-in BIOS's picture and reporting a replacement pack in the folder it
+# reads, through pause, background, state save and rotation (--beetle).
 # See test/libretro_simulator_probe.py. A simulator run is not an iPhone test.
 'on':
   push:
@@ -177,7 +178,7 @@ jobs:
         path: dist/libretro
     - name: Fetch the pinned MoltenVK simulator slice and test content
       run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/probe-inputs"
-    - name: Beetle PSX HW in Vulkan dumps, replaces and stops replacing a texture
+    - name: Beetle PSX HW in Vulkan presents its picture and reports a replacement pack
       run: |
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --beetle --evidence evidence/beetle --label "${GITHUB_SHA}"
