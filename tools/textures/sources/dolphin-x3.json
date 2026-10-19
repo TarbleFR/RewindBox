@@ -708,15 +708,15 @@
    "Invader",
    "Dolphin community contributors"
   ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack",
-  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack",
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the authors",
    "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
   },
   "download": {
    "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack",
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
    "file_name": "The_Dolphin_Community's_PM_TTYD_HD_Texture_Pack_v2.5_PNG.7z",
    "verify": {
     "url": "https://mega.nz/file/u8UgQRrQ#oVeQcpbKA_rFxG1cMV6AVdb0cbVXgGhCeAZU2Vumzk0",
@@ -1563,15 +1563,15 @@
   "authors": [
    "Bighead"
   ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack",
-  "source_id": "dolphin-forum:new-super-mario-bros-wii-hd-texture-pack",
+  "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+  "source_id": "dolphin-forum:new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
   "licence": {
    "summary": "No licence stated by the author",
    "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
   },
   "download": {
    "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack",
+   "page": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
    "file_name": "NSMBW_HD_v2.81_PNG.7z",
    "verify": {
     "url": "https://drive.google.com/file/d/1gcPQ2u_GXl3IpziEVvIsVzS90-mar2ZM/view?usp=drive_link",
@@ -1613,15 +1613,15 @@
   "authors": [
    "plusnine"
   ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-punch-out-wii-hd-ready-project",
-  "source_id": "dolphin-forum:punch-out-wii-hd-ready-project",
+  "page_url": "https://forums.dolphin-emu.org/Thread-plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
+  "source_id": "dolphin-forum:plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
   "licence": {
    "summary": "No licence stated by the author",
    "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
   },
   "download": {
    "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-punch-out-wii-hd-ready-project",
+   "page": "https://forums.dolphin-emu.org/Thread-plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
    "file_name": "R7PE01.zip",
    "verify": {
     "url": "https://drive.google.com/open?id=0B8FvW480wj7CWE1NbllRNGxxN28",
