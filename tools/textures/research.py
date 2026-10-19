@@ -374,6 +374,31 @@ def gamebanana(url):
     return out
 
 
+def gamebanana_search(query, pages=3):
+    """Mod pages GameBanana's own search returns for a query (public apiv11), most relevant first."""
+    found = []
+    for page in range(1, pages + 1):
+        api = ('https://gamebanana.com/apiv11/Util/Search/Results?_sModelName=Mod&_sOrder=best_match'
+               f'&_sSearchString={urllib.parse.quote(query)}&_nPage={page}')
+        response = fetch(api, accept='application/json')
+        if response['status'] != 200:
+            print(f'GBSEARCH {query!r} page {page}: HTTP {response["status"]}', flush=True)
+            break
+        try:
+            records = json.loads(response['body']).get('_aRecords') or []
+        except ValueError:
+            break
+        for record in records:
+            url = record.get('_sProfileUrl') or ''
+            if re.search(r'gamebanana\.com/(mods|wips)/\d+', url) and url not in found:
+                found.append(url)
+                game = (record.get('_aGame') or {}).get('_sName') or ''
+                print(f"GBSEARCH {query!r} -> {url} {record.get('_sName', '')!r} game={game!r}", flush=True)
+        if len(records) < 15:
+            break
+    return found
+
+
 # ---------------------------------------------------------------- GitHub
 
 def github_api(path):
@@ -728,6 +753,7 @@ def main():
     refs.add_argument('--heads', action='store_true', help='size of direct file links found (HEAD, no download)')
     refs.add_argument('--file', default='', help='extra URLs, one per line (text after a tab is the title)')
     refs.add_argument('--sheets', default='', help='spreadsheet sheets whose rows are printed, e.g. GC,Wii,3DS')
+    refs.add_argument('--gbsearch', default='', help='GameBanana searches separated by |, their mods reviewed as references "G..."')
     refs.add_argument('--out', required=True)
     probes = sub.add_parser('probe')
     probes.add_argument('--urls', default='')
@@ -768,6 +794,12 @@ def main():
                 extra.append((url.strip(), title.strip() or url.strip()))
     for index, (url, title) in enumerate(extra):
         selected.append({'id': f'X{index + 1:03d}', 'console': 'extra', 'title': title, 'url': url, 'provenance': []})
+    found = []
+    for query in (q for q in args.gbsearch.split('|') if q.strip()):
+        found += [url for url in gamebanana_search(query.strip()) if url not in found]
+    known = {r['url'] for r in references} | {u for r in references for u in r.get('provenance', [])}
+    for index, url in enumerate(u for u in found if u not in known):
+        selected.append({'id': f'G{index + 1:03d}', 'console': 'gamebanana', 'title': url, 'url': url, 'provenance': []})
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     totals = Counter()
     print('RESEARCH_BEGIN', len(selected), flush=True)
