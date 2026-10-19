@@ -84,7 +84,8 @@ def source_closure():
     if not PRODUCT<=set(targeted.PRODUCT):raise ValueError('A Build 488 product file is outside the targeted runner')
     for end in (['HEAD'],[]):
         paths=set(base.command(['git','diff','--name-only',BASE,*end]).splitlines())
-        extra=paths-TESTED-DELIVERY_ONLY
+        # Documentation and records (docs/, AGENTS.md) are never packaged nor tested inputs.
+        extra={path for path in paths-TESTED-DELIVERY_ONLY if not path.startswith('docs/')}
         if extra:raise ValueError('Unvalidated changed inputs: '+', '.join(sorted(extra)))
         # Every tested input is byte-identical to the tested source.
         base.command(['git','diff','--exit-code',TESTED_SOURCE,*end,'--',*sorted(TESTED)])
