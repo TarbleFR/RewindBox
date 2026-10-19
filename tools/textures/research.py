@@ -769,6 +769,7 @@ def main():
     refs.add_argument('--file', default='', help='extra URLs, one per line (text after a tab is the title)')
     refs.add_argument('--sheets', default='', help='spreadsheet sheets whose rows are printed, e.g. GC,Wii,3DS')
     refs.add_argument('--gbsearch', default='', help='GameBanana searches separated by |, their mods reviewed as references "G..."')
+    refs.add_argument('--gbpages', type=int, default=3, help='result pages read for each GameBanana search')
     refs.add_argument('--out', required=True)
     probes = sub.add_parser('probe')
     probes.add_argument('--urls', default='')
@@ -812,7 +813,7 @@ def main():
     found = []
     for query in (q for q in args.gbsearch.split('|') if q.strip()):
         # '+' stands for a space (the workflow input is split on whitespace).
-        found += [url for url in gamebanana_search(query.strip().replace('+', ' ')) if url not in found]
+        found += [url for url in gamebanana_search(query.strip().replace('+', ' '), args.gbpages) if url not in found]
     known = {r['url'] for r in references} | {u for r in references for u in r.get('provenance', [])}
     for index, url in enumerate(u for u in found if u not in known):
         selected.append({'id': f'G{index + 1:03d}', 'console': 'gamebanana', 'title': url, 'url': url, 'provenance': []})
