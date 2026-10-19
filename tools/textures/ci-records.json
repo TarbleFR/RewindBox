@@ -80,7 +80,8 @@
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}",
       "superseded": {
-        "3ds-acnl-trueshade-4k-thisstombi": 39291901789
+        "3ds-acnl-trueshade-4k-thisstombi": 39291901789,
+        "gc-thps3-esrgan-rapka": 39321682524
       }
     },
     {
@@ -199,6 +200,16 @@
         "dolphin"
       ],
       "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39321682524,
+      "source": "62315def939a03e4c8849cb8a12299bccc2de186",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 13,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
     }
