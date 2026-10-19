@@ -566,9 +566,18 @@ def review_url(url, follow_pages=0):
         return record
     record['title'] = page_title(body)
     # MyBB forums (Dolphin, PPSSPP): the author of the thread's first post, to credit the pack.
-    author = re.search(r'class="author_information".*?<a [^>]*>(.*?)</a>', body, re.S)
-    if author:
-        record['author'] = html.unescape(re.sub(r'<[^>]+>', '', author.group(1))).strip()[:80]
+    # Themes differ (author_information, post_author), the archive view puts it in
+    # <div class="author">; last, the first link to a member profile in the posts.
+    for source, pattern in (('author_information', r'class="author_information".*?<a [^>]*>(.*?)</a>'),
+                            ('post_author', r'class="post_author[^"]*".*?<a [^>]*>(.*?)</a>'),
+                            ('archive', r'<div class="author">.*?<a [^>]*>(.*?)</a>'),
+                            ('first profile link',
+                             r'<a href="[^"]*(?:member\.php\?action=profile&(?:amp;)?uid=\d+|/user-\d+\.html)"[^>]*>(.*?)</a>')):
+        author = re.search(pattern, body, re.S)
+        if author and re.sub(r'<[^>]+>', '', author.group(1)).strip():
+            record['author'] = html.unescape(re.sub(r'<[^>]+>', '', author.group(1))).strip()[:80]
+            record['author_source'] = source
+            break
     site = urllib.parse.urlsplit(response['url']).hostname or ''
     record['links'] = [link for link in page_links(body, response['url'])
                        if (link['kind'] != 'other' or FILE_EXT.search(link['url'])) and not own_navigation(link, site)]
@@ -631,7 +640,7 @@ def describe(record, out):
     if record.get('title'):
         out.append(f"    title: {record['title'][:160]}")
     if record.get('author'):
-        out.append(f"    author: {record['author']}")
+        out.append(f"    author: {record['author']}" + (f" ({record['author_source']})" if record.get('author_source') not in (None, 'author_information') else ''))
     if record.get('error'):
         out.append(f"    error: {record['error']}")
     gb = record.get('gamebanana')
