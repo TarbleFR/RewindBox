@@ -1328,3 +1328,121 @@ Credits stated by the packs:
 | gc | shadow_nubytech_prompts_dynamic.zip (https://gamebanana.com/dl/891428) | Shadow the Hedgehog NubyTech prompts, dynamic edition: Dolphin dynamic input textures for one controller, not texture replacement. |
 | gc | shadow_nubytech_prompts_custom_032a8.zip (https://gamebanana.com/dl/966849) | Shadow the Hedgehog NubyTech prompts, custom edition: the same prompts with Dolphin controller profiles and game settings for a custom controller. |
 | gc | shadow_nubytech_prompts_source_62d47.zip (https://gamebanana.com/dl/891442) | Shadow the Hedgehog NubyTech prompts: the source drawings (SVG, template), not a pack. |
+| 3ds | ac3d-hd-texture-pack-v0.9.2.zip (https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf) | The same file as the catalogued Ace Combat: Assault Horizon Legacy+ HD pack (3ds.json, the author's Drive file). |
+| gc/wii | TLS_UHD_TexturePack.7z.001 (https://mega.nz/file/xy81RBZD#uzkP_Aql9-MLfTCpyvzZcnWppwJVcIxPJq9wJd8mPh8) | The Last Story UHD Texture Pack: a multi-volume 7z archive (.7z.001, 4 GB per part); NeoStation installs single archives only. |
+| 3ds | all_in_one_female_replacer.zip (https://gamebanana.com/dl/670345) | Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | female_dark_mage_enemy.7z (https://gamebanana.com/dl/674061) | Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | female_sorcerer_enemy.zip (https://gamebanana.com/dl/674062) | Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | change_stripped_male_underwear_to_f_c52d4.zip (https://gamebanana.com/dl/670100) | Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | emerald_birch_sprite.zip (https://gamebanana.com/dl/1297109) | Pokemon Omega Ruby and Alpha Sapphire: a cosmetic edit of 1 texture (a character, costume or icon), not an HD pack. |
+| gc/wii | nah_id_win.zip (https://gamebanana.com/dl/1390089) | nah_id_win.zip: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack. |
+| 3ds | true_c58cb.zip (https://gamebanana.com/dl/1689220) | Shin Megami Tensei IV: a cosmetic edit of 1 texture (a character, costume or icon), not an HD pack. |
+| 3ds | citra_mk7.zip (https://gamebanana.com/dl/1224839) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | definitive_3ds_link_74fa0.zip (https://gamebanana.com/dl/1102374) | The Legend of Zelda: Ocarina of Time 3D: a cosmetic edit of 86 textures (a character, costume or icon), not an HD pack. |
+| 3ds | red_and_blue_5_and_10_coin.zip (https://gamebanana.com/dl/1227887) | Paper Mario: Sticker Star: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | acnl_clean_texture_pack_11.zip (https://gamebanana.com/dl/493872) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | necrozma_inverted_83f67.zip (https://gamebanana.com/dl/1131490) | Pokemon Ultra Sun and Ultra Moon: a cosmetic edit of 11 textures (a character, costume or icon), not an HD pack. |
+| 3ds | texpack.zip (https://gamebanana.com/dl/1395418) | Tomodachi Life: a cosmetic edit of 5 textures (a character, costume or icon), not an HD pack. |
+| 3ds | iconsandportraits.zip (https://gamebanana.com/dl/1297155) | Pokemon Omega Ruby and Alpha Sapphire: a cosmetic edit of 8 textures (a character, costume or icon), not an HD pack. |
+| 3ds | dark_goth_nanashi.zip (https://gamebanana.com/dl/1728781) | Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack. |
+| 3ds | dark_goth_nanashi_hd.zip (https://gamebanana.com/dl/1728909) | Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | fe-garonquest_v140.7z (https://gamebanana.com/dl/828549) | fe-garonquest_v140.7z: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | fe-garonquest_v1321.7z (https://gamebanana.com/dl/788663) | fe-garonquest_v1321.7z: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| gc/wii | ssbm_colors_majora_s_mask.zip (https://gamebanana.com/dl/1093900) | ssbm_colors_majora_s_mask.zip: a cosmetic edit of 94 textures (a character, costume or icon), not an HD pack. |
+| 3ds | xerneas_lesb.zip (https://gamebanana.com/dl/1559644) | Pokemon X and Y: a cosmetic edit of 4 textures (a character, costume or icon), not an HD pack. |
+| 3ds | homestuck_villagers_acnl.zip (https://gamebanana.com/dl/1416691) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | assets_3bb60.zip (https://gamebanana.com/dl/1626779) | Tomodachi Life: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | xy_swap_08a76.7z (https://gamebanana.com/dl/1820734) | Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 13 textures (a character, costume or icon), not an HD pack. |
+| 3ds | defaul_bc747.7z (https://gamebanana.com/dl/1820735) | Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 13 textures (a character, costume or icon), not an HD pack. |
+| 3ds | rosalina_pro_racer__36343.zip (https://gamebanana.com/dl/1504178) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | bowser_supercharged_.zip (https://gamebanana.com/dl/1522173) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | yoshi_aristocrat_.zip (https://gamebanana.com/dl/1560554) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | yoshi_aristocrat__4b902.zip (https://gamebanana.com/dl/1572279) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | azahar.zip (https://gamebanana.com/dl/1847551) | Mario Kart 7 "azahar" file: a marker file only, no texture. |
+| 3ds | daisy_pro_racer_.zip (https://gamebanana.com/dl/1497272) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | daisy_pro_racer_v2.zip (https://gamebanana.com/dl/1825556) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | wario_wicked_wasp_.zip (https://gamebanana.com/dl/1494374) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | mario_pro_racer__1a2bf.zip (https://gamebanana.com/dl/1497914) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | shy_guy_pit_crew_.zip (https://gamebanana.com/dl/1530291) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | luigi_hatless_.zip (https://gamebanana.com/dl/1537555) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | wario_pro_racer_.zip (https://gamebanana.com/dl/1546907) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | dark_link_fierce_deity_link_texture_448f7.zip (https://gamebanana.com/dl/634156) | The Legend of Zelda: Ocarina of Time 3D: a cosmetic edit of 239 textures (a character, costume or icon), not an HD pack. |
+| 3ds | koopa_sailor.zip (https://gamebanana.com/dl/1558639) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | klonoa_v1_0.zip (https://gamebanana.com/dl/1420511) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | luigi_pro_racer_.zip (https://gamebanana.com/dl/1494981) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | luigi_pro_racer_v2_d7cf2.zip (https://gamebanana.com/dl/1660512) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | bowser_biker_.zip (https://gamebanana.com/dl/1523863) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | bubsy_3d__190c9.zip (https://gamebanana.com/dl/1518161) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | caseoh_c7dbd.zip (https://gamebanana.com/dl/1536366) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | luigi_gondolier_.zip (https://gamebanana.com/dl/1492031) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | luigi_gondolier__v2_28d83.zip (https://gamebanana.com/dl/1823060) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | toadette_soft_server_.zip (https://gamebanana.com/dl/1509013) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | invisible_share_button.zip (https://gamebanana.com/dl/1508607) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | wario_pirate_v2.zip (https://gamebanana.com/dl/1687411) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | mh-hp-overlay-for-3ds-emulator_v110_34a14.zip (https://gamebanana.com/dl/1314902) | Monster Hunter 4 Ultimate HP overlay: an archive inside the archive, made for another emulator's overlay, not a texture pack. |
+| 3ds | mh-hp-overlay-for-3ds-emulator_v111_6d6fd.zip (https://gamebanana.com/dl/1318442) | Monster Hunter 4 Ultimate HP overlay (v1.11): an archive inside the archive, made for another emulator's overlay. |
+| 3ds | mh-hp-overlay-for-3ds-emulator_v113_c8ac4.zip (https://gamebanana.com/dl/1381861) | Monster Hunter 4 Ultimate HP overlay (v1.13): an archive inside the archive, made for another emulator's overlay. |
+| 3ds | cover_your_eyes_.zip (https://gamebanana.com/dl/1522013) | Super Smash Bros. (3DS): no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | girlsrule.zip (https://gamebanana.com/dl/1522016) | Super Smash Bros. (3DS): no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | boys_drool.zip (https://gamebanana.com/dl/1522017) | Super Smash Bros. (3DS): no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | sango_plugin-release.7z (https://gamebanana.com/dl/1835936) | Pokémon ORAS Sango plugin: a CTRPF plugin, not textures. |
+| 3ds | gamblecore_guy_-_ctgp7_chpack_-v1.zip (https://gamebanana.com/dl/1457863) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | molten_monster_tire.zip (https://gamebanana.com/dl/1761308) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | mauve_molten_monster_tires.zip (https://gamebanana.com/dl/1761694) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | outfitrestorations.zip (https://gamebanana.com/dl/1622293) | Hatsune Miku: Project Mirai DX: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | king_boo_pirate_.zip (https://gamebanana.com/dl/1605251) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | unmirror_master_quest.zip (https://gamebanana.com/dl/1723737) | The Legend of Zelda: Ocarina of Time 3D: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | 2d_kafei_mask.7z (https://gamebanana.com/dl/1139535) | 2d_kafei_mask.7z: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack. |
+| 3ds | cc3d_minecraft_conversion_mod_v1.zip (https://gamebanana.com/dl/1645614) | Cube Creator 3D: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | ocarina-reframed-202-dual-screen-mods.zip (https://gamebanana.com/dl/1826623) | The Legend of Zelda: Ocarina of Time 3D: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | ocarina-reframed-202-single-screen-mods.zip (https://gamebanana.com/dl/1826624) | The Legend of Zelda: Ocarina of Time 3D: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | ocarina-reframed-202-single-screen-rom-patches.zip (https://gamebanana.com/dl/1826625) | Ocarina of Time 3D Reframed: ROM patches (marker files only), not textures. |
+| 3ds | ocarina-reframed-202-dual-screen-rom-patches.zip (https://gamebanana.com/dl/1826626) | Ocarina of Time 3D Reframed: ROM patches (marker files only), not textures. |
+| 3ds | 3dshd_clock.zip (https://gamebanana.com/dl/1319254) | 3dshd_clock.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | 3ds_link_-_standard_8f779.zip (https://gamebanana.com/dl/1788174) | 3ds_link_-_standard_8f779.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | 3ds_link_-_custom_colors_5604f.zip (https://gamebanana.com/dl/1788173) | 3ds_link_-_custom_colors_5604f.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | 3ds_equipment_cd0b5.zip (https://gamebanana.com/dl/1630255) | 3ds_equipment_cd0b5.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | weebcustomvillagers3ds.zip (https://gamebanana.com/dl/900686) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | weebcustomvillagerscitra.zip (https://gamebanana.com/dl/900687) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | emerald3ds.zip (https://gamebanana.com/dl/902769) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | emeraldcitra.zip (https://gamebanana.com/dl/902770) | Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement. |
+| 3ds | default_cube_88ed8.zip (https://gamebanana.com/dl/1018690) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | flynn_kazuma_kaneko.zip (https://gamebanana.com/dl/1624905) | Shin Megami Tensei IV: a cosmetic edit of 3 textures (a character, costume or icon), not an HD pack. |
+| 3ds | flynn_tomomi_kobayashi.zip (https://gamebanana.com/dl/1624907) | Shin Megami Tensei IV: a cosmetic edit of 3 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | hdsonictexv12_4ca93.zip (https://gamebanana.com/dl/1371791) | Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | hdsonictexv11.zip (https://gamebanana.com/dl/1371552) | Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | hdsonictextures.zip (https://gamebanana.com/dl/1371139) | Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | 00040000001d1900.zip (https://gamebanana.com/dl/1080402) | 00040000001d1900.zip: a cosmetic edit of 4 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | soul_reaver_1-2.7z (https://gamebanana.com/dl/1221366) | soul_reaver_1-2.7z: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| 3ds | original_dead_hand_-_oot3d.zip (https://gamebanana.com/dl/597020) | The Legend of Zelda: Ocarina of Time 3D: a cosmetic edit of 4 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | gv2_d99a5.zip (https://gamebanana.com/dl/1199456) | Mario Kart Wii: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | menu.7z (https://gamebanana.com/dl/446694) | Mario Kart Wii: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | my_2c6e9.7z (https://gamebanana.com/dl/487121) | Mario Kart Wii: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | sc_dynamic_input_5d73a.zip (https://gamebanana.com/dl/918609) | Sonic Colors dynamic input textures: Dolphin dynamic input textures for a controller, not texture replacement. |
+| gc/wii | sc_dynamic_input_ps3_6efdb.zip (https://gamebanana.com/dl/918608) | Sonic Colors dynamic input textures (PS3): Dolphin dynamic input textures for a controller, not texture replacement. |
+| gc/wii | intructions_87fd0.zip (https://gamebanana.com/dl/1644313) | Super Smash Bros. Brawl: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | ganondorf_cervantes.zip (https://gamebanana.com/dl/436666) | SoulCalibur II (GameCube): a cosmetic edit of 11 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | zelda_sophitia_e5f3f.zip (https://gamebanana.com/dl/436704) | SoulCalibur II (GameCube): a cosmetic edit of 17 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | twilight_link.zip (https://gamebanana.com/dl/436965) | SoulCalibur II (GameCube): a cosmetic edit of 15 textures (a character, costume or icon), not an HD pack. |
+| gc/wii | sunshine-reimagined-clickable-download.zip (https://gamebanana.com/dl/1846901) | Super Mario Sunshine Reimagined: the GameBanana file only holds a link to another host. |
+| gc/wii | twilight_princess_vibrance_4e585.zip (https://gamebanana.com/dl/1609372) | Twilight Princess Vibrance: a Dolphin marker file only (a graphics setting), no texture. |
+| gc/wii | arcade_sprites.zip (https://gamebanana.com/dl/1821516) | Pac-Man World 2: a cosmetic edit of 1 texture (a character, costume or icon), not an HD pack. |
+| gc/wii | super_mario_sunshine_repainted_hardware_edition_v31.7z (https://gamebanana.com/dl/1523530) | Super Mario Sunshine Repainted Hardware Edition: modified game files of the disc (files/data/*.szs, .thp), not Dolphin texture replacement. |
+| gc/wii | 1_restored_unused_texture_edits_and_some_fixes_.7z (https://gamebanana.com/dl/1498601) | Super Mario Sunshine Repainted add-on: modified game files of the disc. |
+| gc/wii | 2_hq_fmvs.7z (https://gamebanana.com/dl/1498603) | Super Mario Sunshine Repainted add-on: re-encoded game videos. |
+| gc/wii | 3_alternate_openingbb_and_epilogue_thps_for_console.7z (https://gamebanana.com/dl/1498623) | Super Mario Sunshine Repainted add-on: game videos. |
+| gc/wii | 4_120_shine_sprites_fmv.7z (https://gamebanana.com/dl/1498600) | Super Mario Sunshine Repainted add-on: a game video. |
+| gc/wii | chao_garden_-_frog_forest_garden_6190a.zip (https://gamebanana.com/dl/453287) | Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | adv-s_shoe_pack.zip (https://gamebanana.com/dl/603485) | Sonic Riders (GameCube): a cosmetic edit of 8 textures (a character, costume or icon), not an HD pack. |
+| switch | moon_replacement_paper_crumples.zip (https://gamebanana.com/dl/1204722) | Paper Mario TTYD (Switch) moon replacement: Nintendo Switch RomFS files. |
+| switch | moon_replacement_ttyd_hd_switch_colors_.zip (https://gamebanana.com/dl/1204721) | Paper Mario TTYD (Switch) moon replacement: Nintendo Switch RomFS files. |
+| switch | moon_replacement_ttyd_hd_gamecube_colors_.zip (https://gamebanana.com/dl/1204723) | Paper Mario TTYD (Switch) moon replacement: Nintendo Switch RomFS files. |
+| gc/wii | chao_garden_-_seaside_hill_garden_v.zip (https://gamebanana.com/dl/372795) | Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | super_amy_98f16.zip (https://gamebanana.com/dl/1146422) | Sonic Adventure DX: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | super_amy_ed775.zip (https://gamebanana.com/dl/986412) | Sonic Adventure DX: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | espios_shuriken_effect_texture_restored1_0_0.7z (https://gamebanana.com/dl/876133) | espios_shuriken_effect_texture_restored1_0_0.7z: PNG images without the engines' texture names (resources of a game-file mod). |
+| 3ds | body_jet_a7b49.zip (https://gamebanana.com/dl/1455154) | Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | jari_kart_wii_v2.zip (https://gamebanana.com/dl/383279) | Jari Kart Wii: a full game-file mod (Riivolution/ISO), not texture replacement. |
+| gc/wii | wii_costumes__5ec0c.zip (https://gamebanana.com/dl/882400) | Spider-Man: Web of Shadows: no texture replacement file in the archive (game files, models, sounds or a PC mod). |
+| gc/wii | kirby_fighters_shadow_kirby_project.zip (https://gamebanana.com/dl/675287) | Super Smash Bros. Brawl: PNG images without the engines' texture names (resources of a game-file mod). |
+| gc/wii | classic_pack_project_mod.zip (https://gamebanana.com/dl/675162) | Super Smash Bros. Brawl: PNG images without the engines' texture names (resources of a game-file mod). |
