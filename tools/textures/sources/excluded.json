@@ -248,5 +248,55 @@
   "console": "3ds",
   "source": "snakemi/miraihd (Project Mirai DX)",
   "reason": "Two damaged PNG files (CI run 39254972220); Azahar does not survive a damaged image."
+ },
+ {
+  "console": "wii",
+  "source": "LOLDude2427/Sparking-Meteor-HD (Dragon Ball Z: Sparking! Meteor)",
+  "reason": "Work in progress: generated and remade images with a mapping script, no folder named after a game identifier to install."
+ },
+ {
+  "console": "gc",
+  "source": "iZePlayzYT/SuperMarioEclipse-TexturePacks",
+  "reason": "Textures for Super Mario Eclipse, a modification of Super Mario Sunshine that the library cannot identify; the repository also carries texture dumps."
+ },
+ {
+  "console": "wii",
+  "source": "SY-24 (Super Mario Galaxy 1 and 2 font repositories)",
+  "reason": "HD textures of modified font files (.brfnt) that must first be written into the game; they do not match the original disc."
+ },
+ {
+  "console": "gc",
+  "source": "PhoenixStormJr/Paper-Mario-The-Thousand-Year-Door-Texture-Mod-Bow-Over-Flurrie",
+  "reason": "Character replacement mod, not an HD texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "MoArtis/ResidentEvilSeamlessHdProject",
+  "reason": "Tools of the project (upscalers, managers); no pack in the repository."
+ },
+ {
+  "console": "psp",
+  "source": "chenetulipe/P2-FR-IS-PSP, Gabin-CC/jeanne-darc-psp-fr",
+  "reason": "Translation patches applied to the game files; no texture pack in the repository."
+ },
+ {
+  "console": "psp",
+  "source": "jackgllghr/sarusaru-hd-textures",
+  "reason": "Textures for a PC recompilation of the game, not for PPSSPP."
+ },
+ {
+  "console": "psp",
+  "source": "zxyandreay/tekken6-ultrawide",
+  "reason": "Ultrawide plugin and compatibility settings, not textures."
+ },
+ {
+  "console": "ps2",
+  "source": "Matsilagi/WO3-Beta-Texturepack (Wip3out)",
+  "reason": "PlayStation pack for Beetle PSX HW (PS1 texture replacement is not offered)."
+ },
+ {
+  "console": "ps2",
+  "source": "Melvin-Molder/bt3-rust-rewrite-hd, Javiju555/IE-repack",
+  "reason": "A reimplementation of the game and a translation repacker, not texture packs."
  }
 ]

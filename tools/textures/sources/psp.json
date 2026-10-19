@@ -4640,5 +4640,60 @@
   "engine": "ppsspp",
   "availability": "manual",
   "notes": "The repository holds the README and textures.ini; the 1.4 GB of textures are downloaded from the authors' links (PPSSPP forum thread). Compatible with the Japanese game v1.00-1.07 and its English patches."
+ },
+ {
+  "id": "psp-ridge-racers-2-jp-hd-codyv59",
+  "system": "psp",
+  "title": "Ridge Racers 2 Real HD Texture Pack (Japan)",
+  "version": "repository 5aeafb6",
+  "games": [
+   {
+    "title": "Ridge Racers 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00080"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "CodyV59"
+  ],
+  "page_url": "https://github.com/CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK/tree/5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7",
+  "source_id": "github:CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK-5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK/zip/5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK",
+    "commit": "5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK-5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7/ULJS00080/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Tracks and Ridge Racer V track textures for the Japanese disc ULJS00080 (the folder ULJS00080 of the repository; the older copy at its root is not installed)."
  }
 ]

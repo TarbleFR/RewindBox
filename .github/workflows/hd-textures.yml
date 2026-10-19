@@ -110,7 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        console: [ps2, dolphin, psp, 3ds]
+        console: [ps2, dolphin, psp, 3ds, n64]
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
