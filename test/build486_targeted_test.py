@@ -62,6 +62,8 @@ PRODUCT = sorted({
     'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.m',
     'lib/services/libretro_core_catalog.dart',
     'lib/services/libretro_internal_service.dart',
     'lib/services/libretro_resolution.dart',

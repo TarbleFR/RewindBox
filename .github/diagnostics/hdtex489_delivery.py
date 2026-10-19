@@ -49,6 +49,9 @@ PRODUCT={
     'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h',
     'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
+    # The device's A1R5G5B5 support read before Beetle loads (no crash on a device without it).
+    'packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.h',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.m',
     'packages/neo_texture_catalog/ios/Classes/NeoTextureCatalog.m',
     'packages/neo_texture_catalog/ios/Classes/NeoTextureEngines.mm',
     'packages/neo_texture_catalog/ios/Classes/NeoTextureHDPage.m',
@@ -65,7 +68,8 @@ PRODUCT={
     'packages/neo_texture_catalog/ios/Resources/manifest.json.gz',
 }
 # Inputs of the Simulator proof (the probe app, its scenarios and workflow).
-SIMULATOR_INPUTS={'test/libretro_simulator_probe.py','test/libretro_simulator/probe.m','.github/workflows/libretro-simulator.yml'}
+SIMULATOR_INPUTS={'test/libretro_simulator_probe.py','test/libretro_simulator/probe.m','test/libretro_simulator/beetle_lifecycle_probe.h',
+    '.github/workflows/libretro-simulator.yml'}
 TESTED=(set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(targeted.HOST_PYTHON)|set(targeted.DART_TESTS)|set(targeted.PRE_EXISTING)
         |{command[0] for command in targeted.CATALOGUE+targeted.NATIVE+targeted.UIKIT}|SIMULATOR_INPUTS)
 # Delivery wiring, records, credits and pins: no product or Core input.
@@ -153,8 +157,13 @@ def evidence():
         status=replace.get('beetleStatus') or {}
         if status.get('renderer')!='vulkan' or not status.get('replace') or int(status.get('recognized') or 0)<=0:
             raise ValueError('The Simulator report does not show Beetle replacing a texture in Vulkan')
+        # Pause, background, state save/load, rotation and audio, the replacement still recognised after them.
+        lifecycle=replace.get('beetleLifecycle') or []
+        if len(lifecycle)!=14 or not all(check.get('passed') for check in lifecycle):
+            raise ValueError('The Simulator report does not show the Beetle lifecycle checks passing')
         records.append({'part':'beetle','run':run,'source':source,'reportSHA256':hashlib.sha256(reports[0].read_bytes()).hexdigest(),
-            'beetleStatus':status,'dumped':len(results.get('beetle-vulkan-dump',{}).get('beetleDumped') or [])})
+            'beetleStatus':status,'dumped':len(results.get('beetle-vulkan-dump',{}).get('beetleDumped') or []),
+            'lifecycleChecks':[check['name'] for check in lifecycle]})
     covered=set()
     for part,(verdict,digest) in verdicts.items():
         if verdict['result']!='passed' or verdict['source']!=PROOFS[part][1] or verdict['build']!=489 or verdict['part']!=part:
