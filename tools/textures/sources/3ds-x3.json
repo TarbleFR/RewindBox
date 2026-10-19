@@ -949,8 +949,11 @@
   "install": {
    "folders": [
     {
-     "from": "ACNL 4K texture pack 2.0.1 „TrueShade“ by ThisStombi/",
-     "to": "{id}"
+     "from": "",
+     "to": "{id}",
+     "exclude": [
+      "__MACOSX/"
+     ]
     }
    ]
   },
@@ -1227,6 +1230,14 @@
     "sha256": "d68ad55f3067a0a89e21bab2fe5ae37e0847ff74b086965da6b0ed34b7693983"
    }
   },
+  "install": {
+   "folders": [
+    {
+     "from": "OOT3D 4K 5.0a (1080p)/user/load/textures/0004000000033500/",
+     "to": "{id}"
+    }
+   ]
+  },
   "scope": "complete",
   "family": "3ds-oot3d-4k-henriko"
  },
@@ -1269,6 +1280,14 @@
     "url": "https://drive.google.com/file/d/1sX44p03YvCpVWUQjpwUUAX3s5K0QHwcU/view",
     "sha256": "80e8612b58d847a7cc885635b377eba145a629c74c9433b87ea9c4a7420c98e5"
    }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "OOT3D 4K 5.0a (4K)/user/load/textures/0004000000033500/",
+     "to": "{id}"
+    }
+   ]
   },
   "scope": "complete",
   "family": "3ds-oot3d-4k-henriko"

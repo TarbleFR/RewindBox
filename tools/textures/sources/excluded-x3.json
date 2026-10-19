@@ -1,5 +1,10 @@
 [
  {
+  "console": "psp",
+  "source": "LegoBatmanUpscale.zip (https://drive.google.com/file/d/15BzNRuXFd_yYJ61BLcA6dNnPa3vYnZw1/view?usp=sharing)",
+  "reason": "LEGO Batman AI upscale: the author's archive holds a damaged PNG (09b0dbb024c4c5595ca88f64.png, wrong signature), which NeoStation refuses to install (host run 39278264111)."
+ },
+ {
   "console": "3ds",
   "source": "hd_portaitsver2_max.7z (https://gamebanana.com/dl/507220)",
   "reason": "Etrian Odyssey Nexus portraits v2: superseded by v3 of the same pack (an older version is not counted)."
@@ -73,6 +78,21 @@
   "console": "psp",
   "source": "VC3_ReTL_texture_addon.zip (https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/download/v1/VC3_ReTL_texture_addon.zip)",
   "reason": "Valkyria Chronicles 3 Extra Edition ReTranslation texture add-on: one of the four parts (7.3 GB) of steccas' release, which also redistributes efonte's pack; it stays a manual link (psp-valkyria-chronicles-3-ee-retranslation-steccas)."
+ },
+ {
+  "console": "gc",
+  "source": "GCEE41_UHD Texture.7z (https://mega.nz/file/TPJB0bQA#PZ1hXFwmlAD4qY2u9SDN5gm7PPrQMaRfkimHf9Mf2Os)",
+  "reason": "Tom Clancy's Splinter Cell UHD: a 7z with a 768 MiB LZMA2 dictionary; NeoStation's extractor allows 256 MiB so that it fits in an iPhone's memory, and refuses it (host run 39285447608). A repack with a smaller dictionary would be needed."
+ },
+ {
+  "console": "gc",
+  "source": "SSX.TRICKY-HD.TEXTURES-WiP1.7z (https://drive.google.com/file/d/1mMzvu6Hl2u8kECy1cFe_5ALyo59JOIxK/view)",
+  "reason": "SSX Tricky HD WiP1: a 7z with a 1,536 MiB LZMA2 dictionary; NeoStation's extractor allows 256 MiB (iPhone memory) and refuses it (host run 39285456991)."
+ },
+ {
+  "console": "wii",
+  "source": "PaperMario64HD_v1.3.zip (https://mega.nz/file/PnBSHTAA#GCwY6zfvBidqZSMFQat0XaX61wia7LlJHUCU9GmZ4FU)",
+  "reason": "Paper Mario 64 HD v1.3: a ZIP compressed with LZMA, a method NeoStation's ZIP reader does not support (deflate and store only); refused (host run 39285456991)."
  },
  {
   "console": "wii",

@@ -200,56 +200,6 @@
   "family": "psp-digimon-adventure-hd"
  },
  {
-  "id": "psp-lego-batman-ai-upscale",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "LEGO Batman AI Upscale Textures",
-  "version": "see page",
-  "games": [
-   {
-    "title": "LEGO Batman: The Videogame",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULUS10380"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "FunnyNameXYZ"
-  ],
-  "page_url": "https://forums.ppsspp.org/showthread.php?tid=37842",
-  "source_id": "ppsspp-forum:37842",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.ppsspp.org/showthread.php?tid=37842",
-   "file_name": "LegoBatmanUpscale.zip",
-   "verify": {
-    "url": "https://drive.google.com/file/d/15BzNRuXFd_yYJ61BLcA6dNnPa3vYnZw1/view?usp=sharing",
-    "sha256": "7c3cc0219b486a9c4da727a672f4be5ecc33ac0772bb96b65d98c7f862d20a22"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "ULUS10380/",
-     "to": "ULUS10380"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "psp-lego-batman-ai-upscale"
- },
- {
   "id": "psp-gow-ghost-of-sparta-hd-lite",
   "system": "psp",
   "engine": "ppsspp",

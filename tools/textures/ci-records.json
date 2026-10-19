@@ -1,5 +1,5 @@
 {
-  "comment": "CI runs whose artifacts hold the verification records of packs published as repository archives (checked by tools/textures/check_ci_records.py).",
+  "comment": "CI runs whose artifacts hold the verification records of packs published as repository archives and of manual packs fetched from the authors' file hosts (checked by tools/textures/check_ci_records.py). superseded: packs a later registered run verified again.",
   "runs": [
     {
       "run": 39188364133,
@@ -67,6 +67,50 @@
         "n64"
       ],
       "records": 2
+    },
+    {
+      "run": 39278264111,
+      "source": "4b29fe393a14dba866fdf9a3800273d7744adecf",
+      "consoles": [
+        "3ds",
+        "psp"
+      ],
+      "records": 27,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39285447608,
+      "source": "8a29965cbce456a4efe496cb52f1ebec36973cf9",
+      "consoles": [
+        "3ds",
+        "dolphin",
+        "psp"
+      ],
+      "records": 18,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39285456991,
+      "source": "8a29965cbce456a4efe496cb52f1ebec36973cf9",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 22,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39287261791,
+      "source": "76ec1082ff96997c7b42629629c292e443110ae1",
+      "consoles": [
+        "3ds",
+        "ps1"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "artifact_prefix": "hdtex486-repositories"
     }
   ]
 }

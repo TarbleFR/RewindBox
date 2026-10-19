@@ -1937,57 +1937,6 @@
   "family": "gc-star-fox-adventures-hd-cyb3rtr0n"
  },
  {
-  "id": "gc-splinter-cell-uhd",
-  "system": "gc",
-  "engine": "dolphin",
-  "title": "Tom Clancy's Splinter Cell UHD Texture Pack (DDS)",
-  "version": "see page",
-  "games": [
-   {
-    "title": "Tom Clancy's Splinter Cell",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-disc-game-id",
-      "value": "GCEE41"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "see the page"
-  ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-tom-clancy-s-splinter-cell-uhd-texture-pack",
-  "source_id": "dolphin-forum:tom-clancy-s-splinter-cell-uhd-texture-pack",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "notes": "DDS textures need a GPU that samples BC formats.",
-  "download": {
-   "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-tom-clancy-s-splinter-cell-uhd-texture-pack",
-   "file_name": "GCEE41_UHD Texture.7z",
-   "verify": {
-    "url": "https://mega.nz/file/TPJB0bQA#PZ1hXFwmlAD4qY2u9SDN5gm7PPrQMaRfkimHf9Mf2Os",
-    "sha256": "085ffcb3026d168252986696e6640d89082616fb6dfe9d30869fc8436e16bde0"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "GCEE41/",
-     "to": "GCEE41"
-    }
-   ]
-  },
-  "scope": "complete",
-  "family": "gc-splinter-cell-uhd"
- },
- {
   "id": "gc-luigis-mansion-hd-yourpalfox",
   "system": "gc",
   "engine": "dolphin",
@@ -2571,54 +2520,6 @@
   "family": "gc-mario-party-7-hd-ai-venomalia"
  },
  {
-  "id": "gc-ssx-tricky-hd-wip1",
-  "system": "gc",
-  "engine": "dolphin",
-  "title": "SSX Tricky HD Textures (WiP1, DDS)",
-  "version": "WiP1",
-  "games": [
-   {
-    "title": "SSX Tricky",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-region-free-id",
-      "value": "GST"
-     }
-    ]
-   }
-  ],
-  "authors": [
-   "see the page"
-  ],
-  "page_url": "https://forums.dolphin-emu.org/archive/index.php?thread-65555.html",
-  "source_id": "dolphin-forum:65555",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "notes": "First work-in-progress release. DDS textures need a GPU that samples BC formats.",
-  "download": {
-   "automatable": false,
-   "page": "https://forums.dolphin-emu.org/archive/index.php?thread-65555.html",
-   "file_name": "SSX.TRICKY-HD.TEXTURES-WiP1.7z",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1mMzvu6Hl2u8kECy1cFe_5ALyo59JOIxK/view",
-    "sha256": "540848ab6586c1a5d70b34b8b9d194780ce238c094d7835498c322d0aec2a228"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "GST/",
-     "to": "GST"
-    }
-   ]
-  },
-  "scope": "partial",
-  "family": "gc-ssx-tricky-hd"
- },
- {
   "id": "gc-sonic-heroes-ai-hd-png-chaotixsoda",
   "system": "gc",
   "engine": "dolphin",
@@ -2654,6 +2555,14 @@
     "url": "https://drive.google.com/file/d/1tLuPJW-UAxxExOR0LFyjuhNjZ6MUm5Dn/view?usp=drive_link",
     "sha256": "7a382ea40d21423cb1ad5c61f44dd3848951cf367b7e433139875ba9e4c68d67"
    }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Sonic Heroes AI HD Textures (PNG)/",
+     "to": "G9S"
+    }
+   ]
   },
   "scope": "complete",
   "family": "gc-sonic-heroes-ai-hd-chaotixsoda"
@@ -2734,6 +2643,14 @@
     "url": "https://drive.google.com/file/d/1ZmCffIxIz8JYhrfzCIPxK-iOIdPBSJAW/view?usp=sharing",
     "sha256": "e6c18e00b89e965d9590f77c946db7ba602a7c5db74207a921a281743a66b98c"
    }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Super Monkey Ball HD Textures (PNG)/",
+     "to": "GMB"
+    }
+   ]
   },
   "scope": "complete",
   "family": "gc-smb-hd-4x"
@@ -2834,6 +2751,14 @@
     "sha256": "9fe47581641745c7d701bd496de1a350e3e7bd3b94680a0e0db5d8f591254e45"
    }
   },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/GameID/",
+     "to": "GYW"
+    }
+   ]
+  },
   "scope": "complete",
   "family": "gc-harvest-moon-awl-kupo"
  },
@@ -2884,56 +2809,16 @@
     "sha256": "238acc64584f4bf76a4b97bb635c3f4e6187f780d071c60008a62d5743f9acd2"
    }
   },
-  "scope": "complete",
-  "family": "gc-harvest-moon-awl-kupo"
- },
- {
-  "id": "wii-paper-mario-64-hd-boolean",
-  "system": "wii",
-  "engine": "dolphin",
-  "title": "Paper Mario 64 HD Texture Pack (Virtual Console)",
-  "version": "1.3",
-  "games": [
-   {
-    "title": "Paper Mario (Virtual Console)",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-region-free-id",
-      "value": "NAE"
-     }
-    ]
-   }
-  ],
-  "authors": [
-   "BooLean"
-  ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-64-hd-texture-pack-v1-3-december-12-2021",
-  "source_id": "dolphin-forum:paper-mario-64-hd-texture-pack-v1-3-december-12-2021",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "notes": "For the Wii Virtual Console release. DDS textures need a GPU that samples BC formats.",
-  "download": {
-   "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-64-hd-texture-pack-v1-3-december-12-2021",
-   "file_name": "PaperMario64HD_v1.3.zip",
-   "verify": {
-    "url": "https://mega.nz/file/PnBSHTAA#GCwY6zfvBidqZSMFQat0XaX61wia7LlJHUCU9GmZ4FU",
-    "sha256": "0fb9b446f194e294162ac9dd6d26551cd57ae981fbb53be2a290c6b71d99bacb"
-   }
-  },
   "install": {
    "folders": [
     {
-     "from": "PaperMario64HD_v1.3/NAE/",
-     "to": "NAE"
+     "from": "Load/Textures/GameID/",
+     "to": "GYW"
     }
    ]
   },
   "scope": "complete",
-  "family": "wii-paper-mario-64-hd-boolean"
+  "family": "gc-harvest-moon-awl-kupo"
  },
  {
   "id": "wii-star-fox-64-hd-admentus-png",

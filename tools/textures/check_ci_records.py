@@ -37,8 +37,16 @@ def main():
     parser.add_argument('--repository', default='TarbleFR/neostation-ios')
     args = parser.parse_args()
     verified = records(args.verified)
+    runs = json.loads(Path(args.runs).read_text(encoding='utf-8'))['runs']
+    registered = {run['run'] for run in runs}
     checked = 0
-    for run in json.loads(Path(args.runs).read_text(encoding='utf-8'))['runs']:
+    for run in runs:
+        # A pack verified again by a later registered run (after a layout fix or a host quota):
+        # this run's record of it is no longer the one in verified.jsonl; the later run's is.
+        superseded = run.get('superseded', {})
+        for identifier, later in superseded.items():
+            if later not in registered or later <= run['run']:
+                raise SystemExit(f'run {run["run"]}: {identifier} superseded by an unregistered or earlier run {later}')
         count = 0
         with tempfile.TemporaryDirectory(prefix='hdtex-ci-') as folder:
             for console in run['consoles']:
@@ -52,6 +60,9 @@ def main():
                 if len(files) != 1:
                     raise SystemExit(f'{name}: expected one JSONL file, found {len(files)}')
                 for identifier, record in records(files[0]).items():
+                    if identifier in superseded:
+                        count += 1
+                        continue
                     if verified.get(identifier) != record:
                         raise SystemExit(f'{identifier}: verified.jsonl differs from run {run["run"]} ({console})')
                     count += 1
