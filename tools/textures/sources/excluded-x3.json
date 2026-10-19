@@ -246,6 +246,16 @@
  },
  {
   "console": "gc",
+  "source": "CUSTOM.ROBO-HD.TEXTURES-RELEASE.7z (https://drive.google.com/file/d/1vU5hHBUjiRVciBFykZ-7ZnnwG6n9Ohls/view)",
+  "reason": "Custom Robo HD, finished release: a 10.7 GB 7z beyond what the app installs (host run 39302744958: limits); the work-in-progress pack stays."
+ },
+ {
+  "console": "gc",
+  "source": "The_Dolphin_Communitys_PM_TTYD_HD_Texture_Pack_v2.5.zip (https://drive.google.com/file/d/1hu-MS2MkyynPyjEJbwlNYjKBHuJ86BVY/view?usp=drive_link)",
+  "reason": "Paper Mario TTYD HD v2.5, Google Drive ZIP: a Dolphin resource-pack copy (textures/G8M) of the DDS edition already catalogued."
+ },
+ {
+  "console": "gc",
   "source": "optional_versions_.7z (https://gamebanana.com/dl/858148)",
   "reason": "Sonic Riders DX texture pack V2, optional versions: alternatives for some textures of the catalogued pack, not a pack of their own."
  },
