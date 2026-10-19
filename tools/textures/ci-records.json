@@ -155,6 +155,18 @@
       "records": 23,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39295194320,
+      "source": "6d0eedf7c984865c126846a765c9e9fac615fd1b",
+      "consoles": [
+        "3ds",
+        "dolphin",
+        "psp"
+      ],
+      "records": 20,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }

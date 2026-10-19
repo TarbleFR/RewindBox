@@ -453,56 +453,6 @@
   "family": "psp-yugioh-5ds-tf5-hd-card-mod"
  },
  {
-  "id": "psp-swbf2-interface-facelift",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Star Wars Battlefront II — interface facelift",
-  "version": "1",
-  "games": [
-   {
-    "title": "Star Wars Battlefront II",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULUS10053"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "jcoolarts"
-  ],
-  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27336",
-  "source_id": "ppsspp-forum:27336",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.ppsspp.org/showthread.php?tid=27336",
-   "file_name": "StarWarsFaceliftV1.zip",
-   "verify": {
-    "url": "https://drive.google.com/file/d/16OeJUe-jkzro3tvFpcDQ4ctdYSHfBrJ2/view?usp=sharing",
-    "sha256": "8fdc321170c45325087433dd5db6b0a25270cf0e948febb020a94be015b76ed4"
-   }
-  },
-  "install": {
-   "folders": [
-    {
-     "from": "",
-     "to": "{id}"
-    }
-   ]
-  },
-  "scope": "ui",
-  "family": "psp-swbf2-interface-facelift"
- },
- {
   "id": "psp-persona2-is-hd-ui",
   "system": "psp",
   "engine": "ppsspp",

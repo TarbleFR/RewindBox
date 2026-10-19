@@ -216,6 +216,11 @@
  },
  {
   "console": "psp",
+  "source": "StarWarsFaceliftV1.zip (https://drive.google.com/file/d/16OeJUe-jkzro3tvFpcDQ4ctdYSHfBrJ2/view?usp=sharing)",
+  "reason": "Star Wars Battlefront II interface facelift (jcoolarts): 66 textures with no textures.ini, which the app requires for a PPSSPP pack (host run 39295194320, missingIni)."
+ },
+ {
+  "console": "psp",
   "source": "textures HD valkyria Chronicles 3.7z (https://drive.google.com/file/d/1HopnQu12Di8A1Lp5cdss38a08Jqsm_9f/view?usp=sharing)",
   "reason": "Valkyria Chronicles 3 Extra Edition AI upscaled (efonte): a file of seven textures from his thread, not the pack; his full pack is part of steccas' ReTranslation release, listed as a link."
  },
