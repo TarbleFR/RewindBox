@@ -48,7 +48,11 @@ Les enregistrements de ces runs sont recopiés depuis leurs journaux (le contene
 
 Mise au point de la sonde (échecs conservés) : le programme de remplacement attendait le bit 28 de GPUSTAT avant chaque mot, ce qui bloquait un quad (`INCMD_QUAD`) puis un transfert CPU→VRAM que Beetle ne démarre qu'avec ses trois mots (runs `39291452900`, `39293066511`, `39296323461`, marqueurs de progression en RAM) ; chaque commande attend désormais le bit 26 (GPU inactif) puis envoie tous ses mots.
 
-⟪résultat du run Simulateur final⟫
+Résultat : run `39302343072`, job `118230500429`, source `cc9f93a9` (iPhone SE 3e génération, iOS 26.2, Simulateur, 89,6 s) — les trois scénarios réussis :
+- `beetle-vulkan-frame` : Vulkan, garde `A1R5G5B5` (`features 0x0 lack 0x481`, balayage 32 bits), 584 images 256 × 240 ; programme à 85 boucles ; drawable 750 × 1334 : rectangle `f80000` exactement sur les cellules 4–11 / 4–11 de la grille, fond `202020` autour ;
+- `beetle-vulkan-pack` : `replace=on recognized=5` dès le rendu prêt et après 297 images (11 fichiers écrits, dont 6 que le cœur ignore) ; les 13 vérifications de cycle de vie réussies ; même image ;
+- `beetle-vulkan-off` : `replace=off`, les 5 fichiers toujours listés, même image ; aucun dump.
+`applied` reste 0 partout : aucune texture n'est envoyée, donc aucune n'est remplacée (voir ci-dessus). Ce n'est pas une validation sur iPhone.
 
 ## 5. Vérifications
 
