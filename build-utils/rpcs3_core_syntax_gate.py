@@ -15,6 +15,8 @@ UNITS = {'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
          'RPCS3IOSFreezeDump.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1
          'System.cpp', 'sys_game.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D3/D4)
          'overlay_home_menu_savestate.cpp', 'overlay_home_menu_main_menu.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D4)
+         'RSXThread.cpp', 'sys_mutex.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D1/rsx counter, D5)
+         'RPCS3IOSExperimentalPolicy.cpp', 'RPCS3IOSSettings.cpp', 'system_config_types.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2/L3/L5/L9)
          'VKProgramPipeline.cpp', 'fsr_pass.cpp', 'SourceClient.cpp', 'cellVdec.cpp'}
 
 def main(database: Path) -> None:
