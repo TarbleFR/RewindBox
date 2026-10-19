@@ -60,7 +60,11 @@ Résultat : run `39302343072`, job `118230500429`, source `cc9f93a9` (iPhone SE 
 
 ## 6. Limites
 
-⟪limites⟫
+- **Rendu en jeu.** Aucun pack de ce cycle n'a été chargé dans un jeu sur un iPhone : « installable » veut dire archive et installation vérifiées par le code de l'application en CI, jamais « rendu vérifié en jeu » (0 pack dans cet état).
+- **Objectif 3 × N0.** Atteint pour la 3DS seulement ; l'écart du GameCube, de la Wii et du total est publié au § 1 et n'est comblé par aucun pack inventé. Les 637 liens PS2 de ps2ktxpak restent des liens (pages GBAtemp refusées aux lectures automatiques : HTTP 403), la PS2 ne gagne donc aucun pack installable.
+- **Hôtes.** Pages qui refusent une lecture automatique (GBAtemp HTTP 403, défi anti-robot de MediaFire, Discord, Patreon), quotas Google Drive, fichiers MEGA retirés : jamais contournés ; les packs concernés restent des liens ou des exclusions motivées (`tools/textures/sources/excluded*.json`).
+- **Beetle PSX HW.** Dans le Simulateur, aucune texture n'est envoyée au GPU (copies CPU→VRAM refusées par son Metal) : remplacement à l'écran, chargement d'état en Vulkan, changement de disque d'un M3U et cartes mémoire pendant un remplacement restent à vérifier sur l'iPhone. Le rendu Vulkan sur un GPU d'iPhone (format `A1R5G5B5` pris en charge, garde inactive) n'a été exercé par aucun essai automatique. Un seul pack PS1 au format de Beetle est catalogué ; les packs DuckStation ne sont ni convertis ni proposés.
+- **Version d'iOS** de l'iPhone de test toujours inconnue ; aucune mesure de mémoire ou de température avec un pack chargé.
 
 ## 7. Livraison Build 489
 
