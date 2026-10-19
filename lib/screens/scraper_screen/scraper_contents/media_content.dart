@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/game_box_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -34,7 +35,12 @@ class MediaContentState extends State<MediaContent> {
     'box2D',
     'video',
     'manuel',
+    // Back, spine and support of the 3D boxes (docs/game-box-3d.md § 5).
+    'boxFaces',
   ];
+
+  /// Number of media rows, for the screen's gamepad navigation.
+  static int get itemCount => _orderedKeys.length;
   final AdaptiveScroller _scroller = AdaptiveScroller();
   final List<GlobalKey> _itemKeys = List.generate(
     _orderedKeys.length,
@@ -88,6 +94,8 @@ class MediaContentState extends State<MediaContent> {
         return AppLocale.scrapeVideo.getString(context);
       case 'manuel':
         return AppLocale.manual.getString(context);
+      case 'boxFaces':
+        return GameBoxLocale.text(context, GameBoxLocale.scrapeBoxFaces);
       default:
         return key;
     }
@@ -107,6 +115,8 @@ class MediaContentState extends State<MediaContent> {
         return AppLocale.scrapeVideoDesc.getString(context);
       case 'manuel':
         return AppLocale.scrapeManualDesc.getString(context);
+      case 'boxFaces':
+        return GameBoxLocale.text(context, GameBoxLocale.scrapeBoxFacesDesc);
       default:
         return '';
     }

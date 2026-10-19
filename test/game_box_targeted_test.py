@@ -43,6 +43,9 @@ PRODUCT = sorted({
     'lib/services/screenscraper_service.dart',
     'lib/services/screenscraper/media_downloader.dart',
     'lib/services/screenscraper/media_resolver.dart',
+    'lib/screens/scraper_screen/scraper_contents/media_content.dart',
+    'lib/screens/scraper_screen/new_scraper_options_screen.dart',
+    'lib/utils/artwork_cache.dart',
     'pubspec.yaml',
 } | _files('lib/services/game_box', 'lib/widgets/game_box', 'lib/screens/game_box', 'packages/neo_box_reader'))
 
@@ -68,6 +71,10 @@ DART_TESTS = [
     'test/rainbow_selection_fairy_test.dart',
     'test/ios_selective_rollback_test.dart',
     'test/storage_orphan_detector_test.dart',
+    'test/artwork_cache_test.dart',
+    'test/scraper_repository_test.dart',
+    'test/new_scraper_options_screen_test.dart',
+    'test/gamepad_settings_scrolling_test.dart',
 ]
 
 ANALYZED = [p for p in PRODUCT if p.endswith('.dart')] + [p for p in DART_TESTS if p.startswith('test/game_box')]

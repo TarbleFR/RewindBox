@@ -6,6 +6,9 @@ import 'package:neostation/models/game_model.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_regions.dart';
+import 'package:neostation/services/screenscraper/media_downloader.dart';
+import 'package:neostation/services/screenscraper/media_resolver.dart';
+import 'package:neostation/utils/artwork_cache.dart';
 import 'package:path/path.dart' as p;
 
 class _TestFileProvider extends FileProvider {
@@ -155,6 +158,24 @@ void main() {
       expect(GameBoxMediaSelection.backForLanguage(m, 'ja')!.entry.region, 'jp');
       expect(GameBoxMediaSelection.backForLanguage(m, 'id'), isNull, reason: 'no Indonesian edition: translated reading');
       expect(GameBoxMediaSelection.backForLanguage(m, 'de'), isNull);
+    });
+  });
+
+  group('scraping', () {
+    test('the Box faces setting downloads back, spine and support into their folders', () {
+      expect(ScreenscraperMediaDownloader.expandMediaTypes(['box2D', 'boxFaces', 'manuel']),
+          ['box2D', 'box-2D-back', 'box-2D-side', 'support-2D', 'manuel']);
+      expect(ScreenscraperMediaDownloader.expandMediaTypes(['boxFaces', 'box-2D-back']),
+          ['box-2D-back', 'box-2D-side', 'support-2D']);
+      expect(ScreenscraperMediaResolver.mapMediaTypeToFolder('box-2D-back'), GameBoxMediaFolders.back);
+      expect(ScreenscraperMediaResolver.mapMediaTypeToFolder('box-2D-side'), GameBoxMediaFolders.spine);
+      expect(ScreenscraperMediaResolver.mapMediaTypeToFolder('support-2D'), GameBoxMediaFolders.support);
+      expect(scrapedArtworkTypes, containsAll([GameBoxMediaFolders.back, GameBoxMediaFolders.spine, GameBoxMediaFolders.support]));
+      final best = ScreenscraperMediaResolver.selectBestMedia(
+        [_ss('box-2D-back', 'jp'), _ss('box-2D-back', 'us')], 'box-2D-back',
+        regionPriority: {'us': 90, 'jp': 70},
+      );
+      expect(best!['region'], 'us');
     });
   });
 
