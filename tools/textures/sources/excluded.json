@@ -131,8 +131,8 @@
  },
  {
   "console": "3ds",
-  "source": "Henriko Magnifico 4K packs (Ocarina of Time 3D, Majora's Mask 3D, A Link Between Worlds, Super Mario 3D Land)",
-  "reason": "Distributed through the author's site and Patreon, not reachable from the verification environment."
+  "source": "Henriko Magnifico 4K packs not fetched by the CI probes of this cycle (A Link Between Worlds, Super Mario 3D Land, Luigi's Mansion, Pikmin 2, Skyward Sword Wii edition, Twilight Princess, Wind Waker)",
+  "reason": "Free downloads linked from the author's site; their Drive files were listed but not yet fetched and installed on CI (Ocarina of Time 3D, Majora's Mask 3D, Super Mario Sunshine, Pikmin and Wii Sports are catalogued from the same Drive folders)."
  },
  {
   "console": "3ds",

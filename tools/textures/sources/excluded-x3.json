@@ -73,5 +73,90 @@
   "console": "psp",
   "source": "VC3_ReTL_texture_addon.zip (https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/download/v1/VC3_ReTL_texture_addon.zip)",
   "reason": "Valkyria Chronicles 3 Extra Edition ReTranslation texture add-on: one of the four parts (7.3 GB) of steccas' release, which also redistributes efonte's pack; it stays a manual link (psp-valkyria-chronicles-3-ee-retranslation-steccas)."
+ },
+ {
+  "console": "wii",
+  "source": "Xbox One Controller.7z (https://www.dropbox.com/s/6hkkjl1pgnk40q9/Xbox%20One%20Controller.7z?dl=0)",
+  "reason": "Super Smash Bros. HD Retexture Project: Xbox One button add-on (16 files, no game folder); the base pack itself was not reachable."
+ },
+ {
+  "console": "gc",
+  "source": "GMS - FULL.7z (https://drive.google.com/file/d/1W8wEcak_SLKkPxUmVcyx5UuJ6YcxG8X8/view?usp=sharing)",
+  "reason": "razius' Super Mario Sunshine hires pack: the earlier release of the UHD pack already catalogued from its continuation (qashto's GitHub releases); an older version is not counted."
+ },
+ {
+  "console": "gc",
+  "source": "GMS MipMaps.7z (https://drive.google.com/file/d/1MLVO6DqN76EfsPQHjrYkmDFD-xpP0jZz/view?usp=sharing)",
+  "reason": "razius' Super Mario Sunshine mipmaps: an add-on of the same earlier release."
+ },
+ {
+  "console": "wii",
+  "source": "NSMBW_HD_v2.8_PNG.7z (https://mega.nz/#!LiBBAIYS!RPWMYygIfRN6rDnL4gqWRUy311AI8CxXG7Fwjq7ax_E)",
+  "reason": "Bighead's NSMBW HD v2.8 re-posted on Moukrea's thread: older than v2.81, already catalogued."
+ },
+ {
+  "console": "gc",
+  "source": "DC Texture Pack Bonus.zip (https://drive.google.com/file/d/1jMunp76lAoSlT2-Kc0BD-icGC0WyHXLl/view)",
+  "reason": "San Francisco Rush 2049 bonus files (music, alternate cars, editor files): no game folder."
+ },
+ {
+  "console": "wii",
+  "source": "xbox_controls.zip (https://gamebanana.com/dl/1143414)",
+  "reason": "Sonic and the Black Knight Xbox controls: a Dolphin controller profile, no texture."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Blue Boshi Alt  by Thym.zip (https://drive.google.com/file/d/11GJ1oecEPDSRa8ogG9mMdjs30SZfH26F/view)",
+  "reason": "Paper Mario TTYD \"Blue Boshi\" alternative: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Christmas Alts by Thym.zip (https://drive.google.com/file/d/1KAzvM_e1r9U9K5IeoM9byb-zzGwakRah/view)",
+  "reason": "Paper Mario TTYD Christmas alternatives: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Dark Bowser Alt by Thym.zip (https://drive.google.com/file/d/18NyQlLYGWeL15jHGn0ARaP6K_sudtrO-/view)",
+  "reason": "Paper Mario TTYD Dark Bowser alternative: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Glitzville Alternate Posters by viola-kazooie.zip (https://drive.google.com/file/d/1V2wgHBwG7KOkQ7Oye4YTnYIaYHIBRwUl/view)",
+  "reason": "Paper Mario TTYD Glitzville posters: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "3ds",
+  "source": "3.01.7z (https://drive.google.com/file/d/1ViQcqgxB_z4Am0kHyvmTkh3AA6ALk6oh/view)",
+  "reason": "Monster Hunter 4 Ultimate HD 3.01: an incremental update of v3.0 without a title folder, made to be copied over it."
+ },
+ {
+  "console": "3ds",
+  "source": "3.02.7z (https://drive.google.com/file/d/1dJo2m1JG_QBtHcjDLf08-9uQQrjY5HYl/view)",
+  "reason": "Monster Hunter 4 Ultimate HD 3.02: an incremental update of v3.0 without a title folder, made to be copied over it."
+ },
+ {
+  "console": "3ds",
+  "source": "3.03.7z (https://drive.google.com/file/d/1tTnNJA2PIBscYoYL3Pndi8pTKtEmymue/view)",
+  "reason": "Monster Hunter 4 Ultimate HD 3.03: an incremental update of v3.0 without a title folder, made to be copied over it."
+ },
+ {
+  "console": "gc",
+  "source": "Ma Party Shared 4-7 HD.7z (https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/Ds83mCAT)",
+  "reason": "Mario Party Shared 4-7 HD: textures shared by four game packs, a dependency of each (one pack folder per game)."
+ },
+ {
+  "console": "psp",
+  "source": "new-20220907-comlete.zip (https://mega.nz/folder/mhhyWRgL#g2FzgUTfoKEQx5Eb0BVc5w/file/jsp2SYjB)",
+  "reason": "Unidentified MEGA folder file (bare hashed PNG names, no textures.ini, no page): the game cannot be established."
+ },
+ {
+  "console": "3ds",
+  "source": "devil_survivor_overclocked_hd_addon.zip (https://gamebanana.com/dl/1154178)",
+  "reason": "Devil Survivor Overclocked HD add-on: files meant to be added to another pack, without a title-ID folder."
+ },
+ {
+  "console": "3ds",
+  "source": "Misc.zip (https://drive.google.com/file/d/1ibzv8vwcxRrNKEzvHP9vVP_AzOF5KFXH/view)",
+  "reason": "Shin Megami Tensei IV (Kasaski) 'Misc': four loose textures, one part of a pack published in several files."
  }
 ]

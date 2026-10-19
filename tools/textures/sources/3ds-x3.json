@@ -1186,5 +1186,177 @@
   },
   "scope": "partial",
   "family": "3ds-soul-hackers-hd-demons-aspenvesper"
+ },
+ {
+  "id": "3ds-oot3d-4k-henriko-1080p",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Ocarina of Time 3D 4K (1080p)",
+  "version": "5.0a",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000033500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-ocarina-of-time-3d-4k",
+  "source_id": "henrikomagnifico:zelda-ocarina-of-time-3d-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-ocarina-of-time-3d-4k",
+   "file_name": "OOT3D 4K 5.0a (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1Jg6scTCTkhAWhloJ22xdY6AvSYGzEvzz/view",
+    "sha256": "d68ad55f3067a0a89e21bab2fe5ae37e0847ff74b086965da6b0ed34b7693983"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-oot3d-4k-henriko"
+ },
+ {
+  "id": "3ds-oot3d-4k-henriko-4k",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Ocarina of Time 3D 4K (4K)",
+  "version": "5.0a",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000033500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-ocarina-of-time-3d-4k",
+  "source_id": "henrikomagnifico:zelda-ocarina-of-time-3d-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings. 4 GB.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-ocarina-of-time-3d-4k",
+   "file_name": "OOT3D 4K 5.0a (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1sX44p03YvCpVWUQjpwUUAX3s5K0QHwcU/view",
+    "sha256": "80e8612b58d847a7cc885635b377eba145a629c74c9433b87ea9c4a7420c98e5"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-oot3d-4k-henriko"
+ },
+ {
+  "id": "3ds-mm3d-4k-henriko-1080p",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Majora's Mask 3D 4K (1080p)",
+  "version": "3.0b-1",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-majoras-mask-3d-4k",
+  "source_id": "henrikomagnifico:zelda-majoras-mask-3d-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-majoras-mask-3d-4k",
+   "file_name": "MM 3D 4K 3.0b-1 (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1I_QuBQX-_TTKCkS0MHho73ApKFfyckh6/view",
+    "sha256": "ceaee06385ab09231dd9fde7813d055492dda942e95ca3b4486aa05c5b7e59d4"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-mm3d-4k-henriko"
+ },
+ {
+  "id": "3ds-mm3d-4k-henriko-4k",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Majora's Mask 3D 4K (4K)",
+  "version": "3.0b-1",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-majoras-mask-3d-4k",
+  "source_id": "henrikomagnifico:zelda-majoras-mask-3d-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings. 3.7 GB.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-majoras-mask-3d-4k",
+   "file_name": "MM 3D 4K 3.0b-1 (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1dvDvcKDXuW2pBQI7r1ZX5n3B8_QmqInZ/view",
+    "sha256": "04f46c121d15b01caf272f3e0c508da877c573c1f2e206bfda336fccd866037e"
+   }
+  },
+  "scope": "complete",
+  "family": "3ds-mm3d-4k-henriko"
  }
 ]

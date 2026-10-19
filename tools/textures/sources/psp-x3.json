@@ -21,7 +21,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "ryuubu"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=28838",
   "source_id": "ppsspp-forum:28838",
@@ -71,7 +71,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "ryuubu"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=26691",
   "source_id": "ppsspp-forum:26691",
@@ -121,7 +121,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "Abbanon"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=24959",
   "source_id": "ppsspp-forum:24959",
@@ -171,7 +171,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "CelticSpike"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=26873",
   "source_id": "ppsspp-forum:26873",
@@ -221,7 +221,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "FunnyNameXYZ"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=37842",
   "source_id": "ppsspp-forum:37842",
@@ -271,7 +271,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "ThePunisher009"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=40782",
   "source_id": "ppsspp-forum:40782",
@@ -322,7 +322,7 @@
    }
   ],
   "authors": [
-   "see the page"
+   "ThePunisher009"
   ],
   "page_url": "https://forums.ppsspp.org/showthread.php?tid=38996",
   "source_id": "ppsspp-forum:38996",
@@ -350,5 +350,55 @@
   },
   "scope": "complete",
   "family": "psp-fate-extra-ccc-hd-lite"
+ },
+ {
+  "id": "psp-star-wars-battlefront-2-hd",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Star Wars Battlefront II HD Textures",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Star Wars Battlefront II",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10053"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=25019",
+  "source_id": "ppsspp-forum:25019",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=25019",
+   "file_name": "ULUS10053.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1inQF0pWEvwwZ1PeEo3Q1Mj6r7lyoOA2Z/view?usp=sharing",
+    "sha256": "8872dc4c3e9d3de65f78f7309509d8c0b27d34af0eeaf41157de30fcb6d4b545"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ULUS10053/",
+     "to": "ULUS10053"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "psp-star-wars-battlefront-2-hd"
  }
 ]
