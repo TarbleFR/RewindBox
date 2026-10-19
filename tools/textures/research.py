@@ -796,7 +796,8 @@ def main():
         selected.append({'id': f'X{index + 1:03d}', 'console': 'extra', 'title': title, 'url': url, 'provenance': []})
     found = []
     for query in (q for q in args.gbsearch.split('|') if q.strip()):
-        found += [url for url in gamebanana_search(query.strip()) if url not in found]
+        # '+' stands for a space (the workflow input is split on whitespace).
+        found += [url for url in gamebanana_search(query.strip().replace('+', ' ')) if url not in found]
     known = {r['url'] for r in references} | {u for r in references for u in r.get('provenance', [])}
     for index, url in enumerate(u for u in found if u not in known):
         selected.append({'id': f'G{index + 1:03d}', 'console': 'gamebanana', 'title': url, 'url': url, 'provenance': []})
