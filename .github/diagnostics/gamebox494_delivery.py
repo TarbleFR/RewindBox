@@ -113,7 +113,16 @@ def source_closure():
 rpc_core_input_view=previous.rpc_core_input_view
 validate_rpc_core_identity=previous.validate_rpc_core_identity
 validate_rpc_core_pin=previous.validate_rpc_core_pin
-part_run=previous.part_run
+
+
+def shown_job_name(name):
+    # GitHub lists a job whose name is longer than 100 characters under its
+    # first 97 characters followed by '...' (the native part's name is 106).
+    return name if len(name)<=100 else name[:97]+'...'
+
+
+def part_run(run_id,ref,name):
+    return previous.part_run(run_id,ref,shown_job_name(name))
 
 
 def evidence():
