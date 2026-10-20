@@ -770,6 +770,26 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39475381324,
+      "source": "0ed658654bd6edbb44257762421d7867d79d26b7",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, only the new PS1 original archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39475695835,
+      "source": "070557e734dec9c1aa064fea11967afc525b9148",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, only the new PS1 original archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }

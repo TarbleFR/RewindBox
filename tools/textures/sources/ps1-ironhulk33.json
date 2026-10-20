@@ -5,7 +5,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Ballistic HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Ballistic",
@@ -18,13 +18,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/unbhejetyrrcho3/Ballistic%20%28USA%29.zip/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -32,7 +33,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Ballistic (USA).zip",
@@ -40,7 +41,8 @@
         "url": "https://www.mediafire.com/file/unbhejetyrrcho3/Ballistic%20%28USA%29.zip/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-klonoa-beach-volleyball",
@@ -48,7 +50,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Klonoa Beach Volleyball HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Klonoa Beach Volleyball",
@@ -61,13 +63,14 @@
         ],
         "regions": [
           "Europe"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/kdo2h1me5alxmex/Klonoa%20Beach%20Volleyball%20%28Europe%29.zip/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -75,7 +78,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Klonoa Beach Volleyball (Europe).zip",
@@ -83,7 +86,8 @@
         "url": "https://www.mediafire.com/file/kdo2h1me5alxmex/Klonoa%20Beach%20Volleyball%20%28Europe%29.zip/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-m-ms-shell-shocked",
@@ -91,7 +95,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "M&M's - Shell Shocked HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "M&M's - Shell Shocked",
@@ -104,13 +108,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/ucl9hmsp1usy34o/M%26M%27s%20-%20Shell%20Shocked%20%28USA%29.zip/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -118,7 +123,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "M&M's - Shell Shocked (USA).zip",
@@ -126,7 +131,8 @@
         "url": "https://www.mediafire.com/file/ucl9hmsp1usy34o/M%26M%27s%20-%20Shell%20Shocked%20%28USA%29.zip/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-namco-museum-vol-1-beetle",
@@ -134,7 +140,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Namco Museum Vol. 1 HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Namco Museum Vol. 1",
@@ -147,13 +153,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/ovc9phx9d23uly7/Namco%20Museum%20Vol.%201%20%28USA%29.zip/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -161,7 +168,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Namco Museum Vol. 1 (USA).zip",
@@ -169,7 +176,8 @@
         "url": "https://www.mediafire.com/file/ovc9phx9d23uly7/Namco%20Museum%20Vol.%201%20%28USA%29.zip/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-namco-museum-vol-2-beetle",
@@ -177,7 +185,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Namco Museum Vol. 2 HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Namco Museum Vol. 2",
@@ -190,13 +198,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/l9dmknu9y64ybum/Namco%20Museum%20Vol.%202%20%28USA%29.7z/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -204,7 +213,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Namco Museum Vol. 2 (USA).7z",
@@ -212,7 +221,8 @@
         "url": "https://www.mediafire.com/file/l9dmknu9y64ybum/Namco%20Museum%20Vol.%202%20%28USA%29.7z/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-scooby-doo-and-the-cyber-chase",
@@ -220,7 +230,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Scooby-Doo and the Cyber Chase HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Scooby-Doo and the Cyber Chase",
@@ -233,13 +243,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/bafhu64kemeyz1t/Scooby-Doo%20and%20the%20Cyber%20Chase%20%28USA%29.7z/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -247,7 +258,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Scooby-Doo and the Cyber Chase (USA).7z",
@@ -255,7 +266,8 @@
         "url": "https://www.mediafire.com/file/bafhu64kemeyz1t/Scooby-Doo%20and%20the%20Cyber%20Chase%20%28USA%29.7z/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-sesame-street-elmos-letter-adventure-beetle",
@@ -263,7 +275,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Sesame Street - Elmo's Letter Adventure HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Sesame Street - Elmo's Letter Adventure",
@@ -276,13 +288,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/lgqz3dd4czn2se4/Sesame%20Street%20-%20Elmo%27s%20Letter%20Adventure%20%28USA%29.7z/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -290,7 +303,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Sesame Street - Elmo's Letter Adventure (USA).7z",
@@ -298,7 +311,8 @@
         "url": "https://www.mediafire.com/file/lgqz3dd4czn2se4/Sesame%20Street%20-%20Elmo%27s%20Letter%20Adventure%20%28USA%29.7z/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-sesame-street-elmos-number-journey-beetle",
@@ -306,7 +320,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Sesame Street - Elmo's Number Journey HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Sesame Street - Elmo's Number Journey",
@@ -319,13 +333,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/13c2qatex2d7tti/Sesame%20Street%20-%20Elmo%27s%20Number%20Journey%20%28USA%29.7z/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -333,7 +348,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Sesame Street - Elmo's Number Journey (USA).7z",
@@ -341,7 +356,8 @@
         "url": "https://www.mediafire.com/file/13c2qatex2d7tti/Sesame%20Street%20-%20Elmo%27s%20Number%20Journey%20%28USA%29.7z/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-sesame-street-sports-beetle",
@@ -349,7 +365,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Sesame Street Sports HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Sesame Street Sports",
@@ -362,13 +378,14 @@
         ],
         "regions": [
           "USA"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/bu3vz9udocrxoav/Sesame%20Street%20Sports%20%28USA%29.7z/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -376,7 +393,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Sesame Street Sports (USA).7z",
@@ -384,7 +401,8 @@
         "url": "https://www.mediafire.com/file/bu3vz9udocrxoav/Sesame%20Street%20Sports%20%28USA%29.7z/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   },
   {
     "id": "ps1-ironhulk33-strikers-1945",
@@ -392,7 +410,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Strikers 1945 HD — ironhulk33",
-    "version": "author archive 2026-10-20",
+    "version": "author archive (version unstated)",
     "games": [
       {
         "title": "Strikers 1945",
@@ -405,13 +423,14 @@
         ],
         "regions": [
           "Japan"
-        ]
+        ],
+        "confirm": true
       }
     ],
     "authors": [
       "ironhulk33"
     ],
-    "page_url": "https://gbatemp.net/threads/my-texture-packs.661159/",
+    "page_url": "https://www.mediafire.com/file/k0bd4qmlurumpvr/Strikers%201945%20%28Japan%29.7z/file",
     "source_id": "author:ironhulk33",
     "licence": {
       "summary": "No redistribution licence stated by the author.",
@@ -419,7 +438,7 @@
     },
     "credits": "ironhulk33",
     "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
-    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established.",
+    "notes": "Original archive from the author's public PS1 / Beetle PSX HW collection. This is distinct from the DuckStation collection. Only the region named by the archive is listed. Complete visual coverage has not been established. Download from the original file page and import manually. The archive has not passed automatic installation verification; no integrated download is advertised.",
     "download": {
       "automatable": false,
       "file_name": "Strikers 1945 (Japan).7z",
@@ -427,6 +446,7 @@
         "url": "https://www.mediafire.com/file/k0bd4qmlurumpvr/Strikers%201945%20%28Japan%29.7z/file"
       }
     },
-    "scope": "partial"
+    "scope": "partial",
+    "source_url": "https://gbatemp.net/threads/my-texture-packs.661159/"
   }
 ]

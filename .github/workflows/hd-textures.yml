@@ -29,7 +29,7 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct, direct-native, delivery498]
+        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct, direct-native, ps1, delivery498]
         default: all
       only:
         description: 'repositories/releases/hosts: pack ids; direct-native: providers,store,sdk,network checks'
@@ -403,6 +403,52 @@ jobs:
           path: |
             build/hd-direct400/*.json
             build/hd-direct400/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  ps1_catalogue:
+    name: PS1 catalogue generation, provenance and preserved entries
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Exact catalogue, original CI observations and manual boundaries
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          python3 tools/textures/build_catalogue.py --check
+          python3 test/texture_direct_host_publication_test.py
+          python3 tools/textures/check_ci_records.py
+          python3 tools/textures/check_ps1_expansion.py --output build/hd-ps1/publication.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-ps1-publication-${{ github.sha }}
+          path: build/hd-ps1/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ps1_native:
+    name: PS1 bundled catalogue and regional matching on Foundation
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1' }}
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Production catalogue, store, adapters and PS1 disc matches
+        run: |
+          set -o pipefail
+          mkdir -p build/hd-ps1
+          python3 test/texture_catalog_native_test.py 2>&1 | tee build/hd-ps1/native.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-ps1-native-${{ github.sha }}
+          path: build/hd-ps1/
           if-no-files-found: warn
           retention-days: 14
 

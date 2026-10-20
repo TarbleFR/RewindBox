@@ -115,6 +115,17 @@ def probes(index):
     probe(ps2, 'armsx2', exact=['ps2-mgs2-hd-ui-nathanhigley'])
     pal = {**ps2, 'identities': [{'type': 'serial', 'scheme': 'ps2-disc-serial', 'value': 'SLES-50383'}], 'regions': ['Europe']}
     probe(pal, 'armsx2', candidate=['ps2-mgs2-hd-ui-nathanhigley'])  # another region: never assumed compatible
+    ps1 = lambda value, title: {'system': 'ps1', 'title': title,
+                               'identities': [{'type': 'serial', 'scheme': 'ps1-disc-serial', 'value': value}]}
+    kyaro = 'ps1-faospark-suikoden-ii-project-kyaro'
+    paw = 'ps1-linnaealyn-xenogears-perfect-art-works'
+    probe(ps1('SLUS-00958', 'Suikoden II'), 'beetle', exact=[kyaro], absent=[paw])
+    probe(ps1('SLES-02444', 'Suikoden II'), 'beetle', candidate=[kyaro])  # USA archive does not prove PAL
+    probe(ps1('SLUS-00669', 'Xenogears'), 'beetle', exact=[paw],
+          candidate=['ps1-shining-red-xenogears-hd-portraits-project', 'ps1-1vierock-xenogears-hd-4k-remaster'])
+    probe(ps1('SLPS-01160', 'Xenogears'), 'beetle', exact=[paw])  # author explicitly includes JP
+    probe(ps1('SCES-03922', 'Klonoa Beach Volleyball'), 'beetle',
+          candidate=['ps1-ironhulk33-klonoa-beach-volleyball'])  # public listing, archive verification blocked
     return wanted
 
 

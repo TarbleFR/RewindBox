@@ -151,6 +151,28 @@ bad_entry, bad_record = copy.deepcopy(entry), copy.deepcopy(record)
 bad_record['host'] = 'unimplemented-provider'
 rejects(bad_entry, bad_record, 'not a reviewed stable original download')
 
+# PAW is served directly by its creator's Xenogears community host. The
+# published URL has remained the original page's download link; it needs no
+# resolver. Promotion must retain the real CI archive and default-only plan.
+paw_id = 'ps1-linnaealyn-xenogears-perfect-art-works'
+if paw_id in by_id and records.get(paw_id, {}).get('status') == 'ok':
+    paw_source, paw_record = copy.deepcopy(by_id[paw_id]), copy.deepcopy(records[paw_id])
+    paw = published(paw_source, paw_record)
+    assert paw['availability'] == 'available'
+    assert paw['download']['parts'] == paw_record['parts']
+    assert paw['install']['files'] == 399
+    assert paw['install']['folders'] == [{'from': '[your .cue or .m3u file name here]-texture-replacements/', 'to': '{id}'}]
+    original = paw_source['download']['verify']['url']
+    for url in (
+            original.replace('lifehold.godsibb.net/', 'lifehold.godsibb.net.evil.invalid/'),
+            original.replace('/seafhttp/f/', '/accounts/login/'),
+            original.replace('?op=view', '?op=delete'),
+            original + '&redirect=https://evil.invalid/',
+            original.replace('https://', 'https://user:password@')):
+        unsafe_source, unsafe_record = copy.deepcopy(paw_source), copy.deepcopy(paw_record)
+        unsafe_source['download']['verify']['url'] = unsafe_record['parts'][0]['url'] = url
+        rejects(unsafe_source, unsafe_record, 'not a reviewed stable original download')
+
 # Actual SotC creator archive metadata uses Drive's /u/0/uc account-context
 # alias. Canonicalising that path must not rewrite the observed source URL,
 # file ID, query/access key, size or SHA, nor invent an installation success.

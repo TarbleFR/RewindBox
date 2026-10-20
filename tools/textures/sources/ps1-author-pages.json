@@ -1,0 +1,523 @@
+[
+  {
+    "id": "ps1-1vierock-breath-of-fire-iii-hd",
+    "family": "ps1-1vierock-breath-of-fire-iii-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Breath of Fire III HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Breath of Fire III",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00422"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/breath-of-fire-3",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-breath-of-fire-iv-hd",
+    "family": "ps1-1vierock-breath-of-fire-iv-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Breath of Fire IV HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Breath of Fire IV",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01324"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/breath-of-fire-iv-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-legend-of-legaia-hd",
+    "family": "ps1-1vierock-legend-of-legaia-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Legend of Legaia HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Legend of Legaia",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SCUS-94254"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/legend-of-legaia",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-mega-man-legends-hd",
+    "family": "ps1-1vierock-mega-man-legends-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Mega Man Legends HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Mega Man Legends",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00603"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/mega-man-legend-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-parasite-eve-hd",
+    "family": "ps1-1vierock-parasite-eve-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Parasite Eve HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Parasite Eve",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00662"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00668"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/parasite-eve-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. The creator publishes four parts of one 7z archive; all parts and external extraction are required. No integrated multipart import is advertised.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-saga-frontier-2-hd",
+    "family": "ps1-1vierock-saga-frontier-2-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "SaGa Frontier 2 HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "SaGa Frontier 2",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00933"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/saga-frontier-2-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-tales-of-eternia-hd",
+    "family": "ps1-1vierock-tales-of-eternia-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Tales of Eternia / Tales of Destiny II HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Tales of Eternia / Tales of Destiny II",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01355"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01367"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01368"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/tales-of-eternia",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-vagrant-story-hd",
+    "family": "ps1-1vierock-vagrant-story-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Vagrant Story HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Vagrant Story",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01040"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/vagrant-story-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-vandal-hearts-hd",
+    "family": "ps1-1vierock-vandal-hearts-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Vandal Hearts HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Vandal Hearts",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00447"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/vandal-hearts-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-wild-arms-2-hd",
+    "family": "ps1-1vierock-wild-arms-2-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Wild Arms 2 HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Wild Arms 2",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SCUS-94484"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SCUS-94498"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/wild-arms-2-hd",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-1vierock-xenogears-hd-4k-remaster",
+    "family": "ps1-1vierock-xenogears-hd-4k-remaster",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Xenogears HD — 1vierock",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Xenogears",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00664"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00669"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "1vierock"
+    ],
+    "page_url": "https://www.vierockhd.com/ps1/xenogears",
+    "source_id": "author:1vierock",
+    "source_url": "https://www.vierockhd.com/ps1",
+    "licence": {
+      "summary": "Author's own distribution terms; no redistribution permission stated.",
+      "redistribution": "Open the original creator page for access conditions; NeoStation neither hosts the files nor grants access to shop content."
+    },
+    "credits": "1vierock",
+    "requirements": "Author specifies Beetle PSX HW with Vulkan texture replacement.",
+    "notes": "The author specifies Beetle PSX HW. Original author page only; its archive, size and installation have not been verified. The listed USA disc identities are candidates and do not establish regional texture coverage. Download access is handled by the author's Ko-fi shop under its current terms.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-shining-red-xenogears-hd-portraits-project",
+    "family": "ps1-shining-red-xenogears-hd-portraits-project",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Xenogears HD Portraits Project — Shining Red",
+    "version": "1.4",
+    "games": [
+      {
+        "title": "Xenogears",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00664"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00669"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "Shining Red"
+    ],
+    "page_url": "https://www.patreon.com/ShiningRed/posts/xenogears-hd-1-0-41942032",
+    "source_id": "author:Shining Red",
+    "licence": {
+      "summary": "No redistribution licence stated by the author.",
+      "redistribution": "Original creator publication only; no rehosting or account restriction workaround."
+    },
+    "credits": "Shining Red",
+    "requirements": "Author specifies Beetle PSX HW texture replacement.",
+    "notes": "The author publishes dialogue, battle and menu portraits. This is a separate artistic alternative to Perfect ART Works. The public RAR attachment could not be retrieved automatically; archive installation and regional texture coverage have not been verified.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "ui"
+  }
+]

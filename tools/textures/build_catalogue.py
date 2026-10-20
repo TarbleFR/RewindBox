@@ -152,6 +152,8 @@ def hosted_in_app_download(entry, record):
         allowed = allowed and (
             (host == 'archive.org' and bool(re.match(r'^/download/[^/]+/.+', parts.path))) or
             (host == 'pixeldrain.com' and bool(re.fullmatch(r'/api/file/[A-Za-z0-9]+', parts.path))) or
+            (host == 'lifehold.godsibb.net' and bool(re.fullmatch(r'/seafhttp/f/[0-9a-f]{20}/?', parts.path)) and
+             parts.query == 'op=view') or
             (host == 'forums.ppsspp.org' and parts.path == '/attachment.php' and
              bool(re.fullmatch(r'[0-9]+', dict(urllib.parse.parse_qsl(parts.query)).get('aid', '')))) or
             (host == 'github.com' and bool(re.match(r'^/[^/]+/[^/]+/releases/download/[^/]+/.+', parts.path)))
