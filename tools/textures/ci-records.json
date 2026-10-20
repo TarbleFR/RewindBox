@@ -800,6 +800,32 @@
         "ps1"
       ],
       "records": 4
+    },
+    {
+      "run": 39482826008,
+      "workflow": ".github/workflows/hd-textures.yml (parts: ps1-hosts, two newly recovered SomberTwilight original public PS1 archives only)",
+      "source": "0cd67e5830f271a7dc6010b55a893c74af2c01be",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 2,
+      "artifact_id": 12292196821,
+      "artifact_zip_sha256": "f17827288a9ef440291f1b36c1de9d24aa90ee196a8a74a55b56e16038bcb8d8",
+      "job_id": 118835525317
+    },
+    {
+      "run": 39483666586,
+      "workflow": ".github/workflows/hd-textures.yml (parts: ps1-hosts, CAC GAMER original public partial Gran Turismo 2 archive only)",
+      "source": "fba188684d75867808eaa2de9c122fc19fcfdad3",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 1,
+      "artifact_id": 12292053506,
+      "artifact_zip_sha256": "17fde7d8ec9262bf759b7fd505f035230a364623905b1f38e569f5fabee51055",
+      "job_id": 118838442112
     }
   ]
 }

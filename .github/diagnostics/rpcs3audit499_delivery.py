@@ -112,16 +112,17 @@ def ps1_catalogue_evidence():
         assert hashlib.sha256(tested).hexdigest() == digest, ('CI input identity', path)
     current = check_ps1_expansion.verify()
     assert current['catalogue_sha256'] == proof['catalogue_sha256']
-    assert current['ps1_total'] == proof['ps1_total'] == 34
-    assert current['new_verified_one_tap'] == proof['new_verified_one_tap'] == 5
-    assert current['new_manual_author_references'] == proof['new_manual_author_references'] == 27
+    assert current['ps1_total'] == proof['ps1_total'] == 37
+    assert current['new_verified_one_tap'] == proof['new_verified_one_tap'] == 6
+    assert current['new_manual_author_references'] == proof['new_manual_author_references'] == 29
     evidence = successful(proof['run'], proof['source'], [
         'PS1 catalogue generation, provenance and preserved entries',
         'PS1 bundled catalogue and regional matching on Foundation'])
     return {**evidence, 'revision': current['revision'], 'manifestSHA256': current['catalogue_sha256'],
         'existingPackObjectsUnchanged': 1088, 'previous26CatalogueObjectsUnchanged': 1112,
-        'ps1References': 34, 'verifiedPS1OneTap': 7,
-        'manualAuthorPagesWithoutInstallationClaim': 27, 'physicalDeviceValidated': False}
+        'previous32CatalogueObjectsUnchanged': current['previous_expanded_catalogue_objects_unchanged'],
+        'ps1References': 37, 'verifiedPS1OneTap': 8,
+        'manualAuthorPagesWithoutInstallationClaim': 29, 'physicalDeviceValidated': False}
 
 
 def source_closure():

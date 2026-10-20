@@ -415,7 +415,7 @@
     "system": "ps1",
     "engine": "beetle",
     "title": "Gran Turismo 2 Tahiti x8 — CAC GAMER",
-    "version": "2020-12-20 partial update",
+    "version": "2020-12-20 partial update (archive 1.02)",
     "authors": [
       "CAC GAMER"
     ],
@@ -443,15 +443,24 @@
       "redistribution": "Original author download only; no rehosting."
     },
     "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. USA v1.1 Arcade disc according to author; edition confirmation required.",
-    "notes": "Original creator describes x8 textures for Tahiti Dirt Route 3, Opel Tigra Ice Race Car and Lancia Delta HF Integrale Rally Car. One partial project and original archive; no whole-game coverage or physical iPhone rendering established.",
+    "notes": "Original creator describes x8 textures for Tahiti Dirt Route 3, Opel Tigra Ice Race Car and Lancia Delta HF Integrale Rally Car. The original 1.02 7z archive installed 233 valid PNGs in canonical production CI. One partial project; no whole-game coverage or physical iPhone rendering established. USA v1.1 Arcade disc according to author; edition confirmation remains required.",
     "download": {
       "automatable": false,
       "verify": {
-        "url": "https://drive.google.com/file/d/1DzJoV91neJquz79UviCJ1NXaTqCj9zA6/view?usp=sharing"
+        "url": "https://drive.google.com/file/d/1DzJoV91neJquz79UviCJ1NXaTqCj9zA6/view?usp=sharing",
+        "sha256": "98dd054cb3b9cb58374a5f09c5b75176013c1dd437cdaa2af18ab069a45aa336"
       },
       "in_app": true,
-      "file_name": "Gran Turismo 2 texture replacements.zip"
+      "file_name": "1.02_Gran Turismo 2 (USA) (Arcade Mode) (v1.1)-texture-replacements.7z"
     },
-    "scope": "partial"
+    "scope": "partial",
+    "install": {
+      "folders": [
+        {
+          "from": "",
+          "to": "{id}"
+        }
+      ]
+    }
   }
 ]

@@ -135,6 +135,12 @@ def probes(index):
     probe(ps1('SLUS-00939', 'Tenchu 2: Birth of the Stealth Assassins'), 'beetle', candidate=['ps1-bussareas-tenchu-2-hd'])
     probe(ps1('SLUS-00067', 'Castlevania: Symphony of the Night'), 'beetle',
           candidate=['ps1-tarrantx-castlevania-symphony-of-the-night-hd-x4'])
+    probe(ps1('SLUS-00606', 'Dead or Alive'), 'beetle',
+          candidate=['ps1-sombertwilight-dead-or-alive'])  # original archive protected; edition confirmation retained
+    probe(ps1('SLPS-00917', 'Clock Tower: The First Fear'), 'beetle',
+          candidate=['ps1-sombertwilight-clock-tower-the-first-fear'])  # identity candidate, no archive or translation proof
+    probe(ps1('SCUS-94455', 'Gran Turismo 2'), 'beetle',
+          candidate=['ps1-cac-gamer-gran-turismo-2-tahiti-x8'])  # verified partial archive, USA Arcade v1.1 confirmation retained
     return wanted
 
 
