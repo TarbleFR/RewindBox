@@ -33,7 +33,7 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/007-from-russia-with-love-upscaled-enhanced-texture-pack.660784/",
    "verify": {
-    "url": "https://archive.org/details/007-from-russia-with-love-upscaled-enhanced-texture-pack"
+    "url": "https://archive.org/download/007-from-russia-with-love-upscaled-enhanced-texture-pack/007%20From%20Russia%20With%20Love%20Upscaled%20Enhanced%20Texture%20Pack.zip"
    }
   },
   "system": "ps2",
@@ -1587,7 +1587,7 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/bujingai-the-forsaken-city-texture-pack.640702/",
    "verify": {
-    "url": "https://archive.org/details/replacements.7z_202310"
+    "url": "https://archive.org/download/replacements.7z_202310/replacements.7z"
    }
   },
   "system": "ps2",
@@ -6888,7 +6888,7 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/maximo-ghosts-to-glory-ultimate-remaster-texture-pack.677505/",
    "verify": {
-    "url": "https://archive.org/details/maximo-ghosts-to-glory-remastered"
+    "url": "https://archive.org/download/maximo-ghosts-to-glory-remastered/Maximo%20Ghosts%20to%20Glory%20Remastered.zip"
    }
   },
   "system": "ps2",
@@ -24627,18 +24627,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale and handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Characters and icons only. The creator publishes this archive on archive.org and confirms PAL for Return of the King; additional regional IDs remain subject to confirmation, with no French-specific validation.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/",
    "verify": {
-    "url": "https://archive.org/details/the-lords-of-the-rings-texture-pack"
+    "url": "https://archive.org/download/the-lords-of-the-rings-texture-pack/replacements.zip"
    }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/maximocapcom.770928/"
+  "source_url": "https://gbatemp.net/members/maximocapcom.770928/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom",
@@ -24689,18 +24690,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Characters and icons only. The creator publishes this archive on archive.org and confirms PAL for Return of the King; additional regional IDs remain subject to confirmation, with no French-specific validation.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/lord-of-the-rings-the-two-towers-remastered-only-icons-and-characters.678338/",
    "verify": {
-    "url": "https://archive.org/details/lord-of-the-rings-the-two-towers-remastered-icons-and-characters"
+    "url": "https://archive.org/download/lord-of-the-rings-the-two-towers-remastered-icons-and-characters/replacements.zip"
    }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/maximocapcom.770928/"
+  "source_url": "https://gbatemp.net/members/maximocapcom.770928/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-mark-of-kri-darthdarklord",
@@ -24713,29 +24715,12 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SCED-51406"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SCES-51164"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SCUS-97140"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SCUS-97201"
      }
     ],
     "regions": [
-     "Europe",
      "USA"
-    ],
-    "confirm": true
+    ]
    }
   ],
   "authors": [
@@ -24747,12 +24732,12 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "The creator archive.org description explicitly targets SCUS-97140. ESRGAN/Cupscale 4x replacement textures; no PAL or demo compatibility is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-mark-of-kri-texture-pack.635390/",
    "verify": {
-    "url": "https://archive.org/details/replacements.7z"
+    "url": "https://archive.org/download/replacements.7z/replacements.7z"
    }
   },
   "system": "ps2",
@@ -24968,7 +24953,7 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-thing-ps2-hd-texture-pack.641635/",
    "verify": {
-    "url": "https://archive.org/details/replacements.7z_20231021"
+    "url": "https://archive.org/download/replacements.7z_20231021/replacements.7z"
    }
   },
   "system": "ps2",

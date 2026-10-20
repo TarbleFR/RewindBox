@@ -528,7 +528,7 @@
  {
   "id": "3ds-albw-hd-font-toruzz",
   "title": "A Link Between Worlds HD font",
-  "version": "see page",
+  "version": "c7451d07235c",
   "games": [
    {
     "title": "The Legend of Zelda: A Link Between Worlds",
@@ -566,19 +566,37 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "One image per region in the repository (no archive): put it in a folder named after your Title ID and import the folder.",
+  "notes": "One HD font image for each of the USA and Europe title IDs, explicitly named in the original repository. Both regional font folders are present in the creator ZIP. Font only; no other game artwork or French-specific rendering has been validated.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/toruzz/ALBW-HD-Font"
+   "page": "https://github.com/toruzz/ALBW-HD-Font",
+   "verify": {
+    "url": "https://codeload.github.com/toruzz/ALBW-HD-Font/zip/c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea"
+   },
+   "file_name": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea.zip"
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual"
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea/00040000000EC300/",
+     "to": "00040000000EC300"
+    },
+    {
+     "from": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea/00040000000EC400/",
+     "to": "00040000000EC400"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "3ds-albw-hd-font-toruzz"
  },
  {
   "id": "3ds-star-fox-64-3d-upscaled-linuxkafe",
   "title": "Star Fox 64 3D upscaled textures",
-  "version": "see page",
+  "version": "5094b103ba9b",
   "games": [
    {
     "title": "Star Fox 64 3D",
@@ -603,19 +621,33 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "AI-upscaled (Upscayl), possibly incomplete. The repository holds three games (2.9 GB): NeoStation does not download it whole for one game; download this folder and import it.",
+  "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/SF64"
+   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/SF64",
+   "verify": {
+    "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+   },
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip"
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual"
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795/Textures/SF64/0004000000049000/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-star-fox-64-3d-upscaled-linuxkafe"
  },
  {
   "id": "3ds-luigis-mansion-dark-moon-upscaled-linuxkafe",
   "title": "Luigi's Mansion: Dark Moon upscaled textures",
-  "version": "see page",
+  "version": "5094b103ba9b",
   "games": [
    {
     "title": "Luigi's Mansion: Dark Moon",
@@ -640,19 +672,33 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "AI-upscaled (Upscayl), possibly incomplete. The repository holds three games (2.9 GB): NeoStation does not download it whole for one game; download this folder and import it.",
+  "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/LM2"
+   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/LM2",
+   "verify": {
+    "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+   },
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip"
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual"
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795/Textures/LM2/0004000000055F00/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-luigis-mansion-dark-moon-upscaled-linuxkafe"
  },
  {
   "id": "3ds-animal-crossing-new-leaf-upscaled-linuxkafe",
   "title": "Animal Crossing: New Leaf upscaled textures",
-  "version": "see page",
+  "version": "5094b103ba9b",
   "games": [
    {
     "title": "Animal Crossing: New Leaf",
@@ -677,14 +723,28 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "AI-upscaled (Upscayl), possibly incomplete. The repository holds three games (2.9 GB): NeoStation does not download it whole for one game; download this folder and import it.",
+  "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/ACNL"
+   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/ACNL",
+   "verify": {
+    "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+   },
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip"
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual"
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795/Textures/ACNL/0004000000086300/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-animal-crossing-new-leaf-upscaled-linuxkafe"
  },
  {
   "id": "3ds-new-loveplus-english-textures",

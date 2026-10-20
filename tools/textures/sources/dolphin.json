@@ -1281,14 +1281,19 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Hosted on Dropbox by the author: download it from the author's page and import it.",
+  "notes": "The creator explicitly supports vanilla Super Mario Galaxy 2 as well as the named ROM hack. Use DDS release files with texture prefetch disabled. NeoStation installs the plain texture subset only, not a ROM hack. Spectral and Galaxy 63 variants count as one iZePlayz SMG2 family. DDS import remains conditional on the device BC texture support.",
   "requirements": "Author: Load Custom Textures on, Prefetch Custom Textures off.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/iZePlayzYT/SuperMarioSpectral-TexturePack"
+   "page": "https://github.com/iZePlayzYT/SuperMarioSpectral-TexturePack",
+   "verify": {
+    "url": "https://www.dropbox.com/scl/fi/g55owa2afbxmciq4ejxj5/SuperMarioSpectral_-SMG2-_4K-TexturePack_v1.0.0.zip?rlkey=exi1rrqml2sbikfi3ra1a3d8n&dl=0"
+   }
   },
   "engine": "dolphin",
-  "availability": "manual"
+  "availability": "manual",
+  "family": "wii-smg2-4k-izeplayz",
+  "scope": "complete"
  },
  {
   "id": "wii-smg2-smg63-4k-izeplayz",
@@ -1318,14 +1323,19 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Hosted on Dropbox by the author: download it from the author's page and import it.",
+  "notes": "The creator explicitly supports vanilla Super Mario Galaxy 2 as well as the named ROM hack. Use DDS release files with texture prefetch disabled. NeoStation installs the plain texture subset only, not a ROM hack. Spectral and Galaxy 63 variants count as one iZePlayz SMG2 family. DDS import remains conditional on the device BC texture support.",
   "requirements": "Author: Load Custom Textures on, Prefetch Custom Textures off.",
   "download": {
    "automatable": false,
-   "page": "https://github.com/iZePlayzYT/SuperMarioGalaxy63-TexturePack"
+   "page": "https://github.com/iZePlayzYT/SuperMarioGalaxy63-TexturePack",
+   "verify": {
+    "url": "https://www.dropbox.com/scl/fi/esu3fjw9nued6nnjar6lz/SuperMarioGalaxy63_-SMG2-_4K-TexturePack_v3.0.0.zip?rlkey=q3ff5ky3fqeikcl37ytfbog1w&dl=0"
+   }
   },
   "engine": "dolphin",
-  "availability": "manual"
+  "availability": "manual",
+  "family": "wii-smg2-4k-izeplayz",
+  "scope": "complete"
  },
  {
   "id": "wii-sm64-reloaded-png-hd",
