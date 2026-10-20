@@ -1,27 +1,38 @@
 {
   "date": "2026-10-20",
-  "catalogue_commit": "29381d0441081b93b36ed924e9a295a8ba34280c",
-  "catalogue_revision": "2026-10-20.2a44a9d3ed55",
-  "manifest_sha256": "6b37e6e3adb927c76f98aded2e7784269cd0839d855a56fbb75e02fb0181b4e1",
+  "catalogue_commit": "388f5c5194c5ace2e26ee2753ce1ab221756c512",
+  "catalogue_revision": "2026-10-20.169a7760ffbe",
+  "manifest_sha256": "f1ffd564157dc5383cb926f4fbec5d560fc9bdd73cdf8caf9302d42227007504",
   "counts": {
-    "research_project_families": 127,
-    "previous_research_project_families": 115,
-    "additional_qualified_research_families": 12,
-    "inventory_rows": 140,
-    "beetle_named_projects": 31,
-    "duckstation_named_projects": 72,
-    "projects_with_both_engine_variants": 3,
-    "unique_game_titles_researched_with_projects": 104,
+    "research_project_families": 159,
+    "previous_research_project_families": 127,
+    "additional_qualified_research_families": 32,
+    "inventory_rows": 197,
+    "beetle_named_projects": 36,
+    "duckstation_named_projects": 96,
+    "projects_with_both_engine_variants": 5,
+    "unique_game_titles_researched_with_projects": 124,
     "runtime_ps1_references_before": 2,
-    "runtime_ps1_references_after": 26,
-    "new_runtime_references": 24,
-    "new_verified_one_tap_packs": 2,
-    "new_manual_author_references": 22,
+    "runtime_ps1_references_after": 34,
+    "new_runtime_references": 32,
+    "new_verified_one_tap_packs": 5,
+    "new_manual_author_references": 27,
     "runtime_verified_one_tap_before": 2,
-    "runtime_verified_one_tap_after": 4,
-    "new_archives_installed_in_canonical_ci": 2,
-    "new_archive_protection_refusals": 10,
-    "physical_iphone_render_tests": 0
+    "runtime_verified_one_tap_after": 7,
+    "new_archives_installed_in_canonical_ci": 5,
+    "new_archive_protection_refusals": 11,
+    "physical_iphone_render_tests": 0,
+    "uncounted_inventory_rows": 38,
+    "new_unconfirmed_assembly_catalogue_rows": 25,
+    "category_C_future_projects": 3,
+    "engine_unconfirmed_projects": 29,
+    "runtime_manual_author_references_after": 27,
+    "previous_runtime_references": 26,
+    "additional_runtime_references_this_wave": 8,
+    "additional_verified_downloads_this_wave": 3,
+    "additional_canonical_observations_this_wave": 4,
+    "archive_successes_this_wave": 3,
+    "archive_protection_refusals_this_wave": 1
   },
   "archive_runs": [
     {
@@ -39,9 +50,61 @@
       "protected": 10,
       "artifact": 12288138309,
       "zip_sha256": "d061c45fb11961ecc511de10181fb449e8418d1ae5e20f9eb1ed98fd96088a03"
+    },
+    {
+      "run": 39479736059,
+      "source": "0a2fdbabeaf3802b9abe7aa8e05d74f2c00f4d1b",
+      "ok": 3,
+      "protected": 1,
+      "artifact": 12290447250,
+      "zip_sha256": "3cc07c7561695592f52d5c2bc4112edd6631c2d869775adf8b8b8c7cb5e1ee9a",
+      "raw_jsonl_sha256": "7f9bbc0653f2784e87b80c7232fa78d1d2ea03584d9bfbf32da7ce22302477ea"
     }
   ],
   "publication_validation": {
+    "run": 39480710051,
+    "source": "388f5c5194c5ace2e26ee2753ce1ab221756c512",
+    "jobs_succeeded": 2,
+    "native_foundation_checks": 184,
+    "native_failures": 0,
+    "canonical_observations_matched": 688,
+    "publication_artifact": 12291383673,
+    "publication_zip_sha256": "0785191dfd833f3f4f39ec6d7d71775bab145b4aa4c007a88290c37c6b7c6ebc",
+    "native_artifact": 12291323242,
+    "native_zip_sha256": "07c000684a7c3a560bd539ee527955b77985aa566b5a6346b7355f7d4d08b347"
+  },
+  "runtime_native_sources_changed": false,
+  "core_rebuilt": false,
+  "ipa_produced": false,
+  "physical_device_validated": false,
+  "next_update": "Hosted and bundled catalogues are identical. The next-delivery guard requires this exact PS1 publication and preserves all native/Dart sources, other cores and1112 previous catalogue objects.",
+  "delivery_guard": {
+    "result": "passed",
+    "ps1Catalogue": {
+      "source": "388f5c5194c5ace2e26ee2753ce1ab221756c512",
+      "run": 39480710051,
+      "jobs": [
+        "PS1 catalogue generation, provenance and preserved entries",
+        "PS1 bundled catalogue and regional matching on Foundation"
+      ],
+      "conclusion": "success",
+      "revision": "2026-10-20.169a7760ffbe",
+      "manifestSHA256": "f1ffd564157dc5383cb926f4fbec5d560fc9bdd73cdf8caf9302d42227007504",
+      "existingPackObjectsUnchanged": 1088,
+      "previous26CatalogueObjectsUnchanged": 1112,
+      "ps1References": 34,
+      "verifiedPS1OneTap": 7,
+      "manualAuthorPagesWithoutInstallationClaim": 27,
+      "physicalDeviceValidated": false
+    }
+  },
+  "unused_redundant_push_validation": {
+    "run": 39477840494,
+    "cancel_requested": true,
+    "reason": "Publication, Foundation and regional matching already succeeded on byte-identical inputs in 39477034529. The focused delivery guard is separate.",
+    "counted_as_success": false
+  },
+  "previous_publication_validation": {
     "run": 39477034529,
     "source": "29381d0441081b93b36ed924e9a295a8ba34280c",
     "jobs_succeeded": 2,
@@ -53,24 +116,5 @@
     "native_artifact": 12289269436,
     "native_zip_sha256": "fde677d8dbe1c7605da38256e1f9940cd04f5b6b2cf4da9810772d1b7383e830"
   },
-  "runtime_native_sources_changed": false,
-  "core_rebuilt": false,
-  "ipa_produced": false,
-  "physical_device_validated": false,
-  "next_update": "Both hosted and bundled manifests contain this revision. The Build 499 delivery guard requires this exact separately verified catalogue and preserves all native/Dart inputs.",
-  "delivery_guard": {
-    "run": 39477840463,
-    "source": "e2d3058179410bcb24ac9b1f6b6c7baa9fcadb9a",
-    "conclusion": "success",
-    "artifact": 12290290354,
-    "zip_sha256": "9a9871951ed220ac7d909a8bb7ac8127e3d03e9841e90bacfe6b4760505e4306",
-    "raw_report": "docs/evidence/ps1-hd-delivery-guard.json",
-    "scope": "PS1 catalogue identity and next-delivery boundary only; RPCS3 Core retains its independent validation."
-  },
-  "unused_redundant_push_validation": {
-    "run": 39477840494,
-    "cancel_requested": true,
-    "reason": "Publication, Foundation and regional matching already succeeded on byte-identical inputs in 39477034529. The focused delivery guard is separate.",
-    "counted_as_success": false
-  }
+  "research_scope": "159 independent documented project families, including unpublished and abandoned projects; 197 rows include38 uncounted references. Not159 installable downloads."
 }
