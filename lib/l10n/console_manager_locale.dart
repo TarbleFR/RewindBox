@@ -42,7 +42,6 @@ abstract final class ConsoleManagerLocale {
   static const useEmbeddedOff = 'useEmbeddedOff';
   static const launchEngineOff = 'launchEngineOff';
   static const launchEngineOffRetroArch = 'launchEngineOffRetroArch';
-  static const launchMelonxFailed = 'launchMelonxFailed';
   static const launchArmsx2Failed = 'launchArmsx2Failed';
 
   static const Map<String, Map<String, String>> values = {
@@ -92,8 +91,6 @@ abstract final class ConsoleManagerLocale {
           'The built-in engine of {console} is off, and no external app can run its games on iOS. Turn it back on in the Consoles tab or in Settings › General.',
       launchEngineOffRetroArch:
           'The built-in engine of {console} is off, and the RetroArch app could not open this game. Install RetroArch and keep its library synced in NeoStation, or turn the built-in engine back on.',
-      launchMelonxFailed:
-          'This Nintendo Switch game could not be launched in MeloNX.',
       launchArmsx2Failed:
           'This PlayStation 2 game could not be launched in ARMSX2.',
     },
@@ -144,8 +141,6 @@ abstract final class ConsoleManagerLocale {
           'Le moteur intégré de {console} est désactivé et aucune application externe ne fait tourner ses jeux sur iOS. Réactivez-le dans l’onglet Consoles ou dans Paramètres › Général.',
       launchEngineOffRetroArch:
           'Le moteur intégré de {console} est désactivé et l’application RetroArch n’a pas pu ouvrir ce jeu. Installez RetroArch et gardez sa bibliothèque synchronisée dans NeoStation, ou réactivez le moteur intégré.',
-      launchMelonxFailed:
-          'Ce jeu Nintendo Switch n’a pas pu être lancé dans MeloNX.',
       launchArmsx2Failed:
           'Ce jeu PlayStation 2 n’a pas pu être lancé dans ARMSX2.',
     },
@@ -196,8 +191,6 @@ abstract final class ConsoleManagerLocale {
           'Die integrierte Engine von {console} ist ausgeschaltet, und keine externe App führt ihre Spiele unter iOS aus. Schalte sie im Tab Konsolen oder unter Einstellungen › Allgemein wieder ein.',
       launchEngineOffRetroArch:
           'Die integrierte Engine von {console} ist ausgeschaltet, und die RetroArch-App konnte dieses Spiel nicht öffnen. Installiere RetroArch und halte seine Bibliothek in NeoStation synchronisiert oder schalte die integrierte Engine wieder ein.',
-      launchMelonxFailed:
-          'Dieses Nintendo-Switch-Spiel konnte nicht in MeloNX gestartet werden.',
       launchArmsx2Failed:
           'Dieses PlayStation-2-Spiel konnte nicht in ARMSX2 gestartet werden.',
     },
@@ -248,8 +241,6 @@ abstract final class ConsoleManagerLocale {
           'El motor integrado de {console} está desactivado y ninguna aplicación externa ejecuta sus juegos en iOS. Vuelve a activarlo en la pestaña Consolas o en Ajustes › General.',
       launchEngineOffRetroArch:
           'El motor integrado de {console} está desactivado y la aplicación RetroArch no pudo abrir este juego. Instala RetroArch y mantén su biblioteca sincronizada en NeoStation, o vuelve a activar el motor integrado.',
-      launchMelonxFailed:
-          'No se pudo iniciar este juego de Nintendo Switch en MeloNX.',
       launchArmsx2Failed:
           'No se pudo iniciar este juego de PlayStation 2 en ARMSX2.',
     },
@@ -300,8 +291,6 @@ abstract final class ConsoleManagerLocale {
           'Il motore integrato di {console} è disattivato e nessuna app esterna ne esegue i giochi su iOS. Riattivalo nella scheda Console o in Impostazioni › Generale.',
       launchEngineOffRetroArch:
           'Il motore integrato di {console} è disattivato e l’app RetroArch non è riuscita ad aprire questo gioco. Installa RetroArch e mantieni la sua libreria sincronizzata in NeoStation, oppure riattiva il motore integrato.',
-      launchMelonxFailed:
-          'Impossibile avviare questo gioco Nintendo Switch in MeloNX.',
       launchArmsx2Failed:
           'Impossibile avviare questo gioco PlayStation 2 in ARMSX2.',
     },
@@ -352,8 +341,6 @@ abstract final class ConsoleManagerLocale {
           'O motor integrado de {console} está desativado e nenhum app externo executa os jogos dele no iOS. Reative-o na aba Consoles ou em Configurações › Geral.',
       launchEngineOffRetroArch:
           'O motor integrado de {console} está desativado e o app RetroArch não conseguiu abrir este jogo. Instale o RetroArch e mantenha a biblioteca dele sincronizada no NeoStation, ou reative o motor integrado.',
-      launchMelonxFailed:
-          'Não foi possível iniciar este jogo de Nintendo Switch no MeloNX.',
       launchArmsx2Failed:
           'Não foi possível iniciar este jogo de PlayStation 2 no ARMSX2.',
     },
@@ -404,8 +391,6 @@ abstract final class ConsoleManagerLocale {
           'Встроенный движок {console} выключен, и ни одно внешнее приложение не запускает её игры на iOS. Включите его на вкладке «Консоли» или в разделе Настройки › Общие.',
       launchEngineOffRetroArch:
           'Встроенный движок {console} выключен, а приложение RetroArch не смогло открыть эту игру. Установите RetroArch и синхронизируйте его библиотеку в NeoStation или снова включите встроенный движок.',
-      launchMelonxFailed:
-          'Не удалось запустить эту игру Nintendo Switch в MeloNX.',
       launchArmsx2Failed:
           'Не удалось запустить эту игру PlayStation 2 в ARMSX2.',
     },
@@ -456,8 +441,6 @@ abstract final class ConsoleManagerLocale {
           'Mesin bawaan {console} nonaktif, dan tidak ada aplikasi eksternal yang menjalankan game-nya di iOS. Aktifkan lagi di tab Konsol atau di Pengaturan › Umum.',
       launchEngineOffRetroArch:
           'Mesin bawaan {console} nonaktif, dan aplikasi RetroArch tidak dapat membuka game ini. Pasang RetroArch dan jaga pustakanya tetap tersinkron di NeoStation, atau aktifkan lagi mesin bawaan.',
-      launchMelonxFailed:
-          'Game Nintendo Switch ini tidak dapat dijalankan di MeloNX.',
       launchArmsx2Failed:
           'Game PlayStation 2 ini tidak dapat dijalankan di ARMSX2.',
     },
@@ -497,7 +480,6 @@ abstract final class ConsoleManagerLocale {
       useEmbeddedOff: 'フロントエンドのみ：すべてのゲームを外部アプリ（RetroArch を優先）で開きます。内蔵エンジンとそのセーブデータ、設定は残ります。',
       launchEngineOff: '{console} の内蔵エンジンはオフで、iOS でそのゲームを動かす外部アプリはありません。ゲーム機タブまたは 設定 › 全般 で再びオンにしてください。',
       launchEngineOffRetroArch: '{console} の内蔵エンジンはオフで、RetroArch アプリはこのゲームを開けませんでした。RetroArch をインストールして NeoStation でライブラリを同期するか、内蔵エンジンを再びオンにしてください。',
-      launchMelonxFailed: 'この Nintendo Switch のゲームを MeloNX で起動できませんでした。',
       launchArmsx2Failed: 'この PlayStation 2 のゲームを ARMSX2 で起動できませんでした。',
     },
     'ko': {
@@ -536,7 +518,6 @@ abstract final class ConsoleManagerLocale {
       useEmbeddedOff: '프런트엔드 전용: 모든 게임이 외부 앱(RetroArch 우선)에서 열립니다. 내장 엔진과 저장 데이터, 설정은 유지됩니다.',
       launchEngineOff: '{console}의 내장 엔진이 꺼져 있고 iOS에서 해당 게임을 실행하는 외부 앱이 없습니다. 콘솔 탭이나 설정 › 일반에서 다시 켜세요.',
       launchEngineOffRetroArch: '{console}의 내장 엔진이 꺼져 있고 RetroArch 앱이 이 게임을 열지 못했습니다. RetroArch를 설치하고 NeoStation에서 라이브러리를 동기화하거나 내장 엔진을 다시 켜세요.',
-      launchMelonxFailed: '이 Nintendo Switch 게임을 MeloNX에서 실행할 수 없습니다.',
       launchArmsx2Failed: '이 PlayStation 2 게임을 ARMSX2에서 실행할 수 없습니다.',
     },
     'zh': {
@@ -575,7 +556,6 @@ abstract final class ConsoleManagerLocale {
       useEmbeddedOff: '仅作为前端：每个游戏都在外部应用中打开，优先使用 RetroArch。内置引擎及其存档和设置都会保留。',
       launchEngineOff: '{console} 的内置引擎已关闭，且 iOS 上没有外部应用能运行其游戏。请在游戏机标签页或 设置 › 常规 中重新开启。',
       launchEngineOffRetroArch: '{console} 的内置引擎已关闭，且 RetroArch 应用无法打开此游戏。请安装 RetroArch 并在 NeoStation 中保持其游戏库同步，或重新开启内置引擎。',
-      launchMelonxFailed: '无法在 MeloNX 中启动此 Nintendo Switch 游戏。',
       launchArmsx2Failed: '无法在 ARMSX2 中启动此 PlayStation 2 游戏。',
     },
     'zh_Hant': {
@@ -614,7 +594,6 @@ abstract final class ConsoleManagerLocale {
       useEmbeddedOff: '僅作為前端：每個遊戲都在外部應用程式中開啟，優先使用 RetroArch。內建引擎及其存檔和設定都會保留。',
       launchEngineOff: '{console} 的內建引擎已關閉，且 iOS 上沒有外部應用程式能執行其遊戲。請在遊戲機分頁或 設定 › 一般 中重新開啟。',
       launchEngineOffRetroArch: '{console} 的內建引擎已關閉，且 RetroArch 應用程式無法開啟此遊戲。請安裝 RetroArch 並在 NeoStation 中保持其遊戲庫同步，或重新開啟內建引擎。',
-      launchMelonxFailed: '無法在 MeloNX 中啟動此 Nintendo Switch 遊戲。',
       launchArmsx2Failed: '無法在 ARMSX2 中啟動此 PlayStation 2 遊戲。',
     },
   };

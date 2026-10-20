@@ -15,7 +15,7 @@ void main() {
     expect(launcher, contains('Rpcs3LaunchService.launchTitle'));
     expect(launcher, contains('MelonxInternalService.launch'));
     expect(launcher, contains('Armsx2LibraryService.launchGameByRomPath'));
-    expect(launcher, contains('RetroArchLibraryService.launchGameByRomPath'));
+    expect(launcher, contains('RetroArchLibraryService.launchGameWithDiagnostics'));
   });
 
   test('Dolphin JIT policy is legacy-only and does not alter shared StikJIT', () {
