@@ -1,5 +1,8 @@
 name: Build 496 PSP relaunch and frozen HD catalogue
 on:
+  push:
+    branches: [Claude]
+    paths: [.github/workflows/build496-checks.yml]
   workflow_dispatch:
 permissions: {contents: read, actions: read}
 concurrency:
