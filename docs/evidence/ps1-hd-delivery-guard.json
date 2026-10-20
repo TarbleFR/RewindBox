@@ -1,20 +1,21 @@
 {
   "result": "passed",
   "ps1Catalogue": {
-    "source": "388f5c5194c5ace2e26ee2753ce1ab221756c512",
-    "run": 39480710051,
+    "source": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
+    "run": 39484361864,
     "jobs": [
       "PS1 catalogue generation, provenance and preserved entries",
       "PS1 bundled catalogue and regional matching on Foundation"
     ],
     "conclusion": "success",
-    "revision": "2026-10-20.169a7760ffbe",
-    "manifestSHA256": "f1ffd564157dc5383cb926f4fbec5d560fc9bdd73cdf8caf9302d42227007504",
+    "revision": "2026-10-20.56904c72933f",
+    "manifestSHA256": "cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7",
     "existingPackObjectsUnchanged": 1088,
     "previous26CatalogueObjectsUnchanged": 1112,
-    "ps1References": 34,
-    "verifiedPS1OneTap": 7,
-    "manualAuthorPagesWithoutInstallationClaim": 27,
+    "previous32CatalogueObjectsUnchanged": 1120,
+    "ps1References": 37,
+    "verifiedPS1OneTap": 8,
+    "manualAuthorPagesWithoutInstallationClaim": 29,
     "physicalDeviceValidated": false
   }
 }
