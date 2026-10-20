@@ -215,7 +215,8 @@
      ]
     }
    ]
-  }
+  },
+  "credits": "HUD/menu font ACES5: Roach Typografics. Squadron intro text: Stahl. Texture dumping, identification and organisation: Zaku and PhantomPhanatic. Original texture work: Ostrich."
  },
  {
   "id": "ps2-ktx-ace-combat-5-the-unsung-war-superostrich",
@@ -271,7 +272,8 @@
      ]
     }
    ]
-  }
+  },
+  "credits": "HUD/menu font ACES5: Roach Typografics. Squadron intro text: Stahl. Texture dumping, identification and organisation: Zaku and PhantomPhanatic. Original texture work: Ostrich."
  },
  {
   "id": "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich",
@@ -327,7 +329,8 @@
      ]
     }
    ]
-  }
+  },
+  "credits": "HUD/menu font ACES5: Roach Typografics. Squadron intro text: Stahl. Texture dumping, identification and organisation: Zaku and PhantomPhanatic. Original texture work: Ostrich."
  },
  {
   "id": "ps2-ktx-alone-in-the-dark-the-new-nightmare-teodor-max",
@@ -996,7 +999,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/robin9608.735463/"
+  "source_url": "https://gbatemp.net/members/robin9608.735463/",
+  "family": "ps2-ktx-battlefield-2-modern-combat-robin9608"
  },
  {
   "id": "ps2-ktx-battlefield-2-modern-combat-robin9608",
@@ -1038,7 +1042,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/robin9608.735463/"
+  "source_url": "https://gbatemp.net/members/robin9608.735463/",
+  "family": "ps2-ktx-battlefield-2-modern-combat-robin9608"
  },
  {
   "id": "ps2-ktx-ben-10-protector-of-earth-mvp899",
@@ -1593,7 +1598,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator archive.org instructions explicitly identify USA SLUS-20895. The flat archive itself has no serial; confirmation remains required. 700 PNG replacements passed production import. No other region or iPhone rendering is attested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/bujingai-the-forsaken-city-texture-pack.640702/",
@@ -1604,7 +1609,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/darthdarklord.659744/"
+  "source_url": "https://gbatemp.net/members/darthdarklord.659744/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-burnout-2-point-of-impact-mironter",
@@ -3133,7 +3139,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Creator PAL archive and production import attest SLES-53974. Author page specifies German, English, Spanish, French and Italian; individual language rendering has not been validated on iPhone. 21,485 replacements imported (mostly BC7 DDS); optional alternatives excluded by the existing ARMSX2 plan.",
+  "notes": "Creator PAL archive and production import attest SLES-53974. Author page specifies German, English, Spanish, French and Italian; individual language rendering has not been validated on iPhone. 21,485 replacements imported (mostly BC7 DDS); optional alternatives excluded by the existing ARMSX2 plan. Environment refinement remains WIP. The author explains duplicate texture hashes and optional symlink aliases; NeoStation does not execute the script, so some duplicates remain native. Prefetch stays disabled; the creator recommends 16 GB RAM for precaching.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/dragon-quest-viii-de-en-es-fr-it-v0-9-6.618578/",
@@ -3144,7 +3150,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/kupo-on-gbatem.609689/"
+  "source_url": "https://gbatemp.net/members/kupo-on-gbatem.609689/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-dragon-quest-viii-journey-of-the-cursed-king-panda-venom",
@@ -4490,7 +4497,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "family": "ps2-ktx-gauntlet-seven-sorrows-mvp899"
  },
  {
   "id": "ps2-ktx-gauntlet-seven-sorrows-mvp899",
@@ -4532,7 +4540,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "family": "ps2-ktx-gauntlet-seven-sorrows-mvp899"
  },
  {
   "id": "ps2-ktx-genji-dawn-of-the-samurai-mvp899",
@@ -6889,7 +6898,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator original GBAtemp post (677505) explicitly claims support for all game versions. The archive itself is flat and has no serial; existing database identities therefore keep game confirmation. Production import verified 1,340 PNGs, about 9.7 GB installed. Per-region/French rendering is not validated on iPhone. PNG only: the creator reports problems with their DDS conversion.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/maximo-ghosts-to-glory-ultimate-remaster-texture-pack.677505/",
@@ -24128,7 +24137,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "family": "ps2-ktx-tenchu-fatal-shadows-sombertwilight"
  },
  {
   "id": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
@@ -24170,7 +24180,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "family": "ps2-ktx-tenchu-fatal-shadows-sombertwilight"
  },
  {
   "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight-2",
@@ -24212,7 +24223,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "family": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight"
  },
  {
   "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
@@ -24286,7 +24298,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "family": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight"
  },
  {
   "id": "ps2-ktx-test-drive-unlimited-mironter",
@@ -24633,13 +24646,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Characters and icons only. The creator publishes this archive on archive.org and confirms PAL for Return of the King; additional regional IDs remain subject to confirmation, with no French-specific validation.",
+  "notes": "Characters and icons only. The creator publishes this archive on archive.org and confirms PAL for Return of the King; additional regional IDs remain subject to confirmation, with no French-specific validation. The actual archive imports but contains no serial. Exact regional identity is not attested by the creator; this remains an unverified manual reference, excluded from installable counts.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/",
-   "verify": {
-    "url": "https://archive.org/download/the-lords-of-the-rings-texture-pack/replacements.zip"
-   }
+   "page": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/"
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24653,28 +24663,8 @@
   "version": "See the creator's page",
   "games": [
    {
-    "title": "The Lord of the Rings: The Two Towers",
+    "title": "The Lord of the Rings - The Two Towers",
     "identities": [
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51252"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51253"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51254"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51255"
-     },
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
@@ -24696,7 +24686,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Characters and icons only. The creator publishes this archive on archive.org and confirms PAL for Return of the King; additional regional IDs remain subject to confirmation, with no French-specific validation.",
+  "notes": "Partial icons, characters and some environments. Creator original post (678338) explicitly identifies the Spanish PAL edition; PCSX2 GameIndex maps that edition to SLES-51256. Other editions, including French, are untested. Flat archive has no serial, so confirmation remains required. The earlier inferred SLES-51252 profile is removed; import is reverified against SLES-51256.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/lord-of-the-rings-the-two-towers-remastered-only-icons-and-characters.678338/",
@@ -24726,7 +24716,8 @@
     ],
     "regions": [
      "USA"
-    ]
+    ],
+    "confirm": true
    }
   ],
   "authors": [
@@ -24738,7 +24729,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "The creator archive.org description explicitly targets SCUS-97140. ESRGAN/Cupscale 4x replacement textures; no PAL or demo compatibility is claimed.",
+  "notes": "Creator archive.org instructions explicitly identify USA SCUS-97140; the former inferred demo serial is removed. The flat archive itself has no serial; confirmation remains required. 4,698 PNG replacements passed production import. No other region or iPhone rendering is attested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-mark-of-kri-texture-pack.635390/",
@@ -24749,7 +24740,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/darthdarklord.659744/"
+  "source_url": "https://gbatemp.net/members/darthdarklord.659744/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-red-star-curse-arms",
@@ -24954,7 +24946,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator archive.org instructions explicitly identify USA SLUS-20371. The flat archive itself has no serial; confirmation remains required. 1,365 PNG replacements passed production import. No other region or iPhone rendering is attested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-thing-ps2-hd-texture-pack.641635/",
@@ -24965,7 +24957,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/darthdarklord.659744/"
+  "source_url": "https://gbatemp.net/members/darthdarklord.659744/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-warriors-el-jefe-hd-packs",
