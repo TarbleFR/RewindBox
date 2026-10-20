@@ -57,5 +57,20 @@
   "core_rebuilt": false,
   "ipa_produced": false,
   "physical_device_validated": false,
-  "next_update": "Both hosted and bundled manifests contain this revision. The Build 499 delivery guard requires this exact separately verified catalogue and preserves all native/Dart inputs."
+  "next_update": "Both hosted and bundled manifests contain this revision. The Build 499 delivery guard requires this exact separately verified catalogue and preserves all native/Dart inputs.",
+  "delivery_guard": {
+    "run": 39477840463,
+    "source": "e2d3058179410bcb24ac9b1f6b6c7baa9fcadb9a",
+    "conclusion": "success",
+    "artifact": 12290290354,
+    "zip_sha256": "9a9871951ed220ac7d909a8bb7ac8127e3d03e9841e90bacfe6b4760505e4306",
+    "raw_report": "docs/evidence/ps1-hd-delivery-guard.json",
+    "scope": "PS1 catalogue identity and next-delivery boundary only; RPCS3 Core retains its independent validation."
+  },
+  "unused_redundant_push_validation": {
+    "run": 39477840494,
+    "cancel_requested": true,
+    "reason": "Publication, Foundation and regional matching already succeeded on byte-identical inputs in 39477034529. The focused delivery guard is separate.",
+    "counted_as_success": false
+  }
 }

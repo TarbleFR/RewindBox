@@ -1,0 +1,19 @@
+{
+  "result": "passed",
+  "ps1Catalogue": {
+    "source": "29381d0441081b93b36ed924e9a295a8ba34280c",
+    "run": 39477034529,
+    "jobs": [
+      "PS1 catalogue generation, provenance and preserved entries",
+      "PS1 bundled catalogue and regional matching on Foundation"
+    ],
+    "conclusion": "success",
+    "revision": "2026-10-20.2a44a9d3ed55",
+    "manifestSHA256": "6b37e6e3adb927c76f98aded2e7784269cd0839d855a56fbb75e02fb0181b4e1",
+    "existingPackObjectsUnchanged": 1088,
+    "ps1References": 26,
+    "verifiedPS1OneTap": 4,
+    "manualAuthorPagesWithoutInstallationClaim": 22,
+    "physicalDeviceValidated": false
+  }
+}
