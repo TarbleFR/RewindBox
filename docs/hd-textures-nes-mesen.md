@@ -64,6 +64,25 @@ condition d'entrée d'un cœur dans un lot : il est ajouté comme moteur NES
   `<patch>` ou une musique absents sont ignorés. Toutes les images sont
   décodées au démarrage du jeu (aucun chargement paresseux).
 
+- **Défaut de l'hôte trouvé par la sonde** : la première session Mesen du
+  Simulateur (run `39370233922`, `mesen-plain-1`, sans pack) s'est terminée
+  par un SIGSEGV à l'adresse `0xc0` juste après le démarrage du fil
+  d'émulation. L'hôte appelait `retro_set_video_refresh`, les fonctions audio
+  et d'entrée **avant** `retro_init` ; Mesen déréférence dans chacune sa
+  console, créée dans `retro_init` (`Libretro/libretro.cpp`, `0102910c`).
+  RetroArch les appelle après `retro_init` (`runloop.c`,
+  `core_init_libretro_cbs`, RetroArch `054ecb46`) : c'est l'ordre pour
+  lequel les cœurs du buildbot sont faits. `LibretroCoreHost.m` suit
+  désormais cet ordre (toujours avant `retro_load_game`) ; le cœur de test
+  compte les appels faits avant et après `retro_init`, et
+  `test/libretro_host/host_test.m` exige zéro avant et cinq après. Ce test
+  du hôte ne compilait plus depuis la Build 474 (en-tête
+  `<neo_cheat_catalog/…>` introuvable) : il prépare maintenant les en-têtes
+  publics des pods comme la vérification iPhone et compile le magasin du
+  catalogue de triches, sans retirer ni affaiblir aucune vérification. Le
+  changement d'ordre vaut pour les 35 cœurs : toute la sonde du Simulateur
+  est relancée.
+
 ## 3. Page Textures HD pour la NES
 
 - **Identité** (`NeoTextureIdentity::NES`) : le SHA-1 du fichier entier que
@@ -198,6 +217,15 @@ au § 7.
   réussies, cinq enregistrements (quatre packs NES, Wip3out) recopiés dans
   `verified.jsonl` et déclarés dans `ci-records.json`.
 - Sonde des hébergeurs : run `39367094174` (motifs des exclusions NES).
+- Catalogue, partie host/native/uikit/cores : run `39369224779` (`ea864315`,
+  native en échec : la déclaration `invokeMethod:arguments:result:` manquait
+  au talon Flutter de la vérification iPhone, ajoutée par `e4b6802a`), puis
+  runs `39369640295` (`e4b6802a`) et `39370828138` (`38efdf80`, avec le cas
+  UIKit de la page NES) entièrement réussis.
+- Sonde du Simulateur, scénarios existants : run `39366986952` (`4c218620`),
+  tous les travaux réussis avec la sonde modifiée.
+- Sonde Mesen : run `39370233922` (`e4b6802a`) en échec, SIGSEGV de l'hôte
+  décrit au § 2 ; corrigé par `31222605`.
 - Catalogue `2026-10-20.212eb2401253` : 1 050 packs (PS2 698, GameCube 98,
   Wii 63, PSP 110, 3DS 53, N64 21, PS1 2, NES 5), 408 sources, aucun pack en
   attente.
