@@ -94,5 +94,48 @@
   "family": "gc-wave-race-blue-storm-panda-venom",
   "scope": "partial",
   "notes": "Original creator publication explicitly names USA/EU/JAP. UI, fonts, maps and characters are upscaled; some background textures remain missing. The shared GWR folder is not evidence for additional titles or a French-specific release. Original 7z download and native installation are pending; no iPhone rendering is claimed."
+ },
+ {
+  "id": "wii-kirby-return-to-dream-land-vicmuller",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Kirby’s Return to Dream Land — vicmuller HD (cancelled WIP)",
+  "version": "2025-10-15 reissue (cancelled)",
+  "games": [
+   {
+    "title": "Kirby’s Return to Dream Land",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SUKE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "vicmuller"
+  ],
+  "page_url": "https://gamebanana.com/mods/503551",
+  "source_id": "gamebanana:503551",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; creator checklist explicitly allows downloading and installing",
+   "redistribution": "Manual download from the creator’s original GameBanana file. NeoStation does not rehost, modify or redistribute it; no permission for derivative redistribution is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/503551",
+   "file_name": "krtdl_hd.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1539498"
+   }
+  },
+  "family": "wii-kirby-return-to-dream-land-vicmuller",
+  "scope": "partial",
+  "notes": "Creator discontinued this incomplete upscale. Current original GameBanana ZIP reissues the unfinished textures with an updated tutorial; the older 7z and MediaFire links are not extra families. Creator instructions explicitly name USA SUKE01. Optional classic Poppy Bros Jr. and alternate Kirby styles must not be merged automatically. Archive structure and native import are pending. No complete-game, PAL, French or iPhone rendering claim."
  }
 ]
