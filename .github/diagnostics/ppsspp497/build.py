@@ -68,6 +68,9 @@ def main():
                'DEBUG=0', 'IOSSDK=' + sdk, 'GIT_VERSION=1bd28b0-neostation-memory1',
                'CC=' + clang, 'CXX=' + clangxx, 'PLATCFLAGS=' + target + ' -DHAVE_POSIX_MEMALIGN',
                'CPUFLAGS=-DARM64', 'FFMPEG_CMAKE_TOOLCHAIN=' + ffmpeg,
+               # Make exports command-line flags. FFmpeg's configure probes
+               # must not inherit the core's dylib link or not-yet-built libs.
+               'FFMPEG_CMAKE_ENV=env -u LDFLAGS -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u MAKEFLAGS -u MFLAGS',
                'LDFLAGS=-dynamiclib ' + target + ' -Wl,-install_name,' + install + ' -lobjc $(FFMPEGLDFLAGS)']
     with (work / 'compile.log').open('w') as log:
         try:

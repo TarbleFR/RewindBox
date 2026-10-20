@@ -418,7 +418,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 - (void)finishStop {
   _closing = YES;
   _thread = nil;
-  _finalLog = _host.recentLog;
+  // unloadCore retained the PSP ownership record outside the rolling log.
+  if (_finalLog == nil) _finalLog = _host.recentLog;
   LibretroGameViewController *controller = _controller;
   _controller = nil;
   _menu = nil;

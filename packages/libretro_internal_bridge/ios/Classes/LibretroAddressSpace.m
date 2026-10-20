@@ -664,6 +664,7 @@ NSString *LibretroPPSSPPReservationReport(void) {
   LibretroReservationState state = gReservationState;
   uint64_t base = gReservationBase;
   uint64_t slot = SlotHeldBytes();
+  BOOL managed = gLeaseArena != 0;
   NSString *note = gReservationNote;
   os_unfair_lock_unlock(&gReservationLock);
   const uint64_t slotSize = kSlot.end - kSlot.start;
@@ -674,6 +675,10 @@ NSString *LibretroPPSSPPReservationReport(void) {
     case LibretroReservationHeld:
       return [NSString stringWithFormat:@"[HOST] PPSSPP window held at 0x%llx, %@ (%@)", base, slotText, note];
     case LibretroReservationBooting:
+      if (managed) {
+        return [NSString stringWithFormat:@"[HOST] PPSSPP window held at 0x%llx throughout managed boot (%@)",
+                                          base, note];
+      }
       return [NSString stringWithFormat:@"[HOST] PPSSPP window held at 0x%llx, view ranges and arena slot released "
                                         @"for this boot (%@)",
                                         base, note];
