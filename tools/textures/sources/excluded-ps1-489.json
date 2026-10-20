@@ -1,32 +1,50 @@
 [
- {
-  "console": "ps1",
-  "source": "S166 Xenogears Perfect ART Works (PAW), RetroArch texture pack (Godsibb ∞ Scientia)",
-  "reason": "Distributed through a Discord server (account required); not fetched, not catalogued."
- },
- {
-  "console": "ps1",
-  "source": "S167 Xenogears HD portraits (ShiningRed, Patreon post)",
-  "reason": "Patreon page not readable without an account; no public file found."
- },
- {
-  "console": "ps1",
-  "source": "S169 Chrono Cross upscale WIP (Reddit)",
-  "reason": "Reddit thread unreachable from the verification environment; no file found."
- },
- {
-  "console": "ps1",
-  "source": "S170–S175 PS1 packs made for DuckStation (Bl4ckH4nd collection, Resident Evil, Resident Evil 2, Parasite Eve II, Legend), GBAtemp",
-  "reason": "DuckStation replacement packs (its own texture hashes and names): Beetle PSX HW does not read them and renaming files would not convert them. GBAtemp also refuses automated access (HTTP 403)."
- },
- {
-  "console": "ps1",
-  "source": "S176 Castlevania: Symphony of the Night HD x4 for Beetle PSX HW (Tarrantx, GBAtemp)",
-  "reason": "Made for Beetle PSX HW, but its GBAtemp thread refuses automated access (HTTP 403): the file could not be fetched and verified. Candidate."
- },
- {
-  "console": "ps1",
-  "source": "S177 NR74W/WipEout-HD-Texture-Pack",
-  "reason": "Repository no longer exists (HTTP 404)."
- }
+  {
+    "console": "ps1",
+    "source": "S166 Xenogears Perfect ART Works (PAW), RetroArch texture pack (Godsibb ∞ Scientia)",
+    "reason": "Requalified on 2026-10-20: PAW 1.8 has an original public author ZIP. Canonical production installation succeeded (399 default PNGs), run39475381324. Included as a verified download; the earlier Discord-only finding is historical.",
+    "historical_reason": "Distributed through a Discord server (account required); not fetched, not catalogued.",
+    "last_reviewed": "2026-10-20",
+    "requalification_inventory": "tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json"
+  },
+  {
+    "console": "ps1",
+    "source": "S167 Xenogears HD portraits (ShiningRed, Patreon post)",
+    "reason": "Requalified on 2026-10-20: the public Shining Red post is readable, but its original attachment returned HTTP403. Manual author reference only; no verified archive or installation.",
+    "historical_reason": "Patreon page not readable without an account; no public file found.",
+    "last_reviewed": "2026-10-20",
+    "requalification_inventory": "tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json"
+  },
+  {
+    "console": "ps1",
+    "source": "S169 Chrono Cross upscale WIP (Reddit)",
+    "reason": "Historical original Chrono Cross link recovered through a contemporaneous crosspost; public MEGA metadata returned EBLOCKED(-16), and the author Reddit request reached429. No download or access workaround; remains unavailable.",
+    "historical_reason": "Reddit thread unreachable from the verification environment; no file found.",
+    "last_reviewed": "2026-10-20",
+    "requalification_inventory": "tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json"
+  },
+  {
+    "console": "ps1",
+    "source": "S170–S175 PS1 packs made for DuckStation (Bl4ckH4nd collection, Resident Evil, Resident Evil 2, Parasite Eve II, Legend), GBAtemp",
+    "reason": "DuckStation replacements use a distinct dumping/hash contract and do not become Beetle-compatible by renaming. Public author metadata has been expanded in the research inventory; no compatible Beetle archive is inferred from these DuckStation listings. Historical403 observations remain preserved.",
+    "historical_reason": "DuckStation replacement packs (its own texture hashes and names): Beetle PSX HW does not read them and renaming files would not convert them. GBAtemp also refuses automated access (HTTP 403).",
+    "last_reviewed": "2026-10-20",
+    "requalification_inventory": "tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json"
+  },
+  {
+    "console": "ps1",
+    "source": "S176 Castlevania: Symphony of the Night HD x4 for Beetle PSX HW (Tarrantx, GBAtemp)",
+    "reason": "Requalified as a manual author reference: the 2026 Beetle x4 thread is public, but its reported10GB/100000-file archive is not verified. An original2020WIP video and separate author Drive link were recovered; old3GB/13000-file metadata is not substituted for the2026release. A Drive metadata429 ended access attempts.",
+    "historical_reason": "Made for Beetle PSX HW, but its GBAtemp thread refuses automated access (HTTP 403): the file could not be fetched and verified. Candidate.",
+    "last_reviewed": "2026-10-20",
+    "requalification_inventory": "tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json"
+  },
+  {
+    "console": "ps1",
+    "source": "S177 NR74W/WipEout-HD-Texture-Pack",
+    "reason": "The historical repository still returns404. The creator current pinned README links an original public backup containing separate old Beetle archives. WipEout and WipEout2097 production installs succeeded in run39479736059 (100+89PNGs). Both published with edition confirmation required; no regional support is inferred from the generic folder name.",
+    "historical_reason": "Repository no longer exists (HTTP 404).",
+    "last_reviewed": "2026-10-20",
+    "requalification_inventory": "tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json"
+  }
 ]

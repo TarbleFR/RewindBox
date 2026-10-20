@@ -41,6 +41,7 @@ PS1_ALLOWED = PS1_MANIFESTS | {
     'tools/textures/verified.jsonl', 'tools/textures/ci-records.json',
     'tools/textures/sources/ps1-expansion.json', 'tools/textures/sources/ps1-ironhulk33.json',
     'tools/textures/sources/ps1-author-pages.json',
+    'tools/textures/sources/excluded-ps1-489.json',
     'test/texture_direct_host_publication_test.py', 'test/texture_catalog_native_test.py',
     'tools/textures/research/ps1-hd-inventory-2026-10-20.json',
     'tools/textures/research/ps1-hd-inventory-2026-10-20.csv',
@@ -111,15 +112,16 @@ def ps1_catalogue_evidence():
         assert hashlib.sha256(tested).hexdigest() == digest, ('CI input identity', path)
     current = check_ps1_expansion.verify()
     assert current['catalogue_sha256'] == proof['catalogue_sha256']
-    assert current['ps1_total'] == proof['ps1_total'] == 26
-    assert current['new_verified_one_tap'] == proof['new_verified_one_tap'] == 2
-    assert current['new_manual_author_references'] == proof['new_manual_author_references'] == 22
+    assert current['ps1_total'] == proof['ps1_total'] == 34
+    assert current['new_verified_one_tap'] == proof['new_verified_one_tap'] == 5
+    assert current['new_manual_author_references'] == proof['new_manual_author_references'] == 27
     evidence = successful(proof['run'], proof['source'], [
         'PS1 catalogue generation, provenance and preserved entries',
         'PS1 bundled catalogue and regional matching on Foundation'])
     return {**evidence, 'revision': current['revision'], 'manifestSHA256': current['catalogue_sha256'],
-        'existingPackObjectsUnchanged': 1088, 'ps1References': 26, 'verifiedPS1OneTap': 4,
-        'manualAuthorPagesWithoutInstallationClaim': 22, 'physicalDeviceValidated': False}
+        'existingPackObjectsUnchanged': 1088, 'previous26CatalogueObjectsUnchanged': 1112,
+        'ps1References': 34, 'verifiedPS1OneTap': 7,
+        'manualAuthorPagesWithoutInstallationClaim': 27, 'physicalDeviceValidated': False}
 
 
 def source_closure():
