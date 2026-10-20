@@ -62,6 +62,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
   StreamSubscription<Map<String, dynamic>>? _embeddedSessionSubscription;
 
   static const Set<String> _embeddedIOSSessionExecutables = <String>{
+    'ios_melonx_internal',
     'ios_armsx2_internal',
     'ios_dolphin_internal',
     'ios_rpcs3_internal',

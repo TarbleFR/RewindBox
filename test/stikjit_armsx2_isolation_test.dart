@@ -3,16 +3,15 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('ARMSX2 uses its isolated embedded helper and leaves MeloNX intact', () {
-    final melonx = File(
-      'lib/services/stikjit_melonx_service.dart',
-    ).readAsStringSync();
-    expect(melonx, contains('enableMeloNxJit'));
+  test('ARMSX2 keeps its isolated helper after external MeloNX retirement', () {
+    expect(File('lib/services/stikjit_melonx_service.dart').existsSync(), isFalse);
 
     final composite = File(
       'packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift',
     ).readAsStringSync();
-    expect(composite, contains('StikjitBridgePluginV2.register(with: registrar)'));
+    expect(composite, contains('LocalDevVpnRouteProbe.probe'));
+    expect(composite, contains('FlutterMethodNotImplemented'));
+    expect(composite, isNot(contains('enableMeloNxJit')));
     expect(composite, isNot(contains('StikjitArmsx2BridgePlugin')));
     expect(composite, isNot(contains('neostation/stikjit_armsx2')));
     expect(File('packages/stikjit_bridge/ios/Classes/Armsx2IdeviceRuntime.swift').existsSync(), isFalse);

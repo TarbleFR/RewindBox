@@ -6,13 +6,14 @@ import 'package:neostation/l10n/rpcs3_library_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/console_manager_locale.dart';
+import 'package:neostation/l10n/melonx_locale.dart';
+import 'package:neostation/services/melonx_internal_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:neostation/services/retroarch_library_service.dart';
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_folder_service.dart';
-import 'package:neostation/services/melonx_library_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
@@ -151,16 +152,36 @@ class GameLaunchService {
         }
       }
 
+      // Switch never reaches an external emulator, generic URL or share sheet.
+      // Old virtual rows are kept for their artwork/playtime, but are not files
+      // that an embedded engine can open.
+      if (Platform.isIOS && system.folderName.toLowerCase() == 'switch') {
+        final locale = Localizations.localeOf(context);
+        final source = game.romPath;
+        if (source == null || MelonxInternalService.isRetiredLink(source)) {
+          return GameLaunchResult.failure(MelonxLocale.forLocale(locale, 'reimport'));
+        }
+        final allowed = await EmbeddedEnginePolicy.instance.allowsSystem(system);
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!allowed) return _embeddedEngineOff(context, system);
+        GameSessionManager.registerGameLaunch(system, game, 'ios_melonx_internal');
+        final report = await MelonxInternalService.launch(gamePath: source, locale: locale.toLanguageTag());
+        if (report['success'] == true) {
+          await FavoritesService.recordGamePlayed(game);
+          return GameLaunchResult.success();
+        }
+        GameSessionManager.cancelGameLaunch();
+        return GameLaunchResult.failure(
+          MelonxLocale.forLocale(locale, report['error'] == 'runtimeUnavailable' ? 'unavailable' : 'launchFailed'),
+          report['diagnostic']?.toString() ?? report['error']?.toString(),
+        );
+      }
+
       final isArmsx2VirtualRom =
           Platform.isIOS &&
           system.folderName.toLowerCase() == 'ps2' &&
           game.romPath != null &&
           Armsx2LibraryService.isVirtualLibraryPath(game.romPath!);
-      final isMeloNXVirtualRom =
-          Platform.isIOS &&
-          system.folderName.toLowerCase() == 'switch' &&
-          game.romPath != null &&
-          MelonxLibraryService.isVirtualLibraryPath(game.romPath!);
 
       final isRpcs3VirtualRom =
           Platform.isIOS &&
@@ -170,7 +191,7 @@ class GameLaunchService {
 
       bool romExists = false;
       if (game.romPath != null) {
-        if (isArmsx2VirtualRom || isMeloNXVirtualRom || isRpcs3VirtualRom) {
+        if (isArmsx2VirtualRom || isRpcs3VirtualRom) {
           // External iOS library imports are represented by direct-launch URLs
           // rather than filesystem paths. They remain launchable even when
           // NeoStation cannot see the underlying ROM file itself.
@@ -368,36 +389,6 @@ class GameLaunchService {
         final retroArchStandsIn =
             !embeddedAllowed &&
             (ConsoleCatalog.entryForSystem(system)?.retroArchFallback ?? false);
-
-        // Nintendo Switch: MeloNX exposes an alternate-frontend library export
-        // and direct-launch URL scheme. Imported virtual rows launch immediately;
-        // physical Switch rows can also be matched by Title ID/title name from
-        // the last MeloNX sync.
-        if (system.folderName.toLowerCase() == 'switch') {
-          try {
-            final launched = await MelonxLibraryService.launchGameByRomPath(
-              game.romPath!,
-              titleId: game.titleId,
-              titleName: game.titleName,
-            );
-            if (launched) return GameLaunchResult.success();
-          } catch (e) {
-            // Physical Switch rows can still fall through to RetroArch/Open In.
-          }
-
-          // A virtual MeloNX row has no local file to hand to another emulator
-          // if its deeplink failed. Stop here instead of trying file fallbacks.
-          if (isMeloNXVirtualRom) {
-            if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
-            return failExternal(GameLaunchResult.failure(
-              ConsoleManagerLocale.forLocale(
-                Localizations.localeOf(context),
-                ConsoleManagerLocale.launchMelonxFailed,
-              ),
-              game.romPath,
-            ));
-          }
-        }
 
         // PS2: ownership comes from the dedicated ARMSX2 root bookmark. A
         // physical ROM below that root belongs to ARMSX2 and is launched there

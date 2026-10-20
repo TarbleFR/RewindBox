@@ -71,7 +71,6 @@ void main() {
             expect(definitions, everyElement(containsPair('url_scheme', 'retroarch')), reason: entry.id);
             expect(LibretroCoreCatalog.handles(entry.importSystem), isFalse, reason: entry.id);
           case ConsoleEngine.melonx:
-            expect(definitions, everyElement(containsPair('url_scheme', 'melonx')), reason: entry.id);
           case ConsoleEngine.dolphin:
           case ConsoleEngine.armsx2:
           case ConsoleEngine.rpcs3:

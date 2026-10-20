@@ -271,8 +271,8 @@ def validate(ipa: Path) -> dict:
         for button in ('gcpad_a', 'wiimote_a', 'classic_a', 'nunchuk_c', 'gcwii_joystick'):
             demand(touch_bundle + button + '@2x.png' in names, f'Touchscreen artwork missing: {button}')
         schemes = set(info.get('LSApplicationQueriesSchemes', []))
-        demand({'retroarch', 'shortcuts', 'melonx'} <= schemes, 'Existing URL query schemes were removed')
-        demand(not schemes & {'dolphin', 'dolphinios', 'dolphin-emu'}, 'External Dolphin query scheme found')
+        demand({'retroarch', 'shortcuts'} <= schemes, 'Existing URL query schemes were removed')
+        demand(not schemes & {'dolphin', 'dolphinios', 'dolphin-emu', 'melonx', 'atariemulator'}, 'Retired external emulator query scheme found')
         dependency_checks = []
         system_dependencies = set()
         helper_roots_by_image = {

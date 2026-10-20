@@ -209,8 +209,12 @@ void main() {
     }
     // No Ports console since Dusklight and KartPad were removed.
     expect(find.byKey(const ValueKey('console-ports')), findsNothing);
-    // External apps only: MeloNX, RetroArch.
-    expect(find.descendant(of: find.byKey(const ValueKey('console-switch')), matching: find.text('External app: MeloNX')), findsOneWidget);
+    // Switch is embedded; the remaining external entries belong to RetroArch.
+    expect(find.descendant(of: find.byKey(const ValueKey('console-switch')), matching: find.text(c(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'}))), findsOneWidget);
+    // A declared route is insufficient: until a runtime is packaged and reports
+    // availability, Switch's engine must be visibly unavailable.
+    expect(switchOf(tester, engine('switch')).value, isFalse);
+    expect(switchOf(tester, engine('switch')).onChanged, isNull);
     expect(find.descendant(of: find.byKey(const ValueKey('console-c64')), matching: find.text('External app: RetroArch')), findsOneWidget);
     // The page sits below the 46.r header.
     expect(tester.getTopLeft(find.text(c(ConsoleManagerLocale.tabTitle))).dy, greaterThan(46.r));

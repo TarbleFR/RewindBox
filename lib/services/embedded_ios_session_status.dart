@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 /// after its launch).
 abstract final class EmbeddedIOSSessionStatus {
   static const _channels = {
+    'ios_melonx_internal': MethodChannel('neostation/melonx_internal'),
     'ios_dolphin_internal': MethodChannel('neostation/dolphin_internal'),
     'ios_rpcs3_internal': MethodChannel('neostation/rpcs3_internal'),
     'ios_libretro_internal': MethodChannel('neostation/libretro_internal'),

@@ -20,8 +20,9 @@ sideloaded app. It is an independently maintained iOS/iPadOS fork of
 
 **RetroArch's Libretro cores are embedded directly in NeoStation.** Supported
 local games run inside the app, with NeoStation's own menu and controls.
-A separate RetroArch installation is not required. **MeloNX** remains a separate
-app for the Nintendo Switch integration.
+A separate RetroArch installation is not required. The old external **MeloNX**
+launcher has been removed on the development branch. Embedded Nintendo Switch
+support is being integrated and is not yet available in a new test IPA.
 
 ## What's new in 0.0.8
 
@@ -204,7 +205,6 @@ Results depend on the game, device and allocation paths actually used.
   suitable signing/provisioning and the supported StikJIT route. The current
   bridge checks a separately installed and activated **LocalDevVPN** route;
   NeoStation does not bundle or activate that VPN.
-- **MeloNX** only if you use the external Nintendo Switch integration.
 
 **LiveContainer is not supported for the embedded runtimes.**
 Download the IPA from the release assets and sign/install it with your chosen

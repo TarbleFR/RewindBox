@@ -16,7 +16,7 @@ enum ConsoleEngine {
   /// RPCS3 (PlayStation 3), embedded.
   rpcs3,
 
-  /// The MeloNX app (Nintendo Switch), external.
+  /// The embedded MeloNX engine (Nintendo Switch).
   melonx,
 
   /// The RetroArch app, external.
@@ -56,7 +56,7 @@ class ConsoleEntry {
   /// The console's games can run in an engine embedded in NeoStation, which
   /// the user may switch off (Consoles tab, Settings › General).
   bool get hasEmbeddedEngine =>
-      engine != ConsoleEngine.melonx && engine != ConsoleEngine.retroarch;
+      engine != ConsoleEngine.retroarch;
 
   /// With the embedded engine off, the RetroArch app takes the games (all of
   /// them for libretro consoles; for the PlayStation 2, the games outside

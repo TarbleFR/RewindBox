@@ -1,11 +1,19 @@
 import Flutter
 import Foundation
 
-/// Composite entry point retained for compatibility. ARMSX2 no longer lives
-/// in stikjit_bridge: its embedded Core owns an isolated helper/transaction.
-/// The validated MeloNX bridge remains unchanged.
+/// Shared LocalDevVPN route probe. Embedded engines own their JIT transactions.
+/// The retired external MeloNX launch method is no longer registered.
 public final class NeoStationStikjitBridgePlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
-    StikjitBridgePluginV2.register(with: registrar)
+    let channel = FlutterMethodChannel(name: "neostation/stikjit", binaryMessenger: registrar.messenger())
+    registrar.addMethodCallDelegate(NeoStationStikjitBridgePlugin(), channel: channel)
+  }
+
+  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard call.method == "probeLocalDevVpnRoute" else {
+      result(FlutterMethodNotImplemented)
+      return
+    }
+    LocalDevVpnRouteProbe.probe { response in result(response) }
   }
 }

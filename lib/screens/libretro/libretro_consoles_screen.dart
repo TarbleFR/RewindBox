@@ -15,6 +15,7 @@ import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_internal_service.dart';
 import '../../services/libretro_main_menu.dart';
 import '../../services/logger_service.dart';
+import '../../services/melonx_internal_service.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/libretro_engine_panel.dart';
 import 'libretro_library_actions.dart';
@@ -90,6 +91,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   /// when the build could not be asked), which shows every console as
   /// available.
   Set<String>? _bundled;
+  bool _melonxAvailable = false;
 
   /// Captured while the page is shown, so the outcome of an operation is
   /// still announced, in the user's language, after a tab switch disposed
@@ -121,6 +123,9 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     unawaited(_policy.load());
     _mainMenu.bundledConsoles().then((consoles) {
       if (mounted && consoles != null) setState(() => _bundled = consoles);
+    });
+    MelonxInternalService.runtimeAvailable().then((available) {
+      if (mounted) setState(() => _melonxAvailable = available);
     });
   }
 
@@ -166,6 +171,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
 
   /// A libretro console whose core is missing from this build.
   bool _unavailable(ConsoleEntry entry) {
+    if (entry.engine == ConsoleEngine.melonx) return !_melonxAvailable;
     final bundled = _bundled;
     if (bundled == null || entry.engine != ConsoleEngine.libretro) return false;
     final console = entry.libretro;
@@ -723,7 +729,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       case ConsoleEngine.rpcs3:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RPCS3'});
       case ConsoleEngine.melonx:
-        return _cf(ConsoleManagerLocale.engineExternal, {'app': 'MeloNX'});
+        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'});
       case ConsoleEngine.retroarch:
         return _cf(ConsoleManagerLocale.engineExternal, {'app': 'RetroArch'});
     }

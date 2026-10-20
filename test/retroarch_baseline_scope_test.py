@@ -291,6 +291,10 @@ class RetroArchBaselineScope(unittest.TestCase):
                         self.assertEqual(data.count(current), 1)
                         data = data.replace(current, original, 1)
                 if name == 'lib/main.dart':
+                    # Maintainer-requested external MeloNX retirement, 20 October 2026.
+                    for current, original in [(b'    // External MeloNX synchronisation is retired. Existing cached metadata is\n    // left untouched; Nintendo Switch games must be imported for the embedded\n    // engine. RetroArch retains its own callback.\n    ExternalFolderAccess.setIncomingUrlListener((uri) async {\n      await RetroArchLibraryService.handleIncomingUri(uri);\n    });', b'    // RetroArch and MeloNX still receive their exported libraries through the\n    // neostation:// callback scheme. ARMSX2 library discovery is filesystem-only\n    // and therefore has no callback handler here.\n    ExternalFolderAccess.setIncomingUrlListener((uri) async {\n      if (await RetroArchLibraryService.handleIncomingUri(uri)) return;\n      await MelonxLibraryService.handleIncomingUri(uri);\n    });'), (b"import 'package:neostation/services/armsx2_internal_service.dart';\n", b"import 'package:neostation/services/armsx2_internal_service.dart';\nimport 'package:neostation/services/melonx_library_service.dart';\n"), (b'    await RetroArchLibraryService.loadCachedLibrary();\n', b'    await RetroArchLibraryService.loadCachedLibrary();\n    await MelonxLibraryService.loadCachedLibrary();\n')]:
+                        self.assertEqual(data.count(current), 1)
+                        data = data.replace(current, original, 1)
                     # Build433, at the maintainer's request (10 October 2026):
                     # saved library folders are found again at startup after
                     # iOS moved an app container. Exactly these three marked

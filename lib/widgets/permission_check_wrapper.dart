@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/pairing_file_service.dart';
 import 'package:neostation/services/retroarch_library_service.dart';
-import 'package:neostation/services/stikjit_melonx_service.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../screens/systems_screen/fork_first_run_onboarding.dart';
 import 'pairing_file_onboarding.dart';
@@ -38,8 +37,7 @@ class _PermissionCheckWrapperState extends State<PermissionCheckWrapper> {
 
   static final _log = LoggerService.instance;
 
-  bool get _supportsPairingGate =>
-      Platform.isIOS && StikJitMeloNxService.isExperimentalEnabled;
+  bool get _supportsPairingGate => Platform.isIOS;
 
   @override
   void initState() {

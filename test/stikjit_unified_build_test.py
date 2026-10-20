@@ -13,9 +13,7 @@ from build_patched_stikjit import input_fingerprint
 BASE='238255370f4dc7ef1e7c9a0ff0257d9a884f39d4'
 paths=['build-utils/patch_stikjit_compat.py','build-utils/patch_stikjit_rpcs3.py',
        'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3JitBridgePlugin.mm',
-       'packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm',
-       'packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift',
-       'packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift']
+       'packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm']
 for lower,cls in [('rpcs3','Rpcs3'),('armsx2','Armsx2'),('dolphin','Dolphin')]:
     paths.append(f'packages/{lower}_jit_helper/ios/Classes/{cls}JITRequestHandlerBase.swift')
 for lower in ('rpcs3','armsx2'):
@@ -51,8 +49,8 @@ if identity_path.is_file():
         assert json.loads((fw/'NeoStation-StikJIT-source.json').read_text())['revision']==pin['revision']
         modules.append([x.read_bytes() for x in interfaces])
     assert modules[0]==modules[1],'Shared helper Swift ABI differs'
-    bridge=''.join((ROOT/f'packages/stikjit_bridge/ios/Classes/{file}.swift').read_text()
-                  for file in ('StikjitBridgePlugin','StikjitBridgePluginV2'))
-    exports=set(re.findall(r'Self.resolve\(\s*"([a-z][a-z0-9_]+)"',bridge))
+    exports=set(json.loads((ROOT/'build-utils/stikjit/retained-dynamic-exports.json').read_text()))
     assert set(identity['dynamicFFIExports'])==exports
+assert not (ROOT/'packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift').exists()
+assert not (ROOT/'packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift').exists()
 print('PASS: canonical source build; no obsolete donor JIT; all 11 JIT runtime/patch files identical to Build363')

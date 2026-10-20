@@ -163,7 +163,7 @@ def complete_dolphin_packaging_members():
     members = complete_ipa_members()
     host = plistlib.loads(members[APP + 'Info.plist'])
     host.update(NSPhotoLibraryAddUsageDescription='Parser fixture',
-                LSApplicationQueriesSchemes=['retroarch', 'shortcuts', 'melonx'])
+                LSApplicationQueriesSchemes=['retroarch', 'shortcuts'])
     members[APP + 'Info.plist'] = plistlib.dumps(host)
     for path, data in list(members.items()):
         if data[:4] != b'\xcf\xfa\xed\xfe':
@@ -248,6 +248,16 @@ class SingleIPADistributionTests(unittest.TestCase):
         self.assertEqual(set(report['embeddedExtensions']), JIT_HELPERS | set(DONOR_IDENTITIES) | set(RELAY_CONTRACTS))
         self.assertIs(report['deviceLaunchValidated'], False)
         self.assertEqual(report['mainApplicationCount'], 1)
+
+    def test_packaging_rejects_retired_external_switch_queries(self):
+        for scheme in ('melonx', 'atariemulator'):
+            with self.subTest(scheme=scheme):
+                members = complete_dolphin_packaging_members()
+                host = plistlib.loads(members[APP + 'Info.plist'])
+                host['LSApplicationQueriesSchemes'].append(scheme)
+                members[APP + 'Info.plist'] = plistlib.dumps(host)
+                with self.assertRaisesRegex(ValueError, 'Retired external emulator query scheme found'):
+                    self.validate_members(members, dolphin_validator.validate)
 
     def test_requires_each_of_the_five_extensions(self):
         for name in JIT_HELPERS | set(DONOR_IDENTITIES) | set(RELAY_CONTRACTS):

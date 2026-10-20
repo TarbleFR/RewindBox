@@ -72,11 +72,9 @@ def install(xcframework: Path) -> None:
         raise SystemExit('StikJIT binary is missing the scoped classic-attach patch')
     import subprocess
     exports = set(subprocess.check_output(['nm', '-gjU', str(binary)], text=True).splitlines())
-    # Existing dynamic MeloNX bridge API must survive upstream 1.9 dead stripping.
-    bridge = (ROOT/'packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift').read_text()
-    import re
-    bridge += (ROOT/'packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift').read_text()
-    required = set(re.findall(r'Self.resolve\(\s*"([a-z][a-z0-9_]+)"', bridge))
+    # Preserve the already delivered FFI ABI without retaining an external
+    # emulator launcher in the app. This reviewed list is unchanged from 363.
+    required = set(json.loads((ROOT/'build-utils/stikjit/retained-dynamic-exports.json').read_text()))
     if not required or any('_'+name not in exports for name in required):
         raise SystemExit('Missing dynamic idevice exports: '+repr(sorted(name for name in required if '_'+name not in exports)))
     universal_scripts = list(device.rglob('universal.js'))

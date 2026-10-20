@@ -47,7 +47,6 @@ import 'package:neostation/services/ios_library_root_relocation.dart';
 // LIBRARY_RELOCATION_END: imports
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
-import 'package:neostation/services/melonx_library_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
@@ -365,16 +364,14 @@ void main() async {
     // Load the last exported emulator libraries so direct-launch matching
     // works immediately after a cold start without forcing a fresh sync.
     await RetroArchLibraryService.loadCachedLibrary();
-    await MelonxLibraryService.loadCachedLibrary();
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
 
-    // RetroArch and MeloNX still receive their exported libraries through the
-    // neostation:// callback scheme. ARMSX2 library discovery is filesystem-only
-    // and therefore has no callback handler here.
+    // External MeloNX synchronisation is retired. Existing cached metadata is
+    // left untouched; Nintendo Switch games must be imported for the embedded
+    // engine. RetroArch retains its own callback.
     ExternalFolderAccess.setIncomingUrlListener((uri) async {
-      if (await RetroArchLibraryService.handleIncomingUri(uri)) return;
-      await MelonxLibraryService.handleIncomingUri(uri);
+      await RetroArchLibraryService.handleIncomingUri(uri);
     });
   }
 

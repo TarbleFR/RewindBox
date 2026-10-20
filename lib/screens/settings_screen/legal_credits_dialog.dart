@@ -114,12 +114,6 @@ class LegalCreditsDialog {
       'https://github.com/azahar-emu/azahar',
       'assets/legal/libretro/azahar-LICENSE.txt',
     ),
-    _LegalEntry(
-      'MeloNX',
-      'MeloNX contributors; based on Ryujinx/Ryubing as credited upstream',
-      'External integration; upstream notices apply',
-      'https://github.com/nurtrino/MeloNX',
-    ),
   ];
 
   static Future<void> show(BuildContext context) {

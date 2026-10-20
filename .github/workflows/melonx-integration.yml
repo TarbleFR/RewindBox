@@ -1,0 +1,47 @@
+name: MeloNX external retirement and embedded route
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/melonx-integration.yml'
+      - 'lib/services/melonx_internal_service.dart'
+      - 'lib/l10n/melonx_locale.dart'
+      - 'test/melonx_embedded_route_test.dart'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze --no-fatal-infos
+      - name: Exercise changed routes, console settings, retirement and session status
+        run: >-
+          flutter test test/melonx_embedded_route_test.dart
+          test/emulator_seed_default_test.dart test/console_manager_test.dart
+          test/libretro_consoles_tab_test.dart test/stikjit_armsx2_isolation_test.dart
+          test/dolphin_isolation_contract_test.dart test/jit_backend_preference_service_test.dart
+          test/frontend_media_gate_test.dart
+      - name: Protect unchanged libraries, the remaining JIT helpers and routing
+        run: |
+          python3 test/retroarch_baseline_scope_test.py
+          python3 test/local_dev_vpn_route_contract_test.py
+          python3 test/embedded_engine_route_contract_test.py
+          python3 test/stikjit_unified_build_test.py
+          python3 test/single_ipa_distribution_test.py
+      - name: Type-check the actual shared route plugin against the iPhone SDK
+        run: |
+          set -euo pipefail
+          FLUTTER_SDK="$(dirname "$(dirname "$(command -v flutter)")")"
+          xcrun swiftc -typecheck -swift-version 5 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -target arm64-apple-ios18.0 -F "$FLUTTER_SDK/bin/cache/artifacts/engine/ios-release" packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift packages/stikjit_bridge/ios/Classes/LocalDevVpnRouteProbe.swift

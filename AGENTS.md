@@ -1,5 +1,26 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+## MeloNX embedded integration — maintainer instruction, 20 October 2026
+
+- Integrate MeloNX as an embedded Switch engine on Claude. The follow-up
+  explicitly retires the external entry: no library-sync card, external URL,
+  Shortcut or external-process JIT fallback. Preserve personal files, saves and
+  cached metadata. Old virtual rows require import of the actual local game.
+- Source/architecture/license audit and exact build attempts:
+  `docs/melonx-embedded-integration-2026-10-20.md`. Engine pin `13700519f3`;
+  upstream .NET 10 NativeAOT is distinct from mandatory guest JIT. Do not mark
+  an engine available from an embedded flag or route alone: require the native
+  runtime's report. Integration and a test IPA are not yet complete.
+- Retain the existing dedicated Dolphin/ARMSX2/RPCS3 helper identities and
+  source-built StikJIT framework. The removed external bridge's FFI export list
+  is preserved in `build-utils/stikjit/retained-dynamic-exports.json` solely to
+  check the unchanged delivered framework ABI; no core rebuild is needed for
+  this removal. Main.dart's exact removal-only exception is reconstructed in
+  the baseline test; other protected library bytes stay unchanged.
+- The Switch HD research entries remain research-only. No pack is installable
+  until the actual engine adapter loads its format and exact target/version.
+  No firmware/keys/games are bundled. No public release is authorized.
+
 ## Recherche PS1 HD — continuation courante, 20 octobre 2026
 
 - État courant : **180 familles, 228 fiches, 48 hors décompte, 141 jeux/éditions, 47 groupes crédités**. 53 familles mentionnent Beetle, 109 DuckStation, 9 communes. Ce total 180 ajoute une nouvelle famille après la correction Tekken 2 de la passe précédente ; il ne rétablit pas ce doublon. 97 requêtes web et 14 recherches de dépôts GitHub consignées ; 298 URLs de consultation avec échecs, sans assimiler les résultats indexés à des pages lues.
