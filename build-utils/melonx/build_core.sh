@@ -19,6 +19,15 @@ assert global_json['sdk']['version'] == pin['dotnet']
 assert global_json['sdk']['rollForward'] == 'latestFeature'
 global_json['sdk']['rollForward'] = 'disable'
 (source / 'global.json').write_text(json.dumps(global_json, indent=2) + '\n')
+# The MeloNX mirror's f925129209afd55927a0201d82285b8fa4b7ba30
+# retains Ryujinx's projects feed. The new Ryulynx feed does not contain
+# the exact alpha.129 package (NU1101 in run 39499119399). Keep the package
+# version and source mapping; do not substitute an older LibHac API.
+nuget = source / 'nuget.config'
+config = nuget.read_text(encoding='utf-8-sig')
+old_feed = 'https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json'
+assert config.count(old_feed) == 1
+nuget.write_text(config.replace(old_feed, pin['libHacFeed']), encoding='utf-8')
 PY
 mkdir -p "$TASK_ROOT/dist/melonx"
 cd "$SOURCE_DIR"
