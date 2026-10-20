@@ -16,6 +16,8 @@ Supported, all public links without an account:
   gdrive        file links (/file/d/<id>, open?id=, uc?id=) through Google's own
                 "download anyway" form; folders through the public embedded view
   dropbox       shared links with dl=1
+  yandex        one public file through Yandex Disk's public-resource API;
+                folders and restricted downloads are not copied or worked around
   mega          public file links with megatools (megatools dl); public folder links
                 through MEGA's own public API (the files listed, a file of the folder
                 downloaded and decrypted with the folder's key, as the MEGA web page does)
@@ -65,6 +67,8 @@ def kind(url):
         return 'gdrive'
     if host.endswith('dropbox.com') or host.endswith('dropboxusercontent.com'):
         return 'dropbox'
+    if host in ('disk.yandex.ru', 'disk.yandex.com', 'yadi.sk'):
+        return 'yandex'
     if host.endswith('mega.nz') or host.endswith('mega.co.nz') or host.endswith('mega.io'):
         return 'mega'
     if host in ('terabox.com', 'www.terabox.com', '1024terabox.com', 'www.1024terabox.com') or host.endswith('patreon.com'):
@@ -242,6 +246,36 @@ def dropbox(url, destination, max_bytes):
     parts = urllib.parse.urlsplit(url)
     query = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query) if k not in ('dl', 'raw')] + [('dl', '1')]
     return _download_direct(urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query))), destination, max_bytes)
+
+
+# ---------------------------------------------------------------- Yandex Disk
+
+def yandex(url, destination, max_bytes):
+    """Read a single creator-shared file anonymously, respecting provider limits."""
+    api = 'https://cloud-api.yandex.net/v1/disk/public/resources'
+    query = urllib.parse.urlencode({'public_key': url})
+    metadata = json.loads(_page(f'{api}?{query}')[0])
+    if metadata.get('error'):
+        raise HostError('protected', str(metadata['error']))
+    if metadata.get('type') != 'file':
+        raise HostError('unsupported', 'Yandex public link is not one file')
+    if int(metadata.get('size') or 0) > max_bytes:
+        raise HostError('tooLarge', f'larger than {max_bytes} bytes')
+    link = json.loads(_page(f'{api}/download?{query}')[0])
+    if link.get('error'):
+        raise HostError('quota' if re.search(r'limit|quota', str(link['error']), re.I) else 'protected',
+                        str(link['error']))
+    target = urllib.parse.urlsplit(link.get('href') or '')
+    host = (target.hostname or '').lower()
+    if target.scheme != 'https' or target.username or target.password or not (
+            host.endswith('.yandex.ru') or host.endswith('.yandex.net')):
+        raise HostError('unsupported', 'Yandex returned no HTTPS provider download')
+    result = _download_direct(link['href'], destination, max_bytes)
+    if metadata.get('sha256') and result['sha256'] != metadata['sha256']:
+        raise HostError('changed', 'Yandex metadata and downloaded file differ')
+    result['name'] = metadata.get('name') or result.get('name') or ''
+    result.pop('final', None)  # Signed temporary CDN URLs never enter research metadata.
+    return result
 
 
 # ----------------------------------------------------------------------- MEGA
@@ -458,7 +492,7 @@ def fetch(url, destination, max_bytes):
     host = kind(url)
     if host == 'refused':
         raise HostError('protected', 'host requires an account or a payment')
-    function = {'mediafire': mediafire, 'gdrive': gdrive, 'dropbox': dropbox}.get(host)
+    function = {'mediafire': mediafire, 'gdrive': gdrive, 'dropbox': dropbox, 'yandex': yandex}.get(host)
     if host == 'mega':
         result = mega(url, destination, max_bytes)
     elif function:

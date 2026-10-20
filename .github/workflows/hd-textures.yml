@@ -64,6 +64,8 @@ jobs:
         with: {fetch-depth: 0, persist-credentials: false}
       - name: Check catalogue publication against real disc identity observations
         run: python3 test/texture_catalogue_publication_test.py
+      - name: Check public Yandex file verification boundaries
+        run: python3 test/texture_yandex_host_test.py
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - name: Restore exact locked dependencies

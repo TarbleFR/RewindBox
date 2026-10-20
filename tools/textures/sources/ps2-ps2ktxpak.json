@@ -4775,15 +4775,20 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI-enhanced textures. The original creator explicitly identifies SCUS-97399 and publishes this Yandex Disk file. Public-resource metadata confirms a single archive file and SHA-256. Native import and coverage are pending; no European or French edition is asserted. Original author-hosted file only; manual import, no redistribution.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/god-of-war-remastered-project-ps2-4k-texture-pack-ai-enhanced.669144/"
+   "page": "https://gbatemp.net/threads/god-of-war-remastered-project-ps2-4k-texture-pack-ai-enhanced.669144/",
+   "verify": {
+    "url": "https://disk.yandex.ru/d/3ipL6dszlVh-aA",
+    "sha256": "b679c8b20db147d3995d504ed06c0d76d5872f3ca2e9b53fa572716d463edc7b"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ewgeha.731198/"
+  "source_url": "https://gbatemp.net/members/ewgeha.731198/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-god-of-war-huekage",
@@ -8973,15 +8978,20 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI-enhanced textures. The original creator explicitly identifies SLUS-20743 and publishes this Yandex Disk file. Public-resource metadata confirms a single archive file and SHA-256. Native import and coverage are pending; no European or French edition is asserted. Original author-hosted file only; manual import, no redistribution.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/prince-of-persia-the-sands-of-time-remastered-project-pcsx2-texture-pack.670289/"
+   "page": "https://gbatemp.net/threads/prince-of-persia-the-sands-of-time-remastered-project-pcsx2-texture-pack.670289/",
+   "verify": {
+    "url": "https://disk.yandex.ru/d/4ve5fm7y6zy0ng",
+    "sha256": "a65659219a65dc3f4670a1c639c917eb7aad40252f4d3f8c44e1d1aea0b25f50"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ewgeha.731198/"
+  "source_url": "https://gbatemp.net/members/ewgeha.731198/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-prince-of-persia-the-sands-of-time-texmaster-2",
@@ -12096,7 +12106,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLPM-66848; inferred other regions and reissues are removed. Availability awaits verification for this corrected target.",
+  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLPM-66848; inferred other regions and reissues are removed. Availability awaits verification for this corrected target. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/sengoku-basara-2-heroes-hd-textures.641712/",
@@ -12722,7 +12732,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLUS-20622; inferred other regions and reissues are removed. Availability awaits verification for this corrected target.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLUS-20622; inferred other regions and reissues are removed. Availability awaits verification for this corrected target. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
@@ -26313,7 +26323,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Creator opening post explicitly specifies WWE SmackDown vs. Raw 2007 (SLUS-21427), with upscaled wrestlers, arenas, loading screens, menus, logos and fonts. Original ZIP credits MininGaming; both credits are retained without assuming the names are aliases. The imported catalogue entry for the earlier game is corrected, and unrelated regional IDs are removed. Flat archive has no internal serial; native verification for the corrected USA target is required before availability.",
+  "notes": "Creator opening post explicitly specifies WWE SmackDown vs. Raw 2007 (SLUS-21427), with upscaled wrestlers, arenas, loading screens, menus, logos and fonts. Original ZIP credits MininGaming; both credits are retained without assuming the names are aliases. The imported catalogue entry for the earlier game is corrected, and unrelated regional IDs are removed. Flat archive has no internal serial; native verification for the corrected USA target is required before availability. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/wwe-smackdown-vs-raw-2007-hd-texture.628337/",
