@@ -133,6 +133,31 @@ Résultats exacts, runs et identité de livraison : § 8 (renseigné à la livra
   d'écran externe et NeoPlay mis à jour ; `test/neoplay/companion_tests.swift` vérifie que l'ancien
   bouton de menu Dusklight n'est plus une ancre.
 
+Comptes de tests mis à jour (contrat remplacé, non affaibli) : 85 → 84 consoles et 107 → 106
+systèmes iOS (la console et le système Ports n'existent plus, ce que les tests vérifient
+désormais explicitement). `test/build351_native_donor_test.py` n'exige plus l'empreinte du Core
+Dusklight mais son absence ; il échoue toujours, comme à la Build 491, sur sa première assertion
+(épinglage d'artefact du donneur, devenu une récupération par plages).
+
+### 6.1 Exécutions locales (conteneur Linux, Flutter 3.47.2), comparées à la Build 491
+
+Référence : arbre `23f4ca24` (produit 491) dans un arbre de travail séparé, mêmes outils.
+
+- `flutter analyze --no-fatal-infos` : aucun constat.
+- Suite Flutter complète (`flutter test test/`) : 3 117 réussis, 5 ignorés, 8 échecs, dont 2
+  corrigés ensuite (comptes ci-dessus, 46/46 à la relance avec les deux nouveaux tests) ; les
+  6 restants échouent à l'identique sur la référence (`dolphin_import_ui_test` ×2,
+  `dolphin_isolation_contract_test` ×2, `rpcs3_import_spu_build230_contract_test` ×2, mêmes
+  assertions).
+- Tous les tests Python de `test/` et `.github/diagnostics/` (Flutter disponible) : aucun nouvel
+  échec ; 108 échecs avant comme après, tous déjà présents (la plupart exigent macOS, Xcode ou le
+  simulateur ; quelques contrôles de périmètre figés depuis les Builds 3xx). Les causes ont été
+  comparées : mêmes messages, sauf trois contrôles de périmètre historiques dont l'ordre de
+  parcours ou un plantage de `git` à la référence change la première ligne affichée, pas le motif.
+- Vérification indépendante sur le PC du mainteneur (PowerShell, pas de Python) : le script
+  `verify492.ps1` applique les règles de `validate_no_dusklight_ipa.py` ; sur l'IPA publique 0.0.8
+  (SHA-256 `2e9f1868…`) il refuse les mêmes 60 membres.
+
 Ce qui n'est pas prouvé ici : aucun essai sur iPhone ; le simulateur et la CI ne valident pas
 l'appareil.
 
@@ -149,5 +174,34 @@ l'appareil.
 
 ## 8. Livraison
 
-À consigner après la livraison : source, run, artefact, SHA-256 de l'IPA, résultat du contrôle
-d'absence.
+Reçu : `docs/evidence/portsremoval492-delivery.json`.
+
+- **Contrôles ciblés** `build492-checks.yml`, run `39355430653` sur `b1ca2a97` (commit produit) :
+  partie hôte (job `118408989719`) réussie — couverture de chaque fichier modifié depuis la 491,
+  absence des chemins retirés, preuves « commentaires seuls » et « messages d'assertion seuls »,
+  générateur Canvas, analyse, suite Dart de livraison, deux nouveaux tests, 13 contrats Python, deux
+  tests déjà en échec sur la 491 sans nouveau cas ; partie native (job `118408990326`) réussie —
+  syntaxe iPhone arm64 de chaque source Objective-C d'`external_display` contre le
+  `Flutter.xcframework` épinglé, harnais NPCheck dans le simulateur iOS 18.5 : 32 tests, 0 échec
+  (Xcode 26.3, SDK iPhone 26.2).
+- **Livraison** `retroarch-delivery.yml`, run `39356466695` sur `3349513a` (= `b1ca2a97` + le reçu
+  491 de l'autre session, documents seulement) : `checks` et `native` réutilisent les preuves
+  (aucune suite relancée), `cold` réussi (compilation Release 403 s), `warm` ignoré. Base : 491
+  livrée `9faa3f9b`, run `39353891715`. Aucun Core reconstruit.
+- **Artefact** `12236001799` (166 115 869 octets, archive SHA-256
+  `54a7acdb8d66d62cc2288e0551f4671a11cda3c5008e38f125ce1bf71c46df2c`, conservé jusqu'au 3 novembre
+  2026), chiffré pour `build-utils/delivery-492-recipient.pem` (clé privée créée sur le PC du
+  mainteneur, supprimée après la remise).
+- **IPA 0.0.8 (492)** `NeoStation-Build492-3349513a…-cold.ipa`, **165 863 534 octets**, SHA-256
+  **`56eb53f31f3ee131ea7048ccac5f4f1f5ebd3ef23b41c282249932f7de3fbb79`**, égal à `SHA256SUMS`, à
+  `signed-payload-identity.json` et à la copie `C:\Users\Coren\Downloads\NeoStation-Build492-3349513a.ipa`.
+  Re-signature SideStore requise. 20,6 Mo de moins que la 491 (186 428 464 octets).
+- **Inspection indépendante** de l'IPA scellée sur le PC : 4 082 membres, aucun élément Dusklight
+  ni Ports (seules les notices historiques et la table d'ABI NeoSwap contiennent le mot) ;
+  application et cinq extensions en 0.0.8 (492) ; garde Ports présent dans le code Dart, route
+  Dusklight absente ; 70 frameworks dont 34 cœurs libretro, DolphinCore, ARMSX2Core et
+  libRPCS3Core ; aucune image Dusklight ni KartPad dans la liste des images signées. Le reçu 491
+  ne consignant pas d'empreintes par image, l'identité des moteurs repose sur les étapes d'identité
+  épinglée de la livraison et sur la fermeture de source (aucune entrée de Core modifiée).
+
+Aucune validation sur iPhone. Ne pas réutiliser le numéro 492.
