@@ -163,7 +163,7 @@
  },
  {
   "id": "ps2-ktx-ace-combat-04-shattered-skies-superostrich",
-  "title": "Ace Combat 04 / 5 / Zero — Trilogy HD HUD",
+  "title": "Ace Combat 04: Shattered Skies — Trilogy HD HUD",
   "version": "1.2.1",
   "games": [
    {
@@ -178,32 +178,6 @@
     "regions": [
      "USA"
     ]
-   },
-   {
-    "title": "Ace Combat 5: The Unsung War",
-    "identities": [
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLUS-20851"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   },
-   {
-    "title": "Ace Combat Zero: The Belkan War",
-    "identities": [
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLUS-21346"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
    }
   ],
   "authors": [
@@ -215,7 +189,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Hand-drawn in-mission HUD only. The same creator archive contains SLUS-20152, SLUS-20851 and SLUS-21346; one family for the trilogy, not three packs. Menus, briefings, title screens and other textures are outside its scope. No PAL or French-specific support is claimed.",
+  "notes": "Hand-drawn in-mission HUD only. One author archive and one family for Ace Combat 04, 5 and Zero; each game profile selects only its own original USA subtree. Menus, briefings and title screens are outside its scope. No PAL or French support is claimed.",
   "download": {
    "automatable": false,
    "page": "https://ostrichmods.com/trilogy.html",
@@ -229,12 +203,24 @@
   "availability": "manual",
   "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485",
   "family": "ps2-ace-combat-trilogy-ostrich",
-  "scope": "ui"
+  "scope": "ui",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements",
+     "exclude": [
+      "SLUS-20851/",
+      "SLUS-21346/"
+     ]
+    }
+   ]
+  }
  },
  {
   "id": "ps2-ktx-ace-combat-5-the-unsung-war-superostrich",
-  "title": "Ace Combat 5: The Unsung War",
-  "version": "See the creator's page",
+  "title": "Ace Combat 5: The Unsung War — Trilogy HD HUD",
+  "version": "1.2.1",
   "games": [
    {
     "title": "Ace Combat 5: The Unsung War",
@@ -247,8 +233,7 @@
     ],
     "regions": [
      "USA"
-    ],
-    "confirm": true
+    ]
    }
   ],
   "authors": [
@@ -260,22 +245,38 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Hand-drawn in-mission HUD only. One author archive and one family for Ace Combat 04, 5 and Zero; each game profile selects only its own original USA subtree. Menus, briefings and title screens are outside its scope. No PAL or French support is claimed.",
   "download": {
    "automatable": false,
-   "page": "https://ostrichmods.com/trilogy.html"
+   "page": "https://ostrichmods.com/trilogy.html",
+   "verify": {
+    "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+   },
+   "file_name": "actrilogy-hud-upgrade-v1.2.1.zip"
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485",
   "family": "ps2-ace-combat-trilogy-ostrich",
-  "scope": "ui"
+  "scope": "ui",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements",
+     "exclude": [
+      "SLUS-20152/",
+      "SLUS-21346/"
+     ]
+    }
+   ]
+  }
  },
  {
   "id": "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich",
-  "title": "Ace Combat Zero: The Belkan War",
-  "version": "See the creator's page",
+  "title": "Ace Combat Zero: The Belkan War — Trilogy HD HUD",
+  "version": "1.2.1",
   "games": [
    {
     "title": "Ace Combat Zero: The Belkan War",
@@ -288,8 +289,7 @@
     ],
     "regions": [
      "USA"
-    ],
-    "confirm": true
+    ]
    }
   ],
   "authors": [
@@ -301,17 +301,33 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Hand-drawn in-mission HUD only. One author archive and one family for Ace Combat 04, 5 and Zero; each game profile selects only its own original USA subtree. Menus, briefings and title screens are outside its scope. No PAL or French support is claimed.",
   "download": {
    "automatable": false,
-   "page": "https://ostrichmods.com/trilogy.html"
+   "page": "https://ostrichmods.com/trilogy.html",
+   "verify": {
+    "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+   },
+   "file_name": "actrilogy-hud-upgrade-v1.2.1.zip"
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485",
   "family": "ps2-ace-combat-trilogy-ostrich",
-  "scope": "ui"
+  "scope": "ui",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements",
+     "exclude": [
+      "SLUS-20152/",
+      "SLUS-20851/"
+     ]
+    }
+   ]
+  }
  },
  {
   "id": "ps2-ktx-alone-in-the-dark-the-new-nightmare-teodor-max",
@@ -658,11 +674,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SLUS-20986"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLUS-21079"
      }
     ],
     "regions": [
@@ -680,7 +691,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator WIP, 8,992 PNG replacements. Actual archive and production import name SLUS-20986 only; no SLUS-21079 second-disc coverage is attested. USA only, no PAL or French compatibility inferred. No iPhone rendering validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/armored-core-nexus-hd-texture-pack-slus-20986.668534/",
@@ -3096,7 +3107,7 @@
  {
   "id": "ps2-ktx-dragon-quest-viii-journey-of-the-cursed-king-kupo-on-gbatem",
   "title": "Dragon Quest VIII - Journey of the Cursed King",
-  "version": "See the creator's page",
+  "version": "0.9.6.1",
   "games": [
    {
     "title": "Dragon Quest VIII - Journey of the Cursed King",
@@ -3122,7 +3133,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator PAL archive and production import attest SLES-53974. Author page specifies German, English, Spanish, French and Italian; individual language rendering has not been validated on iPhone. 21,485 replacements imported (mostly BC7 DDS); optional alternatives excluded by the existing ARMSX2 plan.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/dragon-quest-viii-de-en-es-fr-it-v0-9-6.618578/",
@@ -4052,16 +4063,11 @@
  {
   "id": "ps2-ktx-flatout-2-kupo-on-gbatem",
   "title": "FlatOut 2",
-  "version": "See the creator's page",
+  "version": "1.1",
   "games": [
    {
     "title": "FlatOut 2",
     "identities": [
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-54002"
-     },
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
@@ -4083,7 +4089,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Original creator PAL-D archive names SLES-54003; the inferred SLES-54002 match is removed. German edition only, with 8,720 BC7 DDS replacements. No French or other region compatibility is inferred; no iPhone rendering validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/flatout-2-pal-d.650174/",
