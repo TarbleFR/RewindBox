@@ -1,0 +1,80 @@
+[
+  {
+    "key": "paw",
+    "date": "2026-10-20",
+    "source_commit": "b4f86e23e1b81bcbb98ce1045704d2e29d27787d",
+    "driver_sha256": "3230c46b7333514b9a32294e087ec615db2634db78794103b89400422c026638",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+    "archive_bytes": 98605142,
+    "archive_sha256": "f0ee62801b50c0f372be4b1f6e793b25dd26482917b6254aa89fc04a458aee15",
+    "crc_error": null,
+    "command": [
+      "/workspace/scratch/390dae8686ca/research-cache/texture_verify",
+      "install",
+      "beetle",
+      "/workspace/scratch/390dae8686ca/research-cache/paw-native-install",
+      "/workspace/scratch/390dae8686ca/research-cache/paw.zip",
+      "[your .cue or .m3u file name here]-texture-replacements/=SLUS-00664-texture-replacements"
+    ],
+    "returncode": 0,
+    "stdout": "result=installed files=399 bytes=40772005\nfolder=SLUS-00664-texture-replacements\t399\t40772005\n",
+    "stderr": "",
+    "checks": {
+      "textures": 399,
+      "subfolders": 0,
+      "pngChecked": 399,
+      "badPng": []
+    },
+    "problems": [],
+    "installed_stats": [
+      399,
+      40772005,
+      {
+        "png": 399
+      }
+    ],
+    "status": "ok",
+    "physical_iphone_tested": false,
+    "canonical_ci_record": false
+  },
+  {
+    "key": "kyaro",
+    "date": "2026-10-20",
+    "source_commit": "b4f86e23e1b81bcbb98ce1045704d2e29d27787d",
+    "driver_sha256": "3230c46b7333514b9a32294e087ec615db2634db78794103b89400422c026638",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+    "archive_bytes": 79318805,
+    "archive_sha256": "c39266d573fee304ef30fdb82f8358ec6a8d127b77401a127e984b7953168070",
+    "crc_error": null,
+    "command": [
+      "/workspace/scratch/390dae8686ca/research-cache/texture_verify",
+      "install",
+      "beetle",
+      "/workspace/scratch/390dae8686ca/research-cache/kyaro-native-install",
+      "/workspace/scratch/390dae8686ca/research-cache/kyaro.zip",
+      "Suikoden II (USA)-texture-replacements/=SLUS-00958-texture-replacements"
+    ],
+    "returncode": 0,
+    "stdout": "result=installed files=437 bytes=82104183\nfolder=SLUS-00958-texture-replacements\t437\t82104183\n",
+    "stderr": "",
+    "checks": {
+      "textures": 437,
+      "subfolders": 0,
+      "pngChecked": 437,
+      "badPng": []
+    },
+    "problems": [],
+    "installed_stats": [
+      437,
+      82104183,
+      {
+        "png": 437
+      }
+    ],
+    "status": "ok",
+    "physical_iphone_tested": false,
+    "canonical_ci_record": false
+  }
+]
