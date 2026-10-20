@@ -92,5 +92,7 @@ software path; physical iPhone GLES and commercial-game gameplay are unconfirmed
 
 The delivery is pinned to this tested product plus the exact final 355-family
 catalogue. Subsequent installer work on Claude is retained separately in the
-branch history and is outside this IPA's frozen source tree. An immutable CI tag
-selects the delivery commit reachable from Claude; no GitHub release is created.
+branch history and is outside this IPA's frozen source tree. The workflow dispatched on Claude explicitly checks out the immutable delivery
+commit `e999a5fdc98a42f5d1995ca85fdfa04479d7f77a`. Every shell step verifies that
+checkout and records both workflow and source commits before passing the source
+SHA to the existing build scripts. No tag or GitHub release is created.
