@@ -19,10 +19,10 @@ assert global_json['sdk']['version'] == pin['dotnet']
 assert global_json['sdk']['rollForward'] == 'latestFeature'
 global_json['sdk']['rollForward'] = 'disable'
 (source / 'global.json').write_text(json.dumps(global_json, indent=2) + '\n')
-# Ryujinx's original projects namespace is checked on the current official
-# host. The declared Ryulynx feed lacks alpha.129 (run 39499119399); the
-# old git.ryujinx.app host is unreachable (run 39499844255). Keep the exact
-# package version and mapping; do not substitute an older LibHac API.
+# Retain the official declared feed. Both its current namespace and the
+# migrated projects namespace lack alpha.129; the former host is unreachable.
+# Exact unsuccessful probes are recorded in the integration audit. Do not
+# substitute an older LibHac API or an unverified binary.
 nuget = source / 'nuget.config'
 config = nuget.read_text(encoding='utf-8-sig')
 old_feed = 'https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json'

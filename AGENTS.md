@@ -10,13 +10,18 @@
   `docs/melonx-embedded-integration-2026-10-20.md`. Engine pin `13700519f3`;
   upstream .NET 10 NativeAOT is distinct from mandatory guest JIT. Do not mark
   an engine available from an embedded flag or route alone: require the native
-  runtime's report. Integration and a test IPA are not yet complete.
+  runtime's report. Engine compilation is blocked by missing exact
+  Ryujinx.LibHac 0.21.0-alpha.129 in both namespaces of the official feed
+  (NU1101); the previous server is unreachable (NU1301). Integration and a
+  test IPA are not complete. Restore the exact dependency/source before
+  implementing and validating the native session; no engine is packaged.
 - Retain the existing dedicated Dolphin/ARMSX2/RPCS3 helper identities and
   source-built StikJIT framework. The two old Swift launcher source snapshots
   remain only for the unchanged framework ABI/source verifier and are explicitly
   excluded from CocoaPods compilation. Neither is registered by the app. No
-  StikJIT rebuild is needed for this removal. Main.dart's exact removal-only exception is reconstructed in
-  the baseline test; other protected library bytes stay unchanged.
+  StikJIT rebuild is needed for this removal. Main.dart's exact removal-only
+  exception is reconstructed in the baseline test; other protected library
+  bytes stay unchanged.
 - The Switch HD research entries remain research-only. No pack is installable
   until the actual engine adapter loads its format and exact target/version.
   No firmware/keys/games are bundled. No public release is authorized.

@@ -74,7 +74,20 @@ been added to NeoStation by this phase.
    versions; no API downgrade was substituted.
 3. Run `39499844255`: try the original Ryujinx projects feed retained by the
    inspected MeloNX mirror `f925129209afd55927a0201d82285b8fa4b7ba30`, preserving
-   the exact package version and source mapping. Result pending.
+   the exact package version and source mapping. Failed before compilation:
+   NU1301, `Network is unreachable (git.ryujinx.app:443)`.
+4. Run `39502094518`: check that original `projects` namespace on the current
+   official Starforge host. Workload installation succeeds; bounded restore
+   again reports NU1101, no `Ryujinx.LibHac` in that feed. No binary produced.
+
+The builder retains the upstream-declared Ryulynx feed and exact alpha.129
+dependency; it does not retain the guessed projects namespace as its default.
+Restore now has a 240-second bound. The source linked by MeloNX for LibHac,
+<https://github.com/Thealexbarney/LibHac>, also returns 404 when checked.
+Continuing the engine build requires the exact package or its matching source.
+Using an older API or extracting an unverified binary is not a completed port:
+the storage, session lifetime, dependency isolation and JIT adaptations still
+require implementation and testing.
 
 ## Validation and remaining work
 
@@ -82,8 +95,35 @@ Local checks passed: protected library/native baseline (3 tests), bounded
 LocalDevVPN route contract (5), embedded routing contract, unchanged dedicated
 JIT source/patch fingerprints, and packaging parser tests (25, including refusal
 of each retired query scheme). These are source/parser checks, not gameplay.
-Focused Flutter/analyzer and iPhone SDK plugin checks are pending in
-`melonx-integration.yml`; results will be recorded after execution.
+Focused CI evidence:
+
+- Run `39500644479`, source `127b527f`: app analysis passed, 68 Flutter tests
+  passed and three failed. Retained failures are the old Switch-external
+  expectation, a now-unused external failure locale key, and an already-stale
+  RetroArch method-name assertion. The failures were corrected rather than
+  removed: Switch is embedded-only but unavailable without its runtime; the
+  retired key is removed from all twelve languages; the route test names
+  `launchGameWithDiagnostics`, which was already the actual unchanged method.
+- Run `39501621994`, source `faa28104`, job `118900258241`: final full app
+  analysis and all **35** focused Flutter tests passed. Baseline (3), VPN (5),
+  packaging (25), routing and unchanged JIT-source contracts also passed. The
+  final SDK step failed because its framework search path omitted the
+  `Flutter.xcframework/ios-arm64` slice. This is a harness-path failure, not an
+  observed engine or iPhone failure. Do not describe this whole run as passed.
+- Run `39502499716`, source `e214cf59`, native job `118903228338`: the actual
+  registered Swift plugin and route probe **passed the iPhone SDK type-check**
+  using the real pinned Flutter device framework. The selected pod source set
+  is checked to contain exactly those two Swift files, excluding both frozen
+  external-launch snapshots. Three successful phases from `faa28104` are reused
+  only after comparing their complete app/test inputs; they are not re-run.
+  Receipts are uploaded as `MeloNX-retirement-proof-e214cf5975a1b3c2031baac5ff06961a1f979859`.
+  The native job completed successfully.
+  The separate host job is intentionally skipped, not counted as a new pass.
+
+The intermediate queued `39501307268` and automatically triggered broad
+`39500644316`/`39500644101` runs were cancelled when their narrower source-bound
+checks became available. They provide no validation claim. No unchanged
+emulator/JIT framework is rebuilt by the retirement check.
 
 The native embedded-session adapter, runtime packaging, game/firmware/key/DLC
 imports, original-control/editor adapter, graphics settings and NeoSwap mapping

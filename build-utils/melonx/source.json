@@ -2,7 +2,7 @@
   "repository": "https://starforgejo.dev/projects/MeloNX.git",
   "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
   "dotnet": "10.0.100",
-  "libHacFeed": "https://starforgejo.dev/api/packages/projects/nuget/index.json",
+  "libHacFeed": "https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json",
   "controller": {
     "repository": "https://github.com/stossy11/Melo-Controller.git",
     "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"

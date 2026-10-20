@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-20",
+  "branch": "Claude",
+  "engineSource": {
+    "repository": "https://starforgejo.dev/projects/MeloNX.git",
+    "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+  },
+  "coreAttempts": [
+    {
+      "run": 39498866032,
+      "source": "623a9cf4d693b6840eddd8e543da7a46e90dd905",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39498866032",
+      "blockingError": "NETSDK1147: mobile-librarybuilder missing",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39499119399,
+      "source": "f1c79b645e4e0683afeae83c431d47e0f9b10074",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39499119399",
+      "blockingError": "NU1101: exact Ryujinx.LibHac package absent from declared Ryulynx feed",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39499844255,
+      "source": "8eac60589b46539e781004663b7b5cb66757a9a7",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39499844255",
+      "blockingError": "NU1301: old projects feed host unreachable",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39502094518,
+      "source": "307ab84bc4903601656f05d3a02157e11e55e32e",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39502094518",
+      "blockingError": "NU1101: exact Ryujinx.LibHac package absent from migrated projects feed",
+      "engineBinaryProduced": false
+    }
+  ],
+  "retirement": {
+    "productSource": "faa281043ffdb82166c6af4ea069d442fb859cdc",
+    "run": 39501621994,
+    "job": 118900258241,
+    "passedPhases": [
+      "Analyze the final app and retired locale-key removal",
+      "Exercise the adjusted console and retirement scenarios",
+      "Protect unchanged libraries, the remaining JIT helpers and routing"
+    ],
+    "focusedFlutterTestsPassed": 35,
+    "initialSdkFailure": "Incorrect Flutter framework search path; corrected by the following native validation."
+  },
+  "nativeValidation": {
+    "source": "e214cf5975a1b3c2031baac5ff06961a1f979859",
+    "run": 39502499716,
+    "job": 118903228338,
+    "status": "completed",
+    "conclusion": "success",
+    "passedStep": "Compile only the registered Swift plugin against the actual Flutter and iPhone SDK",
+    "flutterAndContractPhasesReused": true,
+    "appAndTestInputsCompared": true,
+    "hostJobSkipped": true,
+    "artifact": "MeloNX-retirement-proof-e214cf5975a1b3c2031baac5ff06961a1f979859"
+  },
+  "limits": {
+    "switchEngineCompiled": false,
+    "embeddedSessionImplemented": false,
+    "switchImportsImplemented": false,
+    "originalTouchAndLayoutAdapted": false,
+    "neoSwapAdapted": false,
+    "homebrewRun": false,
+    "deviceGameplayTested": false,
+    "ipaProduced": false,
+    "releasePublished": false,
+    "personalFilesDeleted": false
+  },
+  "nextRequiredInput": "Ryujinx.LibHac 0.21.0-alpha.129 package or corresponding attested source"
+}
