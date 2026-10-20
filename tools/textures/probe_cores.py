@@ -59,6 +59,8 @@ PROBES = {
         'markers': ['hdpack', 'HdPacks', 'hires.txt'],
     },
     'mesen': {
+        # Not in the pinned package before it is added (add_cores.py): absent there is no failure.
+        'optional': True,
         'options': ['mesen_hdpacks'],
         'markers': ['HdPacks', 'hires.txt', '<supportedrom>', 'disksys.rom'],
     },
@@ -133,8 +135,10 @@ def main():
         binaries = [p for p in root.rglob(f'{core}_libretro*') if p.is_file() and p.stat().st_size > 4096]
         binaries = [p for p in binaries if not p.name.endswith(('.info', '.json', '.plist'))]
         if not binaries:
-            missing.append(core)
+            if not probe.get('optional'):
+                missing.append(core)
             report[core] = {'binary': None}
+            print(f'PROBE {core}: not in this package' + (' (optional)' if probe.get('optional') else ''))
             continue
         binary = max(binaries, key=lambda p: p.stat().st_size)
         found = strings(binary)
