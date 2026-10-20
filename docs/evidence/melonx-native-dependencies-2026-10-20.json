@@ -1,0 +1,1092 @@
+{
+  "engineRepository": "https://starforgejo.dev/projects/MeloNX.git",
+  "engineRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "binaries": [
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib",
+      "bytes": 4929088,
+      "sha256": "5735ca4aee60ed7e0475b80b8ecdcfc952e4e0b7d49018f11781e51e5106bfa5",
+      "arm64SliceSha256": "5735ca4aee60ed7e0475b80b8ecdcfc952e4e0b7d49018f11781e51e5106bfa5",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "13.0.0",
+      "dependencies": [
+        "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+        "/System/Library/Frameworks/UIKit.framework/UIKit",
+        "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+        "/System/Library/Frameworks/Metal.framework/Metal",
+        "/usr/lib/libc++.1.dylib",
+        "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+        "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+        "/usr/lib/libSystem.B.dylib",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/usr/lib/libobjc.A.dylib"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libMoltenVK.dylib",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libMoltenVK.dylib",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "currentVersion": "8506.1.101"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "currentVersion": "3502.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "currentVersion": "1889.5.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "currentVersion": "368.12.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1900.180.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "currentVersion": "275.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "currentVersion": "1.11.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1351.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "3502.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libobjc.A.dylib",
+          "currentVersion": "228.0.0"
+        }
+      ],
+      "adjacentLicenseFiles": {},
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/BreakpointJIT.framework/BreakpointJIT",
+      "bytes": 50624,
+      "sha256": "eb27dafb98f5cc352d8ec453ee839e8c6a95e552952015930dab09fe83371b0d",
+      "arm64SliceSha256": "eb27dafb98f5cc352d8ec453ee839e8c6a95e552952015930dab09fe83371b0d",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "15.0.0",
+      "dependencies": [
+        "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "/usr/lib/libobjc.A.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "/usr/lib/libSystem.B.dylib"
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/BreakpointJIT.framework/BreakpointJIT",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/BreakpointJIT.framework/BreakpointJIT",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "currentVersion": "4040.1.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libobjc.A.dylib",
+          "currentVersion": "228.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "2000.63.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1356.0.0"
+        }
+      ],
+      "adjacentLicenseFiles": {},
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/SDL3.xcframework/ios-arm64/SDL3.framework/SDL3",
+      "bytes": 2690760,
+      "sha256": "c8589c64af9c8acfbe916f95ff00188249bdd1749e84c4ea6c55aeec0148ba54",
+      "arm64SliceSha256": "c8589c64af9c8acfbe916f95ff00188249bdd1749e84c4ea6c55aeec0148ba54",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "11.0.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+        "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+        "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+        "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+        "/System/Library/Frameworks/CoreBluetooth.framework/CoreBluetooth",
+        "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+        "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+        "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "/System/Library/Frameworks/GameController.framework/GameController",
+        "/System/Library/Frameworks/Metal.framework/Metal",
+        "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+        "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+        "/System/Library/Frameworks/UIKit.framework/UIKit",
+        "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/usr/lib/libobjc.A.dylib"
+      ],
+      "rpaths": [],
+      "id": "@rpath/SDL3.framework/SDL3",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/SDL3.framework/SDL3",
+          "currentVersion": "501.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1351.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "3225.7.1"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "currentVersion": "1000.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreBluetooth.framework/CoreBluetooth",
+          "currentVersion": "185.7.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "currentVersion": "1889.5.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+          "currentVersion": "2964.0.4"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "currentVersion": "3502.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "currentVersion": "12.5.2"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "currentVersion": "368.12.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "currentVersion": "1.11.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "currentVersion": "8506.1.101"
+        },
+        {
+          "command": "0x80000018",
+          "path": "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "3502.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libobjc.A.dylib",
+          "currentVersion": "228.0.0"
+        }
+      ],
+      "adjacentLicenseFiles": {},
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavcodec.dylib",
+      "bytes": 9477256,
+      "sha256": "71314eabbd13d5677e3551c3bd8721122baf9a999a94db92556426f746a500c9",
+      "arm64SliceSha256": "2001557a79bccc838d192327ccaae43bff80b416a91f08336116cbfbd9d84abc",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "@rpath/libswresample.framework/libswresample",
+        "@rpath/libavutil.framework/libavutil",
+        "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libavcodec.framework/libavcodec",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libavcodec.framework/libavcodec",
+          "currentVersion": "60.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libswresample.framework/libswresample",
+          "currentVersion": "4.10.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "currentVersion": "1000.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {},
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavutil.dylib",
+      "bytes": 537840,
+      "sha256": "0fe22603850a760f8451240b433f7b41eed48cc68bfd0b0705edcd864c6597c1",
+      "arm64SliceSha256": "ec67f57c12cdd4192a75a763c5b43df7db3675939fdc80ad1f7e83a78421ead7",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libavutil.framework/libavutil",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {},
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/libavcodec",
+      "bytes": 9477256,
+      "sha256": "71314eabbd13d5677e3551c3bd8721122baf9a999a94db92556426f746a500c9",
+      "arm64SliceSha256": "2001557a79bccc838d192327ccaae43bff80b416a91f08336116cbfbd9d84abc",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "@rpath/libswresample.framework/libswresample",
+        "@rpath/libavutil.framework/libavutil",
+        "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libavcodec.framework/libavcodec",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libavcodec.framework/libavcodec",
+          "currentVersion": "60.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libswresample.framework/libswresample",
+          "currentVersion": "4.10.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "currentVersion": "1000.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.LAME": "bfe4a52dc4645385f356a8e83cc54216a293e3b6f1cb4f79f5fc0277abf937fd",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.LIBILBC": "3082da3b4b80a1359a3a281da7849fdb8845b3e6cf308a5d47d0b743725b2481",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.LIBOGG": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.LIBSNDFILE": "ad01ea5cd2755f6048383c8d54c88459cd6fcb17757c5c8892f8c5ea060f6140",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.LIBVORBIS": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.OPENCORE-AMR": "8b3f1762349248d444ab9acbafe73941254e36e1064954da56bb9ddbd5873ddb",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.OPUS": "8338ce8d922bb4416ce3dd1e5680173332435e3f0755007ac7801ccd674fe682",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.SHINE": "2577e94e182eb1586880cccbadeee25ab30b15760e572092bd2137f6661042a2",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.SOXR": "f2f118b9029ec1871b953639ecc46651b2fc7b62e295e6cf3ef2ac4c9a058b33",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.SPEEX": "2654a4264b2bfe298dedc508748d140111840c315cc8eb646a3a68c13fa75b01",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.TWOLAME": "257a842724705950b07da76ce0e22ffa80ec77b3e9dfc6702522ac342409da0f",
+        "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/LICENSE.VO-AMRWBENC": "8b3f1762349248d444ab9acbafe73941254e36e1064954da56bb9ddbd5873ddb"
+      },
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavutil.xcframework/ios-arm64/libavutil.framework/libavutil",
+      "bytes": 537840,
+      "sha256": "0fe22603850a760f8451240b433f7b41eed48cc68bfd0b0705edcd864c6597c1",
+      "arm64SliceSha256": "ec67f57c12cdd4192a75a763c5b43df7db3675939fdc80ad1f7e83a78421ead7",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libavutil.framework/libavutil",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {
+        "src/MeloNX/MeloNX/Dependencies/libavutil.xcframework/ios-arm64/libavutil.framework/LICENSE": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libswresample.xcframework/ios-arm64/libswresample.framework/libswresample",
+      "bytes": 219128,
+      "sha256": "bd972e55d88368c7fe39be47c33d9d3bd14bc697ac51473fc746547a16a23f5c",
+      "arm64SliceSha256": "ff5066bf0c27b70e666c83dcdf9cda9dad005d17eff2f8d178779a8a6a88fb78",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "@rpath/libavutil.framework/libavutil",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libswresample.framework/libswresample",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libswresample.framework/libswresample",
+          "currentVersion": "4.10.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {
+        "src/MeloNX/MeloNX/Dependencies/libswresample.xcframework/ios-arm64/libswresample.framework/LICENSE": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libswscale.xcframework/ios-arm64/libswscale.framework/libswscale",
+      "bytes": 350336,
+      "sha256": "2cd61945fe77fb5f3cc1f60bc1a4785e79a00de788c327d9c4464bdb238d2e0b",
+      "arm64SliceSha256": "e00ae4837285f918b66f186f13b1eb7aa14f288b4517f73681e0f5035c9be861",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "@rpath/libavutil.framework/libavutil",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libswscale.framework/libswscale",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libswscale.framework/libswscale",
+          "currentVersion": "7.1.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {
+        "src/MeloNX/MeloNX/Dependencies/libswscale.xcframework/ios-arm64/libswscale.framework/LICENSE": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavformat.xcframework/ios-arm64/libavformat.framework/libavformat",
+      "bytes": 1979008,
+      "sha256": "fb81dc4de11e8d9a21132b350b9bddf6714c801489272d93c0c5a6fb36ed7a67",
+      "arm64SliceSha256": "152fceb3c4e617edadbaa6b380aa9e015a6980108094a1f52fc28f37f090fdff",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "@rpath/libavcodec.framework/libavcodec",
+        "@rpath/libswresample.framework/libswresample",
+        "@rpath/libavutil.framework/libavutil",
+        "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libavformat.framework/libavformat",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libavformat.framework/libavformat",
+          "currentVersion": "60.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavcodec.framework/libavcodec",
+          "currentVersion": "60.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libswresample.framework/libswresample",
+          "currentVersion": "4.10.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "currentVersion": "1000.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {
+        "src/MeloNX/MeloNX/Dependencies/libavformat.xcframework/ios-arm64/libavformat.framework/LICENSE": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      "binaryBuildSourceIdentified": false
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavfilter.xcframework/ios-arm64/libavfilter.framework/libavfilter",
+      "bytes": 2429896,
+      "sha256": "8b634c714270baf9f2a027c92da87007039c5a98028866457d506612d9d0ff02",
+      "arm64SliceSha256": "d43f3de8dc93858584588041e323e14d4d6d713fc977f80f65e0a43c0f62a8d2",
+      "fileType": 6,
+      "platform": 2,
+      "minimumOS": "12.1.0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libbz2.1.0.dylib",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libcharset.1.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "@rpath/libswscale.framework/libswscale",
+        "@rpath/libavformat.framework/libavformat",
+        "@rpath/libavcodec.framework/libavcodec",
+        "@rpath/libswresample.framework/libswresample",
+        "@rpath/libavutil.framework/libavutil",
+        "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+        "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+      ],
+      "rpaths": [],
+      "id": "@rpath/libavfilter.framework/libavfilter",
+      "loadCommands": [
+        {
+          "command": "0xd",
+          "path": "@rpath/libavfilter.framework/libavfilter",
+          "currentVersion": "9.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libSystem.B.dylib",
+          "currentVersion": "1319.100.3"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libz.1.dylib",
+          "currentVersion": "1.2.11"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "currentVersion": "1.0.8"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libiconv.2.dylib",
+          "currentVersion": "7.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libcharset.1.dylib",
+          "currentVersion": "2.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/usr/lib/libc++.1.dylib",
+          "currentVersion": "1500.65.0"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libswscale.framework/libswscale",
+          "currentVersion": "7.1.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavformat.framework/libavformat",
+          "currentVersion": "60.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavcodec.framework/libavcodec",
+          "currentVersion": "60.3.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libswresample.framework/libswresample",
+          "currentVersion": "4.10.100"
+        },
+        {
+          "command": "0xc",
+          "path": "@rpath/libavutil.framework/libavutil",
+          "currentVersion": "58.2.100"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "currentVersion": "1000.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "currentVersion": "1971.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "currentVersion": "1.0.0"
+        },
+        {
+          "command": "0xc",
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "currentVersion": "1.5.0"
+        }
+      ],
+      "adjacentLicenseFiles": {
+        "src/MeloNX/MeloNX/Dependencies/libavfilter.xcframework/ios-arm64/libavfilter.framework/LICENSE": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      "binaryBuildSourceIdentified": false
+    }
+  ],
+  "inspectedSourceInputs": {
+    "src/Ryujinx.Library/Library.cs": "d40520115737c610a2dd8ac03493e444fd099e4e1bd699e2435ec72da3094c48",
+    "src/Ryujinx.Memory/DualMappedJitAllocator.cs": "ea323265be3fcc9f479eac24b771ae22bbef4025e6ccbed0ec811141080a9bd7",
+    "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs": "30fed620e084dea0d4657468eb0e7bc3f0bb17778032d20285e338b323073174",
+    "src/Ryujinx.Graphics.Vulkan/MoltenVK/MoltenVkMetalInterop.cs": "cc08f3a3be6eac6da71bd11f578b37b048b5f1b71f401a77d1adbd330e221cd2",
+    "src/Ryujinx.Graphics.Nvdec.FFmpeg/Native/FFmpegApi.cs": "997932fba5b568af38949a1af890b0fddbedccd0628894e9eed1d58aed2d0645",
+    "src/Ryujinx.Input.Native/NativeGamepad.cs": "ef4c63720ad867262f39a6d1931a549cee3e007c7698a3bb7d07b15b6fcbb900"
+  },
+  "findings": {
+    "strongVersionedSystemFrameworkPaths": [
+      {
+        "binary": "src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib",
+        "command": "0xc",
+        "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+        "currentVersion": "275.0.0"
+      }
+    ],
+    "ffmpegResolverRequestedNames": [
+      "libavcodec.60.dylib",
+      "libavcodec.59.dylib",
+      "libavutil.58.dylib",
+      "libavutil.57.dylib"
+    ],
+    "ffmpegFrameworkIdentitiesNeedAnExplicitResolver": true,
+    "binaryPresenceDoesNotProveCorrespondingBuildSource": true,
+    "nativeGamepadDisposeAlsoDisconnectsSharedDriverObject": true,
+    "nativeGamepadConfigurationCurrentlyDisposesThatSharedObject": true
+  },
+  "copiedIntoNeoStation": false,
+  "packagingApproved": false,
+  "deviceLoaded": false
+}

@@ -1,5 +1,49 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+## MeloNX owned-session continuation — 20 October 2026
+
+- Native session ABI 1 now implements prepare/run/stop/pause/cancel/state/error,
+  with borrowed UTF-8 buffers and generation IDs. One owner stops input, ends
+  the guest while GPU service remains live, joins rendering, then releases
+  host resources. Partial execution failure quarantines the process. A late
+  stop cannot close the next game. Input drivers remain process-owned; window
+  managers and bindings are per-session. Do not restore upstream double disposal.
+- Engine source `c49ef51a488f30fc9a79aecb18dd0127fa439f80`, run `39509076583`,
+  job `118925262461`, artifact `12305056007` passed. Independent ZIP/Mach-O/input
+  verification: 37,353,112 bytes, SHA-256
+  `93e5e57f4da8ff64688a529d33b2526542826661440cbc3bc0f97d4fd82e6b71`,
+  22 required exports. The previous bootstrap-only binary remains historical.
+- Swift native host and CAMetalLayer presentation primitive exist under
+  `packages/melonx_internal_bridge/ios/Classes`; they are not yet registered as
+  a Flutter plugin or packaged in Runner. They retain the render layer and
+  report active until synchronous native run really returns. Do not mark the
+  Switch route available from these source files or ABI compatibility alone.
+- Run `39509399261`, source `f04e265ffb5d0fe573aba4dd891e7393ef6bb70e`,
+  job `118926352842`, artifact `12304433388`: iPhone SDK type-check and 19
+  executable Swift/native-ABI-double cases passed. These use a native double
+  on the macOS runner, not the actual emulator or an iPhone guest session.
+- Run `39508485894` passed 15 storage and 20 production session/window-owner
+  cases, then failed at a C# visibility error. The visibility error is corrected
+  in c49ef51; its later successful engine run reuses those exact tests only
+  after checking their inputs and SDK/runtime. Do not count the initial full
+  run as successful, or rerun unchanged tests. LibHac's existing 5-test package
+  proof is reused. Receipts: `docs/evidence/melonx-native-session-2026-10-20.json`.
+- Eleven committed ARM64/iOS dependencies are inventoried, not embedded:
+  `docs/evidence/melonx-native-dependencies-2026-10-20.json`. The supplied
+  MoltenVK strongly imports a versioned IOKit path needing resolution before
+  packaging. FFmpeg's framework install names need an explicit versioned-name
+  resolver; binary presence does not identify its corresponding build source.
+- Before input activation, fix the observed shared NativeGamepad ownership:
+  HandlePlayerConfiguration disposes the driver's actual gamepad, and its
+  Dispose sets IsConnected=false. Also bind late input to a session generation.
+  Original Melo-Controller/editor adaptation, dedicated NeoStation-PID JIT and
+  its mapping handshake, isolated runtime dependency loading, imports and
+  NeoSwap integration remain unfinished. Do not install upstream's broad
+  SIGTRAP-skipping handler over the existing engines' handlers. No firmware,
+  keys or games bundled; no device/gameplay/IPA claim; no public release.
+- Detailed continuation: `docs/melonx-native-session-2026-10-20.md`. This block
+  supersedes the bootstrap-only readiness description immediately below.
+
 ## MeloNX embedded integration — maintainer instruction, 20 October 2026
 
 - Integrate MeloNX as an embedded Switch engine on Claude. The follow-up
