@@ -157,6 +157,11 @@ def hosted_in_app_download(entry, record):
             (host == 'github.com' and bool(re.match(r'^/[^/]+/[^/]+/releases/download/[^/]+/.+', parts.path)))
         )
     elif provider == 'gdrive':
+        # A creator may copy Drive's account-context alias. The same public
+        # file is requested anonymously at /uc; keep its query and CI URL.
+        if host == 'drive.google.com' and re.fullmatch(r'/u/[0-9]+/uc', parts.path):
+            parts = parts._replace(path='/uc')
+            url = urllib.parse.urlunsplit(parts)
         file_path = bool(re.fullmatch(r'/file/d/[A-Za-z0-9_-]{10,200}/?(?:view|edit)?/?', parts.path))
         query = dict(urllib.parse.parse_qsl(parts.query))
         query_id = query.get('id', '')

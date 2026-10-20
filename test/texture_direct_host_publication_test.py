@@ -39,7 +39,7 @@ def rejects(entry, record, message):
         raise AssertionError('Unsafe host record was published: ' + entry['id'])
 
 
-accepted = 0
+accepted = legacy_accepted = rar_capable = 0
 for source in entries:
     record = records.get(source['id']) or {}
     if record.get('status') != 'ok' or record.get('host') not in ('direct', 'gamebanana', 'dropbox') or \
@@ -51,10 +51,35 @@ for source in entries:
     assert manual['availability'] == 'manual' and manual['download']['verified']['sha256'] == record['parts'][0]['sha256']
     entry['download']['in_app'] = True
     promoted = published(entry, observation)
-    assert promoted['availability'] == 'available' and promoted['download']['automatable'] is True
+    if record['format'] == 'rar':
+        # RAR requires the new native reader. Publishing it as an ordinary
+        # available pack would advertise an unusable download to older apps.
+        assert promoted['availability'] == 'manual' and promoted['download']['automatable'] is False
+        assert promoted['download']['verified'] == manual['download']['verified']
+        spec = promoted['download']['in_app']
+        invalid_legacy = copy.deepcopy(promoted)
+        invalid_legacy['availability'] = 'available'
+        invalid_legacy['download'] = copy.deepcopy(spec)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            try:
+                catalogue.validate({'packs': [invalid_legacy]})
+            except SystemExit as error:
+                assert error.code == 1 and 'download format/parts' in output.getvalue()
+            else:
+                raise AssertionError('RAR bypassed the native-capability compatibility gate')
+        rar_capable += 1
+    else:
+        assert record['format'] in ('zip', '7z')
+        assert promoted['availability'] == 'available' and promoted['download']['automatable'] is True
+        assert 'in_app' not in promoted['download']
+        spec = promoted['download']
+        legacy_accepted += 1
+    assert count_packs.native_one_tap(promoted)
+    assert spec['automatable'] is True and spec['format'] == record['format']
     assert promoted['install'] == manual['install']
     assert promoted['games'] == manual['games'] and promoted['authors'] == manual['authors']
-    part = promoted['download']['parts'][0]
+    part = spec['parts'][0]
     assert part['size'] == record['parts'][0]['size'] and part['sha256'] == record['parts'][0]['sha256']
     if record['host'] == 'dropbox':
         before = urllib.parse.urlsplit(record['parts'][0]['url'])
@@ -67,7 +92,8 @@ for source in entries:
     assert observation == record
     accepted += 1
 
-assert accepted >= 80, accepted
+assert legacy_accepted >= 87, legacy_accepted
+assert rar_capable >= 1, 'The ingested GameBanana RAR success must exercise the native-capability branch'
 
 identifier = 'wii-animal-crossing-city-folk-hd-yttrium'
 entry, record = copy.deepcopy(by_id[identifier]), copy.deepcopy(records[identifier])
@@ -125,6 +151,48 @@ bad_entry, bad_record = copy.deepcopy(entry), copy.deepcopy(record)
 bad_record['host'] = 'unimplemented-provider'
 rejects(bad_entry, bad_record, 'not a reviewed stable original download')
 
-print(f'PASS: {accepted} real direct/GameBanana/Dropbox profiles retain exact identity/hash/layout; '
+# Actual SotC creator archive metadata uses Drive's /u/0/uc account-context
+# alias. Canonicalising that path must not rewrite the observed source URL,
+# file ID, query/access key, size or SHA, nor invent an installation success.
+sotc_id = 'ps2-ktx-shadow-of-the-colossus-curse-arms'
+sotc_source, sotc_record = copy.deepcopy(by_id[sotc_id]), copy.deepcopy(records[sotc_id])
+sotc_source['download']['in_app'] = True
+source_before, record_before = copy.deepcopy(sotc_source), copy.deepcopy(sotc_record)
+original_url = sotc_source['download']['verify']['url']
+assert original_url == 'https://drive.google.com/u/0/uc?id=1G_FlX3Wi721zDuEZq5kQtZMnmCTqiQh1&export=download'
+assert sotc_record['parts'][0]['url'] == original_url
+assert sotc_record['parts'][0]['size'] == 1106962372
+assert sotc_record['parts'][0]['sha256'] == '3422496c42f16259998ab3b42747a51407c190acfe3ed24add8360f74799a7f7'
+canonical = catalogue.hosted_in_app_download(sotc_source, sotc_record)
+assert canonical == {'provider': 'gdrive', 'url': original_url.replace('/u/0/uc?', '/uc?')}
+assert {**sotc_record['parts'][0], **canonical} == {
+    'provider': 'gdrive', 'url': canonical['url'],
+    'size': sotc_record['parts'][0]['size'], 'sha256': sotc_record['parts'][0]['sha256']}
+with_key = copy.deepcopy(sotc_source)
+with_key['download']['verify']['url'] += '&resourcekey=0-AbCd_123'
+assert catalogue.hosted_in_app_download(with_key, sotc_record)['url'] == canonical['url'] + '&resourcekey=0-AbCd_123'
+assert sotc_source == source_before and sotc_record == record_before
+for bad_url in (
+        original_url.replace('/u/0/uc', '/u/alice/uc'),
+        original_url.replace('/u/0/uc', '/u/-1/uc'),
+        original_url.replace('/u/0/uc', '/u/0/open'),
+        original_url.replace('drive.google.com/', 'drive.google.com.evil.invalid/'),
+        'https://drive.google.com/u/0/uc?export=download',
+        'https://drive.google.com/u/0/uc?id=short&export=download',
+        'https://drive.google.com/u/0/uc?id=malformed%2Ffileid&export=download'):
+    bad = copy.deepcopy(sotc_source)
+    bad['download']['verify']['url'] = bad_url
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        try:
+            catalogue.hosted_in_app_download(bad, sotc_record)
+        except SystemExit as error:
+            assert error.code == 1 and 'not a reviewed stable original download' in output.getvalue()
+        else:
+            raise AssertionError('Malformed Drive alias/file ID was accepted')
+
+print(f'PASS: {accepted} real direct/GameBanana/Dropbox profiles ({legacy_accepted} legacy ZIP/7z, '
+      f'{rar_capable} native RAR) retain exact identity/hash/layout; '
       'Dropbox access queries retained; resolver metadata retains legacy fallback; '
-      'unreviewed providers, changed URLs, altered hashes and failed transfers cannot be promoted')
+      'SotC Drive account alias normalised without changing provenance; '
+      'unreviewed providers, changed URLs, malformed IDs, altered hashes and failed transfers cannot be promoted')

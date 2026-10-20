@@ -943,6 +943,13 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
 
 #pragma mark - Install
 
+// Create the escaping block in an Objective-C method frame. A block nested in
+// a C++ lambda can otherwise capture the lambda's implicit this pointer instead
+// of independent strong captures, after extraction has destroyed that lambda.
+- (void)queueProgress:(unsigned long long)value packID:(NSString *)packID {
+  dispatch_async(_queue, ^{ [self update:packID values:@{@"received": @(value)} notify:NO]; });
+}
+
 - (NSDictionary *)manifestAt:(NSString *)folder {
   NSDictionary *manifest = NeoTexJSONDictionary(NeoTexReadBounded([folder stringByAppendingPathComponent:ManifestName], 1 << 16));
   return [manifest isKindOfClass:NSDictionary.class] ? manifest : nil;
@@ -1069,7 +1076,7 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
       NeoTextureArchive::Progress progress = [&](uint64_t n) {
         processed += n;
         const unsigned long long value = processed / 2;  // expansion is the first half
-        dispatch_async(self->_queue, ^{ [self update:packID values:@{@"received": @(value)} notify:NO]; });
+        [self queueProgress:value packID:packID];
         return !(cancel && cancel->load());
       };
       const std::vector<NeoTextureInstall::Rule> rules{RuleFor(folders.firstObject, std::string())};
@@ -1150,7 +1157,7 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
   NeoTextureArchive::Progress progress = [&](uint64_t n) {
     processed += n;
     const unsigned long long value = processed;
-    dispatch_async(self->_queue, ^{ [self update:packID values:@{@"received": @(value)} notify:NO]; });
+    [self queueProgress:value packID:packID];
     return !(cancel && cancel->load());
   };
   NeoTextureInstall::Staged staged = extract(base, progress);

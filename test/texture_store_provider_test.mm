@@ -6,7 +6,11 @@
 #import "NeoTexturePackStore.h"
 #import "NeoTextureSupport.h"
 #import "ARMSX2TexturePackStore.h"
+#import <objc/runtime.h>
+#include "NeoTextureInstall.h"
+#include <atomic>
 #include <cstdio>
+#include <memory>
 
 static int checks = 0, failures = 0;
 #define CHECK(c, ...) do { checks++; if (!(c)) { failures++; fprintf(stderr, "FAIL line %d: ", __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); } } while (0)
@@ -108,6 +112,57 @@ static NSMutableArray<NSURLRequest *> *Requests;
 }
 @end
 
+@interface NeoTexturePackStore (ProgressLifetimeFixture)
+- (void)update:(NSString *)packID values:(NSDictionary *)values notify:(BOOL)notify;
+- (NSError *)stageAndCommit:(NeoTextureInstall::Staged (^)(const std::string &, const NeoTextureArchive::Progress &))extract
+                     engine:(id<NeoTextureEngine>)engine targets:(NSArray<NSString *> *)targets total:(unsigned long long)total
+                     packID:(NSString *)packID cancel:(std::shared_ptr<std::atomic<bool>>)cancel info:(NSDictionary *)info;
+@end
+
+@interface ProgressStore : NeoTexturePackStore
+@property(nonatomic, strong) NSMutableArray<NSDictionary *> *observedProgress;
+@end
+@implementation ProgressStore
+- (void)update:(NSString *)packID values:(NSDictionary *)values notify:(BOOL)notify {
+  [super update:packID values:values notify:notify];
+  if (values[@"received"] && !values[@"state"])
+    [self.observedProgress addObject:@{@"pack": packID, @"received": values[@"received"]}];
+}
+@end
+
+static void ProgressOutlivesExtraction(NSString *work) {
+  NSMutableArray<NSDictionary *> *observed = [NSMutableArray array];
+  dispatch_queue_t delayedQueue = nil;
+  @autoreleasepool {
+    ProgressStore *store = [ProgressStore new]; store.observedProgress = observed;
+    // Hold only this test instance's private state queue. Extraction returns
+    // and destroys its C++ callback before any progress block is allowed to run.
+    Ivar queueIvar = class_getInstanceVariable(NeoTexturePackStore.class, "_queue");
+    CHECK(queueIvar != nullptr, "Store state queue missing");
+    if (!queueIvar) return;
+    delayedQueue = (dispatch_queue_t)object_getIvar(store, queueIvar);
+    CHECK(delayedQueue != nil, "Store state queue unavailable");
+    if (!delayedQueue) return;
+    dispatch_suspend(delayedQueue);
+    id<NeoTextureEngine> engine = [NeoTextureEngines dolphinWithUserDirectory:[work stringByAppendingPathComponent:@"progress-lifetime"]];
+    NSString *packID = [[NSString alloc] initWithFormat:@"progress-after-extract-%u", 1U];
+    NSError *error = [store stageAndCommit:^NeoTextureInstall::Staged(const std::string &, const NeoTextureArchive::Progress &progress) {
+      progress(17); progress(23);
+      return NeoTextureInstall::Staged{};  // end the producer without installing a pack
+    } engine:engine targets:@[@"GALE01"] total:40 packID:packID cancel:std::make_shared<std::atomic<bool>>(false) info:@{}];
+    CHECK(error != nil, "empty staging fixture unexpectedly installed");
+  }
+  dispatch_semaphore_t drained = dispatch_semaphore_create(0);
+  dispatch_async(delayedQueue, ^{ dispatch_semaphore_signal(drained); });
+  dispatch_resume(delayedQueue);
+  CHECK(dispatch_semaphore_wait(drained, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC)) == 0,
+        "queued progress did not drain");
+  NSArray *expectedProgress = @[@{@"pack": @"progress-after-extract-1", @"received": @17},
+                                @{@"pack": @"progress-after-extract-1", @"received": @40}];
+  CHECK([observed isEqualToArray:expectedProgress],
+        "progress lost its Store, pack ID or value after extraction: %s", observed.description.UTF8String);
+}
+
 struct Outcome { NSDictionary *result; NSError *error; };
 static Outcome Install(NeoTexturePackStore *store, NSDictionary *pack, id<NeoTextureEngine> engine, NSDictionary *identity) {
   __block Outcome result{}; __block BOOL done = NO;
@@ -158,6 +213,7 @@ int main(int argc, char **argv) {
     NSString *fixture = [@(argv[1]) stringByDeletingLastPathComponent], *work = @(argv[2]);
     NSDictionary *metadata = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:@(argv[1])] options:0 error:nil];
     CHECK(metadata != nil, "fixture metadata missing");
+    ProgressOutlivesExtraction(work);
     NSData *plain = [NSData dataWithContentsOfFile:[fixture stringByAppendingPathComponent:@"plain.zip"]];
     NSData *cipher = [NSData dataWithContentsOfFile:[fixture stringByAppendingPathComponent:@"cipher.bin"]];
     NSData *image = [NSData dataWithContentsOfFile:[fixture stringByAppendingPathComponent:@"texture.png"]];

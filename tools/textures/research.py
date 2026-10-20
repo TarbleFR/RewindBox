@@ -25,21 +25,30 @@ needs to decide whether a pack can enter the catalogue:
   - listing pages (forum boards, directory pages): the thread or project
     links of the following pages too (--pages).
 
-Nothing is downloaded beyond the pages and the API answers, and nothing is
+In refs mode nothing is downloaded beyond the pages and API answers; nothing is
 written to tools/textures/sources: a candidate becomes a catalogue entry only
 after review and verify_packs.py.
 
   python3 tools/textures/research.py refs --console gc --out build/hdtex/research-gc.jsonl
   python3 tools/textures/research.py refs --ids S001,S005 --pages 6 --out ...
+  python3 tools/textures/research.py probe --test-archive --file <pinned.json> --max-gb 4 --out ...
+
+The optional archive diagnostic downloads each SHA-pinned original once and
+runs 7-Zip's read-only test, then deletes it. It never installs or repacks it.
 """
 import argparse
+import binascii
+import hashlib
 import html
 import io
 import json
 import os
 import re
 import shutil
+import subprocess
 import sys
+import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -701,6 +710,152 @@ def describe(record, out):
             out.append(f"      T {thread['url'][:160]} :: {thread['text'][:90]}")
 
 
+def bounded_command(command, timeout=1800, limit=32768):
+    """Drain tool output without retaining an archive-sized list of failures."""
+    try:
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, env={**os.environ, 'LC_ALL': 'C'})
+    except OSError as error:
+        return {'exit_code': None, 'error': str(error)[:200], 'output': ''}
+    first, last, total = bytearray(), bytearray(), 0
+    flags = {'unsupported_or_encrypted': False, 'checksum_error': False, 'success': False}
+
+    def drain():
+        nonlocal total
+        previous = b''
+        for block in iter(lambda: process.stdout.read(8192), b''):
+            total += len(block)
+            text = (previous + block).decode('utf-8', 'replace').lower()
+            flags['unsupported_or_encrypted'] |= bool(re.search(
+                r'unsupported|not supported|password|encrypted|cannot find|can not find|not implemented', text))
+            flags['checksum_error'] |= bool(re.search(r'crc (?:failed|error)|data error|checksum (?:error|mismatch)', text))
+            flags['success'] |= 'everything is ok' in text
+            previous = block[-256:]
+            first.extend(block[:max(0, limit // 2 - len(first))])
+            last.extend(block)
+            del last[:-limit // 2]
+
+    reader = threading.Thread(target=drain, daemon=True)
+    reader.start()
+    timed_out = False
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        process.kill()
+        process.wait()
+    reader.join()
+    process.stdout.close()
+    # For a short output the tail overlaps the head; emit each byte just once.
+    overlap = max(0, len(first) + len(last) - total)
+    output = bytes(first) + (b'\n[output truncated]\n' if total > limit else b'') + bytes(last)[overlap:]
+    return {'exit_code': process.returncode, 'timed_out': timed_out, 'output': output.decode('utf-8', 'replace'),
+            'output_bytes': total, 'output_truncated': total > limit, 'diagnostic_flags': flags}
+
+
+def archive_test_verdict(result):
+    """A missing method/password/tool is inconclusive, never archive corruption."""
+    output = result.get('output', '').lower()
+    flags = result.get('diagnostic_flags', {})
+    if result.get('exit_code') == 0 and not result.get('timed_out') and (flags.get('success') or 'everything is ok' in output):
+        return {'status': 'archive_test_passed', 'crc_valid': True}
+    unsupported = flags.get('unsupported_or_encrypted') or re.search(
+        r'unsupported|not supported|password|encrypted|cannot find|can not find|not implemented', output)
+    if (not unsupported and not result.get('timed_out') and result.get('exit_code') == 2 and
+            (flags.get('checksum_error') or re.search(r'crc (?:failed|error)|data error|checksum (?:error|mismatch)', output))):
+        return {'status': 'archive_test_rejected', 'crc_valid': False,
+                'reason': 'independent 7-Zip test reports a checksum/data error; retain the exact tool output'}
+    return {'status': 'archive_test_inconclusive', 'crc_valid': None,
+            'reason': '7-Zip did not complete a supported, unencrypted archive test'}
+
+
+def archive_test_tool(work):
+    """Prove the installed CLI can decode known valid compressed RAR4/RAR5."""
+    fixtures = HERE.parents[1] / 'test/fixtures/texture_rar'
+    names = ['test_read_format_rar_compress_normal.rar.uu', 'test_read_format_rar5_compressed.rar.uu']
+    try:
+        provenance = json.loads((fixtures / 'source.json').read_text())['files']
+        controls = {}
+        for name in names:
+            body = (fixtures / name).read_bytes()
+            if hashlib.sha256(body).hexdigest() != provenance[name]:
+                raise ValueError('control fixture digest mismatch')
+            controls[name[:-3]] = b''.join(binascii.a2b_uu(line) for line in body.splitlines()
+                                          if line and not line.startswith((b'begin ', b'end')))
+    except (OSError, ValueError, KeyError) as error:
+        return {'selected': None, 'attempts': [], 'reason': f'RAR decoder controls unavailable: {error}'}
+    attempts, seen = [], set()
+    with tempfile.TemporaryDirectory(dir=work, prefix='archive-controls-') as temporary:
+        for name, data in controls.items():
+            (Path(temporary) / name).write_bytes(data)
+        for command in ('7zz', '7z'):
+            executable = shutil.which(command)
+            if not executable or os.path.realpath(executable) in seen:
+                continue
+            seen.add(os.path.realpath(executable))
+            version = bounded_command([executable, 'i'], timeout=20, limit=8192)
+            tests = []
+            for name in controls:
+                result = bounded_command([executable, 't', '-bd', '-bb0', '-y', '--', str(Path(temporary) / name)], timeout=45)
+                tests.append({'fixture': name, **result, **archive_test_verdict(result)})
+            attempt = {'executable': executable, 'version_and_formats': version, 'controls': tests}
+            attempts.append(attempt)
+            if all(test['crc_valid'] is True for test in tests):
+                return {'selected': executable, 'attempts': attempts}
+    return {'selected': None, 'attempts': attempts,
+            'reason': 'No installed 7-Zip CLI passed both compressed RAR controls; no creator file downloaded'}
+
+
+def pinned_archive_targets(path, max_bytes):
+    document = json.loads(Path(path).read_text(encoding='utf-8'))
+    targets = document.get('archives') if isinstance(document, dict) else document
+    if not isinstance(targets, list) or not targets:
+        raise ValueError('archive diagnostic requires a nonempty JSON archives list')
+    seen = set()
+    for target in targets:
+        url = urllib.parse.urlsplit(target.get('url', ''))
+        if (not isinstance(target.get('id'), str) or not target['id'] or target['id'] in seen or
+                url.scheme != 'https' or not url.hostname or url.username or url.password or
+                not re.fullmatch(r'[0-9a-f]{64}', target.get('sha256', '')) or
+                type(target.get('size')) is not int or not 0 < target['size'] <= max_bytes):
+            raise ValueError('each archive needs a unique ID, original HTTPS URL, exact SHA-256 and allowed byte size')
+        seen.add(target['id'])
+    return targets
+
+
+def probe_archive(target, work, tool):
+    """One original-file fetch; exact bytes first, independent CRC test, cleanup."""
+    sys.path.insert(0, str(HERE))
+    import hosts
+    out = {'id': target['id'], 'url': target['url'], 'host': hosts.kind(target['url']),
+           'expected_size': target['size'], 'expected_sha256': target['sha256'], 'archive_test_tool': tool,
+           'native_installation': False, 'repacked': False}
+    if not tool.get('selected'):
+        return {**out, 'status': 'archive_test_inconclusive', 'crc_valid': None, 'downloaded': False,
+                'reason': tool['reason']}
+    with tempfile.TemporaryDirectory(dir=work, prefix='archive-crc-') as temporary:
+        path = Path(temporary) / 'original.rar'
+        try:
+            pace(target['url'])
+            downloaded = hosts.fetch(target['url'], str(path), target['size'])
+            # Never persist signed redirect URLs; the input remains the creator's public link.
+            out.update({key: downloaded[key] for key in ('size', 'sha256', 'name', 'host') if key in downloaded})
+        except hosts.HostError as error:
+            return {**out, 'status': error.status, 'error': error.reason, 'crc_valid': None}
+        except Exception as error:
+            return {**out, 'status': 'error', 'error': repr(error)[:200], 'crc_valid': None}
+        if out.get('size') != target['size'] or out.get('sha256') != target['sha256']:
+            return {**out, 'status': 'changed', 'crc_valid': None, 'sha256_pin_matched': False,
+                    'reason': 'Original bytes differ from the pinned CI observation; CRC test not run'}
+        with path.open('rb') as handle:
+            signature = handle.read(8)
+        if not signature.startswith(b'Rar!\x1a\x07'):
+            return {**out, 'status': 'archive_test_inconclusive', 'crc_valid': None, 'reason': 'Pinned file is not RAR'}
+        result = bounded_command([tool['selected'], 't', '-bd', '-bb0', '-y', '--', str(path)])
+        return {**out, 'sha256_pin_matched': True, 'format': 'rar5' if signature[6:8] == b'\x01\x00' else 'rar4',
+                'archive_test': result, **archive_test_verdict(result)}
+
+
 def probe(url, work, max_bytes):
     """Downloads one candidate file once (tools/textures/hosts.py: the author's link on
     GitHub, GameBanana, MediaFire, Google Drive, Dropbox or MEGA; a sign-in, CAPTCHA,
@@ -776,9 +931,39 @@ def main():
     probes.add_argument('--file', default='')
     probes.add_argument('--max-gb', type=float, default=3)
     probes.add_argument('--expand', action='store_true', help='also probe the archive files listed in a shared folder')
+    probes.add_argument('--test-archive', action='store_true', help='independent read-only CRC test of SHA-pinned RARs from a JSON --file')
     probes.add_argument('--out', required=True)
     args = parser.parse_args()
     if args.mode == 'probe':
+        if args.test_archive:
+            if not args.file or args.urls or args.expand:
+                parser.error('--test-archive requires only --file with pinned JSON targets (no --urls/--expand)')
+            try:
+                targets = pinned_archive_targets(args.file, int(args.max_gb * (1 << 30)))
+            except (OSError, ValueError, TypeError, AttributeError) as error:
+                parser.error(str(error))
+            work = os.environ.get('RUNNER_TEMP') or '/tmp'
+            tool = archive_test_tool(work)
+            sys.path.insert(0, str(HERE))
+            import hosts
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            print('ARCHIVE_TEST_BEGIN', len(targets), flush=True)
+            refused_hosts = set()
+            with open(args.out, 'w', encoding='utf-8') as out:
+                for target in targets:
+                    host = hosts.kind(target['url'])
+                    if host in refused_hosts:
+                        result = {'id': target['id'], 'url': target['url'], 'host': host,
+                                  'status': 'not_attempted_after_provider_refusal', 'crc_valid': None, 'downloaded': False}
+                    else:
+                        result = probe_archive(target, work, tool)
+                    if result['status'] in ('protected', 'quota'):
+                        refused_hosts.add(host)
+                    out.write(json.dumps(result) + '\n')
+                    out.flush()
+                    print('ARCHIVE_TEST', target['id'], result['status'], 'crc_valid=', result.get('crc_valid'), flush=True)
+            print('ARCHIVE_TEST_END', flush=True)
+            return
         urls = [u for u in args.urls.split('|') if u]
         if args.file:
             urls += [line.split('\t')[0].strip() for line in Path(args.file).read_text(encoding='utf-8').splitlines()
