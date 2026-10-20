@@ -1239,5 +1239,46 @@
   "engine": "azahar",
   "scope": "ui",
   "family": "3ds-mirai-dx-hd-ps-buttons-ayumi"
+ },
+ {
+  "id": "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa",
+  "title": "Pokémon Alpha Sapphire — Ghibli-style HD textures (partial)",
+  "version": "v0.0.3 (2026-10-03)",
+  "games": [
+   {
+    "title": "Pokémon Alpha Sapphire",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000011C500"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DinoPandaa30"
+  ],
+  "page_url": "https://github.com/DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style/releases/tag/v0.0.3",
+  "source_id": "github:DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style",
+  "licence": {
+   "summary": "No licence or redistribution grant stated by the creator.",
+   "redistribution": "Original creator's release download only; no NeoStation rehosting or repackaging."
+  },
+  "notes": "Early partial artistic HD pack. Release v0.0.3 lists HD text for Spanish, English, French, German and Italian, selected HUD/battle elements, grass, trees, protagonist rooms, Pokémon Center exteriors and Torchic/Mudkip/Tropius. Language coverage is the creator's statement, not an iPhone playthrough. Only Alpha Sapphire title ID 000400000011C500, explicitly named by the README, is matched. The guide also mentions Omega Ruby but provides no separate ID or verified matching pack; Omega Ruby compatibility is not inferred. Preload remains governed by the existing memory guard.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Poke.Texture.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style/releases/download/v0.0.3/Poke.Texture.zip"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "scope": "partial",
+  "family": "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa"
  }
 ]
