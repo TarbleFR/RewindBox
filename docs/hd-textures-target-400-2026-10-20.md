@@ -1,8 +1,20 @@
 # HD catalogue — progress toward 400 installable families
 
-The maintainer’s target is **400 installable families**, starting from **295** at catalogue `2026-10-20.809cfd2df68f`. The current verified result reaches **349** (+54 families, 57 installable archive profiles). One original-archive batch remains in progress and contributes zero until its results and regional evidence are reviewed. The target is not yet reached; **51 families remain**.
+This research and integration pass reaches **352 installable families**, up from **295** at catalogue `2026-10-20.809cfd2df68f`: **57 additional families / 60 installation profiles**. The **400-family target is not reached; 48 remain**. No pending or unverified download is included in this count. All verification jobs for this pass are finished or explicitly cancelled with their completed observations preserved.
 
 Only the existing unified catalogue is used. `count_packs.py` is unchanged: resolutions, formats, mirrors, regional folders and components of one project do not create extra families. A live author page, a RAR listing, a successful ZIP download without a valid installation, or a graphics patch is not an installable family.
+
+## Coverage gained
+
+| Console | Before | Now | Additional families |
+|---|---:|---:|---:|
+| PSP | 83 | 90 | 7 |
+| Nintendo 3DS | 42 | 47 | 5 |
+| Wii | 41 | 43 | 2 |
+| GameCube | 76 | 77 | 1 |
+| PS2 | 34 | 76 | 42 |
+
+N64, PS1 and NES counts are unchanged. Two pre-existing families are shared between GameCube and Wii; the global counter counts those families once. A reported complete scope is the creator/source’s coverage statement, not a complete playthrough performed by this verification.
 
 ## Verified additions
 
@@ -114,6 +126,18 @@ The second remaining PS2 batch completes 34 real observations. Four HD families 
 
 Two native successes stay outside the HD counter. TheBlazingDiamond explicitly describes Robo’s Paint Job as a palette recolouring, not an HD pack; its native 816-PNG import is evidence of extraction only, and the reference is relabelled accordingly. Headfonehead’s THPS3 ZIP installs 2,557 PNGs, but the flat archive and creator post provide no exact regional edition: the inferred PAL/Japan/USA list is not accepted as compatibility proof. The HCTP 2x pack is specifically for nero619’s game modification, has mutually exclusive High Fidelity/Remacri alternatives, and the combined ZIP triggers duplicate-path refusal; it requires adaptation and is not a vanilla-game installable family.
 
+## Final batch and corrected Tenchu target
+
+The last original-archive batch preserves 33 completed observations. It was cancelled after more than 100 minutes while its final MEGA file was unfinished; the exact completed JSONL and artifact ZIP are retained. Across the original frozen set, **209 of 210 candidates have completed observations**. The original Xenosaga II download has no completed result and remains unverified; it was not retried through another runner or host. There were no unseen non-MEGA files left to resume.
+
+| Project | Retained target | Native result |
+|---|---|---|
+| [MX vs. ATV Unleashed — SomberShroud](https://gbatemp.net/threads/mx-vs-atv-unleashed-usa-texture-pack.649229/) | USA `SLUS-21104` | 5,624 PNG/BC7/RGBA DDS textures, 5.08 GB installed; internal serial agrees. |
+| [Sly Cooper — Santins](https://gbatemp.net/threads/sly-cooper-and-the-thievius-raccoonus-usa-uhd-remaster-definitive.638803/) | USA `SCUS-97198` | 11,644 RGBA DDS textures, 10.94 GB installed; internal serial agrees. |
+| [Tenchu: Wrath of Heaven Last Round — SomberTwilight](https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/) | USA `SLUS-20397` | 3,528 PNGs, 4.50 GB installed. Actual corrected-USA-target verification passes in run `39431381794` on the identical original archive SHA-256. Inferred PAL/Korean targets removed. |
+
+The separate Fatal Shadows Last Round PC ZIP stays unavailable: its name identifies USA but its older simulated import targeted PAL. The already verified USA Redux 7z remains available in the same family, so a revision/format variant adds no family. Scooby-Doo: Night of 100 Frights installs 1,878 PNGs but its flat ZIP and creator only identify PAL, while the official database distinguishes English, French and German editions. The exact edition remains unestablished; no French match or verified availability is inferred. Earlier user reports of US/European differences do not establish the updated archive’s precise edition. Silent Scope’s original ZIP identifies the correct USA game but uses unsupported ZIP method 14 (LZMA): native staging refuses it. External extraction/format adaptation remains separate; the original is not repackaged.
+
 ## Research and the remaining gap
 
 - The first large run was stopped after 104 completed JSONL observations to preserve the results before the job ceiling. The remaining 102 IDs with no completed observation were split into three batches of 34; four other IDs already had dedicated original-archive results. No known quota, protection or format failure is retried.
@@ -141,14 +165,16 @@ Two native successes stay outside the HD counter. TheBlazingDiamond explicitly d
 
 A further French Radiant Dawn lead is [TenGu314’s announcement](https://www.youtube.com/watch?v=9mnue34Apsg), dated 10 June 2026. Its indexed primary description credits a Bl4ckH4nd base and the uploader’s French additions. The original watch page now says the associated account was closed, and no usable original archive link or upstream redistribution permission could be established. It remains research metadata, with no game ID or installability claim. The old Dolphin listing also names a separate “Radiant Dawn clean item textures” thread, but its file and modern hash format remain unresolved.
 
+Awakening AAHD **P1 only** and Fates **Character Artwork only** remain the verified parts added in the preceding 287→295 phase; this pass does not recount them or claim full-game coverage. Echoes (mikeyX) remains without a validated archive after its original download returned HTTP 403.
+
 The original [HDPacks Engage project](https://www.hdpacks.com/news/fire-emblem-engage-4k-texture-pack) is additionally documented for future Switch evaluation: v0.9b, advertised 11 GiB, paid early access. Payload, engine dependencies, game versions and language coverage are unverified; no paid file is downloaded. All four Switch references remain disabled.
 
 Switch remains research metadata only, with **zero runtime packs**, no engine activation, and no claim of installability. No application code, emulator, native adapter, dependency or build number changes; the verification script retains applied exclusion rules, and the catalogue generator rejects a native success for an explicitly different disc. No IPA or GitHub release is produced.
 
-## Checkpoint verification
+## Verification and publication
 
-The exact records match the downloaded GitHub artifact JSON and the listed artifact ZIP SHA-256 digests: **229 raw observations / 215 candidate IDs / 28 artifact ZIPs**, with **14 superseded observations** retained verbatim in research. Only **57 new installation profiles / 54 families** count. The first bulk run preserves 104 completed observations; remaining batches 1 and 2 preserve 34 each, with three corrected targets verified separately. Batch 3 (`39416642896`) remains pending and uncounted. Failed, non-HD and region-ambiguous observations remain evidence rather than verified HD availability. Exact source revisions, artifact IDs and hashes are in the [evidence JSON](evidence/hd-target-400-2026-10-20.json).
+The exact records match the downloaded GitHub artifact JSON and all listed artifact ZIP SHA-256 digests: **263 raw observations / 248 candidate IDs / 30 host artifact ZIPs**. **15 superseded observations** remain verbatim in research and are linked to their replacing runs. Current failed, non-HD and region-ambiguous observations remain evidence; they do not become verified HD availability. Only **60 new installation profiles / 57 additional families** count. Exact source revisions, artifact IDs and hashes are in the [evidence JSON](evidence/hd-target-400-2026-10-20.json). The four independent research artifacts cover reference pages, shared folders, a blocked creator archive and the community spreadsheet.
 
-`build_catalogue.py --check` passes at this checkpoint. Both manifest copies are identical. Every baseline installable pack object (377 profiles), every original verification record and all 1,072 original IDs remain unchanged/present. The current generated revision is `2026-10-20.300615317c86`, with 1,083 entries and 440 sources. The 349 installable families comprise 161 one-tap and 188 verified manual families. The counter and native engine/adapter sources are unchanged from the 295-family baseline `4850653`. Targeted verifier/publication/provider tests cover changed Python code; unchanged application/core suites are not repeated. No iPhone rendering is validated.
+`build_catalogue.py --check` passes. Both manifest copies are identical. Every baseline installable pack object (377 profiles), every original verification record and all 1,072 original IDs remain unchanged/present. Revision `2026-10-20.d64e1ff29d79` contains 1,083 entries and 440 sources. Its 352 installable families comprise 161 one-tap and 191 verified manual families. The counter and native engine/adapter sources are unchanged from the 295-family baseline `4850653`. Targeted verifier/publication/provider tests cover changed Python code; unchanged application/core suites are not repeated. No iPhone rendering is validated, and no IPA or GitHub release is produced.
 
 A Chicken Little candidate was found to duplicate an already verified baseline pack at the same creator commit; it was removed and its redundant run cancelled. The baseline pack and its original record are unchanged. No extra family is counted.

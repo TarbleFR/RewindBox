@@ -4,8 +4,8 @@
   "baseline_revision": "2026-10-20.809cfd2df68f",
   "baseline_families": 295,
   "checkpoint": true,
-  "revision": "2026-10-20.300615317c86",
-  "manifest_sha256": "e0c191992e47fc58682271908f7e2835b4c2f066936e567682fb1eb373a58216",
+  "revision": "2026-10-20.d64e1ff29d79",
+  "manifest_sha256": "5c39b799fbe4053d4eff74ac664315c37fa593e0ca81a83372549422533764dd",
   "runtime_entries": 1083,
   "sources": 440,
   "counts": {
@@ -54,15 +54,15 @@
       "games": 108
     },
     "ps2": {
-      "distinct": 73,
-      "entries": 87,
+      "distinct": 76,
+      "entries": 90,
       "variants": 14,
-      "complete": 45,
+      "complete": 48,
       "partial": 19,
       "ui": 9,
       "oneTapFamilies": 33,
-      "manualVerifiedFamilies": 40,
-      "games": 84
+      "manualVerifiedFamilies": 43,
+      "games": 87
     },
     "n64": {
       "distinct": 14,
@@ -98,18 +98,18 @@
       "games": 4
     },
     "total": {
-      "distinct": 349,
-      "entries": 434,
+      "distinct": 352,
+      "entries": 437,
       "variants": 85,
-      "complete": 217,
+      "complete": 220,
       "partial": 62,
       "ui": 70,
       "oneTapFamilies": 161,
-      "manualVerifiedFamilies": 188,
-      "games": 348
+      "manualVerifiedFamilies": 191,
+      "games": 351
     }
   },
-  "exact_ci_records": 229,
+  "exact_ci_records": 263,
   "artifacts": [
     {
       "run": 39407659263,
@@ -278,6 +278,18 @@
       "artifact": 12266241858,
       "console": "ps2",
       "sha256": "69c442e92969ea3e56a8120f8b5eeab23a91d061bf7f7a21b9b463c437d1fdd5"
+    },
+    {
+      "run": 39416642896,
+      "artifact": 12268085981,
+      "console": "ps2",
+      "sha256": "e8572ead1b79de8c44a3ef03ebb85847dc1c2524fc6ebfe6b962e9fa77cde57e"
+    },
+    {
+      "run": 39431381794,
+      "artifact": 12269455417,
+      "console": "ps2",
+      "sha256": "011e4fd6a81e30a2a80d61b31587380655cc5260f71eb62118567474b34cbc5f"
     }
   ],
   "research_artifacts": [
@@ -302,9 +314,7 @@
       "sha256": "e3d4ca4a3a9f61ecf2009b6ad270d9b02c1946284deb4728ba26d3a060874979"
     }
   ],
-  "ps2_pending_runs": [
-    39416642896
-  ],
+  "ps2_pending_runs": [],
   "switch_runtime": 0,
   "native_inputs_changed": false,
   "iphone_rendering_validated": false,
@@ -318,10 +328,10 @@
     "targeted_checks": "texture_verify_checks_test.py passed with the changed verifier import; Python compilation passed. Full unchanged app/core suites not repeated.",
     "real_archive_reverification_run": 39411315570
   },
-  "new_installable_families": 54,
-  "new_installable_profiles": 57,
-  "current_candidate_records": 215,
-  "superseded_records": 14,
+  "new_installable_families": 57,
+  "new_installable_profiles": 60,
+  "current_candidate_records": 248,
+  "superseded_records": 15,
   "baseline_installable_pack_objects_unchanged": true,
   "baseline_verification_records_unchanged": true,
   "switch_future_references": 4,
@@ -332,7 +342,18 @@
     "preserved_artifact": 12261972376,
     "unseen_candidates_in_three_batches": 102,
     "already_checked_in_later_original_archive_runs": 4,
-    "no_completed_tests_repeated": true
+    "no_completed_tests_repeated": true,
+    "completed_remaining_batches": [
+      34,
+      34,
+      33
+    ],
+    "completed_original_candidates": 209,
+    "uncompleted_original_candidates": 1,
+    "uncompleted_ids": [
+      "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom"
+    ],
+    "last_run_cancelled_after_records": 33
   },
   "publication_identity_guard": {
     "file": "tools/textures/build_catalogue.py",
@@ -350,15 +371,18 @@
     "result": "Prince of Persia passes native import with provider-matching SHA-256; God of War times out and is not promoted."
   },
   "observation_status_counts": {
-    "ok": 73,
+    "ok": 79,
     "tooLarge": 2,
-    "protected": 64,
-    "unsupportedArchive": 49,
-    "gone": 23,
+    "protected": 76,
+    "unsupportedArchive": 58,
+    "gone": 28,
     "html": 4,
-    "quota": 8,
-    "install": 2,
+    "quota": 9,
+    "install": 3,
     "unsupported": 2,
     "network": 2
-  }
+  },
+  "phase_complete": true,
+  "target_reached": false,
+  "baseline_git_revision": "4850653"
 }

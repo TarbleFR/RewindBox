@@ -198,6 +198,40 @@
       ],
       "additional_adaptation": "WWE HCTP LLP998 is specifically for nero619’s HCTP 2x game mod, with mutually exclusive High Fidelity/Remacri versions and duplicate texture paths in the combined ZIP. Native plan refuses duplicate names; never mix variants or present it as a base-game pack. No second archive test needed.",
       "shadow_of_colossus_resolution": "Original creator now links Ko-fi shop; old resolver selected a spreadsheet instead of a pack. CI-only spreadsheet URL removed; current price/file/terms remain unverified, no checkout or alternate-host download attempted."
+    },
+    "remaining_batch_3": {
+      "run": 39416642896,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "records": 33,
+      "requested": 34,
+      "native_ok": 5,
+      "retained_hd": [
+        "ps2-ktx-mx-vs-atv-unleashed-sombershroud",
+        "ps2-ktx-sly-cooper-and-the-thievius-raccoonus-santins"
+      ],
+      "withheld_or_corrected_target_required": [
+        "ps2-ktx-scooby-doo-night-of-100-frights-nordbo",
+        "ps2-ktx-tenchu-fatal-shadows-sombertwilight-2"
+      ],
+      "cancelled_after_more_than_minutes": 100,
+      "not_completed": [
+        "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom"
+      ],
+      "reason": "Preserve 33 completed observations after lengthy MEGA transfers, including one classified as quota after its 45-minute transfer limit. The final original MEGA file has no completed result and is not retried through another runner or host. No non-MEGA input remains unobserved.",
+      "silent_scope_adaptation": "Original Silent Scope ZIP identifies SLUS-20078 but uses unsupported ZIP compression method 14 (LZMA); native staging fails. Original archive unchanged; no repackaging, method-limit relaxation or available family.",
+      "corrected_target_run": 39431381794,
+      "corrected_target_passed": [
+        "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight"
+      ]
+    },
+    "bulk_candidate_coverage": {
+      "candidates": 210,
+      "completed_ids": 209,
+      "uncompleted_ids": [
+        "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom"
+      ],
+      "known_failed_archives_retried": false,
+      "native_rechecks": "Only changed target or extraction metadata; old successful observations retained verbatim with run supersession maps."
     }
   },
   "entries": [
@@ -929,7 +963,631 @@
         "region": "PAL-S"
       }
     },
-    "limit": "The database maps a creator-attested edition to a serial; it does not establish pack compatibility by itself."
+    "limit": "The database maps a creator-attested edition to a serial; it does not establish pack compatibility by itself.",
+    "verified_profile_identity_audit": [
+      {
+        "id": "ps2-ktx-007-from-russia-with-love-thomasweissenfluh",
+        "title": "007: From Russia with Love",
+        "serials": [
+          "SLUS-21282"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21282",
+            "name": "007 - From Russia with Love",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ace-combat-04-shattered-skies-superostrich",
+        "title": "Ace Combat 04: Shattered Skies — Trilogy HD HUD",
+        "serials": [
+          "SLUS-20152"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20152",
+            "name": "Ace Combat 04 - Shattered Skies",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ace-combat-5-the-unsung-war-superostrich",
+        "title": "Ace Combat 5: The Unsung War — Trilogy HD HUD",
+        "serials": [
+          "SLUS-20851"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20851",
+            "name": "Ace Combat 5 - The Unsung War",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich",
+        "title": "Ace Combat Zero: The Belkan War — Trilogy HD HUD",
+        "serials": [
+          "SLUS-21346"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21346",
+            "name": "Ace Combat Zero - The Belkan War",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-alone-in-the-dark-the-new-nightmare-teodor-max",
+        "title": "Alone in the Dark: The New Nightmare",
+        "serials": [
+          "SLES-50185"
+        ],
+        "database": [
+          {
+            "serial": "SLES-50185",
+            "name": "Alone in the Dark - The New Nightmare",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ape-escape-2-armm1998",
+        "title": "Ape Escape 2",
+        "serials": [
+          "SLUS-20685"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20685",
+            "name": "Ape Escape 2",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-armored-core-nexus-ninebreaker",
+        "title": "Armored Core: Nexus",
+        "serials": [
+          "SLUS-20986"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20986",
+            "name": "Armored Core - Nexus [Disc 1]",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-asterix-at-the-olympic-games-santins",
+        "title": "Asterix at the Olympic Games",
+        "serials": [
+          "SLES-55034"
+        ],
+        "database": [
+          {
+            "serial": "SLES-55034",
+            "name": "Asterix at the Olympic Games",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-bloody-roar-4-yamijpg",
+        "title": "Bloody Roar 4",
+        "serials": [
+          "SLUS-20795"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20795",
+            "name": "Bloody Roar 4",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-bujingai-the-forsaken-city-darthdarklord",
+        "title": "Bujingai: The Forsaken City",
+        "serials": [
+          "SLUS-20895"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20895",
+            "name": "Bujingai - The Forsaken City",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-chulip-sombertwilight",
+        "title": "Chulip",
+        "serials": [
+          "SLUS-20742"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20742",
+            "name": "Chulip",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-crash-tag-team-racing-crazyrabbitstyle",
+        "title": "Crash Tag Team Racing",
+        "serials": [
+          "SLES-53439"
+        ],
+        "database": [
+          {
+            "serial": "SLES-53439",
+            "name": "Crash Tag Team Racing",
+            "region": "PAL-M6"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-devil-kings-i-emu-play",
+        "title": "Devil Kings",
+        "serials": [
+          "SLUS-21297"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21297",
+            "name": "Devil Kings",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus",
+        "title": "Dragon Ball Z: Budokai Tenkaichi 3",
+        "serials": [
+          "SLUS-21678"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21678",
+            "name": "Dragon Ball Z - Budokai Tenkaichi 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-santins",
+        "title": "Dragon Ball Z: Budokai Tenkaichi 3",
+        "serials": [
+          "SLUS-21678"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21678",
+            "name": "Dragon Ball Z - Budokai Tenkaichi 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-dragon-quest-viii-journey-of-the-cursed-king-kupo-on-gbatem",
+        "title": "Dragon Quest VIII - Journey of the Cursed King",
+        "serials": [
+          "SLES-53974"
+        ],
+        "database": [
+          {
+            "serial": "SLES-53974",
+            "name": "Dragon Quest VIII - Journey of the Cursed King",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-flatout-2-kupo-on-gbatem",
+        "title": "FlatOut 2",
+        "serials": [
+          "SLES-54003"
+        ],
+        "database": [
+          {
+            "serial": "SLES-54003",
+            "name": "FlatOut 2",
+            "region": "PAL-G"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-frogger-s-adventures-the-rescue-tylermods",
+        "title": "Frogger's Adventures: The Rescue",
+        "serials": [
+          "SLUS-20734"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20734",
+            "name": "Frogger's Adventures - The Rescue",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-futurama-dahu",
+        "title": "Futurama",
+        "serials": [
+          "SLES-51507"
+        ],
+        "database": [
+          {
+            "serial": "SLES-51507",
+            "name": "Futurama",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ghost-rider-santins",
+        "title": "Ghost Rider",
+        "serials": [
+          "SLUS-21306"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21306",
+            "name": "Ghost Rider",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-god-of-war-ii-ewgeha",
+        "title": "God of War II",
+        "serials": [
+          "SCUS-97481"
+        ],
+        "database": [
+          {
+            "serial": "SCUS-97481",
+            "name": "God of War II",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-gun-yamijpg",
+        "title": "Gun",
+        "serials": [
+          "SLES-53523"
+        ],
+        "database": [
+          {
+            "serial": "SLES-53523",
+            "name": "Gun",
+            "region": "PAL-M4"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-headhunter-redemption-teodor-max",
+        "title": "Headhunter: Redemption",
+        "serials": [
+          "SLUS-20817"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20817",
+            "name": "Headhunter - Redemption",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-maximo-vs-army-of-zin-santins",
+        "title": "Maximo vs Army of Zin",
+        "serials": [
+          "SLUS-20722"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20722",
+            "name": "Maximo vs. Army of Zin",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-maximo-ghosts-to-glory-maximocapcom",
+        "title": "Maximo: Ghosts to Glory",
+        "serials": [
+          "SLPM-74004",
+          "SLUS-20017"
+        ],
+        "database": [
+          {
+            "serial": "SLPM-74004",
+            "name": "マキシモ [PlayStation2 the Best]",
+            "region": "NTSC-J"
+          },
+          {
+            "serial": "SLUS-20017",
+            "name": "Maximo - Ghosts to Glory",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-monster-hunter-toolatenate",
+        "title": "Monster Hunter",
+        "serials": [
+          "SLUS-20896"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20896",
+            "name": "Monster Hunter",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-mx-vs-atv-unleashed-sombershroud",
+        "title": "MX vs. ATV Unleashed",
+        "serials": [
+          "SLUS-21104"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21104",
+            "name": "MX vs. ATV Unleashed",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ninja-assault-joekoh27",
+        "title": "Ninja Assault",
+        "serials": [
+          "SLUS-20492"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20492",
+            "name": "Ninja Assault",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-onimusha-3-demon-siege-teodor-max",
+        "title": "Onimusha 3: Demon Siege",
+        "serials": [
+          "SLUS-20694"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20694",
+            "name": "Onimusha 3 - Demon Siege",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-prince-of-persia-the-sands-of-time-ewgeha",
+        "title": "Prince of Persia: The Sands of Time",
+        "serials": [
+          "SLUS-20743"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20743",
+            "name": "Prince of Persia - The Sands of Time",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-room-zoom-race-for-impact-mehrdad-jamshidiha",
+        "title": "Room Zoom: Race For Impact",
+        "serials": [
+          "SLES-52603"
+        ],
+        "database": [
+          {
+            "serial": "SLES-52603",
+            "name": "Room Zoom - Race for Impact",
+            "region": "PAL-M3"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+        "title": "Sengoku Basara 2: Heroes",
+        "serials": [
+          "SLPM-66848"
+        ],
+        "database": [
+          {
+            "serial": "SLPM-66848",
+            "name": "戦国BASARA 2 英雄外伝",
+            "region": "NTSC-J"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-silent-hill-3-curse-arms",
+        "title": "Silent Hill 3",
+        "serials": [
+          "SLUS-20622"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20622",
+            "name": "Silent Hill 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-silent-line-armored-core-ninebreaker",
+        "title": "Silent Line: Armored Core",
+        "serials": [
+          "SLUS-20644"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20644",
+            "name": "Silent Line - Armored Core",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-sly-cooper-and-the-thievius-raccoonus-santins",
+        "title": "Sly Cooper and the Thievius Raccoonus",
+        "serials": [
+          "SCUS-97198"
+        ],
+        "database": [
+          {
+            "serial": "SCUS-97198",
+            "name": "Sly Cooper and the Thievius Raccoonus",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ssx-3-whitelightning76",
+        "title": "SSX 3",
+        "serials": [
+          "SLUS-20772"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20772",
+            "name": "SSX 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
+        "title": "Tenchu: Fatal Shadows",
+        "serials": [
+          "SLUS-21129"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21129",
+            "name": "Tenchu - Fatal Shadows",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom",
+        "title": "The Lord of the Rings: The Two Towers",
+        "serials": [
+          "SLES-51256"
+        ],
+        "database": [
+          {
+            "serial": "SLES-51256",
+            "name": "El Señor de los Anillos - Las Dos Torres",
+            "region": "PAL-S"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-mark-of-kri-darthdarklord",
+        "title": "The Mark of Kri",
+        "serials": [
+          "SCUS-97140"
+        ],
+        "database": [
+          {
+            "serial": "SCUS-97140",
+            "name": "The Mark of Kri",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-suffering-proxcore-2000",
+        "title": "The Suffering",
+        "serials": [
+          "SLUS-20636"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20636",
+            "name": "The Suffering",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-thing-darthdarklord",
+        "title": "The Thing",
+        "serials": [
+          "SLUS-20371"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20371",
+            "name": "The Thing",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-x-files-resist-or-serve-teodor-max",
+        "title": "The X-Files: Resist or Serve",
+        "serials": [
+          "SLUS-20179"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20179",
+            "name": "The X-Files - Resist or Serve",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers",
+        "title": "WWE SmackDown! vs. Raw 2007",
+        "serials": [
+          "SLUS-21427"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21427",
+            "name": "WWE SmackDown! vs. RAW 2007",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+        "title": "Tenchu: Wrath of Heaven",
+        "serials": [
+          "SLUS-20397"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20397",
+            "name": "Tenchu - Wrath of Heaven",
+            "region": "NTSC-U"
+          }
+        ]
+      }
+    ]
   },
   "additional_file_candidates": [
     {

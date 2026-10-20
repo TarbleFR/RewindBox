@@ -24343,7 +24343,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Original Last Round ZIP explicitly identifies USA SLUS-20397. Inferred PAL/Korean IDs are removed. Corrected target requires native reverification on the exact same original archive SHA-256; the older successful simulated PAL import does not establish compatibility. No file is renamed, rehosted or repackaged.",
+  "notes": "Original Last Round ZIP explicitly identifies USA SLUS-20397. Corrected-target production import passes run 39431381794: 3,528 PNGs, 4,495,527,821 bytes installed, matching internal serial and no region conflict. Original creator archive size and SHA-256 are unchanged. Inferred PAL/Korean editions are removed; no file is renamed or repackaged. Same project family as its other variants. No iPhone rendering validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/",

@@ -568,6 +568,52 @@
         "system": "ps2",
         "verified_at": "2026-10-20"
       }
+    },
+    {
+      "run": 39416642896,
+      "superseded_by": 39431381794,
+      "record": {
+        "download_seconds": 859.6,
+        "file_name": "WOH LAST ROUND.zip",
+        "format": "zip",
+        "host": "mega",
+        "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+        "installed": [
+          {
+            "bytes": 4495527821,
+            "exclude": [],
+            "files": 3528,
+            "formats": {
+              "png": "3528"
+            },
+            "from": "",
+            "to": "SLES-50679/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "5d28ed70e94ddb979181fa10bc34300ae1189b0087c8936cf2b8463d00bc324b",
+            "size": 4454221666,
+            "url": "https://mega.nz/file/UeE2lZ5Q#8cfwYSVugF-uKpDymen0ZWA4qE_F9tPmUxvugz1_ZmU"
+          }
+        ],
+        "plan": {
+          "bytes": "4495527821",
+          "error": "",
+          "excluded": "0",
+          "files": "3528",
+          "match": "otherSerial",
+          "pack": "SLUS-20397",
+          "regionConflict": "0",
+          "serials": "SLUS-20397,",
+          "skipped": "35"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
     }
   ]
 }
