@@ -29,7 +29,7 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct, direct-native, ps1, delivery498]
+        options: [all, host, native, uikit, repositories, releases, hosts, ps1-hosts, discover, links, cores, summarize, research, direct, direct-native, ps1, delivery498]
         default: all
       only:
         description: 'repositories/releases/hosts: pack ids; direct-native: providers,store,sdk,network checks'
@@ -171,13 +171,13 @@ jobs:
     # once here (tools/textures/hosts.py) and installed with the app's code; the app only
     # accepts that exact file when the user imports it. Quotas and sign-in pages end an attempt.
     name: Manual packs on file hosts (${{ matrix.console }})
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'hosts') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'hosts' || inputs.parts == 'ps1-hosts') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        console: [dolphin, 3ds, psp, ps2, ps1]
+        console: ${{ inputs.parts == 'ps1-hosts' && fromJSON('["ps1"]') || fromJSON('["dolphin","3ds","psp","ps2","ps1"]') }}
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
