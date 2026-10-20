@@ -29,10 +29,10 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, hosts, discover, links, cores, summarize, research]
+        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research]
         default: all
       only:
-        description: 'repositories, hosts: comma-separated pack ids (empty: every pack without a record)'
+        description: 'repositories, releases, hosts: comma-separated pack ids (empty: every pack without a record)'
         type: string
         default: ''
       run:
@@ -129,8 +129,8 @@ jobs:
           retention-days: 14
 
   repositories:
-    name: Packs published as repository archives (${{ matrix.console }})
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'repositories') }}
+    name: Packs published as original GitHub archives (${{ matrix.console }})
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'repositories' || inputs.parts == 'releases') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
@@ -152,17 +152,19 @@ jobs:
           g++ -std=c++20 -O2 -Wall -Wextra -I packages/neo_texture_catalog/ios/Classes -I packages/neo_texture_catalog/ios/ThirdParty/lzma \
             -I packages/armsx2_internal_bridge/ios/Classes tools/textures/native/texture_verify.cpp build/hdtex486/lzma.o -lz \
             -o build/hdtex486/texture_verify
-      - name: Download each pack from its author's repository and install it with the app's code
+      - name: Download each original GitHub archive and install it with the app's code
         run: |
           python3 tools/textures/verify_packs.py --sources tools/textures/sources/${{ matrix.console }}.json \
-            --driver build/hdtex486/texture_verify --kind repository --work "$RUNNER_TEMP" --max-gb 12 \
+            --driver build/hdtex486/texture_verify --kind "$VERIFY_KIND" --work "$RUNNER_TEMP" --max-gb 12 \
             --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
             --out build/hdtex486/verified-${{ matrix.console }}.jsonl
-        env: {ONLY: '${{ inputs.only }}'}
+        env:
+          ONLY: '${{ inputs.only }}'
+          VERIFY_KIND: '${{ inputs.parts == ''releases'' && ''release'' || ''repository'' }}'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hdtex486-repositories-${{ matrix.console }}-${{ github.sha }}
+          name: hdtex486-${{ inputs.parts == 'releases' && 'releases' || 'repositories' }}-${{ matrix.console }}-${{ github.sha }}
           path: build/hdtex486/verified-${{ matrix.console }}.jsonl
           if-no-files-found: warn
           retention-days: 14
