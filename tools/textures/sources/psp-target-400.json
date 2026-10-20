@@ -62,7 +62,7 @@
   "system": "psp",
   "engine": "ppsspp",
   "title": "Ace Combat X — Ostrich HD",
-  "version": "author release checked 2026-10-20",
+  "version": "2.0.8",
   "games": [
    {
     "title": "Ace Combat X: Skies of Deception",
@@ -126,16 +126,16 @@
     "url": "https://drive.google.com/uc?export=download&id=1hdqV6oN_550A-8sLGR9QHS17V3WmwwaQ"
    }
   },
-  "scope": "complete",
+  "scope": "partial",
   "family": "psp-ace-combat-x-ostrich",
-  "notes": "Creator describes hand-crafted aircraft, HUD, fonts, menus, briefings and scenery. The original page explicitly lists these three retail IDs; per-region rendering is not validated. Default Xbox prompts; optional PlayStation prompts are a component of this family. The separately suggested PSP system font is not distributed or installed. No iPhone rendering claim."
+  "notes": "Creator describes hand-crafted aircraft, HUD, fonts, menus, briefings and scenery. The original page explicitly lists these three retail IDs; per-region rendering is not validated. Default Xbox prompts; optional PlayStation prompts are a component of this family. The separately suggested PSP system font is not distributed or installed. No iPhone rendering claim. Native import confirms the original ZIP and KTX2/PNG assets with a valid quick-hash INI and no case mismatches. The INI still references 29 of 488 missing targets, so coverage is conservatively marked partial rather than assuming every declared texture is present."
  },
  {
   "id": "psp-ace-combat-joint-assault-ostrich",
   "system": "psp",
   "engine": "ppsspp",
   "title": "Ace Combat Joint Assault — Ostrich HD",
-  "version": "author release checked 2026-10-20",
+  "version": "1.12.2",
   "games": [
    {
     "title": "Ace Combat: Joint Assault",
@@ -197,143 +197,16 @@
     "url": "https://drive.google.com/uc?export=download&id=1AaCLuG59A3-u7AvnOnv9CvfSqcBpL6s7"
    }
   },
-  "scope": "complete",
+  "scope": "partial",
   "family": "psp-ace-combat-joint-assault-ostrich",
-  "notes": "Creator describes aircraft, emblems, HUD, fonts, menus and briefings and explicitly lists these three retail IDs. Default Xbox prompts; optional PlayStation prompts are not another family. External system-font setup is not performed. The PC postprocessing suggestions are not part of this pack. No per-region or iPhone rendering validation."
- },
- {
-  "id": "psp-bleach-heat-soul7-hezi",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Bleach: Heat the Soul 7 — Hezi English UI and portraits v2.0",
-  "version": "author release checked 2026-10-20",
-  "games": [
-   {
-    "title": "Bleach: Heat the Soul 7",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "UCJS10110"
-     }
-    ],
-    "regions": [
-     "Japan"
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "HeziTheGreat",
-   "TridentOfTheAbyss"
-  ],
-  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27276",
-  "source_id": "web:forums.ppsspp.org/showthread.php?tid=27276",
-  "licence": {
-   "summary": "No licence stated by the creator",
-   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.ppsspp.org/showthread.php?tid=27276",
-   "verify": {
-    "url": "https://www.mediafire.com/file/d5u68cacoiapgfc/BLEACH_HTS7_ENGLISH_MOD__V2.0_BY_HEZI_THE_GREAT.zip/file"
-   }
-  },
-  "scope": "partial",
-  "family": "psp-bleach-heat-soul7-hezi",
-  "notes": "Creator-authored PPSSPP texture replacement: redrawn/translated UI, portraits, backgrounds and some upscaled UI assets. This is a partial graphical project, not a complete HD replacement or an ISO translation. The primary thread discusses Japanese UCJS10110 and Shuren v1.01 support; actual INI/layout still requires review. Optional cheats and DLC are not applied; no French support or iPhone rendering claim."
- },
- {
-  "id": "psp-jeanne-darc-robynoob",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Jeanne d’Arc — RobyNoob 4x textures / 8x UI",
-  "version": "1",
-  "games": [
-   {
-    "title": "Jeanne d’Arc",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "UCUS98700"
-     }
-    ],
-    "regions": [
-     "USA"
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "RobyNoob"
-  ],
-  "page_url": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
-  "source_id": "gbatemp:665156",
-  "licence": {
-   "summary": "No licence stated by the creator",
-   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
-   "verify": {
-    "url": "https://www.mediafire.com/file/ommcigdr8ensza2/JeanneDarc_NTSC-U_UCUS98700_v1.zip/file"
-   }
-  },
-  "family": "psp-jeanne-darc-robynoob",
-  "scope": "partial",
-  "notes": "Creator release v1: upscaled artwork and portraits, redrawn UI, softened shadows. Conversation/system-font text is not replaced; default Xbox prompts. The separately linked PSP system fonts and YouTube videos are not downloaded or installed. Only the creator-specified USA UCUS98700 identity is retained; no French patch or compatibility is implied. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
- },
- {
-  "id": "psp-brave-story-robynoob",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "Brave Story — RobyNoob 4x textures / 8x UI",
-  "version": "1",
-  "games": [
-   {
-    "title": "Brave Story: New Traveler",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "ULUS10279"
-     }
-    ],
-    "regions": [
-     "USA"
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "RobyNoob"
-  ],
-  "page_url": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
-  "source_id": "gbatemp:665250",
-  "licence": {
-   "summary": "No licence stated by the creator",
-   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
-   "verify": {
-    "url": "https://www.mediafire.com/file/52okvb882q30lwd/BraveStoryNewTraveler_NTSC-U_ULUS10279_v1.zip/file"
-   }
-  },
-  "family": "psp-brave-story-robynoob",
-  "scope": "partial",
-  "notes": "Creator release v1: upscaled textures, redrawn UI, menu portraits replaced with upscaled original artwork and default Xbox prompts. Some 256x1 model textures could not be reconstructed and remain original. Only the creator-specified USA ULUS10279 identity is retained. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
+  "notes": "Creator describes aircraft, emblems, HUD, fonts, menus and briefings and explicitly lists these three retail IDs. Default Xbox prompts; optional PlayStation prompts are not another family. External system-font setup is not performed. The PC postprocessing suggestions are not part of this pack. No per-region or iPhone rendering validation. Native import confirms the original ZIP and KTX2/PNG assets with a valid quick-hash INI and no case mismatches. The INI still references 24 of 758 missing targets, so coverage is conservatively marked partial rather than assuming every declared texture is present."
  },
  {
   "id": "psp-disgaea-ui-metaltxus",
   "system": "psp",
   "engine": "ppsspp",
   "title": "Disgaea: Afternoon of Darkness — MetalTxus HD UI",
-  "version": "author release 2023-02-27",
+  "version": "1.0.2",
   "games": [
    {
     "title": "Disgaea: Afternoon of Darkness",
@@ -368,7 +241,7 @@
   },
   "scope": "ui",
   "family": "psp-disgaea-ui-metaltxus",
-  "notes": "Menus/dialogue backgrounds, most font textures, item icons and portraits; combat text is unchanged. Some font-scaling issues remain. Creator says USA only; portraits scale best at multiples of 1080p. PC assets are credited by the creator. No French or iPhone rendering claim."
+  "notes": "Menus/dialogue backgrounds, most font textures, item icons and portraits; combat text is unchanged. Some font-scaling issues remain. Creator says USA only; portraits scale best at multiples of 1080p. PC assets are credited by the creator. No French or iPhone rendering claim. Native import validates 303 PNGs and 298 INI targets, with no missing targets or case mismatches."
  },
  {
   "id": "psp-disgaea2-ui-metaltxus",
@@ -410,6 +283,90 @@
   },
   "scope": "ui",
   "family": "psp-disgaea2-ui-metaltxus",
-  "notes": "v1.0.5: fonts, icons, portraits and UI backgrounds, including Dark World battle backgrounds and ailment animations; combat text stays original. Creator says USA only; portraits scale best at multiples of 1080p. Disgaea 4 Vita assets are credited by the creator. No French or iPhone rendering claim."
+  "notes": "v1.0.5: fonts, icons, portraits and UI backgrounds, including Dark World battle backgrounds and ailment animations; combat text stays original. Creator says USA only; portraits scale best at multiples of 1080p. Disgaea 4 Vita assets are credited by the creator. No French or iPhone rendering claim. Native import validates 359 PNGs and 339 INI targets, with no missing targets or case mismatches."
+ },
+ {
+  "id": "psp-gow-ghost-sparta-hud-skydr4gon",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "God of War: Ghost of Sparta — SkyDR4GON HD HUD",
+  "version": "2020-01-29",
+  "games": [
+   {
+    "title": "God of War: Ghost of Sparta",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01401"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "SkyDR4GON"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26040",
+  "source_id": "ppsspp:26040",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26040",
+   "verify": {
+    "url": "https://forums.ppsspp.org/attachment.php?aid=16713"
+   }
+  },
+  "scope": "ui",
+  "family": "psp-gow-ghost-sparta-hud-skydr4gon",
+  "notes": "Small creator-made HUD improvements and Xbox button prompts, published as the original forum ZIP attachment. Creator explicitly specifies UCES01401. This is an interface pack, not a complete texture overhaul. No altered game image or extra emulator settings. No French-text coverage or iPhone rendering claim."
+ },
+ {
+  "id": "psp-gta-vcs-dark-aron",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "GTA Vice City Stories — DARK ARON texture edits v0.1",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00502"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "DARK ARON"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26726",
+  "source_id": "ppsspp:26726",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26726",
+   "verify": {
+    "url": "https://www.mediafire.com/file/adjdqrw5823csfi/ULES00502.7z/file"
+   }
+  },
+  "scope": "partial",
+  "family": "psp-gta-vcs-dark-aron",
+  "notes": "Creator publishes a partial texture-edit pack inspired by GTA V. The original linked 7z filename specifies ULES00502; no other region or complete coverage is inferred. Actual archive layout and INI must pass native verification before availability. No French-text coverage or iPhone rendering claim."
  }
 ]
