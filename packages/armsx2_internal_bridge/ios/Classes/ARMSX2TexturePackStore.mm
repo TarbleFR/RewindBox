@@ -290,7 +290,12 @@ static NSString* IdentityKey(NSString* gamePath) {
 
 - (void)close {
   if (_scoped) { [_url stopAccessingSecurityScopedResource]; _scoped = NO; }
-  [ARMSX2TexturePackStore discardPath:_expanded];
+  if (_catalogueExpansion && _expanded.length) {
+    // The catalogue also owns this folder. Finish before returning to its
+    // worker so its cleanup cannot race an asynchronous walk of the same tree.
+    std::error_code ignored;
+    T::fs::remove_all(_expanded.fileSystemRepresentation, ignored);
+  } else [ARMSX2TexturePackStore discardPath:_expanded];
   _expanded = nil;
 }
 

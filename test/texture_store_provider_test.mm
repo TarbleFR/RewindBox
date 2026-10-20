@@ -5,6 +5,7 @@
 #import "NeoTextureEngine.h"
 #import "NeoTexturePackStore.h"
 #import "NeoTextureSupport.h"
+#import "ARMSX2TexturePackStore.h"
 #include <cstdio>
 
 static int checks = 0, failures = 0;
@@ -249,6 +250,23 @@ int main(int argc, char **argv) {
     CHECK(imported.error.code == NeoTexturePackErrorRegion && [[NSData dataWithContentsOfFile:ps2Image] isEqualToData:image], "RAR serial confirmation bypassed"); NoStaging(ps2);
     imported = Import(imports, [fixture stringByAppendingPathComponent:@"damaged.rar"], ps2, ps2Identity, YES);
     CHECK(imported.error != nil && [[NSData dataWithContentsOfFile:ps2Image] isEqualToData:image], "damaged RAR changed previous pack"); NoStaging(ps2);
+
+    // A catalogue expansion may retain unselected files and empty directories.
+    // close must finish deleting these on the calling worker before the Store
+    // can publish completion or perform its own fallback cleanup of this tree.
+    NSString *abandoned = [ps2.texturesRoot stringByAppendingPathComponent:@".neostation-expanded-close-fixture"];
+    BOOL prepared = YES;
+    for (NSUInteger i = 0; i < 128; i++) {
+      NSString *residual = [abandoned stringByAppendingPathComponent:[NSString stringWithFormat:@"unused/%lu/deep/texture.png", (unsigned long)i]];
+      prepared = [FM() createDirectoryAtPath:residual.stringByDeletingLastPathComponent withIntermediateDirectories:YES attributes:nil error:nil] && prepared;
+      prepared = [image writeToFile:residual atomically:YES] && prepared;
+    }
+    CHECK(prepared, "nested expansion fixture could not be prepared");
+    ARMSX2TextureImport *abandonedImport = [[ARMSX2TextureImport alloc] initWithExpandedFolder:abandoned sourceName:@"abandoned.rar"
+        dataPath:[work stringByAppendingPathComponent:@"rar/ps2"] game:@{@"serial": @"SLUS-21137", @"source": @"disc"}];
+    CHECK(abandonedImport != nil, "catalogue expansion fixture was refused");
+    [abandonedImport close];
+    CHECK(!Exists(abandoned), "close returned before deleting the nested catalogue expansion"); NoStaging(ps2);
     printf("%s Store provider integration: %d checks, %d failures\n", failures ? "FAIL" : "PASS", checks, failures);
     return failures ? 1 : 0;
   }

@@ -1284,6 +1284,10 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
             pack:@{@"download": @{@"file_name": url.lastPathComponent ?: @""}} identity:identity
             confirmed:allowOtherRegion progress:progress cancelled:cancelled];
         else outcome = [engine importURL:url identity:identity confirmed:allowOtherRegion progress:progress cancelled:cancelled];
+        // Completion can run on another queue before this worker block ends.
+        // Remove the private expansion before publishing either outcome.
+        if (expansion) NeoTextureInstall::RemoveTree(Std(expansion));
+        cleanup.path.clear();
         if (![outcome[@"success"] boolValue]) {
           [self finish:packID state:@"failed" error:DelegateError(outcome ?: @{}) result:nil completion:completion];
           return;
