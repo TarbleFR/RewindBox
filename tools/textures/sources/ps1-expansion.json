@@ -320,5 +320,93 @@
         }
       ]
     }
+  },
+  {
+    "id": "ps1-sombertwilight-dead-or-alive",
+    "family": "ps1-sombertwilight-dead-or-alive",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Dead or Alive HD — SomberTwilight",
+    "version": "Author original; version unstated",
+    "authors": [
+      "SomberTwilight"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=VsndQym8ExI",
+    "source_id": "author:sombertwilight",
+    "credits": "SomberTwilight",
+    "games": [
+      {
+        "title": "Dead or Alive",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00606"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author host only; no rehosting."
+    },
+    "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. Edition confirmation required.",
+    "notes": "Original archive linked by author video; archive contents and installation not verified yet. Do not publish as verified download before canonical CI. Archive filename labelsUSA.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.mediafire.com/file/oha6gh2v6q7rl5p/Dead+or+Alive+(USA)-texture-replacements.7z/file"
+      },
+      "in_app": true,
+      "file_name": "Dead or Alive (USA)-texture-replacements.7z"
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-sombertwilight-clock-tower-the-first-fear",
+    "family": "ps1-sombertwilight-clock-tower-the-first-fear",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Clock Tower: The First Fear HD — SomberTwilight",
+    "version": "Author original; version unstated",
+    "authors": [
+      "SomberTwilight"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=MyYbDC5ZlE4",
+    "source_id": "author:sombertwilight",
+    "credits": "SomberTwilight",
+    "games": [
+      {
+        "title": "Clock Tower: The First Fear",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-00917"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author host only; no rehosting."
+    },
+    "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. Edition confirmation required.",
+    "notes": "Original archive linked by author video; archive contents and installation not verified yet. Do not publish as verified download before canonical CI. The listed serial is a game identity candidate only; no author region/translation claim.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.mediafire.com/file/98p697n36biw2a3/Clock_Tower_-_The_First_Fear-texture-replacements.7z/file"
+      },
+      "in_app": true,
+      "file_name": "Clock_Tower_-_The_First_Fear-texture-replacements.7z"
+    },
+    "scope": "partial"
   }
 ]
