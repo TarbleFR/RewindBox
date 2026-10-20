@@ -37,12 +37,14 @@ test "$(dotnet --version)" = '10.0.100'
 dotnet workload install mobile-librarybuilder --skip-manifest-update
 python3 "$TASK_ROOT/build-utils/melonx/build_libhac.py" "$SOURCE_DIR" "$LIBHAC_DIR"
 python3 "$TASK_ROOT/build-utils/melonx/prepare_embedded.py" "$SOURCE_DIR"
-python3 - <<'PY_RESTORE'
+python3 - <<'PY_PUBLISH'
 import subprocess
-# A dead service must not trigger unbounded retries across every project.
-subprocess.run(['dotnet', 'restore', 'src/Ryujinx.Library', '-r', 'ios-arm64', '-p:Configuration=Release', '-p:SelfContained=true', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared'], check=True, timeout=240)
-PY_RESTORE
-dotnet publish src/Ryujinx.Library --no-restore -c Release -r ios-arm64 --self-contained true -p:ExtraDefineConstants=DISABLE_UPDATER -p:NativeLib=Shared
+# Library-builder selects its NativeAOT runtime in publishing mode. A separate
+# restore followed by --no-restore omits that runtime even with SelfContained.
+# Let publish perform its own matching restore, as the upstream build does.
+# The missing LibHac feed is now local; retain a bound on the whole operation.
+subprocess.run(['dotnet', 'publish', 'src/Ryujinx.Library', '-c', 'Release', '-r', 'ios-arm64', '--self-contained', 'true', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared'], check=True, timeout=1800)
+PY_PUBLISH
 CORE="$SOURCE_DIR/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib"
 test -s "$CORE"
 xcrun lipo -verify_arch arm64 "$CORE"
