@@ -327,5 +327,89 @@
   "family": "psp-brave-story-robynoob",
   "scope": "partial",
   "notes": "Creator release v1: upscaled textures, redrawn UI, menu portraits replaced with upscaled original artwork and default Xbox prompts. Some 256x1 model textures could not be reconstructed and remain original. Only the creator-specified USA ULUS10279 identity is retained. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
+ },
+ {
+  "id": "psp-disgaea-ui-metaltxus",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Disgaea: Afternoon of Darkness — MetalTxus HD UI",
+  "version": "author release 2023-02-27",
+  "games": [
+   {
+    "title": "Disgaea: Afternoon of Darkness",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10308"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "MetalTxus"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26458",
+  "source_id": "ppsspp:26458",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26458",
+   "verify": {
+    "url": "https://dl.dropbox.com/s/9qxg5v3e7huydm3/ULUS10308.zip"
+   }
+  },
+  "scope": "ui",
+  "family": "psp-disgaea-ui-metaltxus",
+  "notes": "Menus/dialogue backgrounds, most font textures, item icons and portraits; combat text is unchanged. Some font-scaling issues remain. Creator says USA only; portraits scale best at multiples of 1080p. PC assets are credited by the creator. No French or iPhone rendering claim."
+ },
+ {
+  "id": "psp-disgaea2-ui-metaltxus",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Disgaea 2: Dark Hero Days — MetalTxus HD UI",
+  "version": "1.0.5",
+  "games": [
+   {
+    "title": "Disgaea 2: Dark Hero Days",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10461"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "MetalTxus"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26509",
+  "source_id": "ppsspp:26509",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26509",
+   "verify": {
+    "url": "https://dl.dropboxusercontent.com/s/1twcrcmapeuogyj/Disgaea%202%20PSP%20HD%20texture%20pack.zip"
+   }
+  },
+  "scope": "ui",
+  "family": "psp-disgaea2-ui-metaltxus",
+  "notes": "v1.0.5: fonts, icons, portraits and UI backgrounds, including Dark World battle backgrounds and ailment animations; combat text stays original. Creator says USA only; portraits scale best at multiples of 1080p. Disgaea 4 Vita assets are credited by the creator. No French or iPhone rendering claim."
  }
 ]

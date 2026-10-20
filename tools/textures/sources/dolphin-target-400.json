@@ -40,5 +40,50 @@
   "family": "gc-super-monkey-ball2-kuledawg",
   "scope": "complete",
   "notes": "Creator reports UI/HUD, worlds 1–10, special levels, minigames, characters and cutscene elements complete. The original publication targets NTSC-U and installs GM2; no PAL or Japanese support is inferred from the shared folder. Optional HUD-removal and original-timer components are not additional families and must not be merged automatically. Intended for the game’s own 16:9 option; no widescreen patch or emulator setting is applied. No iPhone rendering claim."
+ },
+ {
+  "id": "gc-tales-symphonia-pandavenom",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Tales of Symphonia — PandaVenom v0.96 (2K)",
+  "version": "0.96",
+  "games": [
+   {
+    "title": "Tales of Symphonia",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GQSEAF"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Panda_Venom",
+   "Rowan",
+   "RadisNoir",
+   "Kaaboose"
+  ],
+  "page_url": "https://gbatemp.net/threads/gc-tales-of-symphonia-usa-hd-textures.655715/",
+  "source_id": "gbatemp:655715",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/gc-tales-of-symphonia-usa-hd-textures.655715/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/krivbim0rho3pfk/GQS_v0.96.7z/file"
+   }
+  },
+  "scope": "partial",
+  "family": "gc-tales-symphonia-pandavenom",
+  "notes": "Original base pack with 2K backgrounds; optional 4K and widescreen add-ons are not installed or counted. Creator reports roughly 10% of backgrounds missing, Ymir forest/water issues, transparency/color differences and flickering skits without prefetch. The author recommends at least 16 GB RAM for prefetch; NeoStation does not enable it. DDS BC7/DXT5 requires device support; only import can be tested here. USA source only; no French compatibility or iPhone rendering claim."
  }
 ]
