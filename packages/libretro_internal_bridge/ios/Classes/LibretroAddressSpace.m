@@ -218,7 +218,9 @@ static os_unfair_lock gReservationLock = OS_UNFAIR_LOCK_INIT;
 static LibretroReservationState gReservationState = LibretroReservationNone;
 static uint64_t gReservationBase = 0;
 /// The view ranges are held (not released, or held again).
-static BOOL gViewsHeld = NO;
+// Only ranges actually owned by this reservation. A 32 MiB game leaves
+// half of the 64 MiB RAM window unused; keep that tail while it runs.
+static NSMutableData *gViewPieces = nil;
 /// Absolute ranges of the arena slot this file holds.
 static NSMutableData *gSlotPieces = nil;
 /// Last reservation event, for the journal.
@@ -300,21 +302,38 @@ static void HoldFreeSlotLocked(void) {
 
 /// Lock held. Re-holds the view ranges; NO when one was taken meanwhile
 /// (the ranges held again then are released).
+static void ReleaseViewPiecesLocked(void) {
+  const LibretroAddressRange *pieces = gViewPieces.bytes;
+  for (NSUInteger index = 0; index < gViewPieces.length / sizeof(*pieces); index++) {
+    ReleaseRange(pieces[index].start, pieces[index].end - pieces[index].start);
+  }
+  gViewPieces.length = 0;
+}
+
+// Never map over the core or another subsystem. Recording ownership is
+// essential: "mapped" does not mean "ours", especially during a session.
 static BOOL HoldViewsLocked(void) {
-  const size_t viewCount = sizeof(kViews) / sizeof(kViews[0]);
-  BOOL held[sizeof(kViews) / sizeof(kViews[0])];
-  BOOL all = YES;
-  for (size_t view = 0; view < viewCount; view++) {
-    held[view] = ReserveRange(gReservationBase + kViews[view].start, kViews[view].end - kViews[view].start);
-    all = all && held[view];
+  uint64_t expected = 0;
+  for (size_t view = 0; view < sizeof(kViews) / sizeof(kViews[0]); view++) {
+    uint64_t start = gReservationBase + kViews[view].start;
+    uint64_t end = gReservationBase + kViews[view].end;
+    expected += end - start;
+    NSData *mapped = LibretroMappedRanges(start, end);
+    ForEachHole(mapped.bytes, mapped.length / sizeof(LibretroAddressRange), start, end,
+                ^BOOL(uint64_t holeStart, uint64_t holeSize) {
+      if (ReserveRange(holeStart, holeSize)) {
+        LibretroAddressRange piece = {holeStart, holeStart + holeSize};
+        [gViewPieces appendBytes:&piece length:sizeof(piece)];
+      }
+      return YES;
+    });
   }
-  if (!all) {
-    for (size_t view = 0; view < viewCount; view++) {
-      if (held[view]) ReleaseRange(gReservationBase + kViews[view].start, kViews[view].end - kViews[view].start);
-    }
+  uint64_t owned = 0;
+  const LibretroAddressRange *pieces = gViewPieces.bytes;
+  for (NSUInteger index = 0; index < gViewPieces.length / sizeof(*pieces); index++) {
+    owned += pieces[index].end - pieces[index].start;
   }
-  gViewsHeld = all;
-  return all;
+  return owned == expected;
 }
 
 /// Lock held, nothing reserved. Tries the free bases of the window from the
@@ -353,7 +372,12 @@ static BOOL ReserveSpanLocked(NSString *reason) {
   }
   gReservationBase = reserved;
   gReservationState = LibretroReservationHeld;
-  gViewsHeld = YES;
+  if (gViewPieces == nil) gViewPieces = [NSMutableData data];
+  gViewPieces.length = 0;
+  for (size_t view = 0; view < sizeof(kViews) / sizeof(kViews[0]); view++) {
+    LibretroAddressRange piece = {reserved + kViews[view].start, reserved + kViews[view].end};
+    [gViewPieces appendBytes:&piece length:sizeof(piece)];
+  }
   if (gSlotPieces == nil) gSlotPieces = [NSMutableData data];
   gSlotPieces.length = 0;
   LibretroAddressRange slot = {reserved + kSlot.start, reserved + kSlot.end};
@@ -371,9 +395,9 @@ static void MoveSpanLocked(NSString *reason) {
     ReleaseRange(previous + kGuards[guard].start, kGuards[guard].end - kGuards[guard].start);
   }
   ReleaseSlotLocked();
+  ReleaseViewPiecesLocked();
   gReservationState = LibretroReservationNone;
   gReservationBase = 0;
-  gViewsHeld = NO;
   ReserveSpanLocked(reason);
 }
 
@@ -389,10 +413,7 @@ BOOL LibretroPPSSPPReserveWindow(void) {
 uint64_t LibretroPPSSPPReleaseViewsForBoot(void) {
   os_unfair_lock_lock(&gReservationLock);
   if (gReservationState == LibretroReservationHeld) {
-    for (size_t view = 0; view < sizeof(kViews) / sizeof(kViews[0]); view++) {
-      ReleaseRange(gReservationBase + kViews[view].start, kViews[view].end - kViews[view].start);
-    }
-    gViewsHeld = NO;
+    ReleaseViewPiecesLocked();
     ReleaseSlotLocked();
     gReservationState = LibretroReservationBooting;
   }
@@ -404,14 +425,17 @@ uint64_t LibretroPPSSPPReleaseViewsForBoot(void) {
 void LibretroPPSSPPMemorySettled(uint64_t memoryBase) {
   os_unfair_lock_lock(&gReservationLock);
   if (gReservationState == LibretroReservationBooting) {
-    // The arena is allocated before the probe starts: holding the slot
-    // cannot disturb either. The view ranges wait for the unload, in case
-    // PPSSPP were still probing.
+    // The session has observed a stable RAM pointer and all live views.
+    // Reclaim only unmapped holes: especially the unused upper 32 MiB of
+    // a commercial game's RAM window, or unused views at another base.
+    // Leaving these open until unload lets renderer allocations occupy
+    // them and destroys the reservation needed by the next PSP game.
     gReservationNote = memoryBase == gReservationBase
                            ? [NSString stringWithFormat:@"PPSSPP's memory at the reserved base 0x%llx", memoryBase]
                            : [NSString stringWithFormat:@"PPSSPP's memory at 0x%llx, another base",
                                                         memoryBase];
     HoldFreeSlotLocked();
+    HoldViewsLocked();
     gReservationState = LibretroReservationRunning;
   }
   os_unfair_lock_unlock(&gReservationLock);
@@ -421,7 +445,7 @@ void LibretroPPSSPPRestoreReservation(void) {
   os_unfair_lock_lock(&gReservationLock);
   if (gReservationState == LibretroReservationBooting || gReservationState == LibretroReservationRunning) {
     uint64_t base = gReservationBase;
-    if (!gViewsHeld && !HoldViewsLocked()) {
+    if (!HoldViewsLocked()) {
       MoveSpanLocked([NSString stringWithFormat:@"a view range at 0x%llx was taken", base]);
     } else {
       // PPSSPP's arena was freed in retro_unload_game.

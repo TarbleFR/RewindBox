@@ -329,10 +329,11 @@ static void TestReservation(void) {
         @"restore report: %@", LibretroPPSSPPReservationReport());
 
   // PPSSPP takes another base (room lower in the window): the slot is held
-  // again at once, the views after the session.
+  // again at once, as are the unused views. Nothing belonging to the
+  // running core is mapped over or released.
   CHECK(LibretroPPSSPPReleaseViewsForBoot() == base, @"second boot");
   LibretroPPSSPPMemorySettled(base - 0x10000000ull);
-  CHECK(SlotHeld(base) && ViewsFree(base), @"another base: the slot is held during the session, not the views");
+  CHECK(SlotHeld(base) && ViewsHeld(base), @"another base: unused views and slot remain protected during the session");
   CHECK([LibretroPPSSPPReservationReport() containsString:@"another base"], @"report: %@",
         LibretroPPSSPPReservationReport());
   LibretroPPSSPPRestoreReservation();
@@ -369,6 +370,40 @@ static void TestReservation(void) {
   printf("  %s\n", LibretroPPSSPPReservationReport().UTF8String);
 }
 
+// A real 32 MiB title does not map the upper half of the 64 MiB window.
+// The old fixture mapped 64 MiB even for a 32 MiB game, hiding this gap.
+// Keep the lower half alive, settle the session, then try a long-lived
+// foreign allocation in that tail. It must fail, and both subsequent boots
+// must retain the same usable memory base without touching live bytes.
+static void TestCommercialGameRelaunch(void) {
+  uint64_t base = LibretroPPSSPPReservedBase();
+  for (unsigned cycle = 0; cycle < 3; cycle++) {
+    CHECK(LibretroPPSSPPReleaseViewsForBoot() == base, @"32 MiB relaunch %u releases its reservation", cycle);
+    vm_address_t arena = BootLikePPSSPP(base, base + kTestSlot.start);
+    CHECK(arena != 0, @"32 MiB relaunch %u allocated its backing arena", cycle);
+    // Match a commercial game's actual view extent, rather than the
+    // 64 MiB homebrew extent used by the earlier fixture.
+    vm_deallocate(mach_task_self(), base + 0x0A000000ull, 32 * kMiB);
+    volatile uint8_t *ram = (volatile uint8_t *)(uintptr_t)(base + 0x08000000ull);
+    ram[0x100] = 0x6B;
+    LibretroPPSSPPMemorySettled(base);
+    CHECK(!CanMapExactly(base + 0x0B000000ull, base + 0x0B000000ull + 0x4000),
+          @"PSP_RELAUNCH_UNUSED_RAM_PROTECTED cycle %u", cycle);
+    CHECK(ram[0x100] == 0x6B && ((volatile uint8_t *)arena)[0x100] == 0xA5,
+          @"32 MiB relaunch %u preserves live RAM and arena bytes", cycle);
+    // Release only the actual core mappings, never the protected tail.
+    for (size_t view = 0; view < 2; view++) {
+      vm_deallocate(mach_task_self(), base + kTestViews[view].start,
+                    kTestViews[view].end - kTestViews[view].start);
+    }
+    vm_deallocate(mach_task_self(), base + 0x08000000ull, 32 * kMiB);
+    vm_deallocate(mach_task_self(), arena, kArena32);
+    LibretroPPSSPPRestoreReservation();
+    CHECK(LibretroPPSSPPReservedBase() == base && ViewsHeld(base) && SlotHeld(base),
+          @"32 MiB relaunch %u retains the same complete reservation", cycle);
+  }
+}
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     TestEmptyWindow();
@@ -378,6 +413,7 @@ int main(int argc, const char *argv[]) {
     TestLiveReport();
     TestSystemRAMBase();
     TestReservation();
+    TestCommercialGameRelaunch();
   }
   printf("%s: %d failure(s)\n", failures == 0 ? "address_space_test passed" : "address_space_test FAILED", failures);
   return failures == 0 ? 0 : 1;
