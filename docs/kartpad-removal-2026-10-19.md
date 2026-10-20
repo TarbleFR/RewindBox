@@ -86,4 +86,18 @@ KartPad devient une application séparée, construite par chaque joueur sur son 
 
 ## 7. Résultats CI et livraison
 
-À compléter avec les runs réels. L'IPA du retrait se construit après la fin des compilations en cours (Build 490 de l'autre session), avec son propre numéro, sa porte de livraison et son reçu.
+Sources : retrait `21f8b3a3` ; correctifs d'analyse `f465fd16` (une fonction de test devenue inutile et deux imports superflus des tests 490).
+
+| Contrôle | Run / job | Source | Résultat |
+| --- | --- | --- | --- |
+| `launch-ui-checks.yml`, avec : routes de lancement, carrousel, passage audio jeu → menu, analyse Flutter complète, tests Dart des Ports et du retrait (douze langues), 13 scénarios de retour sans KartPad, contrôles Python du § 5 | 39347024869 / 118381981746 | `f465fd16` | réussi |
+| `legal-compliance-check.yml`, avec : `flutter analyze` sans tolérance d'infos, crédits, notices embarquées, test de la référence 419 | 39347021853 | `f465fd16` | réussi |
+| `neoplay-check.yml`, tâche `native` : `test/neoplay/companion_tests.swift` dans le Simulateur iOS | 39346743352 / 118381055607 | `21f8b3a3` | réussi |
+| `neoplay-check.yml`, tâche `frontend` | 39346743352 / 118381055644 | `21f8b3a3` | échec déjà présent avant le retrait : `test/neoplay_build397_integration_test.py` compare tout le dépôt à la Build 396 et échoue aussi à HEAD sans ce changement |
+
+Runs précédents qui ne comptent pas comme réussis :
+
+- 39346795553 (contrôles légaux sur `34f3b8c4`) et 39346740851 (lancement sur `21f8b3a3`) se sont arrêtés à l'analyse, sur les trois points corrigés par `f465fd16` ;
+- 39342150383 (moteur 0.8.3, abandonné) s'était arrêté sur une archive chiffrée des sources Dolphin ; ce workflow est supprimé.
+
+La Build 490 de l'autre session est livrée depuis son tag `build-490` et contient encore l'ancien KartPad : la première IPA sans KartPad est la suivante. Elle se construit après la fin de la livraison 490, sous un nouveau numéro, avec sa propre porte de livraison et son reçu. Aucune validation sur iPhone n'est revendiquée.
