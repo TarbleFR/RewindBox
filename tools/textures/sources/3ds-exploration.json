@@ -1,0 +1,210 @@
+[
+ {
+  "id": "3ds-fe-awakening-aahd-p1-l498",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Fire Emblem Awakening — Amateur Awakening HD (P1)",
+  "version": "P1 2025-10-11",
+  "games": [
+   {
+    "title": "Fire Emblem Awakening",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000A0500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "L498",
+   "Lunaen",
+   "Aoryn",
+   "OmegaAvenger_HD",
+   "GenesisDreams",
+   "RakkiB",
+   "FEPortraits"
+  ],
+  "page_url": "https://gamebanana.com/mods/400809",
+  "source_id": "gamebanana:400809",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; author checklist requires permission for redistribution",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/400809",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1UYdPOB-Ztpv6aSY83djEoATMFYGHxw74/view?usp=sharing"
+   },
+   "file_name": "AAHD-P1.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-fe-awakening-aahd-l498",
+  "notes": "P1 only of the author's three separate texture archives. The full AAHD set also needs P2 and P3, merged on a computer before importing one folder. This entry must not be described as the complete AAHD pack. USA; the author recommends Project reAwakening for EUR/AUS differences, not automatic PAL/French compatibility."
+ },
+ {
+  "id": "3ds-fe-fates-combined-character-artwork",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Fire Emblem Fates — Combined HD Pack (character artwork)",
+  "version": "1.2",
+  "games": [
+   {
+    "title": "Fire Emblem Fates: Birthright",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000179400"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Fire Emblem Fates: Conquest",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000179600"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Fire Emblem Fates: Special Edition",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000179800"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "tesla2105",
+   "OmegaAvenger_HD",
+   "Serbagz",
+   "Combined HD Pack compiler (see author page)"
+  ],
+  "page_url": "https://gamebanana.com/mods/351105",
+  "source_id": "gamebanana:351105",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; author checklist forbids redistribution on other sites",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/351105",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1ny1XiVV0UKa_RyY4hvC_jICi6BxaxBjD/view?usp=drive_web"
+   },
+   "file_name": "Character Artwork.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-fe-fates-combined-hd",
+  "notes": "Character artwork component only. The full project is split across eight ZIP files; merge the desired components on a computer before importing one combined folder. USA; the author does not vouch for other regions or fonts. The compilation page states that component authors granted permission; NeoStation grants no onward redistribution rights."
+ },
+ {
+  "id": "3ds-fe-echoes-hd-mikeyx",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Fire Emblem Echoes: Shadows of Valentia HD (mikeyX)",
+  "version": "0.2-20200620",
+  "games": [
+   {
+    "title": "Fire Emblem Echoes: Shadows of Valentia",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B4000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "mikeyX"
+  ],
+  "page_url": "https://gamebanana.com/mods/506672",
+  "source_id": "gamebanana:506672",
+  "credits": "Original textures: mikeyX. Preservation upload and recovered release text: ilikepizza107; Internet Archive credited by the uploader.",
+  "licence": {
+   "summary": "Preservation upload states CC BY-NC-ND 4.0; original creator permission for this mirror is not established",
+   "redistribution": "Manual page link only. No texture is hosted or redistributed by NeoStation and no onward permission is inferred from the preservation uploader."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/506672",
+   "file_name": "FE_SoV_-_Texture_Pack.7z",
+   "verify": {
+    "url": "https://www.mediafire.com/file/t3onjgddsqyiuf9/FE_SoV_-_Texture_Pack.7z/file"
+   }
+  },
+  "scope": "partial",
+  "family": "3ds-fe-echoes-hd-mikeyx",
+  "notes": "Work in progress: portraits, VFX, static cutscenes and partial UI; missing portraits and alpha issues remain. No DLC, complete geometry or French coverage is claimed. The page is a preservation mirror, not an upload by mikeyX. Edition must be confirmed against the archive and the game."
+ },
+ {
+  "id": "3ds-sonipro-hd-cybertokyo",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "SoniPro HD Texture Pack (WIP)",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "SoniPro: Super Sonico in Production",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000FA600"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "CyberTokyo"
+  ],
+  "page_url": "https://gamebanana.com/mods/712346",
+  "source_id": "gamebanana:712346",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+   "redistribution": "Manual author-page download only; NeoStation does not host or redistribute these files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/712346",
+   "file_name": "sonipro.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1810423"
+   }
+  },
+  "scope": "partial",
+  "family": "3ds-sonipro-hd-cybertokyo",
+  "notes": "Early work in progress for the Japanese game. The author reports testing in AzaharPlus on Android. Texture replacement only; no translation, full-game coverage or iPhone rendering is claimed."
+ }
+]

@@ -1,0 +1,153 @@
+[
+ {
+  "id": "psp-300-hd-huekage",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "300: March to Glory HD (Huekage)",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "300: March to Glory",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10241"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "300: March to Glory",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00766"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Huekage"
+  ],
+  "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-300-march-to-glory-ulus10241-ntsc-ules00766-pal.684196/",
+  "source_id": "gbatemp:684196",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/psp-hd-textures-pack-300-march-to-glory-ulus10241-ntsc-ules00766-pal.684196/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/e8sk752atbc3udq/PSP_HD_Textures_-_300_-_March_to_Glory_%28ULUS10241%29_%28NTSC%29_%26_%28ULES00766%29_%28PAL%29.zip/file"
+   }
+  },
+  "scope": "complete",
+  "family": "psp-300-hd-huekage",
+  "notes": "1,171 textures upscaled 4x with colour and sharpness corrections. Both USA and Europe are identified by the author; languages are not individually verified."
+ },
+ {
+  "id": "psp-gow-gos-hd-huekage",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "God of War: Ghost of Sparta HD (Huekage)",
+  "version": "1.1",
+  "games": [
+   {
+    "title": "God of War: Ghost of Sparta",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98737"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "God of War: Ghost of Sparta",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01401"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Huekage"
+  ],
+  "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-ghost-of-sparta-ucus98737-ntsc-uces01401-pal.684787/",
+  "source_id": "gbatemp:684787",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-ghost-of-sparta-ucus98737-ntsc-uces01401-pal.684787/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/tuqgkh9pxeiggb8/PSP_HD_Textures_-_God_of_War_-_Ghost_of_Sparta_%28UCUS98737%29_%28NTSC%29_%26_%28UCES01401%29_%28PAL%29.zip/file"
+   }
+  },
+  "scope": "complete",
+  "family": "psp-gow-gos-hd-huekage",
+  "notes": "Over 9,000 textures upscaled 4x. Both USA and Europe are identified by the author; this is separate from ThePunisher009's HD Lite pack."
+ },
+ {
+  "id": "psp-swbf2-pc-ps2-textures-biotes",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Star Wars: Battlefront II — PC/PS2 texture port",
+  "version": "6.2",
+  "games": [
+   {
+    "title": "Star Wars: Battlefront II",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10053"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "BioTes (PyroMann)",
+   "jcoolarts (font)"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=42436",
+  "source_id": "github:BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP",
+  "licence": {
+   "summary": "No licence stated; includes assets ported from PC/PS2 releases and a credited font",
+   "redistribution": "Manual author-page download only; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP/releases/tag/Another-Small-Update",
+   "file_name": "ULUS10053_FINAL.7z",
+   "verify": {
+    "url": "https://github.com/BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP/releases/download/Another-Small-Update/ULUS10053_FINAL.7z"
+   }
+  },
+  "scope": "partial",
+  "family": "psp-swbf2-pc-ps2-textures-biotes",
+  "notes": "Most maps and selected characters/menu elements, intended for Ultimate Collection but the author also reports use with the original game. USA only. Separate from jcoolarts' basic UI pack. No game or Ultimate Collection modification is included."
+ }
+]

@@ -1,0 +1,170 @@
+[
+ {
+  "id": "gc-fe-por-hd-panda-venom",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance HD (Panda_Venom)",
+  "version": "2024-05-11",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Panda_Venom"
+  ],
+  "page_url": "https://gbatemp.net/threads/gc-fire-emblem-path-of-radiance-usa-hd-textures.655722/",
+  "source_id": "gbatemp:655722",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/gc-fire-emblem-path-of-radiance-usa-hd-textures.655722/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/ejm1q504v5cqzp4/GFE.7z/file"
+   },
+   "file_name": "GFE.7z"
+  },
+  "scope": "partial",
+  "family": "gc-fe-por-hd-panda-venom",
+  "notes": "UI, fonts, maps, backgrounds and characters; magic effects remain at original resolution. The author specifies USA, not PAL/French. DDS DXT5/BC7 requires BC texture support. NeoStation keeps prefetch disabled; no iPhone rendering has been verified."
+ },
+ {
+  "id": "gc-fe-por-ui-link-to-the-past",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance — upscaled 2D/UI (legacy)",
+  "version": "2015-02-26",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Link_to_the_past"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+  "source_id": "gamebanana:Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+   "verify": {
+    "url": "https://www.mediafire.com/file/kwy3wb7acpc8g84/GFEE01.7z/file"
+   },
+   "file_name": "GFEE01.7z"
+  },
+  "scope": "ui",
+  "family": "gc-fe-por-ui-link-to-the-past",
+  "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions."
+ },
+ {
+  "id": "wii-fe-rd-ui-link-to-the-past",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Radiant Dawn — upscaled 2D/UI (legacy)",
+  "version": "2015-02-26",
+  "games": [
+   {
+    "title": "Fire Emblem: Radiant Dawn",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Link_to_the_past"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+  "source_id": "gamebanana:Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+   "verify": {
+    "url": "https://www.mediafire.com/file/4g0b1h8bkpozo0h/RFEE01.7z/file"
+   },
+   "file_name": "RFEE01.7z"
+  },
+  "scope": "ui",
+  "family": "wii-fe-rd-ui-link-to-the-past",
+  "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions."
+ },
+ {
+  "id": "wii-ms-sensen-0079-hd-png-callofcthuloo",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mobile Suit Gundam: MS Sensen 0079 HD (PNG)",
+  "version": "2026-08-15",
+  "games": [
+   {
+    "title": "Mobile Suit Gundam: MS Sensen 0079",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "R79JAF"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "callofcthuloo"
+  ],
+  "page_url": "https://gbatemp.net/threads/wii-mobile-suit-gundam-ms-sensen-0079-ntsc-j-hd-texture-pack-upscale.683779/",
+  "source_id": "gbatemp:683779",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/wii-mobile-suit-gundam-ms-sensen-0079-ntsc-j-hd-texture-pack-upscale.683779/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/lfs0kitngsy2n2h/Mobile%2BSuit%2BGundam%2B-%2BMS%2BSensen%2B0079%2B%5BR79JAF%5D%2BPNG.zip/file"
+   },
+   "file_name": "MS-Sensen-0079-PNG.zip"
+  },
+  "scope": "partial",
+  "family": "wii-ms-sensen-0079-hd-callofcthuloo",
+  "notes": "Characters, weapons, stages, menus and portraits. FMVs and most Combination Mode-exclusive assets are not replaced. Author reports support for the Japanese game and its English translation; no other region is claimed."
+ }
+]
