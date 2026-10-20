@@ -1,0 +1,64 @@
+{
+  "result": "passed",
+  "sourceClosure": {
+    "source": "76cb22f155188908345796ae504958e26eba1427",
+    "baseline": "ef8b4b9db09ac142e801ee43e65221261d49cae4",
+    "delivered499Source": "4fc50a8701db627607821ab393a1522d21fd00c4",
+    "nativeAndDartInputsByteIdenticalTo499": true,
+    "productInputsByteIdenticalTo498": false,
+    "nativeAndDartInputsByteIdenticalTo498": true,
+    "ps1Catalogue": {
+      "source": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
+      "run": 39484361864,
+      "jobs": [
+        "PS1 catalogue generation, provenance and preserved entries",
+        "PS1 bundled catalogue and regional matching on Foundation"
+      ],
+      "conclusion": "success",
+      "revision": "2026-10-20.56904c72933f",
+      "manifestSHA256": "cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7",
+      "existingPackObjectsUnchanged": 1088,
+      "previous26CatalogueObjectsUnchanged": 1112,
+      "previous32CatalogueObjectsUnchanged": 1120,
+      "ps1References": 37,
+      "verifiedPS1OneTap": 8,
+      "manualAuthorPagesWithoutInstallationClaim": 29,
+      "physicalDeviceValidated": false
+    },
+    "changedCoreFiles": [
+      "rpcs3/Emu/CMakeLists.txt",
+      "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+      "rpcs3/Emu/Cell/SPUThread.cpp"
+    ],
+    "unchangedCanonicalCoreFiles": 223,
+    "coreABI": 30,
+    "neoSwapHostAndCoreClientsUnchanged": true,
+    "rebuiltCores": [],
+    "reused499Core": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273"
+  },
+  "reused498": {
+    "source": "69176e02b6e2133075b2745dd06d6a70316674a4",
+    "run": 39464441422,
+    "jobs": [
+      "Private HD native IPA delivery / Closed candidate, catalogue and reusable CI provenance",
+      "Private HD native IPA delivery / Exact native reuse and Foundation with the final catalogue",
+      "Private HD native IPA delivery / Release device build \u2022 cold \u2022 HD native"
+    ],
+    "conclusion": "success"
+  },
+  "reused499Core": {
+    "source": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273",
+    "run": 39472233521,
+    "jobs": [
+      "RPCS3 Core arm64 with NeoSwap client"
+    ],
+    "conclusion": "success",
+    "artifact": 12291706432,
+    "archiveSHA256": "9340193d9defca1d5ed3fe9b189d688d9592501d4971bad529a5ed39003a435f",
+    "coreSHA256": "87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f",
+    "patchSHA256": "6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1",
+    "newSPUBehaviourProof": true,
+    "cacheRelocationProof": true,
+    "llvmPipelineProof": true
+  }
+}

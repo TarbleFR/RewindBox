@@ -1,12 +1,14 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
-## Build 500 candidate — Core RPCS3 499 et dernier catalogue PS1, 20 octobre 2026
+## Build 500 livrée — Core RPCS3 499 et dernier catalogue PS1, 20 octobre 2026
 
 - Le mainteneur demande explicitement la dernière IPA NeoStation avec le Core PS3 terminé **et** les derniers catalogues PS1. La499 figée (34 références) ne satisfait pas ce nouvel assemblage ; candidate unique **500**, surClaude, sans release publique.
 - Réutiliser le Core RPCS3 déjà construit et validé : source0b18a23460b0a9840406fda2e3d6da4c5cdb7273, run39472233521, SHA-25687bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f, ABI30. Aucun nouveau build Core et aucune nouvelle modification moteur, NeoSwap, Dart ou interface. Les autres cœurs et le correctif PSP497 restent identiques.
 - Inclure exactement le catalogue PS1 2026-10-20.56904c72933f, SHA-256cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7 :37 références,8 téléchargements vérifiés,29 pages manuelles ; catalogue global424 familles installables/509 profils. Publication39484361864 et porte39484758626 déjà réussies,187 contrôles Foundation. Ne pas rejouer les tests Flutter ou reconstruire les cœurs inchangés.
 - Recette500 séparée de499, source d’assemblage figée et provenance explicite. Les deux manifestes sont les seules différences produit autorisées depuis499 ; emballage, numéro500, signature et vérification du contenu final restent nécessaires. La499 livrée reste immuable. SideStore requis pour la signature Apple ; aucune validation physique ou gain FPS inventé.
 
+
+- Livraison500 vérifiée : source `76cb22f155188908345796ae504958e26eba1427`, workflow `c5ac1161b8b44e1607b8692ffee0152a60fbbd53`, run39487947573 réussi ; artefact12294424092 (ZIP SHA-2562ffd2b0227e1f43987789bed125a73888bcb23d70a1b7efff9b47810e75eab10). IPA0.0.8(500),168389597octets,SHA-256 `0c91d716c51c60391219cc1ce54e30fe7ab980faf39e8ea53f7f82c451b9d625`. Six bundles500 ; Core signé identique à499 (`49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63`) ; manifestePS1exact37/8/29. Reçu `docs/evidence/ps1rpcs3500-delivery.json`. Aucun nouveau Core, aucun test Flutter inchangé, aucune release publique. SignatureSideStore/AltStore requise ; pas de validation physique. **500 est figée, ne pas réutiliser ce numéro.**
 
 ## Recherche PS1 HD — troisième extension intégrée, 20 octobre 2026
 

@@ -9,3 +9,11 @@ Cette livraison rassemble le Core RPCS3 de la499 validée et le catalogue PS1 ac
 - Aucun rendu iPhone physique ni gain FPS supplémentaire n’est attesté. Aucune release publique.
 
 Le reçu final contiendra source figée, exécutionCI, empreinte de l’IPA, identités Core et catalogue.
+
+## Livraison vérifiée
+
+Source figée `76cb22f155188908345796ae504958e26eba1427`, workflow `c5ac1161b8b44e1607b8692ffee0152a60fbbd53`, [exécution39487947573 réussie](https://github.com/TarbleFR/neostation-ios/actions/runs/39487947573).
+
+IPA **0.0.8 (500)**, **168389597 octets**, SHA-256 `0c91d716c51c60391219cc1ce54e30fe7ab980faf39e8ea53f7f82c451b9d625`. Six bundles portent500. Le Core signé SHA-256 `49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63` est identique à celui de499 ; les37 références PS1 et les8 plans téléchargeables sont dans le manifeste embarqué exact. Aucun nouveau Core ni test Flutter inchangé exécuté. Les29 pages manuelles ne gagnent aucun plan d’installation.
+
+Reçu : `docs/evidence/ps1rpcs3500-delivery.json`. La500 est figée ; ne pas réutiliser ce numéro pour une autre source. Signature Apple via SideStore/AltStore requise. Aucun test physique ni nouveau gain FPS attesté.

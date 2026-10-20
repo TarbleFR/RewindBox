@@ -1,0 +1,109 @@
+{
+  "result": "passed",
+  "source": "76cb22f155188908345796ae504958e26eba1427",
+  "build": 500,
+  "version": "0.0.8",
+  "ipaSHA256": "0c91d716c51c60391219cc1ce54e30fe7ab980faf39e8ea53f7f82c451b9d625",
+  "ipaBytes": 168389597,
+  "versionBundles": 6,
+  "coreSource": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273",
+  "coreRun": 39472233521,
+  "coreSHA256BeforeSigning": "87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f",
+  "coreSHA256InFinalIPA": "49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63",
+  "coreABI": 30,
+  "compiledSectionsUnchangedBySigning": true,
+  "catalogueRevision": "2026-10-20.56904c72933f",
+  "catalogueSHA256": "cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7",
+  "ps1References": 37,
+  "verifiedPS1Downloads": 8,
+  "manualPS1Pages": 29,
+  "rebuiltCores": [],
+  "physicalDeviceValidated": false,
+  "sideStoreAppleReSigningRequired": true,
+  "date": "2026-10-20",
+  "ci": {
+    "run": 39487947573,
+    "workflowCommit": "c5ac1161b8b44e1607b8692ffee0152a60fbbd53",
+    "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39487947573",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 118853195546,
+        "name": "delivery500 / Delivered499 Core, unchanged native product and current PS1 catalogue proof",
+        "conclusion": "success"
+      },
+      {
+        "id": 118853197309,
+        "name": "delivery499",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 118853197936,
+        "name": "RPCS3 Core arm64 with NeoSwap client",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 118853445827,
+        "name": "delivery500 / Release device build \u2022 cold \u2022 RPCS3 audit",
+        "conclusion": "success"
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 12295202008,
+        "name": "NeoStation-Build-500-76cb22f155188908345796ae504958e26eba1427-cold-diagnostics",
+        "bytes": 5886617,
+        "sha256": "sha256:4488634d5c57d3aebd3bdb29c2f652608f403810b62746fec40a9475f43e7eca"
+      },
+      {
+        "id": 12294424092,
+        "name": "NeoStation-Build-500-76cb22f155188908345796ae504958e26eba1427-cold",
+        "bytes": 168602013,
+        "sha256": "sha256:2ffd2b0227e1f43987789bed125a73888bcb23d70a1b7efff9b47810e75eab10"
+      },
+      {
+        "id": 12293154630,
+        "name": "ps1-rpcs3-500-validation-c5ac1161b8b44e1607b8692ffee0152a60fbbd53",
+        "bytes": 1587,
+        "sha256": "sha256:ffe00ff4d4488cdc264d3a91fd3f96286745deee367f1577c3654a33daa63f33"
+      }
+    ]
+  },
+  "sourceClosure": {
+    "source": "76cb22f155188908345796ae504958e26eba1427",
+    "baseline": "ef8b4b9db09ac142e801ee43e65221261d49cae4",
+    "delivered499Source": "4fc50a8701db627607821ab393a1522d21fd00c4",
+    "nativeAndDartInputsByteIdenticalTo499": true,
+    "productInputsByteIdenticalTo498": false,
+    "nativeAndDartInputsByteIdenticalTo498": true,
+    "ps1Catalogue": {
+      "source": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
+      "run": 39484361864,
+      "jobs": [
+        "PS1 catalogue generation, provenance and preserved entries",
+        "PS1 bundled catalogue and regional matching on Foundation"
+      ],
+      "conclusion": "success",
+      "revision": "2026-10-20.56904c72933f",
+      "manifestSHA256": "cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7",
+      "existingPackObjectsUnchanged": 1088,
+      "previous26CatalogueObjectsUnchanged": 1112,
+      "previous32CatalogueObjectsUnchanged": 1120,
+      "ps1References": 37,
+      "verifiedPS1OneTap": 8,
+      "manualAuthorPagesWithoutInstallationClaim": 29,
+      "physicalDeviceValidated": false
+    },
+    "changedCoreFiles": [
+      "rpcs3/Emu/CMakeLists.txt",
+      "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+      "rpcs3/Emu/Cell/SPUThread.cpp"
+    ],
+    "unchangedCanonicalCoreFiles": 223,
+    "coreABI": 30,
+    "neoSwapHostAndCoreClientsUnchanged": true,
+    "rebuiltCores": [],
+    "reused499Core": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273"
+  },
+  "scope": "Delivered499 RPCS3 Core unchanged; exact current PS1 catalogue; no new Core build, Flutter tests, public release or physical-device claim."
+}
