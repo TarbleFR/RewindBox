@@ -122,3 +122,9 @@
  }
  
  void MemoryMap_Shutdown() {
+--- a/libretro/Makefile.common
++++ b/libretro/Makefile.common
+@@ -456,2 +456,2 @@
+-ifeq ($(TARGET_ARCH),arm64)
++ifeq ($(TARGET_ARCH)-$(PLATFORM_EXT),arm64-android)
+ SOURCES_CXX += \

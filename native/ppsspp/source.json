@@ -4,10 +4,11 @@
   "baseHostCommit": "4c2186204ce06b50b989689a9c2322068f523a58",
   "baseRun": 39366986940,
   "basePspSHA256": "40d3b6f81a726ff82a89f87df5332f20a5dcdecd9f6473fcae7cade60bcb0cf0",
-  "patchSHA256": "0ecc5b57268252139fda29a00c6fc1127224cb5adbfdeed187d8abf2f92e89f0",
+  "patchSHA256": "c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75",
   "abiHeaderSHA256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf",
   "originalFilesSHA256": {
     "Common/MemArenaDarwin.cpp": "02cbd4c0b3874d17298825ad4382f2df51b10d6111d2220641a0ff73aa276e28",
-    "Core/MemMap.cpp": "cb86740fafee2c4b0ba4a20cf20aabbe38d73b12750642fc0b0f0e540556ae50"
+    "Core/MemMap.cpp": "cb86740fafee2c4b0ba4a20cf20aabbe38d73b12750642fc0b0f0e540556ae50",
+    "libretro/Makefile.common": "fa6e729229a78c7521c273b97bbe93f68a3fed162bcf52e4c0b868bbc52819ad"
   }
 }
