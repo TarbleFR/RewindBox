@@ -42,9 +42,9 @@ public enum BoxTextRecognizer {
         return (try? request.supportedRecognitionLanguages()) ?? []
     }
 
-    /// Smallest line of text Vision is asked to find, in pixels of the image
-    /// it is given. Vision's default (1/32 of the image height) skips the
-    /// body text, feature lists and legal print of a box back.
+    /// Smallest line of text the small print pass asks Vision to find, in
+    /// pixels of the image it is given. Vision's default (1/32 of the image
+    /// height) can skip the legal print of a box back.
     static let smallestLinePixels = 6.0
 
     /// Scans whose longest side is shorter than this are enlarged before
@@ -99,34 +99,60 @@ public enum BoxTextRecognizer {
     /// [languages] are hints from the region of the scan (`ja-JP` first for
     /// a Japanese edition). Without usable hints, or when the hinted pass
     /// finds almost nothing, Vision's automatic language detection runs and
-    /// the richer result is kept. Small print is looked for down to
-    /// [smallestLinePixels], and a small scan is enlarged for Vision only.
-    /// Nothing is ever invented: only what Vision returns is passed on, with
-    /// its confidence.
+    /// the richer result is kept. That first reading is exactly the one of
+    /// Build 493. A second pass then looks for small print, down to
+    /// [smallestLinePixels], on the scan enlarged for Vision only when it is
+    /// small; it only adds the lines it finds where the first reading found
+    /// none, so it never replaces nor removes a line the first one read
+    /// (Vision, asked for smaller text, can read a line worse or miss a short
+    /// one). Nothing is ever invented: only what Vision returns is passed on,
+    /// with its confidence.
     public static func recognize(path: String, languages: [String], maxDimension: Int = 4096) throws -> BoxTextRecognition {
         guard let scan = loadImage(path: path, maxDimension: maxDimension) else {
             throw BoxTextRecognizerError.unreadableImage
         }
-        let image = enlarged(scan, factor: enlargement(width: scan.width, height: scan.height)) ?? scan
         let supported = Set(supportedLanguages())
         let hints = languages.filter { supported.contains($0) }
-        var best = try run(image: image, languages: hints)
-        if !hints.isEmpty && best.lines.count < 3 {
-            let auto = try run(image: image, languages: [])
-            if score(auto) > score(best) { best = auto }
+        var first = try run(image: scan, languages: hints)
+        if !hints.isEmpty && first.lines.count < 3 {
+            let auto = try run(image: scan, languages: [])
+            if score(auto) > score(first) { first = auto }
         }
-        return best
+        let small = enlarged(scan, factor: enlargement(width: scan.width, height: scan.height)) ?? scan
+        let fine = try run(image: small, languages: first.languages == ["auto"] ? [] : first.languages,
+                           minimumTextHeight: minimumTextHeight(imageHeight: small.height))
+        return merged(first, filledWith: fine)
+    }
+
+    /// [first] with the lines of [fine] that overlap none of its lines.
+    static func merged(_ first: BoxTextRecognition, filledWith fine: BoxTextRecognition) -> BoxTextRecognition {
+        var lines = first.lines
+        for line in fine.lines where !first.lines.contains(where: { overlaps($0, line) }) {
+            lines.append(line)
+        }
+        return BoxTextRecognition(lines: lines, pixelWidth: fine.pixelWidth, pixelHeight: fine.pixelHeight,
+                                  languages: first.languages)
+    }
+
+    /// Whether two lines share more than half of the smaller one's box.
+    static func overlaps(_ a: BoxTextLine, _ b: BoxTextLine) -> Bool {
+        let w = min(a.x + a.width, b.x + b.width) - max(a.x, b.x)
+        let h = min(a.y + a.height, b.y + b.height) - max(a.y, b.y)
+        guard w > 0, h > 0 else { return false }
+        let smaller = min(a.width * a.height, b.width * b.height)
+        return smaller > 0 && w * h > 0.5 * smaller
     }
 
     static func score(_ r: BoxTextRecognition) -> Double {
         r.lines.reduce(0) { $0 + Double($1.text.count) * Double($1.confidence) }
     }
 
-    static func run(image: CGImage, languages: [String]) throws -> BoxTextRecognition {
+    /// One Vision pass; [minimumTextHeight] nil keeps Vision's default.
+    static func run(image: CGImage, languages: [String], minimumTextHeight: Float? = nil) throws -> BoxTextRecognition {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        request.minimumTextHeight = minimumTextHeight(imageHeight: image.height)
+        if let minimumTextHeight { request.minimumTextHeight = minimumTextHeight }
         if languages.isEmpty {
             request.automaticallyDetectsLanguage = true
         } else {

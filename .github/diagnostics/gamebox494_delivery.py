@@ -8,8 +8,9 @@ Build 494 is the delivered Build 493 (3D boxes in the three views) plus, at the 
   sharpening of the brightness ("Sharp text", on by default);
 - in portrait, the viewer's panel limited to a share of the height so that
   the box, and its back, are drawn larger (Play stays shown);
-- the box reader's recognizer reading small print (minimum text height and
-  the enlargement of small scans for Vision only), its cached transcripts
+- the box reader's recognizer: the Build 493 reading unchanged, then a small
+  print pass (minimum text height, small scans enlarged for Vision only) whose
+  lines are only added where the first reading found none; cached transcripts
   read again once.
 No emulator Core is rebuilt; the only native input that changes is the
 neo_box_reader plugin's recognizer. This gate reads CI evidence; it never
