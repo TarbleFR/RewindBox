@@ -7592,7 +7592,7 @@
  {
   "id": "ps2-ktx-monster-hunter-toolatenate",
   "title": "Monster Hunter",
-  "version": "See the creator's page",
+  "version": "0.12",
   "games": [
    {
     "title": "Monster Hunter",
@@ -7618,7 +7618,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Handcrafted. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Creator explicitly specifies SLUS-20896. Partial NotSoFaithful project: hand-made Forest and Hills/environment textures, roughly 2048 square; not a whole-game upscale. Flat archive has no serial; confirmation remains required. Production import validates the exact original archive and selected textures; no iPhone rendering is established.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/tlnates-notsofaithful-texture-pack-monster-hunter-2004-ps2-pcsx2.610028/",
@@ -8637,7 +8637,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale and handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale and handcrafted, complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive internally identifies SLUS-20694; only this USA disc is retained. Production import validates the exact original archive and selected textures; no iPhone rendering is established.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/onimusha-3-demon-siege-hd-texture-pack.654352/",
@@ -12078,27 +12078,11 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLKA-25412"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLPM-66848"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLPM-74264"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLPM-74275"
      }
     ],
     "regions": [
-     "Japan",
-     "Korea"
+     "Japan"
     ],
     "confirm": true
    }
@@ -12112,7 +12096,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLPM-66848; inferred other regions and reissues are removed. Availability awaits verification for this corrected target.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/sengoku-basara-2-heroes-hd-textures.641712/",
@@ -12720,38 +12704,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-51434"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLKA-25065"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLPM-65257"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLPM-65622"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLPM-66018"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-20622"
      }
     ],
     "regions": [
-     "Europe",
-     "Japan",
-     "Korea",
      "USA"
     ],
     "confirm": true
@@ -12766,7 +12722,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLUS-20622; inferred other regions and reissues are removed. Availability awaits verification for this corrected target.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
@@ -24328,7 +24284,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive internally identifies SLUS-21129; only this USA disc is retained. Production import validates the exact original archive and selected textures; no iPhone rendering is established.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-redux-edition.666757/",
@@ -26329,38 +26285,27 @@
  },
  {
   "id": "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers",
-  "title": "WWE SmackDown! vs. Raw",
+  "title": "WWE SmackDown! vs. Raw 2007",
   "version": "See the creator's page",
   "games": [
    {
-    "title": "WWE SmackDown! vs. Raw",
+    "title": "WWE SmackDown! vs. Raw 2007",
     "identities": [
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-52781"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLKA-25244"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLUS-21060"
+      "value": "SLUS-21427"
      }
     ],
     "regions": [
-     "Europe",
-     "Korea",
      "USA"
     ],
     "confirm": true
    }
   ],
   "authors": [
-   "EmulationLovers"
+   "EmulationLovers",
+   "MininGaming (original archive credit)"
   ],
   "page_url": "https://gbatemp.net/threads/wwe-smackdown-vs-raw-2007-hd-texture.628337/",
   "source_id": "creator:EmulationLovers",
@@ -26368,7 +26313,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator opening post explicitly specifies WWE SmackDown vs. Raw 2007 (SLUS-21427), with upscaled wrestlers, arenas, loading screens, menus, logos and fonts. Original ZIP credits MininGaming; both credits are retained without assuming the names are aliases. The imported catalogue entry for the earlier game is corrected, and unrelated regional IDs are removed. Flat archive has no internal serial; native verification for the corrected USA target is required before availability.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/wwe-smackdown-vs-raw-2007-hd-texture.628337/",
