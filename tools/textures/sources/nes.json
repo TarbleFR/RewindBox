@@ -87,7 +87,7 @@
    "summary": "No licence stated; README: fan work with no original Capcom assets, only remixed fan-made graphics",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "requirements": "hires.txt format 106. Its patch (Megaman - Super.ips) applies only to the two Mega Man ROMs whose SHA-1 hires.txt names; README: if the patch does not apply, the ROM differs.",
+  "requirements": "hires.txt format 106, scale 1 (redrawn 16-bit style tiles at the original size). Its patch (Megaman - Super.ips) applies only to the two Mega Man ROMs whose SHA-1 hires.txt names; README: if the patch does not apply, the ROM differs.",
   "download": {
    "automatable": true,
    "format": "zip",

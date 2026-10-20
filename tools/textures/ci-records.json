@@ -262,6 +262,17 @@
       "records": 10,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39367466788,
+      "source": "92b368cec9ff0110dfa020922a856289832e9730",
+      "consoles": [
+        "nes",
+        "ps1"
+      ],
+      "records": 5,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the four NES repository packs and Wip3out)",
+      "artifact_prefix": "hdtex486-repositories"
     }
   ]
 }
