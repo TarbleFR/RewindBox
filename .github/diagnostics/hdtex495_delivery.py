@@ -24,7 +24,7 @@ all of them) must have passed on the tested source,
 every tested input must be byte-identical to that source, and the verdicts
 (BUILD 495) must cover every changed input.
 """
-import hashlib,json,subprocess,sys,tempfile
+import hashlib,json,re,subprocess,sys,tempfile
 from pathlib import Path
 import gamebox494_delivery as previous
 import hdtex489_delivery as catalogue_gate
@@ -37,18 +37,30 @@ DELIVERED_RUN=None
 CORES_SOURCE='4c2186204ce06b50b989689a9c2322068f523a58'
 CORES_RUN=39366986940
 # Build 495 source tested by hd-textures.yml (push) and libretro-simulator.yml (mesen). Each part: (run, source, job).
-TESTED_SOURCE=''
+TESTED_SOURCE='8d1429cfe1ca9838cbe7bd76ea98f335e5f20412'
+# hd-textures.yml push run 39371944591 ran on 31222605, whose inputs of those parts are those of TESTED_SOURCE
+# (only the Simulator probe's core-list unpacking and documentation changed since).
+CATALOGUE_SOURCE='31222605de4c9a03a7d3eff6b485a4fc718ba8d6'
 PROOFS={
-    'host':(None,TESTED_SOURCE,'Readers, identities, installer, labels, catalogue, contracts and Flutter'),
-    'native':(None,TESTED_SOURCE,'Store and adapters on Foundation, iPhone SDK build of every changed source'),
-    'uikit':(None,TESTED_SOURCE,'The HD textures page on UIKit with the bundled catalogue'),
+    'host':(39371944591,CATALOGUE_SOURCE,'Readers, identities, installer, labels, catalogue, contracts and Flutter'),
+    'native':(39371944591,CATALOGUE_SOURCE,'Store and adapters on Foundation, iPhone SDK build of every changed source'),
+    'uikit':(39371944591,CATALOGUE_SOURCE,'The HD textures page on UIKit with the bundled catalogue'),
 }
 # The delivered package's binaries against the option, folder and BIOS contracts (no verdict file: job result).
-CORES_PROOF=(None,TESTED_SOURCE,'Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot')
+CORES_PROOF=(39371944591,CATALOGUE_SOURCE,'Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot')
+# What that job reads: the probe of the binaries, the option and BIOS contracts and what they compare with.
+CORES_JOB_INPUTS={'tools/textures/probe_cores.py','test/libretro_core_options_test.py','test/libretro_bios_requirements_test.py',
+    'lib/services/libretro_core_catalog.dart','assets/data/libretro_bios_requirements.json',
+    'test/fixtures/libretro_bios/core_info_5a74858a.json','.github/workflows/hd-textures.yml','build-utils/libretro'}
 # The real Mesen core in the Simulator (256x240 without a pack, 512x480 with the probe's pack, 256x240 with it off)
 # and, the host's callback order having changed for every core, every other scenario job of the same push run.
-SIMULATOR=(None,TESTED_SOURCE,'mesen')
+SIMULATOR=(39373940448,TESTED_SOURCE,'mesen')
 SIMULATOR_JOBS=('mesen','probe','lot1','lot2','beetle','shaders','official-shaders')
+# The one failure the maintainer classified permanently (13 October 2026) as a known limitation of the
+# Simulator probe, not a launch regression: PPSSPP's memory outside the reserved base in the crowded window.
+# The probe job is accepted with it only when it is its only problem and those contents launched, ran and closed.
+KNOWN_PROBE_LIMITATION=re.compile(r'''ppsspp-crowded(-prx)?: the core log lacks "PPSSPP's memory at the reserved base"''')
+CROWDED_SCENARIOS=('ppsspp-crowded','ppsspp-crowded-prx')
 MESEN_SCENARIOS=('mesen-plain-1','mesen-hd-pack-1','mesen-plain-2','mesen-hd-pack-2','mesen-hd-pack-off')
 PARTS=('host','native','uikit')
 
@@ -125,7 +137,7 @@ def source_closure():
         base.command(['git','diff','--exit-code',CORES_SOURCE,*end,'--','build-utils/libretro',*sorted(CORES_INPUTS)])
     for part,(run,source,job) in {**PROOFS,'cores':CORES_PROOF}.items():
         if source!=TESTED_SOURCE:
-            base.command(['git','diff','--exit-code',source,TESTED_SOURCE,'--',*sorted(part_inputs(part) if part in PROOFS else TESTED)])
+            base.command(['git','diff','--exit-code',source,TESTED_SOURCE,'--',*sorted(part_inputs(part) if part in PROOFS else CORES_JOB_INPUTS)])
     if SIMULATOR[1]!=TESTED_SOURCE:
         base.command(['git','diff','--exit-code',SIMULATOR[1],TESTED_SOURCE,'--',*sorted(SIMULATOR_INPUTS|PRODUCT)])
     for end in (['HEAD'],[]):
@@ -164,6 +176,39 @@ validate_rpc_core_identity=previous.validate_rpc_core_identity
 validate_rpc_core_pin=previous.validate_rpc_core_pin
 part_run=previous.part_run
 
+def simulator_job(run,source,name,folder):
+    """One scenario job of the Simulator run: passed, or (the probe job only) failed with nothing but the
+    classified crowded-window limitation, its contents having launched, run and closed."""
+    info=base.api(f'actions/runs/{run}')
+    if info['head_sha']!=source or info['status']!='completed':
+        raise ValueError('Wrong Simulator run identity/status: '+str(run))
+    jobs=[j for j in base.api(f'actions/runs/{run}/jobs?per_page=100')['jobs'] if j['name']==name]
+    if len(jobs)!=1:raise ValueError('Missing Simulator job: '+name)
+    job=jobs[0]
+    record={'run':run,'source':source,'jobs':[name],'conclusion':job['conclusion']}
+    if job['conclusion']=='success':return record
+    if name!='probe' or job['conclusion']!='failure':raise ValueError('Unsuccessful Simulator job: '+name)
+    log=base.api(f'actions/jobs/{job["id"]}/logs',raw=True)
+    if 'Simulator probe problems:' not in log:raise ValueError('The probe job failed before reporting its scenarios')
+    problems=[]
+    for line in log.split('Simulator probe problems:',1)[1].splitlines()[1:]:
+        found=re.match(r'^\S+\s+- (.*)$',line)
+        if not found:break
+        problems.append(found.group(1).strip())
+    if not problems or not all(KNOWN_PROBE_LIMITATION.fullmatch(problem) for problem in problems):
+        raise ValueError('The probe job failed for another reason: '+'; '.join(problems))
+    subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
+        '--name','libretro-simulator-probe-'+source,'--dir',str(folder)],check=True)
+    reports=list(Path(folder).rglob('probe.json'))
+    if len(reports)!=1:raise ValueError('Ambiguous or missing probe report')
+    results={r['name']:r for r in json.loads(reports[0].read_text())['results']}
+    for scenario in CROWDED_SCENARIOS:
+        result=results.get(scenario) or {}
+        if not (result.get('launch') or {}).get('success') or not result.get('stopped') or not result.get('ended'):
+            raise ValueError(scenario+': the crowded-window content did not launch, run and close')
+    record.update(knownLimitation=problems,reportSHA256=hashlib.sha256(reports[0].read_bytes()).hexdigest())
+    return record
+
 def evidence():
     records=[base.successful_run(DELIVERED_RUN,DELIVERED,['checks','native','Release device build • cold'])]
     # The 35-core package was built by libretro-cores.yml on CORES_SOURCE.
@@ -187,7 +232,7 @@ def evidence():
         # frame-size lines), and its report holds the five Mesen scenarios.
         run,source,job=SIMULATOR
         for name in SIMULATOR_JOBS:
-            records.append(part_run(run,source,name))
+            records.append(simulator_job(run,source,name,Path(tmp)/('job-'+name)))
         folder=Path(tmp)/'mesen'
         subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
             '--name','libretro-simulator-mesen-'+source,'--dir',str(folder)],check=True)
