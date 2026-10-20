@@ -38,7 +38,10 @@
 #include "NeoTextureINI.h"
 #include "NeoTextureInstall.h"
 #include <sys/stat.h>
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
 #include <os/proc.h>
+#endif
 #import <objc/message.h>
 
 static NSString *const kPPSSPPOption = @"ppsspp_texture_replacement";
@@ -796,7 +799,9 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 // the system does not say.
 static uint64_t MesenMemoryBudget(void) {
   uint64_t available = 0;
+#if TARGET_OS_IPHONE
   if (@available(iOS 13.0, *)) available = (uint64_t)os_proc_available_memory();
+#endif
   return available ? available / 2 : NSProcessInfo.processInfo.physicalMemory / 4;
 }
 

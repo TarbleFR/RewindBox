@@ -315,6 +315,61 @@ int main(int argc, char **argv) {
           Exists([libretroSystem stringByAppendingPathComponent:@"Mupen64plus/hires_texture"]), "mupen64plus removal limited to the ROM folder");
     CHECK(!Exists(kartCaches[0]) && Exists(otherCache), "mupen64plus removal drops the hi-res cache built from the removed pack");
 
+    // 4d'. Mesen (NES): <System>/HdPacks/<ROM file name>, per-game mesen_hdpacks (enabled
+    // by default in the core); a game that starts with Nestopia is switched to Mesen by the
+    // page's engine selector, never silently.
+    __block NSMutableArray<NSString *> *selected = [NSMutableArray array];
+    __block BOOL selectorAnswer = YES;
+    id<NeoTextureEngine> mesen = [NeoTextureEngines mesenWithSystemDirectory:libretroSystem configDirectory:config
+                                                                coreSelector:^BOOL(NSString *gameKey, NSString *core) {
+                                                                  [selected addObject:[NSString stringWithFormat:@"%@=%@", gameKey, core]];
+                                                                  return selectorAnswer;
+                                                                }];
+    [NeoTextureIdentityReader setCachePath:[work stringByAppendingPathComponent:@"identities-nes.json"]];
+    NSString *nesProblem = nil;
+    NSMutableDictionary *quest = [[NeoTextureIdentityReader identityForPath:fixtures[@"nesRom"] system:@"nes" title:@"Synthetic Quest"
+                                                                    problem:&nesProblem] mutableCopy];
+    CHECK([quest[@"identities"][0][@"scheme"] isEqual:@"nes-rom-sha1"] && [[mesen folderForIdentity:quest] isEqual:@"Synthetic Quest (USA)"],
+          "nes identity %s (%s)", quest.description.UTF8String, nesProblem.UTF8String);
+    CHECK([mesen supportsSystem:@"nes"] && [mesen supportsSystem:@"fc"] && [mesen supportsSystem:@"fds"] && ![mesen supportsSystem:@"snes"] &&
+          [mesen acceptsFile:@"hires.txt"] && ![mesen acceptsFile:@"sub/hires.txt"] && [mesen acceptsFile:@"BGM/a.ogg"] && ![mesen acceptsFile:@"notes.txt"],
+          "mesen filters");
+    CHECK([[NeoTextureCatalog pack:packs[@"mesen"] matchedTo:quest][@"match"] isEqual:@"exact"], "nes pack matched by the ROM SHA-1");
+    quest[@"gameKey"] = @"nes/Synthetic Quest (USA)";
+    quest[@"libretroCore"] = @"nestopia";
+    activation = [mesen activationForIdentity:quest];
+    CHECK([activation[@"known"] isEqual:@YES] && [activation[@"enabled"] isEqual:@NO] && [activation[@"reason"] isEqual:@"mesenEngine"] &&
+          [activation[@"setting"] isEqual:@"mesen_hdpacks"], "mesen off while the game starts with Nestopia %s", activation.description.UTF8String);
+    outcome = Install(store, packs[@"mesen2"], mesen, quest, NO, NO);
+    CHECK([outcome.error.userInfo[@"key"] isEqual:@"formatTooNew"] && !Exists([libretroSystem stringByAppendingPathComponent:@"HdPacks/Synthetic Quest (USA)"]),
+          "a Mesen 2 pack (format 108) is refused before anything is installed: %s", outcome.error.description.UTF8String);
+    selectorAnswer = NO;
+    NSError *selectError = nil;
+    CHECK(![mesen setActivation:YES identity:quest error:&selectError] && [selectError.userInfo[@"key"] isEqual:@"mesenNotSelected"] &&
+          selected.count == 1, "mesen switch refused when the engine cannot be selected");
+    selectorAnswer = YES;
+    outcome = Install(store, packs[@"mesen"], mesen, quest, NO, NO);
+    CHECK(!outcome.error, "mesen install: %s", outcome.error.description.UTF8String);
+    NSString *nesFolder = [libretroSystem stringByAppendingPathComponent:@"HdPacks/Synthetic Quest (USA)"];
+    CHECK([Files(nesFolder) isEqualToArray:(@[@"NeoStation-pack.json", @"hires.txt", @"tiles/tile.png"])], "mesen files %s",
+          Files(nesFolder).description.UTF8String);
+    CHECK([selected.lastObject isEqual:@"nes/Synthetic Quest (USA)=mesen"], "installing switches the game to Mesen through the selector: %s",
+          selected.description.UTF8String);
+    NSDictionary *nesOptions = JSON([config stringByAppendingPathComponent:@"Games/Mesen.json"])[@"games"][@"nes/Synthetic Quest (USA)"];
+    CHECK([nesOptions[@"mesen_hdpacks"] isEqual:@"enabled"], "mesen per-game option %s", nesOptions.description.UTF8String);
+    activation = [mesen activationForIdentity:quest];
+    CHECK([activation[@"enabled"] isEqual:@YES] && !activation[@"reason"], "mesen activation after selection %s", activation.description.UTF8String);
+    CHECK([mesen setActivation:NO identity:quest error:nil] &&
+          [JSON([config stringByAppendingPathComponent:@"Games/Mesen.json"])[@"games"][@"nes/Synthetic Quest (USA)"][@"mesen_hdpacks"] isEqual:@"disabled"] &&
+          ![[mesen activationForIdentity:quest][@"enabled"] boolValue], "mesen switched off");
+    NSMutableDictionary *onMesen = [quest mutableCopy];
+    onMesen[@"libretroCore"] = @"mesen";
+    onMesen[@"gameKey"] = @"nes/Other (USA)";
+    CHECK([[mesen activationForIdentity:onMesen][@"enabled"] isEqual:@YES], "a game already on Mesen: the core's default is on");
+    rows = [store installedForIdentity:quest engine:mesen];
+    CHECK(rows.count == 1 && !Remove(store, rows.firstObject, mesen) && !Exists(nesFolder) &&
+          Exists([libretroSystem stringByAppendingPathComponent:@"HdPacks"]), "mesen removal limited to the ROM folder");
+
     // 4e. Beetle PSX HW: <Saves>/Beetle PSX HW/<content name>-texture-replacements (the
     // core's HD Texture Folder "save"), next to the game's memory cards; Track + Replace per game.
     NSString *beetleSaves = [saves stringByAppendingPathComponent:@"Beetle PSX HW"];
