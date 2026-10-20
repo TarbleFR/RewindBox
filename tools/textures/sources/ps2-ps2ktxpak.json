@@ -31,7 +31,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/007-from-russia-with-love-upscaled-enhanced-texture-pack.660784/"
+   "page": "https://gbatemp.net/threads/007-from-russia-with-love-upscaled-enhanced-texture-pack.660784/",
+   "verify": {
+    "url": "https://archive.org/details/007-from-russia-with-love-upscaled-enhanced-texture-pack"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -109,7 +112,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/6l0b8ca2axm8nt5/SLUS-21268.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -348,7 +354,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/1yitc2potpmxddz/SLES-52367.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -387,7 +396,10 @@
   "notes": "AI upscale and handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/release-slus-20685-ape-escape-2-hd-ui-and-hud-manually-redrawn.666907/"
+   "page": "https://gbatemp.net/threads/release-slus-20685-ape-escape-2-hd-ui-and-hud-manually-redrawn.666907/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1Jfo-W745jKzbrhp-yKBizBSUkAoLz7Xk/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -426,7 +438,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-ape-escape-2-hd-slus-20685.655822/"
+   "page": "https://gbatemp.net/threads/ps2-ape-escape-2-hd-slus-20685.655822/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/gzw8an2h11d519w/SLUS-20685.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -543,7 +558,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1HiYJOYZmw-AWjgw1Swt5QMKCkv8NKn6c&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -709,7 +727,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/asterix-at-the-olympic-games-pal-m-uhd-remaster.638699/"
+   "page": "https://gbatemp.net/threads/asterix-at-the-olympic-games-pal-m-uhd-remaster.638699/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1CJH_CL9GBvkjh6Er2XJsEjcYBxv6zKr5/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -748,7 +769,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/backyard-wrestling-2-there-goes-the-neighborhood-pcsx2-hd-texture.671404/"
+   "page": "https://gbatemp.net/threads/backyard-wrestling-2-there-goes-the-neighborhood-pcsx2-hd-texture.671404/",
+   "verify": {
+    "url": "https://mega.nz/file/NQg2kJ7C#fXgbpwuG5QGZYgkkzrLEjy4ikO57_-krA_qlMHJVeDc"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -787,7 +811,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/barbie-in-the-12-dancing-princesses-hd-texture.651999/"
+   "page": "https://gbatemp.net/threads/barbie-in-the-12-dancing-princesses-hd-texture.651999/",
+   "verify": {
+    "url": "https://mega.nz/file/HXAH0QgY#7gGtiAf58PF0pjCkUTjVVssy-Fnc00wEsQxghCMbdrs"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -865,7 +892,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/batman-vengeance-slus-20226-hd-texture-pack-upscale.683487/"
+   "page": "https://gbatemp.net/threads/batman-vengeance-slus-20226-hd-texture-pack-upscale.683487/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/1xj9y2cit51p27v/Batman_-_Vengeance_%255BSLUS-20226%255D.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -904,7 +934,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/battlefield-2-modern-combat-remastered-texture-pack-pcsx2.678677/"
+   "page": "https://gbatemp.net/threads/battlefield-2-modern-combat-remastered-texture-pack-pcsx2.678677/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/d3ufb9m8kis4ron/Battlefield_2_Modern_Combat_Remastered_Texture_Pack.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -943,7 +976,10 @@
   "notes": "Work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/battlefield-2-modern-combat-texture-pack-v0-8-work-in-progress.665562/"
+   "page": "https://gbatemp.net/threads/battlefield-2-modern-combat-texture-pack-v0-8-work-in-progress.665562/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/sr8nbh3oy44npm1/Texture_Pack_v0.8_WIP_Battlefield_2_Modern_Combat%2528SLUS-21026%2529.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -982,7 +1018,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ben-10-protector-of-earth-hd-texture.650213/"
+   "page": "https://gbatemp.net/threads/ben-10-protector-of-earth-hd-texture.650213/",
+   "verify": {
+    "url": "https://mega.nz/file/zHZWiBAa#i7J1nOO4CQbL9us6iOUQfyML-d2nRggxSXjBsce1Fss"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1098,7 +1137,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-black-slus-21376-usa-sles-53886-pal.683983/"
+   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-black-slus-21376-usa-sles-53886-pal.683983/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/y8zw7tg98m3t7zb/PS2_HD_Textures_-_Black_%2528SLUS-21376%2529_%2528NTSC%2529_%2526_%2528SLES-53886%2529_%2528PAL%2529.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1215,7 +1257,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1yaHJGmU2CUR0vv-aVswg4qLg-04an86D&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1332,7 +1377,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/bloody-roar-4-hd-textures.669898/"
+   "page": "https://gbatemp.net/threads/bloody-roar-4-hd-textures.669898/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/h98esgu9klsmsxj/B.R.4.HD_Textures_xX.The.RockoXx.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1371,7 +1419,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/bloody-roar-4-slus-20795-hd-texture-pack.684165/"
+   "page": "https://gbatemp.net/threads/bloody-roar-4-slus-20795-hd-texture-pack.684165/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1h0G13wpWswZw8ASzHulm1b0YlwiqWV7h/view?usp=drive_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1410,7 +1461,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/bmx-xxx-pcsx2-hd-texture.665814/"
+   "page": "https://gbatemp.net/threads/bmx-xxx-pcsx2-hd-texture.665814/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/lvo6ysmivj73nf8/BMX_XXX.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1488,7 +1542,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/bujingai-the-forsaken-city-texture-pack.640702/"
+   "page": "https://gbatemp.net/threads/bujingai-the-forsaken-city-texture-pack.640702/",
+   "verify": {
+    "url": "https://archive.org/details/replacements.7z_202310"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1566,7 +1623,10 @@
   "notes": "Button prompt replacement, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/xbox-buttons-for-burnout-1-dominator-3-and-revenge-already-exist-for-ps2.683198/"
+   "page": "https://gbatemp.net/threads/xbox-buttons-for-burnout-1-dominator-3-and-revenge-already-exist-for-ps2.683198/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/exovkmj65di02pz/SLUS-20497.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1605,7 +1665,10 @@
   "notes": "Button prompt replacement, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/xbox-buttons-for-burnout-1-dominator-3-and-revenge-already-exist-for-ps2.683198/"
+   "page": "https://gbatemp.net/threads/xbox-buttons-for-burnout-1-dominator-3-and-revenge-already-exist-for-ps2.683198/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/ek77s1ybth8ln1d/SLUS-21596.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1644,7 +1707,10 @@
   "notes": "Button prompt replacement, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/xbox-buttons-for-burnout-1-dominator-3-and-revenge-already-exist-for-ps2.683198/"
+   "page": "https://gbatemp.net/threads/xbox-buttons-for-burnout-1-dominator-3-and-revenge-already-exist-for-ps2.683198/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/qbyx07daxy3jq85/SLUS-20307.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1722,7 +1788,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/capcom-classics-collection-vol-1-2-usa-hd-textures-menu-only.645343/"
+   "page": "https://gbatemp.net/threads/capcom-classics-collection-vol-1-2-usa-hd-textures-menu-only.645343/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/5n71mpci5q3lyf9/SLUS-21316.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1839,7 +1908,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/chulip-ntsc-hd-textures.639567/"
+   "page": "https://gbatemp.net/threads/chulip-ntsc-hd-textures.639567/",
+   "verify": {
+    "url": "https://mega.nz/file/kBciRAxD#TXEQPhtoe0RAH3-nWCDy1DCuV3k2wNVLmL6omcAL5hw"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1956,7 +2028,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/0dr9yadp0vi72q7/SLUS-20845.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1995,7 +2070,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1h-V8D9V04QRfvEeMHGBLUCaXR1KSRN_D&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2073,7 +2151,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/crash-tag-team-racing-pal-hd-textures.659225/"
+   "page": "https://gbatemp.net/threads/crash-tag-team-racing-pal-hd-textures.659225/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1z6ph_CllSbkOWQFj_qZpMup_15zCPsTk/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2112,7 +2193,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/crash-twinsanity-eur-sles-52568-texture-pack.669875/"
+   "page": "https://gbatemp.net/threads/crash-twinsanity-eur-sles-52568-texture-pack.669875/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2190,7 +2274,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1nC6wwxRTAuV9QgCUaEibs1jHH0CzKaOJ/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2229,7 +2316,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dead-or-alive-2-hardcore-pcsx2-hd-texture.665859/"
+   "page": "https://gbatemp.net/threads/dead-or-alive-2-hardcore-pcsx2-hd-texture.665859/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1VVkH5lAzTzHP8Sa9r4I3usnyboFepmFy/view?usp=drive_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2313,7 +2403,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/devil-kings-sengoku-basara-hd-texture-pack.640998/"
+   "page": "https://gbatemp.net/threads/devil-kings-sengoku-basara-hd-texture-pack.640998/",
+   "verify": {
+    "url": "https://mega.nz/file/weJRHCBB#SWlEMnp0cO-ko6Ob6KqUA9cX5FEku-7ONPM62ATlgwo"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2479,7 +2572,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/devil-may-cry-hd-texures-v1-0.667045/"
+   "page": "https://gbatemp.net/threads/devil-may-cry-hd-texures-v1-0.667045/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/s7rytq7fm0yefvr/D.M.C_HD.Textures.v1.0xXThe.RockoXx.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2647,7 +2743,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/disney-kim-possible-whats-the-switch-usa-slus-21437-upscaled-texture-pack.663768/"
+   "page": "https://gbatemp.net/threads/disney-kim-possible-whats-the-switch-usa-slus-21437-upscaled-texture-pack.663768/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1CCv6zWw85ZdjMKw3h9hkHQjCls8Zf--r/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2731,7 +2830,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-16-9-hd-texture-pack.642510/"
+   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-16-9-hd-texture-pack.642510/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1MyUzpU7D_4HiP3szxK8YhkkF--YSGZnd/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2770,7 +2872,10 @@
   "notes": "Work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-texture-pack-hd-and-iso-mods.618610/"
+   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-texture-pack-hd-and-iso-mods.618610/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/17j1yktzouzi17g/textures.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2809,7 +2914,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-uhd-remaster-not-complete-v1.645442/"
+   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-uhd-remaster-not-complete-v1.645442/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1EdE-Epfh5s8BkcjIZ3IrHN8cf3Hlrkaq/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2848,7 +2956,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-usa-slus-21227.658730/"
+   "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-usa-slus-21227.658730/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1_fh9r6JRC3z8l98amFxXjZ21aGi4y0rP/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2887,7 +2998,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-ball-z-infinite-world-world-hd-texture.653968/"
+   "page": "https://gbatemp.net/threads/dragon-ball-z-infinite-world-world-hd-texture.653968/",
+   "verify": {
+    "url": "https://mega.nz/file/LfZDBJTC#QdgF_DJbw-cuI0c-qhznH_dZ9xQyY7knG_lp6RBwzA8"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2926,7 +3040,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-dragon-ball-z-sagas-slus-20874-usa.683511/"
+   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-dragon-ball-z-sagas-slus-20874-usa.683511/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/yowt4jw5til51og/PS2_HD_Textures_-_Dragon_Ball_Z_-_Sagas_%2528SLUS-20874%2529_%2528NTSC%2529.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3004,7 +3121,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-quest-viii-journey-of-the-cursed-king-usa-hd-remaster-wip-70.612500/"
+   "page": "https://gbatemp.net/threads/dragon-quest-viii-journey-of-the-cursed-king-usa-hd-remaster-wip-70.612500/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/wpmwpgniphmwmki/DQVIII_HD_SLUS-21207.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3043,7 +3163,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/drakengard-1-hd-texture-pack.653456/"
+   "page": "https://gbatemp.net/threads/drakengard-1-hd-texture-pack.653456/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/18VhVbNaTIjzhckLnpBNuecB4NXHIyAA3/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3160,7 +3283,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dynasty-warriors-3-3xl-expansive-hd-texture-mod-2-4k.666849/"
+   "page": "https://gbatemp.net/threads/dynasty-warriors-3-3xl-expansive-hd-texture-mod-2-4k.666849/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1aixV-UMX7HpyGjrEZLTzQM2zGUWNNZsU/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3199,7 +3325,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dynasty-warriors-4-empires-ntsc-hd-texture-pack-wip.645696/"
+   "page": "https://gbatemp.net/threads/dynasty-warriors-4-empires-ntsc-hd-texture-pack-wip.645696/",
+   "verify": {
+    "url": "https://mega.nz/file/hNlikTYb#oxNCmS481P3qOaQH--fYtDPXqN_CbAjCfb9gbnvhr38"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3238,7 +3367,10 @@
   "notes": "Incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dynasty-warriors-4-xl-hd-texture.645708/"
+   "page": "https://gbatemp.net/threads/dynasty-warriors-4-xl-hd-texture.645708/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/bczawu96p2a3rlx/SLUS-20812.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3277,7 +3409,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=19sUjWK_JHGytpPZkEHdF06pd2OU-FwSA&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3316,7 +3451,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/evil-dead-a-fistful-of-boomstick-slus-20403-hd-pack.660046/"
+   "page": "https://gbatemp.net/threads/evil-dead-a-fistful-of-boomstick-slus-20403-hd-pack.660046/",
+   "verify": {
+    "url": "https://mega.nz/file/gqVUgZjJ#CtqtWdEtRjsrFtz091YvudJOGryjHKG1eFkf5YCxXcg"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3355,7 +3493,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/evil-dead-regeneration-ps2-slus-21048-hd-texture-update.661606/"
+   "page": "https://gbatemp.net/threads/evil-dead-regeneration-ps2-slus-21048-hd-texture-update.661606/",
+   "verify": {
+    "url": "https://mega.nz/file/piVwGKjT#01HM8zrhtv8IgsTmxec6Yx7C5TfOJuOfByEprVYBRVY"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3488,7 +3629,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1vvQ83c9DnE3rqELVgiWG1eu-pW1-7PZX/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3527,7 +3671,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/fatal-frame-iii-the-tormented-hd-remaster-incomplete-work-in-progress.619384/"
+   "page": "https://gbatemp.net/threads/fatal-frame-iii-the-tormented-hd-remaster-incomplete-work-in-progress.619384/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/idn2zqvbu1f4ra0/Fatal_Frame_III.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3566,7 +3713,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/fatal-frame-3-the-tormented-hd-remaster.669533/"
+   "page": "https://gbatemp.net/threads/fatal-frame-3-the-tormented-hd-remaster.669533/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/11P_XS0TH_XHgUVj9WKgElkqeCJERvX53/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3644,7 +3794,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/fate-unlimited-codes-hd-textures.656407/"
+   "page": "https://gbatemp.net/threads/fate-unlimited-codes-hd-textures.656407/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/rnxr91a74w8uobh/Fate_Unlimited_Codes.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3683,7 +3836,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1Mqy6UcoLNiLDTQ2cVzMJVuuZP1TPcKCh&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3743,7 +3899,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1VU5CDcEZG4UHBeNOKSmGK_segZ12I7LS&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3792,7 +3951,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/final-fantasy-xii-international-zodiac-job-system-hd-textures.668091/"
+   "page": "https://gbatemp.net/threads/final-fantasy-xii-international-zodiac-job-system-hd-textures.668091/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/5hh0jfmqqd2ww8x/SLPM-66750_FF12_zodiac_v1.0.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3831,7 +3993,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1zKv5uQ8WOeKL2AZ-PhNLyiEdh2uW4syC&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3992,7 +4157,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1q0v8miB7q8s4uOaKDc0nZxKC1LaaScFp&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4031,7 +4199,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ford-vs-chevy-pcsx2-hd-texture.671196/"
+   "page": "https://gbatemp.net/threads/ford-vs-chevy-pcsx2-hd-texture.671196/",
+   "verify": {
+    "url": "https://mega.nz/file/ZE4FCRJK#cP-PXCy-jlGFlz9ufTNa_dPtTtihk1Jwqo_vEO944kc"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4088,7 +4259,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1GAPz4lVYCUzFKs1jNX7rNNovIM7gGAZu/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4127,7 +4301,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/slus-20734-froggers-adventures-the-rescue-hd-texture-pack-1-0.674838/"
+   "page": "https://gbatemp.net/threads/slus-20734-froggers-adventures-the-rescue-hd-texture-pack-1-0.674838/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1WTbeVN-Io08Vugx-ggJCgbUwXubB2ymi/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4166,7 +4343,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/futurama-upscaled-texture-pack-sles-51507-ps2.675739/"
+   "page": "https://gbatemp.net/threads/futurama-upscaled-texture-pack-sles-51507-ps2.675739/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1lu8yxWzOpmBGi2eRFzeQ_ysRS46ujTLT/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4205,7 +4385,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/37wfnjb6kxo8bwb/SLUS-20439.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4244,7 +4427,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/gauntlet-seven-sorrows-pcsx2-hd-remaster.668343/"
+   "page": "https://gbatemp.net/threads/gauntlet-seven-sorrows-pcsx2-hd-remaster.668343/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/11kcLOjlreYmRybd_xfCG9tcRIlKiHmIh/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4283,7 +4469,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/gauntlet-seven-sorrows-hd-texture.643022/"
+   "page": "https://gbatemp.net/threads/gauntlet-seven-sorrows-hd-texture.643022/",
+   "verify": {
+    "url": "https://mega.nz/file/yWByGQKQ#YQhbUatQ3fI-1yZpi2DaV01IRH9sXeyNkwh93T2sJpA"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4400,7 +4589,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ghost-rider-usa-uhd-remaster-definitive-added-fonts-textures.638407/"
+   "page": "https://gbatemp.net/threads/ghost-rider-usa-uhd-remaster-definitive-added-fonts-textures.638407/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1xPBKtOBM-sUKgXR8USZ6ktZPTN_TUE86/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4554,7 +4746,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-god-of-war-scus-97399-usa-sces-53133-pal.683822/"
+   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-god-of-war-scus-97399-usa-sces-53133-pal.683822/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/wv1njjz5dolcql1/PS2_HD_Textures_-_God_of_War_%2528SCUS-97399%2529_%2528NTSC%2529_%2526_%2528SCES-53133%2529_%2528PAL%2529.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4593,7 +4788,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/god-of-war-2-remastered-project-ps2-4k-texture-pack-ai-enhanced.669146/"
+   "page": "https://gbatemp.net/threads/god-of-war-2-remastered-project-ps2-4k-texture-pack-ai-enhanced.669146/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1dSszXoKElzZk7KgWj0eq-rCmDS0O_zVo/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4648,7 +4846,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-god-of-war-2-scus-97481-usa-sces-54206-pal.683872/"
+   "page": "https://gbatemp.net/threads/ps2-hd-textures-pack-god-of-war-2-scus-97481-usa-sces-54206-pal.683872/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/7wp50r66xlu7jnq/PS2_HD_Textures_-_God_of_War_II_%28SCUS-97481%29_%28NTSC%29_%26_%28SCES-54206%29_%28PAL%29.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4703,7 +4904,10 @@
   "notes": "AI upscale, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/god-of-war-2-kratos-god-armor.643454/"
+   "page": "https://gbatemp.net/threads/god-of-war-2-kratos-god-armor.643454/",
+   "verify": {
+    "url": "https://mega.nz/file/yIVAGZKZ#o3tzyKaqa8N4mwCs3waK4DDR61vwK4WVYgZHYvYjqCQ"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4862,7 +5066,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/slus-20946-gta-sa-hd-texture-pack.680000/"
+   "page": "https://gbatemp.net/threads/slus-20946-gta-sa-hd-texture-pack.680000/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/fuxwb25ybvgvcbk/replacements.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4906,7 +5113,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/grandia-iii-usa-hd-remaster-with-widescreen-support.620404/"
+   "page": "https://gbatemp.net/threads/grandia-iii-usa-hd-remaster-with-widescreen-support.620404/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/8t2xggwujkvwz1q/GrndIII_HD_v2.0.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4945,7 +5155,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1eVkyauicmtj4zdTRJOnbFCx8gYn1c43a&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4984,7 +5197,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/guitar-hero-encore-hd-pack-texture.682383/"
+   "page": "https://gbatemp.net/threads/guitar-hero-encore-hd-pack-texture.682383/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/e3hx2dft9fd5ghz/SLUS-21586.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5023,7 +5239,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/guitar-hero-1-hd-remaster-wip.624353/"
+   "page": "https://gbatemp.net/threads/guitar-hero-1-hd-remaster-wip.624353/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/kh5ijb85rn7k4r1/Guitar+Hero+1+HD+Remaster.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5062,7 +5281,10 @@
   "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-guitar-hero-ntsc-u-slus-21224.673261/"
+   "page": "https://gbatemp.net/threads/ps2-guitar-hero-ntsc-u-slus-21224.673261/",
+   "verify": {
+    "url": "https://docs.google.com/spreadsheets/d/1sif8FeRGJRbytK8wFRXgF6Hke9V6GUFs/"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5101,7 +5323,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/sombershrouds-hd-textures-megamix.637948/"
+   "page": "https://gbatemp.net/threads/sombershrouds-hd-textures-megamix.637948/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/4u6blz921h6slsn/SLUS-21224.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5184,7 +5409,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/gun-sles-53523-hd-texture-pack.683898/"
+   "page": "https://gbatemp.net/threads/gun-sles-53523-hd-texture-pack.683898/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1JZHynyiNc9kpNBMYoMdS1HRH2wCr0t6F/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5345,7 +5573,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/harry-potter-and-the-prisoner-of-azkaban-upscale-texture-pack.649545/"
+   "page": "https://gbatemp.net/threads/harry-potter-and-the-prisoner-of-azkaban-upscale-texture-pack.649545/",
+   "verify": {
+    "url": "https://mega.nz/file/chYkEZrJ#42zu1XR5njpKgMvJ3iyHzKPHwvNKOXlH0rOXzRGkEoI"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5390,7 +5621,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/haunting-ground-hd-edition-1-3-complete-release.611542/"
+   "page": "https://gbatemp.net/threads/haunting-ground-hd-edition-1-3-complete-release.611542/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1W4lYofZT-kdAko7uQ_9UE1NA_wGa1U_0/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5429,7 +5663,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/headhunter-redemption-hd-texture-pack.668024/"
+   "page": "https://gbatemp.net/threads/headhunter-redemption-hd-texture-pack.668024/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1L5e1vwURjzwB5LWgmOXbSQU_6-7654gM/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5468,7 +5705,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/8g67wye8bxjqa1q/SCES-50500.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5591,7 +5831,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/hulk-2003-full-faithful-hd-texture-mod-4k-textures.667241/"
+   "page": "https://gbatemp.net/threads/hulk-2003-full-faithful-hd-texture-mod-4k-textures.667241/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1w4HS_2lKjxnSFsIwJ1RQgXJbWrfP42yJ/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5630,7 +5873,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1CvknVvXlwZky70Vy1yQfXnOol5AktZvG&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5841,7 +6087,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/u/0/uc?id=1GC9eeH-tkgR-FBGF2cTzjiWMcFWp86zZ&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5880,7 +6129,10 @@
   "notes": "Partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/jak-2-hd-hud-pcsx2-open-goal.645980/"
+   "page": "https://gbatemp.net/threads/jak-2-hd-hud-pcsx2-open-goal.645980/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1zbCZofBzgUX1hTzvpC4ikZrTLnDsKPcG/view?pli=1"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5958,7 +6210,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/4nuuebgqbqzstcb/SCUS-97558.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6041,7 +6296,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/kaan-barbarian-blade-hd-texture-demo.658505/"
+   "page": "https://gbatemp.net/threads/kaan-barbarian-blade-hd-texture-demo.658505/",
+   "verify": {
+    "url": "https://mega.nz/file/OKwDXDKb#9WpVlrE5OZjbYSPVFQ0yCBjUdp5X9xGw3awPKacHbKM"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6124,7 +6382,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1AG_TQ9W6AxVtWqBVkLaUVFcfpTijusMH&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6180,7 +6441,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/11DV2XuZ43ihJedkH8sbcQc4ybelbnkj5/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6231,7 +6495,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/u/0/uc?id=1gsA57qsnO7EHRayNk8yiWiD3ooruHnZE&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6270,7 +6537,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-lego-batman-the-videogame-sles-55135-hd-textures.664769/"
+   "page": "https://gbatemp.net/threads/ps2-lego-batman-the-videogame-sles-55135-hd-textures.664769/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1Ez-JzJuSiFGI3SlI5uVNh6Fq9j3pTqsv/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6348,7 +6618,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1tN95wQ2oqR7F3O6Lax3ExDRHJ8vd5RKB&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6426,7 +6699,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://mega.nz/file/ZrNwyRJT#2f8InukW7GiEDs8yVkAU0v-vaA6PISO9HyeUIerCerM"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6471,7 +6747,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/manhunt-hd-pcsx2-pack.682367/"
+   "page": "https://gbatemp.net/threads/manhunt-hd-pcsx2-pack.682367/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/c0c87ypx98u6eys/Manhunt_PCSX2_HD_Pack.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6510,7 +6789,10 @@
   "notes": "AI upscale, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/maximo-ghost-to-glory-hd-hud-us.646188/"
+   "page": "https://gbatemp.net/threads/maximo-ghost-to-glory-hd-hud-us.646188/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1epEe0dN1ucgU560SAQLYKW05t4g2xX21/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6555,7 +6837,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/maximo-ghosts-to-glory-ultimate-remaster-texture-pack.677505/"
+   "page": "https://gbatemp.net/threads/maximo-ghosts-to-glory-ultimate-remaster-texture-pack.677505/",
+   "verify": {
+    "url": "https://archive.org/details/maximo-ghosts-to-glory-remastered"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6645,7 +6930,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/maximo-vs-army-of-zin-usa-uhd-remaster-definitive.639191/"
+   "page": "https://gbatemp.net/threads/maximo-vs-army-of-zin-usa-uhd-remaster-definitive.639191/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1YjcCbiGvZAuyMHxlNvAsPKYGfsB_C5TE/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6684,7 +6972,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=15fj3tK9YfVtcB2brZ7k_rnuAC76hoi8O&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6723,7 +7014,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/metal-gear-solid-2-sons-of-liberty-hd-textures.675280/"
+   "page": "https://gbatemp.net/threads/metal-gear-solid-2-sons-of-liberty-hd-textures.675280/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1lMimK9Pb5tu5n9KC-qOCj9PYQtfxhKys&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6811,7 +7105,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1aJZlKwGuofgaQm-IY3JPHTNZc_6NEtWt&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6850,7 +7147,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/metal-slug-5-pcsx2-hd-texture.670589/"
+   "page": "https://gbatemp.net/threads/metal-slug-5-pcsx2-hd-texture.670589/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1uc3t4HCmnJTUyjBfpeq8jj1R082PsSB2/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6928,7 +7228,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1R21woDExK_jIZP27ON1VQG-fFEdc-baE&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7045,7 +7348,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/midnight-club-street-racing-pcsx2-hd-texture.668214/"
+   "page": "https://gbatemp.net/threads/midnight-club-street-racing-pcsx2-hd-texture.668214/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/12263q2NKBPq54WgfM1h_le39dZDuflEq/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7084,7 +7390,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/mobile-suit-gundam-gundam-vs-zeta-gundam-hd-texture-pack.666725/"
+   "page": "https://gbatemp.net/threads/mobile-suit-gundam-gundam-vs-zeta-gundam-hd-texture-pack.666725/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/h73qm4iuyw7jrbl/SLUS-20821.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7123,7 +7432,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/mobile-suit-gundam-zeonic-front-slus-20233-hd-texture-pack-upscale.673501/"
+   "page": "https://gbatemp.net/threads/mobile-suit-gundam-zeonic-front-slus-20233-hd-texture-pack-upscale.673501/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/6g3f6cer4ick9xk/Mobile_Suit_Gundam_-_Zeonic_Front_%255BSLUS-20233%255D.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7162,7 +7474,10 @@
   "notes": "Handcrafted. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tlnates-notsofaithful-texture-pack-monster-hunter-2004-ps2-pcsx2.610028/"
+   "page": "https://gbatemp.net/threads/tlnates-notsofaithful-texture-pack-monster-hunter-2004-ps2-pcsx2.610028/",
+   "verify": {
+    "url": "https://mega.nz/file/gr4EyQbD#mY_xLx-NpPcZfYkWq285GrGmRRhv4yzCpAUBDQhFvtY"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7256,7 +7571,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragonmortal-kombat-shaolin-monks-hd-texture-by-matasiete-dragon.673436/"
+   "page": "https://gbatemp.net/threads/dragonmortal-kombat-shaolin-monks-hd-texture-by-matasiete-dragon.673436/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/joq592gm0ams275/MKSM_Matasiete.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7294,7 +7612,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/mortal-kombat-shaolin-monks-usa-hd-edition.655249/"
+   "page": "https://gbatemp.net/threads/mortal-kombat-shaolin-monks-usa-hd-edition.655249/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/oydiw7ziobx939q/Mortal_Kombat_Shaolin_Monks_%2528SLUS-21087%2529.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7333,7 +7654,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7372,7 +7696,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/mx-unleashed-hd-texture-pcsx2.664321/"
+   "page": "https://gbatemp.net/threads/mx-unleashed-hd-texture-pcsx2.664321/",
+   "verify": {
+    "url": "https://mega.nz/file/hpVS0YIK#0gZl3AervKCGdMpU951lNLPBZn0hs1bKwObdTG6623s"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7411,7 +7738,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/mx-vs-atv-unleashed-usa-texture-pack.649229/"
+   "page": "https://gbatemp.net/threads/mx-vs-atv-unleashed-usa-texture-pack.649229/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1DeIYWIwgynK0kZdwh5MGL49FZI6WW5yi/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7450,7 +7780,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/mx-vs-atv-untamed-pcsx2-hd-texture.668047/"
+   "page": "https://gbatemp.net/threads/mx-vs-atv-untamed-pcsx2-hd-texture.668047/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1VDdwsE-QgCDumhEfevnKVhgW2lqMMcNZ/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7544,7 +7877,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/naruto-shippuden-ultimate-ninja-4-slus-21862-upscaled-texture-pack.663636/"
+   "page": "https://gbatemp.net/threads/naruto-shippuden-ultimate-ninja-4-slus-21862-upscaled-texture-pack.663636/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1x4WRyr2jtcqnzKYIAuTub6MEES_DQf6w/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7622,7 +7958,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/naruto-uzumaki-chronicles-2-slus-21594-upscaled-texture-pack.664299/"
+   "page": "https://gbatemp.net/threads/naruto-uzumaki-chronicles-2-slus-21594-upscaled-texture-pack.664299/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1k13gL1V1Nl0sez5tiwSTfetTg-bhrTWn/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7700,7 +8039,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/nascar-09-pcsx2-hd-texture.661048/"
+   "page": "https://gbatemp.net/threads/nascar-09-pcsx2-hd-texture.661048/",
+   "verify": {
+    "url": "https://mega.nz/file/uehkyKCb#69gD59JxA3KNiXhiVGy6uhS6bT1QlbDgpXgMIJ46ptc"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8012,7 +8354,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1bPTqfBNBBdGmFQ_PZKAeuvLEnMsYkSYX&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8051,7 +8396,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/okami-usa-hd-remaster-incomplete-50.645586/"
+   "page": "https://gbatemp.net/threads/okami-usa-hd-remaster-incomplete-50.645586/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/1j2rcncza6ihiri/SLUS-21115_Okami_v0.5_Beta.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8129,7 +8477,10 @@
   "notes": "AI upscale and handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/onimusha-3-demon-siege-hd-texture-pack.654352/"
+   "page": "https://gbatemp.net/threads/onimusha-3-demon-siege-hd-texture-pack.654352/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/14aS7WGa1acl9d_gutak-9BWLa7yS09_u/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8207,7 +8558,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/16nxl332eye3f1h/SLES-53959.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8285,7 +8639,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pac-man-world-rally-pcsx2-hd-texture.669000/"
+   "page": "https://gbatemp.net/threads/pac-man-world-rally-pcsx2-hd-texture.669000/",
+   "verify": {
+    "url": "https://mega.nz/file/HPRiwJIb#JcBh51Q_6uk5-mIHqucn77FC4L_jDGo7Ja4ggpDsZjg"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8324,7 +8681,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/phantasy-star-universe-ambition-of-the-illuminus-usa-hd-remaster.638176/"
+   "page": "https://gbatemp.net/threads/phantasy-star-universe-ambition-of-the-illuminus-usa-hd-remaster.638176/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/joknnsxiucvk4cy/SLUS-21631.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8363,7 +8723,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/police-24-7-pcsx2-hd-texture.677396/"
+   "page": "https://gbatemp.net/threads/police-24-7-pcsx2-hd-texture.677396/",
+   "verify": {
+    "url": "https://mega.nz/file/TLBGVbSB#L0cipsZ9woD2nxa8WDaj3fxiZVvBlWJh8zjUAendNgA"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8402,7 +8765,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/power-rangers-super-legends-slus-21679-texture-pack.669924/"
+   "page": "https://gbatemp.net/threads/power-rangers-super-legends-slus-21679-texture-pack.669924/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1ZFdJm1u69us0mxntOsrfnq7dELK7ZRE-/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8714,7 +9080,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/prisoner-of-war-europe-sles-50397-texture-pack-hd.675613/"
+   "page": "https://gbatemp.net/threads/prisoner-of-war-europe-sles-50397-texture-pack-hd.675613/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/0c9h7jx67ax4oa6/SLES-50397.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8768,7 +9137,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pro-evolution-soccer-2014-pcsx2-hd-texture.664989/"
+   "page": "https://gbatemp.net/threads/pro-evolution-soccer-2014-pcsx2-hd-texture.664989/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/3erh23oq001cw4x/Pro_Evolution_Soccer_2014.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8807,7 +9179,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=19yAW9RWNr5AeJDgel_aCxsA8jEYSBwTe&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8846,7 +9221,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=10eW4XwCeVegm4MI6J0G-D5hdGyHJtfGF&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8968,7 +9346,10 @@
   "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-ratchet-and-clank-up-your-arsenal-ntsc-us-robos-paint-job-texture-pack.665855/"
+   "page": "https://gbatemp.net/threads/ps2-ratchet-and-clank-up-your-arsenal-ntsc-us-robos-paint-job-texture-pack.665855/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1OJ2rD21wYS0lPcmeFck5DUgznQZBUhFn/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9122,7 +9503,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ratchet-and-clank-2002.657920/"
+   "page": "https://gbatemp.net/threads/ratchet-and-clank-2002.657920/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1ambWzexqMfe3f8BT9LiS0Z4ENC_3E2A1/view?usp=drive_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9166,7 +9550,10 @@
   "notes": "Incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ratchet-clank-up-your-arsenal-texture-pack-scus-97353.631588/"
+   "page": "https://gbatemp.net/threads/ratchet-clank-up-your-arsenal-texture-pack-scus-97353.631588/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1aDn5n3-NxsnzVvfSBwh-y0KTz21ksiI-/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9221,7 +9608,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/red-faction-ii-pcsx2-hd-texture.661484/"
+   "page": "https://gbatemp.net/threads/red-faction-ii-pcsx2-hd-texture.661484/",
+   "verify": {
+    "url": "https://mega.nz/file/U80GyILQ#Vag_AtrLgIUQOTT2979MPsPV5n5kPWoEXhxNT9IFp1g"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9260,7 +9650,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/12rgic4i7brhl3i/SLUS-20442.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9338,7 +9731,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/resident-evil-code-veronica-x-hd-texture-pack-1-1-by-juanchotexhd.611760/"
+   "page": "https://gbatemp.net/threads/resident-evil-code-veronica-x-hd-texture-pack-1-1-by-juanchotexhd.611760/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/17J87t5Yjg1nB1IDgGWfIvJlORUUfBGao/view?usp=share_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9377,7 +9773,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/resident-evil-code-veronica-x-99-complete-us.623432/"
+   "page": "https://gbatemp.net/threads/resident-evil-code-veronica-x-99-complete-us.623432/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/b3pbge6fqjym3cy/RE_CVX_UPSCALED_DEC1822_PCSX2.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9416,7 +9815,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1Kk4PFkHsN8H9lGLF02sroAQZ1TsCp7vE&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9455,7 +9857,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/rogue-trooper-hd-textures.674567/"
+   "page": "https://gbatemp.net/threads/rogue-trooper-hd-textures.674567/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=10TTCQEWPlNFM7yDcFZVz_lO5yuUt6E7p&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9494,7 +9899,10 @@
   "notes": "The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/room-zoom-race-for-impact-hd-texture-pack.667832/"
+   "page": "https://gbatemp.net/threads/room-zoom-race-for-impact-hd-texture-pack.667832/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1DJZw2qAtcfx1-MiOKhlcrCxec5BAXaoq/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9551,7 +9959,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/u/0/uc?id=1fjzrX59VRiZwAwkT-4tpxEOAoLWUWXcE&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9590,7 +10001,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/rule-of-rose-hd-somber-edition.661962/"
+   "page": "https://gbatemp.net/threads/rule-of-rose-hd-somber-edition.661962/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/d2wcw3y2maan5m1/SLUS-21448.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9629,7 +10043,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/rumble-roses-hd-texture-pack.615568/"
+   "page": "https://gbatemp.net/threads/rumble-roses-hd-texture-pack.615568/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/vmtz18ezvrlh35w/replacements.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9668,7 +10085,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/u/0/uc?id=1v87mK0VqoYb5tgI4Iz1Sk-ThpexpDOM-&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9751,7 +10171,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/sakura-wars-so-long-my-love-hd-remaster.630476/"
+   "page": "https://gbatemp.net/threads/sakura-wars-so-long-my-love-hd-remaster.630476/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/xktx4qfqgl36q5f/SLUS-21930_so_long_my_love.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9790,7 +10213,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1GaqgbdZEbPh6uDbnuQYC85cwCYvEqj1y&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9829,7 +10255,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/p2gfm7ga54j9j31/SLUS-20957.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9873,7 +10302,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1qqhBKRLskT-3ySJ4QCUeJWFE9e_0MHVe&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10453,7 +10885,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/scooby-doo-mystery-mayhem-slus-20701.646211/"
+   "page": "https://gbatemp.net/threads/scooby-doo-mystery-mayhem-slus-20701.646211/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/elmpv2rq8f91esd/replacements.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10502,7 +10937,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/scooby-doo-night-of-100-frights-pal-upscale.675457/"
+   "page": "https://gbatemp.net/threads/scooby-doo-night-of-100-frights-pal-upscale.675457/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1mhmHa5YXvPRgur467S8x8XQA6Jjfh305/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11339,7 +11777,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1xXI5PAYxZM18lFsfGeNObXr8S3ASQa5S&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11378,7 +11819,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/secret-weapons-over-normandy-pcsx2-hd-texture.669846/"
+   "page": "https://gbatemp.net/threads/secret-weapons-over-normandy-pcsx2-hd-texture.669846/",
+   "verify": {
+    "url": "https://mega.nz/file/vTQUyLbD#be78iQO7Q8YrBMA_qQ1hc2leCSUM2zBB-BNl6QCfkuU"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11417,7 +11861,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/seek-and-destroy-hd-texture-pack-slus-20606.658863/"
+   "page": "https://gbatemp.net/threads/seek-and-destroy-hd-texture-pack-slus-20606.658863/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/0yuor2itidk1cna/SLUS-20606.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11472,7 +11919,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/sengoku-basara-2-heroes-hd-textures.641712/"
+   "page": "https://gbatemp.net/threads/sengoku-basara-2-heroes-hd-textures.641712/",
+   "verify": {
+    "url": "https://mega.nz/file/lPRmTQaA#XB6DlwyGZD0Ym9QEtLCFTODF-aNE79SNs2-IZ0Pnl2U"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11550,7 +12000,10 @@
   "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/serious-sam-next-encounter-usa-hd-textures.638281/"
+   "page": "https://gbatemp.net/threads/serious-sam-next-encounter-usa-hd-textures.638281/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/obts7lo5lublmim/SLUS-20907.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11594,7 +12047,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/u/0/uc?id=11M6bDg1hopDkhpL9AsIb0R-8YV82ysiP&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11694,7 +12150,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/wj4ys283a2wyhdm/SLUS-20146.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11733,7 +12192,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/shadow-of-rome-slus-20902.646475/"
+   "page": "https://gbatemp.net/threads/shadow-of-rome-slus-20902.646475/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/0m6n8z1uxmieu3a/replacements.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11772,7 +12234,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/shadows-of-the-colossus-hd-texture-pack-pcsx2-and-android-nethersx2-1-9.667144/"
+   "page": "https://gbatemp.net/threads/shadows-of-the-colossus-hd-texture-pack-pcsx2-and-android-nethersx2-1-9.667144/",
+   "verify": {
+    "url": "https://mega.nz/file/HUFT1Bqa#-vei3Ho3pX9gz6r9wSR7PQWeejdK8lEP4ln61Ps92zw"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11817,7 +12282,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/u/0/uc?id=1G_FlX3Wi721zDuEZq5kQtZMnmCTqiQh1&export=download"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11895,7 +12363,10 @@
   "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/shadow-of-the-colossus-usa-eu-origami-remaster.641597/"
+   "page": "https://gbatemp.net/threads/shadow-of-the-colossus-usa-eu-origami-remaster.641597/",
+   "verify": {
+    "url": "https://docs.google.com/spreadsheets/d/1sif8FeRGJRbytK8wFRXgF6Hke9V6GUFs/"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12023,7 +12494,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/shrek-super-party-ps2-hd-pack.675937/"
+   "page": "https://gbatemp.net/threads/shrek-super-party-ps2-hd-pack.675937/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/2ym3wu4fedipeho/Shrek_Super_Party.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12090,7 +12564,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1l3QAcvaZRWdZ1dn43NRTxE4_txSA_Ip5&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12168,7 +12645,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/armored-core-silent-line-hd-texture-slus-20644.667686/"
+   "page": "https://gbatemp.net/threads/armored-core-silent-line-hd-texture-slus-20644.667686/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1nXWP41njunYYw3dXaTgyJuHZmVJQrzdl/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12207,7 +12687,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/silent-scope-usa-hd-remaster.626365/"
+   "page": "https://gbatemp.net/threads/silent-scope-usa-hd-remaster.626365/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1VFXjwAUYmEl8d-zbkBogkFi863-BYPK7/view?usp=share_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -22637,7 +23120,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=14kPdGpH2zA6PJ5yeMuUcU2aIFGE9wZ52&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -22676,7 +23162,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/74afjmd4npvxs1t/SCUS-97464.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -22715,7 +23204,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/sly-cooper-and-the-thievius-raccoonus-usa-uhd-remaster-definitive.638803/"
+   "page": "https://gbatemp.net/threads/sly-cooper-and-the-thievius-raccoonus-usa-uhd-remaster-definitive.638803/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1xeOCNvujREvFQQs7lydTKHWeC531iE3L/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -22859,7 +23351,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/spartan-total-warrior-hd-textures.641317/"
+   "page": "https://gbatemp.net/threads/spartan-total-warrior-hd-textures.641317/",
+   "verify": {
+    "url": "https://dropbox.com/scl/fi/hbgjgd3t2uns15gw5e7i6/SLES-53393.rar?rlkey=w0sdqzcn94j17kofd72ynn36o&dl=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -22942,7 +23437,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/spawn-armageddon-hd-texture.651063/"
+   "page": "https://gbatemp.net/threads/spawn-armageddon-hd-texture.651063/",
+   "verify": {
+    "url": "https://mega.nz/file/fKISiLCY#rGtbHQQz21bu5yij8llQ8BNWATZpWe8OfL-_HDVuuGA"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23020,7 +23518,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/h08pjvmu1uvwqnp/SLUS-20686.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23098,7 +23599,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/spyro-enter-the-dragonfly-remastered-ps2-texture-4k-pack-slus-20315-usa.677181/"
+   "page": "https://gbatemp.net/threads/spyro-enter-the-dragonfly-remastered-ps2-texture-4k-pack-slus-20315-usa.677181/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/0ph2lnjku2jqctm/SLUS-20315.rar/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23137,7 +23641,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ssx-3-slus-20772.624220/"
+   "page": "https://gbatemp.net/threads/ssx-3-slus-20772.624220/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/11SmRcMvqJK24rC0Dey4bSuNArAjcVoDk/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23176,7 +23683,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/star-wars-battlefront-ii-hd-texture.649062/"
+   "page": "https://gbatemp.net/threads/star-wars-battlefront-ii-hd-texture.649062/",
+   "verify": {
+    "url": "https://mega.nz/file/PPwwhJIa#QoiFmuv7-sTxZa9hZykGNYCtcelJ_ZA2_kpsZG0JEmA"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23241,7 +23751,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1rJxhQIS1DduZBmbAu-nsDVxoIktQR_NC&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23280,7 +23793,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/oha7r5jmydkac6e/SLUS-20293.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23358,7 +23874,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/nk5g33jy4fd9omp/SLUS-21341.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23397,7 +23916,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/summoner-hd-font-reshade.664734/"
+   "page": "https://gbatemp.net/threads/summoner-hd-font-reshade.664734/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1rp5vB6aHMwp8UpNprx3TSkhAv-Ws2RcH/view?usp=drive_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23436,7 +23958,10 @@
   "notes": "AI upscale, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/taito-legends-1-2-usa-hd-textures-menu-only.639603/"
+   "page": "https://gbatemp.net/threads/taito-legends-1-2-usa-hd-textures-menu-only.639603/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/srrad3zmzouzq1m/SLUS-21349.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23540,7 +24065,10 @@
   "notes": "AI upscale and handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/"
+   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/",
+   "verify": {
+    "url": "https://mega.nz/file/IC8SyJ6J#h5QE3kvIcLtRGJnPYvxSeoeVNEO5vFavbJy-Wydcf5o"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23579,7 +24107,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-redux-edition.666757/"
+   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-redux-edition.666757/",
+   "verify": {
+    "url": "https://mega.nz/file/VDtVHRLI#-rrnuOf3RiGlp_xDt2g1cEWQu3x0B1zJ-Gi3nZQVF6w"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23618,7 +24149,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tenchu-wrath-of-heaven-hd-texture-revisited-new-update-ntsc.613912/"
+   "page": "https://gbatemp.net/threads/tenchu-wrath-of-heaven-hd-texture-revisited-new-update-ntsc.613912/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/l3irashc4trv742/SLUS-20397.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23689,7 +24223,10 @@
   "notes": "AI upscale and handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/"
+   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/",
+   "verify": {
+    "url": "https://mega.nz/file/UeE2lZ5Q#8cfwYSVugF-uKpDymen0ZWA4qE_F9tPmUxvugz1_ZmU"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23778,7 +24315,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-bouncer-hd-texture-pack.640144/"
+   "page": "https://gbatemp.net/threads/the-bouncer-hd-texture-pack.640144/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1DXdJDZwRKXvitLPpbha-KGA22Bbgw3pF/view?usp=drive_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23817,7 +24357,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/btgjg54zl6x3fv1/SCUS-97133.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23856,7 +24399,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-godfather-the-game-pcsx2-hd-texture.666483/"
+   "page": "https://gbatemp.net/threads/the-godfather-the-game-pcsx2-hd-texture.666483/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/15oN8o6vrqPYSfTWEkJpUz68V_9ZtLCGC/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23934,7 +24480,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-great-escape-usa-slus-20670-texture-pack-hd.675645/"
+   "page": "https://gbatemp.net/threads/the-great-escape-usa-slus-20670-texture-pack-hd.675645/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/lirgz0kr42mm6cr/The_Great_Escape.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24032,7 +24581,10 @@
   "notes": "AI upscale and handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/"
+   "page": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/",
+   "verify": {
+    "url": "https://archive.org/details/the-lords-of-the-rings-texture-pack"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24091,7 +24643,10 @@
   "notes": "Handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/lord-of-the-rings-the-two-towers-remastered-only-icons-and-characters.678338/"
+   "page": "https://gbatemp.net/threads/lord-of-the-rings-the-two-towers-remastered-only-icons-and-characters.678338/",
+   "verify": {
+    "url": "https://archive.org/details/lord-of-the-rings-the-two-towers-remastered-icons-and-characters"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24146,7 +24701,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-mark-of-kri-texture-pack.635390/"
+   "page": "https://gbatemp.net/threads/the-mark-of-kri-texture-pack.635390/",
+   "verify": {
+    "url": "https://archive.org/details/replacements.7z"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24191,7 +24749,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-red-star-hd-textures.669283/"
+   "page": "https://gbatemp.net/threads/the-red-star-hd-textures.669283/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1gnwqqIi5sYTQ1Utyb4NJSu3SDiO9Njsr&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24230,7 +24791,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/l3j7zmt7412syo4/SLUS-21665.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24324,7 +24888,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=16x-lF6lEdf0-po6h3UxTPQmps8MCe7IQ&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24363,7 +24930,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-thing-ps2-hd-texture-pack.641635/"
+   "page": "https://gbatemp.net/threads/the-thing-ps2-hd-texture-pack.641635/",
+   "verify": {
+    "url": "https://archive.org/details/replacements.7z_20231021"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24525,7 +25095,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-x-files-resist-or-serve-hd-texture-pack.641203/"
+   "page": "https://gbatemp.net/threads/the-x-files-resist-or-serve-hd-texture-pack.641203/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1p_DZzEoxKFW9zRvAB6jO3YalT8dJ9bVZ/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24625,7 +25198,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1Udmi3x-C0Fiir_e5cDj0j-ynJfXNaX-X/view?usp=share_link"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24664,7 +25240,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tony-hawks-pro-skater-3-hd-texture-pack-slus-20013.675110/"
+   "page": "https://gbatemp.net/threads/tony-hawks-pro-skater-3-hd-texture-pack-slus-20013.675110/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/amo0wboyz1ag0pv/Tony_Hawks_Pro_Skater_3.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24725,7 +25304,10 @@
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tony-hawk-pro-skater-3.625777/"
+   "page": "https://gbatemp.net/threads/tony-hawk-pro-skater-3.625777/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1RmN7erLbTJtjKMTwCe-i1vZNHza5t8ik/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24764,7 +25346,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tony-hawks-pro-skater-4-hd-texture-pack-slus-20504.675190/"
+   "page": "https://gbatemp.net/threads/tony-hawks-pro-skater-4-hd-texture-pack-slus-20504.675190/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/gjo009x5lqlntac/Tony_Hawks_Pro_Skater_4.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24842,7 +25427,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/transworld-surf-hd-texture-pack-slus-20356.674089/"
+   "page": "https://gbatemp.net/threads/transworld-surf-hd-texture-pack-slus-20356.674089/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/8mxi0d9pht4oub0/Transworld_Surf.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24881,7 +25469,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/trapt-pcsx2-hd-texture-1-0.670466/"
+   "page": "https://gbatemp.net/threads/trapt-pcsx2-hd-texture-1-0.670466/",
+   "verify": {
+    "url": "https://mega.nz/file/ARwH0agY#e_izJeSSAcOJz6IzOgvFzuojQM53BDyD3ztw_tAqKX0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24920,7 +25511,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1TRufbnbKP4-jQRmIX03oDCFMtaN457DL&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24982,7 +25576,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/"
+   "page": "https://gbatemp.net/threads/pcsx2-hd-texture-upscale-service-free.642547/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/q045y4vfjj696tp/SLUS-21209.zip/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25021,7 +25618,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25060,7 +25660,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/virtua-fighter-4-evolution-ps2-arcade-quality-restore-pack-remaster-hd.623138/"
+   "page": "https://gbatemp.net/threads/virtua-fighter-4-evolution-ps2-arcade-quality-restore-pack-remaster-hd.623138/",
+   "verify": {
+    "url": "https://mega.nz/file/n4xHXDxY#G6YMjSJlDa5gy9ip_SCHJSobgQkpobgqcJBWulc1etQ"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25156,7 +25759,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/war-of-the-monsters-hd-pack.679799/"
+   "page": "https://gbatemp.net/threads/war-of-the-monsters-hd-pack.679799/",
+   "verify": {
+    "url": "https://www.mediafire.com/file_premium/73xmec7sd51n4i3/War_of_the_Monsters_HD_Pack.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25201,7 +25807,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/warhammer-40000-fire-warrior-hd-textures.671836/"
+   "page": "https://gbatemp.net/threads/warhammer-40000-fire-warrior-hd-textures.671836/",
+   "verify": {
+    "url": "https://drive.usercontent.google.com/download?id=1qXfIGsevhYDD1LJqPE_UXhbEDFdred2s&export=download&authuser=0"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25279,7 +25888,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/warriors-orochi-1-hd-texture-set-completed-ntsc.646399/"
+   "page": "https://gbatemp.net/threads/warriors-orochi-1-hd-texture-set-completed-ntsc.646399/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/blhrqmstsm7zznz/SLUS-21662.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25324,7 +25936,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/15GY9HMUE8eUbwG0Vol_ypjgECILEZAO-/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25414,7 +26029,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/wwe-smackdown-here-comes-the-pain-upscaled-texture-pack-for-hctp-2x-mod-v2-coming-soon-read-post-for-more.680129/"
+   "page": "https://gbatemp.net/threads/wwe-smackdown-here-comes-the-pain-upscaled-texture-pack-for-hctp-2x-mod-v2-coming-soon-read-post-for-more.680129/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1_eHocyq_GwlfJeoUqXSoAoUlm5ClZ1ab/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25454,7 +26072,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-wwe-smackdown-here-comes-the-pain-2-1-usa-slus-20787-hd-textures.656740/"
+   "page": "https://gbatemp.net/threads/ps2-wwe-smackdown-here-comes-the-pain-2-1-usa-slus-20787-hd-textures.656740/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/ge2ody92sajn0d3/WWE_SmackDown%2521_Here_Comes_the_Pain_HD_2.1.7z/file"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25544,7 +26165,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/wwe-smackdown-vs-raw-2007-hd-texture.628337/"
+   "page": "https://gbatemp.net/threads/wwe-smackdown-vs-raw-2007-hd-texture.628337/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/14dLlinaNIZHUHaO4zjqi19e3Za35XUQZ/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25628,7 +26252,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/x-men-the-official-game-full-hd-texture-mod-2k-4k-textures.665964/"
+   "page": "https://gbatemp.net/threads/x-men-the-official-game-full-hd-texture-mod-2k-4k-textures.665964/",
+   "verify": {
+    "url": "https://mega.nz/file/fUB1SQCS#3LfPtrhH_SQm6r9kiJgwBheCnAMw6AhYR7kNZRjX2n8"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25672,7 +26299,10 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/xenosaga-trilogy-usa-hd-remaster.612395/"
+   "page": "https://gbatemp.net/threads/xenosaga-trilogy-usa-hd-remaster.612395/",
+   "verify": {
+    "url": "https://mega.nz/file/fNQl1BTa#Mrm01hjb_yvdMzvoG4IhSK9BuiAj6NSi00tBHgPCUrg"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
