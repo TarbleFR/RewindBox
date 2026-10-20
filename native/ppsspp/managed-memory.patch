@@ -1,0 +1,124 @@
+--- a/Common/MemArenaDarwin.cpp
++++ b/Common/MemArenaDarwin.cpp
+@@ -34,12 +34,43 @@
+ #include "Common/MemoryUtil.h"
+ #include "Common/MemArena.h"
+ 
++#include "Common/NeoStationPSPMemory.h"
++
++static NeoStationPSPMemoryCallbacks neoMemory{};
++static uint64_t neoArena = 0;
++static uint64_t neoBase = 0;
++static uint64_t neoArenaBytes = 0;
++
++extern "C" __attribute__((visibility("default")))
++int neostation_ppsspp_set_memory_callbacks(const NeoStationPSPMemoryCallbacks *callbacks) {
++	if (neoArena || !callbacks || callbacks->version != 1 ||
++		callbacks->structBytes != sizeof(NeoStationPSPMemoryCallbacks) ||
++		!callbacks->begin || !callbacks->map || !callbacks->unmap || !callbacks->end)
++		return 0;
++	neoMemory = *callbacks;
++	return 1;
++}
++
++
+ size_t MemArena::roundup(size_t x) {
+ 	return x;
+ }
+ 
+ bool MemArena::GrabMemSpace(size_t size) {
+ 	vm_size = size;
++	if (neoMemory.begin) {
++		int result = neoMemory.begin(size, &neoArena, &neoBase);
++		if (result != KERN_SUCCESS) {
++			ERROR_LOG(Log::MemMap, "NeoStation managed PSP arena failed (%d)", result);
++			vm_size = 0;
++			return false;
++		}
++		neoArenaBytes = size;
++		vm_mem = (vm_address_t)neoArena;
++		INFO_LOG(Log::MemMap, "NeoStation managed PSP arena %llx, base %llx, bytes %llx",
++			(unsigned long long)neoArena, (unsigned long long)neoBase, (unsigned long long)size);
++		return true;
++	}
+ 	kern_return_t retval = vm_allocate(mach_task_self(), &vm_mem, size, VM_FLAGS_ANYWHERE);
+ 	if (retval != KERN_SUCCESS) {
+ 		ERROR_LOG(Log::MemMap, "Failed to grab a block of virtual memory");
+@@ -51,12 +82,32 @@
+ }
+ 
+ void MemArena::ReleaseSpace() {
++	if (neoArena) {
++		int result = neoMemory.end(neoArena, neoArenaBytes);
++		if (result != KERN_SUCCESS) {
++			ERROR_LOG(Log::MemMap, "NeoStation managed PSP arena release failed (%d)", result);
++			return;
++		}
++		neoArena = neoBase = neoArenaBytes = 0;
++		vm_mem = 0;
++		vm_size = 0;
++		return;
++	}
+ 	vm_deallocate(mach_task_self(), vm_mem, vm_size);
+ 	vm_size = 0;
+ 	vm_mem = 0;
+ }
+ 
+ void *MemArena::CreateView(s64 offset, size_t size, void *base) {
++	if (neoArena) {
++		int result = neoMemory.map(neoArena + (uint64_t)offset, (uint64_t)base, size);
++		if (result != KERN_SUCCESS) {
++			ERROR_LOG(Log::MemMap, "NeoStation managed PSP view failed (%d), offset %llx, size %llx, target %p",
++				result, (unsigned long long)offset, (unsigned long long)size, base);
++			return nullptr;
++		}
++		return base;
++	}
+ 	mach_port_t self = mach_task_self();
+ 	vm_address_t target = (vm_address_t)base;
+ 	uint64_t mask = 0;
+@@ -80,11 +131,18 @@
+ }
+ 
+ void MemArena::ReleaseView(s64 offset, void* view, size_t size) {
++	if (neoArena) {
++		int result = neoMemory.unmap((uint64_t)view, size);
++		if (result != KERN_SUCCESS)
++			ERROR_LOG(Log::MemMap, "NeoStation managed PSP view release failed (%d)", result);
++		return;
++	}
+ 	vm_address_t addr = (vm_address_t)view;
+ 	vm_deallocate(mach_task_self(), addr, size);
+ }
+ 
+ bool MemArena::NeedsProbing() {
++	if (neoArena) return false;
+ #if PPSSPP_PLATFORM(IOS) && PPSSPP_ARCH(64BIT)
+ 	return true;
+ #else
+@@ -93,6 +151,7 @@
+ }
+ 
+ u8* MemArena::Find4GBBase() {
++	if (neoArena) return (u8 *)neoBase;
+ #if PPSSPP_PLATFORM(IOS) && PPSSPP_ARCH(64BIT)
+ 	// The caller will need to do probing, like on 32-bit Windows.
+ 	return nullptr;
+--- a/Core/MemMap.cpp
++++ b/Core/MemMap.cpp
+@@ -281,8 +281,13 @@
+ #endif
+ 	}
+ 
+-	// Should return true...
+-	return Memory_TryBase(flags);
++	const bool success = Memory_TryBase(flags);
++	if (!success) {
++		// A failed managed setup must release its backing arena as well as views.
++		g_arena.ReleaseSpace();
++		base = nullptr;
++	}
++	return success;
+ }
+ 
+ void MemoryMap_Shutdown() {

@@ -1,0 +1,13 @@
+{
+  "upstream": "https://github.com/hrydgard/ppsspp",
+  "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+  "baseHostCommit": "4c2186204ce06b50b989689a9c2322068f523a58",
+  "baseRun": 39366986940,
+  "basePspSHA256": "40d3b6f81a726ff82a89f87df5332f20a5dcdecd9f6473fcae7cade60bcb0cf0",
+  "patchSHA256": "0ecc5b57268252139fda29a00c6fc1127224cb5adbfdeed187d8abf2f92e89f0",
+  "abiHeaderSHA256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf",
+  "originalFilesSHA256": {
+    "Common/MemArenaDarwin.cpp": "02cbd4c0b3874d17298825ad4382f2df51b10d6111d2220641a0ff73aa276e28",
+    "Core/MemMap.cpp": "cb86740fafee2c4b0ba4a20cf20aabbe38d73b12750642fc0b0f0e540556ae50"
+  }
+}

@@ -1,5 +1,11 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+## Build 497 candidate — PSP relaunch still fails on the iPhone, 20 October 2026
+
+- The maintainer's new app log confirms Build 496 did not fix the observed close/reopen failure. Do not describe 496 as device-confirmed. At 15:30 UTC the core's backing arena occupies its own intended RAM destination (`0x17c000000`, remap from offset `0x204000` fails with kernel error 3).
+- Replace the allocator-placement assumption with a versioned host/core memory-ownership contract. Rebuild only PPSSPP from the same upstream `1bd28b0d634d4ec31acb7092563f3e1e247d1e9c`; retain all other pinned cores and the frozen catalogue. Details: `docs/build497-psp-managed-memory.md`.
+- Validate exact collision reproduction, owned mappings under concurrent allocation, 32/64/76 MiB and failed-start cleanup, then real-core relaunches with a crowded address window. Reuse unchanged Dart/catalogue/other-core evidence. Deliver a new testable IPA; no public release and no external device-log request.
+
 ## Build 496 — verified IPA, PSP relaunch and frozen HD catalogue, 20 October 2026
 
 - The maintainer requests stopping HD discovery, a recap, a PSP close/reopen fix and an IPA containing the latest catalogues. Build 495 already compiled successfully (`fee67e4d`, run `39384517903`); use 496 for this delivery, on `Claude`, no public release.

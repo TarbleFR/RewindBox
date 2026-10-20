@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#include "NeoStationPSPMemory.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -104,5 +105,12 @@ void LibretroPPSSPPRestoreReservation(void);
 uint64_t LibretroPPSSPPReservedBase(void);
 /// "[HOST] PPSSPP window ..." describing the reservation, for the journal.
 NSString *LibretroPPSSPPReservationReport(void);
+
+/// Build 497: the core allocates its backing arena while the complete view
+/// reservation stays held, then atomically replaces only our owned views.
+/// The table lives for the process lifetime. Returns kernel status codes.
+const NeoStationPSPMemoryCallbacks *LibretroPPSSPPMemoryCallbacks(void);
+/// Installs the ABI in an already loaded core; NO for an unmodified core.
+BOOL LibretroPPSSPPInstallMemoryCallbacks(NSString *corePath);
 
 NS_ASSUME_NONNULL_END

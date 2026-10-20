@@ -130,6 +130,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   BOOL _ppssppMemorySettled;
   /// Base PPSSPP reported on the previous frame.
   uint64_t _ppssppCandidateBase;
+  NSMutableArray<NSString *> *_ppssppMemoryLog;
   BOOL _menuPaused;
   BOOL _backgroundPaused;
   _Atomic bool _fastForward;
@@ -629,6 +630,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSString *report = LibretroPPSSPPReservationReport();
   [_host appendLog:line];
   [_host appendLog:report];
+  [_ppssppMemoryLog addObjectsFromArray:@[line, report]];
   [_journal note:[NSString stringWithFormat:@"run: %@; %@", line, report]];
 }
 
@@ -813,13 +815,20 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     // (reserved now when that failed); its view ranges and arena slot are
     // released for this boot only, then reserved again.
     LibretroPPSSPPReserveWindow();
-    LibretroPPSSPPReleaseViewsForBoot();
+    BOOL managed = LibretroPPSSPPInstallMemoryCallbacks(configuration.corePath);
+    if (!managed) LibretroPPSSPPReleaseViewsForBoot();
+    NSString *memoryMode = managed ? @"[HOST] PPSSPP managed memory ABI 1; views remain reserved through boot"
+                                   : @"[HOST] PPSSPP legacy memory probe";
+    [_host appendLog:memoryMode];
+    [_journal note:memoryMode];
+    _ppssppMemoryLog = [NSMutableArray arrayWithObject:memoryMode];
     _ppssppViewsReleased = YES;
     _ppssppMemorySettled = NO;
     _ppssppCandidateBase = 0;
     for (NSString *report in @[ LibretroPPSSPPReservationReport(), LibretroPPSSPPAddressSpaceReport() ]) {
       [_host appendLog:report];
       [_journal note:report];
+      [_ppssppMemoryLog addObject:report];
     }
   }
   if (![_host loadContentAtPath:configuration.contentPath error:&error]) return [self failureFromError:error];
@@ -1062,9 +1071,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _ppssppViewsReleased = NO;
     _ppssppMemorySettled = NO;
     LibretroPPSSPPRestoreReservation();
-    [journal note:[NSString stringWithFormat:@"teardown: %@", LibretroPPSSPPReservationReport()]];
+    NSString *report = [NSString stringWithFormat:@"teardown: %@", LibretroPPSSPPReservationReport()];
+    [journal note:report];
+    [_ppssppMemoryLog addObject:report];
   }
-  _finalLog = _host.recentLog;
+  // Keep the memory evidence in app.log even if repeated core errors evict
+  // boot diagnostics from the core's 200-line rolling buffer.
+  _finalLog = _ppssppMemoryLog != nil ? [_ppssppMemoryLog arrayByAddingObjectsFromArray:_host.recentLog ?: @[]]
+                                     : _host.recentLog;
 }
 
 - (void)enqueue:(dispatch_block_t)command {
