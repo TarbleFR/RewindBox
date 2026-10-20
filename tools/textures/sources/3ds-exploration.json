@@ -405,5 +405,195 @@
   "scope": "ui",
   "family": "3ds-toa-font-rikimtasu",
   "notes": "Font component only. The repository publishes a ZIP but no licence or regional instructions. Game identity and layout require confirmation from the actual archive before runtime inclusion; no French coverage is inferred."
+ },
+ {
+  "id": "3ds-smt-strange-journey-merkava",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Shin Megami Tensei: Strange Journey Redux HD",
+  "version": "1.50",
+  "games": [
+   {
+    "title": "Shin Megami Tensei: Strange Journey Redux",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001CD200"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Merkava2k15"
+  ],
+  "page_url": "https://www.reddit.com/r/Megaten/comments/1b99gzf/smt_strange_journey_hd_texture_pack/",
+  "source_id": "reddit:merkava2k15-sjr",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.reddit.com/r/Megaten/comments/1b99gzf/smt_strange_journey_hd_texture_pack/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1cPKg1RUhHO-PNnbegTtoizFVr4-5b5eS/view?usp=drive_web"
+   },
+   "file_name": "SMT-SJR HD 1.50.7z"
+  },
+  "scope": "partial",
+  "family": "3ds-smt-strange-journey-merkava",
+  "notes": "Complete 2D upscale according to the creator: menus, backgrounds, sprites, portraits and compendium. Environmental 3D textures are deliberately unchanged. Author reposts their own original download after the Citra forum closure. Created with the North American edition; other regions and French coverage are not validated. Disable texture filtering if graphical anomalies occur."
+ },
+ {
+  "id": "3ds-project-x-zone-png-pdragon128",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Project X Zone HD (4x PNG)",
+  "version": "2025-08-31",
+  "games": [
+   {
+    "title": "Project X Zone",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000C6400"
+     }
+    ],
+    "confirm": true,
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Project X Zone",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000DD700"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Project X Zone",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000073900"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "pdragon128"
+  ],
+  "page_url": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
+  "source_id": "gbatemp:674816",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/vlfyl587yeiomih/PXZ_png_x4_256.zip/file"
+   },
+   "file_name": "PXZ_png_x4_256.zip"
+  },
+  "scope": "complete",
+  "family": "3ds-project-x-zone-png-pdragon128",
+  "notes": "Author states US/EUR/Japan compatibility. PNG 4x edition only; the 9 GB DDS edition is not selected. Animation cut-ins can miss their first occurrence; the final stage can have replacement loading issues, and the author reports possible Vulkan crashes. No iPhone rendering or French-specific coverage is validated."
+ },
+ {
+  "id": "3ds-ml-superstar-saga-jxnnik0",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Mario & Luigi: Superstar Saga + Bowser's Minions HD (WIP)",
+  "version": "2022-08",
+  "games": [
+   {
+    "title": "Mario & Luigi: Superstar Saga + Bowser's Minions",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B8F00"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Jxnnik0"
+  ],
+  "page_url": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
+  "source_id": "reddit:jxnnik0-superstar-saga",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/cwargrrlydie4np/Mario_%2526_Luigi_Superstar_Saga_HD_Texture_Pack.zip/file"
+   },
+   "file_name": "Mario & Luigi Superstar Saga HD Texture Pack.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-ml-superstar-saga-jxnnik0",
+  "notes": "Main characters and early areas only, upscaled with chaiNNer and 4x-UltraSharp. The author does not specify a region. The listed USA identity is a verification candidate only and must be checked against the archive; no other region or language is inferred."
+ },
+ {
+  "id": "3ds-ml-bowsers-inside-story-jxnnik0",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Mario & Luigi: Bowser's Inside Story + Bowser Jr.'s Journey HD (WIP)",
+  "version": "2022-08",
+  "games": [
+   {
+    "title": "Mario & Luigi: Bowser's Inside Story + Bowser Jr.'s Journey",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001D1400"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Jxnnik0"
+  ],
+  "page_url": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
+  "source_id": "reddit:jxnnik0-bowsers-inside-story",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/8up17c90n0qahc2/Mario_%2526_Luigi_Bowsers_Inside_Story_HD_Texture_Pack.zip/file"
+   },
+   "file_name": "Mario & Luigi Bowsers Inside Story HD Texture Pack.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-ml-bowsers-inside-story-jxnnik0",
+  "notes": "Main character models and early areas only (3DS remake, not Nintendo DS). chaiNNer/4x PixelPerfect upscale. Author advises disabling texture filtering for menu glitches. Region is not stated: USA is a verification candidate only, pending the archive identity."
  }
 ]
