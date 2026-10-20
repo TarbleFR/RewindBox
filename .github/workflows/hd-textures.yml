@@ -384,8 +384,12 @@ jobs:
           build/hd-direct400/venv/bin/python test/texture_host_resolver_test.py
           build/hd-direct400/venv/bin/python test/texture_mega_native_test.py
           build/hd-direct400/venv/bin/python test/texture_catalog_capability_test.py
+      - name: Native provider download, resume and RAR installation fixtures
+        if: ${{ inputs.only == '' || contains(inputs.only, 'store') }}
+        run: |
           build/hd-direct400/venv/bin/python test/texture_store_provider_test.py
       - name: Affected Foundation store and iPhone SDK linkage
+        if: ${{ inputs.only == '' || contains(inputs.only, 'sdk') }}
         run: |
           build/hd-direct400/venv/bin/python test/texture_catalog_native_test.py
           build/hd-direct400/venv/bin/python test/texture_catalog_ios_syntax_test.py
