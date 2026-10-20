@@ -18,14 +18,18 @@ if not changed.strip():
     phase = next(s for s in job['steps'] if s['name'] == 'Execute the embedded storage boundary')
     assert phase['conclusion'] == 'success'
     sdk = subprocess.check_output(['dotnet', '--version'], text=True).strip()
-    assert sdk == '10.0.100', sdk
     # The exact framework/runtime version is checked against the original log.
     log = subprocess.check_output(['gh', 'api', '--allow-escape-sequences',
                                   'repos/TarbleFR/neostation-ios/actions/jobs/118911723958/logs'], text=True)
+    # The host check is outside the engine's global.json. The SDK resolver
+    # therefore selected the highest installed SDK, not the engine's 10.0.100.
+    # Compare that actual selection with the previous installed-SDK inventory.
+    version_key = lambda value: tuple(int(n) for n in value.split('.'))
+    previous_sdks = re.findall(r'\s(\d+\.\d+\.\d+) \[[^\n]+/sdk\]', log)
+    assert sdk == max(previous_sdks, key=version_key), sdk
     runtimes = subprocess.check_output(['dotnet', '--list-runtimes'], text=True)
     current_net8 = [line.split()[1] for line in runtimes.splitlines() if line.startswith('Microsoft.NETCore.App 8.')]
     previous_net8 = re.findall(r'Microsoft.NETCore.App (8\.\d+\.\d+) ', log)
-    version_key = lambda value: tuple(int(n) for n in value.split('.'))
     net8 = max(current_net8, key=version_key)
     assert net8 == max(previous_net8, key=version_key)
     assert 'Embedded storage and initialization: 15 cases passed.' in log

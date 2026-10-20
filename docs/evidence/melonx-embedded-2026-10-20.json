@@ -55,6 +55,15 @@
       "artifact": 12302912762,
       "engineDependenciesRestored": true,
       "engineBinaryProduced": false
+    },
+    {
+      "run": 39505037649,
+      "source": "240a7be3fcace824e0d7c690e34fdbae1c3c3c73",
+      "status": "completed",
+      "conclusion": "failure",
+      "blockingError": "GitHub CLI log reader refused NUKE terminal escape sequences; adapted engine compile was not reached.",
+      "engineBinaryProduced": false,
+      "bootstrapChecksPassed": 15
     }
   ],
   "retirement": {
@@ -100,5 +109,13 @@
     "identification": "Inference from matching NACP correction and upstream consumer version change ten minutes later.",
     "originalNugetPackageRecovered": false,
     "originalBinaryEquivalenceClaimed": false
+  },
+  "bootstrapValidation": {
+    "source": "240a7be3fcace824e0d7c690e34fdbae1c3c3c73",
+    "run": 39505037649,
+    "job": 118911723958,
+    "passedStep": "Execute the embedded storage boundary",
+    "passedCases": 15,
+    "scope": "Managed storage-root and initialization-state implementation; not a native game session or device test."
   }
 }
