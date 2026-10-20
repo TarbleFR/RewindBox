@@ -32,6 +32,42 @@ def check(condition, message):
         raise SystemExit(f'FAIL {message}')
 
 
+# A focused entry point for the newly affected image-header diagnostic. Native
+# Dolphin/PPSSPP accept extension case variants; Azahar deliberately does not.
+def dds_header(fourcc=None):
+    data = bytearray(128)
+    data[:4] = b'DDS '
+    struct.pack_into('<I4s', data, 80, 4 if fourcc else 0, fourcc or bytes(4))
+    return data
+
+
+with tempfile.TemporaryDirectory() as folder:
+    game = Path(folder)
+    (game / 'tex1_upper.DDS').write_bytes(dds_header(b'DXT1'))
+    (game / 'tex1_mixed.DdS').write_bytes(dds_header(b'DXT5'))
+    (game / 'tex1_lower.dds').write_bytes(dds_header())
+    (game / 'not-a-file.DDS').mkdir()
+    (game / 'ignored.dds.txt').write_text('not a texture')
+    expected = {'bc1': 1, 'bc3': 1, 'rgba': 1}
+    report, problems = verify_packs.check_dolphin(game)
+    check(not problems and report['tex1'] == 3 and report['dds'] == expected,
+          f'Dolphin DDS extension case/header coverage {report} {problems}')
+    (game / 'textures.ini').write_text('[options]\nhash=xxh64\n[hashes]\n0000000012345678=tex1_upper.DDS\n')
+    report, problems = verify_packs.check_ppsspp(game)
+    check(not problems and report['dds'] == expected,
+          f'PPSSPP DDS extension case/header coverage {report} {problems}')
+    check(report['missingTargets'] == 0 and report['caseMismatches'] == 0,
+          f'DDS diagnostic must not alter exact-case INI matching {report}')
+with tempfile.TemporaryDirectory() as folder:
+    game = Path(folder)
+    (game / 'tex1_upper.DDS').write_bytes(dds_header(b'DXT1'))
+    report, problems = verify_packs.check_azahar(game)
+    check(report['dds'] == 0 and not problems, f'Azahar native extension semantics unchanged {report} {problems}')
+if '--dds-case' in sys.argv:
+    print(f'PASS texture DDS extension diagnostics: {checks} checks (Dolphin/PPSSPP case-insensitive headers; exact INI and Azahar filters unchanged)')
+    raise SystemExit(0)
+
+
 INI = '[options]\nhash = quick\n[hashes]\n0000000012345678 = new/a.png\n0000000012345679 = New/B.png\n0000000012345670 = gone.png\n'
 with tempfile.TemporaryDirectory() as folder:
     game = Path(folder)
