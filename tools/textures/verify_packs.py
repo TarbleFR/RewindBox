@@ -502,7 +502,7 @@ def verify_armsx2(entry, result, driver, work, archive, kind):
     if code or installed.get('result') != 'installed':
         result.update(status='install', output=output[-600:])
         return result
-    result['installed'] = [{'from': source_from, 'to': f'{serial}/replacements', 'files': int(installed['files']),
+    result['installed'] = [{'from': source_from, 'to': f'{serial}/replacements', 'exclude': excluded, 'files': int(installed['files']),
                             'bytes': int(installed['bytes']), 'unsupported': int(installed['unsupported']),
                             'formats': dict(item.split(':') for item in installed['formats'].strip(',').split(',') if item)}]
     result['status'] = 'ok'
