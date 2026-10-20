@@ -128,8 +128,9 @@ jobs:
           git -C "$STORAGE_SRC" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03
           git -C "$STORAGE_SRC" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$STORAGE_SRC"
+          mkdir -p build/rpcs3-core-diagnostics
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
-            python3 test/rpcs3_build499_spu_audit_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-build499-proof.txt
+            python3 test/rpcs3_build499_spu_audit_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/build499-proof.txt
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_spu_warmup_test.py "$STORAGE_SRC" --sanitize
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_build435_core_delta_test.py "$STORAGE_SRC" --sanitize
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_shader_storage_test.py "$STORAGE_SRC"
@@ -222,7 +223,6 @@ jobs:
           print(json.dumps(identity,indent=2))
           PY
           cp dist/rpcs3/identity.json build/rpcs3-core-diagnostics/identity.json
-          cp build/rpcs3-build499-proof.txt build/rpcs3-core-diagnostics/build499-proof.txt
       - name: Upload RPCS3 recovery Core
         uses: actions/upload-artifact@v4
         with:

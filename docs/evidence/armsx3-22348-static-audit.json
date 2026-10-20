@@ -1,0 +1,166 @@
+{
+  "referenceIPA": {
+    "name": "ARMSX3-22348-bbe9ce84.ipa",
+    "sha256": "0db92aea054b716863eeea486d2102656f20e9a58f8872742ae405deeb43385d"
+  },
+  "macho": {
+    "size": 80568256,
+    "filetype": 2,
+    "ncmds": 79,
+    "flags": "0x4a18085",
+    "dylibs": [
+      "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+      "/System/Library/Frameworks/Security.framework/Security",
+      "/usr/lib/libiconv.2.dylib",
+      "/System/Library/Frameworks/Metal.framework/Metal",
+      "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+      "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      "/System/Library/Frameworks/Foundation.framework/Foundation",
+      "/System/Library/Frameworks/UIKit.framework/UIKit",
+      "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+      "/System/Library/Frameworks/GameController.framework/GameController",
+      "/System/Library/Frameworks/MetricKit.framework/MetricKit",
+      "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+      "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+      "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+      "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+      "/System/Library/Frameworks/Photos.framework/Photos",
+      "/System/Library/Frameworks/Accelerate.framework/Accelerate",
+      "/usr/lib/libobjc.A.dylib",
+      "/usr/lib/libc++.1.dylib",
+      "/usr/lib/libSystem.B.dylib",
+      "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+      "/System/Library/Frameworks/Accessibility.framework/Accessibility",
+      "/System/Library/Frameworks/Combine.framework/Combine",
+      "/System/Library/Frameworks/CoreTransferable.framework/CoreTransferable",
+      "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+      "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+      "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+      "/System/Library/Frameworks/PhotosUI.framework/PhotosUI",
+      "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+      "/System/Library/Frameworks/_PhotosUI_SwiftUI.framework/_PhotosUI_SwiftUI",
+      "/usr/lib/libcompression.dylib",
+      "/usr/lib/swift/libswiftAVFoundation.dylib",
+      "/usr/lib/swift/libswiftCompression.dylib",
+      "/usr/lib/swift/libswiftCore.dylib",
+      "/usr/lib/swift/libswiftCoreAudio.dylib",
+      "/usr/lib/swift/libswiftCoreFoundation.dylib",
+      "/usr/lib/swift/libswiftCoreImage.dylib",
+      "/usr/lib/swift/libswiftCoreLocation.dylib",
+      "/usr/lib/swift/libswiftCoreMIDI.dylib",
+      "/usr/lib/swift/libswiftDarwin.dylib",
+      "/usr/lib/swift/libswiftDispatch.dylib",
+      "/usr/lib/swift/libswiftMetal.dylib",
+      "/usr/lib/swift/libswiftMetalKit.dylib",
+      "/usr/lib/swift/libswiftModelIO.dylib",
+      "/usr/lib/swift/libswiftOSLog.dylib",
+      "/usr/lib/swift/libswiftObjectiveC.dylib",
+      "/usr/lib/swift/libswiftObservation.dylib",
+      "/usr/lib/swift/libswiftQuartzCore.dylib",
+      "/usr/lib/swift/libswiftSpatial.dylib",
+      "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+      "/usr/lib/swift/libswiftXPC.dylib",
+      "/usr/lib/swift/libswift_Concurrency.dylib",
+      "/usr/lib/swift/libswiftos.dylib",
+      "/usr/lib/swift/libswiftsimd.dylib",
+      "/usr/lib/swift/libswiftCoreGraphics.dylib",
+      "/usr/lib/swift/libswiftCoreMedia.dylib"
+    ],
+    "segments": [
+      {
+        "name": "__PAGEZERO",
+        "vmaddr": "0x0",
+        "vmsize": 4294967296,
+        "filesize": 0
+      },
+      {
+        "name": "__TEXT",
+        "vmaddr": "0x100000000",
+        "vmsize": 68239360,
+        "filesize": 68239360
+      },
+      {
+        "name": "__DATA_CONST",
+        "vmaddr": "0x104114000",
+        "vmsize": 2129920,
+        "filesize": 2129920
+      },
+      {
+        "name": "__DATA",
+        "vmaddr": "0x10431c000",
+        "vmsize": 72761344,
+        "filesize": 819200
+      },
+      {
+        "name": "__LINKEDIT",
+        "vmaddr": "0x108880000",
+        "vmsize": 9388032,
+        "filesize": 9379776
+      }
+    ],
+    "symtab": [
+      76008248,
+      50158,
+      76897176,
+      3513200
+    ],
+    "uuid": "cfd7cfb2d42736919ad4573c4a8caab4",
+    "build_version": [
+      2,
+      1115136,
+      1769728,
+      1
+    ],
+    "encryption": [
+      16384,
+      68206592,
+      0
+    ]
+  },
+  "signingAttributes": [
+    {
+      "file": "Harness",
+      "size": 80568256,
+      "sha256": "26b6b3f8d14a947fe691910180eeaec60d49a5af4aa60aca8d2d8128cde531fb",
+      "entitlements": {
+        "com.apple.developer.kernel.increased-memory-limit": true,
+        "get-task-allow": true
+      }
+    },
+    {
+      "file": "JITEnabler",
+      "size": 5947792,
+      "sha256": "c9db87b74763986473a6124e021cd4f54770f6ab84ecca3d82e2b17830698004",
+      "entitlements": {
+        "get-task-allow": true
+      }
+    },
+    {
+      "file": "RPCS3Core-498",
+      "size": 77573456,
+      "sha256": "be64e13940f561b51d3828b59cea9393bbab30439c8f8ef77e1d19b2b527d650"
+    }
+  ],
+  "shufbRecords": [
+    {
+      "image": "ARMSX3-22348",
+      "old_u64_insertion_mask": [],
+      "correct_u64_insertion_mask": [
+        "0x417ae48"
+      ]
+    },
+    {
+      "image": "NeoStation-498",
+      "old_u64_insertion_mask": [
+        "0x3c26538"
+      ],
+      "correct_u64_insertion_mask": []
+    }
+  ],
+  "publicSource": "ARMSX2/ARMSX3@2e1a02c3aecaa6841e161cfeda4b6c57cd5cacbd",
+  "privateHashPubliclyResolved": false,
+  "deviceRuntimeTested": false
+}
