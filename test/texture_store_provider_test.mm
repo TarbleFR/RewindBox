@@ -69,7 +69,7 @@ static NSMutableArray<NSURLRequest *> *Requests;
 @end
 
 @interface FixtureResolution : NSObject
-@property(nonatomic) BOOL cancelled;
+@property(atomic) BOOL cancelled;
 - (void)cancel;
 @end
 @implementation FixtureResolution
@@ -79,10 +79,10 @@ static NSMutableArray<NSURLRequest *> *Requests;
 @interface FixtureStore : NeoTexturePackStore
 @property(nonatomic, strong) NSURLSession *fixtureSession;
 @property(nonatomic, strong) NSDictionary *crypto;
-@property(nonatomic) NSUInteger resolutions;
+@property(atomic) NSUInteger resolutions;
 @property(nonatomic) BOOL holdResolution;
-@property(nonatomic, strong) FixtureResolution *resolution;
-@property(nonatomic, copy) dispatch_block_t pendingResolution;
+@property(atomic, strong) FixtureResolution *resolution;
+@property(atomic, copy) dispatch_block_t pendingResolution;
 - (NSURLSession *)session;
 @end
 @implementation FixtureStore
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
       Outcome result = Install(store, pack, engine, identity);
       BOOL expected = [@[@"ok", @"range", @"ignore-range"] containsObject:mode];
       CHECK(expected ? result.error == nil : result.error != nil, "%s/%s: %s", provider.UTF8String, mode.UTF8String, result.error.description.UTF8String);
-      CHECK([[NSData dataWithContentsOfFile:installed] isEqualToData:expected ? image : sentinel], "%s changed installed bytes before validation", mode.UTF8String);
+      CHECK([[NSData dataWithContentsOfFile:installed] isEqualToData:(expected ? image : sentinel)], "%s changed installed bytes before validation", mode.UTF8String);
       CHECK(store.resolutions == 1 && Requests.count == 1, "unexpected retry/resolution count");
       CHECK([[Requests.firstObject valueForHTTPHeaderField:@"User-Agent"] isEqual:@"NeoStation-iOS"], "native User-Agent missing");
       CHECK(!resume || [[Requests.firstObject valueForHTTPHeaderField:@"Range"] isEqual:@"bytes=513-"], "resume interval incorrect");
@@ -215,7 +215,8 @@ int main(int argc, char **argv) {
     CHECK(!Exists([engine.texturesRoot stringByAppendingPathComponent:@"GALE01"]), "pause touched installation"); NoSecrets(store.downloadDirectory);
     Mode = @"ok"; Outcome resumed = Install(store, pack, engine, identity);
     CHECK(!resumed.error && store.resolutions == 2 && Requests.count == 2, "pause/resume did not resolve afresh: %s", resumed.error.description.UTF8String);
-    CHECK([[Requests.lastObject valueForHTTPHeaderField:@"Range"] isEqual:[NSString stringWithFormat:@"bytes=%lu-", (unsigned long)partial.length]], "resume did not use ciphertext length");
+    NSString *expectedRange = [NSString stringWithFormat:@"bytes=%lu-", (unsigned long)partial.length];
+    CHECK([[Requests.lastObject valueForHTTPHeaderField:@"Range"] isEqual:expectedRange], "resume did not use ciphertext length");
     [store.fixtureSession invalidateAndCancel];
 
     // Cancellation racing the final metadata callback must start no transfer.
