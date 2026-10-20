@@ -19,10 +19,10 @@ assert global_json['sdk']['version'] == pin['dotnet']
 assert global_json['sdk']['rollForward'] == 'latestFeature'
 global_json['sdk']['rollForward'] = 'disable'
 (source / 'global.json').write_text(json.dumps(global_json, indent=2) + '\n')
-# The MeloNX mirror's f925129209afd55927a0201d82285b8fa4b7ba30
-# retains Ryujinx's projects feed. The new Ryulynx feed does not contain
-# the exact alpha.129 package (NU1101 in run 39499119399). Keep the package
-# version and source mapping; do not substitute an older LibHac API.
+# Ryujinx's original projects namespace is checked on the current official
+# host. The declared Ryulynx feed lacks alpha.129 (run 39499119399); the
+# old git.ryujinx.app host is unreachable (run 39499844255). Keep the exact
+# package version and mapping; do not substitute an older LibHac API.
 nuget = source / 'nuget.config'
 config = nuget.read_text(encoding='utf-8-sig')
 old_feed = 'https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json'
@@ -34,7 +34,12 @@ cd "$SOURCE_DIR"
 dotnet --info
 test "$(dotnet --version)" = '10.0.100'
 dotnet workload install mobile-librarybuilder --skip-manifest-update
-dotnet publish src/Ryujinx.Library -c Release -r ios-arm64 --self-contained true -p:ExtraDefineConstants=DISABLE_UPDATER -p:NativeLib=Shared
+python3 - <<'PY_RESTORE'
+import subprocess
+# A dead service must not trigger unbounded retries across every project.
+subprocess.run(['dotnet', 'restore', 'src/Ryujinx.Library', '-r', 'ios-arm64', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared'], check=True, timeout=240)
+PY_RESTORE
+dotnet publish src/Ryujinx.Library --no-restore -c Release -r ios-arm64 --self-contained true -p:ExtraDefineConstants=DISABLE_UPDATER -p:NativeLib=Shared
 CORE="$SOURCE_DIR/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib"
 test -s "$CORE"
 xcrun lipo -verify_arch arm64 "$CORE"
