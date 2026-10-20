@@ -63,7 +63,7 @@ void test_failure(int n) { failing=n; }
 import Darwin
 let directory = URL(fileURLWithPath: CommandLine.arguments[1])
 var cases = 0
-func check(_ ok: Bool) { precondition(ok); cases += 1 }
+func check(_ ok: Bool, line: Int = #line) { precondition(ok, "Host assertion at line \(line)"); cases += 1 }
 func rejected(_ name: String) {
     do { _ = try MeloNXNativeSessionAPI(libraryURL: directory.appendingPathComponent(name)); fatalError("Accepted incompatible library") }
     catch { cases += 1 }
@@ -129,8 +129,11 @@ print("Swift embedded session host: \(cases) cases passed.")
     host = next(p for p in sources if p.name == 'MeloNXSessionHost.swift')
     executable = work/'host-checks'
     subprocess.run(['xcrun','swiftc','-swift-version','5',str(host),str(work/'main.swift'),'-o',str(executable)],check=True)
-    result = subprocess.run([str(executable),str(work)],check=True,text=True,capture_output=True,timeout=30)
-    print(result.stdout)
+    result = subprocess.run([str(executable),str(work)],text=True,capture_output=True,timeout=30)
+    print(result.stdout, flush=True)
+    if result.returncode:
+        print(result.stderr, flush=True)
+        result.check_returncode()
 receipt = dict(source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
                inputs={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*sources,header,Path(__file__)]},
                iphoneSDKTypecheck=True, nativeABIDouble=True, gameplayTested=False, result=result.stdout.strip())
