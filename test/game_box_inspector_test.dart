@@ -128,12 +128,12 @@ void main() {
     addTearDown(tester.view.reset);
     final state = await open(tester, onPlay: () {});
     expect(state.pose.yaw, closeTo(BoxPose.rest.yaw, 1e-9));
-    await tester.tap(find.text('Back'));
+    await tester.tap(find.text('Back cover'));
     await tester.pumpAndSettle();
     expect(_wrap(state.pose.yaw), closeTo(math.pi, 1e-6));
     expect(state.pose.perspective, lessThan(0.5), reason: 'the reading pose reduces the perspective');
     expect(find.bySemanticsLabel(RegExp('showing the back')), findsOneWidget);
-    await tester.tap(find.text('Front'));
+    await tester.tap(find.text('Front cover'));
     await tester.pumpAndSettle();
     expect(_wrap(state.pose.yaw), anyOf(closeTo(0, 1e-6), closeTo(2 * math.pi, 1e-6)));
     await tester.tap(find.text('Reset view'));
@@ -210,7 +210,7 @@ void main() {
     addTearDown(tester.view.reset);
     var plays = 0;
     final state = await open(tester, onPlay: () => plays++, reduceMotion: true);
-    await tester.tap(find.text('Back'));
+    await tester.tap(find.text('Back cover'));
     await tester.pump();
     expect(_wrap(state.pose.yaw), closeTo(math.pi, 1e-6), reason: 'poses change without animation');
     await tester.tap(find.text('Play'));

@@ -22,7 +22,7 @@ LOCALES = ['en', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh', 'zh
 ZH_SHARED = {
     'front', 'back', 'reset', 'original', 'textSize', 'faceFront', 'faceBack',
     'faceBottom', 'edition', 'translationNotNeeded', 'region.jp', 'region.sp',
-    'region.br', 'region.pt', 'region.ca', 'region.se', 'region.wor',
+    'region.br', 'region.pt', 'region.ca', 'region.se', 'region.wor', 'goBack',
 }
 
 PLACEHOLDER = re.compile(r'\{(\w+)\}')

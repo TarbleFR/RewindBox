@@ -5,6 +5,7 @@ import 'package:neo_box_reader/neo_box_reader.dart';
 
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/game_box_locale.dart';
+import 'package:neostation/screens/game_box/game_box_scan_viewer.dart';
 import 'package:neostation/services/game_box/box_text_layout.dart';
 import 'package:neostation/services/game_box/box_text_service.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
@@ -195,7 +196,7 @@ class _BoxBackReaderScreenState extends State<BoxBackReaderScreen> {
     final path = widget.scanPath;
     if (path == null) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => _ScanViewer(path: path, title: GameBoxLocale.text(context, GameBoxLocale.readerTitle)),
+      builder: (_) => GameBoxScanViewer(path: path, title: GameBoxLocale.text(context, GameBoxLocale.readerTitle)),
     ));
   }
 
@@ -467,30 +468,5 @@ class _BoxBackReaderScreenState extends State<BoxBackReaderScreen> {
         ],
       ),
     ];
-  }
-}
-
-/// The scan itself, zoomable, at up to 4096 px.
-class _ScanViewer extends StatelessWidget {
-  const _ScanViewer({required this.path, required this.title});
-  final String path;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(title: Text(title), backgroundColor: Colors.black, foregroundColor: Colors.white),
-      body: InteractiveViewer(
-        maxScale: 8,
-        child: Center(
-          child: Image(
-            image: ResizeImage(FileImage(File(path)), width: 4096, allowUpscaling: false),
-            filterQuality: FilterQuality.high,
-            gaplessPlayback: true,
-          ),
-        ),
-      ),
-    );
   }
 }

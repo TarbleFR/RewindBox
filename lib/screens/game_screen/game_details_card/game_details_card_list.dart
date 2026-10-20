@@ -96,6 +96,9 @@ class GameDetailsCardList extends StatefulWidget {
   final Function(VoidCallback)? onRegisterCloseOverlays;
 
   final VoidCallback? onPlayGame;
+
+  /// Opens the viewer of the game's 3D box (Box tab).
+  final VoidCallback? onInspectBox;
   final VoidCallback? onShowRandomGame;
   final VoidCallback? onGameUpdated;
   final VoidCallback? onFavoriteToggled;
@@ -150,6 +153,7 @@ class GameDetailsCardList extends StatefulWidget {
     this.onRegisterNavigation,
     this.onRegisterCloseOverlays,
     this.onPlayGame,
+    this.onInspectBox,
     this.onShowRandomGame,
     this.onGameUpdated,
     this.onFavoriteToggled,
@@ -665,6 +669,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
               game: _game,
               fileProvider: widget.fileProvider,
               imageVersion: _artworkImageVersion,
+              onInspectBox: widget.onInspectBox,
             ),
           Visibility(
             visible: _currentTab == DetailTab.screenshotVideo,

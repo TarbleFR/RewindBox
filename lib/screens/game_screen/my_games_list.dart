@@ -67,6 +67,7 @@ import '../../widgets/letter_indicator.dart';
 import '../../constants/system_folder_names.dart';
 import '../../utils/artwork_cache.dart';
 import '../../utils/game_list_update.dart';
+import '../../widgets/game_box/game_box_library.dart';
 
 import 'package:neostation/themes/chrome_surface.dart';
 
@@ -660,6 +661,65 @@ class _SystemGamesListState extends State<SystemGamesList> {
   }
 
   /// Selects a game via interaction (touch or click) and triggers resource resolution.
+  // 3D box of the list view (docs/game-box-3d.md § 3) ----------------------
+
+  bool get _isAllModeList =>
+      widget.system.folderName == 'all' ||
+      widget.system.folderName == SystemFolderNames.favorites;
+
+  /// Opens the box viewer of [game] (a tap on its thumbnail or on the box of
+  /// the details panel), selecting it first so that "Play" in the viewer
+  /// starts that game. The list keeps its selection and scroll position.
+  Future<void> _inspectBoxOf(GameModel game) async {
+    if (_isGameLaunching) return;
+    if (_selectedGame != game) await _selectGame(game);
+    if (!mounted) return;
+    SfxService().playEnterSound();
+    await GameBoxLibrary.inspect(
+      context,
+      game: game,
+      system: widget.system,
+      fileProvider: _fileProvider,
+      isAllMode: _isAllModeList,
+      onPlay: _selectCurrentGame,
+    );
+    if (mounted) setState(() {});
+  }
+
+  /// Right stick: examines the selected game's box.
+  void _inspectSelectedBox() {
+    final game = _selectedGame;
+    if (game == null || widget.system.folderName == 'music') return;
+    final folder = GameBoxLibrary.folderFor(game, widget.system, isAllMode: _isAllModeList);
+    if (GameBoxLibrary.mediaPath(game, folder, 'box2d', _fileProvider) == null) return;
+    _inspectBoxOf(game);
+  }
+
+  /// "Play" in the list view: the box opens first (unless its opening is
+  /// turned off or the game has no front scan), then the usual launch runs
+  /// with all its checks. Every other case goes straight to that launch.
+  Future<void> _playListGame() async {
+    final game = _selectedGame;
+    final blocked = _isPlayingGameBlocked != null && _isPlayingGameBlocked!();
+    if (game == null ||
+        _isGameLaunching ||
+        blocked ||
+        widget.system.folderName == 'music' ||
+        (_isRpcs3Library && !_rpcs3FirmwareReady)) {
+      await _selectCurrentGame();
+      return;
+    }
+    final handled = await GameBoxLibrary.playWithOpening(
+      context,
+      game: game,
+      system: widget.system,
+      fileProvider: _fileProvider,
+      isAllMode: _isAllModeList,
+      onPlay: _selectCurrentGame,
+    );
+    if (!handled && mounted) await _selectCurrentGame();
+  }
+
   Future<void> _selectGame(GameModel game) async {
     final index = _gameIndexMap[game] ?? _games.indexOf(game);
     if (index != -1) {
@@ -1672,12 +1732,15 @@ class _SystemGamesListState extends State<SystemGamesList> {
                   selectedIndex: _selectedGameIndex,
                   systemColor: widget.system.colorAsColor,
                   onGameSelected: _selectGame,
-                  onGameConfirmed: _selectCurrentGame,
+                  onGameConfirmed: _playListGame,
                   isAllMode:
                       widget.system.folderName == 'all' ||
                       widget.system.folderName == SystemFolderNames.favorites,
                   isNavigatingFast: _isNavigatingFast,
                   onGamepadReactivated: _reactivateGamepadNavigation,
+                  fileProvider: _fileProvider,
+                  onInspectBox: _inspectBoxOf,
+                  artworkVersion: _artworkVersion,
                 ),
         ),
       ],
@@ -1829,7 +1892,11 @@ class _SystemGamesListState extends State<SystemGamesList> {
       onRegisterIsPlayingGameBlocked: (isBlocked) {
         _isPlayingGameBlocked = isBlocked;
       },
-      onPlayGame: _selectCurrentGame,
+      onPlayGame: _playListGame,
+      onInspectBox: () {
+        final game = _selectedGame;
+        if (game != null) _inspectBoxOf(game);
+      },
       onShowRandomGame: _showRandomGameDialog,
       onBack: _goBack,
       onGameUpdated: _handleGameUpdated, // Refresh UI after metadata edits.

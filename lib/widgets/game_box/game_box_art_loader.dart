@@ -30,17 +30,17 @@ class GameBoxArtSet {
   static ImageProvider _fileProvider(String path, {int? width, int? height}) =>
       ResizeImage.resizeIfNeeded(width, height, FileImage(File(path)));
 
-  ImageProvider? _face(String? path, {required bool detailed}) {
+  ImageProvider? _face(String? path, {required bool detailed, int width = browseWidth}) {
     if (path == null) return null;
-    if (!detailed) return _fileProvider(path, width: browseWidth);
+    if (!detailed) return _fileProvider(path, width: width);
     final p = _fileProvider(path, width: detailWidth);
     _detailed.add(p);
     return p;
   }
 
-  ImageProvider? _spine(String? path, {required bool detailed, required bool landscape}) {
+  ImageProvider? _spine(String? path, {required bool detailed, required bool landscape, int? browseSize}) {
     if (path == null) return null;
-    final size = detailed ? spineDetailHeight : spineBrowseHeight;
+    final size = detailed ? spineDetailHeight : (browseSize ?? spineBrowseHeight);
     // A spine stored lying down is limited by its width instead.
     final p = landscape ? _fileProvider(path, width: size) : _fileProvider(path, height: size);
     if (detailed) _detailed.add(p);
@@ -48,7 +48,9 @@ class GameBoxArtSet {
   }
 
   /// The art of the box. [backPath] replaces the default back by a scan of
-  /// another edition (reading language).
+  /// another edition (reading language). [compactWidth] is the decode width
+  /// of the small boxes of the grid and list (the size their flat cover
+  /// already used): only the front and spine are decoded for them.
   GameBoxArt art({
     required bool detailed,
     String? backPath,
@@ -56,17 +58,25 @@ class GameBoxArtSet {
     Widget? frontFallback,
     String backUnavailable = '',
     bool gloss = true,
+    int? compactWidth,
+    ui.Image? bookletCover,
   }) {
-    final back = backPath ?? media.back;
+    final compact = compactWidth != null && !detailed;
+    final back = compact ? null : (backPath ?? media.back);
     final spineSize = media.spine == null ? null : GameBoxImageSize.of(media.spine!);
     final landscape = spineSize != null && spineSize.width > spineSize.height;
     final backSize = back == null ? null : GameBoxImageSize.of(back);
     return GameBoxArt(
       title: title,
-      front: _face(media.front, detailed: detailed),
+      front: _face(media.front, detailed: detailed, width: compact ? compactWidth : browseWidth),
       back: _face(back, detailed: detailed),
-      spine: _spine(media.spine, detailed: detailed, landscape: landscape),
-      support: media.support == null
+      spine: _spine(
+        media.spine,
+        detailed: detailed,
+        landscape: landscape,
+        browseSize: compact ? compactWidth : null,
+      ),
+      support: media.support == null || compact
           ? null
           : _fileProvider(media.support!, width: detailed ? 1400 : 700),
       spineLandscape: landscape,
@@ -74,7 +84,9 @@ class GameBoxArtSet {
       edgeColor: edgeColor,
       frontFallback: frontFallback,
       backUnavailable: backUnavailable,
-      gloss: gloss,
+      gloss: gloss && !compact,
+      bookletCover: bookletCover,
+      compact: compact,
     );
   }
 

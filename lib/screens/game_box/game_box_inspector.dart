@@ -4,16 +4,24 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 
+import 'package:flutter_localization/flutter_localization.dart';
+
+import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/game_box_locale.dart';
 import 'package:neostation/models/game_model.dart';
+import 'package:neostation/models/system_model.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/screens/game_box/box_back_reader_screen.dart';
+import 'package:neostation/screens/game_box/game_box_scan_viewer.dart';
+import 'package:neostation/screens/game_screen/game_manual_reader_screen.dart';
 import 'package:neostation/services/game_box/game_box_fetcher.dart';
+import 'package:neostation/services/game_box/game_box_manual.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/services/game_box/game_box_regions.dart';
 import 'package:neostation/services/game_launch_manager.dart';
+import 'package:neostation/services/game_manual_service.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/widgets/game_box/game_box_art_loader.dart';
@@ -46,11 +54,22 @@ class GameBoxSubject {
     this.systemId,
     this.appSystemId,
     this.frontFallback,
+    this.system,
+    this.isAllMode = false,
   });
 
   final GameModel game;
+
+  /// Media folder of the game (box faces and manual).
   final String systemFolder;
   final FileProvider fileProvider;
+
+  /// The library's system, to download a missing manual through the same
+  /// path as Game Settings › Manual (null: no download offered).
+  final SystemModel? system;
+
+  /// The library gathers several consoles (All, Favorites).
+  final bool isAllMode;
 
   /// NeoStation system id (box family).
   final String? systemId;
@@ -60,12 +79,15 @@ class GameBoxSubject {
   final Widget Function()? frontFallback;
 }
 
-/// Full-screen viewer of a game box (docs/game-box-3d.md § 3).
+/// Full-screen viewer of a game box (docs/game-box-3d.md § 3 and § 11).
 ///
 /// Gestures here only move the box: the library behind cannot change its
-/// selection while the viewer is open. "Play" opens the box, then hands the
-/// game to the library's normal launch, which keeps every check (file, BIOS,
-/// engine, JIT) and its dialogs.
+/// selection while the viewer is open. "Back" (top left, B) goes up one level:
+/// manual → open box → closed box → library. "Open the box" shows the inside
+/// without starting anything; the game's manual, when its PDF is on the
+/// device, lies there and opens in NeoStation's manual reader. "Play" opens
+/// the box, then hands the game to the library's normal launch, which keeps
+/// every check (file, BIOS, engine, JIT) and its dialogs.
 class GameBoxInspector extends StatefulWidget {
   const GameBoxInspector({
     super.key,
@@ -81,6 +103,12 @@ class GameBoxInspector extends StatefulWidget {
 
   /// Opened by "Play" in the library: no inspection, the box opens at once.
   final bool autoPlay;
+
+  /// The manual reader opened from the box: NeoStation's own PDF reader on
+  /// the same file as Game Settings › Manual. Replaced in tests only.
+  @visibleForTesting
+  static Widget Function(String manualPath, String gameTitle) manualReader =
+      (manualPath, gameTitle) => GameManualReaderScreen(manualPath: manualPath, gameTitle: gameTitle);
 
   /// Opens the viewer above the library.
   static Future<void> open(
@@ -105,6 +133,18 @@ class GameBoxInspector extends StatefulWidget {
 }
 
 enum GameBoxInspectorPhase { inspecting, opening, launching }
+
+/// The inside of the box while it is inspected (not while it opens to play).
+enum GameBoxInsideState {
+  closed,
+
+  /// Opening or closing for inspection.
+  moving,
+  open,
+
+  /// The manual is being taken out, read, or put back.
+  taking,
+}
 
 @visibleForTesting
 class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderStateMixin {
@@ -139,6 +179,21 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   bool _editionFailed = false;
   bool _fetching = false;
 
+  // Inside of the box (docs/game-box-3d.md § 11).
+  GameBoxInsideState _inside = GameBoxInsideState.closed;
+  GameBoxInsideState get inside => _inside;
+  BoxPose _poseBeforeOpen = BoxPose.rest;
+  double _openYaw = 0;
+  String? _manualPath;
+  String? get manualPath => _manualPath;
+  bool _manualChecked = false;
+  GameBoxManualPage? _manualPage;
+  bool _manualPageLoading = false;
+  bool _downloadingManual = false;
+  double _manualProgress = 0;
+  bool _readingManual = false;
+  final Set<AnimationController> _transient = {};
+
   // Gesture bookkeeping.
   BoxPose _gestureStart = BoxPose.rest;
   Offset _gestureFocal = Offset.zero;
@@ -159,18 +214,30 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _open = AnimationController(vsync: this, duration: const Duration(milliseconds: 1750));
     _loadMedia();
     _gamepadNav = GamepadNavigation(
-      onNavigateLeft: () => _turn(math.pi / 4),
-      onNavigateRight: () => _turn(-math.pi / 4),
-      onNavigateUp: () => _tilt(-0.3),
-      onNavigateDown: () => _tilt(0.3),
+      onNavigateLeft: () => _turn(_isOpen ? 0.2 : math.pi / 4),
+      onNavigateRight: () => _turn(_isOpen ? -0.2 : -math.pi / 4),
+      onNavigateUp: () => _tilt(_isOpen ? -0.15 : -0.3),
+      onNavigateDown: () => _tilt(_isOpen ? 0.15 : 0.3),
       onLeftBumper: () => _zoomBy(-0.5),
       onRightBumper: () => _zoomBy(0.5),
       onSelectItem: play,
-      onBack: _close,
-      onXButton: _read,
-      onFavorite: () => _goTo(_facingBack ? BoxPose.front : BoxPose.back),
+      onBack: back,
+      // X reads: the back of the closed box, the manual of the open one.
+      onXButton: () {
+        if (_inside == GameBoxInsideState.closed) {
+          _read();
+        } else if (_isOpen && _manualPath != null) {
+          takeManual();
+        } else if (_isOpen && _canDownloadManual) {
+          _downloadManual();
+        }
+      },
+      onFavorite: () {
+        if (_inside == GameBoxInsideState.closed) _goTo(_facingBack ? BoxPose.front : BoxPose.back);
+      },
       onSettings: _chooseLanguage,
-      onLeftStickClick: () => _goTo(BoxPose.rest),
+      onLeftStickClick: () => _isOpen ? _recenter() : _goTo(BoxPose.rest),
+      onRightStickClick: () => _isOpen ? closeBox() : openBox(),
       onSelectButton: _showOptions,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -186,6 +253,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       setState(() => _detailed = true);
       if (widget.autoPlay) play();
     });
+    _checkManual();
   }
 
   @override
@@ -201,6 +269,11 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _poseAnim.dispose();
     _spin.dispose();
     _open.dispose();
+    for (final c in _transient) {
+      c.dispose();
+    }
+    _transient.clear();
+    _manualPage?.dispose();
     _artSet.evictDetailed();
     if (_phase != GameBoxInspectorPhase.inspecting) GameBoxLaunchGate.leave();
     super.dispose();
@@ -306,11 +379,30 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _spin.stop();
   }
 
+  /// Gestures and buttons move the box only while it is still: closed, or
+  /// open and not taking its manual.
+  bool get _interactive =>
+      _phase == GameBoxInspectorPhase.inspecting &&
+      (_inside == GameBoxInsideState.closed || _inside == GameBoxInsideState.open);
+
+  bool get _isOpen => _phase == GameBoxInspectorPhase.inspecting && _inside == GameBoxInsideState.open;
+
+  /// An open box is looked into from the front: it turns and tilts a little,
+  /// never round to its back.
+  BoxPose _clampOpen(BoxPose p) {
+    if (_inside != GameBoxInsideState.open) return p;
+    return p.copyWith(
+      yaw: p.yaw.clamp(_openYaw - 0.5, _openYaw + 0.45).toDouble(),
+      pitch: p.pitch.clamp(-0.12, 0.9).toDouble(),
+      perspective: 1,
+    );
+  }
+
   void _goTo(BoxPose target) {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive) return;
     _stopMotion();
     // Keep the yaw on the same turn so "Front" never spins several times.
-    final aligned = target.copyWith(yaw: _pose.yaw + BoxPose.shortestAngle(_pose.yaw, target.yaw));
+    final aligned = _clampOpen(target.copyWith(yaw: _pose.yaw + BoxPose.shortestAngle(_pose.yaw, target.yaw)));
     if (_reduceMotion) {
       setState(() => _pose = aligned);
       return;
@@ -330,8 +422,12 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _goTo(_pose.copyWith(zoom: z, panX: z == 1 ? 0 : _pose.panX, panY: z == 1 ? 0 : _pose.panY));
   }
 
+  void _recenter() => _goTo(_pose.copyWith(zoom: 1, panX: 0, panY: 0));
+
+  bool get _zoomed => _pose.zoom > 1.05 || _pose.panX.abs() > 1 || _pose.panY.abs() > 1;
+
   void _onScaleStart(ScaleStartDetails d) {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive) return;
     _stopMotion();
     _gestureStart = _pose;
     _gestureFocal = d.focalPoint;
@@ -339,7 +435,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   }
 
   void _onScaleUpdate(ScaleUpdateDetails d) {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive) return;
     final delta = d.focalPoint - _gestureFocal;
     final width = math.max(200.0, _viewport.width);
     if (d.pointerCount >= 2 || !_rotating) {
@@ -357,15 +453,15 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     // One finger at zoom 1: turn the box (free yaw, bounded pitch). Dragging
     // right turns the front to the right, as on a turntable.
     final k = 3.4 / width;
-    setState(() => _pose = _pose.copyWith(
+    setState(() => _pose = _clampOpen(_pose.copyWith(
           yaw: _gestureStart.yaw - delta.dx * k,
           pitch: (_gestureStart.pitch + delta.dy * k).clamp(-BoxPose.maxPitch, BoxPose.maxPitch).toDouble(),
           perspective: 1,
-        ));
+        )));
   }
 
   void _onScaleEnd(ScaleEndDetails d) {
-    if (_phase != GameBoxInspectorPhase.inspecting || !_rotating || _reduceMotion) return;
+    if (!_interactive || _inside != GameBoxInsideState.closed || !_rotating || _reduceMotion) return;
     final width = math.max(200.0, _viewport.width);
     final v = -d.velocity.pixelsPerSecond.dx * 3.4 / width;
     if (v.abs() < 0.4) return;
@@ -374,19 +470,36 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   }
 
   void _onDoubleTap() {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive) return;
     _goTo(_pose.zoom > 1.05 ? _pose.copyWith(zoom: 1, panX: 0, panY: 0) : _pose.copyWith(zoom: 2.2));
+  }
+
+  /// A tap on the manual lying in the open box takes it.
+  void _onTapUp(TapUpDetails d) {
+    if (!_isOpen || _manualPath == null) return;
+    final projector = _projector(_viewport);
+    if (projector != null && projector.hitsBooklet(d.localPosition)) takeManual();
   }
 
   // Actions -----------------------------------------------------------------
 
-  void _close() {
+  /// One level up: an open box closes, a closed box returns to the library
+  /// (its view, selection and scroll position are kept underneath).
+  void back() {
     if (_phase != GameBoxInspectorPhase.inspecting) return;
-    Navigator.of(context).maybePop();
+    switch (_inside) {
+      case GameBoxInsideState.open:
+        closeBox();
+      case GameBoxInsideState.closed:
+        Navigator.of(context).maybePop();
+      case GameBoxInsideState.moving:
+      case GameBoxInsideState.taking:
+        return;
+    }
   }
 
   Future<void> _chooseLanguage() async {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive || _inside != GameBoxInsideState.closed) return;
     final scanLanguages = <String>{
       for (final e in _media.manifest?.backEditions() ?? const <GameBoxBackEdition>[]) ...e.languages,
     };
@@ -410,7 +523,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   }
 
   void _read() {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive || _inside != GameBoxInsideState.closed) return;
     final edition = _backEdition;
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => BoxBackReaderScreen(
@@ -471,8 +584,21 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     messenger?.showSnackBar(SnackBar(content: Text(GameBoxLocale.text(context, key))));
   }
 
+  /// The back scan alone, flat and full size, without the box's perspective.
+  void _openFlatBack() {
+    final path = _backPath;
+    if (!_interactive || path == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => GameBoxScanViewer(
+        path: path,
+        title: GameBoxLocale.text(context, GameBoxLocale.readerTitle),
+        preview: _artSet.art(detailed: _detailed, backPath: path).back,
+      ),
+    ));
+  }
+
   Future<void> _showOptions() async {
-    if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (!_interactive) return;
     var animation = await GameBoxPreferences.openingAnimation();
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -500,10 +626,278 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
                   _fetchFaces();
                 },
               ),
+            // The manual has its own download, the same as Game Settings ›
+            // Manual; it is never fetched with the box faces.
+            if (_canDownloadManual)
+              ListTile(
+                leading: const Icon(Icons.menu_book_outlined),
+                title: Text(GameBoxLocale.text(ctx, GameBoxLocale.downloadManual)),
+                subtitle: Text(GameBoxLocale.text(ctx, GameBoxLocale.downloadManualDesc)),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _downloadManual();
+                },
+              ),
           ]),
         );
       }),
     );
+  }
+
+  // Inside of the box and its manual --------------------------------------
+
+  /// The box model drawn now: the manual lies in it only when its PDF is on
+  /// the device (never an invented booklet).
+  GameBoxModel? get _model {
+    final profile = _profile;
+    if (profile == null) return null;
+    final booklet = _manualPath == null ? null : GameBoxBooklet(pageAspect: _manualPage?.aspect);
+    return GameBoxModel(profile, booklet: booklet);
+  }
+
+  BoxProjector? _projector(Size viewport) {
+    final model = _model;
+    if (model == null || viewport.isEmpty) return null;
+    return BoxProjector(
+      model: model,
+      viewport: viewport,
+      pose: _shownPose,
+      opening: _opening,
+      outlineBlend: _outline,
+    );
+  }
+
+  /// The back is read straight on, with a lower perspective.
+  BoxPose get _shownPose {
+    final reading = _facingBack &&
+        _pose.zoom <= 1.05 &&
+        _phase == GameBoxInspectorPhase.inspecting &&
+        _inside == GameBoxInsideState.closed;
+    return reading ? _pose.copyWith(perspective: math.min(_pose.perspective, 0.35)) : _pose;
+  }
+
+  /// Same file as Game Settings › Manual (GameModel.getManualPath through
+  /// the FileProvider); nothing is downloaded here.
+  Future<void> _checkManual() async {
+    final path = await GameManualService.existing(_game, widget.subject.systemFolder, widget.subject.fileProvider);
+    if (!mounted) return;
+    setState(() {
+      _manualPath = path;
+      _manualChecked = true;
+    });
+    if (path == null) {
+      _manualPage?.dispose();
+      _manualPage = null;
+    }
+  }
+
+  /// Draws the manual's first page once the box is opened.
+  Future<void> _ensureManualPage() async {
+    final path = _manualPath;
+    if (path == null || _manualPage != null || _manualPageLoading) return;
+    _manualPageLoading = true;
+    final page = await GameBoxManualCover.render(path);
+    _manualPageLoading = false;
+    if (!mounted || path != _manualPath) {
+      page?.dispose();
+      return;
+    }
+    setState(() => _manualPage = page);
+  }
+
+  bool get _canDownloadManual =>
+      _manualChecked &&
+      _manualPath == null &&
+      widget.subject.system != null &&
+      _game.romPath != null &&
+      !_downloadingManual;
+
+  /// How far the support and the manual stand out of an open box being
+  /// inspected: a cartridge and its manual peek out of a cardboard box; in a
+  /// plastic case the disc stays on its hub and the manual in the panel.
+  double get _inspectSupport => _profile?.caseKind == GameBoxCaseKind.cardboard ? 1 : 0;
+  double get _inspectBooklet => _profile?.caseKind == GameBoxCaseKind.cardboard ? 1 : 0;
+
+  /// Runs a short animation; skipped (end state at once) with Reduce Motion.
+  Future<void> _animate(Duration duration, void Function(double t) tick) async {
+    if (_reduceMotion) {
+      tick(1);
+      return;
+    }
+    final c = AnimationController(vsync: this, duration: duration);
+    _transient.add(c);
+    c.addListener(() {
+      if (mounted) tick(c.value);
+    });
+    try {
+      await c.forward().orCancel;
+    } on TickerCanceled {
+      return;
+    } finally {
+      if (_transient.remove(c)) c.dispose();
+    }
+  }
+
+  static double _seg(double t, double a, double b) => ((t - a) / (b - a)).clamp(0.0, 1.0).toDouble();
+
+  /// "Open the box": the inside, without starting the game.
+  Future<void> openBox() async {
+    final profile = _profile;
+    if (!_interactive || _inside != GameBoxInsideState.closed || profile == null || !profile.opens) return;
+    _stopMotion();
+    _poseBeforeOpen = _pose;
+    final start = _pose;
+    final target = _openingPose.copyWith(yaw: start.yaw + BoxPose.shortestAngle(start.yaw, _openingPose.yaw));
+    _openYaw = target.yaw;
+    final support = _inspectSupport, booklet = _inspectBooklet;
+    setState(() => _inside = GameBoxInsideState.moving);
+    _ensureManualPage();
+    await _animate(const Duration(milliseconds: 950), (t) {
+      setState(() {
+        _pose = BoxPose.lerp(start, target, Curves.easeInOutCubic.transform(_seg(t, 0, 0.3)));
+        _opening = BoxOpening(
+          lid: _seg(t, 0.15, 0.75),
+          support: support * Curves.easeOutCubic.transform(_seg(t, 0.6, 1)),
+          booklet: booklet * Curves.easeOutCubic.transform(_seg(t, 0.62, 1)),
+        );
+        _outline = Curves.easeInOut.transform(_seg(t, 0.1, 0.7));
+      });
+    });
+    if (!mounted || _phase != GameBoxInspectorPhase.inspecting) return;
+    setState(() {
+      _pose = target;
+      _opening = BoxOpening(lid: 1, support: support, booklet: booklet);
+      _outline = 1;
+      _inside = GameBoxInsideState.open;
+    });
+  }
+
+  /// Closes the inspected box and turns it back the way it was.
+  Future<void> closeBox() async {
+    if (!_isOpen) return;
+    _stopMotion();
+    final start = _pose;
+    final from = _opening;
+    final outline = _outline;
+    final target = _poseBeforeOpen.copyWith(
+      yaw: start.yaw + BoxPose.shortestAngle(start.yaw, _poseBeforeOpen.yaw),
+    );
+    setState(() => _inside = GameBoxInsideState.moving);
+    await _animate(const Duration(milliseconds: 720), (t) {
+      setState(() {
+        _opening = BoxOpening(
+          lid: from.lid * (1 - _seg(t, 0.2, 0.85)),
+          support: from.support * (1 - _seg(t, 0, 0.35)),
+          booklet: from.booklet * (1 - _seg(t, 0, 0.3)),
+        );
+        _outline = outline * (1 - _seg(t, 0.3, 1));
+        _pose = BoxPose.lerp(start, target, Curves.easeInOutCubic.transform(_seg(t, 0.45, 1)));
+      });
+    });
+    if (!mounted || _phase != GameBoxInspectorPhase.inspecting) return;
+    setState(() {
+      _pose = target;
+      _opening = BoxOpening.closed;
+      _outline = 0;
+      _inside = GameBoxInsideState.closed;
+    });
+  }
+
+  /// Takes the manual out of the open box toward the camera, opens it in the
+  /// manual reader, and puts it back once the reader closes: the same box,
+  /// still open, at the same angle.
+  Future<void> takeManual() async {
+    final path = _manualPath;
+    if (path == null || !_isOpen) return;
+    _stopMotion();
+    final rest = _opening;
+    setState(() => _inside = GameBoxInsideState.taking);
+    // Raised off its clips, then brought to the camera.
+    await _animate(const Duration(milliseconds: 160), (t) {
+      setState(() => _opening = rest.copyWith(booklet: rest.booklet + (1 - rest.booklet) * t));
+    });
+    if (!mounted) return;
+    final target = _reduceMotion ? null : _projector(_viewport)?.bookletTakeTarget();
+    if (target != null) {
+      await _animate(const Duration(milliseconds: 420), (t) {
+        setState(() => _opening = _opening.copyWith(take: Curves.easeInOutCubic.transform(t), takeTarget: target));
+      });
+      if (!mounted) return;
+    }
+    // While the manual is read the box is not drawn and its large images
+    // are released.
+    _artSet.evictDetailed();
+    setState(() {
+      _readingManual = true;
+      _detailed = false;
+    });
+    await Navigator.of(context).push(PageRouteBuilder<void>(
+      opaque: true,
+      transitionDuration: Duration(milliseconds: _reduceMotion ? 0 : 200),
+      reverseTransitionDuration: Duration(milliseconds: _reduceMotion ? 0 : 160),
+      pageBuilder: (_, _, _) => GameBoxInspector.manualReader(path, _game.name),
+      transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
+    ));
+    if (!mounted) return;
+    setState(() {
+      _readingManual = false;
+      _detailed = true;
+    });
+    final taken = _opening;
+    if (taken.take > 0) {
+      await _animate(const Duration(milliseconds: 380), (t) {
+        setState(() => _opening = taken.copyWith(take: taken.take * (1 - Curves.easeInOutCubic.transform(t))));
+      });
+      if (!mounted) return;
+    }
+    final raised = _opening.booklet;
+    await _animate(const Duration(milliseconds: 160), (t) {
+      setState(() => _opening = BoxOpening(lid: rest.lid, support: rest.support, booklet: raised + (rest.booklet - raised) * t));
+    });
+    if (!mounted) return;
+    setState(() {
+      _opening = rest;
+      _inside = GameBoxInsideState.open;
+    });
+  }
+
+  /// Downloads a missing manual with the same ScreenScraper path as Game
+  /// Settings › Manual (credentials, language, regions, quota). On success
+  /// it appears in the open box at once.
+  Future<void> _downloadManual() async {
+    final system = widget.subject.system;
+    if (!_canDownloadManual || system == null) return;
+    setState(() {
+      _downloadingManual = true;
+      _manualProgress = 0;
+    });
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    GameManualDownload result;
+    try {
+      final target = await GameManualService.targetSystem(_game, system, isAllMode: widget.subject.isAllMode);
+      result = await GameManualService.download(
+        game: _game,
+        targetSystem: target,
+        onProgress: (progress) {
+          if (mounted) setState(() => _manualProgress = progress);
+        },
+      );
+    } catch (_) {
+      result = const GameManualDownload(success: false, messageKey: AppLocale.manualDownloadFailed);
+    }
+    if (!mounted) return;
+    setState(() => _downloadingManual = false);
+    await _checkManual();
+    if (!mounted) return;
+    messenger?.showSnackBar(SnackBar(content: Text(result.messageKey.getString(context))));
+    if (_manualPath == null || !_isOpen) return;
+    _ensureManualPage();
+    final rest = _opening;
+    if (rest.booklet < _inspectBooklet) {
+      await _animate(const Duration(milliseconds: 320), (t) {
+        setState(() => _opening = rest.copyWith(booklet: rest.booklet + (_inspectBooklet - rest.booklet) * t));
+      });
+    }
   }
 
   // Opening and launch ------------------------------------------------------
@@ -517,6 +911,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   /// Opens the box, then starts the game through the library. Never twice.
   Future<void> play() async {
     if (_phase != GameBoxInspectorPhase.inspecting) return;
+    if (_inside == GameBoxInsideState.moving || _inside == GameBoxInsideState.taking) return;
     if (!GameBoxLaunchGate.tryEnter()) return;
     _stopMotion();
     setState(() => _phase = GameBoxInspectorPhase.opening);
@@ -557,9 +952,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   /// Reduce Motion: no rotation or movement; the opened box appears by a
   /// cross-fade, then the screen fades.
   Future<void> _reducedOpening() async {
+    final booklet = _opening.booklet;
     setState(() {
-      _pose = _openingPose;
-      _opening = const BoxOpening(lid: 1, support: 1);
+      _pose = _clampOpen(_openingPose.copyWith(yaw: _inside == GameBoxInsideState.open ? _pose.yaw : _openingPose.yaw));
+      _opening = BoxOpening(lid: 1, support: 1, booklet: booklet);
       _outline = 1;
     });
     await Future<void>.delayed(const Duration(milliseconds: 260));
@@ -569,22 +965,28 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
 
   Future<void> _animatedOpening() async {
     final start = _pose;
-    final target = _openingPose.copyWith(
-      yaw: start.yaw + BoxPose.shortestAngle(start.yaw, _openingPose.yaw),
-    );
+    // A box already open for inspection keeps its angle and only lets its
+    // support out.
+    final target = _inside == GameBoxInsideState.open
+        ? start
+        : _openingPose.copyWith(yaw: start.yaw + BoxPose.shortestAngle(start.yaw, _openingPose.yaw));
     final opens = _profile?.opens ?? false;
     final lifts = _profile != null && GameBoxModel(_profile!).supportLifts;
+    final from = _opening;
+    final outline0 = _outline;
     double seg(double t, double a, double b) => ((t - a) / (b - a)).clamp(0.0, 1.0).toDouble();
     void tick() {
       final t = _open.value;
       final align = Curves.easeInOutCubic.transform(seg(t, 0.0, 0.2));
-      final lid = opens ? seg(t, 0.16, 0.56) : 0.0;
-      final support = opens ? Curves.easeOutCubic.transform(seg(t, 0.56, lifts ? 0.8 : 0.66)) : 0.0;
+      final lid = opens ? from.lid + (1 - from.lid) * seg(t, 0.16, 0.56) : 0.0;
+      final support = opens
+          ? from.support + (1 - from.support) * Curves.easeOutCubic.transform(seg(t, 0.56, lifts ? 0.8 : 0.66))
+          : 0.0;
       final last = Curves.easeInCubic.transform(seg(t, 0.8, 1.0));
       setState(() {
         _pose = BoxPose.lerp(start, target, align);
-        _opening = BoxOpening(lid: lid, support: support);
-        _outline = opens ? Curves.easeInOut.transform(seg(t, 0.12, 0.6)) : 0;
+        _opening = BoxOpening(lid: lid, support: support, booklet: from.booklet);
+        _outline = opens ? outline0 + (1 - outline0) * Curves.easeInOut.transform(seg(t, 0.12, 0.6)) : 0;
         _finalZoom = 1 + 0.65 * last;
         _fade = last;
       });
@@ -607,6 +1009,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     });
     // Large decodes are released before the emulator starts.
     _artSet.evictDetailed();
+    _manualPage?.dispose();
+    _manualPage = null;
     final manager = GameLaunchManager();
     final started = Completer<bool>();
     void listener() {
@@ -641,6 +1045,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       }
       setState(() {
         _phase = GameBoxInspectorPhase.inspecting;
+        _inside = GameBoxInsideState.closed;
         _opening = BoxOpening.closed;
         _outline = 0;
         _finalZoom = 1;
@@ -658,14 +1063,19 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     final background = Color.lerp(theme.colorScheme.surface, Colors.black, 0.55)!;
     final controlsVisible = !widget.autoPlay && _phase == GameBoxInspectorPhase.inspecting;
     return PopScope(
-      canPop: _phase == GameBoxInspectorPhase.inspecting,
+      // The system back gesture goes up one level, like the Back button.
+      canPop: _phase == GameBoxInspectorPhase.inspecting && _inside == GameBoxInsideState.closed,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) back();
+      },
       child: Scaffold(
         backgroundColor: background,
         body: Stack(children: [
           SafeArea(
             child: LayoutBuilder(builder: (context, c) {
               final landscape = c.maxWidth > c.maxHeight * 1.1;
-              final box = _boxArea();
+              // Room for the Back button, so the box never sits under it.
+              final box = Padding(padding: const EdgeInsets.only(top: 52), child: _boxArea());
               final panel = AnimatedOpacity(
                 opacity: controlsVisible ? 1 : 0,
                 duration: const Duration(milliseconds: 160),
@@ -683,6 +1093,17 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
               ]);
             }),
           ),
+          if (controlsVisible)
+            Positioned(
+              left: 0,
+              top: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _backButton(theme),
+                ),
+              ),
+            ),
           if (_fade > 0)
             Positioned.fill(
               child: IgnorePointer(child: ColoredBox(color: Colors.black.withValues(alpha: _fade.clamp(0.0, 1.0)))),
@@ -692,28 +1113,50 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     );
   }
 
+  /// Always at the top left: back to the library, or out of the open box.
+  Widget _backButton(ThemeData theme) {
+    final open = _inside != GameBoxInsideState.closed;
+    return Semantics(
+      button: true,
+      label: GameBoxLocale.text(context, open ? GameBoxLocale.closeBox : GameBoxLocale.backToLibrary),
+      excludeSemantics: true,
+      child: FilledButton.tonalIcon(
+        key: const ValueKey('game_box_back'),
+        onPressed: _interactive ? back : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.82),
+          foregroundColor: theme.colorScheme.onSurface,
+        ),
+        icon: const Icon(Icons.arrow_back_rounded),
+        label: Text(GameBoxLocale.text(context, GameBoxLocale.goBack)),
+      ),
+    );
+  }
+
   Widget _boxArea() {
     final profile = _profile;
     return LayoutBuilder(builder: (context, c) {
       _viewport = c.biggest;
-      if (profile == null) return const Center(child: CircularProgressIndicator());
-      final model = GameBoxModel(profile);
-      final readingPose = _facingBack && _pose.zoom <= 1.05 && _phase == GameBoxInspectorPhase.inspecting;
+      // Nothing is drawn while the manual is read (the reader covers it).
+      if (_readingManual) return const SizedBox.expand();
+      final model = _model;
+      if (profile == null || model == null) return const Center(child: CircularProgressIndicator());
       final art = _artSet.art(
         detailed: _detailed,
         backPath: _backPath,
         edgeColor: _edge,
         frontFallback: widget.subject.frontFallback?.call(),
         backUnavailable: GameBoxLocale.text(context, GameBoxLocale.backUnavailable),
-        gloss: !_facingBack && _pose.zoom <= 1.1,
+        gloss: !_facingBack && _pose.zoom <= 1.1 && _inside == GameBoxInsideState.closed,
+        bookletCover: _manualPage?.image,
       );
       final scene = GameBoxScene(
         model: model,
         art: art,
-        pose: readingPose ? _pose.copyWith(perspective: math.min(_pose.perspective, 0.35)) : _pose,
+        pose: _shownPose,
         opening: _opening,
         outlineBlend: _outline,
-        groundShadow: true,
+        groundShadow: _inside == GameBoxInsideState.closed,
       );
       Widget zoomed = scene;
       if (_finalZoom > 1.001) {
@@ -730,20 +1173,53 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         );
       }
       final face = _faceName(context);
-      return Semantics(
-        label: GameBoxLocale.format(context, GameBoxLocale.semanticsBox, {'title': _game.name, 'face': face}),
-        hint: GameBoxLocale.text(context, GameBoxLocale.dragHint),
-        image: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onScaleStart: _onScaleStart,
-          onScaleUpdate: _onScaleUpdate,
-          onScaleEnd: _onScaleEnd,
-          onDoubleTap: _onDoubleTap,
-          child: ClipRect(child: zoomed),
+      final label = _inside == GameBoxInsideState.closed
+          ? GameBoxLocale.format(context, GameBoxLocale.semanticsBox, {'title': _game.name, 'face': face})
+          : GameBoxLocale.format(context, GameBoxLocale.semanticsOpenBox, {'title': _game.name});
+      return Stack(fit: StackFit.expand, children: [
+        Semantics(
+          label: label,
+          hint: GameBoxLocale.text(context, GameBoxLocale.dragHint),
+          image: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onScaleStart: _onScaleStart,
+            onScaleUpdate: _onScaleUpdate,
+            onScaleEnd: _onScaleEnd,
+            onDoubleTap: _onDoubleTap,
+            onTapUp: _onTapUp,
+            child: ClipRect(child: zoomed),
+          ),
         ),
-      );
+        if (_isOpen && _manualPath != null) ?_manualChip(c.biggest),
+      ]);
     });
+  }
+
+  /// A label under the manual lying in the open box: touching it (or the
+  /// manual itself, or X) takes it out to read it.
+  Widget? _manualChip(Size viewport) {
+    final quad = _projector(viewport)?.faceQuad('booklet.front');
+    if (quad == null) return null;
+    final cx = quad.map((q) => q.dx).reduce((a, b) => a + b) / quad.length;
+    // Under the manual lying in a case; above the one standing out of a
+    // cardboard box (its lower part is hidden by the box).
+    final double top = _profile?.caseKind == GameBoxCaseKind.cardboard
+        ? quad.map((q) => q.dy).reduce(math.min) - 44
+        : quad.map((q) => q.dy).reduce(math.max) + 6;
+    return Positioned(
+      left: (cx - 90).clamp(4.0, math.max(4.0, viewport.width - 184)).toDouble(),
+      top: top.clamp(4.0, math.max(4.0, viewport.height - 44)).toDouble(),
+      width: 180,
+      child: Center(
+        child: ActionChip(
+          key: const ValueKey('game_box_manual_chip'),
+          avatar: const Icon(Icons.menu_book_rounded, size: 18),
+          label: Text(GameBoxLocale.text(context, GameBoxLocale.readManual), overflow: TextOverflow.ellipsis),
+          onPressed: takeManual,
+        ),
+      ),
+    );
   }
 
   String _faceName(BuildContext context) {
@@ -764,13 +1240,13 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   Widget _panel(ThemeData theme, bool landscape) {
     final info = _infoLines(context);
     final language = _readingLanguage;
+    final closed = _inside == GameBoxInsideState.closed;
+    final open = _inside != GameBoxInsideState.closed;
+    final opens = _profile?.opens ?? false;
     final children = <Widget>[
       Row(children: [
-        IconButton(
-          tooltip: GameBoxLocale.text(context, GameBoxLocale.close),
-          onPressed: _close,
-          icon: const Icon(Icons.close),
-        ),
+        // Leaves room for the Back button above the box in portrait.
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             _game.name,
@@ -807,6 +1283,15 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         ),
       if (_fetching)
         const Padding(padding: EdgeInsets.fromLTRB(12, 6, 12, 2), child: LinearProgressIndicator()),
+      if (_downloadingManual)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(GameBoxLocale.text(context, GameBoxLocale.downloadingManual), style: theme.textTheme.bodySmall),
+            const SizedBox(height: 4),
+            LinearProgressIndicator(value: _manualProgress > 0 ? _manualProgress : null),
+          ]),
+        ),
       const SizedBox(height: 8),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -815,42 +1300,85 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
           runSpacing: 8,
           alignment: WrapAlignment.center,
           children: [
-            OutlinedButton.icon(
-              onPressed: () => _goTo(BoxPose.front),
-              icon: const Icon(Icons.flip_to_front),
-              label: Text(GameBoxLocale.text(context, GameBoxLocale.front)),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => _goTo(BoxPose.back),
-              icon: const Icon(Icons.flip_to_back),
-              label: Text(GameBoxLocale.text(context, GameBoxLocale.back)),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => _goTo(BoxPose.rest),
-              icon: const Icon(Icons.threed_rotation),
-              label: Text(GameBoxLocale.text(context, GameBoxLocale.reset)),
-            ),
-            Tooltip(
-              message: GameBoxLocale.text(context, GameBoxLocale.readingLanguage),
-              child: OutlinedButton.icon(
-                onPressed: _chooseLanguage,
-                icon: const Icon(Icons.translate),
-                label: Text(GameBoxLocale.languageName(context, language)),
-              ),
-            ),
-            if (widget.subject.appSystemId != null && _missingFaces)
+            if (closed) ...[
               OutlinedButton.icon(
-                onPressed: _fetching ? null : _fetchFaces,
-                icon: const Icon(Icons.download_outlined),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.fetchFaces)),
+                onPressed: () => _goTo(BoxPose.front),
+                icon: const Icon(Icons.flip_to_front),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.front)),
               ),
-            FilledButton.tonalIcon(
-              onPressed: _read,
-              icon: const Icon(Icons.menu_book_outlined),
-              label: Text(GameBoxLocale.text(context, GameBoxLocale.read)),
-            ),
+              OutlinedButton.icon(
+                onPressed: () => _goTo(BoxPose.back),
+                icon: const Icon(Icons.flip_to_back),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.back)),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _goTo(BoxPose.rest),
+                icon: const Icon(Icons.threed_rotation),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.reset)),
+              ),
+              if (_facingBack && _backPath != null)
+                OutlinedButton.icon(
+                  onPressed: _openFlatBack,
+                  icon: const Icon(Icons.crop_free),
+                  label: Text(GameBoxLocale.text(context, GameBoxLocale.flatView)),
+                ),
+              Tooltip(
+                message: GameBoxLocale.text(context, GameBoxLocale.readingLanguage),
+                child: OutlinedButton.icon(
+                  onPressed: _chooseLanguage,
+                  icon: const Icon(Icons.translate),
+                  label: Text(GameBoxLocale.languageName(context, language)),
+                ),
+              ),
+              if (widget.subject.appSystemId != null && _missingFaces)
+                OutlinedButton.icon(
+                  onPressed: _fetching ? null : _fetchFaces,
+                  icon: const Icon(Icons.download_outlined),
+                  label: Text(GameBoxLocale.text(context, GameBoxLocale.fetchFaces)),
+                ),
+              FilledButton.tonalIcon(
+                onPressed: _read,
+                icon: const Icon(Icons.chrome_reader_mode_outlined),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.read)),
+              ),
+              if (opens)
+                FilledButton.tonalIcon(
+                  key: const ValueKey('game_box_open'),
+                  onPressed: openBox,
+                  icon: const Icon(Icons.inventory_2_outlined),
+                  label: Text(GameBoxLocale.text(context, GameBoxLocale.openBox)),
+                ),
+            ],
+            if (open) ...[
+              OutlinedButton.icon(
+                key: const ValueKey('game_box_close'),
+                onPressed: _isOpen ? closeBox : null,
+                icon: const Icon(Icons.inventory_2),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.closeBox)),
+              ),
+              if (_manualPath != null)
+                FilledButton.tonalIcon(
+                  key: const ValueKey('game_box_read_manual'),
+                  onPressed: _isOpen ? takeManual : null,
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: Text(GameBoxLocale.text(context, GameBoxLocale.readManual)),
+                )
+              else if (_canDownloadManual)
+                OutlinedButton.icon(
+                  key: const ValueKey('game_box_download_manual'),
+                  onPressed: _isOpen ? _downloadManual : null,
+                  icon: const Icon(Icons.download_outlined),
+                  label: Text(GameBoxLocale.text(context, GameBoxLocale.downloadManual)),
+                ),
+            ],
+            if (_zoomed)
+              OutlinedButton.icon(
+                onPressed: _recenter,
+                icon: const Icon(Icons.center_focus_strong_outlined),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.recenter)),
+              ),
             FilledButton.icon(
-              onPressed: play,
+              onPressed: _inside == GameBoxInsideState.moving || _inside == GameBoxInsideState.taking ? null : play,
               icon: const Icon(Icons.play_arrow_rounded),
               label: Text(GameBoxLocale.text(context, GameBoxLocale.play)),
             ),
@@ -871,6 +1399,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       _media.manifest == null || _media.back == null || _media.spine == null || _media.support == null;
 
   List<String> _infoLines(BuildContext context) {
+    if (_inside != GameBoxInsideState.closed) return _insideLines(context);
     final out = <String>[];
     final region = _backRegion;
     final regions = _gameRegions;
@@ -922,6 +1451,22 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
           {'support': GameBoxLocale.text(context, kind)}));
     }
     if (_media.manifest != null) out.add(GameBoxLocale.text(context, GameBoxLocale.source));
+    return out;
+  }
+
+  /// What the open box shows, said plainly: the manual is the local PDF in
+  /// its own language (never presented as translated), the inside is neutral.
+  List<String> _insideLines(BuildContext context) {
+    final out = <String>[];
+    if (_manualPath != null) {
+      final pages = _manualPage?.pageCount;
+      out.add(pages == null
+          ? GameBoxLocale.text(context, GameBoxLocale.manualInBox)
+          : GameBoxLocale.format(context, GameBoxLocale.manualInBoxPages, {'pages': '$pages'}));
+    } else if (_manualChecked) {
+      out.add(GameBoxLocale.text(context, GameBoxLocale.manualNone));
+    }
+    out.add(GameBoxLocale.text(context, GameBoxLocale.insideNeutral));
     return out;
   }
 }

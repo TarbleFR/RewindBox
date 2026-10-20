@@ -938,12 +938,11 @@ class _GamesCarouselState extends State<GamesCarousel> {
     final hasBox = boxPath.isNotEmpty;
     final ratio = _boxAspectRatio(game) ?? 1.0;
 
+    // No glowing halo in the Box style: the centred box is set apart by its
+    // size and depth in the carousel (docs/game-box-3d.md § 3).
     if (!hasBox) {
       return Center(
-        child: _withRainbowSelection(
-          isSelected: isSelected,
-          borderRadius: BorderRadius.circular(8.r),
-          child: Stack(
+        child: Stack(
           children: [
             _buildBoxFallback(game, theme),
             if (game.isFavorite == true)
@@ -968,7 +967,6 @@ class _GamesCarouselState extends State<GamesCarousel> {
               _buildScrapeProgress(game),
           ],
         ),
-      ),
       );
     }
 
@@ -987,11 +985,7 @@ class _GamesCarouselState extends State<GamesCarousel> {
         }
 
         return Center(
-          child: _withRainbowSelection(
-            isSelected: isSelected,
-            borderRadius: BorderRadius.circular(8.r),
-            padding: EdgeInsets.all(5.r),
-            child: SizedBox(
+          child: SizedBox(
               width: cardW + 10.r,
               height: cardH + 10.r,
               child: Stack(
@@ -1057,7 +1051,6 @@ class _GamesCarouselState extends State<GamesCarousel> {
                 ],
               ),
             ),
-          ),
         );
       },
     );
@@ -1139,6 +1132,8 @@ class _GamesCarouselState extends State<GamesCarousel> {
         systemId: _boxSystemId(game),
         appSystemId: (_isAllMode ? game.systemId : null) ?? widget.system.id,
         frontFallback: () => _buildFallbackCard(game, theme),
+        system: widget.system,
+        isAllMode: _isAllMode,
       ),
     );
     if (!mounted) return;

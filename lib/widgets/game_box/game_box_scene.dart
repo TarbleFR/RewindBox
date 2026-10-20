@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -24,6 +25,8 @@ class GameBoxArt {
     this.frontFallback,
     this.backUnavailable = '',
     this.gloss = true,
+    this.bookletCover,
+    this.compact = false,
   });
 
   final String title;
@@ -56,12 +59,19 @@ class GameBoxArt {
   /// off while the back is read or zoomed, so that it never covers print.
   final bool gloss;
 
+  /// First page of the game's PDF manual, drawn on the booklet in the box.
+  final ui.Image? bookletCover;
+
+  /// Small boxes of the grid and list: the corner facets, sleeve reflection
+  /// and clear-plastic rims are left out (they are below a pixel there).
+  final bool compact;
+
   /// Fraction of a jewel back inlay taken by each folding spine.
   static const jewelSpineFraction = 6.5 / 151;
 
   bool get backHasJewelSpines => (backAspect ?? 0) >= 1.22;
 
-  GameBoxArt copyWith({bool? gloss}) => GameBoxArt(
+  GameBoxArt copyWith({bool? gloss, ui.Image? bookletCover}) => GameBoxArt(
         title: title,
         front: front,
         back: back,
@@ -73,6 +83,8 @@ class GameBoxArt {
         frontFallback: frontFallback,
         backUnavailable: backUnavailable,
         gloss: gloss ?? this.gloss,
+        bookletCover: bookletCover ?? this.bookletCover,
+        compact: compact,
       );
 }
 
@@ -228,6 +240,14 @@ class GameBoxScene extends StatelessWidget {
         );
       case BoxSurface.supportFront:
         return _supportFront();
+      case BoxSurface.bookletCover:
+        return GameBoxBookletCover(title: art.title, page: art.bookletCover);
+      case BoxSurface.bookletBack:
+        return const CustomPaint(painter: GameBoxBookletPaperPainter());
+      case BoxSurface.bookletPages:
+        return const CustomPaint(painter: GameBoxBookletPaperPainter(pages: true));
+      case BoxSurface.bookletSpine:
+        return const CustomPaint(painter: GameBoxBookletPaperPainter(spine: true));
       case BoxSurface.supportBack:
       case BoxSurface.supportEdge:
         if (_profile.disc != null) {
@@ -261,7 +281,7 @@ class GameBoxScene extends StatelessWidget {
     return Stack(fit: StackFit.expand, children: [
       ColoredBox(color: _profile.caseColor),
       Padding(padding: EdgeInsets.all(rim), child: picture),
-      if (art.gloss) const _SleeveGloss(),
+      if (art.gloss && !art.compact) const _SleeveGloss(),
     ]);
   }
 
@@ -287,8 +307,8 @@ class GameBoxScene extends StatelessWidget {
         width: hinge,
         child: const CustomPaint(painter: GameBoxJewelHingePainter()),
       ),
-      if (art.gloss) const _SleeveGloss(strength: 1.25),
-      const _ClearRim(),
+      if (art.gloss && !art.compact) const _SleeveGloss(strength: 1.25),
+      if (!art.compact) const _ClearRim(),
     ]);
   }
 
@@ -313,7 +333,7 @@ class GameBoxScene extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 2 * mm, vertical: 3.5 * mm),
           child: _crop(back, Rect.fromLTRB(strip, 0, 1 - strip, 1)),
         ),
-        const _ClearRim(),
+        if (!art.compact) const _ClearRim(),
       ]);
     }
     if (_cardboard) return _image(back, BoxFit.fill);
@@ -372,7 +392,7 @@ class GameBoxScene extends StatelessWidget {
         child: strip,
       ),
       if (hinge) const CustomPaint(painter: GameBoxJewelKnucklePainter()),
-      const _ClearRim(),
+      if (!art.compact) const _ClearRim(),
     ]);
   }
 
@@ -396,7 +416,7 @@ class GameBoxScene extends StatelessWidget {
 
   Widget _clearEdge(double mm) => Stack(fit: StackFit.expand, children: [
         ColoredBox(color: Color.lerp(_tray, const Color(0xFF8A8F96), 0.22)!),
-        const _ClearRim(),
+        if (!art.compact) const _ClearRim(),
       ]);
 
   // Support -------------------------------------------------------------------

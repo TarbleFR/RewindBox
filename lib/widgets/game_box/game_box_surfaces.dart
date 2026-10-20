@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -678,6 +679,132 @@ class _MediaPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MediaPainter old) => old.kind != kind;
+}
+
+/// The cover of the game's manual.
+///
+/// It is the first page of the local PDF, drawn once the box is opened. Until
+/// then (or when the page cannot be drawn) the booklet is plain paper with
+/// the known title: a stand-in for the real document that exists on the
+/// device, never an invented cover.
+class GameBoxBookletCover extends StatelessWidget {
+  const GameBoxBookletCover({super.key, required this.title, this.page});
+
+  final String title;
+
+  /// First page of the PDF, owned by the caller ([RawImage] keeps a clone).
+  final ui.Image? page;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = page;
+    if (image != null) {
+      return Stack(fit: StackFit.expand, children: [
+        const ColoredBox(color: Color(0xFFF3F0E8)),
+        RawImage(image: image, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
+        const CustomPaint(painter: _BookletSheenPainter()),
+      ]);
+    }
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: Color(0xFFF1EEE6)),
+      child: LayoutBuilder(builder: (context, c) {
+        final size = (c.maxWidth * 0.085).clamp(5.0, 16.0);
+        return Padding(
+          padding: EdgeInsets.all(c.maxWidth * 0.1),
+          child: Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.menu_book_outlined, size: size * 2.4, color: const Color(0x66302C26)),
+              SizedBox(height: size * 0.6),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: size, color: const Color(0xB3302C26), fontWeight: FontWeight.w600),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+/// Faint light across a printed cover, so the paper reads as paper.
+class _BookletSheenPainter extends CustomPainter {
+  const _BookletSheenPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x00FFFFFF), Color(0x0A000000)],
+          stops: [0.0, 0.5, 1.0],
+        ).createShader(rect),
+    );
+    // The fold of the stapled spine.
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, math.max(1.0, size.width * 0.018), size.height),
+      Paint()..color = const Color(0x22000000),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BookletSheenPainter old) => false;
+}
+
+/// Edges and back of the manual: stacked pages, or the stapled spine.
+class GameBoxBookletPaperPainter extends CustomPainter {
+  const GameBoxBookletPaperPainter({this.spine = false, this.pages = false});
+
+  /// The folded spine with its two staples.
+  final bool spine;
+
+  /// The edges of the stacked pages.
+  final bool pages;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(rect, Paint()..color = spine ? const Color(0xFFE4DFD3) : const Color(0xFFF0ECE3));
+    if (pages) {
+      final line = Paint()
+        ..color = const Color(0x22000000)
+        ..strokeWidth = 0.5;
+      final horizontal = size.width >= size.height;
+      final across = horizontal ? size.height : size.width;
+      final n = (across / 1.4).floor().clamp(1, 8);
+      for (var i = 1; i < n; i++) {
+        final t = across * i / n;
+        if (horizontal) {
+          canvas.drawLine(Offset(0, t), Offset(size.width, t), line);
+        } else {
+          canvas.drawLine(Offset(t, 0), Offset(t, size.height), line);
+        }
+      }
+    }
+    if (spine && size.height > size.width * 4) {
+      final staple = Paint()..color = const Color(0xFF9EA2A8);
+      final w = math.max(0.8, size.width * 0.4);
+      for (final y in [size.height * 0.24, size.height * 0.76]) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: Offset(size.width / 2, y), width: w, height: size.height * 0.08),
+            Radius.circular(w / 2),
+          ),
+          staple,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(GameBoxBookletPaperPainter old) => old.spine != spine || old.pages != pages;
 }
 
 Color _onColor(Color c) =>

@@ -1,17 +1,14 @@
 name: 3D game box (Jaquette view, back reader)
+# A push starts it only when the reader plugin or its runner changes: the
+# Dart side of the boxes is run by the targeted checks of each build that
+# changes it (build493-checks.yml for Build 493), and the macOS Vision and
+# Translation checks are not repeated while their inputs are unchanged.
 on:
   push:
     branches: [Claude]
     paths:
-      - lib/services/game_box/**
-      - lib/widgets/game_box/**
-      - lib/screens/game_box/**
-      - lib/l10n/game_box_locale.dart
-      - lib/screens/game_screen/my_games_carousel.dart
       - packages/neo_box_reader/**
-      - tools/game_box/**
-      - test/game_box_*
-      - .github/workflows/game-box-checks.yml
+      - test/game_box_targeted_test.py
   workflow_dispatch:
     inputs:
       parts:

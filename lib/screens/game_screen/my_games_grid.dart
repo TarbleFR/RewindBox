@@ -28,6 +28,10 @@ import 'package:neostation/models/retro_achievements_game_info.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:neostation/services/retro_achievements_helper.dart';
 import 'package:neostation/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart';
+import 'package:neostation/l10n/game_box_locale.dart';
+import 'package:neostation/services/game_box/game_box_media.dart';
+import 'package:neostation/widgets/game_box/game_box_card.dart';
+import 'package:neostation/widgets/game_box/game_box_library.dart';
 
 class GamesGrid extends StatefulWidget {
   final SystemModel system;
@@ -47,6 +51,8 @@ class GamesGrid extends StatefulWidget {
 
   /// Clears path-derived caches after artwork is added or overwritten.
   static void evictArtworkCaches(Iterable<String> paths) {
+    // The 3D boxes resolve their scans through the same shared cache.
+    GameBoxLibrary.evictAll();
     if (paths.isEmpty) {
       _GamesGridState._imageSizeCache.clear();
       _GameCardImageState._existsCache.clear();
@@ -55,6 +61,7 @@ class GamesGrid extends StatefulWidget {
     for (final path in paths) {
       _GamesGridState._imageSizeCache.remove(path);
       _GameCardImageState._existsCache.remove(path);
+      GameBoxImageSize.evict(path);
     }
   }
 
@@ -131,6 +138,10 @@ class _GamesGridState extends State<GamesGrid> {
   int _layoutGen = 0;
   final Map<int, Widget> _rowCache = {};
   String? _rowCacheSig;
+
+  // 3D boxes of the Box card style (docs/game-box-3d.md § 3): a box family
+  // profile that finishes loading rotates the row signature once.
+  int _boxProfileGen = 0;
 
   // Selection cursor. The border is a scroll-compensated overlay positioned from
   // the layout model (_cardRects[selectedIndex]) minus the live scroll offset,
@@ -678,7 +689,7 @@ class _GamesGridState extends State<GamesGrid> {
       onNavigateDown: _navigateDown,
       onNavigateLeft: _navigateLeft,
       onNavigateRight: _navigateRight,
-      onSelectItem: widget.onPlay,
+      onSelectItem: _play,
       onBack: widget.onBack,
       onFavorite: widget.onFavorite,
       onXButton: () {
@@ -687,6 +698,8 @@ class _GamesGridState extends State<GamesGrid> {
         } catch (_) {}
       },
       onLeftStickClick: widget.onRandom,
+      // Box style: the right stick examines the selected box.
+      onRightStickClick: _inspectSelected,
       onSelectButton: _toggleVideoMute, // Select tap - Mute preview video.
       onSelectModifierA: widget.onScrape, // Select + A - Scrape.
       onSelectModifierB: _toggleLegend, // Select + B - Hide/show legend.
@@ -1085,7 +1098,7 @@ class _GamesGridState extends State<GamesGrid> {
                     // change (reflow bumps _layoutGen, width change moves
                     // targetWidth, theme flips) rotates the signature and rebuilds.
                     final rowSig =
-                        '$_layoutGen|$targetWidth|${theme.brightness.index}';
+                        '$_layoutGen|$targetWidth|${theme.brightness.index}|$_boxProfileGen';
                     if (rowSig != _rowCacheSig) {
                       _rowCacheSig = rowSig;
                       _rowCache.clear();
@@ -1121,7 +1134,17 @@ class _GamesGridState extends State<GamesGrid> {
                           targetWidth,
                           theme,
                         );
-                        if (idx == _selectedIndex) {
+                        if (!_isFanart) {
+                          // Box style: no glowing halo around the boxes;
+                          // the selected one stands a little larger.
+                          cell = AnimatedScale(
+                            key: ValueKey('grid-box-${widget.games[idx].romname}'),
+                            scale: idx == _selectedIndex ? 1.07 : 1.0,
+                            duration: const Duration(milliseconds: 140),
+                            curve: Curves.easeOut,
+                            child: cell,
+                          );
+                        } else if (idx == _selectedIndex) {
                           cell = Stack(
                             children: [
                               cell,
@@ -1299,7 +1322,7 @@ class _GamesGridState extends State<GamesGrid> {
     _chromeFooter = GameViewFooter(
       game: settledGame,
       showTitle: false,
-      onPlay: widget.onPlay,
+      onPlay: _play,
       hasRetroAchievements: hasRa,
       isLoadingAchievements: _isLoadingAchievements,
       currentGameInfo: _currentGameInfo,
@@ -1346,15 +1369,21 @@ class _GamesGridState extends State<GamesGrid> {
     }
 
     final box2dPath = game.getImagePath(_folderForGame(game), 'box2d', fp);
+    final boxFront = _boxFront(game);
 
     return GestureDetector(
       key: ValueKey('game_${game.romname}'),
       onTap: () {
         // Second tap on the already-selected card plays it — touch users have
-        // no A button, so the footer's Play is an affordance, not a step.
+        // no A button, so the footer's Play is an affordance, not a step. A
+        // 3D box opens its viewer instead; "Play" there opens it.
         if (index == _selectedIndex) {
           SfxService().playEnterSound();
-          widget.onPlay();
+          if (boxFront != null) {
+            _inspect(game);
+          } else {
+            widget.onPlay();
+          }
           return;
         }
 
@@ -1370,25 +1399,69 @@ class _GamesGridState extends State<GamesGrid> {
       child: RepaintBoundary(
         child: Stack(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 2.r,
-                    offset: Offset(2.r, 2.r),
+            if (boxFront != null)
+              // The box of the game's console family, its real front scan
+              // decoded at the size the flat cover used.
+              Positioned.fill(
+                child: GameBoxCard(
+                  key: ValueKey('box3d_${game.romname}_${widget.artworkVersion}'),
+                  frontPath: boxFront,
+                  title: game.name,
+                  systemId: _boxSystemId(game),
+                  spinePath: GameBoxLibrary.mediaPath(
+                    game,
+                    _folderForGame(game),
+                    GameBoxMediaFolders.spine,
+                    fp,
+                    artworkVersion: widget.artworkVersion,
                   ),
-                ],
+                  decodeWidth: targetWidth,
+                  fitPadding: 0.96,
+                ),
+              )
+            else
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 2.r,
+                      offset: Offset(2.r, 2.r),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _GameCardImage(
+                  key: ValueKey('img_${game.romname}_${widget.artworkVersion}'),
+                  box2dPath: box2dPath,
+                  game: game,
+                  targetWidth: targetWidth,
+                ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: _GameCardImage(
-                key: ValueKey('img_${game.romname}_${widget.artworkVersion}'),
-                box2dPath: box2dPath,
-                game: game,
-                targetWidth: targetWidth,
+            if (boxFront != null && index == _selectedIndex)
+              Positioned(
+                left: 4.r,
+                bottom: 4.r,
+                child: Tooltip(
+                  message: GameBoxLocale.text(context, GameBoxLocale.inspectHint),
+                  child: Semantics(
+                    button: true,
+                    label: GameBoxLocale.text(context, GameBoxLocale.inspect),
+                    child: GestureDetector(
+                      onTap: () => _inspect(game),
+                      child: Container(
+                        padding: EdgeInsets.all(4.r),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Symbols.threed_rotation_rounded, size: 13.r, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
             if (game.isFavorite == true)
               Positioned(
                 top: 6.r,
@@ -1418,6 +1491,72 @@ class _GamesGridState extends State<GamesGrid> {
         ),
       ),
     );
+  }
+
+  // 3D box ------------------------------------------------------------------
+
+  String? _boxSystemId(GameModel game) {
+    final id = GameBoxLibrary.systemIdFor(game, widget.system, isAllMode: _isAllMode);
+    GameBoxLibrary.ensureProfile(id, () {
+      if (mounted) setState(() => _boxProfileGen++);
+    });
+    return id;
+  }
+
+  /// Front scan of [game] when the Box style draws it as a 3D box.
+  String? _boxFront(GameModel game) {
+    if (_isFanart) return null;
+    return GameBoxLibrary.mediaPath(
+      game,
+      _folderForGame(game),
+      GameBoxMediaKind.front.folder,
+      widget.fileProvider,
+      artworkVersion: widget.artworkVersion,
+    );
+  }
+
+  Future<void> _inspect(GameModel game) async {
+    await GameBoxLibrary.inspect(
+      context,
+      game: game,
+      system: widget.system,
+      fileProvider: widget.fileProvider,
+      isAllMode: _isAllMode,
+      onPlay: widget.onPlay,
+      frontFallback: () => _Placeholder(game: game),
+    );
+    if (!mounted) return;
+    // Faces fetched in the viewer are drawn without reloading the library.
+    setState(() => _rowCache.clear());
+  }
+
+  void _inspectSelected() {
+    if (_selectedIndex < 0 || _selectedIndex >= widget.games.length) return;
+    final game = widget.games[_selectedIndex];
+    if (_boxFront(game) == null) return;
+    SfxService().playEnterSound();
+    _inspect(game);
+  }
+
+  /// "Play": in the Box style the box opens first (unless its opening is
+  /// turned off), then the library's usual launch runs.
+  Future<void> _play() async {
+    if (_selectedIndex < 0 || _selectedIndex >= widget.games.length) return;
+    final game = widget.games[_selectedIndex];
+    if (_boxFront(game) == null) {
+      widget.onPlay();
+      return;
+    }
+    final handled = await GameBoxLibrary.playWithOpening(
+      context,
+      game: game,
+      system: widget.system,
+      fileProvider: widget.fileProvider,
+      isAllMode: _isAllMode,
+      onPlay: widget.onPlay,
+      frontFallback: () => _Placeholder(game: game),
+    );
+    if (!handled && mounted) widget.onPlay();
   }
 
   Widget _buildScrapeProgress(GameModel game) {

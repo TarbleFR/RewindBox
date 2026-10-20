@@ -62,6 +62,8 @@ class BoxM3 {
         m[6] * v.x + m[7] * v.y + m[8] * v.z,
       );
 
+  BoxM3 get transposed => BoxM3([m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]]);
+
   BoxM3 operator *(BoxM3 o) {
     final r = List<double>.filled(9, 0);
     for (var i = 0; i < 3; i++) {
@@ -74,6 +76,92 @@ class BoxM3 {
       }
     }
     return BoxM3(r);
+  }
+}
+
+/// A unit quaternion, used to turn a part smoothly from one orientation to
+/// another (the manual taken out of its box).
+class BoxQuat {
+  const BoxQuat(this.w, this.x, this.y, this.z);
+  final double w;
+  final double x;
+  final double y;
+  final double z;
+
+  static BoxQuat fromMatrix(BoxM3 r) {
+    final m = r.m;
+    final trace = m[0] + m[4] + m[8];
+    double w, x, y, z;
+    if (trace > 0) {
+      final s = 0.5 / math.sqrt(trace + 1);
+      w = 0.25 / s;
+      x = (m[7] - m[5]) * s;
+      y = (m[2] - m[6]) * s;
+      z = (m[3] - m[1]) * s;
+    } else if (m[0] > m[4] && m[0] > m[8]) {
+      final s = 2 * math.sqrt(1 + m[0] - m[4] - m[8]);
+      w = (m[7] - m[5]) / s;
+      x = 0.25 * s;
+      y = (m[1] + m[3]) / s;
+      z = (m[2] + m[6]) / s;
+    } else if (m[4] > m[8]) {
+      final s = 2 * math.sqrt(1 + m[4] - m[0] - m[8]);
+      w = (m[2] - m[6]) / s;
+      x = (m[1] + m[3]) / s;
+      y = 0.25 * s;
+      z = (m[5] + m[7]) / s;
+    } else {
+      final s = 2 * math.sqrt(1 + m[8] - m[0] - m[4]);
+      w = (m[3] - m[1]) / s;
+      x = (m[2] + m[6]) / s;
+      y = (m[5] + m[7]) / s;
+      z = 0.25 * s;
+    }
+    return BoxQuat(w, x, y, z).normalized;
+  }
+
+  BoxQuat get normalized {
+    final l = math.sqrt(w * w + x * x + y * y + z * z);
+    return l == 0 ? const BoxQuat(1, 0, 0, 0) : BoxQuat(w / l, x / l, y / l, z / l);
+  }
+
+  BoxM3 get matrix {
+    final q = normalized;
+    final w = q.w, x = q.x, y = q.y, z = q.z;
+    return BoxM3([
+      1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w),
+      2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w),
+      2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y),
+    ]);
+  }
+
+  /// Shortest-path interpolation.
+  static BoxQuat slerp(BoxQuat a, BoxQuat b, double t) {
+    var bw = b.w, bx = b.x, by = b.y, bz = b.z;
+    var cos = a.w * bw + a.x * bx + a.y * by + a.z * bz;
+    if (cos < 0) {
+      cos = -cos;
+      bw = -bw;
+      bx = -bx;
+      by = -by;
+      bz = -bz;
+    }
+    double ka, kb;
+    if (cos > 0.9995) {
+      ka = 1 - t;
+      kb = t;
+    } else {
+      final angle = math.acos(cos.clamp(-1.0, 1.0));
+      final sin = math.sin(angle);
+      ka = math.sin((1 - t) * angle) / sin;
+      kb = math.sin(t * angle) / sin;
+    }
+    return BoxQuat(
+      a.w * ka + bw * kb,
+      a.x * ka + bx * kb,
+      a.y * ka + by * kb,
+      a.z * ka + bz * kb,
+    ).normalized;
   }
 }
 
@@ -99,6 +187,13 @@ class BoxRigid {
       BoxRigid(rotation, pivot - rotation.apply(pivot));
 
   static BoxRigid translate(BoxV3 t) => BoxRigid(BoxM3.identity, t);
+
+  /// Moves from [a] to [b]: the origin along a straight line, the
+  /// orientation by the shortest turn.
+  static BoxRigid lerp(BoxRigid a, BoxRigid b, double t) {
+    final q = BoxQuat.slerp(BoxQuat.fromMatrix(a.rotation), BoxQuat.fromMatrix(b.rotation), t);
+    return BoxRigid(q.matrix, a.translation + (b.translation - a.translation) * t);
+  }
 }
 
 /// What a face shows. The widget layer turns it into an image region or a
@@ -118,6 +213,13 @@ enum BoxSurface {
   supportFront,
   supportBack,
   supportEdge,
+
+  /// The game's manual, a thin booklet: its cover (first page of the PDF
+  /// when it could be drawn), back, page edges and stapled spine.
+  bookletCover,
+  bookletBack,
+  bookletPages,
+  bookletSpine,
 }
 
 /// A flat rectangle of the model, in millimetres.
@@ -164,11 +266,24 @@ class BoxPart {
     this.transform = BoxRigid.identity,
     this.layer = 0,
     this.cull = true,
+    this.framed = true,
+    this.frameTransform,
   });
 
   final String id;
   final List<BoxFace> faces;
   final BoxRigid transform;
+
+  /// Whether the framing of an open box follows this part. The manual is
+  /// left out: it lies inside the box, and when it is taken toward the
+  /// camera the box must not move away from it.
+  final bool framed;
+
+  /// Transform used for the framing instead of [transform]: the manual is
+  /// framed where it lies, so that taking it never moves the box.
+  final BoxRigid? frameTransform;
+
+  BoxRigid get framingTransform => frameTransform ?? transform;
 
   /// Parts are painted in layer order; faces of one part are depth sorted.
   final int layer;
@@ -260,18 +375,62 @@ class BoxPose {
 
 /// How far the box is open (0 = closed) and how far its support has come out.
 class BoxOpening {
-  const BoxOpening({this.lid = 0, this.support = 0});
+  const BoxOpening({
+    this.lid = 0,
+    this.support = 0,
+    this.booklet = 0,
+    this.take = 0,
+    this.takeTarget,
+  });
   final double lid;
   final double support;
+
+  /// The manual raised from where it lies: off the clips of the lid, or
+  /// standing up out of a cardboard box (0 = in place, 1 = raised).
+  final double booklet;
+
+  /// The manual on its way to the camera (0 = in the box, 1 = at
+  /// [takeTarget], facing the viewer).
+  final double take;
+
+  /// Where the manual ends when it is taken, in box coordinates (see
+  /// [BoxProjector.bookletTakeTarget]).
+  final BoxRigid? takeTarget;
+
   static const closed = BoxOpening();
   bool get isClosed => lid <= 0 && support <= 0;
+
+  BoxOpening copyWith({double? lid, double? support, double? booklet, double? take, BoxRigid? takeTarget}) =>
+      BoxOpening(
+        lid: lid ?? this.lid,
+        support: support ?? this.support,
+        booklet: booklet ?? this.booklet,
+        take: take ?? this.take,
+        takeTarget: takeTarget ?? this.takeTarget,
+      );
+}
+
+/// The game's manual inside the open box. It exists only when a PDF manual
+/// is present locally (docs/game-box-3d.md § 11): the box never shows a
+/// booklet for a game without one.
+class GameBoxBooklet {
+  const GameBoxBooklet({this.pageAspect});
+
+  /// Width / height of the first page of the PDF, once it has been read.
+  final double? pageAspect;
 }
 
 /// The model of one retail box: body, opening panel and support.
 class GameBoxModel {
-  GameBoxModel(this.profile);
+  GameBoxModel(this.profile, {this.booklet, this.cornerSegments = 3});
 
   final GameBoxProfile profile;
+
+  /// Facets of each rounded corner; small boxes of the grid and list use one.
+  final int cornerSegments;
+
+  /// The manual lying in the box, when the game has one.
+  final GameBoxBooklet? booklet;
 
   double get width => profile.width;
   double get height => profile.height;
@@ -403,6 +562,7 @@ class GameBoxModel {
   List<BoxFace> _closedFaces(BoxV3 min, BoxV3 max) => cuboid(
         'body', min, max,
         radius: profile.cornerRadius,
+        segments: cornerSegments,
         // A jewel case shows the second spine of its back inlay on the
         // opening side.
         right: _jewel ? BoxSurface.spineRight : BoxSurface.edge,
@@ -422,6 +582,7 @@ class GameBoxModel {
       right: _jewel ? BoxSurface.spineRight : BoxSurface.edge,
       leftSource: _jewel ? const Rect.fromLTWH(0, 0, 1, 1) : Rect.fromLTRB(0, 0, spineSplit, 1),
       radius: profile.cornerRadius,
+      segments: cornerSegments,
     );
     final lidFaces = cuboid(
       'lid',
@@ -432,16 +593,137 @@ class GameBoxModel {
       left: _jewel ? BoxSurface.edge : BoxSurface.spine,
       leftSource: Rect.fromLTRB(spineSplit, 0, 1, 1),
       radius: profile.cornerRadius,
+      segments: cornerSegments,
     );
     final angle = lidOpenAngle * _ease(opening.lid);
     final hinge = BoxV3(min.x, 0, splitZ);
     final lid = BoxRigid.about(hinge, BoxM3.rotationY(angle));
     final support = supportPart(opening, trayZ: splitZ);
+    // The manual is held inside the front panel: hidden by the panel until
+    // its inner face turns toward the viewer.
+    final booklet = _bookletPart(
+      opening,
+      rest: _hingedBookletRest(opening, min, max, splitZ, lid),
+      layer: angle > 1.66 ? 3 : 1,
+    );
     return [
       BoxPart(id: 'body', faces: body, layer: 0),
       ?support,
+      ?booklet,
       BoxPart(id: 'lid', faces: lidFaces, transform: lid, layer: 2),
     ];
+  }
+
+  /// Size of the manual (mm): width, height and thickness, fitted inside the
+  /// box with the proportions of its first page when known.
+  (double, double, double)? get bookletSize {
+    final b = booklet;
+    if (b == null || !profile.opens) return null;
+    double maxW, maxH, thickness, fallback;
+    switch (profile.caseKind) {
+      case GameBoxCaseKind.keepCase:
+        final card = profile.support == GameBoxSupportKind.card;
+        maxW = width - (card ? 24 : 14);
+        maxH = height - (card ? 20 : 10);
+        thickness = card ? 1.2 : 1.8;
+        fallback = card ? 0.92 : 0.70;
+      case GameBoxCaseKind.jewelCase:
+        // A CD booklet: square, the size of the front insert.
+        maxW = width - GameBoxProfile.jewelHinge - 13;
+        maxH = height - 5;
+        thickness = 1.4;
+        fallback = 1;
+      case GameBoxCaseKind.clamshell:
+        maxW = width - 10;
+        maxH = height - 10;
+        thickness = 2;
+        fallback = maxW / maxH;
+      case GameBoxCaseKind.cardboard:
+        maxW = width - 8;
+        maxH = height - 6;
+        thickness = 2;
+        fallback = maxW / maxH;
+      case GameBoxCaseKind.flat:
+        return null;
+    }
+    final known = b.pageAspect;
+    final aspect = known != null && known.isFinite && known > 0 ? known.clamp(0.4, 2.5).toDouble() : fallback;
+    var w = maxW;
+    var h = w / aspect;
+    if (h > maxH) {
+      h = maxH;
+      w = h * aspect;
+    }
+    return (w, h, thickness);
+  }
+
+  /// Faces of the manual in its own frame: centred on the origin, cover
+  /// toward −z (the viewer), stapled spine on the left.
+  List<BoxFace> bookletFaces() {
+    final size = bookletSize;
+    if (size == null) return const [];
+    final (w, h, t) = size;
+    return cuboid(
+      'booklet',
+      BoxV3(-w / 2, -h / 2, -t / 2),
+      BoxV3(w / 2, h / 2, t / 2),
+      front: BoxSurface.bookletCover,
+      back: BoxSurface.bookletBack,
+      left: BoxSurface.bookletSpine,
+      right: BoxSurface.bookletPages,
+      top: BoxSurface.bookletPages,
+      bottom: BoxSurface.bookletPages,
+    );
+  }
+
+  /// On the inside of the front panel, cover toward the inside of the box
+  /// (it faces the viewer once the panel lies open), readable the right way
+  /// round. Raising it lifts it off the panel's clips.
+  BoxRigid? _hingedBookletRest(BoxOpening opening, BoxV3 min, BoxV3 max, double splitZ, BoxRigid lid) {
+    final size = bookletSize;
+    if (size == null) return null;
+    final (_, _, t) = size;
+    // A jewel booklet lies under the front insert, beside the hinge band.
+    final cx = _jewel ? (min.x + GameBoxProfile.jewelHinge + max.x) / 2 : 0.0;
+    final raise = 3.0 * _ease(opening.booklet);
+    final place = BoxRigid(BoxM3.rotationY(math.pi), BoxV3(cx, 0, splitZ + t / 2 + 0.2 + raise));
+    return lid.compose(place);
+  }
+
+  /// Standing inside a cardboard box behind the cartridge; raising it lifts
+  /// it out through the open top until it shows a little above the
+  /// cartridge fully lifted, so both can be seen.
+  BoxRigid? _cardboardBookletRest(BoxOpening opening) {
+    final size = bookletSize;
+    if (size == null) return null;
+    final (_, h, t) = size;
+    final cart = _fittedSupportSize;
+    final cartBack = cart == null ? 0.0 : cart.$3 / 2;
+    final back = depth / 2 - 0.4;
+    final z = math.min((cartBack + back) / 2, back - t / 2);
+    final bottom = height / 2 - 2;
+    final restTop = bottom - h;
+    // Top of the cartridge once lifted (see [supportPart]), or of the box.
+    final above = cart == null ? -height / 2 : bottom - cart.$2 * 1.62;
+    final raised = math.min(above, -height / 2) - 14;
+    final rise = math.max(0.0, restTop - raised) * _ease(opening.booklet);
+    return BoxRigid.translate(BoxV3(0, bottom - h / 2 - rise, z));
+  }
+
+  BoxPart? _bookletPart(BoxOpening opening, {required BoxRigid? rest, required int layer}) {
+    if (rest == null) return null;
+    final faces = bookletFaces();
+    if (faces.isEmpty) return null;
+    final target = opening.takeTarget;
+    final taking = target != null && opening.take > 0;
+    return BoxPart(
+      id: 'booklet',
+      faces: faces,
+      transform: taking ? BoxRigid.lerp(rest, target, _ease(opening.take)) : rest,
+      frameTransform: rest,
+      // Taken toward the camera, it is nearer than everything else.
+      layer: taking ? 6 : layer,
+    );
   }
 
   /// Cardboard: the top flap turns backward around the top-back edge, then
@@ -476,9 +758,12 @@ class GameBoxModel {
     // While the flap closes over the opening it is nearer than the support;
     // once folded back (and before the support rises) it is behind it.
     final flapBehind = opening.lid >= 0.62;
+    // The manual stands behind the cartridge: same layer, painted first.
+    final booklet = _bookletPart(opening, rest: _cardboardBookletRest(opening), layer: 2);
     return [
       BoxPart(id: 'opening', faces: [opening2], layer: 0, cull: false),
       BoxPart(id: 'flap', faces: flapFaces, transform: flap, layer: flapBehind ? 1 : 4),
+      ?booklet,
       ?support,
       BoxPart(id: 'body', faces: body, layer: 3),
     ];
@@ -518,16 +803,21 @@ class GameBoxModel {
         _ => true,
       };
 
-  /// Rest position of the support in box coordinates, before it lifts.
-  BoxPart? supportPart(BoxOpening opening, {required double trayZ}) {
+  /// The support's size once fitted in the box: never larger than the box
+  /// (wrong data, tiny jewel cases).
+  (double, double, double, bool)? get _fittedSupportSize {
     final size = supportSize;
     if (size == null) return null;
-    var (sw, sh, st, round) = size;
-    // Never larger than the box (wrong data, tiny jewel cases).
+    final (sw, sh, st, round) = size;
     final fit = math.min(1.0, math.min((width * 0.92) / sw, (height * 0.92) / sh));
-    sw *= fit;
-    sh *= fit;
-    st = math.min(st * fit, depth * 0.8);
+    return (sw * fit, sh * fit, math.min(st * fit, depth * 0.8), round);
+  }
+
+  /// Rest position of the support in box coordinates, before it lifts.
+  BoxPart? supportPart(BoxOpening opening, {required double trayZ}) {
+    final size = _fittedSupportSize;
+    if (size == null) return null;
+    final (sw, sh, st, round) = size;
     final lift = _ease(opening.support);
     switch (profile.caseKind) {
       case GameBoxCaseKind.cardboard:
@@ -669,11 +959,12 @@ class BoxProjector {
     final r = pose.rotation;
     var minX = double.infinity, maxX = -double.infinity;
     var minY = double.infinity, maxY = -double.infinity;
-    for (final part in model.parts(opening)) {
+    final framedParts = [for (final part in model.parts(opening)) if (part.framed) part];
+    for (final part in framedParts) {
       for (final face in part.faces) {
         for (final (a, b) in const [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)]) {
           final local = face.origin + face.u * (face.width * a) + face.v * (face.height * b);
-          final p = r.apply(part.transform.apply(local));
+          final p = r.apply(part.framingTransform.apply(local));
           minX = math.min(minX, p.x);
           maxX = math.max(maxX, p.x);
           minY = math.min(minY, p.y);
@@ -693,11 +984,11 @@ class BoxProjector {
       var pMinX = double.infinity, pMaxX = -double.infinity;
       var pMinY = double.infinity, pMaxY = -double.infinity;
       final sz = outline * zoom;
-      for (final part in model.parts(opening)) {
+      for (final part in framedParts) {
         for (final face in part.faces) {
           for (final (a, b) in const [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)]) {
             final local = face.origin + face.u * (face.width * a) + face.v * (face.height * b);
-            final q = r.apply(part.transform.apply(local)) * sz;
+            final q = r.apply(part.framingTransform.apply(local)) * sz;
             final w = math.max(0.2, 1 + q.z / focal);
             pMinX = math.min(pMinX, q.x / w);
             pMaxX = math.max(pMaxX, q.x / w);
@@ -733,6 +1024,77 @@ class BoxProjector {
       );
     }
     return null;
+  }
+
+  /// Screen corners of the face [faceId] (top-left, top-right, bottom-right,
+  /// bottom-left), or null when that face is not part of this opening or
+  /// lies behind the camera.
+  List<Offset>? faceQuad(String faceId) {
+    for (final part in model.parts(opening)) {
+      for (final face in part.faces) {
+        if (face.id != faceId) continue;
+        final corners = <Offset>[];
+        for (final (a, b) in const [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]) {
+          final local = face.origin + face.u * (face.width * a) + face.v * (face.height * b);
+          final point = screenPoint(part.id, local);
+          if (point == null) return null;
+          corners.add(point);
+        }
+        return corners;
+      }
+    }
+    return null;
+  }
+
+  /// Whether [point] falls on the part of the manual's cover that is seen
+  /// now: a face drawn over it (the front of a cardboard box) takes the tap.
+  bool hitsBooklet(Offset point) {
+    final faces = project();
+    final index = faces.indexWhere((f) => f.face.id == 'booklet.front');
+    if (index < 0 || !_contains(faces[index], point)) return false;
+    for (final f in faces.skip(index + 1)) {
+      if (f.part.id != 'booklet' && _contains(f, point)) return false;
+    }
+    return true;
+  }
+
+  static bool _contains(ProjectedFace f, Offset point) {
+    final m = f.matrix.storage;
+    Offset corner(double x, double y) {
+      final w = m[3] * x + m[7] * y + m[15];
+      return Offset((m[0] * x + m[4] * y + m[12]) / w, (m[1] * x + m[5] * y + m[13]) / w);
+    }
+    final quad = [corner(0, 0), corner(f.width, 0), corner(f.width, f.height), corner(0, f.height)];
+    var inside = false;
+    for (var i = 0, j = quad.length - 1; i < quad.length; j = i++) {
+      final a = quad[i], b = quad[j];
+      if ((a.dy > point.dy) != (b.dy > point.dy) &&
+          point.dx < (b.dx - a.dx) * (point.dy - a.dy) / (b.dy - a.dy) + a.dx) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  /// Where the manual goes when it is taken: in front of the camera, facing
+  /// it squarely, centred in the viewport and large enough to fill most of
+  /// it, in box coordinates for this pose.
+  BoxRigid? bookletTakeTarget({double fill = 0.82}) {
+    final size = model.bookletSize;
+    if (size == null || viewport.isEmpty) return null;
+    final (w, h, _) = size;
+    final s = scale * pose.zoom.clamp(BoxPose.minZoom * 0.3, BoxPose.maxZoom);
+    final f = focal;
+    // Pixels per millimetre wanted on screen; a point at view depth z (mm)
+    // projects at s / (1 + z·s / f).
+    final want = math.min(viewport.height * fill / h, viewport.width * (fill + 0.04) / w);
+    var z = (s / want - 1) * f / s;
+    z = math.max(z, (0.3 - 1) * f / s);
+    final wz = 1 + z * s / f;
+    final x = -(pose.panX + offsetX) * wz / s;
+    final y = -(pose.panY + offsetY) * wz / s;
+    final inverse = pose.rotation.transposed;
+    return BoxRigid(inverse, inverse.apply(BoxV3(x, y, z)));
   }
 
   /// Centre of the support on screen, when the profile has one.

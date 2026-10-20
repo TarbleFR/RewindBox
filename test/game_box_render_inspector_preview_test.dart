@@ -111,7 +111,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       if (backPose) {
-        await tester.tap(find.text('Back'));
+        await tester.tap(find.text('Back cover'));
         await tester.pumpAndSettle();
       }
       for (var i = 0; i < 3; i++) {

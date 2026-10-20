@@ -20,6 +20,11 @@ import '../../widgets/armsx2_multi_delete_dialog.dart';
 import '../../widgets/marquee_text.dart';
 import '../../widgets/system_logo_fallback.dart';
 import '../../widgets/rainbow_selection_border.dart';
+import '../../providers/file_provider.dart';
+import '../../services/game_box/game_box_media.dart';
+import '../../widgets/game_box/game_box_card.dart';
+import '../../widgets/game_box/game_box_geometry.dart';
+import '../../widgets/game_box/game_box_library.dart';
 
 /// A high-performance list view specialized for game browsing with gamepad support.
 ///
@@ -39,6 +44,16 @@ class GameListView extends StatefulWidget {
   final bool isNavigatingFast;
   final VoidCallback? onGamepadReactivated;
 
+  /// Draws each game's 3D box beside its title (docs/game-box-3d.md § 3);
+  /// without it the rows are text only.
+  final FileProvider? fileProvider;
+
+  /// Opens the viewer of a game's box (a tap on its thumbnail).
+  final void Function(GameModel game)? onInspectBox;
+
+  /// Bumped when a scrape rewrites artwork.
+  final int artworkVersion;
+
   const GameListView({
     super.key,
     required this.system,
@@ -50,6 +65,9 @@ class GameListView extends StatefulWidget {
     this.isAllMode = false,
     this.isNavigatingFast = false,
     this.onGamepadReactivated,
+    this.fileProvider,
+    this.onInspectBox,
+    this.artworkVersion = 0,
   });
 
   @override
@@ -63,8 +81,18 @@ class GameListViewState extends State<GameListView>
   late AnimationController _selectionController;
   late Animation<double> _selectionAnimation;
 
-  // Constants for pixel-perfect highlight positioning.
-  static const double _itemHeightBase = 26.0;
+  // Constants for pixel-perfect highlight positioning. Rows with a 3D box
+  // are taller so that the box stays legible.
+  double get _itemHeightBase => _showsBoxes ? 34.0 : 26.0;
+
+  bool get _showsBoxes => widget.fileProvider != null;
+
+  /// Width of the box thumbnail column and the gap after it.
+  double get _thumbWidth => _showsBoxes ? 30.r : 0;
+  double get _thumbGap => _showsBoxes ? 6.r : 0;
+
+  int _boxProfileGen = 0;
+  final Map<String, double> _titleWidths = {};
 
   /// Public API to trigger list scrolling from the parent widget.
   void scrollToIndex(
@@ -275,6 +303,18 @@ class GameListViewState extends State<GameListView>
                       theme.extension<CornerRadii>()?.radiusInternal ??
                       BorderRadius.circular(14.r);
 
+                  if (_showsBoxes) {
+                    // The halo marks the selected title only: it never
+                    // covers the box thumbnail or the rest of the row.
+                    return _titleHighlight(
+                      theme,
+                      top: topPosition,
+                      itemHeight: itemHeight,
+                      color: highlightColor,
+                      radius: highlightRadius,
+                    );
+                  }
+
                   return Positioned(
                     top: topPosition,
                     left: 8.r,
@@ -348,6 +388,10 @@ class GameListViewState extends State<GameListView>
                             alignment: Alignment.centerLeft,
                             child: Row(
                               children: [
+                                if (_showsBoxes) ...[
+                                  _boxThumbnail(game, itemHeight),
+                                  SizedBox(width: _thumbGap),
+                                ],
                                 if (game.isFavorite == true)
                                   Container(
                                     margin: EdgeInsets.only(right: 4.r),
@@ -404,6 +448,142 @@ class GameListViewState extends State<GameListView>
         ),
       ],
     );
+  }
+
+  // 3D boxes ----------------------------------------------------------------
+
+  /// The game's box, small and slightly turned, left of its title. A tap on
+  /// it opens the box viewer; a game without a front scan keeps a blank slot
+  /// so that every title starts at the same place.
+  Widget _boxThumbnail(GameModel game, double itemHeight) {
+    final fp = widget.fileProvider!;
+    final folder = GameBoxLibrary.folderFor(game, widget.system, isAllMode: widget.isAllMode);
+    final front = GameBoxLibrary.mediaPath(
+      game,
+      folder,
+      GameBoxMediaKind.front.folder,
+      fp,
+      artworkVersion: widget.artworkVersion,
+    );
+    final theme = Theme.of(context);
+    if (front == null) {
+      return SizedBox(
+        width: _thumbWidth,
+        height: itemHeight - 4.r,
+        child: Icon(
+          Symbols.videogame_asset_rounded,
+          size: 14.r,
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+        ),
+      );
+    }
+    final systemId = GameBoxLibrary.systemIdFor(game, widget.system, isAllMode: widget.isAllMode);
+    GameBoxLibrary.ensureProfile(systemId, () {
+      if (mounted) setState(() => _boxProfileGen++);
+    });
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2;
+    // Decoded at the thumbnail's own size, in 32 px steps.
+    final decode = (((_thumbWidth * dpr * 1.5) / 32).ceil() * 32).clamp(64, 256).toInt();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onInspectBox == null ? null : () => widget.onInspectBox!(game),
+      child: SizedBox(
+        width: _thumbWidth,
+        height: itemHeight - 4.r,
+        child: GameBoxCard(
+          key: ValueKey('listbox_${game.romname}_${widget.artworkVersion}_$_boxProfileGen'),
+          frontPath: front,
+          title: game.name,
+          systemId: systemId,
+          spinePath: GameBoxLibrary.mediaPath(
+            game,
+            folder,
+            GameBoxMediaFolders.spine,
+            fp,
+            artworkVersion: widget.artworkVersion,
+          ),
+          decodeWidth: decode,
+          fitPadding: 1,
+          pose: const BoxPose(yaw: -0.55, pitch: 0.1),
+        ),
+      ),
+    );
+  }
+
+  TextStyle _selectedTitleStyle(ThemeData theme) => TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 11.r,
+        fontFamily: theme.textTheme.bodyMedium?.fontFamily,
+      );
+
+  /// Width of the selected title as drawn, favourite heart included.
+  double _titleWidth(GameModel game, ThemeData theme) {
+    final text = GameUtils.formatGameName(game.name.isNotEmpty ? game.name : game.romname);
+    final key = '${game.isFavorite == true}|$text|${11.r}';
+    return _titleWidths.putIfAbsent(key, () {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: _selectedTitleStyle(theme)),
+        maxLines: 1,
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      final width = painter.width + (game.isFavorite == true ? 15.r : 0);
+      painter.dispose();
+      return width;
+    });
+  }
+
+  /// The rainbow halo around the selected title: it follows the selection,
+  /// fits the length of the title (up to the row's width) and leaves the box
+  /// thumbnail outside.
+  Widget _titleHighlight(
+    ThemeData theme, {
+    required double top,
+    required double itemHeight,
+    required Color color,
+    required BorderRadius radius,
+  }) {
+    final index = widget.selectedIndex.clamp(0, widget.games.length - 1);
+    final pad = 6.r;
+    // List padding, row padding, thumbnail and its gap.
+    final left = 8.r + 8.r + _thumbWidth + _thumbGap - pad;
+    return LayoutBuilder(builder: (context, constraints) {
+      final available = constraints.maxWidth - left - 8.r;
+      final target = widget.games.isEmpty
+          ? 0.0
+          : (_titleWidth(widget.games[index], theme) + 2 * pad).clamp(24.r, available).toDouble();
+      final height = itemHeight - 8.r;
+      return Stack(children: [
+        Positioned(
+          top: top + (itemHeight - height) / 2,
+          left: left,
+          height: height,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(end: target),
+            duration: Duration(milliseconds: widget.isNavigatingFast ? 90 : 180),
+            curve: Curves.easeOutCubic,
+            builder: (context, width, _) => SizedBox(
+              key: const ValueKey('list_title_halo'),
+              width: width,
+              child: RepaintBoundary(
+                child: RainbowSelectionBorder(
+                  borderRadius: radius,
+                  borderWidth: 2.r,
+                  glowWidth: 4.r,
+                  glowBlur: 3.r,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: radius,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]);
+    });
   }
 
   /// System Branding Header: Renders the system logo.
