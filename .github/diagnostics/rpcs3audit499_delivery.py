@@ -132,9 +132,9 @@ def final_ipa(path, build):
     from validate_hd_textures_ipa import validate
     result = validate(path, build)
     with zipfile.ZipFile(path) as archive:
-        name = next(n for n in archive.namelist() if n.endswith('/Frameworks/RPCS3Core.framework/RPCS3Core'))
+        name = next(n for n in archive.namelist() if n.endswith('/Frameworks/libRPCS3Core.dylib'))
         assert b'SPUCORE499 Building function' in archive.read(name)
-        index = next(n for n in archive.namelist() if n.endswith('/Frameworks/neo_texture_catalog.framework/manifest.json.gz'))
+        index = next(n for n in archive.namelist() if n.endswith('/Frameworks/neo_texture_catalog.framework/NeoTextureCatalog.bundle/manifest.json.gz'))
         expected = (ROOT / 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz').read_bytes()
         assert archive.read(index) == expected
     sealed = json.loads((ROOT / 'build/delivery/signed-payload-identity.json').read_text())

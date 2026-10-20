@@ -73,6 +73,7 @@ on:
         default: build-utils/delivery-499-recipient.pem
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     # The host integration reuses the already built, provenance-checked Core;
