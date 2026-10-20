@@ -120,15 +120,21 @@ check(host.requestStop()); awaitResult { completed == 2 }; check(!host.isSession
 check(api.diagnostic == "échec natif témoin")
 fail(1)
 var failed = false
-try host.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",width:1280,height:720,
-    surface:Surface(),pointer:UnsafeMutableRawPointer(bitPattern:1)!) { result in
+var poisoned: MeloNXSessionHost? = MeloNXSessionHost(api:api)
+weak var weakPoisoned = poisoned
+var failedSurface: Surface? = Surface(); weak var weakFailedSurface = failedSurface
+try poisoned!.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",width:1280,height:720,
+    surface:failedSurface!,pointer:UnsafeMutableRawPointer(bitPattern:1)!) { result in
     if case .failure(let error) = result { failed = error.description.contains("échec natif témoin") }
     completed += 1
 }
+failedSurface = nil
 awaitResult { completed == 3 }
-check(failed && !host.isSessionActive && api.state == 4)
+check(failed && poisoned!.isSessionActive && api.state == 4)
+poisoned = nil
+check(weakPoisoned != nil && weakFailedSurface != nil)
 do {
-    try host.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",width:1280,height:720,
+    try weakPoisoned!.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",width:1280,height:720,
         surface:Surface(),pointer:UnsafeMutableRawPointer(bitPattern:1)!) { _ in fatalError() }
     fatalError("Reused quarantined native state")
 } catch { cases += 1 }

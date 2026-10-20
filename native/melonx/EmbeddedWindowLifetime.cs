@@ -14,6 +14,8 @@ internal sealed class EmbeddedWindowLifetime
     private bool _rendering;
     private bool _used;
     private bool _disposed;
+    private bool _guestStopFailed;
+    internal bool GuestStopFailed { get { lock (_gate) return _guestStopFailed; } }
     private readonly ManualResetEventSlim _resume = new(true);
     internal bool InputAllowed { get { lock (_gate) return _running && !_requested; } }
     internal bool RenderAllowed { get { lock (_gate) return _rendering; } }
@@ -58,7 +60,7 @@ internal sealed class EmbeddedWindowLifetime
             {
                 RequestStop();
                 guestStopped.Wait();
-                try { releaseGpu(); }
+                try { if (!GuestStopFailed) releaseGpu(); }
                 catch (Exception error) { renderError = renderError == null ? error : new AggregateException(renderError, error); }
             }
         }) { Name = "NeoStation.MeloNX.Render", IsBackground = true };
@@ -73,6 +75,11 @@ internal sealed class EmbeddedWindowLifetime
         {
             RequestStop();
             try { stopGuest(); }
+            catch
+            {
+                lock (_gate) _guestStopFailed = true;
+                throw;
+            }
             finally
             {
                 lock (_gate) { _rendering = false; _resume.Set(); }
@@ -92,6 +99,7 @@ internal sealed class EmbeddedWindowLifetime
         {
             if (_disposed) return;
             if (_running) throw new InvalidOperationException("Render worker is still live.");
+            if (_guestStopFailed) throw new InvalidOperationException("Guest termination is unproven; retain resources until process exit.");
             _disposed = true;
             _resume.Dispose();
         }

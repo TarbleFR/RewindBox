@@ -91,6 +91,8 @@ final class MeloNXNativeSessionAPI {
 // Owns only a session; JIT authorization, dependency verification, original
 // controls and imports belong to the integration above this boundary.
 final class MeloNXSessionHost {
+    private static let quarantineLock = NSLock()
+    private static var quarantinedHosts: [MeloNXSessionHost] = []
     private let api: MeloNXNativeSessionAPI
     private let queue = DispatchQueue(label: "com.neogamelab.neostation.melonx.session", qos: .userInitiated)
     private let lock = NSLock()
@@ -124,9 +126,19 @@ final class MeloNXSessionHost {
             DispatchQueue.main.async { [self] in
                 lock.lock()
                 guard generation == id else { lock.unlock(); return }
-                generation = nil
-                retainedSurface = nil
+                let quarantined = api.state == 4
+                if !quarantined {
+                    generation = nil
+                    retainedSurface = nil
+                }
                 lock.unlock()
+                if quarantined {
+                    // Native failure may leave guest users alive. Preserve
+                    // activity and the layer even if the UI releases this host.
+                    Self.quarantineLock.lock()
+                    Self.quarantinedHosts.append(self)
+                    Self.quarantineLock.unlock()
+                }
                 completion(status == 0 ? .success(()) : .failure(.run(status, detail)))
             }
         }

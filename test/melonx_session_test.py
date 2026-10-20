@@ -123,11 +123,12 @@ Case("input exception still stops guest and joins GPU", () => {
         () => { while (life.RenderAllowed) Thread.Yield(); }, () => guest = true, () => { Check(guest); gpu = true; }));
     Check(guest && gpu); life.Dispose(() => {});
 });
-Case("guest stop exception still joins GPU", () => {
+Case("guest stop failure joins worker and retains unsafe resources", () => {
     var life = new EmbeddedWindowLifetime(); bool gpu = false;
     Throws(() => life.Run(() => {}, () => { while (life.RenderAllowed) Thread.Yield(); },
         () => throw new InvalidOperationException("guest sentinel"), () => gpu = true));
-    Check(gpu); life.Dispose(() => {});
+    Check(!gpu && life.GuestStopFailed && !life.RenderAllowed);
+    Throws(() => life.Dispose(() => throw new Exception("Released resources with unproven guest termination")));
 });
 Case("GPU release failure is surfaced once", () => {
     var life = new EmbeddedWindowLifetime(); int attempts = 0;

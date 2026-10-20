@@ -77,20 +77,19 @@ def apply(source):
                 EmbeddedSessions.WithdrawControls();
                 var context = _emulationContext;
                 var window = _window;
-                // Clear shared references before releasing their objects.
+                // Failed guest termination leaves unknown live CPU users.
+                // Keep every remaining handle rooted until process exit.
+                if (window?.EmbeddedExecutionFailed == true)
+                    throw new InvalidOperationException("Session termination is unproven; restart NeoStation.");
+                context?.Dispose();
+                // Execute releases GPU resources on the render worker.
+                // A failure before Execute has no render worker yet.
+                if (context != null && window?.EmbeddedGpuReleased != true) context.DisposeGpu();
+                window?.Dispose();
+                // Clear references only after all ownership was retired. If
+                // any cleanup fails, the quarantined engine retains them.
                 _emulationContext = null;
                 _window = null;
-                try { context?.Dispose(); }
-                finally
-                {
-                    try
-                    {
-                        // Execute releases GPU resources on the render worker.
-                        // A failure before Execute has no render worker yet.
-                        if (context != null && window?.EmbeddedGpuReleased != true) context.DisposeGpu();
-                    }
-                    finally { window?.Dispose(); }
-                }
             }
         }''')
     # The section above ends at the original signature, now rename just that one.
@@ -113,6 +112,8 @@ def apply(source):
         private readonly object _embeddedInputGate = new();
         private bool _embeddedInputDisposed;
         internal bool EmbeddedGpuReleased { get; private set; }
+        internal bool EmbeddedGuestStopFailed => _embeddedLifetime.GuestStopFailed;
+        internal bool EmbeddedExecutionFailed { get; private set; }
         internal void SetEmbeddedPaused(bool paused) => _embeddedLifetime.SetPaused(paused);''')
     once(window, '''            _inputUpdatedEvent.Set();
         }
@@ -146,7 +147,7 @@ def apply(source):
         {
             _chrono.Restart();
             InitializeWindow();
-            _embeddedLifetime.Run(MainLoop, Render, () =>
+            try { _embeddedLifetime.Run(MainLoop, Render, () =>
             {
                 Library.WithdrawEmbeddedControls();
                 _gpuCancellationTokenSource.Cancel();
@@ -158,7 +159,8 @@ def apply(source):
                 EmbeddedGpuReleased = true;
                 try { Device.DisposeGpu(); }
                 finally { FinalizeWindowRenderer(); }
-            });
+            }); }
+            catch { EmbeddedExecutionFailed = true; throw; }
         }''')
     section(window, '        protected virtual void Dispose(bool disposing)',
             '        internal sealed class StatisticsRequest', '''        protected virtual void Dispose(bool disposing)
