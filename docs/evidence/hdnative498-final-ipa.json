@@ -1,0 +1,44 @@
+{
+  "result": "passed",
+  "build": 498,
+  "indexSHA256": "c1fd3b7ccf3e36164bcaa39c50be5c9818f27b00f0347a96688929030761dd19",
+  "indexBytes": 189741,
+  "revision": "2026-10-20.28541bbfe23e",
+  "packs": 1088,
+  "packsPerSystem": {
+    "3ds": 65,
+    "gc": 112,
+    "n64": 21,
+    "nes": 5,
+    "ps1": 2,
+    "ps2": 698,
+    "psp": 123,
+    "wii": 67
+  },
+  "frameworksSHA256": {
+    "neo_texture_catalog": "789aae154234c7a50837c84797246b5543b7dfafda513a9af89e13f7c03bea94",
+    "armsx2_internal_bridge": "892c5cee0dc0227709c5158701ecf1128f026db15da0b73fac16b16f574b2efc",
+    "dolphin_internal_bridge": "650fddfc80d291104a10b1dae1ac24a4ef6c692261e1680482a588f0addfc41d",
+    "libretro_internal_bridge": "ee85fb3d4b8d7fd5335cf357425abbd5f8cbbe50c502ffc692c0a3f9880ec287"
+  },
+  "packsBundled": false,
+  "ipaSHA256": "6b054cac8a78de265e6d1d1c151d2f8bfb05fed293f3b9715b20cccaa8f37c79",
+  "physicalDeviceValidated": false,
+  "nativeRARAndPublicHosts": true,
+  "finalSignedIPA": true,
+  "source": "2617d176e091d0bff63820a5c46917b17dd4a943",
+  "pspCoreSource": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+  "pspCoreRun": 39455712245,
+  "rebuiltCores": [],
+  "pspCoreSHA256BeforeSigning": "a7d058581b657714e055dc9713e9a1252ad4acf6315b30610fcb2b1c81130b6f",
+  "originalCorePackageIdentitySHA256": "74cd78ccf2ceedf0eeeec4595d27a51f66eca5865b7ab911a740a7044ffaf579",
+  "signingContinuitySHA256": "f76aa8af968d8e9c7c43bcdcfbdcd4643771186176588402dd5ec1d115671286",
+  "catalogue": {
+    "revision": "2026-10-20.28541bbfe23e",
+    "sha256": "c1fd3b7ccf3e36164bcaa39c50be5c9818f27b00f0347a96688929030761dd19",
+    "bytes": 189741,
+    "distinctFamilies": 418,
+    "oneTapFamilies": 418,
+    "manualVerifiedFamilies": 0
+  }
+}

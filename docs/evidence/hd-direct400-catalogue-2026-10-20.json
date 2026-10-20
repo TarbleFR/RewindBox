@@ -856,6 +856,9 @@
   "cores_rebuilt_for_this_cycle": [],
   "reused_psp_core_source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
   "physical_device_rendering_validated": false,
-  "ipa_produced": false,
-  "public_release_published": false
+  "ipa_produced": true,
+  "public_release_published": false,
+  "ipa_delivery_receipt": "docs/evidence/hdnative498-delivery.json",
+  "frozen_delivery_source": "2617d176e091d0bff63820a5c46917b17dd4a943",
+  "delivery_build": 498
 }

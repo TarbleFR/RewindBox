@@ -58,4 +58,12 @@ RAR4 non solide et RAR5, dont les archives solides couvertes par les fixtures, s
 
 Yandex est couvert par les fixtures du résolveur, sans nouveau téléchargement intégral de son gros fichier dans les six sondes ci-dessus. Les contrôles réseau prouvent le téléchargement, l’intégrité et l’installation sur macOS, pas le rendu d’un jeu. Le rapport indique `activated: true` uniquement pour Crash Nitro Kart ; les cinq autres lignes ne prouvent pas une activation réussie. Toutes indiquent `physical_device_rendering: false`.
 
-La liaison iPhone utilise les sources natives et le SDK réel, avec un stub de déclaration Flutter pour ce contrôle isolé. Elle ne constitue ni une compilation complète de l’application ni un essai sur appareil. **Aucun test physique iPhone, rendu en jeu ou nouvel IPA n’est attesté par ce cycle.** Les limites régionales, la couverture partielle et les contraintes mémoire des packs restent celles documentées par les sources.
+La liaison iPhone isolée utilise les sources natives et le SDK réel, avec un stub de déclaration Flutter ; elle ne constitue pas à elle seule une compilation complète. La livraison ci-dessous ajoute cette compilation complète et les contrôles du binaire. Aucun test physique iPhone ni rendu en jeu n’est attesté. Les limites régionales, la couverture partielle et les contraintes mémoire des packs restent celles documentées par les sources.
+
+## Livraison Build 498
+
+Source figée `2617d176e091d0bff63820a5c46917b17dd4a943`, workflow `69176e02b6e2133075b2745dd06d6a70316674a4`, [run 39464441422](https://github.com/TarbleFR/neostation-ios/actions/runs/39464441422) : checks, Foundation final **169/0** et compilation iPhone Release réussis. Le paquet scellé porte exactement le catalogue ci-dessus et les capacités RAR/résolveurs/MEGA compilées. Les sections de code, données et ABI sont conservées à la signature ; le cœur PPSSPP497 et les 34 autres cœurs libretro sont inchangés. Aucun cœur reconstruit, tag ou release publique.
+
+IPA **0.0.8 (498)** : **168 386 155 octets**, SHA-256 `6b054cac8a78de265e6d1d1c151d2f8bfb05fed293f3b9715b20cccaa8f37c79`. Le téléchargement récupéré a été indépendamment vérifié, puis son catalogue et ses marqueurs natifs contrôlés à nouveau. Signature Apple via SideStore requise. [Reçu et empreintes](evidence/hdnative498-delivery.json), [contrôle du paquet final](evidence/hdnative498-final-ipa.json), [continuité des images signées](evidence/hdnative498-signing-continuity.json).
+
+Trois des refus CRC natifs passent indépendamment `7z t` sur les mêmes octets. Ils restent non pris en charge par notre lecteur, sans qualification de corruption ni promotion ; [diagnostic conservé](evidence/hd-direct400-rar-crc-independent.json).
