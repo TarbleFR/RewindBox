@@ -64,7 +64,9 @@ def main():
     ffmpeg = '-G "Unix Makefiles" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=' + sdk
     ffmpeg += ' -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0'
     ffmpeg += ' -DCMAKE_C_COMPILER=' + clang + ' -DCMAKE_CXX_COMPILER=' + clangxx
-    command = ['make', '-C', source / 'libretro', '-j3', 'platform=ios-arm64', 'TARGET_ARCH=arm64',
+    # Upstream matches generic "arm64" before "ios". Select ios explicitly;
+    # CC/CXX/target flags below select arm64 without taking its Linux branch.
+    command = ['make', '-C', source / 'libretro', '-j3', 'platform=ios', 'TARGET_ARCH=arm64',
                'DEBUG=0', 'IOSSDK=' + sdk, 'GIT_VERSION=1bd28b0-neostation-memory1',
                'CC=' + clang, 'CXX=' + clangxx, 'PLATCFLAGS=' + target + ' -DHAVE_POSIX_MEMALIGN',
                'CPUFLAGS=-DARM64', 'FFMPEG_CMAKE_TOOLCHAIN=' + ffmpeg,
