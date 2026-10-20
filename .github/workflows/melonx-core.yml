@@ -1,0 +1,41 @@
+name: MeloNX embedded engine
+run-name: MeloNX engine • ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/melonx-core.yml'
+      - 'build-utils/melonx/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: melonx-engine-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  core:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.100'
+      - name: Fetch exact MeloNX source
+        run: |
+          set -euo pipefail
+          git init .native-sources/MeloNX
+          git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
+          git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+          git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+      - name: Compile NativeAOT library and verify exported ABI
+        run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-engine-${{ github.sha }}
+          path: dist/melonx/
+          if-no-files-found: ignore
+          retention-days: 14
